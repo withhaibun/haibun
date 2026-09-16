@@ -2,55 +2,47 @@ import { z } from "zod";
 import { jsonSchemaOf } from "./json-schema-of.js";
 import { AStepper, type TStepperStep, type TFeatureStep } from "./astepper.js";
 import type { TWorld } from "./world.js";
-import { buildConcernCatalog, type TConcernCatalog } from "./hypermedia.js";
+import { buildConcernCatalog } from "./hypermedia.js";
 import type { TActionResult, TSeqPath } from "../schema/protocol.js";
 import { namedInterpolation, mapInputToStepValues } from "./namedVars.js";
 import { constructorName, actionNotOK } from "./util/index.js";
 import { populateActionArgs } from "./populateActionArgs.js";
 import { DOMAIN_STRING, normalizeDomainKey } from "./domains.js";
 import { zodTypeLabel } from "./composite-domain.js";
-import { StepperRegistry, type StepDescriptor } from "./stepper-registry.js";
 import { isPersisted } from "./resources.js";
 import { resolveOutputSchema } from "./tool-validation.js";
-import type { TShownTotal, TStepsQuery } from "./steps-query.js";
+import {
+	STEP_DETAIL,
+	containsText,
+	definitionLink,
+	stepperStepsLink,
+	type TDomainDiscoveryInfo,
+	type TInputSchema,
+	type TStepDescriptor,
+	type TStepDiscovery,
+	type TStepperEntry,
+	type TStepsQuery,
+} from "./step-discovery.js";
 
 /**
- * A registered step tool: the unit of dispatch for any transport (MCP, SSE, etc.).
+ * A registered step tool: the unit of dispatch for any transport (RPC, MCP, a model's turn, a subprocess).
  */
 export type StepTool = {
-	name: string;
-	description: string;
-	inputSchema: StepToolInputSchema;
+	/** The step as every caller discovers it. */
+	descriptor: TStepDescriptor;
 	/** Zod schemas for each input parameter, keyed by parameter name. Used for runtime validation. */
 	paramSchemas: Map<string, z.ZodType>;
 	/** Domain key for each parameter, keyed by parameter name. Used for domain.coerce() after Zod validation. */
 	paramDomainKeys: Map<string, string>;
-	/** JSON Schema describing the products this step returns. Built from the step's productsDomain, productsDomains, or productsSchema. */
-	outputSchema?: Record<string, unknown>;
-	stepperName: string;
-	stepName: string;
-	/** The registered stepper-step definition. Carries productsDomain, productsDomains, productsSchema, capability, gwta, etc.
-	 * Absent for proxy tools (RemoteStepperProxy, subprocess) where dispatch happens out-of-process. */
+	/** The registered stepper-step definition. Absent for proxy tools (RemoteStepperProxy, subprocess), which dispatch out of process. */
 	stepDef?: TStepperStep;
-	/**
-	 * Optional capability label for permission gating (ZCAP-LD hook).
-	 * Transports check this before dispatching. e.g. "GraphStepper:read", "LlmStepper:*"
-	 */
-	capability?: string;
-	/** Transport type, set by proxy transports (remote, subprocess). Defaults to "local". */
-	transport?: "local" | "remote" | "subprocess";
+	/** Where the step runs: in this process, at a remote host, or in a subprocess. */
+	transport: "local" | "remote" | "subprocess";
 	/** Remote host URL, set by RemoteStepperProxy for dispatch tracing. */
 	remoteHost?: string;
 	/** True if the step action is an async function (observable execution time). */
 	isAsync: boolean;
 	handler: (featureStep: TFeatureStep, world: TWorld) => Promise<TActionResult>;
-};
-
-export type StepToolInputSchema = {
-	type: "object";
-	properties?: Record<string, { type?: string; description?: string; [key: string]: unknown }>;
-	required?: string[];
-	[key: string]: unknown;
 };
 
 /**
@@ -61,6 +53,8 @@ export class StepRegistry {
 	private tools = new Map<string, StepTool>();
 	/** Names injected via set(), survive refresh() so transports (RemoteStepperProxy, subprocess) register once and stay live across per-feature rebuilds. */
 	private injectedNames = new Set<string>();
+	/** What is told when the registry's steps change. */
+	private changeListeners = new Set<() => void>();
 
 	constructor(steppers: AStepper[], world: TWorld) {
 		this.refresh(steppers, world);
@@ -74,6 +68,18 @@ export class StepRegistry {
 			if (existing) next.set(name, existing);
 		}
 		this.tools = next;
+		this.announceChange();
+	}
+
+	/** Tell `listener` each time the registry's steps change, until the returned function is called. A caller that lists
+	 *  the steps to its own clients lists them again, as an MCP server tells its clients the tool list changed. */
+	onChange(listener: () => void): () => void {
+		this.changeListeners.add(listener);
+		return () => this.changeListeners.delete(listener);
+	}
+
+	private announceChange(): void {
+		for (const listener of this.changeListeners) listener();
 	}
 
 	get(name: string): StepTool | undefined {
@@ -94,15 +100,24 @@ export class StepRegistry {
 
 	/** Inject or overwrite a single tool (used by transports to register remote/child steps). Survives refresh(). */
 	set(tool: StepTool): void {
-		this.tools.set(tool.name, tool);
-		this.injectedNames.add(tool.name);
+		this.tools.set(tool.descriptor.method, tool);
+		this.injectedNames.add(tool.descriptor.method);
+		this.announceChange();
 	}
 
 	/** Remove an injected tool. Used by transport detach(). */
 	unset(name: string): void {
 		this.tools.delete(name);
 		this.injectedNames.delete(name);
+		this.announceChange();
 	}
+}
+
+/** The run's step registry, which holds every step the run declares and every step its transports injected. Every caller
+ *  of the run dispatches and discovers against it. */
+export function runRegistry(world: TWorld): StepRegistry {
+	if (!world.runtime.stepRegistry) throw new Error("the run holds no step registry");
+	return world.runtime.stepRegistry;
 }
 
 const HOST_SCOPE = /^host(\d+)_/;
@@ -132,26 +147,21 @@ export function hostScopedMethodName(hostId: number, bareMethod: string): string
 /**
  * Build a registry of step tools from the given steppers.
  * Each key is `${stepperName}-${stepName}` (e.g. `ExampleStepper-getTypes`).
- * All steps are included. MCP filters `exposeMCP: false` separately.
  */
 export function buildStepRegistry(steppers: AStepper[], world: TWorld): Map<string, StepTool> {
 	const registry = new Map<string, StepTool>();
-
 	for (const stepper of steppers) {
-		const stepperName = constructorName(stepper);
-
 		for (const [stepName, stepDef] of Object.entries(stepper.steps)) {
-			const tool = createStepTool(stepperName, stepName, stepDef, world);
-			registry.set(tool.name, tool);
+			const tool = createStepTool(stepper, stepName, stepDef, world);
+			registry.set(tool.descriptor.method, tool);
 		}
 	}
-
 	return registry;
 }
 
-export function createStepTool(stepperName: string, stepName: string, stepDef: TStepperStep, world: TWorld): StepTool {
+export function createStepTool(stepper: AStepper, stepName: string, stepDef: TStepperStep, world: TWorld): StepTool {
+	const stepperName = constructorName(stepper);
 	const { inputSchema, paramSchemas, paramDomainKeys } = buildInputSchema(stepDef, world);
-	const name = stepMethodName(stepperName, stepName);
 	validateInputDomains(stepperName, stepName, stepDef, paramDomainKeys);
 	const resolvedOutputSchema = resolveOutputSchema(stepperName, stepName, stepDef, world);
 	let outputSchema: Record<string, unknown> | undefined;
@@ -162,18 +172,35 @@ export function createStepTool(stepperName: string, stepName: string, stepDef: T
 			/* skip if schema can't be converted */
 		}
 	}
-
+	const params: TStepDescriptor["params"] = {};
+	const paramDomains: TStepDescriptor["paramDomains"] = {};
+	if (stepDef.gwta) {
+		for (const v of Object.values(namedInterpolation(stepDef.gwta).stepValuesMap ?? {})) {
+			params[v.term] = v.domain === "number" ? "number" : "string";
+			paramDomains[v.term] = v.domain || DOMAIN_STRING;
+		}
+	}
 	return {
-		name,
-		description: stepDef.gwta || stepName,
-		inputSchema,
+		descriptor: {
+			method: stepMethodName(stepperName, stepName),
+			stepperName,
+			stepperDescription: stepper.description,
+			stepName,
+			pattern: stepDef.gwta || stepDef.exact || stepDef.match?.toString() || stepName,
+			...(stepDef.description ? { description: stepDef.description } : {}),
+			params,
+			paramDomains,
+			...(stepDef.productsDomain ? { productsDomain: stepDef.productsDomain } : {}),
+			...(stepDef.capability ? { capability: stepDef.capability } : {}),
+			read: stepDef.read === true,
+			fallback: stepDef.fallback === true,
+			inputSchema,
+			...(outputSchema ? { outputSchema } : {}),
+		},
 		paramSchemas,
 		paramDomainKeys,
-		outputSchema,
-		stepperName,
-		stepName,
 		stepDef,
-		capability: stepDef.capability,
+		transport: "local",
 		isAsync: stepDef.action.constructor.name === "AsyncFunction",
 		handler: createStepHandler(stepperName, stepName, stepDef),
 	};
@@ -219,19 +246,20 @@ export function createStepHandler(stepperName: string, stepName: string, stepDef
 export function buildFeatureStepForTransport(tool: StepTool, input: Record<string, unknown>, seqPath: TSeqPath): TFeatureStep {
 	// Proxy tools (RemoteStepperProxy, subprocess) dispatch out-of-process and have no
 	// local stepDef. Construct a carrier with just the description so the handler can run.
-	const step = tool.stepDef ?? ({ gwta: tool.description, action: () => actionNotOK(`no in-process stepDef for ${tool.name}`) } as TStepperStep);
+	const { descriptor } = tool;
+	const step = tool.stepDef ?? ({ gwta: descriptor.pattern, action: () => actionNotOK(`no in-process stepDef for ${descriptor.method}`) } as TStepperStep);
 	// A tool of another host is registered under that host and named for it, while its stepper and step names are the
 	// ones that host knows. Dispatch resolves a step by those names, so without the host here a call by name of a
 	// remote tool finds the local step of the same name and answers from this process.
-	const targetHostId = hostOfMethodName(tool.name);
+	const targetHostId = hostOfMethodName(descriptor.method);
 	return {
 		...(targetHostId === undefined ? {} : { targetHostId }),
-		in: tool.description,
+		in: descriptor.pattern,
 		action: {
-			stepperName: tool.stepperName,
-			actionName: tool.stepName,
+			stepperName: descriptor.stepperName,
+			actionName: descriptor.stepName,
 			step,
-			stepValuesMap: mapInputToStepValues(input, tool.description),
+			stepValuesMap: mapInputToStepValues(input, descriptor.pattern),
 		},
 		seqPath,
 		programmatic: true,
@@ -266,8 +294,8 @@ const UNREPRESENTABLE_ZOD_TYPES = new Set(["bigint", "symbol", "undefined", "voi
  * (enums, object structures, descriptions, etc.) for MCP and SSE consumers.
  * Returns both the JSON Schema (for documentation/discovery) and the Zod schemas (for runtime validation).
  */
-function buildInputSchema(stepDef: TStepperStep, world: TWorld): { inputSchema: StepToolInputSchema; paramSchemas: Map<string, z.ZodType>; paramDomainKeys: Map<string, string> } {
-	const properties: Record<string, { type?: string; description?: string; [key: string]: unknown }> = {};
+function buildInputSchema(stepDef: TStepperStep, world: TWorld): { inputSchema: TInputSchema; paramSchemas: Map<string, z.ZodType>; paramDomainKeys: Map<string, string> } {
+	const properties: TInputSchema["properties"] = {};
 	const required: string[] = [];
 	const paramSchemas = new Map<string, z.ZodType>();
 	const paramDomainKeys = new Map<string, string>();
@@ -340,111 +368,92 @@ export function capabilityAllows(granted: string | string[] | undefined, require
 	});
 }
 
-export function authorizeToolCapability(tool: Pick<StepTool, "name" | "capability">, granted?: string | string[]): void {
-	if (!tool.capability) return;
-	if (capabilityAllows(granted, tool.capability)) return;
-	throw new Error(`${tool.name}: capability ${tool.capability} required`);
+export function authorizeToolCapability(step: Pick<TStepDescriptor, "method" | "capability">, granted?: string | string[]): void {
+	if (!step.capability) return;
+	if (capabilityAllows(granted, step.capability)) return;
+	throw new Error(`${step.method}: capability ${step.capability} required`);
 }
 
-export type DomainDiscoveryInfo = {
-	description?: string;
-	values?: string[];
-	stepperName?: string;
-	persistedAs?: string;
-	/** How a domain presents itself: the component that renders it, the URL its source is served from, and its labels.
-	 *  Never the component's source itself: a client loads that from the URL, and a standalone report inlines it from
-	 *  the domains in memory, so a manifest that carried it would send a bundle to every caller. */
-	ui?: Record<string, unknown>;
-};
+/** Each stepper the steps name, in the order the steps name them, with its description, the number of its steps among
+ *  them and the read of the summaries of its steps. A stepper another host declares is named with that host's prefix. */
+function steppersOf(steps: TStepDescriptor[]): TStepperEntry[] {
+	const byStepper = new Map<string, TStepperEntry>();
+	for (const step of steps) {
+		const host = hostOfMethodName(step.method);
+		const stepper = host === undefined ? step.stepperName : hostScopedMethodName(host, step.stepperName);
+		const entry = byStepper.get(stepper);
+		if (entry) entry.steps += 1;
+		else byStepper.set(stepper, { stepper, description: step.stepperDescription, steps: 1, _links: { steps: stepperStepsLink(stepper) } });
+	}
+	return [...byStepper.values()];
+}
 
-/** A step as a read of what a run declares shows it: its descriptor, and the call a caller makes to run it. */
-export type TShownStep = StepDescriptor & { _links: { call: { method: string } } };
-
-export type StepDiscovery = {
-	steps: TShownStep[];
-	/** Domain definitions from world.domains, serializable for SPA/RPC consumers. */
-	domains: Record<string, DomainDiscoveryInfo>;
-	/** Hypermedia concern catalog, persisted types with ActivityStreams/JSON-LD metadata. */
-	concerns: TConcernCatalog;
-	/** How many of each kind the pattern matched. */
-	total: TShownTotal;
-};
-
-/** The first `limit` of the entries the pattern matches any text of, and how many it matched. Each text is matched
- *  alone, so a pattern anchored at both ends matches a whole method name. */
-function shownOf<T>(entries: T[], textsOf: (entry: T) => Array<string | undefined>, matches: RegExp, limit: number): { shown: T[]; total: number } {
-	const matched = entries.filter((entry) => textsOf(entry).some((text) => text !== undefined && matches.test(text)));
-	return { shown: matched.slice(0, limit), total: matched.length };
+/** Every stepper of a run with every step it declares, which a caller is told before it asks for anything. */
+export function declaredSteppers(registry: StepRegistry): TStepperEntry[] {
+	return steppersOf(registry.list().map((tool) => tool.descriptor));
 }
 
 /**
- * What a run declares to a caller: each step, domain and type the query's pattern matches, up to its limit of each, with
- * how many of each it matched. A step is matched on its method, its pattern or its description, so a pattern on a
- * method's prefix reads one stepper's steps. A caller granted a capability is shown the steps that capability allows; a
- * caller granted none is shown every step, and a gated one is refused when it is called.
+ * What a run declares to a caller: each step and domain whose text contains the query's text, compared without regard to
+ * case, and the steppers of the steps that matched. A step's texts are its method, its pattern and its description, so a
+ * stepper's name and a hyphen read that stepper's steps; a domain's texts are its name and its description.
  *
- * The registry is the run's, which holds the steps a transport injected: another host's steps are shown under the
- * host-scoped name a caller calls them by, with a pattern that names the host.
+ * Every step is shown with the capability it requires, whatever the caller holds: a caller that lacks one is refused when
+ * it calls the step, and is told how to ask for it. The registry is the run's, which holds the steps a transport injected.
  */
-export function discoverSteps(steppers: AStepper[], world: TWorld, registry: StepRegistry, query: TStepsQuery, grantedCapability?: string | string[]): StepDiscovery {
-	const matches = new RegExp(query.pattern, "i");
-	const allows = (capability?: string): boolean => grantedCapability === undefined || !capability || capabilityAllows(grantedCapability, capability);
-	const described = StepperRegistry.getMetadata(steppers).filter((step) => allows(step.capability));
-	for (const step of described) {
-		const tool = registry.get(step.method);
-		if (tool) {
-			step.inputSchema = tool.inputSchema;
-			step.outputSchema = tool.outputSchema;
-		}
-	}
-	const declared = new Set(described.map((step) => step.method));
-	for (const tool of registry.list()) {
-		if (declared.has(tool.name) || !allows(tool.capability)) continue;
-		declared.add(tool.name);
-		described.push({
-			stepperName: tool.stepperName,
-			stepName: tool.stepName,
-			method: tool.name,
-			...(tool.stepDef?.fallback === true ? { fallback: true } : {}),
-			pattern: tool.remoteHost ? `${tool.description} (at ${tool.remoteHost})` : tool.description,
-			params: {},
-			capability: tool.capability,
-			inputSchema: tool.inputSchema as Record<string, unknown> | undefined,
-			outputSchema: tool.outputSchema as Record<string, unknown> | undefined,
-		});
-	}
-	const steps = shownOf(described, (step) => [step.method, step.pattern, step.description], matches, query.limit);
-	const domainEntries = shownOf(Object.entries(world.domains), ([key, domain]) => [key, domain.description], matches, query.limit);
-	const domains: Record<string, DomainDiscoveryInfo> = {};
-	for (const [key, domain] of domainEntries.shown) {
-		// Prefer explicit values; fall back to extracting enum values from z.enum schemas
-		let values = domain.values;
-		if (!values && domain.schema) {
-			try {
-				const jsonSchema = jsonSchemaOf(domain.schema, "values", () => z.toJSONSchema(domain.schema) as Record<string, unknown>);
-				if (Array.isArray(jsonSchema.enum)) {
-					values = jsonSchema.enum as string[];
-				}
-			} catch {
-				// schema not convertible, leave values undefined
-			}
-		}
-		const ui = domain.ui ? (({ jsContent: _source, ...rest }) => rest)(domain.ui as Record<string, unknown> & { jsContent?: string }) : undefined;
-		domains[key] = {
-			description: domain.description,
-			values,
-			stepperName: domain.stepperName,
-			persistedAs: isPersisted(domain.topology) ? domain.topology.persistedAs : undefined,
-			ui,
+export function discoverSteps(world: TWorld, registry: StepRegistry, query: TStepsQuery): TStepDiscovery {
+	const steps = registry
+		.list()
+		.map((tool) => tool.descriptor)
+		.filter((step) => containsText([step.method, step.pattern, step.description], query.text));
+	const steppers = steppersOf(steps);
+	const domains = Object.entries(world.domains).filter(([key, domain]) => containsText([key, domain.description], query.text));
+	if (query.detail === STEP_DETAIL.summary) {
+		return {
+			detail: STEP_DETAIL.summary,
+			steppers,
+			steps: steps.map(({ method, stepperName, pattern, description, capability }) => ({
+				method,
+				stepperName,
+				pattern,
+				...(description === undefined ? {} : { description }),
+				...(capability === undefined ? {} : { capability }),
+				_links: { definition: definitionLink(method) },
+			})),
+			domains: domains.map(([domain, { description }]) => ({ domain, ...(description === undefined ? {} : { description }), _links: { definition: definitionLink(domain) } })),
 		};
 	}
 	const catalog = buildConcernCatalog(world.domains);
-	const persisted = shownOf(Object.entries(catalog.persisted), ([label, concern]) => [label, concern.description], matches, query.limit);
-	const references = shownOf(Object.entries(catalog.references), ([key, reference]) => [key, reference.targetDomain], matches, query.limit);
 	return {
-		steps: steps.shown.map((step) => ({ ...step, _links: { call: { method: step.method } } })),
-		domains,
-		concerns: { persisted: Object.fromEntries(persisted.shown), references: Object.fromEntries(references.shown) },
-		total: { steps: steps.total, domains: domainEntries.total, persisted: persisted.total, references: references.total },
+		detail: STEP_DETAIL.definition,
+		steppers,
+		steps: steps.map((step) => ({ ...step, _links: { call: { method: step.method } } })),
+		domains: Object.fromEntries(domains.map(([key, domain]) => [key, domainDiscoveryInfo(domain)])),
+		concerns: {
+			persisted: Object.fromEntries(Object.entries(catalog.persisted).filter(([label, concern]) => containsText([label, concern.description], query.text))),
+			references: Object.fromEntries(Object.entries(catalog.references).filter(([key, reference]) => containsText([key, reference.targetDomain], query.text))),
+		},
+	};
+}
+
+/** A registered domain as a read of a run's declarations states it: its enum values where its schema states them, and
+ *  how it presents itself without the component's source, which a client loads from the URL the domain names. */
+function domainDiscoveryInfo(domain: TWorld["domains"][string]): TDomainDiscoveryInfo {
+	let values = domain.values;
+	if (!values && domain.schema) {
+		try {
+			const jsonSchema = jsonSchemaOf(domain.schema, "values", () => z.toJSONSchema(domain.schema) as Record<string, unknown>);
+			if (Array.isArray(jsonSchema.enum)) values = jsonSchema.enum as string[];
+		} catch {
+			// schema not convertible, leave values undefined
+		}
+	}
+	const ui = domain.ui ? (({ jsContent: _source, ...rest }) => rest)(domain.ui as Record<string, unknown> & { jsContent?: string }) : undefined;
+	return {
+		...(domain.description === undefined ? {} : { description: domain.description }),
+		...(values === undefined ? {} : { values }),
+		...(domain.stepperName === undefined ? {} : { stepperName: domain.stepperName }),
+		...(isPersisted(domain.topology) ? { persistedAs: domain.topology.persistedAs } : {}),
+		...(ui === undefined ? {} : { ui }),
 	};
 }

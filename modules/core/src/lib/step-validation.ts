@@ -1,7 +1,6 @@
 import { AStepper, type TStepAction } from "./astepper.js";
 import type { TFeatures } from "./execution.js";
 import { Resolver } from "../phases/Resolver.js";
-import { StepperRegistry, type StepDescriptor } from "./stepper-registry.js";
 import { errorDetail } from "./util/index.js";
 
 /**
@@ -31,12 +30,4 @@ export function validateStep(text: string, steppers: AStepper[], backgrounds?: T
 	} catch (e) {
 		return { valid: false, error: errorDetail(e) };
 	}
-}
-
-/**
- * Get metadata for all exposed steps across all steppers.
- * Used for autocomplete in LSP, SSE step mode, and MCP tool discovery.
- */
-export function getStepDescriptors(steppers: AStepper[]): StepDescriptor[] {
-	return StepperRegistry.getMetadata(steppers);
 }

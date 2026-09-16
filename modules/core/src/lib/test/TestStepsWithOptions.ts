@@ -12,6 +12,7 @@ export const TestStepsWithOptions = class TestStepsWithOptions extends AStepper 
 			parse: () => ({ result: 42 }),
 		},
 	};
+	description = "Steps that read a stepper option, for tests of how a run passes options to a stepper.";
 	steps = {
 		test: {
 			exact: "have a stepper option",

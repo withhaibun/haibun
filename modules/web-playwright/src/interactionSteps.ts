@@ -234,7 +234,6 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		extensionContext: {
-			exposeMCP: false,
 			gwta: `open extension popup for tab {tab}`,
 			action: async ({ tab }: { tab: string }, featureStep) => {
 				if (!wp.factoryOptions?.persistentDirectory || wp.factoryOptions?.launchOptions.headless) {

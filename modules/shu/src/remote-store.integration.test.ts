@@ -28,6 +28,7 @@ let deniedRead: string | undefined;
 let deniedWrite: string | undefined;
 
 class StoreDelegationProbeStepper extends AStepper {
+	description = "Probes the delegated store surface of another instance, for the remote store test.";
 	steps = {
 		probeDelegatedStore: {
 			gwta: "probe the delegated store surface",

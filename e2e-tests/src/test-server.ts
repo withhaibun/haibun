@@ -4,8 +4,7 @@ import { setCookie } from "@haibun/web-server-hono/cookie.js";
 
 import { actionNotOK, actionOK, actionOKWithProducts, getFromRuntime, sleep } from "@haibun/core/lib/util/index.js";
 import { DOMAIN_STRING } from "@haibun/core/lib/domains.js";
-import { MOST_SHOWN, SHOW_STEPS_METHOD } from "@haibun/core/lib/steps-query.js";
-import type { StepDiscovery } from "@haibun/core/lib/step-registry.js";
+import { SHOW_STEPS_METHOD, STEP_DETAIL, StepSummariesSchema } from "@haibun/core/lib/step-discovery.js";
 import type { TFeatureStep, IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { OK, Origin, type TStepArgs, type TProvenanceIdentifier } from "@haibun/core/schema/protocol.js";
 import { type TRequestHandler, type IWebServer, WEBSERVER } from "@haibun/web-server-hono/defs.js";
@@ -62,11 +61,12 @@ async function mcpListTools(url: string, token: string): Promise<Array<{ name?: 
 	return (response.result as { tools?: Array<{ name?: string }> } | undefined)?.tools ?? [];
 }
 
-async function mcpShownSteps(url: string, token: string, pattern: string): Promise<string[]> {
-	const response = await mcpRpc(url, 3, "tools/call", { name: SHOW_STEPS_METHOD, arguments: { pattern, limit: MOST_SHOWN } }, token);
-	const text = mcpToolResult(response).content?.[0]?.type === "text" ? (mcpToolResult(response).content?.[0]?.text ?? "") : "";
-	if (!text) throw new Error(`${SHOW_STEPS_METHOD} returned nothing: ${JSON.stringify(response)}`);
-	return (JSON.parse(text) as StepDiscovery).steps.map((step) => step.method);
+async function mcpShownSteps(url: string, token: string, text: string): Promise<string[]> {
+	const response = await mcpRpc(url, 3, "tools/call", { name: SHOW_STEPS_METHOD, arguments: { text, detail: STEP_DETAIL.summary } }, token);
+	const returned = mcpToolResult(response).content?.[0]?.type === "text" ? (mcpToolResult(response).content?.[0]?.text ?? "") : "";
+	if (!returned) throw new Error(`${SHOW_STEPS_METHOD} returned nothing: ${JSON.stringify(response)}`);
+	const { _seqPath, ...summaries } = JSON.parse(returned) as Record<string, unknown>;
+	return StepSummariesSchema.parse(summaries).steps.map((step) => step.method);
 }
 
 async function mcpCallTool(url: string, token: string, toolName: string): Promise<Record<string, unknown>> {
@@ -89,6 +89,7 @@ const cycles = (ts: TestServer): IStepperCycles => ({
 });
 
 class TestServer extends AStepper {
+	description = "Serves the pages, routes and protected calls the e2e features test, and checks RPC and MCP calls against them.";
 	cycles = cycles(this);
 	toDelete: { [name: string]: string } = {};
 
@@ -236,10 +237,10 @@ class TestServer extends AStepper {
 			},
 		},
 		mcpShownStepsInclude: {
-			gwta: "mcp steps shown at {url} matching {pattern} include {toolName} when bearer token is {token}",
-			action: async ({ url, pattern, toolName, token }: TStepArgs) => {
+			gwta: "mcp steps shown at {url} matching {text} include {toolName} when bearer token is {token}",
+			action: async ({ url, text, toolName, token }: TStepArgs) => {
 				await mcpListTools(String(url), String(token));
-				const shown = await mcpShownSteps(String(url), String(token), String(pattern));
+				const shown = await mcpShownSteps(String(url), String(token), String(text));
 				return shown.includes(String(toolName)) ? actionOK() : actionNotOK(`Expected ${String(toolName)} among the steps shown [${shown.join(", ")}]`);
 			},
 		},

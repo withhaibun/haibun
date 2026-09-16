@@ -101,6 +101,7 @@ type Camera = { x: number; y: number; z: number; target?: { x: number; y: number
 type Snapshot = { camera: Camera; viewport: Viewport; pos: Record<string, { x: number; y: number; z: number }> };
 
 export default class ShuPolymorphicGraphViewControls extends AStepper implements IHasCycles {
+	description = "Drives the graph view in a page: finds, reveals, opens and drags nodes, filters by type, zooms, and checks what the graph shows.";
 	cycles: IStepperCycles = { getConcerns: () => ({ domains: graphControlDomains }) };
 	private snapshots = new Map<string, Snapshot>();
 	private opened = new Map<string, string>(); // name → the bare id of the node an open targeted, so a later hover can re-find it

@@ -39,6 +39,8 @@ function harness() {
 	const steppers = [new TestRunnerStepper(), new InstanceStepper()];
 	for (const s of steppers) void s.setWorld(world, steppers);
 	const registry = new StepRegistry(steppers, world);
+	// The run's registry, as the executor assigns it, which a step calls another step through.
+	world.runtime.stepRegistry = registry;
 	/** Call a step the way anything calls a step: under whatever token is active, with no capability asserted by the caller. */
 	const call = async (method: string, input: Record<string, unknown> = {}, token?: string, grantedCapability?: string) => {
 		if (token) (world.runtime.keys ??= {})[SESSION_TOKEN_KEY] = token;

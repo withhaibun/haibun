@@ -22,7 +22,8 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import { AStepper, type TFeatureStep } from "@haibun/core/lib/astepper.js";
 import type { TFeature, TFeatures } from "@haibun/core/lib/execution.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
-import { StepperRegistry, StepDescriptor } from "@haibun/core/lib/stepper-registry.js";
+import { runRegistry } from "@haibun/core/lib/step-registry.js";
+import type { TStepDescriptor } from "@haibun/core/lib/step-discovery.js";
 import { Resolver } from "@haibun/core/phases/Resolver.js";
 import { expand } from "@haibun/core/lib/features.js";
 import { TStepValue } from "@haibun/core/schema/protocol.js";
@@ -119,8 +120,9 @@ export default class LspStepper extends AStepper {
 
 		// Autocomplete
 		this.connection.onCompletion(() => {
-			const metadata = StepperRegistry.getMetadata(this.steppers);
-			return metadata.map((m) => this.metadataToCompletionItem(m));
+			return runRegistry(this.getWorld())
+				.list()
+				.map((tool) => completionItem(tool.descriptor));
 		});
 
 		this.connection.onCompletionResolve((item: CompletionItem): CompletionItem => item);
@@ -696,16 +698,22 @@ export default class LspStepper extends AStepper {
 		// Send diagnostics
 		this.connection?.sendDiagnostics({ uri: doc.uri, diagnostics });
 	}
+}
 
-	private metadataToCompletionItem(meta: StepDescriptor): CompletionItem {
-		const snippet = StepperRegistry.patternToSnippet(meta.pattern);
-		return {
-			label: meta.pattern,
-			kind: CompletionItemKind.Snippet,
-			insertText: snippet,
-			insertTextFormat: 2,
-			detail: `From ${meta.stepperName}`,
-			documentation: `Internal Name: ${meta.stepName}`,
-		};
-	}
+/** A step's pattern as an LSP snippet, each placeholder a numbered tab-stop: `{name}` and `{name: number}` become `${1:name}`. */
+export function patternToSnippet(pattern: string): string {
+	let i = 1;
+	return pattern.replace(/\{(\w+)(?::\s*\w+)?\}/g, (_, name) => `\${${i++}:${name}}`);
+}
+
+/** A step as a completion: its pattern as the label and as a snippet, and the stepper and step it belongs to. */
+export function completionItem(step: TStepDescriptor): CompletionItem {
+	return {
+		label: step.pattern,
+		kind: CompletionItemKind.Snippet,
+		insertText: patternToSnippet(step.pattern),
+		insertTextFormat: 2,
+		detail: `From ${step.stepperName}`,
+		documentation: `Internal Name: ${step.stepName}`,
+	};
 }

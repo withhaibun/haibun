@@ -10,6 +10,7 @@ import { actionOKWithProducts } from "@haibun/core/lib/util/index.js";
 import { SHU_TAG } from "../consts.js";
 
 export default class ClientCacheStepper extends AStepper implements IHasCycles {
+	description = "Opens the client cache view, which shows what a page caches of the run.";
 	cycles: IStepperCycles = {
 		getConcerns: () => ({
 			domains: [

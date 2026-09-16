@@ -34,7 +34,7 @@ import { advanceChainInstance } from "../lib/chain-walker.js";
 import { buildDomainChain } from "../lib/domain-chain.js";
 import { lintDomainChain } from "../lib/domain-chain-lint.js";
 import { resolveGoal, GOAL_FINDING, type TGoalResolution, type TMichi, type TBinding } from "../lib/goal-resolver.js";
-import { StepRegistry, stepMethodName } from "../lib/step-registry.js";
+import { runRegistry, stepMethodName, type StepRegistry } from "../lib/step-registry.js";
 import { callStepByName } from "../lib/call-step.js";
 import { buildAffordances, providesWaypoints, AFFORDANCE_EVENT_PREFIX, type TWaypointEntry, satisfiedGoalDomains } from "../lib/affordances.js";
 import { FACT_GRAPH } from "../lib/working-memory.js";
@@ -188,7 +188,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 	/** Walk a michi's steps in order, dispatching each through the synthetic-seqPath path used by other transports. Returns the produced factIds on success; surfaces the offending step's error on first failure. */
 	private async executeMichi(goal: string, michi: TMichi): Promise<ReturnType<typeof actionOKWithProducts> | ReturnType<typeof actionNotOK>> {
 		const world = this.getWorld();
-		const registry = new StepRegistry(this.steppers, world);
+		const registry = runRegistry(world);
 		const factIds: string[] = [];
 		for (let i = 0; i < michi.steps.length; i++) {
 			const step = michi.steps[i];
@@ -299,7 +299,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 				if (!michi) return actionNotOK(`walk toward ${goal}: no michi returned`);
 				const world = this.getWorld();
 				const instance = await createChainInstance(world, goal, michi);
-				return actionOKWithProducts(walkProducts(instance, new StepRegistry(this.steppers, world)));
+				return actionOKWithProducts(walkProducts(instance, runRegistry(world)));
 			},
 		},
 
@@ -313,7 +313,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 			productsDomain: DOMAIN_CHAIN_WALK,
 			action: async ({ walk, args }: { walk: string; args: unknown }) => {
 				const world = this.getWorld();
-				const ctx = { registry: new StepRegistry(this.steppers, world), world, steppers: this.steppers, grantedCapability: Array.from(this.grantedCapabilities()) };
+				const ctx = { registry: runRegistry(world), world, steppers: this.steppers, grantedCapability: Array.from(this.grantedCapabilities()) };
 				const supplied = typeof args === "string" ? (JSON.parse(args) as Record<string, unknown>) : ((args ?? {}) as Record<string, unknown>);
 				const advanced = await advanceChainInstance(ctx, walk, supplied);
 				if (advanced.kind === "failed") return actionNotOK(`advance the walk ${walk}: ${advanced.error}`);

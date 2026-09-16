@@ -4,6 +4,7 @@ import { type TRequestHandler } from "@haibun/web-server-hono/defs.js";
 import { type TSchemeType, type AuthSchemeLogout } from "./authSchemes.js";
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 declare class TestServer extends AStepper {
+    description: string;
     cycles: IStepperCycles;
     toDelete: {
         [name: string]: string;

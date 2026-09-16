@@ -12,7 +12,7 @@ import { join } from "node:path";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { registerDomains } from "@haibun/core/lib/domains.js";
 import { StepRegistry } from "@haibun/core/lib/step-registry.js";
-import { SHOW_STEPS_METHOD } from "@haibun/core/lib/steps-query.js";
+import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { DOMAIN_GRAPH_QUERY } from "@haibun/core/lib/quad-types.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";

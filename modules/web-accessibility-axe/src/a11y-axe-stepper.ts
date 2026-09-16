@@ -15,6 +15,7 @@ import { JsonArtifact, HtmlArtifact } from "@haibun/core/schema/protocol.js";
 type TGetsPage = { getPage: () => Promise<Page> };
 
 class A11yStepper extends AStepper implements IHasOptions {
+	description = "Checks the current page with axe, and passes when its serious and moderate accessibility violations are within the given counts.";
 	options = {
 		[StepperKinds.STORAGE]: {
 			desc: "Storage for results",

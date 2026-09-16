@@ -5,7 +5,7 @@ import { ShuEntityColumn } from "./shu-entity-column.js";
 import { setConduit, LiveConduit, resetConduit } from "../hypermedia.js";
 import { setEventStream, SerializedEventStream, resetEventStream } from "../event-stream.js";
 import { rpcAnswer } from "@haibun/core/lib/test/rpc-answer.js";
-import { SHOW_STEPS_METHOD } from "@haibun/core/lib/steps-query.js";
+import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { ENTITY_STEP_LIST } from "../test-setup.js";
 
 describe("shu-entity-column error surfacing", () => {

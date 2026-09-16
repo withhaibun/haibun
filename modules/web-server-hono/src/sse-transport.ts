@@ -27,10 +27,6 @@ export interface ITransport {
 
 export const TRANSPORT = "transport";
 
-/** The transport's own methods that read rather than act: a page asks these of the transport itself, which has no step
- *  to declare them. Checking a step's text is a read of the site. */
-const TRANSPORT_READS = new Set(["step.validate"]);
-
 export class SSETransport implements ITransport, IStepTransport {
 	readonly name = "SSETransport";
 	private hub = new EventEmitter();
@@ -199,7 +195,7 @@ export class SSETransport implements ITransport, IStepTransport {
 	private servesARead(data: unknown): boolean {
 		const method = (data as { method?: unknown } | undefined)?.method;
 		if (typeof method !== "string") return false;
-		return TRANSPORT_READS.has(method) || this.registry?.get(method)?.stepDef?.read === true;
+		return this.registry?.get(method)?.descriptor.read === true;
 	}
 
 	/** IStepTransport: clear handlers on teardown. */

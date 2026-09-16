@@ -11,7 +11,7 @@ import { ControlEvent, LifecycleEvent } from "../schema/protocol.js";
 import { buildDomainChain } from "../lib/domain-chain.js";
 import { GOAL_FINDING, resolveGoal } from "../lib/goal-resolver.js";
 import { FACT_GRAPH } from "../lib/working-memory.js";
-import { stepMethodName } from "../lib/step-registry.js";
+import { runRegistry, stepMethodName } from "../lib/step-registry.js";
 import { WAYPOINT_KIND, type TWaypointEntry, type TWaypointKind } from "../lib/affordances.js";
 import { namedInterpolation } from "../lib/namedVars.js";
 
@@ -447,8 +447,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		// The resolver returns multiple michi (paths). The declarative waypoint always runs the first, and runs it
 		// straight through, so it reaches only a path whose steps need nothing supplied. A path that needs something
 		// from a person gets walked instead, through `walk toward` and `advance the walk`.
-		const registry = world.runtime.stepRegistry;
-		if (!registry) return { handled: true, ok: false, errorMessage: "no step registry available" };
+		const registry = runRegistry(world);
 		const firstMichi = resolution.michi[0];
 		if (!firstMichi) return { handled: true, ok: false, errorMessage: `goal-unreachable: ${domainKey} (no michi returned)` };
 		for (const planStep of firstMichi.steps) {

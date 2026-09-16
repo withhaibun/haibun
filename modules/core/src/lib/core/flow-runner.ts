@@ -6,7 +6,7 @@ import { actionNotOK, errorDetail } from "../util/index.js";
 import { Resolver } from "../../phases/Resolver.js";
 import { nextSeqPath, syntheticSeqPathDirection } from "../../phases/Executor.js";
 import { dispatchStep } from "../step-dispatch.js";
-import { StepRegistry } from "../step-registry.js";
+import { runRegistry, type StepRegistry } from "../step-registry.js";
 
 export class FlowRunner {
 	private resolver: Resolver;
@@ -18,11 +18,9 @@ export class FlowRunner {
 		this.resolver = new Resolver(steppers);
 	}
 
+	/** Read at dispatch time: Executor assigns the run's registry after the steppers' setWorld. */
 	private get registry(): StepRegistry {
-		// Read at dispatch time, Executor assigns this after steppers' setWorld.
-		const reg = this.world.runtime?.stepRegistry as StepRegistry | undefined;
-		if (!reg) throw new Error("FlowRunner: world.runtime.stepRegistry not set; run inside Executor");
-		return reg;
+		return runRegistry(this.world);
 	}
 
 	async runStatement(

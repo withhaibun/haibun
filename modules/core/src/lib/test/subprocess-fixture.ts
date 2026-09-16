@@ -10,6 +10,7 @@ import { runSubprocess } from "../subprocess-runner.js";
 import { getDefaultWorld } from "./lib.js";
 
 class EchoStepper extends AStepper {
+	description = "Steps that echo a message and answer a ping, run in a subprocess for tests of the subprocess transport.";
 	steps = {
 		echo: {
 			gwta: "echo {message}",

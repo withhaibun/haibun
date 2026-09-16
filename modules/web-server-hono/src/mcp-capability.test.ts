@@ -10,6 +10,7 @@ import McpStepper from "./mcp-stepper.js";
 import WebServerStepper from "./web-server-stepper.js";
 
 class ProtectedStepper extends AStepper {
+	description = "Steps gated by a protected and an admin capability, for tests of MCP authorization.";
 	steps = {
 		protectedAction: {
 			exact: "protected mcp action",

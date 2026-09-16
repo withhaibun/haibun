@@ -14,14 +14,15 @@ import { AStepper } from "./astepper.js";
 import type { TWorld } from "./world.js";
 import type { TActionResult } from "../schema/protocol.js";
 import { actionNotOK } from "./util/index.js";
-import { type StepDiscovery, type StepTool, type StepRegistry, hostScopedMethodName } from "./step-registry.js";
-import { EVERY_DECLARATION, SHOW_STEPS_METHOD, shownWhole } from "./steps-query.js";
-import type { StepDescriptor } from "./stepper-registry.js";
+import { type StepTool, type StepRegistry, hostScopedMethodName } from "./step-registry.js";
+import { EVERY_DEFINITION, SHOW_STEPS_METHOD, StepDefinitionsSchema, type TStepDescriptor } from "./step-discovery.js";
 import { RpcClient, type RpcError } from "./rpc-client.js";
+import { TRACE_SEQ_PATH } from "../schema/protocol.js";
 
 export class RemoteStepperProxy extends AStepper {
 	readonly name: string;
-	private stepDescriptors: StepDescriptor[] = [];
+	description: string;
+	private stepDescriptors: TStepDescriptor[] = [];
 	private rpc: RpcClient;
 	/**
 	 * Remote host's hostId, discovered at setWorld via action.begin.
@@ -65,15 +66,15 @@ export class RemoteStepperProxy extends AStepper {
 		return this.hostId;
 	}
 
-	/** Read every step the remote host declares, through the step every caller reads a run's declarations by. A host
-	 *  that declares more than one read returns fails the proxy, since a step it left out could not be called. */
+	/** Read every step the remote host declares, through the step every caller reads a run's declarations by. */
 	private async fetchStepDescriptors(): Promise<void> {
-		const result = await this.rpc.call<StepDiscovery>(SHOW_STEPS_METHOD, EVERY_DECLARATION, []);
+		const result = await this.rpc.call<Record<string, unknown>>(SHOW_STEPS_METHOD, EVERY_DEFINITION, []);
 		if ("error" in result) {
 			throw new Error(`RemoteStepperProxy: ${SHOW_STEPS_METHOD} failed at ${this.remoteUrl}: ${result.error}`);
 		}
-		if (!shownWhole(result.total, EVERY_DECLARATION)) throw new Error(`RemoteStepperProxy: ${this.remoteUrl} declares more than one read returns (${JSON.stringify(result.total)})`);
-		this.stepDescriptors = result.steps;
+		// A dispatched step's products carry the seqPath it ran at, which is the call's trace and not what the host declares.
+		const { [TRACE_SEQ_PATH]: _trace, ...declared } = result;
+		this.stepDescriptors = StepDefinitionsSchema.parse(declared).steps.map(({ _links, ...descriptor }) => descriptor);
 	}
 
 	/**
@@ -85,18 +86,14 @@ export class RemoteStepperProxy extends AStepper {
 		if (this.hostId === undefined) throw new Error("RemoteStepperProxy.injectInto called before setWorld discovered the host id");
 		for (const descriptor of this.stepDescriptors) {
 			const prefixedMethod = hostScopedMethodName(this.hostId, descriptor.method);
+			const remoteHost = new URL(this.remoteUrl).host;
 			const tool: StepTool = {
-				name: prefixedMethod,
-				description: descriptor.pattern,
-				inputSchema: (descriptor.inputSchema as StepTool["inputSchema"]) ?? { type: "object" },
+				descriptor: { ...descriptor, method: prefixedMethod, pattern: `${descriptor.pattern} (at ${remoteHost})` },
 				paramSchemas: new Map(),
 				paramDomainKeys: new Map(),
-				stepperName: descriptor.stepperName,
-				stepName: descriptor.stepName,
-				capability: descriptor.capability,
 				isAsync: true,
 				transport: "remote",
-				remoteHost: new URL(this.remoteUrl).host,
+				remoteHost,
 				// Dispatch over RPC using the un-prefixed method name: the prefix is
 				// a local registry-naming concern, not part of the wire call.
 				handler: (_featureStep, _world) =>
@@ -129,7 +126,7 @@ export class RemoteStepperProxy extends AStepper {
 		/* no-op */
 	}
 
-	get descriptors(): StepDescriptor[] {
+	get descriptors(): TStepDescriptor[] {
 		return this.stepDescriptors;
 	}
 

@@ -135,7 +135,6 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 	}
 	steps = {
 		f: {
-			exposeMCP: false,
 			exact: "f",
 			action: async (): Promise<TActionResult> => {
 				return await this.fail();
@@ -148,7 +147,6 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 			},
 		},
 		n: {
-			exposeMCP: false,
 			exact: "n",
 			action: async (): Promise<TActionResult> => {
 				return await this.next();
@@ -161,7 +159,6 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 			},
 		},
 		r: {
-			exposeMCP: false,
 			exact: "r",
 			action: async (): Promise<TActionResult> => {
 				return await this.retry();
@@ -175,7 +172,6 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 		},
 
 		s: {
-			exposeMCP: false,
 			exact: "s",
 			action: async (): Promise<TActionResult> => {
 				return await this.step();
@@ -188,7 +184,6 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 			},
 		},
 		c: {
-			exposeMCP: false,
 			exact: "c",
 			action: async (): Promise<TActionResult> => {
 				return await this.continue();

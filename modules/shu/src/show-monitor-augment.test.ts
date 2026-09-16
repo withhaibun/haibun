@@ -28,18 +28,27 @@ describe("show monitor markers → parser", () => {
 
 	it("buildFeatureStepForTransport carries the real stepDef through (regression: RPC dispatch dropped productsDomain, augment never fired)", () => {
 		const stepDef = { gwta: "show monitor", productsDomain: "shu-monitor-column", action: () => ({ ok: true as const }) };
-		const tool = {
-			name: "MonitorStepper-showMonitor",
-			description: "show monitor",
-			inputSchema: { type: "object" as const },
+		const tool: StepTool = {
+			descriptor: {
+				method: "MonitorStepper-showMonitor",
+				stepperName: "MonitorStepper",
+				stepperDescription: "Shows the run's monitor.",
+				stepName: "showMonitor",
+				pattern: "show monitor",
+				params: {},
+				paramDomains: {},
+				productsDomain: "shu-monitor-column",
+				read: false,
+				fallback: false,
+				inputSchema: { type: "object", properties: {}, required: [] },
+			},
 			paramSchemas: new Map(),
 			paramDomainKeys: new Map(),
-			stepperName: "MonitorStepper",
-			stepName: "showMonitor",
 			stepDef,
+			transport: "local",
 			isAsync: false,
 			handler: () => Promise.resolve({ ok: true as const }),
-		} as unknown as StepTool;
+		};
 		const fs = buildFeatureStepForTransport(tool, {}, [0, 1, 1]);
 		expect(fs.action.step.productsDomain).toBe("shu-monitor-column");
 		expect(fs.action.step).toBe(stepDef);

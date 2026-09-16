@@ -40,7 +40,7 @@ describe("SubprocessTransport", () => {
 
 		expect(registry.has("EchoStepper-echo")).toBe(true);
 		expect(registry.has("EchoStepper-pong")).toBe(true);
-		expect(registry.get("EchoStepper-pong")?.capability).toBe("EchoStepper:protected");
+		expect(registry.get("EchoStepper-pong")?.descriptor.capability).toBe("EchoStepper:protected");
 	});
 
 	it("dispatches a call and gets products back", async () => {

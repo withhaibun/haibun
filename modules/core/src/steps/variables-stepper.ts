@@ -98,7 +98,6 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			action: ({ domain, spec }: { domain: string; spec: string }, featureStep: TFeatureStep) => this.registerHypermediaDomain(domain, spec, featureStep),
 		},
 		statementSetValues: {
-			exposeMCP: false,
 			gwta: "\\[{items: string}\\]",
 			action: () => OK,
 		},
@@ -203,7 +202,6 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 		showEnv: {
 			gwta: "show env",
-			exposeMCP: false,
 			productsDomain: DOMAIN_ENV_SNAPSHOT,
 			action: () => {
 				const envVars = this.world.options.envVariables || {};

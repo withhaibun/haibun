@@ -29,6 +29,7 @@ function resetCaptures(): void {
 }
 
 class FederationVerifyStepper extends AStepper {
+	description = "Captures a clustered read federated from another instance, for the federation test.";
 	steps = {
 		captureFederatedRead: {
 			gwta: "capture the federated clustered read",

@@ -6,11 +6,11 @@ import { actionNotOK, actionOKWithProducts, getStepperOptionName } from "@haibun
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import WebServerStepper from "./web-server-stepper.js";
 import Haibun from "@haibun/core/steps/haibun.js";
-import { EVERY_DECLARATION, SHOW_STEPS_METHOD } from "@haibun/core/lib/steps-query.js";
-import type { StepDiscovery } from "@haibun/core/lib/step-registry.js";
+import { EVERY_DEFINITION, SHOW_STEPS_METHOD, StepDefinitionsSchema, type TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import { streamContext, type TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 
 class PingStepper extends AStepper {
+	description = "Steps that answer a ping, one of them protected and one gated by an admin capability.";
 	steps = {
 		ping: {
 			gwta: "ping",
@@ -29,32 +29,33 @@ class PingStepper extends AStepper {
 	};
 }
 
-/** The methods of the steps a caller is shown, read as a page reads them. */
-async function shownMethods(url: string, headers: Record<string, string>): Promise<string[]> {
+/** The steps a caller is shown, read as a page reads them. */
+async function shownSteps(url: string, headers: Record<string, string>): Promise<TStepDefinition[]> {
 	const res = await fetch(url, {
 		method: "POST",
 		headers: { "Content-Type": "application/json", ...headers },
-		body: JSON.stringify({ jsonrpc: "2.0", id: "1", method: SHOW_STEPS_METHOD, params: EVERY_DECLARATION, asks: "read" }),
+		body: JSON.stringify({ jsonrpc: "2.0", id: "1", method: SHOW_STEPS_METHOD, params: EVERY_DEFINITION, asks: "read" }),
 	});
 	if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
-	return ((await res.json()) as StepDiscovery).steps.map((step) => step.method);
+	const { _seqPath, ...declared } = (await res.json()) as Record<string, unknown>;
+	return StepDefinitionsSchema.parse(declared).steps;
 }
 
 class RpcVerifyStepper extends AStepper {
+	description = "Steps that call a run over RPC and check what it answers.";
 	steps = {
 		shownStepsInclude: {
 			gwta: "steps shown to a caller with no token at {url} include {included}",
 			action: async ({ url, included }: TStepArgs) => {
-				const methods = await shownMethods(String(url), {});
+				const methods = (await shownSteps(String(url), {})).map((step) => step.method);
 				return methods.includes(String(included)) ? OK : actionNotOK(`"${included}" not in [${methods.join(", ")}]`);
 			},
 		},
-		shownStepsForBearer: {
-			gwta: "steps shown at {url} for bearer token {token} include {included} and not {excluded}",
-			action: async ({ url, token, included, excluded }: TStepArgs) => {
-				const methods = await shownMethods(String(url), { Authorization: `Bearer ${String(token)}` });
-				if (!methods.includes(String(included))) return actionNotOK(`"${included}" not in [${methods.join(", ")}]`);
-				return methods.includes(String(excluded)) ? actionNotOK(`"${excluded}" in [${methods.join(", ")}]`) : OK;
+		shownStepRequires: {
+			gwta: "caller with bearer token {token} is shown {method} at {url} requiring {capability}",
+			action: async ({ url, token, method, capability }: TStepArgs) => {
+				const step = (await shownSteps(String(url), { Authorization: `Bearer ${String(token)}` })).find((shown) => shown.method === String(method));
+				return step?.capability === String(capability) ? OK : actionNotOK(`${method} is shown as ${JSON.stringify(step)}`);
 			},
 		},
 		rpcCallSucceeds: {
@@ -183,7 +184,7 @@ class RpcVerifyStepper extends AStepper {
 				const res = await fetch(String(url), {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ type: "rpc", id: "1", method: SHOW_STEPS_METHOD, params: EVERY_DECLARATION }),
+					body: JSON.stringify({ type: "rpc", id: "1", method: SHOW_STEPS_METHOD, params: EVERY_DEFINITION }),
 				});
 				const data = await res.json();
 				// Old format is not parsed as a valid JSON-RPC 2.0 request, so no handler processes it.
@@ -206,6 +207,7 @@ function makeOptions(port: number) {
 const narrated: string[] = [];
 
 class ReadStepper extends AStepper {
+	description = "A step that declares itself a read, and a step that checks which RPC calls the run narrated.";
 	override async setWorld(world: Parameters<AStepper["setWorld"]>[0], steppers: Parameters<AStepper["setWorld"]>[1]) {
 		await super.setWorld(world, steppers);
 		narrated.length = 0;
@@ -300,14 +302,15 @@ rpc old format to "http://localhost:${port}/rpc/${SHOW_STEPS_METHOD}" is not dis
 		expect(result.ok).toBe(true);
 	});
 
-	it("shows a caller the steps its capability allows, through the step every caller reads a run's declarations by", async () => {
+	it("shows a caller a step it may not call, with the capability the step requires", async () => {
 		const port = 8237;
 		const feature = {
 			path: "/features/shown-steps.feature",
 			content: `
 enable rpc
 webserver is listening for "rpc-shown-steps"
-steps shown at "http://localhost:${port}/rpc/${SHOW_STEPS_METHOD}" for bearer token "rpc-protected-token" include "PingStepper-protectedPing" and not "PingStepper-adminPing"
+caller with bearer token "rpc-protected-token" is shown "PingStepper-adminPing" at "http://localhost:${port}/rpc/${SHOW_STEPS_METHOD}" requiring "PingStepper:admin"
+rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "PingStepper-adminPing" is denied for capability "PingStepper:admin" when bearer token is "rpc-protected-token"
 `,
 		};
 		const result = await passWithDefaults([feature], steppers, {
@@ -324,6 +327,7 @@ steps shown at "http://localhost:${port}/rpc/${SHOW_STEPS_METHOD}" for bearer to
 	it("shows and dispatches a step injected into the run's registry after rpc is enabled, as every other caller of the run does", async () => {
 		const port = 8238;
 		class Injects extends AStepper {
+			description = "A step that copies a step into the run's registry under another name, as a transport injects one.";
 			steps = {
 				injectAStep: {
 					gwta: "inject a step into the run's registry",
@@ -331,7 +335,7 @@ steps shown at "http://localhost:${port}/rpc/${SHOW_STEPS_METHOD}" for bearer to
 						const registry = this.getWorld().runtime.stepRegistry;
 						const ping = registry?.get("PingStepper-ping");
 						if (!registry || !ping) return Promise.resolve(actionNotOK("the run holds no ping to copy"));
-						registry.set({ ...ping, name: "Injected-ping", stepperName: "Injected", stepName: "ping" });
+						registry.set({ ...ping, descriptor: { ...ping.descriptor, method: "Injected-ping", stepperName: "Injected", stepName: "ping" } });
 						return Promise.resolve(OK);
 					},
 				},

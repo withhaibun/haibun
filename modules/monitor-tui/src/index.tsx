@@ -82,6 +82,7 @@ const MonitorApp = ({
 );
 
 export default class TuiMonitorStepper extends AStepper implements IHasCycles, IPrompter {
+	description = "Shows a run's steps in the terminal as they run, and prompts the operator there.";
 	kind = StepperKinds.MONITOR;
 	steps = {};
 

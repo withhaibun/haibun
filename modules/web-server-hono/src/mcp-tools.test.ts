@@ -8,8 +8,9 @@ import { AStepper } from "@haibun/core/lib/astepper.js";
 import { OK } from "@haibun/core/schema/protocol.js";
 import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import Haibun from "@haibun/core/steps/haibun.js";
-import { SHOW_STEPS_METHOD } from "@haibun/core/lib/steps-query.js";
-import type { StepDiscovery } from "@haibun/core/lib/step-registry.js";
+import { SHOW_STEPS_METHOD, STEP_DETAIL, StepSummariesSchema } from "@haibun/core/lib/step-discovery.js";
+import { runRegistry } from "@haibun/core/lib/step-registry.js";
+import { ToolListChangedNotificationSchema } from "@modelcontextprotocol/sdk/types.js";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
@@ -28,6 +29,7 @@ global.EventSource = EventSourcePolyfill;
 type TEventSourceOptions = { headers?: Record<string, string> };
 
 class TestStepper extends AStepper {
+	description = "Steps that check the MCP tools a run lists.";
 	steps = {
 		testA: {
 			exact: "test action a",
@@ -63,8 +65,20 @@ class TestStepper extends AStepper {
 					}
 					const verifyTool = tools.find((tool) => tool.name === "TestStepper-verifyTools");
 					if (!verifyTool || !(verifyTool.inputSchema as { properties?: Record<string, unknown> }).properties?.port) throw Error(`verifyTools lists no port: ${JSON.stringify(verifyTool)}`);
-					const shown = (await client.callTool({ name: SHOW_STEPS_METHOD, arguments: { pattern: "^TestStepper-", limit: 5 } })) as { content: Array<{ text: string }> };
-					const methods = (JSON.parse(shown.content[0].text) as StepDiscovery).steps.map((step) => step.method);
+					let listChanged = (): void => undefined;
+					const toldOfChange = new Promise<void>((resolve) => (listChanged = resolve));
+					client.setNotificationHandler(ToolListChangedNotificationSchema, () => listChanged());
+					const registry = runRegistry(this.getWorld());
+					const passes = registry.get("TestStepper-testA");
+					if (!passes) throw Error("TestStepper-testA is not registered");
+					registry.set({ ...passes, descriptor: { ...passes.descriptor, method: "Injected-testA", stepperName: "Injected" } });
+					await toldOfChange;
+					if (!(await client.listTools()).tools.some((tool) => tool.name === "Injected-testA")) throw Error("a step injected into the run is not listed after the client was told the list changed");
+					const instructions = client.getInstructions() ?? "";
+					if (!instructions.includes("- TestStepper (2 steps): Steps that check the MCP tools a run lists.")) throw Error(`the instructions name no TestStepper: ${instructions}`);
+					const shown = (await client.callTool({ name: SHOW_STEPS_METHOD, arguments: { text: "TestStepper-", detail: STEP_DETAIL.summary } })) as { content: Array<{ text: string }> };
+					const { _seqPath, ...summaries } = JSON.parse(shown.content[0].text) as Record<string, unknown>;
+					const methods = StepSummariesSchema.parse(summaries).steps.map((step) => step.method);
 					if (methods.join(",") !== "TestStepper-testA,TestStepper-verifyTools") throw Error(`show steps returned ${methods.join(", ")}`);
 					const resources = await client.listResources();
 					if (!resources.resources.find((r) => r.name === "Haibun MCP Server Info")) throw Error(`Missing Haibun MCP Server Info resource. Found: ${resources.resources.map((r) => r.name).join(", ")}`);
@@ -80,7 +94,7 @@ class TestStepper extends AStepper {
 }
 
 describe("McpStepper tools", () => {
-	it("lists every step of the run as a tool, show steps among them, and calls one", async () => {
+	it("states the run's steppers in its instructions, lists every step of the run as a tool, show steps among them, tells a client when the list changes, and calls one", async () => {
 		const port = 8130;
 		const feature = {
 			path: "/features/tools.feature",
