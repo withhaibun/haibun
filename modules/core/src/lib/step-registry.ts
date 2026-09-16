@@ -60,15 +60,22 @@ export class StepRegistry {
 		this.refresh(steppers, world);
 	}
 
-	/** Rebuild stepper-owned entries in-place. Externally-injected tools (via set()) are preserved. */
+	/** Rebuild stepper-owned entries in-place. Injected tools are preserved. A rebuild that describes every step as it
+	 *  was changes nothing, and is not announced. */
 	refresh(steppers: AStepper[], world: TWorld): void {
+		const before = this.described();
 		const next = buildStepRegistry(steppers, world);
 		for (const name of this.injectedNames) {
 			const existing = this.tools.get(name);
 			if (existing) next.set(name, existing);
 		}
 		this.tools = next;
-		this.announceChange();
+		if (this.described() !== before) this.announceChange();
+	}
+
+	/** Every step's description, as one text a rebuild is compared by. */
+	private described(): string {
+		return JSON.stringify(this.list().map((tool) => tool.descriptor));
 	}
 
 	/** Tell `listener` each time the registry's steps change, until the returned function is called. A caller that lists
@@ -98,18 +105,14 @@ export class StepRegistry {
 		return this.tools.has(name);
 	}
 
-	/** Inject or overwrite a single tool (used by transports to register remote/child steps). Survives refresh(). */
-	set(tool: StepTool): void {
-		this.tools.set(tool.descriptor.method, tool);
-		this.injectedNames.add(tool.descriptor.method);
-		this.announceChange();
-	}
-
-	/** Remove an injected tool. Used by transport detach(). */
-	unset(name: string): void {
-		this.tools.delete(name);
-		this.injectedNames.delete(name);
-		this.announceChange();
+	/** Add or replace the steps a transport reaches in another process, which survive refresh(). The steps are announced
+	 *  as one change. */
+	inject(tools: StepTool[]): void {
+		for (const tool of tools) {
+			this.tools.set(tool.descriptor.method, tool);
+			this.injectedNames.add(tool.descriptor.method);
+		}
+		if (tools.length > 0) this.announceChange();
 	}
 }
 
@@ -332,7 +335,9 @@ function buildInputSchema(stepDef: TStepperStep, world: TWorld): { inputSchema: 
 										return;
 									}
 									if (nodeType && UNREPRESENTABLE_ZOD_TYPES.has(nodeType)) {
-										throw new Error(`step input schema: domain "${domainKey}" declares a "${nodeType}" field, which has no JSON Schema representation, declare a representable input type`);
+										throw new Error(
+											`step input schema: domain "${domainKey}" declares a "${nodeType}" field, which has no JSON Schema representation, declare a representable input type`,
+										);
 									}
 								},
 							}) as Record<string, unknown>,

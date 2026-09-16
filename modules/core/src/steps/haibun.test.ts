@@ -8,7 +8,8 @@ import LogicStepper from "./logic-stepper.js";
 import { ActivitiesStepper } from "./activities-stepper.js";
 import { AStepper } from "../lib/astepper.js";
 import { actionOK } from "../lib/util/index.js";
-import { hostScopedMethodName, type StepRegistry } from "../lib/step-registry.js";
+import { hostScopedMethodName, runRegistry, type StepRegistry } from "../lib/step-registry.js";
+import { STEPS_CHANGED, type THaibunEvent } from "../schema/protocol.js";
 import type { TStepDefinitions } from "../lib/step-discovery.js";
 import type { TStepResult } from "../schema/protocol.js";
 import { OBSERVATION_GRAPH, assertFact, getFact } from "../lib/working-memory.js";
@@ -27,14 +28,16 @@ describe("on host", () => {
 			attach(registry: StepRegistry) {
 				const local = registry.get("TestSteps-passes");
 				if (!local) return;
-				registry.set({
-					...local,
-					descriptor: { ...local.descriptor, method: hostScopedMethodName(2, "TestSteps-passes") },
-					handler: async () => {
-						await assertFact(this.getWorld(), "flag", "remoteCalled", true, OBSERVATION_GRAPH.RUNTIME_FLAG);
-						return actionOK();
+				registry.inject([
+					{
+						...local,
+						descriptor: { ...local.descriptor, method: hostScopedMethodName(2, "TestSteps-passes") },
+						handler: async () => {
+							await assertFact(this.getWorld(), "flag", "remoteCalled", true, OBSERVATION_GRAPH.RUNTIME_FLAG);
+							return actionOK();
+						},
 					},
-				});
+				]);
 			}
 			detach() {
 				// required by attachTransportsToRegistry duck-type check
@@ -191,12 +194,39 @@ Prose sections are indicated by the presence of punctuation at the end of paragr
 	});
 });
 
+describe("the steps a run holds", () => {
+	it("are announced to the run's subscribers when a transport adds to them", async () => {
+		const signals: string[] = [];
+		class AddsAStep extends AStepper {
+			description = "Adds a step to the run's registry, as a transport adds another host's steps, and records the run's signals.";
+			cycles = { onEvent: (event: THaibunEvent) => void (event.kind === "control" && signals.push(event.signal)) };
+			steps = {
+				addsAStep: {
+					gwta: "transport adds a step",
+					action: () => {
+						const registry = runRegistry(this.getWorld());
+						const passes = registry.get("TestSteps-passes");
+						if (!passes) throw new Error("TestSteps-passes is not registered");
+						registry.inject([{ ...passes, descriptor: { ...passes.descriptor, method: hostScopedMethodName(9, "TestSteps-passes") } }]);
+						return Promise.resolve(actionOK());
+					},
+				},
+			};
+		}
+		const result = await passWithDefaults([{ path: "/features/test.feature", content: "passes\ntransport adds a step" }], [Haibun, TestSteps, AddsAStep]);
+		expect(result.ok).toBe(true);
+		expect(signals).toEqual([STEPS_CHANGED]);
+	});
+});
+
 describe("show steps", () => {
 	it("shows the run's steps whose text contains the text, as a feature line reads them", async () => {
 		const feature = { path: "/features/test.feature", content: 'show steps matching "testsTEPS-passes" as "definition"' };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
-		const discovery = (result.world.runtime.stepResults as TStepResult[]).map((stepResult) => stepResult.products as TStepDefinitions | undefined).find((products) => products?.steppers !== undefined);
+		const discovery = (result.world.runtime.stepResults as TStepResult[])
+			.map((stepResult) => stepResult.products as TStepDefinitions | undefined)
+			.find((products) => products?.steppers !== undefined);
 		expect(discovery?.steps.map((step) => step.method)).toEqual(["TestSteps-passes"]);
 		expect(discovery?.steps[0]._links.call).toEqual({ method: "TestSteps-passes" });
 		expect(discovery?.steppers.map((entry) => entry.stepper)).toEqual(["TestSteps"]);

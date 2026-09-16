@@ -8,6 +8,7 @@ import { html, nothing, type ReactiveController, type TemplateResult } from "lit
 import { ASK_STEP } from "../conversation.js";
 import { SHU_EVENT, SHU_TAG } from "../consts.js";
 import { getAvailableSteps, stepsForContext, type StepDescriptor } from "../rpc-registry.js";
+import { followStepChanges } from "../steps-changes.js";
 import type { TComboboxOption } from "../schemas.js";
 import { prettifyGwta } from "../util.js";
 import type { TActionsBarHost } from "./actions-bar-model.js";
@@ -79,12 +80,17 @@ export class ActionsBarSteps implements ReactiveController {
 	hostConnected(): void {
 		this.#host.addEventListener(SHU_EVENT.STEP_SUCCESS, this.#onSettled);
 		this.#host.addEventListener(SHU_EVENT.STEP_ERROR, this.#onSettled);
+		this.#stopFollowingSteps = followStepChanges(() => this.load());
 	}
 
 	hostDisconnected(): void {
 		this.#host.removeEventListener(SHU_EVENT.STEP_SUCCESS, this.#onSettled);
 		this.#host.removeEventListener(SHU_EVENT.STEP_ERROR, this.#onSettled);
+		this.#stopFollowingSteps();
 	}
+
+	/** Stops reading the steps again when the run signals they changed. */
+	#stopFollowingSteps: () => void = () => undefined;
 
 	/** Whether the run offers the step an ask runs, which decides whether a chosen Ask mode renders. */
 	get offersAsk(): boolean {

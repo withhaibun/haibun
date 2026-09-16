@@ -64,24 +64,29 @@ class TestStepper extends AStepper {
 						if (!names.includes(expected)) throw Error(`${expected} is not listed among ${names.join(", ")}`);
 					}
 					const verifyTool = tools.find((tool) => tool.name === "TestStepper-verifyTools");
-					if (!verifyTool || !(verifyTool.inputSchema as { properties?: Record<string, unknown> }).properties?.port) throw Error(`verifyTools lists no port: ${JSON.stringify(verifyTool)}`);
+					if (!verifyTool || !(verifyTool.inputSchema as { properties?: Record<string, unknown> }).properties?.port)
+						throw Error(`verifyTools lists no port: ${JSON.stringify(verifyTool)}`);
 					let listChanged = (): void => undefined;
 					const toldOfChange = new Promise<void>((resolve) => (listChanged = resolve));
 					client.setNotificationHandler(ToolListChangedNotificationSchema, () => listChanged());
 					const registry = runRegistry(this.getWorld());
 					const passes = registry.get("TestStepper-testA");
 					if (!passes) throw Error("TestStepper-testA is not registered");
-					registry.set({ ...passes, descriptor: { ...passes.descriptor, method: "Injected-testA", stepperName: "Injected" } });
+					registry.inject([{ ...passes, descriptor: { ...passes.descriptor, method: "Injected-testA", stepperName: "Injected" } }]);
 					await toldOfChange;
-					if (!(await client.listTools()).tools.some((tool) => tool.name === "Injected-testA")) throw Error("a step injected into the run is not listed after the client was told the list changed");
+					if (!(await client.listTools()).tools.some((tool) => tool.name === "Injected-testA"))
+						throw Error("a step injected into the run is not listed after the client was told the list changed");
 					const instructions = client.getInstructions() ?? "";
 					if (!instructions.includes("- TestStepper (2 steps): Steps that check the MCP tools a run lists.")) throw Error(`the instructions name no TestStepper: ${instructions}`);
-					const shown = (await client.callTool({ name: SHOW_STEPS_METHOD, arguments: { text: "TestStepper-", detail: STEP_DETAIL.summary } })) as { content: Array<{ text: string }> };
+					const shown = (await client.callTool({ name: SHOW_STEPS_METHOD, arguments: { text: "TestStepper-", detail: STEP_DETAIL.summary } })) as {
+						content: Array<{ text: string }>;
+					};
 					const { _seqPath, ...summaries } = JSON.parse(shown.content[0].text) as Record<string, unknown>;
 					const methods = StepSummariesSchema.parse(summaries).steps.map((step) => step.method);
 					if (methods.join(",") !== "TestStepper-testA,TestStepper-verifyTools") throw Error(`show steps returned ${methods.join(", ")}`);
 					const resources = await client.listResources();
-					if (!resources.resources.find((r) => r.name === "Haibun MCP Server Info")) throw Error(`Missing Haibun MCP Server Info resource. Found: ${resources.resources.map((r) => r.name).join(", ")}`);
+					if (!resources.resources.find((r) => r.name === "Haibun MCP Server Info"))
+						throw Error(`Missing Haibun MCP Server Info resource. Found: ${resources.resources.map((r) => r.name).join(", ")}`);
 				} finally {
 					await client.close();
 					global.fetch = originalFetch;

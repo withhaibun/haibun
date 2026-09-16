@@ -14,6 +14,7 @@ import { isServerUnreachable } from "../hypermedia.js";
 import { selectValuesFor } from "../quads-snapshot.js";
 import { addObservedSelectValues, getQueryableFields, getSelectValues, hasSelectValues, hasUsableSelectValues, setSelectValues } from "../rels-cache.js";
 import { buildDomainOptions, getAvailableDomains, getAvailableSteps, type DomainOption } from "../rpc-registry.js";
+import { followStepChanges } from "../steps-changes.js";
 import { SEARCH_OPERATORS, type TComboboxOption, type TContextPattern } from "../schemas.js";
 import { appAccessLevel } from "../util.js";
 import { getHash } from "../view-hash.js";
@@ -74,9 +75,17 @@ export class ActionsBarQuery implements ReactiveController {
 		host.addController(this);
 	}
 
+	hostConnected(): void {
+		this.#stopFollowingSteps = followStepChanges(() => this.loadDomains());
+	}
+
 	hostDisconnected(): void {
 		this.#cancelPendingSearch();
+		this.#stopFollowingSteps();
 	}
+
+	/** Stops reading the types again when the run signals its steps changed. */
+	#stopFollowingSteps: () => void = () => undefined;
 
 	/** After each render, the search box shows the stored text. It is uncontrolled while a reader types, so never while it
 	 *  has focus. */
