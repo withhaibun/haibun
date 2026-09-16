@@ -8,25 +8,9 @@ import { AStepper } from "@haibun/core/lib/astepper.js";
 import { OK } from "@haibun/core/schema/protocol.js";
 import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import Haibun from "@haibun/core/steps/haibun.js";
-import { SHOW_STEPS_METHOD, STEP_DETAIL, StepSummariesSchema } from "@haibun/core/lib/step-discovery.js";
+import { SHOW_STEPS_METHOD, STEP_DETAIL, readShownSteps } from "@haibun/core/lib/step-discovery.js";
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
 import { ToolListChangedNotificationSchema } from "@modelcontextprotocol/sdk/types.js";
-import { createRequire } from "module";
-
-const require = createRequire(import.meta.url);
-const EventSourceRaw = require("eventsource");
-
-// Polyfill extraction
-let EventSourcePolyfill = EventSourceRaw.default || EventSourceRaw;
-if (typeof EventSourcePolyfill !== "function" && EventSourcePolyfill.EventSource) {
-	EventSourcePolyfill = EventSourcePolyfill.EventSource;
-}
-
-// Polyfill EventSource for Node environment
-global.EventSource = EventSourcePolyfill;
-
-/** What the EventSource polyfill takes beside a URL: the headers it sends. */
-type TEventSourceOptions = { headers?: Record<string, string> };
 
 class TestStepper extends AStepper {
 	description = "Steps that check the MCP tools a run lists.";
@@ -39,25 +23,9 @@ class TestStepper extends AStepper {
 			gwta: "verify mcp tools on port {port}",
 			action: async ({ port }: { port: string }) => {
 				const mcpUrl = `http://localhost:${port}/mcp`;
-				const originalFetch = global.fetch;
-				const previousEventSource = global.EventSource;
-				global.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
-					if (input.toString().includes("/mcp")) {
-						const headers = new Headers(init?.headers);
-						headers.set("Authorization", "Bearer test-token");
-						return originalFetch(input, { ...init, headers });
-					}
-					return originalFetch(input, init);
-				}) as typeof fetch;
-				const Polyfill = EventSourcePolyfill as new (url: string, options?: TEventSourceOptions) => EventSource;
-				global.EventSource = class extends Polyfill {
-					constructor(url: string, options?: TEventSourceOptions) {
-						super(url, { ...options, headers: { ...options?.headers, Authorization: "Bearer test-token" } });
-					}
-				} as unknown as typeof EventSource;
 				const client = new Client({ name: "client", version: "1.0" }, { capabilities: {} });
 				try {
-					await client.connect(new StreamableHTTPClientTransport(new URL(mcpUrl)));
+					await client.connect(new StreamableHTTPClientTransport(new URL(mcpUrl), { requestInit: { headers: { Authorization: "Bearer test-token" } } }));
 					const { tools } = await client.listTools();
 					const names = tools.map((tool) => tool.name);
 					for (const expected of ["TestStepper-testA", "TestStepper-verifyTools", SHOW_STEPS_METHOD]) {
@@ -81,16 +49,13 @@ class TestStepper extends AStepper {
 					const shown = (await client.callTool({ name: SHOW_STEPS_METHOD, arguments: { text: "TestStepper-", detail: STEP_DETAIL.summary } })) as {
 						content: Array<{ text: string }>;
 					};
-					const { _seqPath, ...summaries } = JSON.parse(shown.content[0].text) as Record<string, unknown>;
-					const methods = StepSummariesSchema.parse(summaries).steps.map((step) => step.method);
+					const methods = readShownSteps(JSON.parse(shown.content[0].text), STEP_DETAIL.summary).steps.map((step) => step.method);
 					if (methods.join(",") !== "TestStepper-testA,TestStepper-verifyTools") throw Error(`show steps returned ${methods.join(", ")}`);
 					const resources = await client.listResources();
 					if (!resources.resources.find((r) => r.name === "Haibun MCP Server Info"))
 						throw Error(`Missing Haibun MCP Server Info resource. Found: ${resources.resources.map((r) => r.name).join(", ")}`);
 				} finally {
 					await client.close();
-					global.fetch = originalFetch;
-					global.EventSource = previousEventSource;
 				}
 				return OK;
 			},

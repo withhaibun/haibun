@@ -20,7 +20,6 @@ import { type IWebServer, WEBSERVER, DOMAIN_ENDPOINT, EndpointLabels, EndpointSc
 import { grantedCapabilityForRequest, validateCapabilityAuthConfig } from "./capability-auth.js";
 import { ServerHono, DEFAULT_PORT } from "./server-hono.js";
 import { SSETransport, TRANSPORT, type ITransport } from "./sse-transport.js";
-import { attachTransportsToRegistry } from "@haibun/core/phases/Executor.js";
 import type { IStepTransport } from "./step-transport.js";
 
 const cycles = (wss: WebServerStepper): IStepperCycles => ({
@@ -234,7 +233,6 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 				// The run's own registry, which holds what the run's transports injected, so a caller reaching the run by RPC
 				// dispatches and discovers the same steps as every other caller of the run.
 				this.stepRegistry = runRegistry(this.getWorld());
-				attachTransportsToRegistry(this.steppers, this.stepRegistry, this.getWorld().runtime[WEBSERVER]);
 
 				const transport = getFromRuntime(this.getWorld().runtime, TRANSPORT) as ITransport;
 				// What the registry answers is which methods are reads, which the transport asks before narrating that it

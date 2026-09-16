@@ -1,6 +1,7 @@
 import { SHU_BASE } from "./styles.js";
 import { conduit } from "../hypermedia.js";
-import { getAvailableSteps, findStep, type StepDescriptor } from "../rpc-registry.js";
+import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
+import { getAvailableSteps, findStep } from "../rpc-registry.js";
 import { queryGraph } from "../quads-snapshot.js";
 import { dispatchAffordanceFromResponse } from "../affordance-dispatch.js";
 import { esc, escAttr, prettifyGwta, normalizeStepKey } from "../util.js";
@@ -39,7 +40,7 @@ function isCompositeProperty(prop: InputProperty | undefined): prop is InputProp
  *   params: JSON string of fixed params, merged with form values
  */
 export class StepCaller extends HTMLElement {
-	private descriptor: StepDescriptor | undefined;
+	private descriptor: TStepDefinition | undefined;
 	private fixedParams: Record<string, unknown> = {};
 	private result: unknown = null;
 	private error = "";
@@ -213,7 +214,7 @@ export class StepCaller extends HTMLElement {
 		this.bindEvents();
 	}
 
-	private renderForm(desc: StepDescriptor): string {
+	private renderForm(desc: TStepDefinition): string {
 		const schema = desc.inputSchema as { properties?: Record<string, InputProperty>; required?: string[] } | undefined;
 		const properties = schema?.properties || {};
 		const prefix = this.idPrefix();
@@ -432,8 +433,8 @@ export class StepCaller extends HTMLElement {
 	 * reference in the concern catalog), returns the target persisted type's label.
 	 * `undefined` means render the param as a normal composite or primitive.
 	 */
-	private refTargetLabel(desc: StepDescriptor, paramName: string): string | undefined {
-		const domainKey = desc.paramDomains?.[paramName];
+	private refTargetLabel(desc: TStepDefinition, paramName: string): string | undefined {
+		const domainKey = desc.paramDomains[paramName];
 		if (!domainKey) return undefined;
 		try {
 			const ref = getConcernCatalog().references?.[domainKey];

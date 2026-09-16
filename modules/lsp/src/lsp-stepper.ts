@@ -118,12 +118,13 @@ export default class LspStepper extends AStepper {
 		// Validate documents when they change
 		this.documents.onDidChangeContent((change) => this.processDocument(change.document));
 
-		// Autocomplete
-		this.connection.onCompletion(() => {
-			return runRegistry(this.getWorld())
+		// Autocomplete offers the lines a feature writes: the steps of this run's steppers, and not a step another process runs.
+		this.connection.onCompletion(() =>
+			runRegistry(this.getWorld())
 				.list()
-				.map((tool) => completionItem(tool.descriptor));
-		});
+				.filter((tool) => tool.transport === "local")
+				.map((tool) => completionItem(tool.descriptor)),
+		);
 
 		this.connection.onCompletionResolve((item: CompletionItem): CompletionItem => item);
 

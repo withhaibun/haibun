@@ -18,7 +18,7 @@ import { OK } from "@haibun/core/schema/protocol.js";
 import { getFromRuntime, getStepperOption, stringOrError, errorDetail } from "@haibun/core/lib/util/index.js";
 import { currentVersion as version } from "@haibun/core/currentVersion.js";
 import { dispatchStep } from "@haibun/core/lib/step-dispatch.js";
-import { buildFeatureStepForTransport, declaredSteppers, type StepRegistry } from "@haibun/core/lib/step-registry.js";
+import { buildFeatureStepForTransport, steppersOf, type StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { stepsInstructions, toolDefinition } from "@haibun/core/lib/step-discovery.js";
 import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
 import type { IWebServer, Context } from "./defs.js";
@@ -107,9 +107,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 
 	/** Every step of the run as a tool, a step another host injected among them. */
 	public getTools(): Tool[] {
-		return this.registry()
-			.list()
-			.map((tool) => toolDefinition(tool.descriptor));
+		return this.registry().descriptors().map(toolDefinition);
 	}
 
 	/** Call a step by its method, as a tool call names it, under the capability the caller was granted. */
@@ -141,7 +139,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 
 		// A host places a server's instructions in its model's context, so the model knows the run's steppers before it
 		// searches for a step.
-		const instructions = stepsInstructions(declaredSteppers(this.registry()));
+		const instructions = stepsInstructions(steppersOf(this.registry().descriptors()));
 		this.mcpServer = new McpServer({ name: "haibun-mcp", version }, { capabilities: { tools: { listChanged: true }, resources: {} }, instructions });
 		this.transport = new StreamableHTTPTransport({ enableJsonResponse: true });
 

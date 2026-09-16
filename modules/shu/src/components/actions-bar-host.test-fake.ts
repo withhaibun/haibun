@@ -24,6 +24,14 @@ export class ControllerHostFake extends HTMLElement implements TActionsBarHost {
 	requestUpdate(): void {
 		this.updatesAsked++;
 	}
+	/** Tell each controller the host connected, as lit does when the element enters the page. */
+	connect(): void {
+		for (const controller of this.controllers) controller.hostConnected?.();
+	}
+	/** Tell each controller the host disconnected, as lit does when the element leaves the page. */
+	disconnect(): void {
+		for (const controller of this.controllers) controller.hostDisconnected?.();
+	}
 }
 
 /** A host on an empty page. */

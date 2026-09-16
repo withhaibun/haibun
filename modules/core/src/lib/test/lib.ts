@@ -12,6 +12,7 @@ import { FeatureVariables } from "../feature-variables.js";
 import { Prompter } from "../prompter.js";
 import { getCoreDomains } from "../core-domains.js";
 import assert from "assert";
+import { createServer } from "node:net";
 import { EventLogger } from "../EventLogger.js";
 
 const DEF_PROTO_DEFAULT_OPTIONS = { DEST: DEFAULT_DEST };
@@ -115,3 +116,14 @@ export function getDefaultTag(desc: string | undefined = undefined) {
 	// In tests, callers (via resolveHostId's default) get DEFAULT_HOST_ID = 0.
 	return getRunTag(0, undefined, desc ? { desc } : undefined, false, resolveHostId());
 }
+
+/** A port nothing listens on now, so a test's server and another test file's never share one. */
+export const freePort = (): Promise<number> =>
+	new Promise((resolve, reject) => {
+		const probe = createServer();
+		probe.once("error", reject);
+		probe.listen(0, "127.0.0.1", () => {
+			const { port } = probe.address() as { port: number };
+			probe.close(() => resolve(port));
+		});
+	});

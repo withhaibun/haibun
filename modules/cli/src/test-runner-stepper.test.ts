@@ -18,7 +18,7 @@ import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { actionOKWithProducts } from "@haibun/core/lib/util/index.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
-import { StepRegistry } from "@haibun/core/lib/step-registry.js";
+import { openRunRegistry } from "@haibun/core/lib/step-registry.js";
 import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import nodeFS from "node:fs";
@@ -112,8 +112,8 @@ function harness({ supervised = true, standing = false }: { supervised?: boolean
 	world.domains = mapDefinitionsToDomains([principalDomainDefinition, featureExecutionDomainDefinition]);
 	const steppers = supervised ? [stepper, supervisor] : [stepper];
 	for (const s of steppers) void s.setWorld(world, steppers);
-	// The run's registry, as the executor assigns it, which a step calls another step through.
-	world.runtime.stepRegistry = new StepRegistry(steppers, world);
+	// The run's registry, as the executor opens it, which a step calls another step through.
+	openRunRegistry(world, steppers);
 	const run = (where: string, filter: string) => (stepper.steps.runTest.action as (a: { where: string; filter: string }) => Promise<TResult>)({ where, filter });
 	const read = () => (stepper.steps.readTestRun.action as () => Promise<TResult & { products?: Record<string, string> }>)();
 	const stop = () => (stepper.steps.stopTestRun.action as () => Promise<TResult>)();

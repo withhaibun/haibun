@@ -94,7 +94,6 @@ function recipeAtRun(atRun: TStepDescriptor[]): string {
 /** How a step says it lists what a run holds: its own description, in the words it declares itself with. */
 const LISTS_WHAT_IT_HOLDS = /\blists?\b/i;
 
-
 /**
  * The parameters of a question put to a run, as a feature line or a model can write them: `name=value` pairs, or
  * JSON from a caller that can write it. A quoted feature-line argument holds no double quotes, so pairs are what a
@@ -434,8 +433,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 	 *  with what each takes. An empty list means nothing was injected, so a call is passed on as written. */
 	private stepsAtRun(host: number): TStepDescriptor[] {
 		return runRegistry(this.getWorld())
-			.list()
-			.map((tool) => tool.descriptor)
+			.descriptors()
 			.filter((step) => hostOfMethodName(step.method) === host);
 	}
 

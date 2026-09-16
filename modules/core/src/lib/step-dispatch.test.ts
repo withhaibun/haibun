@@ -14,7 +14,7 @@ import {
 	type StepTool,
 } from "./step-registry.js";
 import { validateToolInput } from "./tool-validation.js";
-import { EVERY_DEFINITION, type TStepDefinitions } from "./step-discovery.js";
+import { EVERY_DEFINITION } from "./step-discovery.js";
 import { AStepper, type TStepperStep } from "./astepper.js";
 import { OK } from "../schema/protocol.js";
 import { actionOKWithProducts, actionNotOK } from "./util/index.js";
@@ -247,7 +247,7 @@ describe("step-dispatch", () => {
 				],
 			]);
 			const stepper = new PlainStepper();
-			const discovery = discoverSteps(w, new StepRegistry([stepper], w), EVERY_DEFINITION) as TStepDefinitions;
+			const discovery = discoverSteps(w, new StepRegistry([stepper], w), EVERY_DEFINITION);
 			expect(Array.isArray(discovery.steps)).toBe(true);
 			expect(discovery.steps.some((m) => m.method === "PlainStepper-greet")).toBe(true);
 			expect(discovery.domains).toBeDefined();
@@ -266,10 +266,9 @@ describe("step-dispatch", () => {
 				],
 			]);
 			const stepper = new PlainStepper();
-			const discovery = discoverSteps(w, new StepRegistry([stepper], w), EVERY_DEFINITION) as TStepDefinitions;
+			const discovery = discoverSteps(w, new StepRegistry([stepper], w), EVERY_DEFINITION);
 			expect(discovery.domains["size"]).toMatchObject({ description: "T-shirt size", values: ["small", "medium", "large"] });
 		});
-
 	});
 
 	describe("createStepHandler", () => {

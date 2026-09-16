@@ -2,7 +2,7 @@ import { rmSync, writeFileSync, readFileSync } from "fs";
 import { setCookie } from "@haibun/web-server-hono/cookie.js";
 import { actionNotOK, actionOK, actionOKWithProducts, getFromRuntime, sleep } from "@haibun/core/lib/util/index.js";
 import { DOMAIN_STRING } from "@haibun/core/lib/domains.js";
-import { SHOW_STEPS_METHOD, STEP_DETAIL, StepSummariesSchema } from "@haibun/core/lib/step-discovery.js";
+import { SHOW_STEPS_METHOD, STEP_DETAIL, readShownSteps } from "@haibun/core/lib/step-discovery.js";
 import { OK, Origin } from "@haibun/core/schema/protocol.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 import { restRoutes } from "./rest.js";
@@ -46,8 +46,7 @@ async function mcpShownSteps(url, token, text) {
     const returned = mcpToolResult(response).content?.[0]?.type === "text" ? (mcpToolResult(response).content?.[0]?.text ?? "") : "";
     if (!returned)
         throw new Error(`${SHOW_STEPS_METHOD} returned nothing: ${JSON.stringify(response)}`);
-    const { _seqPath, ...summaries } = JSON.parse(returned);
-    return StepSummariesSchema.parse(summaries).steps.map((step) => step.method);
+    return readShownSteps(JSON.parse(returned), STEP_DETAIL.summary).steps.map((step) => step.method);
 }
 async function mcpCallTool(url, token, toolName) {
     return await mcpRpc(url, 4, "tools/call", { name: toolName, arguments: {} }, token);

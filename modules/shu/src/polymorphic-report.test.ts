@@ -11,7 +11,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { registerDomains } from "@haibun/core/lib/domains.js";
-import { StepRegistry } from "@haibun/core/lib/step-registry.js";
+import { openRunRegistry } from "@haibun/core/lib/step-registry.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { DOMAIN_GRAPH_QUERY } from "@haibun/core/lib/quad-types.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
@@ -71,7 +71,7 @@ async function generateReport(finalView: string | undefined, writes = 1, queries
 	(world.shared as unknown as { getSecrets: () => Promise<Record<string, string>> }).getSecrets = async () => ({});
 	for (const s of steppers) await s.setWorld(world, steppers);
 	world.runtime.steppers = steppers;
-	world.runtime.stepRegistry = new StepRegistry(steppers, world);
+	openRunRegistry(world, steppers);
 	// The step that showed the view, as the run records it: what the report reads to know which column was open.
 	if (finalView)
 		await store.upsertIndividual(SEQ_PATH_LABEL, {

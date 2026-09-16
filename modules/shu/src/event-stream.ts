@@ -173,6 +173,7 @@ export class SerializedEventStream implements EventStream {
 
 	close(): void {
 		this.subscribers.clear();
+		this.openListeners.clear();
 	}
 }
 

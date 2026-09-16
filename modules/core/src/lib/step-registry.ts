@@ -3,7 +3,7 @@ import { jsonSchemaOf } from "./json-schema-of.js";
 import { AStepper, type TStepperStep, type TFeatureStep } from "./astepper.js";
 import type { TWorld } from "./world.js";
 import { buildConcernCatalog } from "./hypermedia.js";
-import type { TActionResult, TSeqPath } from "../schema/protocol.js";
+import { ControlEvent, STEPS_CHANGED, type TActionResult, type TSeqPath } from "../schema/protocol.js";
 import { namedInterpolation, mapInputToStepValues } from "./namedVars.js";
 import { constructorName, actionNotOK } from "./util/index.js";
 import { populateActionArgs } from "./populateActionArgs.js";
@@ -14,13 +14,16 @@ import { resolveOutputSchema } from "./tool-validation.js";
 import {
 	STEP_DETAIL,
 	containsText,
-	definitionLink,
+	domainSummary,
+	stepDefinition,
+	stepSummary,
 	stepperStepsLink,
 	type TDomainDiscoveryInfo,
 	type TInputSchema,
+	type TStepDefinitions,
 	type TStepDescriptor,
-	type TStepDiscovery,
-	type TStepperEntry,
+	type TStepSummaries,
+	type TStepperSummary,
 	type TStepsQuery,
 } from "./step-discovery.js";
 
@@ -38,8 +41,6 @@ export type StepTool = {
 	stepDef?: TStepperStep;
 	/** Where the step runs: in this process, at a remote host, or in a subprocess. */
 	transport: "local" | "remote" | "subprocess";
-	/** Remote host URL, set by RemoteStepperProxy for dispatch tracing. */
-	remoteHost?: string;
 	/** True if the step action is an async function (observable execution time). */
 	isAsync: boolean;
 	handler: (featureStep: TFeatureStep, world: TWorld) => Promise<TActionResult>;
@@ -51,8 +52,10 @@ export type StepTool = {
  */
 export class StepRegistry {
 	private tools = new Map<string, StepTool>();
-	/** Names injected via set(), survive refresh() so transports (RemoteStepperProxy, subprocess) register once and stay live across per-feature rebuilds. */
+	/** Names injected via inject(), which survive refresh() so transports (RemoteStepperProxy, subprocess) register once and stay live across per-feature rebuilds. */
 	private injectedNames = new Set<string>();
+	/** Every step's description as one text, which a change to the registry is compared by. */
+	private described = "";
 	/** What is told when the registry's steps change. */
 	private changeListeners = new Set<() => void>();
 
@@ -60,22 +63,34 @@ export class StepRegistry {
 		this.refresh(steppers, world);
 	}
 
-	/** Rebuild stepper-owned entries in-place. Injected tools are preserved. A rebuild that describes every step as it
-	 *  was changes nothing, and is not announced. */
+	/** Rebuild stepper-owned entries in-place. Injected tools are preserved. */
 	refresh(steppers: AStepper[], world: TWorld): void {
-		const before = this.described();
 		const next = buildStepRegistry(steppers, world);
 		for (const name of this.injectedNames) {
 			const existing = this.tools.get(name);
 			if (existing) next.set(name, existing);
 		}
-		this.tools = next;
-		if (this.described() !== before) this.announceChange();
+		this.replace(next);
 	}
 
-	/** Every step's description, as one text a rebuild is compared by. */
-	private described(): string {
-		return JSON.stringify(this.list().map((tool) => tool.descriptor));
+	/** Add or replace the steps a transport reaches in another process, which survive refresh(). */
+	inject(tools: StepTool[]): void {
+		const next = new Map(this.tools);
+		for (const tool of tools) {
+			next.set(tool.descriptor.method, tool);
+			this.injectedNames.add(tool.descriptor.method);
+		}
+		this.replace(next);
+	}
+
+	/** Hold the tools given, and announce them where they describe the steps differently. A change that describes every
+	 *  step as it was is not announced. */
+	private replace(next: Map<string, StepTool>): void {
+		this.tools = next;
+		const described = JSON.stringify(this.descriptors());
+		if (described === this.described) return;
+		this.described = described;
+		for (const listener of this.changeListeners) listener();
 	}
 
 	/** Tell `listener` each time the registry's steps change, until the returned function is called. A caller that lists
@@ -83,10 +98,6 @@ export class StepRegistry {
 	onChange(listener: () => void): () => void {
 		this.changeListeners.add(listener);
 		return () => this.changeListeners.delete(listener);
-	}
-
-	private announceChange(): void {
-		for (const listener of this.changeListeners) listener();
 	}
 
 	get(name: string): StepTool | undefined {
@@ -97,6 +108,10 @@ export class StepRegistry {
 		return Array.from(this.tools.values());
 	}
 
+	descriptors(): TStepDescriptor[] {
+		return this.list().map((tool) => tool.descriptor);
+	}
+
 	get size(): number {
 		return this.tools.size;
 	}
@@ -104,16 +119,18 @@ export class StepRegistry {
 	has(name: string): boolean {
 		return this.tools.has(name);
 	}
+}
 
-	/** Add or replace the steps a transport reaches in another process, which survive refresh(). The steps are announced
-	 *  as one change. */
-	inject(tools: StepTool[]): void {
-		for (const tool of tools) {
-			this.tools.set(tool.descriptor.method, tool);
-			this.injectedNames.add(tool.descriptor.method);
-		}
-		if (tools.length > 0) this.announceChange();
-	}
+/** Open the run's step registry over the run's steppers. The run signals on its stream each time the registry's steps
+ *  change, and a page that read them reads them again. */
+export function openRunRegistry(world: TWorld, steppers: AStepper[]): StepRegistry {
+	const registry = new StepRegistry(steppers, world);
+	world.runtime.stepRegistry = registry;
+	let changes = 0;
+	registry.onChange(() =>
+		world.eventLogger.emit(ControlEvent.parse({ id: `${STEPS_CHANGED}-${++changes}`, timestamp: Date.now(), kind: "control", level: "debug", signal: STEPS_CHANGED })),
+	);
+	return registry;
 }
 
 /** The run's step registry, which holds every step the run declares and every step its transports injected. Every caller
@@ -175,14 +192,6 @@ export function createStepTool(stepper: AStepper, stepName: string, stepDef: TSt
 			/* skip if schema can't be converted */
 		}
 	}
-	const params: TStepDescriptor["params"] = {};
-	const paramDomains: TStepDescriptor["paramDomains"] = {};
-	if (stepDef.gwta) {
-		for (const v of Object.values(namedInterpolation(stepDef.gwta).stepValuesMap ?? {})) {
-			params[v.term] = v.domain === "number" ? "number" : "string";
-			paramDomains[v.term] = v.domain || DOMAIN_STRING;
-		}
-	}
 	return {
 		descriptor: {
 			method: stepMethodName(stepperName, stepName),
@@ -190,15 +199,14 @@ export function createStepTool(stepper: AStepper, stepName: string, stepDef: TSt
 			stepperDescription: stepper.description,
 			stepName,
 			pattern: stepDef.gwta || stepDef.exact || stepDef.match?.toString() || stepName,
-			...(stepDef.description ? { description: stepDef.description } : {}),
-			params,
-			paramDomains,
-			...(stepDef.productsDomain ? { productsDomain: stepDef.productsDomain } : {}),
-			...(stepDef.capability ? { capability: stepDef.capability } : {}),
+			description: stepDef.description,
+			paramDomains: Object.fromEntries(paramDomainKeys),
+			productsDomain: stepDef.productsDomain,
+			capability: stepDef.capability,
 			read: stepDef.read === true,
 			fallback: stepDef.fallback === true,
 			inputSchema,
-			...(outputSchema ? { outputSchema } : {}),
+			outputSchema,
 		},
 		paramSchemas,
 		paramDomainKeys,
@@ -380,9 +388,10 @@ export function authorizeToolCapability(step: Pick<TStepDescriptor, "method" | "
 }
 
 /** Each stepper the steps name, in the order the steps name them, with its description, the number of its steps among
- *  them and the read of the summaries of its steps. A stepper another host declares is named with that host's prefix. */
-function steppersOf(steps: TStepDescriptor[]): TStepperEntry[] {
-	const byStepper = new Map<string, TStepperEntry>();
+ *  them and the read of the summaries of its steps. A stepper another host declares is named with that host's prefix.
+ *  Every step of a registry names every stepper of the run, which a caller is told before it asks for anything. */
+export function steppersOf(steps: TStepDescriptor[]): TStepperSummary[] {
+	const byStepper = new Map<string, TStepperSummary>();
 	for (const step of steps) {
 		const host = hostOfMethodName(step.method);
 		const stepper = host === undefined ? step.stepperName : hostScopedMethodName(host, step.stepperName);
@@ -393,11 +402,6 @@ function steppersOf(steps: TStepDescriptor[]): TStepperEntry[] {
 	return [...byStepper.values()];
 }
 
-/** Every stepper of a run with every step it declares, which a caller is told before it asks for anything. */
-export function declaredSteppers(registry: StepRegistry): TStepperEntry[] {
-	return steppersOf(registry.list().map((tool) => tool.descriptor));
-}
-
 /**
  * What a run declares to a caller: each step and domain whose text contains the query's text, compared without regard to
  * case, and the steppers of the steps that matched. A step's texts are its method, its pattern and its description, so a
@@ -406,33 +410,26 @@ export function declaredSteppers(registry: StepRegistry): TStepperEntry[] {
  * Every step is shown with the capability it requires, whatever the caller holds: a caller that lacks one is refused when
  * it calls the step, and is told how to ask for it. The registry is the run's, which holds the steps a transport injected.
  */
-export function discoverSteps(world: TWorld, registry: StepRegistry, query: TStepsQuery): TStepDiscovery {
-	const steps = registry
-		.list()
-		.map((tool) => tool.descriptor)
-		.filter((step) => containsText([step.method, step.pattern, step.description], query.text));
+export function discoverSteps(world: TWorld, registry: StepRegistry, query: TStepsQuery & { detail: typeof STEP_DETAIL.summary }): TStepSummaries;
+export function discoverSteps(world: TWorld, registry: StepRegistry, query: TStepsQuery & { detail: typeof STEP_DETAIL.definition }): TStepDefinitions;
+export function discoverSteps(world: TWorld, registry: StepRegistry, query: TStepsQuery): TStepSummaries | TStepDefinitions;
+export function discoverSteps(world: TWorld, registry: StepRegistry, query: TStepsQuery): TStepSummaries | TStepDefinitions {
+	const steps = registry.descriptors().filter((step) => containsText([step.method, step.pattern, step.description], query.text));
 	const steppers = steppersOf(steps);
 	const domains = Object.entries(world.domains).filter(([key, domain]) => containsText([key, domain.description], query.text));
 	if (query.detail === STEP_DETAIL.summary) {
 		return {
 			detail: STEP_DETAIL.summary,
 			steppers,
-			steps: steps.map(({ method, stepperName, pattern, description, capability }) => ({
-				method,
-				stepperName,
-				pattern,
-				...(description === undefined ? {} : { description }),
-				...(capability === undefined ? {} : { capability }),
-				_links: { definition: definitionLink(method) },
-			})),
-			domains: domains.map(([domain, { description }]) => ({ domain, ...(description === undefined ? {} : { description }), _links: { definition: definitionLink(domain) } })),
+			steps: steps.map(stepSummary),
+			domains: Object.fromEntries(domains.map(([key, { description }]) => [key, domainSummary(key, description)])),
 		};
 	}
 	const catalog = buildConcernCatalog(world.domains);
 	return {
 		detail: STEP_DETAIL.definition,
 		steppers,
-		steps: steps.map((step) => ({ ...step, _links: { call: { method: step.method } } })),
+		steps: steps.map(stepDefinition),
 		domains: Object.fromEntries(domains.map(([key, domain]) => [key, domainDiscoveryInfo(domain)])),
 		concerns: {
 			persisted: Object.fromEntries(Object.entries(catalog.persisted).filter(([label, concern]) => containsText([label, concern.description], query.text))),
@@ -455,10 +452,10 @@ function domainDiscoveryInfo(domain: TWorld["domains"][string]): TDomainDiscover
 	}
 	const ui = domain.ui ? (({ jsContent: _source, ...rest }) => rest)(domain.ui as Record<string, unknown> & { jsContent?: string }) : undefined;
 	return {
-		...(domain.description === undefined ? {} : { description: domain.description }),
-		...(values === undefined ? {} : { values }),
-		...(domain.stepperName === undefined ? {} : { stepperName: domain.stepperName }),
-		...(isPersisted(domain.topology) ? { persistedAs: domain.topology.persistedAs } : {}),
-		...(ui === undefined ? {} : { ui }),
+		description: domain.description,
+		values,
+		stepperName: domain.stepperName,
+		persistedAs: isPersisted(domain.topology) ? domain.topology.persistedAs : undefined,
+		ui,
 	};
 }

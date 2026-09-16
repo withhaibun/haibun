@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { RemoteStepperProxy } from "./remote-stepper-proxy.js";
-import { StepRegistry } from "./step-registry.js";
+import { openRunRegistry, StepRegistry } from "./step-registry.js";
 import Haibun from "../steps/haibun.js";
 import { AStepper } from "./astepper.js";
 import { actionOKWithProducts, errorDetail } from "./util/index.js";
@@ -36,8 +36,7 @@ describe("RemoteStepperProxy", () => {
 		// The host serves its declarations through the show steps step, dispatched like any other.
 		const hosted = [new EchoStepper(), new Haibun()];
 		for (const stepper of hosted) await stepper.setWorld(world, hosted);
-		const localRegistry = new StepRegistry(hosted, world);
-		world.runtime.stepRegistry = localRegistry;
+		const localRegistry = openRunRegistry(world, hosted);
 
 		const app = new Hono();
 		app.post("/rpc/:_method", async (c) => {
@@ -87,12 +86,12 @@ describe("RemoteStepperProxy", () => {
 		if (!tool) throw new Error("Expected prefixed tool to be registered");
 		// Bare name (local form) must NOT be registered, prefixing is total.
 		expect(registry.get("EchoStepper-echo")).toBeUndefined();
-		expect(tool.descriptor, "the host's description of the step, under the name and pattern of the host").toMatchObject({
+		expect(tool.descriptor, "the host's description of the step, under the host's name for it and with the host it runs at").toMatchObject({
 			method: "host7_EchoStepper-echo",
 			stepperName: "EchoStepper",
 			stepperDescription: "Steps that echo a message and answer a protected ping, served by a remote host.",
-			pattern: `echo {message: string} (at localhost:${port})`,
-			params: { message: "string" },
+			pattern: "echo {message: string}",
+			remoteHost: `localhost:${port}`,
 			paramDomains: { message: "string" },
 			read: false,
 			fallback: false,
