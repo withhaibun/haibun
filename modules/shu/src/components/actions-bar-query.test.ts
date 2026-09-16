@@ -13,11 +13,16 @@ const declaredTypes = [
 	{ key: "email-domain", queryLabel: "Email", group: "declared" },
 	{ key: "file-domain", queryLabel: "File", group: "declared" },
 ];
+/** What is told when the page has read the run's steps again. */
+const toldOfChanges = new Set<() => Promise<void> | void>();
 vi.mock("../rpc-registry.js", async (actual) => ({
 	...(await actual<Record<string, unknown>>()),
 	getAvailableSteps: () => Promise.resolve([]),
 	getAvailableDomains: () => Promise.resolve({}),
-	rereadStepList: () => Promise.resolve(),
+	onStepsChanged: (listener: () => Promise<void> | void) => {
+		toldOfChanges.add(listener);
+		return () => toldOfChanges.delete(listener);
+	},
 	buildDomainOptions: () => [...declaredTypes],
 }));
 vi.mock("../rels-cache.js", async (actual) => ({ ...(await actual<Record<string, unknown>>()), getQueryableFields: () => ["folder", "subject"] }));
@@ -28,8 +33,6 @@ const { aControllerHost } = await import("./actions-bar-host.test-fake.js");
 const { SHU_EVENT, SHU_TAG } = await import("../consts.js");
 const { getSelectValues } = await import("../rels-cache.js");
 const { viewQuery } = await import("../view-query.js");
-const { SerializedEventStream, setEventStream } = await import("../event-stream.js");
-const { STEPS_CHANGED } = await import("@haibun/core/schema/protocol.js");
 
 type TFilterChange = { asked: boolean; label: string; accessLevel: string; conditions: TSearchCondition[] };
 
@@ -46,6 +49,7 @@ async function aQueryPage(hash = "") {
 		setStatus: () => undefined,
 		onTrailChange: () => undefined,
 	});
+	host.connect();
 	await query.loadDomains();
 	await settled();
 	render(query.template(html``), host);
@@ -71,19 +75,16 @@ describe("the actions bar's search mode", () => {
 		expect(searchConditions({ folder: "INBOX", account: "" }, rows)).toEqual([{ predicate: "folder", operator: "eq", value: "INBOX" }, rows[0]]);
 	});
 
-	it("offers the types the run declares after the run signals its steps changed", async () => {
-		const stream = new SerializedEventStream();
-		setEventStream(stream);
+	it("offers the types the run declares once the page has read the run's steps again", async () => {
 		const { host, query } = await aQueryPage();
-		query.hostConnected();
 		declaredTypes.push({ key: "note-domain", queryLabel: "Note", group: "declared" });
 		const asked = host.updatesAsked;
-		stream.emit({ id: `${STEPS_CHANGED}-1`, timestamp: Date.now(), kind: "control", level: "debug", signal: STEPS_CHANGED });
-		await vi.waitFor(() => expect(host.updatesAsked).toBeGreaterThan(asked));
+		for (const told of toldOfChanges) await told();
+		expect(host.updatesAsked).toBeGreaterThan(asked);
 		render(query.template(html``), host);
 		const offered = (host.querySelector(".label-select") as HTMLElement & { options: Array<{ value: string }> }).options.map((o) => o.value);
 		expect(offered).toContain("note-domain");
-		query.hostDisconnected();
+		host.disconnect();
 		declaredTypes.pop();
 	});
 

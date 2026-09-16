@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { StepRegistry, type StepTool, buildFeatureStepForTransport, createStepTool, declaredSteppers, discoverSteps, hostScopedMethodName } from "./step-registry.js";
+import { StepRegistry, type StepTool, buildFeatureStepForTransport, createStepTool, discoverSteps, hostScopedMethodName, steppersOf } from "./step-registry.js";
 import { AStepper } from "./astepper.js";
 import { actionOK } from "./util/index.js";
 import type { TWorld } from "./world.js";
 import type { TStepperStep } from "./astepper.js";
-import { EVERY_DEFINITION, STEP_DETAIL, SHOW_STEPS_METHOD, StepDiscoverySchema, type TStepDefinitions, type TStepSummaries } from "./step-discovery.js";
+import { EVERY_DEFINITION, STEP_DETAIL, SHOW_STEPS_METHOD, StepDiscoverySchema } from "./step-discovery.js";
 
 /** A domain with date fields and a defaulted field: the shape every persisted type carries (generatedAtTime etc.). */
 const RecordSchema = z
@@ -61,33 +61,35 @@ const remoteTool = (stepName: string, pattern: string, capability?: string): Ste
 		stepperName: "RemoteSteps",
 		stepperDescription: "steps another host declares",
 		stepName,
-		pattern: `${pattern} (at localhost:8331)`,
-		params: {},
+		pattern,
 		paramDomains: {},
-		...(capability ? { capability } : {}),
+		capability,
 		read: false,
 		fallback: false,
+		remoteHost: "localhost:8331",
 		inputSchema: { type: "object", properties: {}, required: [] },
 	},
 	paramSchemas: new Map(),
 	paramDomainKeys: new Map(),
 	transport: "remote",
-	remoteHost: "localhost:8331",
 	isAsync: true,
 	handler: async () => actionOK(),
 });
 
-const definitionsOf = (world: TWorld, registry: StepRegistry, text: string) => discoverSteps(world, registry, { text, detail: STEP_DETAIL.definition }) as TStepDefinitions;
-const summariesOf = (world: TWorld, registry: StepRegistry, text: string) => discoverSteps(world, registry, { text, detail: STEP_DETAIL.summary }) as TStepSummaries;
+const definitionsOf = (world: TWorld, registry: StepRegistry, text: string) => discoverSteps(world, registry, { text, detail: STEP_DETAIL.definition });
+const summariesOf = (world: TWorld, registry: StepRegistry, text: string) => discoverSteps(world, registry, { text, detail: STEP_DETAIL.summary });
 
 describe("what a read of the run's declarations shows", () => {
 	const emptyWorld = { domains: {}, runtime: {} } as unknown as TWorld;
 
-	it("shows a step another host injected under its host-scoped name, with a pattern and a stepper that name the host", () => {
+	it("shows a step another host injected under its host-scoped name, with the host it runs at and a stepper that names the host", () => {
 		const registry = new StepRegistry([new LocalSteps()], emptyWorld);
 		registry.inject([remoteTool("listTyped", "list {domain: string}")]);
 		const shown = definitionsOf(emptyWorld, registry, "");
-		expect(shown.steps.find((step) => step.method === hostScopedMethodName(9, "RemoteSteps-listTyped"))?.pattern).toBe("list {domain: string} (at localhost:8331)");
+		expect(shown.steps.find((step) => step.method === hostScopedMethodName(9, "RemoteSteps-listTyped"))).toMatchObject({
+			pattern: "list {domain: string}",
+			remoteHost: "localhost:8331",
+		});
 		expect(
 			shown.steps.find((step) => step.method === "LocalSteps-passes"),
 			"beside the local steps",
@@ -146,12 +148,9 @@ describe("what a read of the run's declarations shows", () => {
 		).toEqual(["ManySteps-readRecord"]);
 		expect(defined.steps[0]._links.call, "and a definition links the step's call").toEqual({ method: "ManySteps-readRecord" });
 		expect(defined.steps[0].inputSchema.required, "with the schema of its arguments").toEqual(["id"]);
+		expect(Object.keys(summariesOf(world, registry, "record").domains), "a domain is matched by its name or description").toEqual(["record-id"]);
 		expect(
-			summariesOf(world, registry, "record").domains.map((entry) => entry.domain),
-			"a domain is matched by its name or description",
-		).toEqual(["record-id"]);
-		expect(
-			declaredSteppers(registry).map((entry) => [entry.stepper, entry.steps]),
+			steppersOf(registry.descriptors()).map((entry) => [entry.stepper, entry.steps]),
 			"and the run's steppers are every stepper with every step",
 		).toEqual([
 			["ManySteps", 2],
@@ -166,6 +165,8 @@ describe("what a read of the run's declarations shows", () => {
 		registry.onChange(() => changes++);
 		registry.inject([remoteTool("listTyped", "list {domain: string}"), remoteTool("write", "write {data}")]);
 		expect(changes, "two steps injected together are one change").toBe(1);
+		registry.inject([remoteTool("listTyped", "list {domain: string}")]);
+		expect(changes, "a step injected again as it was is no change").toBe(1);
 		registry.refresh(steppers, emptyWorld);
 		expect(changes, "a rebuild of the same steps is no change").toBe(1);
 		class MoreSteps extends AStepper {
@@ -201,7 +202,7 @@ describe("what the manifest says about a domain", () => {
 			runtime: {},
 			domains: { "x-viewer": { name: "x-viewer", description: "a viewer", ui: { component: "x-viewer", js: "/assets/x-viewer.js", jsContent: "/* the whole bundle */" } } },
 		} as unknown as TWorld;
-		const manifest = discoverSteps(world, new StepRegistry([], world), EVERY_DEFINITION) as TStepDefinitions;
+		const manifest = discoverSteps(world, new StepRegistry([], world), EVERY_DEFINITION);
 		expect(manifest.domains["x-viewer"].ui).toEqual({ component: "x-viewer", js: "/assets/x-viewer.js" });
 	});
 });

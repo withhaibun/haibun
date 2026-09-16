@@ -149,7 +149,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 		const priorCount = ((await getFact(world, "count", usageKey, OBSERVATION_GRAPH.STEP_USAGE)) as number | undefined) ?? 0;
 		await assertFact(world, "count", usageKey, priorCount + 1, OBSERVATION_GRAPH.STEP_USAGE);
 		world.eventLogger.stepStart(featureStep, action.stepperName, action.actionName, {}, featureStep.action.stepValuesMap, tool.isAsync);
-		await emitSeqPathStart(world, featureStep, authorization, { ranVia: tool.transport, ranOn: tool.remoteHost });
+		await emitSeqPathStart(world, featureStep, authorization, { ranVia: tool.transport, ranOn: tool.descriptor.remoteHost });
 	}
 	// What is said while this step runs reports no more prominently than the step does, so a call made into a running
 	// instance leaves the caller's own narration out of the run's history rather than among its steps.
@@ -217,7 +217,13 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 		featureStep.action.stepValuesMap,
 		retainedProducts(actionResult.products as Record<string, unknown> | undefined, action.step.retainProducts),
 	);
-	await emitSeqPathEnd(world, featureStep, SEQ_PATH_STATUS_OF[ended], ok ? undefined : actionResult.errorMessage, viewShown(actionResult.products as Record<string, unknown> | undefined));
+	await emitSeqPathEnd(
+		world,
+		featureStep,
+		SEQ_PATH_STATUS_OF[ended],
+		ok ? undefined : actionResult.errorMessage,
+		viewShown(actionResult.products as Record<string, unknown> | undefined),
+	);
 	return lastStepResult;
 }
 

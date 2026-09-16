@@ -15,9 +15,8 @@ import type { TWorld } from "./world.js";
 import type { TActionResult } from "../schema/protocol.js";
 import { actionNotOK } from "./util/index.js";
 import { type StepTool, type StepRegistry, hostScopedMethodName } from "./step-registry.js";
-import { EVERY_DEFINITION, SHOW_STEPS_METHOD, StepDefinitionsSchema, type TStepDescriptor } from "./step-discovery.js";
+import { EVERY_DEFINITION, SHOW_STEPS_METHOD, readShownSteps, type TStepDescriptor } from "./step-discovery.js";
 import { RpcClient, type RpcError } from "./rpc-client.js";
-import { TRACE_SEQ_PATH } from "../schema/protocol.js";
 
 export class RemoteStepperProxy extends AStepper {
 	readonly name: string;
@@ -72,9 +71,7 @@ export class RemoteStepperProxy extends AStepper {
 		if ("error" in result) {
 			throw new Error(`RemoteStepperProxy: ${SHOW_STEPS_METHOD} failed at ${this.remoteUrl}: ${result.error}`);
 		}
-		// A dispatched step's products carry the seqPath it ran at, which is the call's trace and not what the host declares.
-		const { [TRACE_SEQ_PATH]: _trace, ...declared } = result;
-		this.stepDescriptors = StepDefinitionsSchema.parse(declared).steps.map(({ _links, ...descriptor }) => descriptor);
+		this.stepDescriptors = readShownSteps(result, EVERY_DEFINITION.detail).steps.map(({ _links, ...descriptor }) => descriptor);
 	}
 
 	/**
@@ -85,16 +82,14 @@ export class RemoteStepperProxy extends AStepper {
 	injectInto(registry: StepRegistry): void {
 		if (this.hostId === undefined) throw new Error("RemoteStepperProxy.injectInto called before setWorld discovered the host id");
 		const hostId = this.hostId;
-		const tools = this.stepDescriptors.map((descriptor): StepTool => {
-			const prefixedMethod = hostScopedMethodName(hostId, descriptor.method);
-			const remoteHost = new URL(this.remoteUrl).host;
-			return {
-				descriptor: { ...descriptor, method: prefixedMethod, pattern: `${descriptor.pattern} (at ${remoteHost})` },
+		const remoteHost = new URL(this.remoteUrl).host;
+		const tools = this.stepDescriptors.map(
+			(descriptor): StepTool => ({
+				descriptor: { ...descriptor, method: hostScopedMethodName(hostId, descriptor.method), remoteHost },
 				paramSchemas: new Map(),
 				paramDomainKeys: new Map(),
 				isAsync: true,
 				transport: "remote",
-				remoteHost,
 				// Dispatch over RPC using the un-prefixed method name: the prefix is
 				// a local registry-naming concern, not part of the wire call.
 				handler: (_featureStep, _world) =>
@@ -103,8 +98,8 @@ export class RemoteStepperProxy extends AStepper {
 						_featureStep.action?.stepValuesMap ? Object.fromEntries(Object.entries(_featureStep.action.stepValuesMap).map(([k, v]) => [k, v.term])) : {},
 						_featureStep.seqPath,
 					),
-			};
-		});
+			}),
+		);
 		registry.inject(tools);
 	}
 

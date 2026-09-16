@@ -39,14 +39,17 @@ describe("a module's sources the build did not compile", () => {
 	});
 });
 
-describe("a module whose build record is older than what it depends on", () => {
-	/** A workspace of modules, each with its package, its build record and one declaration, at the times given in seconds. */
-	function aWorkspace(modules: Array<{ name: string; dependsOn: string[]; recordAt: number; declaredAt: number }>): string {
+describe("a module whose build record is older than what it imports", () => {
+	/** A workspace of modules, each with its package, a source that imports the modules named, its build record and one
+	 *  declaration, at the times given in seconds. No package lists a dependency. */
+	function aWorkspace(modules: Array<{ name: string; imports: string[]; recordAt: number; declaredAt: number }>): string {
 		const modulesDir = mkdtempSync(join(tmpdir(), "haibun-modules-"));
-		for (const { name, dependsOn, recordAt, declaredAt } of modules) {
+		for (const { name, imports, recordAt, declaredAt } of modules) {
 			const moduleDir = join(modulesDir, name);
 			mkdirSync(join(moduleDir, "build"), { recursive: true });
-			writeFileSync(join(moduleDir, "package.json"), JSON.stringify({ name: `@haibun/${name}`, dependencies: Object.fromEntries(dependsOn.map((dep) => [`@haibun/${dep}`, "*"])) }));
+			mkdirSync(join(moduleDir, "src"), { recursive: true });
+			writeFileSync(join(moduleDir, "package.json"), JSON.stringify({ name: `@haibun/${name}` }));
+			writeFileSync(join(moduleDir, "src", "index.ts"), imports.map((dep) => `import "@haibun/${dep}/lib/index.js";\n`).join(""));
 			writeFileSync(join(moduleDir, "tsconfig.tsbuildinfo"), "{}");
 			utimesSync(join(moduleDir, "tsconfig.tsbuildinfo"), recordAt, recordAt);
 			writeFileSync(join(moduleDir, "build", "index.d.ts"), "export {};\n");
@@ -55,13 +58,25 @@ describe("a module whose build record is older than what it depends on", () => {
 		return modulesDir;
 	}
 
-	it("names each module whose build record is older than a dependency's declarations, and none whose record is newer", () => {
+	it("names each module whose build record is older than the declarations of a module it imports, and none whose record is newer", () => {
 		const modulesDir = aWorkspace([
-			{ name: "core", dependsOn: [], recordAt: 200, declaredAt: 200 },
-			{ name: "shu", dependsOn: ["core"], recordAt: 100, declaredAt: 100 },
-			{ name: "cli", dependsOn: ["core"], recordAt: 300, declaredAt: 300 },
+			{ name: "core", imports: [], recordAt: 200, declaredAt: 200 },
+			{ name: "shu", imports: ["core"], recordAt: 100, declaredAt: 100 },
+			{ name: "cli", imports: ["core"], recordAt: 300, declaredAt: 300 },
 		]);
 		made.push(modulesDir);
 		expect(staleBuildRecords(modulesDir)).toEqual([join(modulesDir, "shu")]);
+	});
+
+	it("names each module that imports a module compiled again, and each module after the modules it imports", () => {
+		const modulesDir = aWorkspace([
+			{ name: "a-report", imports: ["shu"], recordAt: 50, declaredAt: 50 },
+			{ name: "b-cli", imports: ["a-report"], recordAt: 300, declaredAt: 300 },
+			{ name: "c-app", imports: ["b-cli"], recordAt: 300, declaredAt: 300 },
+			{ name: "core", imports: [], recordAt: 200, declaredAt: 200 },
+			{ name: "shu", imports: ["core"], recordAt: 100, declaredAt: 100 },
+		]);
+		made.push(modulesDir);
+		expect(staleBuildRecords(modulesDir)).toEqual(["shu", "a-report", "b-cli", "c-app"].map((name) => join(modulesDir, name)));
 	});
 });

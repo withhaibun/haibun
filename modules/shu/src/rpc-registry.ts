@@ -3,20 +3,9 @@ import { getConcernCatalog, cachedConcernCatalog, setConcernCatalog } from "./re
 import { pagePinned } from "./page-pinned.js";
 import { deviceStore, type TCachePayload } from "./client-cache/index.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
-import { TRACE_SEQ_PATH } from "@haibun/core/schema/protocol.js";
-import {
-	EVERY_DEFINITION,
-	SHOW_STEPS_METHOD,
-	StepDefinitionsSchema,
-	type TDomainDiscoveryInfo,
-	type TStepDefinition,
-	type TStepDefinitions,
-} from "@haibun/core/lib/step-discovery.js";
-
-/** A step as the page reads it: its definition, which links its call. */
-export type StepDescriptor = TStepDefinition;
-/** A domain as the page reads it. */
-export type DomainInfo = TDomainDiscoveryInfo;
+import { STEPS_CHANGED } from "@haibun/core/schema/protocol.js";
+import { EVERY_DEFINITION, SHOW_STEPS_METHOD, readShownSteps, type TDomainDiscoveryInfo, type TStepDefinition, type TStepDefinitions } from "@haibun/core/lib/step-discovery.js";
+import { eventStream } from "./event-stream.js";
 
 export type DomainOption = {
 	key: string;
@@ -31,7 +20,7 @@ export type DomainOption = {
 /** Section headings for the type selector, partitioning on a concern's `declared` flag. */
 export const DOMAIN_GROUP = { declared: "Declared", builtIn: "Built-in" } as const;
 
-export type StepListResponse = Pick<TStepDefinitions, "steps" | "domains" | "concerns">;
+type TStepList = Pick<TStepDefinitions, "steps" | "domains" | "concerns">;
 
 // What the server said it offers, pinned to the page rather than cached per bundle: a page is more than one bundle, and a
 // panel a deployment adds requests the same server as the app. Stored per bundle, a panel would discover the server again, and
@@ -39,20 +28,27 @@ export type StepListResponse = Pick<TStepDefinitions, "steps" | "domains" | "con
 // pinned the same way, so one thing has one home.
 const REGISTRY_KEY = "__SHU_STEP_REGISTRY__";
 type TRegistry = {
-	steps: StepDescriptor[] | null;
-	byName: Map<string, StepDescriptor> | null;
-	domains: Record<string, DomainInfo> | null;
-	pending: Promise<StepListResponse> | null;
+	steps: TStepDefinition[] | null;
+	byName: Map<string, TStepDefinition> | null;
+	domains: Record<string, TDomainDiscoveryInfo> | null;
+	pending: Promise<TStepList> | null;
+	/** Stops reading the steps again on the run's stream; null until the page first reads them. */
+	unfollow: (() => void) | null;
+	/** A read again waits for the read under way to end. */
+	rereadQueued: boolean;
+	/** What is told each time the page has read the run's steps again. */
+	listeners: Set<() => Promise<void> | void>;
 };
-const registry = (): TRegistry => pagePinned(REGISTRY_KEY, () => ({ steps: null, byName: null, domains: null, pending: null }));
+const registry = (): TRegistry =>
+	pagePinned(REGISTRY_KEY, () => ({ steps: null, byName: null, domains: null, pending: null, unfollow: null, rereadQueued: false, listeners: new Set() }));
 
 // Both go through the step list even when the page already has it, because the response is only half of what asking for
 // it does: the other half is this bundle reading what the server declares, which is what its views draw by.
-export async function getAvailableSteps(): Promise<StepDescriptor[]> {
+export async function getAvailableSteps(): Promise<TStepDefinition[]> {
 	return (await getStepList()).steps;
 }
 
-export async function getAvailableDomains(): Promise<Record<string, DomainInfo>> {
+export async function getAvailableDomains(): Promise<Record<string, TDomainDiscoveryInfo>> {
 	return (await getStepList()).domains;
 }
 
@@ -72,7 +68,7 @@ export function getStepperForType(persistedAs: string): string | undefined {
  * `set of {domain} by …`) vs "Built-in" (compiled stepper) groups, declared
  * first so feature-authored types surface above the system ones.
  */
-export function buildDomainOptions(domains: Record<string, DomainInfo>): DomainOption[] {
+export function buildDomainOptions(domains: Record<string, TDomainDiscoveryInfo>): DomainOption[] {
 	const concerns = getConcernCatalog();
 
 	const options = Object.values(concerns.persisted).map((concern) => {
@@ -93,7 +89,7 @@ export function buildDomainOptions(domains: Record<string, DomainInfo>): DomainO
 	return options.sort((a, b) => (a.group === b.group ? 0 : a.group === DOMAIN_GROUP.declared ? -1 : 1));
 }
 
-async function getStepList(): Promise<StepListResponse> {
+async function getStepList(): Promise<TStepList> {
 	const r = registry();
 	const concerns = cachedConcernCatalog();
 	if (r.steps && r.domains && concerns) {
@@ -102,7 +98,12 @@ async function getStepList(): Promise<StepListResponse> {
 		setConcernCatalog(concerns, r.domains);
 		return { steps: r.steps, domains: r.domains, concerns };
 	}
-	if (r.pending) return r.pending;
+	return r.pending ?? (await readSteps(r));
+}
+
+/** Read what the run declares. The page holds what it read before until this read answers, so a step the page looks up
+ *  while the read is under way is found. */
+async function readSteps(r: TRegistry): Promise<TStepList> {
 	const discovery = discover();
 	r.pending = discovery;
 	try {
@@ -226,42 +227,77 @@ export function registryOrigin(): TRegistryOrigin | null {
 	return origin().value;
 }
 
-/** Read what the run declares again, once the run has signalled its steps changed. A read already under way is the one
- *  a caller awaits, since it reads what the run declares now. */
-export async function rereadStepList(): Promise<void> {
-	const r = registry();
-	if (r.pending) {
-		await r.pending;
-		return;
-	}
-	r.steps = null;
-	r.byName = null;
-	r.domains = null;
-	await getStepList();
+/** Be told each time the page has read the run's steps again. Returns the unsubscribe. */
+export function onStepsChanged(listener: () => Promise<void> | void): () => void {
+	const { listeners } = registry();
+	listeners.add(listener);
+	return () => listeners.delete(listener);
 }
 
-/** Test-only: forget the registry and where it came from, so the next request discovers again. */
+/**
+ * The page reads the run's steps again each time the run signals they changed, and each time the stream opens after the
+ * page's first read began, since a change the run signals while the stream is closed reaches no page. The page subscribes
+ * as its first read begins. A stream that is open then is one that read follows, so the stream's call at subscription
+ * adds no read.
+ */
+function followRun(r: TRegistry): () => void {
+	const stream = eventStream();
+	const stopSignals = stream.subscribe(
+		() => readAgain(r),
+		(event) => event.kind === "control" && event.signal === STEPS_CHANGED,
+	);
+	let subscribed = false;
+	const stopOpenings = stream.opened(() => {
+		if (subscribed) readAgain(r);
+	});
+	subscribed = true;
+	return () => {
+		stopSignals();
+		stopOpenings();
+	};
+}
+
+/** Read the run's steps again once the read under way ends, since that read may have begun before the change, then tell
+ *  the listeners. Signals that arrive before the read again begins add no read. */
+function readAgain(r: TRegistry): void {
+	if (r.rereadQueued) return;
+	r.rereadQueued = true;
+	void (r.pending ?? Promise.resolve())
+		.catch(() => undefined)
+		.then(async () => {
+			r.rereadQueued = false;
+			await (r.pending ?? readSteps(r));
+			await Promise.all([...r.listeners].map(async (listener) => listener()));
+		})
+		.catch((err) => failFastOrLog("[rpc-registry] the run's steps were not read again:", err));
+}
+
+/** Test-only: forget the registry, where it came from and the stream it followed, so the next request discovers again. */
 export function resetStepRegistry(): void {
 	const r = registry();
 	r.steps = null;
 	r.byName = null;
 	r.domains = null;
 	r.pending = null;
+	r.unfollow?.();
+	r.unfollow = null;
+	r.rereadQueued = false;
+	r.listeners.clear();
 	origin().value = null;
 }
 
 /** Ask the server what it offers. Its response is cached on the device; when the server does not respond, the device's copy is
  *  the registry the page runs on (and reports it), so a page with no server still knows the server's declarations. With
  *  neither, the request fails as it did. */
-async function discover(): Promise<StepListResponse> {
+async function discover(): Promise<TStepList> {
+	const r = registry();
+	r.unfollow ??= followRun(r);
 	let parsed: TStepDefinitions;
 	try {
-		// A dispatched step's products carry the seqPath it ran at, which is the call's trace and not what the run declares.
-		const { [TRACE_SEQ_PATH]: _trace, ...declared } = await conduit().follow<Record<string, unknown>>(
-			reads(SHOW_STEPS_METHOD, EVERY_DEFINITION),
-			"rpc-registry: discover available steps",
+		parsed = readShownSteps(
+			await conduit().follow<Record<string, unknown>>(reads(SHOW_STEPS_METHOD, EVERY_DEFINITION), "rpc-registry: discover available steps"),
+			EVERY_DEFINITION.detail,
 		);
-		parsed = StepDefinitionsSchema.parse(declared);
 		origin().value = { from: "server" };
 		void deviceStore()
 			.setRegistry(parsed)
@@ -271,7 +307,7 @@ async function discover(): Promise<StepListResponse> {
 			.registry()
 			.catch(() => undefined);
 		if (!cached) throw err;
-		parsed = StepDefinitionsSchema.parse(cached.response);
+		parsed = readShownSteps(cached.response, EVERY_DEFINITION.detail);
 		origin().value = { from: "device", savedAt: cached.savedAt };
 		console.warn(`[rpc-registry] the server did not respond; the registry cached on this device (${new Date(cached.savedAt).toISOString()}) is in use:`, err);
 	}
@@ -280,14 +316,13 @@ async function discover(): Promise<StepListResponse> {
 	for (const [label, concern] of Object.entries(concerns.persisted)) {
 		if (/^\s*\[.*\]\s*$/.test(concern.label)) throw new Error(`${SHOW_STEPS_METHOD} concern ${label} has stringified-array label: ${concern.label}`);
 	}
-	const r = registry();
 	r.steps = steps;
 	r.domains = domains;
 	// Looked up on every call the page makes, so the registry is indexed once under both names a step responds to. Two
-	// steppers may offer one step name, and the one that is not a fallback answers to it (`StepDescriptor.fallback`);
+	// steppers may offer one step name, and the one that is not a fallback answers to it (`TStepDefinition.fallback`);
 	// where both are alike, the first the site listed answers. A method names its stepper, so it names one step.
-	const byName = new Map<string, StepDescriptor>();
-	const answers = (held: StepDescriptor | undefined, step: StepDescriptor): boolean => held === undefined || (held.fallback === true && step.fallback !== true);
+	const byName = new Map<string, TStepDefinition>();
+	const answers = (held: TStepDefinition | undefined, step: TStepDefinition): boolean => held === undefined || (held.fallback === true && step.fallback !== true);
 	for (const step of steps) {
 		if (answers(byName.get(step.stepName), step)) byName.set(step.stepName, step);
 		if (!byName.has(step.method)) byName.set(step.method, step);
@@ -308,7 +343,7 @@ export function linkTo(method: string, params?: Record<string, unknown>, summary
 }
 
 /** Look up a registered step by either its friendly name (e.g. `"graphQuery"`) or its full `Stepper-method` form. The name is the wire contract, resolution, and any "unknown step" outcome, happen at runtime against the loaded registry. */
-export function findStep(name: string): StepDescriptor | undefined {
+export function findStep(name: string): TStepDefinition | undefined {
 	return registry().byName?.get(name);
 }
 
@@ -324,7 +359,7 @@ export function requireStep(name: string): string {
  * Matches by: param domain, graph-query domain,
  * persisted-type domain, or step pattern containing the label name.
  */
-export function stepsForContext(label: string): StepDescriptor[] {
+export function stepsForContext(label: string): TStepDefinition[] {
 	const { steps, domains } = registry();
 	if (!steps || !domains) return [];
 	const lc = label.toLowerCase();
@@ -336,7 +371,7 @@ export function stepsForContext(label: string): StepDescriptor[] {
 	}
 	return steps.filter((step) => {
 		// Match by param domain
-		if (step.paramDomains && Object.values(step.paramDomains).some((domain) => contextDomains.has(domain))) return true;
+		if (Object.values(step.paramDomains).some((domain) => contextDomains.has(domain))) return true;
 		// Match by step pattern containing the label (e.g., "show contacts", "get contact")
 		if (step.pattern.toLowerCase().includes(lc)) return true;
 		return false;

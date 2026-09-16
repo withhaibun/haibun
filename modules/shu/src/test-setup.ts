@@ -55,7 +55,8 @@ export class TestConduit implements Conduit {
 
 import { setEventStream, resetEventStream, SerializedEventStream, type TEvent } from "./event-stream.js";
 import { resetRunSources, setDeviceStore, MemoryDeviceStore } from "./client-cache/index.js";
-import { SHOW_STEPS_METHOD, STEP_DETAIL, StepDefinitionsSchema, stepperStepsLink, type TStepDefinitions } from "@haibun/core/lib/step-discovery.js";
+import { SHOW_STEPS_METHOD, STEP_DETAIL, readShownSteps, stepDefinition, type TStepDefinitions } from "@haibun/core/lib/step-discovery.js";
+import { steppersOf } from "@haibun/core/lib/step-registry.js";
 
 export type TShuTestConfig = {
 	/** Optional dispatch for in-test RPCs. Default throws on every call, naming the unconfigured method, tests opt in by supplying a function that returns wire results for the methods they exercise. */
@@ -75,27 +76,16 @@ export type TShuTestHandle = {
 
 /** The steps given, as the show steps step returns them when they are all a run declares. */
 export function stepsShown(steps: Array<{ method: string; stepperName: string; stepName: string; pattern: string; fallback?: boolean; read?: boolean }>): TStepDefinitions {
-	return StepDefinitionsSchema.parse({
-		detail: STEP_DETAIL.definition,
-		steppers: [...new Set(steps.map((step) => step.stepperName))].map((stepper) => ({
-			stepper,
-			description: `the steps of ${stepper}`,
-			steps: steps.filter((step) => step.stepperName === stepper).length,
-			_links: { steps: stepperStepsLink(stepper) },
-		})),
-		steps: steps.map((step) => ({
-			...step,
-			stepperDescription: `the steps of ${step.stepperName}`,
-			params: {},
-			paramDomains: {},
-			read: step.read === true,
-			fallback: step.fallback === true,
-			inputSchema: { type: "object", properties: {}, required: [] },
-			_links: { call: { method: step.method } },
-		})),
-		domains: {},
-		concerns: { persisted: {}, references: {} },
-	});
+	const described = steps.map((step) => ({
+		...step,
+		stepperDescription: `the steps of ${step.stepperName}`,
+		paramDomains: {},
+		read: step.read === true,
+		fallback: step.fallback === true,
+		inputSchema: { type: "object" as const, properties: {}, required: [] },
+	}));
+	const shown = { detail: STEP_DETAIL.definition, steppers: steppersOf(described), steps: described.map(stepDefinition), domains: {}, concerns: { persisted: {}, references: {} } };
+	return readShownSteps(shown, STEP_DETAIL.definition);
 }
 
 /** The two steps the entity surface calls, as the show steps step returns them: the fixture every entity test installs. */

@@ -7,8 +7,9 @@
 import { html, nothing, type ReactiveController, type TemplateResult } from "lit";
 import { ASK_STEP } from "../conversation.js";
 import { SHU_EVENT, SHU_TAG } from "../consts.js";
-import { getAvailableSteps, stepsForContext, type StepDescriptor } from "../rpc-registry.js";
-import { followStepChanges } from "../steps-changes.js";
+import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
+import { getAvailableSteps, stepsForContext } from "../rpc-registry.js";
+import { StepsChangedController } from "../controllers/index.js";
 import type { TComboboxOption } from "../schemas.js";
 import { prettifyGwta } from "../util.js";
 import type { TActionsBarHost } from "./actions-bar-model.js";
@@ -19,8 +20,8 @@ const FOR_THE_TYPE = "● ";
 
 /** The line under a step option: the domains of its inputs and of its output, `A, B → C`, or fewer parts where it
  *  declares fewer. */
-export function stepSecondary(step: StepDescriptor): string {
-	const inputs = step.paramDomains ? Object.values(step.paramDomains).join(", ") : "";
+export function stepSecondary(step: TStepDefinition): string {
+	const inputs = Object.values(step.paramDomains).join(", ");
 	const output = step.productsDomain ?? "";
 	if (inputs && output) return `${inputs} → ${output}`;
 	if (inputs) return inputs;
@@ -30,9 +31,9 @@ export function stepSecondary(step: StepDescriptor): string {
 
 /** What an option reveals when focused: each input's domain, the output's, and the capability it requires. The label
  *  already shows the pattern, so this does not repeat it. */
-export function stepDetails(step: StepDescriptor): string {
+export function stepDetails(step: TStepDefinition): string {
 	const lines: string[] = [];
-	if (step.paramDomains && Object.keys(step.paramDomains).length > 0) {
+	if (Object.keys(step.paramDomains).length > 0) {
 		lines.push("inputs:");
 		for (const [name, domain] of Object.entries(step.paramDomains)) lines.push(`  ${name}: ${domain}`);
 	}
@@ -43,9 +44,9 @@ export function stepDetails(step: StepDescriptor): string {
 
 /** The step options: the steps offered for the selected type first, marked, then every other step. Each option's value
  *  is the step's full method, since a step's own name can repeat across steppers. */
-export function stepOptions(steps: readonly StepDescriptor[], forTheType: readonly StepDescriptor[]): TComboboxOption[] {
+export function stepOptions(steps: readonly TStepDefinition[], forTheType: readonly TStepDefinition[]): TComboboxOption[] {
 	const typeMethods = new Set(forTheType.map((step) => step.method));
-	const option = (step: StepDescriptor, marked: boolean): TComboboxOption => ({
+	const option = (step: TStepDefinition, marked: boolean): TComboboxOption => ({
 		value: step.method,
 		label: `${marked ? FOR_THE_TYPE : ""}${prettifyGwta(step.pattern)}`,
 		secondary: stepSecondary(step),
@@ -67,7 +68,7 @@ type TStepCaller = HTMLElement & { executed?: boolean };
 export class ActionsBarSteps implements ReactiveController {
 	readonly #host: TActionsBarHost;
 	readonly #deps: TActionsBarStepsDeps;
-	#steps: StepDescriptor[] = [];
+	#steps: TStepDefinition[] = [];
 	/** The step the selector shows as chosen. */
 	#chosen = "";
 
@@ -75,22 +76,18 @@ export class ActionsBarSteps implements ReactiveController {
 		this.#host = host;
 		this.#deps = deps;
 		host.addController(this);
+		new StepsChangedController(host, () => this.load());
 	}
 
 	hostConnected(): void {
 		this.#host.addEventListener(SHU_EVENT.STEP_SUCCESS, this.#onSettled);
 		this.#host.addEventListener(SHU_EVENT.STEP_ERROR, this.#onSettled);
-		this.#stopFollowingSteps = followStepChanges(() => this.load());
 	}
 
 	hostDisconnected(): void {
 		this.#host.removeEventListener(SHU_EVENT.STEP_SUCCESS, this.#onSettled);
 		this.#host.removeEventListener(SHU_EVENT.STEP_ERROR, this.#onSettled);
-		this.#stopFollowingSteps();
 	}
-
-	/** Stops reading the steps again when the run signals they changed. */
-	#stopFollowingSteps: () => void = () => undefined;
 
 	/** Whether the run offers the step an ask runs, which decides whether a chosen Ask mode renders. */
 	get offersAsk(): boolean {

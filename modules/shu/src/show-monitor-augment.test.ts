@@ -35,7 +35,6 @@ describe("show monitor markers → parser", () => {
 				stepperDescription: "Shows the run's monitor.",
 				stepName: "showMonitor",
 				pattern: "show monitor",
-				params: {},
 				paramDomains: {},
 				productsDomain: "shu-monitor-column",
 				read: false,

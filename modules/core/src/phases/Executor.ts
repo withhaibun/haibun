@@ -17,11 +17,11 @@ import {
 	Timer,
 	STAY_ALWAYS,
 } from "../schema/protocol.js";
-import { ControlEvent, LifecycleEvent, STEPS_CHANGED } from "../schema/protocol.js";
+import { LifecycleEvent } from "../schema/protocol.js";
 import { AStepper } from "../lib/astepper.js";
 import { sleep, setStepperWorldsAndDomains, constructorName } from "../lib/util/index.js";
 import { dispatchStep } from "../lib/step-dispatch.js";
-import { StepRegistry } from "../lib/step-registry.js";
+import { openRunRegistry, type StepRegistry } from "../lib/step-registry.js";
 import { SCENARIO_START } from "../schema/protocol.js";
 import { FeatureVariables } from "../lib/feature-variables.js";
 import { registerDomains, refreshHypermediaTypeDomain } from "../lib/domains.js";
@@ -86,29 +86,15 @@ async function initFeatureRuntime(world: TWorld): Promise<void> {
 }
 
 /**
- * Duck-typed attach() on every stepper that implements a transport
- * (has `attach` and `detach` methods). Called from two places:
- *
- *   - Executor, right after it creates world.runtime.stepRegistry,
- *     so any stepper transport is live before the first feature runs.
- *     This covers pure-client configs (e.g. agent with `{remote}`
- *     entry, no webserver).
- *
- *   - WebServerStepper's `enable rpc` / `refresh steppers` steps,
- *     which create their own registry and re-attach transports into
- *     it. Delegating here keeps both call sites consistent.
- *
- * Core's Executor invocation passes no webserver; transports that need
- * one (e.g. SSE adding routes) no-op when it is absent. Remote-proxy
- * transports don't use it.
+ * Duck-typed attach() on every stepper that implements a transport (has `attach` and `detach` methods), called once the
+ * Executor opens the run's registry, so every transport is live before the first feature runs. A pure-client config (an
+ * agent with a `{remote}` entry and no webserver) is covered too. No stepper transport reads a webserver when it attaches.
  */
-// biome-ignore lint/suspicious/noExplicitAny: duck-typed webserver shape varies by caller.
-export function attachTransportsToRegistry(steppers: AStepper[], registry: StepRegistry, webserver?: any): void {
+function attachTransportsToRegistry(steppers: AStepper[], registry: StepRegistry): void {
 	for (const s of steppers) {
-		// biome-ignore lint/suspicious/noExplicitAny: duck-typed IStepTransport check
-		const candidate = s as unknown as { attach?: (registry: StepRegistry, webserver: any) => void; detach?: () => void };
+		const candidate = s as unknown as { attach?: (registry: StepRegistry) => void; detach?: () => void };
 		if (typeof candidate.attach !== "function" || typeof candidate.detach !== "function") continue;
-		candidate.attach(registry, webserver);
+		candidate.attach(registry);
 	}
 }
 
@@ -141,19 +127,9 @@ export class Executor {
 	static async executeFeatures(steppers: AStepper[], world: TWorld, features: TResolvedFeature[]): Promise<TExecutorResult> {
 		initExecutionRuntime(world);
 		world.runtime.steppers = steppers;
-		const stepRegistry = new StepRegistry(steppers, world);
-		world.runtime.stepRegistry = stepRegistry;
-		// A caller that read the run's steps reads them again when they change: a page listens for this signal.
-		let changes = 0;
-		stepRegistry.onChange(() =>
-			world.eventLogger.emit(ControlEvent.parse({ id: `${STEPS_CHANGED}-${++changes}`, timestamp: Date.now(), kind: "control", level: "debug", signal: STEPS_CHANGED })),
-		);
-		// Any stepper that implements IStepTransport (duck-typed: has `attach`
-		// and `detach` methods) injects its tools into the registry now,
-		// covering RemoteStepperProxy entries from `{remote}` config lines and
-		// subprocess transports. WebServerStepper's enable-rpc step re-attaches
-		// into a fresh registry when it builds one; registry.set is keyed by
-		// method name so duplicate injections are idempotent.
+		const stepRegistry = openRunRegistry(world, steppers);
+		// Every transport attaches to the run's one registry now: a remote proxy injects its host's steps, and MCP reads the
+		// registry each time it lists or dispatches.
 		attachTransportsToRegistry(steppers, stepRegistry);
 
 		const onEventHandler = (event: THaibunEvent) => {

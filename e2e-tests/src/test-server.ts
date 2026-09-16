@@ -4,7 +4,7 @@ import { setCookie } from "@haibun/web-server-hono/cookie.js";
 
 import { actionNotOK, actionOK, actionOKWithProducts, getFromRuntime, sleep } from "@haibun/core/lib/util/index.js";
 import { DOMAIN_STRING } from "@haibun/core/lib/domains.js";
-import { SHOW_STEPS_METHOD, STEP_DETAIL, StepSummariesSchema } from "@haibun/core/lib/step-discovery.js";
+import { SHOW_STEPS_METHOD, STEP_DETAIL, readShownSteps } from "@haibun/core/lib/step-discovery.js";
 import type { TFeatureStep, IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { OK, Origin, type TStepArgs, type TProvenanceIdentifier } from "@haibun/core/schema/protocol.js";
 import { type TRequestHandler, type IWebServer, WEBSERVER } from "@haibun/web-server-hono/defs.js";
@@ -65,8 +65,7 @@ async function mcpShownSteps(url: string, token: string, text: string): Promise<
 	const response = await mcpRpc(url, 3, "tools/call", { name: SHOW_STEPS_METHOD, arguments: { text, detail: STEP_DETAIL.summary } }, token);
 	const returned = mcpToolResult(response).content?.[0]?.type === "text" ? (mcpToolResult(response).content?.[0]?.text ?? "") : "";
 	if (!returned) throw new Error(`${SHOW_STEPS_METHOD} returned nothing: ${JSON.stringify(response)}`);
-	const { _seqPath, ...summaries } = JSON.parse(returned) as Record<string, unknown>;
-	return StepSummariesSchema.parse(summaries).steps.map((step) => step.method);
+	return readShownSteps(JSON.parse(returned), STEP_DETAIL.summary).steps.map((step) => step.method);
 }
 
 async function mcpCallTool(url: string, token: string, toolName: string): Promise<Record<string, unknown>> {

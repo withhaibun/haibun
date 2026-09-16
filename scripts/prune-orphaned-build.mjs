@@ -16,10 +16,11 @@
 //     time) is never compiled, and the build succeeds without it. The module's build record is removed, so the next build
 //     compiles every source, and this run fails naming each source it did not compile.
 //
-//  4. Stale BUILD record: a module's build record older than the declarations of a haibun module it depends on. `tsc -b`
-//     tracks the projects a module references and not the packages it imports, so a module whose dependency's
+//  4. Stale BUILD record: a module's build record older than the declarations of a haibun module its sources import.
+//     `tsc -b` tracks the projects a module references and not the packages it imports, so a module whose dependency's
 //     declarations changed is judged current and is not type-checked against them, and the build succeeds. The module's
-//     build record is removed and the module is compiled again, until no module's record is older than its dependencies.
+//     build record is removed, with the record of each module that imports it, and those modules are compiled again in
+//     one build, dependencies first. A package's dependencies are not read, since a module can import one it doesn't list.
 //
 // A file is compiler output iff a same-basename TS source sibling exists, so bundles (build/shu-bundle.js, build/assets/*),
 // hand-written .d.ts (no .ts sibling), and pure-JS modules are never touched.
@@ -89,21 +90,49 @@ function newestDeclaration(buildDir) {
 	return walk(buildDir, new Set()).reduce((newest, file) => (file.endsWith(".d.ts") ? Math.max(newest, statSync(file).mtimeMs) : newest), 0);
 }
 
-/** Case 4, each module under `modulesDir` whose build record is older than the declarations of a module it depends on. */
-export function staleBuildRecords(modulesDir) {
-	const modules = readdirSync(modulesDir)
+/** The other modules under `modulesDir` each module's sources import, by the package names the modules declare. */
+function importedModules(modulesDir) {
+	const moduleDirs = readdirSync(modulesDir)
 		.map((name) => join(modulesDir, name))
-		.filter((moduleDir) => existsSync(join(moduleDir, "package.json")))
-		.map((moduleDir) => ({ moduleDir, pkg: JSON.parse(readFileSync(join(moduleDir, "package.json"), "utf-8")) }));
-	const dirOf = new Map(modules.map(({ moduleDir, pkg }) => [pkg.name, moduleDir]));
-	return modules
-		.filter(({ moduleDir }) => existsSync(join(moduleDir, "tsconfig.tsbuildinfo")))
-		.filter(({ moduleDir, pkg }) => {
-			const recorded = statSync(join(moduleDir, "tsconfig.tsbuildinfo")).mtimeMs;
-			const dependencies = Object.keys({ ...pkg.dependencies, ...pkg.devDependencies, ...pkg.peerDependencies });
-			return dependencies.some((name) => dirOf.has(name) && dirOf.get(name) !== moduleDir && newestDeclaration(join(dirOf.get(name), "build")) > recorded);
-		})
-		.map(({ moduleDir }) => moduleDir);
+		.filter((moduleDir) => existsSync(join(moduleDir, "package.json")));
+	const dirOf = new Map(moduleDirs.map((moduleDir) => [JSON.parse(readFileSync(join(moduleDir, "package.json"), "utf-8")).name, moduleDir]));
+	return new Map(
+		moduleDirs.map((moduleDir) => {
+			const srcDir = join(moduleDir, "src");
+			const sources = existsSync(srcDir) ? walk(srcDir, new Set()).filter((file) => SOURCE_EXTS.some((ext) => file.endsWith(ext))) : [];
+			const names = new Set(sources.flatMap((file) => [...readFileSync(file, "utf-8").matchAll(/["'](@haibun\/[^/"']+)/g)].map((match) => match[1])));
+			return [moduleDir, [...names].map((name) => dirOf.get(name)).filter((dir) => dir !== undefined && dir !== moduleDir)];
+		}),
+	);
+}
+
+/** Case 4, each module under `modulesDir` whose build record is older than the declarations of a module it imports, and
+ *  each module that imports one of those, dependencies first. */
+export function staleBuildRecords(modulesDir) {
+	const imports = importedModules(modulesDir);
+	const recorded = [...imports.keys()].filter((moduleDir) => existsSync(join(moduleDir, "tsconfig.tsbuildinfo")));
+	const declaredAt = new Map([...imports.keys()].map((moduleDir) => [moduleDir, newestDeclaration(join(moduleDir, "build"))]));
+	const stale = new Set(
+		recorded.filter((moduleDir) => {
+			const recordAt = statSync(join(moduleDir, "tsconfig.tsbuildinfo")).mtimeMs;
+			return imports.get(moduleDir).some((dependency) => declaredAt.get(dependency) > recordAt);
+		}),
+	);
+	// A module compiled again writes its declarations again, so a module that imports it is compiled again too.
+	for (let grew = true; grew; ) {
+		const importers = recorded.filter((moduleDir) => !stale.has(moduleDir) && imports.get(moduleDir).some((dependency) => stale.has(dependency)));
+		for (const moduleDir of importers) stale.add(moduleDir);
+		grew = importers.length > 0;
+	}
+	// Dependencies first. Modules that import each other stay in the order they were reached.
+	const ordered = [];
+	const place = (moduleDir, reaching) => {
+		if (ordered.includes(moduleDir) || reaching.has(moduleDir)) return;
+		for (const dependency of imports.get(moduleDir)) place(dependency, new Set([...reaching, moduleDir]));
+		ordered.push(moduleDir);
+	};
+	for (const moduleDir of stale) place(moduleDir, new Set());
+	return ordered.filter((moduleDir) => stale.has(moduleDir));
 }
 
 /** Case 2, compiler output (.js/.d.ts/.map) sitting next to its TS source, anywhere under `rootDir` except build/. */
@@ -152,25 +181,26 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
 		}
 	}
 	console.log(`[prune-orphaned-build] ${dryRun ? "dry run, " : ""}${total} stray/orphaned artifact(s)${dryRun ? " would be removed" : " removed"}.`);
-	const missing = readdirSync("modules").map((m) => ({ moduleDir: join("modules", m), sources: missingBuildOutput(join("modules", m)) })).filter(({ sources }) => sources.length > 0);
+	const missing = readdirSync("modules")
+		.map((m) => ({ moduleDir: join("modules", m), sources: missingBuildOutput(join("modules", m)) }))
+		.filter(({ sources }) => sources.length > 0);
 	for (const { moduleDir, sources } of missing) {
 		rmSync(join(moduleDir, "tsconfig.tsbuildinfo"), { force: true });
-		console.error(`[prune-orphaned-build] ${moduleDir}: ${sources.length} source(s) were not compiled, though the build succeeded; its build record is removed, so building again compiles them:`);
+		console.error(
+			`[prune-orphaned-build] ${moduleDir}: ${sources.length} source(s) were not compiled, though the build succeeded; its build record is removed, so building again compiles them:`,
+		);
 		for (const source of sources) console.error(`  - src/${source}`);
 	}
 	if (missing.length > 0) process.exitCode = 1;
-	// Each pass compiles the modules whose dependencies changed since their record, and a module compiled again rewrites
-	// its declarations, so the passes end once the modules that depend on nothing that changed are reached.
-	const passes = readdirSync("modules").length;
-	for (let pass = 0, stale = staleBuildRecords("modules"); stale.length > 0; pass++, stale = staleBuildRecords("modules")) {
-		if (pass === passes) throw new Error(`[prune-orphaned-build] build records are still older than their dependencies after ${passes} passes: ${stale.join(", ")}`);
-		for (const moduleDir of stale) {
-			rmSync(join(moduleDir, "tsconfig.tsbuildinfo"), { force: true });
-			console.error(`[prune-orphaned-build] ${moduleDir}: its build record is older than the declarations of a module it depends on, so it is compiled again`);
-			if (spawnSync("npx", ["tsc", "-b", moduleDir], { stdio: "inherit" }).status !== 0) {
-				process.exitCode = 1;
-				throw new Error(`[prune-orphaned-build] ${moduleDir} did not compile against the declarations of the modules it depends on`);
-			}
+	const stale = staleBuildRecords("modules");
+	if (stale.length > 0) {
+		console.error(
+			`[prune-orphaned-build] ${dryRun ? "would compile again" : "compiles again"} the modules whose build records are older than what they import: ${stale.join(", ")}`,
+		);
+		if (!dryRun) {
+			for (const moduleDir of stale) rmSync(join(moduleDir, "tsconfig.tsbuildinfo"), { force: true });
+			if (spawnSync("npx", ["tsc", "-b", ...stale], { stdio: "inherit" }).status !== 0)
+				throw new Error(`[prune-orphaned-build] ${stale.join(", ")} did not compile against the declarations of the modules they import`);
 		}
 	}
 }

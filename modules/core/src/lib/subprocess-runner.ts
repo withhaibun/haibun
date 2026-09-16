@@ -32,7 +32,7 @@ export async function runSubprocess(csteppers: CStepper[], world: TWorld): Promi
 	world.runtime.steppers = steppers;
 
 	const registry = new StepRegistry(steppers, world);
-	const steps = registry.list().map((tool) => tool.descriptor);
+	const steps = registry.descriptors();
 
 	process.send?.({ type: "ready", steps } satisfies SubprocessReadyMessage);
 

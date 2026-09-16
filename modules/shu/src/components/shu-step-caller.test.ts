@@ -40,6 +40,7 @@ describe("shu-step-caller", () => {
 		const descriptor = {
 			method: "IssueStepper-createIssuer",
 			pattern: "create issuer {issuer: issuer}",
+			paramDomains: { issuer: "issuer" },
 			inputSchema: {
 				properties: {
 					issuer: {
@@ -69,6 +70,7 @@ describe("shu-step-caller", () => {
 		const descriptor = {
 			method: "IssueStepper-createIssuer",
 			pattern: "create issuer {issuer: issuer}",
+			paramDomains: { issuer: "issuer" },
 			inputSchema: {
 				properties: { issuer: { type: "object", properties: { did: { type: "string" } }, required: ["did"] } },
 				required: ["issuer"],
@@ -89,6 +91,7 @@ describe("shu-step-caller", () => {
 		const descriptor = {
 			method: "IssueStepper-createIssuer",
 			pattern: "create issuer {issuer: issuer}",
+			paramDomains: { issuer: "issuer" },
 			inputSchema: {
 				properties: {
 					issuer: {
@@ -115,6 +118,7 @@ describe("shu-step-caller", () => {
 		const descriptor = {
 			method: "Test-take",
 			pattern: "take {payload}",
+			paramDomains: { payload: "string" },
 			inputSchema: { properties: { payload: { type: "object" } }, required: ["payload"] },
 		};
 		const caller = makeCaller(descriptor) as HTMLElement & { callStep: (v: Record<string, string>) => Promise<void>; error: string };
@@ -141,6 +145,7 @@ describe("shu-step-caller", () => {
 		const descriptor = {
 			method: "IssueStepper-issueCredential",
 			pattern: "issue credential {credential}",
+			paramDomains: { credential: "string" },
 			inputSchema: { properties: { credential: { type: "object" } }, required: ["credential"] },
 		};
 		// jsdom doesn't ship an EventSource, stub one so the shared SseSubscriber
@@ -200,6 +205,7 @@ describe("shu-step-caller", () => {
 		const descriptor = {
 			method: "GraphStepper-graphQuery",
 			pattern: "graph query {query}",
+			paramDomains: { query: "string" },
 			inputSchema: { properties: { query: { type: "object" } }, required: ["query"] },
 		};
 		(globalThis as { EventSource?: unknown }).EventSource = class StubEventSource {

@@ -9,7 +9,7 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import TestRunnerStepper from "./test-runner-stepper.js";
 import InstanceStepper, { SUPERVISOR_CAPABILITIES } from "./instance-stepper.js";
-import { StepRegistry } from "@haibun/core/lib/step-registry.js";
+import { openRunRegistry } from "@haibun/core/lib/step-registry.js";
 import { callStepByName } from "@haibun/core/lib/call-step.js";
 import { SessionAuthority, AUTHORITY_KEY, SESSION_TOKEN_KEY } from "@haibun/core/lib/session-authority.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
@@ -38,9 +38,8 @@ function harness() {
 	const world = supervisedWorld(authority);
 	const steppers = [new TestRunnerStepper(), new InstanceStepper()];
 	for (const s of steppers) void s.setWorld(world, steppers);
-	const registry = new StepRegistry(steppers, world);
-	// The run's registry, as the executor assigns it, which a step calls another step through.
-	world.runtime.stepRegistry = registry;
+	// The run's registry, as the executor opens it, which a step calls another step through.
+	const registry = openRunRegistry(world, steppers);
 	/** Call a step the way anything calls a step: under whatever token is active, with no capability asserted by the caller. */
 	const call = async (method: string, input: Record<string, unknown> = {}, token?: string, grantedCapability?: string) => {
 		if (token) (world.runtime.keys ??= {})[SESSION_TOKEN_KEY] = token;

@@ -6,7 +6,7 @@ import { actionNotOK, actionOKWithProducts, getStepperOptionName } from "@haibun
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import WebServerStepper from "./web-server-stepper.js";
 import Haibun from "@haibun/core/steps/haibun.js";
-import { EVERY_DEFINITION, SHOW_STEPS_METHOD, StepDefinitionsSchema, type TStepDefinition } from "@haibun/core/lib/step-discovery.js";
+import { EVERY_DEFINITION, SHOW_STEPS_METHOD, readShownSteps, type TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import { streamContext, type TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 
 class PingStepper extends AStepper {
@@ -37,8 +37,7 @@ async function shownSteps(url: string, headers: Record<string, string>): Promise
 		body: JSON.stringify({ jsonrpc: "2.0", id: "1", method: SHOW_STEPS_METHOD, params: EVERY_DEFINITION, asks: "read" }),
 	});
 	if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
-	const { _seqPath, ...declared } = (await res.json()) as Record<string, unknown>;
-	return StepDefinitionsSchema.parse(declared).steps;
+	return readShownSteps(await res.json(), EVERY_DEFINITION.detail).steps;
 }
 
 class RpcVerifyStepper extends AStepper {

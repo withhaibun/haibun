@@ -160,22 +160,10 @@ export class SseSubscriber {
 		this.source = new this.EventSourceCtor(this.url);
 		this.source.onopen = () => {
 			this.open = true;
-			for (const fn of this.openListeners) {
-				try {
-					fn();
-				} catch (err) {
-					failFastOrLog(`SseSubscriber[${this.clientId}]: listener threw on opening`, err);
-				}
-			}
+			this.notify(this.openListeners, "opening");
 			if (!this.broken) return;
 			this.broken = false;
-			for (const fn of this.reconnectListeners) {
-				try {
-					fn();
-				} catch (err) {
-					failFastOrLog(`SseSubscriber[${this.clientId}]: listener threw on reconnection`, err);
-				}
-			}
+			this.notify(this.reconnectListeners, "reconnection");
 		};
 		this.source.onmessage = (sseEvent: { data: string }) => {
 			let msg: Record<string, unknown>;
@@ -195,15 +183,7 @@ export class SseSubscriber {
 			const wasOpen = !this.broken;
 			this.broken = true;
 			this.open = false;
-			if (wasOpen) {
-				for (const fn of this.disconnectListeners) {
-					try {
-						fn();
-					} catch (err) {
-						failFastOrLog(`SseSubscriber[${this.clientId}]: listener threw on disconnection`, err);
-					}
-				}
-			}
+			if (wasOpen) this.notify(this.disconnectListeners, "disconnection");
 			this.source?.close?.();
 			this.source = null;
 			if (this.closed || this.reconnectTimer) return;
@@ -212,6 +192,17 @@ export class SseSubscriber {
 				this.connect();
 			}, this.reconnectDelayMs);
 		};
+	}
+
+	/** Tell each listener of a change to the stream; one that throws is reported and the others are still told. */
+	private notify(listeners: Set<() => void>, change: string): void {
+		for (const fn of listeners) {
+			try {
+				fn();
+			} catch (err) {
+				failFastOrLog(`SseSubscriber[${this.clientId}]: listener threw on ${change}`, err);
+			}
+		}
 	}
 
 	/**
@@ -278,6 +269,7 @@ export class SseSubscriber {
 		// A closed subscriber never opens again, so it holds no listener: a message arriving on the transport it has let
 		// go reaches a consumer that stopped listening otherwise.
 		this.listeners.length = 0;
+		this.openListeners.clear();
 		this.reconnectListeners.clear();
 		this.disconnectListeners.clear();
 	}

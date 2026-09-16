@@ -24,7 +24,12 @@ describe("a step's description", () => {
 	it("names the step by its stepper and its name, states its stepper's description, and parses as every caller reads it", () => {
 		const step = describedAs("gwtaStep");
 		expect(StepDescriptorSchema.parse(step)).toEqual(step);
-		expect(step).toMatchObject({ method: "DescribedSteps-gwtaStep", stepperName: "DescribedSteps", stepName: "gwtaStep", stepperDescription: "Steps of each kind a stepper declares." });
+		expect(step).toMatchObject({
+			method: "DescribedSteps-gwtaStep",
+			stepperName: "DescribedSteps",
+			stepName: "gwtaStep",
+			stepperDescription: "Steps of each kind a stepper declares.",
+		});
 	});
 
 	it("states the step's line, whichever way the step declares it", () => {
@@ -33,11 +38,11 @@ describe("a step's description", () => {
 		expect(describedAs("matchStep").pattern).toContain("do (.*) with (.*)");
 	});
 
-	it("states each parameter with its type and domain, and the schema of the arguments", () => {
-		expect(describedAs("gwtaStep")).toMatchObject({ params: { name: "string", value: "string" }, paramDomains: { name: "string", value: "string" } });
-		expect(describedAs("numberStep")).toMatchObject({ params: { seconds: "number" }, paramDomains: { seconds: "number" } });
+	it("states each parameter with its domain, and the schema of the arguments", () => {
+		expect(describedAs("gwtaStep").paramDomains).toEqual({ name: "string", value: "string" });
+		expect(describedAs("numberStep").paramDomains).toEqual({ seconds: "number" });
 		expect(describedAs("numberStep").inputSchema.required).toEqual(["seconds"]);
-		expect(describedAs("matchStep").params).toEqual({});
+		expect(describedAs("matchStep").paramDomains).toEqual({});
 	});
 
 	it("states whether the step is a read and a fallback, and the capability it requires", () => {
@@ -50,7 +55,14 @@ describe("a step's description", () => {
 describe("a step as a tool", () => {
 	it("is named by its method, described by its line, its description and the capability it requires, and takes its arguments' schema", () => {
 		const step = describedAs("numberStep");
-		expect(toolDefinition(step)).toEqual({ name: "DescribedSteps-numberStep", description: "wait {seconds: number} seconds\n\nRequires capability DescribedSteps:wait.", inputSchema: step.inputSchema });
+		expect(toolDefinition(step)).toEqual({
+			name: "DescribedSteps-numberStep",
+			description: "wait {seconds: number} seconds\n\nRequires capability DescribedSteps:wait.",
+			inputSchema: step.inputSchema,
+		});
 		expect(toolDefinition(describedAs("gwtaStep")).description).toBe("set {name} to {value}\n\nSets a value.");
+		expect(toolDefinition({ ...describedAs("gwtaStep"), remoteHost: "localhost:8331" }).description, "and the host it runs at, for a step another host declares").toBe(
+			"set {name} to {value}\n\nSets a value.\n\nRuns at localhost:8331.",
+		);
 	});
 });
