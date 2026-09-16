@@ -24,6 +24,7 @@ import {
 	serverLastRespondedAt,
 } from "./hypermedia.js";
 import { TestConduit } from "./test-setup.js";
+import { SHOW_STEPS_METHOD } from "@haibun/core/lib/steps-query.js";
 
 beforeEach(() => {
 	resetConduit();
@@ -140,7 +141,7 @@ describe("a server that does not respond", () => {
 		globalThis.fetch = () => Promise.reject(new TypeError("Failed to fetch"));
 		try {
 			const conduit = new LiveConduit("");
-			const err = await conduit.follow(acts("step.list"), "test").then(
+			const err = await conduit.follow(acts(SHOW_STEPS_METHOD), "test").then(
 				() => undefined,
 				(e: unknown) => e,
 			);
@@ -157,11 +158,11 @@ describe("a server that does not respond", () => {
 		const fetchWas = globalThis.fetch;
 		try {
 			globalThis.fetch = () => Promise.resolve(new Response("404 Not Found", { status: 404, headers: { "Content-Type": "text/plain; charset=UTF-8" } }));
-			await expect(new LiveConduit("").follow(reads("step.list"), "test")).rejects.toThrow(
-				"step.list: the server answered 404 with text/plain; charset=UTF-8, not the run's JSON: 404 Not Found",
+			await expect(new LiveConduit("").follow(reads(SHOW_STEPS_METHOD), "test")).rejects.toThrow(
+				`${SHOW_STEPS_METHOD}: the server answered 404 with text/plain; charset=UTF-8, not the run's JSON: 404 Not Found`,
 			);
 			globalThis.fetch = () => Promise.resolve(rpcAnswer({ ok: false, error: "no such step" }, 422));
-			await expect(new LiveConduit("").follow(reads("step.list"), "test")).rejects.toThrow("no such step");
+			await expect(new LiveConduit("").follow(reads(SHOW_STEPS_METHOD), "test")).rejects.toThrow("no such step");
 		} finally {
 			globalThis.fetch = fetchWas;
 		}
@@ -172,7 +173,7 @@ describe("a server that does not respond", () => {
 		delete (globalThis as unknown as Record<string, unknown>)["__SHU_SERVER_RESPONDED__"];
 		globalThis.fetch = () => Promise.reject(new TypeError("Failed to fetch"));
 		try {
-			await new LiveConduit("").follow(acts("step.list"), "test").catch(() => undefined);
+			await new LiveConduit("").follow(acts(SHOW_STEPS_METHOD), "test").catch(() => undefined);
 			expect(serverLastRespondedAt(), "a page that has reached no server holds no such time").toBeUndefined();
 			// A page that has just found the site silent reads what it holds instead of calling again, and this is about
 			// the call after that span rather than within it.
@@ -180,7 +181,7 @@ describe("a server that does not respond", () => {
 			// An error the server returns is still the server responding: what a reader is told is that it was reached.
 			globalThis.fetch = () => Promise.resolve(rpcAnswer({ error: "no such step" }, 422));
 			const before = Date.now();
-			await new LiveConduit("").follow(acts("step.list"), "test").catch(() => undefined);
+			await new LiveConduit("").follow(acts(SHOW_STEPS_METHOD), "test").catch(() => undefined);
 			expect(serverLastRespondedAt() ?? 0).toBeGreaterThanOrEqual(before);
 		} finally {
 			globalThis.fetch = fetchWas;
@@ -202,7 +203,7 @@ describe("a server that does not respond", () => {
 		}) as unknown as typeof globalThis.fetch;
 		try {
 			const began = Date.now();
-			const err = await new LiveConduit("").follow(acts("step.list"), "test").then(
+			const err = await new LiveConduit("").follow(acts(SHOW_STEPS_METHOD), "test").then(
 				() => undefined,
 				(e: unknown) => e,
 			);
@@ -226,12 +227,12 @@ describe("a server that does not respond", () => {
 			return new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("timed out", "TimeoutError")), { once: true }));
 		}) as unknown as typeof globalThis.fetch;
 		try {
-			await new LiveConduit("").follow(acts("step.list"), "a read the page waits on").catch(() => undefined);
+			await new LiveConduit("").follow(acts(SHOW_STEPS_METHOD), "a read the page waits on").catch(() => undefined);
 			expect(bounds.at(-1), "a read the page waits on carries a bound").toBe(true);
 			// The call that opens an action is a call like any other, so this is about a page that has not just found the
 			// site silent.
 			delete (globalThis as unknown as Record<string, unknown>)["__SHU_SERVER_RESPONDED__"];
-			const streaming = new LiveConduit("").followStream(acts("step.list"), () => undefined, { why: "the run's own stream" }).catch(() => undefined);
+			const streaming = new LiveConduit("").followStream(acts(SHOW_STEPS_METHOD), () => undefined, { why: "the run's own stream" }).catch(() => undefined);
 			await new Promise((r) => setTimeout(r, 60));
 			expect(bounds.at(-1), "and a stream carries none, so it is not closed under a run still writing to it").toBe(false);
 			void streaming;
@@ -253,10 +254,10 @@ describe("a server that does not respond", () => {
 		}) as unknown as typeof globalThis.fetch;
 		try {
 			const conduit = new LiveConduit("");
-			await conduit.follow(reads("step.list"), "the first read").catch(() => undefined);
+			await conduit.follow(reads(SHOW_STEPS_METHOD), "the first read").catch(() => undefined);
 			const afterFirst = made;
 			const began = Date.now();
-			await Promise.all(Array.from({ length: 8 }, () => conduit.follow(reads("step.list"), "a view reading").catch(() => undefined)));
+			await Promise.all(Array.from({ length: 8 }, () => conduit.follow(reads(SHOW_STEPS_METHOD), "a view reading").catch(() => undefined)));
 			expect(made, "the reads that followed took the answer the first one got").toBe(afterFirst);
 			expect(Date.now() - began, "so none of them waited the bound out again").toBeLessThan(60);
 		} finally {
@@ -279,12 +280,12 @@ describe("a server that does not respond", () => {
 		}) as unknown as typeof globalThis.fetch;
 		try {
 			const conduit = new LiveConduit("");
-			await conduit.follow(reads("step.list"), "the first read").catch(() => undefined);
+			await conduit.follow(reads(SHOW_STEPS_METHOD), "the first read").catch(() => undefined);
 			expect(made).toBe(1);
-			await conduit.follow(reads("step.list"), "a read within the span").catch(() => undefined);
+			await conduit.follow(reads(SHOW_STEPS_METHOD), "a read within the span").catch(() => undefined);
 			expect(made, "within the span, the answer the first call got stands").toBe(1);
 			(globalThis as unknown as Record<string, { unreachableUntil: number }>)["__SHU_SERVER_RESPONDED__"].unreachableUntil = Date.now() - 1;
-			await conduit.follow(reads("step.list"), "a read after it").catch(() => undefined);
+			await conduit.follow(reads(SHOW_STEPS_METHOD), "a read after it").catch(() => undefined);
 			expect(made, "and after it the site is called again").toBe(2);
 		} finally {
 			globalThis.fetch = fetchWas;
@@ -308,7 +309,7 @@ describe("a server that does not respond", () => {
 		}) as unknown as typeof globalThis.fetch;
 		try {
 			const conduit = new LiveConduit("");
-			await conduit.follow(reads("step.list"), "a view reading").catch(() => undefined);
+			await conduit.follow(reads(SHOW_STEPS_METHOD), "a view reading").catch(() => undefined);
 			const afterRead = asked.length;
 			await conduit.follow(acts("chatWithContext"), "what the reader asked for").catch(() => undefined);
 			expect(asked.slice(afterRead), "the act was carried to the server, beginning with its place in the run").toContain("/rpc/action.begin");
@@ -329,8 +330,8 @@ describe("a server that does not respond", () => {
 		}) as unknown as typeof globalThis.fetch;
 		try {
 			const conduit = new LiveConduit("");
-			await conduit.follow(acts("step.list"), "the first read").catch(() => undefined);
-			await conduit.follow(acts("step.list"), "the read after it").catch(() => undefined);
+			await conduit.follow(acts(SHOW_STEPS_METHOD), "the first read").catch(() => undefined);
+			await conduit.follow(acts(SHOW_STEPS_METHOD), "the read after it").catch(() => undefined);
 			expect(made, "each read asked, since the answer came back at once").toBeGreaterThan(1);
 		} finally {
 			globalThis.fetch = fetchWas;
@@ -351,7 +352,7 @@ describe("a server that does not respond", () => {
 		try {
 			const stopping = new AbortController();
 			const following = new LiveConduit("")
-				.followStream(acts("step.list"), () => undefined, { why: "a reader reading", signal: stopping.signal })
+				.followStream(acts(SHOW_STEPS_METHOD), () => undefined, { why: "a reader reading", signal: stopping.signal })
 				.then(
 					() => undefined,
 					(e: unknown) => e,
@@ -370,7 +371,7 @@ describe("a server that does not respond", () => {
 		const fetchWas = globalThis.fetch;
 		globalThis.fetch = () => Promise.resolve(rpcAnswer({ error: "no such step" }, 422));
 		try {
-			const err = await new LiveConduit("").follow(acts("step.list"), "test").then(
+			const err = await new LiveConduit("").follow(acts(SHOW_STEPS_METHOD), "test").then(
 				() => undefined,
 				(e: unknown) => e,
 			);

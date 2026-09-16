@@ -4,6 +4,8 @@ import { setCookie } from "@haibun/web-server-hono/cookie.js";
 
 import { actionNotOK, actionOK, actionOKWithProducts, getFromRuntime, sleep } from "@haibun/core/lib/util/index.js";
 import { DOMAIN_STRING } from "@haibun/core/lib/domains.js";
+import { MOST_SHOWN, SHOW_STEPS_METHOD } from "@haibun/core/lib/steps-query.js";
+import type { StepDiscovery } from "@haibun/core/lib/step-registry.js";
 import type { TFeatureStep, IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { OK, Origin, type TStepArgs, type TProvenanceIdentifier } from "@haibun/core/schema/protocol.js";
 import { type TRequestHandler, type IWebServer, WEBSERVER } from "@haibun/web-server-hono/defs.js";
@@ -60,19 +62,11 @@ async function mcpListTools(url: string, token: string): Promise<Array<{ name?: 
 	return (response.result as { tools?: Array<{ name?: string }> } | undefined)?.tools ?? [];
 }
 
-async function mcpAccessStepper(url: string, token: string, stepperName: string): Promise<string> {
-	const response = await mcpRpc(
-		url,
-		3,
-		"tools/call",
-		{
-			name: `access_stepper_${stepperName}`,
-			arguments: {},
-		},
-		token,
-	);
+async function mcpShownSteps(url: string, token: string, pattern: string): Promise<string[]> {
+	const response = await mcpRpc(url, 3, "tools/call", { name: SHOW_STEPS_METHOD, arguments: { pattern, limit: MOST_SHOWN } }, token);
 	const text = mcpToolResult(response).content?.[0]?.type === "text" ? (mcpToolResult(response).content?.[0]?.text ?? "") : "";
-	return text;
+	if (!text) throw new Error(`${SHOW_STEPS_METHOD} returned nothing: ${JSON.stringify(response)}`);
+	return (JSON.parse(text) as StepDiscovery).steps.map((step) => step.method);
 }
 
 async function mcpCallTool(url: string, token: string, toolName: string): Promise<Record<string, unknown>> {
@@ -233,20 +227,20 @@ class TestServer extends AStepper {
 			action: async () => actionOKWithProducts({ admin: true }),
 		},
 		mcpStepIndexIncludes: {
-			gwta: "mcp tool index at {url} includes {toolName} when bearer token is {token}",
+			gwta: "mcp tools at {url} include {toolName} when bearer token is {token}",
 			action: async ({ url, toolName, token }: TStepArgs) => {
 				const tools = await mcpListTools(String(url), String(token));
 				return tools.some((tool) => tool.name === String(toolName))
 					? actionOK()
-					: actionNotOK(`Expected ${String(toolName)} in MCP index [${tools.map((tool) => tool.name).join(", ")}]`);
+					: actionNotOK(`Expected ${String(toolName)} in the MCP tool list [${tools.map((tool) => tool.name).join(", ")}]`);
 			},
 		},
-		mcpStepperListingIncludes: {
-			gwta: "mcp stepper {stepperName} at {url} includes tool {toolName} when bearer token is {token}",
-			action: async ({ stepperName, url, toolName, token }: TStepArgs) => {
+		mcpShownStepsInclude: {
+			gwta: "mcp steps shown at {url} matching {pattern} include {toolName} when bearer token is {token}",
+			action: async ({ url, pattern, toolName, token }: TStepArgs) => {
 				await mcpListTools(String(url), String(token));
-				const listing = await mcpAccessStepper(String(url), String(token), String(stepperName));
-				return listing.includes(String(toolName)) ? actionOK() : actionNotOK(`Expected ${String(toolName)} in MCP stepper listing ${listing}`);
+				const shown = await mcpShownSteps(String(url), String(token), String(pattern));
+				return shown.includes(String(toolName)) ? actionOK() : actionNotOK(`Expected ${String(toolName)} among the steps shown [${shown.join(", ")}]`);
 			},
 		},
 		mcpProtectedDeniedWithBearerToken: {

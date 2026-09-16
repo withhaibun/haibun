@@ -4,7 +4,7 @@
  * Grounded in ActivityStreams / JSON-LD.  Derived entirely from getConcerns domains
  * with TDomainTopology: one declaration drives CRUD, JSON-LD context, and UI behaviour.
  *
- * StepDiscovery (step.list) embeds a ConcernCatalog so any client (shu, MCP, ...)
+ * StepDiscovery (the show steps step) embeds a ConcernCatalog so any client (shu, MCP, ...)
  * receives machine-readable hypermedia metadata without a separate RPC call.
  */
 
@@ -62,7 +62,7 @@ import { jsonSchemaOf } from "./json-schema-of.js";
 import { unwrap } from "./zod-unwrap.js";
 import { ellipsize } from "./util/index.js";
 
-/** A domain's JSON Schema for the catalog. `step.list` builds the catalog on every call, and the conversion is held
+/** A domain's JSON Schema for the catalog. The show steps step builds the catalog on every call, and the conversion is held
  *  for the process by `jsonSchemaOf`; a schema that cannot be converted has no shape to report, and says so once. */
 function toJsonSchemaCached(schema: z.ZodType): Record<string, unknown> {
 	return jsonSchemaOf(schema, "concern", () => {

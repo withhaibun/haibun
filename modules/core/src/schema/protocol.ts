@@ -393,7 +393,7 @@ export const HYPERMEDIA = {
 	TYPE: "_type",
 	/** Human-readable one-liner for CLI output and document view captions */
 	SUMMARY: "_summary",
-	/** Inline description from the registered domain schema's `.describe()`. Travels with the data so a consumer (human, LLM, agent) can interpret a product without round-tripping to `step.list`. Unset when the producing step's domain has no description. */
+	/** Inline description from the registered domain schema's `.describe()`. Travels with the data so a consumer (human, LLM, agent) can interpret a product without round-tripping to the show steps step. Unset when the producing step's domain has no description. */
 	DESCRIPTION: "_description",
 	/** Web component tag that renders this product (e.g. "shu-monitor-column") */
 	COMPONENT: "_component",

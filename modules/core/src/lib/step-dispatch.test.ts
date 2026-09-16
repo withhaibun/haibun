@@ -14,6 +14,7 @@ import {
 	type StepTool,
 } from "./step-registry.js";
 import { validateToolInput } from "./tool-validation.js";
+import { EVERY_DECLARATION } from "./steps-query.js";
 import { AStepper, type TStepperStep } from "./astepper.js";
 import { OK } from "../schema/protocol.js";
 import { actionOKWithProducts, actionNotOK } from "./util/index.js";
@@ -251,7 +252,7 @@ describe("step-dispatch", () => {
 				],
 			]);
 			const stepper = new PlainStepper();
-			const discovery = discoverSteps([stepper], w);
+			const discovery = discoverSteps([stepper], w, new StepRegistry([stepper], w), EVERY_DECLARATION);
 			expect(Array.isArray(discovery.steps)).toBe(true);
 			expect(discovery.steps.some((m) => m.method === "PlainStepper-greet")).toBe(true);
 			expect(discovery.domains).toBeDefined();
@@ -270,27 +271,27 @@ describe("step-dispatch", () => {
 				],
 			]);
 			const stepper = new PlainStepper();
-			const discovery = discoverSteps([stepper], w);
+			const discovery = discoverSteps([stepper], w, new StepRegistry([stepper], w), EVERY_DECLARATION);
 			expect(discovery.domains["size"]).toMatchObject({ description: "T-shirt size", values: ["small", "medium", "large"] });
 		});
 
-		it("step.list steps includes inputSchema", () => {
+		it("a shown step includes its inputSchema", () => {
 			const stepper = new PlainStepper();
-			const discovery = discoverSteps([stepper], world);
+			const discovery = discoverSteps([stepper], world, new StepRegistry([stepper], world), EVERY_DECLARATION);
 			const greet = discovery.steps.find((m) => m.method === "PlainStepper-greet");
 			expect(greet?.inputSchema).toBeDefined();
 			expect(greet?.inputSchema?.required).toContain("name");
 		});
 
-		it("step.list steps includes capability", () => {
+		it("a shown step includes its capability", () => {
 			const stepper = new CapabilityStepper();
-			const discovery = discoverSteps([stepper], world);
+			const discovery = discoverSteps([stepper], world, new StepRegistry([stepper], world), EVERY_DECLARATION);
 			expect(discovery.steps.find((m) => m.method === "CapabilityStepper-protectedPing")?.capability).toBe("CapabilityStepper:protected");
 		});
 
 		it("omits capability-gated steps when the caller lacks the grant", () => {
 			const steppers = [new PlainStepper(), new CapabilityStepper()];
-			const discovery = discoverSteps(steppers, world, undefined, { grantedCapability: [] });
+			const discovery = discoverSteps(steppers, world, new StepRegistry(steppers, world), EVERY_DECLARATION, []);
 			const methods = discovery.steps.map((s) => s.method);
 			expect(methods).toContain("PlainStepper-greet");
 			expect(methods).not.toContain("CapabilityStepper-protectedPing");
@@ -298,9 +299,7 @@ describe("step-dispatch", () => {
 
 		it("includes capability-gated steps when the caller holds the matching grant", () => {
 			const steppers = [new PlainStepper(), new CapabilityStepper()];
-			const discovery = discoverSteps(steppers, world, undefined, {
-				grantedCapability: ["CapabilityStepper:protected"],
-			});
+			const discovery = discoverSteps(steppers, world, new StepRegistry(steppers, world), EVERY_DECLARATION, ["CapabilityStepper:protected"]);
 			const methods = discovery.steps.map((s) => s.method);
 			expect(methods).toContain("PlainStepper-greet");
 			expect(methods).toContain("CapabilityStepper-protectedPing");
@@ -308,14 +307,14 @@ describe("step-dispatch", () => {
 
 		it("wildcard grants admit every matching capability", () => {
 			const steppers = [new CapabilityStepper()];
-			const discovery = discoverSteps(steppers, world, undefined, { grantedCapability: "*" });
+			const discovery = discoverSteps(steppers, world, new StepRegistry(steppers, world), EVERY_DECLARATION, "*");
 			const methods = discovery.steps.map((s) => s.method);
 			expect(methods).toContain("CapabilityStepper-protectedPing");
 		});
 
 		it("passes through the full manifest when no grant context is supplied", () => {
 			const steppers = [new CapabilityStepper()];
-			const discovery = discoverSteps(steppers, world);
+			const discovery = discoverSteps(steppers, world, new StepRegistry(steppers, world), EVERY_DECLARATION);
 			expect(discovery.steps.find((m) => m.method === "CapabilityStepper-protectedPing")).toBeDefined();
 		});
 	});
@@ -802,7 +801,7 @@ describe("step-dispatch", () => {
 			expect(links?.revokeVc).toEqual({ method: "VertexRefStepper-revokeVc", params: { credential: { id: "vc-1" } } });
 		});
 
-		it("omits params skeleton when the product has no `id`: the consumer fills params from step.list", async () => {
+		it("omits params skeleton when the product has no `id`: the consumer fills params from the step's shown schema", async () => {
 			class IdlessStepper extends AStepper {
 				steps = {
 					produce: {

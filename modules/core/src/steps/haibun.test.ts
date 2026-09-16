@@ -8,7 +8,8 @@ import LogicStepper from "./logic-stepper.js";
 import { ActivitiesStepper } from "./activities-stepper.js";
 import { AStepper } from "../lib/astepper.js";
 import { actionOK } from "../lib/util/index.js";
-import { hostScopedMethodName, type StepRegistry } from "../lib/step-registry.js";
+import { hostScopedMethodName, type StepDiscovery, type StepRegistry } from "../lib/step-registry.js";
+import type { TStepResult } from "../schema/protocol.js";
 import { OBSERVATION_GRAPH, assertFact, getFact } from "../lib/working-memory.js";
 
 describe("until", () => {
@@ -186,6 +187,27 @@ Prose sections are indicated by the presence of punctuation at the end of paragr
 		}
 		expect(rfzs[n++]).toBeDefined(); // present
 		expect(rfzs[0]).toBeDefined();
+	});
+});
+
+describe("show steps", () => {
+	const shown = (result: Awaited<ReturnType<typeof passWithDefaults>>) =>
+		(result.world.runtime.stepResults as TStepResult[]).map((stepResult) => stepResult.products as StepDiscovery | undefined).find((products) => products?.total !== undefined);
+
+	it("shows the run's steps a pattern matches, as a feature line reads them", async () => {
+		const feature = { path: "/features/test.feature", content: 'show steps matching "^TestSteps-passes$" limit 5' };
+		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
+		expect(result.ok).toBe(true);
+		const discovery = shown(result);
+		expect(discovery?.steps.map((step) => step.method)).toEqual(["TestSteps-passes"]);
+		expect(discovery?.steps[0]._links.call).toEqual({ method: "TestSteps-passes" });
+		expect(discovery?.total.steps).toBe(1);
+	});
+
+	it("refuses a pattern that is not a regular expression", async () => {
+		const feature = { path: "/features/test.feature", content: 'show steps matching "(" limit 5' };
+		const result = await failWithDefaults([feature], [Haibun, TestSteps]);
+		expect(JSON.stringify(result.featureResults?.[0]?.stepResults)).toContain("the pattern is not a regular expression");
 	});
 });
 

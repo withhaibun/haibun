@@ -55,6 +55,7 @@ export class TestConduit implements Conduit {
 
 import { setEventStream, resetEventStream, SerializedEventStream, type TEvent } from "./event-stream.js";
 import { resetRunSources, setDeviceStore, MemoryDeviceStore } from "./client-cache/index.js";
+import { SHOW_STEPS_METHOD } from "@haibun/core/lib/steps-query.js";
 
 export type TShuTestConfig = {
 	/** Optional dispatch for in-test RPCs. Default throws on every call, naming the unconfigured method, tests opt in by supplying a function that returns wire results for the methods they exercise. */
@@ -72,21 +73,27 @@ export type TShuTestHandle = {
 	eventStream: SerializedEventStream;
 };
 
-/** The two steps the entity surface calls, as `step.list` answers them: the fixture every entity test installs. */
-export const ENTITY_STEP_LIST = {
-	steps: [
-		{ method: "GraphStepper-getIndividualWithEdges", stepperName: "GraphStepper", stepName: "getIndividualWithEdges", pattern: "get vertex {label} {id}", params: {} },
-		{ method: "ResourcesStepper-annotations", stepperName: "ResourcesStepper", stepName: "annotations", pattern: "get annotations for {label} {id}", params: {} },
-	],
-	domains: {},
-	concerns: { persisted: {}, references: {} },
-};
+/** The steps given, as the show steps step returns them when they are all a run declares. */
+export function stepsShown(steps: Array<{ method: string; stepperName: string; stepName: string; pattern: string; params: Record<string, "string" | "number">; fallback?: boolean; read?: boolean }>) {
+	return {
+		steps: steps.map((step) => ({ ...step, _links: { call: { method: step.method } } })),
+		domains: {},
+		concerns: { persisted: {}, references: {} },
+		total: { steps: steps.length, domains: 0, persisted: 0, references: 0 },
+	};
+}
 
-/** A dispatch over the entity surface: `step.list` answers with {@link ENTITY_STEP_LIST}, the two entity steps route
+/** The two steps the entity surface calls, as the show steps step returns them: the fixture every entity test installs. */
+export const ENTITY_STEP_LIST = stepsShown([
+	{ method: "GraphStepper-getIndividualWithEdges", stepperName: "GraphStepper", stepName: "getIndividualWithEdges", pattern: "get vertex {label} {id}", params: {} },
+	{ method: "ResourcesStepper-annotations", stepperName: "ResourcesStepper", stepName: "annotations", pattern: "get annotations for {label} {id}", params: {} },
+]);
+
+/** A dispatch over the entity surface: the show steps step answers with {@link ENTITY_STEP_LIST}, the two entity steps route
  *  to the given answerers (annotations defaults to none), and anything else throws: the loud-failure signal. */
 export function makeEntityDispatch(over: { entity: () => unknown; annotations?: () => unknown }): TDispatch {
 	return (method) => {
-		if (method === "step.list") return ENTITY_STEP_LIST;
+		if (method === SHOW_STEPS_METHOD) return ENTITY_STEP_LIST;
 		if (method === "GraphStepper-getIndividualWithEdges") return over.entity();
 		if (method === "ResourcesStepper-annotations") return over.annotations ? over.annotations() : { annotations: [] };
 		throw new Error(`unexpected ${method}`);

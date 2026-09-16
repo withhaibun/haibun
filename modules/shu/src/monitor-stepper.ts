@@ -25,7 +25,6 @@ import { TRANSPORT, type ITransport } from "@haibun/web-server-hono/sse-transpor
 import { WEBSERVER, type IWebServer } from "@haibun/web-server-hono/defs.js";
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
 import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
-import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import type { TTag } from "@haibun/core/lib/ttag.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { SEQ_PATH_FIELD, executionOf, extractSeqPathPrefix, formatRecordName, parseSeqPath } from "@haibun/core/lib/seq-path.js";
@@ -34,7 +33,8 @@ import { LOG_MESSAGE_EDGE, LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL } from "@haibun/
 import { RUN_ARTIFACT_EDGE, RUN_ARTIFACT_FIELD, RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
 import { loadReportBundle, buildReportHtml, buildGraphSource } from "./shu-stepper.js";
 
-import { DISCOVERY_RESPONSE } from "@haibun/web-server-hono/web-server-stepper.js";
+import { discoverSteps } from "@haibun/core/lib/step-registry.js";
+import { EVERY_DECLARATION } from "@haibun/core/lib/steps-query.js";
 
 import { DOMAIN_GRAPH_QUERY } from "@haibun/core/lib/quad-types.js";
 import { CACHE_SHAPE, type TCachePayload } from "./client-cache/index.js";
@@ -298,14 +298,16 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				}
 			}),
 		);
-		// The site's declarations ride in the cache as the registry, where a page with no server reads them, so there is
-		// one place a registry comes from: what this server served a page, as that page was allowed to see it.
-		const registry = this.getWorld().runtime[DISCOVERY_RESPONSE] ?? { steps: [], domains: {}, concerns: buildConcernCatalog(this.getWorld().domains) };
+		// The run's declarations ride in the cache as the registry, where a page with no server reads them, read as every
+		// caller reads them.
+		const world = this.getWorld();
+		if (!world.runtime.steppers || !world.runtime.stepRegistry) throw new Error("a report reads the run's declarations, and the run holds no steppers or step registry");
+		const registry = discoverSteps(world.runtime.steppers as AStepper[], world, world.runtime.stepRegistry, EVERY_DECLARATION);
 		// 3. End-of-run snapshots for the affordances panel. Earlier RPC calls cached
 		// the early empty-graph state; the panel's offline render uses the cache, so the
 		// last live snapshot is the one that matters. Re-run the read the panel makes
 		// to overwrite with end-of-run forward / goals / waypoints, under the name it asks by.
-		const steppers = (this.getWorld().runtime.steppers as AStepper[] | undefined) ?? [];
+		const steppers = world.runtime.steppers as AStepper[];
 		for (const stepper of steppers) {
 			const refreshable = ["affordancesOnOffer"];
 			for (const name of refreshable) {

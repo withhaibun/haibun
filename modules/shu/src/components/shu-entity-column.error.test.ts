@@ -5,6 +5,8 @@ import { ShuEntityColumn } from "./shu-entity-column.js";
 import { setConduit, LiveConduit, resetConduit } from "../hypermedia.js";
 import { setEventStream, SerializedEventStream, resetEventStream } from "../event-stream.js";
 import { rpcAnswer } from "@haibun/core/lib/test/rpc-answer.js";
+import { SHOW_STEPS_METHOD } from "@haibun/core/lib/steps-query.js";
+import { ENTITY_STEP_LIST } from "../test-setup.js";
 
 describe("shu-entity-column error surfacing", () => {
 	beforeEach(() => {
@@ -20,25 +22,7 @@ describe("shu-entity-column error surfacing", () => {
 		globalThis.fetch = (input: unknown): Promise<Response> => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
 			if (url.endsWith("/rpc/action.begin")) return Promise.resolve(rpcAnswer({ seqPath: [0, -1, 1] }, 200));
-			if (url.includes("step.list"))
-				return Promise.resolve(
-					rpcAnswer(
-						{
-							steps: [
-								{
-									method: "GraphStepper-getIndividualWithEdges",
-									stepperName: "GraphStepper",
-									stepName: "getIndividualWithEdges",
-									pattern: "get vertex {label} {id}",
-									params: {},
-								},
-							],
-							domains: {},
-							concerns: { persisted: {}, references: {} },
-						},
-						200,
-					),
-				);
+			if (url.endsWith(`/rpc/${SHOW_STEPS_METHOD}`)) return Promise.resolve(rpcAnswer(ENTITY_STEP_LIST, 200));
 			if (url.includes("getIndividualWithEdges")) {
 				return Promise.resolve(rpcAnswer({ error: "Issuer not found: did:example:pookie" }, 422));
 			}

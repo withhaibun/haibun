@@ -5,6 +5,7 @@ import { AStepper } from "./astepper.js";
 import { actionOK } from "./util/index.js";
 import type { TWorld } from "./world.js";
 import type { TStepperStep } from "./astepper.js";
+import { EVERY_DECLARATION } from "./steps-query.js";
 
 /** A domain with date fields and a defaulted field: the shape every persisted type carries (generatedAtTime etc.). */
 const RecordSchema = z
@@ -65,7 +66,7 @@ describe("what the manifest describes", () => {
 			handler: async () => actionOK(),
 		} as unknown as StepTool;
 		registry.set(injected);
-		const manifest = discoverSteps(steppers, emptyWorld, registry);
+		const manifest = discoverSteps(steppers, emptyWorld, registry, EVERY_DECLARATION);
 		const entry = manifest.steps.find((step) => step.method === injected.name);
 		expect(entry, "the injected step is in the manifest under its host-scoped name").toBeDefined();
 		expect(entry?.pattern, "and its pattern says whose it is").toBe("list {domain: string} (at localhost:8331)");
@@ -91,10 +92,39 @@ describe("what the manifest describes", () => {
 			transport: "remote",
 			handler: async () => actionOK(),
 		} as unknown as StepTool);
-		const withheld = discoverSteps(steppers, emptyWorld, registry, { grantedCapability: "Remote:read" });
+		const withheld = discoverSteps(steppers, emptyWorld, registry, EVERY_DECLARATION, "Remote:read");
 		expect(withheld.steps.find((step) => step.method === hostScopedMethodName(9, "Gated-write"))).toBeUndefined();
-		const granted = discoverSteps(steppers, emptyWorld, registry, { grantedCapability: "Remote:write" });
+		const granted = discoverSteps(steppers, emptyWorld, registry, EVERY_DECLARATION, "Remote:write");
 		expect(granted.steps.find((step) => step.method === hostScopedMethodName(9, "Gated-write"))).toBeDefined();
+	});
+
+	it("shows the steps, domains and types a pattern matches, up to the limit of each, with how many of each it matched", () => {
+		class ManySteps extends AStepper {
+			description = "steps that read and write records";
+			steps = {
+				readRecord: { gwta: "read record {id}", description: "Reads one record.", action: async () => actionOK() },
+				writeRecord: { gwta: "write record {id}", action: async () => actionOK() },
+				listRecords: { gwta: "list records", action: async () => actionOK() },
+			};
+		}
+		const world = {
+			runtime: {},
+			domains: {
+				"record-id": { selectors: ["record-id"], schema: z.string(), description: "the id of a record" },
+				colour: { selectors: ["colour"], schema: z.string(), description: "a colour" },
+			},
+		} as unknown as TWorld;
+		const steppers = [new ManySteps(), new LocalSteps()];
+		const registry = new StepRegistry(steppers, world);
+		const byStepper = discoverSteps(steppers, world, registry, { pattern: "^ManySteps-", limit: 2 });
+		expect(byStepper.steps.map((step) => step.method), "a method's prefix reads its stepper's steps, up to the limit").toEqual(["ManySteps-readRecord", "ManySteps-writeRecord"]);
+		expect(byStepper.total, "and says how many matched").toMatchObject({ steps: 3, domains: 0 });
+		const byDescription = discoverSteps(steppers, world, registry, { pattern: "reads ONE", limit: 5 });
+		expect(byDescription.steps.map((step) => step.method), "a step's description is matched, without regard to case").toEqual(["ManySteps-readRecord"]);
+		expect(byDescription.steps[0]._links.call, "and each step links its call").toEqual({ method: "ManySteps-readRecord" });
+		expect(byDescription.steps[0].inputSchema?.required, "with the schema of its arguments").toEqual(["id"]);
+		const domains = discoverSteps(steppers, world, registry, { pattern: "record", limit: 5 });
+		expect(Object.keys(domains.domains), "a domain is matched by its name or description").toEqual(["record-id"]);
 	});
 
 	it("names a host-scoped step so a model can call it: letters, digits, underscores and hyphens only", () => {
@@ -129,7 +159,7 @@ describe("what the manifest says about a domain", () => {
 			runtime: {},
 			domains: { "x-viewer": { name: "x-viewer", description: "a viewer", ui: { component: "x-viewer", js: "/assets/x-viewer.js", jsContent: "/* the whole bundle */" } } },
 		} as unknown as TWorld;
-		const manifest = discoverSteps([], world, new StepRegistry([], world));
+		const manifest = discoverSteps([], world, new StepRegistry([], world), EVERY_DECLARATION);
 		expect(manifest.domains["x-viewer"].ui).toEqual({ component: "x-viewer", js: "/assets/x-viewer.js" });
 	});
 });

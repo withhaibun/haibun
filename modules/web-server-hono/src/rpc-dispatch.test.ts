@@ -5,6 +5,9 @@ import { OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
 import { actionNotOK, actionOKWithProducts, getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import WebServerStepper from "./web-server-stepper.js";
+import Haibun from "@haibun/core/steps/haibun.js";
+import { EVERY_DECLARATION, SHOW_STEPS_METHOD } from "@haibun/core/lib/steps-query.js";
+import type { StepDiscovery } from "@haibun/core/lib/step-registry.js";
 import { streamContext, type TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 
 class PingStepper extends AStepper {
@@ -26,21 +29,32 @@ class PingStepper extends AStepper {
 	};
 }
 
+/** The methods of the steps a caller is shown, read as a page reads them. */
+async function shownMethods(url: string, headers: Record<string, string>): Promise<string[]> {
+	const res = await fetch(url, {
+		method: "POST",
+		headers: { "Content-Type": "application/json", ...headers },
+		body: JSON.stringify({ jsonrpc: "2.0", id: "1", method: SHOW_STEPS_METHOD, params: EVERY_DECLARATION, asks: "read" }),
+	});
+	if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+	return ((await res.json()) as StepDiscovery).steps.map((step) => step.method);
+}
+
 class RpcVerifyStepper extends AStepper {
 	steps = {
-		rpcStepListIncludes: {
-			gwta: "rpc step list at {url} includes {stepName}",
-			action: async ({ url, stepName }: TStepArgs) => {
-				const res = await fetch(String(url), {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ jsonrpc: "2.0", id: "1", method: "step.list", params: {} }),
-				});
-				if (!res.ok) return actionNotOK(`HTTP ${res.status}`);
-				const data = await res.json();
-				const steps = Array.isArray(data) ? data : ((data as { steps?: { method: string }[] }).steps ?? []);
-				const methods = steps.map((s: { method: string }) => s.method);
-				return methods.includes(String(stepName)) ? OK : actionNotOK(`"${stepName}" not in [${methods.join(", ")}]`);
+		shownStepsInclude: {
+			gwta: "steps shown to a caller with no token at {url} include {included}",
+			action: async ({ url, included }: TStepArgs) => {
+				const methods = await shownMethods(String(url), {});
+				return methods.includes(String(included)) ? OK : actionNotOK(`"${included}" not in [${methods.join(", ")}]`);
+			},
+		},
+		shownStepsForBearer: {
+			gwta: "steps shown at {url} for bearer token {token} include {included} and not {excluded}",
+			action: async ({ url, token, included, excluded }: TStepArgs) => {
+				const methods = await shownMethods(String(url), { Authorization: `Bearer ${String(token)}` });
+				if (!methods.includes(String(included))) return actionNotOK(`"${included}" not in [${methods.join(", ")}]`);
+				return methods.includes(String(excluded)) ? actionNotOK(`"${excluded}" in [${methods.join(", ")}]`) : OK;
 			},
 		},
 		rpcCallSucceeds: {
@@ -169,12 +183,12 @@ class RpcVerifyStepper extends AStepper {
 				const res = await fetch(String(url), {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ type: "rpc", id: "1", method: "step.list", params: {} }),
+					body: JSON.stringify({ type: "rpc", id: "1", method: SHOW_STEPS_METHOD, params: EVERY_DECLARATION }),
 				});
 				const data = await res.json();
 				// Old format is not parsed as a valid JSON-RPC 2.0 request, so no handler processes it.
 				// Transport returns { ok: true } as default (no handler matched).
-				if (Array.isArray(data)) return actionNotOK("Got step.list response, old format should not be dispatched");
+				if ("steps" in data) return actionNotOK("the old format was dispatched");
 				return OK;
 			},
 		},
@@ -221,23 +235,9 @@ class ReadStepper extends AStepper {
 	};
 }
 
-const steppers = [WebServerStepper, PingStepper, RpcVerifyStepper, ReadStepper];
+const steppers = [WebServerStepper, PingStepper, RpcVerifyStepper, ReadStepper, Haibun];
 
 describe("RPC dispatch via WebServerStepper", () => {
-	it("step.list includes PingStepper-ping", async () => {
-		const port = 8234;
-		const feature = {
-			path: "/features/test.feature",
-			content: `
-enable rpc
-webserver is listening for "rpc-step-list"
-rpc step list at "http://localhost:${port}/rpc/step.list" includes "PingStepper-ping"
-`,
-		};
-		const result = await passWithDefaults([feature], steppers, makeOptions(port));
-		expect(result.ok).toBe(true);
-	});
-
 	it("does not narrate serving a read, since a page reading the run would read again for its own reading", async () => {
 		const port = 8244;
 		const feature = {
@@ -293,48 +293,62 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-ping" with method "PingSte
 			content: `
 enable rpc
 webserver is listening for "rpc-old-format"
-rpc old format to "http://localhost:${port}/rpc/step.list" is not dispatched
+rpc old format to "http://localhost:${port}/rpc/${SHOW_STEPS_METHOD}" is not dispatched
 `,
 		};
 		const result = await passWithDefaults([feature], steppers, makeOptions(port));
 		expect(result.ok).toBe(true);
 	});
 
-	it("step.list returns { steps, domains } shape", async () => {
+	it("shows a caller the steps its capability allows, through the step every caller reads a run's declarations by", async () => {
 		const port = 8237;
-		// Intercept the raw step.list response to verify shape
-		let capturedStepList: unknown;
-		class StepListCaptureStepper extends AStepper {
+		const feature = {
+			path: "/features/shown-steps.feature",
+			content: `
+enable rpc
+webserver is listening for "rpc-shown-steps"
+steps shown at "http://localhost:${port}/rpc/${SHOW_STEPS_METHOD}" for bearer token "rpc-protected-token" include "PingStepper-protectedPing" and not "PingStepper-adminPing"
+`,
+		};
+		const result = await passWithDefaults([feature], steppers, {
+			...DEF_PROTO_OPTIONS,
+			moduleOptions: {
+				[getStepperOptionName(WebServerStepper, "PORT")]: String(port),
+				[getStepperOptionName(WebServerStepper, "RPC_ACCESS_TOKEN")]: "rpc-protected-token",
+				[getStepperOptionName(WebServerStepper, "RPC_ACCESS_CAPABILITY")]: "PingStepper:protected",
+			},
+		});
+		expect(result.ok).toBe(true);
+	});
+
+	it("shows and dispatches a step injected into the run's registry after rpc is enabled, as every other caller of the run does", async () => {
+		const port = 8238;
+		class Injects extends AStepper {
 			steps = {
-				captureStepList: {
-					gwta: "capture step list at {url}",
-					action: async ({ url }: { url: string }) => {
-						const res = await fetch(String(url), {
-							method: "POST",
-							headers: { "Content-Type": "application/json" },
-							body: JSON.stringify({ jsonrpc: "2.0", id: "1", method: "step.list", params: {} }),
-						});
-						capturedStepList = await res.json();
-						return OK;
+				injectAStep: {
+					gwta: "inject a step into the run's registry",
+					action: () => {
+						const registry = this.getWorld().runtime.stepRegistry;
+						const ping = registry?.get("PingStepper-ping");
+						if (!registry || !ping) return Promise.resolve(actionNotOK("the run holds no ping to copy"));
+						registry.set({ ...ping, name: "Injected-ping", stepperName: "Injected", stepName: "ping" });
+						return Promise.resolve(OK);
 					},
 				},
 			};
 		}
-
-		const captureFeature = {
-			path: "/features/shape-test.feature",
+		const feature = {
+			path: "/features/injected.feature",
 			content: `
 enable rpc
-webserver is listening for "rpc-shape-test"
-capture step list at "http://localhost:${port + 10}/rpc/step.list"
+webserver is listening for "rpc-injected"
+inject a step into the run's registry
+steps shown to a caller with no token at "http://localhost:${port}/rpc/${SHOW_STEPS_METHOD}" include "Injected-ping"
+rpc call to "http://localhost:${port}/rpc/Injected-ping" with method "Injected-ping" succeeds
 `,
 		};
-		const shapeSteppers = [WebServerStepper, PingStepper, StepListCaptureStepper];
-		await passWithDefaults([captureFeature], shapeSteppers, makeOptions(port + 10));
-
-		expect(capturedStepList).toHaveProperty("steps");
-		expect(capturedStepList).toHaveProperty("domains");
-		expect(Array.isArray((capturedStepList as { steps: unknown }).steps)).toBe(true);
+		const result = await passWithDefaults([feature], [...steppers, Injects], makeOptions(port));
+		expect(result.ok).toBe(true);
 	});
 
 	it("action.begin allocates a unique seqPath root per call", async () => {

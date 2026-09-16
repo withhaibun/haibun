@@ -22,7 +22,7 @@ A **variable** stands for any individual: `x`, `y`. In haibun a variable is a st
 
 The set of asserted facts is the **ABox** (assertion box, from Description Logic). In haibun it is the working memory stored in `FACT_GRAPH`.
 
-The declared vocabulary, domains, predicates, rules, is the **TBox** (terminological box) or *signature*. Haibun has no native term for the whole TBox; the closest published form is the `ConcernCatalog` returned by `step.list`.
+The declared vocabulary, domains, predicates, rules, is the **TBox** (terminological box) or *signature*. Haibun has no native term for the whole TBox; the closest published form is the `ConcernCatalog` the show steps step returns.
 
 A **rule** has a head and a body. The body's facts together let the head be derived: `Ready(m) ← Cooked(m) ∧ Plated(m)`. In haibun, a rule is a `waypoint` with a goal-shaped proof inside an `Activity:` block.
 
@@ -119,7 +119,7 @@ The monitor renders the same tree. An RPC `derive "{goal}"` returns it.
 
 ## The hypermedia surface
 
-`step.list` returns the registered steppers and a `ConcernCatalog`. The catalog includes a `predicates` section listing each declared predicate by name, the domain of each part, and a sample step. The SPA's affordances panel uses the catalog to render predicates as advertised next moves. An MCP client uses it as a tool inventory. An LLM caller binds to it as typed tool definitions.
+The show steps step (`Haibun-showSteps`) returns the registered steps and a `ConcernCatalog`. The catalog includes a `predicates` section listing each declared predicate by name, the domain of each part, and a sample step. The SPA's affordances panel uses the catalog to render predicates as advertised next moves. An MCP client uses it as a tool inventory. An LLM caller binds to it as typed tool definitions.
 
 `signature.list` returns the full signature: domains, predicates, rules, functions. `derive "{goal}"` returns a proof tree or a partial tree pointing at the unprovable sub-goal.
 
@@ -168,7 +168,7 @@ A function declaration `function {name}({parts}) → D` registers a domain-typed
 ✓ show chain lint
   show derivation of "{statement}"
 
-✓ step.list                                            (returns steppers + ConcernCatalog)
+✓ show steps                                           (returns steps + ConcernCatalog)
   signature.list                                       (returns domains + predicates + rules)
 ```
 
@@ -197,7 +197,7 @@ A declarative line registers a predicate with named, domain-typed parts:
 predicate {subject:meal} is {state:meal-state}
 ```
 
-The parser builds a predicate descriptor `(name, arg-domains)`. The verb in a using line decides assert versus query. `step.list`'s catalog gains a `predicates` section.
+The parser builds a predicate descriptor `(name, arg-domains)`. The verb in a using line decides assert versus query. The show steps catalog gains a `predicates` section.
 
 ### Phase 2, Unification in the resolver
 
@@ -309,7 +309,7 @@ How higher-arity predicates store in a quad store, reify into anonymous individu
 
 Where the reasoner runs, in-process per feature first, with a `derive` RPC for clients; an out-of-process inference service later if needed.
 
-Whether `signature.list` and `derive` belong on the existing `step.list` RPC surface or a new namespace.
+Whether `signature.list` and `derive` belong on the existing show steps step or a new namespace.
 
 How existing `productsDomain` declarations migrate, auto-derive a one-part predicate per declaration; let authors opt into richer signatures over time.
 

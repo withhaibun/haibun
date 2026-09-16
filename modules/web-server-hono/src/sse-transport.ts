@@ -28,8 +28,8 @@ export interface ITransport {
 export const TRANSPORT = "transport";
 
 /** The transport's own methods that read rather than act: a page asks these of the transport itself, which has no step
- *  to declare them. Listing the steps a site offers is a read of the site, and a page makes it to find its way about. */
-const TRANSPORT_READS = new Set(["step.list", "step.validate"]);
+ *  to declare them. Checking a step's text is a read of the site. */
+const TRANSPORT_READS = new Set(["step.validate"]);
 
 export class SSETransport implements ITransport, IStepTransport {
 	readonly name = "SSETransport";

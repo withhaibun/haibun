@@ -19,7 +19,8 @@ import {
 	resetStepRegistry,
 	responseTimeoutMs,
 } from "./rpc-registry.js";
-import { setupShuTest, type TShuTestHandle } from "./test-setup.js";
+import { setupShuTest, stepsShown, type TShuTestHandle } from "./test-setup.js";
+import { SHOW_STEPS_METHOD } from "@haibun/core/lib/steps-query.js";
 import { deviceStore, setDeviceStore, MemoryDeviceStore } from "./client-cache/index.js";
 
 function setHydration(payload: unknown): void {
@@ -131,7 +132,7 @@ describe("the step a name answers to", () => {
 	// Two steppers may declare one step name: the site says which of them is a fallback, and a page naming the step
 	// takes the one that is not. A deployment that brings its own step is read through its own step.
 	let handle: TShuTestHandle;
-	const listing = (steps: unknown[]) => setupShuTest({ dispatch: (method) => (method === "step.list" ? { steps, domains: {}, concerns: { persisted: {} } } : undefined) });
+	const listing = (steps: Parameters<typeof stepsShown>[0]) => setupShuTest({ dispatch: (method) => (method === SHOW_STEPS_METHOD ? stepsShown(steps) : undefined) });
 	beforeEach(() => {
 		setHydration({});
 		resetStepRegistry();
@@ -168,9 +169,9 @@ describe("the step a name answers to", () => {
 });
 
 describe("the registry cached on the device", () => {
-	// The site's response to step.list is cached on the device; a page whose site does not respond runs on that copy and reports
+	// The site's response to the show steps step is cached on the device; a page whose site does not respond runs on that copy and reports
 	// so; with neither, the request fails as it did.
-	const ANSWER = { steps: [], domains: {}, concerns: { persisted: {} } };
+	const ANSWER = stepsShown([]);
 	let handle: TShuTestHandle;
 	beforeEach(() => {
 		setHydration({});
@@ -182,7 +183,7 @@ describe("the registry cached on the device", () => {
 	});
 
 	it("caches the server's response on the device and runs on it when the server does not respond; with neither, fails", async () => {
-		handle = setupShuTest({ dispatch: (method) => (method === "step.list" ? ANSWER : undefined) });
+		handle = setupShuTest({ dispatch: (method) => (method === SHOW_STEPS_METHOD ? ANSWER : undefined) });
 		await getAvailableSteps();
 		expect(registryOrigin()).toEqual({ from: "server" });
 		const store = deviceStore() as MemoryDeviceStore;

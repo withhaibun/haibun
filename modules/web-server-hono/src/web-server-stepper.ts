@@ -7,7 +7,7 @@ import { AStepper, type IHasCycles, type IHasOptions, type TEndFeature, type ISt
 import { dispatchStep } from "@haibun/core/lib/step-dispatch.js";
 import { parseRpcRequest } from "@haibun/core/lib/rpc-wire.js";
 import { runWithRequestContext, requestBaseIri } from "@haibun/core/lib/request-context.js";
-import { discoverSteps, buildFeatureStepForTransport, StepRegistry, capabilityAllows } from "@haibun/core/lib/step-registry.js";
+import { buildFeatureStepForTransport, type StepRegistry, capabilityAllows } from "@haibun/core/lib/step-registry.js";
 import { handleStoreCall, isStoreMethod, requiredStoreCapability } from "@haibun/core/lib/store-protocol.js";
 import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
 import { activeSitePrincipal, allocateSyntheticSeqPath, resolveHostId, syntheticSeqPath } from "@haibun/core/lib/host-id.js";
@@ -232,7 +232,11 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		enableRpc: {
 			gwta: "enable rpc",
 			action: () => {
-				this.stepRegistry = new StepRegistry(this.steppers, this.getWorld());
+				// The run's own registry, which holds what the run's transports injected, so a caller reaching the run by RPC
+				// dispatches and discovers the same steps as every other caller of the run.
+				const registry = this.getWorld().runtime.stepRegistry;
+				if (!registry) throw new Error("enable rpc: the run holds no step registry");
+				this.stepRegistry = registry;
 				attachTransportsToRegistry(this.steppers, this.stepRegistry, this.getWorld().runtime[WEBSERVER]);
 
 				const transport = getFromRuntime(this.getWorld().runtime, TRANSPORT) as ITransport;
@@ -246,25 +250,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					if (!msg) return;
 					const { method, params } = msg;
 
-					// Introspection methods produce no observations and may be invoked
-					// by clients that have no caller seqPath (e.g. a fresh SPA session
-					// asking for the stepper catalog). State-changing dispatches MUST
-					// carry the caller's seqPath so observations link back to the
-					// invoking context: no synthetic [0, N] roots.
-					if (method === "step.list") {
-						// Capability-filter the manifest: an LLM or other scoped
-						// caller should see only the tools it can
-						// invoke. An absent capability header means unscoped: the full manifest.
-						const { granted: grantedCapability } = await grantedCapabilityForRequest(requestInfo, this.getWorld().runtime, {
-							accessToken: this.rpcAccessToken,
-							accessCapability: this.rpcAccessCapability,
-						});
-						const result = discoverSteps(this.steppers, this.getWorld(), this.stepRegistry, { grantedCapability });
-						// Held for whatever writes a record of this run: what a page was served is what a reader of that record
-						// is given, capability-filtered as this caller saw it, rather than a fuller manifest built later.
-						this.getWorld().runtime[DISCOVERY_RESPONSE] = result;
-						return result;
-					}
+					// A transport method that reads a step's text rather than running a step: a caller with no seqPath may ask it.
 					if (method === "step.validate") return validateStep(String(params.text || ""), this.steppers);
 
 					// Action bootstrap: client asks for a globally-unique seqPath
@@ -379,9 +365,6 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		await this.webserver.listen(why, this.port, this.hostname);
 	}
 }
-
-/** Runtime key holding the step discovery response this server last served, for whatever writes a record of the run. */
-export const DISCOVERY_RESPONSE = "discovery-response";
 
 export default WebServerStepper;
 
