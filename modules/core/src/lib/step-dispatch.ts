@@ -1,14 +1,15 @@
 import { AStepper, type TStepperStep, type TFeatureStep, type TStepAction, type TBeforeStep, type TAfterStep, type TAfterStepResult } from "./astepper.js";
 import type { TWorld } from "./world.js";
 import type { TActionResult, TStepResult } from "../schema/protocol.js";
-import { TRACE_SEQ_PATH, Timer, FEATURE_START, SCENARIO_START, stepLevel, SUBSTEP_LEVEL } from "../schema/protocol.js";
+import { TRACE_SEQ_PATH, Timer, FEATURE_START, SCENARIO_START, stepLevel, SUBSTEP_LEVEL, LIFECYCLE_STATUS, type TStepEnd } from "../schema/protocol.js";
+import { streamContext } from "./step-stream-context.js";
 import type { TFeatureSteps } from "../schema/protocol.js";
 import { actionNotOK } from "./util/index.js";
 import { normalizeDomainKey } from "./domains.js";
 import { OBSERVATION_GRAPH, FACT_GRAPH, assertFact, getFact, queryFacts } from "./working-memory.js";
 import { doStepperCycle } from "./stepper-cycles.js";
 import { authorizedWith, runAuthorizedWith, runInStep } from "./capability-context.js";
-import { LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "./resources.js";
+import { LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS, type SeqPathStatus } from "./resources.js";
 import { SEQ_PATH_FIELD, executionOf, formatRecordName } from "./seq-path.js";
 import { StepRegistry, stepMethodName, hostScopedMethodName, authorizeToolCapability } from "./step-registry.js";
 import { getAuthority, SESSION_TOKEN_KEY } from "./session-authority.js";
@@ -121,7 +122,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	const isLifecycle = action.actionName === FEATURE_START || action.actionName === SCENARIO_START;
 	if (isLifecycle) {
 		await emitSeqPathStart(world, featureStep, undefined, { ranVia: "local" });
-		await emitSeqPathEnd(world, featureStep, true);
+		await emitSeqPathEnd(world, featureStep, SEQ_PATH_STATUS.passed);
 		return stepResultFromActionResult({ ok: true }, action, start, Timer.since(), featureStep, true);
 	}
 
@@ -204,17 +205,19 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	ok = ok && actionResult.ok;
 	lastStepResult.ok = ok;
 	if (!recorded) return lastStepResult;
+	// A step that did not pass while its caller's stream was stopped was stopped: the caller decided it, and nothing failed.
+	const ended: TStepEnd = ok ? LIFECYCLE_STATUS.completed : streamContext.getStore()?.signal.aborted ? LIFECYCLE_STATUS.stopped : LIFECYCLE_STATUS.failed;
 	world.eventLogger.stepEnd(
 		featureStep,
 		action.stepperName,
 		action.actionName,
-		ok,
+		ended,
 		!ok ? actionResult.errorMessage : undefined,
 		{},
 		featureStep.action.stepValuesMap,
 		retainedProducts(actionResult.products as Record<string, unknown> | undefined, action.step.retainProducts),
 	);
-	await emitSeqPathEnd(world, featureStep, ok, ok ? undefined : actionResult.errorMessage, viewShown(actionResult.products as Record<string, unknown> | undefined));
+	await emitSeqPathEnd(world, featureStep, SEQ_PATH_STATUS_OF[ended], ok ? undefined : actionResult.errorMessage, viewShown(actionResult.products as Record<string, unknown> | undefined));
 	return lastStepResult;
 }
 
@@ -338,10 +341,12 @@ function viewShown(products: Record<string, unknown> | undefined): string | unde
 	return typeof view === "string" ? view : undefined;
 }
 
-async function emitSeqPathEnd(world: TWorld, featureStep: TFeatureStep, ok: boolean, error?: string, showed?: string): Promise<void> {
+/** The status a step's record states for how the step ended. */
+const SEQ_PATH_STATUS_OF: Record<TStepEnd, SeqPathStatus> = { completed: SEQ_PATH_STATUS.passed, failed: SEQ_PATH_STATUS.failed, stopped: SEQ_PATH_STATUS.stopped };
+
+async function emitSeqPathEnd(world: TWorld, featureStep: TFeatureStep, status: SeqPathStatus, error?: string, showed?: string): Promise<void> {
 	const store = world.shared.getStore();
 	const id = formatRecordName({ execution: executionOf(world.tag), path: featureStep.seqPath });
-	const status = ok ? SEQ_PATH_STATUS.passed : SEQ_PATH_STATUS.failed;
 	await store.set(id, SEQ_PATH_FIELD.actionStatus, status, SEQ_PATH_LABEL);
 	const now = new Date().toISOString();
 	await store.set(id, SEQ_PATH_FIELD.endedAtTime, now, SEQ_PATH_LABEL);

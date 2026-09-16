@@ -58,7 +58,7 @@ describe("EventLogger", () => {
 				count: { term: "count", value: "42", domain: "string", origin: "var" },
 			};
 
-			logger.stepEnd(mockFeatureStep, "VariablesStepper", "set", true, undefined, {}, stepValuesMap, undefined);
+			logger.stepEnd(mockFeatureStep, "VariablesStepper", "set", "completed", undefined, {}, stepValuesMap, undefined);
 
 			expect(emitted.length).toBe(1);
 			const event = emitted[0] as { stepValuesMap?: Record<string, { value: unknown }> };
@@ -121,7 +121,7 @@ describe("EventLogger", () => {
 			const emitted: unknown[] = [];
 			logger.subscribe((event) => emitted.push(event));
 
-			logger.stepEnd(step, "VariablesStepper", "set", true, undefined, {}, undefined, undefined);
+			logger.stepEnd(step, "VariablesStepper", "set", "completed", undefined, {}, undefined, undefined);
 
 			const event = emitted[0] as { status?: string; error?: unknown };
 			expect(event.status).toBe("completed");
@@ -132,7 +132,7 @@ describe("EventLogger", () => {
 			const emitted: unknown[] = [];
 			logger.subscribe((event) => emitted.push(event));
 
-			logger.stepEnd(step, "VariablesStepper", "set", false, new Error("no such variable"), {}, undefined, undefined);
+			logger.stepEnd(step, "VariablesStepper", "set", "failed", new Error("no such variable"), {}, undefined, undefined);
 
 			const event = emitted[0] as { status?: string; error?: unknown };
 			expect(event.status).toBe("failed");

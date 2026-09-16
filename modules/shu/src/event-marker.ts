@@ -11,6 +11,7 @@ import {
 	ICON_STEP_RUNNING,
 	ICON_STEP_FAILED,
 	ICON_STEP_COMPLETED,
+	ICON_STEP_STOPPED,
 	ICON_LOG_INFO,
 	ICON_LOG_WARN,
 	ICON_LOG_ERROR,
@@ -63,6 +64,8 @@ export function eventMarkerStyle(event: unknown): TEventMarkerStyle {
 			if (e.status === SEQ_PATH_STATUS.failed)
 				return isHandedOutEvent(e) ? { color: MARK_COLOUR.undecided, icon: RETURNED_TO_CALLER } : { color: MARK_COLOUR.fault, icon: ICON_STEP_FAILED };
 			if (e.status === SEQ_PATH_STATUS.passed) return { color: MARK_COLOUR.ok, icon: ICON_STEP_COMPLETED };
+			// A step its caller stopped is neither a fault nor a pass.
+			if (e.status === SEQ_PATH_STATUS.stopped) return { color: MARK_COLOUR.undecided, icon: ICON_STEP_STOPPED };
 			return { color: MARK_COLOUR.undecided, icon: ICON_DEFAULT };
 		}
 	}

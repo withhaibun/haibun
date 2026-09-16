@@ -22,6 +22,7 @@ import { registerDomains } from "./domains.js";
 import type { TWorld } from "./world.js";
 import { LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "./resources.js";
 import { SEQ_PATH_FIELD, executionOf, formatRecordName } from "./seq-path.js";
+import { streamContext } from "./step-stream-context.js";
 
 // --- Test Steppers ---
 
@@ -492,6 +493,31 @@ describe("step-dispatch", () => {
 			expect(run.ok).toBe(true);
 			expect((await recordOf([0, 9, 3])).length, "a read a feature states is a step of the run").toBeGreaterThan(0);
 			expect(world.runtime.stepResults?.length ?? 0, "and is kept with the run's other steps").toBe(kept + 1);
+		});
+
+		it("states a step its caller stopped as stopped, in its record and its end event, where a step that fails unstopped failed", async () => {
+			const stepper = new ProductStepper();
+			const steppers = [stepper];
+			const registry = new StepRegistry(steppers, world);
+			const tool = registry.get("ProductStepper-failStep");
+			if (!tool) throw new Error("Expected ProductStepper-failStep to be registered");
+			const ended: string[] = [];
+			world.eventLogger.subscribe((event) => {
+				if (event.kind === "lifecycle" && event.type === "step" && event.stage === "end") ended.push(String(event.status));
+			});
+			const statusOf = async (path: number[]) =>
+				(await world.shared.getStore().query({ subject: formatRecordName({ execution: executionOf(world.tag), path }), namedGraph: SEQ_PATH_LABEL })).find(
+					(q) => q.predicate === SEQ_PATH_FIELD.actionStatus,
+				)?.object;
+			const stop = new AbortController();
+			stop.abort();
+			await streamContext.run({ emit: () => undefined, signal: stop.signal }, () => dispatchStep({ registry, world, steppers }, buildFeatureStepForTransport(tool, {}, [0, 3, 6])));
+			await streamContext.run({ emit: () => undefined, signal: new AbortController().signal }, () =>
+				dispatchStep({ registry, world, steppers }, buildFeatureStepForTransport(tool, {}, [0, 3, 7])),
+			);
+			expect(await statusOf([0, 3, 6]), "the stopped step's record").toBe(SEQ_PATH_STATUS.stopped);
+			expect(await statusOf([0, 3, 7]), "a step that failed on its own").toBe(SEQ_PATH_STATUS.failed);
+			expect(ended).toEqual(["stopped", "failed"]);
 		});
 
 		it("emits SeqPath quads for a passing step", async () => {

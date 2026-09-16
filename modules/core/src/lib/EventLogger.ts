@@ -1,6 +1,6 @@
 import { errorDetail } from "./util/index.js";
 import { BASE_PREFIX, HAIBUN_LOG_LEVELS, LogEvent, LifecycleEvent, NDJSON, stepLevel } from "../schema/protocol.js";
-import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TEventKind } from "../schema/protocol.js";
+import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TEventKind, TStepEnd } from "../schema/protocol.js";
 import { TFeatureStep } from "./astepper.js";
 import { sanitizeObjectSecrets } from "./util/secret-utils.js";
 import { formatSeqPath } from "./seq-path.js";
@@ -50,7 +50,7 @@ export interface IEventLogger {
 		featureStep: TFeatureStep,
 		stepperName: string,
 		actionName: string,
-		ok: boolean,
+		ended: TStepEnd,
 		error: string | Error | undefined,
 		stepArgs: Record<string, unknown>,
 		stepValuesMap: Record<string, unknown> | undefined,
@@ -241,7 +241,7 @@ export class EventLogger implements IEventLogger {
 		featureStep: TFeatureStep,
 		stepperName: string,
 		actionName: string,
-		ok: boolean,
+		ended: TStepEnd,
 		error: string | Error | undefined,
 		_stepArgs: Record<string, unknown>,
 		stepValuesMap: Record<string, unknown> | undefined,
@@ -261,7 +261,7 @@ export class EventLogger implements IEventLogger {
 				in: featureStep.in,
 				lineNumber: featureStep.source?.lineNumber,
 				featurePath: featureStep.source?.path,
-				status: ok ? "completed" : "failed",
+				status: ended,
 				level: stepLevel(featureStep.isSubStep),
 				error: errorMessage,
 				intent: featureStep.intent ? { mode: featureStep.intent.mode } : undefined,
