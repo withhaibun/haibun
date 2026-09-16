@@ -45,7 +45,7 @@ export function augmentViewHypermedia(world: TWorld, step: TStepperStep, actionR
 		[HYPERMEDIA.SUMMARY]: summary,
 	};
 	// The producing domain's own description, surfaced inline so a consumer (human, LLM, agent) can interpret the result
-	// without a round-trip to `step.list`: the description travels with the data. It is the SAME text the type's view
+	// without a round-trip to the show steps step: the description travels with the data. It is the SAME text the type's view
 	// shows (buildConcernCatalog reads this field too): a domain describes itself once, and a second description on its
 	// schema would be a second answer to one question, free to drift from the one a reader is shown.
 	if (domain?.description) markers[HYPERMEDIA.DESCRIPTION] = domain.description;
@@ -54,7 +54,7 @@ export function augmentViewHypermedia(world: TWorld, step: TStepperStep, actionR
 		markers.id = productsDomain;
 		markers.view = productsDomain;
 	}
-	// Next-action affordances: enumerate every other step whose paramDomains accept this product's productsDomain as input. The consumer (SPA row menu, an LLM looking at "what can I do with this", agent navigation) reads `_links` to discover follow-on verbs without scanning step.list themselves. Same `{method, params?}` shape every other `_links` entry uses; rels are keyed by the unprefixed stepName so each affordance is named by intent rather than by step-method address.
+	// Next-action affordances: enumerate every other step whose paramDomains accept this product's productsDomain as input. The consumer (SPA row menu, an LLM looking at "what can I do with this", agent navigation) reads `_links` to discover follow-on verbs without reading the show steps step themselves. Same `{method, params?}` shape every other `_links` entry uses; rels are keyed by the unprefixed stepName so each affordance is named by intent rather than by step-method address.
 	const links = deriveActionLinks(productsDomain, products, steppers, world);
 	if (Object.keys(links).length > 0) markers[HYPERMEDIA.LINKS] = links;
 	return { ...actionResult, products: { ...products, ...markers } };
@@ -79,7 +79,7 @@ export function augmentViewHypermedia(world: TWorld, step: TStepperStep, actionR
  * matching parameter with `{ id: <product.id> }` (the convention every individual
  * ref domain uses today, `{record: {id}}`, `{label, id}` for getIndividual,
  * etc.). Otherwise pass an empty object: the consumer fills the rest from the
- * step's own inputSchema (already in step.list).
+ * step's own inputSchema (already in what show steps returns).
  *
  * H1: a single derivation; no per-step authoring needed.
  */

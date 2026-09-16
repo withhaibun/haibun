@@ -15,10 +15,10 @@ import { AStepper, type IHasCycles, type IHasOptions } from "@haibun/core/lib/as
 import { allocateSyntheticSeqPath } from "@haibun/core/lib/host-id.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { OK } from "@haibun/core/schema/protocol.js";
-import { getFromRuntime, getStepperOption, constructorName, stringOrError, errorDetail } from "@haibun/core/lib/util/index.js";
+import { getFromRuntime, getStepperOption, stringOrError, errorDetail } from "@haibun/core/lib/util/index.js";
 import { currentVersion as version } from "@haibun/core/currentVersion.js";
 import { dispatchStep } from "@haibun/core/lib/step-dispatch.js";
-import { buildStepRegistry, buildFeatureStepForTransport, StepRegistry, type StepTool } from "@haibun/core/lib/step-registry.js";
+import { buildFeatureStepForTransport, type StepRegistry, type StepTool } from "@haibun/core/lib/step-registry.js";
 import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
 import type { IWebServer, Context } from "./defs.js";
 import { WEBSERVER } from "./defs.js";
@@ -35,13 +35,10 @@ type StoredTool = {
 		required?: string[];
 		[key: string]: unknown;
 	};
-	stepperName: string;
 	capability?: string;
 	stepTool: StepTool;
 	handler: (input: Record<string, unknown>, grantedCapability?: string | string[]) => Promise<CallToolResult>;
 };
-
-type ConnectionId = object;
 
 export default class McpStepper extends AStepper implements IHasOptions, IHasCycles, IStepTransport {
 	description = "Expose all Haibun steps as callable MCP tools for LLM agents";
@@ -92,8 +89,9 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 	private steppers: AStepper[] = [];
 	private currentRegistry?: StepRegistry;
 
-	private getOrCreateRegistry(): StepRegistry {
-		if (!this.currentRegistry) this.currentRegistry = new StepRegistry(this.steppers, this.getWorld());
+	/** The run's registry, which the run attaches this transport to before any feature starts. */
+	private registry(): StepRegistry {
+		if (!this.currentRegistry) throw new Error("McpStepper: no step registry is attached");
 		return this.currentRegistry;
 	}
 
@@ -102,10 +100,6 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 	private accessCapability = "";
 
 	private globalToolRegistry = new Map<string, StoredTool>();
-	private stepperToolRegistry = new Map<string, StoredTool[]>();
-	private indexTools: Tool[] = [];
-	// Sessions are identified by string (token/id) or connection object
-	private sessionScopes = new Map<string | ConnectionId, string>();
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
@@ -157,93 +151,17 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 		this.mcpServer = new McpServer({ name: "haibun-mcp", version }, { capabilities: { tools: {}, resources: {} } });
 		this.transport = new StreamableHTTPTransport({ enableJsonResponse: true });
 
-		this.indexTools = this.buildIndexTools();
-		// Registry is now populated in setWorld
-
 		// --- HANDLER 1: LIST TOOLS ---
-		this.mcpServer.server.setRequestHandler(ListToolsRequestSchema, (_request, extra) => {
-			const connection = (extra as { connection?: ConnectionId })?.connection;
-			const sessionId = this.getSessionId(connection, extra);
-
-			const activeStepper = sessionId ? this.sessionScopes.get(sessionId) : undefined;
-
-			if (!activeStepper) {
-				return { tools: this.indexTools };
-			}
-
-			const stepperTools = this.stepperToolRegistry.get(activeStepper) || [];
-			const visibleTools: Tool[] = stepperTools.map((t) => ({
-				name: t.name,
-				description: t.description,
-				inputSchema: t.inputSchema,
-			}));
-
-			visibleTools.unshift({
-				name: "return_to_index",
-				description: "Close current stepper tools and return to the main index of available steppers.",
-				inputSchema: { type: "object", properties: {} },
-			});
-
-			return { tools: visibleTools };
-		});
+		// Every step is a tool. Which of them a model is given at once is its host's choice, as the MCP client best
+		// practices place it; a host with no search of its own finds steps with the show steps step, which is a tool too.
+		this.mcpServer.server.setRequestHandler(ListToolsRequestSchema, () => ({ tools: this.getTools() }));
 
 		// --- HANDLER 2: CALL TOOL ---
-		const defaultConnection = {};
 		this.mcpServer.server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
 			const grantedCapability = await this.getGrantedCapability(extra);
-			const connection = (extra as { connection?: ConnectionId })?.connection || defaultConnection;
-			const sessionId = this.getSessionId(connection, extra);
-
-			const toolName = request.params.name;
-			const args = (request.params.arguments as Record<string, unknown>) || {};
-
-			if (toolName.startsWith("access_stepper_")) {
-				const targetStepper = toolName.replace("access_stepper_", "");
-				const stepperTools = this.stepperToolRegistry.get(targetStepper);
-				if (stepperTools) {
-					await this.updateSessionFocus(sessionId, targetStepper);
-					const toolList = stepperTools.map((t) => `- **${t.name}**: ${t.description}\n  Schema: ${JSON.stringify(t.inputSchema)}`).join("\n");
-					return {
-						content: [
-							{
-								type: "text",
-								text: `Tools for ${targetStepper}:\n${toolList}`,
-							},
-						],
-					};
-				}
-			}
-
-			if (toolName === "call_step") {
-				const stepName = args["tool"] as string;
-				const stepArgs = (args["arguments"] as Record<string, unknown>) || {};
-				if (!stepName) {
-					throw new McpError(ErrorCode.InvalidParams, 'Missing required "tool" parameter. Use access_stepper_* to list available tools.');
-				}
-				const toolDef = this.globalToolRegistry.get(stepName);
-				if (!toolDef) {
-					throw new McpError(ErrorCode.MethodNotFound, `Tool "${stepName}" not found. Use access_stepper_* to list available tools.`);
-				}
-				return await this.callTool(toolDef, stepArgs, grantedCapability);
-			}
-
-			if (toolName === "return_to_index") {
-				await this.updateSessionFocus(sessionId, undefined);
-				return { content: [{ type: "text", text: `Returned to index.` }] };
-			}
-
-			const toolDef = this.globalToolRegistry.get(toolName);
-			if (!toolDef) {
-				throw new McpError(ErrorCode.MethodNotFound, `Tool ${toolName} not found.`);
-			}
-
-			const currentFocus = this.sessionScopes.get(sessionId);
-			if (toolDef.stepperName !== currentFocus) {
-				this.getWorld().eventLogger.info(`[MCP] Auto-switching focus: ${currentFocus || "Index"} -> ${toolDef.stepperName}`);
-				await this.updateSessionFocus(sessionId, toolDef.stepperName);
-			}
-
-			return await this.callTool(toolDef, args, grantedCapability);
+			const toolDef = this.globalToolRegistry.get(request.params.name);
+			if (!toolDef) throw new McpError(ErrorCode.MethodNotFound, `Tool ${request.params.name} not found.`);
+			return await this.callTool(toolDef, (request.params.arguments as Record<string, unknown>) || {}, grantedCapability);
 		});
 
 		// --- HANDLER 3: LIST RESOURCES ---
@@ -312,125 +230,37 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 		}
 	}
 
-	// --- Session ID Helper ---
-	private getSessionId(
-		connection: ConnectionId | undefined,
-		extra: {
-			requestInfo?: { headers?: Record<string, string | string[] | undefined> };
-		},
-	): string | ConnectionId {
-		// Try to get X-Session-ID header from request info
-		const headers = extra?.requestInfo?.headers;
-		const sessionId = headers?.["x-session-id"];
-		if (typeof sessionId === "string") {
-			return sessionId;
-		}
-		// Fallback to connection object if available and stable (it isn't usually for HTTP)
-		if (connection) return connection;
-		return "default-session";
-	}
-
-	private async updateSessionFocus(sessionId: string | ConnectionId, stepperName: string | undefined) {
-		if (stepperName === undefined) {
-			this.sessionScopes.delete(sessionId);
-		} else {
-			this.sessionScopes.set(sessionId, stepperName);
-		}
-		await this.notifyToolListChanged(sessionId);
-	}
-
-	private async notifyToolListChanged(sessionId: string | ConnectionId) {
-		// Basic check that notification is possible
-		if (sessionId && typeof sessionId !== "string" && "send" in sessionId && typeof (sessionId as { send?: unknown }).send === "function") {
-			if (this.mcpServer) {
-				await this.mcpServer.server.notification({
-					method: "notifications/tools/list_changed",
-				});
-			}
-		}
-	}
-
-	private buildIndexTools(): Tool[] {
-		const tools: Tool[] = this.steppers.map((stepper) => {
-			const name = constructorName(stepper);
-			const desc = stepper.description || `List available tools for stepper: ${name}.`;
-			return {
-				name: `access_stepper_${name}`,
-				description: desc,
-				inputSchema: { type: "object", properties: {} },
-			};
-		});
-		tools.push({
-			name: "call_step",
-			description:
-				"Call a Haibun step tool by name. Use access_stepper_* first to discover available tool names and their schemas. Protected tools are authorized from the MCP bearer token, not from tool arguments.",
-			inputSchema: {
-				type: "object",
-				properties: {
-					tool: {
-						type: "string",
-						description: 'The tool name (e.g. "WebPlaywright-goToPage")',
-					},
-					arguments: {
-						type: "object",
-						description: "Arguments for the tool, matching its input schema",
-					},
-				},
-				required: ["tool"],
-			},
-		});
-		return tools;
-	}
-
+	/** Each step the run's registry holds is a tool, a step another host injected among them, called under its own name. */
 	private populateToolRegistries(registry?: StepRegistry) {
 		if (registry) this.currentRegistry = registry;
-		// Build schema map, use provided registry if available (live refresh), otherwise build fresh
-		const schemaMap = this.currentRegistry ? new Map(this.currentRegistry.list().map((t) => [t.name, t])) : buildStepRegistry(this.steppers, this.world);
-
 		this.globalToolRegistry.clear();
-		this.stepperToolRegistry.clear();
-
-		for (const stepper of this.steppers) {
-			const stepperName = constructorName(stepper);
-			const tools: StoredTool[] = [];
-
-			for (const [stepName, stepDef] of Object.entries(stepper.steps)) {
-				if (stepDef.exposeMCP === false) continue;
-
-				const fullToolName = `${stepperName}-${stepName}`;
-				const stepTool = schemaMap.get(fullToolName);
-				if (!stepTool) continue;
-
-				// Strip metadata that can confuse some MCP clients
-				const inputSchema = { ...stepTool.inputSchema };
-				delete inputSchema["$schema"];
-				delete inputSchema["additionalProperties"];
-				const toolDescription = stepTool.description;
-				const tool: StoredTool = {
-					name: fullToolName,
-					description: stepTool.capability ? `${toolDescription} Requires capability: ${stepTool.capability}.` : toolDescription,
-					inputSchema,
-					stepperName,
-					capability: stepTool.capability,
-					stepTool,
-					handler: async (input: Record<string, unknown>, grantedCapability?: string | string[]): Promise<CallToolResult> => {
-						this.getWorld().eventLogger.info(`[MCP] Tool Execution: ${fullToolName}`);
-						// MCP callers have no haibun seqPath; the server synthesises one.
-						const world = this.getWorld();
-						const seqPath = allocateSyntheticSeqPath(world);
-						const validatedParams = validateToolInput(seqPath, stepTool, input, world);
-						const featureStep = buildFeatureStepForTransport(stepTool, validatedParams, seqPath);
-						const hr = await dispatchStep({ registry: this.getOrCreateRegistry(), world, steppers: this.steppers, grantedCapability }, featureStep);
-						if (!hr.ok) {
-							return { isError: true, content: [{ type: "text", text: hr.errorMessage ?? "Step failed" }] };
-						}
-						return { content: [{ type: "text", text: JSON.stringify(hr.products ?? {}, null, 2) }] };
-					},
-				};
-				tools.push(tool);
-				this.globalToolRegistry.set(fullToolName, tool);
-			}
-			this.stepperToolRegistry.set(stepperName, tools);
+		for (const stepTool of this.registry().list()) {
+			if (stepTool.stepDef?.exposeMCP === false) continue;
+			// Strip metadata that can confuse some MCP clients
+			const inputSchema = { ...stepTool.inputSchema };
+			delete inputSchema["$schema"];
+			delete inputSchema["additionalProperties"];
+			const tool: StoredTool = {
+				name: stepTool.name,
+				description: stepTool.capability ? `${stepTool.description} Requires capability: ${stepTool.capability}.` : stepTool.description,
+				inputSchema,
+				capability: stepTool.capability,
+				stepTool,
+				handler: async (input: Record<string, unknown>, grantedCapability?: string | string[]): Promise<CallToolResult> => {
+					this.getWorld().eventLogger.info(`[MCP] Tool Execution: ${stepTool.name}`);
+					// MCP callers have no haibun seqPath; the server synthesises one.
+					const world = this.getWorld();
+					const seqPath = allocateSyntheticSeqPath(world);
+					const validatedParams = validateToolInput(seqPath, stepTool, input, world);
+					const featureStep = buildFeatureStepForTransport(stepTool, validatedParams, seqPath);
+					const hr = await dispatchStep({ registry: this.registry(), world, steppers: this.steppers, grantedCapability }, featureStep);
+					if (!hr.ok) {
+						return { isError: true, content: [{ type: "text", text: hr.errorMessage ?? "Step failed" }] };
+					}
+					return { content: [{ type: "text", text: JSON.stringify(hr.products ?? {}, null, 2) }] };
+				},
+			};
+			this.globalToolRegistry.set(stepTool.name, tool);
 		}
 	}
 
@@ -457,7 +287,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 			// 1. CORS
 			c.header("Access-Control-Allow-Origin", "*");
 			c.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-			c.header("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept, X-Custom-Header, X-Session-ID");
+			c.header("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept, X-Custom-Header");
 
 			if (c.req.method === "OPTIONS") return c.body(null, 204);
 

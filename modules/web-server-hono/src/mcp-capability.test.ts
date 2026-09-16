@@ -197,11 +197,7 @@ async function callTool(port: string, toolName: string): Promise<Record<string, 
 		capabilities: {},
 		clientInfo: { name: "capability-client", version: "1.0" },
 	});
-	await rpc(mcpUrl, 2, "tools/call", {
-		name: "access_stepper_ProtectedStepper",
-		arguments: {},
-	});
-	return await rpc(mcpUrl, 3, "tools/call", {
+	return await rpc(mcpUrl, 2, "tools/call", {
 		name: toolName,
 		arguments: {},
 	});

@@ -37,6 +37,9 @@ export const GraphQuerySchema = z
 		label: z.string().optional(),
 		filters: z.array(SearchConditionSchema).default([]),
 		textQuery: z.string().optional(),
+		/** The types a text query with no label reads. A query that names none reads every type the store searches, as a
+		 *  query with no label names no one type. */
+		types: z.array(z.string()).optional(),
 		sortBy: z.string().optional(),
 		sortOrder: z.enum(["asc", "desc"]).default("desc"),
 		limit: z.number().int().positive().default(50),

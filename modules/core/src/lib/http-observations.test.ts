@@ -35,7 +35,7 @@ describe("classifyHttpPath", () => {
 	});
 
 	it("classifies /rpc paths as service with parameterized endpoint", () => {
-		expect(classifyHttpPath("/rpc/step.list", PATHS)).toEqual({ endpointClass: ENDPOINT_CLASS.service, endpointPath: "/rpc/:_method" });
+		expect(classifyHttpPath("/rpc/Haibun-showSteps", PATHS)).toEqual({ endpointClass: ENDPOINT_CLASS.service, endpointPath: "/rpc/:_method" });
 	});
 
 	it("classifies /sse as service", () => {
@@ -82,9 +82,9 @@ describe("trackHttpRequest: one connected network-interaction record per request
 
 	it("an RPC/service call reads client → its /rpc Endpoint, classed service", async () => {
 		const { world, store } = mockWorld();
-		await trackHttpRequest(world, { url: "http://localhost:8223/rpc/step.list", status: 200, durationMs: 30, method: "POST" }, PATHS);
+		await trackHttpRequest(world, { url: "http://localhost:8223/rpc/Haibun-showSteps", status: 200, durationMs: 30, method: "POST" }, PATHS);
 		const req = await store.query({ namedGraph: HTTP_REQUEST_LABEL });
-		const id = "POST /rpc/step.list";
+		const id = "POST /rpc/Haibun-showSteps";
 		expect(propOf(req, id, "endpointClass")?.object).toBe(ENDPOINT_CLASS.service);
 		expect(propOf(req, id, "target")?.object).toBe("/rpc/:_method"); // the parameterized registered endpoint
 		expect(propOf(req, id, "target")?.objectType).toBe(ENDPOINT_LABEL);

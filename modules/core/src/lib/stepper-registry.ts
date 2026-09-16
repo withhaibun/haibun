@@ -11,6 +11,8 @@ export interface StepDescriptor {
 	stepName: string;
 	method: string;
 	pattern: string;
+	/** What the step does, as its definition states it. */
+	description?: string;
 	params: Record<string, "string" | "number">;
 	/** Domain key for each parameter (e.g., { data: 'haibun-email', id: 'string' }) */
 	paramDomains?: Record<string, string>;
@@ -68,6 +70,7 @@ export class StepperRegistry {
 						stepName,
 						method,
 						pattern,
+						...(stepDef.description ? { description: stepDef.description } : {}),
 						params,
 						paramDomains,
 						productsDomain: stepDef.productsDomain,

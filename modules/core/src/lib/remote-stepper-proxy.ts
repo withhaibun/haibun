@@ -1,8 +1,8 @@
 /**
  * remote-stepper-proxy.ts
  *
- * Client-side proxy for a remote haibun host. Fetches step descriptors via
- * the host's step.list RPC endpoint, then injects proxy StepTools into
+ * Client-side proxy for a remote haibun host. Reads step descriptors through
+ * the host's show steps step, then injects proxy StepTools into
  * the parent registry. Each proxy handler forwards calls over HTTP with
  * an Authorization: Bearer header.
  *
@@ -14,7 +14,8 @@ import { AStepper } from "./astepper.js";
 import type { TWorld } from "./world.js";
 import type { TActionResult } from "../schema/protocol.js";
 import { actionNotOK } from "./util/index.js";
-import { type StepTool, type StepRegistry, hostScopedMethodName } from "./step-registry.js";
+import { type StepDiscovery, type StepTool, type StepRegistry, hostScopedMethodName } from "./step-registry.js";
+import { EVERY_DECLARATION, SHOW_STEPS_METHOD, shownWhole } from "./steps-query.js";
 import type { StepDescriptor } from "./stepper-registry.js";
 import { RpcClient, type RpcError } from "./rpc-client.js";
 
@@ -64,17 +65,15 @@ export class RemoteStepperProxy extends AStepper {
 		return this.hostId;
 	}
 
-	/**
-	 * Fetch step.list from the remote host. step.list is introspection,
-	 * explicitly exempt from the seqPath-required rule, so the seqPath is
-	 * empty: the remote's step.list handler ignores it.
-	 */
+	/** Read every step the remote host declares, through the step every caller reads a run's declarations by. A host
+	 *  that declares more than one read returns fails the proxy, since a step it left out could not be called. */
 	private async fetchStepDescriptors(): Promise<void> {
-		const result = await this.rpc.call<{ steps?: StepDescriptor[] }>("step.list", {}, []);
+		const result = await this.rpc.call<StepDiscovery>(SHOW_STEPS_METHOD, EVERY_DECLARATION, []);
 		if ("error" in result) {
-			throw new Error(`RemoteStepperProxy: step.list failed at ${this.remoteUrl}: ${result.error}`);
+			throw new Error(`RemoteStepperProxy: ${SHOW_STEPS_METHOD} failed at ${this.remoteUrl}: ${result.error}`);
 		}
-		this.stepDescriptors = result.steps ?? [];
+		if (!shownWhole(result.total, EVERY_DECLARATION)) throw new Error(`RemoteStepperProxy: ${this.remoteUrl} declares more than one read returns (${JSON.stringify(result.total)})`);
+		this.stepDescriptors = result.steps;
 	}
 
 	/**

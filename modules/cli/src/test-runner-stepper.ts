@@ -311,7 +311,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			// run that does not exist rather than starting one.
 			offeredBeforeDiscovery: () => this.startedARun(),
 			description:
-				"Ask the standing test run one of its own steps, by the name it has there. Ask LlmStepper-discoverToolsAtHost for those names first; a wrong one is answered with the names that host does have. The step runs AT the run, under the same capability check as any step, and answers with what that run holds rather than what this one does. Parameters are name=value pairs; a step taking one parameter also accepts the bare value. Use this whenever the question is about the test rather than about this run; every other step answers from this run.",
+				"Ask the standing test run one of its own steps, by the name it has there. Show steps asked of that host returns those names; a wrong one is answered with the names that host does have. The step runs AT the run, under the same capability check as any step, and answers with what that run holds rather than what this one does. Parameters are name=value pairs; a step taking one parameter also accepts the bare value. Use this whenever the question is about the test rather than about this run; every other step answers from this run.",
 			// A model is handed the product named text for a tool call, so that is the summary; the whole answer, with the
 			// entries a listing returned, is beside it for a caller that asked for them.
 			productsSchema: z.object({ run: z.string(), host: z.string(), method: z.string(), text: z.string(), answer: z.string() }),

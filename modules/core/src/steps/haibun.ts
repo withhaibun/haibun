@@ -11,6 +11,9 @@ import { FlowRunner } from "../lib/core/flow-runner.js";
 import { QuadStore } from "../lib/quad-store.js";
 import { RemoteQuadStore } from "../lib/remote-quad-store.js";
 import { SERVING } from "../lib/serving.js";
+import { discoverSteps } from "../lib/step-registry.js";
+import { StepsQuerySchema } from "../lib/steps-query.js";
+import { authorizedWith } from "../lib/capability-context.js";
 
 class Haibun extends AStepper implements IHasCycles {
 	description = "Core steps for features, scenarios, backgrounds, and prose";
@@ -95,6 +98,20 @@ class Haibun extends AStepper implements IHasCycles {
 			action: ({ hostId, statement }: { hostId: number; statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				const mode = featureStep.intent?.mode ?? "authoritative";
 				return this.runner.runSteps(statement, { intent: { mode }, parentStep: featureStep, targetHostId: hostId });
+			},
+		},
+
+		showSteps: {
+			read: true,
+			gwta: "show steps matching {pattern: string} limit {limit: number}",
+			description:
+				"What this run declares: each step whose method, pattern or description the pattern matches, and each domain and type whose name or description it matches, up to limit of each, with how many of each it matched. The pattern is a case-insensitive regular expression: a step's method names its stepper first, so ^GraphStepper- reads that stepper's steps, and .* reads everything. Each step links its call. Another host's steps are named with that host in front, and their pattern names the host.",
+			action: ({ pattern, limit }: { pattern: string; limit: number }) => {
+				const query = StepsQuerySchema.safeParse({ pattern, limit });
+				if (!query.success) return actionNotOK(`show steps: ${z.prettifyError(query.error)}`);
+				const world = this.getWorld();
+				if (!world.runtime.stepRegistry) throw new Error("show steps: the run holds no step registry");
+				return actionOKWithProducts(discoverSteps(this.steppers, world, world.runtime.stepRegistry, query.data, authorizedWith()));
 			},
 		},
 

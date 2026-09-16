@@ -326,7 +326,7 @@ let cachedEdgeRelRecord: Record<string, string> | null = null;
 // repeat is a no-op. That keeps what a view merged onto the metadata afterward, instead of rebuilding over it.
 let derivedFromCatalog: TConcernCatalog | null = null;
 
-/** Set the concern catalog from step.list response. Caches derived SiteMetadata and edge→rel map. */
+/** Set the concern catalog from what the show steps step returned. Caches derived SiteMetadata and edge→rel map. */
 export function setConcernCatalog(catalog: TConcernCatalog, domains?: Record<string, TDomainUiInfo>): void {
 	if (catalog === derivedFromCatalog) return;
 	derivedFromCatalog = catalog;
@@ -355,7 +355,7 @@ export function getConcernDerivedMetadata(): SiteMetadata {
 	return meta;
 }
 
-/** Get the concern catalog (populated from step.list). */
+/** Get the concern catalog (populated from what the show steps step returned). */
 export function getConcernCatalog(): TConcernCatalog {
 	const catalog = declared().catalog;
 	if (!catalog) throw new Error("Concern catalog not initialized. Call setConcernCatalog() first.");

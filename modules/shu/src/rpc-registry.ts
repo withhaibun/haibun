@@ -4,6 +4,8 @@ import { pagePinned } from "./page-pinned.js";
 import { deviceStore, type TCachePayload } from "./client-cache/index.js";
 import { ConcernCatalogSchema, type TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
+import { TRACE_SEQ_PATH } from "@haibun/core/schema/protocol.js";
+import { EVERY_DECLARATION, SHOW_STEPS_METHOD, ShownTotalSchema, shownWhole } from "@haibun/core/lib/steps-query.js";
 import { z } from "zod";
 
 export type StepDescriptor = {
@@ -11,6 +13,8 @@ export type StepDescriptor = {
 	stepperName: string;
 	stepName: string;
 	pattern: string;
+	/** What the step does, as its definition states it. */
+	description?: string;
 	params: Record<string, "string" | "number">;
 	paramDomains?: Record<string, string>;
 	productsDomain?: string;
@@ -21,6 +25,8 @@ export type StepDescriptor = {
 	read?: boolean;
 	inputSchema?: Record<string, unknown>;
 	outputSchema?: Record<string, unknown>;
+	/** The call a caller makes to run the step. */
+	_links: { call: { method: string } };
 };
 
 export type DomainInfo = {
@@ -56,6 +62,7 @@ const StepDescriptorSchema = z
 		stepperName: z.string().min(1),
 		stepName: z.string().min(1),
 		pattern: z.string().min(1),
+		description: z.string().optional(),
 		params: z.record(z.string(), z.union([z.literal("string"), z.literal("number")])),
 		paramDomains: z.record(z.string(), z.string()).optional(),
 		productsDomain: z.string().optional(),
@@ -65,6 +72,7 @@ const StepDescriptorSchema = z
 		read: z.boolean().optional(),
 		inputSchema: z.record(z.string(), z.unknown()).optional(),
 		outputSchema: z.record(z.string(), z.unknown()).optional(),
+		_links: z.object({ call: z.object({ method: z.string() }).strict() }).strict(),
 	})
 	.strict();
 
@@ -83,8 +91,10 @@ const StepListResponseSchema = z
 		steps: z.array(StepDescriptorSchema),
 		domains: z.record(z.string(), DomainInfoSchema),
 		concerns: ConcernCatalogSchema,
+		total: ShownTotalSchema,
 	})
-	.strict();
+	.strict()
+	.refine((response) => shownWhole(response.total, EVERY_DECLARATION), "the site declares more than one read of its declarations returns");
 
 // What the server said it offers, pinned to the page rather than cached per bundle: a page is more than one bundle, and a
 // panel a deployment adds requests the same server as the app. Stored per bundle, a panel would discover the server again, and
@@ -293,10 +303,11 @@ export function resetStepRegistry(): void {
  *  the registry the page runs on (and reports it), so a page with no server still knows the server's declarations. With
  *  neither, the request fails as it did. */
 async function discover(): Promise<StepListResponse> {
-	let parsed: StepListResponse;
+	let parsed: z.infer<typeof StepListResponseSchema>;
 	try {
-		const result = await conduit().follow<unknown>(reads("step.list"), "rpc-registry: discover available steps");
-		parsed = StepListResponseSchema.parse(result);
+		// A dispatched step's products carry the seqPath it ran at, which is the call's trace and not what the run declares.
+		const { [TRACE_SEQ_PATH]: _trace, ...declared } = await conduit().follow<Record<string, unknown>>(reads(SHOW_STEPS_METHOD, EVERY_DECLARATION), "rpc-registry: discover available steps");
+		parsed = StepListResponseSchema.parse(declared);
 		origin().value = { from: "server" };
 		void deviceStore()
 			.setRegistry(parsed)
@@ -313,7 +324,7 @@ async function discover(): Promise<StepListResponse> {
 	const { steps, domains, concerns } = parsed;
 	setConcernCatalog(concerns, domains);
 	for (const [label, concern] of Object.entries(concerns.persisted)) {
-		if (/^\s*\[.*\]\s*$/.test(concern.label)) throw new Error(`step.list concern ${label} has stringified-array label: ${concern.label}`);
+		if (/^\s*\[.*\]\s*$/.test(concern.label)) throw new Error(`${SHOW_STEPS_METHOD} concern ${label} has stringified-array label: ${concern.label}`);
 	}
 	const r = registry();
 	r.steps = steps;

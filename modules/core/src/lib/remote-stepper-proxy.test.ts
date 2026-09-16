@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { RemoteStepperProxy } from "./remote-stepper-proxy.js";
 import { StepRegistry } from "./step-registry.js";
+import Haibun from "../steps/haibun.js";
 import { AStepper } from "./astepper.js";
 import { actionOKWithProducts, errorDetail } from "./util/index.js";
 import { getDefaultWorld } from "./test/lib.js";
@@ -31,27 +32,17 @@ describe("RemoteStepperProxy", () => {
 	beforeAll(async () => {
 		// Start a minimal RPC server with EchoStepper
 		world = getDefaultWorld() as TWorld;
-		const echoStepper = new EchoStepper();
-		await echoStepper.setWorld(world, [echoStepper]);
-		const localRegistry = new StepRegistry([echoStepper], world);
+		// The host serves its declarations through the show steps step, dispatched like any other.
+		const hosted = [new EchoStepper(), new Haibun()];
+		for (const stepper of hosted) await stepper.setWorld(world, hosted);
+		const localRegistry = new StepRegistry(hosted, world);
+		world.runtime.stepRegistry = localRegistry;
 
 		const app = new Hono();
 		app.post("/rpc/:_method", async (c) => {
 			const data = (await c.req.json()) as { method: string; params?: Record<string, unknown> };
 			if (data.method === "action.begin") {
 				return c.json({ seqPath: [7, -1, 1], hostId: 7 });
-			}
-			if (data.method === "step.list") {
-				const steps = localRegistry.list().map((t) => ({
-					stepperName: t.stepperName,
-					stepName: t.stepName,
-					method: t.name,
-					pattern: t.description,
-					params: {},
-					capability: t.capability,
-					inputSchema: t.inputSchema,
-				}));
-				return c.json({ steps });
 			}
 			const tool = localRegistry.get(data.method);
 			if (!tool) return c.json({ error: `not found: ${data.method}` }, 422);

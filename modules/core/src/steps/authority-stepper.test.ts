@@ -1,7 +1,8 @@
 import { grantHandle, shownGrant } from "./authority-stepper.js";
 import { describe, expect, it } from "vitest";
 import { getDefaultWorld, passWithDefaults } from "../lib/test/lib.js";
-import { discoverSteps } from "../lib/step-registry.js";
+import { StepRegistry, discoverSteps } from "../lib/step-registry.js";
+import { EVERY_DECLARATION } from "../lib/steps-query.js";
 
 import { AStepper } from "../lib/astepper.js";
 import { OK } from "../schema/protocol.js";
@@ -46,7 +47,7 @@ describe("AuthorityStepper", () => {
 			};
 		}
 
-		const discovery = discoverSteps([stepper], world);
+		const discovery = discoverSteps([stepper], world, new StepRegistry([stepper], world), EVERY_DECLARATION);
 		expect(discovery.domains["session-token"]?.description).toContain("token an in-process session presents");
 		expect(discovery.domains["authority-action"]?.description).toContain("action label");
 

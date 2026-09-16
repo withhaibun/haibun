@@ -2,6 +2,7 @@ import { rmSync, writeFileSync, readFileSync } from "fs";
 import { setCookie } from "@haibun/web-server-hono/cookie.js";
 import { actionNotOK, actionOK, actionOKWithProducts, getFromRuntime, sleep } from "@haibun/core/lib/util/index.js";
 import { DOMAIN_STRING } from "@haibun/core/lib/domains.js";
+import { MOST_SHOWN, SHOW_STEPS_METHOD } from "@haibun/core/lib/steps-query.js";
 import { OK, Origin } from "@haibun/core/schema/protocol.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 import { restRoutes } from "./rest.js";
@@ -40,13 +41,12 @@ async function mcpListTools(url, token) {
     const response = await mcpRpc(url, 2, "tools/list", {}, token);
     return response.result?.tools ?? [];
 }
-async function mcpAccessStepper(url, token, stepperName) {
-    const response = await mcpRpc(url, 3, "tools/call", {
-        name: `access_stepper_${stepperName}`,
-        arguments: {},
-    }, token);
+async function mcpShownSteps(url, token, pattern) {
+    const response = await mcpRpc(url, 3, "tools/call", { name: SHOW_STEPS_METHOD, arguments: { pattern, limit: MOST_SHOWN } }, token);
     const text = mcpToolResult(response).content?.[0]?.type === "text" ? (mcpToolResult(response).content?.[0]?.text ?? "") : "";
-    return text;
+    if (!text)
+        throw new Error(`${SHOW_STEPS_METHOD} returned nothing: ${JSON.stringify(response)}`);
+    return JSON.parse(text).steps.map((step) => step.method);
 }
 async function mcpCallTool(url, token, toolName) {
     return await mcpRpc(url, 4, "tools/call", { name: toolName, arguments: {} }, token);
@@ -185,20 +185,20 @@ class TestServer extends AStepper {
             action: async () => actionOKWithProducts({ admin: true }),
         },
         mcpStepIndexIncludes: {
-            gwta: "mcp tool index at {url} includes {toolName} when bearer token is {token}",
+            gwta: "mcp tools at {url} include {toolName} when bearer token is {token}",
             action: async ({ url, toolName, token }) => {
                 const tools = await mcpListTools(String(url), String(token));
                 return tools.some((tool) => tool.name === String(toolName))
                     ? actionOK()
-                    : actionNotOK(`Expected ${String(toolName)} in MCP index [${tools.map((tool) => tool.name).join(", ")}]`);
+                    : actionNotOK(`Expected ${String(toolName)} in the MCP tool list [${tools.map((tool) => tool.name).join(", ")}]`);
             },
         },
-        mcpStepperListingIncludes: {
-            gwta: "mcp stepper {stepperName} at {url} includes tool {toolName} when bearer token is {token}",
-            action: async ({ stepperName, url, toolName, token }) => {
+        mcpShownStepsInclude: {
+            gwta: "mcp steps shown at {url} matching {pattern} include {toolName} when bearer token is {token}",
+            action: async ({ url, pattern, toolName, token }) => {
                 await mcpListTools(String(url), String(token));
-                const listing = await mcpAccessStepper(String(url), String(token), String(stepperName));
-                return listing.includes(String(toolName)) ? actionOK() : actionNotOK(`Expected ${String(toolName)} in MCP stepper listing ${listing}`);
+                const shown = await mcpShownSteps(String(url), String(token), String(pattern));
+                return shown.includes(String(toolName)) ? actionOK() : actionNotOK(`Expected ${String(toolName)} among the steps shown [${shown.join(", ")}]`);
             },
         },
         mcpProtectedDeniedWithBearerToken: {
