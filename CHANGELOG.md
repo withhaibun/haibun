@@ -1,3 +1,13 @@
+## [3.10.1](https://github.com/withhaibun/haibun/compare/v3.10.0...v3.10.1) (2026-09-16)
+
+
+### Bug Fixes
+
+* **deps:** update dependencies to their latest minor and patch releases ([b10bc8e](https://github.com/withhaibun/haibun/commit/b10bc8e081d79717153d19f2c44f85d38e31b93b))
+* **deps:** update runtime libraries to their latest major releases ([6f48469](https://github.com/withhaibun/haibun/commit/6f48469420b65c5bc74d63b2fb420c9698da0d3c))
+* **deps:** update the build and test tooling to its latest major releases ([0f9403f](https://github.com/withhaibun/haibun/commit/0f9403fde66c1d90ced2faa5ea65897dc6f7afe8))
+* **vscode-extension:** resolve vscode-languageclient through its exports map ([58b876d](https://github.com/withhaibun/haibun/commit/58b876db8cfe30ae762d206a96aac7285c06844a))
+
 # [3.10.0](https://github.com/withhaibun/haibun/compare/v3.9.6...v3.10.0) (2026-07-10)
 
 
