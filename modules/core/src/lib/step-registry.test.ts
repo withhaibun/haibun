@@ -85,16 +85,19 @@ describe("what a read of the run's declarations shows", () => {
 
 	it("shows a step another host injected under its host-scoped name, with a pattern and a stepper that name the host", () => {
 		const registry = new StepRegistry([new LocalSteps()], emptyWorld);
-		registry.set(remoteTool("listTyped", "list {domain: string}"));
+		registry.inject([remoteTool("listTyped", "list {domain: string}")]);
 		const shown = definitionsOf(emptyWorld, registry, "");
 		expect(shown.steps.find((step) => step.method === hostScopedMethodName(9, "RemoteSteps-listTyped"))?.pattern).toBe("list {domain: string} (at localhost:8331)");
-		expect(shown.steps.find((step) => step.method === "LocalSteps-passes"), "beside the local steps").toBeDefined();
+		expect(
+			shown.steps.find((step) => step.method === "LocalSteps-passes"),
+			"beside the local steps",
+		).toBeDefined();
 		expect(shown.steppers.map((entry) => entry.stepper)).toEqual(["LocalSteps", "host9_RemoteSteps"]);
 	});
 
 	it("shows every step with the capability it requires, whatever the caller holds", () => {
 		const registry = new StepRegistry([new LocalSteps()], emptyWorld);
-		registry.set(remoteTool("write", "write {data}", "Remote:write"));
+		registry.inject([remoteTool("write", "write {data}", "Remote:write")]);
 		expect(definitionsOf(emptyWorld, registry, "write").steps.map((step) => step.capability)).toEqual(["Remote:write"]);
 	});
 
@@ -116,9 +119,17 @@ describe("what a read of the run's declarations shows", () => {
 		const registry = new StepRegistry([new ManySteps(), new LocalSteps()], world);
 		const byStepper = summariesOf(world, registry, "manysteps-");
 		expect(StepDiscoverySchema.parse(byStepper)).toEqual(byStepper);
-		expect(byStepper.steps.map((step) => step.method), "a stepper's name and a hyphen match its steps").toEqual(["ManySteps-readRecord", "ManySteps-writeRecord"]);
+		expect(
+			byStepper.steps.map((step) => step.method),
+			"a stepper's name and a hyphen match its steps",
+		).toEqual(["ManySteps-readRecord", "ManySteps-writeRecord"]);
 		expect(byStepper.steppers, "with the stepper whose steps matched, how many matched, and the read of its steps").toEqual([
-			{ stepper: "ManySteps", description: "steps that read and write records", steps: 2, _links: { steps: { method: SHOW_STEPS_METHOD, params: { text: "ManySteps-", detail: "summary" } } } },
+			{
+				stepper: "ManySteps",
+				description: "steps that read and write records",
+				steps: 2,
+				_links: { steps: { method: SHOW_STEPS_METHOD, params: { text: "ManySteps-", detail: "summary" } } },
+			},
 		]);
 		expect(byStepper.steps[0], "a summary names the step, says what it does and links its definition").toEqual({
 			method: "ManySteps-readRecord",
@@ -129,14 +140,40 @@ describe("what a read of the run's declarations shows", () => {
 		});
 		const defined = definitionsOf(world, registry, "reads ONE");
 		expect(StepDiscoverySchema.parse(defined)).toEqual(defined);
-		expect(defined.steps.map((step) => step.method), "a step's description is matched without regard to case").toEqual(["ManySteps-readRecord"]);
+		expect(
+			defined.steps.map((step) => step.method),
+			"a step's description is matched without regard to case",
+		).toEqual(["ManySteps-readRecord"]);
 		expect(defined.steps[0]._links.call, "and a definition links the step's call").toEqual({ method: "ManySteps-readRecord" });
 		expect(defined.steps[0].inputSchema.required, "with the schema of its arguments").toEqual(["id"]);
-		expect(summariesOf(world, registry, "record").domains.map((entry) => entry.domain), "a domain is matched by its name or description").toEqual(["record-id"]);
-		expect(declaredSteppers(registry).map((entry) => [entry.stepper, entry.steps]), "and the run's steppers are every stepper with every step").toEqual([
+		expect(
+			summariesOf(world, registry, "record").domains.map((entry) => entry.domain),
+			"a domain is matched by its name or description",
+		).toEqual(["record-id"]);
+		expect(
+			declaredSteppers(registry).map((entry) => [entry.stepper, entry.steps]),
+			"and the run's steppers are every stepper with every step",
+		).toEqual([
 			["ManySteps", 2],
 			["LocalSteps", 1],
 		]);
+	});
+
+	it("announces a change once for each injection, and not for a rebuild that describes every step as it was", () => {
+		const steppers = [new LocalSteps()];
+		const registry = new StepRegistry(steppers, emptyWorld);
+		let changes = 0;
+		registry.onChange(() => changes++);
+		registry.inject([remoteTool("listTyped", "list {domain: string}"), remoteTool("write", "write {data}")]);
+		expect(changes, "two steps injected together are one change").toBe(1);
+		registry.refresh(steppers, emptyWorld);
+		expect(changes, "a rebuild of the same steps is no change").toBe(1);
+		class MoreSteps extends AStepper {
+			description = "a step that fails";
+			steps = { fails: { gwta: "fails", action: async () => actionOK() } };
+		}
+		registry.refresh([...steppers, new MoreSteps()], emptyWorld);
+		expect(changes, "a rebuild that adds a step is a change").toBe(2);
 	});
 
 	it("names a host-scoped step so a model can call it: letters, digits, underscores and hyphens only", () => {
@@ -146,7 +183,10 @@ describe("what a read of the run's declarations shows", () => {
 
 describe("a call by name of another host's step", () => {
 	it("carries the host, so dispatch resolves that host's step and not the local one of the same name", () => {
-		expect(buildFeatureStepForTransport(remoteTool("listTyped", "list {domain: string}"), { domain: "thing" }, [0, -1, 1]).targetHostId, "the host the tool is registered under").toBe(9);
+		expect(
+			buildFeatureStepForTransport(remoteTool("listTyped", "list {domain: string}"), { domain: "thing" }, [0, -1, 1]).targetHostId,
+			"the host the tool is registered under",
+		).toBe(9);
 		const local = new StepRegistry([new LocalSteps()], emptyRegistryWorld).get("LocalSteps-passes");
 		if (!local) throw new Error("the local step is not registered");
 		expect(buildFeatureStepForTransport(local, {}, [0, -1, 2]).targetHostId, "and nothing for a step of this run").toBeUndefined();

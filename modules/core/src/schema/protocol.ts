@@ -728,11 +728,14 @@ export const ArtifactEvent = z.discriminatedUnion("artifactType", [
 	FileArtifact,
 ]);
 
+/** The signal a run sends when the steps its registry holds change, so a page that read them reads them again. */
+export const STEPS_CHANGED = "steps-changed";
+
 // Control Events
 export const ControlEvent = BaseEvent.extend({
 	kind: z.literal("control"),
 	// Debugger signals: fail, step, continue, retry, next
-	// System signals: graph-link, break, pause, resume
+	// System signals: graph-link, break, pause, resume, steps-changed
 	signal: z.enum([
 		"fail", // fail execution
 		"step", // single-step mode
@@ -743,6 +746,7 @@ export const ControlEvent = BaseEvent.extend({
 		"break",
 		"pause",
 		"resume",
+		STEPS_CHANGED,
 	]),
 	args: z.record(z.string(), z.unknown()).optional(),
 });

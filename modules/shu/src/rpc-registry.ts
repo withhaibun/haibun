@@ -4,7 +4,14 @@ import { pagePinned } from "./page-pinned.js";
 import { deviceStore, type TCachePayload } from "./client-cache/index.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { TRACE_SEQ_PATH } from "@haibun/core/schema/protocol.js";
-import { EVERY_DEFINITION, SHOW_STEPS_METHOD, StepDefinitionsSchema, type TDomainDiscoveryInfo, type TStepDefinition, type TStepDefinitions } from "@haibun/core/lib/step-discovery.js";
+import {
+	EVERY_DEFINITION,
+	SHOW_STEPS_METHOD,
+	StepDefinitionsSchema,
+	type TDomainDiscoveryInfo,
+	type TStepDefinition,
+	type TStepDefinitions,
+} from "@haibun/core/lib/step-discovery.js";
 
 /** A step as the page reads it: its definition, which links its call. */
 export type StepDescriptor = TStepDefinition;
@@ -219,6 +226,20 @@ export function registryOrigin(): TRegistryOrigin | null {
 	return origin().value;
 }
 
+/** Read what the run declares again, once the run has signalled its steps changed. A read already under way is the one
+ *  a caller awaits, since it reads what the run declares now. */
+export async function rereadStepList(): Promise<void> {
+	const r = registry();
+	if (r.pending) {
+		await r.pending;
+		return;
+	}
+	r.steps = null;
+	r.byName = null;
+	r.domains = null;
+	await getStepList();
+}
+
 /** Test-only: forget the registry and where it came from, so the next request discovers again. */
 export function resetStepRegistry(): void {
 	const r = registry();
@@ -236,7 +257,10 @@ async function discover(): Promise<StepListResponse> {
 	let parsed: TStepDefinitions;
 	try {
 		// A dispatched step's products carry the seqPath it ran at, which is the call's trace and not what the run declares.
-		const { [TRACE_SEQ_PATH]: _trace, ...declared } = await conduit().follow<Record<string, unknown>>(reads(SHOW_STEPS_METHOD, EVERY_DEFINITION), "rpc-registry: discover available steps");
+		const { [TRACE_SEQ_PATH]: _trace, ...declared } = await conduit().follow<Record<string, unknown>>(
+			reads(SHOW_STEPS_METHOD, EVERY_DEFINITION),
+			"rpc-registry: discover available steps",
+		);
 		parsed = StepDefinitionsSchema.parse(declared);
 		origin().value = { from: "server" };
 		void deviceStore()

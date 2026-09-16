@@ -67,8 +67,8 @@ export class SubprocessTransport {
 	}
 
 	injectInto(registry: StepRegistry): void {
-		for (const descriptor of this.stepDescriptors) {
-			const tool: StepTool = {
+		const tools = this.stepDescriptors.map((descriptor): StepTool => {
+			return {
 				descriptor,
 				paramSchemas: new Map(),
 				paramDomainKeys: new Map(),
@@ -81,8 +81,8 @@ export class SubprocessTransport {
 						featureStep.seqPath,
 					),
 			};
-			registry.set(tool);
-		}
+		});
+		registry.inject(tools);
 	}
 
 	/**

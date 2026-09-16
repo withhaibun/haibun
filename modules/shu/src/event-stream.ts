@@ -31,6 +31,10 @@ export interface EventStream {
 	 *  what arrives before a view subscribes is held for it. */
 	connect(): void;
 
+	/** Be told the stream is open: at once for a stream open now, and each time it opens after. From then on, what the run
+	 *  announces reaches the handlers. Returns an unsubscribe. */
+	opened(fn: () => void): () => void;
+
 	/** Be told the stream has come back after a break in it. What happened during the break reaches no handler, so a
 	 *  view following the run reads again on this through the path it already reads on. Returns an unsubscribe. */
 	reconnected(fn: () => void): () => void;
@@ -62,6 +66,10 @@ export class LiveEventStream implements EventStream {
 
 	connect(): void {
 		this.ensure();
+	}
+
+	opened(fn: () => void): () => void {
+		return this.ensure().opened(fn);
 	}
 
 	reconnected(fn: () => void): () => void {
@@ -100,6 +108,7 @@ export class SerializedEventStream implements EventStream {
 	private readonly subscribers = new Set<{ handler: TEventHandler; filter?: TEventFilter }>();
 	private readonly reconnectListeners = new Set<() => void>();
 	private readonly disconnectListeners = new Set<() => void>();
+	private readonly openListeners = new Set<() => void>();
 	private broken = false;
 	private recorded = 0;
 
@@ -116,6 +125,12 @@ export class SerializedEventStream implements EventStream {
 
 	connect(): void {
 		// A log that is all there is open already.
+	}
+
+	opened(fn: () => void): () => void {
+		this.openListeners.add(fn);
+		if (!this.broken) fn();
+		return () => this.openListeners.delete(fn);
 	}
 
 	reconnected(fn: () => void): () => void {
@@ -139,6 +154,7 @@ export class SerializedEventStream implements EventStream {
 	/** Say the stream came back, so a scripted scenario drives a view's catch-up the way it drives arrivals. */
 	reconnect(): void {
 		this.broken = false;
+		for (const fn of this.openListeners) fn();
 		for (const fn of this.reconnectListeners) fn();
 	}
 

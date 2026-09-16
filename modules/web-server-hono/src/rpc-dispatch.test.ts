@@ -335,7 +335,7 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "Pi
 						const registry = this.getWorld().runtime.stepRegistry;
 						const ping = registry?.get("PingStepper-ping");
 						if (!registry || !ping) return Promise.resolve(actionNotOK("the run holds no ping to copy"));
-						registry.set({ ...ping, descriptor: { ...ping.descriptor, method: "Injected-ping", stepperName: "Injected", stepName: "ping" } });
+						registry.inject([{ ...ping, descriptor: { ...ping.descriptor, method: "Injected-ping", stepperName: "Injected", stepName: "ping" } }]);
 						return Promise.resolve(OK);
 					},
 				},

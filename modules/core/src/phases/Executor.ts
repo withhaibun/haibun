@@ -17,7 +17,7 @@ import {
 	Timer,
 	STAY_ALWAYS,
 } from "../schema/protocol.js";
-import { LifecycleEvent } from "../schema/protocol.js";
+import { ControlEvent, LifecycleEvent, STEPS_CHANGED } from "../schema/protocol.js";
 import { AStepper } from "../lib/astepper.js";
 import { sleep, setStepperWorldsAndDomains, constructorName } from "../lib/util/index.js";
 import { dispatchStep } from "../lib/step-dispatch.js";
@@ -143,6 +143,11 @@ export class Executor {
 		world.runtime.steppers = steppers;
 		const stepRegistry = new StepRegistry(steppers, world);
 		world.runtime.stepRegistry = stepRegistry;
+		// A caller that read the run's steps reads them again when they change: a page listens for this signal.
+		let changes = 0;
+		stepRegistry.onChange(() =>
+			world.eventLogger.emit(ControlEvent.parse({ id: `${STEPS_CHANGED}-${++changes}`, timestamp: Date.now(), kind: "control", level: "debug", signal: STEPS_CHANGED })),
+		);
 		// Any stepper that implements IStepTransport (duck-typed: has `attach`
 		// and `detach` methods) injects its tools into the registry now,
 		// covering RemoteStepperProxy entries from `{remote}` config lines and

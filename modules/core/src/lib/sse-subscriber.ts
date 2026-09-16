@@ -131,6 +131,9 @@ export class SseSubscriber {
 	 *  announced to whoever follows the run: that is when they have something to read again for. */
 	private broken = false;
 	private readonly reconnectListeners = new Set<() => void>();
+	/** The stream is open now: what the run announces reaches the listeners. */
+	private open = false;
+	private readonly openListeners = new Set<() => void>();
 	private readonly disconnectListeners = new Set<() => void>();
 	private lastEventAt: number | null = null;
 	private connectedAt: number | null = null;
@@ -156,6 +159,14 @@ export class SseSubscriber {
 		if (this.connectedAt === null) this.connectedAt = Date.now();
 		this.source = new this.EventSourceCtor(this.url);
 		this.source.onopen = () => {
+			this.open = true;
+			for (const fn of this.openListeners) {
+				try {
+					fn();
+				} catch (err) {
+					failFastOrLog(`SseSubscriber[${this.clientId}]: listener threw on opening`, err);
+				}
+			}
 			if (!this.broken) return;
 			this.broken = false;
 			for (const fn of this.reconnectListeners) {
@@ -183,6 +194,7 @@ export class SseSubscriber {
 			// current, and that is a fact of the reading rather than something to infer from the silence.
 			const wasOpen = !this.broken;
 			this.broken = true;
+			this.open = false;
 			if (wasOpen) {
 				for (const fn of this.disconnectListeners) {
 					try {
@@ -215,6 +227,14 @@ export class SseSubscriber {
 			const idx = this.listeners.indexOf(entry);
 			if (idx >= 0) this.listeners.splice(idx, 1);
 		};
+	}
+
+	/** Be told the stream is open: at once for a stream open now, and each time it opens after. From then on, what the
+	 *  run announces reaches the listeners. Returns an unsubscribe. */
+	opened(fn: () => void): () => void {
+		this.openListeners.add(fn);
+		if (this.open) fn();
+		return () => this.openListeners.delete(fn);
 	}
 
 	/**

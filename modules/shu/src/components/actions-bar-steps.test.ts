@@ -13,12 +13,15 @@ const forTheType: StepDescriptor[] = [];
 vi.mock("../rpc-registry.js", async (actual) => ({
 	...(await actual<Record<string, unknown>>()),
 	getAvailableSteps: () => Promise.resolve(offered),
+	rereadStepList: () => Promise.resolve(),
 	stepsForContext: () => forTheType,
 }));
 
 const { ActionsBarSteps, stepDetails, stepOptions, stepSecondary } = await import("./actions-bar-steps.js");
 const { aControllerHost } = await import("./actions-bar-host.test-fake.js");
 const { SHU_EVENT, SHU_TAG } = await import("../consts.js");
+const { SerializedEventStream, setEventStream } = await import("../event-stream.js");
+const { STEPS_CHANGED } = await import("@haibun/core/schema/protocol.js");
 
 const step = (method: string, pattern: string, extra: Partial<StepDescriptor> = {}) => ({ method, stepName: method.split("-")[1], pattern, ...extra }) as StepDescriptor;
 const SHOW = step("GraphStepper-showGraph", "show graph {name}", { paramDomains: { name: "string" }, productsDomain: "graph" });
@@ -29,13 +32,16 @@ const ASK = step("LlmStepper-chatWithContext", "ask {prompt}");
 type THistory = HTMLElement & { scrollToBottom: ReturnType<typeof vi.fn> };
 
 async function aStepsPage(selectedLabel = "") {
+	// The run's stream, which a page follows from boot.
+	const stream = new SerializedEventStream();
+	setEventStream(stream);
 	const host = aControllerHost();
 	const history = Object.assign(document.createElement("div"), { scrollToBottom: vi.fn() }) as THistory;
 	host.append(history);
 	const steps = new ActionsBarSteps(host, { testIdPrefix: () => "app-", selectedLabel: () => selectedLabel, history: history as never });
 	steps.hostConnected();
 	await steps.load();
-	return { host, history, steps };
+	return { host, history, steps, stream };
 }
 
 const callers = (history: HTMLElement) => Array.from(history.querySelectorAll(SHU_TAG.STEP_CALLER));
@@ -51,6 +57,17 @@ describe("the actions bar's step mode", () => {
 	beforeEach(() => {
 		offered.splice(0, offered.length, SHOW, LIST);
 		forTheType.length = 0;
+	});
+
+	it("offers the steps the run holds after the run signals its steps changed", async () => {
+		const { host, steps, stream } = await aStepsPage();
+		expect(steps.offersAsk).toBe(false);
+		offered.push(ASK);
+		const asked = host.updatesAsked;
+		stream.emit({ id: `${STEPS_CHANGED}-1`, timestamp: Date.now(), kind: "control", level: "debug", signal: STEPS_CHANGED });
+		await vi.waitFor(() => expect(host.updatesAsked).toBeGreaterThan(asked));
+		expect(steps.offersAsk, "the step the run added is one the bar offers").toBe(true);
+		steps.hostDisconnected();
 	});
 
 	it("says what a step takes and gives, by domain", () => {

@@ -113,14 +113,35 @@ export function describeEventStream(name: string, make: () => TStreamUnderTest |
 			expect(told).toBe(1);
 		});
 
+		it("tells a listener the stream is open, at once while it is, and again when it comes back after a break", async () => {
+			let told = 0;
+			stream.opened(() => told++);
+			expect(told, "the stream is open").toBe(1);
+			await held.breakStream();
+			expect(told, "a break is not an opening").toBe(1);
+			await held.restore();
+			expect(told).toBe(2);
+		});
+
+		it("tells a listener that starts while the stream is down nothing until it opens", async () => {
+			await held.breakStream();
+			let told = 0;
+			stream.opened(() => told++);
+			expect(told).toBe(0);
+			await held.restore();
+			expect(told).toBe(1);
+		});
+
 		it("tells a listener nothing about the connection after it unsubscribes", async () => {
 			let broke = 0;
 			let returned = 0;
 			stream.disconnected(() => broke++)();
 			stream.reconnected(() => returned++)();
+			let opened = 0;
+			stream.opened(() => opened++)();
 			await held.breakStream();
 			await held.restore();
-			expect([broke, returned]).toEqual([0, 0]);
+			expect([broke, returned, opened]).toEqual([0, 0, 1]);
 		});
 
 		it("tells nothing to any subscriber once it is closed", async () => {

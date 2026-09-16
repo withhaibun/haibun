@@ -84,10 +84,11 @@ export class RemoteStepperProxy extends AStepper {
 	 */
 	injectInto(registry: StepRegistry): void {
 		if (this.hostId === undefined) throw new Error("RemoteStepperProxy.injectInto called before setWorld discovered the host id");
-		for (const descriptor of this.stepDescriptors) {
-			const prefixedMethod = hostScopedMethodName(this.hostId, descriptor.method);
+		const hostId = this.hostId;
+		const tools = this.stepDescriptors.map((descriptor): StepTool => {
+			const prefixedMethod = hostScopedMethodName(hostId, descriptor.method);
 			const remoteHost = new URL(this.remoteUrl).host;
-			const tool: StepTool = {
+			return {
 				descriptor: { ...descriptor, method: prefixedMethod, pattern: `${descriptor.pattern} (at ${remoteHost})` },
 				paramSchemas: new Map(),
 				paramDomainKeys: new Map(),
@@ -103,8 +104,8 @@ export class RemoteStepperProxy extends AStepper {
 						_featureStep.seqPath,
 					),
 			};
-			registry.set(tool);
-		}
+		});
+		registry.inject(tools);
 	}
 
 	/** Call a step on the remote host via shared RpcClient. */

@@ -35,6 +35,7 @@ describeEventStream("a live connection", () => {
 	(globalThis as { EventSource?: unknown }).EventSource = MockEventSource;
 	const stream = new LiveEventStream("/sse");
 	stream.connect();
+	newest().onopen?.(); // the connection the page asked for opens
 	return {
 		stream,
 		deliver: (e: TEvent) => newest().onmessage?.({ data: JSON.stringify({ type: "event", event: e }) }),
