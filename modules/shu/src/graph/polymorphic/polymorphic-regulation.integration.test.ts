@@ -7,7 +7,7 @@
  */
 import { afterAll, beforeAll, expect, test } from "vitest";
 import { DEFAULT_REGULATION_THRESHOLDS } from "./polymorphic-regulator.js";
-import { mountPolymorphicPage, quadsNamed, type TMountedPage } from "./polymorphic-page.test-fake.js";
+import { BOX, mountPolymorphicPage, quadsNamed, type TMountedPage } from "./polymorphic-page.test-fake.js";
 
 /** Enough marks that a software-rasterized frame is plainly slow. */
 const NODE_COUNT = 144;
@@ -18,6 +18,16 @@ type Regulation = { resting: boolean; frameTimeMs: number | null; samples: numbe
 const REGULATION = `document.querySelector("shu-polymorphic-graph-view").inspect().regulation`;
 const FRAME = `document.querySelector("a-scene").renderer.info.render.frame`;
 const REST_TICKS = 120;
+
+/** Wait until the scene is at rest: its layout settled and its render loop paused. */
+async function atRest(): Promise<void> {
+	await mounted.settle();
+	await mounted.page.waitForFunction(
+		() => (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { render: { paused: boolean } } }).inspect().render.paused === true,
+		undefined,
+		{ timeout: 10_000 },
+	);
+}
 
 /** Wait until the gate has ticked `REST_TICKS` more times, then return how many frames were drawn over them. */
 async function framesOverRestTicks(): Promise<number> {
@@ -57,18 +67,33 @@ test("under a software rasterizer the scene measures its frames as slow and rest
 
 test("at rest with a selected node, the scene draws no frame: the glow is held, not breathed", { timeout: 30_000 }, async () => {
 	// The beat after the signal draws the held glow once and the gate pauses the scene; measure from the pause.
-	await mounted.page.waitForFunction(
-		() => (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { render: { paused: boolean } } }).inspect().render.paused === true,
-		undefined,
-		{ timeout: 10_000 },
-	);
+	await atRest();
 	expect(await framesOverRestTicks(), `frames drawn over ${REST_TICKS} gate ticks with the breath resting`).toBe(0);
+	expect(mounted.errors(), "page errors").toEqual([]);
+});
+
+test("a canvas that moves without resizing draws no frame; one that resizes draws", { timeout: 60_000 }, async () => {
+	// A page that lays out again after the scene rests, as a late stylesheet or a column opening beside it does, moves the
+	// canvas. What the canvas shows is the same wherever it is, so only a changed size is drawn again.
+	await atRest();
+	await mounted.page.evaluate(`document.getElementById("box").style.top = "41px"`);
+	expect(await framesOverRestTicks(), "frames drawn for a canvas that moved").toBe(0);
+	const before = (await mounted.page.evaluate(FRAME)) as number;
+	await mounted.page.evaluate(`document.getElementById("box").style.width = "${BOX.width / 2}px"`);
+	await mounted.page.waitForFunction(
+		(was) => (document.querySelector("a-scene") as unknown as { renderer: { info: { render: { frame: number } } } }).renderer.info.render.frame > was,
+		before,
+		{
+			timeout: 15_000,
+		},
+	);
 	expect(mounted.errors(), "page errors").toEqual([]);
 });
 
 test("a feed that changes nothing visible draws no frame; one that changes the visible model draws", { timeout: 60_000 }, async () => {
 	// The page's own requests return to it as observations, and with instrumentation hidden they change nothing
 	// visible. A scene that draws on every feed draws on its own recordings.
+	await atRest();
 	const before = (await mounted.page.evaluate(FRAME)) as number;
 	await mounted.feed(QUADS);
 	expect(await framesOverRestTicks(), "frames drawn for a feed of the same model").toBe(0);

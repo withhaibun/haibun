@@ -11,6 +11,11 @@
 //     a `.js` import to that stale compiled file instead of the source and breaks the bundle ("No matching export … for
 //     import 'TActionResult'": it value-imports types the source elides). Build output belongs only in build/.
 //
+//  3. Missing BUILD output: a compiled src/<rel> source with no build/<rel>.js. `tsc -b` judges a module current by
+//     modification time alone, so a source older than the module's build record (a file moved or restored with its
+//     time) is never compiled, and the build succeeds without it. The module's build record is removed, so the next build
+//     compiles every source, and this run fails naming each source it did not compile.
+//
 // A file is compiler output iff a same-basename TS source sibling exists, so bundles (build/shu-bundle.js, build/assets/*),
 // hand-written .d.ts (no .ts sibling), and pure-JS modules are never touched.
 //
@@ -18,6 +23,7 @@
 //   default: stray output across the whole repo + orphaned build output per modules/*.
 import { readdirSync, existsSync, rmSync } from "node:fs";
 import { join, relative } from "node:path";
+import { pathToFileURL } from "node:url";
 
 const SOURCE_EXTS = [".ts", ".tsx", ".mts", ".cts"];
 const OUTPUT_EXTS = [".js", ".js.map", ".d.ts", ".d.ts.map"];
@@ -60,6 +66,17 @@ function pruneOrphanedBuild(moduleDir, dryRun) {
 	return removed;
 }
 
+/** Case 3, each compiled source under `moduleDir`/src with no build output, by its path under src without its extension. */
+export function missingBuildOutput(moduleDir) {
+	const buildDir = join(moduleDir, "build");
+	const srcDir = join(moduleDir, "src");
+	if (!existsSync(buildDir) || !existsSync(srcDir)) return [];
+	return walk(srcDir, new Set())
+		.filter((file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$/.test(file) && !file.endsWith(".d.ts"))
+		.map((file) => relative(srcDir, file).replace(/\.tsx?$/, ""))
+		.filter((rel) => !existsSync(join(buildDir, `${rel}.js`)));
+}
+
 /** Case 2, compiler output (.js/.d.ts/.map) sitting next to its TS source, anywhere under `rootDir` except build/. */
 function pruneStrayOutput(rootDir, dryRun) {
 	if (!existsSync(rootDir)) return [];
@@ -73,34 +90,44 @@ function pruneStrayOutput(rootDir, dryRun) {
 	return removed;
 }
 
-const args = process.argv.slice(2);
-const dryRun = args.includes("--dry-run");
-const targets = args.filter((a) => a !== "--dry-run");
+// Run as a command, not when a test imports the checks.
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+	const args = process.argv.slice(2);
+	const dryRun = args.includes("--dry-run");
+	const targets = args.filter((a) => a !== "--dry-run");
 
-let total = 0;
-const report = (label, removed) => {
-	if (removed.length === 0) return;
-	total += removed.length;
-	console.log(`[prune-orphaned-build] ${label}: ${dryRun ? "would remove" : "removed"} ${removed.length} stray/orphaned artifact(s)`);
-	for (const r of removed) console.log(`  - ${r}`);
-};
+	let total = 0;
+	const report = (label, removed) => {
+		if (removed.length === 0) return;
+		total += removed.length;
+		console.log(`[prune-orphaned-build] ${label}: ${dryRun ? "would remove" : "removed"} ${removed.length} stray/orphaned artifact(s)`);
+		for (const r of removed) console.log(`  - ${r}`);
+	};
 
-if (targets.length) {
-	for (const dir of targets) {
-		try {
-			report(dir, [...pruneStrayOutput(dir, dryRun), ...pruneOrphanedBuild(dir, dryRun)]);
-		} catch {
-			/* not a readable dir */
+	if (targets.length) {
+		for (const dir of targets) {
+			try {
+				report(dir, [...pruneStrayOutput(dir, dryRun), ...pruneOrphanedBuild(dir, dryRun)]);
+			} catch {
+				/* not a readable dir */
+			}
+		}
+	} else {
+		report(".", pruneStrayOutput(".", dryRun)); // stray output anywhere in the source tree
+		for (const m of readdirSync("modules")) {
+			try {
+				report(join("modules", m), pruneOrphanedBuild(join("modules", m), dryRun)); // + orphaned build output per module
+			} catch {
+				/* not a buildable module */
+			}
 		}
 	}
-} else {
-	report(".", pruneStrayOutput(".", dryRun)); // stray output anywhere in the source tree
-	for (const m of readdirSync("modules")) {
-		try {
-			report(join("modules", m), pruneOrphanedBuild(join("modules", m), dryRun)); // + orphaned build output per module
-		} catch {
-			/* not a buildable module */
-		}
+	console.log(`[prune-orphaned-build] ${dryRun ? "dry run, " : ""}${total} stray/orphaned artifact(s)${dryRun ? " would be removed" : " removed"}.`);
+	const missing = readdirSync("modules").map((m) => ({ moduleDir: join("modules", m), sources: missingBuildOutput(join("modules", m)) })).filter(({ sources }) => sources.length > 0);
+	for (const { moduleDir, sources } of missing) {
+		rmSync(join(moduleDir, "tsconfig.tsbuildinfo"), { force: true });
+		console.error(`[prune-orphaned-build] ${moduleDir}: ${sources.length} source(s) were not compiled, though the build succeeded; its build record is removed, so building again compiles them:`);
+		for (const source of sources) console.error(`  - src/${source}`);
 	}
+	if (missing.length > 0) process.exitCode = 1;
 }
-console.log(`[prune-orphaned-build] ${dryRun ? "dry run, " : ""}${total} stray/orphaned artifact(s)${dryRun ? " would be removed" : " removed"}.`);

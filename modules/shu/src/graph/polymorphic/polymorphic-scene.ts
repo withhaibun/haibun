@@ -1389,7 +1389,9 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		const prev = this.lastCanvasPos;
 		if (prev && (prev.left !== r.left || prev.top !== r.top || prev.width !== r.width || prev.height !== r.height)) {
 			this.refreshPickBounds();
-			this.markDirty(); // a resize needs a redraw at the new aspect; a pure move only needs the bounds, but waking is harmless
+			// What the canvas shows is the same wherever it is on the page, so a move only refreshes the pick bounds, and a
+			// scene at rest stays at rest; a changed size is drawn again at its new aspect.
+			if (prev.width !== r.width || prev.height !== r.height) this.markDirty();
 		}
 		this.lastCanvasPos = r;
 	}
