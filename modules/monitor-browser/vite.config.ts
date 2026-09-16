@@ -1,6 +1,5 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { readFileSync } from 'node:fs';
 import react from "@vitejs/plugin-react";
 import { defineConfig, loadEnv, createLogger, type PluginOption } from "vite";
 import { viteSingleFile } from 'vite-plugin-singlefile';
@@ -35,7 +34,6 @@ export const getPorts = (mode: string = process.env.NODE_ENV || 'development') =
 
 export default defineConfig(({ mode }) => {
   const { clientPort, proxiedPort: serverPort } = getPorts(mode);
-  const tsconfigContent = readFileSync(path.join(__dirname, 'tsconfig.client.json'), 'utf-8');
 
   return {
     customLogger: logger,
@@ -83,15 +81,6 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: "dist/client",
       emptyOutDir: true,
-      minify: 'esbuild',
-      rollupOptions: {
-        output: {
-          inlineDynamicImports: true,
-        }
-      }
-    },
-    esbuild: {
-      tsconfigRaw: JSON.parse(tsconfigContent)
     },
     test: {
       globals: true,

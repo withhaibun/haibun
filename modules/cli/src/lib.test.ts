@@ -9,6 +9,9 @@ import { TProtoOptions, TSpecl } from '@haibun/core/lib/defs.js';
 import { OPTION_RUN_POLICY, OPTION_DRY_RUN, type TRunPolicyConfig } from '@haibun/core/run-policy/run-policy-types.js';
 import * as lib from './lib.js';
 
+// resolveRunPolicy reads the policy file named by the config. No test supplies that file.
+vitest.mock('@haibun/core/run-policy/run-policy-schema.js', () => ({ loadAndValidateRunPolicy: vitest.fn() }));
+
 const s = (s: string) => s.split(' ');
 
 const expectExitAndThrow = (expectedCode: number) => (code?: number | string | null) => {
@@ -154,11 +157,6 @@ describe('resolveRunPolicy', () => {
 			}
 		} as TSpecl;
 		const policyConfig = { place: 'prod', dirFilters: [] } as TRunPolicyConfig;
-
-		// Mock loadAndValidateRunPolicy to avoid side effects
-		vitest.mock('@haibun/core/run-policy/run-policy-schema.js', () => ({
-			loadAndValidateRunPolicy: vitest.fn()
-		}));
 
 		lib.resolveRunPolicy(policyConfig, {}, protoOptions, specl);
 

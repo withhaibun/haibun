@@ -11,20 +11,20 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.14",
-    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/changelog": "^7.0.0",
     "@semantic-release/exec": "^7.1.0",
-    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/git": "^11.0.1",
     "@types/node": "^25.9.7",
-    "@vitest/coverage-v8": "^4.1.11",
-    "concurrently": "^9.2.4",
-    "dependency-cruiser": "^17.4.3",
+    "@vitest/coverage-v8": "^5.0.1",
+    "concurrently": "^10.0.5",
+    "dependency-cruiser": "^18.3.1",
     "playwright": "^1.63.0",
-    "rollup-plugin-visualizer": "^6.0.11",
+    "rollup-plugin-visualizer": "^7.1.1",
     "semantic-release": "^25.0.9",
     "typescript": "^5.9.3",
-    "vite": "^6.4.3",
+    "vite": "^8.3.0",
     "vite-plugin-singlefile": "^2.3.3",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.1"
   },
   "scripts": {
     "test": "vitest run",
