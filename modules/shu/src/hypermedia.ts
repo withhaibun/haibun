@@ -21,6 +21,7 @@
 
 // Type-only import, erased from the browser bundle (never pulls core's node:async_hooks runtime).
 import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
+import { z } from "zod";
 import { pagePinned } from "./page-pinned.js";
 // The wire itself: envelope and stream reader, shared with every other caller of a haibun host. Free of node imports.
 import { rpcEnvelope, readNdjson } from "@haibun/core/lib/rpc-wire.js";
@@ -118,14 +119,20 @@ function nextRpcId(): string {
 	return `rpc-${rpcCounter}-${Date.now().toString(36)}`;
 }
 
-function formatRpcError(method: string, status: number, data: unknown): string {
-	if (data && typeof data === "object") {
-		const error = (data as { error?: unknown }).error;
-		if (typeof error === "string" && error.length > 0) return error;
-		if (error instanceof Error && error.message) return error.message;
-	}
-	if (typeof data === "string" && data.length > 0) return data;
-	return `${method}: RPC failed with status ${status}`;
+/** What the run answers a call it did not serve with. */
+const RpcRefusalSchema = z.object({ error: z.string().min(1) });
+/** What the run answers `action.begin` with: the place in its sequence the act is recorded at. */
+const ActionBeganSchema = z.object({ seqPath: z.array(z.number()).min(1) });
+
+/** The run's answer to a call. The run answers every call it serves as JSON, and one it did not serve with its refusal
+ *  and a status that says so. An answer that is not JSON did not come from the run's RPC: a path the server does not
+ *  serve answers as text, and that is the failure, named with what the server sent. */
+async function answerOf(method: string, res: Response): Promise<unknown> {
+	const mediaType = res.headers.get("content-type") ?? "no media type";
+	if (!mediaType.startsWith("application/json")) throw new Error(`${method}: the server answered ${res.status} with ${mediaType}, not the run's JSON: ${(await res.text()).slice(0, 200)}`);
+	const body: unknown = await res.json();
+	if (!res.ok) throw new Error(RpcRefusalSchema.parse(body).error);
+	return body;
 }
 
 /**
@@ -182,11 +189,7 @@ export class LiveConduit implements Conduit {
 		// run then does belongs in the sequence at that place.
 		const seqPath = link.asks === "read" ? undefined : await this.allocateSeqPath(why);
 		const res = await this.post(link.method, { method: link.method, params: link.params ?? {}, seqPath, asks: link.asks });
-		const data: unknown = await res.json();
-		if (!res.ok || (data && typeof data === "object" && "error" in (data as Record<string, unknown>) && (data as { error?: unknown }).error)) {
-			throw new Error(formatRpcError(link.method, res.status, data));
-		}
-		return data as T;
+		return (await answerOf(link.method, res)) as T;
 	}
 
 	async followStream(
@@ -197,7 +200,8 @@ export class LiveConduit implements Conduit {
 		const seqPath = await this.allocateSeqPath(opts.why);
 		opts.onStart?.(seqPath);
 		const res = await this.post(link.method, { method: link.method, params: link.params ?? {}, seqPath, stream: true, asks: link.asks }, opts.signal);
-		if (!res.ok) throw new Error(`${link.method}: stream RPC failed with status ${res.status}`);
+		// A stream the run refused answers with its refusal, as any call does.
+		if (!res.ok) await answerOf(link.method, res);
 		if (!res.body) throw new Error(`${link.method}: stream RPC returned no body`);
 		for await (const chunk of readNdjson<TStreamChunk>(res.body)) {
 			if (chunk.error) throw new Error(chunk.error);
@@ -252,13 +256,7 @@ export class LiveConduit implements Conduit {
 	private async beginAction(why: string): Promise<number[]> {
 		// Beginning an action is part of acting: it allocates the place in the run's sequence the act is recorded at.
 		const res = await this.post("action.begin", { method: "action.begin", params: { why }, asks: "act" });
-		const data: unknown = await res.json();
-		if (!res.ok || !data || typeof data !== "object" || !("seqPath" in (data as Record<string, unknown>))) {
-			throw new Error(formatRpcError("action.begin", res.status, data));
-		}
-		const seqPath = (data as { seqPath?: unknown }).seqPath;
-		if (!Array.isArray(seqPath) || seqPath.length === 0) throw new Error("action.begin returned no seqPath");
-		return seqPath as number[];
+		return ActionBeganSchema.parse(await answerOf("action.begin", res)).seqPath;
 	}
 }
 

@@ -152,6 +152,18 @@ describe("a server that does not respond", () => {
 		}
 	});
 
+	it("fails a call a path the server does not serve answered as text, with the status and what it sent, and reads a refusal the run states", async () => {
+		const fetchWas = globalThis.fetch;
+		try {
+			globalThis.fetch = () => Promise.resolve(new Response("404 Not Found", { status: 404, headers: { "Content-Type": "text/plain; charset=UTF-8" } }));
+			await expect(new LiveConduit("").follow(reads("step.list"), "test")).rejects.toThrow("step.list: the server answered 404 with text/plain; charset=UTF-8, not the run's JSON: 404 Not Found");
+			globalThis.fetch = () => Promise.resolve(new Response(JSON.stringify({ ok: false, error: "no such step" }), { status: 422, headers: { "Content-Type": "application/json" } }));
+			await expect(new LiveConduit("").follow(reads("step.list"), "test")).rejects.toThrow("no such step");
+		} finally {
+			globalThis.fetch = fetchWas;
+		}
+	});
+
 	it("records when the server last responded, and records nothing when it never did", async () => {
 		const fetchWas = globalThis.fetch;
 		delete (globalThis as unknown as Record<string, unknown>)["__SHU_SERVER_RESPONDED__"];
