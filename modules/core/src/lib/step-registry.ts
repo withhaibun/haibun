@@ -202,8 +202,9 @@ export function createStepHandler(stepperName: string, stepName: string, stepDef
 			const args = await populateActionArgs(featureStep, world, world.runtime.steppers);
 			return await stepDef.action(args, featureStep);
 		} catch (caught) {
-			const err = caught instanceof Error ? caught : new Error(String(caught));
-			return actionNotOK(`${stepperName}-${stepName}: ${err.message}`);
+			// A step that throws fails as a step that refuses does: with what it said. Whoever presents the failure names the
+			// step, as an RPC answer names its method, so prefixed here as well a failure named its step twice.
+			return actionNotOK(caught instanceof Error ? caught.message : String(caught));
 		}
 	};
 }

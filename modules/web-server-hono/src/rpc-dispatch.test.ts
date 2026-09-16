@@ -541,7 +541,7 @@ stream rpc call to "http://localhost:${port}/rpc/StreamingStepper-stream3" metho
 		expect(collectedChunks).toEqual([{ status: "starting" }, { text: "alpha" }, { text: "beta" }]);
 	});
 
-	it("stream:true refusal emits a single terminating {error} record (seq-bound stepEnd already fired)", async () => {
+	it("stream:true refusal emits a single terminating {error} record naming the step once, whether the step refused or threw", async () => {
 		const port = 8243;
 		const collectedChunks: Record<string, unknown>[] = [];
 
@@ -550,6 +550,12 @@ stream rpc call to "http://localhost:${port}/rpc/StreamingStepper-stream3" metho
 				refuse: {
 					gwta: "refuse the stream",
 					action: () => actionNotOK("nope"),
+				},
+				fail: {
+					gwta: "fail the stream",
+					action: () => {
+						throw new Error("broke");
+					},
 				},
 			};
 		}
@@ -591,11 +597,11 @@ stream rpc call to "http://localhost:${port}/rpc/StreamingStepper-stream3" metho
 enable rpc
 webserver is listening for "stream-rpc-error"
 stream rpc call to "http://localhost:${port}/rpc/StreamingStepper-refuse" method "StreamingStepper-refuse" emits an error
+stream rpc call to "http://localhost:${port}/rpc/StreamingStepper-fail" method "StreamingStepper-fail" emits an error
 `,
 		};
 		const result = await passWithDefaults([feature], [WebServerStepper, StreamingStepper, StreamingErrorVerifyStepper], makeOptions(port));
 		expect(result.ok).toBe(true);
-		expect(collectedChunks).toHaveLength(1);
-		expect(collectedChunks[0].error).toContain("nope");
+		expect(collectedChunks.map((chunk) => chunk.error)).toEqual(["StreamingStepper-refuse: nope", "StreamingStepper-fail: broke"]);
 	});
 });
