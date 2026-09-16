@@ -16,8 +16,8 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { ShuChatMessage } from "./shu-chat-message.js";
 import { SHU_TAG } from "../consts.js";
 import { SignalController, SubjectController } from "../controllers/index.js";
-import { nextQuestion, turnEnded, turnState } from "../chat-turn.js";
-import { conversationState, transcript } from "../conversation.js";
+import { nextQuestion } from "../chat-turn.js";
+import { conversationState, transcript, turnEnded } from "../conversation.js";
 import { currentSubject } from "../current-subject.js";
 import { appAccessLevel } from "../util.js";
 
@@ -36,7 +36,6 @@ export class ShuActivityHistory extends ShuElement<typeof EmptySchema> {
 	/** Each message of the transcript by its key, with the message it was last given. */
 	#messages = new Map<string, { el: ShuChatMessage; given: string }>();
 	#conversation = new SignalController(this, conversationState, () => this.syncTranscript());
-	#turn = new SignalController(this, turnState, () => this.syncTranscript());
 	/** The current message is the active record, and the branch shown ends at the turn the next question replies to. */
 	#subject = new SubjectController(
 		this,
@@ -68,7 +67,7 @@ export class ShuActivityHistory extends ShuElement<typeof EmptySchema> {
 	/** Place the transcript's messages: remove the ones it no longer holds, update the ones that changed, and append new
 	 *  ones. The newest entry is kept in view when a message is added or a turn ends. */
 	private syncTranscript(): void {
-		const entries = transcript(this.#conversation.state, this.#turn.state, nextQuestion(this.#subject.state).repliesTo?.turn, appAccessLevel());
+		const entries = transcript(this.#conversation.state, nextQuestion(this.#subject.state).repliesTo?.turn, appAccessLevel());
 		const keys = new Set(entries.map(({ message }) => message.id));
 		for (const [key, held] of this.#messages) {
 			if (keys.has(key)) continue;

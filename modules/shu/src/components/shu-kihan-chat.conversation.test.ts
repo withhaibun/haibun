@@ -27,8 +27,10 @@ const stated: string[] = [];
 let streamFails: string | undefined;
 /** What the run refuses the turn with before it records anything, as a server refuses a target it does not hold. */
 let refusedBeforeRecording: string | undefined;
+/** What the run waits on between starting the turn's step and recording its question, where a case holds it there. */
+let recording: Promise<void> | undefined;
 /** The context envelope each turn was sent with, so a case reads what the pane asked for. */
-const sent: Array<{ contextReadBy?: string; patterns?: unknown[]; inReplyTo?: string; viewLd?: unknown[]; session?: string; target?: string }> = [];
+const sent: Array<{ contextReadBy?: string; patterns?: unknown[]; inReplyTo?: string; viewLd?: unknown[]; session?: string; target?: string; accessLevel?: string }> = [];
 /** The seqPath each turn the stream starts is given, in order; a turn beyond them is given 0.1.2. The run records the
  *  turn's question as the step starts and its answer when it finishes, each named by the turn. */
 const turnSeqPaths: number[][] = [];
@@ -64,18 +66,25 @@ vi.mock("../hypermedia.js", async () => {
 				});
 			return {};
 		},
-		(req, onChunk, opts) => {
+		async (req, onChunk, opts) => {
+			// An aborted stream rejects, as the fetch that carries it does, at whatever point the run is.
+			const aborted = new Promise<never>((_, reject) => {
+				const fail = () => reject(new Error("the stream was aborted"));
+				if (opts.signal?.aborted) fail();
+				else opts.signal?.addEventListener("abort", fail, { once: true });
+			});
+			aborted.catch(() => undefined);
+			stream.signal = opts.signal;
 			const turn = (turnSeqPaths.shift() ?? [0, 1, 2]).join(".");
 			opts.onStart?.(turn.split(".").map(Number));
-			sent.push({ ...JSON.parse(String(req.params?.context ?? "{}")), target: String(req.params?.target) });
-			if (refusedBeforeRecording) return Promise.reject(new Error(refusedBeforeRecording));
+			sent.push({ ...JSON.parse(String(req.params?.context ?? "{}")), target: String(req.params?.target), accessLevel: String(req.params?.accessLevel) });
+			if (refusedBeforeRecording) throw new Error(refusedBeforeRecording);
+			await Promise.race([recording, aborted]);
 			onChunk({ recorded: { persistedAs: "Comment", id: question(turn) } });
 			for (const status of stated) onChunk({ status });
-			if (streamFails) return Promise.reject(new Error(streamFails));
-			// An aborted stream rejects, as the fetch that carries it does. A case finishes the stream with the reply text.
-			stream.signal = opts.signal;
-			return new Promise<void>((resolve, reject) => {
-				opts.signal?.addEventListener("abort", () => reject(new Error("the stream was aborted")), { once: true });
+			if (streamFails) throw new Error(streamFails);
+			// A case finishes the stream with the reply text.
+			const finished = new Promise<void>((resolve) => {
 				stream.piece = (text) => onChunk({ text });
 				stream.finish = () => {
 					onChunk({ recorded: { persistedAs: "Comment", id: answer(turn) } });
@@ -83,6 +92,7 @@ vi.mock("../hypermedia.js", async () => {
 					resolve();
 				};
 			});
+			return Promise.race([finished, aborted]);
 		},
 	);
 });
@@ -91,8 +101,7 @@ const { ShuCombobox } = await import("./shu-combobox.js");
 if (!customElements.get("shu-combobox")) customElements.define("shu-combobox", ShuCombobox);
 const { ShuActivityHistory } = await import("./shu-activity-history.js");
 const { ShuKihanChat, NEW_CONVERSATION } = await import("./shu-kihan-chat.js");
-const { IDLE_TURN, dispatchTurnEvent, turnRefusal, turnState } = await import("../chat-turn.js");
-const { CLOSED_CONVERSATION, CONVERSATION_OPENING, conversationState, openConversation } = await import("../conversation.js");
+const { CLOSED_CONVERSATION, CONVERSATION_OPENING, TURN_IN_FLIGHT, conversationState, dispatchConversationEvent, openConversation } = await import("../conversation.js");
 const { CONVERSATION_PARAM } = await import("../consts.js");
 const { SHU_TAG } = await import("../consts.js");
 const { SHU_TEST_IDS } = await import("../test-ids.js");
@@ -107,14 +116,14 @@ const OTHER = entryOf([anIndividual("Email", "other@bakery.test")], "private");
 // The machines are module state shared by every case. Each case starts with no turn in flight, no conversation and no
 // active record, because a turn left running refuses the next case's question.
 beforeEach(async () => {
-	dispatchTurnEvent({ type: "stop", reason: "the case ended" });
+	dispatchConversationEvent({ type: "stop", reason: "the case ended" });
 	await settle();
-	turnState.set(IDLE_TURN);
 	conversationState.set(CLOSED_CONVERSATION);
 	currentSubjectState.set(INITIAL_SUBJECT);
 	for (const list of [stated, sent, turnSeqPaths, sessionReads]) list.length = 0;
 	streamFails = undefined;
 	refusedBeforeRecording = undefined;
+	recording = undefined;
 	viewData = VIEW_DATA;
 	catalog = () => A_CATALOG;
 	stream.signal = undefined;
@@ -122,7 +131,7 @@ beforeEach(async () => {
 	stream.finish = undefined;
 	sessionTurns = [readBack(RESTORED_TURN, undefined, [RESTORED_RECORD])];
 	forgetElementPrefs(SHU_TAG.KIHAN_CHAT, "");
-	mergeHashParams({ [CONVERSATION_PARAM]: "" });
+	mergeHashParams({ [CONVERSATION_PARAM]: "", access: "" });
 	document.body.innerHTML = "";
 });
 
@@ -186,7 +195,7 @@ describe("a question refused", () => {
 		const { pane, history } = await aPage();
 		await submit(pane, "what do these have in common");
 		await submit(pane, "which one mentions the crumb");
-		expect(refusalOn(pane)).toBe(turnRefusal(turnState.get()));
+		expect(refusalOn(pane)).toBe(TURN_IN_FLIGHT);
 		expect(chatInput(pane).value).toBe("which one mentions the crumb");
 		expect(
 			onHistory(history).filter((el) => el.message.role === "user"),
@@ -237,7 +246,7 @@ describe("a question not asked", () => {
 		const { pane } = await aPage();
 		await submit(pane, "what does this say");
 		expect(sent).toHaveLength(0);
-		expect(turnState.get().status, "the next question is not refused as in flight").toBe("idle");
+		expect(conversationState.get().asked, "the next question is not refused as in flight").toBeNull();
 		expect(chatInput(pane).value).toBe("what does this say");
 		expect(refusalOn(pane)).toContain("BigInt");
 	});
@@ -246,7 +255,7 @@ describe("a question not asked", () => {
 		const { pane } = await aPage();
 		await submit(pane, "what do these have in common");
 		await submit(pane, "which one mentions the crumb");
-		expect(refusalOn(pane)).toBe(turnRefusal(turnState.get()));
+		expect(refusalOn(pane)).toBe(TURN_IN_FLIGHT);
 		stream.finish?.();
 		await settle();
 		pickSession(pane, RESTORED);
@@ -273,7 +282,24 @@ describe("a turn that ends before it answered", () => {
 		await settle();
 		expect(stream.signal?.aborted).toBe(true);
 		expect(answers(history)[0].message.error).toBe("you stopped it: the stream was aborted");
-		expect(turnState.get().status).toBe("stopped");
+		expect(conversationState.get().asked?.status).toBe("stopped");
+	});
+});
+
+describe("a turn stopped before the run records its question", () => {
+	it("is aborted once the question is recorded, so the question opens its session and is not put back to ask again", async () => {
+		let recorded = (): void => undefined;
+		recording = new Promise<void>((resolve) => (recorded = resolve));
+		turnSeqPaths.push([0, 1, 5]);
+		const { pane } = await aPage();
+		await submit(pane, "what do these have in common");
+		inside<HTMLButtonElement>(pane.shadowRoot, ".stop-btn").click();
+		await settle();
+		recorded();
+		await settle();
+		expect(conversationState.get()).toMatchObject({ session: question("0.1.5"), asked: { askId: question("0.1.5"), status: "stopped" } });
+		expect(stream.signal?.aborted).toBe(true);
+		expect(chatInput(pane).value).toBe("");
 	});
 });
 
@@ -328,8 +354,8 @@ describe("what a turn states about itself", () => {
 		const { pane, history } = await aPage();
 		await submit(pane, "what do these have in common");
 		const moves: string[] = [];
-		const unsubscribe = turnState.subscribe((turn, before) => {
-			if (turn.status !== "idle" && before.status !== "idle" && turn.text !== before.text) moves.push(turn.text);
+		const unsubscribe = conversationState.subscribe(({ asked }, before) => {
+			if (asked && before.asked && asked.response !== before.asked.response) moves.push(asked.response);
 		});
 		stream.piece?.("crumb ");
 		stream.piece?.("and dough, ");
@@ -357,6 +383,7 @@ describe("the ask and the active record", () => {
 	it("activates each comment its turn records with the turn's bundle, and the comment leads while the bar is open", async () => {
 		dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: EMAIL });
 		dispatchSubjectEvent({ type: "open", scope: SCOPE.actionsBar });
+		mergeHashParams({ access: EMAIL.bundle.accessLevel });
 		const { pane } = await aPage();
 		await submit(pane, "what does this say");
 		expect(scopeEntry(currentSubjectState.get(), SCOPE.actionsBar)).toEqual({ record: { id: "cmt-ask-0.1.2", label: "Comment" }, turn: "cmt-ask-0.1.2", bundle: EMAIL.bundle });
@@ -365,11 +392,21 @@ describe("the ask and the active record", () => {
 		expect(currentSubject(currentSubjectState.get()), "the bar closed: the page's record again").toEqual(EMAIL.record);
 	});
 
+	it("is asked at the level the address reads at, narrowed since the record was activated, and its comments activate at that level", async () => {
+		dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: EMAIL });
+		dispatchSubjectEvent({ type: "open", scope: SCOPE.actionsBar });
+		mergeHashParams({ access: "public" });
+		const { pane } = await aPage();
+		await submit(pane, "what does this say");
+		expect(sent.at(-1)).toMatchObject({ patterns: EMAIL.bundle.patterns, accessLevel: "public" });
+		expect(scopeEntry(currentSubjectState.get(), SCOPE.actionsBar)?.bundle).toEqual({ patterns: EMAIL.bundle.patterns, accessLevel: "public" });
+	});
+
 	it("replies to the bar's turn and carries its bundle, with no view data, so a selected earlier message branches there", async () => {
 		dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: EMAIL });
 		dispatchSubjectEvent({ type: "open", scope: SCOPE.actionsBar });
 		dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry: { record: { id: "cmt-say-0.1.1", label: "Comment" }, turn: "cmt-ask-0.1.1", bundle: OTHER.bundle } });
-		conversationState.set({ status: "open", session: "cmt-ask-0.1.1", turns: [] });
+		conversationState.set({ status: "open", session: "cmt-ask-0.1.1", turns: [], asked: null });
 		const { pane } = await aPage();
 		await submit(pane, "and what came of it");
 		expect(sent.at(-1)).toMatchObject({ session: "cmt-ask-0.1.1", inReplyTo: "cmt-ask-0.1.1", patterns: OTHER.bundle.patterns, viewLd: [] });
@@ -456,12 +493,12 @@ describe("a conversation", () => {
 		expect(turnsShown(history), "and its transcript is the picked session's").toEqual([RESTORED]);
 	});
 
-	it("does not open on a first turn the run refused before it recorded anything, whose question returns to the input", async () => {
+	it("is named by no session on a first turn the run refused before it recorded anything, whose question returns to the input", async () => {
 		refusedBeforeRecording = 'no Kihan registered for target "openai:gone"';
 		const { pane } = await aPage();
 		await submit(pane, "what do these have in common");
 		await settle();
-		expect(conversationState.get()).toBe(CLOSED_CONVERSATION);
+		expect(conversationState.get().session).toBeNull();
 		expect(hashParam(CONVERSATION_PARAM)).toBe("");
 		expect(chatInput(pane).value).toBe("what do these have in common");
 		refusedBeforeRecording = undefined;
@@ -507,7 +544,7 @@ describe("a conversation", () => {
 		const { pane } = await aPage();
 		pickSession(pane, RESTORED);
 		await answerTheSessionRead("the store is unreachable");
-		expect(conversationState.get()).toBe(CLOSED_CONVERSATION);
+		expect(conversationState.get()).toEqual(CLOSED_CONVERSATION);
 		await submit(pane, "what do these have in common");
 		expect(sent.at(-1)?.session).toBeUndefined();
 	});

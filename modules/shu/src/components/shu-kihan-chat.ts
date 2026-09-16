@@ -13,10 +13,10 @@ import { reads, conduit } from "../hypermedia.js";
 import { findStep, getAvailableSteps, requireStep } from "../rpc-registry.js";
 import { getActionBarAskExtensionTags, getActionBarChatExtensionTags } from "../rels-cache.js";
 import { SessionListSchema, type TComboboxOption } from "../schemas.js";
-import { SCOPE, activeScope, currentSubjectState, entryOf } from "../current-subject.js";
+import { SCOPE, activeScope, currentSubjectState } from "../current-subject.js";
 import { SignalController } from "../controllers/index.js";
-import { dispatchTurnEvent, inFlight, nextQuestion, startTurn, turnEnded, turnState, type TTurnState } from "../chat-turn.js";
-import { askRefusal, closeConversation, conversationState, openConversation } from "../conversation.js";
+import { nextQuestion, startTurn } from "../chat-turn.js";
+import { askRefusal, closeConversation, conversationState, dispatchConversationEvent, inFlight, openConversation, turnEnded, type TConversationState } from "../conversation.js";
 import { appAccessLevel } from "../util.js";
 import { harvestChatViewLd } from "../chat-context-harvest.js";
 import { SHU_TAG } from "../consts.js";
@@ -122,14 +122,8 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	#conversation = new SignalController(
 		this,
 		conversationState,
-		() => (this.#refusal = null),
-		(conversation) => [conversation.status, conversation.session],
-	);
-	#turn = new SignalController(
-		this,
-		turnState,
-		(turn, before) => this.onTurnStatus(turn, before),
-		(turn) => turn.status,
+		(conversation, before) => this.onConversationMove(conversation, before),
+		(conversation) => [conversation.status, conversation.session, conversation.asked?.status],
 	);
 
 	static observedHtmlAttributes = ["testid-prefix"];
@@ -168,14 +162,16 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		this.requestUpdate();
 	}
 
-	/** A turn that ends while the pane is mounted lists its session, and a completed answer is spoken. */
-	private onTurnStatus(turn: TTurnState, before: TTurnState | undefined): void {
+	/** Any move clears the refusal. The page's turn that ends while the pane is mounted lists its session, and a completed
+	 *  answer is spoken. */
+	private onConversationMove(conversation: TConversationState, before: TConversationState | undefined): void {
 		this.#refusal = null;
-		if (!turnEnded(before?.status, turn.status)) return;
+		const turn = conversation.asked;
+		if (!turn || !turnEnded(before?.asked?.status, turn.status)) return;
 		if (turn.status === "completed") {
 			this.shadowRoot?.querySelectorAll<HTMLElement>("shu-voice-client").forEach((el) => {
 				const maybeSpeak = (el as { speak?: unknown }).speak;
-				if (typeof maybeSpeak === "function") maybeSpeak.call(el, turn.text);
+				if (typeof maybeSpeak === "function") maybeSpeak.call(el, turn.response);
 			});
 		}
 		// The run writes the turn whether or not its stream announced a seqPath, so the session list changes in both cases.
@@ -224,8 +220,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 
 	render(): TemplateResult {
 		const conversation = this.#conversation.state;
-		const turn = this.#turn.state;
-		const running = inFlight(turn.status);
+		const running = inFlight(conversation.asked?.status);
 		const refusal = this.#refusal;
 		// The input line's own extensions, and the ask's: this pane owns the line under ask mode, so it renders both.
 		const uiExtensionTags = [...getActionBarChatExtensionTags(), ...getActionBarAskExtensionTags()];
@@ -305,13 +300,14 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		if (!chatInput || !prompt) return;
 		try {
 			await this.loadModels();
-			this.#refusal = askRefusal(this.#conversation.state, this.#turn.state);
+			this.#refusal = askRefusal(this.#conversation.state);
 			if (this.#refusal) return this.requestUpdate();
 			const subject = currentSubjectState.get();
 			const { carries, repliesTo } = nextQuestion(subject);
 			const asking = startTurn({
 				prompt,
-				bundle: carries?.bundle ?? entryOf([], appAccessLevel()).bundle,
+				// Asked at the level the page reads at now, which the address may have narrowed since the record was activated.
+				bundle: { patterns: carries?.bundle.patterns ?? [], accessLevel: appAccessLevel() },
 				envelope: {
 					// The view data is the pane's, so it goes with a record the page activated.
 					viewLd: activeScope(subject) === SCOPE.page ? harvestChatViewLd() : [],
@@ -325,7 +321,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 			chatInput.value = "";
 			chatInput.style.height = "auto";
 			const ended = await asking;
-			if (ended.status !== "idle" && ended.turn === null) chatInput.value ||= prompt;
+			if (ended?.askId === null) chatInput.value ||= prompt;
 		} catch (err) {
 			chatInput.value ||= prompt;
 			this.#refusal = errorDetail(err);
@@ -333,7 +329,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		}
 	};
 	private onStop = (): void => {
-		dispatchTurnEvent({ type: "stop", reason: "you stopped it" });
+		dispatchConversationEvent({ type: "stop", reason: "you stopped it" });
 	};
 }
 
