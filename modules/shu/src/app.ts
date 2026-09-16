@@ -15,6 +15,7 @@ import { acts, conduit, setConduit, LiveConduit } from "./hypermedia.js";
 import { installShuTokens } from "./components/styles.js";
 import { applyShuPreferences } from "./components/shu-theme-switch.js";
 import { setEventStream, LiveEventStream, SerializedEventStream, subscribeBatchedEvents } from "./event-stream.js";
+import { followRunningTurns } from "./conversation.js";
 import { ensureUiComponentLoaded as sharedEnsureUiComponentLoaded } from "./external-components.js";
 import { paneOpsFor } from "./pane-event-router.js";
 import { setActiveViewId } from "./quads-snapshot.js";
@@ -125,6 +126,7 @@ const main = async (): Promise<void> => {
 		// Opened before anything reads the run: the server announces from the moment a page connects, so a page that
 		// waited until its first view was ready would lose what the run said while it booted.
 		live.connect();
+		followRunningTurns();
 	}
 	// Install the shared design tokens at document level so combobox dropdowns and other elements rendered into document.body resolve the same `--shu-…` variables that shadow-DOM components inherit.
 	installShuTokens();

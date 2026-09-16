@@ -37,7 +37,6 @@ vi.mock("../hypermedia.js", async () => {
 const { ShuCombobox } = await import("./shu-combobox.js");
 if (!customElements.get("shu-combobox")) customElements.define("shu-combobox", ShuCombobox);
 const { ShuKihanChat } = await import("./shu-kihan-chat.js");
-const { IDLE_TURN, turnState } = await import("../chat-turn.js");
 const { CLOSED_CONVERSATION, conversationState } = await import("../conversation.js");
 
 async function chat(): Promise<HTMLElement> {
@@ -63,7 +62,6 @@ const optionCount = (el: HTMLElement) => (el.shadowRoot?.querySelector(".session
 
 describe("the session selector", () => {
 	beforeEach(() => {
-		turnState.set(IDLE_TURN);
 		conversationState.set(CLOSED_CONVERSATION);
 		listed.length = 0;
 		onStartSeqPath = [0, 1, 2];
@@ -89,7 +87,7 @@ describe("the session selector", () => {
 		await turn(el, "the first");
 		expect(hasSelector(el)).toBe(true);
 		await turn(el, "the second");
-		expect(turnState.get()).toMatchObject({ prompt: "the second", status: "completed" });
+		expect(conversationState.get().asked).toMatchObject({ prompt: "the second", status: "completed" });
 	});
 
 	it("offers the session even when the turn's stream announced no seqPath, since the session exists either way", async () => {

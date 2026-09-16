@@ -1,126 +1,230 @@
 /**
- * The conversation the ask is open on, held as one state that events move.
+ * The conversation the ask is open on, and the turn this page asks, held as one state that events move.
  *
  * A conversation is a session: the turns grouped under a first turn, each turn named by its question's record. It is
- * closed, opening while the store reads a session back, or open on a session. A first turn asked while the conversation
- * is closed opens it on the turn's question once the run records that question, so a turn the run refused before it
- * recorded anything opens nothing. Each turn of the conversation is appended when it ends, with how it ended.
- * `transcript` states the messages a view shows: the conversation's turns, with the page's turn in place of any copy of
- * it the store read back, and the turns off the branch the next question replies to hidden.
+ * closed, opening while the store reads a session back, or open on a session. A conversation opened by a first question
+ * is open on no session until the run records that question, which then names it.
  *
- * The adapters raise the events. `openConversation` reads a session back and `closeConversation` leaves it; both clear
- * the actions bar's scope, whose turn is one of the session left. A follower of the page's turn opens the conversation on
- * a first turn's question, activates the actions bar's scope with each comment a turn of the open conversation records,
- * and appends each turn that ends. A follower of the conversation writes its session to the view hash.
+ * The turn this page asks is asked, starts when the run names its step, streams its text, its status lines and the
+ * comments it records, and ends as completed, failed or stopped. One is in flight at a time, whatever conversation is
+ * open, so it runs on when the reader opens another, and a pane that closes does not end it. While it is one of the open
+ * conversation's turns, every move of it is written into the conversation's turns in its place. A read of the session
+ * keeps the page's copy while the turn is in flight, and the store's once it has ended.
+ *
+ * `transition` states each move, and an event outside those moves leaves the state unchanged. Adapters raise the events:
+ * `startTurn` (chat-turn.ts) from the request stream, `openConversation` and `closeConversation` from the reader, and
+ * `followRunningTurns` from the run's stream, which reads the session again when a turn another page asks may have
+ * ended. Followers write the session to the view hash and activate the actions bar's scope with each comment the page's
+ * turn records in the open conversation. `transcript` states the messages a view shows.
  */
 import { COMMENT_LABEL, type AccessQueryLevel } from "@haibun/core/lib/resources.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import type { TChatMessage } from "./components/shu-chat-message.js";
-import { inFlight, turnEnded, turnMachine, turnRefusal, type TAskedTurn, type TTurnState } from "./chat-turn.js";
 import { reportToRun } from "./client-log.js";
 import { CONVERSATION_PARAM } from "./consts.js";
-import { SCOPE, dispatchSubjectEvent } from "./current-subject.js";
+import { SCOPE, dispatchSubjectEvent, type TRecord } from "./current-subject.js";
+import { subscribeBatchedEvents, type TEvent } from "./event-stream.js";
 import { conduit, reads } from "./hypermedia.js";
 import { getAvailableSteps, requireStep } from "./rpc-registry.js";
-import { SessionReadSchema, type TBundle, type TSessionTurn } from "./schemas.js";
+import { SessionReadSchema, type TChatStatus, type TContextPattern, type TSessionTurn } from "./schemas.js";
 import { SharedMachine } from "./signals.js";
 import { appAccessLevel } from "./util.js";
 import { mergeHashParams } from "./view-hash.js";
 
-/** A turn of the conversation: as the store reads it back, or as it ended on this page, with what it stated while it ran. */
-export type TConversationTurn = TSessionTurn & { activity?: string[] };
+/** The step a turn runs. */
+export const ASK_STEP = "chatWithContext";
 
-export type TConversationState = { status: "closed" | "opening" | "open"; session: string | null; turns: TConversationTurn[] };
+/** A turn: as the store reads it back, or as this page asks it, with what it stated while it ran. Its question's record
+ *  names it, and a turn this page asks is named by none until the run records that question. */
+export type TTurn = Omit<TSessionTurn, "askId" | "error"> & { askId: string | null; error: string; activity: string[] };
+
+/** The turn this page asks: the turn, the session it was asked in, the comments the run recorded for it, the question
+ *  first, and the reason a reader gave to stop it. The session is null for a first turn until its question is recorded. */
+export type TAskedTurn = TTurn & { session: string | null; recorded: TRecord[]; stoppedBy: string };
+
+export type TConversationState = {
+	status: "closed" | "opening" | "open";
+	session: string | null;
+	turns: TTurn[];
+	/** The turn this page asked last, in flight or ended; null before the page asks. */
+	asked: TAskedTurn | null;
+};
 
 export type TConversationEvent =
 	| { type: "open"; session: string }
-	| { type: "opened"; session: string; turns: TSessionTurn[] }
+	| { type: "read"; session: string; turns: TSessionTurn[] }
 	| { type: "failed"; session: string }
 	| { type: "close" }
-	| { type: "turnAsked"; turn: string }
-	| { type: "turnEnded"; session: string; turn: TConversationTurn };
+	| { type: "ask"; prompt: string; patterns: TContextPattern[]; session?: string; inReplyTo?: string }
+	| { type: "started" }
+	| { type: "text"; piece: string }
+	| { type: "status"; line: string }
+	| { type: "recorded"; record: TRecord }
+	| { type: "stop"; reason: string }
+	| { type: "ended" }
+	| { type: "erred"; message: string };
 export type TConversationEventType = TConversationEvent["type"];
-export const CONVERSATION_EVENTS = ["open", "opened", "failed", "close", "turnAsked", "turnEnded"] as const satisfies readonly TConversationEventType[];
+export const CONVERSATION_EVENTS = [
+	"open",
+	"read",
+	"failed",
+	"close",
+	"ask",
+	"started",
+	"text",
+	"status",
+	"recorded",
+	"stop",
+	"ended",
+	"erred",
+] as const satisfies readonly TConversationEventType[];
 
-export const CLOSED_CONVERSATION: TConversationState = { status: "closed", session: null, turns: [] };
+export const CLOSED_CONVERSATION: TConversationState = { status: "closed", session: null, turns: [], asked: null };
 
+/** The refusal of a question asked while a turn is in flight. */
+export const TURN_IN_FLIGHT = "a turn is running; wait for it to answer or stop it";
 /** The refusal of a question asked while the store reads the conversation back. */
 export const CONVERSATION_OPENING = "the conversation is still opening; ask once its turns are shown";
+/** The error of a turn whose stream ended before the run started its step. */
+export const NOT_STARTED = "the stream ended before the run started the turn's step";
 /** What a reply shows before the turn states anything about itself. */
 export const SENDING = "Sending...";
-/** The key of a turn whose question the run has not recorded. One turn is in flight at a time, so one key serves. */
+/** The key of a turn whose question the run has not recorded. A question replaces such a turn, so one key serves. */
 const PENDING = "pending";
 
-/** The next state, for any state and any event. `opened` and `failed` apply only to the session being opened, so a read
- *  that returns after the reader moved on changes nothing. */
-export function transition(conversation: TConversationState, event: TConversationEvent): TConversationState {
-	switch (event.type) {
-		case "open":
-			return { status: "opening", session: event.session, turns: [] };
-		case "opened":
-			return conversation.status === "opening" && conversation.session === event.session ? { ...conversation, status: "open", turns: event.turns } : conversation;
-		case "failed":
-			return conversation.status === "opening" && conversation.session === event.session ? CLOSED_CONVERSATION : conversation;
-		case "close":
-			return conversation.status === "closed" ? conversation : CLOSED_CONVERSATION;
-		case "turnAsked":
-			return conversation.status === "closed" ? { status: "open", session: event.turn, turns: [] } : conversation;
-		case "turnEnded":
-			if (conversation.status !== "open" || conversation.session !== event.session) return conversation;
-			return { ...conversation, turns: [...conversation.turns.filter((turn) => turn.askId !== event.turn.askId), event.turn] };
-	}
+/** Whether a turn with the status was asked and has not ended. No status is not in flight. */
+export function inFlight(status: TChatStatus | undefined): boolean {
+	return status === "asking" || status === "running";
 }
 
-/** Whether the page's turn is one of the conversation's: asked in its session, or its first turn. A first turn is one of
- *  a closed conversation until the run records its question, and of the conversation that question opened after. */
-export function turnOfConversation(conversation: TConversationState, turn: TTurnState): boolean {
-	if (turn.status === "idle") return false;
-	if (turn.session !== undefined) return conversation.status !== "closed" && turn.session === conversation.session;
-	return turn.turn === null ? conversation.status === "closed" : turn.turn === conversation.session;
+/** Whether a turn ended between two of its statuses. */
+export function turnEnded(before: TChatStatus | undefined, after: TChatStatus | undefined): boolean {
+	return inFlight(before) && !inFlight(after);
 }
 
 /** Why a question cannot be asked now, or null when it can: a turn is in flight, or the conversation is still opening. */
-export function askRefusal(conversation: TConversationState, turn: TTurnState): string | null {
-	return turnRefusal(turn) ?? (conversation.status === "opening" ? CONVERSATION_OPENING : null);
+export function askRefusal(conversation: TConversationState): string | null {
+	if (inFlight(conversation.asked?.status)) return TURN_IN_FLIGHT;
+	return conversation.status === "opening" ? CONVERSATION_OPENING : null;
 }
 
-/** A turn as the transcript shows it, keyed by its question's record, or as pending before the run records it, with
- *  the bundle its messages carry. */
-type TShownTurn = Omit<TConversationTurn, "askId" | "bundle"> & { key: string; askId?: string; bundle: TBundle };
-
-/** The conversation's turns, and the page's turn where it is one of them. The page's turn is newer than any copy of it
- *  the store read back, so it stands in that copy's place: a session read back while its turn runs shows the turn
- *  running, and the answer it ends with. */
-function shownTurns(conversation: TConversationState, turn: TTurnState, accessLevel: AccessQueryLevel): TShownTurn[] {
-	const live = turn.status !== "idle" && turnOfConversation(conversation, turn) ? turn : null;
-	const shown: TShownTurn[] = conversation.turns
-		.filter((held) => held.askId !== live?.turn)
-		.map((held) => ({ ...held, key: held.askId, bundle: { patterns: held.bundle, accessLevel } }));
-	if (!live) return shown;
-	return [...shown, { ...heldTurn(live), key: live.turn ?? PENDING, askId: live.turn ?? undefined, bundle: live.bundle }];
+/** Whether the page's turn is one of the open conversation's: asked in its session, or the first turn of a conversation
+ *  its question opened. */
+function asksIn(conversation: TConversationState): boolean {
+	return conversation.status === "open" && conversation.asked !== null && conversation.asked.session === conversation.session;
 }
 
-/** The page's turn as the conversation holds it, but for the question record that names it. */
-function heldTurn(turn: TAskedTurn): Omit<TConversationTurn, "askId"> {
-	const answered = turn.recorded[1];
-	return {
-		prompt: turn.prompt,
-		response: turn.text,
-		...(turn.inReplyTo ? { inReplyTo: turn.inReplyTo } : {}),
-		...(answered ? { sayId: answered.id } : {}),
-		bundle: turn.bundle.patterns,
-		status: turn.status,
-		...(turn.error ? { error: turn.error } : {}),
-		activity: turn.activity,
-	};
+/** The turn as the conversation holds it, without what only the page's request holds. */
+function turnOf({ session: _session, recorded: _recorded, stoppedBy: _stoppedBy, ...turn }: TAskedTurn): TTurn {
+	return turn;
 }
+
+/** The conversation with the page's turn written into its turns in its place, where it is one of them. Its place is its
+ *  question's, or the turn no question names yet, which only the page's turn is, since a question replaces one. */
+function withAsked(conversation: TConversationState): TConversationState {
+	const { asked } = conversation;
+	if (!asked || !asksIn(conversation)) return conversation;
+	const at = conversation.turns.findIndex((turn) => turn.askId === asked.askId || turn.askId === null);
+	const turns = at === -1 ? [...conversation.turns, turnOf(asked)] : conversation.turns.map((turn, index) => (index === at ? turnOf(asked) : turn));
+	return { ...conversation, turns };
+}
+
+/** The page's turn after a request event, or the turn unchanged where the event does not move it. */
+function movedAsked(asked: TAskedTurn, event: Exclude<TConversationEvent, { type: "open" | "read" | "failed" | "close" | "ask" }>): TAskedTurn {
+	if (!inFlight(asked.status)) return asked;
+	const running = asked.status === "running";
+	switch (event.type) {
+		case "started":
+			return running ? asked : { ...asked, status: "running" };
+		case "text":
+			return running ? { ...asked, response: asked.response + event.piece } : asked;
+		case "status":
+			return running ? { ...asked, activity: [...asked.activity, event.line] } : asked;
+		case "recorded": {
+			if (!running) return asked;
+			const recorded = [...asked.recorded, event.record];
+			const askId = asked.askId ?? event.record.id;
+			return { ...asked, askId, session: asked.session ?? askId, recorded, ...(recorded[1] ? { sayId: recorded[1].id } : {}) };
+		}
+		case "stop":
+			return asked.stoppedBy ? asked : { ...asked, stoppedBy: event.reason };
+		case "ended":
+			return running ? { ...asked, status: "completed" } : { ...asked, status: "failed", error: NOT_STARTED };
+		case "erred":
+			return asked.stoppedBy ? { ...asked, status: "stopped", error: `${asked.stoppedBy}: ${event.message}` } : { ...asked, status: "failed", error: event.message };
+	}
+}
+
+/**
+ * The next state, for any state and any event.
+ *
+ * `read` applies only to the session being opened or open, so a read that returns after the reader moved on changes
+ * nothing, and a turn it reads keeps what the page stated of it while it ran, which the store does not hold. `failed`
+ * applies only to the session being opened. `ask` is refused while a turn is in flight or the conversation opens, and
+ * replaces a turn the run never recorded; asked in a closed conversation, it opens one on no session. The page's turn
+ * moves on its request's events whatever conversation is open, and the first record of a first turn names the
+ * conversation it opened.
+ */
+export function transition(conversation: TConversationState, event: TConversationEvent): TConversationState {
+	const { asked } = conversation;
+	switch (event.type) {
+		case "open":
+			return { ...conversation, status: "opening", session: event.session, turns: [] };
+		case "read": {
+			if (conversation.status === "closed" || conversation.session !== event.session) return conversation;
+			const held = new Map(conversation.turns.map((turn) => [turn.askId, turn]));
+			const turns = event.turns.map((turn) => ({ ...turn, error: turn.error ?? "", activity: held.get(turn.askId)?.activity ?? [] }));
+			const read = { ...conversation, status: "open" as const, turns };
+			// The store's copy of the page's turn is the newer once the turn has ended, and until then the page's is.
+			return !inFlight(asked?.status) && event.turns.some((turn) => turn.askId === asked?.askId) ? read : withAsked(read);
+		}
+		case "failed":
+			return conversation.status === "opening" && conversation.session === event.session ? { ...CLOSED_CONVERSATION, asked } : conversation;
+		case "close":
+			return conversation.status === "closed" ? conversation : { ...CLOSED_CONVERSATION, asked };
+		case "ask": {
+			if (askRefusal(conversation)) return conversation;
+			const { prompt, patterns, inReplyTo } = event;
+			const next: TAskedTurn = {
+				askId: null,
+				prompt,
+				response: "",
+				bundle: patterns,
+				...(inReplyTo ? { inReplyTo } : {}),
+				status: "asking",
+				error: "",
+				activity: [],
+				session: event.session ?? null,
+				recorded: [],
+				stoppedBy: "",
+			};
+			const opened = conversation.status === "closed" ? { status: "open" as const, session: null } : {};
+			return withAsked({ ...conversation, ...opened, turns: conversation.turns.filter((turn) => turn.askId !== null), asked: next });
+		}
+		default: {
+			if (!asked) return conversation;
+			const moved = movedAsked(asked, event);
+			if (moved === asked) return conversation;
+			const named = asksIn(conversation) && conversation.session === null && moved.session !== null;
+			return withAsked({ ...conversation, ...(named ? { session: moved.session } : {}), asked: moved });
+		}
+	}
+}
+
+/** A turn as the transcript shows it, keyed by its question's record, or as pending before the run records it. */
+type TShownTurn = TTurn & { key: string };
 
 /**
  * The turns on the branch the transcript shows, and the other branch that leaves each of them. The branch runs from the
  * session's first turn to `onTurn`, then along the newest reply below it to a leaf. Unset or unknown, `onTurn` is the
- * newest turn. Where a turn on the branch has replies off it, the newest other branch is offered by its latest answer.
+ * newest turn. Where a turn on the branch has replies off it, the newest other branch is offered by its latest answer,
+ * or by its question where the turn ended with no answer recorded.
  */
-function branch(turns: TShownTurn[], onTurn: string | undefined): { onPath: Set<string>; others: Map<string, NonNullable<TChatMessage["otherBranch"]>> } {
+function branch(
+	turns: TShownTurn[],
+	onTurn: string | undefined,
+	accessLevel: AccessQueryLevel,
+): { onPath: Set<string>; others: Map<string, NonNullable<TChatMessage["otherBranch"]>> } {
 	const byKey = new Map(turns.map((turn) => [turn.key, turn]));
 	const childrenOf = new Map<string, string[]>();
 	for (const turn of turns) if (turn.inReplyTo !== undefined && byKey.has(turn.inReplyTo)) childrenOf.set(turn.inReplyTo, [...(childrenOf.get(turn.inReplyTo) ?? []), turn.key]);
@@ -137,7 +241,7 @@ function branch(turns: TShownTurn[], onTurn: string | undefined): { onPath: Set<
 	for (const key of onPath) {
 		const off = (childrenOf.get(key) ?? []).filter((child) => !onPath.has(child));
 		const latest = off.length > 0 ? byKey.get(newestLeafBelow(off[off.length - 1])) : undefined;
-		if (latest?.sayId && latest.askId) others.set(key, { recordId: latest.sayId, turn: latest.askId, bundle: latest.bundle, count: off.length });
+		if (latest?.askId) others.set(key, { recordId: latest.sayId ?? latest.askId, turn: latest.askId, bundle: { patterns: latest.bundle, accessLevel }, count: off.length });
 	}
 	return { onPath, others };
 }
@@ -149,30 +253,30 @@ type TTranscriptEntry = { message: TChatMessage; shown: boolean };
  * are listed, so a view keeps each message where it first appeared; the turns off the branch `onTurn` is on are not
  * shown. The answer where another branch leaves carries that branch.
  */
-export function transcript(conversation: TConversationState, turn: TTurnState, onTurn: string | undefined, accessLevel: AccessQueryLevel): TTranscriptEntry[] {
-	const turns = shownTurns(conversation, turn, accessLevel);
-	const { onPath, others } = branch(turns, onTurn);
-	return turns.flatMap((shownTurn): TTranscriptEntry[] => {
-		const { key, askId, inReplyTo, bundle, status, activity = [] } = shownTurn;
+export function transcript(conversation: TConversationState, onTurn: string | undefined, accessLevel: AccessQueryLevel): TTranscriptEntry[] {
+	const turns = conversation.turns.map((turn) => ({ ...turn, key: turn.askId ?? PENDING }));
+	const { onPath, others } = branch(turns, onTurn, accessLevel);
+	return turns.flatMap((turn): TTranscriptEntry[] => {
+		const { key, askId, inReplyTo, status, activity } = turn;
 		const shown = onPath.has(key);
 		const running = inFlight(status);
 		const otherBranch = others.get(key);
-		const common = { turn: askId, inReplyTo, bundle, spinnerSpinning: running, error: "" };
+		const common = { turn: askId ?? undefined, inReplyTo, bundle: { patterns: turn.bundle, accessLevel }, spinnerSpinning: running, error: "" };
 		return [
-			{ shown, message: { ...common, id: `${key}:ask`, role: "user", text: shownTurn.prompt, recordId: askId, activity: [], spinnerStatus: "", spinnerVisible: false } },
+			{ shown, message: { ...common, id: `${key}:ask`, role: "user", text: turn.prompt, recordId: askId ?? undefined, activity: [], spinnerStatus: "", spinnerVisible: false } },
 			{
 				shown,
 				message: {
 					...common,
 					id: `${key}:say`,
 					role: "llm",
-					text: shownTurn.response,
+					text: turn.response,
 					status,
-					recordId: shownTurn.sayId,
+					recordId: turn.sayId,
 					activity,
 					spinnerStatus: activity.at(-1) ?? SENDING,
 					spinnerVisible: running,
-					error: shownTurn.error ?? "",
+					error: turn.error,
 					...(otherBranch ? { otherBranch } : {}),
 				},
 			},
@@ -181,28 +285,33 @@ export function transcript(conversation: TConversationState, turn: TTurnState, o
 }
 
 /** The one instance, shared across every component and bundle. */
-const conversationMachine = new SharedMachine<TConversationState, TConversationEvent>("conversation", CLOSED_CONVERSATION, transition);
+export const conversationMachine = new SharedMachine<TConversationState, TConversationEvent>("conversation", CLOSED_CONVERSATION, transition);
 export const conversationState = conversationMachine.state;
 export const dispatchConversationEvent = (event: TConversationEvent): TConversationState => conversationMachine.dispatch(event);
 
+/** A session's turns, as the store reads them back. */
+async function readSession(session: string): Promise<TSessionTurn[]> {
+	await getAvailableSteps();
+	return SessionReadSchema.parse(await conduit().follow(reads(requireStep("loadChatSession"), { session }), "conversation: read a session back")).turns;
+}
+
 /**
  * Open the conversation on a session and read its turns back. While the session is read, the actions bar's scope holds
- * no turn. Its last turn then raises `answer` on the scope, with its answer where it has one: `update` for a page
+ * no turn. Its latest turn then raises `answer` on the scope, with its answer where it has one: `update` for a page
  * coming back to the conversation its address names, `activate` for a reader who picked the session. Only the read that
  * opened the conversation does: a read that returns after the reader moved on, or after another read opened it, moves
- * nothing, so it does not replace what the reader selected since. A read that fails closes the conversation and is
- * reported to the run.
+ * nothing on the scope, so it does not replace what the reader selected since. A read that fails closes the conversation
+ * and is reported to the run.
  */
 export async function openConversation(session: string, answer: "activate" | "update"): Promise<void> {
 	dispatchConversationEvent({ type: "open", session });
 	dispatchSubjectEvent({ type: "clear", scope: SCOPE.actionsBar });
 	try {
-		await getAvailableSteps();
-		const read = SessionReadSchema.parse(await conduit().follow(reads(requireStep("loadChatSession"), { session }), "conversation: read a session back"));
+		const turns = await readSession(session);
 		const before = conversationState.get();
-		const last = read.turns.at(-1);
-		if (dispatchConversationEvent({ type: "opened", session, turns: read.turns }) === before || !last) return;
-		const entry = { record: { id: last.sayId ?? last.askId, label: COMMENT_LABEL }, turn: last.askId, bundle: { patterns: last.bundle, accessLevel: appAccessLevel() } };
+		const latest = dispatchConversationEvent({ type: "read", session, turns }).turns.at(-1);
+		if (before.status !== "opening" || before.session !== session || !latest?.askId) return;
+		const entry = { record: { id: latest.sayId ?? latest.askId, label: COMMENT_LABEL }, turn: latest.askId, bundle: { patterns: latest.bundle, accessLevel: appAccessLevel() } };
 		dispatchSubjectEvent({ type: answer, scope: SCOPE.actionsBar, entry });
 	} catch (err) {
 		dispatchConversationEvent({ type: "failed", session });
@@ -216,21 +325,40 @@ export function closeConversation(): void {
 	dispatchSubjectEvent({ type: "clear", scope: SCOPE.actionsBar });
 }
 
-/** Follow each move of the page's turn: the question of a first turn opens a closed conversation, a comment a turn of the
- *  open conversation records activates the actions bar's scope, and a turn that ended is appended to its session. A
- *  conversation still opening is not activated by its turn's comments: the read that opens it activates its last turn. */
-turnMachine.follow(({ event, before, after }) => {
-	if (after.status === "idle") return;
-	if (event.type === "recorded") {
-		if (before.status !== "idle" && before.turn === null && after.turn !== null && after.session === undefined) dispatchConversationEvent({ type: "turnAsked", turn: after.turn });
-		const conversation = conversationState.get();
-		if (after.turn !== null && conversation.status === "open" && turnOfConversation(conversation, after))
-			dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry: { record: event.record, turn: after.turn, bundle: after.bundle } });
-	}
-	if (turnEnded(before.status, after.status) && after.turn !== null)
-		dispatchConversationEvent({ type: "turnEnded", session: after.session ?? after.turn, turn: { ...heldTurn(after), askId: after.turn } });
-});
+/** Whether an event on the run's stream is the end of a turn's step. */
+const endsATurn = (event: TEvent): boolean => event.kind === "lifecycle" && event.type === "step" && event.stage === "end" && event.actionName === ASK_STEP;
 
-conversationMachine.follow(({ before, after }) => {
+/**
+ * Follow the run's stream for the end of a turn the open conversation holds running that this page does not ask. Such a
+ * turn ends on another page's request, or on this page's before it loaded, so its end reaches this page on no request
+ * of its own. The session is read again when the stream reports a turn's step ended, and when the stream comes back
+ * after a break, since what ended during it reached no page. A read raises `read` only while the conversation is still
+ * open on the session, so it never opens one. A read that fails is reported, and the turn stays as it was read.
+ * Returns what ends the following.
+ */
+export function followRunningTurns(): () => void {
+	const readAgain = (): void => {
+		const { status, session, turns, asked } = conversationState.get();
+		const elsewhere = turns.some((turn) => inFlight(turn.status) && !(inFlight(asked?.status) && turn.askId === asked?.askId));
+		if (status !== "open" || session === null || !elsewhere) return;
+		readSession(session).then(
+			(read) => {
+				const now = conversationState.get();
+				if (now.status === "open" && now.session === session) dispatchConversationEvent({ type: "read", session, turns: read });
+			},
+			(err) => reportToRun("error", "conversation", `the conversation ${session} was not read again: ${errorDetail(err)}`),
+		);
+	};
+	return subscribeBatchedEvents({ filter: endsATurn, onBatch: readAgain, onReconnect: readAgain });
+}
+
+/** Follow each move: a comment the page's turn records in the open conversation activates the actions bar's scope, and
+ *  the session is written to the view hash. A conversation still opening is not activated by its turn's comments: the
+ *  read that opens it activates its latest turn. */
+conversationMachine.follow(({ event, before, after }) => {
+	if (event.type === "recorded" && after.asked?.askId && after.asked !== before.asked && asksIn(after)) {
+		const entry = { record: event.record, turn: after.asked.askId, bundle: { patterns: after.asked.bundle, accessLevel: appAccessLevel() } };
+		dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry });
+	}
 	if (after.session !== before.session) mergeHashParams({ [CONVERSATION_PARAM]: after.session ?? "" });
 });

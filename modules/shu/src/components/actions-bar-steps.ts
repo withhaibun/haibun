@@ -5,7 +5,7 @@
  * the callers of its method, so its test ids stay unique across repeated calls.
  */
 import { html, nothing, type ReactiveController, type TemplateResult } from "lit";
-import { ASK_STEP } from "../chat-turn.js";
+import { ASK_STEP } from "../conversation.js";
 import { SHU_EVENT, SHU_TAG } from "../consts.js";
 import { getAvailableSteps, stepsForContext, type StepDescriptor } from "../rpc-registry.js";
 import type { TComboboxOption } from "../schemas.js";
