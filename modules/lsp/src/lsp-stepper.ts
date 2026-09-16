@@ -1,5 +1,5 @@
 import * as ts from 'typescript';
-import { createConnection, TextDocuments, CompletionItem, CompletionItemKind, TextDocumentSyncKind, InitializeResult, Hover, MarkupKind, SemanticTokensBuilder, SemanticTokensLegend, SemanticTokensParams, SemanticTokens, Diagnostic, DiagnosticSeverity, Connection } from 'vscode-languageserver/node.js';
+import { createConnection, TextDocuments, CompletionItem, CompletionItemKind, TextDocumentSyncKind, InitializeResult, Hover, MarkupKind, SemanticTokensBuilder, SemanticTokensLegend, SemanticTokensParams, SemanticTokens, Diagnostic, DiagnosticSeverity, Connection } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 
 import { AStepper } from '@haibun/core/lib/astepper.js';
@@ -628,7 +628,7 @@ export default class LspStepper extends AStepper {
     }
 
     const featureSteps: LCachedStep[] = [];
-    const diagnostics: Diagnostic[] = [];
+    const diagnostics: (Diagnostic & { message: string })[] = [];
     this.ensureStepperContext(uri);
     const resolver = new Resolver(this.steppers, []);
 
