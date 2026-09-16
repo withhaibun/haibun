@@ -44,6 +44,7 @@ export const ICON_SCENARIO = "⬢"; // Concrete logic node (Solid Hex)
 // Step Execution Status: the verdict marks, plus flow for a step still running.
 export const ICON_STEP_RUNNING = "⫸"; // Active flow (Clear direction)
 export const ICON_STEP_FAILED = CHECK_NO;
+export const ICON_STEP_STOPPED = "◼";
 
 /** A statement the run tried speculatively (`maybe`): its failure is the run trying something, not a fault. */
 export function isSpeculativeEvent(event: { intent?: { mode?: string } }): boolean {
@@ -103,8 +104,12 @@ export const declaresScenario = (called: string | undefined): boolean => called?
 export const declaredName = (text: string, of: keyof typeof DECLARES): string => text.replace(new RegExp(`^${DECLARES[of]}\\s*`), "").trim();
 
 /** How a lifecycle event says a step, feature or execution ended. */
-export const LIFECYCLE_STATUS = { running: "running", completed: "completed", failed: "failed", skipped: "skipped" } as const;
-export const LIFECYCLE_STATUS_SCHEMA = z.enum([LIFECYCLE_STATUS.running, LIFECYCLE_STATUS.completed, LIFECYCLE_STATUS.failed, LIFECYCLE_STATUS.skipped]);
+/** How a lifecycle ends or stands. `stopped` is a step its caller stopped: a reader's decision, not a fault, so it is
+ *  neither a failure nor a pass. */
+export const LIFECYCLE_STATUS = { running: "running", completed: "completed", failed: "failed", stopped: "stopped", skipped: "skipped" } as const;
+export const LIFECYCLE_STATUS_SCHEMA = z.enum([LIFECYCLE_STATUS.running, LIFECYCLE_STATUS.completed, LIFECYCLE_STATUS.failed, LIFECYCLE_STATUS.stopped, LIFECYCLE_STATUS.skipped]);
+/** How a step ended. */
+export type TStepEnd = typeof LIFECYCLE_STATUS.completed | typeof LIFECYCLE_STATUS.failed | typeof LIFECYCLE_STATUS.stopped;
 
 export const STAY_ALWAYS = "always";
 export const STAY_FAILURE = "failure";
@@ -286,6 +291,7 @@ export class EventFormatter {
 		if (event.status === "completed") return isSpeculativeEvent(event) ? ` ${MAYBE_CHECK_YES}` : ICON_STEP_COMPLETED;
 		if (event.status === "failed") return isSpeculativeEvent(event) ? ` ${MAYBE_CHECK_NO}` : isHandedOutEvent(event) ? RETURNED_TO_CALLER : ICON_STEP_FAILED;
 		if (event.status === "running") return ICON_STEP_RUNNING;
+		if (event.status === "stopped") return ICON_STEP_STOPPED;
 		return ` ${ICON_DEFAULT}`;
 	}
 

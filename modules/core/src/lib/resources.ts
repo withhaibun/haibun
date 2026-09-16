@@ -179,7 +179,8 @@ export const READING_DOMAIN = "reading";
 export const SEQ_PATH_LABEL = "SeqPath";
 
 /** Status values for a SeqPath node's lifecycle. */
-export const SEQ_PATH_STATUS = { running: "running", passed: "passed", failed: "failed" } as const;
+/** How a step's record states it stands. `stopped` is a step its caller stopped, which is not a failure. */
+export const SEQ_PATH_STATUS = { running: "running", passed: "passed", failed: "failed", stopped: "stopped" } as const;
 export type SeqPathStatus = (typeof SEQ_PATH_STATUS)[keyof typeof SEQ_PATH_STATUS];
 
 /**
