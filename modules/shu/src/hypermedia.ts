@@ -24,7 +24,7 @@ import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import { z } from "zod";
 import { pagePinned } from "./page-pinned.js";
 // The wire itself: envelope and stream reader, shared with every other caller of a haibun host. Free of node imports.
-import { rpcEnvelope, readNdjson } from "@haibun/core/lib/rpc-wire.js";
+import { rpcEnvelope, readNdjson, readRpcAnswer } from "@haibun/core/lib/rpc-wire.js";
 import { findStep, responseTimeoutMs } from "./rpc-registry.js";
 import { sessionReady, signedHeaders } from "./session-key.js";
 
@@ -119,20 +119,14 @@ function nextRpcId(): string {
 	return `rpc-${rpcCounter}-${Date.now().toString(36)}`;
 }
 
-/** What the run answers a call it did not serve with. */
-const RpcRefusalSchema = z.object({ error: z.string().min(1) });
 /** What the run answers `action.begin` with: the place in its sequence the act is recorded at. */
 const ActionBeganSchema = z.object({ seqPath: z.array(z.number()).min(1) });
 
-/** The run's answer to a call. The run answers every call it serves as JSON, and one it did not serve with its refusal
- *  and a status that says so. An answer that is not JSON did not come from the run's RPC: a path the server does not
- *  serve answers as text, and that is the failure, named with what the server sent. */
+/** The run's answer to a call, or the refusal it stated, thrown. */
 async function answerOf(method: string, res: Response): Promise<unknown> {
-	const mediaType = res.headers.get("content-type") ?? "no media type";
-	if (!mediaType.startsWith("application/json")) throw new Error(`${method}: the server answered ${res.status} with ${mediaType}, not the run's JSON: ${(await res.text()).slice(0, 200)}`);
-	const body: unknown = await res.json();
-	if (!res.ok) throw new Error(RpcRefusalSchema.parse(body).error);
-	return body;
+	const answer = await readRpcAnswer(method, res);
+	if (answer.kind === "refused") throw new Error(answer.error);
+	return answer.body;
 }
 
 /**

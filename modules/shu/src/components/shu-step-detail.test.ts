@@ -14,9 +14,9 @@ import { setEventStream, SerializedEventStream, resetEventStream } from "../even
 import { setGraphStore } from "../quads-snapshot.js";
 import { setSiteMetadata, type SiteMetadata } from "../rels-cache.js";
 import { noteExecution, resetExecutions } from "../client-cache/index.js";
+import { rpcAnswer } from "@haibun/core/lib/test/rpc-answer.js";
 
 const EXECUTION = "1700000000000-1";
-const json = (body: unknown): Promise<Response> => Promise.resolve(new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } }));
 
 describe("shu-step-detail", () => {
 	beforeEach(async () => {
@@ -45,10 +45,12 @@ describe("shu-step-detail", () => {
 		noteExecution(EXECUTION);
 		globalThis.fetch = (input: unknown): Promise<Response> => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
-			if (url.endsWith("/rpc/action.begin")) return json({ seqPath: [0, -1, 1] });
+			if (url.endsWith("/rpc/action.begin")) return Promise.resolve(rpcAnswer({ seqPath: [0, -1, 1] }, 200));
 			if (url.includes("getClusteredQuads"))
-				return json({ quads: [{ subject: "myVar", predicate: "set", object: "42", namedGraph: "vars", timestamp: 1, properties: { provenance: [[0, 1]] } }] });
-			return json({});
+				return Promise.resolve(
+					rpcAnswer({ quads: [{ subject: "myVar", predicate: "set", object: "42", namedGraph: "vars", timestamp: 1, properties: { provenance: [[0, 1]] } }] }, 200),
+				);
+			return Promise.resolve(rpcAnswer({}, 200));
 		};
 		(globalThis as { EventSource?: unknown }).EventSource = class StubEventSource {
 			addEventListener(): void {
@@ -94,8 +96,8 @@ describe("shu-step-detail", () => {
 	it("surfaces a failed read instead of spinning forever", async () => {
 		globalThis.fetch = (input: unknown): Promise<Response> => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
-			if (url.endsWith("/rpc/action.begin")) return json({ seqPath: [0, -1, 1] });
-			return Promise.resolve(new Response(JSON.stringify({ error: "boom" }), { status: 422, headers: { "Content-Type": "application/json" } }));
+			if (url.endsWith("/rpc/action.begin")) return Promise.resolve(rpcAnswer({ seqPath: [0, -1, 1] }, 200));
+			return Promise.resolve(rpcAnswer({ error: "boom" }, 422));
 		};
 		const el = document.createElement("shu-step-detail") as ShuStepDetail;
 		document.body.appendChild(el);

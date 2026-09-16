@@ -42,9 +42,7 @@ import { STORED_TYPE_PROP } from "./consts.js";
  * The SPA's current access level. Single source of truth for every RPC caller that reads/writes data, read from the URL
  * hash as the view query reads it, so the two cannot disagree. The hash is also where `shu-graph-query` writes an access
  * change from the actions-bar dropdown, so the value round-trips through the URL rather than being held in component
- * state copies. A level the schema does not name is refused where it is read: read as a string, `#?access=Private` was
- * sent with every question and refused at the server, and a hash written without `?` was read as every level while the
- * view query read the level it named.
+ * state copies. A level the schema does not name is refused where it is read.
  */
 export function appAccessLevel(): AccessQueryLevel {
 	// A reader of this instance sees what it holds, and narrows deliberately: a level answers from that level alone, so

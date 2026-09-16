@@ -18,12 +18,14 @@ import {
 	CONVERSATION_EVENTS,
 	CONVERSATION_OPENING,
 	NOT_STARTED,
+	REQUEST_EVENTS,
 	SENDING,
 	TURN_IN_FLIGHT,
 	askRefusal,
 	inFlight,
 	transcript,
 	transition,
+	turnOf,
 	type TAskedTurn,
 	type TConversationEvent,
 	type TConversationEventType,
@@ -65,8 +67,6 @@ const on = (...types: TConversationEventType[]): TConversationState => run(...ty
 /** The same status for every event but the ones named. */
 const staying = <S extends string>(status: S, moves: Partial<Record<TConversationEventType, S>>): Record<TConversationEventType, S> =>
 	Object.fromEntries(CONVERSATION_EVENTS.map((type) => [type, moves[type] ?? status])) as Record<TConversationEventType, S>;
-/** The page's turn as the conversation holds it, without what only its request holds. */
-const heldOf = ({ session: _session, recorded: _recorded, stoppedBy: _stoppedBy, ...turn }: TAskedTurn) => turn;
 const askedStatus = (conversation: TConversationState): TTurnStatus => conversation.asked?.status ?? "idle";
 
 /** A conversation at each status, with no turn of the page's. */
@@ -126,8 +126,7 @@ describe("every status and every event", () => {
 
 	it("leaves a conversation whose turn is not in flight unchanged by every event of a request", () => {
 		for (const status of ["idle", "completed", "failed", "stopped"] as const) {
-			for (const type of ["started", "text", "status", "recorded", "stop", "ended", "erred"] as const)
-				expect(transition(TURN_AT[status], EVENT[type]), `${status} + ${type}`).toBe(TURN_AT[status]);
+			for (const type of REQUEST_EVENTS) expect(transition(TURN_AT[status], EVENT[type]), `${status} + ${type}`).toBe(TURN_AT[status]);
 		}
 	});
 });
@@ -199,7 +198,6 @@ describe("each move of the page's turn", () => {
 			error: "",
 			activity: [],
 			session: SESSION,
-			recorded: [],
 			stoppedBy: "",
 		});
 	});
@@ -207,15 +205,15 @@ describe("each move of the page's turn", () => {
 	it("started runs the turn, the first record the run states is its question, which names the turn, and the second its answer", () => {
 		expect(TURN_AT.running.asked).toMatchObject({ status: "running", askId: null });
 		const answered = run(...[EVENT.open, EVENT.read, EVENT.ask, EVENT.started, EVENT.recorded, { type: "recorded", record: ANSWER } as TConversationEvent]);
-		expect(answered.asked).toMatchObject({ askId: QUESTION.id, sayId: ANSWER.id, recorded: [QUESTION, ANSWER] });
+		expect(answered.asked).toMatchObject({ askId: QUESTION.id, sayId: ANSWER.id });
 	});
 
 	it("text, status and recorded add to a running turn, in order, and to no turn that is not running", () => {
-		expect(on("open", "read", "ask", "started", "text", "status", "recorded", "text", "status", "recorded").asked).toMatchObject({
-			response: "an answeran answer",
-			activity: ["context sent", "context sent"],
-			recorded: [QUESTION, QUESTION],
+		const answered = run(EVENT.open, EVENT.read, EVENT.ask, EVENT.started, EVENT.text, EVENT.status, EVENT.recorded, EVENT.text, EVENT.status, {
+			type: "recorded",
+			record: ANSWER,
 		});
+		expect(answered.asked).toMatchObject({ response: "an answeran answer", activity: ["context sent", "context sent"], askId: QUESTION.id, sayId: ANSWER.id });
 		for (const type of ["text", "status", "recorded"] as const) expect(transition(TURN_AT.asking, EVENT[type]), `asking + ${type}`).toBe(TURN_AT.asking);
 	});
 
@@ -223,7 +221,10 @@ describe("each move of the page's turn", () => {
 		const stopping = transition(transition(TURN_AT.running, EVENT.stop), { type: "stop", reason: "a second reason" });
 		expect(stopping.asked).toMatchObject({ status: "running", stoppedBy: "you stopped it" });
 		expect(transition(stopping, EVENT.erred).asked).toMatchObject({ status: "stopped", error: "you stopped it: connection reset" });
-		expect(on("open", "read", "ask", "stop", "erred").asked, "a turn stopped before its step started").toMatchObject({ status: "stopped", error: "you stopped it: connection reset" });
+		expect(on("open", "read", "ask", "stop", "erred").asked, "a turn stopped before its step started").toMatchObject({
+			status: "stopped",
+			error: "you stopped it: connection reset",
+		});
 	});
 
 	it("erred ends a turn no reader stopped as failed, ended a running turn as completed, and a turn whose step never started as failed", () => {
@@ -236,7 +237,7 @@ describe("each move of the page's turn", () => {
 		const running = on("open", "read", "ask", "started", "recorded");
 		const readWhileRunning = transition(running, { type: "read", session: SESSION, turns: [readBack(FIRST), { ...readBack("0.1.2", FIRST), response: "", status: "running" }] });
 		const pageTurn = (conversation: TConversationState) => conversation.turns.filter((turn) => turn.askId === QUESTION.id);
-		expect(pageTurn(readWhileRunning)).toEqual([{ ...heldOf(running.asked as TAskedTurn) }]);
+		expect(pageTurn(readWhileRunning)).toEqual([turnOf(running.asked as TAskedTurn)]);
 		expect(pageTurn(transition(readWhileRunning, EVENT.text))[0]).toMatchObject({ status: "running", response: "an answer" });
 		expect(pageTurn(transition(transition(readWhileRunning, EVENT.text), EVENT.ended))).toMatchObject([{ status: "completed", response: "an answer" }]);
 	});
@@ -247,7 +248,11 @@ describe("each move of the page's turn", () => {
 		expect(transition(elsewhere, EVENT.text).turns.map((turn) => turn.askId)).toEqual([question("0.2.1")]);
 		const reopening = transition(elsewhere, EVENT.open);
 		expect(transition(reopening, EVENT.text).turns, "what the turn streams while its session opens").toEqual([]);
-		const reopened = transition(reopening, { type: "read", session: SESSION, turns: [readBack(FIRST), { ...readBack("0.1.2", FIRST), status: "running" }, readBack("0.1.3", FIRST)] });
+		const reopened = transition(reopening, {
+			type: "read",
+			session: SESSION,
+			turns: [readBack(FIRST), { ...readBack("0.1.2", FIRST), status: "running" }, readBack("0.1.3", FIRST)],
+		});
 		expect(reopened.turns.map((turn) => [turn.askId, turn.status])).toEqual([
 			[SESSION, "completed"],
 			[QUESTION.id, "running"],
@@ -262,7 +267,7 @@ describe("any sequence of events", () => {
 			const random = seededRandom(seed);
 			let conversation = CLOSED_CONVERSATION;
 			// What the page's turn holds, stated again from the events since the last question the conversation took.
-			const unasked = () => ({ askId: null as string | null, response: "", activity: [] as string[], recorded: [] as TRecord[], stoppedBy: "" });
+			const unasked = () => ({ askId: null as string | null, sayId: undefined as string | undefined, response: "", activity: [] as string[], stoppedBy: "" });
 			let held = unasked();
 			const path: string[] = [];
 			for (let step = 0; step < 40; step++) {
@@ -276,8 +281,8 @@ describe("any sequence of events", () => {
 				if (event.type === "text" && running) held.response += event.piece;
 				if (event.type === "status" && running) held.activity = [...held.activity, event.line];
 				if (event.type === "recorded" && running) {
-					held.askId ??= event.record.id;
-					held.recorded = [...held.recorded, event.record];
+					if (held.askId === null) held.askId = event.record.id;
+					else held.sayId = event.record.id;
 				}
 				if (event.type === "stop" && inFlight(conversation.asked?.status) && !held.stoppedBy) held.stoppedBy = event.reason;
 				conversation = transition(conversation, event);
@@ -285,12 +290,12 @@ describe("any sequence of events", () => {
 				expect(conversation.turns.filter((turn) => turn.askId === null).length, `${label}: one turn at most no question names`).toBeLessThanOrEqual(1);
 				const { asked } = conversation;
 				if (!asked) continue;
-				const { askId, response, activity, recorded, stoppedBy } = asked;
-				expect({ askId, response, activity, recorded, stoppedBy }, label).toEqual(held);
+				const { askId, sayId, response, activity, stoppedBy } = asked;
+				expect({ askId, sayId, response, activity, stoppedBy }, label).toEqual(held);
 				if (conversation.status !== "open" || asked.session !== conversation.session) continue;
 				const holds = conversation.turns.filter((turn) => turn.askId === asked.askId);
 				expect(holds, `${label}: the conversation holds the page's turn once`).toHaveLength(1);
-				if (inFlight(asked.status)) expect(holds, `${label}: as the page holds it while it runs`).toEqual([heldOf(asked)]);
+				if (inFlight(asked.status)) expect(holds, `${label}: as the page holds it while it runs`).toEqual([turnOf(asked)]);
 			}
 		}
 	});
@@ -343,7 +348,13 @@ describe("the transcript", () => {
 		const [asked, answered] = transcript(failed, undefined, LEVEL)
 			.slice(-2)
 			.map((entry) => entry.message);
-		expect(asked).toMatchObject({ role: "user", text: "asked 0.1.6", recordId: question("0.1.6"), inReplyTo: question("0.1.5"), bundle: { patterns: [EMAIL], accessLevel: LEVEL } });
+		expect(asked).toMatchObject({
+			role: "user",
+			text: "asked 0.1.6",
+			recordId: question("0.1.6"),
+			inReplyTo: question("0.1.5"),
+			bundle: { patterns: [EMAIL], accessLevel: LEVEL },
+		});
 		expect(answered).toMatchObject({ role: "llm", status: "failed", error: "connection reset", recordId: answer("0.1.6"), spinnerVisible: false });
 	});
 

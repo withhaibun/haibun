@@ -505,10 +505,7 @@ describe("step-dispatch", () => {
 			world.eventLogger.subscribe((event) => {
 				if (event.kind === "lifecycle" && event.type === "step" && event.stage === "end") ended.push(String(event.status));
 			});
-			const statusOf = async (path: number[]) =>
-				(await world.shared.getStore().query({ subject: formatRecordName({ execution: executionOf(world.tag), path }), namedGraph: SEQ_PATH_LABEL })).find(
-					(q) => q.predicate === SEQ_PATH_FIELD.actionStatus,
-				)?.object;
+			const statusOf = (path: number[]) => world.shared.getStore().get(formatRecordName({ execution: executionOf(world.tag), path }), SEQ_PATH_FIELD.actionStatus, SEQ_PATH_LABEL);
 			const stop = new AbortController();
 			stop.abort();
 			await streamContext.run({ emit: () => undefined, signal: stop.signal }, () => dispatchStep({ registry, world, steppers }, buildFeatureStepForTransport(tool, {}, [0, 3, 6])));

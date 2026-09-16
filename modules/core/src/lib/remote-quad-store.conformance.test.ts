@@ -4,6 +4,7 @@ import { QuadStore } from "./quad-store.js";
 import { RemoteQuadStore } from "./remote-quad-store.js";
 import { handleStoreCall, isStoreMethod } from "./store-protocol.js";
 import { describeQuadStore } from "./test/quad-store-conformance.js";
+import { rpcAnswer } from "./test/rpc-answer.js";
 
 const graphs = { first: "ConformanceFirst", second: "ConformanceSecond" };
 
@@ -11,10 +12,10 @@ const graphs = { first: "ConformanceFirst", second: "ConformanceSecond" };
 function servedBy(store: QuadStore): typeof fetch {
 	return (async (url: string, init: { body: string }) => {
 		const { method, params } = JSON.parse(init.body) as { method: string; params: Record<string, unknown> };
-		if (method === "action.begin") return { ok: true, status: 200, json: async () => ({ hostId: 1, site: "did:example:serving" }) };
-		if (!isStoreMethod(method)) return { ok: false, status: 404, json: async () => ({ error: `no such method ${method} at ${url}` }) };
+		if (method === "action.begin") return rpcAnswer({ hostId: 1, site: "did:example:serving" }, 200);
+		if (!isStoreMethod(method)) return rpcAnswer({ error: `no such method ${method} at ${url}` }, 404);
 		const answer = await handleStoreCall(store, method, params);
-		return { ok: true, status: 200, json: async () => JSON.parse(JSON.stringify(answer)) };
+		return rpcAnswer(answer, 200);
 	}) as unknown as typeof fetch;
 }
 

@@ -13,10 +13,11 @@ import { acts, conduit } from "./hypermedia.js";
 import { requireStep } from "./rpc-registry.js";
 import { reportToRun } from "./client-log.js";
 import { ASK_STEP, askRefusal, conversationState, dispatchConversationEvent, type TAskedTurn } from "./conversation.js";
-import { TurnEnvelopeSchema, type TBundle, type TTurnEnvelope } from "./schemas.js";
+import { TurnEnvelopeSchema, type TTurnEnvelope } from "./schemas.js";
+import { appAccessLevel } from "./util.js";
 
-/** What a turn sends besides its prompt: its bundle's patterns go in the envelope, which states the rest. */
-type TTurnRequest = { prompt: string; bundle: TBundle; envelope: Omit<TTurnEnvelope, "patterns">; target: string };
+/** What a turn sends: its prompt, the envelope that states what it is about and what it replies to, and the model asked. */
+type TTurnRequest = { prompt: string; envelope: TTurnEnvelope; target: string };
 
 /** What the next question is made of: the active entry, whose bundle it carries, and the turn it replies to. The turn
  *  is the actions bar's entry where that entry names one, and the transcript shows the branch that ends at it. */
@@ -50,22 +51,23 @@ class ChunkEvents {
 /**
  * Ask a turn over the request stream, or throw the refusal where the conversation refuses a question now. The promise
  * resolves with the turn as it ended. A turn that does not complete is reported to the run, so the run's log holds the
- * error it shows.
+ * error it shows. A turn is asked at the level the page reads at now, which the address may have narrowed since the
+ * records it is about were activated.
  */
-export async function startTurn(request: TTurnRequest): Promise<TAskedTurn | null> {
+export async function startTurn({ prompt, envelope, target }: TTurnRequest): Promise<TAskedTurn> {
 	const refusal = askRefusal(conversationState.get());
 	if (refusal) throw new Error(refusal);
-	const { prompt, bundle, envelope } = request;
 	// Stated before the turn is asked, so an envelope that does not serialize is refused and leaves no turn in flight.
-	const context = JSON.stringify(TurnEnvelopeSchema.parse({ patterns: bundle.patterns, ...envelope }));
-	const { asked } = dispatchConversationEvent({ type: "ask", prompt, patterns: bundle.patterns, session: envelope.session, inReplyTo: envelope.inReplyTo });
+	const stated = TurnEnvelopeSchema.parse(envelope);
+	const context = JSON.stringify(stated);
+	dispatchConversationEvent({ type: "ask", prompt, patterns: stated.patterns, session: stated.session, inReplyTo: stated.inReplyTo });
 	const abort = new AbortController();
 	const unsubscribe = conversationState.subscribe(({ asked: turn }) => {
 		if (turn?.stoppedBy && (turn.status === "asking" || turn.askId !== null)) abort.abort();
 	});
 	const chunks = new ChunkEvents();
 	try {
-		await conduit().followStream(acts(requireStep(ASK_STEP), { prompt, context, accessLevel: bundle.accessLevel, target: request.target }), chunks.raise, {
+		await conduit().followStream(acts(requireStep(ASK_STEP), { prompt, context, accessLevel: appAccessLevel(), target }), chunks.raise, {
 			why: "chat-turn: stream the turn's answer",
 			signal: abort.signal,
 			onStart: () => dispatchConversationEvent({ type: "started" }),
@@ -78,7 +80,8 @@ export async function startTurn(request: TTurnRequest): Promise<TAskedTurn | nul
 	} finally {
 		unsubscribe();
 	}
-	const ended = conversationState.get().asked ?? asked;
-	if (ended?.status === "failed" || ended?.status === "stopped") reportToRun("error", "chat-turn", `chat turn ${ended.status}: ${ended.error}`);
+	const ended = conversationState.get().asked;
+	if (!ended) throw new Error("the conversation holds no turn this page asked: it was cleared while the turn ran");
+	if (ended.status === "failed" || ended.status === "stopped") reportToRun("error", "chat-turn", `chat turn ${ended.status}: ${ended.error}`);
 	return ended;
 }

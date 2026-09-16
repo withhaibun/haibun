@@ -214,17 +214,19 @@ export const SessionTurnSchema = z
 		sayId: z.string().optional().describe("The answer's record, once there is one."),
 		inReplyTo: z.string().optional().describe("The question record of the turn this one replies to; unset for a session's first turn."),
 		bundle: ContextQuerySchema.describe("The records the question referenced, which a page makes active again when a reader selects the turn."),
-		status: ChatStatusSchema.describe("How the step the turn ran as stands: running, completed or failed."),
+		status: ChatStatusSchema.describe("How the step the turn ran as stands: running, completed, failed, or stopped by its reader."),
 		error: z.string().optional().describe("What the step failed with, where it failed."),
 	})
 	.strict();
 export type TSessionTurn = z.infer<typeof SessionTurnSchema>;
-/** A session's turns as the store reads them back, depth first from its first turn with each turn's replies oldest
- *  first. A step's products carry the step they came from beside what the step declares, so the answer is not strict;
- *  each turn is. */
+/** A session's turns as the store reads them back, in the order they were asked, so the last is the latest. A step's
+ *  products carry the step they came from beside what the step declares, so the answer is not strict; each turn is. */
 export const SessionReadSchema = z.object({ turns: z.array(SessionTurnSchema) });
 /** The sessions the store holds, each named by its first question's record, newest first. */
 export const SessionListSchema = z.object({ sessions: z.array(z.object({ session: z.string(), label: z.string(), generatedAtTime: z.string() }).strict()) });
+
+/** Who reads a turn's records: the run, which sends them, or the model, which is sent the calls that read them. */
+export const ContextReadBySchema = z.enum(["run", "model"]);
 
 /** What a turn sends beside its question: the patterns of the records it is about, the page's view, how many calls its
  *  model may chain, who reads the records, and the session and turn it replies in, each named by a question record.
@@ -234,7 +236,7 @@ export const TurnEnvelopeSchema = z
 		patterns: ContextQuerySchema,
 		viewLd: z.array(z.record(z.string(), z.unknown())).default([]),
 		maxToolCalls: z.number().int().min(0).max(99).optional(),
-		contextReadBy: z.enum(["run", "model"]).optional(),
+		contextReadBy: ContextReadBySchema.optional(),
 		session: z.string().optional(),
 		inReplyTo: z.string().optional(),
 	})

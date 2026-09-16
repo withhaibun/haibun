@@ -4,6 +4,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { ShuEntityColumn } from "./shu-entity-column.js";
 import { setConduit, LiveConduit, resetConduit } from "../hypermedia.js";
 import { setEventStream, SerializedEventStream, resetEventStream } from "../event-stream.js";
+import { rpcAnswer } from "@haibun/core/lib/test/rpc-answer.js";
 
 describe("shu-entity-column error surfacing", () => {
 	beforeEach(() => {
@@ -18,12 +19,11 @@ describe("shu-entity-column error surfacing", () => {
 		// 422 + {error} mirrors a server actionNotOK response.
 		globalThis.fetch = (input: unknown): Promise<Response> => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
-			if (url.endsWith("/rpc/action.begin"))
-				return Promise.resolve(new Response(JSON.stringify({ seqPath: [0, -1, 1] }), { status: 200, headers: { "Content-Type": "application/json" } }));
+			if (url.endsWith("/rpc/action.begin")) return Promise.resolve(rpcAnswer({ seqPath: [0, -1, 1] }, 200));
 			if (url.includes("step.list"))
 				return Promise.resolve(
-					new Response(
-						JSON.stringify({
+					rpcAnswer(
+						{
 							steps: [
 								{
 									method: "GraphStepper-getIndividualWithEdges",
@@ -35,19 +35,14 @@ describe("shu-entity-column error surfacing", () => {
 							],
 							domains: {},
 							concerns: { persisted: {}, references: {} },
-						}),
-						{ status: 200, headers: { "Content-Type": "application/json" } },
+						},
+						200,
 					),
 				);
 			if (url.includes("getIndividualWithEdges")) {
-				return Promise.resolve(
-					new Response(JSON.stringify({ error: "Issuer not found: did:example:pookie" }), {
-						status: 422,
-						headers: { "Content-Type": "application/json" },
-					}),
-				);
+				return Promise.resolve(rpcAnswer({ error: "Issuer not found: did:example:pookie" }, 422));
 			}
-			return Promise.resolve(new Response(JSON.stringify({}), { status: 200, headers: { "Content-Type": "application/json" } }));
+			return Promise.resolve(rpcAnswer({}, 200));
 		};
 		// jsdom lacks EventSource; stub so SseClient.for("") doesn't throw.
 		(globalThis as { EventSource?: unknown }).EventSource = class StubEventSource {
