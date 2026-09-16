@@ -111,7 +111,7 @@ describe('AStorage steppers', () => {
 	it('readFileInto sets a variable', async () => {
 		const storageMem = new StorageMem();
 		const world = getDefaultWorld();
-		storageMem.setWorld(world, []);
+		await storageMem.setWorld(world, []);
 		storageMem.volume.writeFileSync('/test.txt', 'hello world');
 		const featureStep = {
 			in: 'read file "/test.txt" into testVar',
@@ -126,7 +126,7 @@ describe('AStorage steppers', () => {
 	it('fileIsRecent verifies file age', async () => {
 		const storageMem = new StorageMem();
 		const world = getDefaultWorld();
-		storageMem.setWorld(world, []);
+		await storageMem.setWorld(world, []);
 
 		storageMem.volume.writeFileSync('/recent.txt', 'new');
 
@@ -150,7 +150,7 @@ describe('AStorage steppers', () => {
 	it('testContains and testNotContains verify file content', async () => {
 		const storageMem = new StorageMem();
 		const world = getDefaultWorld();
-		storageMem.setWorld(world, []);
+		await storageMem.setWorld(world, []);
 
 		storageMem.volume.writeFileSync('/test.txt', 'hello world');
 

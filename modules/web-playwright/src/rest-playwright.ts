@@ -19,10 +19,10 @@ export const base64Encode = ({ username, password }: { username: string; passwor
 	Buffer.from(`${username}:${password}`).toString('base64');
 
 /**
- * Mints a v2 API key JWT: kid identifies which API key's secret the server should
- * verify against, and htm/htu bind the token to a single method + URL (query and fragment dropped).
+ * Signs a v2 API key JWT with HS256. The kid header holds the SHA-256 digest of the API key, which the server uses to select the secret.
+ * The htm and htu claims restrict the token to one method and one URL. The htu claim omits the query and the fragment.
  */
-export const createApiKeyJwt = async ({
+export const createApiKeyJwt = ({
 	issuer,
 	apiKey,
 	method,
@@ -234,7 +234,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps => ({
 	restFilterPropertyRequest: {
 		gwta: `for each filtered {property}, make REST {method} to {endpoint} yielding status {status}`,
 		handlesUndefined: ['method'],
-		action: async ({ property, endpoint, status }: { property: string; endpoint: string; status: string }, featureStep) => {
+		action: ({ property, endpoint, status }: { property: string; endpoint: string; status: string }, featureStep) => {
 			const method = getStepTerm(featureStep, 'method')?.toLowerCase() ?? '';
 			return filteredPropertyRequests(webPlaywright, { property, endpoint, method, status });
 		},
@@ -243,13 +243,12 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps => ({
 		precludes: ["WebPlaywright.restFilterPropertyRequest"],
 		gwta: `for each filtered {property}, make REST {method} to {endpoint} yielding status {status} using API key JWT with {issuer}, {apiKey}`,
 		handlesUndefined: ['method'],
-		action: async (
+		action: (
 			{ property, endpoint, status, issuer, apiKey }: { property: string; endpoint: string; status: string; issuer: string; apiKey: string },
 			featureStep
 		) => {
 			const method = getStepTerm(featureStep, 'method')?.toLowerCase() ?? '';
-			// Each request gets its own token, bound to its own URL: a v2 API key JWT is only valid
-			// for the exact method + URL it was minted for, so one token can't cover the whole loop.
+			// A v2 API key JWT is valid for one method and one URL. Each request carries a token signed for its own URL.
 			return filteredPropertyRequests(webPlaywright, { property, endpoint, method, status }, async (requestPath) => {
 				const token = await createApiKeyJwt({ issuer, apiKey, method, endpoint: requestPath });
 				await webPlaywright.setExtraHTTPHeaders({ [AUTHORIZATION]: `Bearer ${token}` });

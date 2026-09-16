@@ -26,7 +26,7 @@ describe('createApiKeyJwt', () => {
 		expect(payload.iat).toBeGreaterThanOrEqual(before);
 		expect(payload.exp - payload.iat).toBe(300);
 
-		// Independently verify with jose itself, exactly as a real server would.
+		// Verifies the token with jose, as the server does.
 		const { payload: verified } = await jwtVerify(token, Buffer.from(apiKey, 'hex'));
 		expect(verified.iss).toBe('tenant-1');
 	});
@@ -60,17 +60,18 @@ describe('restFilterPropertyRequestWithApiKeyJwt', () => {
 		ReturnType<typeof restSteps>['restFilterPropertyRequestWithApiKeyJwt']['action']
 	>[1];
 
-	it('mints a fresh, request-bound token per filtered item rather than reusing one header', async () => {
+	it('signs a separate token bound to the URL of each filtered item', async () => {
 		const headersSet: Record<string, string>[] = [];
 		const requestedUrls: string[] = [];
 		const mockWebPlaywright = {
-			setExtraHTTPHeaders: async (headers: Record<string, string>) => {
+			setExtraHTTPHeaders: (headers: Record<string, string>) => {
 				headersSet.push(headers);
+				return Promise.resolve();
 			},
 			getLastResponse: () => ({ filtered: [{ id: 'one' }, { id: 'two' }] }),
-			withPageFetch: async (endpoint: string) => {
+			withPageFetch: (endpoint: string) => {
 				requestedUrls.push(endpoint);
-				return { status: 200 };
+				return Promise.resolve({ status: 200 });
 			},
 		} as unknown as WebPlaywright;
 
@@ -92,8 +93,9 @@ describe('addApiKeyJwtAuthorizationHeaderWithTtl', () => {
 	const setup = () => {
 		const headersSet: Record<string, string>[] = [];
 		const mockWebPlaywright = {
-			setExtraHTTPHeaders: async (headers: Record<string, string>) => {
+			setExtraHTTPHeaders: (headers: Record<string, string>) => {
 				headersSet.push(headers);
+				return Promise.resolve();
 			},
 		} as unknown as WebPlaywright;
 		return { headersSet, step: restSteps(mockWebPlaywright).addApiKeyJwtAuthorizationHeaderWithTtl };

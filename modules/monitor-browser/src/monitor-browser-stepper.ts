@@ -45,7 +45,7 @@ export default class MonitorBrowserStepper extends AStepper implements IHasCycle
   featurePath: string | undefined;
 
   async setWorld(world: TWorld, steppers: AStepper[]) {
-    super.setWorld(world, steppers);
+    await super.setWorld(world, steppers);
     this.storage = findStepperFromOptionOrKind(steppers, this, world.moduleOptions, StepperKinds.STORAGE);
     const portOption = getStepperOption(this, 'PORT', world.moduleOptions);
     if (portOption) {

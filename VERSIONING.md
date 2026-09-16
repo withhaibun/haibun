@@ -24,7 +24,7 @@ Each release branch carries its own [`.releaserc.json`](.releaserc.json) listing
 
 CI lives in [`.github/workflows/ci.yml`](.github/workflows/ci.yml). On every push to `3.x` or `4.x` it runs the test job and, if that passes, a release job that calls `npx semantic-release`. PRs run tests only. The release job also exists as a standalone manual workflow at [`.github/workflows/publish-all.yml`](.github/workflows/publish-all.yml) for when semantic-release succeeds but the publish step has to be retried by hand.
 
-Pushing the `chore(release):` commit and the version tag back to `3.x` would normally be blocked by the branch's ruleset ("Changes must be made through a pull request"). The release job authenticates as a GitHub App — `haibun-release-bot` — whose actor ID is on the ruleset's bypass list. The job mints a short-lived installation token via `actions/create-github-app-token@v1`, hands it to `actions/checkout` with `persist-credentials: true`, and semantic-release's `git push` rides on that credential.
+The release job pushes the `chore(release):` commit and the version tag to `3.x` as the GitHub App `haibun-release-bot`. The ruleset on `3.x` rejects any other push with "Changes must be made through a pull request", and lists the App's actor ID as a bypass actor. The job requests a short-lived installation token from `actions/create-github-app-token@v1` and passes it to `actions/checkout` with `persist-credentials: true`. The `git push` that semantic-release runs authenticates with that stored token.
 
 Three repo secrets feed this:
 

@@ -31,16 +31,16 @@
   "license": "ISC",
   "dependencies": {
     "@haibun/core": "*",
-    "@hono/mcp": "^0.2.3",
-    "@hono/node-server": "^1.19.9",
-    "@modelcontextprotocol/sdk": "^1.27.0",
-    "hono": "^4.12.18",
-    "zod": "^4.3.6"
+    "@hono/mcp": "^0.3.2",
+    "@hono/node-server": "^2.1.1",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "hono": "^4.13.8",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@types/node": "^25.3.0",
-    "eventsource": "^4.1.0",
+    "@types/node": "^25.9.7",
+    "eventsource": "^5.1.1",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.18"
+    "vitest": "^5.0.1"
   }
 }
