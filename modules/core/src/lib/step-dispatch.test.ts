@@ -365,7 +365,7 @@ describe("step-dispatch", () => {
 			const handler = createStepHandler("ProductStepper", "throwStep", stepper.steps.throwStep);
 			const result = await handler(synth({ stepperName: "ProductStepper", stepName: "throwStep", description: "" }, {}), world);
 			expect(result.ok).toBe(false);
-			expect(result.errorMessage).toContain("boom");
+			expect(result.errorMessage, "what it said, as a step that refuses").toBe("boom");
 		});
 
 		it("populates stepValuesMap from input", async () => {
