@@ -42,8 +42,7 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
   };
 
   async setWorld(world: TWorld, steppers: AStepper[]) {
-    await Promise.resolve();
-    super.setWorld(world, steppers);
+    await super.setWorld(world, steppers);
 
     // Subscribe to events using same pattern as monitor-browser
     world.eventLogger.setStepperCallback((event: THaibunEvent) => {
@@ -82,8 +81,7 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
     const logExporter = new OTLPLogExporter({
       url: `${endpoint}/v1/logs`,
     });
-    const logProcessor = new BatchLogRecordProcessor(logExporter);
-    // Use 'processors' array as per LoggerProviderConfig interface
+    const logProcessor = new BatchLogRecordProcessor({ exporter: logExporter });
     this.loggerProvider = new LoggerProvider({ resource, processors: [logProcessor] });
     logs.setGlobalLoggerProvider(this.loggerProvider);
 

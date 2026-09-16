@@ -19,11 +19,11 @@
   "dependencies": {
     "@haibun/core": "*",
     "ink": "^6.8.0",
-    "react": "^19.2.4"
+    "react": "^19.3.0"
   },
   "devDependencies": {
-    "@types/react": "^19.2.14",
+    "@types/react": "^19.3.0",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.18"
+    "vitest": "^4.1.11"
   }
 }

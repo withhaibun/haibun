@@ -44,12 +44,10 @@
     "@haibun/cli": "file:../modules/cli",
     "@haibun/core": "file:../modules/core",
     "@haibun/domain-storage": "file:../modules/domain-storage",
-    "@haibun/mcp": "*",
     "@haibun/monitor-browser": "file:../modules/monitor-browser",
     "@haibun/monitor-otel": "file:../modules/monitor-otel",
     "@haibun/monitor-tui": "file:../modules/monitor-tui",
     "@haibun/out-junit": "file:../modules/out-junit",
-    "@haibun/parse-md": "*",
     "@haibun/recorder": "file:../modules/recorder",
     "@haibun/storage-fs": "file:../modules/storage-fs",
     "@haibun/storage-mem": "file:../modules/storage-mem",
@@ -60,7 +58,7 @@
     "@haibun/web-server-hono": "file:../modules/web-server-hono",
     "@types/express-fileupload": "^1.5.1",
     "express-fileupload": "^1.5.2",
-    "jose": "^6.2.3",
+    "jose": "^6.2.12",
     "typescript": "~5.9"
   }
 }
