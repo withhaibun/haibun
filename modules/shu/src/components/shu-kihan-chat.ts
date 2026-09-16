@@ -12,12 +12,12 @@ import { shuBaseStyles } from "./styles.js";
 import { reads, conduit } from "../hypermedia.js";
 import { findStep, getAvailableSteps, requireStep } from "../rpc-registry.js";
 import { getActionBarAskExtensionTags, getActionBarChatExtensionTags } from "../rels-cache.js";
-import { SessionListSchema, type TComboboxOption } from "../schemas.js";
+import { ContextReadBySchema, SessionListSchema, type TComboboxOption } from "../schemas.js";
+import { GraphQueryResultSchema } from "@haibun/core/lib/quad-types.js";
 import { SCOPE, activeScope, currentSubjectState } from "../current-subject.js";
 import { SignalController } from "../controllers/index.js";
 import { nextQuestion, startTurn } from "../chat-turn.js";
-import { askRefusal, closeConversation, conversationState, dispatchConversationEvent, inFlight, openConversation, turnEnded, type TConversationState } from "../conversation.js";
-import { appAccessLevel } from "../util.js";
+import { closeConversation, conversationState, dispatchConversationEvent, inFlight, openConversation, turnEnded, type TConversationState } from "../conversation.js";
 import { harvestChatViewLd } from "../chat-context-harvest.js";
 import { SHU_TAG } from "../consts.js";
 import { reportToRun } from "../client-log.js";
@@ -25,8 +25,8 @@ import { reportToRun } from "../client-log.js";
 /** What a reader says a turn sends. The values are the words the registry and a profile state it in; what each of them
  *  sends is how a reader reads them, and "" is the reader saying nothing, which leaves it to the model. */
 const AS_MODEL_STATES = "";
-const SENDS = { run: "context", model: "tool cues" } as const;
-const ContextReadBySchema = z.enum([AS_MODEL_STATES, "run", "model"]);
+const SENDS: Record<z.infer<typeof ContextReadBySchema>, string> = { run: "context", model: "tool cues" };
+const ContextReadChoiceSchema = z.enum([AS_MODEL_STATES, ...ContextReadBySchema.options]);
 
 const TOOL_LIMIT_DEFAULT = 5;
 const TOOL_LIMIT_MIN = 0;
@@ -40,11 +40,11 @@ const KihanVertexSchema = z.looseObject({
 	id: z.string(),
 	displayName: z.string().optional(),
 	capabilities: z.looseObject({ tools: z.boolean().optional() }).optional(),
-	options: z.looseObject({ contextReadBy: z.enum(["run", "model"]).optional() }).optional(),
+	options: z.looseObject({ contextReadBy: ContextReadBySchema.optional() }).optional(),
 });
 type TKihanVertex = z.infer<typeof KihanVertexSchema>;
 /** A page of the model catalog, and how many models the run offers; an answer with no list is a failed read. */
-const CatalogPageSchema = z.looseObject({ vertices: z.array(KihanVertexSchema), total: z.number() });
+const CatalogPageSchema = GraphQueryResultSchema.extend({ vertices: z.array(KihanVertexSchema) });
 /** How many models a read of the catalog asks for at a time. */
 const CATALOG_PAGE = 50;
 /** Combo option text for a session: truncated first-prompt preview + a compact date/time so sessions are recognizable and ordered. */
@@ -60,7 +60,7 @@ function sessionOptionLabel(s: TChatSession): string {
 const ChatSchema = z.object({
 	model: z.string().default(""),
 	toolLimit: z.number().int().min(TOOL_LIMIT_MIN).max(TOOL_LIMIT_MAX).default(TOOL_LIMIT_DEFAULT),
-	contextReadBy: ContextReadBySchema.default(AS_MODEL_STATES),
+	contextReadBy: ContextReadChoiceSchema.default(AS_MODEL_STATES),
 });
 
 export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
@@ -192,8 +192,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		return this.#catalog;
 	}
 
-	/** Every model the run offers, read a page at a time until the pages hold as many as the listing states. The first page
-	 *  alone was every model a reader could pick, so a model past it could not be asked, and a remembered one was replaced. */
+	/** Every model the run offers, read a page at a time until the pages hold as many as the listing states. */
 	private async readCatalog(): Promise<void> {
 		await getAvailableSteps();
 		if (!findStep("showKihans")) return;
@@ -264,7 +263,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 
 	/** A reader stating what this conversation's turns send, or leaving it to the model. */
 	private onContextReadChange = (e: Event): void => {
-		this.setState({ contextReadBy: ContextReadBySchema.parse((e.target as HTMLSelectElement).value) });
+		this.setState({ contextReadBy: ContextReadChoiceSchema.parse((e.target as HTMLSelectElement).value) });
 	};
 
 	private onToolLimitChange = (e: Event): void => {
@@ -300,15 +299,12 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		if (!chatInput || !prompt) return;
 		try {
 			await this.loadModels();
-			this.#refusal = askRefusal(this.#conversation.state);
-			if (this.#refusal) return this.requestUpdate();
 			const subject = currentSubjectState.get();
 			const { carries, repliesTo } = nextQuestion(subject);
 			const asking = startTurn({
 				prompt,
-				// Asked at the level the page reads at now, which the address may have narrowed since the record was activated.
-				bundle: { patterns: carries?.bundle.patterns ?? [], accessLevel: appAccessLevel() },
 				envelope: {
+					patterns: carries?.bundle.patterns ?? [],
 					// The view data is the pane's, so it goes with a record the page activated.
 					viewLd: activeScope(subject) === SCOPE.page ? harvestChatViewLd() : [],
 					maxToolCalls: this.state.toolLimit,
@@ -321,7 +317,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 			chatInput.value = "";
 			chatInput.style.height = "auto";
 			const ended = await asking;
-			if (ended?.askId === null) chatInput.value ||= prompt;
+			if (ended.askId === null) chatInput.value ||= prompt;
 		} catch (err) {
 			chatInput.value ||= prompt;
 			this.#refusal = errorDetail(err);

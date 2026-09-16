@@ -46,6 +46,25 @@ export const RpcStreamSchema = z.object({
 });
 export type TRpcStream = z.infer<typeof RpcStreamSchema>;
 
+/** What a host answers a call it did not serve with. */
+const RpcRefusalSchema = z.object({ error: z.string().min(1) });
+
+/** A host's answer to a call: what it answered, or why it did not. */
+export type TRpcAnswer = { kind: "answered"; body: unknown } | { kind: "refused"; error: string };
+
+/**
+ * Read a host's answer to a call by the media type the answer states. A host answers every call it serves as JSON, and
+ * one it did not serve with its refusal and a status that says so. An answer that is not JSON did not come from the
+ * host's RPC, as a path a server does not serve answers as text, and is refused with its status and what it sent.
+ */
+export async function readRpcAnswer(method: string, res: Response): Promise<TRpcAnswer> {
+	const mediaType = res.headers.get("content-type") ?? "no media type";
+	if (!mediaType.startsWith("application/json"))
+		return { kind: "refused", error: `${method}: the server answered ${res.status} with ${mediaType}, not the run's JSON: ${(await res.text()).slice(0, 200)}` };
+	const body: unknown = await res.json();
+	return res.ok ? { kind: "answered", body } : { kind: "refused", error: RpcRefusalSchema.parse(body).error };
+}
+
 /**
  * Parse and validate an incoming RPC request.
  * Returns the parsed request or null if the message is not an RPC request.

@@ -40,6 +40,7 @@ function setHydration(payload: unknown): void {
 }
 
 import { hydrateFromDom } from "./rpc-registry.js";
+import { rpcAnswer } from "@haibun/core/lib/test/rpc-answer.js";
 
 describe("what a link asks of a run", () => {
 	// A page cannot read a run through a step whose answer the run would record, and cannot forget to say which it
@@ -156,8 +157,10 @@ describe("a server that does not respond", () => {
 		const fetchWas = globalThis.fetch;
 		try {
 			globalThis.fetch = () => Promise.resolve(new Response("404 Not Found", { status: 404, headers: { "Content-Type": "text/plain; charset=UTF-8" } }));
-			await expect(new LiveConduit("").follow(reads("step.list"), "test")).rejects.toThrow("step.list: the server answered 404 with text/plain; charset=UTF-8, not the run's JSON: 404 Not Found");
-			globalThis.fetch = () => Promise.resolve(new Response(JSON.stringify({ ok: false, error: "no such step" }), { status: 422, headers: { "Content-Type": "application/json" } }));
+			await expect(new LiveConduit("").follow(reads("step.list"), "test")).rejects.toThrow(
+				"step.list: the server answered 404 with text/plain; charset=UTF-8, not the run's JSON: 404 Not Found",
+			);
+			globalThis.fetch = () => Promise.resolve(rpcAnswer({ ok: false, error: "no such step" }, 422));
 			await expect(new LiveConduit("").follow(reads("step.list"), "test")).rejects.toThrow("no such step");
 		} finally {
 			globalThis.fetch = fetchWas;
@@ -175,7 +178,7 @@ describe("a server that does not respond", () => {
 			// the call after that span rather than within it.
 			delete (globalThis as unknown as Record<string, unknown>)["__SHU_SERVER_RESPONDED__"];
 			// An error the server returns is still the server responding: what a reader is told is that it was reached.
-			globalThis.fetch = () => Promise.resolve(new Response(JSON.stringify({ error: "no such step" }), { status: 422, headers: { "Content-Type": "application/json" } }));
+			globalThis.fetch = () => Promise.resolve(rpcAnswer({ error: "no such step" }, 422));
 			const before = Date.now();
 			await new LiveConduit("").follow(acts("step.list"), "test").catch(() => undefined);
 			expect(serverLastRespondedAt() ?? 0).toBeGreaterThanOrEqual(before);
@@ -218,8 +221,7 @@ describe("a server that does not respond", () => {
 		hydrateFromDom();
 		const bounds: Array<boolean> = [];
 		globalThis.fetch = ((url: string, init?: { signal?: AbortSignal; body?: string }) => {
-			if (String(url).endsWith("/rpc/action.begin"))
-				return Promise.resolve(new Response(JSON.stringify({ seqPath: [0, 1] }), { status: 200, headers: { "Content-Type": "application/json" } }));
+			if (String(url).endsWith("/rpc/action.begin")) return Promise.resolve(rpcAnswer({ seqPath: [0, 1] }, 200));
 			bounds.push(init?.signal !== undefined);
 			return new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("timed out", "TimeoutError")), { once: true }));
 		}) as unknown as typeof globalThis.fetch;
@@ -301,7 +303,7 @@ describe("a server that does not respond", () => {
 		const asked: string[] = [];
 		globalThis.fetch = ((url: string, init?: { signal?: AbortSignal }) => {
 			asked.push(String(url));
-			if (String(url).endsWith("/rpc/action.begin")) return Promise.resolve(new Response(JSON.stringify({ seqPath: [0, 1] }), { status: 200, headers: { "Content-Type": "application/json" } }));
+			if (String(url).endsWith("/rpc/action.begin")) return Promise.resolve(rpcAnswer({ seqPath: [0, 1] }, 200));
 			return new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("timed out", "TimeoutError")), { once: true }));
 		}) as unknown as typeof globalThis.fetch;
 		try {
@@ -343,8 +345,7 @@ describe("a server that does not respond", () => {
 		globalThis.fetch = ((url: string, init?: { signal?: AbortSignal }) => {
 			// The site answers the call that opens an action, and takes the streamed read without answering it, so what
 			// settles that read is the reader stopping it.
-			if (String(url).endsWith("/rpc/action.begin"))
-				return Promise.resolve(new Response(JSON.stringify({ seqPath: [0, 1] }), { status: 200, headers: { "Content-Type": "application/json" } }));
+			if (String(url).endsWith("/rpc/action.begin")) return Promise.resolve(rpcAnswer({ seqPath: [0, 1] }, 200));
 			return new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("stopped", "AbortError")), { once: true }));
 		}) as unknown as typeof globalThis.fetch;
 		try {
@@ -367,7 +368,7 @@ describe("a server that does not respond", () => {
 
 	it("an error the server returns is not unreachability", async () => {
 		const fetchWas = globalThis.fetch;
-		globalThis.fetch = () => Promise.resolve(new Response(JSON.stringify({ error: "no such step" }), { status: 422, headers: { "Content-Type": "application/json" } }));
+		globalThis.fetch = () => Promise.resolve(rpcAnswer({ error: "no such step" }, 422));
 		try {
 			const err = await new LiveConduit("").follow(acts("step.list"), "test").then(
 				() => undefined,

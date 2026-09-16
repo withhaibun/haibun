@@ -18,26 +18,17 @@ function makeFakeFetch(responses: Scripted[]): { fetchImpl: typeof fetch; calls:
 		if (idx >= responses.length) throw new Error(`fake fetch exhausted after ${idx} calls`);
 		const spec = responses[idx++];
 		if (spec.throwError) throw spec.throwError;
-		const ok = spec.ok ?? true;
-		const status = spec.status ?? (ok ? 200 : 500);
-		const bodyText = spec.bodyText ?? "{}";
-		const chunks = spec.bodyStream;
-		const response: Partial<Response> = {
-			ok,
-			status,
-			text: async () => bodyText,
-			json: async () => JSON.parse(bodyText),
-			body: chunks
-				? new ReadableStream<Uint8Array>({
-						start(controller) {
-							const encoder = new TextEncoder();
-							for (const c of chunks) controller.enqueue(encoder.encode(c));
-							controller.close();
-						},
-					})
-				: null,
-		};
-		return response as Response;
+		const status = spec.status ?? (spec.ok === false ? 500 : 200);
+		const encoder = new TextEncoder();
+		const body = spec.bodyStream
+			? new ReadableStream<Uint8Array>({
+					start(controller) {
+						for (const c of spec.bodyStream ?? []) controller.enqueue(encoder.encode(c));
+						controller.close();
+					},
+				})
+			: (spec.bodyText ?? "{}");
+		return new Response(body, { status, headers: { "Content-Type": spec.bodyStream ? "application/x-ndjson" : "application/json" } });
 	};
 	return { fetchImpl, calls };
 }
@@ -69,6 +60,12 @@ describe("RpcClient.call", () => {
 		await client.call("m", {}, [0]);
 		const headers = calls[0].init?.headers as Record<string, string>;
 		expect(headers.Authorization).toBeUndefined();
+	});
+
+	it("refuses an answer that is not JSON with its status and what the server sent, as a path it does not serve answers", async () => {
+		const fetchImpl: typeof fetch = () => Promise.resolve(new Response("404 Not Found", { status: 404, headers: { "Content-Type": "text/plain" } }));
+		const client = new RpcClient({ baseUrl: "http://host", fetchImpl });
+		expect(await client.call("Stepper-echo", {}, [0])).toEqual({ error: "Stepper-echo: the server answered 404 with text/plain, not the run's JSON: 404 Not Found" });
 	});
 
 	it("surfaces application errors (HTTP 422 with error body) intact", async () => {

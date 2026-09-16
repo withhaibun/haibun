@@ -1,6 +1,6 @@
 import { errorDetail } from "./util/index.js";
 import { readingAt } from "./capability-context.js";
-import { rpcEnvelope, readNdjson } from "./rpc-wire.js";
+import { rpcEnvelope, readNdjson, readRpcAnswer } from "./rpc-wire.js";
 
 /**
  * rpc-client: capability-scoped client for a haibun host's RPC
@@ -74,13 +74,8 @@ export class RpcClient {
 				body: rpcEnvelope({ id: `rpc-${Date.now()}`, method, params, seqPath, readingAt: readingAt() }),
 				signal,
 			});
-			const body = (await res.json()) as T | RpcError;
-			if (!res.ok) {
-				// 422 = application error whose body is surfaced intact.
-				if (typeof (body as RpcError).error === "string") return body as RpcError;
-				return { error: `HTTP ${res.status}` };
-			}
-			return body;
+			const answer = await readRpcAnswer(method, res);
+			return answer.kind === "answered" ? (answer.body as T) : { error: answer.error };
 		}, opts.signal);
 	}
 

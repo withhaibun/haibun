@@ -26,7 +26,7 @@ import { SCOPE, dispatchSubjectEvent, type TRecord } from "./current-subject.js"
 import { subscribeBatchedEvents, type TEvent } from "./event-stream.js";
 import { conduit, reads } from "./hypermedia.js";
 import { getAvailableSteps, requireStep } from "./rpc-registry.js";
-import { SessionReadSchema, type TChatStatus, type TContextPattern, type TSessionTurn } from "./schemas.js";
+import { SessionReadSchema, type TBundle, type TChatStatus, type TContextPattern, type TSessionTurn } from "./schemas.js";
 import { SharedMachine } from "./signals.js";
 import { appAccessLevel } from "./util.js";
 import { mergeHashParams } from "./view-hash.js";
@@ -38,9 +38,9 @@ export const ASK_STEP = "chatWithContext";
  *  names it, and a turn this page asks is named by none until the run records that question. */
 export type TTurn = Omit<TSessionTurn, "askId" | "error"> & { askId: string | null; error: string; activity: string[] };
 
-/** The turn this page asks: the turn, the session it was asked in, the comments the run recorded for it, the question
- *  first, and the reason a reader gave to stop it. The session is null for a first turn until its question is recorded. */
-export type TAskedTurn = TTurn & { session: string | null; recorded: TRecord[]; stoppedBy: string };
+/** The turn this page asks: the turn, the session it was asked in, and the reason a reader gave to stop it. The session
+ *  is null for a first turn until its question is recorded. */
+export type TAskedTurn = TTurn & { session: string | null; stoppedBy: string };
 
 export type TConversationState = {
 	status: "closed" | "opening" | "open";
@@ -64,6 +64,9 @@ export type TConversationEvent =
 	| { type: "ended" }
 	| { type: "erred"; message: string };
 export type TConversationEventType = TConversationEvent["type"];
+/** The events a turn's request raises, which move the page's turn whatever conversation is open. */
+export const REQUEST_EVENTS = ["started", "text", "status", "recorded", "stop", "ended", "erred"] as const satisfies readonly TConversationEventType[];
+type TRequestEvent = Extract<TConversationEvent, { type: (typeof REQUEST_EVENTS)[number] }>;
 export const CONVERSATION_EVENTS = [
 	"open",
 	"read",
@@ -115,7 +118,7 @@ function asksIn(conversation: TConversationState): boolean {
 }
 
 /** The turn as the conversation holds it, without what only the page's request holds. */
-function turnOf({ session: _session, recorded: _recorded, stoppedBy: _stoppedBy, ...turn }: TAskedTurn): TTurn {
+export function turnOf({ session: _session, stoppedBy: _stoppedBy, ...turn }: TAskedTurn): TTurn {
 	return turn;
 }
 
@@ -130,7 +133,7 @@ function withAsked(conversation: TConversationState): TConversationState {
 }
 
 /** The page's turn after a request event, or the turn unchanged where the event does not move it. */
-function movedAsked(asked: TAskedTurn, event: Exclude<TConversationEvent, { type: "open" | "read" | "failed" | "close" | "ask" }>): TAskedTurn {
+function movedAsked(asked: TAskedTurn, event: TRequestEvent): TAskedTurn {
 	if (!inFlight(asked.status)) return asked;
 	const running = asked.status === "running";
 	switch (event.type) {
@@ -140,12 +143,10 @@ function movedAsked(asked: TAskedTurn, event: Exclude<TConversationEvent, { type
 			return running ? { ...asked, response: asked.response + event.piece } : asked;
 		case "status":
 			return running ? { ...asked, activity: [...asked.activity, event.line] } : asked;
-		case "recorded": {
+		case "recorded":
+			// The run records the question first, which names the turn, and the answer after it.
 			if (!running) return asked;
-			const recorded = [...asked.recorded, event.record];
-			const askId = asked.askId ?? event.record.id;
-			return { ...asked, askId, session: asked.session ?? askId, recorded, ...(recorded[1] ? { sayId: recorded[1].id } : {}) };
-		}
+			return asked.askId === null ? { ...asked, askId: event.record.id, session: asked.session ?? event.record.id } : { ...asked, sayId: event.record.id };
 		case "stop":
 			return asked.stoppedBy ? asked : { ...asked, stoppedBy: event.reason };
 		case "ended":
@@ -195,7 +196,6 @@ export function transition(conversation: TConversationState, event: TConversatio
 				error: "",
 				activity: [],
 				session: event.session ?? null,
-				recorded: [],
 				stoppedBy: "",
 			};
 			const opened = conversation.status === "closed" ? { status: "open" as const, session: null } : {};
@@ -211,8 +211,9 @@ export function transition(conversation: TConversationState, event: TConversatio
 	}
 }
 
-/** A turn as the transcript shows it, keyed by its question's record, or as pending before the run records it. */
-type TShownTurn = TTurn & { key: string };
+/** A turn as the transcript shows it, keyed by its question's record, or as pending before the run records it, with the
+ *  bundle its messages carry. */
+type TShownTurn = Omit<TTurn, "bundle"> & { key: string; bundle: TBundle };
 
 /**
  * The turns on the branch the transcript shows, and the other branch that leaves each of them. The branch runs from the
@@ -220,11 +221,7 @@ type TShownTurn = TTurn & { key: string };
  * newest turn. Where a turn on the branch has replies off it, the newest other branch is offered by its latest answer,
  * or by its question where the turn ended with no answer recorded.
  */
-function branch(
-	turns: TShownTurn[],
-	onTurn: string | undefined,
-	accessLevel: AccessQueryLevel,
-): { onPath: Set<string>; others: Map<string, NonNullable<TChatMessage["otherBranch"]>> } {
+function branch(turns: TShownTurn[], onTurn: string | undefined): { onPath: Set<string>; others: Map<string, NonNullable<TChatMessage["otherBranch"]>> } {
 	const byKey = new Map(turns.map((turn) => [turn.key, turn]));
 	const childrenOf = new Map<string, string[]>();
 	for (const turn of turns) if (turn.inReplyTo !== undefined && byKey.has(turn.inReplyTo)) childrenOf.set(turn.inReplyTo, [...(childrenOf.get(turn.inReplyTo) ?? []), turn.key]);
@@ -241,7 +238,7 @@ function branch(
 	for (const key of onPath) {
 		const off = (childrenOf.get(key) ?? []).filter((child) => !onPath.has(child));
 		const latest = off.length > 0 ? byKey.get(newestLeafBelow(off[off.length - 1])) : undefined;
-		if (latest?.askId) others.set(key, { recordId: latest.sayId ?? latest.askId, turn: latest.askId, bundle: { patterns: latest.bundle, accessLevel }, count: off.length });
+		if (latest?.askId) others.set(key, { recordId: latest.sayId ?? latest.askId, turn: latest.askId, bundle: latest.bundle, count: off.length });
 	}
 	return { onPath, others };
 }
@@ -254,14 +251,14 @@ type TTranscriptEntry = { message: TChatMessage; shown: boolean };
  * shown. The answer where another branch leaves carries that branch.
  */
 export function transcript(conversation: TConversationState, onTurn: string | undefined, accessLevel: AccessQueryLevel): TTranscriptEntry[] {
-	const turns = conversation.turns.map((turn) => ({ ...turn, key: turn.askId ?? PENDING }));
-	const { onPath, others } = branch(turns, onTurn, accessLevel);
+	const turns = conversation.turns.map((turn) => ({ ...turn, key: turn.askId ?? PENDING, bundle: { patterns: turn.bundle, accessLevel } }));
+	const { onPath, others } = branch(turns, onTurn);
 	return turns.flatMap((turn): TTranscriptEntry[] => {
 		const { key, askId, inReplyTo, status, activity } = turn;
 		const shown = onPath.has(key);
 		const running = inFlight(status);
 		const otherBranch = others.get(key);
-		const common = { turn: askId ?? undefined, inReplyTo, bundle: { patterns: turn.bundle, accessLevel }, spinnerSpinning: running, error: "" };
+		const common = { turn: askId ?? undefined, inReplyTo, bundle: turn.bundle, spinnerSpinning: running, error: "" };
 		return [
 			{ shown, message: { ...common, id: `${key}:ask`, role: "user", text: turn.prompt, recordId: askId ?? undefined, activity: [], spinnerStatus: "", spinnerVisible: false } },
 			{
@@ -337,17 +334,32 @@ const endsATurn = (event: TEvent): boolean => event.kind === "lifecycle" && even
  * Returns what ends the following.
  */
 export function followRunningTurns(): () => void {
+	// One read at a time: a turn that ends while a read is out is read by one more read once that one returns.
+	let reading = false;
+	let endedMeanwhile = false;
 	const readAgain = (): void => {
 		const { status, session, turns, asked } = conversationState.get();
 		const elsewhere = turns.some((turn) => inFlight(turn.status) && !(inFlight(asked?.status) && turn.askId === asked?.askId));
 		if (status !== "open" || session === null || !elsewhere) return;
-		readSession(session).then(
-			(read) => {
-				const now = conversationState.get();
-				if (now.status === "open" && now.session === session) dispatchConversationEvent({ type: "read", session, turns: read });
-			},
-			(err) => reportToRun("error", "conversation", `the conversation ${session} was not read again: ${errorDetail(err)}`),
-		);
+		if (reading) {
+			endedMeanwhile = true;
+			return;
+		}
+		reading = true;
+		readSession(session)
+			.then(
+				(read) => {
+					const now = conversationState.get();
+					if (now.status === "open" && now.session === session) dispatchConversationEvent({ type: "read", session, turns: read });
+				},
+				(err) => reportToRun("error", "conversation", `the conversation ${session} was not read again: ${errorDetail(err)}`),
+			)
+			.finally(() => {
+				reading = false;
+				if (!endedMeanwhile) return;
+				endedMeanwhile = false;
+				readAgain();
+			});
 	};
 	return subscribeBatchedEvents({ filter: endsATurn, onBatch: readAgain, onReconnect: readAgain });
 }

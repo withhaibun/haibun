@@ -16,6 +16,7 @@ import { StepCaller } from "./shu-step-caller.js";
 
 import { setConduit, LiveConduit, resetConduit } from "../hypermedia.js";
 import { setEventStream, SerializedEventStream, resetEventStream } from "../event-stream.js";
+import { rpcAnswer } from "@haibun/core/lib/test/rpc-answer.js";
 
 describe("shu-step-caller", () => {
 	beforeEach(() => {
@@ -166,17 +167,11 @@ describe("shu-step-caller", () => {
 		// branch fires regardless of which trigger the runtime sees first.
 		globalThis.fetch = (input: unknown): Promise<Response> => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
-			if (url.endsWith("/rpc/action.begin"))
-				return Promise.resolve(new Response(JSON.stringify({ seqPath: [0, -1, 1] }), { status: 200, headers: { "Content-Type": "application/json" } }));
+			if (url.endsWith("/rpc/action.begin")) return Promise.resolve(rpcAnswer({ seqPath: [0, -1, 1] }, 200));
 			if (url.endsWith("/rpc/IssueStepper-issueCredential")) {
-				return Promise.resolve(
-					new Response(JSON.stringify({ error: 'IssueStepper-issueCredential: "type" must include `VerifiableCredential`.' }), {
-						status: 422,
-						headers: { "Content-Type": "application/json" },
-					}),
-				);
+				return Promise.resolve(rpcAnswer({ error: 'IssueStepper-issueCredential: "type" must include `VerifiableCredential`.' }, 422));
 			}
-			return Promise.resolve(new Response(JSON.stringify({}), { status: 200, headers: { "Content-Type": "application/json" } }));
+			return Promise.resolve(rpcAnswer({}, 200));
 		};
 		try {
 			const caller = makeCaller(descriptor) as HTMLElement & { callStep: (v: Record<string, string>) => Promise<void>; error: string };
@@ -222,20 +217,13 @@ describe("shu-step-caller", () => {
 		const realFetch = globalThis.fetch;
 		globalThis.fetch = (input: unknown): Promise<Response> => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
-			if (url.endsWith("/rpc/action.begin"))
-				return Promise.resolve(new Response(JSON.stringify({ seqPath: [0, -1, 1] }), { status: 200, headers: { "Content-Type": "application/json" } }));
+			if (url.endsWith("/rpc/action.begin")) return Promise.resolve(rpcAnswer({ seqPath: [0, -1, 1] }, 200));
 			if (url.endsWith("/rpc/GraphStepper-graphQuery")) {
 				return Promise.resolve(
-					new Response(
-						JSON.stringify({ ok: false, error: "GraphStepper-graphQuery: response too large to serialize (Invalid string length). Narrow the query or return a summary." }),
-						{
-							status: 413,
-							headers: { "Content-Type": "application/json" },
-						},
-					),
+					rpcAnswer({ ok: false, error: "GraphStepper-graphQuery: response too large to serialize (Invalid string length). Narrow the query or return a summary." }, 413),
 				);
 			}
-			return Promise.resolve(new Response(JSON.stringify({}), { status: 200, headers: { "Content-Type": "application/json" } }));
+			return Promise.resolve(rpcAnswer({}, 200));
 		};
 		try {
 			const caller = makeCaller(descriptor) as HTMLElement & { callStep: (v: Record<string, string>) => Promise<void>; error: string };
