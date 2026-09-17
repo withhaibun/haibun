@@ -211,7 +211,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 	}
 
 	private get isMaximized(): boolean {
-		return this.panes.some((p) => p.hasAttribute(SHU_ATTR.DATA_MAXIMIZED));
+		return this.columns.some((p) => p.hasAttribute(SHU_ATTR.DATA_MAXIMIZED));
 	}
 
 	/** End any maximize, through the pane that holds it, so the strip restores the hidden panes and the view hash drops
@@ -231,6 +231,8 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 	 * flag) can never re-snapshot the hidden layout and corrupt the restore. The pane's flex is derived from
 	 * its data-maximized attribute, so only display and accordion collapse need stashing. */
 	applyMaximize(pane: PaneEl, maximizing: boolean): void {
+		// A docked pane maximizes along its own axis, over the columns, and leaves them as they are.
+		if (pane.docked) return this.publishPanes();
 		if (maximizing) {
 			if (this.savedLayout) return;
 			this.savedLayout = new Map();

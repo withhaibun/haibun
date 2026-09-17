@@ -1,6 +1,6 @@
 /**
- * How a docked pane stands along the bottom of the app: the height it opens at as a share of the app, a drag of its top
- * edge, the strip it closes to, closing on a click elsewhere unless it is pinned, and the footprint its positioning host
+ * How a docked pane stands along the bottom of the app: the height it opens at as a share of the app, or all of it
+ * maximized, a drag of its top edge, the strip it closes to, closing on a click elsewhere unless it is pinned, and the footprint its positioning host
  * reserves for the closed strip. An open docked pane overlays the columns rather than resizing them, so it marks itself
  * as covering them. It states itself as the docked pane, which the page strip opens, closes and pins. A pane in the
  * strip holds none of this.
@@ -21,6 +21,8 @@ export type TPaneDockDeps = {
 	/** Whether the docked pane stands at its strip. */
 	closed: () => boolean;
 	setClosed: (closed: boolean) => void;
+	/** Whether the pane fills the app's height, as a maximized column fills the strip's width. */
+	maximized: () => boolean;
 	pinned: () => boolean;
 	/** The remembered open height, as a share of the app. */
 	height: () => number | undefined;
@@ -83,13 +85,16 @@ export class PaneDock implements ReactiveController {
 	/** Stand at the open height or the strip, and mark whether the pane covers the columns. */
 	#apply(): void {
 		const open = this.#deps.docked() && !this.#deps.closed();
-		this.#host.style.height = open ? `${(openAtProportion(this.#deps.height()) * 100).toFixed(2)}%` : "";
+		const share = this.#deps.maximized() ? 1 : openAtProportion(this.#deps.height());
+		this.#host.style.height = open ? `${(share * 100).toFixed(2)}%` : "";
 		this.#host.toggleAttribute(SHU_ATTR.DATA_COVERS_VIEWS, open);
 	}
 
-	/** The closed strip's height with the pane's top border, while the pane is docked; a pane in the strip reserves none. */
+	/** The closed strip's height with the pane's top border, while the pane is docked; a pane in the strip reserves none.
+	 *  Closed, the pane is its strip. Open, the strip is its header, with the pane's top border. */
 	#closedHeight(): number | null {
 		if (!this.#deps.docked()) return null;
+		if (this.#deps.closed()) return this.#host.offsetHeight;
 		const header = this.#host.renderRoot.querySelector<HTMLElement>(".pane-header");
 		if (!header) return null;
 		return header.offsetHeight + (Number.parseFloat(getComputedStyle(this.#host).borderTopWidth) || 0);

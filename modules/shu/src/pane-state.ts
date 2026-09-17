@@ -141,7 +141,7 @@ export type PaneHooks = {
 };
 
 /** A pane the page always holds, as declared, and the attributes its view is given. The address names it only where it
- *  stands other than as declared, and it doesn't close. */
+ *  stands other than as declared, and closing it returns it to where the page declares it. */
 export type TPagePane = { pane: DesiredPane; attributes?: Record<string, string> };
 
 class PaneStateImpl {
@@ -251,9 +251,12 @@ class PaneStateImpl {
 		// query column, leaving panes open with nothing active.
 		const named = active && next.has(active) ? active : firstKeyOf(next);
 		if (named) this.activePaneId = named;
-		// A page pane the address doesn't name stands as the page declares it. It is added once the active pane is chosen,
-		// since a page pane isn't the pane a reader arrives on.
-		for (const [id, page] of this.pagePanes) if (!next.has(id)) next.set(id, withPersistedFlag(page.pane));
+		// A page pane the address doesn't name stands as the page declares it, and one the address names stands where the
+		// address places it. It is added once the active pane is chosen, since a page pane isn't the pane a reader arrives on.
+		for (const [id, page] of this.pagePanes) {
+			const named = next.get(id);
+			next.set(id, named ? ({ ...page.pane, flag: named.flag, docked: named.docked } as DesiredPane) : withPersistedFlag(page.pane));
+		}
 		this.desired = next;
 		this.scheduleReconcile();
 	}
@@ -307,8 +310,9 @@ class PaneStateImpl {
 			const panes = this.strip.panes;
 			for (let i = panes.length - 1; i > sourceIdx; i--) {
 				const pane = panes[i];
-				// A prune leaves a pinned pane, a docked pane, which isn't in the column order, and a pane that doesn't close.
-				if (pane.hasAttribute(SHU_ATTR.PINNED) || pane.docked || pane.getAttribute(SHU_ATTR.CLOSABLE) === "false") continue;
+				// A prune leaves a pinned pane and a docked pane, which isn't in the column order. A page pane it closes returns
+				// to its place.
+				if (pane.hasAttribute(SHU_ATTR.PINNED) || pane.docked) continue;
 				const paneId = pane.dataset.columnKey;
 				if (paneId) this.dismiss(paneId);
 			}
@@ -337,10 +341,25 @@ class PaneStateImpl {
 		return undefined;
 	}
 
+	/** Close a pane. A page pane closes to where the page declares it. */
 	dismiss(paneId: string): void {
+		const page = this.pagePanes.get(paneId);
+		if (page) return this.returnToPage(paneId, page.pane);
 		if (!this.desired.delete(paneId)) return;
 		if (this.activePaneId === paneId) this.activePaneId = firstKeyOf(new Map([...this.desired].filter(([id]) => !this.pagePanes.has(id))));
 		this.scheduleReconcile();
+	}
+
+	/** Return a page pane to where the page declares it, unpinned, as a closed column forgets its pin. Where it docks, it
+	 *  closes to its strip, and the pane docked there before it returns to the strip. */
+	private returnToPage(paneId: string, declared: DesiredPane): void {
+		if (!this.desired.has(paneId)) return;
+		const live = this.strip?.panes.find((pane) => pane.dataset.columnKey === paneId);
+		live?.setPinned(false);
+		live?.close();
+		this.desired.set(paneId, declared);
+		if (declared.docked) this.setDocked(paneId, true);
+		else this.scheduleReconcile();
 	}
 
 	snapshot(): DesiredPane[] {
@@ -452,7 +471,6 @@ class PaneStateImpl {
 		// restore when it attaches (ShuElement.persistFields), so no width plumbing here.
 		pane.dataset.columnKey = id;
 		const page = this.pagePanes.get(id);
-		if (page) pane.setAttribute(SHU_ATTR.CLOSABLE, "false");
 		// Docked before it attaches, so the strip never lays it out as a column.
 		if (d.docked) pane.setDocked(true);
 		// Pre-mark a minimized arrival so addPane neither activates nor scrolls to it.

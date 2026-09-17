@@ -15,7 +15,7 @@ import { aControllerHost, type ControllerHostFake } from "./controller-host.test
 /** A stated layout number, which jsdom leaves at zero. */
 const stateNumber = (el: HTMLElement, name: "offsetHeight" | "clientHeight", read: () => number) => Object.defineProperty(el, name, { configurable: true, get: read });
 
-type TState = { docked: boolean; closed: boolean; pinned: boolean; height: number | undefined };
+type TState = { docked: boolean; closed: boolean; maximized: boolean; pinned: boolean; height: number | undefined };
 type TDocked = { host: ControllerHostFake; dock: PaneDock; state: TState; container: HTMLElement; sizes: { pane: number; header: number } };
 
 function aDockedPane(initial: Partial<TState> = {}): TDocked {
@@ -31,13 +31,14 @@ function aDockedPane(initial: Partial<TState> = {}): TDocked {
 	stateNumber(host, "offsetHeight", () => sizes.pane);
 	stateNumber(header, "offsetHeight", () => sizes.header);
 	Object.defineProperty(host, "offsetParent", { configurable: true, get: () => container });
-	const docked: TDocked = { host, container, sizes, state: { docked: true, closed: true, pinned: false, height: 0.5, ...initial }, dock: undefined as never };
+	const docked: TDocked = { host, container, sizes, state: { docked: true, closed: true, maximized: false, pinned: false, height: 0.5, ...initial }, dock: undefined as never };
 	dockedPane.set(null);
 	docked.dock = new PaneDock(host, {
 		key: () => "Docked",
 		docked: () => docked.state.docked,
 		closed: () => docked.state.closed,
 		setClosed: (closed) => Object.assign(docked.state, { closed }),
+		maximized: () => docked.state.maximized,
 		pinned: () => docked.state.pinned,
 		height: () => docked.state.height,
 		setHeight: (height) => Object.assign(docked.state, { height }),
@@ -56,11 +57,14 @@ const percentTall = (el: HTMLElement) => (el.style.height.endsWith("%") ? Number
 const pointer = (type: string, clientY: number) => new PointerEvent(type, { pointerId: 1, clientY, bubbles: true });
 
 describe("how a docked pane stands", () => {
-	it("stands at its remembered height and covers the columns while open, and at its strip while closed", () => {
+	it("stands at its remembered height, or all of the app maximized, and covers the columns while open, and at its strip while closed", () => {
 		const pane = aDockedPane({ closed: false });
 		pane.dock.hostUpdate();
 		expect(percentTall(pane.host)).toBe(50);
 		expect(pane.host.hasAttribute(SHU_ATTR.DATA_COVERS_VIEWS)).toBe(true);
+		pane.state.maximized = true;
+		pane.dock.hostUpdate();
+		expect(percentTall(pane.host), "maximized").toBe(100);
 		pane.state.closed = true;
 		pane.dock.hostUpdate();
 		expect(percentTall(pane.host)).toBeUndefined();
@@ -115,11 +119,17 @@ describe("how a docked pane stands", () => {
 
 	it("reserves its closed strip's height on its positioning host as the strip changes, and releases it in the strip and when the pane goes", () => {
 		const pane = aDockedPane();
+		pane.sizes.pane = 40;
 		rendered(pane);
-		expect(pane.container.style.getPropertyValue(DOCK_FOOTPRINT)).toBe("40px");
-		pane.sizes.header = 64;
+		expect(pane.container.style.getPropertyValue(DOCK_FOOTPRINT), "closed, the pane is its strip").toBe("40px");
+		pane.sizes.pane = 64;
 		rendered(pane);
 		expect(pane.container.style.getPropertyValue(DOCK_FOOTPRINT)).toBe("64px");
+		pane.state.closed = false;
+		pane.sizes.pane = 400;
+		pane.sizes.header = 64;
+		rendered(pane);
+		expect(pane.container.style.getPropertyValue(DOCK_FOOTPRINT), "open, its header is the strip it closes to").toBe("64px");
 		pane.state.docked = false;
 		rendered(pane);
 		expect(pane.container.style.getPropertyValue(DOCK_FOOTPRINT), "a pane returned to the strip").toBe("");
