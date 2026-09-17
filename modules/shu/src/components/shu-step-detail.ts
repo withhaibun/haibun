@@ -119,7 +119,8 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 		// Opening a step is a reader's move to it, stated as a record column states its record. The load below runs again
 		// whenever the run being read moves on, which is no move of the reader's, so it states nothing.
 		const patterns = this.paneSubject();
-		if (patterns) this.dispatchEvent(new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, { detail: { patterns, accessLevel: appAccessLevel(), label: SEQ_PATH_LABEL }, bubbles: true, composed: true }));
+		if (patterns)
+			this.dispatchEvent(new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, { detail: { patterns, accessLevel: appAccessLevel(), label: SEQ_PATH_LABEL }, bubbles: true, composed: true }));
 		await this.updateComplete;
 		await this.#load.taskComplete.catch(() => undefined);
 	}

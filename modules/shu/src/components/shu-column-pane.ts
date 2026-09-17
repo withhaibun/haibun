@@ -454,13 +454,12 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 	/** A control the pane's view offers, which takes its own clicks. The rest of the strip opens the pane. */
 	private static readonly VIEW_CONTROL = "button, input, select, textarea, a[href], [role='button'], [contenteditable]";
 
-	/** The strip a pane collapses to opens it, pressed anywhere on it: its label, its spine, and the strip around them. A
-	 *  spine that says what is behind it is asking to be opened.
+	/** Opens a collapsed pane on a press anywhere on its strip: its label, its spine, or the strip around them.
 	 *
-	 *  Two presses don't open it. A control the view offers takes its own press, since that control is being used rather
-	 *  than asking for the pane. The spine of a column rendering a narrow form of ITSELF takes its presses too: that strip
-	 *  is the column's own control surface, the log's rail is dragged and pressed to move through the run, and opening the
-	 *  column would put the rows back the moment the reader used it. Such a column opens from its header. */
+	 *  Two presses leave it collapsed. A control the view offers takes its own press. The spine of a column that renders a
+	 *  narrow form of ITSELF takes its presses too, since that spine is the view's own control surface: the log's rail
+	 *  moves through the run, and opening the column would replace the rail with the rows. Such a column opens from its
+	 *  header. */
 	private onPaneClick = (e: Event): void => {
 		if (!this.isCollapsed) return;
 		const path = e.composedPath();
@@ -499,7 +498,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 	#stopResize: (() => void) | null = null;
 
 	private onResizeDown = (e: PointerEvent): void => {
-		// A drag says what size this pane should have, which is more specific than filling the strip or the app.
+		// A drag states the pane's size, which is more specific than filling the strip or the app.
 		this.setMaximized(false);
 		if (this.docked) return this.#dock.onResizeDown(e);
 		e.preventDefault();
@@ -544,7 +543,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		const view = this.columnView;
 		const ownSpine = collapsed && this.#ownSpineColumn;
 		view?.toggleAttribute(SHU_ATTR.SPINE, ownSpine);
-		// The view is told the axis it is laid out along: a docked pane's spine runs along the width.
+		// The view reads the axis it lies along. A docked pane's spine runs along the width.
 		view?.toggleAttribute(SHU_ATTR.DOCKED, this.docked);
 		const hasSpine = ownSpine || Array.from(this.children).some((child) => child.getAttribute("slot") === SPINE_SLOT);
 		this.toggleAttribute(SHU_ATTR.HAS_SPINE, hasSpine);
@@ -553,7 +552,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		const docked = this.docked;
 		this.toggleAttribute(SHU_ATTR.DATA_CONTROLS_ON, controlsActive);
 		this.toggleAttribute(SHU_ATTR.DATA_MAXIMIZED, maximized);
-		// Every pane's header holds the same controls, whatever it is called and wherever it stands.
+		// Every pane's header holds the same controls, whatever the pane is called and wherever it stands.
 		const controlsGroup = html`<span class=${CLASS.GROUP}>
 				<button class="pane-icon ${CLASS.MIN}" type="button" data-testid=${TEST_ID.MIN} title=${collapsed ? "Restore" : "Minimize"} aria-label=${collapsed ? "Restore column" : "Minimize column"} aria-pressed=${collapsed} @click=${this.onMinimize}>${collapsed ? ICON.RESTORE : ICON.MIN}</button>
 				<button class="pane-icon ${CLASS.MAX}" type="button" data-testid=${TEST_ID.MAX} title=${maximized ? "Restore" : "Maximize"} aria-label="Maximize column" aria-pressed=${maximized} @click=${this.onMaximize}>${ICON.MAX}</button>

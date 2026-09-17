@@ -113,7 +113,9 @@ export async function mountPolymorphicPage(): Promise<TMountedPage> {
 	const settle = async (): Promise<void> => {
 		await page.waitForFunction(
 			() => {
-				const i = (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { engineMode: string; tween: unknown; repaintPending: boolean; followPending: boolean } }).inspect();
+				const i = (
+					document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { engineMode: string; tween: unknown; repaintPending: boolean; followPending: boolean } }
+				).inspect();
 				return i.engineMode === "frozen" && i.tween === null && !i.repaintPending && !i.followPending;
 			},
 			undefined,
@@ -130,16 +132,17 @@ export async function mountPolymorphicPage(): Promise<TMountedPage> {
 				el.scene.setModel({ quads: fed, visibleQuads: fed, clusters: [], knownClusters: new Map(), hiddenGraphs: [], hiddenPredicates: [], perTypeLimit: 1000, timeCursor: null });
 			}, quads);
 			const count = new Set(quads.map((q) => q.subject)).size;
-			await page.waitForFunction(
-				(n) => (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { nodes: number } }).inspect().nodes === n,
-				count,
-				{ timeout: 45_000 },
-			);
+			await page.waitForFunction((n) => (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { nodes: number } }).inspect().nodes === n, count, {
+				timeout: 45_000,
+			});
 			await settle();
 		},
 		settle,
 		async select(id) {
-			await page.evaluate((nid) => (document.querySelector("shu-polymorphic-graph-view") as unknown as { scene: { setSelectedSubject(s: string): void } }).scene.setSelectedSubject(nid), id);
+			await page.evaluate(
+				(nid) => (document.querySelector("shu-polymorphic-graph-view") as unknown as { scene: { setSelectedSubject(s: string): void } }).scene.setSelectedSubject(nid),
+				id,
+			);
 			await page.waitForFunction(
 				() => (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { highlighted: number } }).inspect().highlighted === 1,
 				undefined,

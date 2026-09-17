@@ -343,9 +343,9 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 		const input = this._input;
 		if (!input) return;
 
-		// A press offers the options as taking focus does: the control holds focus after a pick, so a focus never comes
-		// again, and a reader pressing it would be shown nothing. Both reach the list closed, so a press that also takes
-		// focus offers them once.
+		// A press offers the options, as taking focus does. The control holds focus after a pick, so a focus never comes
+		// again, and a press alone would show the reader nothing. Both paths run only on a closed list, so a press that
+		// also takes focus offers the options once.
 		for (const raised of ["focus", "pointerdown"]) {
 			input.addEventListener(raised, () => {
 				if (!this.state.open) this.#offerOptions(input);

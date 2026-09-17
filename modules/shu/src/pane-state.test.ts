@@ -480,7 +480,7 @@ describe("PaneState", () => {
 		await flush();
 		const page = paneKeyed("shu-affordances-panel");
 		expect(page.hasAttribute("docked"), "docked, as declared").toBe(true);
-		expect(page.getAttribute("closable"), "and it offers no close, since the page holds it either way").toBe("false");
+		expect(page.getAttribute("closable"), "and it doesn't offer a close, since the page holds it either way").toBe("false");
 		expect(page.firstElementChild?.getAttribute("testid-prefix"), "its view has the attributes declared for it").toBe("app-");
 		expect(cols(), "the address doesn't name a page pane that stands as declared").toEqual([]);
 		dock("shu-affordances-panel", false);
@@ -534,7 +534,7 @@ describe("PaneState", () => {
 		expect(page.hasAttribute("docked"), "docked, as declared").toBe(true);
 		expect(page.hasAttribute("pinned"), "and unpinned").toBe(false);
 		expect(paneKeyed("shu-monitor-column").hasAttribute("docked"), "the pane docked before it returns to the strip").toBe(false);
-		expect(cols(), "the address names the page pane no longer").toEqual(["shu-monitor-column"]);
+		expect(cols(), "the address doesn't name the page pane").toEqual(["shu-monitor-column"]);
 		page.toggleAttribute("collapsed", false);
 		PaneState.dismiss("shu-affordances-panel");
 		await flush();

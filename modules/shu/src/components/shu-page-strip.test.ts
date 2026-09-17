@@ -118,7 +118,7 @@ describe("the page strip", () => {
 		// The combobox holds its own test id inside its root, so the strip's control is addressed by its class here.
 		const types = strip.shadowRoot?.querySelector(".type-select") as HTMLElement & { options: Array<{ value: string }>; value: string; shown: string };
 		expect(types.getAttribute("testid"), "a feature addresses it by the page's type select").toBe(`${PREFIX}type-select`);
-		expect(types.getAttribute("slot"), "it stands in the breadcrumb's search entry, which says what the search found").toBe("search");
+		expect(types.getAttribute("slot"), "it stands in the breadcrumb's search entry, the entry that says what the search found").toBe("search");
 		expect(types.shown, "and shows the search and its count").toBe("Email: 3");
 		expect(types.options.map((o) => o.value)).toEqual(["email-domain", "file-domain"]);
 		expect(types.value, "the type the search reads").toBe("email-domain");

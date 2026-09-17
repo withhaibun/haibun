@@ -214,7 +214,11 @@ describe("pickPreferredBody", () => {
 	});
 
 	it("chooses from a listing that names bodies without their text, by media type", () => {
-		const listed = [{ id: "p", mediaType: "text/plain" }, { id: "h", mediaType: "text/html" }, { id: "m", mediaType: "text/markdown" }];
+		const listed = [
+			{ id: "p", mediaType: "text/plain" },
+			{ id: "h", mediaType: "text/html" },
+			{ id: "m", mediaType: "text/markdown" },
+		];
 		expect(pickPreferredBody(listed)?.id).toBe("m");
 	});
 

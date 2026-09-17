@@ -1,7 +1,7 @@
 /**
- * The height an element takes along the bottom of its positioning host, set on the host as a custom property, so the
- * host keeps its content clear of it. The element states what it measures, and the property is withdrawn when it has
- * nothing to state or leaves the page.
+ * FootprintController sets the height an element takes along the bottom of its positioning host, as a custom property on
+ * that host, so the host keeps its content clear of the element. The element measures that height. The controller
+ * removes the property where the element measures none, and where the element leaves the page.
  */
 import type { ReactiveController, ReactiveControllerHost } from "lit";
 
