@@ -95,6 +95,10 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	 *  already the right shape and already drives the scroll a separate copy would have to be kept in step with. */
 	static rendersOwnSpine = false;
 
+	/** Whether a reader acting in this view's pane makes that pane the active pane. A view the reader uses to act on another
+	 *  view, as the actions bar is, doesn't, so the pane the page reads as active stays the view the reader acts on. */
+	static activates = true;
+
 	/**
 	 * A spine view stays attached while its column is open, so it keeps hearing what it needs to be current the moment
 	 * the column collapses. Attached is not shown, though: until the pane's spine slot takes it, nothing it renders can

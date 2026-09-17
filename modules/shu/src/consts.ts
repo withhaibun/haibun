@@ -13,9 +13,12 @@ export const STORED_TYPE_PROP = "vertexLabel";
  *  Written by the chain view and the projection's links, read by the affordances panel and the chain view alike. */
 export const AFFORDANCE_PARAM = { GOAL: "aff-goal", WAYPOINT: "aff-waypoint" } as const;
 
-/** The custom property the actions bar sets on its positioning host to the height of its closed strip, which the host
- *  reserves so no content sits behind the closed bar. */
-export const ACTIONS_BAR_FOOTPRINT = "--shu-actions-bar-h";
+/** The custom property a docked pane sets on its positioning host to the height of its closed strip, which the host
+ *  reserves so no content sits behind the closed pane. */
+export const DOCK_FOOTPRINT = "--shu-dock-h";
+
+/** The custom property the page strip sets on its positioning host to its height, which a docked pane stands above. */
+export const PAGE_STRIP_FOOTPRINT = "--shu-page-strip-h";
 
 /** The hash param that addresses the conversation the ask is open on, by its session's seqPath. */
 export const CONVERSATION_PARAM = "ask";
@@ -37,6 +40,8 @@ export const SHU_EVENT = {
 	COLUMN_MAXIMIZE: "column-maximize",
 	COLUMN_RESIZE: "column-resize",
 	COLUMN_MINIMIZE: "column-minimize",
+	/** A pane docks along the bottom of the app, or returns to the strip. */
+	COLUMN_DOCK: "column-dock",
 	CONTEXT_CHANGE: "context-change",
 	/** Return to the live edge and tail it again. Any view that tails answers this; it is the one way the tail is
 	 *  re-engaged after a reader has pressed a rail to a moment, since a press is meant to stay where it was put. */
@@ -114,6 +119,7 @@ export const SHU_TAG = {
 	ENTITY_COLUMN: "shu-entity-column",
 	FILTER_COLUMN: "shu-filter-column",
 	ACTIONS_BAR: "shu-actions-bar",
+	PAGE_STRIP: "shu-page-strip",
 	KIHAN_CHAT: "shu-kihan-chat",
 	CHAT_MESSAGE: "shu-chat-message",
 	BREADCRUMB: "shu-breadcrumb",
@@ -155,6 +161,11 @@ export const SHU_ATTR = {
 	 *  carrying this, and re-aims when one appears or goes, so a reader is never shown a node under a panel. */
 	DATA_COVERS_VIEWS: "data-covers-views",
 	DATA_MAXIMIZED: "data-maximized",
+	/** A pane docked along the bottom of the app, where every other pane is a column in the strip. */
+	DOCKED: "docked",
+	/** Declared by an element whose controls open, close and pin the docked pane, so a click in it isn't a click
+	 *  elsewhere that closes the pane. */
+	DOCK_CONTROLS: "data-dock-controls",
 	DATA_CONTROLS_ON: "data-controls-on",
 	PINNED: "pinned",
 	ACTIVE: "active",

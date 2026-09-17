@@ -23,7 +23,7 @@ vi.mock("../rpc-registry.js", async (actual) => ({
 }));
 
 const { ActionsBarSteps, stepDetails, stepOptions, stepSecondary } = await import("./actions-bar-steps.js");
-const { aControllerHost } = await import("./actions-bar-host.test-fake.js");
+const { aControllerHost } = await import("./controller-host.test-fake.js");
 const { SHU_EVENT, SHU_TAG } = await import("../consts.js");
 
 const step = (method: string, pattern: string, extra: Partial<TStepDefinition> = {}) =>

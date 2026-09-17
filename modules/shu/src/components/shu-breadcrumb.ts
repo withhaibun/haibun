@@ -8,7 +8,7 @@
 import { html, css, type TemplateResult } from "lit";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
-import { BreadcrumbSchema } from "../schemas.js";
+import { BreadcrumbSchema, NOTHING_SELECTED_LABEL } from "../schemas.js";
 
 export class ShuBreadcrumb extends ShuElement<typeof BreadcrumbSchema> {
 	/** A control, not a view of data, contributes nothing to the Kihan's context. */
@@ -31,12 +31,12 @@ export class ShuBreadcrumb extends ShuElement<typeof BreadcrumbSchema> {
 	];
 
 	constructor() {
-		super(BreadcrumbSchema, { queryLabel: "All", columns: [], activeIndex: 0, hasSync: false });
+		super(BreadcrumbSchema, { queryLabel: NOTHING_SELECTED_LABEL, columns: [], activeIndex: 0, hasSync: false });
 	}
 
 	/** Replace the trail in one batched mutation. Renamed from the original `update` to avoid clashing with Lit's reactive `update(changedProperties)` lifecycle method. */
 	setTrail(queryLabel: string, columns: string[], activeIndex: number): void {
-		this.setState({ queryLabel: queryLabel || "All", columns, activeIndex: Math.min(activeIndex, columns.length) });
+		this.setState({ queryLabel: queryLabel || NOTHING_SELECTED_LABEL, columns, activeIndex: Math.min(activeIndex, columns.length) });
 	}
 
 	/** Show or hide the sync-available indicator. */

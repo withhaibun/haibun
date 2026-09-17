@@ -17,6 +17,7 @@ import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { ShuColumnPane } from "./shu-column-pane.js";
 import { installTestMediaQueries } from "../test-setup.js";
+import { provideLayout } from "../test/jsdom-layout.js";
 import { shuBaseStyles } from "./styles.js";
 import { flushPersistWrites, readElementPrefs, writeElementPrefs } from "../element-prefs.js";
 import { setJsonCookie } from "../cookies.js";
@@ -306,6 +307,8 @@ describe("knowing whether the hosting column is collapsed", () => {
 
 	beforeAll(() => {
 		installTestMediaQueries();
+		// A pane observes its size, to reserve its strip's height where it is docked.
+		provideLayout();
 		if (!customElements.get("shu-deep-probe")) customElements.define("shu-deep-probe", Deep);
 		if (!customElements.get("shu-wrapper-probe")) customElements.define("shu-wrapper-probe", Wrapper);
 		if (!customElements.get("shu-column-pane")) customElements.define("shu-column-pane", ShuColumnPane);

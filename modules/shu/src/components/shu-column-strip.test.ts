@@ -15,8 +15,10 @@ import { SHU_EVENT, SHU_ATTR } from "../consts.js";
 import { flushPersistWrites, writeElementPrefs } from "../element-prefs.js";
 import { setJsonCookie } from "../cookies.js";
 import { activePane, stripPanes } from "../signals.js";
+import { provideLayout } from "../test/jsdom-layout.js";
 
 beforeAll(() => {
+	provideLayout(); // a pane observes its own size for the footprint it reserves when docked
 	// jsdom has no scrollIntoView; stub it so the strip's post-add scroll doesn't raise uncaught errors that bury real failures.
 	if (!Element.prototype.scrollIntoView)
 		Element.prototype.scrollIntoView = () => {
@@ -156,15 +158,47 @@ describe("the panes a strip publishes", () => {
 		strip.addPane(makePane("A") as ShuColumnPane & HTMLElement);
 		strip.addPane(makePane("B") as ShuColumnPane & HTMLElement);
 		expect(stripPanes.get()).toEqual([
-			{ key: "query", label: "", query: true },
-			{ key: "A", label: "A", query: false },
-			{ key: "B", label: "B", query: false },
+			{ key: "query", label: "", query: true, docked: false },
+			{ key: "A", label: "A", query: false, docked: false },
+			{ key: "B", label: "B", query: false, docked: false },
 		]);
 		strip.removePane(1);
 		expect(
 			stripPanes.get().map((pane) => pane.key),
 			"a removed pane is not published",
 		).toEqual(["query", "B"]);
+	});
+
+	it("moves activation from a removed pane to a pane that takes it, past a pane whose view doesn't", () => {
+		class ActingView extends HTMLElement {
+			static activates = false;
+		}
+		if (!customElements.get("acting-view")) customElements.define("acting-view", ActingView);
+		strip.addPane(makePane("A") as ShuColumnPane & HTMLElement);
+		const actions = makePane("Actions");
+		actions.appendChild(document.createElement("acting-view"));
+		strip.addPane(actions as ShuColumnPane & HTMLElement);
+		strip.addPane(makePane("B") as ShuColumnPane & HTMLElement);
+		activePane.set("B");
+		strip.removePane(2);
+		expect(activePane.get()).toBe("A");
+		actions.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+		expect(activePane.get(), "a press in a pane whose view doesn't take activation leaves it where it was").toBe("A");
+	});
+
+	it("lays a docked pane out apart from the columns: it is neither last nor growing, and the query pane is alone beside it", () => {
+		const query = document.createElement("shu-column-pane") as ShuColumnPane;
+		query.setAttribute("column-type", "query");
+		strip.addPane(query as ShuColumnPane & HTMLElement);
+		const docked = makePane("Actions");
+		docked.setDocked(true);
+		strip.addPane(docked as ShuColumnPane & HTMLElement);
+		strip.layoutColumns();
+		expect(docked.hasAttribute(SHU_ATTR.IS_LAST)).toBe(false);
+		expect(docked.hasAttribute(SHU_ATTR.GROWS)).toBe(false);
+		expect(query.hasAttribute(SHU_ATTR.IS_LAST), "the query pane is the last column").toBe(true);
+		expect(query.classList.contains("query-alone"), "and the only one").toBe(true);
+		expect(stripPanes.get().find((pane) => pane.key === "Actions")?.docked, "the strip publishes that the pane is docked").toBe(true);
 	});
 });
 

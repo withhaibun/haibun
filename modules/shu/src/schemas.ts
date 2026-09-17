@@ -99,6 +99,8 @@ export const ColumnPaneSchema = z.object({
 	// The pane's share of the strip (0..1), not pixels: a width kept from one window restores sensibly into another, and
 	// can never exceed the strip. A stored pixel width fails this and is dropped on restore.
 	width: z.number().gt(0).lte(1).optional(),
+	// Docked, the pane's open height as a share of the app (0..1), for the same reason its width is a share of the strip.
+	height: z.number().gt(0).lte(1).optional(),
 	// User-minimized: a persisted choice, distinct from the strip's transient accordion auto-collapse.
 	minimized: z.boolean().default(false),
 	closable: z.boolean().default(true),
@@ -136,8 +138,11 @@ export const FilterColumnSchema = z.object({
 
 // --- Breadcrumb ---
 
+/** What the page's search is called with nothing selected, since the page then acts on everything. */
+export const NOTHING_SELECTED_LABEL = "All";
+
 export const BreadcrumbSchema = z.object({
-	queryLabel: z.string().default("All"),
+	queryLabel: z.string().default(NOTHING_SELECTED_LABEL),
 	columns: z.array(z.string()).default([]),
 	activeIndex: z.number().default(0),
 	hasSync: z.boolean().default(false),
@@ -275,13 +280,7 @@ export const aType = (persistedAs: string, conditions: readonly TSearchCondition
 // --- Actions bar ---
 
 export const ActionsBarSchema = z.object({
-	askExpanded: z.boolean().default(false),
-	// Pinned keeps the bar open: an unpinned open bar dismisses on click-away, a pinned one stays put.
-	pinned: z.boolean().default(false),
 	// search: browse/filter the graph (the default). step: run a haibun step. ask: LLM chat, present only when an
 	// ask-capable step is registered (the extension system), so the mode-select offers it conditionally.
 	mode: z.enum(["search", "ask", "step"]).default("search"),
-	// The expanded overlay's height as a FRACTION of its container (0..1), so a dragged size stays proportionate
-	// across window sizes. Persisted like every other remembered option, through persistFields.
-	heightProportion: z.number().gt(0).lt(1).default(0.38),
 });

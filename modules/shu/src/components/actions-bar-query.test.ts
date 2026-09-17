@@ -29,7 +29,7 @@ vi.mock("../rels-cache.js", async (actual) => ({ ...(await actual<Record<string,
 vi.mock("../quads-snapshot.js", async (actual) => ({ ...(await actual<Record<string, unknown>>()), selectValuesFor: () => Promise.resolve({ folder: ["INBOX"] }) }));
 
 const { ActionsBarQuery, SEARCH_DEBOUNCE_MS, searchConditions } = await import("./actions-bar-query.js");
-const { aControllerHost } = await import("./actions-bar-host.test-fake.js");
+const { aControllerHost } = await import("./controller-host.test-fake.js");
 const { SHU_EVENT, SHU_TAG } = await import("../consts.js");
 const { getSelectValues } = await import("../rels-cache.js");
 const { viewQuery } = await import("../view-query.js");

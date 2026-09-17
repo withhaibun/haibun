@@ -1,8 +1,7 @@
 /**
- * The corner controls on the actions bar's strip and the one popover they open: the settings, the read access level with
- * the authority a reader holds, the time offset with the run's playback, and the full text of the bar's status. One
- * corner is open at a time. The popover floats in the top layer above the whole bar, so it never needs the bar opened
- * and never covers the bar's own input line.
+ * The corner controls on the page strip and the one popover they open: the settings, the read access level with the
+ * authority a reader holds, the time offset with the run's playback, and the full text of the page's status. One corner
+ * is open at a time. The popover floats in the top layer above the strip, so it doesn't cover a docked pane's input line.
  */
 import { html, nothing, type ReactiveController, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
@@ -14,7 +13,7 @@ import { runSpan } from "../client-cache/index.js";
 import { getUiExtensionTags } from "../rels-cache.js";
 import { PERMISSIONS_SUMMARY, summaryOf, type TPermissionsSummary } from "./shu-permissions.js";
 import { isRefKind, type TRefKind } from "./ref-navigation.js";
-import { timeOffsetLabel, type TActionsBarHost } from "./actions-bar-model.js";
+import type { TControllerHost } from "./controller-host.js";
 
 export const CORNERS = ["settings", "playback", "access", "status"] as const;
 export type TCorner = (typeof CORNERS)[number];
@@ -36,8 +35,27 @@ export function awaitingOf(detail: { count?: unknown; kind?: string; target?: Re
 	return { count: Math.max(0, count), ref: isRefKind(detail?.kind) && detail?.target ? { kind: detail.kind, target: detail.target } : null };
 }
 
+/** A span in seconds or minutes, whichever reads shorter. */
+const spanLabel = (ms: number): { n: number; unit: "s" | "m" } => {
+	const seconds = Math.max(0, Math.round(ms / 1000));
+	return seconds < 60 ? { n: seconds, unit: "s" } : { n: Math.round(seconds / 60), unit: "m" };
+};
+
+/**
+ * How far along a run the time cursor sits: the moment it is at, out of how long the run is, "11/40s". A bare "11s"
+ * says nothing about whether that is near the beginning or the end, which is the thing a reader wants from a readout
+ * this small. "now" at the latest moment seen, since there is no upper bound to be a fraction of.
+ */
+export function timeOffsetLabel(cursor: number | null, firstEventTime: number, latestEventTime: number): string {
+	if (cursor == null || cursor <= 0 || cursor >= latestEventTime) return "now";
+	const at = spanLabel(cursor - firstEventTime);
+	const whole = spanLabel(latestEventTime - firstEventTime);
+	// One unit for both halves, so the two numbers can be read against each other.
+	return at.unit === whole.unit ? `${at.n}/${whole.n}${whole.unit}` : `${Math.round((cursor - firstEventTime) / 1000)}/${whole.n * 60}s`;
+}
+
 /** The time offset the strip shows for a cursor: `now` at the live edge, and how far along the run it sits otherwise.
- *  The run's span is read off the shared event log without registering a window, since the bar is mounted for the whole
+ *  The run's span is read off the shared event log without registering a window, since the strip is mounted for the whole
  *  session and a window it held would page the entire run in and pin it there. */
 export function timeOffsetOf(cursor: number | null): string {
 	if (cursor === null || cursor <= 0) return "now";
@@ -45,16 +63,18 @@ export function timeOffsetOf(cursor: number | null): string {
 	return timeOffsetLabel(cursor, first, last);
 }
 
-/** What the corners read from the bar: its test-id prefix, and the read access level and how to change it. */
-export type TActionsBarCornersDeps = {
+/** What the corners read from the page strip: its test-id prefix, and the read access level and how to change it. */
+export type TPageStripCornersDeps = {
 	testIdPrefix: () => string;
+	/** The top edge a popover opens above: the strip's, or an open docked pane's above it, whose input line it keeps clear. */
+	anchorTop: () => number;
 	accessLevel: () => string;
 	setAccessLevel: (level: AccessQueryLevel) => void;
 };
 
-export class ActionsBarCorners implements ReactiveController {
-	readonly #host: TActionsBarHost;
-	readonly #deps: TActionsBarCornersDeps;
+export class PageStripCorners implements ReactiveController {
+	readonly #host: TControllerHost;
+	readonly #deps: TPageStripCornersDeps;
 	/** What this reader holds and how many grants stand behind them: the access indicator says both beside the level. */
 	readonly #authority: AuthorityController;
 	#open: TCorner | null = null;
@@ -63,7 +83,7 @@ export class ActionsBarCorners implements ReactiveController {
 	#awaiting: TAwaiting = { count: 0, ref: null };
 	#timeOffset = "now";
 
-	constructor(host: TActionsBarHost, deps: TActionsBarCornersDeps) {
+	constructor(host: TControllerHost, deps: TPageStripCornersDeps) {
 		this.#host = host;
 		this.#deps = deps;
 		this.#authority = new AuthorityController(host);
@@ -109,7 +129,7 @@ export class ActionsBarCorners implements ReactiveController {
 	}
 
 	/** Open a corner's popover, closing any other, or close it when it is the one open. The click is the corner's own,
-	 *  so it does not reach the strip, which would open or close the bar. */
+	 *  so it does not reach the strip around it. */
 	toggle(corner: TCorner): (e: Event) => void {
 		return (e: Event) => {
 			e.stopPropagation();
@@ -126,11 +146,6 @@ export class ActionsBarCorners implements ReactiveController {
 		if (popover?.matches(":popover-open")) popover.hidePopover();
 		this.#open = null;
 		this.#host.requestUpdate();
-	}
-
-	/** Close an open picker, and leave a panel open. Switching the bar's mode does this, as a click away does. */
-	dismissPicker(): void {
-		if (this.#open && CORNER_DISMISS[this.#open] === "click-away") this.close();
 	}
 
 	/** The time offset opens the log, whose rail is where a reader moves through the run: minimized where it is not open,
@@ -222,19 +237,18 @@ export class ActionsBarCorners implements ReactiveController {
 		return this.#host.renderRoot.querySelector<HTMLElement>(".corner-popover");
 	}
 
-	/** A click outside the bar closes an open picker. */
+	/** A click outside the strip closes an open picker, and leaves a panel open. */
 	#onDocumentClick = (e: Event): void => {
-		if (!e.composedPath().includes(this.#host)) this.dismissPicker();
+		if (this.#open && CORNER_DISMISS[this.#open] === "click-away" && !e.composedPath().includes(this.#host)) this.close();
 	};
 
-	/** Float the popover just above the whole bar's top edge, its right edge over the control that opened it. The corner
-	 *  controls sit at the bar's bottom, so a popover opening up from the strip would cover the open bar's input line. */
+	/** Float the popover just above its anchor's top edge, its right edge over the control that opened it. */
 	#show(control: HTMLElement): void {
 		const popover = this.#popover();
-		if (!popover) throw new Error("actions-bar: corner popover missing from the rendered template");
+		if (!popover) throw new Error("page-strip: corner popover missing from the rendered template");
 		popover.style.margin = "0";
 		popover.style.inset = "auto";
-		popover.style.bottom = `${window.innerHeight - this.#host.getBoundingClientRect().top + 4}px`;
+		popover.style.bottom = `${window.innerHeight - this.#deps.anchorTop() + 4}px`;
 		popover.style.left = "auto";
 		popover.style.right = `${window.innerWidth - control.getBoundingClientRect().right}px`;
 		popover.showPopover();

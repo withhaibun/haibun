@@ -15,11 +15,12 @@ import { selectValuesFor } from "../quads-snapshot.js";
 import { addObservedSelectValues, getQueryableFields, getSelectValues, hasSelectValues, hasUsableSelectValues, setSelectValues } from "../rels-cache.js";
 import { buildDomainOptions, getAvailableDomains, getAvailableSteps, type DomainOption } from "../rpc-registry.js";
 import { StepsChangedController } from "../controllers/index.js";
-import { SEARCH_OPERATORS, type TComboboxOption, type TContextPattern } from "../schemas.js";
+import { NOTHING_SELECTED_LABEL, SEARCH_OPERATORS, type TComboboxOption, type TContextPattern } from "../schemas.js";
 import { appAccessLevel } from "../util.js";
 import { getHash } from "../view-hash.js";
 import { parseViewQuery, serializeViewQuery, viewQuery } from "../view-query.js";
-import { contextLabel, isEntitySelection, type TActionsBarHost, type TContextExtra } from "./actions-bar-model.js";
+import { contextLabel, isEntitySelection, type TContextExtra } from "./actions-bar-model.js";
+import type { TControllerHost } from "./controller-host.js";
 import type { ShuActivityHistory } from "./shu-activity-history.js";
 import { ShuSearchSummary } from "./shu-search-summary.js";
 
@@ -49,17 +50,19 @@ export type TActionsBarQueryDeps = {
 };
 
 export class ActionsBarQuery implements ReactiveController {
-	readonly #host: TActionsBarHost;
+	readonly #host: TControllerHost;
 	readonly #deps: TActionsBarQueryDeps;
 	#contextPatterns: TContextPattern[] = [];
 	/** The read access every query here runs at, opening at the level the page opened at, so the bar and the snapshot
 	 *  cannot open at different levels. */
 	#accessLevel = appAccessLevel();
-	#trailLabel = "All";
+	#trailLabel = NOTHING_SELECTED_LABEL;
 	#conditions: TSearchCondition[] = [];
 	/** The fields of the selected type a condition can name, as the condition's field selector offers them. */
 	#propertyOptions: TComboboxOption[] = [];
 	#domainOptions: DomainOption[] = [];
+	/** Whether the types the query surface offers have been read, so a selected label can be checked against them. */
+	#typesRead = false;
 	/** The types, as the type selector offers them: each by the domain key the hash uses, grouped declared first. */
 	#typeOptions: TComboboxOption[] = [];
 	#selectedDomainKey = "";
@@ -69,7 +72,7 @@ export class ActionsBarQuery implements ReactiveController {
 	#searchNumber = 0;
 	#searchDebounce: ReturnType<typeof setTimeout> | null = null;
 
-	constructor(host: TActionsBarHost, deps: TActionsBarQueryDeps) {
+	constructor(host: TControllerHost, deps: TActionsBarQueryDeps) {
 		this.#host = host;
 		this.#deps = deps;
 		host.addController(this);
@@ -146,6 +149,7 @@ export class ActionsBarQuery implements ReactiveController {
 		await getAvailableSteps(); // the concern catalog the domains are read from arrives with the steps
 		this.#domainOptions = buildDomainOptions(await getAvailableDomains());
 		if (this.#domainOptions.length === 0) throw new Error("No domain options were produced from concern catalog");
+		this.#typesRead = true;
 		this.#typeOptions = this.#domainOptions.map((o) => ({ value: o.key, label: o.queryLabel || o.key, group: o.group }));
 		this.#syncSelectedDomainKey();
 		this.loadProperties();
@@ -219,6 +223,9 @@ export class ActionsBarQuery implements ReactiveController {
 
 	/** The selected type's key, from its label, or the first type where none is selected. A label no type carries fails. */
 	#syncSelectedDomainKey(): void {
+		// A view can state its context before the types are read, when the bar connects after it: the label is held, and
+		// reading the types settles it.
+		if (!this.#typesRead) return;
 		if (this.#selectedLabel) {
 			const matching = this.#domainOptions.find((option) => option.queryLabel === this.#selectedLabel);
 			if (!matching) throw new Error(`Selected label is not present in discovered concerns: ${this.#selectedLabel}`);

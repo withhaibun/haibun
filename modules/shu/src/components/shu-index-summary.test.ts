@@ -12,6 +12,7 @@ import { SHU_EVENT, SPINE_SLOT } from "../consts.js";
 import { viewQuery } from "../view-query.js";
 import { ShuColumnPane } from "./shu-column-pane.js";
 import { installTestMediaQueries } from "../test-setup.js";
+import { provideLayout } from "../test/jsdom-layout.js";
 
 /** The search the index is showing, which is shared state rather than anything the summary is handed. */
 function searching(hash: string): void {
@@ -28,6 +29,7 @@ function publish(from: string, detail: Record<string, unknown>): void {
 
 beforeAll(() => {
 	installTestMediaQueries(); // the pane asks the viewport whether it is narrow; jsdom answers no such question
+	provideLayout(); // the pane observes its size, to reserve its strip's height where it is docked
 	if (!customElements.get("shu-index-summary")) customElements.define("shu-index-summary", ShuIndexSummary);
 	if (!customElements.get("shu-column-pane")) customElements.define("shu-column-pane", ShuColumnPane);
 });
