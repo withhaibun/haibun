@@ -145,11 +145,27 @@ export function createStepUI(wp: WebPlaywright) {
 
 	const enterStepMode: TKirejiStep[] = [...expandActionsBar, selectionOption({ option: '"Step"', field: IDS.APP.MODE_SELECT }), waitFor({ target: IDS.APP.STEP_SELECT })];
 
-	/** Expand the actions-bar and switch to Search mode: the filter/query UI (type, text search, filters) is the search-mode body, so this is the entry to any of those controls. Search is the default mode, so a fresh bar is already here. */
-	const enterSearchMode: TKirejiStep[] = [...expandActionsBar, selectionOption({ option: '"Search"', field: IDS.APP.MODE_SELECT }), waitFor({ target: IDS.APP.TYPE_SELECT })];
+	/** Open the actions bar and switch to Search mode, which holds the text to search for. The type the search reads stands
+	 *  on the page strip, and its filters are settings the pane's control shows. Search is the default mode, so a fresh bar
+	 *  is already here. */
+	const enterSearchMode: TKirejiStep[] = [...expandActionsBar, selectionOption({ option: '"Search"', field: IDS.APP.MODE_SELECT }), waitFor({ target: IDS.APP.TEXT_SEARCH })];
+
+	/** Show the settings of the view in the actions pane, which its pane's settings control holds. `marker` is a control
+	 *  those settings hold, which says whether they are shown: the press is skipped where it is already on the page. */
+	const showPaneSettings = (marker: string): TKirejiStep[] => [
+		`where not has test id ${marker}, in "${ACTIONS_PANE}", click ${IDS.COLUMN_PANE.CONTROLS_TOGGLE}`,
+		waitFor({ target: marker }),
+	];
+
+	/** Show the search's filters: the values each field holds, the conditions a reader adds, and the control that runs
+	 *  them. */
+	const showSearchFilters: TKirejiStep[] = [...enterSearchMode, ...showPaneSettings(IDS.APP.ADD_FILTER)];
 
 	/** Expand the actions-bar and switch to Ask mode. Symmetric to enterStepMode. */
 	const enterAskMode: TKirejiStep[] = [...expandActionsBar, selectionOption({ option: '"Ask"', field: IDS.APP.MODE_SELECT }), waitFor({ target: IDS.APP.CHAT_INPUT })];
+
+	/** Show the ask's settings: the session, the model, the tool calls and what a turn sends. */
+	const showChatSettings: TKirejiStep[] = [...enterAskMode, ...showPaneSettings(IDS.APP.SESSION_SELECT)];
 
 	/** Type a prompt into the Ask area's chat-input and submit. Keep curly braces out of the prompt when the reply
 	 *  feeds `matches`: its `{var}` interpolation breaks on a model echoing braces back. */
@@ -307,15 +323,18 @@ export function createStepUI(wp: WebPlaywright) {
 		return pickFromCombobox(IDS.APP.TYPE_SELECT, label);
 	}
 
-	/** Open the actions bar, switch to Search mode (where the type selector lives), and pick a node type. */
+	/** Pick the type the page searches, which stands on the page strip, and open the bar in Search mode, where the text to
+	 *  search that type for stands. */
 	function chooseGraphLabel(label: string): TKirejiStep[] {
-		return [...enterSearchMode, ...selectGraphLabel(label)];
+		return [...selectGraphLabel(label), ...enterSearchMode];
 	}
 
 	return {
 		enterStepMode,
 		enterSearchMode,
+		showSearchFilters,
 		enterAskMode,
+		showChatSettings,
 		expandActionsBar,
 		collapseActionsBar,
 		askExchange,

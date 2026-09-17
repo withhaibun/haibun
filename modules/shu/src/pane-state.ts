@@ -141,7 +141,7 @@ export type PaneHooks = {
 };
 
 /** A pane the page always holds, as declared, and the attributes its view is given. The address names it only where it
- *  stands other than as declared, and closing it returns it to where the page declares it. */
+ *  stands other than as declared. It doesn't close, and a page that closes it returns it to where the page declares it. */
 export type TPagePane = { pane: DesiredPane; attributes?: Record<string, string> };
 
 class PaneStateImpl {
@@ -341,7 +341,7 @@ class PaneStateImpl {
 		return undefined;
 	}
 
-	/** Close a pane. A page pane closes to where the page declares it. */
+	/** Close a pane. A page pane returns to where the page declares it, since the page holds it either way. */
 	dismiss(paneId: string): void {
 		const page = this.pagePanes.get(paneId);
 		if (page) return this.returnToPage(paneId, page.pane);
@@ -471,6 +471,8 @@ class PaneStateImpl {
 		// restore when it attaches (ShuElement.persistFields), so no width plumbing here.
 		pane.dataset.columnKey = id;
 		const page = this.pagePanes.get(id);
+		// A pane the page always holds has nowhere to close to, so it offers no close. Its dock control moves it.
+		if (page) pane.setAttribute(SHU_ATTR.CLOSABLE, "false");
 		// Docked before it attaches, so the strip never lays it out as a column.
 		if (d.docked) pane.setDocked(true);
 		// Pre-mark a minimized arrival so addPane neither activates nor scrolls to it.

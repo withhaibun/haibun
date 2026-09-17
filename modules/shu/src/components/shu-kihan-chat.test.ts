@@ -37,11 +37,14 @@ vi.mock("../hypermedia.js", async () => {
 const { ShuCombobox } = await import("./shu-combobox.js");
 if (!customElements.get("shu-combobox")) customElements.define("shu-combobox", ShuCombobox);
 const { ShuKihanChat } = await import("./shu-kihan-chat.js");
+const { SHU_ATTR } = await import("../consts.js");
 const { CLOSED_CONVERSATION, conversationState } = await import("../conversation.js");
 
 async function chat(): Promise<HTMLElement> {
 	document.body.innerHTML = "";
 	const el = new ShuKihanChat();
+	// The selector is one of the chat's settings, which the pane's settings control shows.
+	el.setAttribute(SHU_ATTR.SHOW_CONTROLS, "");
 	document.body.appendChild(el);
 	await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
 	return el as unknown as HTMLElement;
@@ -96,5 +99,56 @@ describe("the session selector", () => {
 		await turn(el);
 		expect(hasSelector(el)).toBe(true);
 		expect(optionCount(el)).toBe(2);
+	});
+});
+
+/**
+ * The chat's settings are the view's settings: the session, the model, the tool limit and what a turn sends. The pane's
+ * settings control shows them, as it shows every view's, and they stand above the transcript the ask holds.
+ */
+describe("the chat's settings", () => {
+	beforeEach(() => {
+		conversationState.set(CLOSED_CONVERSATION);
+		listed.length = 0;
+		onStartSeqPath = [0, 1, 2];
+		sessionsAnswer = () => ({ sessions: [...listed] });
+	});
+
+	/** The chat as a pane holds it with its settings hidden, which is how a reader first sees it. */
+	async function withoutSettings(): Promise<HTMLElement> {
+		const el = await chat();
+		el.removeAttribute("data-show-controls");
+		await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+		return el;
+	}
+
+	it("holds the question and its Send without them, so a reader asks without stating any of them", async () => {
+		const el = await withoutSettings();
+		expect(el.shadowRoot?.querySelector(".chat-settings"), "the settings are not shown").toBeNull();
+		expect(el.shadowRoot?.querySelector(".chat-input"), "the question is").not.toBeNull();
+		expect(el.shadowRoot?.querySelector(".send-btn")).not.toBeNull();
+	});
+
+	it("shows them when the pane's settings control does, and hides them when it does again", async () => {
+		const el = await withoutSettings();
+		el.setAttribute("data-show-controls", "");
+		await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+		const settings = el.shadowRoot?.querySelector(".chat-settings");
+		expect(settings?.querySelector(".session-select"), "the session").not.toBeNull();
+		expect(settings?.querySelector(".tool-limit"), "the tool limit").not.toBeNull();
+		expect(settings?.querySelector(".context-read"), "and what a turn sends").not.toBeNull();
+		el.removeAttribute("data-show-controls");
+		await (el as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+		expect(el.shadowRoot?.querySelector(".chat-settings")).toBeNull();
+	});
+
+	it("stands above the transcript, which stands above the input line", async () => {
+		const el = await chat();
+		// jsdom holds the styles as elements in the root; the regions are what the chat renders.
+		const parts = Array.from(el.shadowRoot?.children ?? [])
+			.map((c) => c.className)
+			.filter(Boolean);
+		expect(parts).toEqual(["chat-settings", "transcript", "input-line"]);
+		expect(el.shadowRoot?.querySelector(".transcript slot"), "the transcript takes what the bar puts in it").not.toBeNull();
 	});
 });

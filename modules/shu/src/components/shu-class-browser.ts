@@ -88,8 +88,6 @@ export class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSc
 	/** The focus type last applied to the scene, re-scope when it changes (focus arrives after the scene first mounts). */
 	private configuredFocus = "";
 
-	static override observedHtmlAttributes = ["data-show-controls"];
-
 	/** The type this embed was opened for: the single-schema scope and the camera fit centre. */
 	private focusType = "";
 
@@ -211,10 +209,6 @@ export class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSc
 		return html`<div class="individuals-view" data-testid=${SHU_TEST_IDS.CLASS_BROWSER.INDIVIDUALS_VIEW}>
 			${list.length ? html`<ul>${list.map((v) => html`<li>${unsafeHTML(renderRef("entity", { persistedAs: this.focusType, id: idOf(v) }, instanceLabel(v)))}</li>`)}</ul>` : html`<span class="empty">No individuals.</span>`}
 		</div>`;
-	}
-
-	protected override onAttributeChanged(name: string): void {
-		if (name === "data-show-controls") this.requestUpdate();
 	}
 
 	/** The filter row shows only while the column's view-settings toggle (the pane gear, data-show-controls) is on:

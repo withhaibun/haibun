@@ -25,8 +25,12 @@ afterAll(async () => {
 	await BrowserFactory.closeBrowsers();
 });
 
+/** A browser launch, a page load and an axe pass take as long as the machine gives them, so each case states a bound it
+ *  reaches on a busy machine rather than a quick one. */
+const LAUNCHES_A_BROWSER = { timeout: 60_000 };
+
 describe("a11y test from uri", () => {
-	it("passes", async () => {
+	it("passes", LAUNCHES_A_BROWSER, async () => {
 		const features = [
 			{
 				path: "/features/test.feature",
@@ -41,7 +45,7 @@ page is accessible accepting serious "99" and moderate "90"
 		expect(res.ok).toBe(true);
 		expect(res.featureResults?.[0]?.stepResults?.[0]?.artifact).toBeUndefined();
 	});
-	it("fails", async () => {
+	it("fails", LAUNCHES_A_BROWSER, async () => {
 		const features = [
 			{
 				path: "/features/test.feature",

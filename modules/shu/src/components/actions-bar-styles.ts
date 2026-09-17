@@ -16,7 +16,7 @@ const STYLES = css`
 		border-bottom: var(--shu-border-w) solid var(--shu-border);
 	}
 	/* Inputs/selects style is centralised in SHU_BASE (above). The actions-bar only adds layout. */
-	.filter-bar .label-select, .filter-bar .select-filter { width: auto; flex: 0 0 auto; }
+	.filter-bar .select-filter { width: auto; flex: 0 0 auto; }
 	.filter-bar .text-search { flex: 1 1 20ch; min-width: 16ch; }
 	.compound-filters { display: flex; gap: var(--shu-space-1); flex-wrap: wrap; margin-left: auto; }
 	.filter-group {
@@ -66,8 +66,7 @@ const STYLES = css`
 		padding: var(--shu-space-3) var(--shu-space-4); flex-shrink: 0;
 	}
 	.step-combo { flex: 1 1 280px; min-width: 12ch; width: auto; }
-	/* The ask pane is the input line; the history above renders the transcript. */
-	shu-kihan-chat { display: flex; flex: 0 0 auto; min-width: 0; }
+
 `;
 
 export const ACTIONS_BAR_STYLES: CSSResultGroup = [shuBaseStyles, shuIconButtonStyles, chatMessageStyles, STYLES];

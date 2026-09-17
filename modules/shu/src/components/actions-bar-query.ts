@@ -15,6 +15,7 @@ import { selectValuesFor } from "../quads-snapshot.js";
 import { addObservedSelectValues, getQueryableFields, getSelectValues, hasSelectValues, hasUsableSelectValues, setSelectValues } from "../rels-cache.js";
 import { buildDomainOptions, getAvailableDomains, getAvailableSteps, type DomainOption } from "../rpc-registry.js";
 import { StepsChangedController } from "../controllers/index.js";
+import { pageTypes } from "../signals.js";
 import { NOTHING_SELECTED_LABEL, SEARCH_OPERATORS, type TComboboxOption, type TContextPattern } from "../schemas.js";
 import { appAccessLevel } from "../util.js";
 import { getHash } from "../view-hash.js";
@@ -176,16 +177,23 @@ export class ActionsBarQuery implements ReactiveController {
 		if (this.#selectedLabel && addObservedSelectValues(this.#selectedLabel, extractQuadsFromEvents(events))) this.#host.requestUpdate();
 	}
 
-	/** The search mode's input line. */
+	/** The search mode's input line: the mode and the text to search for. The type the search reads stands on the page
+	 *  strip, beside what the search found. */
 	template(modeToggle: TemplateResult): TemplateResult {
 		const prefix = this.#deps.testIdPrefix();
-		const label = this.#selectedLabel;
-		const fields = label && hasSelectValues(label) ? getSelectValues(label) : {};
 		return html`<div class="filter-bar">
 			${modeToggle}
 			<input type="text" class="text-search" data-testid=${`${prefix}text-search`} placeholder="search..." @input=${this.#onTextInput} @blur=${this.#onTextBlur} />
-			<shu-combobox class="label-select" testid=${`${prefix}type-select`} placeholder="type..." .options=${this.#typeOptions} .value=${this.#selectedDomainKey}
-				@combo-change=${this.#onLabelChange}></shu-combobox>
+		</div>`;
+	}
+
+	/** The search's filters, which the pane's settings control shows: the values each field of the type holds, the
+	 *  conditions a reader adds, and the control that runs them. */
+	settingsTemplate(): TemplateResult {
+		const prefix = this.#deps.testIdPrefix();
+		const label = this.#selectedLabel;
+		const fields = label && hasSelectValues(label) ? getSelectValues(label) : {};
+		return html`<div class="filter-bar search-settings">
 			${Object.entries(fields)
 				.filter(([, values]) => values.length > 0)
 				.map(([field, values]) => {
@@ -230,12 +238,14 @@ export class ActionsBarQuery implements ReactiveController {
 			const matching = this.#domainOptions.find((option) => option.queryLabel === this.#selectedLabel);
 			if (!matching) throw new Error(`Selected label is not present in discovered concerns: ${this.#selectedLabel}`);
 			this.#selectedDomainKey = matching.key;
+			this.#statePageTypes();
 			return;
 		}
 		const first = this.#domainOptions[0];
 		if (!first) throw new Error("No selectable domain options discovered from concerns");
 		this.#selectedDomainKey = first.key;
 		this.#selectedLabel = first.queryLabel ?? "";
+		this.#statePageTypes();
 		if (!this.#selectedLabel) throw new Error(`Concern option ${first.key} is missing queryLabel`);
 	}
 
@@ -290,16 +300,25 @@ export class ActionsBarQuery implements ReactiveController {
 		history.append(entry);
 	}
 
-	#onLabelChange = (e: CustomEvent): void => {
-		const key = e.detail?.value;
-		if (!key) return;
+	/** Read the type the key names, as the page strip's type control asks. The search states the type it reads, so a
+	 *  choice the strip makes and one the address restores take the same path. */
+	chooseType(key: string): void {
 		this.#selectedDomainKey = key;
 		this.#selectedLabel = this.#domainOptions.find((option) => option.key === key)?.queryLabel ?? "";
 		this.#selectFilters = {};
 		this.loadProperties();
 		this.#loadSelectValuesReported(true);
+		this.#statePageTypes();
 		this.#announce();
-	};
+	}
+
+	/** State the types the page offers and the one the search reads, which the page strip shows. A page told what it
+	 *  already holds renders again for nothing, so the types are stated as they change. */
+	#statePageTypes(): void {
+		const stated = pageTypes.get();
+		if (stated.options === this.#typeOptions && stated.selected === this.#selectedDomainKey) return;
+		pageTypes.set({ options: this.#typeOptions, selected: this.#selectedDomainKey });
+	}
 
 	#onSelectFilterChange = (e: Event): void => {
 		const select = e.target as HTMLSelectElement;

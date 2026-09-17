@@ -111,12 +111,6 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 	 * applies a CSS transform to its container without re-running the layout. */
 	private zoomPercent = 100;
 
-	static observedHtmlAttributes = ["data-show-controls"];
-
-	protected override onAttributeChanged(name: string, _old: string | null, _val: string | null): void {
-		if (name === "data-show-controls") this.requestUpdate();
-	}
-
 	protected override onConnected(): void {
 		if (!this.hasAttribute("data-testid")) this.setAttribute("data-testid", "shu-domain-chain");
 		if (this.affordances === null) void this.fetchInitial();

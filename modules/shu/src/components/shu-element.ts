@@ -79,7 +79,9 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	static attributeFields: Record<string, string> = {};
 
 	static get observedAttributes(): string[] {
-		return [...super.observedAttributes, ...Object.keys(this.attributeFields), ...this.observedHtmlAttributes];
+		// Every view answers the pane's settings control through `showControls`, so the base watches that attribute for all
+		// of them rather than each view declaring it.
+		return [...super.observedAttributes, ...Object.keys(this.attributeFields), SHU_ATTR.SHOW_CONTROLS, ...this.observedHtmlAttributes];
 	}
 
 	/** State fields remembered across reloads: THE mechanism for any persisted UI option, declared like
@@ -384,6 +386,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
 		super.attributeChangedCallback(name, oldValue, newValue);
 		this.#reflectAttribute(name, newValue);
+		if (name === SHU_ATTR.SHOW_CONTROLS) this.requestUpdate();
 		this.onAttributeChanged(name, oldValue, newValue);
 	}
 

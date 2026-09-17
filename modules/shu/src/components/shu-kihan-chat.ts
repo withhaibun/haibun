@@ -1,7 +1,9 @@
 /**
- * The ask's input line: the question, the session selector, the model, the tool limit, who reads the context, Send and
- * Stop. The conversation and the page's turn are page-level machines, and the actions bar's activity history renders the
- * transcript from them. This element holds neither, so the bar removes it when it closes and the conversation continues.
+ * The ask: its settings, the transcript, and the input line with the question, Send and Stop. The settings hold the
+ * session, the model, the tool limit and who reads the context, and the pane's settings control shows them, above the
+ * transcript, which scrolls under them. The conversation and the page's turn are page-level machines, and the bar's
+ * activity history renders the transcript from them into this element's transcript slot. This element holds neither, so
+ * the bar removes it when it closes and the conversation continues.
  */
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { z } from "zod";
@@ -84,7 +86,14 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	static styles = [
 		shuBaseStyles,
 		css`
-		:host { display: flex; flex-direction: column; min-width: 0; flex: 0 0 auto; }
+		:host { display: flex; flex-direction: column; min-width: 0; min-height: 0; flex: 1 1 auto; }
+		/* The settings stand above the transcript, which scrolls under them, and the input line stands below it. */
+		.chat-settings {
+			display: flex; flex-wrap: wrap; gap: var(--shu-space-2); align-items: center;
+			padding: var(--shu-space-2) var(--shu-space-4); flex: 0 0 auto; min-width: 0;
+			background: var(--shu-bg-soft); border-bottom: var(--shu-border-w) solid var(--shu-border);
+		}
+		.transcript { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; min-width: 0; }
 		/* The row wraps rather than overflowing: the host clips what does not fit, and Send, Stop and the model the turn
 		   runs under are the controls a reader reaches for while a turn is in flight. */
 		.input-line {
@@ -236,11 +245,26 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		// The input line's own extensions, and the ask's: this pane owns the line under ask mode, so it renders both.
 		const uiExtensionTags = [...getActionBarChatExtensionTags(), ...getActionBarAskExtensionTags()];
 		return html`
+			${this.showControls ? this.settingsTemplate(conversation) : nothing}
+			<div class="transcript"><slot></slot></div>
 			<div class="input-line">
 				<slot name="mode-toggle"></slot>
 				<textarea class="chat-input" placeholder="Ask about this..." data-testid=${`${this.testIdPrefix}chat-input`} rows="1" autofocus .value=${askDraft.get()} @input=${this.onChatInput} @keydown=${this.onChatKeydown}></textarea>
+				${unsafeHTML(uiExtensionTags.map((tag) => `<${tag}></${tag}>`).join(""))}
+				<button type="button" class="send-btn" data-testid=${`${this.testIdPrefix}chat-submit`} style=${running ? "display:none" : ""} @click=${this.submitChat}>Send</button>
+				<button type="button" class="stop-btn" data-testid=${`${this.testIdPrefix}chat-stop`} style=${running ? "" : "display:none"} @click=${this.onStop}>Stop</button>
+				${refusal ? html`<span class="refusal" role="status">${refusal}</span>` : nothing}
+			</div>
+		`;
+	}
+
+	/** What the reader states about the conversation, which the pane's settings control shows: the session the questions
+	 *  join, the model that answers them, how many tool calls a turn chains, and what a turn sends about the records. */
+	private settingsTemplate(conversation: TConversationState): TemplateResult {
+		return html`
+			<div class="chat-settings">
 				<shu-combobox class="session-select" testid=${`${this.testIdPrefix}session-select`} placeholder="session..." .options=${this.#sessionOptions} .value=${conversation.session ?? NEW_CONVERSATION.value} @combo-change=${this.onSessionChange}></shu-combobox>
-				${this._models.length > 0 ? html`<shu-combobox class="model-select" testid=${`${this.testIdPrefix}model-select`} placeholder="model..." .options=${this.#modelOptions} .value=${this.state.model} @combo-change=${this.onModelChange}></shu-combobox>` : ""}
+				${this._models.length > 0 ? html`<shu-combobox class="model-select" testid=${`${this.testIdPrefix}model-select`} placeholder="model..." .options=${this.#modelOptions} .value=${this.state.model} @combo-change=${this.onModelChange}></shu-combobox>` : nothing}
 				<label class="tool-limit-label" title="Max chained tool calls the model may run before asking you to confirm the next one. 0 means every tool call needs confirmation.">
 					<span>tool calls</span>
 					<input class="tool-limit" type="number" min=${TOOL_LIMIT_MIN} max=${TOOL_LIMIT_MAX} step="1" .value=${String(this.state.toolLimit)} data-testid=${`${this.testIdPrefix}tool-limit`} @change=${this.onToolLimitChange}>
@@ -249,10 +273,6 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 					<option value=${AS_MODEL_STATES}>${this.modelDefaultLabel()}</option>
 					${Object.entries(SENDS).map(([reading, sends]) => html`<option value=${reading}>send ${sends}</option>`)}
 				</select>
-				${unsafeHTML(uiExtensionTags.map((tag) => `<${tag}></${tag}>`).join(""))}
-				<button type="button" class="send-btn" data-testid=${`${this.testIdPrefix}chat-submit`} style=${running ? "display:none" : ""} @click=${this.submitChat}>Send</button>
-				<button type="button" class="stop-btn" data-testid=${`${this.testIdPrefix}chat-stop`} style=${running ? "" : "display:none"} @click=${this.onStop}>Stop</button>
-				${refusal ? html`<span class="refusal" role="status">${refusal}</span>` : nothing}
 			</div>
 		`;
 	}

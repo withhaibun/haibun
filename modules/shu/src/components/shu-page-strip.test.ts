@@ -20,16 +20,18 @@ provideLayout();
 const { ShuPageStrip } = await import("./shu-page-strip.js");
 const { ShuColumnPane } = await import("./shu-column-pane.js");
 const { ShuBreadcrumb } = await import("./shu-breadcrumb.js");
+const { ShuCombobox } = await import("./shu-combobox.js");
 const { SHU_EVENT, SHU_TAG } = await import("../consts.js");
 const { SHU_TEST_IDS } = await import("../test-ids.js");
 for (const [tag, element] of [
 	[SHU_TAG.PAGE_STRIP, ShuPageStrip],
 	[SHU_TAG.COLUMN_PANE, ShuColumnPane],
 	[SHU_TAG.BREADCRUMB, ShuBreadcrumb],
+	[SHU_TAG.COMBOBOX, ShuCombobox],
 ] as const) {
 	if (!customElements.get(tag)) customElements.define(tag, element);
 }
-const { activePane, dockedPane, pageContext, pageStatus, pageTrail, stripPanes } = await import("../signals.js");
+const { activePane, dockedPane, pageContext, pageStatus, pageTrail, pageTypes, stripPanes } = await import("../signals.js");
 const { setupShuTest } = await import("../test-setup.js");
 
 type TStrip = InstanceType<typeof ShuPageStrip>;
@@ -82,6 +84,7 @@ describe("the page strip", () => {
 		stripPanes.set([]);
 		activePane.set(null);
 		dockedPane.set(null);
+		pageTypes.set({ options: [], selected: "" });
 	});
 	afterEach(() => teardown());
 
@@ -99,6 +102,30 @@ describe("the page strip", () => {
 		expect(trailOf(strip).queryLabel).toBe("Email");
 		expect(trailOf(strip).columns, "the breadcrumb names each column after the query").toEqual(["Comment", "Reply"]);
 		expect(trailOf(strip).activeIndex, "and the one the reader is on, counted from the query").toBe(2);
+	});
+
+	it("offers the types the search states, beside what the search found, and states the one a reader chooses", async () => {
+		const strip = await mountStrip();
+		pageTrail.set("Email: 3");
+		pageTypes.set({
+			options: [
+				{ value: "email-domain", label: "Email" },
+				{ value: "file-domain", label: "File" },
+			],
+			selected: "email-domain",
+		});
+		await strip.updateComplete;
+		// The combobox holds its own test id inside its root, so the strip's control is addressed by its class here.
+		const types = strip.shadowRoot?.querySelector(".type-select") as HTMLElement & { options: Array<{ value: string }>; value: string; shown: string };
+		expect(types.getAttribute("testid"), "a feature addresses it by the page's type select").toBe(`${PREFIX}type-select`);
+		expect(types.getAttribute("slot"), "it stands in the breadcrumb's search entry, which says what the search found").toBe("search");
+		expect(types.shown, "and shows the search and its count").toBe("Email: 3");
+		expect(types.options.map((o) => o.value)).toEqual(["email-domain", "file-domain"]);
+		expect(types.value, "the type the search reads").toBe("email-domain");
+		const chosen = vi.fn();
+		document.addEventListener(SHU_EVENT.TYPE_CHOOSE, (e) => chosen((e as CustomEvent).detail), { once: true });
+		types.dispatchEvent(new CustomEvent("combo-change", { detail: { value: "file-domain" }, bubbles: true, composed: true }));
+		expect(chosen).toHaveBeenCalledWith({ key: "file-domain" });
 	});
 
 	it("says the page's status", async () => {
