@@ -593,7 +593,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	 * Render a field's value with the right navigation affordance:
 	 *   - the idField → an entity-open link (rel="item") back to this individual via
 	 *     getIndividualWithEdges (the idField is never a query filter, so a filter
-	 *     route would throw "filter fields not declared");
+	 *     route would throw "fields not declared");
 	 *   - a server-declared queryable field → a filter link;
 	 *   - everything else → plain display-only text (no navigation).
 	 * Edge-valued fields are handled inside clickableValue via the "item" rel.
