@@ -130,12 +130,7 @@ Then open [http://localhost:16686](http://localhost:16686), select service "haib
 ## Testing
 
 ```bash
-# Unit tests
 npm test
-
-# Integration tests (requires Docker stack running)
-docker-compose up -d
-npm run test:integration
 ```
 
 ## Cloud Backends

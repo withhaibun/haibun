@@ -22,6 +22,10 @@ class EchoStepper extends AStepper {
 			capability: "EchoStepper:admin",
 			action: async () => actionOKWithProducts({ pong: true }),
 		},
+		echoLabel: {
+			gwta: "echo the label of {query: json}",
+			action: async ({ query }: { query: { label?: string } }) => actionOKWithProducts({ label: query.label ?? null }),
+		},
 	};
 }
 
@@ -103,6 +107,18 @@ describe("RemoteStepperProxy", () => {
 		const result = await tool.handler(featureStep, world);
 		expect(result.ok).toBe(true);
 		expect(result.products).toMatchObject({ echoed: "hello" });
+	});
+
+	it("carries a call's object argument to the host as the object, not as its text", async () => {
+		const proxy = new RemoteStepperProxy(`http://localhost:${port}`);
+		await proxy.setWorld(world, []);
+		const registry = new StepRegistry([], world);
+		proxy.injectInto(registry);
+		const tool = registry.get("host7_EchoStepper-echoLabel");
+		if (!tool) throw new Error("Expected prefixed tool to be registered");
+		const { buildFeatureStepForTransport } = await import("./step-registry.js");
+		const result = await tool.handler(buildFeatureStepForTransport(tool, { query: { label: "Comment" } }, [0, 1]), world);
+		expect(result.products).toMatchObject({ label: "Comment" });
 	});
 
 	it("preserves capability metadata from remote", async () => {

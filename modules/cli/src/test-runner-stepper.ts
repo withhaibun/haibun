@@ -20,7 +20,7 @@
  * WHAT COMES FROM THE ENVIRONMENT, never from source: which model answers, where it is, and what it may use. The
  * self-hosted model router is one such environment; a hosted API is another. No step, feature or default here names a model.
  */
-import type { TStepDescriptor } from "@haibun/core/lib/step-discovery.js";
+import type { TInputSchema, TStepDescriptor } from "@haibun/core/lib/step-discovery.js";
 import path from "node:path";
 import { z } from "zod";
 import { AStepper, type IHasCycles, type IHasOptions, type IStepperCycles } from "@haibun/core/lib/astepper.js";
@@ -97,24 +97,41 @@ const LISTS_WHAT_IT_HOLDS = /\blists?\b/i;
 /**
  * The parameters of a question put to a run, as a feature line or a model can write them: `name=value` pairs, or
  * JSON from a caller that can write it. A quoted feature-line argument holds no double quotes, so pairs are what a
- * line can say. A step that takes one parameter also accepts the bare value, since naming it adds nothing.
+ * line can say. A step that takes one parameter also accepts the bare value, since naming it adds nothing, and an object
+ * is a bare value too: JSON that names no parameter of such a step is its value. A parameter the step takes as an object
+ * or a list is accepted as its JSON text, as a feature line writes one.
  */
-export function askParams(params: string, takes: string[] = []): Record<string, unknown> {
+export function askParams(params: string, takes: TInputSchema["properties"] = {}): Record<string, unknown> {
+	const names = Object.keys(takes);
 	const text = unquote(params);
 	if (text === "" || text === "{}") return {};
-	if (text.startsWith("{")) return JSON.parse(text) as Record<string, unknown>;
-	if (!text.includes("=") && takes.length === 1) return { [takes[0]]: text };
-	const asValue = (value: string): unknown => {
-		if (value === "true" || value === "false") return value === "true";
-		return value !== "" && !Number.isNaN(Number(value)) ? Number(value) : value;
+	const written = (): Record<string, unknown> => {
+		if (text.startsWith("{")) {
+			const parsed = JSON.parse(text) as Record<string, unknown>;
+			return names.length === 1 && !(names[0] in parsed) ? { [names[0]]: parsed } : parsed;
+		}
+		if (!text.includes("=") && names.length === 1) return { [names[0]]: text };
+		const asValue = (value: string): unknown => {
+			if (value === "true" || value === "false") return value === "true";
+			return value !== "" && !Number.isNaN(Number(value)) ? Number(value) : value;
+		};
+		return Object.fromEntries(
+			text
+				.split(",")
+				.map((pair) => pair.split("="))
+				.filter(([name, value]) => name?.trim() && value !== undefined)
+				.map(([name, ...rest]) => [name.trim(), asValue(rest.join("=").trim())]),
+		);
 	};
-	return Object.fromEntries(
-		text
-			.split(",")
-			.map((pair) => pair.split("="))
-			.filter(([name, value]) => name?.trim() && value !== undefined)
-			.map(([name, ...rest]) => [name.trim(), asValue(rest.join("=").trim())]),
-	);
+	const structured = (name: string, value: unknown): boolean => typeof value === "string" && ["object", "array"].includes(String(takes[name]?.type));
+	return Object.fromEntries(Object.entries(written()).map(([name, value]) => [name, structured(name, value) ? JSON.parse(value as string) : value]));
+}
+
+/** What a parameter takes, as its schema states it: the values it is one of, else its type. A caller told only that a
+ *  parameter is missing has to guess what to send. */
+function whatItTakes(schema: Record<string, unknown> | undefined): string {
+	if (Array.isArray(schema?.enum)) return ` (one of ${schema.enum.join(", ")})`;
+	return typeof schema?.type === "string" ? ` (${/^[aeiou]/.test(schema.type) ? "an" : "a"} ${schema.type})` : "";
 }
 
 /** How much of a followed run's output is answered with. The whole of a suite's output is not a reading; its end is
@@ -309,7 +326,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			// run that does not exist rather than starting one.
 			offeredBeforeDiscovery: () => this.startedARun(),
 			description:
-				"Ask the standing test run one of its own steps, by the name it has there. Show steps asked of that host returns those names; a wrong one is answered with the names that host does have. The step runs AT the run, under the same capability check as any step, and answers with what that run holds rather than what this one does. Parameters are name=value pairs; a step taking one parameter also accepts the bare value. Use this whenever the question is about the test rather than about this run; every other step answers from this run.",
+				"Ask the standing test run one of its own steps, by the name it has there. Show steps asked of that host returns those names; a wrong one is answered with the names that host does have. The step runs AT the run, under the same capability check as any step, and answers with what that run holds rather than what this one does. Parameters are name=value pairs or JSON; a step taking one parameter also accepts the bare value, an object among them, and an object parameter accepts its JSON text. Use this whenever the question is about the test rather than about this run; every other step answers from this run.",
 			// A model is handed the product named text for a tool call, so that is the summary; the whole answer, with the
 			// entries a listing returned, is beside it for a caller that asked for them.
 			productsSchema: z.object({ run: z.string(), host: z.string(), method: z.string(), text: z.string(), answer: z.string() }),
@@ -334,13 +351,13 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 							.join(", ")}`,
 					);
 				const takes = Object.keys(target?.inputSchema.properties ?? {});
-				const given = askParams(params, takes);
+				const given = askParams(params, target?.inputSchema.properties);
 				// A step called without what it takes fails inside the run with a message about a parameter, which reads as
 				// a fault of the run. Said here, it names the step's own parameters, which is what a caller has to correct.
 				const missing = (target?.inputSchema.required ?? takes).filter((name) => given[name] === undefined);
 				if (missing.length)
 					return actionNotOK(
-						`${method} at host ${tracked.host} takes ${takes.join(", ") || "no parameters"}, and was given ${Object.keys(given).join(", ") || "nothing"}: ${missing.join(", ")} missing`,
+						`${method} at host ${tracked.host} takes ${takes.join(", ") || "no parameters"}, and was given ${Object.keys(given).join(", ") || "nothing"}: ${missing.map((name) => `${name}${whatItTakes(target?.inputSchema.properties[name])}`).join(", ")} missing`,
 					);
 				const asked = await this.callSupervisor(z.object({}).passthrough(), scoped, given);
 				// A refusal IS an answer: the run is up and said why it would not. Left as a bare failure, a reader took

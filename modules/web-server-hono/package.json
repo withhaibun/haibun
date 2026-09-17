@@ -16,7 +16,6 @@
 		"build": "tsc -b .",
 		"build-watch": "tsc -b . --watch",
 		"test": "vitest run",
-		"test:integration": "vitest run **/*.integration.test.ts",
 		"test-watch": "vitest"
 	},
 	"keywords": [

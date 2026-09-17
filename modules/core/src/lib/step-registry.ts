@@ -277,6 +277,13 @@ export function buildFeatureStepForTransport(tool: StepTool, input: Record<strin
 	};
 }
 
+/** What a call to a step carries to the process that runs it: each value as the call gave it, and the text a feature line
+ *  wrote where the call gave no value. The text of a value is its JSON, which the other host's validation refuses where
+ *  the step takes an object. */
+export function transportInput(featureStep: TFeatureStep): Record<string, unknown> {
+	return Object.fromEntries(Object.entries(featureStep.action.stepValuesMap ?? {}).map(([name, stepValue]) => [name, stepValue.value ?? stepValue.term]));
+}
+
 /**
  * Cross-check a step's declared `inputDomains` against the gwta-derived param-domain
  * bindings. Mismatch is a registration error, better to fail at boot than to leave

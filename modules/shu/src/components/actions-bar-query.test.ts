@@ -75,12 +75,14 @@ describe("the actions bar's search mode", () => {
 		expect(searchConditions({ folder: "INBOX", account: "" }, rows)).toEqual([{ predicate: "folder", operator: "eq", value: "INBOX" }, rows[0]]);
 	});
 
-	it("offers the types the run declares once the page has read the run's steps again", async () => {
-		const { host, query } = await aQueryPage();
+	it("offers the types the run declares once the page has read the run's steps again, and announces no search", async () => {
+		const { host, query, changes } = await aQueryPage();
 		declaredTypes.push({ key: "note-domain", queryLabel: "Note", group: "declared" });
 		const asked = host.updatesAsked;
+		const announced = changes.length;
 		for (const told of toldOfChanges) await told();
 		expect(host.updatesAsked).toBeGreaterThan(asked);
+		expect(changes.length, "the search a reader chose is not announced again").toBe(announced);
 		render(query.template(html``), host);
 		const offered = (host.querySelector(".label-select") as HTMLElement & { options: Array<{ value: string }> }).options.map((o) => o.value);
 		expect(offered).toContain("note-domain");
