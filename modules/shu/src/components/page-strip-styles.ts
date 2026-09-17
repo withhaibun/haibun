@@ -39,6 +39,8 @@ const STYLES = css`
 		overflow: hidden;
 	}
 	.corner-popover:popover-open { display: inline-flex; align-items: center; }
+	/* The type the search reads stands beside what the search found, at the strip's reading end. */
+	.type-select { flex: 0 0 auto; width: 12em; }
 	shu-breadcrumb { flex: 1; font-size: var(--shu-font-md); min-width: 0; overflow: hidden; }
 	/* The negative margin cancels the strip's vertical padding so the buttons take the strip's full height. */
 	.corner-controls {

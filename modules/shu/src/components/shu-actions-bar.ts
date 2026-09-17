@@ -16,10 +16,10 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { ActionsBarSteps } from "./actions-bar-steps.js";
 import { ActionsBarQuery } from "./actions-bar-query.js";
 import { ACTIONS_BAR_STYLES } from "./actions-bar-styles.js";
-import { SHU_EVENT, ACTION_BAR_ASK_SLOT, ACTION_BAR_CHAT_SLOT, SHU_TAG, CONVERSATION_PARAM } from "../consts.js";
+import { SHU_ATTR, SHU_EVENT, ACTION_BAR_ASK_SLOT, ACTION_BAR_CHAT_SLOT, SHU_TAG, CONVERSATION_PARAM } from "../consts.js";
 import { SCOPE, dispatchSubjectEvent } from "../current-subject.js";
 import type { ShuColumnPane } from "./shu-column-pane.js";
-import { ActionsBarSchema, StepChoiceSchema } from "../schemas.js";
+import { ActionsBarSchema, StepChoiceSchema, TypeChoiceSchema } from "../schemas.js";
 // Constructed with `new` (not createElement + type-cast): the value use keeps the registering module in the
 // bundle: esbuild strips a TS import whose bindings only appear in type positions, silently dropping the
 // customElements.define side effect and leaving un-upgraded elements at runtime.
@@ -150,6 +150,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			const { method, args, auto } = StepChoiceSchema.parse((e as CustomEvent).detail);
 			void this.chooseStep(method, args, auto);
 		});
+		// The page strip offers the types beside what the search found, and states the one a reader chooses on the document.
+		this.autoListen(document, SHU_EVENT.TYPE_CHOOSE, (e: Event) => this.#query.chooseType(TypeChoiceSchema.parse((e as CustomEvent).detail).key));
 
 		// Optional action-bar slot extensions load once the types are read: a missing or unserved one is reported by itself
 		// and does not stop the bar.
@@ -202,17 +204,19 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		// beneath: switching modes changes only the input line. Ask renders only when an ask-capable step exists, so a
 		// chosen Ask mode renders search until the steps load, and on a deployment with no ask-capable step.
 		const mode = this.state.mode === "ask" && !hasAsk ? "search" : this.state.mode;
-		const inputLine =
-			mode === "ask"
-				? this.askModeTemplate(hasAsk)
-				: mode === "step"
-					? this.#steps.template(this.modeToggleTemplate(hasAsk))
-					: this.#query.template(this.modeToggleTemplate(hasAsk));
 		// The input line's own extensions (dictation among them) serve every mode, and the ask pane renders them where it
 		// owns that line; the bar renders them for every other mode. What is about the ask itself rides the ask's slot,
 		// which the pane alone renders: rendered in every mode, the context status stood under a search bar reporting a
 		// conversation the reader was not having.
-		const body = expanded ? html`${this._history}${mode === "ask" ? nothing : this.uiExtensionsTemplate()}${inputLine}` : nothing;
+		// Ask holds the output region between its own settings and its input line, so the settings stand above the
+		// transcript. Every other mode holds it above the input line the bar renders.
+		// The search's filters are settings, which the pane's settings control shows above the transcript, as the ask's are.
+		const searchSettings = mode === "search" && this.showControls ? this.#query.settingsTemplate() : nothing;
+		const body = expanded
+			? mode === "ask"
+				? this.askModeTemplate(hasAsk)
+				: html`${searchSettings}${this._history}${this.uiExtensionsTemplate()}${mode === "step" ? this.#steps.template(this.modeToggleTemplate(hasAsk)) : this.#query.template(this.modeToggleTemplate(hasAsk))}`
+			: nothing;
 		return html`<div class=${classMap({ "actions-bar": true, collapsed: !expanded })}>${body}</div>`;
 	}
 
@@ -229,8 +233,12 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		</select>`;
 	}
 
+	/** The ask holds the transcript, so its settings stand above it and its input line below it. The pane's settings
+	 *  control reaches the chat's settings through this view, which holds that control's state. */
 	private askModeTemplate(hasAsk: boolean): TemplateResult {
-		return html`<shu-kihan-chat testid-prefix=${this.testIdPrefix}>${this.modeToggleTemplate(hasAsk, "mode-toggle")}</shu-kihan-chat>`;
+		return html`<shu-kihan-chat testid-prefix=${this.testIdPrefix} ?data-show-controls=${this.showControls}
+			>${this.modeToggleTemplate(hasAsk, "mode-toggle")}${this._history}</shu-kihan-chat
+		>`;
 	}
 
 	private uiExtensionsTemplate(): TemplateResult {

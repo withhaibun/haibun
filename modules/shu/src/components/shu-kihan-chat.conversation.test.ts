@@ -103,7 +103,7 @@ const { ShuActivityHistory } = await import("./shu-activity-history.js");
 const { ShuKihanChat, NEW_CONVERSATION } = await import("./shu-kihan-chat.js");
 const { CLOSED_CONVERSATION, CONVERSATION_OPENING, TURN_IN_FLIGHT, askDraft, conversationState, dispatchConversationEvent, openConversation } = await import("../conversation.js");
 const { CONVERSATION_PARAM } = await import("../consts.js");
-const { SHU_TAG } = await import("../consts.js");
+const { SHU_ATTR, SHU_TAG } = await import("../consts.js");
 const { SHU_TEST_IDS } = await import("../test-ids.js");
 const { forgetElementPrefs } = await import("../element-prefs.js");
 const { hashParam, mergeHashParams } = await import("../view-hash.js");
@@ -143,9 +143,10 @@ async function aPage(): Promise<{ pane: Driven; history: HTMLElement }> {
 	return { pane, history };
 }
 
-/** An ask pane, as the bar builds one each time it opens. */
+/** An ask pane, as the bar builds one each time it opens, with its settings shown, as the pane's settings control shows them. */
 async function aPane(): Promise<Driven> {
 	const pane = new ShuKihanChat() as unknown as Driven;
+	pane.setAttribute(SHU_ATTR.SHOW_CONTROLS, "");
 	document.body.appendChild(pane);
 	await pane.updateComplete;
 	await settle();

@@ -383,6 +383,15 @@ describe("what a pane renders when it collapses", () => {
 		expect(expanded).toBe(1);
 	});
 
+	it("opens the column from the strip around its label and its spine, which is as much the strip as they are", async () => {
+		pane.setMinimized(true);
+		await nextFrame(pane);
+		let expanded = 0;
+		pane.addEventListener(SHU_EVENT.COLUMN_EXPAND, () => expanded++);
+		pane.click();
+		expect(expanded).toBe(1);
+	});
+
 	it("leaves a control in the spine its own clicks, so using one is not asking for the column", async () => {
 		const button = document.createElement("button");
 		(pane.querySelector(`[slot="${SPINE_SLOT}"]`) as HTMLElement).appendChild(button);
@@ -443,6 +452,16 @@ describe("a column whose spine is a narrow form of itself", () => {
 		if (!strip) throw new Error("a collapsed pane rendered no strip to click");
 		strip.click();
 		expect(expanded, "using the rail must not put the rows back under the reader").toBe(0);
+	});
+
+	it("opens from its header, which says what the column is rather than showing the view's own surface", async () => {
+		const pane = await spined();
+		let expanded = 0;
+		pane.addEventListener(SHU_EVENT.COLUMN_EXPAND, () => expanded++);
+		const header = pane.shadowRoot?.querySelector(".pane-header") as HTMLElement | null;
+		if (!header) throw new Error("a collapsed pane rendered no header to click");
+		header.click();
+		expect(expanded).toBe(1);
 	});
 
 	it("is opened again by the control that minimized it, which is the only way back when the strip keeps its clicks", async () => {

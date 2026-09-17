@@ -42,6 +42,8 @@ export const SHU_EVENT = {
 	COLUMN_MINIMIZE: "column-minimize",
 	/** A pane docks along the bottom of the app, or returns to the strip. */
 	COLUMN_DOCK: "column-dock",
+	/** A reader chooses the type the page searches, which the page strip offers. */
+	TYPE_CHOOSE: "type-choose",
 	CONTEXT_CHANGE: "context-change",
 	/** Return to the live edge and tail it again. Any view that tails answers this; it is the one way the tail is
 	 *  re-engaged after a reader has pressed a rail to a moment, since a press is meant to stay where it was put. */
@@ -154,6 +156,9 @@ export const INDEX_PANE_KEY = "query";
 /** The slot a column's spine view is assigned to: what the column shows in the narrow strip it collapses to. A
  *  collapsed pane renders this slot and not the default one, so only one of the two views is ever rendered. */
 export const SPINE_SLOT = "spine";
+
+/** The slot the breadcrumb's search entry holds, where the page strip puts the control that says the search. */
+export const SEARCH_SLOT = "search";
 
 export const SHU_ATTR = {
 	DATA_MINIMIZED: "data-minimized",

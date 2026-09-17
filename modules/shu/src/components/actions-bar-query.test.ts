@@ -7,6 +7,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { html, render } from "lit";
 import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
+import { pageTypes } from "../signals.js";
 
 /** The types the run declares, which a case adds to. */
 const declaredTypes = [
@@ -75,17 +76,19 @@ describe("the actions bar's search mode", () => {
 		expect(searchConditions({ folder: "INBOX", account: "" }, rows)).toEqual([{ predicate: "folder", operator: "eq", value: "INBOX" }, rows[0]]);
 	});
 
-	it("offers the types the run declares once the page has read the run's steps again, and doesn't announce a search", async () => {
-		const { host, query, changes } = await aQueryPage();
+	it("states the types the run declares once the page has read the run's steps again, and doesn't announce a search", async () => {
+		const { host, changes } = await aQueryPage();
 		declaredTypes.push({ key: "note-domain", queryLabel: "Note", group: "declared" });
 		const asked = host.updatesAsked;
 		const announced = changes.length;
 		for (const told of toldOfChanges) await told();
 		expect(host.updatesAsked).toBeGreaterThan(asked);
 		expect(changes.length, "the search a reader chose is not announced again").toBe(announced);
-		render(query.template(html``), host);
-		const offered = (host.querySelector(".label-select") as HTMLElement & { options: Array<{ value: string }> }).options.map((o) => o.value);
-		expect(offered).toContain("note-domain");
+		// The page strip offers the types, so the search states them rather than rendering them itself.
+		expect(
+			pageTypes.get().options.map((o) => o.value),
+			"the types the page offers",
+		).toContain("note-domain");
 		host.disconnect();
 		declaredTypes.pop();
 	});
@@ -102,12 +105,13 @@ describe("the actions bar's search mode", () => {
 		expect(() => query.setContext([], query.accessLevel, { label: "Nothing" })).toThrow("Selected label is not present in discovered concerns: Nothing");
 	});
 
-	it("announces a picked type once, as asked for, with its select filters cleared", async () => {
-		const { host, query, changes } = await aQueryPage("#?f=folder|eq|Drafts");
+	it("announces a type the strip states once, as asked for, with its select filters cleared, and states it as the type read", async () => {
+		const { query, changes } = await aQueryPage("#?f=folder|eq|Drafts");
 		changes.length = 0;
-		host.querySelector(".label-select")?.dispatchEvent(new CustomEvent("combo-change", { detail: { value: "file-domain" } }));
+		query.chooseType("file-domain");
 		expect(query.selectedLabel).toBe("File");
 		expect(changes).toEqual([{ asked: true, accessLevel: query.accessLevel, label: "File", conditions: [] }]);
+		expect(pageTypes.get().selected, "the strip shows the type the search reads").toBe("file-domain");
 	});
 
 	it("commits typed text once typing rests, and records the search once while it is the newest entry", async () => {

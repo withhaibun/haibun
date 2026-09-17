@@ -47,9 +47,35 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 			value: "",
 			options: [],
 			placeholder: "",
+			shown: "",
 			filterText: "",
 			open: false,
 		});
+	}
+
+	/** Reactive property: what the control shows for the value it holds, rather than the chosen option's label. */
+	set shown(text: string) {
+		if (text === this.state.shown) return;
+		this.state = { ...this.state, shown: text };
+		if (!this.state.open) this.#showHeld();
+	}
+	get shown(): string {
+		return this.state.shown;
+	}
+
+	/** Offer every option, with what the control holds selected for the reader to type over. */
+	#offerOptions(input: HTMLInputElement): void {
+		input.select();
+		this.state = { ...this.state, filterText: "", open: true };
+		this._focusIndex = -1;
+		this.renderList();
+	}
+
+	/** Show what the control holds: the text its holder states, else the chosen option's label, else the value itself. */
+	#showHeld(): void {
+		const text = this.state.shown || this.state.options.find((o) => o.value === this.state.value)?.label || this.state.value;
+		if (this.state.filterText !== text) this.state = { ...this.state, filterText: text };
+		if (this._input) this._input.value = text;
 	}
 
 	/** Set a Zod schema to validate selected values against. */
@@ -111,19 +137,16 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 	/** Update the selected value. `close` shuts the dropdown (imperative setValue); the controlled setter
 	 *  passes false. An unknown value is shown as-is (shown as given, not defaulted to the first). */
 	private applyValue(value: string, close: boolean): void {
-		const match = this.state.options.find((o) => o.value === value);
 		const keepOpen = this.state.open && !close;
-		this.state = { ...this.state, value, ...(keepOpen ? {} : { filterText: match?.label ?? value, open: false }) };
-		if (!keepOpen && this._input) this._input.value = this.state.filterText;
+		this.state = { ...this.state, value, ...(keepOpen ? {} : { open: false }) };
+		if (!keepOpen) this.#showHeld();
 		this.renderList();
 	}
 
 	/** When options change while closed, refresh the display label for the held value (it may have just become resolvable). */
 	private reconcileClosedDisplay(): void {
-		const match = this.state.options.find((o) => o.value === this.state.value);
-		if (!match || this.state.filterText === match.label) return;
-		this.state = { ...this.state, filterText: match.label };
-		if (this._input) this._input.value = match.label;
+		if (!this.state.shown && !this.state.options.some((o) => o.value === this.state.value)) return;
+		this.#showHeld();
 	}
 
 	/** True while the dropdown is open, i.e. the user is mid-selection. Retained for imperative callers;
@@ -320,12 +343,14 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 		const input = this._input;
 		if (!input) return;
 
-		input.addEventListener("focus", () => {
-			input.select();
-			this.state = { ...this.state, filterText: "", open: true };
-			this._focusIndex = -1;
-			this.renderList();
-		});
+		// A press offers the options as taking focus does: the control holds focus after a pick, so a focus never comes
+		// again, and a reader pressing it would be shown nothing. Both reach the list closed, so a press that also takes
+		// focus offers them once.
+		for (const raised of ["focus", "pointerdown"]) {
+			input.addEventListener(raised, () => {
+				if (!this.state.open) this.#offerOptions(input);
+			});
+		}
 
 		input.addEventListener("input", () => {
 			this._focusIndex = -1;
@@ -380,9 +405,7 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 			this._blurTimeout = setTimeout(() => {
 				this._blurTimeout = null;
 				this.close();
-				const match = this.state.options.find((o) => o.value === this.state.value);
-				input.value = match?.label ?? this.state.value;
-				this.state = { ...this.state, filterText: input.value };
+				this.#showHeld();
 			}, 150);
 		});
 	}
@@ -393,13 +416,8 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 			if (!result.success) return;
 		}
 		this._focusIndex = -1;
-		this.state = {
-			...this.state,
-			value: option.value,
-			filterText: option.label,
-			open: false,
-		};
-		if (this._input) this._input.value = option.label;
+		this.state = { ...this.state, value: option.value, open: false };
+		this.#showHeld();
 		this._list?.remove();
 		this._list = null;
 		this.dispatchEvent(

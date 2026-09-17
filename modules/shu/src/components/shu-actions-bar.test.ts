@@ -10,7 +10,9 @@ import { Access } from "@haibun/core/lib/resources.js";
 // The registry answers without a server, with one type to search, and the bar has no extensions to load.
 vi.mock("../rpc-registry.js", async (actual) => ({
 	...(await actual<Record<string, unknown>>()),
-	getAvailableSteps: () => Promise.resolve([]),
+	// The run offers the step an ask runs, so a chosen Ask mode renders.
+	getAvailableSteps: () =>
+		Promise.resolve([{ method: "LlmStepper-chatWithContext", stepperName: "LlmStepper", stepName: "chatWithContext", pattern: "ask {prompt}", description: "", paramDomains: {} }]),
 	getAvailableDomains: () => Promise.resolve({}),
 	buildDomainOptions: () => [{ key: "Email", queryLabel: "Email", description: "", stepperName: "", selectable: true, group: "declared" }],
 	isOffline: () => true,
@@ -26,7 +28,7 @@ const { provideLayout } = await import("../test/jsdom-layout.js");
 provideLayout();
 
 const { ShuActionsBar } = await import("./shu-actions-bar.js");
-const { SHU_EVENT, SHU_TAG } = await import("../consts.js");
+const { SHU_ATTR, SHU_EVENT, SHU_TAG } = await import("../consts.js");
 if (!customElements.get(SHU_TAG.ACTIONS_BAR)) customElements.define(SHU_TAG.ACTIONS_BAR, ShuActionsBar);
 const { ShuColumnPane } = await import("./shu-column-pane.js");
 if (!customElements.get(SHU_TAG.COLUMN_PANE)) customElements.define(SHU_TAG.COLUMN_PANE, ShuColumnPane);
@@ -35,7 +37,7 @@ const { pageContext, pageTrail } = await import("../signals.js");
 const { aType } = await import("../schemas.js");
 const { setupShuTest } = await import("../test-setup.js");
 
-type TBar = HTMLElement & { updateComplete: Promise<unknown>; state: { mode: string } };
+type TBar = HTMLElement & { updateComplete: Promise<unknown>; state: { mode: string }; setState: (partial: { mode: string }) => void };
 type TPane = InstanceType<typeof ShuColumnPane>;
 
 /** A column's collapse reaches its view through an observer of the pane, which reports after the change. */
@@ -71,7 +73,12 @@ describe("the actions bar reads the page's state", () => {
 		pageTrail.set("All");
 		currentSubjectState.set(INITIAL_SUBJECT);
 	});
-	afterEach(() => teardown());
+	// A pane updates while it is in the page, and the page it leaves updates nothing: every case ends with the panes it
+	// mounted removed, so none of them renders while the test environment closes.
+	afterEach(() => {
+		document.body.innerHTML = "";
+		teardown();
+	});
 
 	it("describes to the page strip the context a view stated before the bar connected, and settles its type once the types are read", async () => {
 		pageContext.set({ patterns: [aType("Email")], accessLevel: Access.private, label: "Email" });
@@ -88,6 +95,35 @@ describe("the actions bar reads the page's state", () => {
 		await bar.updateComplete;
 		expect(bar.state.mode, "the bar is in step mode").toBe("step");
 		expect(pane.isCollapsed, "and its pane is open").toBe(false);
+	});
+
+	it("shows the search's filters where its pane's settings control does, above the transcript, and the search line without them", async () => {
+		const { pane, bar } = await mountDockedBar();
+		pane.open();
+		await settle();
+		await bar.updateComplete;
+		expect(bar.shadowRoot?.querySelector(".text-search"), "the text to search for stands in the line").not.toBeNull();
+		expect(bar.shadowRoot?.querySelector(".search-settings"), "and its filters wait on the pane's control").toBeNull();
+		bar.setAttribute(SHU_ATTR.SHOW_CONTROLS, "");
+		await bar.updateComplete;
+		const regions = Array.from(bar.shadowRoot?.querySelector(".actions-bar")?.children ?? []).map((c) => c.className.split(" ")[0] || c.tagName.toLowerCase());
+		expect(regions, "the filters stand above the transcript, and the search line below it").toEqual(["filter-bar", SHU_TAG.ACTIVITY_HISTORY, "filter-bar"]);
+		expect(bar.shadowRoot?.querySelector(".add-filter"), "the control that adds a condition").not.toBeNull();
+	});
+
+	it("holds the transcript inside the ask, with the settings its pane's control states, so the settings stand above it", async () => {
+		const { pane, bar } = await mountDockedBar();
+		pane.open();
+		bar.setState({ mode: "ask" });
+		await settle();
+		await bar.updateComplete;
+		const ask = bar.shadowRoot?.querySelector(SHU_TAG.KIHAN_CHAT) as HTMLElement | null;
+		expect(ask, "the ask is the body of the bar").not.toBeNull();
+		expect(ask?.querySelector(SHU_TAG.ACTIVITY_HISTORY), "and holds the transcript").not.toBeNull();
+		expect(ask?.hasAttribute(SHU_ATTR.SHOW_CONTROLS), "whose settings are hidden until the pane's control shows them").toBe(false);
+		bar.setAttribute(SHU_ATTR.SHOW_CONTROLS, "");
+		await bar.updateComplete;
+		expect(ask?.hasAttribute(SHU_ATTR.SHOW_CONTROLS)).toBe(true);
 	});
 
 	it("opens its scope of the active record with its pane, closes it with its pane, and closes it when the bar goes", async () => {

@@ -137,7 +137,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		:host([docked][collapsed][active]) { background: var(--shu-accent-soft); color: var(--shu-accent); }
 		:host([docked][collapsed]) .pane-header { display: contents; writing-mode: horizontal-tb; }
 		:host([docked][collapsed]) .pane-label { flex: 0 1 auto; }
-		:host([docked][collapsed]) .pane-spine { order: 1; flex: 1; min-width: 0; justify-content: flex-start; }
+		:host([docked][collapsed]) .pane-spine { order: 1; flex: 1; min-width: 0; align-self: stretch; justify-content: flex-start; }
 		:host([docked][collapsed]) .pane-controls-group { order: 2; flex-direction: row; margin: 0; }
 		:host([docked]) .resize-handle { top: 0; left: 0; right: 0; width: auto; height: var(--shu-resize-w); cursor: row-resize; }
 		:host([docked]) .resize-handle::after { top: 0; left: 0; right: 0; bottom: auto; width: auto; height: 2px; }
@@ -289,6 +289,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		if (this.docked) this.#dockClosed = !this.state.pinned;
 		this.#reflectLayout(); // persisted width/minimized restored just before this, reflect synchronously so the strip's addPane sees the attributes
 		this.addEventListener("pointerdown", this.onPaneActivate, { capture: true });
+		this.autoListen(this, "click", this.onPaneClick);
 	}
 
 	protected override onDisconnected(): void {
@@ -450,24 +451,22 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		if (!this.state.active) this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_ACTIVATE, { bubbles: true, composed: true }));
 	};
 
-	private onHeaderClick = (): void => {
-		this.open();
-	};
+	/** A control the pane's view offers, which takes its own clicks. The rest of the strip opens the pane. */
+	private static readonly VIEW_CONTROL = "button, input, select, textarea, a[href], [role='button'], [contenteditable]";
 
-	/** A control a spine view offers, which takes its own clicks. The rest of the strip opens the column. */
-	private static readonly SPINE_CONTROL = "button, input, select, textarea, a[href], [role='button'], [contenteditable]";
-
-	/** The strip opens the column, anywhere on it: a spine that says what is behind it is asking to be opened.
+	/** The strip a pane collapses to opens it, pressed anywhere on it: its label, its spine, and the strip around them. A
+	 *  spine that says what is behind it is asking to be opened.
 	 *
-	 *  Two things are not: a control the spine view offers (a button pressed in the strip is being used, not asking for
-	 *  the column), and the whole strip of a column rendering a narrow form of ITSELF. That strip is the column's own
-	 *  control surface, the log's rail is dragged and clicked to move through the run, so opening it on a click would
-	 *  put the rows back the moment the reader used it. Such a column is opened from its label instead. */
-	private onSpineClick = (e: Event): void => {
+	 *  Two presses don't open it. A control the view offers takes its own press, since that control is being used rather
+	 *  than asking for the pane. The spine of a column rendering a narrow form of ITSELF takes its presses too: that strip
+	 *  is the column's own control surface, the log's rail is dragged and pressed to move through the run, and opening the
+	 *  column would put the rows back the moment the reader used it. Such a column opens from its header. */
+	private onPaneClick = (e: Event): void => {
 		if (!this.isCollapsed) return;
-		if (this.#ownSpineColumn) return;
-		const onControl = e.composedPath().some((node) => node instanceof Element && node.matches(ShuColumnPane.SPINE_CONTROL));
-		if (onControl) return;
+		const path = e.composedPath();
+		if (path.some((node) => node instanceof Element && node.matches(ShuColumnPane.VIEW_CONTROL))) return;
+		const header = this.renderRoot.querySelector(`.${CLASS.HEADER}`);
+		if (this.#ownSpineColumn && !(header && path.includes(header))) return;
 		this.open();
 	};
 
@@ -563,11 +562,11 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 				<button class="pane-icon ${CLASS.PIN}" type="button" title=${pinned ? "Unpin column" : "Pin column"} aria-label="Pin column" aria-pressed=${pinned} @click=${this.onPin}>${ICON.PIN}</button>
 				${closable ? html`<button class="pane-icon ${CLASS.CLOSE}" type="button" data-testid=${TEST_ID.CLOSE} title="Close" aria-label="Close column" @click=${this.onClose}>${ICON.CLOSE}</button>` : nothing}
 			</span>`;
-		const spine = html`<div class=${CLASS.SPINE} data-testid=${TEST_ID.SPINE} @click=${this.onSpineClick}>
+		const spine = html`<div class=${CLASS.SPINE} data-testid=${TEST_ID.SPINE}>
 			<slot name=${ownSpine ? "" : SPINE_SLOT} @slotchange=${this.onSlotChange}></slot>
 		</div>`;
 		return html`
-			<div class=${CLASS.HEADER} data-testid=${columnType !== "query" ? TEST_ID.BROWSER_COLUMN : ""} @click=${this.onHeaderClick}>
+			<div class=${CLASS.HEADER} data-testid=${columnType !== "query" ? TEST_ID.BROWSER_COLUMN : ""}>
 				<span class=${CLASS.LABEL} title=${label}>${label}</span>
 				${controlsGroup}
 			</div>

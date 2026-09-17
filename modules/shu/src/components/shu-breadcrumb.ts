@@ -9,6 +9,7 @@ import { html, css, type TemplateResult } from "lit";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { BreadcrumbSchema, NOTHING_SELECTED_LABEL } from "../schemas.js";
+import { SEARCH_SLOT } from "../consts.js";
 
 export class ShuBreadcrumb extends ShuElement<typeof BreadcrumbSchema> {
 	/** A control, not a view of data, contributes nothing to the Kihan's context. */
@@ -21,6 +22,8 @@ export class ShuBreadcrumb extends ShuElement<typeof BreadcrumbSchema> {
 		css`
 			:host { display: flex; align-items: center; gap: 0; overflow: hidden; min-width: 0; flex: 1; }
 			.crumb { cursor: pointer; color: var(--shu-fg-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; padding: var(--shu-space-1) var(--shu-space-2); border-radius: var(--shu-radius); }
+			/* The search's entry holds a control, which takes the width its text needs rather than the width left over. */
+			.crumb:first-child { flex: 0 0 auto; display: flex; align-items: center; }
 			.crumb:hover { color: var(--shu-fg); text-decoration: underline; }
 			.crumb.active { background: var(--shu-accent); color: var(--shu-accent-fg); font-weight: 500; }
 			.crumb-sep { color: var(--shu-fg-faded); padding: 0 var(--shu-space-1); flex-shrink: 0; }
@@ -78,6 +81,8 @@ export class ShuBreadcrumb extends ShuElement<typeof BreadcrumbSchema> {
 	render(): TemplateResult {
 		const { queryLabel, columns, activeIndex, hasSync } = this.state;
 		const crumbs = [queryLabel, ...columns.map((c) => c.replace(/^Email:/, ""))];
-		return html`${crumbs.map((label, i) => html`${i > 0 ? html`<span class="crumb-sep">›</span>` : ""}<span class=${i === activeIndex ? "crumb active" : "crumb"} data-index=${i} title=${label} @click=${this.onCrumb(i)}>${i === 0 && hasSync ? html`<button class="sync-btn" title="New data available, click to refresh" @click=${this.onSync}>⟳</button>` : ""}${label}</span>`)}`;
+		// The search's entry holds what its holder puts in it, a control that says the search and changes it, and says the
+		// search itself where its holder puts nothing there.
+		return html`${crumbs.map((label, i) => html`${i > 0 ? html`<span class="crumb-sep">›</span>` : ""}<span class=${i === activeIndex ? "crumb active" : "crumb"} data-index=${i} title=${label} @click=${this.onCrumb(i)}>${i === 0 && hasSync ? html`<button class="sync-btn" title="New data available, click to refresh" @click=${this.onSync}>⟳</button>` : ""}${i === 0 ? html`<slot name=${SEARCH_SLOT}>${label}</slot>` : label}</span>`)}`;
 	}
 }

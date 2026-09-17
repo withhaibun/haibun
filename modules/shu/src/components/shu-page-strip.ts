@@ -12,8 +12,8 @@ import { PageStripCorners } from "./page-strip-corners.js";
 import { FootprintController } from "./footprint.js";
 import { loadSlotExtensions } from "./slot-extensions.js";
 import { SignalController } from "../controllers/signal-controller.js";
-import { activePane, dockedPane, pageContext, pageStatus, pageTrail, stripPanes } from "../signals.js";
-import { PAGE_STRIP_FOOTPRINT, PERMISSIONS_SLOT, SHU_ATTR, SHU_EVENT, SHU_TAG } from "../consts.js";
+import { activePane, dockedPane, pageContext, pageStatus, pageTrail, pageTypes, stripPanes } from "../signals.js";
+import { PAGE_STRIP_FOOTPRINT, PERMISSIONS_SLOT, SEARCH_SLOT, SHU_ATTR, SHU_EVENT, SHU_TAG } from "../consts.js";
 import { isOffline } from "../rpc-registry.js";
 import { reportToRun } from "../client-log.js";
 import { appAccessLevel } from "../util.js";
@@ -53,6 +53,8 @@ export class ShuPageStrip extends ShuElement<typeof PageStripSchema> {
 	#activePane = new SignalController(this, activePane, () => this.#updateBreadcrumb());
 	#docked = new SignalController(this, dockedPane, () => undefined);
 	#status = new SignalController(this, pageStatus, (status) => this.#corners.setStatus(status));
+	/** The types the page searches, which the search states: the strip offers them beside what the search found. */
+	#types = new SignalController(this, pageTypes, () => undefined);
 	/** The strip's height, which a docked pane stands above. */
 	#footprint = new FootprintController(this, PAGE_STRIP_FOOTPRINT, () => this.offsetHeight);
 
@@ -116,6 +118,12 @@ export class ShuPageStrip extends ShuElement<typeof PageStripSchema> {
 		return docked ? Math.min(top, docked.getBoundingClientRect().top) : top;
 	}
 
+	/** State the type a reader chose on the document, where the search hears it wherever the actions bar stands. */
+	#onTypeChange = (e: CustomEvent): void => {
+		const key = e.detail?.value;
+		if (key) this.dispatchEvent(new CustomEvent(SHU_EVENT.TYPE_CHOOSE, { detail: { key }, bubbles: true, composed: true }));
+	};
+
 	#onDockToggle = (): void => {
 		const pane = this.#dockedPaneElement();
 		if (!pane) return;
@@ -135,7 +143,11 @@ export class ShuPageStrip extends ShuElement<typeof PageStripSchema> {
 			<button class="pane-icon dock-toggle" ?disabled=${!docked} aria-expanded=${docked?.open ?? false} aria-label=${docked?.open ? "Close the docked pane" : "Open the docked pane"}
 				data-testid=${`${prefix}dock-toggle`} @click=${this.#onDockToggle}>${docked?.open ? "▾" : "▴"}</button>
 			${this.#corners.statusTemplate()}
-			<shu-breadcrumb></shu-breadcrumb>
+			<shu-breadcrumb
+				><shu-combobox slot=${SEARCH_SLOT} class="type-select" testid=${`${prefix}type-select`} placeholder="type..." .options=${this.#types.state.options}
+					.value=${this.#types.state.selected} .shown=${this.#trail.state} @combo-change=${this.#onTypeChange}
+					@click=${(e: Event) => e.stopPropagation()}></shu-combobox
+			></shu-breadcrumb>
 			${this.#corners.controlsTemplate()}
 			<button class="pane-icon" ?disabled=${!docked} aria-pressed=${docked?.pinned ?? false} aria-label=${docked?.pinned ? "Unpin the docked pane" : "Pin the docked pane open"}
 				data-testid=${`${prefix}dock-pin`} @click=${this.#onDockPin}>\u{1F4CC}</button>
