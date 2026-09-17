@@ -5,7 +5,6 @@
  * (corners), step mode (steps) and search mode (query). The bar itself holds the mode, the history, the breadcrumb,
  * the conversation its address names, the UI extensions consumers declare for its slots, and the sync notice.
  */
-import type { AccessQueryLevel } from "@haibun/core/lib/resources.js";
 import { z } from "zod";
 import { html, nothing, type TemplateResult } from "lit-html";
 import { classMap } from "lit-html/directives/class-map.js";
@@ -16,14 +15,16 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { ActionsBarHeight } from "./actions-bar-height.js";
 import { ActionsBarCorners } from "./actions-bar-corners.js";
 import { ActionsBarSteps } from "./actions-bar-steps.js";
-import { ActionsBarQuery, type TQueryContextExtra } from "./actions-bar-query.js";
+import { ActionsBarQuery } from "./actions-bar-query.js";
 import { ACTIONS_BAR_STYLES } from "./actions-bar-styles.js";
 import { SHU_EVENT, ACTION_BAR_ASK_SLOT, ACTION_BAR_CHAT_SLOT, PERMISSIONS_SLOT, SHU_TAG, CONVERSATION_PARAM } from "../consts.js";
-import { ActionsBarSchema, type TContextPattern } from "../schemas.js";
+import { ActionsBarSchema, StepChoiceSchema } from "../schemas.js";
 // Constructed with `new` (not createElement + type-cast): the value use keeps the registering module in the
 // bundle: esbuild strips a TS import whose bindings only appear in type positions, silently dropping the
 // customElements.define side effect and leaving un-upgraded elements at runtime.
 import { ShuActivityHistory } from "./shu-activity-history.js";
+import { SignalController } from "../controllers/signal-controller.js";
+import { activePane, pageContext, stripPanes } from "../signals.js";
 import { isServerUnreachable } from "../hypermedia.js";
 import { closeConversation, conversationState, openConversation } from "../conversation.js";
 import { hashParam, onHashChanged } from "../view-hash.js";
@@ -43,8 +44,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	static schema = ActionsBarSchema;
 	static domainSelector = SHU_TAG.ACTIONS_BAR;
 
-	private _columns: string[] = [];
-	private _activeViewIndex = 0;
 	private _unsubscribeSync?: () => void;
 	/** The shared output region: one node for the bar's lifetime, so accumulated activity survives mode switches
 	 *  and collapse/expand. */
@@ -66,6 +65,13 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	});
 	/** How the bar stands: open or closed, pinned, dragged, and the footprint of its closed strip. */
 	#height = new ActionsBarHeight(this, { state: () => this.state, setState: (patch) => this.setState(patch) });
+	/** The page's context, which the search describes and the breadcrumb names, read wherever the bar is placed. */
+	#context = new SignalController(this, pageContext, (context) => {
+		if (context) this.#query.setContext(context.patterns, context.accessLevel, context);
+	});
+	/** The strip's panes and the one the reader is on, which the breadcrumb names. */
+	#panes = new SignalController(this, stripPanes, () => this.updateBreadcrumbDisplay());
+	#activePane = new SignalController(this, activePane, () => this.updateBreadcrumbDisplay());
 
 	static observedHtmlAttributes = ["api-base", "testid-prefix"];
 
@@ -84,30 +90,13 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		super(ActionsBarSchema, { askExpanded: false, pinned: false, mode: "search" });
 	}
 
-	/** Take the context the active view offers, which the search describes and the breadcrumb names. */
-	setContext(patterns: TContextPattern[], accessLevel: AccessQueryLevel, extra?: TQueryContextExtra): void {
-		this.#query.setContext(patterns, accessLevel, extra);
-		if (this.state.askExpanded) this.requestUpdate();
-	}
-
-	setColumns(columns: string[]): void {
-		this._columns = columns;
-		this.updateBreadcrumbDisplay();
-	}
-
-	setActiveView(index: number): void {
-		this._activeViewIndex = index;
-		if (this.state.askExpanded) this.requestUpdate();
-		else this.updateBreadcrumbDisplay();
-	}
-
 	/**
-	 * Open the step input pre-selected to `method`. Used by the affordances panel so clicking a card
-	 * routes through the same step-caller flow as the actions-bar combo. When `args` are supplied,
-	 * they are passed as fixed params (rendered inline, not editable); when `auto` is true, the
-	 * step-caller dispatches immediately on mount without showing the input form.
+	 * Open the step input pre-selected to `method`, for a `STEP_CHOOSE` a view raises: the affordances panel's cards route
+	 * through the same step-caller flow as the actions-bar combo. When `args` are supplied, they are passed as fixed params
+	 * (rendered inline, not editable); when `auto` is true, the step-caller dispatches immediately on mount without
+	 * showing the input form.
 	 */
-	async chooseStep(method: string, args?: Record<string, unknown>, auto?: boolean): Promise<void> {
+	private async chooseStep(method: string, args?: Record<string, unknown>, auto?: boolean): Promise<void> {
 		this.setState({ mode: "step", askExpanded: true });
 		await this.updateComplete;
 		this.#steps.pick(method, args, auto);
@@ -134,7 +123,12 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			  })
 			| null;
 		if (!bc?.setTrail) return;
-		bc.setTrail(this.#query.trailLabel, this._columns, this._activeViewIndex);
+		const panes = this.#panes.state;
+		bc.setTrail(
+			this.#query.trailLabel,
+			panes.filter((pane) => !pane.query).map((pane) => pane.label),
+			panes.findIndex((pane) => pane.key === this.#activePane.state),
+		);
 	}
 
 	/** Open the conversation the address names, with the bar expanded in Ask mode, or leave the conversation when the
@@ -154,6 +148,11 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this.#height.openIfPinned();
 		this.followConversationAddress();
 		this.autoTeardown(onHashChanged(this.followConversationAddress));
+		// A view raises a step choice wherever it is placed, and the bar is not its ancestor, so the document is where both meet.
+		this.autoListen(document, SHU_EVENT.STEP_CHOOSE, (e: Event) => {
+			const { method, args, auto } = StepChoiceSchema.parse((e as CustomEvent).detail);
+			void this.chooseStep(method, args, auto);
+		});
 
 		// Optional action-bar slot extensions load once the types are read: a missing or unserved one is reported by itself
 		// and does not stop the bar.

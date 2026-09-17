@@ -196,6 +196,23 @@ export type TContextIndividual = z.infer<typeof ContextIndividualSchema>;
 export type TContextPattern = z.infer<typeof ContextPatternSchema>;
 export const ContextQuerySchema = z.array(ContextPatternSchema);
 
+/** What a view states it shows, as the page's actions read it: the patterns, the level they are read at, and what the
+ *  view knows of them. A view states it with `CONTEXT_CHANGE`, and the app checks it against this schema. */
+export const PageContextSchema = z.object({
+	patterns: ContextQuerySchema,
+	accessLevel: AccessQueryLevelSchema,
+	label: z.string().optional(),
+	total: z.number().optional(),
+	folder: z.string().optional(),
+	textQuery: z.string().optional(),
+	conditions: z.array(SearchConditionSchema).optional(),
+});
+export type TPageContext = z.infer<typeof PageContextSchema>;
+
+/** A step a view asks the actions bar to open with `STEP_CHOOSE`: its method, the arguments it fixes, and whether the
+ *  step runs as soon as its caller mounts. */
+export const StepChoiceSchema = z.object({ method: z.string().min(1), args: z.record(z.string(), z.unknown()).optional(), auto: z.boolean().optional() });
+
 /** The context that goes with an active record: the patterns an ask about the record carries, and the access level
  *  they are read at. */
 export const BundleSchema = z.object({ patterns: ContextQuerySchema, accessLevel: AccessQueryLevelSchema });

@@ -1,7 +1,7 @@
 /**
  * <shu-column-strip>: Horizontal scrolling container for column panes.
  * Manages pane insertion/removal via DOM API (NOT innerHTML).
- * Dispatches columns-changed, column-activated events.
+ * Publishes the panes it holds as the `stripPanes` signal.
  * Pane open-state and the URL hash are owned by PaneState; per-pane width/minimize
  * persistence is owned by the panes themselves (ShuElement.persistFields).
  */
@@ -9,7 +9,7 @@ import { html, css, type TemplateResult } from "lit";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { SHU_EVENT, SHU_ATTR } from "../consts.js";
 import { ColumnStripSchema } from "../schemas.js";
-import { activePane } from "../signals.js";
+import { activePane, stripPanes } from "../signals.js";
 import { shuBaseStyles } from "./styles.js";
 import type { ShuColumnPane } from "./shu-column-pane.js";
 
@@ -79,7 +79,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		this.applyActive(); // paint active from the signal now this pane exists (a restore that named it lands here)
 		this.updateQueryAlone();
 		this.updateEdges();
-		this.emitColumnsChanged();
+		this.publishPanes();
 		if (!minimized) requestAnimationFrame(() => pane.scrollIntoView({ behavior: "smooth", inline: "end" }));
 		// A maximized column is the ONLY one visible. A column opened while one is maximized ends the maximize rather
 		// than arriving hidden: it was opened to be read. The strip owns this because it owns which panes exist; a pane
@@ -101,7 +101,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		this.applyActive();
 		this.updateQueryAlone();
 		this.updateEdges();
-		this.emitColumnsChanged();
+		this.publishPanes();
 	}
 
 	/**
@@ -149,11 +149,6 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		const key = activePane.get();
 		for (const pane of this.panes) pane.setActive(paneKeyOf(pane) === key);
 		this.updateAccordion();
-	}
-
-	/** Get column labels for breadcrumb. */
-	getColumnLabels(): string[] {
-		return this.panes.filter((p) => p.getAttribute(SHU_ATTR.COLUMN_TYPE) !== "query").map((p) => p.getAttribute("label") || "");
 	}
 
 	/** Toggle query-alone class on the query pane for CSS-safe :only-child equivalent. */
@@ -253,7 +248,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 			this.updateEdges();
 			this.updateAccordion();
 		}
-		this.emitColumnsChanged();
+		this.publishPanes();
 	}
 
 	private handlePaneExpand = (e: Event): void => {
@@ -263,7 +258,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 			pane.setMinimized(false);
 			this.activatePane(index);
 			this.updateAccordion();
-			this.emitColumnsChanged();
+			this.publishPanes();
 			requestAnimationFrame(() => pane.scrollIntoView({ behavior: "smooth", inline: "center" }));
 		}
 	};
@@ -299,7 +294,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		// there is no sharing to do (one pane, a maximized strip, the wrapped narrow layout), so it is said here.
 		this.updateAccordion();
 		this.updateEdges();
-		this.emitColumnsChanged();
+		this.publishPanes();
 	};
 
 	private handlePaneActivate = (e: Event): void => {
@@ -308,14 +303,9 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		if (index >= 0) this.activatePane(index);
 	};
 
-	private emitColumnsChanged(): void {
-		this.dispatchEvent(
-			new CustomEvent(SHU_EVENT.COLUMNS_CHANGED, {
-				detail: { columns: this.getColumnLabels() },
-				bubbles: true,
-				composed: true,
-			}),
-		);
+	/** Publish the panes this strip holds, in its order. */
+	private publishPanes(): void {
+		stripPanes.set(this.panes.map((pane) => ({ key: paneKeyOf(pane), label: pane.getAttribute("label") || "", query: pane.getAttribute(SHU_ATTR.COLUMN_TYPE) === "query" })));
 	}
 
 	private onSlotChange = (): void => {

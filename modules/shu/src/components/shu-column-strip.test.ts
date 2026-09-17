@@ -14,7 +14,7 @@ import { ShuColumnStrip } from "./shu-column-strip.js";
 import { SHU_EVENT, SHU_ATTR } from "../consts.js";
 import { flushPersistWrites, writeElementPrefs } from "../element-prefs.js";
 import { setJsonCookie } from "../cookies.js";
-import { activePane } from "../signals.js";
+import { activePane, stripPanes } from "../signals.js";
 
 beforeAll(() => {
 	// jsdom has no scrollIntoView; stub it so the strip's post-add scroll doesn't raise uncaught errors that bury real failures.
@@ -132,6 +132,39 @@ describe("shu-column-strip activation invariant", () => {
 		expect(activePane.get()).toBe("B");
 		strip.removePane(0);
 		expect(activePane.get()).toBeNull();
+	});
+});
+
+describe("the panes a strip publishes", () => {
+	let strip: ShuColumnStrip;
+
+	beforeEach(async () => {
+		flushPersistWrites();
+		setJsonCookie("shu-prefs-shu-column-pane", {});
+		activePane.set(null);
+		stripPanes.set([]);
+		document.body.innerHTML = "";
+		strip = document.createElement("shu-column-strip") as ShuColumnStrip;
+		document.body.appendChild(strip);
+		await (strip as unknown as { updateComplete: Promise<unknown> }).updateComplete;
+	});
+
+	it("publishes the panes it holds, in its order, with the query pane marked, as panes are added and removed", () => {
+		const query = document.createElement("shu-column-pane") as ShuColumnPane;
+		query.setAttribute("column-type", "query");
+		strip.addPane(query as ShuColumnPane & HTMLElement);
+		strip.addPane(makePane("A") as ShuColumnPane & HTMLElement);
+		strip.addPane(makePane("B") as ShuColumnPane & HTMLElement);
+		expect(stripPanes.get()).toEqual([
+			{ key: "query", label: "", query: true },
+			{ key: "A", label: "A", query: false },
+			{ key: "B", label: "B", query: false },
+		]);
+		strip.removePane(1);
+		expect(
+			stripPanes.get().map((pane) => pane.key),
+			"a removed pane is not published",
+		).toEqual(["query", "B"]);
 	});
 });
 

@@ -8,7 +8,6 @@ import { getHash, hashWithColumns } from "./view-hash.js";
  */
 import { hydrateFromDom, getHydratedViewHash, getAvailableSteps, findStep, hydratedCache, isOffline } from "./rpc-registry.js";
 import { openSession } from "./session-key.js";
-import { Access } from "@haibun/core/lib/resources.js";
 import { ShuElement } from "./components/shu-element.js";
 import { registerComponents } from "./component-registry.js";
 import { acts, conduit, setConduit, LiveConduit } from "./hypermedia.js";
@@ -20,13 +19,12 @@ import { ensureUiComponentLoaded as sharedEnsureUiComponentLoaded } from "./exte
 import { paneOpsFor } from "./pane-event-router.js";
 import { setActiveViewId } from "./quads-snapshot.js";
 import { SCOPE, dispatchSubjectEvent, entryOf } from "./current-subject.js";
-import type { TContextPattern } from "./schemas.js";
-import { activePane, timeCursor } from "./signals.js";
+import { PageContextSchema, type TContextPattern } from "./schemas.js";
+import { activePane, pageContext, stripPanes, timeCursor } from "./signals.js";
 import { PaneState, DesiredPaneSchema } from "./pane-state.js";
 import type { ShuColumnStrip } from "./components/shu-column-strip.js";
 import type { ShuEntityColumn } from "./components/shu-entity-column.js";
 import type { ShuFilterColumn } from "./components/shu-filter-column.js";
-import type { ShuActionsBar } from "./components/shu-actions-bar.js";
 import type { ShuGraphQuery } from "./components/shu-graph-query.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
@@ -157,7 +155,6 @@ const main = async (): Promise<void> => {
 	}
 
 	const getStrip = () => appRoot.querySelector("shu-column-strip") as ShuColumnStrip | null;
-	const getActionsBar = () => appRoot.querySelector(".app-container > shu-actions-bar") as ShuActionsBar | null;
 	const getIndexPane = () => getStrip()?.panes.find((pane) => pane.dataset.columnKey === INDEX_PANE_KEY) ?? null;
 	const getQuery = () => appRoot.querySelector("shu-graph-query") as ShuGraphQuery | null;
 	/** The view a pane shows. The query renders its results into the index pane from outside it, so the index pane's view
@@ -244,18 +241,6 @@ const main = async (): Promise<void> => {
 	);
 
 	appRoot.addEventListener(
-		SHU_EVENT.STEP_CHOOSE,
-		((e: CustomEvent) => {
-			const method = e.detail?.method;
-			if (typeof method !== "string") return;
-			const args = e.detail?.args as Record<string, unknown> | undefined;
-			const auto = Boolean(e.detail?.auto);
-			getActionsBar()?.chooseStep?.(method, args, auto);
-		}) as EventListener,
-		{ signal },
-	);
-
-	appRoot.addEventListener(
 		SHU_EVENT.COLUMN_OPEN,
 		((e: CustomEvent) => {
 			const { subject, label, addToSelection } = e.detail || {};
@@ -314,20 +299,16 @@ const main = async (): Promise<void> => {
 		dispatchSubjectEvent({ type, scope: SCOPE.page, entry: entryOf(patterns ?? [], appAccessLevel()) });
 	};
 
-	// Context change → forward to actions bar, and move the reader where the active pane states what it shows.
+	// A view's context is the page's context, and moves the reader where the active pane states what it shows.
 	appRoot.addEventListener(
 		SHU_EVENT.CONTEXT_CHANGE,
 		((e: CustomEvent) => {
-			const detail = e.detail || {};
-			const actionsBar = getActionsBar();
-			if (actionsBar?.setContext && detail.patterns) {
-				actionsBar.setContext(detail.patterns, detail.accessLevel || Access.private, detail);
-			}
+			const context = PageContextSchema.parse(e.detail);
+			pageContext.set(context);
 			// A view stating what it shows moves the reader to it only where it is the active pane: the query view
 			// publishing at boot, or a column that is not the one the reader is on, changes nothing about where they are.
 			const statedBy = paneOf(e.target as Element | null);
-			if (detail.patterns && statedBy && statedBy === activePaneElement())
-				dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: entryOf(detail.patterns, detail.accessLevel || appAccessLevel()) });
+			if (statedBy && statedBy === activePaneElement()) dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: entryOf(context.patterns, context.accessLevel) });
 		}) as EventListener,
 		{ signal },
 	);
@@ -424,28 +405,20 @@ const main = async (): Promise<void> => {
 		{ signal },
 	);
 
-	// The active pane is the `activePane` signal (the strip paints it, the harvest reads it). Its ONE app-level reaction:
-	// highlight the breadcrumb and publish the active view's column type to the dimming store. Replaces the old
-	// COLUMN_ACTIVATED event round-trip and the separate active-view tracking they kept.
+	// The active pane is the `activePane` signal (the strip paints it, the harvest and the actions bar's breadcrumb read
+	// it). Its app-level reaction publishes the active view's column type to the dimming store and moves the page scope.
 	const onActivePaneChange = (): void => {
 		const panes = getStrip()?.panes ?? [];
 		const index = panes.findIndex((p) => (p.dataset.columnKey ?? p.getAttribute(SHU_ATTR.COLUMN_TYPE)) === activePane.get());
-		getActionsBar()?.setActiveView?.(index);
 		setActiveViewId(index >= 0 ? (panes[index]?.getAttribute(SHU_ATTR.COLUMN_TYPE) ?? null) : null);
 		raiseActivePaneSubject("activate");
 	};
 	signal.addEventListener("abort", activePane.subscribe(onActivePaneChange));
 
-	// Columns changed → forward column labels to the actions-bar breadcrumb.
-	// Hash output is owned by PaneState, not by this listener.
-	appRoot.addEventListener(
-		SHU_EVENT.COLUMNS_CHANGED,
-		((e: CustomEvent) => {
-			const columns: string[] = e.detail?.columns || [];
-			getActionsBar()?.setColumns?.(columns);
-			raiseActivePaneSubject("update");
-		}) as EventListener,
-		{ signal },
+	// The columns changing under the reader updates what the active pane shows. Hash output is owned by PaneState.
+	signal.addEventListener(
+		"abort",
+		stripPanes.subscribe(() => raiseActivePaneSubject("update")),
 	);
 
 	// Activate query pane on start. Its width restores itself via persistFields (data-column-key="query").

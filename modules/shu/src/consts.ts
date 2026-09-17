@@ -37,7 +37,6 @@ export const SHU_EVENT = {
 	COLUMN_MAXIMIZE: "column-maximize",
 	COLUMN_RESIZE: "column-resize",
 	COLUMN_MINIMIZE: "column-minimize",
-	COLUMNS_CHANGED: "columns-changed",
 	CONTEXT_CHANGE: "context-change",
 	/** Return to the live edge and tail it again. Any view that tails answers this; it is the one way the tail is
 	 *  re-engaged after a reader has pressed a rail to a moment, since a press is meant to stay where it was put. */
