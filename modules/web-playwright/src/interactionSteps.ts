@@ -4,7 +4,7 @@ type ClickResult = import("playwright").Locator;
 import { TFeatureStep } from "@haibun/core/lib/astepper.js";
 import { OK, Origin, TStepResult } from "@haibun/core/schema/protocol.js";
 import { DOMAIN_STATEMENT, DOMAIN_STRING } from "@haibun/core/lib/domains.js";
-import { actionNotOK, actionOKWithProducts, sleep, getStepTerm, jsonArtifact } from "@haibun/core/lib/util/index.js";
+import { actionNotOK, actionOKWithProducts, errorDetail, sleep, getStepTerm, jsonArtifact } from "@haibun/core/lib/util/index.js";
 import { DOMAIN_PAGE_LOCATOR, DOMAIN_PAGE_TEST_ID, PageContentsSchema } from "./domains.js";
 import { pickLocatorDomain } from "./web-playwright.js";
 import { WEB_PAGE, WebPlaywright } from "./web-playwright.js";
@@ -146,7 +146,6 @@ export const interactionSteps = (wp: WebPlaywright) =>
 									return true;
 								},
 								{ containerSel: wp.inContainerSelector, innerSel: target },
-								{ timeout: 30000 },
 							);
 							return OK;
 						} catch (e) {
@@ -161,31 +160,27 @@ export const interactionSteps = (wp: WebPlaywright) =>
 					const effectiveDomain = domainParts.length === 1 ? domainParts[0] : pickLocatorDomain(domainParts);
 					if (effectiveDomain === DOMAIN_PAGE_TEST_ID) {
 						await wp.withPage(async (page: Page) =>
-							page.waitForFunction(
-								(testId) => {
-									function walk(root: Document | ShadowRoot): Element | null {
-										const el = root.querySelector(`[data-testid="${testId}"]`);
-										if (el) return el;
-										for (const child of root.querySelectorAll("*")) {
-											if (child.shadowRoot) {
-												const found = walk(child.shadowRoot);
-												if (found) return found;
-											}
+							page.waitForFunction((testId) => {
+								function walk(root: Document | ShadowRoot): Element | null {
+									const el = root.querySelector(`[data-testid="${testId}"]`);
+									if (el) return el;
+									for (const child of root.querySelectorAll("*")) {
+										if (child.shadowRoot) {
+											const found = walk(child.shadowRoot);
+											if (found) return found;
 										}
-										return null;
 									}
-									return walk(document);
-								},
-								String(resolvedValue),
-								{ timeout: 30000 },
-							),
+									return null;
+								}
+								return walk(document);
+							}, String(resolvedValue)),
 						);
 					} else {
 						await wp.withPage(async (page: Page) => await (await wp.locateByDomain(page, featureStep, "target")).waitFor());
 					}
 					return OK;
-				} catch (_e) {
-					return actionNotOK(`Did not find ${target}`);
+				} catch (e) {
+					return actionNotOK(`Did not find ${target}: ${errorDetail(e)}`);
 				}
 			},
 		},

@@ -75,7 +75,7 @@ describe("the actions bar's search mode", () => {
 		expect(searchConditions({ folder: "INBOX", account: "" }, rows)).toEqual([{ predicate: "folder", operator: "eq", value: "INBOX" }, rows[0]]);
 	});
 
-	it("offers the types the run declares once the page has read the run's steps again, and announces no search", async () => {
+	it("offers the types the run declares once the page has read the run's steps again, and doesn't announce a search", async () => {
 		const { host, query, changes } = await aQueryPage();
 		declaredTypes.push({ key: "note-domain", queryLabel: "Note", group: "declared" });
 		const asked = host.updatesAsked;

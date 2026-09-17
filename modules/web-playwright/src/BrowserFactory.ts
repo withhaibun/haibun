@@ -156,7 +156,7 @@ export class BrowserFactory {
 			}
 			this.browserContexts[featureNum] = browserContext;
 			this.contextStats[featureNum] = { start: Timer.since() };
-			if (BrowserFactory.configs.defaultTimeout) {
+			if (config.defaultTimeout) {
 				this.browserContexts[featureNum].setDefaultTimeout(config.defaultTimeout);
 			}
 		}

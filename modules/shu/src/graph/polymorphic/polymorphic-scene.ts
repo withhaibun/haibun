@@ -748,7 +748,9 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			// Render-on-demand state: the scene pauses when nothing is moving and no recent discrete change is pending, and
 			// `ticks` counts the gate's frames whether or not one was drawn. A reader whose focus/highlight assertion
 			// depends on a redraw can tell a paused scene from a live one, and can count ticks over which nothing was drawn.
-			render: { paused: this.drawing !== undefined && !this.drawing.drawing, ticks: this.rafFrame },
+			// A change made since the last tick is drawn from the next one, so the scene is paused only while that tick draws
+			// nothing either.
+			render: { paused: this.drawing !== undefined && !this.drawing.drawing && !this.drawsOnTick(this.rafFrame + 1), ticks: this.rafFrame },
 			// What a drawn frame takes the renderer (the median of the last few, null before the first measurement) and
 			// whether the breath rests on it. A reader can tell a scene that regulated itself from one that has not measured.
 			regulation: {
@@ -1540,6 +1542,12 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		return this.engine.mode !== "frozen" || this.tween != null || this.nodeDrag.dragging;
 	}
 
+	/** Whether the gate draws on tick `frame`: a discrete change is within its grace, the pointer is over the canvas,
+	 *  something is settling, or a focus is still to apply. */
+	private drawsOnTick(frame: number): boolean {
+		return frame < this.dirtyUntilFrame || this.pointerOverCanvas || this.isSettling() || this.focusDirty;
+	}
+
 	/**
 	 * Desktop navigation: drag pans, Ctrl+drag spins, wheel zooms. A-Frame's look/wasd/movement controls
 	 * are removed and the camera rig is flattened to the origin so OrbitControls operates in world space;
@@ -1670,7 +1678,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			// A pending focus keeps the scene awake until it can be applied: applyFocus needs the layout at rest (its pin +
 			// sim tick would jump an under-converged graph) and the node visuals built (it skips a node with no visual
 			// yet), and either can lag a selection made mid-build. Sleeping before then would leave the dim undrawn.
-			const active = this.rafFrame < this.dirtyUntilFrame || this.pointerOverCanvas || this.isSettling() || this.focusDirty;
+			const active = this.drawsOnTick(this.rafFrame);
 			drawing.moving(active);
 			if (active) {
 				if (this.focusDirty && this.engine.mode === "frozen") {

@@ -236,9 +236,9 @@ export function onStepsChanged(listener: () => Promise<void> | void): () => void
 
 /**
  * The page reads the run's steps again each time the run signals they changed, and each time the stream opens after the
- * page's first read began, since a change the run signals while the stream is closed reaches no page. The page subscribes
- * as its first read begins. A stream that is open then is one that read follows, so the stream's call at subscription
- * adds no read.
+ * page's first read began, since a change the run signals while the stream is closed doesn't reach a page. The page
+ * subscribes as its first read begins. A stream that is open then is one that read follows, so the stream's call at
+ * subscription doesn't add a read.
  */
 function followRun(r: TRegistry): () => void {
 	const stream = eventStream();
@@ -258,7 +258,7 @@ function followRun(r: TRegistry): () => void {
 }
 
 /** Read the run's steps again once the read under way ends, since that read may have begun before the change, then tell
- *  the listeners. Signals that arrive before the read again begins add no read. */
+ *  the listeners. Signals that arrive before the read again begins don't add a read. */
 function readAgain(r: TRegistry): void {
 	if (r.rereadQueued) return;
 	r.rereadQueued = true;

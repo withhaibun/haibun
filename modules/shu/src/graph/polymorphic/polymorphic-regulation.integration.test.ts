@@ -72,6 +72,19 @@ test("at rest with a selected node, the scene draws no frame: the glow is held, 
 	expect(mounted.errors(), "page errors").toEqual([]);
 });
 
+test("a scene at rest given a change between its ticks isn't paused until it draws the change", { timeout: 30_000 }, async () => {
+	// The gate ticks once a frame, so a change made between ticks is drawn from the next one. A reader that waits for the
+	// pause after a change waits for the change to be drawn, however long a frame takes.
+	await atRest();
+	const paused = await mounted.page.evaluate(() => {
+		const view = document.querySelector("shu-polymorphic-graph-view") as unknown as { scene: { setSelectedSubject(s: string): void }; inspect(): { render: { paused: boolean } } };
+		view.scene.setSelectedSubject("n-0");
+		return view.inspect().render.paused;
+	});
+	expect(paused, "paused in the task that selected the node again").toBe(false);
+	expect(mounted.errors(), "page errors").toEqual([]);
+});
+
 test("a canvas that moves without resizing draws no frame; one that resizes draws", { timeout: 60_000 }, async () => {
 	// A page that lays out again after the scene rests, as a late stylesheet or a column opening beside it does, moves the
 	// canvas. What the canvas shows is the same wherever it is, so only a changed size is drawn again.
