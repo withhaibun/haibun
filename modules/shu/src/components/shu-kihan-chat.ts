@@ -17,7 +17,7 @@ import { GraphQueryResultSchema } from "@haibun/core/lib/quad-types.js";
 import { SCOPE, activeScope, currentSubjectState } from "../current-subject.js";
 import { SignalController } from "../controllers/index.js";
 import { nextQuestion, startTurn } from "../chat-turn.js";
-import { closeConversation, conversationState, dispatchConversationEvent, inFlight, openConversation, turnEnded, type TConversationState } from "../conversation.js";
+import { askDraft, closeConversation, conversationState, dispatchConversationEvent, inFlight, openConversation, turnEnded, type TConversationState } from "../conversation.js";
 import { harvestChatViewLd } from "../chat-context-harvest.js";
 import { SHU_TAG } from "../consts.js";
 import { reportToRun } from "../client-log.js";
@@ -62,6 +62,18 @@ const ChatSchema = z.object({
 	toolLimit: z.number().int().min(TOOL_LIMIT_MIN).max(TOOL_LIMIT_MAX).default(TOOL_LIMIT_DEFAULT),
 	contextReadBy: ContextReadChoiceSchema.default(AS_MODEL_STATES),
 });
+
+/** Size a text input to the lines it holds. */
+function fitToText(input: HTMLTextAreaElement): void {
+	input.style.height = "auto";
+	input.style.height = `${input.scrollHeight}px`;
+}
+
+/** Put a question that wasn't asked back in the input and in the page's draft, where the reader hasn't written another. */
+function restoreQuestion(input: HTMLTextAreaElement, prompt: string): void {
+	input.value ||= prompt;
+	askDraft.set(input.value);
+}
 
 export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	/** A control, not a view of data, contributes nothing to the Kihan's context. */
@@ -226,7 +238,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		return html`
 			<div class="input-line">
 				<slot name="mode-toggle"></slot>
-				<textarea class="chat-input" placeholder="Ask about this..." data-testid=${`${this.testIdPrefix}chat-input`} rows="1" autofocus @input=${this.onChatInput} @keydown=${this.onChatKeydown}></textarea>
+				<textarea class="chat-input" placeholder="Ask about this..." data-testid=${`${this.testIdPrefix}chat-input`} rows="1" autofocus .value=${askDraft.get()} @input=${this.onChatInput} @keydown=${this.onChatKeydown}></textarea>
 				<shu-combobox class="session-select" testid=${`${this.testIdPrefix}session-select`} placeholder="session..." .options=${this.#sessionOptions} .value=${conversation.session ?? NEW_CONVERSATION.value} @combo-change=${this.onSessionChange}></shu-combobox>
 				${this._models.length > 0 ? html`<shu-combobox class="model-select" testid=${`${this.testIdPrefix}model-select`} placeholder="model..." .options=${this.#modelOptions} .value=${this.state.model} @combo-change=${this.onModelChange}></shu-combobox>` : ""}
 				<label class="tool-limit-label" title="Max chained tool calls the model may run before asking you to confirm the next one. 0 means every tool call needs confirmation.">
@@ -275,9 +287,15 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	};
 	private onChatInput = (e: Event): void => {
 		const el = e.target as HTMLTextAreaElement;
-		el.style.height = "auto";
-		el.style.height = `${el.scrollHeight}px`;
+		askDraft.set(el.value);
+		fitToText(el);
 	};
+
+	protected override firstUpdated(): void {
+		// A question written before the pane last closed is back in the input, at the height its lines take.
+		const input = this.shadowRoot?.querySelector(".chat-input") as HTMLTextAreaElement | null;
+		if (input?.value) fitToText(input);
+	}
 	private onChatKeydown = (e: KeyboardEvent): void => {
 		if (e.key === "Enter" && !e.shiftKey) {
 			e.preventDefault();
@@ -315,11 +333,12 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 				target: this.offeredModel(),
 			});
 			chatInput.value = "";
+			askDraft.set("");
 			chatInput.style.height = "auto";
 			const ended = await asking;
-			if (ended.askId === null) chatInput.value ||= prompt;
+			if (ended.askId === null) restoreQuestion(chatInput, prompt);
 		} catch (err) {
-			chatInput.value ||= prompt;
+			restoreQuestion(chatInput, prompt);
 			this.#refusal = errorDetail(err);
 			this.requestUpdate();
 		}

@@ -17,6 +17,7 @@
  * signals mirror it for ergonomic auto-rerender of main-bundle lit components.
  */
 import { Signal } from "@lit-labs/signals";
+import type { TPageContext } from "./schemas.js";
 
 /** The globalThis key every bundle's shared cells are held under, so a page reader outside the bundles finds the same cells. */
 export const SHARED_SIGNALS_KEY = "__SHU_SHARED_SIGNALS__";
@@ -114,6 +115,16 @@ export const timeCursor = new SharedSignal<number | null>("timeCursor", null);
  *  styling, and the graph dimming all read it, and the pane router is its only writer. Replaces the old split between a
  *  DOM `active` attribute, a `VIEW_ACTIVE` event, and a separate `activeViewId`, which could disagree. */
 export const activePane = new SharedSignal<string | null>("activePane", null);
+
+/** What the view the reader acts from states it shows, null until a view states it. The app writes it from each view's
+ *  `CONTEXT_CHANGE`, and a view that acts on the page's context reads it wherever the view is placed. */
+export const pageContext = new SharedSignal<TPageContext | null>("pageContext", null);
+
+/** A pane in the column strip: its key in `activePane`, the label a breadcrumb names, and whether it is the query pane. */
+export type TStripPane = { key: string; label: string; query: boolean };
+
+/** The panes the column strip holds, in its order. The strip is its only writer. */
+export const stripPanes = new SharedSignal<ReadonlyArray<TStripPane>>("stripPanes", []);
 
 // --- Persisted reactive settings -------------------------------------------------------------------------------------
 // One mechanism for every global UI setting (data window size, …) so they can't drift into bespoke per-setting wiring.

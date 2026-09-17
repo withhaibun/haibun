@@ -27,7 +27,7 @@ import { subscribeBatchedEvents, type TEvent } from "./event-stream.js";
 import { conduit, reads } from "./hypermedia.js";
 import { getAvailableSteps, requireStep } from "./rpc-registry.js";
 import { SessionReadSchema, type TBundle, type TChatStatus, type TContextPattern, type TSessionTurn } from "./schemas.js";
-import { SharedMachine } from "./signals.js";
+import { SharedMachine, SharedSignal } from "./signals.js";
 import { appAccessLevel } from "./util.js";
 import { mergeHashParams } from "./view-hash.js";
 
@@ -280,6 +280,10 @@ export function transcript(conversation: TConversationState, onTurn: string | un
 		];
 	});
 }
+
+/** The question the reader is writing, held for the page, so it stays while the ask pane closes and opens again and while
+ *  the actions bar changes mode. */
+export const askDraft = new SharedSignal<string>("askDraft", "");
 
 /** The one instance, shared across every component and bundle. */
 export const conversationMachine = new SharedMachine<TConversationState, TConversationEvent>("conversation", CLOSED_CONVERSATION, transition);

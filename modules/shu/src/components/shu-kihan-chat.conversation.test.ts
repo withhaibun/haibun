@@ -101,7 +101,7 @@ const { ShuCombobox } = await import("./shu-combobox.js");
 if (!customElements.get("shu-combobox")) customElements.define("shu-combobox", ShuCombobox);
 const { ShuActivityHistory } = await import("./shu-activity-history.js");
 const { ShuKihanChat, NEW_CONVERSATION } = await import("./shu-kihan-chat.js");
-const { CLOSED_CONVERSATION, CONVERSATION_OPENING, TURN_IN_FLIGHT, conversationState, dispatchConversationEvent, openConversation } = await import("../conversation.js");
+const { CLOSED_CONVERSATION, CONVERSATION_OPENING, TURN_IN_FLIGHT, askDraft, conversationState, dispatchConversationEvent, openConversation } = await import("../conversation.js");
 const { CONVERSATION_PARAM } = await import("../consts.js");
 const { SHU_TAG } = await import("../consts.js");
 const { SHU_TEST_IDS } = await import("../test-ids.js");
@@ -214,6 +214,35 @@ describe("a question refused", () => {
 		await answerTheSessionRead();
 		await pane.updateComplete;
 		expect(refusalOn(pane), "and the refusal goes once the turns are shown").toBeNull();
+	});
+});
+
+describe("the question being written", () => {
+	beforeEach(() => askDraft.set(""));
+
+	/** Write in the input, as a reader types. */
+	const write = (pane: Driven, text: string): void => {
+		chatInput(pane).value = text;
+		chatInput(pane).dispatchEvent(new Event("input"));
+	};
+
+	it("stays in the input while the ask pane closes and opens again", async () => {
+		const writing = await aPane();
+		write(writing, "which runs failed");
+		writing.remove();
+		const reopened = await aPane();
+		expect(chatInput(reopened).value).toBe("which runs failed");
+	});
+
+	it("isn't in a pane opened after the question was asked", async () => {
+		const { pane } = await aPage();
+		write(pane, "which runs failed");
+		void pane.submitChat();
+		await settle();
+		pane.remove();
+		const reopened = await aPane();
+		expect(sent, "the question was sent").toHaveLength(1);
+		expect(chatInput(reopened).value).toBe("");
 	});
 });
 

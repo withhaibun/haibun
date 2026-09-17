@@ -355,9 +355,8 @@ class PaneStateImpl {
 			const id = p.dataset.columnKey ?? p.getAttribute(SHU_ATTR.COLUMN_TYPE);
 			if (id && id !== INDEX_PANE_KEY) live.set(id, p);
 		}
-		// Route removals through `removePane` so the strip emits COLUMNS_CHANGED for each
-		// dismissal. A bare `pane.remove()` mutates the DOM but the actions-bar breadcrumb
-		// (which listens on COLUMNS_CHANGED) would never update.
+		// Route removals through `removePane` so the strip publishes its panes for each dismissal. A bare `pane.remove()`
+		// mutates the DOM, and a reader of `stripPanes`, the actions bar's breadcrumb among them, doesn't see it.
 		for (const [id, pane] of live) {
 			if (this.desired.has(id)) continue;
 			const idx = this.strip.panes.indexOf(pane);
