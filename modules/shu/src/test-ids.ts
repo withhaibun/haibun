@@ -124,6 +124,7 @@ export const SHU_TEST_IDS = {
 		/** Dock the column along the bottom of the app, or return a docked pane to the strip. */
 		DOCK: "pane-dock",
 		CONTROLS_TOGGLE: "pane-controls-toggle",
+		CLOSE: "pane-close",
 		SPINE: "pane-spine",
 	},
 	/** What the index reports about itself in the strip it collapses to: which search, and how many it found. */

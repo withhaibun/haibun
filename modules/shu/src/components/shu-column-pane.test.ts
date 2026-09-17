@@ -13,7 +13,7 @@
  *   - collapsed, a pane renders its spine slot and not its default one, so a column's main view is not rendered
  *     while it is collapsed and its spine view is not rendered while it is not
  */
-import { describe, it, expect, beforeEach, beforeAll } from "vitest";
+import { describe, it, expect, afterEach, beforeEach, beforeAll } from "vitest";
 import { ShuColumnPane } from "./shu-column-pane.js";
 import { ShuColumnStrip } from "./shu-column-strip.js";
 import { SHU_EVENT, SHU_ATTR, SPINE_SLOT } from "../consts.js";
@@ -39,6 +39,12 @@ beforeAll(() => {
 		};
 	if (!customElements.get("shu-column-pane")) customElements.define("shu-column-pane", ShuColumnPane);
 	if (!customElements.get("shu-column-strip")) customElements.define("shu-column-strip", ShuColumnStrip);
+});
+
+// A pane updates while it is in the page, and the page it leaves updates nothing: every case ends with the panes it
+// mounted removed, so none of them renders while the test environment closes.
+afterEach(() => {
+	document.body.innerHTML = "";
 });
 
 /** jsdom lays nothing out, so a strip's width is stated: the pane converts between its share and pixels against it. */
@@ -502,14 +508,50 @@ describe("a docked pane", () => {
 		expect(told).toEqual([true, false]);
 	});
 
-	it("closes to its header row with its spine laid out in it, and opens from its header", async () => {
+	it("shows every control but the close on a pane that doesn't close, whatever it is called", async () => {
+		const query = makePane("", "query");
+		query.setAttribute("closable", "false");
+		document.body.appendChild(query);
+		await nextFrame(query);
+		const header = query.shadowRoot?.querySelector(".pane-header") as HTMLElement;
+		expect(header, "a pane without a label still heads itself").not.toBeNull();
+		const controls = Array.from(header.querySelectorAll(".pane-controls-group > button")).map((b) => b.className.replace("pane-icon ", ""));
+		expect(controls).toEqual(["pane-minimize", "pane-maximize", "pane-dock", "pane-controls", "pane-pin"]);
+	});
+
+	it("closes to the strip a column collapses to, its header and its spine, and opens from its header", async () => {
 		pane.setDocked(true);
 		await nextFrame(pane);
 		expect(pane.isCollapsed, "a pane docked by an address opens only where it is pinned").toBe(true);
-		expect(inShadow(".pane-header .pane-spine"), "the spine is in the header row").not.toBeNull();
+		expect(inShadow(".pane-header + .pane-spine"), "the spine follows the header, as in a column's strip").not.toBeNull();
 		await press(".pane-header");
 		expect(pane.isCollapsed).toBe(false);
 		expect(inShadow(".pane-content"), "open, it shows its view").not.toBeNull();
+	});
+
+	it("opens from its strip as its view's controls show, and as it maximizes to fill the app, which a drag of its edge ends", async () => {
+		pane.setDocked(true);
+		await nextFrame(pane);
+		await press(`[data-testid="${SHU_TEST_IDS.COLUMN_PANE.CONTROLS_TOGGLE}"]`);
+		expect(view.hasAttribute(SHU_ATTR.SHOW_CONTROLS)).toBe(true);
+		expect(pane.isCollapsed, "the controls show inside the pane, so it opens").toBe(false);
+		pane.close();
+		await nextFrame(pane);
+		await press(`[data-testid="${SHU_TEST_IDS.COLUMN_PANE.MAXIMIZE}"]`);
+		expect(pane.isCollapsed, "maximizing opens it").toBe(false);
+		expect(Number.parseFloat(pane.style.height), "and it fills the app").toBe(100);
+		inShadow(".resize-handle")?.dispatchEvent(new PointerEvent("pointerdown", { pointerId: 1, clientY: 500, bubbles: true }));
+		await nextFrame(pane);
+		expect(pane.hasAttribute(SHU_ATTR.DATA_MAXIMIZED), "a drag of its edge ends the maximize").toBe(false);
+	});
+
+	it("asks to expand as a minimized column when its view's controls show", async () => {
+		pane.setMinimized(true);
+		await nextFrame(pane);
+		const asked: Event[] = [];
+		pane.addEventListener(SHU_EVENT.COLUMN_EXPAND, (e) => asked.push(e));
+		await press(`[data-testid="${SHU_TEST_IDS.COLUMN_PANE.CONTROLS_TOGGLE}"]`);
+		expect(asked).toHaveLength(1);
 	});
 
 	it("closes from its minimize control to its strip without minimizing the column", async () => {

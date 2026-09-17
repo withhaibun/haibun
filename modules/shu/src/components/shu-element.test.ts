@@ -190,6 +190,87 @@ describe("ShuElement persistFields", () => {
 });
 
 /**
+ * A bound attribute reads as the value the element wrote to it. The browser reports each attribute change as a reaction,
+ * and delivers the reactions it holds for other attributes whenever the element writes one, as it does while it upgrades
+ * an element parsed from markup.
+ */
+describe("ShuElement attribute fields", () => {
+	const Schema = z.object({ open: z.boolean().default(true), marked: z.boolean().default(false), label: z.string().default("") });
+
+	class FieldProbe extends ShuElement<typeof Schema> {
+		summarizeForKihan() {
+			return null;
+		}
+
+		static attributeFields = { "data-open": "open", "data-marked": "marked", "data-label": "label" };
+		constructor() {
+			super(Schema, {});
+		}
+		render(): TemplateResult {
+			return html`<span></span>`;
+		}
+		read(): z.infer<typeof Schema> {
+			return this.state;
+		}
+
+		/** The reactions the browser holds for this element and has not delivered. */
+		queued: Array<[string, string | null]> = [];
+		/** The browser delivers the reactions it holds whenever the element writes an attribute, which the element does as
+		 *  it reflects its state. */
+		private deliverQueued(): void {
+			while (this.queued.length > 0) {
+				const [name, value] = this.queued.shift() as [string, string | null];
+				this.attributeChangedCallback(name, null, value);
+			}
+		}
+		override setAttribute(name: string, value: string): void {
+			super.setAttribute(name, value);
+			this.deliverQueued();
+		}
+		override removeAttribute(name: string): void {
+			super.removeAttribute(name);
+			this.deliverQueued();
+		}
+	}
+	if (!customElements.get("shu-field-probe")) customElements.define("shu-field-probe", FieldProbe);
+
+	/** An attribute declared on the element, the reaction that reports it, and the reaction that reports the element's own write. */
+	const declare = (el: FieldProbe, name: string, value: string): void => {
+		el.setAttribute(name, value);
+		el.attributeChangedCallback(name, null, value);
+		el.attributeChangedCallback(name, value, el.getAttribute(name));
+	};
+
+	it("keeps a default-true boolean declared false where the reaction for its own write is delivered after it", () => {
+		const el = document.createElement("shu-field-probe") as FieldProbe;
+		declare(el, "data-open", "false");
+		expect(el.read().open).toBe(false);
+		expect(el.getAttribute("data-open")).toBe("false");
+	});
+
+	it("reads an attribute declared on it that the browser delivers while it writes another attribute back", () => {
+		// What the browser does as it upgrades an element parsed from markup: it holds one reaction per attribute and
+		// delivers them in order. Reading the first empties the label attribute, and that write delivers the second.
+		const el = document.createElement("shu-field-probe") as FieldProbe;
+		el.setAttribute("data-label", "x");
+		el.queued = [["data-open", "false"]];
+		el.attributeChangedCallback("data-label", "x", "");
+		expect(el.read().label, "the attribute read first reaches the state").toBe("");
+		expect(el.read().open, "and so does the one delivered while the element writes it back").toBe(false);
+	});
+
+	it("keeps a default-false boolean presence-based, so a style can select it", () => {
+		const el = document.createElement("shu-field-probe") as FieldProbe;
+		declare(el, "data-marked", "true");
+		expect(el.read().marked).toBe(true);
+		expect(el.getAttribute("data-marked")).toBe("");
+		declare(el, "data-marked", "false");
+		expect(el.read().marked).toBe(false);
+		expect(el.hasAttribute("data-marked")).toBe(false);
+	});
+});
+
+/**
  * An invalid state write is a caller error, and the console is where it lands. A bare ZodError names the failing field
  * and nothing else, not the element, not the write, not the attribute that drove it, and setState is re-entrant
  * (state → attribute → attributeChangedCallback → setState), so the stack does not say either.

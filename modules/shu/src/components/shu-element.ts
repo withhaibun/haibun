@@ -129,7 +129,6 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	#dirtyFields = new Set<string>();
 	#persistRestored = false;
 	#restoring = false;
-	#reflectingToAttr = false; // set while writing a state value back onto its bound attribute, so the resulting attributeChangedCallback doesn't reflect it straight back
 
 	/**
 	 * Current time cursor (absolute epoch ms; null = show all). ONE cursor system, two sources: live
@@ -384,7 +383,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 
 	attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
 		super.attributeChangedCallback(name, oldValue, newValue);
-		if (!this.#reflectingToAttr) this.#reflectAttribute(name, newValue); // skip the echo of its own state→attribute write
+		this.#reflectAttribute(name, newValue);
 		this.onAttributeChanged(name, oldValue, newValue);
 	}
 
@@ -399,7 +398,12 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		// An attribute that is NOT THERE says nothing about a field that must have a value; it does not blank it. The
 		// inverse write removes an attribute whose value is empty, and reading that removal back as "no value" would
 		// reject state the element legitimately holds. That is the loop a boot-time attribute write once fell into.
-		if (coerced === undefined && !fieldSchema.safeParse(undefined).success) return;
+		const absent = fieldSchema.safeParse(undefined);
+		if (coerced === undefined && !absent.success) return;
+		// The state already holds what the attribute says, so the change reports the element's own write and there is
+		// nothing to write. The element reads the value rather than timing its own writes: the browser delivers the
+		// reactions it holds for other attributes whenever the element writes one.
+		if ((this.state as Record<string, unknown>)[field] === (coerced === undefined ? absent.data : coerced)) return;
 		try {
 			this.setState({ [field]: coerced } as Partial<z.infer<T>>);
 		} catch (error) {
@@ -410,19 +414,15 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		}
 	}
 
-	/** Reflect every changed attributeField state value back onto its bound attribute (inverse of #reflectAttribute), guarded
-	 *  so the resulting attributeChangedCallback doesn't echo it back into state. Fields with no bound attribute are ignored. */
+	/** Reflect every changed attributeField state value back onto its bound attribute (inverse of #reflectAttribute). The
+	 *  change each write reports reaches #reflectAttribute, which reads it as the state the element already holds. Fields
+	 *  with no bound attribute are ignored. */
 	#reflectFieldsToAttributes(changed: string[]): void {
 		const attributeFields = (this.constructor as typeof ShuElement).attributeFields;
 		const bound = Object.entries(attributeFields).filter(([, field]) => changed.includes(field));
 		if (bound.length === 0) return;
 		const shape = (this._schema as unknown as { shape: Record<string, z.ZodTypeAny> }).shape;
-		this.#reflectingToAttr = true;
-		try {
-			for (const [attr, field] of bound) reflectAttributeValue(this, attr, shape[field], (this.state as Record<string, unknown>)[field]);
-		} finally {
-			this.#reflectingToAttr = false;
-		}
+		for (const [attr, field] of bound) reflectAttributeValue(this, attr, shape[field], (this.state as Record<string, unknown>)[field]);
 	}
 
 	// One wiring for every cursor-watching component, in any bundle: the cross-bundle cursor bus runs onTimeSync on each
@@ -591,14 +591,28 @@ function coerceAttribute(fieldSchema: z.ZodTypeAny, val: string | null): unknown
 	return val;
 }
 
-/** Serialize a state value onto its bound attribute: the inverse of coerceAttribute. A boolean is presence-based (true =
- * present, false = absent), matching coerceAttribute's presence read; an undefined/null/empty value removes the attribute
- * so it never lingers stale; anything else writes its string form. */
+/** Serialize a state value onto its bound attribute: the inverse of coerceAttribute, so the attribute reads as the value
+ * written. A boolean at its field's default removes the attribute, which reads as that default; otherwise it is present
+ * for true and "false" for false. A default-false boolean stays presence-based for CSS, and a default-true boolean
+ * declared false holds "false". An undefined, null or empty value removes the attribute, so the attribute holds no value
+ * the state does not; anything else writes its string form. An attribute that already holds the value is not written
+ * again, since a write reports a change. */
 function reflectAttributeValue(el: HTMLElement, attr: string, fieldSchema: z.ZodTypeAny | undefined, value: unknown): void {
+	const serialized = attributeValueOf(fieldSchema, value);
+	if (el.getAttribute(attr) === serialized) return;
+	if (serialized === null) el.removeAttribute(attr);
+	else el.setAttribute(attr, serialized);
+}
+
+/** The attribute value a state value serializes to, or null where the attribute is absent. */
+function attributeValueOf(fieldSchema: z.ZodTypeAny | undefined, value: unknown): string | null {
 	const inner = fieldSchema ? unwrapWrappers(fieldSchema).inner : undefined;
-	if (inner instanceof z.ZodBoolean) el.toggleAttribute(attr, value === true);
-	else if (value === undefined || value === null || value === "") el.removeAttribute(attr);
-	else el.setAttribute(attr, String(value));
+	if (fieldSchema && inner instanceof z.ZodBoolean) {
+		const absent = fieldSchema.safeParse(undefined);
+		if (absent.success && absent.data === value) return null;
+		return value === true ? "" : "false";
+	}
+	return value === undefined || value === null || value === "" ? null : String(value);
 }
 
 /** Re-export so components import the time-sync class names from the same module as ShuElement. */

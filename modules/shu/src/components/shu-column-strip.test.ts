@@ -200,6 +200,17 @@ describe("the panes a strip publishes", () => {
 		expect(query.classList.contains("query-alone"), "and the only one").toBe(true);
 		expect(stripPanes.get().find((pane) => pane.key === "Actions")?.docked, "the strip publishes that the pane is docked").toBe(true);
 	});
+
+	it("leaves the columns as they are while a docked pane maximizes over them", () => {
+		const column = makePane("Column");
+		strip.addPane(column as ShuColumnPane & HTMLElement);
+		const docked = makePane("Actions");
+		docked.setDocked(true);
+		strip.addPane(docked as ShuColumnPane & HTMLElement);
+		docked.setMaximized(true);
+		expect(column.style.display, "the column isn't hidden").toBe("");
+		expect(column.isCollapsed).toBe(false);
+	});
 });
 
 describe("which pane grows into the strip's leftover width", () => {
