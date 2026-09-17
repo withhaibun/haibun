@@ -151,10 +151,14 @@ export function describeQuadStore(
 			expect(await store.get("c", "content", OTHER)).toBe("three");
 		});
 
-		it.runIf(discards)("discards one named graph, or everything it holds", async () => {
+		it(discards ? "discards one named graph, or everything it holds" : "keeps what it holds when it is asked to discard a named graph", async () => {
 			await store.set("a", "content", "one", GRAPH);
 			await store.set("c", "content", "three", OTHER);
 			await store.clear(GRAPH);
+			if (!discards) {
+				expect(await store.get("a", "content", GRAPH), "the graph it was asked to discard").toBe("one");
+				return;
+			}
 			expect(await store.get("a", "content", GRAPH), "the graph it was asked to discard").toBeUndefined();
 			expect(await store.get("c", "content", OTHER), "and no other").toBe("three");
 			await store.clear();

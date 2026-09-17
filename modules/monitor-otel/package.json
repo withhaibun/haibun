@@ -13,7 +13,6 @@
 	"scripts": {
 		"build": "tsc -b .",
 		"test": "vitest run",
-		"test:integration": "vitest run --config vitest.integration.config.ts",
 		"docker:up": "docker-compose up -d",
 		"docker:down": "docker-compose down"
 	},

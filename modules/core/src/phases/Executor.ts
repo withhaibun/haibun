@@ -22,6 +22,7 @@ import { AStepper } from "../lib/astepper.js";
 import { sleep, setStepperWorldsAndDomains, constructorName } from "../lib/util/index.js";
 import { dispatchStep } from "../lib/step-dispatch.js";
 import { openRunRegistry, type StepRegistry } from "../lib/step-registry.js";
+import { featureAsData } from "../lib/features.js";
 import { SCENARIO_START } from "../schema/protocol.js";
 import { FeatureVariables } from "../lib/feature-variables.js";
 import { registerDomains, refreshHypermediaTypeDomain } from "../lib/domains.js";
@@ -146,7 +147,7 @@ export class Executor {
 				timestamp: Date.now(),
 				kind: "artifact",
 				artifactType: "resolvedFeatures",
-				resolvedFeatures: features,
+				resolvedFeatures: features.map(featureAsData),
 				...(registeredOutcomes ? { registeredOutcomes } : {}),
 				mimetype: "application/json",
 			});

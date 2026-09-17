@@ -17,7 +17,7 @@ import { superviseChild } from "./owned-children.js";
 import type { TWorld } from "./world.js";
 import type { TActionResult } from "../schema/protocol.js";
 import { actionNotOK } from "./util/index.js";
-import { type StepTool, type StepRegistry } from "./step-registry.js";
+import { type StepTool, type StepRegistry, transportInput } from "./step-registry.js";
 import type { TStepDescriptor } from "./step-discovery.js";
 import type { SubprocessMessage, SubprocessResultMessage } from "./subprocess-runner.js";
 
@@ -74,12 +74,7 @@ export class SubprocessTransport {
 				paramDomainKeys: new Map(),
 				isAsync: true,
 				transport: "subprocess",
-				handler: (featureStep, _world) =>
-					this.call(
-						descriptor.method,
-						featureStep.action?.stepValuesMap ? Object.fromEntries(Object.entries(featureStep.action.stepValuesMap).map(([k, v]) => [k, v.term])) : {},
-						featureStep.seqPath,
-					),
+				handler: (featureStep) => this.call(descriptor.method, transportInput(featureStep), featureStep.seqPath),
 			}),
 		);
 		registry.inject(tools);

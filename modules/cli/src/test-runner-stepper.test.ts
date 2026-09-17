@@ -18,7 +18,7 @@ import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { actionOKWithProducts } from "@haibun/core/lib/util/index.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
-import { openRunRegistry } from "@haibun/core/lib/step-registry.js";
+import { hostScopedMethodName, openRunRegistry, runRegistry } from "@haibun/core/lib/step-registry.js";
 import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import nodeFS from "node:fs";
@@ -378,12 +378,22 @@ describe("what a finished run's record says about it", () => {
 
 	describe("a question put to a standing run", () => {
 		it("reads pairs, JSON, and a bare value for a step that takes one thing", () => {
+			const text = { type: "string" };
 			expect(askParams("domain=comment"), "what a model writes").toEqual({ domain: "comment" });
 			expect(askParams("perTypeLimit=300, accessLevel=private"), "several, with their own types").toEqual({ perTypeLimit: 300, accessLevel: "private" });
 			expect(askParams('{"domain": "comment"}'), "JSON from a caller that can write it").toEqual({ domain: "comment" });
-			expect(askParams("comment", ["domain"]), "and a bare value where only one thing is taken").toEqual({ domain: "comment" });
-			expect(askParams("comment", ["domain", "sort"]), "but not where the step takes more than one").toEqual({});
+			expect(askParams("comment", { domain: text }), "and a bare value where only one thing is taken").toEqual({ domain: "comment" });
+			expect(askParams("comment", { domain: text, sort: text }), "but not where the step takes more than one").toEqual({});
 			expect(askParams(""), "nothing said is nothing given").toEqual({});
+		});
+
+		it("reads an object a step takes, written bare or as its JSON text", () => {
+			const query = { type: "object" };
+			expect(askParams('{"label": "Comment", "limit": 1}', { query }), "an object is a bare value of a step that takes one thing").toEqual({
+				query: { label: "Comment", limit: 1 },
+			});
+			expect(askParams('{"query": {"label": "Comment"}}', { query }), "and JSON that names the parameter names it").toEqual({ query: { label: "Comment" } });
+			expect(askParams('{"query": "{\\"label\\": \\"Comment\\"}"}', { query }), "and an object written as its JSON text is the object").toEqual({ query: { label: "Comment" } });
 		});
 
 		it("takes the step half of a name where it names one step there", () => {
@@ -391,6 +401,42 @@ describe("what a finished run's record says about it", () => {
 			expect(stepAtRun([atHost("RemoteSteps")], 9, "listTyped")?.method, "one step is named, so it is the one meant").toBe("host9_RemoteSteps-listTyped");
 			expect(stepAtRun([atHost("RemoteSteps")], 9, "RemoteSteps-listTyped")?.method, "and the whole name is the name").toBe("host9_RemoteSteps-listTyped");
 			expect(stepAtRun([atHost("A"), atHost("B")], 9, "listTyped"), "two steps of that name is not a name").toBeUndefined();
+		});
+
+		it("says what a missing parameter takes, so a caller can send it", async () => {
+			const h = harness({ standing: true });
+			h.stepper.beginAsk();
+			expect((await h.run("features", "")).ok, "a standing run to ask").toBe(true);
+			const detail = { type: "string", enum: ["summary", "definition"] };
+			const registry = runRegistry(h.stepper.getWorld());
+			registry.inject([
+				{
+					descriptor: {
+						method: hostScopedMethodName(9, "Haibun-showSteps"),
+						stepperName: "Haibun",
+						stepperDescription: "the run's own steps",
+						stepName: "showSteps",
+						pattern: "show steps matching {text: string} as {detail: step-detail}",
+						paramDomains: { text: "string", detail: "step-detail" },
+						read: true,
+						fallback: false,
+						remoteHost: "localhost:8331",
+						inputSchema: { type: "object", properties: { text: { type: "string" }, detail }, required: ["text", "detail"] },
+					},
+					paramSchemas: new Map(),
+					paramDomainKeys: new Map(),
+					transport: "remote",
+					isAsync: true,
+					handler: () => Promise.resolve(actionOKWithProducts({})),
+				},
+			]);
+			const asked = (await (h.stepper.steps.askTestRun.action as (a: { method: string; params: string }) => Promise<TResult>)({
+				method: "showSteps",
+				params: "text=GraphStepper-",
+			})) as TResult & {
+				errorMessage?: string;
+			};
+			expect(asked.errorMessage).toContain("detail (one of summary, definition) missing");
 		});
 
 		it("hands a model what the run said about itself, and keeps the entries beside it", () => {

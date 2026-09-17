@@ -1,4 +1,12 @@
 import { TExpandedFeature, TExpandedLine, TFeature, TFeatures } from "./execution.js";
+import type { TResolvedFeature } from "./astepper.js";
+
+/** A resolved feature as data: each step's action names its stepper and step and holds its values, without the step's
+ *  definition, which holds functions and schemas. A recursive schema a step has parsed with holds a reference cycle, so
+ *  a feature written with its definitions fails to serialize once a run has used that schema. */
+export function featureAsData({ featureSteps, ...feature }: TResolvedFeature) {
+	return { ...feature, featureSteps: featureSteps.map(({ action: { step: _definition, ...action }, ...featureStep }) => ({ ...featureStep, action })) };
+}
 
 export async function expand({ features, backgrounds }: { features: TFeatures; backgrounds: TFeatures }): Promise<TExpandedFeature[]> {
 	const expandedFeatures = await expandFeatures(features, backgrounds);

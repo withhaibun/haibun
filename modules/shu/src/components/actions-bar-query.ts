@@ -73,7 +73,7 @@ export class ActionsBarQuery implements ReactiveController {
 		this.#host = host;
 		this.#deps = deps;
 		host.addController(this);
-		new StepsChangedController(host, () => this.loadDomains());
+		new StepsChangedController(host, () => this.readTypes());
 	}
 
 	hostDisconnected(): void {
@@ -132,18 +132,24 @@ export class ActionsBarQuery implements ReactiveController {
 	 * looking for results.
 	 */
 	async loadDomains(): Promise<void> {
+		const { label, f } = parseViewQuery(getHash());
+		if (!this.#selectedLabel) this.#selectedLabel = label ?? "";
+		for (const c of f) if (c.predicate && c.operator === "eq" && c.value) this.#selectFilters[c.predicate] = c.value;
+		await this.readTypes();
+		this.#loadSelectValuesReported();
+		this.#announce(false);
+	}
+
+	/** Read the types the query surface offers and the fields of the selected type. The bar reads them again when the run's
+	 *  steps change, which changes what the run declares and not the search a reader chose, so no search is announced. */
+	async readTypes(): Promise<void> {
 		await getAvailableSteps(); // the concern catalog the domains are read from arrives with the steps
 		this.#domainOptions = buildDomainOptions(await getAvailableDomains());
 		if (this.#domainOptions.length === 0) throw new Error("No domain options were produced from concern catalog");
 		this.#typeOptions = this.#domainOptions.map((o) => ({ value: o.key, label: o.queryLabel || o.key, group: o.group }));
-		const { label, f } = parseViewQuery(getHash());
-		if (!this.#selectedLabel) this.#selectedLabel = label ?? "";
-		for (const c of f) if (c.predicate && c.operator === "eq" && c.value) this.#selectFilters[c.predicate] = c.value;
 		this.#syncSelectedDomainKey();
 		this.loadProperties();
-		this.#loadSelectValuesReported();
 		this.#host.requestUpdate();
-		this.#announce(false);
 	}
 
 	/** Read the fields of the selected type a condition can name. */

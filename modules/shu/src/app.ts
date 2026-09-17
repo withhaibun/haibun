@@ -159,6 +159,12 @@ const main = async (): Promise<void> => {
 	const getStrip = () => appRoot.querySelector("shu-column-strip") as ShuColumnStrip | null;
 	const getActionsBar = () => appRoot.querySelector(".app-container > shu-actions-bar") as ShuActionsBar | null;
 	const getIndexPane = () => getStrip()?.panes.find((pane) => pane.dataset.columnKey === INDEX_PANE_KEY) ?? null;
+	const getQuery = () => appRoot.querySelector("shu-graph-query") as ShuGraphQuery | null;
+	/** The view a pane shows. The query renders its results into the index pane from outside it, so the index pane's view
+	 *  is the query, and every other pane's view is the element it holds. */
+	const viewOf = (pane: Element | undefined | null): Element | null => (pane && pane === getIndexPane() ? getQuery() : (pane?.firstElementChild ?? null));
+	/** The pane a view shows in: the index pane for the query, and the pane that holds it for every other view. */
+	const paneOf = (view: Element | null): Element | null => (view && view === getQuery() ? getIndexPane() : (view?.closest?.(SHU_TAG.COLUMN_PANE) ?? null));
 
 	// A reader with no arrangement of their own is shown the views this run has shown, read from its records. A page
 	// carrying its own run reads the records it carries, by the same read, so a report needs nothing precomputed.
@@ -298,7 +304,7 @@ const main = async (): Promise<void> => {
 	const activePaneElement = (): HTMLElement | undefined =>
 		(getStrip()?.panes ?? []).find((p) => (p.dataset.columnKey ?? p.getAttribute(SHU_ATTR.COLUMN_TYPE)) === activePane.get());
 	const paneSubjectOf = (pane: Element | undefined | null): TContextPattern[] | null =>
-		(pane?.firstElementChild as { paneSubject?(): TContextPattern[] | null } | null)?.paneSubject?.() ?? null;
+		(viewOf(pane) as { paneSubject?(): TContextPattern[] | null } | null)?.paneSubject?.() ?? null;
 	/** The page scope's entry, from the pane the reader is on. The reader moving to a pane that shows a subject activates
 	 *  it; the columns changing under them updates it to what the pane now shows. A pane about nothing activates nothing,
 	 *  so moving to a log beside a conversation leaves the active record where it is. */
@@ -319,7 +325,7 @@ const main = async (): Promise<void> => {
 			}
 			// A view stating what it shows moves the reader to it only where it is the active pane: the query view
 			// publishing at boot, or a column that is not the one the reader is on, changes nothing about where they are.
-			const statedBy = (e.target as Element | null)?.closest?.(SHU_TAG.COLUMN_PANE) ?? null;
+			const statedBy = paneOf(e.target as Element | null);
 			if (detail.patterns && statedBy && statedBy === activePaneElement())
 				dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: entryOf(detail.patterns, detail.accessLevel || appAccessLevel()) });
 		}) as EventListener,
@@ -360,7 +366,7 @@ const main = async (): Promise<void> => {
 	appRoot.addEventListener(
 		"sync-request",
 		(() => {
-			const query = appRoot.querySelector("shu-graph-query") as ShuGraphQuery;
+			const query = getQuery();
 			if (query) {
 				void query.loadMetadata?.();
 				void query.executeQuery?.();
@@ -384,7 +390,7 @@ const main = async (): Promise<void> => {
 	appRoot.addEventListener(
 		SHU_EVENT.FILTER_CHANGE,
 		((e: CustomEvent) => {
-			const query = appRoot.querySelector("shu-graph-query") as ShuGraphQuery;
+			const query = getQuery();
 			query?.setFilters?.(e.detail || {});
 			// A reader searching is asking to see what it finds, so the index comes back from its spine, whether it
 			// minimized to give the run's views room or the reader put it there. The bar restoring its own search at
@@ -400,7 +406,7 @@ const main = async (): Promise<void> => {
 	appRoot.addEventListener(
 		SHU_EVENT.SEARCH_RESTORE,
 		((e: CustomEvent) => {
-			const query = appRoot.querySelector("shu-graph-query") as ShuGraphQuery;
+			const query = getQuery();
 			if (!query) throw new Error("search-restore: no shu-graph-query in the app to restore into");
 			query.products = e.detail.query;
 		}) as EventListener,
@@ -412,7 +418,7 @@ const main = async (): Promise<void> => {
 		"breadcrumb-nav",
 		((e: CustomEvent) => {
 			const { index } = e.detail || {};
-			if (index === 0) (appRoot.querySelector("shu-graph-query") as ShuGraphQuery)?.deselectAll?.();
+			if (index === 0) getQuery()?.deselectAll?.();
 			activatePaneByIndex(index);
 		}) as EventListener,
 		{ signal },
