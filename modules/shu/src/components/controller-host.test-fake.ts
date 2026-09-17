@@ -1,14 +1,14 @@
 /**
- * The element a subsystem of the actions bar is held by, as the subsystem sees it: it holds controllers, can be asked to
+ * The element a controller is held by, as the controller sees it: it holds controllers, can be asked to
  * render, and renders into itself. A case renders by calling the controller's hooks, or by rendering a template the
  * controller returns into the element, and reads how many renders were asked for.
  */
 import type { ReactiveController } from "lit";
-import type { TActionsBarHost } from "./actions-bar-model.js";
+import type { TControllerHost } from "./controller-host.js";
 
-const HOST_TAG = "actions-bar-test-host";
+const HOST_TAG = "controller-test-host";
 
-export class ControllerHostFake extends HTMLElement implements TActionsBarHost {
+export class ControllerHostFake extends HTMLElement implements TControllerHost {
 	readonly controllers: ReactiveController[] = [];
 	readonly updateComplete = Promise.resolve(true);
 	updatesAsked = 0;

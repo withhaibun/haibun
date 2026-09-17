@@ -32,6 +32,12 @@ describe("canonicalizeArrival", () => {
 		expect(p.get("active")).toBe("shu-document-column");
 	});
 
+	it("names the pane an entry that docks it opens as the active pane, whatever the order of its endings", () => {
+		for (const entry of ["shu-document-column~dock~min", "shu-document-column~min~dock"]) {
+			expect(hashParams(canonicalizeArrival(`#?open=${entry}`, "")).get("active"), entry).toBe("shu-document-column");
+		}
+	});
+
 	it("at boot the arrival is its own merge base: open= converts without duplicating itself", () => {
 		const boot = "#?label=File&open=shu-polymorphic-graph-view";
 		const p = hashParams(canonicalizeArrival(boot, boot));

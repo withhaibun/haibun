@@ -14,11 +14,27 @@ export function hashParams(hash: string): URLSearchParams {
 	return new URLSearchParams(body);
 }
 
+/** The endings of a `col=` or `open=` entry that state where its pane stands, after the pane's id. */
+export const PANE_ENDING = { dock: "~dock", min: "~min", max: "~max" } as const;
+export type TPaneEnding = keyof typeof PANE_ENDING;
+
+const endingOf = (entry: string): TPaneEnding | undefined => (Object.keys(PANE_ENDING) as TPaneEnding[]).find((name) => entry.endsWith(PANE_ENDING[name]));
+
+/** An entry's pane id and the endings that follow it, in any order. */
+export function splitPaneEntry(entry: string): { id: string; endings: Set<TPaneEnding> } {
+	let id = entry;
+	const endings = new Set<TPaneEnding>();
+	for (let ending = endingOf(id); ending; ending = endingOf(id)) {
+		endings.add(ending);
+		id = id.slice(0, -PANE_ENDING[ending].length);
+	}
+	return { id, endings };
+}
+
 /**
  * Merge an `open=` arrival into `base` (the last canonical hash): each `open=` entry becomes a
  * `col=` entry and the last one becomes the active pane. Only the open entries are taken from the
  * arrival; everything else comes from the base. A hash without `open=` is already canonical.
- * The `~min`/`~max` strip is the pane flag suffix, grammar owned by pane-state's parseColEntry.
  */
 export function canonicalizeArrival(hash: string, base: string): string {
 	const params = hashParams(hash);
@@ -27,7 +43,7 @@ export function canonicalizeArrival(hash: string, base: string): string {
 	const merged = hashParams(base);
 	merged.delete("open");
 	for (const entry of opened) merged.append("col", entry);
-	merged.set("active", opened[opened.length - 1].replace(/~(min|max)$/, ""));
+	merged.set("active", splitPaneEntry(opened[opened.length - 1]).id);
 	return `#?${merged.toString()}`;
 }
 

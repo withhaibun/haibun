@@ -26,10 +26,12 @@ import type { ShuColumnPane } from "./components/shu-column-pane.js";
 import type { ShuColumnStrip } from "./components/shu-column-strip.js";
 
 const FlagSchema = z.enum(["min", "max"]).optional();
+/** Where a pane stands and how: minimized or maximized, and docked along the bottom of the app rather than a column. */
+const PLACEMENT = { flag: FlagSchema, docked: z.boolean().optional() };
 const TagSchema = z.string().regex(/^[a-z][a-z0-9-]*$/);
 
 export const DesiredPaneSchema = z.discriminatedUnion("paneType", [
-	z.object({ paneType: z.literal("component"), tag: TagSchema, label: z.string(), data: z.record(z.string(), z.unknown()).optional(), flag: FlagSchema }),
+	z.object({ paneType: z.literal("component"), tag: TagSchema, label: z.string(), data: z.record(z.string(), z.unknown()).optional(), ...PLACEMENT }),
 	z.object({
 		paneType: z.literal("entity"),
 		id: z.string(),
@@ -38,19 +40,19 @@ export const DesiredPaneSchema = z.discriminatedUnion("paneType", [
 		// A quoted passage to reveal inside the individual (TextQuoteSelector shape). Not part of the pane's identity:
 		// the pane is the individual, and a second reference into the same document reuses its column.
 		selector: QuoteAnchorSchema.optional(),
-		flag: FlagSchema,
+		...PLACEMENT,
 	}),
-	z.object({ paneType: z.literal("type"), persistedAs: z.string(), flag: FlagSchema }),
-	z.object({ paneType: z.literal("filter-eq"), persistedAs: z.string(), predicate: z.string(), value: z.string(), flag: FlagSchema }),
-	z.object({ paneType: z.literal("filter-prop"), persistedAs: z.string(), predicate: z.string(), flag: FlagSchema }),
-	z.object({ paneType: z.literal("filter-incoming"), persistedAs: z.string(), subject: z.string(), flag: FlagSchema }),
-	z.object({ paneType: z.literal("thread"), persistedAs: z.string(), subject: z.string(), flag: FlagSchema }),
-	z.object({ paneType: z.literal("step-detail"), seqPath: z.array(z.number()), flag: FlagSchema }),
+	z.object({ paneType: z.literal("type"), persistedAs: z.string(), ...PLACEMENT }),
+	z.object({ paneType: z.literal("filter-eq"), persistedAs: z.string(), predicate: z.string(), value: z.string(), ...PLACEMENT }),
+	z.object({ paneType: z.literal("filter-prop"), persistedAs: z.string(), predicate: z.string(), ...PLACEMENT }),
+	z.object({ paneType: z.literal("filter-incoming"), persistedAs: z.string(), subject: z.string(), ...PLACEMENT }),
+	z.object({ paneType: z.literal("thread"), persistedAs: z.string(), subject: z.string(), ...PLACEMENT }),
+	z.object({ paneType: z.literal("step-detail"), seqPath: z.array(z.number()), ...PLACEMENT }),
 	z.object({
 		paneType: z.literal("views-picker"),
 		views: z.array(z.object({ id: z.string(), description: z.string(), component: z.string() })),
 		label: z.string(),
-		flag: FlagSchema,
+		...PLACEMENT,
 	}),
 ]);
 
@@ -138,10 +140,16 @@ export type PaneHooks = {
 	afterAttach?: Partial<Record<DesiredPaneType, (d: DesiredPane, child: HTMLElement) => Promise<void> | void>>;
 };
 
+/** A pane the page always holds, as declared, and the attributes its view is given. The address names it only where it
+ *  stands other than as declared, and it doesn't close. */
+export type TPagePane = { pane: DesiredPane; attributes?: Record<string, string> };
+
 class PaneStateImpl {
 	private desired = new Map<string, DesiredPane>();
 	private strip: ShuColumnStrip | null = null;
 	private hooks: PaneHooks = {};
+	/** The panes the page always holds, by pane id. */
+	private pagePanes = new Map<string, TPagePane>();
 	// The active pane is the global `activePane` signal: the one source of truth every reader (strip styling, harvest,
 	// isActiveView, dimming) derives from. PaneState is its writer on restore/open/dismiss; the strip subscribes and
 	// paints the DOM `active` state, so activation is never a side effect of appending a pane.
@@ -162,9 +170,10 @@ class PaneStateImpl {
 	// once fromHash has parsed the hash, gates writes until that read has happened.
 	private hydrated = false;
 
-	init(strip: ShuColumnStrip, hooks: PaneHooks = {}): void {
+	init(strip: ShuColumnStrip, hooks: PaneHooks = {}, pagePanes: TPagePane[] = []): void {
 		this.strip = strip;
 		this.hooks = hooks;
+		this.pagePanes = new Map(pagePanes.map((page) => [paneIdOf(page.pane), { ...page, pane: DesiredPaneSchema.parse(page.pane) }]));
 		window.addEventListener("hashchange", () => this.fromHash());
 		// Per-pane control toggles (minimize / maximize / expand) update the canonical
 		// `desired.flag` so later reconciles preserve it and the URL hash stays in sync.
@@ -184,6 +193,10 @@ class PaneStateImpl {
 			const maximized = Boolean(e.detail?.maximized);
 			this.setFlag(id, maximized ? "max" : undefined);
 		}) as EventListener);
+		strip.addEventListener(SHU_EVENT.COLUMN_DOCK, ((e: CustomEvent) => {
+			const id = (e.target as HTMLElement).dataset.columnKey;
+			if (id) this.setDocked(id, Boolean(e.detail?.docked));
+		}) as EventListener);
 		strip.addEventListener(SHU_EVENT.COLUMN_EXPAND, ((e: Event) => {
 			const pane = e.target as HTMLElement;
 			const id = pane.dataset.columnKey;
@@ -201,6 +214,17 @@ class PaneStateImpl {
 		if (d.flag === flag) return;
 		this.desired.set(paneId, { ...d, flag } as DesiredPane);
 		this.writeHash();
+	}
+
+	/** Dock a pane along the bottom of the app, or return it to the strip. One pane is docked at a time, so docking a pane
+	 *  returns the pane docked before it to the strip. */
+	private setDocked(paneId: string, docked: boolean): void {
+		if (!this.desired.has(paneId)) return;
+		for (const [id, d] of this.desired) {
+			const wanted = id === paneId ? docked : docked ? false : Boolean(d.docked);
+			if (Boolean(d.docked) !== wanted) this.desired.set(id, { ...d, docked: wanted || undefined } as DesiredPane);
+		}
+		this.scheduleReconcile();
 	}
 
 	/** Parse the URL hash into desired panes and reconcile. */
@@ -227,6 +251,9 @@ class PaneStateImpl {
 		// query column, leaving panes open with nothing active.
 		const named = active && next.has(active) ? active : firstKeyOf(next);
 		if (named) this.activePaneId = named;
+		// A page pane the address doesn't name stands as the page declares it. It is added once the active pane is chosen,
+		// since a page pane isn't the pane a reader arrives on.
+		for (const [id, page] of this.pagePanes) if (!next.has(id)) next.set(id, withPersistedFlag(page.pane));
 		this.desired = next;
 		this.scheduleReconcile();
 	}
@@ -238,7 +265,9 @@ class PaneStateImpl {
 		const existing = this.desired.get(id);
 		// A re-request without an explicit flag keeps the live pane's flag (a click on an already-open,
 		// minimized column must not silently expand it); a brand-new pane defaults from its persisted state.
-		const d = parsed.flag ? parsed : existing?.flag ? ({ ...parsed, flag: existing.flag } as DesiredPane) : withPersistedFlag(parsed);
+		const flagged = parsed.flag ? parsed : existing?.flag ? ({ ...parsed, flag: existing.flag } as DesiredPane) : withPersistedFlag(parsed);
+		// A re-request states nothing of where the pane stands, so a docked pane stays docked.
+		const d = parsed.docked === undefined && existing?.docked ? ({ ...flagged, docked: true } as DesiredPane) : flagged;
 		// Re-request with fresh component data: hand it to the live child directly.
 		if (existing && d.paneType === "component" && d.data) {
 			const live = this.findLiveChild(id);
@@ -278,7 +307,8 @@ class PaneStateImpl {
 			const panes = this.strip.panes;
 			for (let i = panes.length - 1; i > sourceIdx; i--) {
 				const pane = panes[i];
-				if (pane.hasAttribute(SHU_ATTR.PINNED)) continue;
+				// A prune leaves a pinned pane, a docked pane, which isn't in the column order, and a pane that doesn't close.
+				if (pane.hasAttribute(SHU_ATTR.PINNED) || pane.docked || pane.getAttribute(SHU_ATTR.CLOSABLE) === "false") continue;
 				const paneId = pane.dataset.columnKey;
 				if (paneId) this.dismiss(paneId);
 			}
@@ -309,7 +339,7 @@ class PaneStateImpl {
 
 	dismiss(paneId: string): void {
 		if (!this.desired.delete(paneId)) return;
-		if (this.activePaneId === paneId) this.activePaneId = firstKeyOf(this.desired);
+		if (this.activePaneId === paneId) this.activePaneId = firstKeyOf(new Map([...this.desired].filter(([id]) => !this.pagePanes.has(id))));
 		this.scheduleReconcile();
 	}
 
@@ -326,6 +356,7 @@ class PaneStateImpl {
 		this.activePaneId = null;
 		this.strip = null;
 		this.hooks = {};
+		this.pagePanes.clear();
 		this.reconcileInFlight = false;
 		this.reconcileRequested = false;
 		this.lastWrittenHash = null;
@@ -370,16 +401,23 @@ class PaneStateImpl {
 		// Iterate a SNAPSHOT, not the live `desired.values()` iterator: opening a pane awaits, and a request landing during
 		// that await can `dismiss`+`request` the same key (a prune-then-reopen), which a live iterator would re-yield:
 		// reopening a pane still being opened. The snapshot is this pass's target; the request scheduled its own reconcile.
+		let placementChanged = false;
 		for (const d of [...this.desired.values()]) {
 			const id = paneIdOf(d);
 			const existing = live.get(id);
 			if (existing) {
 				existing.setAttribute("label", labelOf(d));
 				existing.setMinimized(d.flag === "min");
+				if (existing.docked !== Boolean(d.docked)) {
+					existing.setDocked(Boolean(d.docked));
+					placementChanged = true;
+				}
 				continue;
 			}
 			await this.openPane(d, id);
 		}
+		// A pane docked or returned changes which panes share the strip's width.
+		if (placementChanged) this.strip.layoutColumns();
 		// A maximize describes the FINISHED set, not the moment one pane attaches: applied per arrival, the next pane of
 		// the same restore counts as a column being opened and ends the maximize the restore just applied.
 		this.applyMaximizeFlag();
@@ -413,10 +451,15 @@ class PaneStateImpl {
 		// The columnKey is also the pane's persistence identity: its remembered width/minimize
 		// restore when it attaches (ShuElement.persistFields), so no width plumbing here.
 		pane.dataset.columnKey = id;
+		const page = this.pagePanes.get(id);
+		if (page) pane.setAttribute(SHU_ATTR.CLOSABLE, "false");
+		// Docked before it attaches, so the strip never lays it out as a column.
+		if (d.docked) pane.setDocked(true);
 		// Pre-mark a minimized arrival so addPane neither activates nor scrolls to it.
 		if (d.flag === "min") pane.setMinimized(true);
 		this.strip.addPane(pane);
 		const child = document.createElement(tag);
+		for (const [name, value] of Object.entries(page?.attributes ?? {})) child.setAttribute(name, value);
 		if (readShowControlsCookie(tag)) child.setAttribute(SHU_ATTR.SHOW_CONTROLS, "");
 		if (d.paneType === "component" && d.data) (child as HTMLElement & { products?: Record<string, unknown> }).products = d.data;
 		pane.appendChild(child);
@@ -445,8 +488,11 @@ class PaneStateImpl {
 		const params = ViewHash.hashParams(base);
 		params.delete("col");
 		for (const d of this.desired.values()) {
-			const suffix = d.flag === "min" ? "~min" : d.flag === "max" ? "~max" : "";
-			params.append("col", `${paneIdOf(d)}${suffix}`);
+			const id = paneIdOf(d);
+			const page = this.pagePanes.get(id)?.pane;
+			if (page && Boolean(page.docked) === Boolean(d.docked) && page.flag === d.flag) continue;
+			const suffix = `${d.docked ? ViewHash.PANE_ENDING.dock : ""}${d.flag ? ViewHash.PANE_ENDING[d.flag] : ""}`;
+			params.append("col", `${id}${suffix}`);
 		}
 		if (this.activePaneId) params.set("active", this.activePaneId);
 		else params.delete("active");
@@ -487,11 +533,12 @@ function withPersistedFlag(d: DesiredPane): DesiredPane {
  * entries: `fromHash` skips nulls so a stale hash never crashes the boot.
  *
  * Each prefix maps to one paneType: `e:` entity, `type:` type, `f:` filter-eq, `p:` filter-prop,
- * `i:` filter-incoming, `t:` thread, `step:` step-detail. Anything else is a component tag.
+ * `i:` filter-incoming, `t:` thread, `step:` step-detail. Anything else is a component tag. An entry ends in any of
+ * the `PANE_ENDING`s of view-hash, which state where the pane stands.
  */
 export function parseColEntry(raw: string): DesiredPane | null {
-	const flag: DesiredPane["flag"] = raw.endsWith("~max") ? "max" : raw.endsWith("~min") ? "min" : undefined;
-	const body = flag ? raw.slice(0, -4) : raw;
+	const { id: body, endings } = ViewHash.splitPaneEntry(raw);
+	const placement = { flag: endings.has("max") ? ("max" as const) : endings.has("min") ? ("min" as const) : undefined, docked: endings.has("dock") || undefined };
 	const colon = (s: string) => {
 		const i = s.indexOf(":");
 		return i < 0 ? null : ([s.slice(0, i), s.slice(i + 1)] as const);
@@ -499,37 +546,37 @@ export function parseColEntry(raw: string): DesiredPane | null {
 	if (body.startsWith("e:")) {
 		const split = colon(body.slice(2));
 		if (!split) return null;
-		return safe({ paneType: "entity", persistedAs: split[0], id: split[1], flag });
+		return safe({ paneType: "entity", persistedAs: split[0], id: split[1], ...placement });
 	}
 	if (body.startsWith("f:")) {
 		const split = colon(body.slice(2));
 		if (!split) return null;
 		const eq = split[1].indexOf("=");
 		if (eq < 0) return null;
-		return safe({ paneType: "filter-eq", persistedAs: split[0], predicate: split[1].slice(0, eq), value: split[1].slice(eq + 1), flag });
+		return safe({ paneType: "filter-eq", persistedAs: split[0], predicate: split[1].slice(0, eq), value: split[1].slice(eq + 1), ...placement });
 	}
 	if (body.startsWith("p:")) {
 		const split = colon(body.slice(2));
 		if (!split) return null;
-		return safe({ paneType: "filter-prop", persistedAs: split[0], predicate: split[1], flag });
+		return safe({ paneType: "filter-prop", persistedAs: split[0], predicate: split[1], ...placement });
 	}
 	if (body.startsWith("i:")) {
 		const split = colon(body.slice(2));
 		if (!split) return null;
-		return safe({ paneType: "filter-incoming", persistedAs: split[0], subject: split[1], flag });
+		return safe({ paneType: "filter-incoming", persistedAs: split[0], subject: split[1], ...placement });
 	}
-	if (body.startsWith("type:")) return safe({ paneType: "type", persistedAs: body.slice(5), flag }); // before `t:`: a type ref has no second colon
+	if (body.startsWith("type:")) return safe({ paneType: "type", persistedAs: body.slice(5), ...placement }); // before `t:`: a type ref has no second colon
 	if (body.startsWith("t:")) {
 		const split = colon(body.slice(2));
 		if (!split) return null;
-		return safe({ paneType: "thread", persistedAs: split[0], subject: split[1], flag });
+		return safe({ paneType: "thread", persistedAs: split[0], subject: split[1], ...placement });
 	}
 	if (body.startsWith("step:")) {
 		const seq = body.slice(5).split(".").map(Number);
 		if (seq.some((n) => Number.isNaN(n))) return null;
-		return safe({ paneType: "step-detail", seqPath: seq, flag });
+		return safe({ paneType: "step-detail", seqPath: seq, ...placement });
 	}
-	return safe({ paneType: "component", tag: body, label: body, flag });
+	return safe({ paneType: "component", tag: body, label: body, ...placement });
 }
 
 function safe(input: unknown): DesiredPane | null {

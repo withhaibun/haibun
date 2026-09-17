@@ -8,8 +8,10 @@ export const SHU_TEST_IDS = {
 		ROOT: "shu-app",
 		HEADER: "shu-header",
 		MAIN: "shu-main",
-		TWISTY: "app-summary-bar",
-		PIN: "app-ask-button",
+		/** On the page strip: opens and closes the pane docked along the bottom of the page. */
+		DOCK_TOGGLE: "app-dock-toggle",
+		/** On the page strip: pins the docked pane open against a click elsewhere. */
+		DOCK_PIN: "app-dock-pin",
 		CHAT_INPUT: "app-chat-input",
 		CHAT_SUBMIT: "app-chat-submit",
 		CHAT_OUTPUT: "app-chat-output",
@@ -119,6 +121,8 @@ export const SHU_TEST_IDS = {
 		 *  column whose strip caches its own clicks (the log's rail) the only way back to the column. */
 		MINIMIZE: "pane-minimize",
 		MAXIMIZE: "pane-maximize",
+		/** Dock the column along the bottom of the app, or return a docked pane to the strip. */
+		DOCK: "pane-dock",
 		CONTROLS_TOGGLE: "pane-controls-toggle",
 		SPINE: "pane-spine",
 	},

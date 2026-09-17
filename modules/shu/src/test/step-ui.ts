@@ -70,6 +70,8 @@ export const nthChatMessage = (match: string, n: number): string => `${SHU_TAG.C
 export const lastChatMessage = (match: string): string => `${SHU_TAG.CHAT_MESSAGE}:nth-last-child(1 of ${match})`;
 /** The page-locator variables the ask helpers set. */
 const ASK_LOCATOR = { ANSWERED: "ask-answered", TURNS_SHOWN: "ask-turns-shown", STATED: "ask-stated" } as const;
+/** The page-locator variable the actions bar helpers set: the minimize control of the bar's pane. */
+const ACTIONS_PANE_CONTROL = "actions-pane-control";
 
 import { normalizeStepKey } from "../util.js";
 export { normalizeStepKey };
@@ -109,6 +111,13 @@ function encodeCompositeFieldLiteral(value: unknown): string {
 	return JSON.stringify(text);
 }
 
+/** The pane of a column component, as a selector a step addresses. Single quotes let a feature embed it in a quoted
+ *  step argument. */
+export const paneOfComponent = (tag: string): string => `${SHU_TAG.COLUMN_PANE}[column-type='${tag}']`;
+
+/** The page's actions pane, as a container a step addresses. */
+export const ACTIONS_PANE = paneOfComponent(SHU_TAG.ACTIONS_BAR);
+
 export function createStepUI(wp: WebPlaywright) {
 	const { waitFor, click, setValue, selectionOption, press, shouldSeeTestId, type: typeText } = withAction(wp);
 
@@ -117,11 +126,22 @@ export function createStepUI(wp: WebPlaywright) {
 		return collectTestIds(idSets).map(registerTestIdStep);
 	}
 
-	/** Ensure the actions-bar is expanded. Uses MODE_SELECT (always present when the bar is open, regardless of Ask availability) so this works without an LLM provider. The `where … , …` form is idempotent: the click is skipped when MODE_SELECT is already on the page. */
-	const expandActionsBar: TKirejiStep[] = [`where not has test id ${IDS.APP.MODE_SELECT}, click ${IDS.APP.TWISTY}`, waitFor({ target: IDS.APP.MODE_SELECT })];
+	/** Wait for the bar's pane to attach. The bar opens its pane from the address as the pane attaches, so once the pane's
+	 *  control is on the page, whether the bar is open is settled, and a check of it doesn't race the address. */
+	const actionsPaneAttached: TKirejiStep[] = [
+		setAs({ what: ACTIONS_PANE_CONTROL, domain: "page-locator", value: `"${ACTIONS_PANE} [data-testid='${IDS.COLUMN_PANE.MINIMIZE}']"` }),
+		waitFor({ target: ACTIONS_PANE_CONTROL }),
+	];
 
-	/** Collapse the actions-bar if it is open: the inverse of expandActionsBar (MODE_SELECT present ⇒ click the twisty to close). Idempotent: skipped when already collapsed. The expanded panel floats over lower content (e.g. a graph), so close it before interacting with what sits beneath. */
-	const collapseActionsBar: TKirejiStep[] = [`where has test id ${IDS.APP.MODE_SELECT}, click ${IDS.APP.TWISTY}`];
+	/** Ensure the actions bar is open: its pane's minimize control opens a pane standing at its strip. Uses MODE_SELECT (always present when the bar is open, regardless of Ask availability) so this works without an LLM provider. The `where … , …` form is idempotent: the click is skipped when MODE_SELECT is already on the page. */
+	const expandActionsBar: TKirejiStep[] = [
+		...actionsPaneAttached,
+		`where not has test id ${IDS.APP.MODE_SELECT}, in "${ACTIONS_PANE}", click ${IDS.COLUMN_PANE.MINIMIZE}`,
+		waitFor({ target: IDS.APP.MODE_SELECT }),
+	];
+
+	/** Close the actions bar if it is open: the inverse of expandActionsBar (MODE_SELECT present ⇒ its pane's minimize control closes it to its strip). Idempotent: skipped when already closed. The open docked bar floats over lower content (e.g. a graph), so close it before interacting with what sits beneath. */
+	const collapseActionsBar: TKirejiStep[] = [...actionsPaneAttached, `where has test id ${IDS.APP.MODE_SELECT}, in "${ACTIONS_PANE}", click ${IDS.COLUMN_PANE.MINIMIZE}`];
 
 	const enterStepMode: TKirejiStep[] = [...expandActionsBar, selectionOption({ option: '"Step"', field: IDS.APP.MODE_SELECT }), waitFor({ target: IDS.APP.STEP_SELECT })];
 

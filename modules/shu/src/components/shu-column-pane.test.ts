@@ -21,6 +21,7 @@ import { SHU_TEST_IDS } from "../test-ids.js";
 import { flushPersistWrites } from "../element-prefs.js";
 import { setJsonCookie } from "../cookies.js";
 import { installTestMediaQueries } from "../test-setup.js";
+import { provideLayout } from "../test/jsdom-layout.js";
 
 /** Flush any pending debounced persistence and clear the pane prefs cookie so tests are isolated. */
 function resetPanePrefs(): void {
@@ -30,6 +31,7 @@ function resetPanePrefs(): void {
 
 beforeAll(() => {
 	installTestMediaQueries(); // the strip asks the viewport whether it is narrow or portrait; jsdom answers no such question
+	provideLayout(); // a pane observes its own size for the footprint it reserves when docked
 	// jsdom has no scrollIntoView; stub it so the strip's post-add scroll doesn't raise uncaught errors that bury real failures.
 	if (!Element.prototype.scrollIntoView)
 		Element.prototype.scrollIntoView = () => {
@@ -462,5 +464,86 @@ describe("a column that declares no spine view", () => {
 		expect(pane.hasAttribute(SHU_ATTR.HAS_SPINE), "nothing is assigned to the spine slot").toBe(false);
 		const assigned = (pane.shadowRoot?.querySelector(`slot[name="${SPINE_SLOT}"]`) as HTMLSlotElement | null)?.assignedNodes() ?? [];
 		expect(assigned.length, "so the strip shows the label and nothing else").toBe(0);
+	});
+});
+
+describe("a docked pane", () => {
+	let pane: ShuColumnPane;
+	let view: HTMLElement;
+
+	beforeEach(async () => {
+		resetPanePrefs();
+		document.body.innerHTML = "";
+		pane = makePane("Docked");
+		view = document.createElement("div");
+		pane.appendChild(view);
+		document.body.appendChild(pane);
+		await nextFrame(pane);
+	});
+
+	const inShadow = (selector: string) => pane.shadowRoot?.querySelector(selector) as HTMLElement | null;
+	const press = async (selector: string) => {
+		const control = inShadow(selector);
+		if (!control) throw new Error(`nothing addresses ${selector}`);
+		control.click();
+		await nextFrame(pane);
+	};
+
+	it("docks open from its control, tells the strip and its view, and returns to the strip from it", async () => {
+		const told: boolean[] = [];
+		pane.addEventListener(SHU_EVENT.COLUMN_DOCK, (e) => told.push((e as CustomEvent).detail.docked));
+		await press(`[data-testid="${SHU_TEST_IDS.COLUMN_PANE.DOCK}"]`);
+		expect(pane.docked).toBe(true);
+		expect(pane.isCollapsed, "a pane the reader docks opens").toBe(false);
+		expect(view.hasAttribute(SHU_ATTR.DOCKED), "its view is told the axis it is laid out along").toBe(true);
+		await press(`[data-testid="${SHU_TEST_IDS.COLUMN_PANE.DOCK}"]`);
+		expect(pane.docked).toBe(false);
+		expect(view.hasAttribute(SHU_ATTR.DOCKED)).toBe(false);
+		expect(told).toEqual([true, false]);
+	});
+
+	it("closes to its header row with its spine laid out in it, and opens from its header", async () => {
+		pane.setDocked(true);
+		await nextFrame(pane);
+		expect(pane.isCollapsed, "a pane docked by an address opens only where it is pinned").toBe(true);
+		expect(inShadow(".pane-header .pane-spine"), "the spine is in the header row").not.toBeNull();
+		await press(".pane-header");
+		expect(pane.isCollapsed).toBe(false);
+		expect(inShadow(".pane-content"), "open, it shows its view").not.toBeNull();
+	});
+
+	it("closes from its minimize control to its strip without minimizing the column", async () => {
+		const minimized: unknown[] = [];
+		pane.addEventListener(SHU_EVENT.COLUMN_MINIMIZE, (e) => minimized.push(e));
+		pane.setDocked(true, true);
+		await nextFrame(pane);
+		await press(".pane-minimize");
+		expect(pane.isCollapsed).toBe(true);
+		expect(pane.hasAttribute(SHU_ATTR.DATA_MINIMIZED), "the column's remembered minimize is untouched").toBe(false);
+		expect(minimized, "and the address isn't told").toHaveLength(0);
+	});
+
+	it("doesn't ask to be the active pane when its view doesn't take activation", () => {
+		class ActingView extends HTMLElement {
+			static activates = false;
+		}
+		if (!customElements.get("acting-pane-view")) customElements.define("acting-pane-view", ActingView);
+		const asked: Event[] = [];
+		const acting = makePane("Acting");
+		acting.appendChild(document.createElement("acting-pane-view"));
+		document.body.appendChild(acting);
+		acting.addEventListener(SHU_EVENT.COLUMN_ACTIVATE, (e) => asked.push(e));
+		acting.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+		pane.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+		expect(asked).toHaveLength(0);
+	});
+
+	it("opens where it was pinned when it is docked before it attaches, as the page's pane is at a reload", async () => {
+		setJsonCookie("shu-prefs-shu-column-pane", { Pinned: { pinned: true } });
+		const pinned = makePane("Pinned");
+		pinned.setDocked(true);
+		document.body.appendChild(pinned);
+		await nextFrame(pinned);
+		expect(pinned.isCollapsed).toBe(false);
 	});
 });

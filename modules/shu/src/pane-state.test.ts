@@ -12,6 +12,7 @@ import { setSiteMetadata, type SiteMetadata } from "./rels-cache.js";
 import * as ViewHash from "./view-hash.js";
 import { setConduit, resetConduit, LiveConduit } from "./hypermedia.js";
 import { TestConduit } from "./test-setup.js";
+import { activePane } from "./signals.js";
 
 /** Offline is which Conduit is installed: a serialized one has no location to mutate, a live one does. */
 const offline = () =>
@@ -88,6 +89,16 @@ describe("parseColEntry", () => {
 		expect(d && paneIdOf(d)).toBe("e:Email:msg-1");
 	});
 
+	it("reads where a pane stands from its entry's endings, in either order", () => {
+		for (const raw of ["shu-monitor-column~dock~min", "shu-monitor-column~min~dock"]) {
+			const d = parseColEntry(raw);
+			expect(d?.docked, raw).toBe(true);
+			expect(d?.flag, raw).toBe("min");
+			expect(d && paneIdOf(d), raw).toBe("shu-monitor-column");
+		}
+		expect(parseColEntry("shu-monitor-column")?.docked).toBeUndefined();
+	});
+
 	it("round-trips a type pane (survives reload; not mistaken for a `t:` thread or a component tag)", () => {
 		const d = parseColEntry("type:Issuer");
 		expect(d?.paneType).toBe("type");
@@ -130,6 +141,12 @@ describe("PaneState", () => {
 						this.toggleAttribute("data-maximized", m);
 						this.dispatchEvent(new CustomEvent("column-maximize", { detail: { maximized: m }, bubbles: true, composed: true }));
 					}
+					get docked(): boolean {
+						return this.hasAttribute("docked");
+					}
+					setDocked(d: boolean) {
+						this.toggleAttribute("docked", d);
+					}
 				},
 			);
 		if (!customElements.get("shu-column-strip")) {
@@ -154,6 +171,9 @@ describe("PaneState", () => {
 						p.remove();
 					}
 					updateAccordion() {
+						/* no-op: layout is not under test here */
+					}
+					layoutColumns() {
 						/* no-op: layout is not under test here */
 					}
 					applyMaximize(_p: HTMLElement, _max: boolean) {
@@ -405,6 +425,86 @@ describe("PaneState", () => {
 		const afterAdd = Array.from(document.querySelectorAll("shu-column-pane")).map((p) => (p as HTMLElement).dataset.columnKey);
 		expect(afterAdd).toContain("e:Email:msg-2");
 		expect(afterAdd).toContain("e:Email:msg-3");
+	});
+
+	const paneKeyed = (key: string) => Array.from(document.querySelectorAll("shu-column-pane")).find((p) => (p as HTMLElement).dataset.columnKey === key) as HTMLElement;
+	const cols = () => new URLSearchParams(ShuElement.getHash().slice(2)).getAll("col");
+	const dock = (key: string, docked: boolean) => paneKeyed(key).dispatchEvent(new CustomEvent("column-dock", { detail: { docked }, bubbles: true, composed: true }));
+
+	it("docks a pane in the address, and docking another returns the first to the strip", async () => {
+		PaneState.fromHash();
+		PaneState.request({ paneType: "component", tag: "shu-monitor-column", label: "M" });
+		PaneState.request({ paneType: "component", tag: "shu-polymorphic-graph-view", label: "G" });
+		await flush();
+		dock("shu-monitor-column", true);
+		await flush();
+		expect(cols()).toEqual(["shu-monitor-column~dock", "shu-polymorphic-graph-view"]);
+		expect(paneKeyed("shu-monitor-column").hasAttribute("docked")).toBe(true);
+		dock("shu-polymorphic-graph-view", true);
+		await flush();
+		expect(cols(), "one pane is docked at a time").toEqual(["shu-monitor-column", "shu-polymorphic-graph-view~dock"]);
+		expect(paneKeyed("shu-monitor-column").hasAttribute("docked"), "the first pane is back in the strip").toBe(false);
+		expect(paneKeyed("shu-polymorphic-graph-view").hasAttribute("docked")).toBe(true);
+	});
+
+	it("keeps a pane a reload names docked docked, and a re-request leaves it docked", async () => {
+		ShuElement.pushHash("#?col=shu-monitor-column~dock");
+		PaneState.fromHash();
+		await flush();
+		expect(paneKeyed("shu-monitor-column").hasAttribute("docked")).toBe(true);
+		PaneState.request({ paneType: "component", tag: "shu-monitor-column", label: "M" });
+		await flush();
+		expect(cols()).toEqual(["shu-monitor-column~dock"]);
+	});
+
+	it("holds a page pane as declared where the address doesn't name it, and names it in the address only where it stands otherwise", async () => {
+		const strip = document.querySelector("shu-column-strip");
+		PaneState.__resetForTests();
+		// biome-ignore lint/suspicious/noExplicitAny: test-only, strip facade is narrower than real ShuColumnStrip.
+		PaneState.init(strip as any, {}, [{ pane: { paneType: "component", tag: "shu-affordances-panel", label: "Actions", docked: true }, attributes: { "testid-prefix": "app-" } }]);
+		PaneState.fromHash();
+		await flush();
+		const page = paneKeyed("shu-affordances-panel");
+		expect(page.hasAttribute("docked"), "docked, as declared").toBe(true);
+		expect(page.getAttribute("closable"), "and it doesn't close").toBe("false");
+		expect(page.firstElementChild?.getAttribute("testid-prefix"), "its view has the attributes declared for it").toBe("app-");
+		expect(cols(), "the address doesn't name a page pane that stands as declared").toEqual([]);
+		dock("shu-affordances-panel", false);
+		await flush();
+		expect(cols(), "a page pane returned to the strip is named").toEqual(["shu-affordances-panel"]);
+		ShuElement.pushHash("#?");
+		PaneState.fromHash();
+		await flush();
+		expect(paneKeyed("shu-affordances-panel").hasAttribute("docked"), "an address that doesn't name it docks it again").toBe(true);
+	});
+
+	it("doesn't make a page pane active, at a reload or when the active pane closes", async () => {
+		const strip = document.querySelector("shu-column-strip");
+		PaneState.__resetForTests();
+		// biome-ignore lint/suspicious/noExplicitAny: test-only, strip facade is narrower than real ShuColumnStrip.
+		PaneState.init(strip as any, {}, [{ pane: { paneType: "component", tag: "shu-affordances-panel", label: "Actions", docked: true } }]);
+		ShuElement.pushHash("#?col=shu-monitor-column");
+		PaneState.fromHash();
+		await flush();
+		expect(activePane.get()).toBe("shu-monitor-column");
+		PaneState.dismiss("shu-monitor-column");
+		await flush();
+		expect(activePane.get(), "the page pane isn't the pane left active").toBeNull();
+	});
+
+	it("a prune leaves a docked pane and a pane that doesn't close", async () => {
+		PaneState.fromHash();
+		PaneState.request({ paneType: "component", tag: "shu-polymorphic-graph-view", label: "G" });
+		PaneState.request({ paneType: "component", tag: "shu-monitor-column", label: "M" });
+		PaneState.request({ paneType: "component", tag: "shu-affordances-panel", label: "A" });
+		await flush();
+		dock("shu-monitor-column", true);
+		paneKeyed("shu-affordances-panel").setAttribute("closable", "false");
+		await flush();
+		PaneState.requestFrom(paneKeyed("shu-polymorphic-graph-view"), { paneType: "entity", persistedAs: "Email", id: "msg-4" });
+		await flush();
+		const ids = Array.from(document.querySelectorAll("shu-column-pane")).map((p) => (p as HTMLElement).dataset.columnKey);
+		expect(ids).toEqual(["shu-polymorphic-graph-view", "shu-monitor-column", "shu-affordances-panel", "e:Email:msg-4"]);
 	});
 
 	it("an open= link adds its pane to the live state instead of replacing it (a document's view link)", async () => {

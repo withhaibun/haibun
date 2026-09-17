@@ -17,7 +17,7 @@
  * signals mirror it for ergonomic auto-rerender of main-bundle lit components.
  */
 import { Signal } from "@lit-labs/signals";
-import type { TPageContext } from "./schemas.js";
+import { NOTHING_SELECTED_LABEL, type TPageContext } from "./schemas.js";
 
 /** The globalThis key every bundle's shared cells are held under, so a page reader outside the bundles finds the same cells. */
 export const SHARED_SIGNALS_KEY = "__SHU_SHARED_SIGNALS__";
@@ -120,8 +120,22 @@ export const activePane = new SharedSignal<string | null>("activePane", null);
  *  `CONTEXT_CHANGE`, and a view that acts on the page's context reads it wherever the view is placed. */
 export const pageContext = new SharedSignal<TPageContext | null>("pageContext", null);
 
-/** A pane in the column strip: its key in `activePane`, the label a breadcrumb names, and whether it is the query pane. */
-export type TStripPane = { key: string; label: string; query: boolean };
+/** A pane in the column strip: its key in `activePane`, the label a breadcrumb names, whether it is the query pane, and
+ *  whether it is docked along the bottom of the app rather than laid out as a column. */
+export type TStripPane = { key: string; label: string; query: boolean; docked: boolean };
+
+/** The pane docked along the bottom of the app: its key, whether it is open, and whether it is pinned. */
+export type TDockedPane = { key: string; open: boolean; pinned: boolean };
+
+/** The pane docked along the bottom of the app, or null where none is. The docked pane is its only writer, and the page
+ *  strip reads it to open, close and pin the pane. */
+export const dockedPane = new SharedSignal<TDockedPane | null>("dockedPane", null);
+
+/** What the page's breadcrumb names first: the search the query surface describes. The actions bar's search writes it. */
+export const pageTrail = new SharedSignal<string>("pageTrail", NOTHING_SELECTED_LABEL);
+
+/** What the page says about itself, which the page strip shows: a failure, a server that didn't answer. */
+export const pageStatus = new SharedSignal<string>("pageStatus", "");
 
 /** The panes the column strip holds, in its order. The strip is its only writer. */
 export const stripPanes = new SharedSignal<ReadonlyArray<TStripPane>>("stripPanes", []);

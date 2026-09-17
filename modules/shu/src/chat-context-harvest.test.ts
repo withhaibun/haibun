@@ -76,6 +76,16 @@ describe("harvestChatViewLd: the active pane's linked data plus the pane manifes
 		expect((blocks[0] as { items: unknown[] }).items).toHaveLength(1);
 	});
 
+	it("leaves out of the manifest a pane whose view the reader acts on other views through", () => {
+		const column = pane("first", view("shu-entity-column", { "@id": "e1" }));
+		const actions = Object.assign(pane("Actions", view("shu-actions-bar", null)), { activates: false });
+		activePane.set("first");
+		mount(column, actions);
+		const manifest = harvestChatViewLd().at(-1) as { totalItems: number; items: Array<{ name: string }> };
+		expect(manifest.items.map((item) => item.name)).toEqual(["first"]);
+		expect(manifest.totalItems).toBe(1);
+	});
+
 	it("returns empty with no strip mounted", () => {
 		expect(harvestChatViewLd()).toEqual([]);
 	});
@@ -91,11 +101,19 @@ describe("harvestChatViewLd: the active pane's linked data plus the pane manifes
  * what was open.
  */
 describe("what a page sends of a view that states many members", () => {
-	const members = (count: number, key = "quads") => ({ "@id": "view:graph", "@type": "as:Collection", totalItems: count, [key]: Array.from({ length: count }, (_, at) => ({ at })) });
+	const members = (count: number, key = "quads") => ({
+		"@id": "view:graph",
+		"@type": "as:Collection",
+		totalItems: count,
+		[key]: Array.from({ length: count }, (_, at) => ({ at })),
+	});
 
 	it("carries the members the view stated first, and says how many it carried", () => {
 		const carried = harvested(members(HARVEST_MEMBERS + 50)) as { quads: Array<{ at: number }>; totalItems: number; membersCarried: number };
-		expect(carried.quads.map((q) => q.at), "the view states the order it wants them read").toEqual(Array.from({ length: HARVEST_MEMBERS }, (_, at) => at));
+		expect(
+			carried.quads.map((q) => q.at),
+			"the view states the order it wants them read",
+		).toEqual(Array.from({ length: HARVEST_MEMBERS }, (_, at) => at));
 		expect(carried.totalItems, "the count the view stated stands, so a reader is told how many the view holds").toBe(HARVEST_MEMBERS + 50);
 		expect(carried.membersCarried).toBe(HARVEST_MEMBERS);
 	});

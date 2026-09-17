@@ -47,7 +47,8 @@ export type TPaneManifest = TLinkedData & { "@id": "view:panes"; "@type": "as:Co
 export function harvestChatViewLd(root: ParentNode = document): TLinkedData[] {
 	const strip = root.querySelector("shu-column-strip");
 	if (!strip) return [];
-	const panes = Array.from(strip.querySelectorAll("shu-column-pane"));
+	// A pane whose view the reader acts on another view through, as the actions bar's, isn't a column of the workspace.
+	const panes = Array.from(strip.querySelectorAll("shu-column-pane")).filter((pane) => (pane as Element & { activates?: boolean }).activates !== false);
 	if (panes.length === 0) return [];
 	const activeKey = activePane.get();
 	const active = panes.find((p) => paneKeyOf(p) === activeKey);

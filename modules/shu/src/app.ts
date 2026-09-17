@@ -1,5 +1,5 @@
 import { appAccessLevel, defaultLabel } from "./util.js";
-import { ACTIONS_BAR_FOOTPRINT, INDEX_PANE_KEY, SHU_EVENT, SHU_ATTR, SHU_TAG } from "./consts.js";
+import { DOCK_FOOTPRINT, INDEX_PANE_KEY, SHU_EVENT, SHU_ATTR, SHU_TAG } from "./consts.js";
 import { getHash, hashWithColumns } from "./view-hash.js";
 /**
  * Main SPA entry point, uses shu-column-strip + shu-column-pane layout.
@@ -38,15 +38,16 @@ const LAYOUT_STYLE = `
     height: 100vh;
     height: 100dvh;
     overflow: hidden;
-    /* positioning context for the actions bar, which overlays the bottom rather than taking layout space */
+    /* positioning context for a docked pane, which overlays the columns above the page strip rather than taking layout
+       space */
     position: relative;
-    /* reserve the closed actions bar's footprint (published by shu-actions-bar) so the column strip ends above it,
-       never behind it; the expanded bar still floats over content transiently. 0 when no bar is mounted. */
-    padding-bottom: var(${ACTIONS_BAR_FOOTPRINT}, 0px);
   }
   .app-container > shu-column-strip {
     flex: 1;
     min-height: 0;
+    /* the closed docked pane's footprint (published by its pane), so the columns end above it rather than behind it; the
+       open docked pane still floats over them. 0 when no pane is docked. */
+    margin-bottom: var(${DOCK_FOOTPRINT}, 0px);
   }
   /* Results pane styles (inside query pane's light DOM .results-target) */
   .results-pane { display: flex; flex-direction: column; height: 100%; overflow: hidden; position: relative; }
@@ -211,13 +212,13 @@ const main = async (): Promise<void> => {
 	// All other pane creation goes through PaneState (initialized further down).
 	appRoot.innerHTML = `
 		<div class="app-container">
-			<shu-actions-bar api-base="${apiBase}" testid-prefix="app-"></shu-actions-bar>
 			<shu-column-strip>
 				<shu-column-pane label="" column-type="query" closable="false" active data-column-key="${INDEX_PANE_KEY}">
 					<div class="results-target" style="height:100%;overflow:hidden;"></div>
 					<shu-index-summary slot="spine"></shu-index-summary>
 				</shu-column-pane>
 			</shu-column-strip>
+			<shu-page-strip api-base="${apiBase}" testid-prefix="app-"></shu-page-strip>
 			<shu-graph-query api-base="${apiBase}" label="${defaultLabel()}" sort-order="desc" results-target=".results-target"></shu-graph-query>
 		</div>
 	`;
@@ -429,44 +430,51 @@ const main = async (): Promise<void> => {
 	// adapt each variant's data into the existing column-component's open() RPC. Adding
 	// a new pane variant means: add a schema entry + register one hook.
 	if (strip0) {
-		PaneState.init(strip0, {
-			ensureLoaded: (tag) => ensureUiComponentLoaded(tag).catch(() => undefined),
-			afterAttach: {
-				entity: (d, child) => {
-					if (d.paneType !== "entity") return;
-					return (child as ShuEntityColumn).open(d.id, d.persistedAs, d.selector);
-				},
-				type: (d, child) => {
-					if (d.paneType !== "type") return;
-					return (child as import("./components/shu-type-column.js").ShuTypeColumn).open(d.persistedAs);
-				},
-				"filter-eq": (d, child) => {
-					if (d.paneType !== "filter-eq") return;
-					return (child as ShuFilterColumn).openFiltered(d.predicate, d.value, d.persistedAs);
-				},
-				"filter-prop": (d, child) => {
-					if (d.paneType !== "filter-prop") return;
-					return (child as ShuFilterColumn).openProperty(d.predicate, d.persistedAs);
-				},
-				"filter-incoming": (d, child) => {
-					if (d.paneType !== "filter-incoming") return;
-					return (child as ShuFilterColumn).openIncoming(d.subject, d.persistedAs);
-				},
-				thread: (d, child) => {
-					if (d.paneType !== "thread") return;
-					return (child as import("./components/shu-thread-column.js").ShuThreadColumn).open(d.persistedAs, d.subject);
-				},
-				"step-detail": (d, child) => {
-					if (d.paneType !== "step-detail") return;
-					return (child as HTMLElement & { open(s: number[]): Promise<void> }).open(d.seqPath);
-				},
-				"views-picker": (d, child) => {
-					if (d.paneType !== "views-picker") return;
-					const setViews = (child as HTMLElement & { setViews(v: unknown[]): void }).setViews;
-					setViews.call(child, d.views);
+		PaneState.init(
+			strip0,
+			{
+				ensureLoaded: (tag) => ensureUiComponentLoaded(tag).catch(() => undefined),
+				afterAttach: {
+					entity: (d, child) => {
+						if (d.paneType !== "entity") return;
+						return (child as ShuEntityColumn).open(d.id, d.persistedAs, d.selector);
+					},
+					type: (d, child) => {
+						if (d.paneType !== "type") return;
+						return (child as import("./components/shu-type-column.js").ShuTypeColumn).open(d.persistedAs);
+					},
+					"filter-eq": (d, child) => {
+						if (d.paneType !== "filter-eq") return;
+						return (child as ShuFilterColumn).openFiltered(d.predicate, d.value, d.persistedAs);
+					},
+					"filter-prop": (d, child) => {
+						if (d.paneType !== "filter-prop") return;
+						return (child as ShuFilterColumn).openProperty(d.predicate, d.persistedAs);
+					},
+					"filter-incoming": (d, child) => {
+						if (d.paneType !== "filter-incoming") return;
+						return (child as ShuFilterColumn).openIncoming(d.subject, d.persistedAs);
+					},
+					thread: (d, child) => {
+						if (d.paneType !== "thread") return;
+						return (child as import("./components/shu-thread-column.js").ShuThreadColumn).open(d.persistedAs, d.subject);
+					},
+					"step-detail": (d, child) => {
+						if (d.paneType !== "step-detail") return;
+						return (child as HTMLElement & { open(s: number[]): Promise<void> }).open(d.seqPath);
+					},
+					"views-picker": (d, child) => {
+						if (d.paneType !== "views-picker") return;
+						const setViews = (child as HTMLElement & { setViews(v: unknown[]): void }).setViews;
+						setViews.call(child, d.views);
+					},
 				},
 			},
-		});
+			[
+				// The actions bar is a pane the page always holds, docked along the bottom unless the address places it.
+				{ pane: { paneType: "component", tag: SHU_TAG.ACTIONS_BAR, label: "Actions", docked: true }, attributes: { "api-base": apiBase, "testid-prefix": "app-" } },
+			],
+		);
 		// The query column is written into the boot markup, so it never passes through PaneState and nothing names it
 		// active. Name it here, before reading the hash: a hash that describes panes replaces this, and one that does
 		// not leaves the column that is on screen as the active pane rather than none.

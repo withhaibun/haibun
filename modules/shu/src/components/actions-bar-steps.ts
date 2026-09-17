@@ -12,7 +12,7 @@ import { getAvailableSteps, stepsForContext } from "../rpc-registry.js";
 import { StepsChangedController } from "../controllers/index.js";
 import type { TComboboxOption } from "../schemas.js";
 import { prettifyGwta } from "../util.js";
-import type { TActionsBarHost } from "./actions-bar-model.js";
+import type { TControllerHost } from "./controller-host.js";
 import type { ShuActivityHistory } from "./shu-activity-history.js";
 
 /** What marks a step offered for the selected type. */
@@ -66,13 +66,13 @@ export type TActionsBarStepsDeps = {
 type TStepCaller = HTMLElement & { executed?: boolean };
 
 export class ActionsBarSteps implements ReactiveController {
-	readonly #host: TActionsBarHost;
+	readonly #host: TControllerHost;
 	readonly #deps: TActionsBarStepsDeps;
 	#steps: TStepDefinition[] = [];
 	/** The step the selector shows as chosen. */
 	#chosen = "";
 
-	constructor(host: TActionsBarHost, deps: TActionsBarStepsDeps) {
+	constructor(host: TControllerHost, deps: TActionsBarStepsDeps) {
 		this.#host = host;
 		this.#deps = deps;
 		host.addController(this);
