@@ -65,7 +65,7 @@ class StepsPage extends AStepper {
 		holds: {
 			gwta: "page holds the added step",
 			action: async () => {
-				if (!holdsAdded) throw new Error("no page follows the run's steps: a scenario opens one with `page at {base} reads the run's steps` first");
+				if (!holdsAdded) throw new Error("a page doesn't follow the run's steps: a scenario opens one with `page at {base} reads the run's steps` first");
 				await holdsAdded;
 				resetStepRegistry();
 				eventStream().close();

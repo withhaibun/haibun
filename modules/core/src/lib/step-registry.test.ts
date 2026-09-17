@@ -166,9 +166,9 @@ describe("what a read of the run's declarations shows", () => {
 		registry.inject([remoteTool("listTyped", "list {domain: string}"), remoteTool("write", "write {data}")]);
 		expect(changes, "two steps injected together are one change").toBe(1);
 		registry.inject([remoteTool("listTyped", "list {domain: string}")]);
-		expect(changes, "a step injected again as it was is no change").toBe(1);
+		expect(changes, "a step injected again as it was doesn't change the registry").toBe(1);
 		registry.refresh(steppers, emptyWorld);
-		expect(changes, "a rebuild of the same steps is no change").toBe(1);
+		expect(changes, "and a rebuild of the same steps doesn't either").toBe(1);
 		class MoreSteps extends AStepper {
 			description = "a step that fails";
 			steps = { fails: { gwta: "fails", action: async () => actionOK() } };

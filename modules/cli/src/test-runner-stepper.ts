@@ -98,7 +98,7 @@ const LISTS_WHAT_IT_HOLDS = /\blists?\b/i;
  * The parameters of a question put to a run, as a feature line or a model can write them: `name=value` pairs, or
  * JSON from a caller that can write it. A quoted feature-line argument holds no double quotes, so pairs are what a
  * line can say. A step that takes one parameter also accepts the bare value, since naming it adds nothing, and an object
- * is a bare value too: JSON that names no parameter of such a step is its value. A parameter the step takes as an object
+ * is a bare value too: JSON that doesn't name a parameter of such a step is its value. A parameter the step takes as an object
  * or a list is accepted as its JSON text, as a feature line writes one.
  */
 export function askParams(params: string, takes: TInputSchema["properties"] = {}): Record<string, unknown> {
@@ -357,7 +357,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 				const missing = (target?.inputSchema.required ?? takes).filter((name) => given[name] === undefined);
 				if (missing.length)
 					return actionNotOK(
-						`${method} at host ${tracked.host} takes ${takes.join(", ") || "no parameters"}, and was given ${Object.keys(given).join(", ") || "nothing"}: ${missing.map((name) => `${name}${whatItTakes(target?.inputSchema.properties[name])}`).join(", ")} missing`,
+						`${method} at host ${tracked.host} takes ${takes.join(", ")}, and ${Object.keys(given).length > 0 ? `was given ${Object.keys(given).join(", ")}` : "wasn't given a parameter"}: ${missing.map((name) => `${name}${whatItTakes(target?.inputSchema.properties[name])}`).join(", ")} missing`,
 					);
 				const asked = await this.callSupervisor(z.object({}).passthrough(), scoped, given);
 				// A refusal IS an answer: the run is up and said why it would not. Left as a bare failure, a reader took

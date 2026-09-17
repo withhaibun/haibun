@@ -41,7 +41,7 @@ describe("a module's sources the build did not compile", () => {
 
 describe("a module whose build record is older than what it imports", () => {
 	/** A workspace of modules, each with its package, a source that imports the modules named, its build record and one
-	 *  declaration, at the times given in seconds. No package lists a dependency. */
+	 *  declaration, at the times given in seconds. A package doesn't list a dependency. */
 	function aWorkspace(modules: Array<{ name: string; imports: string[]; recordAt: number; declaredAt: number }>): string {
 		const modulesDir = mkdtempSync(join(tmpdir(), "haibun-modules-"));
 		for (const { name, imports, recordAt, declaredAt } of modules) {
@@ -58,7 +58,7 @@ describe("a module whose build record is older than what it imports", () => {
 		return modulesDir;
 	}
 
-	it("names each module whose build record is older than the declarations of a module it imports, and none whose record is newer", () => {
+	it("names each module whose build record is older than the declarations of a module it imports, and doesn't name one whose record is newer", () => {
 		const modulesDir = aWorkspace([
 			{ name: "core", imports: [], recordAt: 200, declaredAt: 200 },
 			{ name: "shu", imports: ["core"], recordAt: 100, declaredAt: 100 },

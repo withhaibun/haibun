@@ -141,7 +141,7 @@ export class ActionsBarQuery implements ReactiveController {
 	}
 
 	/** Read the types the query surface offers and the fields of the selected type. The bar reads them again when the run's
-	 *  steps change, which changes what the run declares and not the search a reader chose, so no search is announced. */
+	 *  steps change, which changes what the run declares and not the search a reader chose, so the bar doesn't announce a search. */
 	async readTypes(): Promise<void> {
 		await getAvailableSteps(); // the concern catalog the domains are read from arrives with the steps
 		this.#domainOptions = buildDomainOptions(await getAvailableDomains());

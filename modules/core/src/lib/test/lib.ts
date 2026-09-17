@@ -117,7 +117,7 @@ export function getDefaultTag(desc: string | undefined = undefined) {
 	return getRunTag(0, undefined, desc ? { desc } : undefined, false, resolveHostId());
 }
 
-/** A port nothing listens on now, so a test's server and another test file's never share one. */
+/** A port that a server doesn't listen on now, so a test's server and another test file's never share one. */
 export const freePort = (): Promise<number> =>
 	new Promise((resolve, reject) => {
 		const probe = createServer();

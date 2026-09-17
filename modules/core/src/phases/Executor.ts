@@ -89,7 +89,8 @@ async function initFeatureRuntime(world: TWorld): Promise<void> {
 /**
  * Duck-typed attach() on every stepper that implements a transport (has `attach` and `detach` methods), called once the
  * Executor opens the run's registry, so every transport is live before the first feature runs. A pure-client config (an
- * agent with a `{remote}` entry and no webserver) is covered too. No stepper transport reads a webserver when it attaches.
+ * agent with a `{remote}` entry and without a webserver) is covered too. A stepper transport doesn't read a webserver when it
+ * attaches.
  */
 function attachTransportsToRegistry(steppers: AStepper[], registry: StepRegistry): void {
 	for (const s of steppers) {
