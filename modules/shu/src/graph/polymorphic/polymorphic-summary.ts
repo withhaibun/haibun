@@ -23,5 +23,4 @@ export function statedAboutFirst<T extends TStated>(stated: readonly T[], on: st
 
 /** The call that reads every statement a graph draws, as the view read them: a reader carrying part of a graph asks for
  *  the rest rather than answering from a part it cannot tell is partial. */
-export const readsEveryStatement = (asks: { perTypeLimit: number; accessLevel: string }): TLink =>
-	reads(RPC_METHOD.CLUSTERED_QUADS, asks, "every statement this graph draws");
+export const readsEveryStatement = (asks: { perTypeLimit: number; accessLevel: string }): TLink => reads(RPC_METHOD.CLUSTERED_QUADS, asks, "every statement this graph draws");

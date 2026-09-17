@@ -142,7 +142,7 @@ describe("the chat's settings", () => {
 		expect(el.shadowRoot?.querySelector(".chat-settings")).toBeNull();
 	});
 
-	it("stands above the transcript, which stands above the input line", async () => {
+	it("stands above the transcript, and the transcript stands above the input line", async () => {
 		const el = await chat();
 		// jsdom holds the styles as elements in the root; the regions are what the chat renders.
 		const parts = Array.from(el.shadowRoot?.children ?? [])

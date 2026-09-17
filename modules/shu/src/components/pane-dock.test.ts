@@ -71,7 +71,7 @@ describe("how a docked pane stands", () => {
 		expect(pane.host.hasAttribute(SHU_ATTR.DATA_COVERS_VIEWS)).toBe(false);
 	});
 
-	it("holds none of it in the strip: a column neither takes a height nor covers the columns", () => {
+	it("doesn't stand a column in the strip: the column takes no height from the dock and doesn't cover the columns", () => {
 		const pane = aDockedPane({ docked: false, closed: false });
 		pane.dock.hostUpdate();
 		expect(percentTall(pane.host)).toBeUndefined();

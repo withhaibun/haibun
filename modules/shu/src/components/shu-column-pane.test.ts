@@ -383,7 +383,7 @@ describe("what a pane renders when it collapses", () => {
 		expect(expanded).toBe(1);
 	});
 
-	it("opens the column from the strip around its label and its spine, which is as much the strip as they are", async () => {
+	it("opens the column from the strip around its label and its spine", async () => {
 		pane.setMinimized(true);
 		await nextFrame(pane);
 		let expanded = 0;
@@ -454,7 +454,7 @@ describe("a column whose spine is a narrow form of itself", () => {
 		expect(expanded, "using the rail must not put the rows back under the reader").toBe(0);
 	});
 
-	it("opens from its header, which says what the column is rather than showing the view's own surface", async () => {
+	it("opens from its header, since the header names the column and the spine holds the view's own surface", async () => {
 		const pane = await spined();
 		let expanded = 0;
 		pane.addEventListener(SHU_EVENT.COLUMN_EXPAND, () => expanded++);
@@ -548,7 +548,7 @@ describe("a docked pane", () => {
 		expect(inShadow(".pane-content"), "open, it shows its view").not.toBeNull();
 	});
 
-	it("opens from its strip as its view's controls show, and as it maximizes to fill the app, which a drag of its edge ends", async () => {
+	it("opens from its strip as its view's controls show and as it maximizes to fill the app, and a drag of its edge ends the maximize", async () => {
 		pane.setDocked(true);
 		await nextFrame(pane);
 		await press(`[data-testid="${SHU_TEST_IDS.COLUMN_PANE.CONTROLS_TOGGLE}"]`);

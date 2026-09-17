@@ -128,7 +128,9 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 		this.setState({ label, individualId: id, loading: true, error: undefined });
 		// A thread is about the record it is read from, as a record column is: stated the same way, so the reader is on
 		// it here as they would be there.
-		this.dispatchEvent(new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, { detail: { patterns: [anIndividual(label, id)], accessLevel: appAccessLevel(), label }, bubbles: true, composed: true }));
+		this.dispatchEvent(
+			new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, { detail: { patterns: [anIndividual(label, id)], accessLevel: appAccessLevel(), label }, bubbles: true, composed: true }),
+		);
 		const res = await callStep<{ items: ThreadVertex[]; contextRoot: string }>("getRelated", { label, id, depth: this.state.depth }, `thread-column: open ${label}:${id}`);
 		if (!res.ok) {
 			this.setState({ loading: false, error: res.error });

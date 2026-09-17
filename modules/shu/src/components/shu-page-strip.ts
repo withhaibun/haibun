@@ -1,7 +1,8 @@
 /**
- * <shu-page-strip>: the strip along the bottom of the page, whatever is docked above it and wherever the actions bar
- * stands. It holds the control that opens and closes the docked pane and its pin, the page's status, the breadcrumb of
- * the columns, and the corner controls: the read access level, the run's time and playback, and the settings.
+ * <shu-page-strip> renders the strip along the bottom of the page, under whatever is docked. It holds the control that
+ * opens and closes the docked pane, the pin that holds that pane open, the page's status, the breadcrumb of the search
+ * and the columns, and the corner controls. The corner controls hold the read access level, the run's time and playback,
+ * and the settings.
  */
 import { html, type CSSResultGroup, type TemplateResult } from "lit";
 import { z } from "zod";
@@ -36,9 +37,9 @@ export class ShuPageStrip extends ShuElement<typeof PageStripSchema> {
 		return PAGE_STRIP_STYLES;
 	}
 
-	/** The read access level the access indicator shows: the context's, or the reader's change of it. */
+	/** The read access level the access indicator shows. It holds the context's level until a reader changes it. */
 	#accessLevel: AccessQueryLevel = appAccessLevel();
-	/** The corner controls and their popover: settings, access and authority, the time offset and playback, the status. */
+	/** The corner controls and their popover. They hold the settings, the access level and authority, the time offset and playback, and the status. */
 	#corners = new PageStripCorners(this, {
 		testIdPrefix: () => this.testIdPrefix,
 		anchorTop: () => this.#anchorTop(),
@@ -53,7 +54,7 @@ export class ShuPageStrip extends ShuElement<typeof PageStripSchema> {
 	#activePane = new SignalController(this, activePane, () => this.#updateBreadcrumb());
 	#docked = new SignalController(this, dockedPane, () => undefined);
 	#status = new SignalController(this, pageStatus, (status) => this.#corners.setStatus(status));
-	/** The types the page searches, which the search states: the strip offers them beside what the search found. */
+	/** The types the page searches, as the search states them. The strip offers them beside what the search found. */
 	#types = new SignalController(this, pageTypes, () => undefined);
 	/** The strip's height, which a docked pane stands above. */
 	#footprint = new FootprintController(this, PAGE_STRIP_FOOTPRINT, () => this.offsetHeight);
@@ -76,7 +77,7 @@ export class ShuPageStrip extends ShuElement<typeof PageStripSchema> {
 		if (!isOffline()) this.autoTeardown(this.subscribeBatched({ onBatch: () => this.#corners.showTime(this.timeCursor) }));
 	}
 
-	/** Say where the cursor sits in the run: `now` while every view shows now, and an offset once a moment is pinned. */
+	/** Says where the cursor sits in the run. It reads `now` while every view shows now, and an offset once a reader pins a moment. */
 	protected onTimeSync(cursor: number | null): void {
 		this.#corners.showTime(cursor);
 	}
@@ -92,7 +93,7 @@ export class ShuPageStrip extends ShuElement<typeof PageStripSchema> {
 		this.requestUpdate();
 	}
 
-	/** The breadcrumb names the search, then the columns and the one the reader is on. A docked pane isn't a column. */
+	/** Names the search, then the columns, then the column the reader is on. A docked pane isn't a column. */
 	#updateBreadcrumb(): void {
 		const breadcrumb = this.shadowRoot?.querySelector(SHU_TAG.BREADCRUMB) as (HTMLElement & { setTrail?: (label: string, cols: string[], active: number) => void }) | null;
 		if (!breadcrumb?.setTrail) return;
@@ -118,7 +119,7 @@ export class ShuPageStrip extends ShuElement<typeof PageStripSchema> {
 		return docked ? Math.min(top, docked.getBoundingClientRect().top) : top;
 	}
 
-	/** State the type a reader chose on the document, where the search hears it wherever the actions bar stands. */
+	/** States the type a reader chose on the document. The search reads it wherever the actions bar stands. */
 	#onTypeChange = (e: CustomEvent): void => {
 		const key = e.detail?.value;
 		if (key) this.dispatchEvent(new CustomEvent(SHU_EVENT.TYPE_CHOOSE, { detail: { key }, bubbles: true, composed: true }));

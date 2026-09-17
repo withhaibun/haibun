@@ -48,7 +48,12 @@ export default class ShuGraphQueryControls extends AStepper implements IHasCycle
 			gwta: "query lists the individual {id}",
 			action: async ({ id }: { id: string }) => {
 				const page = await this.page();
-				const listed = await pollUntil(page, (p) => countMatching(p, `[data-individual-id="${id}"]`), (n) => n > 0, LISTED_TRIES);
+				const listed = await pollUntil(
+					page,
+					(p) => countMatching(p, `[data-individual-id="${id}"]`),
+					(n) => n > 0,
+					LISTED_TRIES,
+				);
 				return listed > 0 ? actionOK() : actionNotOK(`the query never listed the record "${id}"`);
 			},
 		},

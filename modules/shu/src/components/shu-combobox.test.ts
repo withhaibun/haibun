@@ -44,7 +44,7 @@ describe("the combobox", () => {
 		installTestMediaQueries();
 	});
 
-	it("offers its options on a press after a pick, which leaves the control holding focus", async () => {
+	it("offers its options on a press after a pick, since a pick leaves the control holding focus", async () => {
 		const combo = await aCombobox();
 		input(combo).dispatchEvent(new FocusEvent("focus"));
 		expect(offered(), "the reader is offered every option").toEqual(["Email", "File"]);
@@ -54,10 +54,10 @@ describe("the combobox", () => {
 		expect(combo.value, "the option the reader picked").toBe("file-domain");
 		expect(offered(), "and the list is put away").toEqual([]);
 		input(combo).dispatchEvent(new Event("pointerdown"));
-		expect(offered(), "a press offers them again, with no focus to raise").toEqual(["Email", "File"]);
+		expect(offered(), "a press offers them again, where the control raises no focus").toEqual(["Email", "File"]);
 	});
 
-	it("shows the text its holder states for what it holds, and the chosen option's label where its holder states none", async () => {
+	it("shows the text its holder states for what it holds, and the chosen option's label where its holder doesn't state one", async () => {
 		const combo = await aCombobox();
 		expect(input(combo).value, "the chosen option").toBe("Email");
 		combo.shown = "Email: 3";

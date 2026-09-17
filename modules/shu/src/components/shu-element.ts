@@ -79,8 +79,8 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	static attributeFields: Record<string, string> = {};
 
 	static get observedAttributes(): string[] {
-		// Every view answers the pane's settings control through `showControls`, so the base watches that attribute for all
-		// of them rather than each view declaring it.
+		// Every view reads the pane's settings control through `showControls`, so the base watches that attribute for all of
+		// them, and a view doesn't declare it.
 		return [...super.observedAttributes, ...Object.keys(this.attributeFields), SHU_ATTR.SHOW_CONTROLS, ...this.observedHtmlAttributes];
 	}
 
@@ -403,9 +403,9 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		// reject state the element legitimately holds. That is the loop a boot-time attribute write once fell into.
 		const absent = fieldSchema.safeParse(undefined);
 		if (coerced === undefined && !absent.success) return;
-		// The state already holds what the attribute says, so the change reports the element's own write and there is
-		// nothing to write. The element reads the value rather than timing its own writes: the browser delivers the
-		// reactions it holds for other attributes whenever the element writes one.
+		// The state already holds what the attribute says, so this change reports the element's own write and there is
+		// nothing to write. The element compares the value rather than timing its own writes, since the browser delivers
+		// the reactions it holds for other attributes whenever the element writes one.
 		if ((this.state as Record<string, unknown>)[field] === (coerced === undefined ? absent.data : coerced)) return;
 		try {
 			this.setState({ [field]: coerced } as Partial<z.infer<T>>);

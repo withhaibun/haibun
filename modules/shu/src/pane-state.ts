@@ -251,8 +251,8 @@ class PaneStateImpl {
 		// query column, leaving panes open with nothing active.
 		const named = active && next.has(active) ? active : firstKeyOf(next);
 		if (named) this.activePaneId = named;
-		// A page pane the address doesn't name stands as the page declares it, and one the address names stands where the
-		// address places it. It is added once the active pane is chosen, since a page pane isn't the pane a reader arrives on.
+		// A page pane the address doesn't name stands as the page declares it. A page pane the address names stands where
+		// the address places it. Both are added after the active pane is chosen, since a page pane doesn't take activation.
 		for (const [id, page] of this.pagePanes) {
 			const named = next.get(id);
 			next.set(id, named ? ({ ...page.pane, flag: named.flag, docked: named.docked } as DesiredPane) : withPersistedFlag(page.pane));
@@ -471,7 +471,7 @@ class PaneStateImpl {
 		// restore when it attaches (ShuElement.persistFields), so no width plumbing here.
 		pane.dataset.columnKey = id;
 		const page = this.pagePanes.get(id);
-		// A pane the page always holds has nowhere to close to, so it offers no close. Its dock control moves it.
+		// A pane the page always holds doesn't offer a close, since it has nowhere to close to. Its dock control moves it.
 		if (page) pane.setAttribute(SHU_ATTR.CLOSABLE, "false");
 		// Docked before it attaches, so the strip never lays it out as a column.
 		if (d.docked) pane.setDocked(true);

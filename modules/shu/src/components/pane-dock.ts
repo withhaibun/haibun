@@ -1,9 +1,8 @@
 /**
- * How a docked pane stands along the bottom of the app: the height it opens at as a share of the app, or all of it
- * maximized, a drag of its top edge, the strip it closes to, closing on a click elsewhere unless it is pinned, and the footprint its positioning host
- * reserves for the closed strip. An open docked pane overlays the columns rather than resizing them, so it marks itself
- * as covering them. It states itself as the docked pane, which the page strip opens, closes and pins. A pane in the
- * strip holds none of this.
+ * PaneDock stands a pane along the bottom of the app. It sets the pane's open height as a share of the app, or the whole
+ * height where the pane is maximized. It drags the top edge, closes the pane to its strip on a click elsewhere, reserves
+ * the closed strip's height on the positioning host, and marks an open pane as covering the columns. It states the pane
+ * as `dockedPane`, which the page strip reads. A pinned pane stays open. A pane in the strip doesn't use any of this.
  */
 import type { ReactiveController } from "lit";
 import { DOCK_FOOTPRINT, SHU_ATTR } from "../consts.js";
@@ -15,13 +14,13 @@ import type { TControllerHost } from "./controller-host.js";
 
 /** What the dock reads from its pane and how it changes it. */
 export type TPaneDockDeps = {
-	/** The pane's key, which states it as the docked pane. */
+	/** The pane's key, stated as the docked pane. */
 	key: () => string;
 	docked: () => boolean;
 	/** Whether the docked pane stands at its strip. */
 	closed: () => boolean;
 	setClosed: (closed: boolean) => void;
-	/** Whether the pane fills the app's height, as a maximized column fills the strip's width. */
+	/** Whether the pane fills the app's height. A maximized column fills the strip's width. */
 	maximized: () => boolean;
 	pinned: () => boolean;
 	/** The remembered open height, as a share of the app. */
@@ -41,9 +40,9 @@ function holdsTag(root: ParentNode, tag: string): boolean {
 export class PaneDock implements ReactiveController {
 	readonly #host: TControllerHost;
 	readonly #deps: TPaneDockDeps;
-	/** The closed strip's height, with the pane's top border, reserved while the pane is docked. */
+	/** Reserves the closed strip's height, with the pane's top border, while the pane is docked. */
 	readonly #footprint: FootprintController;
-	/** The drag in flight: where it began, the height and container height then, and how to stop it. */
+	/** The drag in flight. It holds where the drag began, the height and container height it began at, and how to stop it. */
 	#drag: { startY: number; startHeight: number; containerHeight: number; framePending: boolean; stop: () => void } | null = null;
 
 	constructor(host: TControllerHost, deps: TPaneDockDeps) {
@@ -57,7 +56,7 @@ export class PaneDock implements ReactiveController {
 		document.addEventListener("click", this.#onDocumentClick, true);
 	}
 
-	/** Before each render: a docked pane stands at its open height or at its strip. */
+	/** Stands a docked pane at its open height or at its strip, before each render. */
 	hostUpdate(): void {
 		this.#apply();
 	}
@@ -90,8 +89,8 @@ export class PaneDock implements ReactiveController {
 		this.#host.toggleAttribute(SHU_ATTR.DATA_COVERS_VIEWS, open);
 	}
 
-	/** The closed strip's height with the pane's top border, while the pane is docked; a pane in the strip reserves none.
-	 *  Closed, the pane is its strip. Open, the strip is its header, with the pane's top border. */
+	/** Measures the closed strip's height while the pane is docked, and returns null where the pane stands in the strip. A
+	 *  closed pane is its strip. An open pane's strip is its header, plus the pane's top border. */
 	#closedHeight(): number | null {
 		if (!this.#deps.docked()) return null;
 		if (this.#deps.closed()) return this.#host.offsetHeight;
@@ -100,7 +99,7 @@ export class PaneDock implements ReactiveController {
 		return header.offsetHeight + (Number.parseFloat(getComputedStyle(this.#host).borderTopWidth) || 0);
 	}
 
-	/** State this pane as the docked pane, as it stands now, or withdraw it where it was and is docked no longer. */
+	/** States this pane as the docked pane. It clears that statement where this pane no longer docks. */
 	#stateDocked(): void {
 		const key = this.#deps.key();
 		const stated = dockedPane.get();
@@ -114,9 +113,9 @@ export class PaneDock implements ReactiveController {
 		dockedPane.set({ key, open, pinned });
 	}
 
-	/** A click outside an open docked pane closes it to its strip, unless it is pinned, the click is on a control of the
-	 *  docked pane, or the click picked an option of a combobox inside it, which the combobox renders into the document
-	 *  marked with the tag of the element holding it. */
+	/** Closes an open docked pane to its strip on a click outside it. Three clicks leave it open: a click on a pinned
+	 *  pane, a click on a control of the docked pane, and a click on an option of a combobox inside the pane. A combobox
+	 *  renders its options into the document, marked with the tag of the element that holds the combobox. */
 	#onDocumentClick = (e: Event): void => {
 		if (!this.#deps.docked() || this.#deps.closed() || this.#deps.pinned()) return;
 		const path = e.composedPath();
@@ -126,7 +125,7 @@ export class PaneDock implements ReactiveController {
 		this.#deps.setClosed(true);
 	};
 
-	/** The height of the pane's positioning container, which its open height is a share of. */
+	/** The height of the pane's positioning container. The open height is a share of it. */
 	#containerHeight(): number {
 		return (this.#host.offsetParent as HTMLElement | null)?.clientHeight || this.#host.offsetHeight || 1;
 	}
@@ -142,7 +141,7 @@ export class PaneDock implements ReactiveController {
 		});
 	}
 
-	/** Remember the dragged height as a bounded share of the container, so it stays proportionate at any size. */
+	/** Remembers the dragged height as a bounded share of the container, so the pane keeps its proportion at any size. */
 	#onResizeEnd(): void {
 		const drag = this.#drag;
 		this.#drag = null;

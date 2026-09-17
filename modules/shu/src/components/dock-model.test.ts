@@ -9,7 +9,7 @@ describe("how tall a docked pane opens", () => {
 		expect(openAtProportion(0.5)).toBe(0.5);
 	});
 
-	it("opens at its default when the remembered height is outside what it will honour, or it remembers none", () => {
+	it("opens at its default where the remembered height falls outside the bounds, and where it doesn't remember one", () => {
 		expect(openAtProportion(0.01)).toBe(PROPORTION.default);
 		expect(openAtProportion(0.99)).toBe(PROPORTION.default);
 		expect(openAtProportion(0)).toBe(PROPORTION.default);
