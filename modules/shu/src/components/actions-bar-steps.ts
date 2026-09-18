@@ -125,8 +125,7 @@ export class ActionsBarSteps implements ReactiveController {
 		caller.setAttribute("call-index", String(history.querySelectorAll(`${SHU_TAG.STEP_CALLER}[method="${method}"]`).length));
 		if (args) caller.setAttribute("params", JSON.stringify(args));
 		if (auto) caller.setAttribute("auto", "");
-		history.appendChild(caller);
-		history.scrollToBottom();
+		history.append(caller);
 	}
 
 	/** The step mode's input line: the mode toggle, and the step selector once the run offers steps, those for the selected
@@ -158,6 +157,6 @@ export class ActionsBarSteps implements ReactiveController {
 
 	/** A caller's result lands after it was opened and grows it in place, so the newest output is kept in view. */
 	#onSettled = (): void => {
-		this.#deps.history.scrollToBottom();
+		this.#deps.history.keepNewestInView();
 	};
 }

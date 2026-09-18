@@ -47,12 +47,11 @@ const STYLES = css`
 	/* THE shared output region: every mode's activity records scroll here; the input line beneath is what changes. */
 	/* The output region fills from the BOTTOM: a lone entry rests at the bottom edge, new entries land beneath the last,
 	   older ones scroll up. margin-top:auto on the first entry claims the free space above when the content is short,
-	   and collapses to 0 once it overflows so the scroll (pinned to the newest by scrollToBottom) reaches every entry. */
+	   and collapses to 0 once it overflows so the scroll (pinned to the newest by keepNewestInView) reaches every entry. */
 	shu-activity-history { display: flex; flex-direction: column; font-size: inherit; padding: var(--shu-space-3) var(--shu-space-4); width: 100%; min-width: 0; flex: 1; min-height: 0; overflow-y: auto; }
 	shu-activity-history > * { flex-shrink: 0; }
 	shu-activity-history > :first-child { margin-top: auto; }
-	/* What arrived after the reader's place stays in view while they read where they are, so the press that takes them
-	   back to the end is reachable from wherever they are. */
+	/* The control that returns the reader to the end stays at the bottom of the scrolled region. */
 	shu-activity-history > .arrived { position: sticky; bottom: 0; align-self: center; }
 	shu-search-summary { display: block; cursor: pointer; padding: var(--shu-space-1) var(--shu-space-3); border-radius: var(--shu-radius); }
 	shu-search-summary:hover { background: var(--shu-bg-elevated); }

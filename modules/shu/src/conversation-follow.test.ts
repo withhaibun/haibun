@@ -8,14 +8,16 @@ import type { TSessionTurn } from "./schemas.js";
 
 /** The batches the run reports, raised by the case rather than by a stream. */
 const stream: { onBatch?: () => void; filter?: (event: unknown) => boolean } = {};
-vi.mock("./event-stream.js", () => ({
+vi.mock("./event-stream.js", async (actual) => ({
+	...(await actual<Record<string, unknown>>()),
+	hasEventStream: () => true,
 	subscribeBatchedEvents: (opts: { onBatch: () => void; filter?: (event: unknown) => boolean }) => {
 		stream.onBatch = opts.onBatch;
 		stream.filter = opts.filter;
 		return () => undefined;
 	},
 }));
-vi.mock("./rpc-registry.js", () => ({ ...rpcRegistry, isOffline: () => true }));
+vi.mock("./rpc-registry.js", async (actual) => ({ ...(await actual<Record<string, unknown>>()), ...rpcRegistry, isOffline: () => true }));
 const read: { turns: TSessionTurn[]; reads: number } = { turns: [], reads: 0 };
 vi.mock("./hypermedia.js", () =>
 	hypermedia(() => {

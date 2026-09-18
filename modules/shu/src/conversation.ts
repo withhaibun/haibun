@@ -23,7 +23,7 @@ import type { TChatMessage } from "./components/shu-chat-message.js";
 import { reportToRun } from "./client-log.js";
 import { CONVERSATION_PARAM } from "./consts.js";
 import { SCOPE, dispatchSubjectEvent, type TRecord } from "./current-subject.js";
-import { subscribeBatchedEvents, type TEvent } from "./event-stream.js";
+import { hasEventStream, subscribeBatchedEvents, type TEvent } from "./event-stream.js";
 import { conduit, reads } from "./hypermedia.js";
 import { getAvailableSteps, requireStep } from "./rpc-registry.js";
 import { SessionReadSchema, type TBundle, type TChatStatus, type TContextPattern, type TSessionTurn } from "./schemas.js";
@@ -191,7 +191,7 @@ export function transition(conversation: TConversationState, event: TConversatio
 				prompt,
 				response: "",
 				bundle: patterns,
-				// The turn this page is asking now, which every view shows: the run states when it was asked once it records it.
+				// The run states when a turn was asked once it records the turn.
 				generatedAtTime: "",
 				...(inReplyTo ? { inReplyTo } : {}),
 				status: "asking",
@@ -297,18 +297,24 @@ export const conversationMachine = new SharedMachine<TConversationState, TConver
 export const conversationState = conversationMachine.state;
 export const dispatchConversationEvent = (event: TConversationEvent): TConversationState => conversationMachine.dispatch(event);
 
-/** A session's turns, as the store reads them back. */
 /**
  * How many turns this page last read of each session, for as long as the page is open.
  *
  * A session the reader opened is one they have read: what it gained since is what the list names beside it. A page that
- * never opened a session has read none of it, so the list states everything it holds.
+ * hasn't opened a session hasn't read any of its turns, so the list states every turn it holds. A view reads it as a
+ * signal, so opening a session states its list again and what that session gained goes.
  */
-const readOfSession = new Map<string, number>();
+export const sessionsRead = new SharedSignal<Readonly<Record<string, number>>>("sessionsRead", {});
+
+/** State that this page has read a session's turns. */
+function readTurnsOf(session: string, turns: number): void {
+	if (sessionsRead.get()[session] === turns) return;
+	sessionsRead.set({ ...sessionsRead.get(), [session]: turns });
+}
 
 /** How many turns a session gained since this page last read it. */
 export function gainedSince(session: string, turns: number): number {
-	return Math.max(0, turns - (readOfSession.get(session) ?? 0));
+	return Math.max(0, turns - (sessionsRead.get()[session] ?? 0));
 }
 
 async function readSession(session: string): Promise<TSessionTurn[]> {
@@ -329,7 +335,7 @@ export async function openConversation(session: string, answer: "activate" | "up
 	dispatchSubjectEvent({ type: "clear", scope: SCOPE.actionsBar });
 	try {
 		const turns = await readSession(session);
-		readOfSession.set(session, turns.length);
+		readTurnsOf(session, turns.length);
 		const before = conversationState.get();
 		const latest = dispatchConversationEvent({ type: "read", session, turns }).turns.at(-1);
 		if (before.status !== "opening" || before.session !== session || !latest?.askId) return;
@@ -350,28 +356,30 @@ export function closeConversation(): void {
 /** Whether an event on the run's stream reports a turn's step starting or ending. */
 const reportsATurn = (event: TEvent): boolean => event.kind === "lifecycle" && event.type === "step" && event.actionName === ASK_STEP;
 
+/** Follow the run's turn reports, whichever page asks them: what a session gained reaches a page that didn't ask a turn. A
+ *  page with no stream installed hears none, and follows nothing. Returns what ends the following. */
+export function followReportedTurns(onReport: () => void): () => void {
+	if (!hasEventStream()) return () => undefined;
+	return subscribeBatchedEvents({ filter: reportsATurn, onBatch: onReport, onReconnect: onReport });
+}
+
 /**
  * Follow the run's stream for the turns of the open conversation, whichever page asks them. A turn another page asks
- * starts and ends on that page's request, so it reaches this page on no request of its own. The session is read again
+ * starts and ends on that page's request, so this page doesn't request it. The session is read again
  * when the stream reports a turn's step starting or ending, and when the stream comes back after a break, since what
  * happened during it reached no page. A read raises `read` only while the conversation is still open on the session, so
  * it never opens one. A read that fails is reported, and the turn stays as it was read.
  * Returns what ends the following.
  */
-/** Follow the run's turn reports, whichever page asks them: what a session gained reaches a page that asked nothing. */
-export function followReportedTurns(onReport: () => void): () => void {
-	return subscribeBatchedEvents({ filter: reportsATurn, onBatch: onReport, onReconnect: onReport });
-}
-
 export function followRunningTurns(): () => void {
 	// One read at a time: a turn reported while a read is out is read by one more read once that one returns.
 	let reading = false;
-	let endedMeanwhile = false;
+	let reportedMeanwhile = false;
 	const readAgain = (): void => {
 		const { status, session } = conversationState.get();
 		if (status !== "open" || session === null) return;
 		if (reading) {
-			endedMeanwhile = true;
+			reportedMeanwhile = true;
 			return;
 		}
 		reading = true;
@@ -380,19 +388,19 @@ export function followRunningTurns(): () => void {
 				(read) => {
 					const now = conversationState.get();
 					if (now.status !== "open" || now.session !== session) return;
-					readOfSession.set(session, read.length);
+					readTurnsOf(session, read.length);
 					dispatchConversationEvent({ type: "read", session, turns: read });
 				},
 				(err) => reportToRun("error", "conversation", `the conversation ${session} was not read again: ${errorDetail(err)}`),
 			)
 			.finally(() => {
 				reading = false;
-				if (!endedMeanwhile) return;
-				endedMeanwhile = false;
+				if (!reportedMeanwhile) return;
+				reportedMeanwhile = false;
 				readAgain();
 			});
 	};
-	return subscribeBatchedEvents({ filter: reportsATurn, onBatch: readAgain, onReconnect: readAgain });
+	return followReportedTurns(readAgain);
 }
 
 /** Follow each move: a comment the page's turn records in the open conversation activates the actions bar's scope, and
