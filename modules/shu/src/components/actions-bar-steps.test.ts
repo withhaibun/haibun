@@ -33,11 +33,13 @@ const LIST = step("GraphStepper-listTypes", "list types");
 const ASK = step("LlmStepper-chatWithContext", "ask {prompt}");
 
 /** The history callers open in, as the steps address it. */
-type THistory = HTMLElement & { scrollToBottom: ReturnType<typeof vi.fn> };
+type THistory = HTMLElement & { keepNewestInView: ReturnType<typeof vi.fn>; append: ReturnType<typeof vi.fn> };
 
 async function aStepsPage(selectedLabel = "") {
 	const host = aControllerHost();
-	const history = Object.assign(document.createElement("div"), { scrollToBottom: vi.fn() }) as THistory;
+	const held = document.createElement("div");
+	// The history places an entry and keeps the newest in view through one method, as the element states it.
+	const history = Object.assign(held, { keepNewestInView: vi.fn(), append: vi.fn((entry: HTMLElement) => held.appendChild(entry)) }) as THistory;
 	host.append(history);
 	const steps = new ActionsBarSteps(host, { testIdPrefix: () => "app-", selectedLabel: () => selectedLabel, history: history as never });
 	host.connect();
@@ -100,7 +102,7 @@ describe("the actions bar's step mode", () => {
 		expect(opened?.getAttribute("method")).toBe(SHOW.method);
 		expect(opened?.getAttribute("gwta")).toBe("show graph {name}");
 		expect(opened?.getAttribute("call-index"), "the second caller of its method").toBe("1");
-		expect(history.scrollToBottom).toHaveBeenCalled();
+		expect(history.append, "the caller is placed by the history, which keeps the newest in view").toHaveBeenCalled();
 	});
 
 	it("replaces the last caller that has not run rather than adding a second, and adds one for fixed arguments or a step run at once", async () => {
@@ -124,6 +126,6 @@ describe("the actions bar's step mode", () => {
 		const { host, history } = await aStepsPage();
 		host.dispatchEvent(new CustomEvent(SHU_EVENT.STEP_SUCCESS));
 		host.dispatchEvent(new CustomEvent(SHU_EVENT.STEP_ERROR));
-		expect(history.scrollToBottom).toHaveBeenCalledTimes(2);
+		expect(history.keepNewestInView).toHaveBeenCalledTimes(2);
 	});
 });

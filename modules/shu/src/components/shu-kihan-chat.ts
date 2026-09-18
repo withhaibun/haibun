@@ -26,6 +26,7 @@ import {
 	dispatchConversationEvent,
 	followReportedTurns,
 	gainedSince,
+	sessionsRead,
 	inFlight,
 	openConversation,
 	turnEnded,
@@ -60,8 +61,8 @@ type TKihanVertex = z.infer<typeof KihanVertexSchema>;
 const CatalogPageSchema = GraphQueryResultSchema.extend({ vertices: z.array(KihanVertexSchema) });
 /** How many models a read of the catalog asks for at a time. */
 const CATALOG_PAGE = 50;
-/** Combo option text for a session: what its first question asked, when its newest turn was asked, and what it gained
- *  since this page last read it, so a reader sees which conversations moved while they were elsewhere. */
+/** Combo option text for a session: what its first question asked, when its newest turn was asked, and how many turns
+ *  it gained since this page last read it. */
 function sessionOptionLabel(s: TChatSession): string {
 	const preview = s.label.length > 48 ? `${s.label.slice(0, 47)}…` : s.label;
 	const when = new Date(s.generatedAtTime).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -149,7 +150,9 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	 *  another. A read that fails is left for the next question to make again. */
 	#catalog: Promise<void> | undefined;
 	#modelOptions: TComboboxOption[] = [];
-	#sessionOptions: TComboboxOption[] = [NEW_CONVERSATION];
+	/** The sessions the run lists, as data: what each is called is derived where it renders, so what a session gained
+	 *  goes as soon as this page reads it. */
+	#sessions: TChatSession[] = [];
 	/** Why the reader's last question was not asked. It shows beside the input until the turn or the conversation moves,
 	 *  so a refusal is never shown for a question the reader did not submit. */
 	#refusal: string | null = null;
@@ -176,6 +179,13 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		// A turn any page asks changes what a session holds, so the list is read again on the run's reports rather than on
 		// this page's own turns alone.
 		this.autoTeardown(followReportedTurns(() => void this.refreshSessionList()));
+		// What this page has read of a session decides what the list says each gained, so opening one states the list again.
+		this.watchSignal(sessionsRead);
+	}
+
+	/** What the selector offers: a new conversation, then each session the run lists. */
+	private sessionOptions(): TComboboxOption[] {
+		return [NEW_CONVERSATION, ...this.#sessions.map((session) => ({ value: session.session, label: sessionOptionLabel(session) }))];
 	}
 
 	/** Fetch the persisted chat sessions (newest first) for the selector. */
@@ -191,7 +201,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	private async refreshSessionList(): Promise<void> {
 		try {
 			const sessions = await this.listSessions();
-			this.#sessionOptions = [NEW_CONVERSATION, ...sessions.map((s) => ({ value: s.session, label: sessionOptionLabel(s) }))];
+			this.#sessions = sessions;
 		} catch (err) {
 			reportToRun("error", "shu-kihan-chat", `the session list did not refresh: ${errorDetail(err)}`);
 			return;
@@ -279,7 +289,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	private settingsTemplate(conversation: TConversationState): TemplateResult {
 		return html`
 			<div class="chat-settings">
-				<shu-combobox class="session-select" testid=${`${this.testIdPrefix}session-select`} placeholder="session..." .options=${this.#sessionOptions} .value=${conversation.session ?? NEW_CONVERSATION.value} @combo-change=${this.onSessionChange}></shu-combobox>
+				<shu-combobox class="session-select" testid=${`${this.testIdPrefix}session-select`} placeholder="session..." .options=${this.sessionOptions()} .value=${conversation.session ?? NEW_CONVERSATION.value} @combo-change=${this.onSessionChange}></shu-combobox>
 				${this._models.length > 0 ? html`<shu-combobox class="model-select" testid=${`${this.testIdPrefix}model-select`} placeholder="model..." .options=${this.#modelOptions} .value=${this.state.model} @combo-change=${this.onModelChange}></shu-combobox>` : nothing}
 				<label class="tool-limit-label" title="Max chained tool calls the model may run before asking you to confirm the next one. 0 means every tool call needs confirmation.">
 					<span>tool calls</span>

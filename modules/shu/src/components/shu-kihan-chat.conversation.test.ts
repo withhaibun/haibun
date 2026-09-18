@@ -58,7 +58,7 @@ vi.mock("../hypermedia.js", async () => {
 		(req) => {
 			// The registry as the server holds it: a model states who reads its context, which the pane shows on the default.
 			if (req.method === "showKihans") return catalog(req.params ?? {});
-			if (req.method === "listChatSessions") return { sessions: [{ session: RESTORED, label: "an earlier conversation", generatedAtTime: "2026-05-17T05:00:00.000Z" }] };
+			if (req.method === "listChatSessions") return { sessions: [{ session: RESTORED, label: "an earlier conversation", generatedAtTime: "2026-05-17T05:00:00.000Z", turns: 1 }] };
 			// A read held open, answered when a case says the store got back to the page.
 			if (req.method === "loadChatSession")
 				return new Promise((resolve, reject) => {

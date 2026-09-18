@@ -242,7 +242,7 @@ export const SessionTurnSchema = z
 		sayId: z.string().optional().describe("The answer's record, once there is one."),
 		inReplyTo: z.string().optional().describe("The question record of the turn this one replies to; unset for a session's first turn."),
 		bundle: ContextQuerySchema.describe("The records the question referenced, which a page makes active again when a reader selects the turn."),
-		generatedAtTime: z.string().describe("When the question was asked, which orders the turns and states which of them a reader's place on the timeline shows."),
+		generatedAtTime: z.string().describe("When the question was asked. This orders the turns, and a view shows the turns asked at or before the place its reader holds."),
 		status: ChatStatusSchema.describe("How the step the turn ran as stands: running, completed, failed, or stopped by its reader."),
 		error: z.string().optional().describe("What the step failed with, where it failed."),
 	})
@@ -258,8 +258,8 @@ export const SessionListSchema = z.object({
 			.object({
 				session: z.string().describe("The question record that names the session."),
 				label: z.string().describe("What the session is called: what its first question asked."),
-				generatedAtTime: z.string().describe("When its newest turn was asked, so a page lists the sessions that moved most recently first."),
-				turns: z.number().int().nonnegative().describe("How many turns the session holds, which a page reads against what it held when the reader last opened it."),
+				generatedAtTime: z.string().describe("When its newest turn was asked. A page lists the sessions by this, most recent first."),
+				turns: z.number().int().nonnegative().describe("How many turns the session holds. A page compares this with the count it read when the reader last opened the session."),
 			})
 			.strict(),
 	),

@@ -179,7 +179,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 		if (this.follow && this.#follow.isFollowing)
 			requestAnimationFrame(() => {
 				const el = this.#virt.value;
-				if (el && this.#follow.isFollowing && el.scrollHeight - (el.scrollTop + el.clientHeight) > FOLLOW_EDGE_SLACK_PX) this.#follow.stick(0);
+				if (el && this.#follow.isFollowing && el.scrollHeight - (el.scrollTop + el.clientHeight) > FOLLOW_EDGE_SLACK_PX) this.#follow.stick();
 			});
 	};
 
@@ -216,9 +216,9 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 				// the live edge; a notify that recomputed the same rows (a filter pass over a buffer that gained only
 				// filtered-out events) must not re-stick, or it overrides a scroll position nothing visible requested to change.
 				const count = this.source?.count() ?? 0;
-				const added = count - lastCount;
+				const moved = count !== lastCount;
 				lastCount = count;
-				if (added !== 0 && this.follow) void this.updateComplete.then(() => this.#follow.stick(Math.max(0, added)));
+				if (moved && this.follow) void this.updateComplete.then(() => this.#follow.stick());
 			}) ?? null;
 	}
 
@@ -302,7 +302,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 				// whose source filled before this element subscribed. Re-issue the jump: this pass measured further down, so the
 				// next lands closer, bounded per target so an unreachable last row can't re-jump forever.
 				if (this.#convergeFor !== count) (this.#convergeFor = count), (this.#convergeCount = 0);
-				if (this.#convergeCount < MAX_CONVERGE) (this.#convergeCount += 1), void this.updateComplete.then(() => this.#follow.stick(0));
+				if (this.#convergeCount < MAX_CONVERGE) (this.#convergeCount += 1), void this.updateComplete.then(() => this.#follow.stick());
 			}
 		}
 		this.requestUpdate(); // reposition the rail thumb and glyphs

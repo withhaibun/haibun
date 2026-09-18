@@ -11,10 +11,10 @@ import { getHash, mergeHashParams } from "../view-hash.js";
 const PAST = 42;
 const LATER = 77;
 
-function mount(name?: string) {
+function mount(name?: string, onMove?: () => void) {
 	const noop = (): void => undefined;
 	const host = { addController: noop, removeController: noop, requestUpdate: noop, updateComplete: Promise.resolve(true) };
-	const view = new TimelineViewController(host as never, name ? { name } : {});
+	const view = new TimelineViewController(host as never, { ...(name ? { name } : {}), ...(onMove ? { onMove } : {}) });
 	view.hostConnected();
 	return view;
 }
@@ -37,12 +37,26 @@ describe("a view's place on the timeline", () => {
 	it("holds its own place once its reader states one, and the page moving leaves it there", () => {
 		const view = mount();
 		timeCursor.set(PAST);
-		view.hold();
+		view.hold(view.cursor);
 		expect(view.tracking).toBe(false);
 		timeCursor.set(LATER);
 		expect(view.cursor, "the place the reader held").toBe(PAST);
 		view.track();
 		expect(view.cursor, "and the page's again once they return to the live edge").toBe(LATER);
+	});
+
+	it("tells its host the page's cursor moved only while it tracks, so playing a run leaves a held view alone", () => {
+		let moves = 0;
+		const view = mount(undefined, () => {
+			moves += 1;
+		});
+		timeCursor.set(PAST);
+		expect(moves, "a tracking view moves with the page").toBe(1);
+		view.hold(view.cursor);
+		const held = moves;
+		timeCursor.set(LATER);
+		timeCursor.set(PAST);
+		expect(moves, "and a view holding its own place doesn't").toBe(held);
 	});
 
 	it("shows every record made at or before the place it holds, and all of them at the live edge", () => {

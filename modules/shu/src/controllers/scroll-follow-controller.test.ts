@@ -11,13 +11,17 @@ describe("ScrollFollowController: the follow decision, wired to a host jump-to-e
 
 	/** The host's jump-to-edge is a spy: the controller never touches the scroller itself (the host reads its own scroller
 	 *  and reports at-the-edge via setAtBottom), so a counter exercises the whole contract without any DOM. */
-	function mount() {
+	function mount(arrivedAfter?: () => number, placeNow?: () => number | null) {
 		let jumps = 0;
 		const noop = (): void => undefined;
 		const host = { addController: noop, removeController: noop, requestUpdate: noop, updateComplete: Promise.resolve(true) };
-		const c = new ScrollFollowController(host as never, () => {
-			jumps += 1;
-		});
+		const c = new ScrollFollowController(
+			host as never,
+			() => {
+				jumps += 1;
+			},
+			{ ...(arrivedAfter ? { arrivedAfter } : {}), ...(placeNow ? { placeNow } : {}) },
+		);
 		c.view.hostConnected();
 		c.hostConnected();
 		return { c, jumps: () => jumps };
@@ -56,26 +60,27 @@ describe("ScrollFollowController: the follow decision, wired to a host jump-to-e
 		expect(jumps()).toBe(0); // ...but still scrubbed (not live), so no auto-scroll
 	});
 
-	it("counts what arrived after the reader's place while they read where they are, and clears it at the end", () => {
-		const { c } = mount();
+	it("states what its host holds after the reader's place while they read where they are, and nothing at the end", () => {
+		let after = 0;
+		const { c } = mount(() => after);
+		after = 3;
+		expect(c.arrived, "a view at the end holds nothing to return to").toBe(0);
 		c.setAtBottom(false);
-		c.stick(2);
-		c.stick(1);
-		expect(c.arrived, "what arrived since the reader stopped following").toBe(3);
+		expect(c.arrived, "what the host holds after the place they hold").toBe(3);
+		after = 2;
+		expect(c.arrived, "read rather than counted, so a record removed leaves nothing behind").toBe(2);
 		c.setAtBottom(true);
 		expect(c.arrived, "and nothing once they are back at the end").toBe(0);
 	});
 
-	it("holds the place the reader was reading, and reads the page's cursor again at the end", () => {
-		const { c } = mount();
-		timeCursor.set(PAST);
+	it("holds the place its host states, so a view leaving the live edge holds an instant rather than nothing", () => {
+		const { c } = mount(undefined, () => PAST);
+		expect(timeCursor.get(), "the page is at the live edge, where its cursor states no instant").toBe(null);
 		c.setAtBottom(false);
-		expect(c.view.cursor, "the view holds where the reader was").toBe(PAST);
-		timeCursor.set(7);
-		expect(c.view.cursor, "which the page scrubbing elsewhere leaves as it is").toBe(PAST);
+		expect(c.view.cursor, "the view holds where the host says the reader is").toBe(PAST);
+		expect(c.view.tracking).toBe(false);
 		c.setAtBottom(true);
 		expect(c.view.tracking, "and the reader reaching the end reads the page again").toBe(true);
-		expect(c.view.cursor).toBe(7);
 	});
 
 	it("reaching the live edge (play / scrub-to-end) jumps to the edge and re-engages follow", () => {

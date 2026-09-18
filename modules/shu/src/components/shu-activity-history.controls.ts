@@ -1,5 +1,5 @@
 /**
- * Controls for the actions bar's history: what a reader does to it that no test id addresses, kept beside the element
+ * Controls for the actions bar's history: what a reader does to it that a test id doesn't address, kept beside the element
  * as every view's controls are.
  *
  * Steps never lead with the article "the", haibun treats such lines as narrative prose, not matchable steps.
@@ -10,15 +10,12 @@ import { pollUntil, type EvalPage } from "./controls-util.js";
 import { SHU_TAG } from "../consts.js";
 import { FOLLOW_EDGE_SLACK_PX } from "../controllers/index.js";
 
-/** How close to its end the history counts as showing its newest turn, which is what a followed view keeps. */
-const AT_THE_END_PX = FOLLOW_EDGE_SLACK_PX;
-
 export default class ShuActivityHistoryControls extends AStepper {
 	description = "Actions bar history controls: read an earlier turn, which is a reader scrolling away from the end.";
 
 	private page(): Promise<EvalPage> {
 		const wp = this.getWorld().runtime.steppers?.find((s) => typeof (s as { getPage?: unknown }).getPage === "function") as { getPage(): Promise<EvalPage> } | undefined;
-		if (!wp) throw new Error("ShuActivityHistoryControls: no page-providing stepper (web-playwright) in the world");
+		if (!wp) throw new Error("ShuActivityHistoryControls: the world doesn't hold a page-providing stepper (web-playwright)");
 		return wp.getPage();
 	}
 
@@ -26,7 +23,7 @@ export default class ShuActivityHistoryControls extends AStepper {
 		chatIsAtItsNewestTurn: {
 			gwta: "chat shows its newest turn",
 			action: async () => {
-				const at = await pollUntil(
+				const short = await pollUntil(
 					await this.page(),
 					(page) =>
 						page.evaluate((tag: string) => {
@@ -38,12 +35,12 @@ export default class ShuActivityHistoryControls extends AStepper {
 								history = root.querySelector(tag);
 								for (const el of Array.from(root.querySelectorAll("*"))) if (el.shadowRoot) roots.push(el.shadowRoot);
 							}
-							if (!history) return "no history is rendered";
+							if (!history) return "the page doesn't render a history";
 							return history.scrollHeight - (history.scrollTop + history.clientHeight);
 						}, SHU_TAG.ACTIVITY_HISTORY),
-					(read) => typeof read === "number" && read <= AT_THE_END_PX,
+					(read) => typeof read === "number" && read <= FOLLOW_EDGE_SLACK_PX,
 				);
-				return typeof at === "number" && at <= AT_THE_END_PX ? actionOK() : actionNotOK(`the chat is ${String(at)} pixels short of its newest turn`);
+				return typeof short === "number" && short <= FOLLOW_EDGE_SLACK_PX ? actionOK() : actionNotOK(`the chat is ${String(short)} pixels short of its newest turn`);
 			},
 		},
 		readAnEarlierTurn: {
@@ -62,11 +59,13 @@ export default class ShuActivityHistoryControls extends AStepper {
 								history = root.querySelector(tag);
 								for (const el of Array.from(root.querySelectorAll("*"))) if (el.shadowRoot) roots.push(el.shadowRoot);
 							}
-							if (!history) return "no history is rendered";
+							if (!history) return "the page doesn't render a history";
 							if (history.scrollHeight <= history.clientHeight) return `the history holds one screen: ${history.scrollHeight} of ${history.clientHeight}`;
+							// A reader's scroll starts with input, and the wheel event is that signal: it pauses the follow as it does
+							// for a person.
+							history.dispatchEvent(new WheelEvent("wheel", { deltaY: -100, bubbles: true }));
 							history.scrollTop = 0;
-							history.dispatchEvent(new Event("scroll"));
-							return history.scrollTop === 0 ? true : "the history did not scroll";
+							return history.scrollTop === 0 ? true : "the history didn't scroll";
 						}, SHU_TAG.ACTIVITY_HISTORY),
 					(read) => read === true,
 				);
