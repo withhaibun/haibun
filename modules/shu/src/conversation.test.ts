@@ -194,6 +194,8 @@ describe("each move of the page's turn", () => {
 			response: "",
 			bundle: [EMAIL],
 			inReplyTo: SESSION,
+			// The run states when the turn was asked once it records it; a turn this page is still asking states none.
+			generatedAtTime: "",
 			status: "asking",
 			error: "",
 			activity: [],
@@ -318,6 +320,13 @@ describe("the transcript", () => {
 			bundle: { patterns: [EMAIL], accessLevel: LEVEL },
 			count: 1,
 		});
+	});
+
+	it("states when each turn was asked, which is what a reader's place on the timeline reads", () => {
+		const entries = transcript(BRANCHED, undefined, LEVEL);
+		const askedAt = (turn: string) => entries.find((entry) => entry.message.turn === turn)?.askedAt;
+		expect(askedAt(SESSION), "the instant the run recorded the question at").toBe(Date.parse(readBack(FIRST).generatedAtTime));
+		expect(askedAt(question("0.1.5")) ?? 0, "and a later turn was asked later").toBeGreaterThan(askedAt(SESSION) ?? 0);
 	});
 
 	it("shows the branch through the turn the next question replies to, and its newest replies below it", () => {

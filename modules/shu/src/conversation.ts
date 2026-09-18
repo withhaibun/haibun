@@ -191,6 +191,8 @@ export function transition(conversation: TConversationState, event: TConversatio
 				prompt,
 				response: "",
 				bundle: patterns,
+				// The turn this page is asking now, which every view shows: the run states when it was asked once it records it.
+				generatedAtTime: "",
 				...(inReplyTo ? { inReplyTo } : {}),
 				status: "asking",
 				error: "",
@@ -243,7 +245,9 @@ function branch(turns: TShownTurn[], onTurn: string | undefined): { onPath: Set<
 	return { onPath, others };
 }
 
-type TTranscriptEntry = { message: TChatMessage; shown: boolean };
+/** One message of the transcript, whether the branch shown holds it, and when its turn was asked, which is what a
+ *  reader's place on the timeline reads. */
+type TTranscriptEntry = { message: TChatMessage; shown: boolean; askedAt: number | undefined };
 
 /**
  * The messages a transcript shows, in order: each turn's question and answer, keyed by the turn. Every turn's messages
@@ -256,13 +260,16 @@ export function transcript(conversation: TConversationState, onTurn: string | un
 	return turns.flatMap((turn): TTranscriptEntry[] => {
 		const { key, askId, inReplyTo, status, activity } = turn;
 		const shown = onPath.has(key);
+		const asked = Date.parse(turn.generatedAtTime);
+		const askedAt = Number.isFinite(asked) ? asked : undefined;
 		const running = inFlight(status);
 		const otherBranch = others.get(key);
 		const common = { turn: askId ?? undefined, inReplyTo, bundle: turn.bundle, spinnerSpinning: running, error: "" };
 		return [
-			{ shown, message: { ...common, id: `${key}:ask`, role: "user", text: turn.prompt, recordId: askId ?? undefined, activity: [], spinnerStatus: "", spinnerVisible: false } },
+			{ shown, askedAt, message: { ...common, id: `${key}:ask`, role: "user", text: turn.prompt, recordId: askId ?? undefined, activity: [], spinnerStatus: "", spinnerVisible: false } },
 			{
 				shown,
+				askedAt,
 				message: {
 					...common,
 					id: `${key}:say`,
@@ -291,6 +298,19 @@ export const conversationState = conversationMachine.state;
 export const dispatchConversationEvent = (event: TConversationEvent): TConversationState => conversationMachine.dispatch(event);
 
 /** A session's turns, as the store reads them back. */
+/**
+ * How many turns this page last read of each session, for as long as the page is open.
+ *
+ * A session the reader opened is one they have read: what it gained since is what the list names beside it. A page that
+ * never opened a session has read none of it, so the list states everything it holds.
+ */
+const readOfSession = new Map<string, number>();
+
+/** How many turns a session gained since this page last read it. */
+export function gainedSince(session: string, turns: number): number {
+	return Math.max(0, turns - (readOfSession.get(session) ?? 0));
+}
+
 async function readSession(session: string): Promise<TSessionTurn[]> {
 	await getAvailableSteps();
 	return SessionReadSchema.parse(await conduit().follow(reads(requireStep("loadChatSession"), { session }), "conversation: read a session back")).turns;
@@ -309,6 +329,7 @@ export async function openConversation(session: string, answer: "activate" | "up
 	dispatchSubjectEvent({ type: "clear", scope: SCOPE.actionsBar });
 	try {
 		const turns = await readSession(session);
+		readOfSession.set(session, turns.length);
 		const before = conversationState.get();
 		const latest = dispatchConversationEvent({ type: "read", session, turns }).turns.at(-1);
 		if (before.status !== "opening" || before.session !== session || !latest?.askId) return;
@@ -326,25 +347,29 @@ export function closeConversation(): void {
 	dispatchSubjectEvent({ type: "clear", scope: SCOPE.actionsBar });
 }
 
-/** Whether an event on the run's stream is the end of a turn's step. */
-const endsATurn = (event: TEvent): boolean => event.kind === "lifecycle" && event.type === "step" && event.stage === "end" && event.actionName === ASK_STEP;
+/** Whether an event on the run's stream reports a turn's step starting or ending. */
+const reportsATurn = (event: TEvent): boolean => event.kind === "lifecycle" && event.type === "step" && event.actionName === ASK_STEP;
 
 /**
- * Follow the run's stream for the end of a turn the open conversation holds running that this page does not ask. Such a
- * turn ends on another page's request, or on this page's before it loaded, so its end reaches this page on no request
- * of its own. The session is read again when the stream reports a turn's step ended, and when the stream comes back
- * after a break, since what ended during it reached no page. A read raises `read` only while the conversation is still
- * open on the session, so it never opens one. A read that fails is reported, and the turn stays as it was read.
+ * Follow the run's stream for the turns of the open conversation, whichever page asks them. A turn another page asks
+ * starts and ends on that page's request, so it reaches this page on no request of its own. The session is read again
+ * when the stream reports a turn's step starting or ending, and when the stream comes back after a break, since what
+ * happened during it reached no page. A read raises `read` only while the conversation is still open on the session, so
+ * it never opens one. A read that fails is reported, and the turn stays as it was read.
  * Returns what ends the following.
  */
+/** Follow the run's turn reports, whichever page asks them: what a session gained reaches a page that asked nothing. */
+export function followReportedTurns(onReport: () => void): () => void {
+	return subscribeBatchedEvents({ filter: reportsATurn, onBatch: onReport, onReconnect: onReport });
+}
+
 export function followRunningTurns(): () => void {
-	// One read at a time: a turn that ends while a read is out is read by one more read once that one returns.
+	// One read at a time: a turn reported while a read is out is read by one more read once that one returns.
 	let reading = false;
 	let endedMeanwhile = false;
 	const readAgain = (): void => {
-		const { status, session, turns, asked } = conversationState.get();
-		const elsewhere = turns.some((turn) => inFlight(turn.status) && !(inFlight(asked?.status) && turn.askId === asked?.askId));
-		if (status !== "open" || session === null || !elsewhere) return;
+		const { status, session } = conversationState.get();
+		if (status !== "open" || session === null) return;
 		if (reading) {
 			endedMeanwhile = true;
 			return;
@@ -354,7 +379,9 @@ export function followRunningTurns(): () => void {
 			.then(
 				(read) => {
 					const now = conversationState.get();
-					if (now.status === "open" && now.session === session) dispatchConversationEvent({ type: "read", session, turns: read });
+					if (now.status !== "open" || now.session !== session) return;
+					readOfSession.set(session, read.length);
+					dispatchConversationEvent({ type: "read", session, turns: read });
 				},
 				(err) => reportToRun("error", "conversation", `the conversation ${session} was not read again: ${errorDetail(err)}`),
 			)
@@ -365,7 +392,7 @@ export function followRunningTurns(): () => void {
 				readAgain();
 			});
 	};
-	return subscribeBatchedEvents({ filter: endsATurn, onBatch: readAgain, onReconnect: readAgain });
+	return subscribeBatchedEvents({ filter: reportsATurn, onBatch: readAgain, onReconnect: readAgain });
 }
 
 /** Follow each move: a comment the page's turn records in the open conversation activates the actions bar's scope, and
