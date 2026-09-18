@@ -6,8 +6,8 @@
  * the polymorphic view canvas as an overlay (the a-frame path); the WindowedSource it reads can equally drive a 3D rail.
  *
  * It owns scrolling but not the data: `visibilityChanged` from the virtualizer sets the window and prefetches it; the
- * scrollbar emits `scroll-to-index` and the virtualizer scrolls. Live-follow is the shared `FollowController` (the one
- * tested tailing kit every timeline view uses): the jump-to-edge is scrollToIndex(last, "end") re-issued until the window
+ * scrollbar emits `scroll-to-index` and the virtualizer scrolls. Live-follow is the shared `ScrollFollowController` (the
+ * one tested tailing kit every timeline view uses): the jump-to-edge is scrollToIndex(last, "end") re-issued until the window
  * reaches the last row, real reader input (wheel/touch, rail seek) pauses the tail, the window reaching the last row
  * resumes it, and the `timeCursor` signal reaching the live edge (null) re-engages it.
  *
@@ -30,7 +30,7 @@ import { SCROLL_TO_INDEX } from "./shu-scrollbar.js";
 import type { WindowedSource } from "../windowed-source.js";
 import type { TScrollMarker, TWindow } from "../scrollbar-model.js";
 import { visibleWindow, convergeTarget } from "../virtual-column-model.js";
-import { FollowController } from "../timeline-follow.js";
+import { FOLLOW_EDGE_SLACK_PX, ScrollFollowController } from "../controllers/index.js";
 
 const EmptySchema = z.object({});
 
@@ -39,11 +39,6 @@ const EmptySchema = z.object({});
 /** Resolution the viewport share is cached at, finer than a pixel on any rail that draws, so the thumb only resizes
  *  when the resize is visible. */
 const FRACTION_STEPS = 512;
-
-/** How many pixels above its end a followed pane may sit and still count as at the live edge: the height-estimate
- *  overshoot below the last row is tens of pixels, a stalled follow is hundreds. One contract, shared with the control
- *  that asserts it. */
-export const FOLLOW_EDGE_SLACK_PX = 200;
 
 const MAX_CONVERGE = 40;
 
@@ -104,7 +99,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 	// real reader input, a wheel/touch scroll or a rail seek, never from scroll events or the virtualizer's pin state:
 	// its estimated scroll-height and rebuild-time corrections make both misreport the follow's own motion as a reader
 	// scrolling away, which false-paused the tail. RESUME is the reported window reaching the last row again.
-	#follow = new FollowController(this, () => this.#scrollToEnd());
+	#follow = new ScrollFollowController(this, () => this.#scrollToEnd());
 	// The rows' layout: the source's word on which rows render nothing, so those take no room and do not drag the estimate
 	// of the rows not yet measured. One specifier for the element's life: a new one would make the virtualizer start over.
 	#layout = knownSizeFlow((i) => this.source?.rowSize?.(i));
@@ -184,7 +179,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 		if (this.follow && this.#follow.isFollowing)
 			requestAnimationFrame(() => {
 				const el = this.#virt.value;
-				if (el && this.#follow.isFollowing && el.scrollHeight - (el.scrollTop + el.clientHeight) > FOLLOW_EDGE_SLACK_PX) this.#follow.stick();
+				if (el && this.#follow.isFollowing && el.scrollHeight - (el.scrollTop + el.clientHeight) > FOLLOW_EDGE_SLACK_PX) this.#follow.stick(0);
 			});
 	};
 
@@ -221,9 +216,9 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 				// the live edge; a notify that recomputed the same rows (a filter pass over a buffer that gained only
 				// filtered-out events) must not re-stick, or it overrides a scroll position nothing visible requested to change.
 				const count = this.source?.count() ?? 0;
-				const moved = count !== lastCount;
+				const added = count - lastCount;
 				lastCount = count;
-				if (moved && this.follow) void this.updateComplete.then(() => this.#follow.stick());
+				if (added !== 0 && this.follow) void this.updateComplete.then(() => this.#follow.stick(Math.max(0, added)));
 			}) ?? null;
 	}
 
@@ -307,7 +302,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 				// whose source filled before this element subscribed. Re-issue the jump: this pass measured further down, so the
 				// next lands closer, bounded per target so an unreachable last row can't re-jump forever.
 				if (this.#convergeFor !== count) (this.#convergeFor = count), (this.#convergeCount = 0);
-				if (this.#convergeCount < MAX_CONVERGE) (this.#convergeCount += 1), void this.updateComplete.then(() => this.#follow.stick());
+				if (this.#convergeCount < MAX_CONVERGE) (this.#convergeCount += 1), void this.updateComplete.then(() => this.#follow.stick(0));
 			}
 		}
 		this.requestUpdate(); // reposition the rail thumb and glyphs

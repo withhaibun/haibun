@@ -6,6 +6,10 @@
  * the bar removes when it closes. Each message is placed where it first appeared and updated in place, which keeps the
  * records in time order. The actions bar holds ONE instance for its lifetime.
  *
+ * The history follows the live edge through the shared scroll controller: it scrolls to the newest entry while the
+ * reader is at the end, holds their place once they scroll away, and states what arrived since as a press that takes
+ * them back to the end.
+ *
  * Light DOM: entries are real children (test-id walks and text capture see them), styled by the host scope.
  * Carries the `chat-output` test id: the one output surface every mode's assertions already point at.
  */
@@ -15,7 +19,8 @@ import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { ShuChatMessage } from "./shu-chat-message.js";
 import { SHU_TAG } from "../consts.js";
-import { SignalController, SubjectController } from "../controllers/index.js";
+import { SHU_TEST_IDS } from "../test-ids.js";
+import { FOLLOW_EDGE_SLACK_PX, ScrollFollowController, SignalController, SubjectController } from "../controllers/index.js";
 import { nextQuestion } from "../chat-turn.js";
 import { conversationState, transcript, turnEnded } from "../conversation.js";
 import { currentSubject } from "../current-subject.js";
@@ -35,6 +40,9 @@ export class ShuActivityHistory extends ShuElement<typeof EmptySchema> {
 
 	/** Each message of the transcript by its key, with the message it was last given. */
 	#messages = new Map<string, { el: ShuChatMessage; given: string }>();
+	#follow = new ScrollFollowController(this, () => this.#jumpToEnd());
+	/** The press a reader who scrolled away takes back to the end, which states what arrived meanwhile. */
+	#arrived = this.#arrivedControl();
 	#conversation = new SignalController(this, conversationState, () => this.syncTranscript());
 	/** The current message is the active record, and the branch shown ends at the turn the next question replies to. */
 	#subject = new SubjectController(
@@ -51,17 +59,45 @@ export class ShuActivityHistory extends ShuElement<typeof EmptySchema> {
 		return this;
 	}
 
-	/** Append an activity record and keep the newest entry in view. */
+	protected onConnected(): void {
+		this.appendChild(this.#arrived);
+		// The reader reading where they are pauses the follow; reaching the end again resumes it. A scroll the follow
+		// itself made lands at the end, so it resumes rather than pausing.
+		this.autoListen(this, "scroll", () => this.#follow.setAtBottom(this.scrollHeight - (this.scrollTop + this.clientHeight) <= FOLLOW_EDGE_SLACK_PX));
+	}
+
+	/** Append an activity record and keep the newest entry in view where the reader is at the end. */
 	append(entry: HTMLElement): void {
-		this.appendChild(entry);
-		this.scrollToBottom();
+		this.insertBefore(entry, this.#arrived);
+		this.#follow.stick();
 	}
 
 	/** Pin the scroll to the newest entry, also called by a producer whose entry grows in place (a step's result). */
 	scrollToBottom(): void {
+		this.#follow.stick(0);
+	}
+
+	#jumpToEnd(): void {
 		requestAnimationFrame(() => {
 			this.scrollTop = this.scrollHeight;
 		});
+	}
+
+	/** The control a paused reader presses to return to the end, held for this view's life and hidden while it follows. */
+	#arrivedControl(): HTMLButtonElement {
+		const control = document.createElement("button");
+		control.type = "button";
+		control.hidden = true;
+		control.addEventListener("click", () => this.#follow.resume());
+		return control;
+	}
+
+	/** State what arrived after the reader's place, or nothing while the view follows the end. */
+	private statePlace(): void {
+		const arrived = this.#follow.arrived;
+		this.#arrived.hidden = arrived === 0;
+		this.#arrived.setAttribute("data-testid", `${this.getAttribute("testid-prefix") ?? ""}${SHU_TEST_IDS.APP.CHAT_ARRIVED}`);
+		this.#arrived.textContent = arrived === 0 ? "" : `${arrived} ${arrived === 1 ? "entry" : "entries"} arrived, return to the end`;
 	}
 
 	/** Place the transcript's messages: remove the ones it no longer holds, update the ones that changed, and append new
@@ -75,13 +111,15 @@ export class ShuActivityHistory extends ShuElement<typeof EmptySchema> {
 			this.#messages.delete(key);
 		}
 		const current = this.#subject.record?.id;
+		let added = 0;
 		let pin = false;
 		for (const { message, shown } of entries) {
 			let held = this.#messages.get(message.id);
 			if (!held) {
 				held = { el: new ShuChatMessage(), given: "" };
 				this.#messages.set(message.id, held);
-				this.appendChild(held.el);
+				this.insertBefore(held.el, this.#arrived);
+				added += 1;
 				pin = true;
 			}
 			const given = JSON.stringify(message);
@@ -94,10 +132,13 @@ export class ShuActivityHistory extends ShuElement<typeof EmptySchema> {
 			if (current !== undefined && message.recordId === current) held.el.setAttribute("aria-current", "true");
 			else held.el.removeAttribute("aria-current");
 		}
-		if (pin) this.scrollToBottom();
+		if (pin) this.#follow.stick(added);
+
+		this.statePlace();
 	}
 
 	render(): TemplateResult {
+		this.statePlace();
 		return html``;
 	}
 }

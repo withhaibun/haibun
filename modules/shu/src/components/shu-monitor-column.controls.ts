@@ -11,7 +11,7 @@ import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionOK, actionNotOK } from "@haibun/core/lib/util/index.js";
 
 import { type EvalPage, pollUntil, countMatching, firstText, firstAttr, hasText, clickFirst } from "./controls-util.js";
-import { FOLLOW_EDGE_SLACK_PX } from "./shu-virtual-column.js";
+import { FOLLOW_EDGE_SLACK_PX } from "../controllers/index.js";
 import { SHU_TAG } from "../consts.js";
 
 // Selectors reused across the assertions, so a markup rename lands in one place.
