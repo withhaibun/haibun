@@ -16,7 +16,7 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { ActionsBarSteps } from "./actions-bar-steps.js";
 import { ActionsBarQuery } from "./actions-bar-query.js";
 import { ACTIONS_BAR_STYLES } from "./actions-bar-styles.js";
-import { SHU_ATTR, SHU_EVENT, ACTION_BAR_ASK_SLOT, ACTION_BAR_CHAT_SLOT, SHU_TAG, CONVERSATION_PARAM } from "../consts.js";
+import { SHU_EVENT, ACTION_BAR_ASK_SLOT, ACTION_BAR_CHAT_SLOT, SHU_TAG, CONVERSATION_PARAM } from "../consts.js";
 import { SCOPE, dispatchSubjectEvent } from "../current-subject.js";
 import type { ShuColumnPane } from "./shu-column-pane.js";
 import { ActionsBarSchema, StepChoiceSchema, TypeChoiceSchema } from "../schemas.js";

@@ -136,6 +136,9 @@ type TStepperStepBase = {
 	read?: boolean;
 	/** Optional capability label required for external dispatch. */
 	capability?: string;
+	/** A step whose result answers the turn that called it, so that turn ends with it rather than asking its model
+	 *  again. A caller reads this from the step's definition, so which steps end a turn is known without running one. */
+	answersTheTurn?: boolean;
 	/** Offer this step to a model before it discovers anything. A model is offered a small set at first, so that no
 	 *  request carries the whole manifest; a step marked here joins that set, because the question it answers is one
 	 *  an operator can open with. Reserve it for steps that are the only way to do what they do. A predicate says
