@@ -17,6 +17,8 @@ export const SHU_TEST_IDS = {
 		CHAT_OUTPUT: "app-chat-output",
 		CHAT_TEXT: "app-chat-text",
 		CHAT_ACTIVITY: "app-chat-activity",
+		/** On a view whose reader scrolled away from the end: what arrived since, and a press that returns them to it. */
+		CHAT_ARRIVED: "app-chat-arrived",
 		/** On a reply where another branch of the conversation leaves the one shown: follows that branch. */
 		CHAT_OTHER_BRANCH: "app-chat-other-branch",
 		/** On a question: the records its bundle names, each a link. */

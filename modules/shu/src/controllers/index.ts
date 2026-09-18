@@ -22,3 +22,5 @@ export { AuthorityController, type TAuthority, type TPrincipalRow } from "./auth
 export { SignalController } from "./signal-controller.js";
 export { SubjectController } from "./subject-controller.js";
 export { StepsChangedController } from "./steps-changed-controller.js";
+export { TimelineViewController, type TTimelineView } from "./timeline-view-controller.js";
+export { ScrollFollowController, FOLLOW_EDGE_SLACK_PX } from "./scroll-follow-controller.js";
