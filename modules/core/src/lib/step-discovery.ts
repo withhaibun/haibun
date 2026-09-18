@@ -62,6 +62,8 @@ export const StepDescriptorSchema = z
 		read: z.boolean(),
 		/** Whether the step answers only when no other step answers to its name. */
 		fallback: z.boolean(),
+		/** Whether the step's result answers the turn that called it, so that turn ends with it rather than asking its model again. */
+		answersTheTurn: z.boolean(),
 		/** The host a transport calls the step at, where the step runs at another host. */
 		remoteHost: z.string().optional(),
 		inputSchema: InputSchemaSchema,

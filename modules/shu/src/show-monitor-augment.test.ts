@@ -39,6 +39,7 @@ describe("show monitor markers → parser", () => {
 				productsDomain: "shu-monitor-column",
 				read: false,
 				fallback: false,
+				answersTheTurn: false,
 				inputSchema: { type: "object", properties: {}, required: [] },
 			},
 			paramSchemas: new Map(),

@@ -75,13 +75,16 @@ export type TShuTestHandle = {
 };
 
 /** The steps given, as the show steps step returns them when they are all a run declares. */
-export function stepsShown(steps: Array<{ method: string; stepperName: string; stepName: string; pattern: string; fallback?: boolean; read?: boolean }>): TStepDefinitions {
+export function stepsShown(
+	steps: Array<{ method: string; stepperName: string; stepName: string; pattern: string; fallback?: boolean; read?: boolean; answersTheTurn?: boolean }>,
+): TStepDefinitions {
 	const described = steps.map((step) => ({
 		...step,
 		stepperDescription: `the steps of ${step.stepperName}`,
 		paramDomains: {},
 		read: step.read === true,
 		fallback: step.fallback === true,
+		answersTheTurn: step.answersTheTurn === true,
 		inputSchema: { type: "object" as const, properties: {}, required: [] },
 	}));
 	const shown = { detail: STEP_DETAIL.definition, steppers: steppersOf(described), steps: described.map(stepDefinition), domains: {}, concerns: { persisted: {}, references: {} } };
