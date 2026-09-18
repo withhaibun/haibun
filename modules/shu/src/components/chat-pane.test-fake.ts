@@ -38,6 +38,7 @@ export const readBack = (turn: string, inReplyTo?: string, bundle: TSessionTurn[
 	sayId: answer(turn),
 	...(inReplyTo ? { inReplyTo: question(inReplyTo) } : {}),
 	bundle,
+	generatedAtTime: `2026-01-01T00:00:${turn.replace(/\D/g, "").slice(-2).padStart(2, "0")}.000Z`,
 	status: "completed",
 });
 

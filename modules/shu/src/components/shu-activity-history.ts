@@ -18,9 +18,9 @@ import { html } from "lit";
 import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { ShuChatMessage } from "./shu-chat-message.js";
-import { SHU_TAG } from "../consts.js";
+import { CHAT_VIEW_PARAM, SHU_TAG } from "../consts.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
-import { FOLLOW_EDGE_SLACK_PX, ScrollFollowController, SignalController, SubjectController } from "../controllers/index.js";
+import { FOLLOW_EDGE_SLACK_PX, ScrollFollowController, SignalController, SubjectController, TimelineViewController } from "../controllers/index.js";
 import { nextQuestion } from "../chat-turn.js";
 import { conversationState, transcript, turnEnded } from "../conversation.js";
 import { currentSubject } from "../current-subject.js";
@@ -40,7 +40,10 @@ export class ShuActivityHistory extends ShuElement<typeof EmptySchema> {
 
 	/** Each message of the transcript by its key, with the message it was last given. */
 	#messages = new Map<string, { el: ShuChatMessage; given: string }>();
-	#follow = new ScrollFollowController(this, () => this.#jumpToEnd());
+	/** The chat's place on the run's timeline, written to the address beside the session so a reload opens where the
+	 *  reader was reading. */
+	#view = new TimelineViewController(this, { name: CHAT_VIEW_PARAM, onMove: () => this.syncTranscript() });
+	#follow = new ScrollFollowController(this, () => this.#jumpToEnd(), this.#view);
 	/** The press a reader who scrolled away takes back to the end, which states what arrived meanwhile. */
 	#arrived = this.#arrivedControl();
 	#conversation = new SignalController(this, conversationState, () => this.syncTranscript());
@@ -87,6 +90,7 @@ export class ShuActivityHistory extends ShuElement<typeof EmptySchema> {
 	#arrivedControl(): HTMLButtonElement {
 		const control = document.createElement("button");
 		control.type = "button";
+		control.className = "arrived";
 		control.hidden = true;
 		control.addEventListener("click", () => this.#follow.resume());
 		return control;
@@ -113,7 +117,7 @@ export class ShuActivityHistory extends ShuElement<typeof EmptySchema> {
 		const current = this.#subject.record?.id;
 		let added = 0;
 		let pin = false;
-		for (const { message, shown } of entries) {
+		for (const { message, shown, askedAt } of entries) {
 			let held = this.#messages.get(message.id);
 			if (!held) {
 				held = { el: new ShuChatMessage(), given: "" };
@@ -128,7 +132,8 @@ export class ShuActivityHistory extends ShuElement<typeof EmptySchema> {
 				held.el.message = message;
 				held.given = given;
 			}
-			held.el.hidden = !shown;
+			// A reader holding a place on the timeline reads the turns asked at or before it, and the rest wait at the end.
+			held.el.hidden = !shown || !this.#view.shows(askedAt);
 			if (current !== undefined && message.recordId === current) held.el.setAttribute("aria-current", "true");
 			else held.el.removeAttribute("aria-current");
 		}

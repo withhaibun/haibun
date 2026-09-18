@@ -85,6 +85,8 @@ export const ANNOTATION_GLYPH = "✎";
  *  serves a step and a question alike. The bar owns the slot, so its name is declared here and consumers import it
  *  rather than restating it. */
 export const ACTION_BAR_CHAT_SLOT = "action-bar-chat";
+/** The address key the chat writes the place its reader holds on the run's timeline under, beside the session. */
+export const CHAT_VIEW_PARAM = "ask-at";
 
 /** The ask's own extension slot: mounted in the bar's input line under ask mode alone. For anything about the ask
  *  itself, what a question would carry among them, which says nothing to a reader searching or running a step. */

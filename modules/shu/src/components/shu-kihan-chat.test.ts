@@ -8,7 +8,7 @@
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
-const listed: Array<{ session: string; label: string; generatedAtTime: string }> = [];
+const listed: Array<{ session: string; label: string; generatedAtTime: string; turns: number }> = [];
 let onStartSeqPath: number[] | null = null;
 /** What the server answers the session read with. A deployment that answers without the list is the failed-read case. */
 let sessionsAnswer: () => Record<string, unknown> = () => ({ sessions: [...listed] });
@@ -27,7 +27,7 @@ vi.mock("../hypermedia.js", async () => {
 			if (onStartSeqPath) opts.onStart?.(onStartSeqPath);
 			onChunk({ text: "an answer" });
 			// The turn is written server-side either way, so the session now exists.
-			listed.push({ session: "cmt-ask-0.1.2", label: "a session", generatedAtTime: new Date().toISOString() });
+			listed.push({ session: "cmt-ask-0.1.2", label: "a session", generatedAtTime: new Date().toISOString(), turns: 1 });
 			return Promise.resolve();
 		},
 	);

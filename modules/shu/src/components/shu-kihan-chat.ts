@@ -19,7 +19,18 @@ import { GraphQueryResultSchema } from "@haibun/core/lib/quad-types.js";
 import { SCOPE, activeScope, currentSubjectState } from "../current-subject.js";
 import { SignalController } from "../controllers/index.js";
 import { nextQuestion, startTurn } from "../chat-turn.js";
-import { askDraft, closeConversation, conversationState, dispatchConversationEvent, inFlight, openConversation, turnEnded, type TConversationState } from "../conversation.js";
+import {
+	askDraft,
+	closeConversation,
+	conversationState,
+	dispatchConversationEvent,
+	followReportedTurns,
+	gainedSince,
+	inFlight,
+	openConversation,
+	turnEnded,
+	type TConversationState,
+} from "../conversation.js";
 import { harvestChatViewLd } from "../chat-context-harvest.js";
 import { SHU_TAG } from "../consts.js";
 import { reportToRun } from "../client-log.js";
@@ -36,7 +47,7 @@ const TOOL_LIMIT_MAX = 99;
 /** The session selector's choice that leaves the conversation, so the next question starts a session. */
 export const NEW_CONVERSATION: TComboboxOption = { value: "new", label: "new conversation" };
 
-type TChatSession = { session: string; label: string; generatedAtTime: string };
+type TChatSession = z.infer<typeof SessionListSchema>["sessions"][number];
 /** A model as the registry holds it: what the endpoint reports it can do, and what a profile states about it. */
 const KihanVertexSchema = z.looseObject({
 	id: z.string(),
@@ -49,11 +60,13 @@ type TKihanVertex = z.infer<typeof KihanVertexSchema>;
 const CatalogPageSchema = GraphQueryResultSchema.extend({ vertices: z.array(KihanVertexSchema) });
 /** How many models a read of the catalog asks for at a time. */
 const CATALOG_PAGE = 50;
-/** Combo option text for a session: truncated first-prompt preview + a compact date/time so sessions are recognizable and ordered. */
+/** Combo option text for a session: what its first question asked, when its newest turn was asked, and what it gained
+ *  since this page last read it, so a reader sees which conversations moved while they were elsewhere. */
 function sessionOptionLabel(s: TChatSession): string {
 	const preview = s.label.length > 48 ? `${s.label.slice(0, 47)}…` : s.label;
 	const when = new Date(s.generatedAtTime).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-	return `${preview} · ${when}`;
+	const gained = gainedSince(s.session, s.turns);
+	return `${preview} · ${when}${gained > 0 ? ` · ${gained} new` : ""}`;
 }
 
 /** What the chat remembers between visits: which model to ask, how many chained tool calls it may make, and who reads
@@ -160,6 +173,9 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	protected override onConnected(): void {
 		this.loadModels().catch((err: unknown) => reportToRun("error", "shu-kihan-chat", `the model catalog was not read: ${errorDetail(err)}`));
 		void this.refreshSessionList();
+		// A turn any page asks changes what a session holds, so the list is read again on the run's reports rather than on
+		// this page's own turns alone.
+		this.autoTeardown(followReportedTurns(() => void this.refreshSessionList()));
 	}
 
 	/** Fetch the persisted chat sessions (newest first) for the selector. */

@@ -51,6 +51,9 @@ const STYLES = css`
 	shu-activity-history { display: flex; flex-direction: column; font-size: inherit; padding: var(--shu-space-3) var(--shu-space-4); width: 100%; min-width: 0; flex: 1; min-height: 0; overflow-y: auto; }
 	shu-activity-history > * { flex-shrink: 0; }
 	shu-activity-history > :first-child { margin-top: auto; }
+	/* What arrived after the reader's place stays in view while they read where they are, so the press that takes them
+	   back to the end is reachable from wherever they are. */
+	shu-activity-history > .arrived { position: sticky; bottom: 0; align-self: center; }
 	shu-search-summary { display: block; cursor: pointer; padding: var(--shu-space-1) var(--shu-space-3); border-radius: var(--shu-radius); }
 	shu-search-summary:hover { background: var(--shu-bg-elevated); }
 	shu-search-summary .search-summary-text::before { content: "\\1F50D\\00A0"; }

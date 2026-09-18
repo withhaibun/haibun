@@ -242,6 +242,7 @@ export const SessionTurnSchema = z
 		sayId: z.string().optional().describe("The answer's record, once there is one."),
 		inReplyTo: z.string().optional().describe("The question record of the turn this one replies to; unset for a session's first turn."),
 		bundle: ContextQuerySchema.describe("The records the question referenced, which a page makes active again when a reader selects the turn."),
+		generatedAtTime: z.string().describe("When the question was asked, which orders the turns and states which of them a reader's place on the timeline shows."),
 		status: ChatStatusSchema.describe("How the step the turn ran as stands: running, completed, failed, or stopped by its reader."),
 		error: z.string().optional().describe("What the step failed with, where it failed."),
 	})
@@ -251,7 +252,18 @@ export type TSessionTurn = z.infer<typeof SessionTurnSchema>;
  *  products carry the step they came from beside what the step declares, so the answer is not strict; each turn is. */
 export const SessionReadSchema = z.object({ turns: z.array(SessionTurnSchema) });
 /** The sessions the store holds, each named by its first question's record, newest first. */
-export const SessionListSchema = z.object({ sessions: z.array(z.object({ session: z.string(), label: z.string(), generatedAtTime: z.string() }).strict()) });
+export const SessionListSchema = z.object({
+	sessions: z.array(
+		z
+			.object({
+				session: z.string().describe("The question record that names the session."),
+				label: z.string().describe("What the session is called: what its first question asked."),
+				generatedAtTime: z.string().describe("When its newest turn was asked, so a page lists the sessions that moved most recently first."),
+				turns: z.number().int().nonnegative().describe("How many turns the session holds, which a page reads against what it held when the reader last opened it."),
+			})
+			.strict(),
+	),
+});
 
 /** Who reads a turn's records: the run, which sends them, or the model, which is sent the calls that read them. */
 export const ContextReadBySchema = z.enum(["run", "model"]);
