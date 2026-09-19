@@ -26,21 +26,11 @@ jobs:
           cache: 'npm'
           registry-url: https://registry.npmjs.org
 
-      - name: Remove deprecated npm always-auth config
-        run: npm config delete always-auth || true
-
       - name: Install main deps
         run: npm ci
 
       - name: Build
         run: npm run build
 
-      - name: Publish all modules
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "ERROR: NPM_TOKEN is not set; cannot publish."
-            exit 1
-          fi
-          node scripts/publish-all.mjs '${{ inputs.tag }}'
+      - name: Publish all modules via OIDC Trusted Publishing
+        run: node scripts/publish-all.mjs '${{ inputs.tag }}'

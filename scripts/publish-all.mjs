@@ -33,7 +33,7 @@ if (drift.length > 0) {
 const results = { published: [], skipped: [], failed: [] };
 
 for (const m of modules) {
-	const args = ["publish", "--access", "public"];
+	const args = ["publish", "--access", "public", "--provenance"];
 	if (tag) args.push("--tag", tag);
 	const result = spawnSync("npm", args, { cwd: m.path, encoding: "utf-8" });
 	const output = (result.stdout || "") + (result.stderr || "");
@@ -48,7 +48,8 @@ for (const m of modules) {
 		console.error(`FAILED ${m.pkg.name}@${rootVersion}`);
 		console.error(
 			`npm rejected publish for ${m.pkg.name}. ` +
-			`The @haibun scope is likely missing on npm or the NPM_TOKEN does not have permission to publish to it.`
+			`The @haibun scope may be missing, or this package has no GitHub ` +
+			`trusted publisher (repo: withhaibun/haibun, workflow: publish-all.yml).`
 		);
 		console.error(output);
 		results.failed.push(m.pkg.name);
@@ -56,7 +57,8 @@ for (const m of modules) {
 		console.error(`FAILED ${m.pkg.name}@${rootVersion}`);
 		console.error(
 			`Authentication or authorization failed for ${m.pkg.name}. ` +
-			`Check that NPM_TOKEN has publish access to the package scope.`
+			`Check the package has a GitHub Actions trusted publisher ` +
+			`(withhaibun/haibun / publish-all.yml) and the workflow sets "id-token: write".`
 		);
 		console.error(output);
 		results.failed.push(m.pkg.name);

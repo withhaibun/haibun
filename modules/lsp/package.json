@@ -26,6 +26,10 @@
     "language-server"
   ],
   "author": "",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/withhaibun/haibun.git"
+  },
   "license": "ISC",
   "dependencies": {
     "@haibun/core": "*",

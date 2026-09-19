@@ -25,6 +25,10 @@
     "build": "tsc -b tsconfig.json"
   },
   "author": "",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/withhaibun/haibun.git"
+  },
   "license": "ISC",
   "gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5",
   "dependencies": {

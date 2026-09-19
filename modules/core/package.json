@@ -4,6 +4,10 @@
   "version": "3.10.1",
   "description": "",
   "author": "",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/withhaibun/haibun.git"
+  },
   "exports": {
     ".": "./build/index.js",
     "./*": "./build/*",
