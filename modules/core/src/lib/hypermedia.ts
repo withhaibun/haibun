@@ -100,6 +100,40 @@ export function searchableFields(domain: { schema: z.ZodType | undefined; topolo
 	return out.sort();
 }
 
+/** How a reader reaches a property: a filter compares it, a search reads its text, or an edge leads to the records
+ *  holding it. A property reached no way is held and shown, and answers no question a reader can ask. */
+export const REACHED_BY = { filter: "filter", search: "search", reference: "reference" } as const;
+export type TReachedBy = (typeof REACHED_BY)[keyof typeof REACHED_BY];
+
+/** What a type offers a reader, per property, with the relations its records are referenced through. */
+export const QuerySurfaceSchema = z.object({
+	label: z.string(),
+	properties: z.record(z.string(), z.array(z.enum([REACHED_BY.filter, REACHED_BY.search, REACHED_BY.reference]))),
+	references: z.array(z.string()),
+});
+export type TQuerySurface = z.infer<typeof QuerySurfaceSchema>;
+
+/**
+ * Which primitive reaches each property of a type, derived from what the type declares.
+ *
+ * A reader choosing a primitive is choosing what their question can see. Told nothing, they reach for the one they
+ * know, are answered with what it can see, and read that as the answer to what they asked: a search that never read a
+ * field states no match rather than stating that it doesn't read it. A property a filter compares, a property a search
+ * reads and a property reached only by following an edge are three different reads, and this states which each is.
+ */
+export function querySurface(domain: { schema: z.ZodType | undefined; topology: THypermediaTopology }): TQuerySurface {
+	const properties: Record<string, TReachedBy[]> = {};
+	const reach = (field: string, by: TReachedBy) => {
+		properties[field] = [...(properties[field] ?? []), by];
+	};
+	for (const field of queryableFields(domain)) reach(field, REACHED_BY.filter);
+	for (const field of searchableFields(domain)) reach(field, REACHED_BY.search);
+	// An edge names the property a reader follows to the records at its other end, so the edge's own name is the
+	// property. A reader asking who a record involves follows one of these rather than naming a value.
+	for (const edge of Object.keys(domain.topology.edges ?? {})) reach(edge, REACHED_BY.reference);
+	return QuerySurfaceSchema.parse({ label: domain.topology.persistedAs, properties, references: Object.keys(domain.topology.edges ?? {}).sort() });
+}
+
 /** A rel's declared `rdfs:subPropertyOf` parent(s) (the canonical LinkRelations declaration), mapped to their term
  *  strings; undefined when the rel declares none. Mirrors the `subClassOf` lookup the type node emits, so a served
  *  JSON-LD context carries the genuine rel hierarchy (e.g. `schema:author rdfs:subPropertyOf hbn:inRoleOf`). */
