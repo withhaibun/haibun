@@ -42,12 +42,12 @@
 				"declaredStepTextHash": "4f2c94ae645eda3071bcdce65b58a9a9b48a9d58cdbcc27edc047200d226cd22"
 			},
 			"/features/counter.feature": {
-				"seconds": 1.9,
+				"seconds": 2.3,
 				"steps": 19,
 				"declaredStepTextHash": "2f70ffa43d3f1498ca7807f6a570b166e456aa1830c1890cdbeba09ddabc773d"
 			},
 			"/features/counter.feature.ts": {
-				"seconds": 2,
+				"seconds": 1.8,
 				"steps": 19,
 				"declaredStepTextHash": "2bacbd5da344c9602608a02dc1f56199b85a5c69b1c5117a0e2cadc3d54518d3"
 			},
@@ -92,7 +92,7 @@
 				"declaredStepTextHash": "6ff3177fa99937248a81d7bf4dc5afa8cc5025563ead3fb267d45dd51b0609cd"
 			},
 			"/features/popup.feature": {
-				"seconds": 0.5,
+				"seconds": 0.4,
 				"steps": 11,
 				"declaredStepTextHash": "8ec3a44a40ea941c7788263e4941907ba5fa63d9855d2cd9427992b7d9b6fda3"
 			},
@@ -148,6 +148,6 @@
 			}
 		},
 		"steps": 1150,
-		"seconds": 17.9
+		"seconds": 18
 	}
 }

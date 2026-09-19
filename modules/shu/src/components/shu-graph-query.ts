@@ -7,6 +7,7 @@ import { SHU_EVENT, SHU_TAG } from "../consts.js";
  * Renders in light DOM .results-target, hash state, custom scrollbar, sort, multi-select.
  */
 import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { viewCollection } from "@haibun/core/lib/hypermedia.js";
 import { anIndividual, aType, type TContextPattern, QueryViewSchema } from "../schemas.js";
 import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { viewQuery, type TViewQuery } from "../view-query.js";
@@ -47,19 +48,18 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	#source: WindowedSource<VertexRow> = arrayWindowedSource<VertexRow>([]);
 	#installedSource: WindowedSource<VertexRow> | null = null;
 
-	/** The current search as linked data: an `as:Collection` of the rows the visible page shows, with the query that produced them; `totalItems` carries the full count. */
+	/** The current search as linked data: the rows the visible page shows, with the query that produced them.
+	 *  `totalItems` carries the full count. */
 	summarizeForKihan(): TLinkedData | null {
 		if (this.results.length === 0) return null;
 		const { label, textQuery } = this.state as { label?: string; textQuery?: string };
-		return {
-			"@id": "view:query",
-			"@type": "as:Collection",
+		return viewCollection({
+			id: "view:query",
 			name: "the search results shown in this column",
-			...(label ? { queryType: label } : {}),
-			...(textQuery ? { textQuery } : {}),
-			totalItems: this.total,
 			items: this.results,
-		};
+			totalItems: this.total,
+			stated: { ...(label ? { queryType: label } : {}), ...(textQuery ? { textQuery } : {}) },
+		});
 	}
 	/** Page size is the one global app setting (theme), so the query view windows by the same size as every other view. */
 	private get limit(): number {

@@ -43,8 +43,9 @@ describe("harvestChatViewLd: the active pane's linked data plus the pane manifes
 		mount(a, b);
 		const blocks = harvestChatViewLd();
 		expect(blocks[0]).toEqual({ "@id": "d1" });
-		const manifest = blocks.at(-1) as { "@type": string; totalItems: number; items: Array<{ name: string; component: string; active: boolean }> };
-		expect(manifest["@type"]).toBe("as:Collection");
+		const manifest = blocks.at(-1) as { "@type"?: string; name: string; totalItems: number; items: Array<{ name: string; component: string; active: boolean }> };
+		expect(manifest["@type"], "a block a page carries claims no type, since nothing persists what it describes").toBeUndefined();
+		expect(manifest.name).toContain("every open column in the workspace");
 		expect(manifest.totalItems).toBe(2);
 		expect(manifest.items).toEqual([
 			{ name: "first", component: "shu-entity-column", active: false },
@@ -101,21 +102,21 @@ describe("harvestChatViewLd: the active pane's linked data plus the pane manifes
  * what was open.
  */
 describe("what a page sends of a view that states many members", () => {
-	const members = (count: number, key = "quads") => ({
+	const members = (count: number) => ({
 		"@id": "view:graph",
-		"@type": "as:Collection",
+		name: "visible graph",
 		totalItems: count,
-		[key]: Array.from({ length: count }, (_, at) => ({ at })),
+		items: Array.from({ length: count }, (_, at) => ({ at })),
 	});
 
-	it("carries the members the view stated first, and says how many it carried", () => {
-		const carried = harvested(members(HARVEST_MEMBERS + 50)) as { quads: Array<{ at: number }>; totalItems: number; membersCarried: number };
+	it("carries the members the view stated first, and names the view they are part of", () => {
+		const carried = harvested(members(HARVEST_MEMBERS + 50)) as { items: Array<{ at: number }>; totalItems: number; partOf: string };
 		expect(
-			carried.quads.map((q) => q.at),
+			carried.items.map((q) => q.at),
 			"the view states the order it wants them read",
 		).toEqual(Array.from({ length: HARVEST_MEMBERS }, (_, at) => at));
 		expect(carried.totalItems, "the count the view stated stands, so a reader is told how many the view holds").toBe(HARVEST_MEMBERS + 50);
-		expect(carried.membersCarried).toBe(HARVEST_MEMBERS);
+		expect(carried.partOf, "and which view they came from, since the page carrying them has no address of its own").toBe("view:graph");
 	});
 
 	it("carries a view whose members a harvest holds as it stated it, saying nothing about carrying", () => {
@@ -123,13 +124,15 @@ describe("what a page sends of a view that states many members", () => {
 		expect(harvested(whole)).toBe(whole);
 	});
 
-	it("carries the members whatever a view names them, and a summary with none as it is", () => {
-		for (const key of ["items", "rows", "entries"]) {
-			const carried = harvested(members(HARVEST_MEMBERS + 1, key)) as Record<string, unknown>;
-			expect((carried[key] as unknown[]).length, key).toBe(HARVEST_MEMBERS);
-		}
+	it("carries a view that states no members as it is", () => {
 		const stated = { "@id": "view:one", name: "a view of one thing" };
 		expect(harvested(stated)).toBe(stated);
+	});
+
+	it("refuses a view that states members under items without stating the collection with them", () => {
+		expect(() => harvested({ "@id": "view:graph", items: [{ at: 0 }] }), "a name and a count say what the members are and how many the view holds").toThrow(
+			/a view states its members under "items"/,
+		);
 	});
 
 	it("is what the harvest sends, so no view sends more than a page carries", () => {
@@ -138,8 +141,8 @@ describe("what a page sends of a view that states many members", () => {
 		strip.appendChild(pane("only", view("shu-polymorphic-graph-view", members(HARVEST_MEMBERS + 10))));
 		document.body.appendChild(strip);
 		activePane.set("only");
-		const [block] = harvestChatViewLd() as Array<{ quads: unknown[] }>;
-		expect(block.quads).toHaveLength(HARVEST_MEMBERS);
+		const [block] = harvestChatViewLd() as Array<{ items: unknown[] }>;
+		expect(block.items).toHaveLength(HARVEST_MEMBERS);
 	});
 });
 

@@ -9,7 +9,7 @@
  * the polymorphic view lives in a separately-built bundle whose ShuElement class identity differs).
  */
 import { activePane } from "./signals.js";
-import type { TLinkedData } from "@haibun/core/lib/hypermedia.js";
+import { ViewCollectionSchema, viewCollection, type TLinkedData, type TViewCollection } from "@haibun/core/lib/hypermedia.js";
 
 type TSummarizes = Element & { summarizeForKihan(): TLinkedData | null };
 
@@ -26,23 +26,28 @@ const summarizes = (el: Element): el is TSummarizes => typeof (el as Partial<TSu
  */
 export const HARVEST_MEMBERS = 200;
 
-/** The keys a view names its members by. */
-const MEMBER_KEYS = ["items", "quads", "rows", "entries"] as const;
-
-/** A view's summary with its members kept to what a page carries. The count the view stated stands, so a reader is told
- *  how many the view holds rather than how many arrived. */
+/**
+ * A view's summary with its members kept to what a page carries.
+ *
+ * A view states its members under `items`, and a block stating them is held to the view's collection. The count the view
+ * stated stands, so a reader is told how many the view holds rather than how many arrived, and `partOf` names the view
+ * they came from. A view stating no members is carried as it stated itself, and a page bounds nothing of it: a view of
+ * that shape holds what it projects, as `shu-graph` holds the nodes and edges of one domain chain.
+ */
 export function harvested(summary: TLinkedData, holds = HARVEST_MEMBERS): TLinkedData {
-	const key = MEMBER_KEYS.find((named) => Array.isArray((summary as Record<string, unknown>)[named]));
-	const members = key === undefined ? [] : ((summary as Record<string, unknown>)[key] as unknown[]);
-	if (key === undefined || members.length <= holds) return summary;
-	return { ...summary, [key]: members.slice(0, holds), membersCarried: holds };
+	if (!Array.isArray((summary as Record<string, unknown>).items)) return summary;
+	const collection = ViewCollectionSchema.safeParse(summary);
+	if (!collection.success) throw new Error(`a view states its members under "items", so it states the view's collection with them: ${collection.error.message}`);
+	const { items, totalItems } = collection.data;
+	if (items.length <= holds) return summary;
+	return { ...summary, items: items.slice(0, holds), partOf: collection.data["@id"], totalItems };
 }
 
 export type TPaneManifestEntry = { name: string; component: string; active: boolean };
 
-/** The manifest block appended to every harvest: a {@link TLinkedData} `as:Collection` with one item per open column. The
- *  model reads this to know the workspace's shape beyond the active pane, and can pull another pane's subject through the graph steps. */
-export type TPaneManifest = TLinkedData & { "@id": "view:panes"; "@type": "as:Collection"; name: string; totalItems: number; items: TPaneManifestEntry[] };
+/** The manifest block appended to every harvest: one member per open column. The model reads this to know the
+ *  workspace's shape beyond the active pane, and can pull another pane's subject through the graph steps. */
+export type TPaneManifest = TViewCollection & { items: TPaneManifestEntry[] };
 
 export function harvestChatViewLd(root: ParentNode = document): TLinkedData[] {
 	const strip = root.querySelector("shu-column-strip");
@@ -64,17 +69,15 @@ export function harvestChatViewLd(root: ParentNode = document): TLinkedData[] {
 		const summary = el.summarizeForKihan();
 		if (summary != null) blocks.push(harvested(summary));
 	}
-	const manifest: TPaneManifest = {
-		"@id": "view:panes",
-		"@type": "as:Collection",
+	const manifest = viewCollection({
+		id: "view:panes",
 		name: "every open column in the workspace; the active pane's content is included in this context, and another pane's subject can be fetched through the graph steps by its name or type",
-		totalItems: panes.length,
 		items: panes.map((p) => ({
 			name: p.getAttribute("label") ?? p.getAttribute("column-type") ?? "",
 			component: topSummarizers(p)[0]?.tagName.toLowerCase() ?? p.firstElementChild?.tagName.toLowerCase() ?? "",
 			active: p === active,
 		})),
-	};
+	}) as TPaneManifest;
 	blocks.push(manifest);
 	return blocks;
 }
