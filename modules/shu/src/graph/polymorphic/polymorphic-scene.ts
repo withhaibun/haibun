@@ -2660,17 +2660,16 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		const { nodes, edges } = this.visibleModel();
 		const hidden = new Set(this.model.hiddenGraphs);
 		const quads = this.model.visibleQuads.filter((q) => !hidden.has(q.namedGraph));
-		// `nodeCount`/`edgeCount` describe the graph the quads project (the render's own node/edge set), so a reader: a
+		// `nodeCount`/`edgeCount` describe the graph the statements project (the render's own node/edge set), so a reader: a
 		// Kihan, the clipboard, or a driver asserting expected values, has the counts without re-deriving them from the
-		// statements. `totalItems` stays the collection's own member count (the quads).
+		// statements. `totalItems` stays the view's own member count (the statements).
 		return {
 			"@id": "view:graph",
-			"@type": "as:Collection",
 			name: "visible graph",
 			nodeCount: nodes.length,
 			edgeCount: edges.length,
 			totalItems: quads.length,
-			quads: quads.map(({ subject, predicate, object, namedGraph }) => ({ subject, predicate, object, namedGraph })),
+			items: quads.map(({ subject, predicate, object, namedGraph }) => ({ subject, predicate, object, namedGraph })),
 		};
 	}
 
@@ -2692,11 +2691,11 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 *  first, and the call that reads every one. What travels and what a window holds keep what arrives first. */
 	summarizeForKihan(): TLinkedData | null {
 		const whole = this.graphJsonLd();
-		const stated = whole.quads as Array<{ subject: string; object: unknown }>;
+		const stated = whole.items as Array<{ subject: string; object: unknown }>;
 		return {
 			...whole,
-			readTheRestWith: readsEveryStatement({ perTypeLimit: this.model.perTypeLimit, accessLevel: appAccessLevel() }),
-			quads: statedAboutFirst(stated, this.activeSubject),
+			next: readsEveryStatement({ perTypeLimit: this.model.perTypeLimit, accessLevel: appAccessLevel() }),
+			items: statedAboutFirst(stated, this.activeSubject),
 		};
 	}
 }

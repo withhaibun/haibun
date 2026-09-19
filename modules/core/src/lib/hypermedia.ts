@@ -292,6 +292,30 @@ export type TLinkedData = {
 	[term: string]: unknown;
 };
 
+/**
+ * The members a view holds, as the block a page carries states them.
+ *
+ * A view describes what a reader is looking at while they look at it. Nothing persists it, so it carries no vocabulary
+ * type: a type states what a persisted resource is. It keeps its `@id`, since a reader of the block reads statements
+ * about that subject, and every projection this system makes stays JSON-LD compatible. Members go under `items`, in the
+ * order the view wants them read, and `totalItems` states how many the view holds. A page carrying fewer states the
+ * page terms beside them: `partOf` names the view they come from, and `next` reads the rest.
+ */
+export const ViewCollectionSchema = z.looseObject({
+	"@id": z.string().min(1),
+	name: z.string().min(1),
+	items: z.array(z.unknown()),
+	totalItems: z.number().int().nonnegative(),
+});
+export type TViewCollection = z.infer<typeof ViewCollectionSchema>;
+
+/** A view's members, validated as the block is built, so every view states them the one way. `totalItems` counts the
+ *  members given, unless the view states that it holds more. */
+export function viewCollection(states: { id: string; name: string; items: ReadonlyArray<unknown>; totalItems?: number; stated?: Record<string, unknown> }): TViewCollection {
+	const { id, name, items, totalItems, stated } = states;
+	return ViewCollectionSchema.parse({ ...(stated ?? {}), "@id": id, name, items: [...items], totalItems: totalItems ?? items.length });
+}
+
 /** Type hint (xsd / primitive) → {zod, sql}. Defaults to string/TEXT. */
 const TYPE_KINDS: Record<string, { zod: () => z.ZodType; sql: string }> = {
 	"xsd:integer": { zod: () => z.number(), sql: "BIGINT" },
