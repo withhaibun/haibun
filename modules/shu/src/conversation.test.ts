@@ -68,6 +68,11 @@ const on = (...types: TConversationEventType[]): TConversationState => run(...ty
 const staying = <S extends string>(status: S, moves: Partial<Record<TConversationEventType, S>>): Record<TConversationEventType, S> =>
 	Object.fromEntries(CONVERSATION_EVENTS.map((type) => [type, moves[type] ?? status])) as Record<TConversationEventType, S>;
 const askedStatus = (conversation: TConversationState): TTurnStatus => conversation.asked?.status ?? "idle";
+/** A conversation holding a turn at a status the run recorded, which no event of the page's moves a turn to. */
+const holdingTurnAt = (status: TTurnStatus): TConversationState => {
+	const running = on("open", "read", "ask", "started");
+	return { ...running, asked: { ...(running.asked as NonNullable<TConversationState["asked"]>), status } };
+};
 
 /** A conversation at each status, with no turn of the page's. */
 const AT: Record<TConversationState["status"], TConversationState> = { closed: CLOSED_CONVERSATION, opening: on("open"), open: on("open", "read") };
@@ -87,6 +92,9 @@ const TURN_AT: Record<TTurnStatus, TConversationState> = {
 	completed: on("open", "read", "ask", "started", "ended"),
 	failed: on("open", "read", "ask", "started", "erred"),
 	stopped: on("open", "read", "ask", "started", "stop", "erred"),
+	// A turn ends unverified where it stated a handle what it was sent doesn't hold. The run decides that when it records
+	// the turn, so no event of the page's reaches it: the page holds a turn read back at that status.
+	unverified: holdingTurnAt("unverified"),
 };
 
 /** The table of the page's turn: the status each event moves each status to, for a turn no reader stopped. A turn in
@@ -98,6 +106,7 @@ const TURN_TABLE: Record<TTurnStatus, Record<TConversationEventType, TTurnStatus
 	completed: staying("completed", { ask: "asking" }),
 	failed: staying("failed", { ask: "asking" }),
 	stopped: staying("stopped", { ask: "asking" }),
+	unverified: staying("unverified", { ask: "asking" }),
 };
 
 /** The status an event moves the page's turn to: the table's, except that a stopped turn's request rejecting ends it

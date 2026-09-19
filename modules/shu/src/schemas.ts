@@ -40,7 +40,7 @@ export type TComboboxOption = z.infer<typeof ComboboxOptionSchema>;
 export const ChatRoleSchema = z.enum(["user", "llm"]);
 export type TChatRole = z.infer<typeof ChatRoleSchema>;
 /** The status of an asked chat turn, which its reply message shows. */
-export const ChatStatusSchema = z.enum(["asking", "running", "completed", "failed", "stopped"]);
+export const ChatStatusSchema = z.enum(["asking", "running", "completed", "failed", "stopped", "unverified"]);
 export type TChatStatus = z.infer<typeof ChatStatusSchema>;
 /** The status of the page's turn: idle before the first question, else the status of the turn asked last. */
 export const TurnStatusSchema = z.enum(["idle", ...ChatStatusSchema.options]);
@@ -243,7 +243,9 @@ export const SessionTurnSchema = z
 		inReplyTo: z.string().optional().describe("The question record of the turn this one replies to; unset for a session's first turn."),
 		bundle: ContextQuerySchema.describe("The records the question referenced, which a page makes active again when a reader selects the turn."),
 		generatedAtTime: z.string().describe("When the question was asked. This orders the turns, and a view shows the turns asked at or before the place its reader holds."),
-		status: ChatStatusSchema.describe("How the step the turn ran as stands: running, completed, failed, or stopped by its reader."),
+		status: ChatStatusSchema.describe(
+			"How the turn stands: running, completed, failed, stopped by its reader, or unverified, which is a turn that stated a handle what it was sent doesn't hold.",
+		),
 		error: z.string().optional().describe("What the step failed with, where it failed."),
 	})
 	.strict();

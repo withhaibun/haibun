@@ -100,6 +100,20 @@ export function searchableFields(domain: { schema: z.ZodType | undefined; topolo
 	return out.sort();
 }
 
+/**
+ * The properties a type declares as facets: values that categorise a record, such as a folder, an account or a status.
+ *
+ * A facet is declared once, as a `context` rel, and is queryable by that declaration. A string is otherwise not
+ * compared by a filter, since a string holds a body as readily as a word and a store indexes what it can compare. A
+ * consumer maps these to whatever a comparison takes; what a facet is belongs to the declaration.
+ */
+export function facetFields(topology: THypermediaTopology): string[] {
+	return Object.entries(topology.properties)
+		.filter(([, def]) => relOf(def) === LinkRelations.CONTEXT.rel)
+		.map(([field]) => field)
+		.sort();
+}
+
 /** How a reader reaches a property: a filter compares it, a search reads its text, or an edge leads to the records
  *  holding it. A property reached no way is held and shown, and answers no question a reader can ask. */
 export const REACHED_BY = { filter: "filter", search: "search", reference: "reference" } as const;
