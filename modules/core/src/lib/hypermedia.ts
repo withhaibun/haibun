@@ -48,6 +48,58 @@ export function queryableFields(domain: { schema: z.ZodType | undefined; topolog
 	return [...out].sort();
 }
 
+/**
+ * The rels naming what a record is about, who it involves and where it sits, which is what a reader names when they
+ * search.
+ *
+ * An allowlist rather than a list of exceptions: a rel added later states a new kind of value, and a search reading
+ * every rel it doesn't yet exclude would read that one. Times, a level, a place in a run and a media type each name
+ * something about a record rather than its subject, and `tag` names a value that is nothing but a value, so a search
+ * reading any of them answers every record carrying the value named.
+ *
+ * `identifier` is absent, and its absence is measured rather than assumed. A type's identifier holds a handle a reader
+ * knows a record by, such as an address, and holds a handle a run generated, such as a comment's own id. Reading the
+ * two as one, a turn's own records answered its question: every record of a type matched the ordinary words a question
+ * is made of, and a model asked to call a step stopped calling it. Separating them needs a type to state which of the
+ * two its identifier holds, which no topology states today.
+ */
+const SEARCHED_RELS: ReadonlySet<string> = new Set([
+	LinkRelations.NAME.rel,
+	LinkRelations.CONTENT.rel,
+	LinkRelations.ATTRIBUTED_TO.rel,
+	LinkRelations.AUDIENCE.rel,
+	LinkRelations.CONTEXT.rel,
+]);
+
+/** Whether a schema field holds text. A bounded value reports its own kind, so a date, an enum and a literal each
+ *  report that rather than a string, and only a field a reader could name part of reports text. */
+function isTextField(field: z.ZodType): boolean {
+	const { inner } = unwrap(field);
+	return (inner as { _zod?: { def?: { type?: string } } })._zod?.def?.type === "string";
+}
+
+/**
+ * The fields of a persisted type a text search reads, from its declaration alone.
+ *
+ * A type states what each property names, and a search reads the properties naming what a record is about, who it
+ * involves and what it is addressed as. That includes the property a type is addressed by: a reader naming part of an
+ * address, a message identifier or an account name is naming the record, and a type addressed by its own address
+ * reached no primitive at all while a search read two rels. This differs from {@link queryableFields}, which leaves the
+ * identifier out because a filter compares bounded values and an identifier dereferences. Naming part of a handle and
+ * fetching by the whole of it are different reads.
+ */
+export function searchableFields(domain: { schema: z.ZodType | undefined; topology: THypermediaTopology }): string[] {
+	const shape = domain.schema instanceof z.ZodObject ? (domain.schema.shape as Record<string, z.ZodType>) : {};
+	const out: string[] = [];
+	for (const [field, def] of Object.entries(domain.topology.properties)) {
+		if (!SEARCHED_RELS.has(relOf(def))) continue;
+		const declared = shape[field];
+		if (declared !== undefined && !isTextField(declared)) continue;
+		out.push(field);
+	}
+	return out.sort();
+}
+
 /** A rel's declared `rdfs:subPropertyOf` parent(s) (the canonical LinkRelations declaration), mapped to their term
  *  strings; undefined when the rel declares none. Mirrors the `subClassOf` lookup the type node emits, so a served
  *  JSON-LD context carries the genuine rel hierarchy (e.g. `schema:author rdfs:subPropertyOf hbn:inRoleOf`). */
