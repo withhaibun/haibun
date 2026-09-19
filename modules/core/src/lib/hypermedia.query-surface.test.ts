@@ -1,10 +1,10 @@
 /**
  * What a type offers a reader, per property.
  *
- * A reader choosing a primitive is choosing what their question can see. Told nothing, they reach for the one they
- * know and read its answer as the answer to what they asked: a search that never read a field states no match rather
- * than stating that it doesn't read it. This states which primitive reaches each property, from what the type already
- * declares.
+ * A primitive reaches some of a type's properties and not others. A reader told nothing asks the primitive they
+ * already know and reads its answer as the answer to what they asked: a search that reads no field of a type answers
+ * with no match rather than stating that it reads none. This states which primitive reaches each property, from what
+ * the type already declares.
  */
 import { describe, it, expect } from "vitest";
 import { z } from "zod";

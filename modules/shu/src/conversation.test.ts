@@ -10,7 +10,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
-import { anIndividual, type TSessionTurn, type TTurnStatus } from "./schemas.js";
+import { anIndividual, type TChatStatus, type TSessionTurn, type TTurnStatus } from "./schemas.js";
 import type { TRecord } from "./current-subject.js";
 import { question, answer, readBack as aReadBack } from "./components/chat-pane.test-fake.js";
 import {
@@ -69,7 +69,7 @@ const staying = <S extends string>(status: S, moves: Partial<Record<TConversatio
 	Object.fromEntries(CONVERSATION_EVENTS.map((type) => [type, moves[type] ?? status])) as Record<TConversationEventType, S>;
 const askedStatus = (conversation: TConversationState): TTurnStatus => conversation.asked?.status ?? "idle";
 /** A conversation holding a turn at a status the run recorded, which no event of the page's moves a turn to. */
-const holdingTurnAt = (status: TTurnStatus): TConversationState => {
+const holdingTurnAt = (status: TChatStatus): TConversationState => {
 	const running = on("open", "read", "ask", "started");
 	return { ...running, asked: { ...(running.asked as NonNullable<TConversationState["asked"]>), status } };
 };
