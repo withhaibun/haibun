@@ -2,9 +2,9 @@ import { z } from "zod";
 import { HTTP_CLIENT_LABEL, HTTP_HOST_LABEL, HTTP_REQUEST_LABEL, LinkRelations, PersistedVertexSchema, TDomainDefinition } from "@haibun/core/lib/resources.js";
 import { DOMAIN_STRING } from "@haibun/core/lib/domains.js";
 import { ENDPOINT_CLASS } from "@haibun/core/lib/http-observations.js";
-import { VISITED_PAGE_LABEL } from "@haibun/core/lib/instrumentation-graphs.js";
 
-export { VISITED_PAGE_LABEL };
+/** A page the browser navigated to. */
+export const VISITED_PAGE_LABEL = "VisitedPage";
 
 export const DOMAIN_PAGE_LOCATOR = "page-locator";
 export const DOMAIN_PAGE_TEST_ID = "page-test-id";
@@ -39,6 +39,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 		description: "An HTTP request observed on the network: one record of a client, the site, or an external host exchanging a message.",
 		topology: {
 			persistedAs: HTTP_REQUEST_LABEL,
+			instrumentation: true,
 			type: "http:Request",
 			id: "id",
 			namespaces: HTTP_NS,
@@ -65,6 +66,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 		description: "The requesting party: the browser (user agent) that calls the site's routes and external resources.",
 		topology: {
 			persistedAs: HTTP_CLIENT_LABEL,
+			instrumentation: true,
 			type: "as:Application",
 			id: "id",
 			properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel, accessLevel: LinkRelations.ACCESS_LEVEL.rel },
@@ -77,6 +79,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 		description: "A host seen on the network, with how many requests reached it (the http-trace hosts aggregate).",
 		topology: {
 			persistedAs: HTTP_HOST_LABEL,
+			instrumentation: true,
 			type: "as:Service",
 			id: "id",
 			properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel, requestCount: LinkRelations.TAG.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel, accessLevel: LinkRelations.ACCESS_LEVEL.rel },
@@ -89,6 +92,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 		description: "A page the browser navigated to during the run, keyed by a per-navigation synthetic id; its name is the page URL.",
 		topology: {
 			persistedAs: VISITED_PAGE_LABEL,
+			instrumentation: true,
 			type: "schema:WebPage",
 			id: "id",
 			properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel, accessLevel: LinkRelations.ACCESS_LEVEL.rel },

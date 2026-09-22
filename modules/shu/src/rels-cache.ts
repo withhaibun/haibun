@@ -44,6 +44,8 @@ export interface SiteMetadata {
 	classIris?: Record<string, string>;
 	/** Per label, the property type (rel) whose value titles it, `topology.displayLabel`, where declared. */
 	displayLabelRels?: Record<string, string>;
+	/** The types that record the run's own execution, `topology.instrumentation`. */
+	instrumentationTypes?: string[];
 }
 
 let metadata: SiteMetadata | null = null;
@@ -109,6 +111,11 @@ export function isSystemSchemaType(label: string): boolean {
 /** The property type (rel) whose value titles this type, where its vocabulary designates one (`topology.displayLabel`). */
 export function getDisplayLabelRel(label: string): string | undefined {
 	return metadata?.displayLabelRels?.[label];
+}
+
+/** Whether a type records the run's own execution, as its topology declares. */
+export function isInstrumentationType(label: string): boolean {
+	return metadata?.instrumentationTypes?.includes(label) === true;
 }
 
 /** What the site declares about one property type: its IRI, range, and how to show it (label, icon). Undefined for a name the ontology does not declare. */
@@ -380,9 +387,11 @@ export function siteMetadataFromConcerns(catalog: TConcernCatalog, domains?: Rec
 	const ui: Record<string, Record<string, unknown>> = {};
 	const classIris: Record<string, string> = {};
 	const displayLabelRels: Record<string, string> = {};
+	const instrumentationTypes: string[] = [];
 	for (const [label, concern] of Object.entries(catalog.persisted)) {
 		types.push(label);
 		if (concern.displayLabel) displayLabelRels[label] = concern.displayLabel;
+		if (concern.instrumentation) instrumentationTypes.push(label);
 		idFields[label] = concern.idField;
 		if (concern.asType) classIris[label] = concern.asType;
 		if (concern.queryable.length > 0) queryable[label] = concern.queryable;
@@ -444,6 +453,7 @@ export function siteMetadataFromConcerns(catalog: TConcernCatalog, domains?: Rec
 		propertyDefinitions,
 		classIris,
 		displayLabelRels,
+		instrumentationTypes,
 	};
 }
 

@@ -677,6 +677,12 @@ export type THypermediaTopology = {
 	 */
 	announceWrites?: boolean;
 	/**
+	 * Whether the type records the run's own execution rather than a feature's data, as a step path, a log line or an
+	 * HTTP exchange does. A search for a reader's records doesn't read the type, a conversation isn't about its records,
+	 * and a view hides it until a reader shows it. Absent means a feature's data.
+	 */
+	instrumentation?: boolean;
+	/**
 	 * The level records of this type are stored at when a record states none. A type declares the LEAST sharing its
 	 * records can be read under and still be useful, so nothing is published by a writer forgetting to say: what is
 	 * shared more widely says so on the record itself. A type declaring none stores private, which shares least.
@@ -1182,6 +1188,7 @@ export const readingDomainDefinition: TDomainDefinition = {
 	description: "One reading of a text that turned its links into facts. It names the text it read and the step that read it, so every stated fact says where it came from.",
 	topology: {
 		persistedAs: READING_LABEL,
+		instrumentation: true,
 		type: "prov:Activity",
 		id: "id",
 		properties: {

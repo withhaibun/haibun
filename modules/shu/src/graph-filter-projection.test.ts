@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
+import { seqPathDomainDefinition } from "@haibun/core/lib/seq-path.js";
 import {
 	COMMENT_LABEL,
 	PRINCIPAL_LABEL,
@@ -108,8 +109,10 @@ describe("projectFilterClusters", () => {
 });
 
 describe("effectiveHiddenTypes (instrumentation default + user overrides)", () => {
-	// SeqPath/facts/observation/* = the engine's own instrumentation (default-hidden); Person = domain (default-visible).
 	const types = ["Person", "SeqPath", "facts"];
+	// SeqPath declares itself instrumentation in its topology, which the page reads from the catalog. The facts graph and
+	// observation/* have no type, so the named-graph list states them.
+	beforeEach(() => setSiteMetadata(siteMetadataFromConcerns(buildConcernCatalog(mapDefinitionsToDomains([seqPathDomainDefinition])))));
 
 	it("hides instrumentation by default with NO user overrides, and the default is not a stored choice", () => {
 		expect(effectiveHiddenTypes(types, {}).sort()).toEqual(["SeqPath", "facts"]);
@@ -129,6 +132,11 @@ describe("effectiveHiddenTypes (instrumentation default + user overrides)", () =
 
 	it("treats a non-instrumentation (domain) type as visible", () => {
 		expect(effectiveHiddenTypes(["Person"], {})).toEqual([]);
+	});
+
+	it("shows a type the catalog doesn't declare instrumentation, whatever its name", () => {
+		setSiteMetadata(siteMetadataFromConcerns(buildConcernCatalog(mapDefinitionsToDomains([]))));
+		expect(effectiveHiddenTypes(["SeqPath"], {}), "the declaration hides a type, not a list of names").toEqual([]);
 	});
 
 	it("honours an explicit hide of a type not yet present in the set", () => {

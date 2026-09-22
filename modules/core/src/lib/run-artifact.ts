@@ -63,6 +63,7 @@ export const runArtifactDomainDefinition: TDomainDefinition = {
 	topology: {
 		persistedAs: RUN_ARTIFACT_LABEL,
 		id: RUN_ARTIFACT_FIELD.id,
+		instrumentation: true,
 		// A reader is told a run produced something by the run producing it. This record is the durable copy of that.
 		announceWrites: false,
 		properties: {

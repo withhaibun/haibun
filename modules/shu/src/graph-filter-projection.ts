@@ -26,6 +26,7 @@
  */
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { isInstrumentationGraph } from "@haibun/core/lib/instrumentation-graphs.js";
+import { isInstrumentationType } from "./rels-cache.js";
 import { isSchemaType } from "./graph/ontology-projection.js";
 import { isEdgeQuad } from "./graph-model.js";
 
@@ -67,7 +68,8 @@ export function projectFilterClusters(opts: { knownClusters: Map<string, TCluste
 
 /**
  * The effective hidden-type set: the user's explicit override wins; absent an override, the engine's own instrumentation
- * graphs (SeqPath, observation/*, facts, variables, `isInstrumentationGraph`) default hidden and everything else visible.
+ * defaults hidden and everything else visible. Instrumentation is a type that declares it (`isInstrumentationType`) or a
+ * named graph without a type (observation/*, facts, variables, `isInstrumentationGraph`).
  * `overrides[type]`: true = shown, false = hidden, absent = the predicate decides. The ONE place the default and the
  * overrides combine, shared by the filter (chip state), the host views (which graphs render), and the offline-report
  * serialization: so the rule is identical everywhere AND stable for types that arrive only via the live stream: there is
@@ -81,7 +83,7 @@ export function effectiveHiddenTypes(types: Iterable<string>, overrides: Record<
 	const hidden = new Set<string>();
 	for (const type of types) {
 		const choice = overrides[type];
-		if (choice === undefined ? isInstrumentationGraph(type) || isSchemaType(type) : !choice) hidden.add(type);
+		if (choice === undefined ? isInstrumentationGraph(type) || isInstrumentationType(type) || isSchemaType(type) : !choice) hidden.add(type);
 	}
 	// An explicit hide applies even before its type appears in the set (e.g. a control-product hide of a type with no
 	// data yet); an explicit show of an unknown type is a no-op until it arrives (it then follows the show).

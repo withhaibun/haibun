@@ -223,6 +223,8 @@ const HypermediaConcernSchema = z.object({
 	displayLabel: z.string().optional(),
 	/** True when declared at runtime (`set of {domain} by …`) vs by a compiled stepper. */
 	declared: z.boolean().default(false),
+	/** True when the type records the run's own execution (`topology.instrumentation`), which a view hides by default. */
+	instrumentation: z.boolean().default(false),
 	/** UI metadata: slot, component, JS source, etc. */
 	ui: z.record(z.string(), z.unknown()).optional(),
 	/** The domain's human description, surfaced so the client can show what a type is. */
@@ -344,6 +346,7 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 			queryable: queryableFields({ schema: domain.schema, topology }),
 			validTimeField: topology.defaultSort ?? LinkRelations.GENERATED_AT_TIME.rel,
 			declared: !!domain.ui?.declared,
+			instrumentation: topology.instrumentation === true,
 			...(domain.ui ? { ui: domain.ui } : {}),
 			description: domain.description,
 		});
@@ -520,6 +523,8 @@ export type ResourceRels = {
 	contentField(type: string): string | undefined;
 	/** The property type (rel) this type declares as its labeling property, where its vocabulary designates one. */
 	displayLabelRel(type: string): TRel | undefined;
+	/** Whether the type records the run's own execution (`topology.instrumentation`). */
+	instrumentation(type: string): boolean;
 	fields(type: string): Record<string, string>;
 	schema(type: string): z.ZodType;
 };
@@ -531,6 +536,7 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 	const relMaps = new Map<string, Record<string, string>>();
 	const schemas = new Map<string, z.ZodType>();
 	const displayLabelRels = new Map<string, TRel>();
+	const instrumentation = new Set<string>();
 
 	for (const domain of Object.values(domains)) {
 		if (!isPersisted(domain.topology)) continue;
@@ -540,6 +546,7 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 		idFields.set(type, topology.id);
 		schemas.set(type, domain.schema);
 		if (topology.displayLabel) displayLabelRels.set(type, topology.displayLabel);
+		if (topology.instrumentation) instrumentation.add(type);
 		const rels: Record<string, string> = {};
 		for (const [field, def] of Object.entries(topology.properties ?? {})) {
 			rels[field] = relOf(def);
@@ -576,6 +583,7 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 		nameField: (type) => fieldByRel(type, LinkRelations.NAME.rel),
 		contentField: (type) => fieldByRel(type, LinkRelations.CONTENT.rel),
 		displayLabelRel: (type) => displayLabelRels.get(type),
+		instrumentation: (type) => instrumentation.has(type),
 		fields: (type) => relMaps.get(type) ?? {},
 		schema: (type) => {
 			const s = schemas.get(type);

@@ -33,6 +33,7 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 				topology: {
 					persistedAs: EndpointLabels.Endpoint,
 					type: "as:Service",
+					instrumentation: true,
 					id: "url",
 					properties: {
 						url: LinkRelations.IDENTIFIER.rel,

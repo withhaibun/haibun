@@ -196,6 +196,7 @@ export const seqPathDomainDefinition: TDomainDefinition = {
 	topology: {
 		persistedAs: SEQ_PATH_LABEL,
 		id: SEQ_PATH_FIELD.id,
+		instrumentation: true,
 		properties: {
 			[SEQ_PATH_FIELD.id]: LinkRelations.IDENTIFIER.rel,
 			[SEQ_PATH_FIELD.stepText]: LinkRelations.CONTENT.rel,

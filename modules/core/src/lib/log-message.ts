@@ -54,6 +54,7 @@ export const logMessageDomainDefinition: TDomainDefinition = {
 	topology: {
 		persistedAs: LOG_MESSAGE_LABEL,
 		id: LOG_MESSAGE_FIELD.id,
+		instrumentation: true,
 		// A reader is told a run said something by the run saying it. This record is the durable copy of that statement,
 		// so announcing the write would say it a second time, once per field.
 		announceWrites: false,
