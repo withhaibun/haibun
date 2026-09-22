@@ -117,10 +117,4 @@ describe("a persisted type's level property", () => {
 	it("is added where the type is registered, so no declaration repeats it", () => {
 		expect((persisted({}).topology as THypermediaTopology).properties.accessLevel).toBe(LinkRelations.ACCESS_LEVEL.rel);
 	});
-
-	it("is left as the type states it where the type names the level under a property of its own", () => {
-		const properties = (persisted({ level: LinkRelations.ACCESS_LEVEL.rel }).topology as THypermediaTopology).properties;
-		expect(properties.level).toBe(LinkRelations.ACCESS_LEVEL.rel);
-		expect(properties.accessLevel, "and no second property states it").toBeUndefined();
-	});
 });

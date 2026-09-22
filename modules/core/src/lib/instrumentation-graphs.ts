@@ -10,12 +10,8 @@ import { FACT_GRAPH, OBSERVATION_GRAPH as RUNTIME_OBSERVATION_GRAPH } from "./wo
 
 const OBSERVATION_PREFIX = "observation/";
 
-type TInstrumentationGraph = typeof FACT_GRAPH | typeof SHARED_GRAPH | (typeof RUNTIME_OBSERVATION_GRAPH)[keyof typeof RUNTIME_OBSERVATION_GRAPH];
-
-const INSTRUMENTATION_GRAPHS: readonly TInstrumentationGraph[] = [...new Set<TInstrumentationGraph>([FACT_GRAPH, SHARED_GRAPH, ...Object.values(RUNTIME_OBSERVATION_GRAPH)])];
-
-// The graphs without the observation/ prefix, derived from the one list above.
-const NAMED_INSTRUMENTATION = new Set<string>(INSTRUMENTATION_GRAPHS.filter((g) => !g.startsWith(OBSERVATION_PREFIX)));
+/** The instrumentation graphs by name. A graph whose name starts with the observation prefix is instrumentation whether or not this set contains it. */
+const NAMED_INSTRUMENTATION = new Set<string>([FACT_GRAPH, SHARED_GRAPH, ...Object.values(RUNTIME_OBSERVATION_GRAPH)]);
 
 export function isInstrumentationGraph(namedGraph: string): boolean {
 	return namedGraph.startsWith(OBSERVATION_PREFIX) || NAMED_INSTRUMENTATION.has(namedGraph);

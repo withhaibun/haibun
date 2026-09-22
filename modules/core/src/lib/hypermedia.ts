@@ -9,7 +9,7 @@
  */
 
 import { z } from "zod";
-import { edgeRel, REL_CONTEXT, LinkRelations, BODY_LABEL, getRelRange, propertyIriOf, isPersisted, type TPropertyDef, type TRel, type THypermediaTopology, AccessLevelSchema } from "./resources.js";
+import { edgeRel, REL_CONTEXT, LinkRelations, BODY_LABEL, getRelRange, propertyIriOf, isPersisted, type TPropertyDef, type TRel, type THypermediaTopology, PersistedVertexSchema } from "./resources.js";
 
 /** Resolve a property def to its rel, regardless of plain-string or object (content / term) form. */
 export function relOf(def: TPropertyDef): TRel {
@@ -505,9 +505,6 @@ export function hypermediaDomainFromContext(domainName: string, doc: THypermedia
 		fields.generatedAtTime = z.string().default(() => new Date().toISOString());
 		sqlKinds.generatedAtTime = "TIMESTAMP";
 	}
-	// Every persisted type states its level, so a step-declared type's records are classified at write time like any
-	// stepper-declared type's. Registration adds the property that states it.
-	if (!Object.values(properties).some((def) => relOf(def) === LinkRelations.ACCESS_LEVEL.rel)) fields.accessLevel = AccessLevelSchema.optional();
 	const queryable = doc["@queryable"] ?? [];
 	const sortColumns = Object.fromEntries(queryable.map((f) => [f, sqlKinds[f] ?? "TEXT"]));
 	const topology: THypermediaTopology = {
@@ -517,7 +514,9 @@ export function hypermediaDomainFromContext(domainName: string, doc: THypermedia
 		...(Object.keys(edges).length ? { edges } : {}),
 		...(queryable.length ? { sortColumns } : {}),
 	};
-	return { topology, schema: z.object(fields).strict() };
+	// A step-declared type is persisted like any stepper-declared one, so its records state the level every persisted
+	// type carries, and registration adds the property that states it.
+	return { topology, schema: PersistedVertexSchema.extend(fields).strict() };
 }
 
 // ============================================================================
