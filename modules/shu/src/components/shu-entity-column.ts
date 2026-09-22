@@ -101,6 +101,16 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		.detail-table { width: 100%; border-collapse: collapse; }
 		.detail-table td { padding: 1px var(--shu-space-2); vertical-align: top; }
 		.fields-table { margin: var(--shu-space-1) 0 var(--shu-space-2); }
+		/* The field table folded behind a disclosure: the summary line names how many fields it holds, and the table
+		   opens on demand. A reader reads the summary first and opens the table when a field is the question. */
+		.fields-disclosure { margin: var(--shu-space-1) 0 var(--shu-space-2); }
+		.fields-disclosure > summary { color: var(--shu-fg-muted); font-size: 0.85em; cursor: pointer; padding: 2px 0; list-style-position: inside; }
+		.fields-disclosure[open] > summary { margin-bottom: var(--shu-space-1); }
+		/* A reference group folded the same way: the first few targets stay visible, and the rest open on demand. */
+		.ref-more { display: inline; }
+		.ref-more > summary { display: inline; color: var(--shu-fg-faded); font-size: 0.85em; cursor: pointer; list-style: none; padding-left: var(--shu-space-2); }
+		.ref-more[open] > summary { display: block; }
+		.ref-more[open] { display: inline; }
 		.field-json { margin: 0; padding: var(--shu-space-2); background: var(--shu-bg-soft); border-radius: var(--shu-radius); font-size: 0.8em; white-space: pre-wrap; word-break: break-word; overflow-x: auto; }
 		.literal-body { margin: var(--shu-space-2) 0 0; padding: var(--shu-space-2); background: var(--shu-bg-soft); border-radius: var(--shu-radius); white-space: pre-wrap; word-break: break-word; overflow-x: auto; }
 		.field-name { white-space: nowrap; color: var(--shu-fg-faded); width: 80px; font-size: 0.85em; }
@@ -275,15 +285,24 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			const summaryFields = getSummaryFields(persistedAs);
 			// Every non-summary, non-edge scalar field, shown in full between the type line and the body. Object
 			// values render as formatted JSON. Body-presentation content (a SeqPath's stepText) renders below via bodyLiterals.
-			const detailRows = Object.entries(fields)
-				.filter(([k]) => !getEdgeTargetLabel(k, persistedAs) && !summaryFields.has(k))
+			// The field table is what floods a pane: a record with many fields dumps them all at once. A reader reads
+			// the summary first, and opens the full table when a field is the question, so the table starts closed where
+			// it holds more than a handful of fields and stays open where it is small.
+			const FOLD_AT = 6;
+			const detailEntries = Object.entries(fields).filter(([k]) => !getEdgeTargetLabel(k, persistedAs) && !summaryFields.has(k));
+			const detailRows = detailEntries
 				.map(([k, v]) => {
 					if (this.isTypeField(k)) return this.typeRow(k, v);
 					const valueHtml = Array.isArray(v) ? v.map((item) => this.formatFieldValue(item, k)).join(", ") : this.formatFieldValue(v, k);
 					return `<tr><td class="field-name">${this.clickableValue(k, "describedby")}${this.vocabBadge(k)}</td><td data-testid="entity-field-${escAttr(k)}">${valueHtml}</td></tr>`;
 				})
 				.join("");
-			const fieldsHtml = detailRows ? `<table class="detail-table fields-table" data-testid="entity-fields">${detailRows}</table>` : "";
+			const detailTable = detailRows ? `<table class="detail-table fields-table" data-testid="entity-fields">${detailRows}</table>` : "";
+			const fieldsHtml = detailTable
+				? detailEntries.length > FOLD_AT
+					? `<details class="fields-disclosure" data-testid="entity-fields-disclosure"><summary class="fields-summary">${detailEntries.length} fields</summary>${detailTable}</details>`
+					: detailTable
+				: "";
 			const summaryHtml =
 				summaryFields.size > 0
 					? `<div class="entity-summary" data-testid="entity-summary">${Array.from(summaryFields)
@@ -416,14 +435,18 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			group.push({ target: e.target, edgeType: e.type });
 			grouped.set(e.type, group);
 		}
+		// A group that names many targets floods the pane the way the field table does: show the first few, and fold
+		// the rest behind a disclosure that states how many, so a reader sees the shape and opens the list on demand.
+		const REF_FOLD_AT = 4;
 		const outHtml = Array.from(grouped.entries())
-			.map(
-				([type, items]) => `
-				<div class="ref-group">
-					<span class="ref-type">${esc(type)}</span>
-					${items.map((i) => this.renderEdgeTarget(i.target, i.edgeType)).join(", ")}
-				</div>`,
-			)
+			.map(([type, items]) => {
+				const targets = items.map((i) => this.renderEdgeTarget(i.target, i.edgeType));
+				const folded =
+					targets.length > REF_FOLD_AT
+						? `${targets.slice(0, REF_FOLD_AT).join(", ")}<details class="ref-more"><summary class="ref-more-count">… ${targets.length - REF_FOLD_AT} more</summary>${targets.slice(REF_FOLD_AT).join(", ")}</details>`
+						: targets.join(", ");
+				return `<div class="ref-group"><span class="ref-type">${esc(type)}</span>${folded}</div>`;
+			})
 			.join("");
 
 		const inHtml = this.incomingCount > 0 ? `<a class="section-label links-here-link" href="#">What links here <span class="ref-count">(${this.incomingCount})</span></a>` : "";
