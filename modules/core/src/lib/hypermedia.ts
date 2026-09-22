@@ -292,6 +292,23 @@ export type TLinkedData = {
 	[term: string]: unknown;
 };
 
+/**
+ * The fields a read answers a count in: how many records it found, and whether it stopped at a ceiling rather than
+ * reaching the end.
+ *
+ * Counting every record of a type is work that grows with the records, so a read counts to a ceiling and stops. A total
+ * that stopped there is a floor, and a total that reached the end is exact. Stating both apart lets a reader say "more
+ * than this" and ask again another way, where a bare number reads as a count nothing made.
+ */
+export const CountedFields = { total: z.number().int().nonnegative(), saturated: z.boolean() };
+export const CountedSchema = z.object(CountedFields);
+export type TCounted = z.infer<typeof CountedSchema>;
+
+/** A count that reached the end of what it counted, so the total is exact. */
+export const counted = (total: number): TCounted => ({ total, saturated: false });
+
+/** A count read against the ceiling it was allowed. Reaching the ceiling states a floor rather than a total. */
+export const countedTo = (total: number, ceiling: number): TCounted => ({ total, saturated: total >= ceiling });
 /** Type hint (xsd / primitive) → {zod, sql}. Defaults to string/TEXT. */
 const TYPE_KINDS: Record<string, { zod: () => z.ZodType; sql: string }> = {
 	"xsd:integer": { zod: () => z.number(), sql: "BIGINT" },
