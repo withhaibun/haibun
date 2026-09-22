@@ -26,7 +26,7 @@ import { runAuthorizedWith } from "./capability-context.js";
 import { errorDetail } from "./util/index.js";
 import type { TWorld } from "./world.js";
 import type { TSeqPath } from "../schema/protocol.js";
-import type { TDomainDefinition } from "./resources.js";
+import { AccessLevelSchema, PersistedVertexSchema, type TDomainDefinition } from "./resources.js";
 
 export const URAKATA = "urakata";
 export const URAKATA_ID_DOMAIN = "urakata-id";
@@ -35,7 +35,7 @@ export const URAKATA_LABEL = "Urakata";
 /** A persistently failing ticker persists its first error, then every Nth, errorCount stays exact in memory and is persisted exactly at stop. */
 export const URAKATA_ERROR_PERSIST_EVERY = 10;
 
-export const UrakataSchema = z.object({
+export const UrakataSchema = PersistedVertexSchema.extend({
 	id: z.string(),
 	description: z.string(),
 	/** The run instance this task ran in (world.tag.key). A view says "running" only when this equals the current instance and there is no stoppedAt; a persisted row from another instance can never claim the present. */
@@ -49,6 +49,7 @@ export const UrakataSchema = z.object({
 	stoppedAt: z.string().optional(),
 	/** The universal record-time field every persisted type carries. */
 	generatedAtTime: z.coerce.date().default(() => new Date()),
+	accessLevel: AccessLevelSchema.optional(),
 });
 export type TUrakata = z.infer<typeof UrakataSchema>;
 

@@ -81,6 +81,7 @@ export const featureExecutionDomainDefinition: TDomainDefinition = {
 			firstFailure: LinkRelations.TAG.rel,
 			host: LinkRelations.TAG.rel,
 			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
+			accessLevel: LinkRelations.ACCESS_LEVEL.rel,
 		},
 		// Every queryable field needs a column to be queried through: a run is looked up by what ran, how it ended,
 		// and when it started.

@@ -88,6 +88,20 @@ export const AccessQueryLevelSchema = z.enum(ACCESS_QUERY_LEVELS, {
 export type AccessQueryLevel = z.infer<typeof AccessQueryLevelSchema>;
 export const AccessQuery = AccessQueryLevelSchema.enum;
 
+/**
+ * The base every type persisted as a vertex in a quad store declares. Every persisted type states `accessLevel` —
+ * in its schema and its topology — so the level of every row is known at read time: a record stating no level of
+ * its own is classified by its type at write time, never wider than the level the writer sees, and a type that
+ * declares the property nowhere cannot classify its records. A store's registration guard enforces the
+ * declaration; this base is the declaration.
+ */
+export const PersistedVertexSchema = z.object({
+	accessLevel: AccessLevelSchema
+		.optional()
+		.describe("How widely the record is shared. A record stating no level is classified by its type at write time."),
+});
+export type TPersistedVertex = z.infer<typeof PersistedVertexSchema>;
+
 /** How much of the graph each level lets a reader see, so two of them can be compared: private sees every record, and
  *  the rest see only what is not private. */
 const ACCESS_BREADTH: Record<AccessLevel, number> = { public: 0, opened: 1, private: 2 };
@@ -770,7 +784,7 @@ export type TRegisteredDomain = {
 // rels (`discourse`, `inReplyTo`, …) that upsertIndividual's partition step
 // routes to edges rather than to the individual properties. Strict mode would
 // reject those before the partition can run.
-export const CommentSchema = z.object({
+export const CommentSchema = PersistedVertexSchema.extend({
 	id: z.string(),
 	author: z.string(),
 	generatedAtTime: z.string(),
@@ -883,7 +897,7 @@ export const commentDomainDefinition: TDomainDefinition = {
  * Only PUBLIC material persists: there is no private-key field, by design.
  */
 
-export const PrincipalSchema = z.object({
+export const PrincipalSchema = PersistedVertexSchema.extend({
 	id: z.string(),
 	/** as:name: an optional human name for this Principal (a DID has none intrinsically). Lets a party be titled by a readable name instead of its DID; resolves as the display headline (rdfs:label → as:name priority). Named `name`, not `label`, so it is a queryable column: `label` is a reserved column name in a graph store. */
 	name: z.string().optional(),
@@ -894,6 +908,7 @@ export const PrincipalSchema = z.object({
 	expires: z.string().optional(),
 	revoked: z.boolean().optional(),
 	proof: z.string().optional(),
+	accessLevel: AccessLevelSchema.optional(),
 });
 
 export type TPrincipal = z.infer<typeof PrincipalSchema>;
@@ -924,6 +939,7 @@ export const principalDomainDefinition: TDomainDefinition = {
 		// declare sec:Controller a kind of prov:Agent so that attribution is well-formed against the rel's range.
 		subClassOf: "prov:Agent",
 		id: "id",
+		accessLevel: Access.public,
 		properties: {
 			id: LinkRelations.IDENTIFIER.rel,
 			name: LinkRelations.NAME.rel,
@@ -933,6 +949,7 @@ export const principalDomainDefinition: TDomainDefinition = {
 			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
 			expires: LinkRelations.EXPIRES.rel,
 			revoked: LinkRelations.REVOKED.rel,
+			accessLevel: LinkRelations.ACCESS_LEVEL.rel,
 		},
 		edges: {
 			delegatedFrom: { rel: LinkRelations.DELEGATED_FROM.rel, range: PRINCIPAL_LABEL },
@@ -954,7 +971,7 @@ export const principalDomainDefinition: TDomainDefinition = {
  */
 // Body schema same constraint as Comment: parent nodes supply content
 // fields that the partition step extracts before persistence.
-export const BodySchema = z.object({
+export const BodySchema = PersistedVertexSchema.extend({
 	id: z.string(),
 	content: z.string(),
 	mediaType: z.string(),
@@ -1069,6 +1086,7 @@ export type TQuoteAnchor = z.infer<typeof QuoteAnchorSchema>;
 export const TextQuoteSelectorSchema = QuoteAnchorSchema.extend({
 	id: z.string(),
 	generatedAtTime: z.string(),
+	accessLevel: AccessLevelSchema.optional(),
 });
 export type TTextQuoteSelector = z.infer<typeof TextQuoteSelectorSchema>;
 
@@ -1083,6 +1101,7 @@ export const textQuoteSelectorDomainDefinition: TDomainDefinition = {
 		properties: {
 			id: LinkRelations.IDENTIFIER.rel,
 			exact: LinkRelations.EXACT.rel,
+			accessLevel: LinkRelations.ACCESS_LEVEL.rel,
 			prefix: LinkRelations.PREFIX.rel,
 			suffix: LinkRelations.SUFFIX.rel,
 			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
@@ -1108,13 +1127,14 @@ export const textQuoteSelectorDomainDefinition: TDomainDefinition = {
  */
 export const SPECIFIC_RESOURCE_DOMAIN = "specific-resource";
 
-export const SpecificResourceSchema = z.object({
+export const SpecificResourceSchema = PersistedVertexSchema.extend({
 	id: z.string(),
 	generatedAtTime: z.string(),
 	/** `rdfs:label`: what a reader called this passage where it was referred to. The W3C model gives a SpecificResource
 	 *  no title of its own, so it otherwise reads as the bare text it quotes (a clause number, a fragment), which says
 	 *  nothing about what it was cited for. RDFS's labelling property is the standard place for the words that do. */
 	label: z.string().optional(),
+	accessLevel: AccessLevelSchema.optional(),
 });
 export type TSpecificResource = z.infer<typeof SpecificResourceSchema>;
 
@@ -1130,6 +1150,7 @@ export const specificResourceDomainDefinition: TDomainDefinition = {
 			id: LinkRelations.IDENTIFIER.rel,
 			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
 			label: LinkRelations.LABEL.rel,
+			accessLevel: LinkRelations.ACCESS_LEVEL.rel,
 		},
 		edges: {
 			hasSource: { rel: LinkRelations.HAS_SOURCE.rel, range: RESOURCE_LABEL },
@@ -1145,12 +1166,13 @@ export const specificResourceDomainDefinition: TDomainDefinition = {
 // ============================================================================
 
 /** One reading: what it read, when, in which step, and the statements it made. */
-export const ReadingSchema = z.object({
+export const ReadingSchema = PersistedVertexSchema.extend({
 	id: z.string(),
 	generatedAtTime: z.string(),
 	seqPath: z.string().optional(),
 	/** Each statement this reading asserted, so a later reading retracts exactly them. See `TStatedRecord`. */
 	stated: z.array(z.string()),
+	accessLevel: AccessLevelSchema.optional(),
 });
 export type TReading = z.infer<typeof ReadingSchema>;
 
@@ -1167,6 +1189,7 @@ export const readingDomainDefinition: TDomainDefinition = {
 			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
 			seqPath: LinkRelations.SEQ_PATH.rel,
 			stated: LinkRelations.STATED.rel,
+			accessLevel: LinkRelations.ACCESS_LEVEL.rel,
 		},
 		edges: { used: { rel: LinkRelations.USED.rel, range: RESOURCE_LABEL } },
 		sortColumns: { generatedAtTime: "TIMESTAMPTZ" },
@@ -1189,7 +1212,7 @@ export const readingDomainDefinition: TDomainDefinition = {
 export const SCENE_LABEL = "Scene";
 export const SCENE_DOMAIN = "scene";
 
-export const SceneSchema = z.object({
+export const SceneSchema = PersistedVertexSchema.extend({
 	id: z.string().describe("The scene's name: what a reader picks it by, and what a link to it names."),
 	author: z.string().optional(),
 	generatedAtTime: z.string(),

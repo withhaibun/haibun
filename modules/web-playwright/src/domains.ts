@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { HTTP_CLIENT_LABEL, HTTP_HOST_LABEL, HTTP_REQUEST_LABEL, LinkRelations, TDomainDefinition } from "@haibun/core/lib/resources.js";
+import { HTTP_CLIENT_LABEL, HTTP_HOST_LABEL, HTTP_REQUEST_LABEL, LinkRelations, PersistedVertexSchema, TDomainDefinition } from "@haibun/core/lib/resources.js";
 import { DOMAIN_STRING } from "@haibun/core/lib/domains.js";
 import { ENDPOINT_CLASS } from "@haibun/core/lib/http-observations.js";
 import { VISITED_PAGE_LABEL } from "@haibun/core/lib/instrumentation-graphs.js";
@@ -19,7 +19,7 @@ export const PageContentsSchema = z.object({ html: z.string() });
 export const RestJsonCountSchema = z.object({ summary: z.string(), details: z.object({ count: z.number() }) });
 
 const HTTP_NS = { http: "http://www.w3.org/2011/http#" };
-const httpRequestSchema = z.object({
+const httpRequestSchema = PersistedVertexSchema.extend({
 	id: z.string(),
 	method: z.string().optional(),
 	status: z.number().optional(),
@@ -28,9 +28,9 @@ const httpRequestSchema = z.object({
 	endpointClass: z.enum([ENDPOINT_CLASS.route, ENDPOINT_CLASS.service, ENDPOINT_CLASS.external]).optional(),
 	generatedAtTime: z.string(),
 });
-const httpClientSchema = z.object({ id: z.string(), name: z.string().optional(), generatedAtTime: z.string() });
-const httpHostSchema = z.object({ id: z.string(), name: z.string().optional(), requestCount: z.number().optional(), generatedAtTime: z.string() });
-const visitedPageSchema = z.object({ id: z.string(), name: z.string().optional(), generatedAtTime: z.string() });
+const httpClientSchema = PersistedVertexSchema.extend({ id: z.string(), name: z.string().optional(), generatedAtTime: z.string() });
+const httpHostSchema = PersistedVertexSchema.extend({ id: z.string(), name: z.string().optional(), requestCount: z.number().optional(), generatedAtTime: z.string() });
+const visitedPageSchema = PersistedVertexSchema.extend({ id: z.string(), name: z.string().optional(), generatedAtTime: z.string() });
 
 export const WebPlaywrightDomains: TDomainDefinition[] = [
 	{
@@ -50,6 +50,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 				url: LinkRelations.TAG.rel,
 				endpointClass: LinkRelations.TAG.rel,
 				generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
+				accessLevel: LinkRelations.ACCESS_LEVEL.rel,
 			},
 			edges: {
 				performedBy: { rel: LinkRelations.PERFORMED_BY.rel, range: HTTP_CLIENT_LABEL },
@@ -66,7 +67,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 			persistedAs: HTTP_CLIENT_LABEL,
 			type: "as:Application",
 			id: "id",
-			properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel },
+			properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel, accessLevel: LinkRelations.ACCESS_LEVEL.rel },
 			displayLabel: LinkRelations.NAME.rel,
 		},
 	},
@@ -78,7 +79,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 			persistedAs: HTTP_HOST_LABEL,
 			type: "as:Service",
 			id: "id",
-			properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel, requestCount: LinkRelations.TAG.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel },
+			properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel, requestCount: LinkRelations.TAG.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel, accessLevel: LinkRelations.ACCESS_LEVEL.rel },
 			displayLabel: LinkRelations.NAME.rel,
 		},
 	},
@@ -90,7 +91,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 			persistedAs: VISITED_PAGE_LABEL,
 			type: "schema:WebPage",
 			id: "id",
-			properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel },
+			properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel, accessLevel: LinkRelations.ACCESS_LEVEL.rel },
 			displayLabel: LinkRelations.NAME.rel,
 		},
 	},

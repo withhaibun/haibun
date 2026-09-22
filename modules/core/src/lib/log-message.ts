@@ -11,7 +11,7 @@
 import { z } from "zod";
 import { HAIBUN_LOG_LEVELS } from "../schema/protocol.js";
 import { EXECUTION_FIELD, RECORDED_AT_TIME_FIELD } from "./seq-path.js";
-import { AccessLevelSchema, LinkRelations, SEQ_PATH_LABEL, type TDomainDefinition } from "./resources.js";
+import { AccessLevelSchema, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "./resources.js";
 
 export const LOG_MESSAGE_DOMAIN = "log-message";
 export const LOG_MESSAGE_LABEL = "LogMessage";
@@ -36,7 +36,7 @@ export const LOG_MESSAGE_EDGE = {
 
 // Non-strict for the same reason as SeqPath: `isPartOf` is declared as an edge but written in the same upsert as the
 // properties, and strict mode would reject it before the write can route it.
-export const LogMessageSchema = z.object({
+export const LogMessageSchema = PersistedVertexSchema.extend({
 	[LOG_MESSAGE_FIELD.id]: z.string(),
 	[LOG_MESSAGE_FIELD.message]: z.string(),
 	[LOG_MESSAGE_FIELD.level]: z.enum(HAIBUN_LOG_LEVELS),

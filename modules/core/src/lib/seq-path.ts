@@ -13,7 +13,7 @@
  */
 import { z } from "zod";
 import { EXECUTION_MODES, HAIBUN_LOG_LEVELS } from "../schema/protocol.js";
-import { AccessLevelSchema, LinkRelations, PRINCIPAL_LABEL, SEQ_PATH_LABEL, SEQ_PATH_STATUS, type TDomainDefinition } from "./resources.js";
+import { AccessLevelSchema, LinkRelations, PersistedVertexSchema, PRINCIPAL_LABEL, SEQ_PATH_LABEL, SEQ_PATH_STATUS, type TDomainDefinition } from "./resources.js";
 
 export const SEQ_PATH_DOMAIN = "seq-path";
 
@@ -166,7 +166,7 @@ const STATUS_VALUES = Object.values(SEQ_PATH_STATUS) as [string, ...string[]];
 // inlined for the start record). Strict mode would reject those keys
 // before upsertIndividual can route them, same passthrough constraint as
 // CommentSchema and BodySchema.
-export const SeqPathSchema = z.object({
+export const SeqPathSchema = PersistedVertexSchema.extend({
 	[SEQ_PATH_FIELD.id]: z.string(),
 	[SEQ_PATH_FIELD.stepText]: z.string(),
 	[SEQ_PATH_FIELD.called]: z.string().optional(),

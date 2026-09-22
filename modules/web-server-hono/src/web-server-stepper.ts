@@ -40,6 +40,7 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 						description: LinkRelations.NAME.rel,
 						endpointClass: LinkRelations.TAG.rel,
 						generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
+						accessLevel: LinkRelations.ACCESS_LEVEL.rel,
 					},
 					// url is the endpoint's identity: the natural lookup filter (strings are queryable only by manual opt-in).
 					sortColumns: { url: "TEXT" },
