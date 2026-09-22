@@ -9,7 +9,7 @@
 import { z } from "zod";
 import { HAIBUN_LOG_LEVELS } from "../schema/protocol.js";
 import { EXECUTION_FIELD, RECORDED_AT_TIME_FIELD } from "./seq-path.js";
-import { AccessLevelSchema, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "./resources.js";
+import { LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "./resources.js";
 
 export const RUN_ARTIFACT_DOMAIN = "run-artifact";
 export const RUN_ARTIFACT_LABEL = "Artifact";
@@ -51,7 +51,6 @@ export const RunArtifactSchema = PersistedVertexSchema.extend({
 	[RUN_ARTIFACT_FIELD.generatedAtTime]: z.string(),
 	[RUN_ARTIFACT_FIELD.execution]: z.string().optional(),
 	[RUN_ARTIFACT_FIELD.recordedAtTime]: z.string().optional(),
-	accessLevel: AccessLevelSchema.optional(),
 });
 export type TRunArtifact = z.infer<typeof RunArtifactSchema>;
 
@@ -77,7 +76,6 @@ export const runArtifactDomainDefinition: TDomainDefinition = {
 			[RUN_ARTIFACT_FIELD.execution]: LinkRelations.CONTEXT.rel,
 			[RUN_ARTIFACT_FIELD.generatedAtTime]: LinkRelations.GENERATED_AT_TIME.rel,
 			[RUN_ARTIFACT_FIELD.recordedAtTime]: LinkRelations.RECORDED_AT_TIME.rel,
-			accessLevel: LinkRelations.ACCESS_LEVEL.rel,
 		},
 		edges: {
 			[RUN_ARTIFACT_EDGE.isPartOf]: { rel: LinkRelations.PART_OF.rel, range: SEQ_PATH_LABEL },

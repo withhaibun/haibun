@@ -31,7 +31,6 @@ const urakataTaskDomainDefinition = {
 			description: LinkRelations.NAME.rel,
 			execution: LinkRelations.CONTEXT.rel,
 			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
-			accessLevel: LinkRelations.ACCESS_LEVEL.rel,
 		},
 	},
 };

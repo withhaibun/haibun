@@ -26,7 +26,7 @@ import { runAuthorizedWith } from "./capability-context.js";
 import { errorDetail } from "./util/index.js";
 import type { TWorld } from "./world.js";
 import type { TSeqPath } from "../schema/protocol.js";
-import { AccessLevelSchema, PersistedVertexSchema, type TDomainDefinition } from "./resources.js";
+import { PersistedVertexSchema, type TDomainDefinition } from "./resources.js";
 
 export const URAKATA = "urakata";
 export const URAKATA_ID_DOMAIN = "urakata-id";
@@ -49,7 +49,6 @@ export const UrakataSchema = PersistedVertexSchema.extend({
 	stoppedAt: z.string().optional(),
 	/** The universal record-time field every persisted type carries. */
 	generatedAtTime: z.coerce.date().default(() => new Date()),
-	accessLevel: AccessLevelSchema.optional(),
 });
 export type TUrakata = z.infer<typeof UrakataSchema>;
 

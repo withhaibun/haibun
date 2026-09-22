@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { DOMAIN_PERSISTED_TYPE, isPersisted, LinkRelations, type TDomainDefinition, type TRegisteredDomain, type THypermediaTopology, type TRelRange } from "./resources.js";
+import { DOMAIN_PERSISTED_TYPE, isPersisted, LinkRelations, type TDomainDefinition, type TDomainTopology, type TRegisteredDomain, type THypermediaTopology, type TRelRange } from "./resources.js";
+import { relOf } from "./hypermedia.js";
 import type { TLinkVocabulary } from "./typed-links.js";
 import type { TWorld } from "./world.js";
 
@@ -90,6 +91,16 @@ export const createEnumDomainDefinition = ({ name, values, description, ordered 
 	};
 };
 
+/**
+ * A persisted type's topology with the property that states each record's level. Every persisted type states its level,
+ * as a field through `PersistedVertexSchema` and as this property, so the property is added here, where every type is
+ * registered, and no declaration repeats it.
+ */
+function withLevelProperty(topology: TDomainTopology | undefined): TDomainTopology | undefined {
+	if (!isPersisted(topology) || Object.values(topology.properties).some((def) => relOf(def) === LinkRelations.ACCESS_LEVEL.rel)) return topology;
+	return { ...topology, properties: { ...topology.properties, accessLevel: LinkRelations.ACCESS_LEVEL.rel } };
+}
+
 export const toRegisteredDomain = (definition: TDomainDefinition): TRegisteredDomain => ({
 	selectors: [...definition.selectors],
 	schema: definition.schema,
@@ -98,7 +109,7 @@ export const toRegisteredDomain = (definition: TDomainDefinition): TRegisteredDo
 	values: definition.values,
 	description: definition.description,
 	stepperName: definition.stepperName,
-	topology: definition.topology,
+	topology: withLevelProperty(definition.topology),
 	ui: definition.ui,
 });
 

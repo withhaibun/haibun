@@ -1,4 +1,4 @@
-import { AccessLevelSchema } from "@haibun/core/lib/resources.js";
+import { PersistedVertexSchema } from "@haibun/core/lib/resources.js";
 import { z } from "zod";
 import { ENDPOINT_CLASS } from "@haibun/core/lib/http-observations.js";
 import { ENDPOINT_LABEL } from "@haibun/core/lib/resources.js";
@@ -30,12 +30,11 @@ export type TRoutePurpose = {
 /** Endpoint graph-vertex type, registered HTTP routes as graph vertices, persisted at mount so an
  *  observed HttpRequest can edge to the endpoint it hit. `endpointClass` distinguishes a page route from service
  *  plumbing (/rpc, /sse). */
-export const EndpointSchema = z.object({
+export const EndpointSchema = PersistedVertexSchema.extend({
 	url: z.string(),
 	method: z.string().default("GET"),
 	description: z.string(),
 	endpointClass: z.enum([ENDPOINT_CLASS.route, ENDPOINT_CLASS.service]).optional(),
-	accessLevel: AccessLevelSchema.optional(),
 	generatedAtTime: z.coerce.date().default(() => new Date()),
 });
 export type Endpoint = z.infer<typeof EndpointSchema>;

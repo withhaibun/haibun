@@ -805,9 +805,6 @@ export const CommentSchema = PersistedVertexSchema.extend({
 	/** A short display name: the note's own text (truncated). The body is partitioned into a Body sub-resource, so
 	 *  without this a Comment node would title by its id; `name` lets a graph view show what the note says. */
 	name: z.string().optional(),
-	/** How widely the note is shared. A note is written from what its author could read, so it states the level that
-	 *  was read at, and its body is shared as widely as the note. */
-	accessLevel: AccessLevelSchema.optional(),
 	/** The handles the note states that the records it was made from don't hold, as an answer names records it was not
 	 *  sent. A reader of the note reads those records as the note's own rather than as records the graph holds. */
 	unverified: z.array(z.string()).optional(),
@@ -855,7 +852,6 @@ export const commentDomainDefinition: TDomainDefinition = {
 			startedAtTime: LinkRelations.STARTED_AT_TIME.rel,
 			endedAtTime: LinkRelations.ENDED_AT_TIME.rel,
 			seqPath: LinkRelations.SEQ_PATH.rel,
-			accessLevel: LinkRelations.ACCESS_LEVEL.rel,
 			body: { rel: LinkRelations.CONTENT.rel, mediaType: MEDIA_TYPE.markdown },
 			unverified: LinkRelations.TAG.rel,
 		},
@@ -918,7 +914,6 @@ export const PrincipalSchema = PersistedVertexSchema.extend({
 	expires: z.string().optional(),
 	revoked: z.boolean().optional(),
 	proof: z.string().optional(),
-	accessLevel: AccessLevelSchema.optional(),
 });
 
 export type TPrincipal = z.infer<typeof PrincipalSchema>;
@@ -959,7 +954,6 @@ export const principalDomainDefinition: TDomainDefinition = {
 			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
 			expires: LinkRelations.EXPIRES.rel,
 			revoked: LinkRelations.REVOKED.rel,
-			accessLevel: LinkRelations.ACCESS_LEVEL.rel,
 		},
 		edges: {
 			delegatedFrom: { rel: LinkRelations.DELEGATED_FROM.rel, range: PRINCIPAL_LABEL },
@@ -986,7 +980,6 @@ export const BodySchema = PersistedVertexSchema.extend({
 	content: z.string(),
 	mediaType: z.string(),
 	generatedAtTime: z.string(),
-	accessLevel: AccessLevelSchema.optional(),
 });
 
 export type TBody = z.infer<typeof BodySchema>;
@@ -1061,7 +1054,6 @@ export const bodyDomainDefinition: TDomainDefinition = {
 			content: LinkRelations.CONTENT.rel,
 			mediaType: LinkRelations.MEDIA_TYPE.rel,
 			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
-			accessLevel: LinkRelations.ACCESS_LEVEL.rel,
 		},
 		// Declared query surface for the one-path graph-store: callers can filter
 		// or sort Body rows by mediaType (e.g. "all PDF bodies") or generatedAtTime.
@@ -1094,9 +1086,9 @@ export const QuoteAnchorSchema = z.object({
 export type TQuoteAnchor = z.infer<typeof QuoteAnchorSchema>;
 
 export const TextQuoteSelectorSchema = QuoteAnchorSchema.extend({
+	...PersistedVertexSchema.shape,
 	id: z.string(),
 	generatedAtTime: z.string(),
-	accessLevel: AccessLevelSchema.optional(),
 });
 export type TTextQuoteSelector = z.infer<typeof TextQuoteSelectorSchema>;
 
@@ -1111,7 +1103,6 @@ export const textQuoteSelectorDomainDefinition: TDomainDefinition = {
 		properties: {
 			id: LinkRelations.IDENTIFIER.rel,
 			exact: LinkRelations.EXACT.rel,
-			accessLevel: LinkRelations.ACCESS_LEVEL.rel,
 			prefix: LinkRelations.PREFIX.rel,
 			suffix: LinkRelations.SUFFIX.rel,
 			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
@@ -1144,7 +1135,6 @@ export const SpecificResourceSchema = PersistedVertexSchema.extend({
 	 *  no title of its own, so it otherwise reads as the bare text it quotes (a clause number, a fragment), which says
 	 *  nothing about what it was cited for. RDFS's labelling property is the standard place for the words that do. */
 	label: z.string().optional(),
-	accessLevel: AccessLevelSchema.optional(),
 });
 export type TSpecificResource = z.infer<typeof SpecificResourceSchema>;
 
@@ -1160,7 +1150,6 @@ export const specificResourceDomainDefinition: TDomainDefinition = {
 			id: LinkRelations.IDENTIFIER.rel,
 			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
 			label: LinkRelations.LABEL.rel,
-			accessLevel: LinkRelations.ACCESS_LEVEL.rel,
 		},
 		edges: {
 			hasSource: { rel: LinkRelations.HAS_SOURCE.rel, range: RESOURCE_LABEL },
@@ -1182,7 +1171,6 @@ export const ReadingSchema = PersistedVertexSchema.extend({
 	seqPath: z.string().optional(),
 	/** Each statement this reading asserted, so a later reading retracts exactly them. See `TStatedRecord`. */
 	stated: z.array(z.string()),
-	accessLevel: AccessLevelSchema.optional(),
 });
 export type TReading = z.infer<typeof ReadingSchema>;
 
@@ -1200,7 +1188,6 @@ export const readingDomainDefinition: TDomainDefinition = {
 			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
 			seqPath: LinkRelations.SEQ_PATH.rel,
 			stated: LinkRelations.STATED.rel,
-			accessLevel: LinkRelations.ACCESS_LEVEL.rel,
 		},
 		edges: { used: { rel: LinkRelations.USED.rel, range: RESOURCE_LABEL } },
 		sortColumns: { generatedAtTime: "TIMESTAMPTZ" },
@@ -1227,7 +1214,6 @@ export const SceneSchema = PersistedVertexSchema.extend({
 	id: z.string().describe("The scene's name: what a reader picks it by, and what a link to it names."),
 	author: z.string().optional(),
 	generatedAtTime: z.string(),
-	accessLevel: AccessLevelSchema.optional(),
 	/** The views' options as JSON, keyed by element tag: `{"shu-polymorphic-graph-view": {…}}`. Opaque to the graph; each view validates its own on apply. */
 	state: z.string(),
 });
@@ -1246,7 +1232,6 @@ export const sceneDomainDefinition: TDomainDefinition = {
 			id: LinkRelations.IDENTIFIER.rel,
 			author: LinkRelations.ATTRIBUTED_TO.rel,
 			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
-			accessLevel: LinkRelations.ACCESS_LEVEL.rel,
 			state: LinkRelations.SCHEMA_OBJECT.rel,
 		},
 		sortColumns: { generatedAtTime: "TIMESTAMPTZ" },

@@ -13,7 +13,7 @@
  */
 import { z } from "zod";
 import { EXECUTION_MODES, HAIBUN_LOG_LEVELS } from "../schema/protocol.js";
-import { AccessLevelSchema, LinkRelations, PersistedVertexSchema, PRINCIPAL_LABEL, SEQ_PATH_LABEL, SEQ_PATH_STATUS, type TDomainDefinition } from "./resources.js";
+import { LinkRelations, PersistedVertexSchema, PRINCIPAL_LABEL, SEQ_PATH_LABEL, SEQ_PATH_STATUS, type TDomainDefinition } from "./resources.js";
 
 export const SEQ_PATH_DOMAIN = "seq-path";
 
@@ -174,7 +174,6 @@ export const SeqPathSchema = PersistedVertexSchema.extend({
 	[SEQ_PATH_FIELD.error]: z.string().optional(),
 	[SEQ_PATH_FIELD.showed]: z.string().optional(),
 	[SEQ_PATH_FIELD.capabilityAction]: z.string().optional(),
-	accessLevel: AccessLevelSchema.optional(),
 	[SEQ_PATH_FIELD.allowedAction]: z.string().optional(),
 	[SEQ_PATH_FIELD.generatedAtTime]: z.string(),
 	[SEQ_PATH_FIELD.endedAtTime]: z.string().optional(),
@@ -206,7 +205,6 @@ export const seqPathDomainDefinition: TDomainDefinition = {
 			// Grouped-as, so "the steps that showed the graph" is a filter the type offers.
 			[SEQ_PATH_FIELD.showed]: LinkRelations.CONTEXT.rel,
 			[SEQ_PATH_FIELD.capabilityAction]: LinkRelations.CAPABILITY_ACTION.rel,
-			accessLevel: LinkRelations.ACCESS_LEVEL.rel,
 			[SEQ_PATH_FIELD.allowedAction]: LinkRelations.ALLOWED_ACTION.rel,
 			[SEQ_PATH_FIELD.generatedAtTime]: LinkRelations.GENERATED_AT_TIME.rel,
 			[SEQ_PATH_FIELD.endedAtTime]: LinkRelations.ENDED_AT_TIME.rel,

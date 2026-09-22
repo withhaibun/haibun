@@ -505,12 +505,9 @@ export function hypermediaDomainFromContext(domainName: string, doc: THypermedia
 		fields.generatedAtTime = z.string().default(() => new Date().toISOString());
 		sqlKinds.generatedAtTime = "TIMESTAMP";
 	}
-	if (!Object.values(properties).includes(LinkRelations.ACCESS_LEVEL.rel)) {
-		// Every persisted type declares accessLevel (the storage base): a step-declared type gets it the same way, so its
-		// records are classified at write time like any stepper-declared type's.
-		properties.accessLevel = LinkRelations.ACCESS_LEVEL.rel;
-		fields.accessLevel = AccessLevelSchema.optional();
-	}
+	// Every persisted type states its level, so a step-declared type's records are classified at write time like any
+	// stepper-declared type's. Registration adds the property that states it.
+	if (!Object.values(properties).some((def) => relOf(def) === LinkRelations.ACCESS_LEVEL.rel)) fields.accessLevel = AccessLevelSchema.optional();
 	const queryable = doc["@queryable"] ?? [];
 	const sortColumns = Object.fromEntries(queryable.map((f) => [f, sqlKinds[f] ?? "TEXT"]));
 	const topology: THypermediaTopology = {
