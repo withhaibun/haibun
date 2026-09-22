@@ -71,7 +71,7 @@ describe("the fields a text search reads", () => {
 	});
 
 	it("reads who a record involves and where it sits in a reader's own terms", () => {
-		const schema = z.object({ messageId: z.string(), from: z.string(), to: z.string(), folder: z.string() });
+		const schema = z.object({ messageId: z.string(), from: z.string(), to: z.array(z.string()), folder: z.string() });
 		const topology: THypermediaTopology = {
 			persistedAs: "Message",
 			id: "messageId",
@@ -82,7 +82,7 @@ describe("the fields a text search reads", () => {
 				folder: LinkRelations.CONTEXT.rel,
 			},
 		};
-		expect(searchableFields({ schema, topology })).toEqual(["folder", "from", "to"]);
+		expect(searchableFields({ schema, topology }), "a list of recipients is text as each recipient is").toEqual(["folder", "from", "to"]);
 	});
 
 	it("reads a content property, which a type declares with the media type its text is in", () => {

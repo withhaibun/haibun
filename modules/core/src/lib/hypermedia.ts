@@ -70,10 +70,12 @@ const SEARCHED_RELS: ReadonlySet<string> = new Set([
 	LinkRelations.CONTEXT.rel,
 ]);
 
-/** Whether a schema field holds text. A bounded value reports its own kind, so a date, an enum and a literal each
- *  report that rather than a string, and only a field a reader could name part of reports text. */
+/** Whether a schema field holds text: a string, or a list of strings such as a message's recipients. A bounded value
+ *  reports its own kind, so a date, an enum and a literal each report that rather than a string, and only a field a
+ *  reader could name part of reports text. */
 function isTextField(field: z.ZodType): boolean {
-	return zodTypeLabel(unwrap(field).inner) === "string";
+	const { inner } = unwrap(field);
+	return inner instanceof z.ZodArray ? isTextField(inner.element as z.ZodType) : zodTypeLabel(inner) === "string";
 }
 
 /**

@@ -51,12 +51,11 @@ export const GraphQuerySchema = z
 		explain: z.boolean().default(false),
 		/** When true, skip the separate total-count query; `total` returns the page length only. */
 		skipCount: z.boolean().default(false),
-		/** The record whose referencing records this query answers with, across every type that references it, and
-		 *  through `via` where a reader names one relation. A term narrows it, so a question naming a party and a subject
-		 *  is one call rather than two sets a caller intersects; a label and a filter each read one type, which is a read
-		 *  this does not narrow. */
+		/** The record whose referencing records this query answers with, through the relations `via` names, or through
+		 *  every relation. A term, a label and a label's filters each narrow the referencing records, so a question naming
+		 *  a party, a type and a subject is one call rather than sets a caller intersects. */
 		references: z
-			.object({ label: z.string(), id: z.string(), via: z.string().optional() })
+			.object({ label: z.string(), id: z.string(), via: z.array(z.string()).min(1).optional() })
 			.optional(),
 	})
 	.strict();

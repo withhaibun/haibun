@@ -222,6 +222,10 @@ describe("the answer a store of quads gives a graph query", () => {
 	it("says what it cannot answer rather than answering wrongly", async () => {
 		await expect(queryQuadStore(store, GraphQuerySchema.parse({}))).rejects.toThrow(/one type at a time/);
 		await expect(queryQuadStore(store, GraphQuerySchema.parse({ label: "Email", textQuery: "inbox" }))).rejects.toThrow(/query engine/);
+		await expect(
+			queryQuadStore(store, GraphQuerySchema.parse({ label: "Email", references: { label: "Person", id: "a@b.test" } })),
+			"a label read that drops the reference would answer every record of the type",
+		).rejects.toThrow(/records referencing a record need a store with a query engine/);
 	});
 });
 

@@ -393,6 +393,7 @@ export async function queryQuadStore(store: IQuadStore, query: TGraphQuery): Pro
 	const { label, limit, offset } = query;
 	if (!label) throw new Error("a graph query over quads reads one type at a time, and this one names none");
 	if (query.textQuery) throw new Error("a graph query over quads matches a type and equality filters; text search needs a store with a query engine");
+	if (query.references) throw new Error("a graph query over quads matches a type and equality filters; the records referencing a record need a store with a query engine");
 	const vertices = await individualsMatching(store, label, query.filters);
 	// The order a query asks for, applied before the window: a page of the newest is the newest of what matched, not the
 	// first the store happened to return. A query naming no order takes the store's own.
