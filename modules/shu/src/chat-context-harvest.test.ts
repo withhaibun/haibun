@@ -114,6 +114,7 @@ describe("harvestChatViewLd: the active pane's linked data plus the pane manifes
  * open one of them is the pane you are on, so this is a fault in the signal and it says so, naming what it holds and
  * what was open.
  */
+
 describe("harvestChatViewLd: an active pane the signal cannot resolve", () => {
 	beforeEach(() => {
 		document.body.innerHTML = "";
