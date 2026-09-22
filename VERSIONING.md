@@ -1,35 +1,38 @@
 # Versioning
 
-Versions come from commit messages, not typed by hand. semantic-release reads the commits since the last tag, decides whether the change is a patch, minor, or major bump, writes the new version into every module, tags the commit, publishes to npm, and updates `CHANGELOG.md`. The whole repo ships one version — `scripts/sync-versions.mjs` keeps every module under `modules/tsconfig.json` aligned with the root, so `@haibun/cli@4.0.0` always pairs with `@haibun/core@4.0.0`. Internal `@haibun/*` deps use `*`, which resolves to the workspace copy.
+Versions are derived from commit history. `semantic-release` analyzes the commits since the last tag, selects the next version, updates the workspace packages, tags the release, publishes to npm, and updates `CHANGELOG.md`. The repo ships a single version across all published modules. `scripts/sync-versions.mjs` keeps every package referenced by `modules/tsconfig.json` aligned with the root version.
 
-There are two release lines. `3.x` is the stable line — its releases become `@latest` on npm, so a plain `npm install @haibun/core` gets a 3.x version. The branch is pinned to the `3.x` semver range, so a `BREAKING CHANGE` commit fails the release rather than silently jumping to 4. `4.x` is the next major; its releases go under the `@next` dist-tag, so `npm install @haibun/core@next` opts in. 4.x doesn't displace `@latest`.
+`3.x` is the stable line and publishes to the npm `latest` dist-tag. `4.x` is the next major line and publishes to `next`.
 
 ## Shipping a change
 
-Work on a topic branch off `3.x` or `4.x`, open a PR, and write the PR title in [conventional commits](https://www.conventionalcommits.org/) form — that's what semantic-release reads at squash-merge time. `feat:` triggers a minor bump, `fix:` a patch, `chore:` or `ci:` no release. A `BREAKING CHANGE:` footer triggers a major bump (only meaningful on 4.x — 3.x's range pin rejects it). Granular changelog bullets go in the PR body and end up in the GitHub release notes.
+Start from `3.x` or `4.x`, open a PR, and ensure the commit that lands on the release branch uses [Conventional Commits](https://www.conventionalcommits.org/). `semantic-release` analyzes the target branch history, not the PR title in isolation, so the final commit subject matters. A squash merge such as `fix: switch to trusted publishing` releases; a merge commit such as `Merge pull request #123 ...` does not.
 
-After merge, CI runs semantic-release end to end. The bump comes back as `chore(release): X.Y.Z [skip ci]` so it doesn't trigger another release loop.
+`feat:` produces a minor release. `fix:` produces a patch release. `chore:` and `ci:` do not release. `BREAKING CHANGE:` produces a major release, but `3.x` is range-pinned, so a breaking change there fails instead of rolling to `4.0.0`.
+
+After merge, CI runs `semantic-release`. The generated release commit is `chore(release): X.Y.Z [skip ci]`.
 
 ## Adding a module
 
-Add its path to `modules/tsconfig.json` references and the release pipeline picks it up automatically. A module left out stays at whatever version is in its own `package.json` and isn't published — useful for internal-only modules like `e2e-tests`.
+Add the module to `modules/tsconfig.json` references and the release pipeline will include it automatically. Modules left out keep their own `package.json` version and are not published. That is useful for internal-only packages such as `e2e-tests`. Modules to be published must have trusted publishing enabled individually.
 
 ## Manual publish
 
-If CI is down, `node scripts/publish-all.mjs [dist-tag]` publishes the current checked-out tree. It refuses to run if module versions have drifted from the root, so run `scripts/sync-versions.mjs <version>` first if needed. There's also a `Publish all (manual)` workflow on Actions that does the same thing from CI — handy when a release commit landed but the publish step failed.
+If CI is unavailable, `node scripts/publish-all.mjs [dist-tag]` publishes the checked-out tree. It refuses to run if any module version differs from the root version; if needed, run `scripts/sync-versions.mjs <version>` first. The `Publish all (manual)` GitHub Actions workflow runs the same publish path and is useful when the release commit landed but npm publish failed.
 
 ## How it's set up on GitHub
 
-Each release branch carries its own [`.releaserc.json`](.releaserc.json) listing just that branch — `3.x` lists `3.x`, `4.x` lists `4.x`. Cross-branch awareness isn't needed because semantic-release only releases the branch it's running on. The `range`/`channel` settings there decide which npm dist-tag a release lands under.
+Each release branch carries its own [`.releaserc.json`](.releaserc.json). `semantic-release` only releases the branch it is running on, so the branch-local config defines which line that branch may publish. In this checkout, the config currently authorizes `3.x` only.
 
-CI lives in [`.github/workflows/ci.yml`](.github/workflows/ci.yml). On every push to `3.x` or `4.x` it runs the test job and, if that passes, a release job that calls `npx semantic-release`. PRs run tests only. The release job also exists as a standalone manual workflow at [`.github/workflows/publish-all.yml`](.github/workflows/publish-all.yml) for when semantic-release succeeds but the publish step has to be retried by hand.
+CI is defined in [`.github/workflows/ci.yml`](.github/workflows/ci.yml). Pushes to `3.x` and `4.x` run tests and, if they pass, a release job that runs `npx semantic-release`. PRs run tests only. Because release authorization comes from the branch-local `.releaserc.json`, `4.x` also needs its own matching release config when that line is wired in. The same publish path is also available through [`.github/workflows/publish-all.yml`](.github/workflows/publish-all.yml) for retrying npm publish after a successful release commit.
 
-The release job pushes the `chore(release):` commit and the version tag to `3.x` as the GitHub App `haibun-release-bot`. The ruleset on `3.x` rejects any other push with "Changes must be made through a pull request", and lists the App's actor ID as a bypass actor. The job requests a short-lived installation token from `actions/create-github-app-token@v1` and passes it to `actions/checkout` with `persist-credentials: true`. The `git push` that semantic-release runs authenticates with that stored token.
+The release job pushes the `chore(release):` commit and version tag as the GitHub App `haibun-release-bot`. Because the branch ruleset blocks ordinary direct pushes, the job mints a short-lived installation token with `actions/create-github-app-token@v1`, passes it to `actions/checkout` with `persist-credentials: true`, and lets `semantic-release` push with that token.
 
-Three repo secrets feed this:
+npm publishing uses GitHub Actions OIDC trusted publishing. npm must trust the workflow identity that is actually publishing: [`.github/workflows/ci.yml`](.github/workflows/ci.yml) for automatic releases, and optionally [`.github/workflows/publish-all.yml`](.github/workflows/publish-all.yml) for manual retries.
+
+Two repo secrets feed this:
 
 - `RELEASE_APP_ID` — the App ID of `haibun-release-bot` (a plain integer).
 - `RELEASE_APP_PRIVATE_KEY` — the PEM-formatted private key downloaded when the App was created.
-- `NPM_TOKEN` — an npm Automation token with publish access to the `@haibun` scope.
 
-When publish fails with a 404 on PUT to `registry.npmjs.org`, the NPM_TOKEN has expired or lost scope access; rotate it on npmjs.com and update the secret. When push fails with `GH013: Repository rule violations`, the App is missing from the bypass list (or a *classic* branch protection rule is layered on top of the ruleset and the bypass-list mechanism doesn't reach it).
+If publish fails with a 404 on `PUT https://registry.npmjs.org`, the `@haibun` scope or package-level trusted publisher configuration does not match the workflow identity that is publishing. If push fails with `GH013: Repository rule violations`, the GitHub App is missing from the bypass list, or a classic branch protection rule is still enforcing direct-push restrictions separately from the ruleset.

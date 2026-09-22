@@ -49,7 +49,7 @@ for (const m of modules) {
 		console.error(
 			`npm rejected publish for ${m.pkg.name}. ` +
 			`The @haibun scope may be missing, or this package has no GitHub ` +
-			`trusted publisher (repo: withhaibun/haibun, workflow: publish-all.yml).`
+			`trusted publisher (repo: withhaibun/haibun, workflow: ci.yml or publish-all.yml).`
 		);
 		console.error(output);
 		results.failed.push(m.pkg.name);
@@ -58,7 +58,7 @@ for (const m of modules) {
 		console.error(
 			`Authentication or authorization failed for ${m.pkg.name}. ` +
 			`Check the package has a GitHub Actions trusted publisher ` +
-			`(withhaibun/haibun / publish-all.yml) and the workflow sets "id-token: write".`
+			`(withhaibun/haibun / ci.yml or publish-all.yml) and the workflow sets "id-token: write".`
 		);
 		console.error(output);
 		results.failed.push(m.pkg.name);
