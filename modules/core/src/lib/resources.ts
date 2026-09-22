@@ -808,6 +808,9 @@ export const CommentSchema = PersistedVertexSchema.extend({
 	/** How widely the note is shared. A note is written from what its author could read, so it states the level that
 	 *  was read at, and its body is shared as widely as the note. */
 	accessLevel: AccessLevelSchema.optional(),
+	/** The handles the note states that the records it was made from don't hold, as an answer names records it was not
+	 *  sent. A reader of the note reads those records as the note's own rather than as records the graph holds. */
+	unverified: z.array(z.string()).optional(),
 });
 
 export type TComment = z.infer<typeof CommentSchema>;
@@ -854,6 +857,7 @@ export const commentDomainDefinition: TDomainDefinition = {
 			seqPath: LinkRelations.SEQ_PATH.rel,
 			accessLevel: LinkRelations.ACCESS_LEVEL.rel,
 			body: { rel: LinkRelations.CONTENT.rel, mediaType: MEDIA_TYPE.markdown },
+			unverified: LinkRelations.TAG.rel,
 		},
 		edges: {
 			[HAS_BODY_EDGE]: { rel: LinkRelations.HAS_BODY.rel, range: BODY_LABEL },

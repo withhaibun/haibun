@@ -264,7 +264,7 @@ export function transcript(conversation: TConversationState, onTurn: string | un
 		const askedAt = Number.isFinite(asked) ? asked : undefined;
 		const running = inFlight(status);
 		const otherBranch = others.get(key);
-		const common = { turn: askId ?? undefined, inReplyTo, bundle: turn.bundle, spinnerSpinning: running, error: "" };
+		const common = { turn: askId ?? undefined, inReplyTo, bundle: turn.bundle, spinnerSpinning: running, error: "", unverified: [] as string[] };
 		return [
 			{ shown, askedAt, message: { ...common, id: `${key}:ask`, role: "user", text: turn.prompt, recordId: askId ?? undefined, activity: [], spinnerStatus: "", spinnerVisible: false } },
 			{
@@ -281,6 +281,7 @@ export function transcript(conversation: TConversationState, onTurn: string | un
 					spinnerStatus: activity.at(-1) ?? SENDING,
 					spinnerVisible: running,
 					error: turn.error,
+					unverified: turn.unverified ?? [],
 					...(otherBranch ? { otherBranch } : {}),
 				},
 			},

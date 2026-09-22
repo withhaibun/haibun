@@ -15,7 +15,7 @@ import { SCOPE, dispatchSubjectEvent } from "../current-subject.js";
 import { SHU_ATTR, SHU_TAG } from "../consts.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { patternRef } from "./shu-ref.js";
-import { BundleSchema, ChatRoleSchema, ChatStatusSchema, type TBundle, type TChatRole } from "../schemas.js";
+import { BundleSchema, ChatRoleSchema, ChatStatusSchema, UNVERIFIED_TURN, type TBundle, type TChatRole } from "../schemas.js";
 
 /** Styles for a light-DOM chat message, exported for the shadow scope that hosts the activity history: the message
  *  renders in light DOM, so the scope that contains it declares the rules. */
@@ -66,6 +66,8 @@ export const ChatMessageSchema = z.object({
 	spinnerVisible: z.boolean().default(false),
 	spinnerSpinning: z.boolean().default(true),
 	error: z.string().default(""),
+	/** The handles the answer states that what its turn was sent doesn't hold, where the turn is unverified. */
+	unverified: z.array(z.string()).default([]),
 	/** The id of the comment the run recorded for this message. Selecting the message selects that comment. */
 	recordId: z.string().optional(),
 	/** The context the turn was sent with, which selecting the message makes active again. */
@@ -167,6 +169,7 @@ export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
 					}
 					${m.role === "llm" && m.text ? html`<div class="chat-text" data-testid="app-chat-text">${unsafeHTML(md.render(m.text))}</div>` : ""}
 					${m.error ? html`<div class="chat-error">${m.error}</div>` : ""}
+					${m.unverified.length > 0 ? html`<div class="chat-unverified" data-testid="app-chat-unverified">${UNVERIFIED_TURN}: ${m.unverified.join(", ")}</div>` : ""}
 					${
 						m.otherBranch
 							? html`<button class="other-branch" data-testid=${SHU_TEST_IDS.APP.CHAT_OTHER_BRANCH} @click=${this.onOtherBranch}>

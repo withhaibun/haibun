@@ -39,6 +39,8 @@ export type TComboboxOption = z.infer<typeof ComboboxOptionSchema>;
 /** The author of a chat message: the reader's question or the model's reply. */
 export const ChatRoleSchema = z.enum(["user", "llm"]);
 export type TChatRole = z.infer<typeof ChatRoleSchema>;
+/** What a reader is told of a turn whose answer states records it was not sent, before the handles it names. */
+export const UNVERIFIED_TURN = "the turn stated records it was not sent";
 /** The status of an asked chat turn, which its reply message shows. */
 export const ChatStatusSchema = z.enum(["asking", "running", "completed", "failed", "stopped", "unverified"]);
 export type TChatStatus = z.infer<typeof ChatStatusSchema>;
@@ -246,6 +248,7 @@ export const SessionTurnSchema = z
 		status: ChatStatusSchema.describe(
 			"How the turn stands: running, completed, failed, stopped by its reader, or unverified, which is a turn that stated a handle what it was sent doesn't hold.",
 		),
+		unverified: z.array(z.string()).optional().describe("The handles an unverified turn's answer states that what the turn was sent doesn't hold."),
 		error: z.string().optional().describe("What the step failed with, where it failed."),
 	})
 	.strict();
