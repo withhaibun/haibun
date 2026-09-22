@@ -9,7 +9,7 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
 import { LinkRelations, type THypermediaTopology } from "./resources.js";
-import { REACHED_BY, querySurface } from "./hypermedia.js";
+import { REACHED_BY, pointsThrough, querySurface } from "./hypermedia.js";
 
 const MessageSchema = z.object({ messageId: z.string(), subject: z.string(), folder: z.string(), unread: z.boolean(), generatedAtTime: z.date() });
 const topology: THypermediaTopology = {
@@ -27,8 +27,10 @@ const topology: THypermediaTopology = {
 const message = { schema: MessageSchema, topology };
 
 describe("what a type offers a reader", () => {
-	it("states the relations its records are referenced through, which a reader follows rather than naming a value", () => {
-		expect(querySurface(message).references).toEqual(["attachment", "from"]);
+	it("states each relation its records point through with the type at the other end, which a reference read takes", () => {
+		// A reader finding the messages a person sent names the person and the relation a message points through.
+		expect(querySurface(message).references).toEqual({ attachment: "File", from: "Person" });
+		expect(pointsThrough(querySurface(message))).toEqual(["attachment (File)", "from (Person)"]);
 	});
 
 	it("states a bounded value as one a filter compares", () => {
@@ -45,8 +47,8 @@ describe("what a type offers a reader", () => {
 		expect(querySurface(message).properties.folder?.slice().sort()).toEqual([REACHED_BY.filter, REACHED_BY.search]);
 	});
 
-	it("states an edge as a property a reader reaches the records through", () => {
-		expect(querySurface(message).properties.from).toEqual([REACHED_BY.reference]);
+	it("states no primitive for a relation, since a relation is read by naming the record at its other end", () => {
+		expect(querySurface(message).properties.from).toBeUndefined();
 	});
 
 	it("leaves a property no primitive reaches out of what it offers", () => {

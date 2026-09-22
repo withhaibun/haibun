@@ -109,16 +109,23 @@ export function facetFields(topology: THypermediaTopology): string[] {
 		.sort();
 }
 
-/** How a reader reaches a property: a filter compares it, a search reads its text, or an edge leads to the records
- *  holding it. A property reached no way is held and shown, and answers no question a reader can ask. */
-export const REACHED_BY = { filter: "filter", search: "search", reference: "reference" } as const;
+/** How a reader reaches a property: a filter compares it, or a search reads its text. A property reached no way is
+ *  held and shown, and answers no question a reader can ask. */
+export const REACHED_BY = { filter: "filter", search: "search" } as const;
 export type TReachedBy = (typeof REACHED_BY)[keyof typeof REACHED_BY];
 
-/** What a type offers a reader, per property, with the relations its records are referenced through. */
+/**
+ * What a type offers a reader: per property, the primitive that reaches it, and per relation its records point through,
+ * the type at the other end.
+ *
+ * A reference read names a record and returns the records pointing at it, so a reader finding the messages a party sent
+ * names the party and the relation a message points through, with the message type as the label. The relations and
+ * their types are what that read takes.
+ */
 export const QuerySurfaceSchema = z.object({
 	label: z.string(),
-	properties: z.record(z.string(), z.array(z.enum([REACHED_BY.filter, REACHED_BY.search, REACHED_BY.reference]))),
-	references: z.array(z.string()),
+	properties: z.record(z.string(), z.array(z.enum([REACHED_BY.filter, REACHED_BY.search]))),
+	references: z.record(z.string(), z.string()),
 });
 export type TQuerySurface = z.infer<typeof QuerySurfaceSchema>;
 
@@ -131,8 +138,15 @@ export function reachedBy(surface: TQuerySurface, by: TReachedBy): string[] {
 		.sort();
 }
 
-/** Which primitive reaches each property of a type: the properties a filter compares, the properties a search reads,
- *  and the edges a reader follows to the records. A property reached two ways states both. */
+/** The relations a type's records point through, each with the type at the other end, as `relation (Type)`. */
+export function pointsThrough(surface: TQuerySurface): string[] {
+	return Object.entries(surface.references)
+		.sort(([a], [b]) => a.localeCompare(b))
+		.map(([relation, range]) => `${relation} (${range})`);
+}
+
+/** Which primitive reaches each property of a type, and the type each of its relations points at. A property reached two
+ *  ways states both. */
 export function querySurface(domain: { schema: z.ZodType | undefined; topology: THypermediaTopology }): TQuerySurface {
 	const properties: Record<string, TReachedBy[]> = {};
 	const reach = (field: string, by: TReachedBy) => {
@@ -140,10 +154,8 @@ export function querySurface(domain: { schema: z.ZodType | undefined; topology: 
 	};
 	for (const field of queryableFields(domain)) reach(field, REACHED_BY.filter);
 	for (const field of searchableFields(domain)) reach(field, REACHED_BY.search);
-	// An edge names the property a reader follows to the records at its other end, so the edge's own name is the
-	// property. A reader asking who a record involves follows one of these rather than naming a value.
-	for (const edge of Object.keys(domain.topology.edges ?? {})) reach(edge, REACHED_BY.reference);
-	return QuerySurfaceSchema.parse({ label: domain.topology.persistedAs, properties, references: Object.keys(domain.topology.edges ?? {}).sort() });
+	const references = Object.fromEntries(Object.entries(domain.topology.edges ?? {}).map(([relation, edge]) => [relation, edge.range]));
+	return QuerySurfaceSchema.parse({ label: domain.topology.persistedAs, properties, references });
 }
 
 /** A rel's declared `rdfs:subPropertyOf` parent(s) (the canonical LinkRelations declaration), mapped to their term
