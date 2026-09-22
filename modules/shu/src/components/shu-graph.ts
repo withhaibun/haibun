@@ -55,9 +55,10 @@ export class ShuGraph extends ShuElement<typeof ShuGraphSchema> {
 	summarizeForKihan(): TLinkedData | null {
 		const graph = this.state.graph;
 		if (!graph || graph.nodes.length === 0) return null;
+		// This view draws one domain chain, which holds two sets of members rather than one, so it states nodes and edges
+		// as it holds them instead of a collection. A page carries what it states, and the chain bounds how much that is.
 		return {
 			"@id": "view:graph-2d",
-			"@type": "as:Collection",
 			name: `a graph of ${graph.nodes.length} nodes and ${graph.edges.length} edges`,
 			nodeCount: graph.nodes.length,
 			edgeCount: graph.edges.length,

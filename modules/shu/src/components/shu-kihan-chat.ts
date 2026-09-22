@@ -16,7 +16,7 @@ import { findStep, getAvailableSteps, requireStep } from "../rpc-registry.js";
 import { getActionBarAskExtensionTags, getActionBarChatExtensionTags } from "../rels-cache.js";
 import { ContextReadBySchema, SessionListSchema, type TComboboxOption } from "../schemas.js";
 import { GraphQueryResultSchema } from "@haibun/core/lib/quad-types.js";
-import { SCOPE, activeScope, currentSubjectState } from "../current-subject.js";
+import { currentSubjectState } from "../current-subject.js";
 import { SignalController } from "../controllers/index.js";
 import { nextQuestion, startTurn } from "../chat-turn.js";
 import {
@@ -369,8 +369,8 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 				prompt,
 				envelope: {
 					patterns: carries?.bundle.patterns ?? [],
-					// The view data is the pane's, so it goes with a record the page activated.
-					viewLd: activeScope(subject) === SCOPE.page ? harvestChatViewLd() : [],
+					// The view data is the active pane's, whether it is a column of the workspace or the bar the reader acts through.
+					viewLd: harvestChatViewLd(),
 					maxToolCalls: this.state.toolLimit,
 					contextReadBy: this.state.contextReadBy || undefined,
 					session: this.#conversation.state.session ?? undefined,

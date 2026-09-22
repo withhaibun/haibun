@@ -432,14 +432,14 @@ describe("the ask and the active record", () => {
 		expect(scopeEntry(currentSubjectState.get(), SCOPE.actionsBar)?.bundle).toEqual({ patterns: EMAIL.bundle.patterns, accessLevel: "public" });
 	});
 
-	it("replies to the bar's turn and carries its bundle, with no view data, so a selected earlier message branches there", async () => {
+	it("replies to the bar's turn and carries its bundle, with the active pane's view data, so a selected earlier message branches there", async () => {
 		dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: EMAIL });
 		dispatchSubjectEvent({ type: "open", scope: SCOPE.actionsBar });
 		dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry: { record: { id: "cmt-say-0.1.1", label: "Comment" }, turn: "cmt-ask-0.1.1", bundle: OTHER.bundle } });
 		conversationState.set({ status: "open", session: "cmt-ask-0.1.1", turns: [], asked: null });
 		const { pane } = await aPage();
 		await submit(pane, "and what came of it");
-		expect(sent.at(-1)).toMatchObject({ session: "cmt-ask-0.1.1", inReplyTo: "cmt-ask-0.1.1", patterns: OTHER.bundle.patterns, viewLd: [] });
+		expect(sent.at(-1)).toMatchObject({ session: "cmt-ask-0.1.1", inReplyTo: "cmt-ask-0.1.1", patterns: OTHER.bundle.patterns, viewLd: VIEW_DATA });
 	});
 
 	it("selecting a message makes its comment the active record, and marks that message alone current", async () => {

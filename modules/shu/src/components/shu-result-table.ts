@@ -18,6 +18,7 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { shuBaseStyles } from "./styles.js";
 import { renderRef } from "./ref-navigation.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { viewCollection } from "@haibun/core/lib/hypermedia.js";
 import { SHU_EVENT } from "../consts.js";
 import { z } from "zod";
 import { ResultTableSchema } from "../schemas.js";
@@ -81,17 +82,18 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 		`,
 	];
 
-	/** The rows this table shows, as an `as:Collection` (best-effort: the resident window when the set is paged). Usually reached through the query view's summary; standalone tables answer for themselves. */
+	/** The rows this table shows: the resident window where the set is paged, and the count the whole set holds. Usually
+	 *  reached through the query view's summary; standalone tables answer for themselves. */
 	summarizeForKihan(): TLinkedData | null {
 		const n = this.#source.count();
 		if (n === 0) return null;
-		return {
-			"@id": "view:result-table",
-			"@type": "as:Collection",
-			...(this.persistedAs ? { queryType: this.persistedAs } : {}),
-			totalItems: n,
+		return viewCollection({
+			id: "view:result-table",
+			name: "the rows this table shows",
 			items: this.#residentSample(),
-		};
+			totalItems: n,
+			...(this.persistedAs ? { stated: { queryType: this.persistedAs } } : {}),
+		});
 	}
 
 	private allProperties: string[] = [];
