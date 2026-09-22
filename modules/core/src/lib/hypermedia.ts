@@ -398,9 +398,7 @@ export type TLinkedData = {
  * order the view wants them read, and `totalItems` states how many the view holds.
  *
  * A collection built through `viewCollection` states its `name` and its count. A page's summary of a view states its
- * members under `items` and may state a name or a count: a page carrying fewer states the page terms beside them —
- * `partOf` names the view they come from, and the count the page holds, which the harvest states from the members
- * where the view states none.
+ * members under `items` and may state a name or a count. A page that carries fewer members states the page terms.
  */
 export const ViewCollectionSchema = z.looseObject({
 	"@id": z.string().min(1),
@@ -409,6 +407,10 @@ export const ViewCollectionSchema = z.looseObject({
 	totalItems: z.number().int().nonnegative().optional(),
 });
 export type TViewCollection = z.infer<typeof ViewCollectionSchema>;
+
+/** The terms a page of a view states beside the members it carries. `partOf` names the source view of the members.
+ *  `next` holds the call that reads the members the page doesn't carry. */
+export const PAGE_TERMS = { partOf: "partOf", next: "next" } as const;
 
 /**
  * The fields a read answers a count in: how many records it found, and whether it stopped at a ceiling rather than

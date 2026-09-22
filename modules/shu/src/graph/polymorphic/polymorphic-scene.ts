@@ -18,6 +18,7 @@ import { makeTroikaChip, spriteVisual, type ChipThree } from "./polymorphic-troi
 import { GLOW_RAMP, type GlowThree, BREATH_MS } from "../polymorphic/polymorphic-highlight.js";
 import { typeAvatar } from "../polymorphic/polymorphic-type-avatar.js";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
+import { PAGE_TERMS } from "@haibun/core/lib/hypermedia.js";
 import { isSubPropertyOf } from "@haibun/core/lib/resources.js";
 import { type GroupKeyMode, easeInOutCubic, type XYZ } from "../grouping.js";
 import { type KindTiers } from "../focus-policy.js";
@@ -2694,7 +2695,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		const stated = whole.items as Array<{ subject: string; object: unknown }>;
 		return {
 			...whole,
-			next: readsEveryStatement({ perTypeLimit: this.model.perTypeLimit, accessLevel: appAccessLevel() }),
+			[PAGE_TERMS.next]: readsEveryStatement({ perTypeLimit: this.model.perTypeLimit, accessLevel: appAccessLevel() }),
 			items: statedAboutFirst(stated, this.activeSubject),
 		};
 	}

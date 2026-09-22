@@ -9,7 +9,7 @@
  * the polymorphic view lives in a separately-built bundle whose ShuElement class identity differs).
  */
 import { activePane } from "./signals.js";
-import { ViewCollectionSchema, viewCollection, type TLinkedData, type TViewCollection } from "@haibun/core/lib/hypermedia.js";
+import { PAGE_TERMS, ViewCollectionSchema, viewCollection, type TLinkedData, type TViewCollection } from "@haibun/core/lib/hypermedia.js";
 
 type TSummarizes = Element & { summarizeForKihan(): TLinkedData | null };
 
@@ -44,7 +44,7 @@ export function harvested(summary: TLinkedData, holds = HARVEST_MEMBERS): TLinke
 		throw new Error(`a view's summary that states its members under "items" is held to the view's collection, which it does not meet: ${collection.error.message}`);
 	const { items, totalItems } = collection.data;
 	if (items.length <= holds) return summary;
-	return { ...summary, items: items.slice(0, holds), partOf: collection.data["@id"], totalItems: totalItems ?? items.length };
+	return { ...summary, items: items.slice(0, holds), [PAGE_TERMS.partOf]: collection.data["@id"], totalItems: totalItems ?? items.length };
 }
 
 export type TPaneManifestEntry = { name: string; component: string; active: boolean };
