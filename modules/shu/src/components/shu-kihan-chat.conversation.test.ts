@@ -350,6 +350,19 @@ describe("the model a question is sent to", () => {
 		expect(sent.at(-1)?.target).toBe("openai:a-model");
 		expect(inside<HTMLElement & { value?: string }>(pane.shadowRoot, ".model-select").value, "and the selector shows the model the question went to").toBe("openai:a-model");
 	});
+
+	it("is the one that states it does not think, where the catalog offers that beside ones that do, so a question gets an answer within its turn", async () => {
+		catalog = () => ({
+			vertices: [
+				{ id: "openai:deep", displayName: "deep", capabilities: { tools: true, thinking: true } },
+				{ id: "openai:nothink", displayName: "nothink", capabilities: { tools: true, thinking: false } },
+			],
+			total: 2,
+		});
+		const { pane } = await aPage();
+		await submit(pane, "what is this");
+		expect(sent.at(-1)?.target, "the question goes to the model that answers within its turn").toBe("openai:nothink");
+	});
 });
 
 describe("who reads the context", () => {
@@ -368,6 +381,29 @@ describe("who reads the context", () => {
 		await submit(pane, "and now with the model reading it");
 		expect(sent.at(-1)?.contextReadBy).toBe("model");
 		expect(reading(pane).value).toBe("model");
+	});
+
+	it("returns to the model's own statement when the reader picks a different model, so a setting stated for one model does not stand for another", async () => {
+		catalog = () => ({
+			vertices: [
+				{ id: "openai:deep", displayName: "deep", capabilities: { tools: true, thinking: true } },
+				{ id: "openai:nothink", displayName: "nothink", capabilities: { tools: true, thinking: false } },
+			],
+			total: 2,
+		});
+		const { pane } = await aPage();
+		const modelSelect = inside(pane.shadowRoot, ".model-select");
+		modelSelect.dispatchEvent(new CustomEvent("combo-change", { detail: { value: "openai:deep" } }));
+		await settle();
+		reading(pane).value = "run";
+		reading(pane).dispatchEvent(new Event("change"));
+		await settle();
+		modelSelect.dispatchEvent(new CustomEvent("combo-change", { detail: { value: "openai:nothink" } }));
+		await settle();
+		expect(reading(pane).value, "the setting returns to what the model states").toBe("");
+		await submit(pane, "what is this");
+		expect(sent.at(-1)?.target).toBe("openai:nothink");
+		expect(sent.at(-1)?.contextReadBy, "and the turn carries nothing the reader has not stated").toBeUndefined();
 	});
 });
 

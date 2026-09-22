@@ -53,7 +53,7 @@ type TChatSession = z.infer<typeof SessionListSchema>["sessions"][number];
 const KihanVertexSchema = z.looseObject({
 	id: z.string(),
 	displayName: z.string().optional(),
-	capabilities: z.looseObject({ tools: z.boolean().optional() }).optional(),
+	capabilities: z.looseObject({ tools: z.boolean().optional(), thinking: z.boolean().optional() }).optional(),
 	options: z.looseObject({ contextReadBy: ContextReadBySchema.optional() }).optional(),
 });
 type TKihanVertex = z.infer<typeof KihanVertexSchema>;
@@ -258,9 +258,12 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	}
 
 	/** The model a question is sent to, which is one the run offers. A remembered model the run no longer offers, as one
-	 *  stored under a provider since renamed, is replaced by the first offered. With no catalog, the remembered one stands. */
+	 *  stored under a provider since renamed, is replaced by the offered one the question gets an answer from within its
+	 *  turn: where the registry offers a model that states it does not think beside ones that do, that one stands, since a
+	 *  thinking model's answer can spend the turn's token budget on reasoning and carry no text back. With no catalog, the
+	 *  remembered one stands. */
 	private offeredModel(): string {
-		if (this._models.length > 0 && !this._models.some((m) => m.id === this.state.model)) this.setState({ model: this._models[0].id });
+		if (this._models.length > 0 && !this._models.some((m) => m.id === this.state.model)) this.setState({ model: (this._models.find((m) => m.capabilities?.thinking === false) ?? this._models[0]).id });
 		return this.state.model;
 	}
 
@@ -304,7 +307,12 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	}
 
 	private onModelChange = (e: CustomEvent): void => {
-		this.setState({ model: e.detail?.value || "" });
+		const model = e.detail?.value || "";
+		if (model === this.state.model) return;
+		// What a turn sends about the records belongs to the model that answers: a setting stated for one model, or
+		// persisted from an earlier one, no longer names what this model's turns do, so the choice returns to what the
+		// model states until the reader states one.
+		this.setState({ model, contextReadBy: AS_MODEL_STATES });
 	};
 	/**
 	 * The default named by what the chosen model sends, so a reader sees what leaving it alone does.
