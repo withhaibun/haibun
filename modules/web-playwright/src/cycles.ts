@@ -15,6 +15,7 @@ import {
 	type TAfterStepResult,
 } from "@haibun/core/lib/astepper.js";
 import { queryFacts } from "@haibun/core/lib/working-memory.js";
+import { constructorName } from "@haibun/core/lib/util/index.js";
 import { featureAsData } from "@haibun/core/lib/features.js";
 import { HTTP_REQUEST_LABEL, HTTP_HOST_LABEL } from "@haibun/core/lib/resources.js";
 
@@ -73,6 +74,8 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 		return Promise.resolve();
 	},
 	afterStep({ featureStep }: TAfterStep): Promise<TAfterStepResult> {
+		// A page error fails the step that acted on the page, never another stepper's step dispatched meanwhile.
+		if (featureStep.action.stepperName !== constructorName(wp)) return Promise.resolve({ failed: false });
 		const newErrors = wp.browserErrors.slice(wp.errorMark);
 		if (newErrors.length === 0) return Promise.resolve({ failed: false });
 		// A browser-side uncaught exception during this step is a real failure, surface it loudly instead of

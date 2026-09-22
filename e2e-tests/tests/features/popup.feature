@@ -8,7 +8,7 @@ Scenario: Handle popup window
     go to the test webpage
     click "Open popup"
 
-    until current tab is 2
+    until current tab is 1
     be on the popped up webpage
     see "Congratulations"
 

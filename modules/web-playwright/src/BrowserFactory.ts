@@ -24,20 +24,28 @@ export type TTaggedBrowserFactoryOptions = {
 	defaultTimeout?: number;
 	type?: TBrowserTypes;
 	device?: string;
+	/** The CDP endpoint of a running browser the factory connects to instead of launching one. */
+	cdpEndpoint?: string;
 };
 
 export const DEFAULT_CONFIG_TAG = "_default";
 
 export type PageInstance = Page & { _guid: string };
 
+/**
+ * Obtains the run's browser, its contexts and its pages, by launching a browser or by connecting to a running one.
+ * The run closes, traces, binds errors to and answers dialogs on only what it opened: a connected browser's own
+ * context and the page tab 0 adopts from it belong to whoever runs that browser.
+ */
 export class BrowserFactory {
 	static browsers: { [name: string]: Browser } = {};
-	tracers: { [name: string]: PlaywrightEvents } = {};
+	tracers: { [pageKey: string]: PlaywrightEvents } = {};
 	browserContexts: { [name: string]: BrowserContext } = {};
 	pages: { [name: string]: Page | undefined } = {};
 	contextStats: { [featureNum: string]: { start: number; end?: number; duration?: number } } = {};
-	static tracer?: PlaywrightEvents = undefined;
 	static configs: { [name: string]: TTaggedBrowserFactoryOptions } = {};
+	private adoptedContexts = new WeakSet<BrowserContext>();
+	private adoptedPages = new WeakSet<Page>();
 
 	private constructor(private world: TWorld) {}
 
@@ -48,12 +56,19 @@ export class BrowserFactory {
 
 	public async getBrowser(type: string, tag = DEFAULT_CONFIG_TAG): Promise<Browser> {
 		const config = BrowserFactory.configs[tag];
-
-		const browserOptions: LaunchOptions = { ...config.options, ...config.launchOptions };
-		if (!BrowserFactory.browsers[type]) {
-			BrowserFactory.browsers[type] = await config.browserType.launch(browserOptions);
+		const key = config.cdpEndpoint ?? type;
+		if (!BrowserFactory.browsers[key]) {
+			const browserOptions: LaunchOptions = { ...config.options, ...config.launchOptions };
+			const browser = config.cdpEndpoint ? await chromium.connectOverCDP(config.cdpEndpoint) : await config.browserType.launch(browserOptions);
+			browser.on("disconnected", () => {
+				delete BrowserFactory.browsers[key];
+				this.browserContexts = {};
+				this.pages = {};
+				this.tracers = {};
+			});
+			BrowserFactory.browsers[key] = browser;
 		}
-		return BrowserFactory.browsers[type];
+		return BrowserFactory.browsers[key];
 	}
 
 	public getExistingBrowserContextWithTag({ featureNum }: { featureNum: number }) {
@@ -62,22 +77,30 @@ export class BrowserFactory {
 		}
 	}
 
+	/** Whether the page belongs to the connected browser's owner rather than to the run. */
+	public isAdopted(page: Page) {
+		return this.adoptedPages.has(page);
+	}
+
 	public async closeContext({ featureNum }: { featureNum: number }) {
 		this.world.eventLogger.debug(`closed browser context ${featureNum}`);
-		if (this.browserContexts[featureNum] !== undefined) {
-			const p = this.pages[featureNum];
-			if (p) {
+		const prefix = `${featureNum}-`;
+		for (const [key, page] of Object.entries(this.pages)) {
+			if (!key.startsWith(prefix)) continue;
+			if (page && !this.adoptedPages.has(page)) {
 				try {
-					await p.close();
+					await page.close();
 				} catch (error) {
 					this.world.eventLogger.error(`Error closing page: ${error}`);
 				}
 			}
+			this.tracers[key]?.close();
+			delete this.tracers[key];
+			delete this.pages[key];
 		}
-		await this.browserContexts[featureNum]?.close();
+		const context = this.browserContexts[featureNum];
+		if (context && !this.adoptedContexts.has(context)) await context.close();
 		this.captureVideoStart(featureNum);
-		this.tracers[featureNum]?.close();
-		delete this.pages[featureNum];
 		delete this.browserContexts[featureNum];
 	}
 
@@ -120,12 +143,25 @@ export class BrowserFactory {
 		this.world.eventLogger.debug(`creating new page for ${featureNum}`);
 
 		const context = await this.getBrowserContextWithFeatureNum(featureNum);
-		page = await context.newPage();
-
-		const tracer = await new PlaywrightEvents(this.world, page, tag).init();
-
+		if (this.adoptedContexts.has(context) && tab === 0) {
+			page = this.adoptPage(context);
+		} else {
+			page = await context.newPage();
+			this.tracers[pageKey] = new PlaywrightEvents(this.world, page, tag, pageKey).init();
+		}
+		page.on("close", () => delete this.pages[pageKey]);
 		this.pages[pageKey] = page;
-		this.tracers[featureNum] = tracer;
+		return page;
+	}
+
+	/** Tab 0 of a connected browser is the one page its owner holds open in the context the run adopted. */
+	private adoptPage(context: BrowserContext): Page {
+		const pages = context.pages();
+		if (pages.length !== 1) throw Error(`tab 0 adopts the one page of the connected browser's context, which holds ${pages.length}`);
+		const [page] = pages;
+		this.adoptedPages.add(page);
+		// Playwright dismisses a dialog only when nothing listens for it, so a listener that doesn't answer leaves it to the owner.
+		page.on("dialog", () => undefined);
 		return page;
 	}
 
@@ -146,7 +182,12 @@ export class BrowserFactory {
 						},
 					};
 			const launchConfig = { ...deviceContext, ...config.options, ...config.launchOptions };
-			if (config.persistentDirectory) {
+			if (config.cdpEndpoint) {
+				const [context] = (await this.getBrowser(config.type, tag)).contexts();
+				if (!context) throw Error(`the browser at ${config.cdpEndpoint} has no context to adopt`);
+				this.adoptedContexts.add(context);
+				browserContext = context;
+			} else if (config.persistentDirectory) {
 				this.world.eventLogger.debug(`creating new persistent context ${featureNum} ${config.type}, ${config.persistentDirectory} with ${JSON.stringify(BrowserFactory.configs)}`);
 				browserContext = await BrowserFactory.configs[tag].browserType.launchPersistentContext(config.persistentDirectory, launchConfig);
 			} else {

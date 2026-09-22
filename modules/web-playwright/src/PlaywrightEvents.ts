@@ -1,4 +1,4 @@
-import { Page, Request, Route, Response } from "playwright";
+import { Frame, Page, Request, Response } from "playwright";
 
 import { HttpTraceArtifact, Origin } from "@haibun/core/schema/protocol.js";
 import { TTag } from "@haibun/core/lib/ttag.js";
@@ -22,26 +22,29 @@ export class PlaywrightEvents {
 	navigateCount = 0;
 	private pendingRequests = new Map<Request, number>();
 	private readonly routes: Set<string>;
+	private readonly onRequest = (request: Request) => this.logRequest(request);
+	private readonly onResponse = (response: Response) => this.logResponse(response);
+	private readonly onFrameNavigated = (frame: Frame) => this.framenavigated(frame);
 
+	/** `pageKey` names the page among the run's pages, so each page's visits carry ids no other page's visits carry. */
 	constructor(
 		private world: TWorld,
 		private page: Page,
 		private tag: TTag,
+		private pageKey: string,
 	) {
 		const registry = world.runtime[WEBSERVER] as IRouteRegistry | undefined;
 		this.routes = registry ? registeredPaths(registry) : new Set();
 	}
 
-	async init() {
+	init() {
 		this.world.eventLogger.debug(`setPage ${JSON.stringify(this.tag)}`);
-		this.page.on("request", this.logRequest.bind(this));
-		// biome-disable-next-line @typescript-eslint/no-floating-promises
-		await this.page.route("**/*", this.routeRequest.bind(this));
-		this.page.on("response", this.logResponse.bind(this));
-		this.page.on("framenavigated", this.framenavigated.bind(this));
+		this.page.on("request", this.onRequest);
+		this.page.on("response", this.onResponse);
+		this.page.on("framenavigated", this.onFrameNavigated);
 		return this;
 	}
-	private logRequest(request: Request, type = "request") {
+	private logRequest(request: Request) {
 		if (asksToRead(request.method(), request.postData())) return;
 		this.pendingRequests.set(request, Date.now());
 		const frameURL = request.frame().url();
@@ -51,14 +54,8 @@ export class PlaywrightEvents {
 			postData: request.postData(),
 		};
 
-		void this.log(`${type} ${etc.method}`, <"request" | "route">type, frameURL, request.url(), etc);
+		void this.log(`request ${etc.method}`, "request", frameURL, request.url(), etc);
 		return;
-	}
-
-	private async routeRequest(route: Route, request: Request) {
-		this.logRequest(request, "route");
-		// biome-disable-next-line @typescript-eslint/no-floating-promises
-		await route.continue();
 	}
 
 	private logResponse(response: Response) {
@@ -93,7 +90,7 @@ export class PlaywrightEvents {
 
 		return;
 	}
-	private framenavigated(frame: import("playwright").Frame) {
+	private framenavigated(frame: Frame) {
 		if (frame === this.page.mainFrame()) {
 			const url = frame.url();
 			const provenance = { in: "PlaywrightEvents.framenavigated", seq: [] as number[], when: "framenavigated" };
@@ -107,17 +104,17 @@ export class PlaywrightEvents {
 			// view-hash: the page's own identity, not the transient in-app view-state (whose labels would carry type names).
 			void this.world.shared
 				.getStore()
-				.upsertIndividual(VISITED_PAGE_LABEL, { id: `visit-${this.navigateCount}`, name: url.split("#")[0], generatedAtTime: new Date().toISOString() });
+				.upsertIndividual(VISITED_PAGE_LABEL, { id: `visit-${this.pageKey}-${this.navigateCount}`, name: url.split("#")[0], generatedAtTime: new Date().toISOString() });
 
 			this.navigateCount++;
 		}
 	}
 	public close(): void {
-		this.page.off("request", this.logRequest.bind(this));
-		// Note: Playwright doesn't provide a direct way to remove a specific route handler
-		this.page.off("response", this.logResponse.bind(this));
+		this.page.off("request", this.onRequest);
+		this.page.off("response", this.onResponse);
+		this.page.off("framenavigated", this.onFrameNavigated);
 	}
-	log(label: string, httpEvent: "request" | "response" | "route", maybeFrameURL: string, targetURL: string, etc: TEtc) {
+	log(label: string, httpEvent: "request" | "response", maybeFrameURL: string, targetURL: string, etc: TEtc) {
 		const requestingPage = this.page.url();
 		const frameURL = maybeFrameURL === requestingPage ? undefined : maybeFrameURL;
 		const requestingURL = frameURL ? `frame ${frameURL} on ${requestingPage}` : requestingPage;

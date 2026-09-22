@@ -16,6 +16,12 @@ export const DOMAIN_PAGE_ALT_TEXT = "page-alt-text";
 
 const locatorSchema = z.string().min(1, "locator cannot be empty");
 export const PageContentsSchema = z.object({ html: z.string() });
+export const AccessibilitySnapshotSchema = z.object({
+	url: z.string(),
+	title: z.string(),
+	snapshot: z.string().describe("The page's aria snapshot, in YAML."),
+	_links: z.record(z.string(), z.object({ method: z.string() }).strict()),
+});
 export const RestJsonCountSchema = z.object({ summary: z.string(), details: z.object({ count: z.number() }) });
 
 const HTTP_NS = { http: "http://www.w3.org/2011/http#" };

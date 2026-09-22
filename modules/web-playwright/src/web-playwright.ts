@@ -1,5 +1,6 @@
 import { Page, Download, Locator } from "playwright";
 import { pathToFileURL } from "url";
+import { AsyncLocalStorage } from "node:async_hooks";
 
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { TFeatureStep, CycleWhen, TStepAction } from "@haibun/core/lib/astepper.js";
@@ -129,7 +130,11 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	browserErrors: string[] = [];
 	/** Count of browserErrors at the start of the current step (set by the beforeStep cycle). */
 	errorMark = 0;
-	#errorBoundPages = new WeakSet<Page>();
+	#boundPages = new WeakSet<Page>();
+	/** The pages the current call chain holds, so an action nested in another doesn't wait behind it. */
+	#holding = new AsyncLocalStorage<Set<Page>>();
+	/** The last action queued on each page. */
+	#queues = new WeakMap<Page, Promise<unknown>>();
 
 	twin: boolean;
 	twinPage?: TwinPage;
@@ -220,29 +225,34 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			world.eventLogger.artifact(featureStep, videoStartEvent);
 		}
 
-		page.on("popup", async (popup: Page) => {
-			await popup.waitForLoadState();
-			// const title = await popup.title();
-			this.newTab();
-
-			this.bf.registerPopup(tag, this.tab, popup);
-		});
-		if (!this.#errorBoundPages.has(page)) {
-			this.#errorBoundPages.add(page); // attach once per page, getPage is called per action
-			page.on("pageerror", (err: Error) => this.browserErrors.push(err?.message ?? String(err)));
+		if (!this.#boundPages.has(page)) {
+			this.#boundPages.add(page); // bind once per page, getPage is called per action
+			page.on("popup", async (popup: Page) => {
+				await popup.waitForLoadState();
+				this.newTab();
+				this.bf.registerPopup(tag, this.tab, popup);
+			});
+			// An adopted page's errors are its owner's browsing, not the run's.
+			if (!this.bf.isAdopted(page)) page.on("pageerror", (err: Error) => this.browserErrors.push(err?.message ?? String(err)));
 		}
 		return page;
 	}
 
+	/** Runs one action on the page, after any action another caller is running on it: every caller of a running
+	 *  instance shares its page. An action nested in another, such as the steps `in {container}, {what}` runs, holds
+	 *  the page already and runs at once. */
 	async withPage<TReturn>(f: TWithPageCallback<TReturn>): Promise<TReturn> {
-		const containerPageOrFrame = this.inContainer || (await this.getPage());
+		const page = this.inContainer ? this.inContainer.page() : await this.getPage();
+		const held = this.#holding.getStore();
+		if (held?.has(page)) return await this.#act(page, f);
+		const turn = (this.#queues.get(page) ?? Promise.resolve()).then(() => this.#holding.run(new Set([...(held ?? []), page]), () => this.#act(page, f)));
+		this.#queues.set(page, turn.catch((): void => undefined));
+		return await turn;
+	}
 
-		if (!this.inContainer && this.twinPage) {
-			await this.twinPage.patchPage(<Page>containerPageOrFrame);
-		}
-
-		const res = await f(containerPageOrFrame);
-		return res;
+	async #act<TReturn>(page: Page, f: TWithPageCallback<TReturn>): Promise<TReturn> {
+		if (!this.inContainer && this.twinPage) await this.twinPage.patchPage(page);
+		return await f(this.inContainer || page);
 	}
 
 	async sees(text: string, selector: string) {
@@ -268,6 +278,15 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	};
 	setBrowser(browser: string) {
 		this.factoryOptions.type = browser as unknown as TBrowserTypes;
+		return OK;
+	}
+	/** Drives the running browser at a CDP endpoint from the next page the run opens, instead of launching one. */
+	connectTo(endpoint: string) {
+		if (this.bf?.hasPage(this.getWorld().tag, this.tab)) return actionNotOK(`connect to a browser before any step opens a page; ${endpoint} was named after one`);
+		const launchOnly = { CAPTURE_VIDEO: this.captureVideo, TWIN: this.twin, [WebPlaywright.PERSISTENT_DIRECTORY]: !!this.factoryOptions.persistentDirectory };
+		const set = Object.entries(launchOnly).filter(([, on]) => on).map(([name]) => name);
+		if (set.length > 0) return actionNotOK(`a connected browser takes no ${set.join(", ")}: each configures a browser the run launches`);
+		this.factoryOptions.cdpEndpoint = endpoint;
 		return OK;
 	}
 	newTab() {
@@ -301,16 +320,6 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		};
 		const saved = await saveImageArtifact(this.getWorld(), this.storage, featureStep as unknown as Parameters<typeof saveImageArtifact>[2], filename, buffer, "image/png");
 		return { path: saved.absolutePath };
-	}
-
-	async captureAccessibilitySnapshot() {
-		return await this.withPage(async (page: Page) => {
-			// Note: page.accessibility is deprecated in Playwright. Consider migrating to @axe-core/playwright
-			const snapshot = await (page as unknown as { accessibility: { snapshot: (opts: Record<string, unknown>) => Promise<unknown> } }).accessibility.snapshot({
-				interestingOnly: false,
-			});
-			return snapshot;
-		});
 	}
 
 	async setExtraHTTPHeaders(headers: { [name: string]: string }) {

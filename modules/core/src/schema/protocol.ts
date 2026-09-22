@@ -678,7 +678,7 @@ export const MermaidArtifact = BaseArtifact.extend({
 
 export const HttpTraceArtifact = BaseArtifact.extend({
 	artifactType: z.literal("http-trace"),
-	httpEvent: z.enum(["request", "response", "route"]),
+	httpEvent: z.enum(["request", "response"]),
 	trace: z.object({
 		frameURL: z.string().optional(),
 		requestingPage: z.string().optional(),

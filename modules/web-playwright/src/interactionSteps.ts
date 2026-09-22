@@ -1,11 +1,12 @@
-import { Download, Page, Response } from "playwright";
+import { Page, Response } from "playwright";
 type ClickResult = import("playwright").Locator;
 
 import { TFeatureStep } from "@haibun/core/lib/astepper.js";
 import { OK, Origin, TStepResult } from "@haibun/core/schema/protocol.js";
 import { DOMAIN_STATEMENT, DOMAIN_STRING } from "@haibun/core/lib/domains.js";
 import { actionNotOK, actionOKWithProducts, errorDetail, sleep, getStepTerm, jsonArtifact } from "@haibun/core/lib/util/index.js";
-import { DOMAIN_PAGE_LOCATOR, DOMAIN_PAGE_TEST_ID, PageContentsSchema } from "./domains.js";
+import { AccessibilitySnapshotSchema, DOMAIN_PAGE_LOCATOR, DOMAIN_PAGE_TEST_ID, PageContentsSchema } from "./domains.js";
+import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { pickLocatorDomain } from "./web-playwright.js";
 import { WEB_PAGE, WebPlaywright } from "./web-playwright.js";
 import { BROWSERS } from "./BrowserFactory.js";
@@ -14,7 +15,6 @@ import { pathToFileURL } from "node:url";
 import { TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { provenanceFromFeatureStep } from "@haibun/core/steps/variables-stepper.js";
 import { FlowRunner } from "@haibun/core/lib/core/flow-runner.js";
-import { JsonArtifact } from "@haibun/core/schema/protocol.js";
 
 const DOMAIN_STRING_OR_PAGE_LOCATOR = `${DOMAIN_STRING} | ${DOMAIN_PAGE_LOCATOR}`;
 
@@ -23,6 +23,8 @@ const BLOCKED = "blocked";
 /** A request the site accepts and never answers, which is a site that has not answered rather than one that refused. */
 const UNANSWERED = "unanswered";
 const REQUEST_STATES = [BLOCKED, UNANSWERED, "allowed"] as const;
+/** The steps that act on what an accessibility snapshot reads, which the snapshot links. */
+const SNAPSHOT_ACTIONS = ["click", "setValue", "press", "selectionOption", "gotoPage", "goBack", "takeScreenshot"] as const;
 
 export const interactionSteps = (wp: WebPlaywright) =>
 	({
@@ -312,17 +314,16 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			action: async ({ container, what }: { container: string; what: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				return await wp.withPage(async (page: Page) => {
 					// For shadow DOM elements, use page.locator directly to ensure CSS selector is used
-					const containerLocator = page.locator(container);
-					wp.inContainer = containerLocator;
+					wp.inContainer = page.locator(container);
 					wp.inContainerSelector = container; // Store the selector string for shadow DOM detection
-					const flowRunner = new FlowRunner(wp.getWorld(), [wp]);
-					const flowResult = await flowRunner.runSteps(what, { parentStep: featureStep });
-					wp.inContainer = undefined;
-					wp.inContainerSelector = undefined;
-					if (flowResult.ok) {
-						return OK;
+					try {
+						const flowResult = await new FlowRunner(wp.getWorld(), [wp]).runSteps(what, { parentStep: featureStep });
+						return flowResult.ok ? OK : actionNotOK(flowResult.errorMessage || "inElement flow failed");
+					} finally {
+						// Every caller of a running instance shares the container scope, so a failed flow must not leave it set.
+						wp.inContainer = undefined;
+						wp.inContainerSelector = undefined;
 					}
-					return actionNotOK(flowResult.errorMessage || "inElement flow failed");
 				});
 			},
 		},
@@ -420,6 +421,12 @@ export const interactionSteps = (wp: WebPlaywright) =>
 				return wp.setBrowser(browser);
 			},
 		},
+		connectToBrowser: {
+			gwta: "connect to the browser at {endpoint}",
+			description:
+				"Drives a running browser through its Chrome DevTools Protocol endpoint instead of launching one. Tab 0 is the one page the browser's own context holds open. The run never closes that page or that context, and leaves their dialogs to whoever runs the browser.",
+			action: ({ endpoint }: { endpoint: string }) => wp.connectTo(endpoint),
+		},
 
 		//  FILE DOWNLOAD/UPLOAD
 		uploadFile: {
@@ -433,8 +440,9 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		expectDownload: {
 			gwta: "expect a download",
 			action: () => {
+				// Waiting for an event isn't an action on the page, so it doesn't hold the page from the action that causes it.
 				try {
-					wp.expectedDownload = wp.withPage<Download>(async (page: Page) => page.waitForEvent("download"));
+					wp.expectedDownload = wp.getPage().then((page) => page.waitForEvent("download"));
 					return OK;
 				} catch (e) {
 					return actionNotOK(e);
@@ -458,7 +466,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			gwta: "save download to {file}",
 			action: async ({ file }: { file: string }) => {
 				try {
-					const download = <Download>await wp.withPage(async (page: Page) => page.waitForEvent("download"));
+					const download = await (await wp.getPage()).waitForEvent("download");
 
 					await download.saveAs(file);
 					wp.downloaded.push(file);
@@ -559,28 +567,16 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 		takeAccessibilitySnapshot: {
 			gwta: "take an accessibility snapshot",
+			description:
+				"Reads the page as Playwright's aria snapshot: YAML naming each element's role and accessible name, which are what the role, label and text locators address. Its links name the steps that act on what it read.",
+			read: true,
+			productsSchema: AccessibilitySnapshotSchema,
 			action: async () => {
-				const snapshot = await wp.captureAccessibilitySnapshot();
-
-				// Emit JsonArtifact
-				if (wp.getWorld().eventLogger) {
-					const artifactEvent = JsonArtifact.parse({
-						id: `a11y-snapshot-${Date.now()}`,
-						timestamp: Date.now(),
-						kind: "artifact",
-						artifactType: "json",
-						json: (snapshot as Record<string, unknown>) || {},
-						mimetype: "application/json",
-					});
-					// featureStep is not available here.
-					// The action has featureStep in signature if it were added.
-					// emit() can be used directly or ignore featureStep association if not critical.
-					// Better: add featureStep to action signature. But typings?
-					wp.getWorld().eventLogger.emit(artifactEvent);
-				}
-
-				wp.getWorld().eventLogger.info("Accessibility snapshot captured");
-				return OK;
+				const read = await wp.withPage(async (target) => {
+					const page = "page" in target ? target.page() : target;
+					return { url: page.url(), title: await page.title(), snapshot: await target.ariaSnapshot() };
+				});
+				return actionOKWithProducts({ ...read, _links: Object.fromEntries(SNAPSHOT_ACTIONS.map((step) => [step, { method: stepMethodName(wp, step) }])) });
 			},
 		},
 		saveURI: {
@@ -646,8 +642,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			description: `Block or allow the requests this page makes, by URL glob, for the rest of the feature: what a view does when the server it reads from is unreachable, and what it does when the server responds again. ${REQUEST_STATES.join(" or ")}.`,
 			action: async ({ pattern, state }: { pattern: string; state: string }) => {
 				if (!(REQUEST_STATES as readonly string[]).includes(state)) return actionNotOK(`requests are ${REQUEST_STATES.join(" or ")}, not "${state}"`);
-				// On the page, not the context: every page carries the tracer's own `**/*` route, which takes precedence over a
-				// context route and continues what it records. Page routes run newest first, so this one is consulted before it.
+				// On the page, so the state applies to this page's requests and to no other page of the context.
 				await wp.withPage(async (page: Page) => {
 					if (state === BLOCKED) await page.route(pattern, (route) => route.abort());
 					// Neither answered nor refused: the request is taken and left, which is what a page reading a site that
