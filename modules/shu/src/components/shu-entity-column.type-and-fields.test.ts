@@ -2,7 +2,7 @@
 // A record's view names its type as a link to the type's own view, which holds the description, and lists the record's fields.
 import { describe, it, expect, beforeEach } from "vitest";
 import { z } from "zod";
-import { ShuEntityColumn } from "./shu-entity-column.js";
+import { ShuEntityColumn, foldedTargets } from "./shu-entity-column.js";
 import { setConcernCatalog } from "../rels-cache.js";
 import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import { toRegisteredDomain, objectCoercer } from "@haibun/core/lib/domains.js";
@@ -62,6 +62,26 @@ describe("shu-entity-column type and fields", () => {
 		expect(html).toContain("what it was invoked for");
 		// an object-valued field renders as formatted JSON
 		expect(html).toContain('data-testid="field-json-meta"');
+	});
+
+	it("folds a field table that holds many fields behind a summary naming how many, and leaves a small one open", async () => {
+		const open = async (fields: Record<string, unknown>) => {
+			const el = document.createElement("shu-entity-column") as ShuEntityColumn;
+			document.body.appendChild(el);
+			el.openProducts({ _type: "Widget", id: "x1", name: "Example", ...fields });
+			await el.updateComplete;
+			return el.shadowRoot?.innerHTML ?? "";
+		};
+		const many = await open(Object.fromEntries(Array.from({ length: 8 }, (_, at) => [`field${at}`, `value ${at}`])));
+		expect(many).toContain('data-testid="entity-fields-disclosure"');
+		expect(many, "the summary names how many fields the table holds").toMatch(/<summary class="fields-summary">9 fields<\/summary>/);
+		expect(await open({ extra: "one" }), "a small table stays open").not.toContain('data-testid="entity-fields-disclosure"');
+	});
+
+	it("shows a reference group's first targets and folds the rest behind a disclosure naming how many", () => {
+		const targets = ["a", "b", "c", "d", "e", "f"];
+		expect(foldedTargets(targets)).toBe('a, b, c, d<details class="ref-more"><summary class="ref-more-count">2 more</summary>e, f</details>');
+		expect(foldedTargets(targets.slice(0, 4)), "a group within the threshold is listed whole").toBe("a, b, c, d");
 	});
 
 	it("marks field provenance from the served @context: the genuine vocabulary, not a rel guess", async () => {

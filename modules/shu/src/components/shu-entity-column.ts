@@ -60,6 +60,20 @@ export function buildBodyIframeDoc(content: string, mediaType: string, pageUrl =
 	return `<!DOCTYPE html><html><head><meta charset="utf-8">${csp}${base}<style>body{${BODY_READING_STYLE}margin:8px;color:#111;}</style></head><body>${content}</body></html>`;
 }
 
+/** How many fields the field table shows open. A record with many fields dumps them all at once, so a table holding more
+ *  starts closed behind a summary naming how many, and a reader opens it when a field is the question. */
+const FIELDS_FOLD_AT = 6;
+
+/** How many targets a reference group shows before the rest fold behind a summary naming how many. */
+const TARGETS_FOLD_AT = 4;
+
+/** A reference group's rendered targets: the first `TARGETS_FOLD_AT`, and the rest behind a disclosure naming how many. */
+export function foldedTargets(targets: readonly string[]): string {
+	if (targets.length <= TARGETS_FOLD_AT) return targets.join(", ");
+	const rest = targets.slice(TARGETS_FOLD_AT);
+	return `${targets.slice(0, TARGETS_FOLD_AT).join(", ")}<details class="ref-more"><summary class="ref-more-count">${rest.length} more</summary>${rest.join(", ")}</details>`;
+}
+
 export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	static styles = [
 		shuBaseStyles,
@@ -107,10 +121,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		.fields-disclosure > summary { color: var(--shu-fg-muted); font-size: 0.85em; cursor: pointer; padding: 2px 0; list-style-position: inside; }
 		.fields-disclosure[open] > summary { margin-bottom: var(--shu-space-1); }
 		/* A reference group folded the same way: the first few targets stay visible, and the rest open on demand. */
-		.ref-more { display: inline; }
-		.ref-more > summary { display: inline; color: var(--shu-fg-faded); font-size: 0.85em; cursor: pointer; list-style: none; padding-left: var(--shu-space-2); }
-		.ref-more[open] > summary { display: block; }
-		.ref-more[open] { display: inline; }
+		.ref-more > summary { color: var(--shu-fg-faded); font-size: 0.85em; cursor: pointer; }
 		.field-json { margin: 0; padding: var(--shu-space-2); background: var(--shu-bg-soft); border-radius: var(--shu-radius); font-size: 0.8em; white-space: pre-wrap; word-break: break-word; overflow-x: auto; }
 		.literal-body { margin: var(--shu-space-2) 0 0; padding: var(--shu-space-2); background: var(--shu-bg-soft); border-radius: var(--shu-radius); white-space: pre-wrap; word-break: break-word; overflow-x: auto; }
 		.field-name { white-space: nowrap; color: var(--shu-fg-faded); width: 80px; font-size: 0.85em; }
@@ -285,10 +296,6 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			const summaryFields = getSummaryFields(persistedAs);
 			// Every non-summary, non-edge scalar field, shown in full between the type line and the body. Object
 			// values render as formatted JSON. Body-presentation content (a SeqPath's stepText) renders below via bodyLiterals.
-			// The field table is what floods a pane: a record with many fields dumps them all at once. A reader reads
-			// the summary first, and opens the full table when a field is the question, so the table starts closed where
-			// it holds more than a handful of fields and stays open where it is small.
-			const FOLD_AT = 6;
 			const detailEntries = Object.entries(fields).filter(([k]) => !getEdgeTargetLabel(k, persistedAs) && !summaryFields.has(k));
 			const detailRows = detailEntries
 				.map(([k, v]) => {
@@ -299,7 +306,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 				.join("");
 			const detailTable = detailRows ? `<table class="detail-table fields-table" data-testid="entity-fields">${detailRows}</table>` : "";
 			const fieldsHtml = detailTable
-				? detailEntries.length > FOLD_AT
+				? detailEntries.length > FIELDS_FOLD_AT
 					? `<details class="fields-disclosure" data-testid="entity-fields-disclosure"><summary class="fields-summary">${detailEntries.length} fields</summary>${detailTable}</details>`
 					: detailTable
 				: "";
@@ -435,18 +442,8 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			group.push({ target: e.target, edgeType: e.type });
 			grouped.set(e.type, group);
 		}
-		// A group that names many targets floods the pane the way the field table does: show the first few, and fold
-		// the rest behind a disclosure that states how many, so a reader sees the shape and opens the list on demand.
-		const REF_FOLD_AT = 4;
 		const outHtml = Array.from(grouped.entries())
-			.map(([type, items]) => {
-				const targets = items.map((i) => this.renderEdgeTarget(i.target, i.edgeType));
-				const folded =
-					targets.length > REF_FOLD_AT
-						? `${targets.slice(0, REF_FOLD_AT).join(", ")}<details class="ref-more"><summary class="ref-more-count">… ${targets.length - REF_FOLD_AT} more</summary>${targets.slice(REF_FOLD_AT).join(", ")}</details>`
-						: targets.join(", ");
-				return `<div class="ref-group"><span class="ref-type">${esc(type)}</span>${folded}</div>`;
-			})
+			.map(([type, items]) => `<div class="ref-group"><span class="ref-type">${esc(type)}</span>${foldedTargets(items.map((i) => this.renderEdgeTarget(i.target, i.edgeType)))}</div>`)
 			.join("");
 
 		const inHtml = this.incomingCount > 0 ? `<a class="section-label links-here-link" href="#">What links here <span class="ref-count">(${this.incomingCount})</span></a>` : "";
