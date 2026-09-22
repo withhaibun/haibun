@@ -1,18 +1,13 @@
 #!/usr/bin/env bash
-# Verify release prerequisites: npm credentials and branch protection.
+# Verify release prerequisites: trusted publishing setup and branch protection.
 # Called from the release job in ci.yml.
-# Requires: NODE_AUTH_TOKEN, GH_TOKEN (or GITHUB_TOKEN), REPO (owner/repo).
+# Requires: GH_TOKEN (or GITHUB_TOKEN), REPO (owner/repo).
 set -euo pipefail
 
 WARNINGS=0
 
-# ── npm token ────────────────────────────────────────────────────────────────
-if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
-  echo "WARNING: NODE_AUTH_TOKEN is not set."
-  WARNINGS=$((WARNINGS + 1))
-else
-  echo "npm token: set (format unverified — automation tokens do not support whoami)"
-fi
+# ── npm trusted publishing ───────────────────────────────────────────────────
+echo "npm publish authentication: expecting GitHub OIDC trusted publishing from this workflow"
 
 # ── PR approval policy (CODEOWNERS + branch protection rules) ───────────────
 GH_TOKEN="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
