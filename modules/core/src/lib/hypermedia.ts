@@ -48,6 +48,102 @@ export function queryableFields(domain: { schema: z.ZodType | undefined; topolog
 	return [...out].sort();
 }
 
+/**
+ * The rels naming what a record is about, who it involves and what context it states. A reader names one of those
+ * when they search.
+ *
+ * An allowlist rather than a list of exceptions: a rel added later states a new kind of value, and a search reading
+ * every rel it doesn't yet exclude would read that one. Times, a level, a place in a run and a media type each name
+ * something about a record rather than its subject, and `tag` names a value that is nothing but a value, so a search
+ * reading any of them answers every record carrying the value named.
+ *
+ * `identifier` is absent. A type's identifier holds a handle a reader knows a record by, such as an address, and holds a
+ * handle the system generated, such as a record's own sequence id. A search reading it answers an ordinary question
+ * with the records of whatever asked it, since every record of a type carries ordinary words in its generated handle.
+ * Separating the two needs a type to state which kind its identifier holds, which no topology states.
+ */
+const SEARCHED_RELS: ReadonlySet<string> = new Set([
+	LinkRelations.NAME.rel,
+	LinkRelations.CONTENT.rel,
+	LinkRelations.ATTRIBUTED_TO.rel,
+	LinkRelations.AUDIENCE.rel,
+	LinkRelations.CONTEXT.rel,
+]);
+
+/** Whether a schema field holds text. A bounded value reports its own kind, so a date, an enum and a literal each
+ *  report that rather than a string, and only a field a reader could name part of reports text. */
+function isTextField(field: z.ZodType): boolean {
+	return zodTypeLabel(unwrap(field).inner) === "string";
+}
+
+/**
+ * The fields of a persisted type a text search reads, from its declaration alone: the text properties whose rel names
+ * what a record is about, who it involves and what context it states. A field declaring one of those rels and holding a
+ * bounded value is left out, since a reader names part of a value and a bounded value is compared whole.
+ */
+export function searchableFields(domain: { schema: z.ZodType | undefined; topology: THypermediaTopology }): string[] {
+	const shape = domain.schema instanceof z.ZodObject ? (domain.schema.shape as Record<string, z.ZodType>) : {};
+	const out: string[] = [];
+	for (const [field, def] of Object.entries(domain.topology.properties)) {
+		if (!SEARCHED_RELS.has(relOf(def))) continue;
+		const declared = shape[field];
+		if (declared !== undefined && !isTextField(declared)) continue;
+		out.push(field);
+	}
+	return out.sort();
+}
+
+/**
+ * The properties a type declares as facets: values that categorise a record, such as a folder, an account or a status.
+ *
+ * A facet is declared once, as a `context` rel, and is queryable by that declaration. A string is otherwise not
+ * compared by a filter, since a string holds a body as readily as a word and a store indexes what it can compare. A
+ * consumer maps these to whatever a comparison takes, and the declaration states what a facet is.
+ */
+export function facetFields(topology: THypermediaTopology): string[] {
+	return Object.entries(topology.properties)
+		.filter(([, def]) => relOf(def) === LinkRelations.CONTEXT.rel)
+		.map(([field]) => field)
+		.sort();
+}
+
+/** How a reader reaches a property: a filter compares it, a search reads its text, or an edge leads to the records
+ *  holding it. A property reached no way is held and shown, and answers no question a reader can ask. */
+export const REACHED_BY = { filter: "filter", search: "search", reference: "reference" } as const;
+export type TReachedBy = (typeof REACHED_BY)[keyof typeof REACHED_BY];
+
+/** What a type offers a reader, per property, with the relations its records are referenced through. */
+export const QuerySurfaceSchema = z.object({
+	label: z.string(),
+	properties: z.record(z.string(), z.array(z.enum([REACHED_BY.filter, REACHED_BY.search, REACHED_BY.reference]))),
+	references: z.array(z.string()),
+});
+export type TQuerySurface = z.infer<typeof QuerySurfaceSchema>;
+
+/** The properties one primitive reaches, from a type's surface. A refusal and an offer name the same fields, so the
+ *  reader corrected by one is corrected against the list the other gave them. */
+export function reachedBy(surface: TQuerySurface, by: TReachedBy): string[] {
+	return Object.entries(surface.properties)
+		.filter(([, kinds]) => kinds.includes(by))
+		.map(([field]) => field)
+		.sort();
+}
+
+/** Which primitive reaches each property of a type: the properties a filter compares, the properties a search reads,
+ *  and the edges a reader follows to the records. A property reached two ways states both. */
+export function querySurface(domain: { schema: z.ZodType | undefined; topology: THypermediaTopology }): TQuerySurface {
+	const properties: Record<string, TReachedBy[]> = {};
+	const reach = (field: string, by: TReachedBy) => {
+		properties[field] = [...(properties[field] ?? []), by];
+	};
+	for (const field of queryableFields(domain)) reach(field, REACHED_BY.filter);
+	for (const field of searchableFields(domain)) reach(field, REACHED_BY.search);
+	// An edge names the property a reader follows to the records at its other end, so the edge's own name is the
+	// property. A reader asking who a record involves follows one of these rather than naming a value.
+	for (const edge of Object.keys(domain.topology.edges ?? {})) reach(edge, REACHED_BY.reference);
+	return QuerySurfaceSchema.parse({ label: domain.topology.persistedAs, properties, references: Object.keys(domain.topology.edges ?? {}).sort() });
+}
+
 /** A rel's declared `rdfs:subPropertyOf` parent(s) (the canonical LinkRelations declaration), mapped to their term
  *  strings; undefined when the rel declares none. Mirrors the `subClassOf` lookup the type node emits, so a served
  *  JSON-LD context carries the genuine rel hierarchy (e.g. `schema:author rdfs:subPropertyOf hbn:inRoleOf`). */
@@ -60,6 +156,7 @@ function subPropertyOfRel(rel: string): string | string[] | undefined {
 import { HAIBUN_NS, type TRegisteredDomain } from "./resources.js";
 import { jsonSchemaOf } from "./json-schema-of.js";
 import { unwrap } from "./zod-unwrap.js";
+import { zodTypeLabel } from "./composite-domain.js";
 import { ellipsize } from "./util/index.js";
 
 /** A domain's JSON Schema for the catalog. The show steps step builds the catalog on every call, and the conversion is held
