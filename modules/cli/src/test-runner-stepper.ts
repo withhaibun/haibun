@@ -17,7 +17,7 @@
  *   - leave runs standing without limit: a run given a port holds that port until it is stopped, so starting one past
  *     the standing limit is refused, naming the runs to stop.
  *
- * WHAT COMES FROM THE ENVIRONMENT, never from source: which model answers, where it is, and what it may use. The
+ * WHAT COMES FROM THE ENVIRONMENT, never from source: which model answers, where it is, and what it may use. A
  * self-hosted model router is one such environment; a hosted API is another. No step, feature or default here names a model.
  */
 import type { TInputSchema, TStepDescriptor } from "@haibun/core/lib/step-discovery.js";
