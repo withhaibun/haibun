@@ -9,6 +9,7 @@ import { AStepper } from "../astepper.js";
 import { OK } from "../../schema/protocol.js";
 import { actionNotOK } from "../util/index.js";
 import { getAuthority } from "../session-authority.js";
+import { actionList } from "../actions.js";
 import type { IAuthorityInvoker, IAuthorityVerifier, TAuthorityEvidence, TDelegations, TOutgoingRequest } from "../authority-types.js";
 
 const HOLDER_HEADER = "fake-holder";
@@ -62,10 +63,7 @@ export default class FakeAuthorityStepper extends AStepper {
 			gwta: "accept authority from {holder} for {actions}",
 			action: ({ holder, actions }: { holder: string; actions: string }) =>
 				this.withAuthority((authority) => {
-					this.grants.set(
-						holder,
-						actions.split(",").map((action) => action.trim()),
-					);
+					this.grants.set(holder, actionList(actions));
 					authority.registerVerifier(new FakeVerifier(this.grants));
 				}),
 		},

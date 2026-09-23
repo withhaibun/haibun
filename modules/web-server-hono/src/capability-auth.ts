@@ -14,22 +14,21 @@ const PRESENTED_AUTHORITY_HEADER = "capability-invocation";
 export type TRequestAuthority = { granted: string[]; principal?: string; refused?: string };
 
 /**
- * What the caller of this request may do: what anyone holds here, which is nothing unless the deployment says
- * otherwise, and what proof it presents of authority it holds, which whatever is registered to read that proof decides.
+ * What the caller of this request may do: the actions this deployment allows without a delegation, which are none
+ * unless it says otherwise, and what proof it presents of authority it holds, which whatever is registered to read that proof decides.
  * A request presenting proof is asked about as a whole, since a signed request's proof covers what it asks and of what.
  *
  * A proof also says who made it, and that is answered here as well: what is done under a proof is done by whoever
  * proved it, so a record of the doing can name them rather than the process that carried it out.
  */
-export async function grantedCapabilityForRequest(request: TAuthorizedRequest | undefined, runtime: TRuntime, anyoneHolds: readonly string[]): Promise<TRequestAuthority> {
-	const anyone = [...anyoneHolds];
-	if (!presentsAuthority(request?.headers)) return { granted: anyone };
+export async function grantedCapabilityForRequest(request: TAuthorizedRequest | undefined, runtime: TRuntime, allowedWithoutDelegation: readonly string[]): Promise<TRequestAuthority> {
+	if (!presentsAuthority(request?.headers)) return { granted: [...allowedWithoutDelegation] };
 	const authority = getAuthority(runtime);
 	if (!authority?.hasVerifier()) return { granted: [], refused: "the request presents authority, and nothing here verifies it" };
 	if (!request?.method || !request.url) return { granted: [], refused: "the request presents authority without the method and address its proof covers" };
 	const verdict = await authority.verifyEvidence({ kind: "request", method: request.method, url: request.url, headers: request.headers ?? {}, body: request.body });
 	if (!verdict.ok) return { granted: [], refused: `the presented authority failed verification: ${verdict.error ?? "no reason given"}` };
-	return { granted: [...anyone, ...(verdict.allowedAction ?? [])], principal: verdict.principal };
+	return { granted: [...allowedWithoutDelegation, ...(verdict.allowedAction ?? [])], principal: verdict.principal };
 }
 
 /** Whether a request presents proven authority, which its whole request is then verified for. */

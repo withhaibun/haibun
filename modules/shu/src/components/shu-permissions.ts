@@ -100,7 +100,7 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 	/**
 	 * An action, as what granted it. A reader holds what it holds by a delegation this deployment records, so the action
 	 * opens that record, and from there what it was delegated from and on to its root. An action nothing here recorded,
-	 * such as what anyone holds, is still named, since a reader holds it either way.
+	 * such as one allowed without a delegation, is still named, since a reader holds it either way.
 	 */
 	private grantedAt(action: string): TemplateResult {
 		const grantedBy = this.held.grantedBy[action];
@@ -129,7 +129,7 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 			</div>
 
 			<h3>this page signs as</h3>
-			${controller ? html`<shu-page-key controller=${controller}></shu-page-key>` : html`<p class="none">no key; this page holds only what anyone holds here</p>`}
+			${controller ? html`<shu-page-key controller=${controller}></shu-page-key>` : html`<p class="none">no key; this page holds only what needs no delegation here</p>`}
 
 			<h3>what this page may do</h3>
 			${

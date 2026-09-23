@@ -137,7 +137,7 @@ export type TDeploymentSettings = {
 	/** The timeout on a request the page awaits. */
 	responseTimeoutMs?: number;
 	/** What every reader holds here without presenting anything, as the web server declares it. */
-	anyoneHolds?: string[];
+	allowedWithoutDelegation?: string[];
 };
 
 // The page boots ONCE, but its modules load once PER BUNDLE (the app, the polymorphic view, an actions-bar extension
@@ -189,8 +189,8 @@ export function isOffline(): boolean {
 /** A timing this deployment set, in milliseconds, or undefined where it set none. A value the page cannot apply is a
  *  deployment stating something it does not mean, so it is refused rather than replaced with the product's own. */
 /** What every reader holds here without presenting anything: nothing, where the page was served saying nothing. */
-export function deploymentAnyoneHolds(): string[] {
-	return cachedHydration().data?.settings?.anyoneHolds ?? [];
+export function deploymentAllowedWithoutDelegation(): string[] {
+	return cachedHydration().data?.settings?.allowedWithoutDelegation ?? [];
 }
 
 export function deploymentMs(name: "streamReconnectAfterMs" | "responseTimeoutMs"): number | undefined {

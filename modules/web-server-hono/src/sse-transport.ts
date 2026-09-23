@@ -53,7 +53,7 @@ export class SSETransport implements ITransport, IStepTransport {
 
 	private setupRoutes(): void {
 		this.webserver.addRoute("get", "/sse", { description: "Server-Sent Events stream for live framework events" }, async (c) => {
-			const { granted, refused } = await grantedCapabilityForRequest({ method: c.req.method, url: c.req.url, headers: c.req.header() }, this.runtime, this.webserver.anyoneHolds);
+			const { granted, refused } = await grantedCapabilityForRequest({ method: c.req.method, url: c.req.url, headers: c.req.header() }, this.runtime, this.webserver.allowedWithoutDelegation);
 			if (refused) return c.json({ error: `/sse: ${refused}` }, 401);
 			if (!capabilityAllows(granted, FOLLOWS_THE_RUN)) return c.json({ error: `/sse: capability ${FOLLOWS_THE_RUN} required` }, 403);
 			this.eventLogger.debug("SSE Client connected");

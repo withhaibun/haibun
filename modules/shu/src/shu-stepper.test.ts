@@ -15,7 +15,7 @@ describe("the app a deployment serves", () => {
 			mounted.add(path);
 		});
 		const world = getDefaultWorld();
-		world.runtime[WEBSERVER] = { addRoute, mounted: { get: {} }, anyoneHolds: ["Read:public"] };
+		world.runtime[WEBSERVER] = { addRoute, mounted: { get: {} }, allowedWithoutDelegation: ["Read:public"] };
 		await stepper.setWorld(world, []);
 	});
 
@@ -33,11 +33,11 @@ describe("the app a deployment serves", () => {
 		expect(() => stepper.steps.serveShuApp.action({ path: "/spa" })).toThrow("already mounted");
 	});
 
-	it("tells the page what anyone holds here, so it knows what it may do without a delegation", async () => {
+	it("tells the page what the deployment allows without a delegation, so it knows what needs no signing", async () => {
 		await stepper.steps.serveShuApp.action({ path: "/spa" });
 		const serve = addRoute.mock.calls.find(([, path]) => path === "/spa")?.[3] as (c: unknown) => string;
 		const page = serve({ header: () => undefined, html: (body: string) => body });
-		expect(page).toContain(JSON.stringify({ settings: { anyoneHolds: ["Read:public"] } }));
+		expect(page).toContain(JSON.stringify({ settings: { allowedWithoutDelegation: ["Read:public"] } }));
 	});
 });
 

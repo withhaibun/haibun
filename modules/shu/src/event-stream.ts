@@ -58,7 +58,7 @@ export interface EventStream {
 // ─── LiveEventStream ─────────────────────────────────────────────────────────
 
 /** What the page asks for the run's stream with: signed under a delegation that allows following the run, where it holds
- *  one, and nothing otherwise, which what anyone holds here may allow. */
+ *  one, and nothing otherwise, which the deployment may allow without a delegation. */
 async function followingHeaders(url: string): Promise<Record<string, string>> {
 	await pageAuthorityReady();
 	const asked = new URL(url, location.href);
@@ -221,7 +221,7 @@ export function resetEventStream(): void {
 
 /** Subscribe to the stream, coalescing every event arriving between paints into one `onBatch` call inside an animation
  *  frame. Returns an unsubscribe. The `this`-free form shared by `ShuElement.subscribeBatched` and the data controllers;
- *  no caller constructs `EventSource`/`SseSubscriber` directly. `onReconnect` fires when the stream comes back after a
+ *  no caller constructs an `SseSubscriber` directly. `onReconnect` fires when the stream comes back after a
  *  break: the same reason to read again as an arrival, on the same path. */
 export function subscribeBatchedEvents(opts: { onBatch: (events: TEvent[]) => void; filter?: TEventFilter; onReconnect?: () => void; onDisconnect?: () => void }): () => void {
 	let pending: TEvent[] = [];

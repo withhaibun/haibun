@@ -54,7 +54,7 @@ describe("federate graph reads over live RPC", () => {
 enable rpc
 webserver is listening for "federate-reads"
 present authority as "reader"
-accept authority from "reader" for "Authority:name"
+accept authority from "reader" for "Authority:name,Read:private"
 federate graph reads from "http://localhost:${port}"
 capture the federated clustered read
 `,
@@ -87,6 +87,7 @@ capture the federated clustered read
 			content: `
 enable rpc
 webserver is listening for "federate-two"
+present authority as "reader"
 start a haibun instance from "modules/shu/tests/federate-peer" on port ${peerPort} as host 7
 federate graph reads from "http://localhost:${peerPort}"
 capture the federated clustered read
@@ -95,7 +96,7 @@ capture the federated clustered read
 		const result = await testWithWorld(
 			world,
 			[feature],
-			[WebServerStepper, ShuStepper, MonitorStepper, GraphSourceStepper, AuthorityStepper, ResourcesStepper, StorageFS, InstanceStepper, FederationVerifyStepper],
+			[WebServerStepper, ShuStepper, MonitorStepper, GraphSourceStepper, AuthorityStepper, FakeAuthorityStepper, ResourcesStepper, StorageFS, InstanceStepper, FederationVerifyStepper],
 		);
 		if (!result.ok) throw new Error(JSON.stringify({ failure: result.failure, steps: result.featureResults?.map((f) => f.stepResults.map((s) => [s.in, s.ok])) }, null, 2));
 

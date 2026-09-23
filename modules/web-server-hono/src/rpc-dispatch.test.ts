@@ -257,13 +257,13 @@ class RpcVerifyStepper extends AStepper {
 	};
 }
 
-/** A server on `port` where every caller holds `anyoneHolds`, where the case states it: nothing otherwise. */
-function makeOptions(port: number, anyoneHolds?: string) {
+/** A server on `port` where every caller holds `allowedWithoutDelegation`, where the case states it: nothing otherwise. */
+function makeOptions(port: number, allowedWithoutDelegation?: string) {
 	return {
 		...DEF_PROTO_OPTIONS,
 		moduleOptions: {
 			[getStepperOptionName(WebServerStepper, "PORT")]: String(port),
-			...(anyoneHolds ? { [getStepperOptionName(WebServerStepper, "ANYONE_HOLDS")]: anyoneHolds } : {}),
+			...(allowedWithoutDelegation ? { [getStepperOptionName(WebServerStepper, "ALLOW_WITHOUT_DELEGATION")]: allowedWithoutDelegation } : {}),
 		},
 	};
 }
@@ -408,13 +408,13 @@ steps shown to a caller with no token at "http://localhost:${port}/rpc/${SHOW_ST
 		expect(result.ok, "and what a caller may hold is still shown to it").toBe(true);
 	});
 
-	it("grants every caller what anyone holds here, beside what it proves", async () => {
+	it("grants every caller what the deployment allows without a delegation, beside what it proves", async () => {
 		const port = 8256;
 		const feature = {
 			path: "/features/test.feature",
 			content: `
 enable rpc
-webserver is listening for "rpc-anyone-holds"
+webserver is listening for "rpc-allowed-without-delegation"
 accept authority from "agent" for "PingStepper:protected"
 rpc call to "http://localhost:${port}/rpc/PingStepper-ping" with method "PingStepper-ping" succeeds
 rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" succeeds when signed by "agent" for "PingStepper:protected"

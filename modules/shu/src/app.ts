@@ -6,7 +6,7 @@ import { getHash, hashWithColumns } from "./view-hash.js";
  * Query pane is sticky on the left, additional columns scroll right.
  * Each pane is resizable and independently rendered.
  */
-import { hydrateFromDom, getHydratedViewHash, getAvailableSteps, findStep, hydratedCache, isOffline, deploymentAnyoneHolds } from "./rpc-registry.js";
+import { hydrateFromDom, getHydratedViewHash, getAvailableSteps, findStep, hydratedCache, isOffline, deploymentAllowedWithoutDelegation } from "./rpc-registry.js";
 import { openPageAuthority, pageMay, type TPageAuthority } from "./page-key.js";
 import { DELEGATIONS_READ_METHOD, type TDelegations } from "@haibun/core/lib/authority-types.js";
 import { readAction } from "@haibun/core/lib/actions.js";
@@ -87,12 +87,12 @@ function seedHashFromQueryString(): void {
 
 /**
  * What this reader holds here: the key the page keeps, and what was delegated to it, read through the deployment's read
- * of delegations, which requires nothing. A deployment offering no such read gives its readers what anyone holds.
+ * of delegations, which requires nothing. A deployment offering no such read gives its readers what needs no delegation.
  */
 function openReaderAuthority(): Promise<TPageAuthority> {
 	const reading = findStep(DELEGATIONS_READ_METHOD);
 	const read = reading ? (controller: string) => conduit().follow<TDelegations>(reads(reading.method, { controller }), "read what was delegated to this page") : undefined;
-	return openPageAuthority(read, deploymentAnyoneHolds());
+	return openPageAuthority(read, deploymentAllowedWithoutDelegation());
 }
 
 /** A page that may read nothing here shows the key a holder delegates to, and nothing else: every view reads. */

@@ -57,7 +57,7 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 			wss.webserver.clearMounted();
 		} else {
 			const filesBase = path.join(process.cwd(), "files");
-			wss.webserver = new ServerHono(wss.world.eventLogger, filesBase, () => wss.getWorld().shared.getStore(), wss.anyoneHolds);
+			wss.webserver = new ServerHono(wss.world.eventLogger, filesBase, () => wss.getWorld().shared.getStore(), wss.allowedWithoutDelegation);
 		}
 		// The delegated store surface: a sibling instance keeping its records in this instance's store. Reached only once RPC
 		// is enabled, since only the RPC transport calls a family's methods.
@@ -102,15 +102,15 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			desc: "Change web server interface from default (127.0.0.1). e.g. 0.0.0.0",
 			parse: (input: string) => ({ result: input }),
 		},
-		ANYONE_HOLDS: {
-			desc: "Actions every caller holds without presenting anything, comma-separated, beside what it proves: Read:public for a site anyone may read. Unset, a caller holds only what it proves, and one that proves nothing may call only a step that requires nothing",
-			parse: (input: string) => (actionList(input).length > 0 ? { result: input } : { parseError: "ANYONE_HOLDS: name at least one action, comma-separated" }),
+		ALLOW_WITHOUT_DELEGATION: {
+			desc: "Actions every caller may take without a delegation, comma-separated, beside what its delegation allows: Read:public for a site anyone may read. Unset, a caller holds only what it proves, and one that proves nothing may call only a step that requires nothing",
+			parse: (input: string) => (actionList(input).length > 0 ? { result: input } : { parseError: "ALLOW_WITHOUT_DELEGATION: name at least one action, comma-separated" }),
 		},
 	};
 	port: number = DEFAULT_PORT;
 	hostname?: string;
-	/** What every caller holds here without presenting anything. */
-	anyoneHolds: string[] = [];
+	/** The actions every caller may take without a delegation. */
+	allowedWithoutDelegation: string[] = [];
 
 	/** Monotonic counter for session-allocated seqPath roots. Never resets while process runs. */
 	private sessionActionSeq = 0;
@@ -143,7 +143,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		if (interfaceOption) {
 			this.hostname = String(interfaceOption);
 		}
-		this.anyoneHolds = actionList(getStepperOption(this, "ANYONE_HOLDS", world.moduleOptions));
+		this.allowedWithoutDelegation = actionList(getStepperOption(this, "ALLOW_WITHOUT_DELEGATION", world.moduleOptions));
 	}
 
 	steps = {
@@ -270,7 +270,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					// is, with no ungated default.
 					const served = this.webserver?.rpcMethod(method);
 					if (served) {
-						const { granted, refused } = await grantedCapabilityForRequest(requestInfo, this.getWorld().runtime, this.anyoneHolds);
+						const { granted, refused } = await grantedCapabilityForRequest(requestInfo, this.getWorld().runtime, this.allowedWithoutDelegation);
 						if (refused) return { error: `${method}: ${refused}`, [RPC_REFUSED]: true };
 						if (!capabilityAllows(granted, served.action)) return { error: `${method}: capability ${served.action} required` };
 						try {
@@ -292,7 +292,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					if (!tool) return { error: `${method}: unknown step method` };
 
 					try {
-						const { granted, principal, refused } = await grantedCapabilityForRequest(requestInfo, world.runtime, this.anyoneHolds);
+						const { granted, principal, refused } = await grantedCapabilityForRequest(requestInfo, world.runtime, this.allowedWithoutDelegation);
 						if (refused) return { error: `${method}: ${refused}`, [RPC_REFUSED]: true };
 						const validatedParams = validateToolInput(seqPath, tool, params as Record<string, unknown>, world);
 						const featureStep = buildFeatureStepForTransport(tool, validatedParams, seqPath);

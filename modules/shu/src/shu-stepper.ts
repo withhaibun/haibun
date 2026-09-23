@@ -281,9 +281,9 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 				if (!webserver) return actionNotOK("webserver not available, load web-server-stepper before shu");
 				const pathError = validateMountPath(path);
 				if (pathError) return actionNotOK(pathError);
-				// The page boots with an empty payload: it keeps its own key, and reads what was delegated to it here. What
-				// anyone holds here is the web server's to say, and the page is told it so it knows what it may do unsigned.
-				webserver.addRoute("get", path, { description: `Shu SPA mounted at ${path}` }, createSpaHandler(path, { ...this.settings, anyoneHolds: [...webserver.anyoneHolds] }));
+				// The page boots with an empty payload: it keeps its own key, and reads what was delegated to it here. What it
+				// may do without a delegation is the web server's to say, and the page is told it so it knows what needs no signing.
+				webserver.addRoute("get", path, { description: `Shu SPA mounted at ${path}` }, createSpaHandler(path, { ...this.settings, allowedWithoutDelegation: [...webserver.allowedWithoutDelegation] }));
 				const domains = this.getWorld().domains;
 				// The context varies only by serving host, drawn from a tiny set of origins, build it once per host.
 				const byHost = new Map<string, Record<string, unknown>>();

@@ -11,8 +11,8 @@ const SITE = "http://localhost:8123";
 const delegatedAll = { id: "urn:uuid:owner", invocationTarget: SITE, allowedAction: ["*"], expires: "2099-01-01T00:00:00Z" };
 const delegatedReading = { id: "urn:uuid:reader", invocationTarget: SITE, allowedAction: ["Read:private"], expires: "2099-01-01T00:00:00Z" };
 
-/** Open the page's authority as a deployment that delegated `delegations` to its key and lets anyone hold `anyone`. */
-const opened = (delegations: Record<string, unknown>[], anyone: string[] = []) => openPageAuthority(() => Promise.resolve({ delegations, recordedAs: "Capability" }), anyone);
+/** Open the page's authority as a deployment that delegated `delegations` to its key and allows `withoutDelegation` to anyone. */
+const opened = (delegations: Record<string, unknown>[], withoutDelegation: string[] = []) => openPageAuthority(() => Promise.resolve({ delegations, recordedAs: "Capability" }), withoutDelegation);
 
 const call = (action: string, method = "POST") => ({
 	url: `${SITE}/rpc/ShuStepper-showViews`,
@@ -37,7 +37,7 @@ describe("the key a page controls", () => {
 		expect(after).toBe(before);
 	});
 
-	it("is what the page asks the deployment about, and holds what it answers with what anyone holds here", async () => {
+	it("is what the page asks the deployment about, and holds what it answers with what needs no delegation", async () => {
 		let askedFor: string | undefined;
 		const authority = await openPageAuthority((controller) => {
 			askedFor = controller;
@@ -77,7 +77,7 @@ describe("what a page sends", () => {
 		expect(headers?.digest).toBeUndefined();
 	});
 
-	it("signs nothing where no delegation allows the call, which is sent as it is for what anyone holds to decide", async () => {
+	it("signs nothing where no delegation allows the call, which is sent as it is for what needs no delegation to decide", async () => {
 		await opened([delegatedReading], ["ResourcesStepper:comment"]);
 		expect(await signedHeaders(call("ResourcesStepper:comment"))).toBeUndefined();
 		expect(await signedHeaders({ ...call("Read:private"), url: "http://elsewhere.example/rpc/x" }), "nor a call to another instance").toBeUndefined();

@@ -2,7 +2,7 @@
  * What a request is allowed to do here, and who it proved itself to be. The proof itself is a specification's
  * business and a consumer registers what reads it; what is checked here is what the boundary does with the answer:
  * that a failed or unverifiable proof refuses the request, that a proof says who acted, and that a request presenting
- * nothing holds what anyone holds here, which is nothing unless the deployment says otherwise.
+ * nothing holds what the deployment allows without a delegation, which is nothing unless it says otherwise.
  */
 import { describe, it, expect } from "vitest";
 import { grantedCapabilityForRequest } from "./capability-auth.js";
@@ -27,7 +27,7 @@ class StubVerifier implements IAuthorityVerifier {
 	}
 }
 
-/** What anyone holds at a deployment that states nothing, and at one anyone may read. */
+/** What a deployment allows without a delegation when it states nothing, and when anyone may read it. */
 const NOBODY: string[] = [];
 const PUBLIC_SITE = ["Read:public"];
 
@@ -48,7 +48,7 @@ describe("what a request carries to a boundary", () => {
 		expect(carried.principal, "and who proved it, which is who acted").toBe(READER);
 	});
 
-	it("grants what anyone holds here beside what a proof allows", async () => {
+	it("grants what the deployment allows without a delegation beside what a proof allows", async () => {
 		const authority = new SessionAuthority();
 		authority.registerVerifier(new StubVerifier());
 		expect((await grantedCapabilityForRequest(signedRequest(ACTION), runtimeWith(authority), PUBLIC_SITE)).granted).toEqual(["Read:public", ACTION, "comment.deny"]);
@@ -59,7 +59,7 @@ describe("what a request carries to a boundary", () => {
 		authority.registerVerifier(new StubVerifier());
 		const carried = await grantedCapabilityForRequest(signedRequest("comment.revoke"), runtimeWith(authority), PUBLIC_SITE);
 		expect(carried.refused, "the request is refused, with the verifier's reason").toBe("the presented authority failed verification: not this one");
-		expect(carried.granted, "a refused proof allows nothing, not even what anyone holds").toEqual([]);
+		expect(carried.granted, "a refused proof allows nothing, not even what needs no delegation").toEqual([]);
 		expect(carried.principal, "and a refusal is nobody acting").toBeUndefined();
 	});
 
@@ -68,7 +68,7 @@ describe("what a request carries to a boundary", () => {
 		expect(carried.refused).toBe("the request presents authority, and nothing here verifies it");
 	});
 
-	it("holds what anyone holds and names no one for a request presenting nothing, whatever else it carries", async () => {
+	it("holds what needs no delegation and names no one for a request presenting nothing, whatever else it carries", async () => {
 		const authority = new SessionAuthority();
 		authority.registerVerifier(new StubVerifier());
 		const presentingNothing = { method: "POST", url: "http://site.test:8123/rpc/x", headers: { authorization: "Bearer tkn" } };

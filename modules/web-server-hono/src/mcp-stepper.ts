@@ -215,10 +215,10 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 			if (c.req.method === "OPTIONS") return c.body(null, 204);
 
 			// 2. Auth. What the request presents is verified over the whole request, the body its digest covers included, and
-			// every call it carries runs under that and what anyone holds here, and nothing else: the server was started inside
-			// a step of the run, and what that step held is no caller's.
+			// every call it carries runs under that and what the deployment allows without a delegation, and nothing else: the
+			// server was started inside a step of the run, and what that step held is no caller's.
 			const body = c.req.method === "POST" ? await c.req.raw.clone().text() : undefined;
-			const { granted, principal, refused } = await grantedCapabilityForRequest({ method: c.req.method, url: c.req.url, headers: c.req.header(), body }, this.getWorld().runtime, webserver.anyoneHolds);
+			const { granted, principal, refused } = await grantedCapabilityForRequest({ method: c.req.method, url: c.req.url, headers: c.req.header(), body }, this.getWorld().runtime, webserver.allowedWithoutDelegation);
 			if (refused) return c.json({ error: refused }, 401);
 
 			// 3. Disable Compression (Critical for SSE)

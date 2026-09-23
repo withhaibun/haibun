@@ -3,7 +3,6 @@
  * A page open on a run reads the run's steps again when the run adds to them: the run signals the change on its stream,
  * and the page reads its steps again over RPC. A run adds steps while a page is open when it stands up another host.
  */
-import { EventSource } from "eventsource";
 import { describe, it } from "vitest";
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { actionOK, getStepperOptionName } from "@haibun/core/lib/util/index.js";
@@ -17,8 +16,6 @@ import ShuStepper from "./shu-stepper.js";
 import { LiveConduit, setConduit } from "./hypermedia.js";
 import { LiveEventStream, eventStream, setEventStream } from "./event-stream.js";
 import { getAvailableSteps, onStepsChanged, resetStepRegistry } from "./rpc-registry.js";
-
-globalThis.EventSource = EventSource as unknown as typeof globalThis.EventSource;
 
 /** The step another host would add, named as this run names that host's steps. */
 const ADDED = hostScopedMethodName(9, "Haibun-validateStep");
@@ -41,6 +38,7 @@ class StepsPage extends AStepper {
 						resolve();
 						queueMicrotask(stop);
 					});
+					eventStream().connect();
 				});
 				const methods = (await getAvailableSteps()).map((step) => step.method);
 				if (methods.includes(ADDED)) throw new Error(`${ADDED} was held before it was added`);
@@ -81,7 +79,12 @@ describe("a page open on a run", () => {
 		const base = `http://localhost:${port}`;
 		const world = getTestWorldWithOptions({
 			...DEF_PROTO_OPTIONS,
-			moduleOptions: { ...DEF_PROTO_OPTIONS.moduleOptions, [getStepperOptionName(WebServerStepper, "PORT")]: String(port) },
+			// Nothing here verifies a delegation, so the deployment allows every action without one, as a haibun-only run does.
+			moduleOptions: {
+				...DEF_PROTO_OPTIONS.moduleOptions,
+				[getStepperOptionName(WebServerStepper, "PORT")]: String(port),
+				[getStepperOptionName(WebServerStepper, "ALLOW_WITHOUT_DELEGATION")]: "*",
+			},
 		});
 		const feature = {
 			path: "/features/rpc-registry-following.feature",

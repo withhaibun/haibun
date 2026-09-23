@@ -54,7 +54,7 @@ describe("what a reader may do here", () => {
 		expect(refTexts(el, "entity"), "and every action it holds leads there").toEqual(expect.arrayContaining(["Instance:read", "comment.grant"]));
 	});
 
-	it("names an action nothing here recorded, such as what anyone holds, rather than offering a way to nowhere", async () => {
+	it("names an action nothing here recorded, such as one allowed without a delegation, rather than offering a way to nowhere", async () => {
 		const el = await mounted();
 		expect(refTexts(el), "no record accounts for what it holds").not.toContain("comment.grant");
 		expect(el.shadowRoot?.textContent, "so it is stated plainly instead").toContain("comment.grant");

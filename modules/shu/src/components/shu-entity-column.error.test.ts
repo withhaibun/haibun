@@ -13,7 +13,7 @@ describe("shu-entity-column error surfacing", () => {
 		document.body.innerHTML = "";
 		resetConduit();
 		resetEventStream();
-		// LiveConduit honours the stubbed `fetch` below; SerializedEventStream replaces the SSE source so the component's `eventStream()` call doesn't reach for an EventSource that jsdom doesn't ship.
+		// LiveConduit honours the stubbed `fetch` below; SerializedEventStream replaces the run's stream, which this case doesn't follow.
 		setConduit(new LiveConduit(""));
 		setEventStream(new SerializedEventStream());
 		if (!customElements.get("shu-entity-column")) customElements.define("shu-entity-column", ShuEntityColumn);
@@ -27,18 +27,6 @@ describe("shu-entity-column error surfacing", () => {
 				return Promise.resolve(rpcAnswer({ error: "Issuer not found: did:example:pookie" }, 422));
 			}
 			return Promise.resolve(rpcAnswer({}, 200));
-		};
-		// jsdom lacks EventSource; stub so SseClient.for("") doesn't throw.
-		(globalThis as { EventSource?: unknown }).EventSource = class StubEventSource {
-			addEventListener(): void {
-				/* stub */
-			}
-			removeEventListener(): void {
-				/* stub */
-			}
-			close(): void {
-				/* stub */
-			}
 		};
 	});
 

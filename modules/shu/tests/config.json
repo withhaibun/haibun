@@ -5,6 +5,7 @@
 		"variables-stepper",
 		"resources-stepper",
 		"authority-stepper",
+		"@haibun/core/lib/test/fake-authority",
 		"logic-stepper",
 		"blips-stepper",
 		"activities-stepper",

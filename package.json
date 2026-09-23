@@ -30,7 +30,7 @@
 		"test": "vitest run",
 		"test:e2e": "npm test -w e2e-tests",
 		"test:integration": "vitest run --project integration",
-		"start:mcp": "HAIBUN_O_MCPSTEPPER_ACCESS_TOKEN=wtw HAIBUN_O_WEBSERVERSTEPPER_PORT=8129 haibun-cli --config mcp-server/config.json mcp-server serve-mcp",
+		"start:mcp": "HAIBUN_O_WEBSERVERSTEPPER_PORT=8129 haibun-cli --config mcp-server/config.json mcp-server serve-mcp",
 		"test-watch": "vitest --hideSkippedTests",
 		"clean": "rm -rf modules/*/build modules/*/tsconfig.tsbuildinfo",
 		"build-watch:tsc": "tsc -b modules/ --watch --preserveWatchOutput",

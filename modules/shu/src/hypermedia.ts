@@ -133,7 +133,7 @@ async function answerOf(method: string, res: Response): Promise<unknown> {
  * What every call from this page carries. A call to a step is signed with the key this reader controls, over that
  * request: the address, the method and the body, under a delegation that allows the action the step requires. A call to
  * a step that requires nothing carries nothing, since there is nothing to prove, and so does a call the page holds no
- * delegation for, which what anyone holds here may allow.
+ * delegation for, which the deployment may allow without a delegation.
  */
 async function rpcHeaders(url: string, method: string, body: string): Promise<Record<string, string>> {
 	// One header set, written once and in one casing: a signature covers the headers as they are sent, and the same

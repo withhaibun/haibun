@@ -28,8 +28,7 @@
  * Inbound event subscriptions go through `subscribeBatched({onBatch, filter})`
  * which coalesces every event arriving between paints into one handler call
  * inside an animation frame. The transport is the installed `EventStream`
- * (`event-stream.ts`); subscribers never construct `SseClient` or
- * `EventSource` directly.
+ * (`event-stream.ts`); subscribers never construct `SseSubscriber` directly.
  *
  * Light DOM: components that must live in the host's light DOM (e.g.
  * embedded 3D scenes whose `document.querySelector` lookups need to

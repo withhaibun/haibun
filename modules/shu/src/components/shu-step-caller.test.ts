@@ -148,20 +148,6 @@ describe("shu-step-caller", () => {
 			paramDomains: { credential: "string" },
 			inputSchema: { properties: { credential: { type: "object" } }, required: ["credential"] },
 		};
-		// jsdom doesn't ship an EventSource, stub one so the shared SseSubscriber
-		// constructor (called lazily by SseClient.for) doesn't throw before fetch
-		// can be intercepted.
-		(globalThis as { EventSource?: unknown }).EventSource = class StubEventSource {
-			addEventListener(): void {
-				/* stub: no real SSE in jsdom */
-			}
-			removeEventListener(): void {
-				/* stub */
-			}
-			close(): void {
-				/* stub */
-			}
-		};
 		// jsdom also leaves scrollIntoView unset on HTMLElement; stub it so the
 		// post-render scroll call in callStep doesn't crash the test.
 		if (!HTMLElement.prototype.scrollIntoView) HTMLElement.prototype.scrollIntoView = (): void => undefined;
@@ -193,7 +179,6 @@ describe("shu-step-caller", () => {
 			expect(html).not.toMatch(/class="loading"/);
 		} finally {
 			globalThis.fetch = realFetch;
-			delete (globalThis as { EventSource?: unknown }).EventSource;
 		}
 	});
 
@@ -207,17 +192,6 @@ describe("shu-step-caller", () => {
 			pattern: "graph query {query}",
 			paramDomains: { query: "string" },
 			inputSchema: { properties: { query: { type: "object" } }, required: ["query"] },
-		};
-		(globalThis as { EventSource?: unknown }).EventSource = class StubEventSource {
-			addEventListener(): void {
-				/* stub: no real SSE in jsdom */
-			}
-			removeEventListener(): void {
-				/* stub */
-			}
-			close(): void {
-				/* stub */
-			}
 		};
 		if (!HTMLElement.prototype.scrollIntoView) HTMLElement.prototype.scrollIntoView = (): void => undefined;
 		const realFetch = globalThis.fetch;
@@ -243,7 +217,6 @@ describe("shu-step-caller", () => {
 			expect(html).not.toMatch(/class="loading"/);
 		} finally {
 			globalThis.fetch = realFetch;
-			delete (globalThis as { EventSource?: unknown }).EventSource;
 		}
 	});
 });

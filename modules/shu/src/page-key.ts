@@ -21,8 +21,8 @@ export type TPageAuthority = {
 	delegations: TDelegation[];
 	/** The type the deployment records a delegation as, so a view opens one by its id. */
 	recordedAs?: string;
-	/** What every reader holds here without presenting anything, as the deployment declares. */
-	anyone: string[];
+	/** What every reader may do here without a delegation, as the deployment declares. */
+	withoutDelegation: string[];
 };
 
 type TSigningKey = { controller: string; keyId: string; sign(options: { data: Uint8Array }): Promise<Uint8Array> };
@@ -106,13 +106,13 @@ function compressedPoint(jwk: JsonWebKey): Uint8Array {
 /**
  * Read what this page holds here: its key, and what `read` answers was delegated to it. `read` is the call to the
  * deployment's read of what was delegated to a controller, which requires nothing, or undefined where the deployment
- * offers none, which leaves the page what anyone holds.
+ * offers none, which leaves the page what needs no delegation.
  */
-export function openPageAuthority(read: ((controller: string) => Promise<TDelegations>) | undefined, anyone: string[]): Promise<TPageAuthority> {
+export function openPageAuthority(read: ((controller: string) => Promise<TDelegations>) | undefined, withoutDelegation: string[]): Promise<TPageAuthority> {
 	const opening = (async () => {
 		const key = await pageKey();
 		const delegated = read ? await read(key.controller) : { delegations: [] };
-		const authority = { controller: key.controller, delegations: delegated.delegations, recordedAs: delegated.recordedAs, anyone };
+		const authority = { controller: key.controller, delegations: delegated.delegations, recordedAs: delegated.recordedAs, withoutDelegation };
 		pinned().held = { authority, key };
 		return authority;
 	})();
@@ -134,10 +134,10 @@ export function pageAuthority(): TPageAuthority | undefined {
 	return pinned().held?.authority;
 }
 
-/** Every action this page holds: what anyone holds here, and what its delegations list. */
+/** Every action this page holds: what needs no delegation here, and what its delegations list. */
 export function pageHolds(authority = pageAuthority()): string[] {
 	if (!authority) return [];
-	return [...new Set([...authority.anyone, ...authority.delegations.flatMap((d) => (Array.isArray(d.allowedAction) ? d.allowedAction.filter((a): a is string => typeof a === "string") : []))])];
+	return [...new Set([...authority.withoutDelegation, ...authority.delegations.flatMap((d) => (Array.isArray(d.allowedAction) ? d.allowedAction.filter((a): a is string => typeof a === "string") : []))])];
 }
 
 /** Whether this page holds what `action` requires. */
@@ -154,8 +154,8 @@ export function forgetPageAuthority(): void {
 /**
  * The headers that prove this page may ask this, of this: signed with its key under a delegation that allows `action`
  * at the address asked, over the address, the method and the body where it has one, so what is proven is the request
- * rather than possession of anything. Undefined where no delegation allows it, and the call is sent as it is, which what
- * anyone holds here may allow.
+ * rather than possession of anything. Undefined where no delegation allows it, and the call is sent as it is, which the
+ * deployment may allow without a delegation.
  */
 export async function signedHeaders(request: { url: string; method: string; headers: Record<string, string>; body?: string; action: string }): Promise<Record<string, string> | undefined> {
 	const held = pinned().held;

@@ -52,17 +52,6 @@ describe("shu-step-detail", () => {
 				);
 			return Promise.resolve(rpcAnswer({}, 200));
 		};
-		(globalThis as { EventSource?: unknown }).EventSource = class StubEventSource {
-			addEventListener(): void {
-				/* stub */
-			}
-			removeEventListener(): void {
-				/* stub */
-			}
-			close(): void {
-				/* stub */
-			}
-		};
 	});
 
 	const text = (el: ShuStepDetail): string => el.shadowRoot?.textContent?.replace(/\s+/g, " ").trim() ?? "";

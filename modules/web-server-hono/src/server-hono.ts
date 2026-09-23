@@ -28,7 +28,7 @@ export class ServerHono implements IWebServer {
 		private readonly eventLogger: IEventLogger,
 		private readonly base: string,
 		private readonly getStore: () => IQuadStore,
-		readonly anyoneHolds: readonly string[],
+		readonly allowedWithoutDelegation: readonly string[],
 	) {
 		this.createApp();
 	}
