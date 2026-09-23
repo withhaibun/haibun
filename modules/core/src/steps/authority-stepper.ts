@@ -36,8 +36,8 @@ const authorityActionSchema = z
 	.regex(/^\S+$/, "action must not contain whitespace")
 	.describe("Allowed action label such as GraphStepper:read, comment.grant, or Namespace:*.");
 
-/** What holding authority over this run's own authority means: revoking what it granted. */
-export const AUTHORITY_CAPABILITIES = { revoke: "Authority:revoke" } as const;
+/** What holding authority over this run's own authority means: stating and delegating it, and revoking what it granted. */
+export const AUTHORITY_CAPABILITIES = { delegate: "Authority:delegate", revoke: "Authority:revoke" } as const;
 
 const sessionGrantIssuedSchema = z.object({
 	token: sessionTokenSchema,
