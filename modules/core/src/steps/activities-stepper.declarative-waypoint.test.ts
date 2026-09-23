@@ -13,6 +13,7 @@ import { passWithDefaults } from "../lib/test/lib.js";
 import VariablesStepper from "./variables-stepper.js";
 import { ActivitiesStepper } from "./activities-stepper.js";
 import Haibun from "./haibun.js";
+import AuthorityStepper from "./authority-stepper.js";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "../lib/astepper.js";
 import { actionOK, actionOKWithProducts } from "../lib/util/index.js";
 import { z } from "zod";
@@ -136,7 +137,8 @@ ensure Logged in`,
 	// (1d) Capability gating: when the producer step requires a capability the caller
 	//      doesn't have, the resolver filters it from the producer set. With no other
 	//      producers, the goal becomes unreachable: the step lacking capability cannot
-	//      be invoked, so it cannot satisfy the waypoint.
+	//      be invoked, so it cannot satisfy the waypoint. A run's own feature holds the
+	//      run's authority, so the caller lacking it is stated: a token that grants nothing.
 	it("(1d) capability gating: producer requiring an unheld capability is filtered, goal becomes unreachable", async () => {
 		class GatedAuthStepper extends AStepper implements IHasCycles {
 			cycles: IStepperCycles = {
@@ -153,14 +155,14 @@ ensure Logged in`,
 				},
 			};
 		}
-		const gatedSteppers = [VariablesStepper, ActivitiesStepper, Haibun, GatedAuthStepper];
+		const gatedSteppers = [VariablesStepper, ActivitiesStepper, Haibun, AuthorityStepper, GatedAuthStepper];
 		const feature = {
 			path: "/features/declarative-waypoint-capability.feature",
 			content: `Activity: Sign in
 sign in as "alice"
 waypoint Logged in resolves ${DOMAIN_AUTH_SESSION}
 
-ensure Logged in`,
+with token "grants-nothing", ensure Logged in`,
 		};
 
 		const { failWithDefaults } = await import("../lib/test/lib.js");

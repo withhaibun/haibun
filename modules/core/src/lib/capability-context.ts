@@ -24,6 +24,10 @@ export function runAuthorizedWith<T>(capability: string | string[] | undefined, 
 	return capabilityStore.run(capability, within);
 }
 
+/** What a run's own feature holds: the run acts for the instance itself, so a step its features state is the
+ *  instance's own act. A narrower authority for part of a feature is stated by the statement that narrows it. */
+export const RUN_AUTHORITY = ["*"];
+
 /** What the calling step was authorized with, or undefined outside any dispatch. */
 export function authorizedWith(): string | string[] | undefined {
 	return capabilityStore.getStore();

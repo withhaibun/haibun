@@ -26,7 +26,7 @@ import { z } from "zod";
 import { AStepper, type IHasCycles, type IHasOptions, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { actionNotOK, actionOK, actionOKWithProducts, boolOrError, getStepperOption, intOrError } from "@haibun/core/lib/util/index.js";
 import { callStepFrom } from "@haibun/core/lib/call-step.js";
-import { invokingPrincipal } from "@haibun/core/lib/step-dispatch.js";
+import { actingAs } from "@haibun/core/lib/capability-context.js";
 import { askedIn } from "@haibun/core/lib/capability-context.js";
 import { persistPrincipalIndividual } from "@haibun/core/lib/principal-individual.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
@@ -488,7 +488,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 	/** Who a run started now is attributed to: the principal controlling the capability the call ran under, or this
 	 *  agent when the call carried no capability. */
 	private actingPrincipal(): string {
-		return invokingPrincipal(this.getWorld()) ?? TEST_RUNNER_AUTHOR;
+		return actingAs() ?? TEST_RUNNER_AUTHOR;
 	}
 
 	/** Write the agent's Principal once per store, so every finding it writes attributes to a record. */

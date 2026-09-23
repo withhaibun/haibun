@@ -8,11 +8,10 @@ import { actionNotOK } from "./util/index.js";
 import { normalizeDomainKey } from "./domains.js";
 import { OBSERVATION_GRAPH, FACT_GRAPH, assertFact, getFact, queryFacts } from "./working-memory.js";
 import { doStepperCycle } from "./stepper-cycles.js";
-import { authorizedWith, runAuthorizedWith, runInStep } from "./capability-context.js";
+import { actingAs, authorizedWith, runAuthorizedWith, runInStep } from "./capability-context.js";
 import { LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS, type SeqPathStatus } from "./resources.js";
 import { SEQ_PATH_FIELD, executionOf, formatRecordName } from "./seq-path.js";
 import { StepRegistry, stepMethodName, hostScopedMethodName, authorizeToolCapability } from "./step-registry.js";
-import { getAuthority, SESSION_TOKEN_KEY } from "./session-authority.js";
 import { validateProducts } from "./tool-validation.js";
 import { augmentViewHypermedia, isViewOnlyDomain } from "./step-hypermedia.js";
 
@@ -40,21 +39,6 @@ export type DispatchContext = {
  * RPC, MCP, subprocess, enters through here. Applies capability auth, lifecycle
  * cycles (beforeStep/afterStep), event logging, and result tracking uniformly.
  */
-/** What the run's active bearer token grants, if one is set and an authority can resolve it. */
-function bearerCapability(world: TWorld): string[] | undefined {
-	const token = world.runtime.keys?.[SESSION_TOKEN_KEY] as string | undefined;
-	if (!token) return undefined;
-	const granted = getAuthority(world.runtime)?.resolveSession(token);
-	return granted && granted.length > 0 ? granted : undefined;
-}
-
-/** The principal controlling the active bearer token, which is who a step dispatched under that token acts as. */
-export function invokingPrincipal(world: TWorld): string | undefined {
-	const token = world.runtime.keys?.[SESSION_TOKEN_KEY] as string | undefined;
-	if (!token) return undefined;
-	return getAuthority(world.runtime)?.resolveController(token);
-}
-
 /** How many of a feature's finished steps a reader can still read in full: the most recent it ran. What every step
  *  came to is answered by the reduction, which holds no step to answer it. */
 export const RESULTS_READ_IN_FULL = 1000;
@@ -74,10 +58,10 @@ const ownFailure = (result: TStepResult): boolean => result.intent?.mode !== "sp
 
 export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureStep): Promise<TStepResult> {
 	const { registry, world, steppers } = ctx;
-	// A caller that states a capability decides; failing that, the capability the calling step was authorized with,
-	// so a step dispatched from inside another is neither refused nor allowed for the route taken to it; failing
-	// that, the active bearer token, which is what makes `with token, <step>` mean what it says.
-	const grantedCapability = ctx.grantedCapability ?? authorizedWith() ?? bearerCapability(world);
+	// A caller that states a capability decides; failing that, the capability the calling step was authorized with, so a
+	// step dispatched from inside another is neither refused nor allowed for the route taken to it. A statement that
+	// narrows authority, such as `with token`, states it the same way, for its own statements only.
+	const grantedCapability = ctx.grantedCapability ?? authorizedWith();
 	const { action } = featureStep;
 	const start = Timer.since();
 
@@ -140,7 +124,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 		? {
 				required: tool.descriptor.capability,
 				held: (Array.isArray(grantedCapability) ? grantedCapability.join(", ") : grantedCapability) || undefined,
-				controller: invokingPrincipal(world),
+				controller: actingAs(),
 			}
 		: undefined;
 

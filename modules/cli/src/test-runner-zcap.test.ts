@@ -11,7 +11,7 @@ import TestRunnerStepper from "./test-runner-stepper.js";
 import InstanceStepper, { SUPERVISOR_CAPABILITIES } from "./instance-stepper.js";
 import { openRunRegistry } from "@haibun/core/lib/step-registry.js";
 import { callStepByName } from "@haibun/core/lib/call-step.js";
-import { SessionAuthority, AUTHORITY_KEY, SESSION_TOKEN_KEY } from "@haibun/core/lib/session-authority.js";
+import { SessionAuthority, AUTHORITY_KEY, runUnderToken } from "@haibun/core/lib/session-authority.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { principalDomainDefinition } from "@haibun/core/lib/resources.js";
@@ -40,11 +40,11 @@ function harness() {
 	for (const s of steppers) void s.setWorld(world, steppers);
 	// The run's registry, as the executor opens it, which a step calls another step through.
 	const registry = openRunRegistry(world, steppers);
-	/** Call a step the way anything calls a step: under whatever token is active, with no capability asserted by the caller. */
+	/** Call a step the way anything calls a step: under a token where one is named, as `with token` runs a statement,
+	 *  with no capability asserted by the caller. */
 	const call = async (method: string, input: Record<string, unknown> = {}, token?: string, grantedCapability?: string) => {
-		if (token) (world.runtime.keys ??= {})[SESSION_TOKEN_KEY] = token;
-		else delete world.runtime.keys?.[SESSION_TOKEN_KEY];
-		return await callStepByName({ registry, world, steppers, grantedCapability }, method, input);
+		const dispatch = () => callStepByName({ registry, world, steppers, grantedCapability }, method, input);
+		return token ? await runUnderToken(authority, token, dispatch) : await dispatch();
 	};
 	const grant = (action: string) => authority.issueSessionGrant({ token: AGENT_TOKEN, allowedAction: [action], controller: "did:site:test" });
 	return { authority, world, call, grant };

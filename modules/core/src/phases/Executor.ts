@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { RUN_AUTHORITY } from "../lib/capability-context.js";
 import { z } from "zod";
 import { DOMAIN_DOMAIN_KEY } from "../lib/domains.js";
 import type { TWorld } from "../lib/world.js";
@@ -333,7 +334,7 @@ export class FeatureExecutor {
 				seqPath: [world.tag.hostId, world.tag.featureNum, currentScenario + 1, ...step.seqPath],
 			};
 
-			const result = await dispatchStep({ registry: this.registry, world, steppers: this.steppers }, augmentedStep);
+			const result = await dispatchStep({ registry: this.registry, world, steppers: this.steppers, grantedCapability: RUN_AUTHORITY }, augmentedStep);
 			ok = ok && result.ok;
 			if (!ok) break;
 

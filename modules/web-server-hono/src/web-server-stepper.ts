@@ -308,7 +308,9 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 						// Whoever proved themselves at this boundary is who acts inside it, so what a step records names the
 						// reader who asked for it rather than the process that carried it out.
 						const hr = await runWithRequestContext({ baseIri: requestBaseIri(requestInfo?.headers) }, () =>
-							runActingAs(principal, () => runReadingAt(ceiling, () => dispatchStep({ registry, world, steppers: this.steppers, grantedCapability }, featureStep))),
+							// A request holds what it presented and nothing else: the server was started inside a step of the run, and
+							// what that step held is no caller's.
+							runActingAs(principal, () => runReadingAt(ceiling, () => dispatchStep({ registry, world, steppers: this.steppers, grantedCapability: grantedCapability ?? [] }, featureStep))),
 						);
 						if (hr.ok) return hr.products ?? { ok: true };
 						return { error: `${method}: ${hr.errorMessage}` };

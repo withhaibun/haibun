@@ -6,11 +6,12 @@ import { formatSeqPath } from "../lib/seq-path.js";
 import type { TWorld } from "../lib/world.js";
 import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature, type TFeatureStep } from "../lib/astepper.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/util/index.js";
-import { AUTHORITY_KEY, SESSION_TOKEN_KEY, SessionAuthority } from "../lib/session-authority.js";
+import { AUTHORITY_KEY, SessionAuthority, runUnderToken } from "../lib/session-authority.js";
 import type { IAuthority } from "../lib/authority-types.js";
 import { DOMAIN_JSON, DOMAIN_STRING } from "../lib/domains.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
-import { currentPrincipal, withPrincipal } from "../lib/principal.js";
+import { currentPrincipal } from "../lib/principal.js";
+import { runActingAs, runAuthorizedWith } from "../lib/capability-context.js";
 import { activeSitePrincipal, SITE_DID_PREFIX } from "../lib/host-id.js";
 import { PRINCIPAL_DOMAIN, PRINCIPAL_LABEL } from "../lib/resources.js";
 
@@ -292,27 +293,17 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 		}
 		const runner = new FlowRunner(this.getWorld(), this.steppers);
 		const run = () => runner.runSteps(what, { parentStep: featureStep });
-		return await withPrincipal(this.getWorld(), verified.principal ?? capability.controller, run);
+		// What the capability allows is all its statements may do, and its controller is who does it.
+		return await runAuthorizedWith(verified.allowedAction ?? actions, () => runActingAs(verified.principal ?? capability.controller, run));
 	}
 
-	/** Run `what` with the bearer `token` active and the principal set to the token's controller (so authored writes are attributed to it). */
+	/** Run `what` with exactly what `token` grants, nothing where it grants nothing, as the token's controller, so what
+	 *  its statements write is attributed to it. Held in the statement's own async context, so a call arriving from
+	 *  elsewhere while it runs neither holds its grant nor acts as its controller. */
 	private async runUnderToken(token: string, what: TFeatureStep[], featureStep: TFeatureStep) {
 		const world = this.getWorld();
-		const principal = this.getAuthority().resolveController(token) ?? currentPrincipal(world);
-		const keys = (world.runtime.keys ??= {});
-		const previous = keys[SESSION_TOKEN_KEY];
-		keys[SESSION_TOKEN_KEY] = token;
-		try {
-			const runner = new FlowRunner(world, this.steppers);
-			const run = () => runner.runSteps(what, { parentStep: featureStep });
-			return await (principal ? withPrincipal(world, principal, run) : run());
-		} finally {
-			if (previous !== undefined) {
-				keys[SESSION_TOKEN_KEY] = previous;
-			} else {
-				delete keys[SESSION_TOKEN_KEY];
-			}
-		}
+		const run = () => new FlowRunner(world, this.steppers).runSteps(what, { parentStep: featureStep });
+		return await runUnderToken(this.getAuthority(), token, run, currentPrincipal(world));
 	}
 
 	private getAuthority(): IAuthority {

@@ -13,11 +13,10 @@
  * authority speak the same vocabulary regardless of presentation form.
  */
 import type { TRuntime } from "./world.js";
+import { runActingAs, runAuthorizedWith } from "./capability-context.js";
 import type { IAuthority, IAuthorityIssuer, IAuthorityVerifier, TSessionGrant, TAuthorityEvidence, TCredentialRequest, TIssuedCredential } from "./authority-types.js";
 
 export const AUTHORITY_KEY = "authority";
-/** Runtime key holding the active bearer token injected by `withToken`. */
-export const SESSION_TOKEN_KEY = "sessionToken";
 /** Runtime flag a trusted system actor sets to act without presenting evidence of authority. */
 export const TRUSTED_CONTEXT = "trustedContext";
 
@@ -129,4 +128,10 @@ export class SessionAuthority implements IAuthority {
 
 export function getAuthority(runtime: TRuntime): IAuthority | undefined {
 	return runtime.keys?.[AUTHORITY_KEY] as IAuthority | undefined;
+}
+
+/** Runs `within` with exactly what `token` grants, nothing where it grants nothing, as the token's controller or else
+ *  `otherwise`. Held in the async context of `within`, so a call arriving from elsewhere meanwhile holds none of it. */
+export function runUnderToken<T>(authority: IAuthority, token: string, within: () => Promise<T>, otherwise?: string): Promise<T> {
+	return runAuthorizedWith(authority.resolveSession(token), () => runActingAs(authority.resolveController(token) ?? otherwise, within));
 }

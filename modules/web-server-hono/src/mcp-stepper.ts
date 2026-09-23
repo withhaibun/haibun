@@ -25,6 +25,7 @@ import type { IWebServer, Context } from "./defs.js";
 import { WEBSERVER } from "./defs.js";
 import type { IStepTransport } from "./step-transport.js";
 import { grantedCapabilityForRequest, validateCapabilityAuthConfig } from "./capability-auth.js";
+import { runActingAs } from "@haibun/core/lib/capability-context.js";
 export default class McpStepper extends AStepper implements IHasOptions, IHasCycles, IStepTransport {
 	description = "Expose all Haibun steps as callable MCP tools for LLM agents";
 	readonly name = "McpStepper";
@@ -119,7 +120,8 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 			// MCP callers have no haibun seqPath; the server synthesises one.
 			const seqPath = allocateSyntheticSeqPath(world);
 			const featureStep = buildFeatureStepForTransport(tool, validateToolInput(seqPath, tool, args, world), seqPath);
-			const result = await dispatchStep({ registry: this.registry(), world, steppers: this.steppers, grantedCapability }, featureStep);
+			// A caller holds what it presented and nothing else, not what the step that started this server held.
+			const result = await runActingAs(undefined, () => dispatchStep({ registry: this.registry(), world, steppers: this.steppers, grantedCapability: grantedCapability ?? [] }, featureStep));
 			if (!result.ok) return { isError: true, content: [{ type: "text", text: result.errorMessage ?? "Step failed" }] };
 			return { content: [{ type: "text", text: JSON.stringify(result.products ?? {}, null, 2) }] };
 		} catch (err: unknown) {
