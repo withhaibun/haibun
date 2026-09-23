@@ -34,6 +34,12 @@ export function requiredAction(stepperName: string, stepName: string, step: { ca
 	return step.capability ?? (step.read ? readAction(Access.public) : `${stepperName}:${stepName}`);
 }
 
+/** Whether a caller holding `held` may call `step`: what it holds allows the action the step requires. Every gate on a
+ *  call and every listing of steps for a caller reads this. */
+export function mayCall(held: string | string[] | undefined, step: { capability: string }): boolean {
+	return capabilityAllows(held, step.capability);
+}
+
 /**
  * Whether what a caller holds allows `required`: the action itself, `*`, a prefix ending in `*`, or a read at a level at
  * least as broad as the one asked for, since a reader who may see private records may see public ones.

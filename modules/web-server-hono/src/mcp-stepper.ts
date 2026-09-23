@@ -19,7 +19,7 @@ import { getFromRuntime, getStepperOption, stringOrError, errorDetail } from "@h
 import { currentVersion as version } from "@haibun/core/currentVersion.js";
 import { dispatchStep } from "@haibun/core/lib/step-dispatch.js";
 import { buildFeatureStepForTransport, refusal, type StepRegistry } from "@haibun/core/lib/step-registry.js";
-import { capabilityAllows } from "@haibun/core/lib/actions.js";
+import { mayCall } from "@haibun/core/lib/actions.js";
 import { stepsInstructions, toolDefinition } from "@haibun/core/lib/step-discovery.js";
 import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
 import type { IWebServer, Context } from "./defs.js";
@@ -101,8 +101,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 	public async executeTool(name: string, args: Record<string, unknown>, grantedCapability?: string | string[], principal?: string): Promise<CallToolResult> {
 		const tool = this.registry().get(name);
 		// A call is refused before its input is read, and alike whether its step exists, as it is over RPC.
-		if (!tool || !capabilityAllows(grantedCapability, tool.descriptor.capability))
-			return { isError: true, content: [{ type: "text", text: refusal(name, tool?.descriptor.capability, principal) }] };
+		if (!tool || !mayCall(grantedCapability, tool.descriptor)) return { isError: true, content: [{ type: "text", text: refusal(name, tool?.descriptor.capability, principal) }] };
 		try {
 			const world = this.getWorld();
 			// MCP callers have no haibun seqPath; the server synthesises one.

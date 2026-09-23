@@ -18,7 +18,7 @@ import { SOURCE_DOMAIN, type TDomainChainGraph, type TDomainChainStep } from "./
 import type { TQuad } from "./quad-types.js";
 import { getCompositeFields, zodTypeLabel, type TCompositeField } from "./composite-domain.js";
 import type { TRegisteredDomain } from "./resources.js";
-import { capabilityAllows } from "./actions.js";
+import { mayCall } from "./actions.js";
 
 export type TPlanStep = {
 	stepperName: string;
@@ -302,7 +302,7 @@ function enumerate(
 			truncated = true;
 			break;
 		}
-		if (!capabilityAllows(inputs.held, step.capability)) continue;
+		if (!mayCall(inputs.held, step)) continue;
 
 		const inputMichi: TMichi[][] = [];
 		let anyDead = false;

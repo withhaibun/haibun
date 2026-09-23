@@ -55,7 +55,9 @@ const mcpText = (response) => {
     return content?.type === "text" ? (content.text ?? "") : "";
 };
 /** A call denied for want of `capability`, or the reason it wasn't. */
-const deniedFor = (status, error, capability) => status === 422 && typeof error === "string" && error.includes(`capability ${capability} required`) ? actionOK() : actionNotOK(`Expected a denial for ${capability}, got ${status} ${String(error)}`);
+const deniedFor = (status, error, capability) => status === 422 && typeof error === "string" && error.includes(`capability ${capability} required`)
+    ? actionOK()
+    : actionNotOK(`Expected a denial for ${capability}, got ${status} ${String(error)}`);
 const cycles = (ts) => ({
     startFeature: () => {
         const p = { when: `${TestServer.name}.cycles.startFeature`, seq: [0] };

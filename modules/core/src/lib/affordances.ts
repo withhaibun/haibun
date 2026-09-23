@@ -16,7 +16,7 @@ import type { AStepper, TFeatureStep } from "./astepper.js";
 import type { TRegisteredDomain } from "./resources.js";
 import type { TQuad } from "./quad-types.js";
 import { stepMethodName } from "./step-registry.js";
-import { capabilityAllows } from "./actions.js";
+import { mayCall } from "./actions.js";
 import { buildDomainChain, SOURCE_DOMAIN, type TDomainChainGraph } from "./domain-chain.js";
 import { BASE_TYPES, DOMAIN_DOMAIN_KEY } from "./domains.js";
 import { resolveGoal, GOAL_FINDING, type TGoalResolution } from "./goal-resolver.js";
@@ -188,7 +188,7 @@ function buildForwardFrontier(graph: TDomainChainGraph, facts: TQuad[], held: st
 	const isArgument = (d: string) => PRIMITIVE_DOMAINS.has(d) || !producedDomains.has(d);
 	const out: TForwardAffordance[] = [];
 	for (const step of graph.steps) {
-		if (!capabilityAllows(held, step.capability)) continue;
+		if (!mayCall(held, step)) continue;
 		if (step.inputDomains.length === 0 && step.outputDomains.length === 0) continue;
 		const readyToRun = step.inputDomains.every((d) => isArgument(d) || assertedDomains.has(d) || d === SOURCE_DOMAIN);
 		out.push({

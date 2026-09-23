@@ -2,7 +2,7 @@ import { AStepper, type TStepAction } from "./astepper.js";
 import type { TFeatures } from "./execution.js";
 import { Resolver } from "../phases/Resolver.js";
 import { errorDetail } from "./util/index.js";
-import { capabilityAllows, requiredAction } from "./actions.js";
+import { mayCall, requiredAction } from "./actions.js";
 
 /**
  * Result of validating a step text against registered steppers.
@@ -23,7 +23,7 @@ export type StepValidationResult =
  * an error message if not.
  */
 export function validateStep(text: string, steppers: AStepper[], held: string | string[] | undefined, backgrounds?: TFeatures): StepValidationResult {
-	const resolver = new Resolver(steppers, backgrounds || [], (stepperName, actionName, step) => capabilityAllows(held, requiredAction(stepperName, actionName, step)));
+	const resolver = new Resolver(steppers, backgrounds || [], (stepperName, actionName, step) => mayCall(held, { capability: requiredAction(stepperName, actionName, step) }));
 	try {
 		const action = resolver.findSingleStepAction(text);
 		return { valid: true, action };

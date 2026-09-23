@@ -10,7 +10,7 @@ import { populateActionArgs } from "./populateActionArgs.js";
 import { DOMAIN_STRING, normalizeDomainKey } from "./domains.js";
 import { zodTypeLabel } from "./composite-domain.js";
 import { isPersisted } from "./resources.js";
-import { capabilityAllows, requiredAction } from "./actions.js";
+import { mayCall, requiredAction } from "./actions.js";
 import { resolveOutputSchema } from "./tool-validation.js";
 import {
 	STEP_DETAIL,
@@ -116,7 +116,7 @@ export class StepRegistry {
 	/** The steps a caller holding `held` is shown: those it holds what they require for. Every listing of a run's steps to
 	 *  a caller reads this, so a caller learns what it may call and nothing it may not. */
 	heldBy(held: string | string[] | undefined): TStepDescriptor[] {
-		return this.descriptors().filter((step) => capabilityAllows(held, step.capability));
+		return this.descriptors().filter((step) => mayCall(held, step));
 	}
 
 	get size(): number {
@@ -386,7 +386,7 @@ function buildInputSchema(stepDef: TStepperStep, world: TWorld): { inputSchema: 
 }
 
 export function authorizeToolCapability(step: Pick<TStepDescriptor, "method" | "capability">, granted?: string | string[]): void {
-	if (capabilityAllows(granted, step.capability)) return;
+	if (mayCall(granted, step)) return;
 	throw new Error(namedRefusal(step.method, step.capability));
 }
 

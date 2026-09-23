@@ -3,7 +3,7 @@
  * one level allows every narrower read.
  */
 import { describe, expect, it } from "vitest";
-import { actionUnder, capabilityAllows, readAction, readCeilingOf, requiredAction } from "./actions.js";
+import { actionUnder, capabilityAllows, mayCall, readAction, readCeilingOf, requiredAction } from "./actions.js";
 import { Access } from "./resources.js";
 
 describe("what a step requires", () => {
@@ -17,6 +17,14 @@ describe("what a step requires", () => {
 
 	it("is the step's own name for a step that declares nothing, so nobody declaring anything leaves it open", () => {
 		expect(requiredAction("Pool", "drain", {})).toBe("Pool:drain");
+	});
+});
+
+describe("whether a caller may call a step", () => {
+	it("is whether what it holds allows the action the step requires", () => {
+		expect(mayCall(["Read:private"], { capability: "Read:public" })).toBe(true);
+		expect(mayCall(["Pool:enter"], { capability: "Pool:drain" })).toBe(false);
+		expect(mayCall(undefined, { capability: "Read:public" }), "and nothing held calls nothing").toBe(false);
 	});
 });
 
