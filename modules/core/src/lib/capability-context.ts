@@ -15,6 +15,7 @@
  */
 import { AsyncLocalStorage } from "node:async_hooks";
 import { narrowerCeiling, type AccessLevel } from "./resources.js";
+import { EVERY_ACTION } from "./actions.js";
 import type { THaibunLogLevel } from "../schema/protocol.js";
 
 const capabilityStore = new AsyncLocalStorage<string | string[] | undefined>();
@@ -26,7 +27,7 @@ export function runAuthorizedWith<T>(capability: string | string[] | undefined, 
 
 /** What a run's own feature holds: the run acts for the instance itself, so a step its features state is the
  *  instance's own act. A narrower authority for part of a feature is stated by the statement that narrows it. */
-export const RUN_AUTHORITY = ["*"];
+export const RUN_AUTHORITY = [EVERY_ACTION];
 
 /** What the calling step was authorized with, or undefined outside any dispatch. */
 export function authorizedWith(): string | string[] | undefined {

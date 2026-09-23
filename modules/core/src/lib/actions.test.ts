@@ -3,7 +3,7 @@
  * one level allows every narrower read.
  */
 import { describe, expect, it } from "vitest";
-import { actionUnder, capabilityAllows, mayCall, readAction, readCeilingOf, requiredAction } from "./actions.js";
+import { actionUnder, allowedActionFor, capabilityAllows, delegatedActions, mayCall, readAction, readCeilingOf, requiredAction } from "./actions.js";
 import { Access } from "./resources.js";
 
 describe("what a step requires", () => {
@@ -74,5 +74,19 @@ describe("the action a delegation lets its holder invoke for a call", () => {
 		expect(actionUnder(delegation, "Pool:enter", "https://pool.example.net/rpc/Pool-enter")).toBeUndefined();
 		expect(actionUnder({ ...delegation, expires: "2000-01-01T00:00:00Z" }, "Pool:enter", "https://pool.example/rpc/Pool-enter")).toBeUndefined();
 		expect(actionUnder({ ...delegation, expires: undefined }, "Pool:enter", "https://pool.example/rpc/Pool-enter"), "a delegation states when it lapses").toBeUndefined();
+	});
+});
+
+describe("what a delegation lists", () => {
+	it("lists nothing for every action, and reads a delegation that lists nothing as allowing every action", () => {
+		expect(allowedActionFor(["*"]), "zcap-LD reads a listed * as an action's name").toBeUndefined();
+		expect(allowedActionFor(["Pool:enter"])).toEqual(["Pool:enter"]);
+		expect(delegatedActions({})).toEqual(["*"]);
+		expect(delegatedActions({ allowedAction: ["Pool:enter"] })).toEqual(["Pool:enter"]);
+	});
+
+	it("invokes the action required under a delegation that restricts none", () => {
+		const unrestricted = { invocationTarget: "http://site.test", expires: "2099-01-01T00:00:00Z" };
+		expect(actionUnder(unrestricted, "Pool:enter", "http://site.test/rpc/x")).toBe("Pool:enter");
 	});
 });

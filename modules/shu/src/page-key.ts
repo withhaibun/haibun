@@ -9,7 +9,7 @@
  */
 import { signCapabilityInvocation } from "@digitalbazaar/http-signature-zcap-invoke";
 import { encode } from "base58-universal";
-import { actionUnder, capabilityAllows, type TDelegation } from "@haibun/core/lib/actions.js";
+import { actionUnder, capabilityAllows, delegatedActions, type TDelegation } from "@haibun/core/lib/actions.js";
 import { DELEGATIONS_READ_ACTION, type TDelegationRecord, type TDelegations } from "@haibun/core/lib/authority-types.js";
 import { pagePinned } from "./page-pinned.js";
 
@@ -138,12 +138,7 @@ export function pageAuthority(): TPageAuthority | undefined {
 /** Every action this page holds: what needs no delegation here, and what its delegations list. */
 export function pageHolds(authority = pageAuthority()): string[] {
 	if (!authority) return [];
-	return [
-		...new Set([
-			...authority.withoutDelegation,
-			...authority.delegations.flatMap((d) => (Array.isArray(d.allowedAction) ? d.allowedAction.filter((a): a is string => typeof a === "string") : [])),
-		]),
-	];
+	return [...new Set([...authority.withoutDelegation, ...authority.delegations.flatMap(delegatedActions)])];
 }
 
 /** Whether this page holds what `action` requires. */

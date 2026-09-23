@@ -1,6 +1,6 @@
 import type { ReactiveController, ReactiveControllerHost } from "lit";
 import { Access, PRINCIPAL_LABEL } from "@haibun/core/lib/resources.js";
-import { readAction } from "@haibun/core/lib/actions.js";
+import { delegatedActions, readAction } from "@haibun/core/lib/actions.js";
 import { getAvailableSteps } from "../rpc-registry.js";
 import { queryGraph } from "../quads-snapshot.js";
 import { pageAuthorityReady, pageHolds, pageMay } from "../page-key.js";
@@ -37,8 +37,8 @@ export class AuthorityController implements ReactiveController {
 		const grantedBy: Record<string, TRecordRef> = {};
 		for (const delegation of authority?.delegations ?? []) {
 			const record = typeof delegation.id === "string" ? authority?.records?.[delegation.id] : undefined;
-			if (!record || !pageMay(readAction(record.accessLevel)) || !Array.isArray(delegation.allowedAction)) continue;
-			for (const action of delegation.allowedAction) if (typeof action === "string") grantedBy[action] ??= { persistedAs: record.persistedAs, id: String(delegation.id) };
+			if (!record || !pageMay(readAction(record.accessLevel))) continue;
+			for (const action of delegatedActions(delegation)) grantedBy[action] ??= { persistedAs: record.persistedAs, id: String(delegation.id) };
 		}
 		const principals = pageMay(readAction(Access.public)) ? ((await queryGraph({ label: PRINCIPAL_LABEL })).vertices ?? []) : [];
 		return { controller: authority?.controller, holds: pageHolds(authority), grantedBy, principals: principals as TPrincipalRow[] };

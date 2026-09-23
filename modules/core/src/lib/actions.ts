@@ -66,6 +66,23 @@ export const FOLLOWS_THE_RUN = readAction(Access.private);
 /** A delegation as its holder presents it: what it lets the holder do, over what, and until when. */
 export type TDelegation = Record<string, unknown> & { allowedAction?: unknown; invocationTarget?: unknown; expires?: unknown };
 
+/** Every action: what the run holds, and what a delegation that restricts no action allows. */
+export const EVERY_ACTION = "*";
+
+/** The actions a delegation allows: those it lists, or every action where it lists none, which is how zcap-LD writes a
+ *  delegation that restricts no action. */
+export function delegatedActions(delegation: { allowedAction?: unknown }): string[] {
+	const listed = delegation.allowedAction;
+	if (listed === undefined) return [EVERY_ACTION];
+	return (Array.isArray(listed) ? listed : [listed]).filter((action): action is string => typeof action === "string");
+}
+
+/** What a delegation of `actions` lists: nothing where they allow every action, since zcap-LD narrows a delegation by the
+ *  exact actions its parent lists and reads a listed `*` as an action's name. */
+export function allowedActionFor(actions: string[]): string[] | undefined {
+	return actions.includes(EVERY_ACTION) ? undefined : actions;
+}
+
 /**
  * The action a holder invokes under `delegation` for a call requiring `required` at `target`, where the delegation allows
  * it now: one it lists that allows `required`, the target at or under the one it is over, and its expiry ahead. A
@@ -75,6 +92,7 @@ export function actionUnder(delegation: TDelegation, required: string, target: s
 	const over = typeof delegation.invocationTarget === "string" ? delegation.invocationTarget : undefined;
 	const expires = typeof delegation.expires === "string" ? Date.parse(delegation.expires) : Number.NaN;
 	if (!over || !(target === over || target.startsWith(over.endsWith("/") ? over : `${over}/`)) || !(expires > now)) return undefined;
-	const listed = Array.isArray(delegation.allowedAction) ? delegation.allowedAction.filter((action): action is string => typeof action === "string") : [];
-	return listed.find((action) => capabilityAllows(action, required));
+	// A delegation that restricts no action is invoked for the action required itself.
+	if (delegation.allowedAction === undefined) return required;
+	return delegatedActions(delegation).find((action) => capabilityAllows(action, required));
 }
