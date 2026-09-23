@@ -4,6 +4,7 @@ import { AStepper } from "@haibun/core/lib/astepper.js";
 import { OK } from "@haibun/core/schema/protocol.js";
 import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import { RpcClient } from "@haibun/core/lib/rpc-client.js";
+import { refusal } from "@haibun/core/lib/step-registry.js";
 import { PRINCIPAL_LABEL, type TPrincipal } from "@haibun/core/lib/resources.js";
 import Haibun from "@haibun/core/steps/haibun.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
@@ -75,8 +76,8 @@ probe the delegated store surface
 		expect(readBack?.controller).toBe("did:site:0.1");
 		// The main itself holds the record, asked directly under the satellite's delegation.
 		expect(heldByMain).toHaveLength(1);
-		// No grant, no access, reads and writes are both refused without the delegated capability.
-		expect(deniedRead).toContain("capability store.read required");
-		expect(deniedWrite).toContain("capability store.write required");
+		// No grant, no access: reads and writes are both refused a caller presenting nothing, which is told nothing more.
+		expect(deniedRead).toBe(refusal("store.queryIndividuals", undefined, undefined));
+		expect(deniedWrite).toBe(refusal("store.upsertIndividual", undefined, undefined));
 	});
 });

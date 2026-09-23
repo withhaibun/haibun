@@ -37,6 +37,7 @@ describe("show monitor markers → parser", () => {
 				pattern: "show monitor",
 				paramDomains: {},
 				productsDomain: "shu-monitor-column",
+				capability: "MonitorStepper:showMonitor",
 				read: false,
 				fallback: false,
 				answersTheTurn: false,

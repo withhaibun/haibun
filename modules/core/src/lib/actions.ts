@@ -28,13 +28,9 @@ function readLevelOf(action: string): AccessLevel | undefined {
 /**
  * The action a step requires: the one it declares; `Read:public` for a step that declares itself a read, since reading at
  * any level allows a public read; and for any other, the step's own name, so a step nobody declared anything for is
- * refused to every caller not given it by name. Undefined only for a step that declares it requires nothing.
+ * refused to every caller not given it by name.
  */
-export function requiredAction(stepperName: string, stepName: string, step: { capability?: string; read?: boolean; requiresNothing?: boolean }): string | undefined {
-	if (step.requiresNothing) {
-		if (step.capability) throw new Error(`step ${stepperName}.${stepName} declares it requires nothing and requires ${step.capability}`);
-		return undefined;
-	}
+export function requiredAction(stepperName: string, stepName: string, step: { capability?: string; read?: boolean }): string {
 	return step.capability ?? (step.read ? readAction(Access.public) : `${stepperName}:${stepName}`);
 }
 

@@ -12,6 +12,8 @@ import { hostScopedMethodName, runRegistry, type StepRegistry } from "../lib/ste
 import { STEPS_CHANGED, type THaibunEvent } from "../schema/protocol.js";
 import type { TStepDefinitions } from "../lib/step-discovery.js";
 import type { TStepResult } from "../schema/protocol.js";
+import { validateStep } from "../lib/step-validation.js";
+import { RUN_AUTHORITY } from "../lib/capability-context.js";
 import { OBSERVATION_GRAPH, assertFact, getFact } from "../lib/working-memory.js";
 
 describe("until", () => {
@@ -239,6 +241,16 @@ describe("show steps", () => {
 		const validations = (result.world.runtime.stepResults as TStepResult[]).map((stepResult) => stepResult.products).filter((products) => products?.valid !== undefined);
 		expect(validations[0]).toMatchObject({ valid: true, method: "TestSteps-passes" });
 		expect(validations[1]).toMatchObject({ valid: false });
+	});
+
+	it("answers a line naming a step its caller doesn't hold as one naming no step, so validating maps nothing it may not call", () => {
+		const steppers = [new TestSteps()];
+		expect(validateStep("passes", steppers, RUN_AUTHORITY)).toMatchObject({ valid: true });
+		expect(validateStep("passes", steppers, ["Read:public"]), "a step it doesn't hold").toEqual({ valid: false, error: 'no step found for "passes"' });
+		expect(validateStep("no step reads this", steppers, ["Read:public"]), "answered as a line naming none").toEqual({
+			valid: false,
+			error: 'no step found for "no step reads this"',
+		});
 	});
 });
 

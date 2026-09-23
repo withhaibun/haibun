@@ -12,6 +12,7 @@ import { join } from "node:path";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { registerDomains } from "@haibun/core/lib/domains.js";
 import { openRunRegistry } from "@haibun/core/lib/step-registry.js";
+import { RUN_AUTHORITY, runAuthorizedWith } from "@haibun/core/lib/capability-context.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { DOMAIN_GRAPH_QUERY } from "@haibun/core/lib/quad-types.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
@@ -84,7 +85,8 @@ async function generateReport(finalView: string | undefined, writes = 1, queries
 		});
 	for (const q of queries) await monitor.cycles.onEvent?.(q as unknown as Parameters<NonNullable<typeof monitor.cycles.onEvent>>[0]);
 	const out = join(tmpdir(), `polymorphic-report-${process.pid}-${finalView ?? "none"}.html`);
-	for (let i = 0; i < writes; i++) await (monitor.steps.savesShuTo.action as (a: { where: string }) => Promise<unknown>)({ where: out });
+	// The run writes its report as itself, as its feature line and its end do.
+	for (let i = 0; i < writes; i++) await runAuthorizedWith(RUN_AUTHORITY, () => (monitor.steps.savesShuTo.action as (a: { where: string }) => Promise<unknown>)({ where: out }));
 	return readFileSync(out, "utf-8");
 }
 

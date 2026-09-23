@@ -113,6 +113,12 @@ export class StepRegistry {
 		return this.list().map((tool) => tool.descriptor);
 	}
 
+	/** The steps a caller holding `held` is shown: those it holds what they require for. Every listing of a run's steps to
+	 *  a caller reads this, so a caller learns what it may call and nothing it may not. */
+	heldBy(held: string | string[] | undefined): TStepDescriptor[] {
+		return this.descriptors().filter((step) => capabilityAllows(held, step.capability));
+	}
+
 	get size(): number {
 		return this.tools.size;
 	}
@@ -380,9 +386,21 @@ function buildInputSchema(stepDef: TStepperStep, world: TWorld): { inputSchema: 
 }
 
 export function authorizeToolCapability(step: Pick<TStepDescriptor, "method" | "capability">, granted?: string | string[]): void {
-	if (!step.capability) return;
 	if (capabilityAllows(granted, step.capability)) return;
-	throw new Error(`${step.method}: capability ${step.capability} required`);
+	throw new Error(namedRefusal(step.method, step.capability));
+}
+
+/** A refusal naming the action the step requires, which a caller can ask a holder for. */
+const namedRefusal = (method: string, required: string): string => `${method}: capability ${required} required`;
+
+/**
+ * What a caller from outside the run is told when its call is refused. A caller that proved a key is told the action the
+ * step requires, or that no such step exists, since it can ask a holder for what it lacks. A caller that proved none is
+ * told only that it may not make the call, alike whether the step exists or not, so no refusal maps the run for it.
+ */
+export function refusal(method: string, required: string | undefined, principal: string | undefined): string {
+	if (!principal) return `${method}: not a call this caller may make`;
+	return required ? namedRefusal(method, required) : `${method}: unknown step method`;
 }
 
 /** Each stepper the steps name, in the order the steps name them, with its description, the number of its steps among
@@ -401,18 +419,30 @@ export function steppersOf(steps: TStepDescriptor[]): TStepperSummary[] {
 }
 
 /**
- * What a run declares to a caller: each step and domain whose text contains the query's text, compared without regard to
- * case, and the steppers of the steps that matched. A step's texts are its method, its pattern and its description, so a
- * stepper's name and a hyphen read that stepper's steps; a domain's texts are its name and its description.
+ * What a run declares to a caller: each step it holds and each domain whose text contains the query's text, compared
+ * without regard to case, and the steppers of the steps that matched. A step's texts are its method, its pattern and its
+ * description, so a stepper's name and a hyphen read that stepper's steps; a domain's texts are its name and its
+ * description.
  *
- * Every step is shown with the capability it requires, whatever the caller holds: a caller that lacks one is refused when
- * it calls the step, and is told how to ask for it. The registry is the run's, which holds the steps a transport injected.
+ * A step is shown only to a caller holding what it requires, so a caller learns what it may call and nothing it may not.
+ * Every domain is shown, since a record can't be read without the declaration of its type. The registry is the run's,
+ * which holds the steps a transport injected.
  */
-export function discoverSteps(world: TWorld, registry: StepRegistry, query: TStepsQuery & { detail: typeof STEP_DETAIL.summary }): TStepSummaries;
-export function discoverSteps(world: TWorld, registry: StepRegistry, query: TStepsQuery & { detail: typeof STEP_DETAIL.definition }): TStepDefinitions;
-export function discoverSteps(world: TWorld, registry: StepRegistry, query: TStepsQuery): TStepSummaries | TStepDefinitions;
-export function discoverSteps(world: TWorld, registry: StepRegistry, query: TStepsQuery): TStepSummaries | TStepDefinitions {
-	const steps = registry.descriptors().filter((step) => containsText([step.method, step.pattern, step.description], query.text));
+export function discoverSteps(
+	world: TWorld,
+	registry: StepRegistry,
+	query: TStepsQuery & { detail: typeof STEP_DETAIL.summary },
+	held: string | string[] | undefined,
+): TStepSummaries;
+export function discoverSteps(
+	world: TWorld,
+	registry: StepRegistry,
+	query: TStepsQuery & { detail: typeof STEP_DETAIL.definition },
+	held: string | string[] | undefined,
+): TStepDefinitions;
+export function discoverSteps(world: TWorld, registry: StepRegistry, query: TStepsQuery, held: string | string[] | undefined): TStepSummaries | TStepDefinitions;
+export function discoverSteps(world: TWorld, registry: StepRegistry, query: TStepsQuery, held: string | string[] | undefined): TStepSummaries | TStepDefinitions {
+	const steps = registry.heldBy(held).filter((step) => containsText([step.method, step.pattern, step.description], query.text));
 	const steppers = steppersOf(steps);
 	const domains = Object.entries(world.domains).filter(([key, domain]) => containsText([key, domain.description], query.text));
 	if (query.detail === STEP_DETAIL.summary) {

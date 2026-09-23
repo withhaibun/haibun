@@ -5,6 +5,7 @@ import { AStepper } from "@haibun/core/lib/astepper.js";
 import { actionOKWithProducts, getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import { OK } from "@haibun/core/schema/protocol.js";
 import { readingAt } from "@haibun/core/lib/capability-context.js";
+import { refusal } from "@haibun/core/lib/step-registry.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import FakeAuthorityStepper, { FakeInvoker } from "@haibun/core/lib/test/fake-authority.js";
 
@@ -41,14 +42,13 @@ class ProtectedStepper extends AStepper {
 		verifyProtectedMcpDenied: {
 			gwta: "verify protected mcp tool on port {port} is denied",
 			action: async ({ port }: { port: string }) => {
-				const result = await callTool(String(port), "ProtectedStepper-protectedAction");
-				const toolResult = getToolResult(result);
-				if (!toolResult.isError) {
-					throw new Error(`Expected protected tool denial, got ${JSON.stringify(result)}`);
-				}
-				const text = toolResult.content?.[0]?.type === "text" ? toolResult.content[0].text : "";
-				if (!text.includes("capability ProtectedStepper:invoke required")) {
-					throw new Error(`Expected capability denial, got ${JSON.stringify(result)}`);
+				// A client presenting nothing is listed no tools, and refused alike a tool that exists and one that doesn't.
+				const listed = (await rpc(`http://localhost:${port}/mcp`, 2, "tools/list", {})).result as { tools?: unknown[] } | undefined;
+				if (listed?.tools?.length !== 0) throw new Error(`Expected no tools listed, got ${JSON.stringify(listed)}`);
+				for (const tool of ["ProtectedStepper-protectedAction", "Nowhere-nothing"]) {
+					const toolResult = getToolResult(await callTool(String(port), tool));
+					const text = toolResult.content?.[0]?.type === "text" ? toolResult.content[0].text : "";
+					if (!toolResult.isError || text !== refusal(tool, undefined, undefined)) throw new Error(`Expected ${tool} refused alike, got ${JSON.stringify(toolResult)}`);
 				}
 				return OK;
 			},
@@ -187,9 +187,7 @@ async function callTool(port: string, toolName: string, signed?: TSigned): Promi
 
 async function rpc(url: string, id: number, method: string, params: Record<string, unknown>, signed?: TSigned): Promise<Record<string, unknown>> {
 	const body = JSON.stringify({ jsonrpc: "2.0", id, method, params });
-	const headers = signed
-		? await new FakeInvoker(signed.holder).sign({ method: "POST", url, headers: MCP_HEADERS, body }, signed.action)
-		: MCP_HEADERS;
+	const headers = signed ? await new FakeInvoker(signed.holder).sign({ method: "POST", url, headers: MCP_HEADERS, body }, signed.action) : MCP_HEADERS;
 	let response: Response;
 	try {
 		response = await fetch(url, { method: "POST", headers, body });

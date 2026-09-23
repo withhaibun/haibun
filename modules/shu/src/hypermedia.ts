@@ -26,7 +26,9 @@ import { pagePinned } from "./page-pinned.js";
 // The wire itself: envelope and stream reader, shared with every other caller of a haibun host. Free of node imports.
 import { rpcEnvelope, readNdjson, readRpcAnswer } from "@haibun/core/lib/rpc-wire.js";
 import { findStep, responseTimeoutMs } from "./rpc-registry.js";
-import { pageAuthorityReady, signedHeaders } from "./page-key.js";
+import { keyHeaders, pageAuthorityReady, signedHeaders } from "./page-key.js";
+import { DELEGATIONS_READ_METHOD } from "@haibun/core/lib/authority-types.js";
+import { SHOW_STEPS_ACTION, SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 
 // ─── Wire types ──────────────────────────────────────────────────────────────
 
@@ -131,24 +133,26 @@ async function answerOf(method: string, res: Response): Promise<unknown> {
 
 /**
  * What every call from this page carries. A call to a step is signed with the key this reader controls, over that
- * request: the address, the method and the body, under a delegation that allows the action the step requires. A call to
- * a step that requires nothing carries nothing, since there is nothing to prove, and so does a call the page holds no
- * delegation for, which the deployment may allow without a delegation.
+ * request: the address, the method and the body, under a delegation that allows the action the step requires. The
+ * delegation read proves the key alone, since it is how the page learns what else it holds. A call the page holds no
+ * delegation for carries nothing, which the deployment may allow without a delegation.
  */
 async function rpcHeaders(url: string, method: string, body: string): Promise<Record<string, string>> {
 	// One header set, written once and in one casing: a signature covers the headers as they are sent, and the same
 	// header given twice in two casings arrives as one header carrying both values, which is not what was signed.
 	const base: Record<string, string> = { "content-type": "application/json" };
-	const required = findStep(method)?.capability;
-	if (!required) return base;
-	// A call waits for what the page holds, which the page reads while it boots, and says so there if it could not.
-	await pageAuthorityReady();
 	// What is signed is the address the request is made to: a proof over a relative path proves nothing about
 	// where it was sent, and the boundary checks the absolute one it received. The body is signed as the string it is
 	// sent as, so the digest the proof carries is over those bytes.
 	const asked = new URL(url, location.href);
-	const signed = await signedHeaders({ url: asked.toString(), method: "POST", headers: { ...base, host: asked.host }, body, action: required });
-	return signed ?? base;
+	const request = { url: asked.toString(), method: "POST", headers: { ...base, host: asked.host }, body };
+	if (method === DELEGATIONS_READ_METHOD) return await keyHeaders(request);
+	// Discovery is how the page learns the steps, so what it requires is the one action the page knows without asking.
+	const required = method === SHOW_STEPS_METHOD ? SHOW_STEPS_ACTION : findStep(method)?.capability;
+	if (!required) return base;
+	// A call waits for what the page holds, which the page reads while it boots, and says so there if it could not.
+	await pageAuthorityReady();
+	return (await signedHeaders({ ...request, action: required })) ?? base;
 }
 
 /** `Conduit` implementation against a running haibun service. Sole owner of the SPA's RPC fetch path, wire envelope (jsonrpc + seqPath), `action.begin` allocation, NDJSON streaming reader, and error formatting all live here. Action scope is explicit via the `scope` constructor argument: a top-level instance has none and allocates one per `follow`; a `group`-issued child has a bound scope and appends sub-sequences to it. Concurrent groups can't accidentally share scope because nothing is module-level. */

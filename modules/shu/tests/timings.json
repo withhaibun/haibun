@@ -7,7 +7,7 @@
 				"declaredStepTextHash": "ab37731cb50813b783e0aa872bb80a9b995c504e308a5603c48f254263f91584"
 			},
 			"/features/monitor.feature.ts": {
-				"seconds": 6,
+				"seconds": 6.1,
 				"steps": 508,
 				"declaredStepTextHash": "e4f6c67171955eddba6e6dcf9ea51690f8cadca3bc00c11682ad6e9be1917d7e"
 			},
@@ -23,6 +23,6 @@
 			}
 		},
 		"steps": 687,
-		"seconds": 7.4
+		"seconds": 7.5
 	}
 }

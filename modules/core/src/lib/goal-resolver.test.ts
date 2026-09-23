@@ -3,12 +3,13 @@ import { describe, it, expect } from "vitest";
 import { GOAL_FINDING, REFUSAL_REASON, resolveGoal, type TResolverInputs } from "./goal-resolver.js";
 import type { TDomainChainGraph } from "./domain-chain.js";
 import type { TQuad } from "./quad-types.js";
+import { RUN_AUTHORITY } from "./capability-context.js";
 
 function emptyGraph(): TDomainChainGraph {
 	return { domains: [], steps: [], edges: [] };
 }
 
-function singleProducerGraph(input: string, output: string, capability?: string): TDomainChainGraph {
+function singleProducerGraph(input: string, output: string, capability = "S:make"): TDomainChainGraph {
 	return {
 		domains: [
 			{ key: input, hasTopology: false },
@@ -19,7 +20,8 @@ function singleProducerGraph(input: string, output: string, capability?: string)
 	};
 }
 
-function inputs(graph: TDomainChainGraph, facts: TQuad[] = [], held: string[] = []): TResolverInputs {
+/** What the resolver is given: a caller that holds what the run holds, where the case isn't about what it holds. */
+function inputs(graph: TDomainChainGraph, facts: TQuad[] = [], held: string[] = RUN_AUTHORITY): TResolverInputs {
 	return { graph, facts, held };
 }
 
@@ -78,8 +80,8 @@ describe("resolveGoal", () => {
 				{ key: "b", hasTopology: false },
 			],
 			steps: [
-				{ stepperName: "S", stepName: "make1", inputDomains: ["a"], outputDomains: ["b"] },
-				{ stepperName: "S", stepName: "make2", inputDomains: ["a"], outputDomains: ["b"] },
+				{ stepperName: "S", stepName: "make1", inputDomains: ["a"], outputDomains: ["b"], capability: "S:make1" },
+				{ stepperName: "S", stepName: "make2", inputDomains: ["a"], outputDomains: ["b"], capability: "S:make2" },
 			],
 			edges: [
 				{ from: "a", to: "b", stepperName: "S", stepName: "make1" },
@@ -109,7 +111,7 @@ describe("resolveGoal", () => {
 				{ key: "a", hasTopology: false },
 				{ key: "b", hasTopology: false },
 			],
-			steps: [{ stepperName: "S", stepName: "make", inputDomains: ["a"], outputDomains: ["b"] }],
+			steps: [{ stepperName: "S", stepName: "make", inputDomains: ["a"], outputDomains: ["b"], capability: "S:make" }],
 			edges: [{ from: "a", to: "b", stepperName: "S", stepName: "make" }],
 		};
 		const result = resolveGoal("b", inputs(graph));
@@ -126,8 +128,8 @@ describe("resolveGoal", () => {
 				{ key: "b", hasTopology: false },
 			],
 			steps: [
-				{ stepperName: "S", stepName: "p1", inputDomains: ["a"], outputDomains: ["b"] },
-				{ stepperName: "S", stepName: "p2", inputDomains: ["b"], outputDomains: ["a"] },
+				{ stepperName: "S", stepName: "p1", inputDomains: ["a"], outputDomains: ["b"], capability: "S:p1" },
+				{ stepperName: "S", stepName: "p2", inputDomains: ["b"], outputDomains: ["a"], capability: "S:p2" },
 			],
 			edges: [
 				{ from: "a", to: "b", stepperName: "S", stepName: "p1" },
@@ -144,13 +146,13 @@ describe("resolveGoal", () => {
 		const steps = [];
 		const edges = [];
 		for (let i = 0; i < stepCount; i++) {
-			steps.push({ stepperName: "S", stepName: `s${i}`, inputDomains: [`d${i}`], outputDomains: [`d${i + 1}`] });
+			steps.push({ stepperName: "S", stepName: `s${i}`, inputDomains: [`d${i}`], outputDomains: [`d${i + 1}`], capability: `S:s${i}` });
 			edges.push({ from: `d${i}`, to: `d${i + 1}`, stepperName: "S", stepName: `s${i}` });
 		}
 		const domains = [];
 		for (let i = 0; i <= stepCount; i++) domains.push({ key: `d${i}`, hasTopology: false });
 		const graph: TDomainChainGraph = { domains, steps, edges };
-		const result = resolveGoal(`d${stepCount}`, { graph, facts: [], held: [], depthLimit: 5 });
+		const result = resolveGoal(`d${stepCount}`, { graph, facts: [], held: RUN_AUTHORITY, depthLimit: 5 });
 		expect(result.finding).toBe(GOAL_FINDING.UNREACHABLE);
 	});
 

@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { StepRegistry, type StepTool, buildFeatureStepForTransport, createStepTool, discoverSteps, hostScopedMethodName, steppersOf } from "./step-registry.js";
+import { StepRegistry, type StepTool, buildFeatureStepForTransport, createStepTool, discoverSteps, hostScopedMethodName, refusal, steppersOf } from "./step-registry.js";
 import { AStepper } from "./astepper.js";
 import { actionOK } from "./util/index.js";
 import type { TWorld } from "./world.js";
 import type { TStepperStep } from "./astepper.js";
 import { EVERY_DEFINITION, STEP_DETAIL, SHOW_STEPS_METHOD, StepDiscoverySchema } from "./step-discovery.js";
+import { RUN_AUTHORITY } from "./capability-context.js";
 
 /** A domain with date fields and a defaulted field: the shape every persisted type carries (generatedAtTime etc.). */
 const RecordSchema = z
@@ -55,7 +56,7 @@ class LocalSteps extends AStepper {
 }
 
 /** A step another host declares, as its proxy registers it in this run's registry. */
-const remoteTool = (stepName: string, pattern: string, capability?: string): StepTool => ({
+const remoteTool = (stepName: string, pattern: string, capability = `RemoteSteps:${stepName}`): StepTool => ({
 	descriptor: {
 		method: hostScopedMethodName(9, `RemoteSteps-${stepName}`),
 		stepperName: "RemoteSteps",
@@ -76,8 +77,10 @@ const remoteTool = (stepName: string, pattern: string, capability?: string): Ste
 	handler: async () => actionOK(),
 });
 
-const definitionsOf = (world: TWorld, registry: StepRegistry, text: string) => discoverSteps(world, registry, { text, detail: STEP_DETAIL.definition });
-const summariesOf = (world: TWorld, registry: StepRegistry, text: string) => discoverSteps(world, registry, { text, detail: STEP_DETAIL.summary });
+/** What the run shows its own feature, which holds everything, or a caller holding `held`. */
+const definitionsOf = (world: TWorld, registry: StepRegistry, text: string, held: string[] = RUN_AUTHORITY) =>
+	discoverSteps(world, registry, { text, detail: STEP_DETAIL.definition }, held);
+const summariesOf = (world: TWorld, registry: StepRegistry, text: string) => discoverSteps(world, registry, { text, detail: STEP_DETAIL.summary }, RUN_AUTHORITY);
 
 describe("what a read of the run's declarations shows", () => {
 	const emptyWorld = { domains: {}, runtime: {} } as unknown as TWorld;
@@ -97,10 +100,19 @@ describe("what a read of the run's declarations shows", () => {
 		expect(shown.steppers.map((entry) => entry.stepper)).toEqual(["LocalSteps", "host9_RemoteSteps"]);
 	});
 
-	it("shows every step with the capability it requires, whatever the caller holds", () => {
+	it("shows a caller only the steps it holds what they require for, each with that action", () => {
 		const registry = new StepRegistry([new LocalSteps()], emptyWorld);
-		registry.inject([remoteTool("write", "write {data}", "Remote:write")]);
-		expect(definitionsOf(emptyWorld, registry, "write").steps.map((step) => step.capability)).toEqual(["Remote:write"]);
+		registry.inject([remoteTool("write", "write {data}", "Remote:write"), remoteTool("read", "read {data}", "Read:private")]);
+		expect(
+			definitionsOf(emptyWorld, registry, "", ["Remote:write"]).steps.map((step) => step.capability),
+			"one it holds, and nothing it may not call",
+		).toEqual(["Remote:write"]);
+		expect(definitionsOf(emptyWorld, registry, "", ["Read:opened"]).steps, "a narrower read allows no broader one").toEqual([]);
+		expect(definitionsOf(emptyWorld, registry, "", []).steps, "and a caller holding nothing is shown nothing").toEqual([]);
+		expect(
+			definitionsOf(emptyWorld, registry, "").steppers.map((entry) => entry.stepper),
+			"the run is shown every step",
+		).toEqual(["LocalSteps", "host9_RemoteSteps"]);
 	});
 
 	it("shows the steps and domains whose text contains the text without regard to case, and the steppers of the steps that matched", () => {
@@ -203,7 +215,19 @@ describe("what the manifest says about a domain", () => {
 			runtime: {},
 			domains: { "x-viewer": { name: "x-viewer", description: "a viewer", ui: { component: "x-viewer", js: "/assets/x-viewer.js", jsContent: "/* the whole bundle */" } } },
 		} as unknown as TWorld;
-		const manifest = discoverSteps(world, new StepRegistry([], world), EVERY_DEFINITION);
+		const manifest = discoverSteps(world, new StepRegistry([], world), EVERY_DEFINITION, RUN_AUTHORITY);
 		expect(manifest.domains["x-viewer"].ui).toEqual({ component: "x-viewer", js: "/assets/x-viewer.js" });
+	});
+});
+
+describe("what a refused caller from outside the run is told", () => {
+	it("tells a caller that proved no key only that it may not make the call, alike whether the step exists", () => {
+		expect(refusal("Pool-drain", "Pool:drain", undefined)).toBe(refusal("Pool-nowhere", undefined, undefined).replace("Pool-nowhere", "Pool-drain"));
+		expect(refusal("Pool-drain", "Pool:drain", undefined), "and names nothing it could ask for").not.toContain("Pool:drain");
+	});
+
+	it("tells a caller that proved a key the action it lacks, or that no such step exists, since it can ask a holder", () => {
+		expect(refusal("Pool-drain", "Pool:drain", "did:key:zSwimmer")).toBe("Pool-drain: capability Pool:drain required");
+		expect(refusal("Pool-nowhere", undefined, "did:key:zSwimmer")).toBe("Pool-nowhere: unknown step method");
 	});
 });

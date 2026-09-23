@@ -3,14 +3,14 @@
  *
  * The page makes its key pair once and keeps it in the browser's key store, where the private half is never readable
  * material, so the key outlives a reload and a delegation to it goes on holding. It names the key as a did:key, derived
- * from the key itself, which is what a holder delegates to. It reads what was delegated to that did:key here, and signs
- * each call with a delegation that allows what the call requires. No secret is sent or kept, and a delegation taken from
+ * from the key itself, which is what a holder delegates to. It reads what was delegated to that did:key here, proving
+ * the key and nothing else, and signs each call with a delegation that allows what the call requires. No secret is sent or kept, and a delegation taken from
  * the page is of no use to whoever took it: they cannot sign with a key they don't hold.
  */
 import { signCapabilityInvocation } from "@digitalbazaar/http-signature-zcap-invoke";
 import { encode } from "base58-universal";
 import { actionUnder, capabilityAllows, type TDelegation } from "@haibun/core/lib/actions.js";
-import type { TDelegations } from "@haibun/core/lib/authority-types.js";
+import { DELEGATIONS_READ_ACTION, type TDelegationRecord, type TDelegations } from "@haibun/core/lib/authority-types.js";
 import { pagePinned } from "./page-pinned.js";
 
 /** What a reader's page holds here: its key, named as a did:key, and what was delegated to that key. */
@@ -19,8 +19,8 @@ export type TPageAuthority = {
 	controller: string;
 	/** What was delegated here to that key, as the documents it presents. */
 	delegations: TDelegation[];
-	/** The type the deployment records a delegation as, so a view opens one by its id. */
-	recordedAs?: string;
+	/** The record the deployment keeps of each delegation, by its id, so a view opens one where the page may read it. */
+	records?: Record<string, TDelegationRecord>;
 	/** What every reader may do here without a delegation, as the deployment declares. */
 	withoutDelegation: string[];
 };
@@ -30,7 +30,7 @@ type TSigningKey = { controller: string; keyId: string; sign(options: { data: Ui
 // A reader is one reader across every bundle of its page, so what it holds is the page's, and so is the reading of it: a
 // bundle that signs a request waits on the reading the app started rather than starting one of its own.
 const PAGE_AUTHORITY_KEY = "__SHU_PAGE_AUTHORITY__";
-const pinned = (): { held?: { authority: TPageAuthority; key: TSigningKey }; opening?: Promise<TPageAuthority> } => pagePinned(PAGE_AUTHORITY_KEY, () => ({}));
+const pinned = (): { key?: TSigningKey; held?: { authority: TPageAuthority; key: TSigningKey }; opening?: Promise<TPageAuthority> } => pagePinned(PAGE_AUTHORITY_KEY, () => ({}));
 
 const KEY_DB = "haibun-page-key";
 const KEY_STORE = "keys";
@@ -105,14 +105,15 @@ function compressedPoint(jwk: JsonWebKey): Uint8Array {
 
 /**
  * Read what this page holds here: its key, and what `read` answers was delegated to it. `read` is the call to the
- * deployment's read of what was delegated to a controller, which requires nothing, or undefined where the deployment
- * offers none, which leaves the page what needs no delegation.
+ * deployment's delegation read, which the page signs with `keyHeaders`, or undefined where the deployment verifies no
+ * delegation, which leaves the page what needs none.
  */
-export function openPageAuthority(read: ((controller: string) => Promise<TDelegations>) | undefined, withoutDelegation: string[]): Promise<TPageAuthority> {
+export function openPageAuthority(read: (() => Promise<TDelegations>) | undefined, withoutDelegation: string[]): Promise<TPageAuthority> {
 	const opening = (async () => {
 		const key = await pageKey();
-		const delegated = read ? await read(key.controller) : { delegations: [] };
-		const authority = { controller: key.controller, delegations: delegated.delegations, recordedAs: delegated.recordedAs, withoutDelegation };
+		pinned().key = key;
+		const delegated = read ? await read() : { delegations: [] };
+		const authority = { controller: key.controller, delegations: delegated.delegations, records: delegated.records, withoutDelegation };
 		pinned().held = { authority, key };
 		return authority;
 	})();
@@ -137,7 +138,12 @@ export function pageAuthority(): TPageAuthority | undefined {
 /** Every action this page holds: what needs no delegation here, and what its delegations list. */
 export function pageHolds(authority = pageAuthority()): string[] {
 	if (!authority) return [];
-	return [...new Set([...authority.withoutDelegation, ...authority.delegations.flatMap((d) => (Array.isArray(d.allowedAction) ? d.allowedAction.filter((a): a is string => typeof a === "string") : []))])];
+	return [
+		...new Set([
+			...authority.withoutDelegation,
+			...authority.delegations.flatMap((d) => (Array.isArray(d.allowedAction) ? d.allowedAction.filter((a): a is string => typeof a === "string") : [])),
+		]),
+	];
 }
 
 /** Whether this page holds what `action` requires. */
@@ -147,6 +153,7 @@ export function pageMay(action: string): boolean {
 
 /** Forget what this page holds, so it is read again: its key stays in the key store. */
 export function forgetPageAuthority(): void {
+	pinned().key = undefined;
 	pinned().held = undefined;
 	pinned().opening = undefined;
 }
@@ -157,7 +164,24 @@ export function forgetPageAuthority(): void {
  * rather than possession of anything. Undefined where no delegation allows it, and the call is sent as it is, which the
  * deployment may allow without a delegation.
  */
-export async function signedHeaders(request: { url: string; method: string; headers: Record<string, string>; body?: string; action: string }): Promise<Record<string, string> | undefined> {
+/**
+ * The headers that prove this page holds its key, and nothing more: an invocation of the key's own root, which the
+ * deployment resolves as controlled by whoever signs it and which allows only the delegation read. It is how the page
+ * learns what else it holds, so it is signed before the page holds anything.
+ */
+export async function keyHeaders(request: { url: string; method: string; headers: Record<string, string>; body?: string }): Promise<Record<string, string>> {
+	const key = pinned().key;
+	if (!key) throw new Error("the page proves its key while it reads what was delegated to it, and it isn't reading");
+	return await signCapabilityInvocation({ ...request, capabilityAction: DELEGATIONS_READ_ACTION, invocationSigner: { id: key.keyId, sign: key.sign } });
+}
+
+export async function signedHeaders(request: {
+	url: string;
+	method: string;
+	headers: Record<string, string>;
+	body?: string;
+	action: string;
+}): Promise<Record<string, string> | undefined> {
 	const held = pinned().held;
 	if (!held) return undefined;
 	const asked = new URL(request.url);

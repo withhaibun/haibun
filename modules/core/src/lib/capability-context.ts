@@ -113,3 +113,12 @@ export function runReadingAt<T>(ceiling: AccessLevel | undefined, within: () => 
 export function readingAt(): AccessLevel | undefined {
 	return readCeilingStore.getStore();
 }
+
+/**
+ * Run `within` reading as the instance itself, without the ceiling of the call it is part of. For the authority's own
+ * decisions alone: checking a chain a caller presents, and answering a key what was delegated to it. Each reads the
+ * instance's records to decide, and returns the decision, or what the key it answers already holds.
+ */
+export function runReadingAsTheInstance<T>(within: () => Promise<T>): Promise<T> {
+	return readCeilingStore.run(undefined, within);
+}

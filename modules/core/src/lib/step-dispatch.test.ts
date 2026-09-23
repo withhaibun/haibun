@@ -248,7 +248,7 @@ describe("step-dispatch", () => {
 				],
 			]);
 			const stepper = new PlainStepper();
-			const discovery = discoverSteps(w, new StepRegistry([stepper], w), EVERY_DEFINITION);
+			const discovery = discoverSteps(w, new StepRegistry([stepper], w), EVERY_DEFINITION, RUN_AUTHORITY);
 			expect(Array.isArray(discovery.steps)).toBe(true);
 			expect(discovery.steps.some((m) => m.method === "PlainStepper-greet")).toBe(true);
 			expect(discovery.domains).toBeDefined();
@@ -267,7 +267,7 @@ describe("step-dispatch", () => {
 				],
 			]);
 			const stepper = new PlainStepper();
-			const discovery = discoverSteps(w, new StepRegistry([stepper], w), EVERY_DEFINITION);
+			const discovery = discoverSteps(w, new StepRegistry([stepper], w), EVERY_DEFINITION, RUN_AUTHORITY);
 			expect(discovery.domains["size"]).toMatchObject({ description: "T-shirt size", values: ["small", "medium", "large"] });
 		});
 	});
@@ -412,7 +412,7 @@ describe("step-dispatch", () => {
 			class Held extends AStepper {
 				steps = {
 					readsAtCeiling: { gwta: "read at the ceiling", action: async () => actionOKWithProducts({ at: readingAt() ?? "unbounded" }) },
-					describesItself: { gwta: "describe this", read: true, requiresNothing: true, action: async () => actionOKWithProducts({ described: true }) },
+					describesItself: { gwta: "describe this", read: true, action: async () => actionOKWithProducts({ described: true }) },
 				};
 			}
 			const held = () => {
@@ -423,13 +423,17 @@ describe("step-dispatch", () => {
 					if (!tool) throw new Error(`Expected Held-${name} to be registered`);
 					return dispatchStep({ registry, world, steppers, grantedCapability }, buildFeatureStepForTransport(tool, {}, path));
 				};
-				return { call, fieldOf: (path: number[], field: string) => world.shared.getStore().get(formatRecordName({ execution: executionOf(world.tag), path }), field, SEQ_PATH_LABEL) };
+				return {
+					call,
+					fieldOf: (path: number[], field: string) => world.shared.getStore().get(formatRecordName({ execution: executionOf(world.tag), path }), field, SEQ_PATH_LABEL),
+				};
 			};
 
-			it("refuses a step that declares nothing to a caller not holding its name, and runs one that requires nothing for anyone", async () => {
+			it("refuses a step that declares nothing to a caller not holding its name, and a read to a caller holding no read", async () => {
 				const { call } = held();
 				await expect(call("readsAtCeiling", [], [0, 20, 1])).rejects.toThrow(/capability Held:readsAtCeiling required/);
-				expect((await call("describesItself", [], [0, 20, 2])).products).toMatchObject({ described: true });
+				await expect(call("describesItself", [], [0, 20, 2]), "no step is open to a caller holding nothing").rejects.toThrow(/capability Read:public required/);
+				expect((await call("describesItself", ["Read:private"], [0, 20, 3])).products, "a broader read allows it").toMatchObject({ described: true });
 			});
 
 			it("bounds what a step reads by the broadest read its caller holds, and at public for a caller holding none", async () => {
@@ -437,10 +441,7 @@ describe("step-dispatch", () => {
 				expect((await call("readsAtCeiling", ["Held:readsAtCeiling"], [0, 21, 1])).products?.at).toBe("public");
 				expect((await call("readsAtCeiling", ["Held:readsAtCeiling", "Read:opened"], [0, 21, 2])).products?.at).toBe("opened");
 				expect((await call("readsAtCeiling", RUN_AUTHORITY, [0, 21, 3])).products?.at, "the run reads everything it holds").toBe("private");
-				expect(
-					(await runReadingAt("public", () => call("readsAtCeiling", RUN_AUTHORITY, [0, 21, 4]))).products?.at,
-					"and never above a ceiling already in force",
-				).toBe("public");
+				expect((await runReadingAt("public", () => call("readsAtCeiling", RUN_AUTHORITY, [0, 21, 4]))).products?.at, "and never above a ceiling already in force").toBe("public");
 			});
 
 			it("records what a caller's step required and held and who proved it, and nothing of authority for the run's own", async () => {
@@ -511,7 +512,9 @@ describe("step-dispatch", () => {
 			const statusOf = (path: number[]) => world.shared.getStore().get(formatRecordName({ execution: executionOf(world.tag), path }), SEQ_PATH_FIELD.actionStatus, SEQ_PATH_LABEL);
 			const stop = new AbortController();
 			stop.abort();
-			await streamContext.run({ emit: () => undefined, signal: stop.signal }, () => dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, buildFeatureStepForTransport(tool, {}, [0, 3, 6])));
+			await streamContext.run({ emit: () => undefined, signal: stop.signal }, () =>
+				dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, buildFeatureStepForTransport(tool, {}, [0, 3, 6])),
+			);
 			await streamContext.run({ emit: () => undefined, signal: new AbortController().signal }, () =>
 				dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, buildFeatureStepForTransport(tool, {}, [0, 3, 7])),
 			);

@@ -5,14 +5,17 @@
  */
 import "fake-indexeddb/auto";
 import { describe, it, expect, afterEach } from "vitest";
-import { forgetPageAuthority, openPageAuthority, pageAuthority, pageHolds, pageMay, signedHeaders } from "./page-key.js";
+import { forgetPageAuthority, keyHeaders, openPageAuthority, pageAuthority, pageHolds, pageMay, signedHeaders } from "./page-key.js";
 
 const SITE = "http://localhost:8123";
 const delegatedAll = { id: "urn:uuid:owner", invocationTarget: SITE, allowedAction: ["*"], expires: "2099-01-01T00:00:00Z" };
 const delegatedReading = { id: "urn:uuid:reader", invocationTarget: SITE, allowedAction: ["Read:private"], expires: "2099-01-01T00:00:00Z" };
 
+/** Where the deployment records each delegation. */
+const records = { [delegatedReading.id]: { persistedAs: "Capability", accessLevel: "private" as const } };
+
 /** Open the page's authority as a deployment that delegated `delegations` to its key and allows `withoutDelegation` to anyone. */
-const opened = (delegations: Record<string, unknown>[], withoutDelegation: string[] = []) => openPageAuthority(() => Promise.resolve({ delegations, recordedAs: "Capability" }), withoutDelegation);
+const opened = (delegations: Record<string, unknown>[], withoutDelegation: string[] = []) => openPageAuthority(() => Promise.resolve({ delegations, records }), withoutDelegation);
 
 const call = (action: string, method = "POST") => ({
 	url: `${SITE}/rpc/ShuStepper-showViews`,
@@ -37,17 +40,25 @@ describe("the key a page controls", () => {
 		expect(after).toBe(before);
 	});
 
-	it("is what the page asks the deployment about, and holds what it answers with what needs no delegation", async () => {
-		let askedFor: string | undefined;
-		const authority = await openPageAuthority((controller) => {
-			askedFor = controller;
-			return Promise.resolve({ delegations: [delegatedReading], recordedAs: "Capability" });
+	it("proves itself and nothing more while it reads what was delegated to it, and holds what that answers with what needs no delegation", async () => {
+		let proof: Record<string, string> | undefined;
+		const authority = await openPageAuthority(async () => {
+			proof = await keyHeaders({ url: `${SITE}/rpc/AuthorityStepper-delegationsTo`, method: "POST", headers: { host: "localhost:8123" }, body: "{}" });
+			return { delegations: [delegatedReading], records };
 		}, ["Read:public"]);
-		expect(askedFor, "its own key, and nothing it chose").toBe(authority.controller);
+		expect(proof?.["capability-invocation"], "an invocation of a root, which the deployment resolves as the signer's own").toContain('zcap id="urn:zcap:root:');
+		expect(proof?.["capability-invocation"], "for the one action such a root allows").toContain('action="Authority:readOwnDelegations"');
+		expect(proof?.authorization, "signed by the page's key").toContain(authority.controller);
 		expect(pageHolds()).toEqual(["Read:public", "Read:private"]);
 		expect(pageMay("Read:opened"), "a private read allows a narrower one").toBe(true);
 		expect(pageMay("ResourcesStepper:comment"), "and nothing it wasn't given").toBe(false);
-		expect(pageAuthority()?.recordedAs, "and where each delegation is recorded").toBe("Capability");
+		expect(pageAuthority()?.records, "and where each delegation is recorded").toEqual(records);
+	});
+
+	it("proves no key it hasn't opened", async () => {
+		await expect(keyHeaders({ url: `${SITE}/rpc/AuthorityStepper-delegationsTo`, method: "POST", headers: {}, body: "{}" })).rejects.toThrow(
+			/while it reads what was delegated to it/,
+		);
 	});
 
 	it("says why where the browser withholds its key store, which is how a page served over plain http is reached", async () => {

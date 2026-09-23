@@ -6,7 +6,15 @@ import { getHash, hashWithColumns } from "./view-hash.js";
  * Query pane is sticky on the left, additional columns scroll right.
  * Each pane is resizable and independently rendered.
  */
-import { hydrateFromDom, getHydratedViewHash, getAvailableSteps, findStep, hydratedCache, isOffline, deploymentAllowedWithoutDelegation } from "./rpc-registry.js";
+import {
+	hydrateFromDom,
+	getHydratedViewHash,
+	getAvailableSteps,
+	hydratedCache,
+	isOffline,
+	deploymentAllowedWithoutDelegation,
+	deploymentVerifiesDelegations,
+} from "./rpc-registry.js";
 import { openPageAuthority, pageMay, type TPageAuthority } from "./page-key.js";
 import { DELEGATIONS_READ_METHOD, type TDelegations } from "@haibun/core/lib/authority-types.js";
 import { readAction } from "@haibun/core/lib/actions.js";
@@ -86,12 +94,11 @@ function seedHashFromQueryString(): void {
 }
 
 /**
- * What this reader holds here: the key the page keeps, and what was delegated to it, read through the deployment's read
- * of delegations, which requires nothing. A deployment offering no such read gives its readers what needs no delegation.
+ * What this reader holds here: the key the page keeps, and what was delegated to it, read through the deployment's
+ * delegation read, signed as the key. A deployment that verifies no delegation gives its readers what needs none.
  */
 function openReaderAuthority(): Promise<TPageAuthority> {
-	const reading = findStep(DELEGATIONS_READ_METHOD);
-	const read = reading ? (controller: string) => conduit().follow<TDelegations>(reads(reading.method, { controller }), "read what was delegated to this page") : undefined;
+	const read = deploymentVerifiesDelegations() ? () => conduit().follow<TDelegations>(reads(DELEGATIONS_READ_METHOD), "read what was delegated to this page") : undefined;
 	return openPageAuthority(read, deploymentAllowedWithoutDelegation());
 }
 
@@ -134,7 +141,7 @@ const main = async (): Promise<void> => {
 	if (!appRoot) return;
 
 	try {
-		await getAvailableSteps();
+		// What the reader holds is read first, since every call after it is signed with it, reading the run's steps included.
 		if (!carried) {
 			const authority = await openReaderAuthority();
 			if (!pageMay(readAction(Access.public))) {
@@ -142,6 +149,7 @@ const main = async (): Promise<void> => {
 				return;
 			}
 		}
+		await getAvailableSteps();
 	} catch (err) {
 		if (!isOffline()) {
 			appRoot.innerHTML = `<div style="padding:20px;color:#c00;font-family:monospace"><strong>SPA initialization failed:</strong> ${errorDetail(err)}</div>`;

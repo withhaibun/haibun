@@ -18,7 +18,8 @@ import { OK } from "@haibun/core/schema/protocol.js";
 import { getFromRuntime, getStepperOption, stringOrError, errorDetail } from "@haibun/core/lib/util/index.js";
 import { currentVersion as version } from "@haibun/core/currentVersion.js";
 import { dispatchStep } from "@haibun/core/lib/step-dispatch.js";
-import { buildFeatureStepForTransport, steppersOf, type StepRegistry } from "@haibun/core/lib/step-registry.js";
+import { buildFeatureStepForTransport, refusal, type StepRegistry } from "@haibun/core/lib/step-registry.js";
+import { capabilityAllows } from "@haibun/core/lib/actions.js";
 import { stepsInstructions, toolDefinition } from "@haibun/core/lib/step-discovery.js";
 import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
 import type { IWebServer, Context } from "./defs.js";
@@ -90,16 +91,18 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 		this.mcpPath = (getStepperOption(this, "MCP_PATH", world.moduleOptions) as string) || "/mcp";
 	}
 
-	/** Every step of the run as a tool, a step another host injected among them. */
+	/** The steps the caller holds, as tools, a step another host injected among them. */
 	public getTools(): Tool[] {
-		return this.registry().descriptors().map(toolDefinition);
+		return this.registry().heldBy(authorizedWith()).map(toolDefinition);
 	}
 
 	/** Call a step by its method, as a tool call names it, under the capability the caller was granted and as whoever it
 	 *  proved to be. */
 	public async executeTool(name: string, args: Record<string, unknown>, grantedCapability?: string | string[], principal?: string): Promise<CallToolResult> {
 		const tool = this.registry().get(name);
-		if (!tool) throw new McpError(ErrorCode.MethodNotFound, `Tool ${name} not found.`);
+		// A call is refused before its input is read, and alike whether its step exists, as it is over RPC.
+		if (!tool || !capabilityAllows(grantedCapability, tool.descriptor.capability))
+			return { isError: true, content: [{ type: "text", text: refusal(name, tool?.descriptor.capability, principal) }] };
 		try {
 			const world = this.getWorld();
 			// MCP callers have no haibun seqPath; the server synthesises one.
@@ -122,15 +125,15 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 		const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER) as IWebServer;
 		if (!webserver) throw new Error("McpStepper: No webserver found in runtime.");
 
-		// A host places a server's instructions in its model's context, so the model knows the run's steppers before it
-		// searches for a step.
-		const instructions = stepsInstructions(steppersOf(this.registry().descriptors()));
+		// A host places a server's instructions in its model's context. They are set before any caller connects, so they name
+		// no stepper: a caller finds the steps it holds in the tool list and by discovery.
+		const instructions = stepsInstructions([]);
 		this.mcpServer = new McpServer({ name: "haibun-mcp", version }, { capabilities: { tools: { listChanged: true }, resources: {} }, instructions });
 		this.transport = new StreamableHTTPTransport({ enableJsonResponse: true });
 
 		// --- HANDLER 1: LIST TOOLS ---
-		// Every step is a tool. Which of them a model is given at once is its host's choice, as the MCP client best
-		// practices place it; a host with no search of its own finds steps with the show steps step, which is a tool too.
+		// Each step the caller holds is a tool. Which of them a model is given at once is its host's choice, as the MCP client
+		// best practices place it; a host with no search of its own finds steps with the show steps step, which is a tool too.
 		this.mcpServer.server.setRequestHandler(ListToolsRequestSchema, () => ({ tools: this.getTools() }));
 
 		// --- HANDLER 2: CALL TOOL ---
@@ -218,7 +221,11 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 			// every call it carries runs under that and what the deployment allows without a delegation, and nothing else: the
 			// server was started inside a step of the run, and what that step held is no caller's.
 			const body = c.req.method === "POST" ? await c.req.raw.clone().text() : undefined;
-			const { granted, principal, refused } = await grantedCapabilityForRequest({ method: c.req.method, url: c.req.url, headers: c.req.header(), body }, this.getWorld().runtime, webserver.allowedWithoutDelegation);
+			const { granted, principal, refused } = await grantedCapabilityForRequest(
+				{ method: c.req.method, url: c.req.url, headers: c.req.header(), body },
+				this.getWorld().runtime,
+				webserver.allowedWithoutDelegation,
+			);
 			if (refused) return c.json({ error: refused }, 401);
 
 			// 3. Disable Compression (Critical for SSE)

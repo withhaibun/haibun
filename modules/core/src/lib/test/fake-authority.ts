@@ -1,15 +1,16 @@
 /**
  * A stand-in for a consumer's authority at the boundary between processes, for tests of what the framework does with
  * one: an invoker that presents a holder, the action it invokes and a digest of the body, and a verifier that grants a
- * holder the actions it was told to, when the action it invokes is one of them. It proves nothing, so nothing outside a
- * test registers it. Loaded by a launched fixture's config as `@haibun/core/lib/test/fake-authority`.
+ * holder the actions it was told to, when they allow the action it invokes, as core reads what an action allows. It
+ * proves nothing, so nothing outside a test registers it. Loaded by a launched fixture's config as
+ * `@haibun/core/lib/test/fake-authority`.
  */
 import { createHash } from "node:crypto";
 import { AStepper } from "../astepper.js";
 import { OK } from "../../schema/protocol.js";
 import { actionNotOK } from "../util/index.js";
 import { getAuthority } from "../session-authority.js";
-import { actionList } from "../actions.js";
+import { actionList, capabilityAllows } from "../actions.js";
 import type { IAuthorityInvoker, IAuthorityVerifier, TAuthorityEvidence, TDelegations, TOutgoingRequest } from "../authority-types.js";
 
 const HOLDER_HEADER = "fake-holder";
@@ -38,9 +39,10 @@ export class FakeVerifier implements IAuthorityVerifier {
 		const holder = headers[HOLDER_HEADER];
 		const action = headers[INVOCATION_HEADER]?.match(/action="([^"]+)"/)?.[1];
 		if (!holder || !action) return Promise.resolve({ ok: false, error: "the request presents no holder or no action" });
-		if (headers.digest !== (evidence.body === undefined ? undefined : digestOf(evidence.body))) return Promise.resolve({ ok: false, error: "the presented digest is not of this request's body" });
+		if (headers.digest !== (evidence.body === undefined ? undefined : digestOf(evidence.body)))
+			return Promise.resolve({ ok: false, error: "the presented digest is not of this request's body" });
 		const granted = this.grants.get(holder);
-		if (!granted?.includes(action)) return Promise.resolve({ ok: false, error: `${holder} holds no grant for ${action}` });
+		if (!capabilityAllows(granted, action)) return Promise.resolve({ ok: false, error: `${holder} holds no grant for ${action}` });
 		return Promise.resolve({ ok: true, principal: holder, allowedAction: granted });
 	}
 

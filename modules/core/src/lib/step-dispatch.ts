@@ -123,7 +123,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	// caller is not the run acting as itself, and the principal that proved itself, where one did. A refusal throws above,
 	// so a record with these fields is a record of an allowed call.
 	const authorization: TStepAuthorization = {
-		...(tool.descriptor.capability && !capabilityAllows(grantedCapability, "*")
+		...(!capabilityAllows(grantedCapability, "*")
 			? { required: tool.descriptor.capability, held: (Array.isArray(grantedCapability) ? grantedCapability.join(", ") : grantedCapability) || undefined }
 			: {}),
 		controller: actingAs(),
@@ -146,46 +146,48 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	let ok = true;
 	let lastStepResult: TStepResult;
 	await runInStep(step, () =>
-		runAuthorizedWith(grantedCapability, () => runReadingAt(ceiling, async () => {
-			let doAction = true;
-			while (doAction) {
-				await doStepperCycle(steppers, "beforeStep", <TBeforeStep>{ featureStep });
-				const preconditionError = await checkInputPreconditions(world, action.step, featureStep);
-				if (preconditionError) {
-					actionResult = actionNotOK(preconditionError);
-					lastStepResult = stepResultFromActionResult(actionResult, action, start, Timer.since(), featureStep, false);
-					keep(lastStepResult);
-					ok = false;
-					doAction = false;
-					continue;
-				}
-				actionResult = await tool.handler(featureStep, world);
-				if (actionResult.ok) {
-					const productsError = validateProducts(action.stepperName, action.actionName, action.step, world, actionResult.products);
-					if (productsError) {
-						actionResult = actionNotOK(productsError);
-					} else {
-						if (actionResult.products) {
-							actionResult = { ...actionResult, products: { ...actionResult.products, [TRACE_SEQ_PATH]: featureStep.seqPath } };
+		runAuthorizedWith(grantedCapability, () =>
+			runReadingAt(ceiling, async () => {
+				let doAction = true;
+				while (doAction) {
+					await doStepperCycle(steppers, "beforeStep", <TBeforeStep>{ featureStep });
+					const preconditionError = await checkInputPreconditions(world, action.step, featureStep);
+					if (preconditionError) {
+						actionResult = actionNotOK(preconditionError);
+						lastStepResult = stepResultFromActionResult(actionResult, action, start, Timer.since(), featureStep, false);
+						keep(lastStepResult);
+						ok = false;
+						doAction = false;
+						continue;
+					}
+					actionResult = await tool.handler(featureStep, world);
+					if (actionResult.ok) {
+						const productsError = validateProducts(action.stepperName, action.actionName, action.step, world, actionResult.products);
+						if (productsError) {
+							actionResult = actionNotOK(productsError);
+						} else {
+							if (actionResult.products) {
+								actionResult = { ...actionResult, products: { ...actionResult.products, [TRACE_SEQ_PATH]: featureStep.seqPath } };
+							}
+							actionResult = augmentViewHypermedia(world, action.step, actionResult, steppers);
+							await autoAssertProducts(world, step.seqPath, action.step, actionResult);
 						}
-						actionResult = augmentViewHypermedia(world, action.step, actionResult, steppers);
-						await autoAssertProducts(world, step.seqPath, action.step, actionResult);
+					}
+					if (!actionResult.ok && actionResult.errorMessage && featureStep.intent?.mode !== "speculative") {
+						world.eventLogger.log(featureStep, "error", actionResult.errorMessage);
+					}
+					lastStepResult = stepResultFromActionResult(actionResult, action, start, Timer.since(), featureStep, ok && actionResult.ok);
+					keep(lastStepResult);
+					const instructions: TAfterStepResult[] = await doStepperCycle(steppers, "afterStep", <TAfterStep>{ featureStep, actionResult }, action.actionName);
+					doAction = instructions.some((i) => i?.rerunStep);
+					if (instructions.some((i) => i?.failed)) {
+						ok = false;
+					} else if (instructions.some((i) => i?.nextStep)) {
+						actionResult = { ...actionResult, ok: true };
 					}
 				}
-				if (!actionResult.ok && actionResult.errorMessage && featureStep.intent?.mode !== "speculative") {
-					world.eventLogger.log(featureStep, "error", actionResult.errorMessage);
-				}
-				lastStepResult = stepResultFromActionResult(actionResult, action, start, Timer.since(), featureStep, ok && actionResult.ok);
-				keep(lastStepResult);
-				const instructions: TAfterStepResult[] = await doStepperCycle(steppers, "afterStep", <TAfterStep>{ featureStep, actionResult }, action.actionName);
-				doAction = instructions.some((i) => i?.rerunStep);
-				if (instructions.some((i) => i?.failed)) {
-					ok = false;
-				} else if (instructions.some((i) => i?.nextStep)) {
-					actionResult = { ...actionResult, ok: true };
-				}
-			}
-		})),
+			}),
+		),
 	);
 	if (!actionResult || !lastStepResult) {
 		throw new Error(`No action result recorded for ${action.stepperName}.${action.actionName}`);

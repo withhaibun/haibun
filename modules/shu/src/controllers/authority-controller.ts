@@ -32,13 +32,13 @@ export class AuthorityController implements ReactiveController {
 	async read(): Promise<TAuthority> {
 		await getAvailableSteps();
 		const authority = await pageAuthorityReady();
-		// Each action leads to the first delegation that lists it, where the deployment records its delegations.
+		// Each action leads to the first delegation that lists it whose record this page may read, so no action offers a
+		// way to a record the page would be refused.
 		const grantedBy: Record<string, TRecordRef> = {};
-		if (authority?.recordedAs) {
-			for (const delegation of authority.delegations) {
-				if (typeof delegation.id !== "string" || !Array.isArray(delegation.allowedAction)) continue;
-				for (const action of delegation.allowedAction) if (typeof action === "string") grantedBy[action] ??= { persistedAs: authority.recordedAs, id: delegation.id };
-			}
+		for (const delegation of authority?.delegations ?? []) {
+			const record = typeof delegation.id === "string" ? authority?.records?.[delegation.id] : undefined;
+			if (!record || !pageMay(readAction(record.accessLevel)) || !Array.isArray(delegation.allowedAction)) continue;
+			for (const action of delegation.allowedAction) if (typeof action === "string") grantedBy[action] ??= { persistedAs: record.persistedAs, id: String(delegation.id) };
 		}
 		const principals = pageMay(readAction(Access.public)) ? ((await queryGraph({ label: PRINCIPAL_LABEL })).vertices ?? []) : [];
 		return { controller: authority?.controller, holds: pageHolds(authority), grantedBy, principals: principals as TPrincipalRow[] };

@@ -1,4 +1,4 @@
-import { reads, acts, conduit, type TLink } from "./hypermedia.js";
+import { reads, acts, conduit, isServerUnreachable, type TLink } from "./hypermedia.js";
 import { getConcernCatalog, cachedConcernCatalog, setConcernCatalog } from "./rels-cache.js";
 import { pagePinned } from "./page-pinned.js";
 import { deviceStore, type TCachePayload } from "./client-cache/index.js";
@@ -138,6 +138,9 @@ export type TDeploymentSettings = {
 	responseTimeoutMs?: number;
 	/** What every reader holds here without presenting anything, as the web server declares it. */
 	allowedWithoutDelegation?: string[];
+	/** Whether anything here verifies a delegation, so the page knows to read what was delegated to its key: a key's
+	 *  proof sent where nothing could check it is refused. */
+	verifiesDelegations?: boolean;
 };
 
 // The page boots ONCE, but its modules load once PER BUNDLE (the app, the polymorphic view, an actions-bar extension
@@ -186,13 +189,18 @@ export function isOffline(): boolean {
 	return cachedHydration().data?.cache !== undefined;
 }
 
-/** A timing this deployment set, in milliseconds, or undefined where it set none. A value the page cannot apply is a
- *  deployment stating something it does not mean, so it is refused rather than replaced with the product's own. */
 /** What every reader holds here without presenting anything: nothing, where the page was served saying nothing. */
 export function deploymentAllowedWithoutDelegation(): string[] {
 	return cachedHydration().data?.settings?.allowedWithoutDelegation ?? [];
 }
 
+/** Whether this deployment verifies a delegation: not, where the page was served saying nothing. */
+export function deploymentVerifiesDelegations(): boolean {
+	return cachedHydration().data?.settings?.verifiesDelegations === true;
+}
+
+/** A timing this deployment set, in milliseconds, or undefined where it set none. A value the page cannot apply is a
+ *  deployment stating something it does not mean, so it is refused rather than replaced with the product's own. */
 export function deploymentMs(name: "streamReconnectAfterMs" | "responseTimeoutMs"): number | undefined {
 	const set = cachedHydration().data?.settings?.[name];
 	if (set === undefined) return undefined;
@@ -293,9 +301,10 @@ export function resetStepRegistry(): void {
 	origin().value = null;
 }
 
-/** Ask the server what it offers. Its response is cached on the device; when the server does not respond, the device's copy is
- *  the registry the page runs on (and reports it), so a page with no server still knows the server's declarations. With
- *  neither, the request fails as it did. */
+/** Ask the server what it offers this page. Its response is cached on the device; when the server does not respond, the
+ *  device's copy is the registry the page runs on (and reports it), so a page with no server still knows the server's
+ *  declarations. A server that responds with a refusal is answered, not the copy: what the page may no longer read is
+ *  not read from the device instead. With neither, the request fails as it did. */
 async function discover(): Promise<TStepList> {
 	const r = registry();
 	r.unfollow ??= followRun(r);
@@ -310,6 +319,7 @@ async function discover(): Promise<TStepList> {
 			.setRegistry(parsed)
 			.catch((err) => failFastOrLog("[rpc-registry] the registry was not cached on the device:", err));
 	} catch (err) {
+		if (!isServerUnreachable(err)) throw err;
 		const cached = await deviceStore()
 			.registry()
 			.catch(() => undefined);

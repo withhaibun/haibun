@@ -30,7 +30,7 @@ export type TDomainChainStep = {
 	gwta?: string;
 	inputDomains: string[];
 	outputDomains: string[];
-	capability?: string;
+	capability: string;
 };
 
 export type TDomainChainEdge = {

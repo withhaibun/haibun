@@ -1,3 +1,5 @@
+import type { AccessLevel } from "./resources.js";
+
 /**
  * What authority means here, and no more than that: a step declares the action it requires, a caller presents evidence
  * of authority, and a verifier decides. Any particular authorization specification, and the verifier that reads it, is a
@@ -17,19 +19,30 @@ export type TAuthorityEvidence =
 	| { kind: "document"; document: Record<string, unknown>; action: string; target: string }
 	| { kind: "request"; method: string; url: string; headers: Record<string, string | undefined>; body?: string };
 
-/**
- * What was delegated to a controller: the signed documents it presents, as the specification writes them, and the type
- * the deployment records each as, under the document's own `id`, so a holder can open what it acts under.
- */
-export type TDelegations = { delegations: Record<string, unknown>[]; recordedAs?: string };
+/** Where a deployment records a delegation: the type of its record and the level the record is kept at, so a view opens
+ *  the record only for a reader who may read it. */
+export type TDelegationRecord = { persistedAs: string; accessLevel: AccessLevel };
 
-/** The step a key reads what was delegated to it with, which requires nothing: core's AuthorityStepper's `delegationsTo`. */
+/**
+ * What was delegated to a key: the signed documents it presents, as the specification writes them, and the record the
+ * deployment keeps of each, by the document's own `id`, so a holder can open what it acts under where it may read it.
+ */
+export type TDelegations = { delegations: Record<string, unknown>[]; records?: Record<string, TDelegationRecord> };
+
+/** The step a key reads what was delegated to it with: core's AuthorityStepper's `delegationsTo`, which answers the key
+ *  that signs the call. */
 export const DELEGATIONS_READ_METHOD = "AuthorityStepper-delegationsTo";
 
 /**
+ * What the delegation read requires. A key holds it by invoking its own root, which a verifier resolves as controlled by
+ * the key that signs, and holds nothing else under that root: all the invocation proves is the key.
+ */
+export const DELEGATIONS_READ_ACTION = "Authority:readOwnDelegations";
+
+/**
  * Decides whether evidence supports what it claims, and says what it supports: for a request, everything the delegation
- * it presents allows, the action it invokes among them. It also answers what this deployment delegated to a controller
- * and hasn't revoked, which a key reads before it holds anything. A consumer registers one for the specification its
+ * it presents allows, the action it invokes among them. It also answers what this deployment delegated to a key and
+ * hasn't revoked, which the framework asks only for the key a call proved it holds. A consumer registers one for the specification its
  * deployment uses; the framework holds no signing key and reads no proof itself.
  */
 export interface IAuthorityVerifier {
@@ -60,7 +73,8 @@ export interface IAuthorityInvoker {
 export interface IAuthority {
 	registerVerifier(verifier: IAuthorityVerifier): void;
 	registerInvoker(invoker: IAuthorityInvoker): void;
-	/** What was delegated here to a controller: none, where nothing is registered that could verify a delegation. */
+	/** What was delegated here to a key, read as the instance: none, where nothing is registered that could verify a
+	 *  delegation. */
 	delegationsTo(controller: string): Promise<TDelegations>;
 	signRequest: TRequestSigner;
 	/** Whether anything is registered to decide evidence at all, so a boundary reading a request knows to ask. */

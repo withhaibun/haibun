@@ -9,9 +9,15 @@
 import { z } from "zod";
 import { ConcernCatalogSchema } from "./hypermedia.js";
 import { TRACE_SEQ_PATH } from "../schema/protocol.js";
+import { readAction } from "./actions.js";
+import { Access } from "./resources.js";
 
 /** The step that shows what a run declares. `Haibun` declares it, so a run that serves callers lists `haibun`. */
 export const SHOW_STEPS_METHOD = "Haibun-showSteps";
+
+/** What showing a run's declarations requires: a public read. A caller reads it before it knows any other step, so this
+ *  is the one action a caller knows without asking. */
+export const SHOW_STEPS_ACTION = readAction(Access.public);
 
 /** The domain of how much of each declaration a read of a run's declarations returns. */
 export const DOMAIN_STEP_DETAIL = "step-detail";
@@ -56,8 +62,8 @@ export const StepDescriptorSchema = z
 		paramDomains: z.record(z.string(), z.string()),
 		/** The domain of the products the step returns, where it declares one. */
 		productsDomain: z.string().optional(),
-		/** The action a caller holds to call the step. Absent only where the step requires nothing. */
-		capability: z.string().optional(),
+		/** The action a caller holds to call the step. */
+		capability: z.string(),
 		/** Whether the step is a read: a caller that names it asks to read, and the run answers without recording the reading. */
 		read: z.boolean(),
 		/** Whether the step answers only when no other step answers to its name. */
@@ -166,7 +172,7 @@ export function readShownSteps(products: unknown, detail: TStepDetail): TStepDis
 }
 
 /** What the show steps step does, which its definition states. */
-export const SHOW_STEPS_DESCRIPTION = `Reads what this run declares. The text is matched without regard to case against each step's method, pattern and description, and each domain's name and description; an empty text matches everything. A method names its stepper and a hyphen first, so the text GraphStepper- matches the steps of GraphStepper and of any stepper whose name ends in GraphStepper. The ${STEP_DETAIL.summary} detail names each match, says what it does and links its definition. The ${STEP_DETAIL.definition} detail adds each step's argument and product schemas and links its call, and a step whose definition you read is one you may call. Every result lists the steppers whose steps matched.`;
+export const SHOW_STEPS_DESCRIPTION = `Reads what this run declares: the steps its caller may call, and every domain. The text is matched without regard to case against each step's method, pattern and description, and each domain's name and description; an empty text matches everything. A method names its stepper and a hyphen first, so the text GraphStepper- matches the steps of GraphStepper and of any stepper whose name ends in GraphStepper. The ${STEP_DETAIL.summary} detail names each match, says what it does and links its definition. The ${STEP_DETAIL.definition} detail adds each step's argument and product schemas and links its call, and a step whose definition you read is one you may call. Every result lists the steppers whose steps matched.`;
 
 /** A tool as MCP defines one, which a model provider sends under its own field names. */
 export type TToolDefinition = { name: string; description: string; inputSchema: TInputSchema };
@@ -174,19 +180,17 @@ export type TToolDefinition = { name: string; description: string; inputSchema: 
 /** A step as a tool: its method as the name, its pattern with its description, the capability it requires and the host
  *  it runs at, and the schema of its arguments. */
 export function toolDefinition(step: TStepDescriptor): TToolDefinition {
-	const parts = [
-		step.pattern,
-		step.description,
-		step.capability === undefined ? undefined : `Requires capability ${step.capability}.`,
-		step.remoteHost === undefined ? undefined : `Runs at ${step.remoteHost}.`,
-	];
+	const parts = [step.pattern, step.description, `Requires capability ${step.capability}.`, step.remoteHost === undefined ? undefined : `Runs at ${step.remoteHost}.`];
 	return { name: step.method, description: parts.filter((part) => part !== undefined).join("\n\n"), inputSchema: step.inputSchema };
 }
 
 /** What a caller is told of a run before it asks for anything: the step that reads the run's declarations, and each
- *  stepper by its name, what it does and how many steps it declares. The definition of show steps states how to read.
- *  An MCP host sends this as its instructions, and a model's turn states it in its standing instruction. */
+ *  stepper of the steps the caller holds, by its name, what it does and how many of its steps the caller holds. The
+ *  definition of show steps states how to read. A model's turn states it in its standing instruction; an MCP host, whose
+ *  instructions are set before any caller connects, sends it naming no stepper. */
 export function stepsInstructions(steppers: TStepperSummary[]): string {
+	const ask = `Call ${SHOW_STEPS_METHOD} to find the step a request needs.`;
+	if (steppers.length === 0) return ask;
 	const listed = steppers.map((entry) => `- ${entry.stepper} (${entry.steps} steps): ${entry.description}`).join("\n");
-	return `Call ${SHOW_STEPS_METHOD} to find the step a request needs.\n\nThis run's steppers:\n${listed}`;
+	return `${ask}\n\nThis run's steppers:\n${listed}`;
 }

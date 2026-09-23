@@ -1,6 +1,6 @@
 /**
- * What a step requires, and what an action a caller holds allows: every step requires an action unless it declares it
- * requires nothing, and holding a read at one level allows every narrower read.
+ * What a step requires, and what an action a caller holds allows: every step requires an action, and holding a read at
+ * one level allows every narrower read.
  */
 import { describe, expect, it } from "vitest";
 import { actionUnder, capabilityAllows, readAction, readCeilingOf, requiredAction } from "./actions.js";
@@ -17,11 +17,6 @@ describe("what a step requires", () => {
 
 	it("is the step's own name for a step that declares nothing, so nobody declaring anything leaves it open", () => {
 		expect(requiredAction("Pool", "drain", {})).toBe("Pool:drain");
-	});
-
-	it("is nothing only for a step that says so, which may not also require an action", () => {
-		expect(requiredAction("Pool", "map", { read: true, requiresNothing: true })).toBeUndefined();
-		expect(() => requiredAction("Pool", "map", { requiresNothing: true, capability: "Pool:enter" })).toThrow(/requires nothing and requires Pool:enter/);
 	});
 });
 

@@ -56,6 +56,7 @@ export class TestConduit implements Conduit {
 import { setEventStream, resetEventStream, SerializedEventStream, type TEvent } from "./event-stream.js";
 import { resetRunSources, setDeviceStore, MemoryDeviceStore } from "./client-cache/index.js";
 import { SHOW_STEPS_METHOD, STEP_DETAIL, readShownSteps, stepDefinition, type TStepDefinitions } from "@haibun/core/lib/step-discovery.js";
+import { requiredAction } from "@haibun/core/lib/actions.js";
 import { steppersOf } from "@haibun/core/lib/step-registry.js";
 
 export type TShuTestConfig = {
@@ -76,10 +77,12 @@ export type TShuTestHandle = {
 
 /** The steps given, as the show steps step returns them when they are all a run declares. */
 export function stepsShown(
-	steps: Array<{ method: string; stepperName: string; stepName: string; pattern: string; fallback?: boolean; read?: boolean; answersTheTurn?: boolean }>,
+	steps: Array<{ method: string; stepperName: string; stepName: string; pattern: string; fallback?: boolean; read?: boolean; answersTheTurn?: boolean; capability?: string }>,
 ): TStepDefinitions {
 	const described = steps.map((step) => ({
 		...step,
+		// Each step requires what a run's step would: what it declares, a public read for a read, and otherwise its name.
+		capability: requiredAction(step.stepperName, step.stepName, step),
 		stepperDescription: `the steps of ${step.stepperName}`,
 		paramDomains: {},
 		read: step.read === true,

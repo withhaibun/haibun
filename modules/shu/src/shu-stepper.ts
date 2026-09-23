@@ -13,6 +13,7 @@ import type { TDeploymentSettings } from "./rpc-registry.js";
 import { getJsonLdContext } from "@haibun/core/lib/hypermedia.js";
 import { Access, haibunNsForHost, isPersisted } from "@haibun/core/lib/resources.js";
 import { requestBaseIri } from "@haibun/core/lib/request-context.js";
+import { getAuthority } from "@haibun/core/lib/session-authority.js";
 import type { IWebServer } from "@haibun/web-server-hono/defs.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 import type { Context } from "@haibun/web-server-hono/defs.js";
@@ -154,7 +155,7 @@ export function buildReportHtml(basePath: string, payload: string, compressed: b
 	return spaDocument(basePath, loader);
 }
 
-function createSpaHandler(basePath: string, settings: TDeploymentSettings) {
+function createSpaHandler(basePath: string, settings: () => TDeploymentSettings) {
 	// Read the bundle from disk on every request rather than caching it at
 	// handler construction, so a rebuilt shu-bundle.js is served after
 	// `npm run build` + reload with no service restart. The ~3.7MB readFileSync
@@ -165,7 +166,7 @@ function createSpaHandler(basePath: string, settings: TDeploymentSettings) {
 	return (c: Context) => {
 		c.header("Cache-Control", "no-store, must-revalidate");
 		c.header("Pragma", "no-cache");
-		return c.html(buildSpaHtml(basePath, loadBundle(), settings));
+		return c.html(buildSpaHtml(basePath, loadBundle(), settings()));
 	};
 }
 
@@ -282,8 +283,14 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 				const pathError = validateMountPath(path);
 				if (pathError) return actionNotOK(pathError);
 				// The page boots with an empty payload: it keeps its own key, and reads what was delegated to it here. What it
-				// may do without a delegation is the web server's to say, and the page is told it so it knows what needs no signing.
-				webserver.addRoute("get", path, { description: `Shu SPA mounted at ${path}` }, createSpaHandler(path, { ...this.settings, allowedWithoutDelegation: [...webserver.allowedWithoutDelegation] }));
+				// may do without a delegation is the web server's to say, and whether a delegation verifies here is the run's
+				// authority's, read for each page served, since a verifier may be registered after the app is.
+				const settings = (): TDeploymentSettings => ({
+					...this.settings,
+					allowedWithoutDelegation: [...webserver.allowedWithoutDelegation],
+					verifiesDelegations: getAuthority(this.getWorld().runtime)?.hasVerifier() === true,
+				});
+				webserver.addRoute("get", path, { description: `Shu SPA mounted at ${path}` }, createSpaHandler(path, settings));
 				const domains = this.getWorld().domains;
 				// The context varies only by serving host, drawn from a tiny set of origins, build it once per host.
 				const byHost = new Map<string, Record<string, unknown>>();

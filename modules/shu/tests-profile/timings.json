@@ -17,7 +17,7 @@
 				"declaredStepTextHash": "4ae3865172f9890a4b1bb92af8c3d1e48bdfc3fe98b42f2604e36c5d5e09bd0b"
 			},
 			"/features/d-two-origins.feature.ts": {
-				"seconds": 1,
+				"seconds": 0.9,
 				"steps": 175,
 				"declaredStepTextHash": "824ab325b18654ce13a33a6fdbcb7bda193f604cc3fa6aca594aa02463ad3d57"
 			},
@@ -28,6 +28,6 @@
 			}
 		},
 		"steps": 848,
-		"seconds": 6.7
+		"seconds": 6.6
 	}
 }

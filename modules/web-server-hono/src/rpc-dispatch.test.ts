@@ -7,7 +7,8 @@ import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import FakeAuthorityStepper, { FakeInvoker } from "@haibun/core/lib/test/fake-authority.js";
 import WebServerStepper from "./web-server-stepper.js";
 import Haibun from "@haibun/core/steps/haibun.js";
-import { EVERY_DEFINITION, SHOW_STEPS_METHOD, readShownSteps, type TStepDefinition } from "@haibun/core/lib/step-discovery.js";
+import { EVERY_DEFINITION, SHOW_STEPS_ACTION, SHOW_STEPS_METHOD, readShownSteps, type TStepDefinition } from "@haibun/core/lib/step-discovery.js";
+import { refusal } from "@haibun/core/lib/step-registry.js";
 import { streamContext, type TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import { readingAt } from "@haibun/core/lib/capability-context.js";
 
@@ -37,12 +38,11 @@ class PingStepper extends AStepper {
 }
 
 /** The steps a caller is shown, read as a page reads them. */
-async function shownSteps(url: string, headers: Record<string, string>): Promise<TStepDefinition[]> {
-	const res = await fetch(url, {
-		method: "POST",
-		headers: { "Content-Type": "application/json", ...headers },
-		body: JSON.stringify({ jsonrpc: "2.0", id: "1", method: SHOW_STEPS_METHOD, params: EVERY_DEFINITION, asks: "read" }),
-	});
+/** The steps a read of the run's declarations at `url` shows, signed by `holder` where one is named. */
+async function shownSteps(url: string, holder?: string): Promise<TStepDefinition[]> {
+	const body = JSON.stringify({ jsonrpc: "2.0", id: "1", method: SHOW_STEPS_METHOD, params: EVERY_DEFINITION, asks: "read" });
+	const headers = { "content-type": "application/json" };
+	const res = await fetch(url, { method: "POST", headers: holder ? await new FakeInvoker(holder).sign({ method: "POST", url, headers, body }, SHOW_STEPS_ACTION) : headers, body });
 	if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
 	return readShownSteps(await res.json(), EVERY_DEFINITION.detail).steps;
 }
@@ -74,18 +74,20 @@ async function openStream(url: string, signer?: { holder: string; action: string
 class RpcVerifyStepper extends AStepper {
 	description = "Steps that call a run over RPC and check what it answers.";
 	steps = {
-		shownStepsInclude: {
-			gwta: "steps shown to a caller with no token at {url} include {included}",
+		shownStepsPresentingNothing: {
+			gwta: "steps shown at {url} presenting nothing include {included}",
 			action: async ({ url, included }: TStepArgs) => {
-				const methods = (await shownSteps(String(url), {})).map((step) => step.method);
+				const methods = (await shownSteps(String(url))).map((step) => step.method);
 				return methods.includes(String(included)) ? OK : actionNotOK(`"${included}" not in [${methods.join(", ")}]`);
 			},
 		},
-		shownStepRequires: {
-			gwta: "any caller is shown {method} at {url} requiring {capability}",
-			action: async ({ url, method, capability }: TStepArgs) => {
-				const step = (await shownSteps(String(url), {})).find((shown) => shown.method === String(method));
-				return step?.capability === String(capability) ? OK : actionNotOK(`${method} is shown as ${JSON.stringify(step)}`);
+		shownStepsToHolder: {
+			gwta: "steps shown at {url} to {holder} include {included} and not {excluded}",
+			action: async ({ url, holder, included, excluded }: TStepArgs) => {
+				const shown = await shownSteps(String(url), String(holder));
+				const methods = shown.map((step) => step.method);
+				if (!methods.includes(String(included))) return actionNotOK(`"${included}" not in [${methods.join(", ")}]`);
+				return methods.includes(String(excluded)) ? actionNotOK(`"${excluded}" is shown to ${holder}, who may not call it`) : OK;
 			},
 		},
 		rpcCallSucceeds: {
@@ -128,37 +130,6 @@ class RpcVerifyStepper extends AStepper {
 				return OK;
 			},
 		},
-		rpcCallDeniedWithoutCapability: {
-			gwta: "rpc call to {url} with method {method} is denied without capability",
-			action: async ({ url, method }: TStepArgs) => {
-				const res = await fetch(String(url), {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ jsonrpc: "2.0", id: "1", method: String(method), params: {}, seqPath: [0, 1, 1, 1] }),
-				});
-				const data = await res.json();
-				if (res.status !== 422) return actionNotOK(`Expected HTTP 422, got ${res.status}`);
-				if (typeof data.error !== "string" || !data.error.includes("capability PingStepper:protected required")) {
-					return actionNotOK(`Expected capability error, got ${JSON.stringify(data)}`);
-				}
-				return OK;
-			},
-		},
-		rpcStopRefused: {
-			gwta: "rpc call to {url} to stop the instance is refused without capability",
-			action: async ({ url }: TStepArgs) => {
-				const method = "WebServerStepper-stopInstance";
-				const res = await fetch(`${String(url)}/rpc/${method}`, {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ jsonrpc: "2.0", id: "1", method, params: { reason: "a caller holding nothing" }, seqPath: [0, 1, 1, 1] }),
-				});
-				const data = await res.json();
-				if (res.status !== 422 || !String(data.error).includes("capability WebServer:stop required"))
-					return actionNotOK(`Expected the stop refused, got ${res.status} ${JSON.stringify(data)}`);
-				return OK;
-			},
-		},
 		rpcCallRefusedUnauthenticated: {
 			gwta: "rpc call to {url} with method {method} presenting authority nothing here verifies is refused unauthenticated",
 			action: async ({ url, method }: TStepArgs) => {
@@ -195,13 +166,22 @@ class RpcVerifyStepper extends AStepper {
 				return OK;
 			},
 		},
-		rpcCallDeniedPresentingNothing: {
-			gwta: "rpc call to {url} with method {method} presenting nothing is denied for capability {capability}",
-			action: async ({ url, method, capability }: TStepArgs) => {
+		rpcRefusedPresentingNothing: {
+			gwta: "rpc call to {url} with method {method} presenting nothing is refused",
+			action: async ({ url, method }: TStepArgs) => {
 				const res = await postRpc(String(url), String(method));
+				const data = (await res.json()) as { error?: string; pong?: boolean };
+				const expected = refusal(String(method), undefined, undefined);
+				return res.status === 422 && data.error === expected ? OK : actionNotOK(`Expected "${expected}", got ${res.status} ${JSON.stringify(data)}`);
+			},
+		},
+		rpcUnknownSigned: {
+			gwta: "rpc call to {url} with method {method} is unknown when signed by {holder} for {action}",
+			action: async ({ url, method, holder, action }: TStepArgs) => {
+				const res = await postRpc(String(url), String(method), { holder: String(holder), action: String(action) });
 				const data = (await res.json()) as { error?: string };
-				if (res.status !== 422 || !String(data.error).includes(`capability ${String(capability)} required`)) return actionNotOK(`Expected ${capability} required, got ${res.status} ${JSON.stringify(data)}`);
-				return OK;
+				const expected = refusal(String(method), undefined, String(holder));
+				return res.status === 422 && data.error === expected ? OK : actionNotOK(`Expected "${expected}", got ${res.status} ${JSON.stringify(data)}`);
 			},
 		},
 		rpcReadsAtPresentingNothing: {
@@ -366,7 +346,7 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-ping" with method "PingSte
 				content: `
 enable rpc
 webserver is listening for "rpc-stop-refused"
-rpc call to "http://localhost:${port}" to stop the instance is refused without capability
+rpc call to "http://localhost:${port}/rpc/WebServerStepper-stopInstance" with method "WebServerStepper-stopInstance" presenting nothing is refused
 `,
 			};
 			const result = await passWithDefaults([feature], steppers, makeOptions(port));
@@ -392,20 +372,21 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-ping" with method "PingSte
 		expect(result.ok).toBe(true);
 	});
 
-	it("refuses a step that declares no action to a caller presenting nothing, since it requires its own name", async () => {
+	it("refuses a caller presenting nothing every step, alike whether the step exists, so no refusal maps the run", async () => {
 		const port = 8255;
 		const feature = {
 			path: "/features/test.feature",
 			content: `
 enable rpc
 webserver is listening for "rpc-deny-by-default"
-rpc call to "http://localhost:${port}/rpc/PingStepper-ping" with method "PingStepper-ping" presenting nothing is denied for capability "PingStepper:ping"
-rpc call to "http://localhost:${port}/rpc/PingStepper-readsAt" with method "PingStepper-readsAt" presenting nothing is denied for capability "Read:public"
-steps shown to a caller with no token at "http://localhost:${port}/rpc/${SHOW_STEPS_METHOD}" include "PingStepper-ping"
+rpc call to "http://localhost:${port}/rpc/PingStepper-ping" with method "PingStepper-ping" presenting nothing is refused
+rpc call to "http://localhost:${port}/rpc/PingStepper-readsAt" with method "PingStepper-readsAt" presenting nothing is refused
+rpc call to "http://localhost:${port}/rpc/Nowhere-nothing" with method "Nowhere-nothing" presenting nothing is refused
+rpc call to "http://localhost:${port}/rpc/${SHOW_STEPS_METHOD}" with method "${SHOW_STEPS_METHOD}" presenting nothing is refused
 `,
 		};
 		const result = await passWithDefaults([feature], steppers, makeOptions(port));
-		expect(result.ok, "and what a caller may hold is still shown to it").toBe(true);
+		expect(result.ok, "and nothing, not even the list of steps, is open to a caller holding nothing").toBe(true);
 	});
 
 	it("grants every caller what the deployment allows without a delegation, beside what it proves", async () => {
@@ -418,7 +399,7 @@ webserver is listening for "rpc-allowed-without-delegation"
 accept authority from "agent" for "PingStepper:protected"
 rpc call to "http://localhost:${port}/rpc/PingStepper-ping" with method "PingStepper-ping" succeeds
 rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" succeeds when signed by "agent" for "PingStepper:protected"
-rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "PingStepper-adminPing" presenting nothing is denied for capability "PingStepper:admin"
+rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "PingStepper-adminPing" presenting nothing is refused
 `,
 		};
 		const result = await passWithDefaults([feature], signedSteppers, makeOptions(port, "PingStepper:ping"));
@@ -476,15 +457,15 @@ rpc old format to "http://localhost:${port}/rpc/${SHOW_STEPS_METHOD}" is not dis
 		expect(result.ok).toBe(true);
 	});
 
-	it("shows a caller a step it may not call, with the capability the step requires", async () => {
+	it("shows a caller the steps it holds what they require for, and none it may not call", async () => {
 		const port = 8237;
 		const feature = {
 			path: "/features/shown-steps.feature",
 			content: `
 enable rpc
 webserver is listening for "rpc-shown-steps"
-accept authority from "agent" for "PingStepper:protected"
-any caller is shown "PingStepper-adminPing" at "http://localhost:${port}/rpc/${SHOW_STEPS_METHOD}" requiring "PingStepper:admin"
+accept authority from "agent" for "PingStepper:protected,Read:public"
+steps shown at "http://localhost:${port}/rpc/${SHOW_STEPS_METHOD}" to "agent" include "PingStepper-protectedPing" and not "PingStepper-adminPing"
 rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "PingStepper-adminPing" is denied for capability "PingStepper:admin" when signed by "agent" for "PingStepper:protected"
 `,
 		};
@@ -515,11 +496,11 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "Pi
 enable rpc
 webserver is listening for "rpc-injected"
 inject a step into the run's registry
-steps shown to a caller with no token at "http://localhost:${port}/rpc/${SHOW_STEPS_METHOD}" include "Injected-ping"
+steps shown at "http://localhost:${port}/rpc/${SHOW_STEPS_METHOD}" presenting nothing include "Injected-ping"
 rpc call to "http://localhost:${port}/rpc/Injected-ping" with method "Injected-ping" succeeds
 `,
 		};
-		const result = await passWithDefaults([feature], [...steppers, Injects], makeOptions(port, "PingStepper:ping"));
+		const result = await passWithDefaults([feature], [...steppers, Injects], makeOptions(port, "PingStepper:ping,Read:public"));
 		expect(result.ok).toBe(true);
 	});
 
@@ -605,7 +586,8 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-ping" without seqPath succ
 enable rpc
 webserver is listening for "rpc-protected-step"
 accept authority from "agent" for "PingStepper:protected"
-rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" is denied without capability
+rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" presenting nothing is refused
+rpc call to "http://localhost:${port}/rpc/Nowhere-nothing" with method "Nowhere-nothing" is unknown when signed by "agent" for "PingStepper:protected"
 rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" succeeds when signed by "agent" for "PingStepper:protected"
 `,
 		};
@@ -757,7 +739,11 @@ stream rpc call to "http://localhost:${port}/rpc/StreamingStepper-refuse" method
 stream rpc call to "http://localhost:${port}/rpc/StreamingStepper-fail" method "StreamingStepper-fail" emits an error
 `,
 		};
-		const result = await passWithDefaults([feature], [WebServerStepper, StreamingStepper, StreamingErrorVerifyStepper], makeOptions(port, "StreamingStepper:refuse,StreamingStepper:fail"));
+		const result = await passWithDefaults(
+			[feature],
+			[WebServerStepper, StreamingStepper, StreamingErrorVerifyStepper],
+			makeOptions(port, "StreamingStepper:refuse,StreamingStepper:fail"),
+		);
 		expect(result.ok).toBe(true);
 		expect(collectedChunks.map((chunk) => chunk.error)).toEqual(["StreamingStepper-refuse: nope", "StreamingStepper-fail: broke"]);
 	});

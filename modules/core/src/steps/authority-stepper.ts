@@ -4,13 +4,13 @@ import type { TWorld } from "../lib/world.js";
 import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature, type TFeatureStep } from "../lib/astepper.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/util/index.js";
 import { AUTHORITY_KEY, SessionAuthority } from "../lib/session-authority.js";
-import type { IAuthority } from "../lib/authority-types.js";
+import { DELEGATIONS_READ_ACTION, type IAuthority } from "../lib/authority-types.js";
 import { DOMAIN_JSON, DOMAIN_STRING } from "../lib/domains.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
-import { authorizedWith, runActingAs, runAuthorizedWith } from "../lib/capability-context.js";
+import { actingAs, authorizedWith, runActingAs, runAuthorizedWith } from "../lib/capability-context.js";
 import { actionList, capabilityAllows } from "../lib/actions.js";
 import { activeSitePrincipal, SITE_DID_PREFIX } from "../lib/host-id.js";
-import { PRINCIPAL_DOMAIN, PRINCIPAL_LABEL } from "../lib/resources.js";
+import { AccessLevelSchema, PRINCIPAL_DOMAIN, PRINCIPAL_LABEL } from "../lib/resources.js";
 
 const authorityActionSchema = z
 	.string()
@@ -24,7 +24,10 @@ const authorityActionSchema = z
 export const AUTHORITY_CAPABILITIES = { delegate: "Authority:delegate", revoke: "Authority:revoke", name: "Authority:name" } as const;
 
 const siteNamedSchema = z.object({ site: z.string() });
-const delegationsSchema = z.object({ delegations: z.array(z.record(z.string(), z.unknown())), recordedAs: z.string().optional() });
+const delegationsSchema = z.object({
+	delegations: z.array(z.record(z.string(), z.unknown())),
+	records: z.record(z.string(), z.object({ persistedAs: z.string(), accessLevel: AccessLevelSchema })).optional(),
+});
 
 /** The inline signed-capability document presented to `holding capability …`. Must carry a controller and a Data Integrity proof; verification is delegated to the registered IAuthorityVerifier. */
 const signedCapabilitySchema = z.looseObject({
@@ -91,12 +94,16 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 		},
 		delegationsTo: {
 			read: true,
-			requiresNothing: true,
-			gwta: `delegations to {controller: ${DOMAIN_STRING}}`,
+			capability: DELEGATIONS_READ_ACTION,
+			gwta: "delegations to the caller",
 			productsSchema: delegationsSchema,
 			description:
-				"The signed delegations this instance recorded to a controller and hasn't revoked, as the documents a holder presents: how a key finds what it may do here, before it holds anything. A delegation is of no use without its key.",
-			action: async ({ controller }: { controller: string }) => actionOKWithProducts(await this.getAuthority().delegationsTo(controller)),
+				"The signed delegations this instance recorded to the key that signs the call and hasn't revoked, as the documents a holder presents: how a key finds what it may do here. A key reads its own, and no other key's.",
+			action: async () => {
+				const controller = actingAs();
+				if (!controller) return actionNotOK("the delegation read answers the key that signs the call, and this call proves no key");
+				return actionOKWithProducts(await this.getAuthority().delegationsTo(controller));
+			},
 		},
 		holdingOnly: {
 			gwta: `holding only {actions: ${DOMAIN_STRING}}, {what: statement}`,

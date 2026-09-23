@@ -1,10 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
+import { AUTHORITY_KEY, SessionAuthority } from "@haibun/core/lib/session-authority.js";
+import type { TWorld } from "@haibun/core/lib/world.js";
 import ShuStepper, { buildSpaHtml } from "./shu-stepper.js";
 
 describe("the app a deployment serves", () => {
 	let stepper: ShuStepper;
+	let world: TWorld;
 	let addRoute: ReturnType<typeof vi.fn>;
 
 	beforeEach(async () => {
@@ -14,7 +17,7 @@ describe("the app a deployment serves", () => {
 			if (mounted.has(path)) throw new Error(`already mounted at "${path}"`);
 			mounted.add(path);
 		});
-		const world = getDefaultWorld();
+		world = getDefaultWorld();
 		world.runtime[WEBSERVER] = { addRoute, mounted: { get: {} }, allowedWithoutDelegation: ["Read:public"] };
 		await stepper.setWorld(world, []);
 	});
@@ -33,11 +36,15 @@ describe("the app a deployment serves", () => {
 		expect(() => stepper.steps.serveShuApp.action({ path: "/spa" })).toThrow("already mounted");
 	});
 
-	it("tells the page what the deployment allows without a delegation, so it knows what needs no signing", async () => {
+	it("tells the page what the deployment allows without a delegation, and whether a delegation verifies here, as each page is served", async () => {
 		await stepper.steps.serveShuApp.action({ path: "/spa" });
 		const serve = addRoute.mock.calls.find(([, path]) => path === "/spa")?.[3] as (c: unknown) => string;
-		const page = serve({ header: () => undefined, html: (body: string) => body });
-		expect(page).toContain(JSON.stringify({ settings: { allowedWithoutDelegation: ["Read:public"] } }));
+		const served = () => serve({ header: () => undefined, html: (body: string) => body });
+		expect(served()).toContain(JSON.stringify({ settings: { allowedWithoutDelegation: ["Read:public"], verifiesDelegations: false } }));
+		const authority = new SessionAuthority();
+		authority.registerVerifier({ verify: async () => ({ ok: false }), delegationsTo: async () => ({ delegations: [] }) });
+		(world.runtime.keys ??= {})[AUTHORITY_KEY] = authority;
+		expect(served(), "a verifier registered after the app was served").toContain('"verifiesDelegations":true');
 	});
 });
 

@@ -7,7 +7,7 @@ import { AStepper, type IHasCycles, type IHasOptions, type TEndFeature, type ISt
 import { dispatchStep } from "@haibun/core/lib/step-dispatch.js";
 import { parseRpcRequest, RPC_REFUSED } from "@haibun/core/lib/rpc-wire.js";
 import { runWithRequestContext, requestBaseIri } from "@haibun/core/lib/request-context.js";
-import { buildFeatureStepForTransport, runRegistry, type StepRegistry } from "@haibun/core/lib/step-registry.js";
+import { buildFeatureStepForTransport, refusal, runRegistry, type StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { actionList, capabilityAllows } from "@haibun/core/lib/actions.js";
 import { STORE_METHOD_PREFIX, storeMethods } from "@haibun/core/lib/store-protocol.js";
 import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
@@ -270,9 +270,9 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					// is, with no ungated default.
 					const served = this.webserver?.rpcMethod(method);
 					if (served) {
-						const { granted, refused } = await grantedCapabilityForRequest(requestInfo, this.getWorld().runtime, this.allowedWithoutDelegation);
+						const { granted, principal, refused } = await grantedCapabilityForRequest(requestInfo, this.getWorld().runtime, this.allowedWithoutDelegation);
 						if (refused) return { error: `${method}: ${refused}`, [RPC_REFUSED]: true };
-						if (!capabilityAllows(granted, served.action)) return { error: `${method}: capability ${served.action} required` };
+						if (!capabilityAllows(granted, served.action)) return { error: refusal(method, served.action, principal) };
 						try {
 							return await served.handle((params ?? {}) as Record<string, unknown>);
 						} catch (err) {
@@ -280,20 +280,21 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 						}
 					}
 
-					// External callers (no feature-step context) get a server-synthesised seqPath, matching MCP.
 					const world = this.getWorld();
-					const seqPath = msg.seqPath && msg.seqPath.length > 0 ? msg.seqPath : allocateSyntheticSeqPath(world);
-
 					const registry = this.stepRegistry;
 					if (!registry) {
 						return { error: `${method}: RPC step registry is not initialized` };
 					}
-					const tool = registry.get(method);
-					if (!tool) return { error: `${method}: unknown step method` };
 
 					try {
 						const { granted, principal, refused } = await grantedCapabilityForRequest(requestInfo, world.runtime, this.allowedWithoutDelegation);
 						if (refused) return { error: `${method}: ${refused}`, [RPC_REFUSED]: true };
+						// A call is refused before its input is read, and alike whether its step exists, so a refusal tells the caller
+						// nothing of the steps it may not call.
+						const tool = registry.get(method);
+						if (!tool || !capabilityAllows(granted, tool.descriptor.capability)) return { error: refusal(method, tool?.descriptor.capability, principal) };
+						// External callers (no feature-step context) get a server-synthesised seqPath, matching MCP.
+						const seqPath = msg.seqPath && msg.seqPath.length > 0 ? msg.seqPath : allocateSyntheticSeqPath(world);
 						const validatedParams = validateToolInput(seqPath, tool, params as Record<string, unknown>, world);
 						const featureStep = buildFeatureStepForTransport(tool, validatedParams, seqPath);
 						// RPC dispatches are SPA-initiated (constant polling like getClusteredQuads), not feature steps;

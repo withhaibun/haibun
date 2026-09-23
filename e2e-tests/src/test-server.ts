@@ -4,7 +4,8 @@ import { setCookie } from "@haibun/web-server-hono/cookie.js";
 
 import { actionNotOK, actionOK, actionOKWithProducts, getFromRuntime, sleep } from "@haibun/core/lib/util/index.js";
 import { DOMAIN_STRING } from "@haibun/core/lib/domains.js";
-import { SHOW_STEPS_METHOD, STEP_DETAIL, readShownSteps } from "@haibun/core/lib/step-discovery.js";
+import { SHOW_STEPS_ACTION, SHOW_STEPS_METHOD, STEP_DETAIL, readShownSteps } from "@haibun/core/lib/step-discovery.js";
+import { refusal } from "@haibun/core/lib/step-registry.js";
 import type { TFeatureStep, IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { OK, Origin, type TStepArgs, type TProvenanceIdentifier } from "@haibun/core/schema/protocol.js";
 import { type TRequestHandler, type IWebServer, WEBSERVER } from "@haibun/web-server-hono/defs.js";
@@ -54,8 +55,9 @@ async function mcpListTools(url: string): Promise<Array<{ name?: string }>> {
 	return (response.result as { tools?: Array<{ name?: string }> } | undefined)?.tools ?? [];
 }
 
-async function mcpShownSteps(url: string, text: string): Promise<string[]> {
-	const response = await mcpRpc(url, 3, "tools/call", { name: SHOW_STEPS_METHOD, arguments: { text, detail: STEP_DETAIL.summary } });
+/** The steps shown for `text` over MCP to `holder`, which signs for the public read showing them requires. */
+async function mcpShownSteps(url: string, text: string, holder: string): Promise<string[]> {
+	const response = await mcpRpc(url, 3, "tools/call", { name: SHOW_STEPS_METHOD, arguments: { text, detail: STEP_DETAIL.summary } }, { holder, action: SHOW_STEPS_ACTION });
 	const returned = mcpToolResult(response).content?.[0]?.type === "text" ? (mcpToolResult(response).content?.[0]?.text ?? "") : "";
 	if (!returned) throw new Error(`${SHOW_STEPS_METHOD} returned nothing: ${JSON.stringify(response)}`);
 	return readShownSteps(JSON.parse(returned), STEP_DETAIL.summary).steps.map((step) => step.method);
@@ -74,7 +76,9 @@ const mcpText = (response: Record<string, unknown>): string => {
 
 /** A call denied for want of `capability`, or the reason it wasn't. */
 const deniedFor = (status: number, error: unknown, capability: string) =>
-	status === 422 && typeof error === "string" && error.includes(`capability ${capability} required`) ? actionOK() : actionNotOK(`Expected a denial for ${capability}, got ${status} ${String(error)}`);
+	status === 422 && typeof error === "string" && error.includes(`capability ${capability} required`)
+		? actionOK()
+		: actionNotOK(`Expected a denial for ${capability}, got ${status} ${String(error)}`);
 
 const cycles = (ts: TestServer): IStepperCycles => ({
 	startFeature: () => {
@@ -234,28 +238,20 @@ class TestServer extends AStepper {
 			gwta: "rpc ping",
 			action: async () => actionOKWithProducts({ pong: true }),
 		},
-		mcpStepIndexIncludes: {
-			gwta: "mcp tools at {url} include {toolName}",
-			action: async ({ url, toolName }: TStepArgs) => {
-				const tools = await mcpListTools(String(url));
-				return tools.some((tool) => tool.name === String(toolName))
-					? actionOK()
-					: actionNotOK(`Expected ${String(toolName)} in the MCP tool list [${tools.map((tool) => tool.name).join(", ")}]`);
-			},
-		},
 		mcpShownStepsInclude: {
-			gwta: "mcp steps shown at {url} matching {text} include {toolName}",
-			action: async ({ url, text, toolName }: TStepArgs) => {
+			gwta: "mcp steps shown at {url} to {holder} matching {text} include {toolName}",
+			action: async ({ url, holder, text, toolName }: TStepArgs) => {
 				await mcpListTools(String(url));
-				const shown = await mcpShownSteps(String(url), String(text));
+				const shown = await mcpShownSteps(String(url), String(text), String(holder));
 				return shown.includes(String(toolName)) ? actionOK() : actionNotOK(`Expected ${String(toolName)} among the steps shown [${shown.join(", ")}]`);
 			},
 		},
-		mcpDenied: {
-			gwta: "mcp call to {url} with tool {toolName} presenting nothing is denied for capability {capability}",
-			action: async ({ url, toolName, capability }: TStepArgs) => {
+		mcpRefused: {
+			gwta: "mcp call to {url} with tool {toolName} presenting nothing is refused",
+			action: async ({ url, toolName }: TStepArgs) => {
 				const response = await mcpCallTool(String(url), String(toolName));
-				return mcpToolResult(response).isError ? deniedFor(422, mcpText(response), String(capability)) : actionNotOK(`Expected MCP denial, got ${JSON.stringify(response)}`);
+				const expected = refusal(String(toolName), undefined, undefined);
+				return mcpToolResult(response).isError && mcpText(response) === expected ? actionOK() : actionNotOK(`Expected "${expected}", got ${JSON.stringify(response)}`);
 			},
 		},
 		mcpDeniedSigned: {
@@ -274,11 +270,13 @@ class TestServer extends AStepper {
 				return parsed.protected === true ? actionOK() : actionNotOK(`Expected protected=true, got ${mcpText(response)}`);
 			},
 		},
-		rpcDenied: {
-			gwta: "rpc call to {url} with method {method} presenting nothing is denied for capability {capability}",
-			action: async ({ url, method, capability }: TStepArgs) => {
-				const response = await post(String(url), { id: "rpc-denied", method: String(method), params: {} }, undefined);
-				return deniedFor(response.status, ((await response.json()) as { error?: unknown }).error, String(capability));
+		rpcRefused: {
+			gwta: "rpc call to {url} with method {method} presenting nothing is refused",
+			action: async ({ url, method }: TStepArgs) => {
+				const response = await post(String(url), { id: "rpc-refused", method: String(method), params: {} }, undefined);
+				const error = ((await response.json()) as { error?: unknown }).error;
+				const expected = refusal(String(method), undefined, undefined);
+				return response.status === 422 && error === expected ? actionOK() : actionNotOK(`Expected "${expected}", got ${response.status} ${String(error)}`);
 			},
 		},
 		rpcAllowedSigned: {

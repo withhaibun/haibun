@@ -20,6 +20,7 @@ import {
 	responseTimeoutMs,
 } from "./rpc-registry.js";
 import { setupShuTest, stepsShown, type TShuTestHandle } from "./test-setup.js";
+import { ServerUnreachable } from "./hypermedia.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { deviceStore, setDeviceStore, MemoryDeviceStore } from "./client-cache/index.js";
 
@@ -193,7 +194,7 @@ describe("the registry cached on the device", () => {
 		resetStepRegistry();
 		handle = setupShuTest({
 			dispatch: () => {
-				throw new Error("offline");
+				throw new ServerUnreachable(`/rpc/${SHOW_STEPS_METHOD}`, new Error("offline"));
 			},
 		});
 		setDeviceStore(store);
@@ -204,5 +205,22 @@ describe("the registry cached on the device", () => {
 		resetStepRegistry();
 		setDeviceStore(new MemoryDeviceStore());
 		await expect(getAvailableSteps()).rejects.toThrow("offline");
+	});
+
+	it("answers a server's refusal with the refusal, not with the device's copy, so what a page may no longer read isn't read from the device", async () => {
+		handle = setupShuTest({ dispatch: (method) => (method === SHOW_STEPS_METHOD ? ANSWER : undefined) });
+		await getAvailableSteps();
+		const store = deviceStore() as MemoryDeviceStore;
+		await new Promise((r) => setTimeout(r, 0));
+		handle.teardown();
+		resetStepRegistry();
+		handle = setupShuTest({
+			dispatch: () => {
+				throw new Error(`${SHOW_STEPS_METHOD}: capability Read:public required`);
+			},
+		});
+		setDeviceStore(store);
+		await expect(getAvailableSteps()).rejects.toThrow("capability Read:public required");
+		expect(registryOrigin()?.from, "and runs on nothing it was refused").not.toBe("device");
 	});
 });

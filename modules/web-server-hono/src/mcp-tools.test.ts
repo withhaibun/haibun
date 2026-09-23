@@ -45,7 +45,8 @@ class TestStepper extends AStepper {
 					if (!(await client.listTools()).tools.some((tool) => tool.name === "Injected-testA"))
 						throw Error("a step injected into the run is not listed after the client was told the list changed");
 					const instructions = client.getInstructions() ?? "";
-					if (!instructions.includes("- TestStepper (2 steps): Steps that check the MCP tools a run lists.")) throw Error(`the instructions name no TestStepper: ${instructions}`);
+					if (instructions.includes("TestStepper")) throw Error(`the instructions, set before any caller connects, name a stepper: ${instructions}`);
+					if (!instructions.includes(SHOW_STEPS_METHOD)) throw Error(`the instructions don't say how to find a step: ${instructions}`);
 					const shown = (await client.callTool({ name: SHOW_STEPS_METHOD, arguments: { text: "TestStepper-", detail: STEP_DETAIL.summary } })) as {
 						content: Array<{ text: string }>;
 					};
@@ -64,7 +65,7 @@ class TestStepper extends AStepper {
 }
 
 describe("McpStepper tools", () => {
-	it("states the run's steppers in its instructions, lists every step of the run as a tool, show steps among them, tells a client when the list changes, and calls one", async () => {
+	it("says in its instructions how to find a step and names no stepper, lists the caller's steps as tools, show steps among them, tells a client when the list changes, and calls one", async () => {
 		const port = 8130;
 		const feature = {
 			path: "/features/tools.feature",
@@ -74,9 +75,11 @@ verify mcp tools on port ${port}
 `,
 		};
 
+		// Nothing here verifies a delegation, so the deployment allows every action without one, as a haibun-only run does.
 		const moduleOptions = {
 			[getStepperOptionName(WebServerStepper, "PORT")]: String(port),
 			[getStepperOptionName(McpStepper, "PORT")]: String(port),
+			[getStepperOptionName(WebServerStepper, "ALLOW_WITHOUT_DELEGATION")]: "*",
 		};
 
 		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, TestStepper, Haibun], {

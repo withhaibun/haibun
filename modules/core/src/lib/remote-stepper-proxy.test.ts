@@ -7,6 +7,7 @@ import { actionOKWithProducts, errorDetail } from "./util/index.js";
 import { getDefaultWorld } from "./test/lib.js";
 import { FakeInvoker } from "./test/fake-authority.js";
 import { AUTHORITY_KEY, SessionAuthority } from "./session-authority.js";
+import { RUN_AUTHORITY, runAuthorizedWith } from "./capability-context.js";
 import type { TWorld } from "./world.js";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
@@ -62,7 +63,8 @@ describe("RemoteStepperProxy", () => {
 			try {
 				const { buildFeatureStepForTransport } = await import("./step-registry.js");
 				const featureStep = buildFeatureStepForTransport(tool, data.params ?? {}, [0, 1]);
-				const result = await tool.handler(featureStep, world);
+				// The host grants the proxy every step it serves, so what the proxy is shown and may call is all of it.
+				const result = await runAuthorizedWith(RUN_AUTHORITY, () => tool.handler(featureStep, world));
 				if (result.ok) return c.json(result.products ?? {});
 				return c.json({ error: result.errorMessage }, 422);
 			} catch (err) {
@@ -142,7 +144,7 @@ describe("RemoteStepperProxy", () => {
 		expect(tool.descriptor.capability).toBe("EchoStepper:admin");
 	});
 
-	it("signs a call to a step for the action it requires, its own name where it declares none, and what requires nothing not at all", async () => {
+	it("signs a call to a step for the action it requires, its own name where it declares none, and reading what the host offers as a public read", async () => {
 		const proxy = new RemoteStepperProxy(`http://localhost:${port}`);
 		await proxy.setWorld(world, []);
 		const registry = new StepRegistry([], world);
@@ -158,7 +160,7 @@ describe("RemoteStepperProxy", () => {
 		}
 		expect(presented.get("EchoStepper-protectedPing")).toBe('fake action="EchoStepper:admin"');
 		expect(presented.get("EchoStepper-echo")).toBe('fake action="EchoStepper:echo"');
-		expect(presented.get("action.begin"), "the handshake requires nothing").toBeUndefined();
-		expect(presented.get("Haibun-showSteps"), "and nor does reading what the host offers").toBeUndefined();
+		expect(presented.get("Haibun-showSteps"), "the host shows the steps the proxy holds there").toBe('fake action="Read:public"');
+		expect(presented.get("action.begin"), "and the handshake requires nothing").toBeUndefined();
 	});
 });

@@ -188,7 +188,7 @@ function buildForwardFrontier(graph: TDomainChainGraph, facts: TQuad[], held: st
 	const isArgument = (d: string) => PRIMITIVE_DOMAINS.has(d) || !producedDomains.has(d);
 	const out: TForwardAffordance[] = [];
 	for (const step of graph.steps) {
-		if (step.capability && !capabilityAllows(held, step.capability)) continue;
+		if (!capabilityAllows(held, step.capability)) continue;
 		if (step.inputDomains.length === 0 && step.outputDomains.length === 0) continue;
 		const readyToRun = step.inputDomains.every((d) => isArgument(d) || assertedDomains.has(d) || d === SOURCE_DOMAIN);
 		out.push({

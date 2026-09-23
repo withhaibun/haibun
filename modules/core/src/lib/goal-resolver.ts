@@ -302,7 +302,7 @@ function enumerate(
 			truncated = true;
 			break;
 		}
-		if (step.capability && !capabilityAllows(inputs.held, step.capability)) continue;
+		if (!capabilityAllows(inputs.held, step.capability)) continue;
 
 		const inputMichi: TMichi[][] = [];
 		let anyDead = false;

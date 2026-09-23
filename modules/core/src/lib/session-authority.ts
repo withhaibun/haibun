@@ -4,6 +4,7 @@
  * elsewhere. haibun-core stays crypto-free, so it reads no proof and signs nothing itself.
  */
 import type { TRuntime } from "./world.js";
+import { runReadingAsTheInstance } from "./capability-context.js";
 import type { IAuthority, IAuthorityInvoker, IAuthorityVerifier, TAuthorityEvidence, TDelegations, TOutgoingRequest, TRequestSigner } from "./authority-types.js";
 
 export const AUTHORITY_KEY = "authority";
@@ -22,7 +23,8 @@ export class SessionAuthority implements IAuthority {
 
 	delegationsTo(controller: string): Promise<TDelegations> {
 		// Nothing registered to verify a delegation means nothing here was delegated through one.
-		return this.verifier ? this.verifier.delegationsTo(controller) : Promise.resolve({ delegations: [] });
+		const verifier = this.verifier;
+		return verifier ? runReadingAsTheInstance(() => verifier.delegationsTo(controller)) : Promise.resolve({ delegations: [] });
 	}
 
 	registerInvoker(invoker: IAuthorityInvoker): void {
@@ -35,8 +37,10 @@ export class SessionAuthority implements IAuthority {
 	}
 
 	verifyEvidence(evidence: TAuthorityEvidence): Promise<{ ok: boolean; error?: string; principal?: string; allowedAction?: string[] }> {
-		if (!this.verifier) return Promise.resolve({ ok: false, error: "no verifier is registered to decide this evidence" });
-		return this.verifier.verify(evidence);
+		const verifier = this.verifier;
+		if (!verifier) return Promise.resolve({ ok: false, error: "no verifier is registered to decide this evidence" });
+		// A chain is checked against the instance's own records, whatever the call presenting it may read.
+		return runReadingAsTheInstance(() => verifier.verify(evidence));
 	}
 
 	clear(): void {

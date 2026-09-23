@@ -138,9 +138,6 @@ type TStepperStepBase = {
 	 *  action so a delegation can name them together. A step that declares none requires `Read:public` if it declares
 	 *  itself a read, and otherwise its own name (actions.ts). */
 	capability?: string;
-	/** A step any caller may run holding nothing. Declared only where holding nothing must still reach it: a step's
-	 *  description, which is no authority, and the read a key makes of what was delegated to it before it holds anything. */
-	requiresNothing?: boolean;
 	/** A step whose result answers the turn that called it, so that turn ends with it rather than asking its model
 	 *  again. A caller reads this from the step's definition, so which steps end a turn is known without running one. */
 	answersTheTurn?: boolean;

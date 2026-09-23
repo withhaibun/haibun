@@ -9,9 +9,13 @@ import { expandLine } from "../lib/features.js";
 export class Resolver {
 	public backgroundWarnings: { path: string; line: string; error: string }[] = [];
 
+	/**
+	 * @param offers which steps a line may resolve to, where a caller holds only some: undefined, every step.
+	 */
 	constructor(
 		private steppers: AStepper[],
 		private backgrounds: TFeatures = [],
+		private offers?: (stepperName: string, actionName: string, step: TStepperStep) => boolean,
 	) {
 		// Process backgrounds to allow steppers to register metadata (e.g., waypoint statements)
 		for (const background of backgrounds) {
@@ -215,6 +219,7 @@ export class Resolver {
 			const { steps } = stepper;
 			for (const actionName in steps) {
 				const step = steps[actionName];
+				if (this.offers && !this.offers(stepperName, actionName, step)) continue;
 				const stepFound = this.stepApplies(step, actionable, actionName, stepperName);
 
 				if (stepFound) {

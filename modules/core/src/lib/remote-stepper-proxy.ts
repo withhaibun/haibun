@@ -15,7 +15,7 @@ import type { TWorld } from "./world.js";
 import type { TActionResult } from "../schema/protocol.js";
 import { actionNotOK } from "./util/index.js";
 import { type StepTool, type StepRegistry, hostScopedMethodName, transportInput } from "./step-registry.js";
-import { EVERY_DEFINITION, SHOW_STEPS_METHOD, readShownSteps, type TStepDescriptor } from "./step-discovery.js";
+import { EVERY_DEFINITION, SHOW_STEPS_ACTION, SHOW_STEPS_METHOD, readShownSteps, type TStepDescriptor } from "./step-discovery.js";
 import { RpcClient, type RpcError } from "./rpc-client.js";
 import { requestSigner } from "./session-authority.js";
 
@@ -63,9 +63,10 @@ export class RemoteStepperProxy extends AStepper {
 		return this.hostId;
 	}
 
-	/** Read every step the remote host declares, through the step every caller reads a run's declarations by. */
+	/** Read every step the remote host offers this process, through the step every caller reads a run's declarations by:
+	 *  signed like any other call, so the host shows the steps this process holds there and no others. */
 	private async fetchStepDescriptors(): Promise<void> {
-		const result = await this.rpc.call<Record<string, unknown>>(SHOW_STEPS_METHOD, EVERY_DEFINITION, []);
+		const result = await this.rpc.call<Record<string, unknown>>(SHOW_STEPS_METHOD, EVERY_DEFINITION, [], { action: SHOW_STEPS_ACTION });
 		if ("error" in result) {
 			throw new Error(`RemoteStepperProxy: ${SHOW_STEPS_METHOD} failed at ${this.remoteUrl}: ${result.error}`);
 		}
@@ -97,7 +98,7 @@ export class RemoteStepperProxy extends AStepper {
 	}
 
 	/** Call a step on the remote host via shared RpcClient, invoking the capability it declares, where it declares one. */
-	private async call(method: string, params: Record<string, unknown>, seqPath: number[] = [], action?: string): Promise<TActionResult> {
+	private async call(method: string, params: Record<string, unknown>, seqPath: number[], action: string): Promise<TActionResult> {
 		const result = await this.rpc.call<Record<string, unknown>>(method, params, seqPath, { action });
 		if ("error" in result && typeof (result as RpcError).error === "string") {
 			return actionNotOK(`${method}: ${(result as RpcError).error}`);
