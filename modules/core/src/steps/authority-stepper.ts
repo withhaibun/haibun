@@ -36,8 +36,9 @@ const authorityActionSchema = z
 	.regex(/^\S+$/, "action must not contain whitespace")
 	.describe("Allowed action label such as GraphStepper:read, comment.grant, or Namespace:*.");
 
-/** What holding authority over this run's own authority means: stating and delegating it, and revoking what it granted. */
-export const AUTHORITY_CAPABILITIES = { delegate: "Authority:delegate", revoke: "Authority:revoke" } as const;
+/** What holding authority over this run's own authority means: stating and delegating it, revoking what it granted, and
+ *  naming the sites that connect to it. */
+export const AUTHORITY_CAPABILITIES = { delegate: "Authority:delegate", revoke: "Authority:revoke", name: "Authority:name" } as const;
 
 const sessionGrantIssuedSchema = z.object({
 	token: sessionTokenSchema,
@@ -234,6 +235,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 		},
 		nameConnectingSite: {
 			exact: "name a connecting site",
+			capability: AUTHORITY_CAPABILITIES.name,
 			productsSchema: siteNamedSchema,
 			// Site principals must be unique within a federation. A default-identified instance (did:site:0 to itself)
 			// asks the site it connects to what it should be called; this end assigns `did:site:<mine>.<n>`, unique

@@ -6,18 +6,20 @@
  * no raw pattern queries and no writes; those arrive with capability-gated federation.
  */
 import { discoverInstance, RpcClient } from "@haibun/core/lib/rpc-client.js";
+import type { TRequestSigner } from "@haibun/core/lib/authority-types.js";
+import { AUTHORITY_CAPABILITIES } from "@haibun/core/steps/authority-stepper.js";
 import { RPC_METHOD } from "./consts.js";
 import type { AccessLevel } from "@haibun/core/lib/resources.js";
 import type { TCluster, TClusteredQuads, TFederatedGraphSource, TQuad } from "@haibun/core/lib/quad-types.js";
 
-export type TRemoteGraphSourceConfig = { url: string; fetchImpl?: typeof fetch };
+export type TRemoteGraphSourceConfig = { url: string; sign: TRequestSigner; fetchImpl?: typeof fetch };
 
 export class RemoteGraphSource implements TFederatedGraphSource {
 	private rpc: RpcClient;
 	private remoteSite?: string;
 
 	constructor(private config: TRemoteGraphSourceConfig) {
-		this.rpc = new RpcClient({ baseUrl: config.url, fetchImpl: config.fetchImpl });
+		this.rpc = new RpcClient({ baseUrl: config.url, sign: config.sign, fetchImpl: config.fetchImpl });
 	}
 
 	/** Handshake: the peer self-reports its site principal via action.begin. Must complete before reads. */
@@ -32,9 +34,10 @@ export class RemoteGraphSource implements TFederatedGraphSource {
 		return this.remoteSite;
 	}
 
-	/** Ask the peer to assign THIS instance a unique site principal (AuthorityStepper's `name a connecting site`). */
+	/** Ask the peer to assign THIS instance a unique site principal (AuthorityStepper's `name a connecting site`), under a
+	 *  delegation the peer gave this instance for naming it. */
 	async requestName(): Promise<string> {
-		const result = await this.rpc.call<{ site?: string }>("AuthorityStepper-nameConnectingSite", {}, []);
+		const result = await this.rpc.call<{ site?: string }>("AuthorityStepper-nameConnectingSite", {}, [], { action: AUTHORITY_CAPABILITIES.name });
 		if (typeof (result as { error?: unknown }).error === "string")
 			throw new Error(`RemoteGraphSource: naming failed at ${this.config.url}: ${(result as { error: string }).error}`);
 		const site = (result as { site?: string }).site;

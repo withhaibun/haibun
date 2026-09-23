@@ -1,15 +1,16 @@
 /**
- * store-protocol: the delegated store surface, shared by server (web-server transport) and client
+ * store-protocol: the delegated store surface, shared by server (an `/rpc` method family) and client
  * (RemoteQuadStore). Serves the IQuadStore methods as `store.<method>` protocol calls so a sibling
  * instance can keep its records in this instance's store. DELEGATED, never public: every call requires
- * a capability (`store.read` or `store.write` by method; a `store.*` grant covers both): this surface
- * is full store access for a trusted delegate, distinct from the accessLevel-gated hypermedia surface.
+ * a capability, `store.read` or `store.write` by method: this surface is full store access for a trusted
+ * delegate, distinct from the accessLevel-gated hypermedia surface.
  * Responses use a `{ result }` envelope so an undefined result survives JSON intact.
  */
 import { DensityQuerySchema } from "./quad-types.js";
 import { z } from "zod";
 import { AccessLevelSchema } from "./resources.js";
 import type { IQuadStore } from "./quad-types.js";
+import type { TRpcMethod } from "./rpc-wire.js";
 
 export const STORE_METHOD_PREFIX = "store.";
 
@@ -60,6 +61,17 @@ export type TStoreMethod = keyof typeof STORE_METHODS;
 
 export function isStoreMethod(method: string): boolean {
 	return method.startsWith(STORE_METHOD_PREFIX) && method.slice(STORE_METHOD_PREFIX.length) in STORE_METHODS;
+}
+
+/** The store surface as an `/rpc` method family: each method gated by the action `requiredStoreCapability` names, and
+ *  answered against the store `getStore` returns when the call arrives. */
+export function storeMethods(getStore: () => IQuadStore): Record<string, TRpcMethod> {
+	return Object.fromEntries(
+		Object.keys(STORE_METHODS).map((name) => {
+			const method = `${STORE_METHOD_PREFIX}${name}`;
+			return [name, { action: requiredStoreCapability(method), handle: (params: Record<string, unknown>) => handleStoreCall(getStore(), method, params) }];
+		}),
+	);
 }
 
 /** The capability a caller must hold for a store call, store.write for anything that changes the store, store.read otherwise. */

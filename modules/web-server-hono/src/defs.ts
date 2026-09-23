@@ -3,6 +3,7 @@ import { z } from "zod";
 import { ENDPOINT_CLASS } from "@haibun/core/lib/http-observations.js";
 import { ENDPOINT_LABEL } from "@haibun/core/lib/resources.js";
 import type { Context, MiddlewareHandler, Hono } from "hono";
+import type { TRpcMethod } from "@haibun/core/lib/rpc-wire.js";
 
 export type { Context, MiddlewareHandler, Hono };
 export const WEBSERVER = "webserver";
@@ -54,6 +55,11 @@ export interface IWebServer extends IRouteRegistry {
 	addRoute(type: TRouteTypes, path: string, purpose: TRoutePurpose, ...handlers: TRequestHandler[]): void;
 	addRouteIfAbsent(type: TRouteTypes, path: string, purpose: TRoutePurpose, ...handlers: TRequestHandler[]): void;
 	addKnownRoute(type: TRouteTypes, path: string, purpose: TRoutePurpose, ...handlers: TRequestHandler[]): void;
+	/** Serve a family of `/rpc` methods under `prefix`, which ends in ".", each gated by the action it declares as a step is
+	 *  by its capability. A family adds no route: its methods are called over `/rpc`. */
+	addRpcMethods(prefix: string, purpose: TRoutePurpose, methods: Record<string, TRpcMethod>): void;
+	/** The method of a served family that an `/rpc` call names, if any. */
+	rpcMethod(method: string): TRpcMethod | undefined;
 	clearMounted(): void;
 	use(middleware: MiddlewareHandler): void;
 	readonly app: Hono;

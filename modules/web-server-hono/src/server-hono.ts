@@ -10,6 +10,7 @@ import type { IEventLogger } from "@haibun/core/lib/EventLogger.js";
 import { describePortOccupant } from "@haibun/core/lib/port-occupant.js";
 import { ENDPOINT_CLASS, isServicePath } from "@haibun/core/lib/http-observations.js";
 import type { IQuadStore } from "@haibun/core/lib/quad-types.js";
+import type { TRpcMethod } from "@haibun/core/lib/rpc-wire.js";
 import { type IWebServer, type TRouteMap, type TRouteTypes, type TRoutePurpose, type TRequestHandler, type TStaticFolderOptions, ROUTE_TYPES, EndpointLabels } from "./defs.js";
 
 const DEFAULT_MOUNTED = (): TRouteMap => ROUTE_TYPES.reduce((acc, type) => ({ ...acc, [type]: {} }), {} as TRouteMap);
@@ -19,6 +20,8 @@ export class ServerHono implements IWebServer {
 	private servers = new Map<number, ServerType>();
 	private _app!: Hono;
 	private _mounted: TRouteMap = DEFAULT_MOUNTED();
+	/** The `/rpc` method families served, by their prefix. */
+	private rpcFamilies = new Map<string, Record<string, TRpcMethod>>();
 	private _port?: number;
 
 	constructor(
@@ -31,30 +34,6 @@ export class ServerHono implements IWebServer {
 
 	private createApp(): void {
 		this._app = new Hono({ router: new LinearRouter() });
-		this._app.post("/stop", async (c) => {
-			// Require a `reason` so logs and post-mortems can identify what asked
-			// the server to stop. Reasons can come from a query param or a JSON body.
-			let reason = c.req.query("reason");
-			if (!reason) {
-				try {
-					const body = (await c.req.json()) as { reason?: unknown };
-					if (typeof body?.reason === "string") reason = body.reason;
-				} catch {
-					/* no parseable body */
-				}
-			}
-			if (!reason || !reason.trim()) {
-				this.eventLogger.warn("/stop refused: missing reason");
-				return c.json({ stopped: false, error: "missing required 'reason' (query param or JSON body)" }, 400);
-			}
-			this.eventLogger.info(`Received /stop, shutting down. Reason: ${reason}`);
-			// Defer the signal so the response is fully flushed first. Emitting
-			// SIGTERM to self lets every installed shutdown handler run (e.g. a
-			// persistent graph store flushing WAL), `process.exit` would skip them
-			// and risk on-disk corruption.
-			setTimeout(() => process.kill(process.pid, "SIGTERM"), 100);
-			return c.json({ stopped: true, reason });
-		});
 	}
 
 	get app(): Hono {
@@ -105,8 +84,7 @@ export class ServerHono implements IWebServer {
 		if (this.servers.size > 0) {
 			throw new Error("ServerHono.clearMounted: cannot clear while server is listening, close() first");
 		}
-		this._mounted = DEFAULT_MOUNTED();
-		this.createApp();
+		this.resetMounts();
 	}
 
 	close(): Promise<void> {
@@ -118,10 +96,32 @@ export class ServerHono implements IWebServer {
 			}
 			this.servers.clear();
 			this._port = undefined;
-			this._mounted = DEFAULT_MOUNTED();
-			this.createApp();
+			this.resetMounts();
 		}
 		return Promise.resolve();
+	}
+
+	/** What is served goes with the feature that served it: its routes and its `/rpc` method families. */
+	private resetMounts(): void {
+		this._mounted = DEFAULT_MOUNTED();
+		this.rpcFamilies.clear();
+		this.createApp();
+	}
+
+	addRpcMethods(prefix: string, purpose: TRoutePurpose, methods: Record<string, TRpcMethod>): void {
+		this.validatePurpose(purpose);
+		if (!prefix.endsWith(".")) throw new Error(`ServerHono.addRpcMethods: a family's prefix ends in ".", not "${prefix}"`);
+		if (this.rpcFamilies.has(prefix)) throw new Error(`ServerHono.addRpcMethods: the ${prefix} family is already served`);
+		this.rpcFamilies.set(prefix, methods);
+		this.persistEndpoint("post", `/rpc/${prefix}*`, purpose);
+	}
+
+	rpcMethod(method: string): TRpcMethod | undefined {
+		for (const [prefix, methods] of this.rpcFamilies) {
+			const name = method.slice(prefix.length);
+			if (method.startsWith(prefix) && Object.hasOwn(methods, name)) return methods[name];
+		}
+		return undefined;
 	}
 
 	addRoute(type: TRouteTypes, path: string, purpose: TRoutePurpose, ...handlers: TRequestHandler[]): void {

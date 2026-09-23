@@ -137,6 +137,35 @@ describe("ServerHono", () => {
 		});
 	});
 
+	describe("addRpcMethods", () => {
+		const read = { action: "Fam:read", handle: () => Promise.resolve("read") };
+
+		it("serves a family's methods by their full names and no others, and records the family as a service Endpoint", async () => {
+			server.addRpcMethods("fam.", { description: "a family" }, { read });
+			expect(server.rpcMethod("fam.read")).toBe(read);
+			expect(server.rpcMethod("fam.write"), "a name the family doesn't serve").toBeUndefined();
+			expect(server.rpcMethod("other.read"), "a name under no family").toBeUndefined();
+			await new Promise((r) => setTimeout(r, 0));
+			expect(await store.getIndividual<Record<string, unknown>>(EndpointLabels.Endpoint, "/rpc/fam.*")).toMatchObject({ description: "a family", endpointClass: "service" });
+		});
+
+		it("refuses a prefix that doesn't end in a dot, and a family already served", () => {
+			expect(() => server.addRpcMethods("fam", P, { read })).toThrow('a family\'s prefix ends in ".", not "fam"');
+			server.addRpcMethods("fam.", P, { read });
+			expect(() => server.addRpcMethods("fam.", P, { read })).toThrow("the fam. family is already served");
+		});
+
+		it("goes with the feature's mounts", () => {
+			server.addRpcMethods("fam.", P, { read });
+			server.clearMounted();
+			expect(server.rpcMethod("fam.read")).toBeUndefined();
+		});
+	});
+
+	it("serves no route that ends the process, since ending it is a step that takes WebServer:stop", async () => {
+		expect((await server.app.request("/stop", { method: "POST" })).status).toBe(404);
+	});
+
 	describe("clearMounted", () => {
 		it("resets mounted map and allows re-registration", () => {
 			server.addRoute("get", "/test", P, (c) => c.text("ok"));

@@ -7,6 +7,7 @@ import { activeSitePrincipal } from "@haibun/core/lib/host-id.js";
 import { PRINCIPAL_LABEL, type TPrincipal } from "@haibun/core/lib/resources.js";
 import type { TClusteredQuads } from "@haibun/core/lib/quad-types.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
+import FakeAuthorityStepper from "@haibun/core/lib/test/fake-authority.js";
 import ResourcesStepper from "@haibun/core/steps/resources-stepper.js";
 import WebServerStepper from "@haibun/web-server-hono/web-server-stepper.js";
 import StorageFS from "@haibun/storage-fs/storage-fs.js";
@@ -52,6 +53,8 @@ describe("federate graph reads over live RPC", () => {
 			content: `
 enable rpc
 webserver is listening for "federate-reads"
+present authority as "reader"
+accept authority from "reader" for "Authority:name"
 federate graph reads from "http://localhost:${port}"
 capture the federated clustered read
 `,
@@ -59,7 +62,7 @@ capture the federated clustered read
 		const result = await testWithWorld(
 			world,
 			[feature],
-			[WebServerStepper, ShuStepper, MonitorStepper, GraphSourceStepper, AuthorityStepper, ResourcesStepper, StorageFS, FederationVerifyStepper],
+			[WebServerStepper, ShuStepper, MonitorStepper, GraphSourceStepper, AuthorityStepper, FakeAuthorityStepper, ResourcesStepper, StorageFS, FederationVerifyStepper],
 		);
 		if (!result.ok) throw new Error(JSON.stringify({ failure: result.failure, steps: result.featureResults?.map((f) => f.stepResults.map((s) => [s.in, s.ok])) }, null, 2));
 

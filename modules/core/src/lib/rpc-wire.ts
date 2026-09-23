@@ -31,6 +31,9 @@ export type TRpcRequest = z.infer<typeof RpcRequestSchema>;
 /** Marks an answer to a request whose presented authority failed verification, which a transport states as unauthenticated. */
 export const RPC_REFUSED = "refused";
 
+/** One method of an `/rpc` method family: the action a caller must invoke, and what answers the call. */
+export type TRpcMethod = { action: string; handle: (params: Record<string, unknown>) => Promise<unknown> };
+
 /** Outgoing JSON-RPC 2.0 response to client. */
 export const RpcResponseSchema = z.object({
 	jsonrpc: z.literal("2.0"),

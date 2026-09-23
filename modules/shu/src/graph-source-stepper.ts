@@ -28,6 +28,7 @@ import { buildResourceRels, relOf } from "@haibun/core/lib/hypermedia.js";
 import { QuadGraphModel } from "@haibun/core/lib/quad-graph-model.js";
 import { activeSitePrincipal, adoptSitePrincipal, hasDefaultSitePrincipal } from "@haibun/core/lib/host-id.js";
 import { persistPrincipalIndividual } from "@haibun/core/lib/principal-individual.js";
+import { requestSigner } from "@haibun/core/lib/session-authority.js";
 import { RemoteGraphSource } from "./remote-graph-source.js";
 import { withOntologySchema } from "./graph/ontology-projection.js";
 import { enumerateStandardVocab } from "./graph/standard-vocabulary.js";
@@ -182,7 +183,7 @@ export default class GraphSourceStepper extends AStepper {
 			// that collides is a configuration error, surfaced as one.
 			action: async ({ where }: { where: string }) => {
 				const world = this.getWorld();
-				const source = new RemoteGraphSource({ url: where });
+				const source = new RemoteGraphSource({ url: where, sign: requestSigner(world.runtime) });
 				const peer = await source.connect();
 				if (peer === activeSitePrincipal(world)) {
 					if (!hasDefaultSitePrincipal(world)) return actionNotOK(`federate: site principals collide (${peer}) and this site is operator-named. Set HAIBUN_SITE_KEY uniquely`);

@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import { RemoteGraphSource } from "./remote-graph-source.js";
 import { RPC_METHOD } from "./consts.js";
 import { rpcAnswer } from "@haibun/core/lib/test/rpc-answer.js";
+import { FakeInvoker } from "@haibun/core/lib/test/fake-authority.js";
+
+const sign = new FakeInvoker("reader").sign;
 
 /** A canned peer: action.begin self-reports the site; getClusteredQuads serves one Email cluster with one pre-stamped subject. */
 const readRequests: Record<string, unknown>[] = [];
@@ -37,19 +40,19 @@ const peerFetch =
 
 describe("RemoteGraphSource", () => {
 	it("handshakes the peer's site principal and refuses reads before connect", async () => {
-		const source = new RemoteGraphSource({ url: "http://peer:1", fetchImpl: peerFetch({ seqPath: [7, -1, 1], hostId: 7, site: "did:site:imap" }) as typeof fetch });
+		const source = new RemoteGraphSource({ url: "http://peer:1", sign, fetchImpl: peerFetch({ seqPath: [7, -1, 1], hostId: 7, site: "did:site:imap" }) as typeof fetch });
 		expect(() => source.site).toThrow(/connect/);
 		expect(await source.connect()).toBe("did:site:imap");
 		expect(source.site).toBe("did:site:imap");
 	});
 
 	it("fails fast on a peer that predates federation (action.begin without a site)", async () => {
-		const source = new RemoteGraphSource({ url: "http://peer:1", fetchImpl: peerFetch({ seqPath: [7, -1, 1], hostId: 7 }) as typeof fetch });
+		const source = new RemoteGraphSource({ url: "http://peer:1", sign, fetchImpl: peerFetch({ seqPath: [7, -1, 1], hostId: 7 }) as typeof fetch });
 		await expect(source.connect()).rejects.toThrow(/did not report a site principal/);
 	});
 
 	it("asks for the peer's OWN data (scope own: a federation cycle cannot recurse) and stamps EVERY sampled subject, keeping stamps the peer set itself", async () => {
-		const source = new RemoteGraphSource({ url: "http://peer:1", fetchImpl: peerFetch({ seqPath: [7, -1, 1], hostId: 7, site: "did:site:imap" }) as typeof fetch });
+		const source = new RemoteGraphSource({ url: "http://peer:1", sign, fetchImpl: peerFetch({ seqPath: [7, -1, 1], hostId: 7, site: "did:site:imap" }) as typeof fetch });
 		await source.connect();
 		const result = await source.getClusteredQuads({ perTypeLimit: 10, accessLevel: "private" });
 		const lastParams = readRequests.at(-1)?.params as Record<string, unknown> | undefined;

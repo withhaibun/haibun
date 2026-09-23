@@ -28,8 +28,6 @@ import type {
 } from "./authority-types.js";
 
 export const AUTHORITY_KEY = "authority";
-/** Runtime flag a trusted system actor sets to act without presenting evidence of authority. */
-export const TRUSTED_CONTEXT = "trustedContext";
 
 export class SessionAuthority implements IAuthority {
 	private grants = new Map<string, TSessionGrant[]>();

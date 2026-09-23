@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { passWithDefaults, DEF_PROTO_OPTIONS } from "@haibun/core/lib/test/lib.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
@@ -110,6 +110,21 @@ class RpcVerifyStepper extends AStepper {
 				if (typeof data.error !== "string" || !data.error.includes("capability PingStepper:protected required")) {
 					return actionNotOK(`Expected capability error, got ${JSON.stringify(data)}`);
 				}
+				return OK;
+			},
+		},
+		rpcStopRefused: {
+			gwta: "rpc call to {url} to stop the instance is refused without capability",
+			action: async ({ url }: TStepArgs) => {
+				const method = "WebServerStepper-stopInstance";
+				const res = await fetch(`${String(url)}/rpc/${method}`, {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ jsonrpc: "2.0", id: "1", method, params: { reason: "a caller holding nothing" }, seqPath: [0, 1, 1, 1] }),
+				});
+				const data = await res.json();
+				if (res.status !== 422 || !String(data.error).includes("capability WebServer:stop required"))
+					return actionNotOK(`Expected the stop refused, got ${res.status} ${JSON.stringify(data)}`);
 				return OK;
 			},
 		},
@@ -301,6 +316,27 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-ping" with method "PingSte
 		};
 		const result = await passWithDefaults([feature], steppers, makeOptions(port));
 		expect(result.ok).toBe(true);
+	});
+
+	it("refuses to end the instance for a caller presenting nothing, since ending it takes WebServer:stop", async () => {
+		const kill = vi.spyOn(process, "kill").mockImplementation(() => true);
+		try {
+			const port = 8254;
+			const feature = {
+				path: "/features/test.feature",
+				content: `
+enable rpc
+webserver is listening for "rpc-stop-refused"
+rpc call to "http://localhost:${port}" to stop the instance is refused without capability
+`,
+			};
+			const result = await passWithDefaults([feature], steppers, makeOptions(port));
+			expect(result.ok).toBe(true);
+			await new Promise((r) => setTimeout(r, 150));
+			expect(kill, "the process is never signalled").not.toHaveBeenCalled();
+		} finally {
+			kill.mockRestore();
+		}
 	});
 
 	it("executes a step via RPC", async () => {

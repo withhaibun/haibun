@@ -8,7 +8,7 @@ import { dispatchStep } from "@haibun/core/lib/step-dispatch.js";
 import { parseRpcRequest, RPC_REFUSED } from "@haibun/core/lib/rpc-wire.js";
 import { runWithRequestContext, requestBaseIri } from "@haibun/core/lib/request-context.js";
 import { buildFeatureStepForTransport, runRegistry, type StepRegistry, capabilityAllows } from "@haibun/core/lib/step-registry.js";
-import { handleStoreCall, isStoreMethod, requiredStoreCapability } from "@haibun/core/lib/store-protocol.js";
+import { STORE_METHOD_PREFIX, storeMethods } from "@haibun/core/lib/store-protocol.js";
 import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
 import { activeSitePrincipal, allocateSyntheticSeqPath, resolveHostId, syntheticSeqPath } from "@haibun/core/lib/host-id.js";
 import { SERVING } from "@haibun/core/lib/serving.js";
@@ -21,6 +21,9 @@ import { grantedCapabilityForRequest, validateCapabilityAuthConfig } from "./cap
 import { ServerHono, DEFAULT_PORT } from "./server-hono.js";
 import { SSETransport, TRANSPORT, type ITransport } from "./sse-transport.js";
 import type { IStepTransport } from "./step-transport.js";
+
+/** What holding authority over this instance's web server means: ending the process that serves it. */
+export const WEB_SERVER_CAPABILITIES = { stop: "WebServer:stop" } as const;
 
 const cycles = (wss: WebServerStepper): IStepperCycles => ({
 	getConcerns: () => ({
@@ -55,6 +58,13 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 			const filesBase = path.join(process.cwd(), "files");
 			wss.webserver = new ServerHono(wss.world.eventLogger, filesBase, () => wss.getWorld().shared.getStore());
 		}
+		// The delegated store surface: a sibling instance keeping its records in this instance's store. Reached only once RPC
+		// is enabled, since only the RPC transport calls a family's methods.
+		wss.webserver.addRpcMethods(
+			STORE_METHOD_PREFIX,
+			{ description: "This instance's store, for an instance delegated to keep its records here" },
+			storeMethods(() => wss.getWorld().shared.getStore()),
+		);
 		wss.getWorld().runtime[WEBSERVER] = wss.webserver;
 		wss.getWorld().runtime[TRANSPORT] = new SSETransport(wss.webserver, wss.world.eventLogger);
 		await Promise.resolve();
@@ -158,6 +168,18 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 	}
 
 	steps = {
+		stopInstance: {
+			gwta: "stop this instance because {reason}",
+			capability: WEB_SERVER_CAPABILITIES.stop,
+			description: "End this instance's process, stating why, so its log says what stopped it.",
+			action: ({ reason }: { reason: string }) => {
+				this.getWorld().eventLogger.info(`stopping this instance: ${reason}`);
+				// The signal is deferred so the answer is sent first, and SIGTERM rather than exit, so every shutdown handler
+				// runs: a persistent store flushing its write-ahead log would be corrupted by an exit that skipped it.
+				setTimeout(() => process.kill(process.pid, "SIGTERM"), 100);
+				return OK;
+			},
+		},
 		showPorts: {
 			gwta: "show ports",
 			action: () => {
@@ -265,19 +287,18 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 						return { seqPath, hostId: seqPath[0], site: activeSitePrincipal(this.getWorld()), serving: this.getWorld().runtime[SERVING] === true };
 					}
 
-					// The delegated store surface (store.*): a sibling instance keeping its records in THIS instance's
-					// store. Always capability-gated, store.read/store.write by method, no ungated default, because it
-					// is full store access for a trusted delegate, distinct from the accessLevel-gated hypermedia surface.
-					if (isStoreMethod(method)) {
-						const { granted: grantedCapability, refused } = await grantedCapabilityForRequest(requestInfo, this.getWorld().runtime, {
+					// A method of a served family: gated by the action it declares, verified through the path a step's capability
+					// is, with no ungated default.
+					const served = this.webserver?.rpcMethod(method);
+					if (served) {
+						const { granted, refused } = await grantedCapabilityForRequest(requestInfo, this.getWorld().runtime, {
 							accessToken: this.rpcAccessToken,
 							accessCapability: this.rpcAccessCapability,
 						});
 						if (refused) return { error: `${method}: ${refused}`, [RPC_REFUSED]: true };
-						const required = requiredStoreCapability(method);
-						if (!capabilityAllows(grantedCapability, required)) return { error: `${method}: capability ${required} required` };
+						if (!capabilityAllows(granted, served.action)) return { error: `${method}: capability ${served.action} required` };
 						try {
-							return await handleStoreCall(this.getWorld().shared.getStore(), method, params);
+							return await served.handle((params ?? {}) as Record<string, unknown>);
 						} catch (err) {
 							return { error: `${method}: ${errorDetail(err)}` };
 						}
@@ -344,23 +365,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		if (ServerHono.listeningPorts.has(this.port)) {
 			return;
 		}
-		// Try to stop a previous instance on this port before binding. The new
-		// instance's `why` becomes the reason on the prior /stop so logs identify
-		// who took the port.
-		try {
-			const host = this.hostname || "127.0.0.1";
-			const reason = `port-claim-by ${why}`;
-			const res = await fetch(`http://${host}:${this.port}/stop`, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ reason }),
-				signal: AbortSignal.timeout(2000),
-			});
-			if (res.ok) this.getWorld().eventLogger.info(`Stopped previous instance on port ${this.port} for ${why}`);
-			await new Promise((r) => setTimeout(r, 500));
-		} catch {
-			/* no previous instance */
-		}
+		// A held port fails the bind, naming what holds it: only whoever holds the authority to stop an instance may stop it.
 		await this.webserver.listen(why, this.port, this.hostname);
 	}
 }
