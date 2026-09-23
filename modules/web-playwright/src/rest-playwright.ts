@@ -1,5 +1,5 @@
 import { actionNotOK, actionOKWithProducts, getStepTerm } from "@haibun/core/lib/util/index.js";
-import WebPlaywright from "./web-playwright.js";
+import WebPlaywright, { WEB_PLAYWRIGHT_ACTIONS } from "./web-playwright.js";
 import { OK } from "@haibun/core/schema/protocol.js";
 import { TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { RestJsonCountSchema } from "./domains.js";
@@ -17,6 +17,7 @@ export const base64Encode = ({ username, password }: { username: string; passwor
 export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 	({
 		setApiUserAgent: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
 			gwta: `API user agent is {agent}`,
 			action: ({ agent }: { agent: string }) => {
 				webPlaywright.apiUserAgent = agent;
@@ -24,6 +25,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 			},
 		},
 		addBasicAuthCredentials: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
 			gwta: `use Authorization Basic header with {username}, {password}`,
 			action: async ({ username, password }: { username: string; password: string }) => {
 				await webPlaywright.setExtraHTTPHeaders({ [AUTHORIZATION]: `Basic ${base64Encode({ username, password })}` });
@@ -31,6 +33,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 			},
 		},
 		addAuthBearerToken: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
 			gwta: `use Authorization Bearer header with {token}`,
 			action: async ({ token }: { token: string }) => {
 				await webPlaywright.setExtraHTTPHeaders({ [AUTHORIZATION]: `Bearer ${token}` });
@@ -38,6 +41,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 			},
 		},
 		restTokenRequest: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
 			gwta: `request OAuth 2.0 access token from {endpoint}`,
 			action: async ({ endpoint }: { endpoint: string }, featureStep) => {
 				const serialized = await webPlaywright.withPageFetch(endpoint);
@@ -48,6 +52,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 			},
 		},
 		restTokenLogout: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
 			gwta: `perform OAuth 2.0 logout from {endpoint}`,
 			action: async ({ endpoint }: { endpoint: string }, featureStep) => {
 				await webPlaywright.setExtraHTTPHeaders({});
@@ -58,6 +63,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 		},
 
 		acceptEndpointRequest: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
 			gwta: `accept {accept} using ${HTTP} {method} to {endpoint}`,
 			handlesUndefined: ["method"],
 			action: async ({ accept, endpoint }: { accept: string; method: string; endpoint: string }, featureStep) => {
@@ -71,6 +77,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 			},
 		},
 		restEndpointRequest: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
 			gwta: `make an ${HTTP} {method} to {endpoint}`,
 			handlesUndefined: ["method"],
 			action: async ({ endpoint }: { method: string; endpoint: string }, featureStep) => {
@@ -83,6 +90,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 			},
 		},
 		filterResponseJson: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
 			gwta: `filter JSON response by {property} matching {match}`,
 			action: async ({ property, match }: { property: string; match: string }, featureStep) => {
 				const lastResponse = await webPlaywright.getLastResponse();
@@ -95,6 +103,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 			},
 		},
 		filteredResponseLengthIs: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
 			gwta: `filtered response length is {length}`,
 			action: async ({ length }: { length: string }) => {
 				const lastResponse = await webPlaywright.getLastResponse();
@@ -105,6 +114,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 			},
 		},
 		showResponseLength: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
 			gwta: `show JSON response count`,
 			productsSchema: RestJsonCountSchema,
 			action: async () => {
@@ -121,6 +131,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 			},
 		},
 		responseJsonLengthIs: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
 			gwta: `JSON response length is {length}`,
 			action: async ({ length }: { length: string }) => {
 				const lastResponse = await webPlaywright.getLastResponse();
@@ -131,6 +142,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 			},
 		},
 		restFilterPropertyRequest: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
 			gwta: `for each filtered {property}, make REST {method} to {endpoint} yielding status {status}`,
 			handlesUndefined: ["method"],
 			action: async ({ property, endpoint, status }: { property: string; endpoint: string; status: string }, featureStep) => {
@@ -157,6 +169,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 			},
 		},
 		restEndpointRequestWithPayload: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
 			precludes: ["WebPlaywright.restEndpointRequest"],
 			gwta: `make an ${"HTTP"} {method} to {endpoint} with {payload}`,
 			handlesUndefined: ["method"],
@@ -172,6 +185,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 			},
 		},
 		restLastStatusIs: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
 			gwta: `${HTTP} status is {status}`,
 			action: async ({ status }: { status: string }) => {
 				const lastResponse = await webPlaywright.getLastResponse();
@@ -182,6 +196,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 			},
 		},
 		restResponsePropertyIs: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
 			gwta: `${HTTP} response property {property} is {value}`,
 			action: async ({ property, value }: { property: string; value: string }) => {
 				const lastResponse = await webPlaywright.getLastResponse();
@@ -194,6 +209,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 			},
 		},
 		restResponseIs: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
 			gwta: `${HTTP} text response is {value}`,
 			action: async ({ value }: { value: string }) => {
 				const lastResponse = await webPlaywright.getLastResponse();

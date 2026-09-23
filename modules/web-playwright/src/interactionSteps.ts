@@ -8,7 +8,7 @@ import { actionNotOK, actionOKWithProducts, errorDetail, sleep, getStepTerm, jso
 import { AccessibilitySnapshotSchema, DOMAIN_PAGE_LOCATOR, DOMAIN_PAGE_TEST_ID, PageContentsSchema } from "./domains.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { pickLocatorDomain } from "./web-playwright.js";
-import { WEB_PAGE, WebPlaywright } from "./web-playwright.js";
+import { WEB_PAGE, WEB_PLAYWRIGHT_ACTIONS, WebPlaywright } from "./web-playwright.js";
 import { BROWSERS } from "./BrowserFactory.js";
 
 import { pathToFileURL } from "node:url";
@@ -30,6 +30,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 	({
 		// INPUT
 		press: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: "press {key}",
 			action: async ({ key }: { key: string }) => {
 				await wp.withPage(async (page: Page) => await page.keyboard.press(key));
@@ -37,6 +38,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		type: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: "type {text}",
 			action: async ({ text }: { text: string }) => {
 				await wp.withPage(async (page: Page) => await page.keyboard.type(text));
@@ -44,6 +46,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		setValue: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: `enter {what} into {field: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
 			action: async ({ what, field }: { what: string; field: string }, featureStep: TFeatureStep) => {
 				await wp.withPage(async (page: Page) => {
@@ -61,6 +64,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		selectionOption: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: `select {option} for {field: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
 			action: async ({ option, field }: { option: string; field: string }, featureStep: TFeatureStep) => {
 				await wp.withPage(async (page: Page) => await (await wp.locateByDomain(page, featureStep, "field")).selectOption({ label: option }));
@@ -68,6 +72,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		dialogIs: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.read,
 			gwta: "dialog {what} {type} says {value}",
 			action: async ({ what, type, value }: { what: string; type: string; value: string }) => {
 				const resolvedValue = await wp.getWorld().shared.get(what, true);
@@ -76,6 +81,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		dialogIsUnset: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.read,
 			gwta: "dialog {what} {type} not set",
 			action: async ({ what, type }: { what: string; type: string }) => {
 				const resolvedValue = await wp.getWorld().shared.get(what, true);
@@ -84,6 +90,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		shouldSeeTestId: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.read,
 			gwta: "has test id {testId}",
 			action: async ({ testId }: { testId: string }) => {
 				// `getByTestId` returns a Locator unconditionally; the truthiness
@@ -106,6 +113,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		seeText: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.read,
 			gwta: "see {text}",
 			action: async ({ text }: { text: string }) => await wp.sees(text, "body"),
 		},
@@ -188,6 +196,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 
 		onNewTab: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: `on a new tab`,
 			action: () => {
 				wp.newTab();
@@ -211,6 +220,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		onTabX: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: `on tab {tab}`,
 			action: ({ tab }: { tab: string }) => {
 				wp.tab = parseInt(tab, 10);
@@ -218,6 +228,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		beOnPage: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.read,
 			gwta: `be on the {name} ${WEB_PAGE}`,
 			action: async ({ name }: { name: string }) => {
 				const nowon = await wp.withPage(async (page: Page) => {
@@ -260,6 +271,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		cookieIs: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.read,
 			gwta: "cookie {name} is {value}",
 			action: async ({ name, value }: { name: string; value: string }) => {
 				const cookies = await wp.getCookies();
@@ -268,6 +280,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		URIQueryParameterIs: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.read,
 			gwta: "URI query parameter {what} is {value}",
 			action: async ({ value }: { value: string }, featureStep) => {
 				const term = getStepTerm(featureStep, "what") ?? "";
@@ -280,6 +293,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		waitForURIMatch: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.read,
 			gwta: "wait until URI matches {pattern}",
 			handlesUndefined: ["pattern"],
 			action: async (_args: Record<string, unknown>, featureStep) => {
@@ -300,6 +314,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 
 		//                  CLICK
 		click: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: `click( invisible)? {target: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}( with force)?`,
 			action: async ({ target }: { target: string }, featureStep) => {
 				const forced = featureStep.in.match(/ with force$/) || featureStep.in.match(/^click invisible/) ? { force: true } : {};
@@ -310,6 +325,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		inElement: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.read,
 			gwta: `in {container: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}, {what: ${DOMAIN_STATEMENT}}`,
 			action: async ({ container, what }: { container: string; what: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				return await wp.withPage(async (page: Page) => {
@@ -364,6 +380,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		//                          NAVIGATION
 
 		gotoPage: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: `go to the {name} ${WEB_PAGE}`,
 			action: async ({ name }: { name: string }) => {
 				const response = await wp.withPage<Response | null>(async (page: Page) => {
@@ -379,6 +396,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		pageHasSettled: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.read,
 			gwta: "page has settled",
 			action: async () => {
 				await wp.withPage(async (page: Page) => {
@@ -388,6 +406,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		reloadPage: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: "reload page",
 			action: async () => {
 				await wp.withPage(async (page: Page) => await page.reload());
@@ -396,6 +415,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 
 		goBack: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: "go back",
 			action: async () => {
 				await wp.withPage(async (page: Page) => await page.goBack());
@@ -404,6 +424,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 
 		blur: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: `blur {what: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
 			action: async ({ what }: { what: string }, featureStep: TFeatureStep) => {
 				await wp.withPage(async (page: Page) => await (await wp.locateByDomain(page, featureStep, "what")).evaluate((e) => e.blur()));
@@ -430,6 +451,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 
 		//  FILE DOWNLOAD/UPLOAD
 		uploadFile: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: `upload file {file} using {selector: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
 			action: async ({ file, selector }: { file: string; selector: string }, featureStep: TFeatureStep) => {
 				await wp.withPage(async (page: Page) => await (await wp.locateByDomain(page, featureStep, "selector")).setInputFiles(file));
@@ -438,6 +460,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 
 		expectDownload: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: "expect a download",
 			action: () => {
 				// Waiting for an event isn't an action on the page, so it doesn't hold the page from the action that causes it.
@@ -450,6 +473,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		receiveDownload: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: "receive download as {file}",
 			action: async ({ file }: { file: string }) => {
 				try {
@@ -479,6 +503,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 
 		//                          MISC
 		captureDialog: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: "accept next dialog to {where}",
 			action: async ({ where }: { where: string }, featureStep) => {
 				await wp.withPage((page: Page) => {
@@ -529,6 +554,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		takeScreenshotOf: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.read,
 			gwta: `take a screenshot of {what: ${DOMAIN_STRING_OR_PAGE_LOCATOR}} to {where}`,
 			action: async ({ what, where }: { what: string; where: string }, featureStep: TFeatureStep) => {
 				try {
@@ -547,6 +573,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		takeScreenshot: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.read,
 			gwta: "take a screenshot",
 			action: async (_args, featureStep: TFeatureStep) => {
 				// Create a minimal step result for artifact tracking
@@ -556,6 +583,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		getPageContents: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.read,
 			gwta: "get page contents",
 			productsSchema: PageContentsSchema,
 			// The whole page HTML is the action result; keeping it on the event too can be many MB per call.
@@ -566,6 +594,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		takeAccessibilitySnapshot: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.read,
 			gwta: "take an accessibility snapshot",
 			description:
 				"Reads the page as Playwright's aria snapshot: YAML naming each element's role and accessible name, which are what the role, label and text locators address. Its links name the steps that act on what it read.",
@@ -580,6 +609,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		saveURI: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.read,
 			gwta: "save URI to {where}",
 			handlesUndefined: ["where"],
 			action: async (_args: Record<string, unknown>, featureStep) => {
@@ -590,6 +620,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		saveURIQueryParameter: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.read,
 			gwta: "save URI query parameter {what} to {where}",
 			handlesUndefined: ["what", "where"],
 			action: async (_args: Record<string, unknown>, featureStep) => {
@@ -602,6 +633,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		saveTextFrom: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.read,
 			gwta: `save text from {element: ${DOMAIN_STRING_OR_PAGE_LOCATOR}} to {where}`,
 			handlesUndefined: ["where"],
 			action: async (_args: Record<string, unknown>, featureStep) => {
@@ -618,6 +650,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		resizeWindow: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: "resize window to {width}x{height}",
 			action: async ({ width, height }: { width: string; height: string }) => {
 				await wp.withPage(async (page: Page) => await page.setViewportSize({ width: parseInt(width), height: parseInt(height) }));
@@ -625,6 +658,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		resizeAvailable: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: "resize window to largest dimensions",
 			action: async () => {
 				await wp.withPage(async (page: Page) => {
@@ -638,6 +672,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		requestsMatching: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.read,
 			gwta: `requests matching {pattern} are {state}`,
 			description: `Block or allow the requests this page makes, by URL glob, for the rest of the feature: what a view does when the server it reads from is unreachable, and what it does when the server responds again. ${REQUEST_STATES.join(" or ")}.`,
 			action: async ({ pattern, state }: { pattern: string; state: string }) => {

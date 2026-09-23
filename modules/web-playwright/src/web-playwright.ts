@@ -23,6 +23,10 @@ import { TwinPage } from "./twin-page.js";
 import { TStepperSteps } from "@haibun/core/lib/astepper.js";
 
 export const WEB_PAGE = "webpage";
+
+/** The actions a delegation names to let another party use the browser, each covering a group of steps: reading the page,
+ *  acting on it (navigating, input and tabs), and running `fetch` inside it with the page's own cookies. */
+export const WEB_PLAYWRIGHT_ACTIONS = { read: "WebPlaywright:read", act: "WebPlaywright:act", fetch: "WebPlaywright:fetch" } as const;
 /**
  * This is the infrastructure for web-playwright.
  *
@@ -246,7 +250,10 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		const held = this.#holding.getStore();
 		if (held?.has(page)) return await this.#act(page, f);
 		const turn = (this.#queues.get(page) ?? Promise.resolve()).then(() => this.#holding.run(new Set([...(held ?? []), page]), () => this.#act(page, f)));
-		this.#queues.set(page, turn.catch((): void => undefined));
+		this.#queues.set(
+			page,
+			turn.catch((): void => undefined),
+		);
 		return await turn;
 	}
 
@@ -284,7 +291,9 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	connectTo(endpoint: string) {
 		if (this.bf?.hasPage(this.getWorld().tag, this.tab)) return actionNotOK(`connect to a browser before any step opens a page; ${endpoint} was named after one`);
 		const launchOnly = { CAPTURE_VIDEO: this.captureVideo, TWIN: this.twin, [WebPlaywright.PERSISTENT_DIRECTORY]: !!this.factoryOptions.persistentDirectory };
-		const set = Object.entries(launchOnly).filter(([, on]) => on).map(([name]) => name);
+		const set = Object.entries(launchOnly)
+			.filter(([, on]) => on)
+			.map(([name]) => name);
 		if (set.length > 0) return actionNotOK(`a connected browser takes no ${set.join(", ")}: each configures a browser the run launches`);
 		this.factoryOptions.cdpEndpoint = endpoint;
 		return OK;
