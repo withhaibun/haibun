@@ -5,7 +5,7 @@ import { OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
 import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption, intOrError, stringOrError, errorDetail, optionOrError } from "@haibun/core/lib/util/index.js";
 import { AStepper, type IHasCycles, type IHasOptions, type TEndFeature, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { dispatchStep } from "@haibun/core/lib/step-dispatch.js";
-import { parseRpcRequest } from "@haibun/core/lib/rpc-wire.js";
+import { parseRpcRequest, RPC_REFUSED } from "@haibun/core/lib/rpc-wire.js";
 import { runWithRequestContext, requestBaseIri } from "@haibun/core/lib/request-context.js";
 import { buildFeatureStepForTransport, runRegistry, type StepRegistry, capabilityAllows } from "@haibun/core/lib/step-registry.js";
 import { handleStoreCall, isStoreMethod, requiredStoreCapability } from "@haibun/core/lib/store-protocol.js";
@@ -266,10 +266,11 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					// store. Always capability-gated, store.read/store.write by method, no ungated default, because it
 					// is full store access for a trusted delegate, distinct from the accessLevel-gated hypermedia surface.
 					if (isStoreMethod(method)) {
-						const { granted: grantedCapability } = await grantedCapabilityForRequest(requestInfo, this.getWorld().runtime, {
+						const { granted: grantedCapability, refused } = await grantedCapabilityForRequest(requestInfo, this.getWorld().runtime, {
 							accessToken: this.rpcAccessToken,
 							accessCapability: this.rpcAccessCapability,
 						});
+						if (refused) return { error: `${method}: ${refused}`, [RPC_REFUSED]: true };
 						const required = requiredStoreCapability(method);
 						if (!capabilityAllows(grantedCapability, required)) return { error: `${method}: capability ${required} required` };
 						try {
@@ -291,10 +292,11 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					if (!tool) return { error: `${method}: unknown step method` };
 
 					try {
-						const { granted: grantedCapability, principal } = await grantedCapabilityForRequest(requestInfo, world.runtime, {
+						const { granted: grantedCapability, principal, refused } = await grantedCapabilityForRequest(requestInfo, world.runtime, {
 							accessToken: this.rpcAccessToken,
 							accessCapability: this.rpcAccessCapability,
 						});
+						if (refused) return { error: `${method}: ${refused}`, [RPC_REFUSED]: true };
 						const validatedParams = validateToolInput(seqPath, tool, params as Record<string, unknown>, world);
 						const featureStep = buildFeatureStepForTransport(tool, validatedParams, seqPath);
 						// RPC dispatches are SPA-initiated (constant polling like getClusteredQuads), not feature steps;

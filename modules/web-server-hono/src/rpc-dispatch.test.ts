@@ -113,6 +113,20 @@ class RpcVerifyStepper extends AStepper {
 				return OK;
 			},
 		},
+		rpcCallRefusedUnauthenticated: {
+			gwta: "rpc call to {url} with method {method} presenting authority nothing here verifies is refused unauthenticated",
+			action: async ({ url, method }: TStepArgs) => {
+				const res = await fetch(String(url), {
+					method: "POST",
+					headers: { "Content-Type": "application/json", "capability-invocation": `zcap capability="urn:uuid:x",action="PingStepper:protected"` },
+					body: JSON.stringify({ jsonrpc: "2.0", id: "1", method: String(method), params: {}, seqPath: [0, 1, 1, 1] }),
+				});
+				const data = await res.json();
+				if (res.status !== 401) return actionNotOK(`Expected HTTP 401, got ${res.status}: ${JSON.stringify(data)}`);
+				if (data.pong !== undefined) return actionNotOK(`the step ran: ${JSON.stringify(data)}`);
+				return String(data.error).includes("nothing here verifies it") ? OK : actionNotOK(`Expected the refusal to say why, got ${JSON.stringify(data)}`);
+			},
+		},
 		rpcCallSucceedsWithBearerToken: {
 			gwta: "rpc call to {url} with method {method} succeeds when bearer token is {token}",
 			action: async ({ url, method, token }: TStepArgs) => {
@@ -267,6 +281,22 @@ enable rpc
 webserver is listening for "rpc-asks-read"
 rpc read at "http://localhost:${port}/rpc/ReadStepper-asked" of "ReadStepper-asked" is answered
 rpc read at "http://localhost:${port}/rpc/PingStepper-ping" of "PingStepper-ping" is refused
+`,
+		};
+		const result = await passWithDefaults([feature], steppers, makeOptions(port));
+		expect(result.ok).toBe(true);
+	});
+
+	it("refuses a call presenting authority that nothing here verifies, as unauthenticated, and runs nothing", async () => {
+		// A proof that isn't checked grants nothing, and a request running with nothing granted would still run every
+		// step that asks for no capability, so a request presenting one is refused whole.
+		const port = 8248;
+		const feature = {
+			path: "/features/test.feature",
+			content: `
+enable rpc
+webserver is listening for "rpc-unverified-proof"
+rpc call to "http://localhost:${port}/rpc/PingStepper-ping" with method "PingStepper-ping" presenting authority nothing here verifies is refused unauthenticated
 `,
 		};
 		const result = await passWithDefaults([feature], steppers, makeOptions(port));

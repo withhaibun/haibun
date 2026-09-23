@@ -20,8 +20,9 @@ export function validateCapabilityAuthConfig(scope: string, { accessToken, acces
 }
 
 /** What a request carries: what its caller may do, and who they proved themselves to be where a proof said so. A
- *  token names no one, so a caller resolved by token acts as nobody in particular. */
-export type TRequestAuthority = { granted?: string[]; principal?: string };
+ *  token names no one, so a caller resolved by token acts as nobody in particular. A presented proof that fails, or that
+ *  nothing here can check, is `refused`, and a refused request runs nothing. */
+export type TRequestAuthority = { granted?: string[]; principal?: string; refused?: string };
 
 /**
  * What the caller of this request may do. A caller presents either a token this process issued to itself, which the
@@ -34,9 +35,11 @@ export type TRequestAuthority = { granted?: string[]; principal?: string };
 export async function grantedCapabilityForRequest(request: TAuthorizedRequest | undefined, runtime: TRuntime, config: TCapabilityAuthConfig): Promise<TRequestAuthority> {
 	const authority = getAuthority(runtime);
 	const presented = getHeader(request?.headers, PRESENTED_AUTHORITY_HEADER);
-	if (presented && authority?.hasVerifier() && request?.method && request.url) {
+	if (presented) {
+		if (!authority?.hasVerifier()) return { refused: "the request presents authority, and nothing here verifies it" };
+		if (!request?.method || !request.url) return { refused: "the request presents authority without the method and address its proof covers" };
 		const verdict = await authority.verifyEvidence({ kind: "request", method: request.method, url: request.url, headers: request.headers ?? {}, body: request.body });
-		if (!verdict.ok) return {};
+		if (!verdict.ok) return { refused: `the presented authority failed verification: ${verdict.error ?? "no reason given"}` };
 		return { granted: verdict.allowedAction?.length ? verdict.allowedAction : undefined, principal: verdict.principal };
 	}
 	return { granted: getGrantedCapabilityFromHeaders(request?.headers, runtime, config) };

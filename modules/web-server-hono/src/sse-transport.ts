@@ -7,6 +7,7 @@ import { truncateForLog, errorDetail } from "@haibun/core/lib/util/index.js";
 import type { StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { streamContext, type TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import type { IStepTransport } from "./step-transport.js";
+import { RPC_REFUSED } from "@haibun/core/lib/rpc-wire.js";
 
 export type TTransportRequestInfo = {
 	headers?: Record<string, string | undefined>;
@@ -134,7 +135,9 @@ export class SSETransport implements ITransport, IStepTransport {
 				return c.json({ ok: false, error: `No handler for RPC method: ${method}` }, 404);
 			}
 			const response = result as Record<string, unknown>;
-			const status = response.error ? 422 : 200;
+			// A request whose presented authority failed is unauthenticated, which is a different answer from a call refused
+			// for want of a capability it didn't present.
+			const status = response[RPC_REFUSED] ? 401 : response.error ? 422 : 200;
 			try {
 				return c.json(response, status);
 			} catch (serializeErr) {

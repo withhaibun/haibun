@@ -1,7 +1,7 @@
 /**
  * What a request is allowed to do here, and who it proved itself to be. The proof itself is a specification's
  * business and a consumer registers what reads it; what is checked here is what the boundary does with the answer:
- * that a refusal grants nothing, that a proof says who acted, and that a token names no one.
+ * that a failed or unverifiable proof refuses the request, that a proof says who acted, and that a token names no one.
  */
 import { describe, it, expect } from "vitest";
 import { grantedCapabilityForRequest } from "./capability-auth.js";
@@ -39,12 +39,18 @@ describe("what a request carries to a boundary", () => {
 		expect(carried.principal, "and who proved it, which is who acted").toBe(READER);
 	});
 
-	it("grants nothing and names no one when the proof is refused", async () => {
+	it("refuses a request whose proof fails, granting nothing and naming no one", async () => {
 		const authority = new SessionAuthority();
 		authority.registerVerifier(new StubVerifier());
 		const carried = await grantedCapabilityForRequest(signedRequest("comment.revoke"), runtimeWith(authority), {});
+		expect(carried.refused, "the request is refused, with the verifier's reason").toBe("the presented authority failed verification: not this one");
 		expect(carried.granted, "a refused proof allows nothing").toBeUndefined();
 		expect(carried.principal, "and a refusal is nobody acting").toBeUndefined();
+	});
+
+	it("refuses a request presenting a proof that nothing here verifies", async () => {
+		const carried = await grantedCapabilityForRequest(signedRequest(ACTION), runtimeWith(new SessionAuthority()), {});
+		expect(carried.refused).toBe("the request presents authority, and nothing here verifies it");
 	});
 
 	it("names no one for a token, since holding a token is not being anyone", async () => {

@@ -227,7 +227,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 		if (!headers) return undefined;
 		const normalizedHeaders = Object.fromEntries(Object.entries(headers).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]));
 		const url = extra.requestInfo?.url;
-		const { granted } = await grantedCapabilityForRequest(
+		const { granted, refused } = await grantedCapabilityForRequest(
 			{ headers: normalizedHeaders, method: extra.requestInfo?.method, url: url === undefined ? undefined : String(url) },
 			this.getWorld().runtime,
 			{
@@ -235,6 +235,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 				accessCapability: this.accessCapability || undefined,
 			},
 		);
+		if (refused) throw new Error(refused);
 		return granted;
 	}
 
