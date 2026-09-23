@@ -41,6 +41,10 @@ describe("RemoteStepperProxy", () => {
 	beforeAll(async () => {
 		// Start a minimal RPC server with EchoStepper
 		world = getDefaultWorld() as TWorld;
+		// Every step the host serves requires an action, so the proxy signs each call to one as the holder it presents.
+		const authority = new SessionAuthority();
+		authority.registerInvoker(new FakeInvoker("proxy"));
+		(world.runtime.keys ??= {})[AUTHORITY_KEY] = authority;
 		// The host serves its declarations through the show steps step, dispatched like any other.
 		const hosted = [new EchoStepper(), new Haibun()];
 		for (const stepper of hosted) await stepper.setWorld(world, hosted);
@@ -138,10 +142,7 @@ describe("RemoteStepperProxy", () => {
 		expect(tool.descriptor.capability).toBe("EchoStepper:admin");
 	});
 
-	it("signs a call to a step that declares a capability for that capability, and a call to one that declares none not at all", async () => {
-		const authority = new SessionAuthority();
-		authority.registerInvoker(new FakeInvoker("proxy"));
-		(world.runtime.keys ??= {})[AUTHORITY_KEY] = authority;
+	it("signs a call to a step for the action it requires, its own name where it declares none, and what requires nothing not at all", async () => {
 		const proxy = new RemoteStepperProxy(`http://localhost:${port}`);
 		await proxy.setWorld(world, []);
 		const registry = new StepRegistry([], world);
@@ -156,6 +157,8 @@ describe("RemoteStepperProxy", () => {
 			expect((await tool.handler(buildFeatureStepForTransport(tool, input, [0, 1]), world)).ok).toBe(true);
 		}
 		expect(presented.get("EchoStepper-protectedPing")).toBe('fake action="EchoStepper:admin"');
-		expect(presented.get("EchoStepper-echo")).toBeUndefined();
+		expect(presented.get("EchoStepper-echo")).toBe('fake action="EchoStepper:echo"');
+		expect(presented.get("action.begin"), "the handshake requires nothing").toBeUndefined();
+		expect(presented.get("Haibun-showSteps"), "and nor does reading what the host offers").toBeUndefined();
 	});
 });

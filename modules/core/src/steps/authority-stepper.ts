@@ -8,7 +8,7 @@ import type { IAuthority } from "../lib/authority-types.js";
 import { DOMAIN_JSON, DOMAIN_STRING } from "../lib/domains.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { authorizedWith, runActingAs, runAuthorizedWith } from "../lib/capability-context.js";
-import { capabilityAllows } from "../lib/step-registry.js";
+import { actionList, capabilityAllows } from "../lib/actions.js";
 import { activeSitePrincipal, SITE_DID_PREFIX } from "../lib/host-id.js";
 import { PRINCIPAL_DOMAIN, PRINCIPAL_LABEL } from "../lib/resources.js";
 
@@ -24,6 +24,7 @@ const authorityActionSchema = z
 export const AUTHORITY_CAPABILITIES = { delegate: "Authority:delegate", revoke: "Authority:revoke", name: "Authority:name" } as const;
 
 const siteNamedSchema = z.object({ site: z.string() });
+const delegationsSchema = z.object({ delegations: z.array(z.record(z.string(), z.unknown())), recordedAs: z.string().optional() });
 
 /** The inline signed-capability document presented to `holding capability …`. Must carry a controller and a Data Integrity proof; verification is delegated to the registered IAuthorityVerifier. */
 const signedCapabilitySchema = z.looseObject({
@@ -36,7 +37,7 @@ const signedCapabilitySchema = z.looseObject({
 });
 
 class AuthorityStepper extends AStepper implements IHasCycles {
-	description = "Narrow what a statement may do, present a signed capability for one, and name the sites that connect here";
+	description = "Narrow what a statement may do, present a signed capability for one, read what was delegated to a key, and name the sites that connect here";
 
 	private authority?: IAuthority;
 	private steppers: AStepper[] = [];
@@ -88,18 +89,23 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 				return actionOKWithProducts({ site: assigned });
 			},
 		},
+		delegationsTo: {
+			read: true,
+			requiresNothing: true,
+			gwta: `delegations to {controller: ${DOMAIN_STRING}}`,
+			productsSchema: delegationsSchema,
+			description:
+				"The signed delegations this instance recorded to a controller and hasn't revoked, as the documents a holder presents: how a key finds what it may do here, before it holds anything. A delegation is of no use without its key.",
+			action: async ({ controller }: { controller: string }) => actionOKWithProducts(await this.getAuthority().delegationsTo(controller)),
+		},
 		holdingOnly: {
 			gwta: `holding only {actions: ${DOMAIN_STRING}}, {what: statement}`,
 			description:
 				"Run a statement with only the listed actions, comma-separated, of those its caller holds, as the same caller. A statement can do less than its caller and never more, so a feature states a caller that holds some actions and not others, and a refusal names the action the caller lacks.",
 			action: ({ actions, what }: { actions: string; what: TFeatureStep[] }, featureStep: TFeatureStep) => {
-				const listed = actions
-					.split(",")
-					.map((action) => action.trim())
-					.filter((action) => action.length > 0);
 				const held = authorizedWith();
 				return runAuthorizedWith(
-					listed.filter((action) => capabilityAllows(held, action)),
+					actionList(actions).filter((action) => capabilityAllows(held, action)),
 					() => new FlowRunner(this.getWorld(), this.steppers).runSteps(what, { parentStep: featureStep }),
 				);
 			},

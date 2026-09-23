@@ -230,6 +230,10 @@ class TestServer extends AStepper {
 			capability: "TestServer:admin",
 			action: async () => actionOKWithProducts({ admin: true }),
 		},
+		rpcPing: {
+			gwta: "rpc ping",
+			action: async () => actionOKWithProducts({ pong: true }),
+		},
 		mcpStepIndexIncludes: {
 			gwta: "mcp tools at {url} include {toolName}",
 			action: async ({ url, toolName }: TStepArgs) => {
@@ -270,11 +274,11 @@ class TestServer extends AStepper {
 				return parsed.protected === true ? actionOK() : actionNotOK(`Expected protected=true, got ${mcpText(response)}`);
 			},
 		},
-		rpcProtectedDenied: {
-			gwta: "rpc call to {url} with method {method} is denied without capability",
-			action: async ({ url, method }: TStepArgs) => {
+		rpcDenied: {
+			gwta: "rpc call to {url} with method {method} presenting nothing is denied for capability {capability}",
+			action: async ({ url, method, capability }: TStepArgs) => {
 				const response = await post(String(url), { id: "rpc-denied", method: String(method), params: {} }, undefined);
-				return deniedFor(response.status, ((await response.json()) as { error?: unknown }).error, "TestServer:protected");
+				return deniedFor(response.status, ((await response.json()) as { error?: unknown }).error, String(capability));
 			},
 		},
 		rpcAllowedSigned: {
@@ -283,8 +287,7 @@ class TestServer extends AStepper {
 				const response = await post(String(url), { id: "rpc-allowed", method: String(method), params: {} }, { holder: String(holder), action: String(action) });
 				if (!response.ok) return actionNotOK(`HTTP ${response.status}: ${await response.text()}`);
 				const data = (await response.json()) as Record<string, unknown>;
-				if (data.error) return actionNotOK(String(data.error));
-				return data.protected === true ? actionOK() : actionNotOK(`Expected protected=true, got ${JSON.stringify(data)}`);
+				return data.error ? actionNotOK(String(data.error)) : actionOK();
 			},
 		},
 		rpcDeniedSigned: {

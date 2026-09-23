@@ -116,6 +116,7 @@ export const isMarkerType = (component: string): boolean => (Object.values(SHU_T
  *  so no file spells a tag again; a component that is also a domain exposes its own as `static domainSelector`. */
 export const SHU_TAG = {
 	PERMISSIONS: "shu-permissions",
+	PAGE_KEY: "shu-page-key",
 	GRAPH_QUERY: "shu-graph-query",
 	RESULT_TABLE: "shu-result-table",
 	COLUMN_PANE: "shu-column-pane",

@@ -2,17 +2,18 @@ import path from "path";
 
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
-import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption, intOrError, errorDetail, optionOrError } from "@haibun/core/lib/util/index.js";
+import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption, intOrError, errorDetail } from "@haibun/core/lib/util/index.js";
 import { AStepper, type IHasCycles, type IHasOptions, type TEndFeature, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { dispatchStep } from "@haibun/core/lib/step-dispatch.js";
 import { parseRpcRequest, RPC_REFUSED } from "@haibun/core/lib/rpc-wire.js";
 import { runWithRequestContext, requestBaseIri } from "@haibun/core/lib/request-context.js";
-import { buildFeatureStepForTransport, runRegistry, type StepRegistry, capabilityAllows } from "@haibun/core/lib/step-registry.js";
+import { buildFeatureStepForTransport, runRegistry, type StepRegistry } from "@haibun/core/lib/step-registry.js";
+import { actionList, capabilityAllows } from "@haibun/core/lib/actions.js";
 import { STORE_METHOD_PREFIX, storeMethods } from "@haibun/core/lib/store-protocol.js";
 import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
 import { activeSitePrincipal, allocateSyntheticSeqPath, resolveHostId, syntheticSeqPath } from "@haibun/core/lib/host-id.js";
 import { SERVING } from "@haibun/core/lib/serving.js";
-import { AccessLevelSchema, LinkRelations, narrowerCeiling, type AccessLevel } from "@haibun/core/lib/resources.js";
+import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { runReadingAt, runActingAs } from "@haibun/core/lib/capability-context.js";
 import { objectCoercer } from "@haibun/core/lib/domains.js";
 
@@ -56,7 +57,7 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 			wss.webserver.clearMounted();
 		} else {
 			const filesBase = path.join(process.cwd(), "files");
-			wss.webserver = new ServerHono(wss.world.eventLogger, filesBase, () => wss.getWorld().shared.getStore());
+			wss.webserver = new ServerHono(wss.world.eventLogger, filesBase, () => wss.getWorld().shared.getStore(), wss.anyoneHolds);
 		}
 		// The delegated store surface: a sibling instance keeping its records in this instance's store. Reached only once RPC
 		// is enabled, since only the RPC transport calls a family's methods.
@@ -66,7 +67,7 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 			storeMethods(() => wss.getWorld().shared.getStore()),
 		);
 		wss.getWorld().runtime[WEBSERVER] = wss.webserver;
-		wss.getWorld().runtime[TRANSPORT] = new SSETransport(wss.webserver, wss.world.eventLogger);
+		wss.getWorld().runtime[TRANSPORT] = new SSETransport(wss.webserver, wss.world.eventLogger, wss.getWorld().runtime);
 		await Promise.resolve();
 	},
 	async endFeature(wtw: TEndFeature) {
@@ -101,15 +102,15 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			desc: "Change web server interface from default (127.0.0.1). e.g. 0.0.0.0",
 			parse: (input: string) => ({ result: input }),
 		},
-		READ_CEILING: {
-			desc: `The most a caller reaching this server may see, whatever any step it calls asks for: one of ${AccessLevelSchema.options.join(", ")}. Unset means the run's own level, which is every record it holds; a deployment reachable by anyone states a narrower one.`,
-			parse: (input: string) => optionOrError(input, [...AccessLevelSchema.options]),
+		ANYONE_HOLDS: {
+			desc: "Actions every caller holds without presenting anything, comma-separated, beside what it proves: Read:public for a site anyone may read. Unset, a caller holds only what it proves, and one that proves nothing may call only a step that requires nothing",
+			parse: (input: string) => (actionList(input).length > 0 ? { result: input } : { parseError: "ANYONE_HOLDS: name at least one action, comma-separated" }),
 		},
 	};
 	port: number = DEFAULT_PORT;
 	hostname?: string;
-	/** What a caller reaching this server may see at most; unset leaves the run's own level in force. */
-	readCeiling?: AccessLevel;
+	/** What every caller holds here without presenting anything. */
+	anyoneHolds: string[] = [];
 
 	/** Monotonic counter for session-allocated seqPath roots. Never resets while process runs. */
 	private sessionActionSeq = 0;
@@ -142,10 +143,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		if (interfaceOption) {
 			this.hostname = String(interfaceOption);
 		}
-		// An unreadable ceiling is not a ceiling: unset is the widest setting, so a misspelling that fell back to it
-		// would open the server rather than stop the run.
-		const ceiling = getStepperOption(this, "READ_CEILING", world.moduleOptions);
-		this.readCeiling = ceiling === undefined ? undefined : AccessLevelSchema.parse(ceiling);
+		this.anyoneHolds = actionList(getStepperOption(this, "ANYONE_HOLDS", world.moduleOptions));
 	}
 
 	steps = {
@@ -272,7 +270,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					// is, with no ungated default.
 					const served = this.webserver?.rpcMethod(method);
 					if (served) {
-						const { granted, refused } = await grantedCapabilityForRequest(requestInfo, this.getWorld().runtime);
+						const { granted, refused } = await grantedCapabilityForRequest(requestInfo, this.getWorld().runtime, this.anyoneHolds);
 						if (refused) return { error: `${method}: ${refused}`, [RPC_REFUSED]: true };
 						if (!capabilityAllows(granted, served.action)) return { error: `${method}: capability ${served.action} required` };
 						try {
@@ -294,22 +292,20 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					if (!tool) return { error: `${method}: unknown step method` };
 
 					try {
-						const { granted: grantedCapability, principal, refused } = await grantedCapabilityForRequest(requestInfo, world.runtime);
+						const { granted, principal, refused } = await grantedCapabilityForRequest(requestInfo, world.runtime, this.anyoneHolds);
 						if (refused) return { error: `${method}: ${refused}`, [RPC_REFUSED]: true };
 						const validatedParams = validateToolInput(seqPath, tool, params as Record<string, unknown>, world);
 						const featureStep = buildFeatureStepForTransport(tool, validatedParams, seqPath);
 						// RPC dispatches are SPA-initiated (constant polling like getClusteredQuads), not feature steps;
 						// log them at trace so they don't bury the run's own steps in the timeline. Still visible at debug.
 						featureStep.isSubStep = true;
-						// What this caller may see, stated once for the whole dispatch: the server's ceiling met with what the
-						// call asked for, narrower winning. Every read inside is bounded by it without naming it.
-						const ceiling = narrowerCeiling(this.readCeiling, msg.readingAt);
 						// Whoever proved themselves at this boundary is who acts inside it, so what a step records names the
-						// reader who asked for it rather than the process that carried it out.
+						// reader who asked for it rather than the process that carried it out. What it reads is bounded by the read it
+						// holds, in dispatch, and by the level the call asked to read at, which can only be narrower.
 						const hr = await runWithRequestContext({ baseIri: requestBaseIri(requestInfo?.headers) }, () =>
 							// A request holds what it presented and nothing else: the server was started inside a step of the run, and
 							// what that step held is no caller's.
-							runActingAs(principal, () => runReadingAt(ceiling, () => dispatchStep({ registry, world, steppers: this.steppers, grantedCapability: grantedCapability ?? [] }, featureStep))),
+							runActingAs(principal, () => runReadingAt(msg.readingAt, () => dispatchStep({ registry, world, steppers: this.steppers, grantedCapability: granted }, featureStep))),
 						);
 						if (hr.ok) return hr.products ?? { ok: true };
 						return { error: `${method}: ${hr.errorMessage}` };

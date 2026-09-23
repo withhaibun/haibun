@@ -2,11 +2,12 @@
  * EventStream: shu's single contract for inbound server-pushed events
  * (lifecycle, log, time-sync). One file holds the interface, both
  * implementations, and the accessor. Components and infrastructure subscribe
- * via `eventStream()`; nothing else touches `EventSource` or `SseSubscriber`.
+ * via `eventStream()`; nothing else touches `SseSubscriber`.
  *
- * `LiveEventStream` wraps the shared `SseSubscriber` connection. Subscribers
- * registered after connect receive what the page received before they
- * subscribed, then live events.
+ * `LiveEventStream` wraps the shared `SseSubscriber` connection, which the
+ * page asks for signed, since following the run takes a private read.
+ * Subscribers registered after connect receive what the page received before
+ * they subscribed, then live events.
  *
  * `SerializedEventStream` powers tests and the offline shu.html report. The
  * caller provides events via `emit(event)`; subscribers registered before or
@@ -15,7 +16,9 @@
  */
 
 import { SseSubscriber } from "@haibun/core/lib/sse-subscriber.js";
+import { FOLLOWS_THE_RUN } from "@haibun/core/lib/actions.js";
 import { deploymentMs } from "./rpc-registry.js";
+import { pageAuthorityReady, signedHeaders } from "./page-key.js";
 
 export type TEvent = Record<string, unknown>;
 export type TEventHandler = (event: TEvent) => void;
@@ -54,7 +57,15 @@ export interface EventStream {
 
 // ─── LiveEventStream ─────────────────────────────────────────────────────────
 
-/** `EventStream` over a real `/sse` connection. One shared `SseSubscriber` regardless of how many `LiveEventStream` instances exist; constructed lazily on first `subscribe`. */
+/** What the page asks for the run's stream with: signed under a delegation that allows following the run, where it holds
+ *  one, and nothing otherwise, which what anyone holds here may allow. */
+async function followingHeaders(url: string): Promise<Record<string, string>> {
+	await pageAuthorityReady();
+	const asked = new URL(url, location.href);
+	return (await signedHeaders({ url: asked.toString(), method: "GET", headers: { host: asked.host }, action: FOLLOWS_THE_RUN })) ?? {};
+}
+
+/** `EventStream` over a real `/sse` connection. One shared `SseSubscriber` regardless of how many `LiveEventStream` instances exist; constructed lazily on first `subscribe`, and opened only by `connect`, once the page knows it may follow the run. */
 export class LiveEventStream implements EventStream {
 	private subscriber: SseSubscriber | null = null;
 
@@ -65,7 +76,7 @@ export class LiveEventStream implements EventStream {
 	}
 
 	connect(): void {
-		this.ensure();
+		this.ensure().connect();
 	}
 
 	opened(fn: () => void): () => void {
@@ -93,8 +104,7 @@ export class LiveEventStream implements EventStream {
 		if (!this.subscriber) {
 			// How long after a break the connection opens again: what the deployment set, else the subscriber's own.
 			const reconnectDelayMs = deploymentMs("streamReconnectAfterMs");
-			this.subscriber = new SseSubscriber({ url: this.url, ...(reconnectDelayMs === undefined ? {} : { reconnectDelayMs }) });
-			this.subscriber.connect();
+			this.subscriber = new SseSubscriber({ url: this.url, headers: followingHeaders, ...(reconnectDelayMs === undefined ? {} : { reconnectDelayMs }) });
 		}
 		return this.subscriber;
 	}

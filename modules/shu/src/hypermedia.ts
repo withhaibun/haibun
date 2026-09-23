@@ -26,7 +26,7 @@ import { pagePinned } from "./page-pinned.js";
 // The wire itself: envelope and stream reader, shared with every other caller of a haibun host. Free of node imports.
 import { rpcEnvelope, readNdjson, readRpcAnswer } from "@haibun/core/lib/rpc-wire.js";
 import { findStep, responseTimeoutMs } from "./rpc-registry.js";
-import { sessionReady, signedHeaders } from "./session-key.js";
+import { pageAuthorityReady, signedHeaders } from "./page-key.js";
 
 // ─── Wire types ──────────────────────────────────────────────────────────────
 
@@ -130,9 +130,10 @@ async function answerOf(method: string, res: Response): Promise<unknown> {
 }
 
 /**
- * What every call from this page carries. A call to a step that requires authority is signed with the key this reader
- * controls, over that request: the address, the method and the body, naming the capability the step declares. A call
- * to a step that requires none carries nothing, since there is nothing to prove.
+ * What every call from this page carries. A call to a step is signed with the key this reader controls, over that
+ * request: the address, the method and the body, under a delegation that allows the action the step requires. A call to
+ * a step that requires nothing carries nothing, since there is nothing to prove, and so does a call the page holds no
+ * delegation for, which what anyone holds here may allow.
  */
 async function rpcHeaders(url: string, method: string, body: string): Promise<Record<string, string>> {
 	// One header set, written once and in one casing: a signature covers the headers as they are sent, and the same
@@ -140,9 +141,8 @@ async function rpcHeaders(url: string, method: string, body: string): Promise<Re
 	const base: Record<string, string> = { "content-type": "application/json" };
 	const required = findStep(method)?.capability;
 	if (!required) return base;
-	// Only a call that needs authority waits for the session: the page opens one while it renders, and a reader doing
-	// something that needs nothing never waits for it, nor is stopped by a deployment that gives readers nothing.
-	await sessionReady();
+	// A call waits for what the page holds, which the page reads while it boots, and says so there if it could not.
+	await pageAuthorityReady();
 	// What is signed is the address the request is made to: a proof over a relative path proves nothing about
 	// where it was sent, and the boundary checks the absolute one it received. The body is signed as the string it is
 	// sent as, so the digest the proof carries is over those bytes.

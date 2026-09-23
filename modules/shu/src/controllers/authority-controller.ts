@@ -1,21 +1,26 @@
 import type { ReactiveController, ReactiveControllerHost } from "lit";
-import { PRINCIPAL_LABEL } from "@haibun/core/lib/resources.js";
+import { Access, PRINCIPAL_LABEL } from "@haibun/core/lib/resources.js";
+import { readAction } from "@haibun/core/lib/actions.js";
 import { getAvailableSteps } from "../rpc-registry.js";
 import { queryGraph } from "../quads-snapshot.js";
-import { session } from "../session-key.js";
+import { pageAuthorityReady, pageHolds, pageMay } from "../page-key.js";
 
 /** A principal as a view reads one: its own id, and the key it signs with where it declares one. */
 export type TPrincipalRow = { id: string; publicKey?: string };
 
-/** What holds here: what this reader may do, where what it holds is recorded, and who the deployment knows. */
-export type TAuthority = { holds: string[]; heldAs?: { persistedAs: string; id: string }; principals: TPrincipalRow[] };
+/** A record a view opens: the type the deployment records it as, and its id. */
+export type TRecordRef = { persistedAs: string; id: string };
+
+/** What holds here: the key this page signs as, what it may do, the delegation that granted each action it was
+ *  delegated, and who the deployment knows. */
+export type TAuthority = { controller?: string; holds: string[]; grantedBy: Record<string, TRecordRef>; principals: TPrincipalRow[] };
 
 /**
  * AuthorityController: the per-view handle to what authority stands here. A view that shows permissions HOLDS one and
  * calls `read()`; it never assembles the RPC itself.
  *
- * What this reader holds is not asked for over the wire at all: it is in the session the page opened with its own key,
- * so a reader is told what they may do even when nothing may be read.
+ * What this page holds is read once, when the page boots, from what was delegated to its key, so a reader is told what
+ * they may do even where nothing may be read. The principals are read only by a page that may read.
  */
 export class AuthorityController implements ReactiveController {
 	constructor(host: ReactiveControllerHost) {
@@ -26,9 +31,16 @@ export class AuthorityController implements ReactiveController {
 
 	async read(): Promise<TAuthority> {
 		await getAvailableSteps();
-		const held = session();
-		const holds = held?.allowedAction ?? [];
-		const principals = await queryGraph({ label: PRINCIPAL_LABEL });
-		return { holds, heldAs: held?.record, principals: (principals.vertices ?? []) as TPrincipalRow[] };
+		const authority = await pageAuthorityReady();
+		// Each action leads to the first delegation that lists it, where the deployment records its delegations.
+		const grantedBy: Record<string, TRecordRef> = {};
+		if (authority?.recordedAs) {
+			for (const delegation of authority.delegations) {
+				if (typeof delegation.id !== "string" || !Array.isArray(delegation.allowedAction)) continue;
+				for (const action of delegation.allowedAction) if (typeof action === "string") grantedBy[action] ??= { persistedAs: authority.recordedAs, id: delegation.id };
+			}
+		}
+		const principals = pageMay(readAction(Access.public)) ? ((await queryGraph({ label: PRINCIPAL_LABEL })).vertices ?? []) : [];
+		return { controller: authority?.controller, holds: pageHolds(authority), grantedBy, principals: principals as TPrincipalRow[] };
 	}
 }

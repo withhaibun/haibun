@@ -4,12 +4,13 @@
  */
 declare module "@digitalbazaar/http-signature-zcap-invoke" {
 	/** Signs the request's own headers, so the proof covers what is asked and of what rather than a document beside it.
-	 *  `body` is the request body exactly as it will be sent, so the digest the signature covers is over those bytes. */
+	 *  `body` is the request body exactly as it will be sent, so the digest the signature covers is over those bytes; a
+	 *  request with no body, such as a GET, carries no digest. */
 	export function signCapabilityInvocation(options: {
 		url: string;
 		method: string;
 		headers: Record<string, string | undefined>;
-		body: string;
+		body?: string;
 		capability: Record<string, unknown>;
 		capabilityAction: string;
 		invocationSigner: { id: string; sign(options: { data: Uint8Array }): Promise<Uint8Array> };

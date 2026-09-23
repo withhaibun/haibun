@@ -14,6 +14,7 @@ import { FACT_GRAPH } from "../lib/working-memory.js";
 import { runRegistry, stepMethodName } from "../lib/step-registry.js";
 import { WAYPOINT_KIND, type TWaypointEntry, type TWaypointKind } from "../lib/affordances.js";
 import { namedInterpolation } from "../lib/namedVars.js";
+import { authorizedWith } from "../lib/capability-context.js";
 
 const ActivityOutcomeSchema = z.object({ proofStatements: z.array(z.string()) });
 
@@ -414,7 +415,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		const steppers = world.runtime.steppers as AStepper[];
 		const graph = buildDomainChain(steppers, world.domains);
 		const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
-		const resolution = resolveGoal(domainKey, { graph, facts, capabilities: new Set() });
+		const resolution = resolveGoal(domainKey, { graph, facts, held: authorizedWith() });
 		if (resolution.finding === GOAL_FINDING.SATISFIED) return { satisfied: true };
 		if (resolution.finding === GOAL_FINDING.REFUSED) return { satisfied: false, refused: `${resolution.refusalReason}: ${resolution.detail}` };
 		return { satisfied: false };
@@ -435,8 +436,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		const steppers = world.runtime.steppers as AStepper[];
 		const graph = buildDomainChain(steppers, world.domains);
 		const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
-		const capabilities = new Set<string>();
-		const resolution = resolveGoal(domainKey, { graph, facts, capabilities });
+		const resolution = resolveGoal(domainKey, { graph, facts, held: authorizedWith() });
 
 		if (resolution.finding === GOAL_FINDING.SATISFIED) return { handled: true, ok: true };
 		if (resolution.finding === GOAL_FINDING.REFUSED) return { handled: false, ok: false, errorMessage: `goal-${resolution.refusalReason}: ${resolution.detail}` };

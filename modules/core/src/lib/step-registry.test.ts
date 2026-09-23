@@ -138,6 +138,7 @@ describe("what a read of the run's declarations shows", () => {
 			stepperName: "ManySteps",
 			pattern: "read record {id}",
 			description: "Reads one record.",
+			capability: "ManySteps:readRecord",
 			_links: { definition: { method: SHOW_STEPS_METHOD, params: { text: "ManySteps-readRecord", detail: "definition" } } },
 		});
 		const defined = definitionsOf(world, registry, "reads ONE");

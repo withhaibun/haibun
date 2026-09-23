@@ -1,0 +1,78 @@
+/**
+ * What a step requires, and what an action a caller holds allows. One reading, shared by the boundary that checks a
+ * call, the statement that narrows one and a page choosing which of its delegations to sign a call with, so none of
+ * them can allow what another refuses. Free of node imports, since a page reads it too.
+ */
+import { ACCESS_BROADEST_FIRST, Access, AccessLevelSchema, narrowerAccess, type AccessLevel } from "./resources.js";
+
+const READ_PREFIX = "Read:";
+
+/** The actions a comma-separated list names, as a feature, an option or a delegation writes them. */
+export function actionList(listed: string | undefined): string[] {
+	return (listed ?? "")
+		.split(",")
+		.map((action) => action.trim())
+		.filter((action) => action.length > 0);
+}
+
+/** The action a read at `level` requires. */
+export const readAction = (level: AccessLevel): string => `${READ_PREFIX}${level}`;
+
+/** The level a read action names, or undefined for any other action. */
+function readLevelOf(action: string): AccessLevel | undefined {
+	if (!action.startsWith(READ_PREFIX)) return undefined;
+	const parsed = AccessLevelSchema.safeParse(action.slice(READ_PREFIX.length));
+	return parsed.success ? parsed.data : undefined;
+}
+
+/**
+ * The action a step requires: the one it declares; `Read:public` for a step that declares itself a read, since reading at
+ * any level allows a public read; and for any other, the step's own name, so a step nobody declared anything for is
+ * refused to every caller not given it by name. Undefined only for a step that declares it requires nothing.
+ */
+export function requiredAction(stepperName: string, stepName: string, step: { capability?: string; read?: boolean; requiresNothing?: boolean }): string | undefined {
+	if (step.requiresNothing) {
+		if (step.capability) throw new Error(`step ${stepperName}.${stepName} declares it requires nothing and requires ${step.capability}`);
+		return undefined;
+	}
+	return step.capability ?? (step.read ? readAction(Access.public) : `${stepperName}:${stepName}`);
+}
+
+/**
+ * Whether what a caller holds allows `required`: the action itself, `*`, a prefix ending in `*`, or a read at a level at
+ * least as broad as the one asked for, since a reader who may see private records may see public ones.
+ */
+export function capabilityAllows(granted: string | string[] | undefined, required: string): boolean {
+	if (!granted) return false;
+	const asked = readLevelOf(required);
+	return (Array.isArray(granted) ? granted : [granted]).some((entry) => {
+		if (entry === "*" || entry === required) return true;
+		if (entry.endsWith("*")) return required.startsWith(entry.slice(0, -1));
+		const held = readLevelOf(entry);
+		return held !== undefined && asked !== undefined && narrowerAccess(held, asked) === asked;
+	});
+}
+
+/** The broadest level what a caller holds lets it read at, or undefined where it holds no read. */
+export function readCeilingOf(granted: string | string[] | undefined): AccessLevel | undefined {
+	return ACCESS_BROADEST_FIRST.find((level) => capabilityAllows(granted, readAction(level)));
+}
+
+/** What following a run's events requires: they are its record as it is made, private records among it. */
+export const FOLLOWS_THE_RUN = readAction(Access.private);
+
+/** A delegation as its holder presents it: what it lets the holder do, over what, and until when. */
+export type TDelegation = Record<string, unknown> & { allowedAction?: unknown; invocationTarget?: unknown; expires?: unknown };
+
+/**
+ * The action a holder invokes under `delegation` for a call requiring `required` at `target`, where the delegation allows
+ * it now: one it lists that allows `required`, the target at or under the one it is over, and its expiry ahead. A
+ * delegation is matched on exactly what it lists, so the action invoked is one it names, not the one required.
+ */
+export function actionUnder(delegation: TDelegation, required: string, target: string, now = Date.now()): string | undefined {
+	const over = typeof delegation.invocationTarget === "string" ? delegation.invocationTarget : undefined;
+	const expires = typeof delegation.expires === "string" ? Date.parse(delegation.expires) : Number.NaN;
+	if (!over || !(target === over || target.startsWith(over.endsWith("/") ? over : `${over}/`)) || !(expires > now)) return undefined;
+	const listed = Array.isArray(delegation.allowedAction) ? delegation.allowedAction.filter((action): action is string => typeof action === "string") : [];
+	return listed.find((action) => capabilityAllows(action, required));
+}

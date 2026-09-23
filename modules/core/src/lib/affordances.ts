@@ -16,6 +16,7 @@ import type { AStepper, TFeatureStep } from "./astepper.js";
 import type { TRegisteredDomain } from "./resources.js";
 import type { TQuad } from "./quad-types.js";
 import { stepMethodName } from "./step-registry.js";
+import { capabilityAllows } from "./actions.js";
 import { buildDomainChain, SOURCE_DOMAIN, type TDomainChainGraph } from "./domain-chain.js";
 import { BASE_TYPES, DOMAIN_DOMAIN_KEY } from "./domains.js";
 import { resolveGoal, GOAL_FINDING, type TGoalResolution } from "./goal-resolver.js";
@@ -48,7 +49,7 @@ export type TForwardAffordance = {
 	outputDomains: string[];
 	/** True when every input domain has at least one asserted fact (no gwta args needed). */
 	readyToRun: boolean;
-	/** Capability the caller must hold to dispatch this step; absent for ungated steps. */
+	/** The action the caller must hold to dispatch this step; absent for a step that requires nothing. */
 	capability?: string;
 };
 
@@ -117,7 +118,8 @@ export interface TAffordancesInputs {
 	steppers: AStepper[];
 	domains: Record<string, TRegisteredDomain>;
 	facts: TQuad[];
-	capabilities: ReadonlySet<string>;
+	/** What the caller holds: a step it may not run is not offered to it. */
+	held: string | string[] | undefined;
 	/** When true, the goal frontier asks the resolver to decompose composite input domains via topology.ranges. */
 	compositeDecomposition?: boolean;
 	/** Composite recursion depth limit passed through to the resolver. */
@@ -144,8 +146,8 @@ export function buildAffordances(inputs: TAffordancesInputs): TAffordances {
 		satisfiedFacts[q.predicate].push(q.subject);
 	}
 	return {
-		forward: buildForwardFrontier(graph, facts, inputs.capabilities),
-		goals: buildGoalFrontier(graph, facts, inputs.capabilities, inputs.domains, inputs.compositeDecomposition, inputs.compositeMaxDepth),
+		forward: buildForwardFrontier(graph, facts, inputs.held),
+		goals: buildGoalFrontier(graph, facts, inputs.held, inputs.domains, inputs.compositeDecomposition, inputs.compositeMaxDepth),
 		satisfiedDomains,
 		satisfiedFacts,
 		composites: collectCompositeRanges(inputs.domains),
@@ -179,14 +181,14 @@ function collectCompositeRanges(domains: Record<string, TRegisteredDomain>): TCo
 	return any ? out : undefined;
 }
 
-function buildForwardFrontier(graph: TDomainChainGraph, facts: TQuad[], capabilities: ReadonlySet<string>): TForwardAffordance[] {
+function buildForwardFrontier(graph: TDomainChainGraph, facts: TQuad[], held: string | string[] | undefined): TForwardAffordance[] {
 	const assertedDomains = new Set(facts.map((q) => q.predicate));
 	const producedDomains = new Set<string>();
 	for (const step of graph.steps) for (const d of step.outputDomains) producedDomains.add(d);
 	const isArgument = (d: string) => PRIMITIVE_DOMAINS.has(d) || !producedDomains.has(d);
 	const out: TForwardAffordance[] = [];
 	for (const step of graph.steps) {
-		if (step.capability && !capabilities.has(step.capability)) continue;
+		if (step.capability && !capabilityAllows(held, step.capability)) continue;
 		if (step.inputDomains.length === 0 && step.outputDomains.length === 0) continue;
 		const readyToRun = step.inputDomains.every((d) => isArgument(d) || assertedDomains.has(d) || d === SOURCE_DOMAIN);
 		out.push({
@@ -206,7 +208,7 @@ function buildForwardFrontier(graph: TDomainChainGraph, facts: TQuad[], capabili
 function buildGoalFrontier(
 	graph: TDomainChainGraph,
 	facts: TQuad[],
-	capabilities: ReadonlySet<string>,
+	held: string | string[] | undefined,
 	domains: Record<string, TRegisteredDomain>,
 	compositeDecomposition?: boolean,
 	compositeMaxDepth?: number,
@@ -215,7 +217,7 @@ function buildGoalFrontier(
 	const producibleDomains = new Set<string>();
 	for (const step of graph.steps) for (const d of step.outputDomains) producibleDomains.add(d);
 	for (const domain of producibleDomains) {
-		const resolution = resolveGoal(domain, { graph, facts, capabilities, domains, compositeDecomposition, compositeMaxDepth });
+		const resolution = resolveGoal(domain, { graph, facts, held, domains, compositeDecomposition, compositeMaxDepth });
 		// Trivial goals duplicate the forward frontier: a single producer step
 		// whose inputs are all arguments: no upstream facts, no composite
 		// decomposition with fact-bindings. Skip those. Paths that exercise

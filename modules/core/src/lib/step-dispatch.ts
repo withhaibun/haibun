@@ -8,8 +8,9 @@ import { actionNotOK } from "./util/index.js";
 import { normalizeDomainKey } from "./domains.js";
 import { OBSERVATION_GRAPH, FACT_GRAPH, assertFact, getFact, queryFacts } from "./working-memory.js";
 import { doStepperCycle } from "./stepper-cycles.js";
-import { actingAs, authorizedWith, runAuthorizedWith, runInStep } from "./capability-context.js";
-import { LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS, type SeqPathStatus } from "./resources.js";
+import { actingAs, authorizedWith, runAuthorizedWith, runInStep, runReadingAt } from "./capability-context.js";
+import { capabilityAllows, readCeilingOf } from "./actions.js";
+import { Access, LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS, type SeqPathStatus } from "./resources.js";
 import { SEQ_PATH_FIELD, executionOf, formatRecordName } from "./seq-path.js";
 import { StepRegistry, stepMethodName, hostScopedMethodName, authorizeToolCapability } from "./step-registry.js";
 import { validateProducts } from "./tool-validation.js";
@@ -105,7 +106,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 
 	const isLifecycle = action.actionName === FEATURE_START || action.actionName === SCENARIO_START;
 	if (isLifecycle) {
-		await emitSeqPathStart(world, featureStep, undefined, { ranVia: "local" });
+		await emitSeqPathStart(world, featureStep, {}, { ranVia: "local" });
 		await emitSeqPathEnd(world, featureStep, SEQ_PATH_STATUS.passed);
 		return stepResultFromActionResult({ ok: true }, action, start, Timer.since(), featureStep, true);
 	}
@@ -118,15 +119,18 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	}
 
 	authorizeToolCapability(tool.descriptor, grantedCapability);
-	// What got through the gate, on the step's own record: which capability it required, what the caller held, and the
-	// principal that held it. A refusal throws above, so a record with these fields is a record of an allowed call.
-	const authorization: TStepAuthorization | undefined = tool.descriptor.capability
-		? {
-				required: tool.descriptor.capability,
-				held: (Array.isArray(grantedCapability) ? grantedCapability.join(", ") : grantedCapability) || undefined,
-				controller: actingAs(),
-			}
-		: undefined;
+	// What got through the gate, on the step's own record: which action it required and what the caller held, where the
+	// caller is not the run acting as itself, and the principal that proved itself, where one did. A refusal throws above,
+	// so a record with these fields is a record of an allowed call.
+	const authorization: TStepAuthorization = {
+		...(tool.descriptor.capability && !capabilityAllows(grantedCapability, "*")
+			? { required: tool.descriptor.capability, held: (Array.isArray(grantedCapability) ? grantedCapability.join(", ") : grantedCapability) || undefined }
+			: {}),
+		controller: actingAs(),
+	};
+	// What the step may read is what its caller holds a read for: a caller holding none reads at public inside the step
+	// it may run, so no step reads a record for a caller who could not have read it.
+	const ceiling = readCeilingOf(grantedCapability) ?? Access.public;
 
 	if (recorded) {
 		const usageKey = `${action.stepperName}.${action.actionName}`;
@@ -142,7 +146,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	let ok = true;
 	let lastStepResult: TStepResult;
 	await runInStep(step, () =>
-		runAuthorizedWith(grantedCapability, async () => {
+		runAuthorizedWith(grantedCapability, () => runReadingAt(ceiling, async () => {
 			let doAction = true;
 			while (doAction) {
 				await doStepperCycle(steppers, "beforeStep", <TBeforeStep>{ featureStep });
@@ -181,7 +185,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 					actionResult = { ...actionResult, ok: true };
 				}
 			}
-		}),
+		})),
 	);
 	if (!actionResult || !lastStepResult) {
 		throw new Error(`No action result recorded for ${action.stepperName}.${action.actionName}`);
@@ -276,11 +280,11 @@ async function autoAssertProducts(world: TWorld, seqPathKey: string, step: TStep
  * step can link back to it as a real graph edge. Status and endedAtTime are
  * updated by `emitSeqPathEnd` after the action completes.
  */
-/** What a step required and what allowed it, for the step's own record. Written only where the step declares a
- *  capability, so an ordinary step's record gains nothing and a gated one says who got through it. */
-type TStepAuthorization = { required: string; held?: string; controller?: string };
+/** What a step required and what allowed it, for the step's own record. A step the run takes as itself holds
+ *  everything, so its record gains nothing; a caller's says what it required, what it held and who proved it. */
+type TStepAuthorization = { required?: string; held?: string; controller?: string };
 
-async function emitSeqPathStart(world: TWorld, featureStep: TFeatureStep, authorization: TStepAuthorization | undefined, ran: { ranVia: string; ranOn?: string }): Promise<void> {
+async function emitSeqPathStart(world: TWorld, featureStep: TFeatureStep, authorization: TStepAuthorization, ran: { ranVia: string; ranOn?: string }): Promise<void> {
 	const store = world.shared.getStore();
 	const execution = executionOf(world.tag);
 	const id = formatRecordName({ execution, path: featureStep.seqPath });
@@ -307,11 +311,9 @@ async function emitSeqPathStart(world: TWorld, featureStep: TFeatureStep, author
 		[SEQ_PATH_FIELD.level]: stepLevel(featureStep.isSubStep),
 		...(ran.ranOn === undefined ? {} : { [SEQ_PATH_FIELD.ranOn]: ran.ranOn }),
 	};
-	if (authorization) {
-		record[SEQ_PATH_FIELD.capabilityAction] = authorization.required;
-		if (authorization.held) record[SEQ_PATH_FIELD.allowedAction] = authorization.held;
-		if (authorization.controller) record[LinkRelations.PERFORMED_BY.rel] = authorization.controller;
-	}
+	if (authorization.required) record[SEQ_PATH_FIELD.capabilityAction] = authorization.required;
+	if (authorization.held) record[SEQ_PATH_FIELD.allowedAction] = authorization.held;
+	if (authorization.controller) record[LinkRelations.PERFORMED_BY.rel] = authorization.controller;
 	if (featureStep.source?.path) record[SEQ_PATH_FIELD.path] = featureStep.source.path;
 	if (featureStep.seqPath.length > 1) {
 		record[LinkRelations.PART_OF.rel] = formatRecordName({ execution, path: featureStep.seqPath.slice(0, -1) });

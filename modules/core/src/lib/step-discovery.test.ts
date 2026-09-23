@@ -60,9 +60,10 @@ describe("a step as a tool", () => {
 			description: "wait {seconds: number} seconds\n\nRequires capability DescribedSteps:wait.",
 			inputSchema: step.inputSchema,
 		});
-		expect(toolDefinition(describedAs("gwtaStep")).description).toBe("set {name} to {value}\n\nSets a value.");
+		expect(toolDefinition(describedAs("gwtaStep")).description, "a read requires a public read").toBe("set {name} to {value}\n\nSets a value.\n\nRequires capability Read:public.");
+		expect(describedAs("matchStep").capability, "and a step that declares nothing requires its own name").toBe("DescribedSteps:matchStep");
 		expect(toolDefinition({ ...describedAs("gwtaStep"), remoteHost: "localhost:8331" }).description, "and the host it runs at, for a step another host declares").toBe(
-			"set {name} to {value}\n\nSets a value.\n\nRuns at localhost:8331.",
+			"set {name} to {value}\n\nSets a value.\n\nRequires capability Read:public.\n\nRuns at localhost:8331.",
 		);
 	});
 });

@@ -8,6 +8,9 @@ import type { StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { streamContext, type TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import type { IStepTransport } from "./step-transport.js";
 import { RPC_REFUSED } from "@haibun/core/lib/rpc-wire.js";
+import type { TRuntime } from "@haibun/core/lib/world.js";
+import { capabilityAllows, FOLLOWS_THE_RUN } from "@haibun/core/lib/actions.js";
+import { grantedCapabilityForRequest } from "./capability-auth.js";
 
 export type TTransportRequestInfo = {
 	headers?: Record<string, string | undefined>;
@@ -38,7 +41,11 @@ export class SSETransport implements ITransport, IStepTransport {
 	/** The registry this transport dispatches through, which says which methods are reads. */
 	private registry?: StepRegistry;
 
-	constructor(webserver: IWebServer, eventLogger: IEventLogger) {
+	constructor(
+		webserver: IWebServer,
+		eventLogger: IEventLogger,
+		private readonly runtime: TRuntime,
+	) {
 		this.webserver = webserver;
 		this.eventLogger = eventLogger;
 		this.setupRoutes();
@@ -46,6 +53,9 @@ export class SSETransport implements ITransport, IStepTransport {
 
 	private setupRoutes(): void {
 		this.webserver.addRoute("get", "/sse", { description: "Server-Sent Events stream for live framework events" }, async (c) => {
+			const { granted, refused } = await grantedCapabilityForRequest({ method: c.req.method, url: c.req.url, headers: c.req.header() }, this.runtime, this.webserver.anyoneHolds);
+			if (refused) return c.json({ error: `/sse: ${refused}` }, 401);
+			if (!capabilityAllows(granted, FOLLOWS_THE_RUN)) return c.json({ error: `/sse: capability ${FOLLOWS_THE_RUN} required` }, 403);
 			this.eventLogger.debug("SSE Client connected");
 			return await streamSSE(c, async (sseStream) => {
 				// The stream announces what happens from here on. What happened before is in the graph, which a

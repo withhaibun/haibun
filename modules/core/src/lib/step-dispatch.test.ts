@@ -9,7 +9,6 @@ import {
 	discoverSteps,
 	buildFeatureStepForTransport,
 	authorizeToolCapability,
-	capabilityAllows,
 	StepRegistry,
 	type StepTool,
 } from "./step-registry.js";
@@ -24,6 +23,8 @@ import type { TWorld } from "./world.js";
 import { LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "./resources.js";
 import { SEQ_PATH_FIELD, executionOf, formatRecordName } from "./seq-path.js";
 import { streamContext } from "./step-stream-context.js";
+import { capabilityAllows } from "./actions.js";
+import { RUN_AUTHORITY, readingAt, runActingAs, runReadingAt } from "./capability-context.js";
 
 // --- Test Steppers ---
 
@@ -390,7 +391,7 @@ describe("step-dispatch", () => {
 				if (event.kind === "log") logged.push({ id: event.id, message: event.message });
 			});
 			const say = (what: string, path: number[]) =>
-				dispatchStep({ registry, world, steppers }, buildFeatureStepForTransport(tool, validateToolInput(path, tool, { what }, world), path));
+				dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, buildFeatureStepForTransport(tool, validateToolInput(path, tool, { what }, world), path));
 			await Promise.all([say("first", [0, 8, 1]), say("second", [0, 8, 2])]);
 			expect(logged.find((log) => log.message === "first")?.id, "the first step's statement names the first step").toMatch(/^0\.8\.1\.log\./);
 			expect(logged.find((log) => log.message === "second")?.id, "and the second's the second").toMatch(/^0\.8\.2\.log\./);
@@ -405,6 +406,53 @@ describe("step-dispatch", () => {
 
 			const featureStep = buildFeatureStepForTransport(tool, {}, [0, 1]);
 			await expect(dispatchStep({ registry, world, steppers }, featureStep)).rejects.toThrow(/capability CapabilityStepper:protected required/);
+		});
+
+		describe("what the caller holds", () => {
+			class Held extends AStepper {
+				steps = {
+					readsAtCeiling: { gwta: "read at the ceiling", action: async () => actionOKWithProducts({ at: readingAt() ?? "unbounded" }) },
+					describesItself: { gwta: "describe this", read: true, requiresNothing: true, action: async () => actionOKWithProducts({ described: true }) },
+				};
+			}
+			const held = () => {
+				const steppers = [new Held()];
+				const registry = new StepRegistry(steppers, world);
+				const call = (name: string, grantedCapability: string[], path: number[]) => {
+					const tool = registry.get(`Held-${name}`);
+					if (!tool) throw new Error(`Expected Held-${name} to be registered`);
+					return dispatchStep({ registry, world, steppers, grantedCapability }, buildFeatureStepForTransport(tool, {}, path));
+				};
+				return { call, fieldOf: (path: number[], field: string) => world.shared.getStore().get(formatRecordName({ execution: executionOf(world.tag), path }), field, SEQ_PATH_LABEL) };
+			};
+
+			it("refuses a step that declares nothing to a caller not holding its name, and runs one that requires nothing for anyone", async () => {
+				const { call } = held();
+				await expect(call("readsAtCeiling", [], [0, 20, 1])).rejects.toThrow(/capability Held:readsAtCeiling required/);
+				expect((await call("describesItself", [], [0, 20, 2])).products).toMatchObject({ described: true });
+			});
+
+			it("bounds what a step reads by the broadest read its caller holds, and at public for a caller holding none", async () => {
+				const { call } = held();
+				expect((await call("readsAtCeiling", ["Held:readsAtCeiling"], [0, 21, 1])).products?.at).toBe("public");
+				expect((await call("readsAtCeiling", ["Held:readsAtCeiling", "Read:opened"], [0, 21, 2])).products?.at).toBe("opened");
+				expect((await call("readsAtCeiling", RUN_AUTHORITY, [0, 21, 3])).products?.at, "the run reads everything it holds").toBe("private");
+				expect(
+					(await runReadingAt("public", () => call("readsAtCeiling", RUN_AUTHORITY, [0, 21, 4]))).products?.at,
+					"and never above a ceiling already in force",
+				).toBe("public");
+			});
+
+			it("records what a caller's step required and held and who proved it, and nothing of authority for the run's own", async () => {
+				const { call, fieldOf } = held();
+				await runActingAs("did:example:alice", () => call("readsAtCeiling", ["Held:readsAtCeiling"], [0, 22, 1]));
+				expect(await fieldOf([0, 22, 1], SEQ_PATH_FIELD.capabilityAction)).toBe("Held:readsAtCeiling");
+				expect(await fieldOf([0, 22, 1], SEQ_PATH_FIELD.allowedAction)).toBe("Held:readsAtCeiling");
+				expect(await fieldOf([0, 22, 1], LinkRelations.PERFORMED_BY.rel)).toBe("did:example:alice");
+				await call("readsAtCeiling", RUN_AUTHORITY, [0, 22, 2]);
+				expect(await fieldOf([0, 22, 2], SEQ_PATH_FIELD.capabilityAction), "the run holds everything, and its step says nothing of it").toBeUndefined();
+				expect(await fieldOf([0, 22, 2], SEQ_PATH_FIELD.allowedAction)).toBeUndefined();
+			});
 		});
 
 		it("answers a read the run did not ask for without recording it, however that read arrived, and records the read a feature states in its own body", async () => {
@@ -424,7 +472,7 @@ describe("step-dispatch", () => {
 			const overATransport = buildFeatureStepForTransport(tool, {}, [0, 9, 1]);
 			expect(overATransport.programmatic, "a transport states that the run did not ask").toBe(true);
 			let kept = world.runtime.stepResults?.length ?? 0;
-			const answered = await dispatchStep({ registry, world, steppers }, overATransport);
+			const answered = await dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, overATransport);
 			expect(answered.ok).toBe(true);
 			expect(answered.products, "the question is answered").toMatchObject({ count: 3 });
 			expect(await recordOf([0, 9, 1]), "no record of the run being read over a transport").toEqual([]);
@@ -436,7 +484,7 @@ describe("step-dispatch", () => {
 			beneathAStep.programmatic = undefined;
 			beneathAStep.isSubStep = true;
 			kept = world.runtime.stepResults?.length ?? 0;
-			await dispatchStep({ registry, world, steppers }, beneathAStep);
+			await dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, beneathAStep);
 			expect((await recordOf([0, 9, 2])).length, "a read the feature stated through a combinator is the run reading").toBeGreaterThan(0);
 			expect(world.runtime.stepResults?.length ?? 0, "and its result is the one the line reads").toBe(kept + 1);
 
@@ -444,7 +492,7 @@ describe("step-dispatch", () => {
 			const inTheFeature = buildFeatureStepForTransport(tool, {}, [0, 9, 3]);
 			inTheFeature.programmatic = undefined;
 			kept = world.runtime.stepResults?.length ?? 0;
-			const run = await dispatchStep({ registry, world, steppers }, inTheFeature);
+			const run = await dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, inTheFeature);
 			expect(run.ok).toBe(true);
 			expect((await recordOf([0, 9, 3])).length, "a read a feature states is a step of the run").toBeGreaterThan(0);
 			expect(world.runtime.stepResults?.length ?? 0, "and is kept with the run's other steps").toBe(kept + 1);
@@ -463,9 +511,9 @@ describe("step-dispatch", () => {
 			const statusOf = (path: number[]) => world.shared.getStore().get(formatRecordName({ execution: executionOf(world.tag), path }), SEQ_PATH_FIELD.actionStatus, SEQ_PATH_LABEL);
 			const stop = new AbortController();
 			stop.abort();
-			await streamContext.run({ emit: () => undefined, signal: stop.signal }, () => dispatchStep({ registry, world, steppers }, buildFeatureStepForTransport(tool, {}, [0, 3, 6])));
+			await streamContext.run({ emit: () => undefined, signal: stop.signal }, () => dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, buildFeatureStepForTransport(tool, {}, [0, 3, 6])));
 			await streamContext.run({ emit: () => undefined, signal: new AbortController().signal }, () =>
-				dispatchStep({ registry, world, steppers }, buildFeatureStepForTransport(tool, {}, [0, 3, 7])),
+				dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, buildFeatureStepForTransport(tool, {}, [0, 3, 7])),
 			);
 			expect(await statusOf([0, 3, 6]), "the stopped step's record").toBe(SEQ_PATH_STATUS.stopped);
 			expect(await statusOf([0, 3, 7]), "a step that failed on its own").toBe(SEQ_PATH_STATUS.failed);
@@ -480,7 +528,7 @@ describe("step-dispatch", () => {
 			if (!tool) throw new Error("Expected ProductStepper-getCount to be registered");
 
 			const featureStep = buildFeatureStepForTransport(tool, {}, [0, 3, 5]);
-			const result = await dispatchStep({ registry, world, steppers }, featureStep);
+			const result = await dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, featureStep);
 			expect(result.ok).toBe(true);
 
 			const store = world.shared.getStore();
@@ -508,7 +556,7 @@ describe("step-dispatch", () => {
 
 			const featureStep = buildFeatureStepForTransport(tool, {}, [0, 4, 1]);
 			featureStep.intent = { mode: "speculative" };
-			await dispatchStep({ registry, world, steppers }, featureStep);
+			await dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, featureStep);
 
 			const store = world.shared.getStore();
 			const mode = await store.get(formatRecordName({ execution: executionOf(world.tag), path: [0, 4, 1] }), SEQ_PATH_FIELD.mode, SEQ_PATH_LABEL);
@@ -523,7 +571,7 @@ describe("step-dispatch", () => {
 			if (!tool) throw new Error("Expected ProductStepper-failStep to be registered");
 
 			const featureStep = buildFeatureStepForTransport(tool, {}, [0, 9]);
-			const result = await dispatchStep({ registry, world, steppers }, featureStep);
+			const result = await dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, featureStep);
 			expect(result.ok).toBe(false);
 
 			const store = world.shared.getStore();
@@ -588,7 +636,7 @@ describe("step-dispatch", () => {
 			const tool = registry.get("ShowsAView-showIt");
 			if (!tool) throw new Error("Expected ShowsAView-showIt to be registered");
 			const featureStep = buildFeatureStepForTransport(tool, {}, [0, 7, 1]);
-			await dispatchStep({ registry, world, steppers }, featureStep);
+			await dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, featureStep);
 			const showed = await world.shared.getStore().get(formatRecordName({ execution: executionOf(world.tag), path: [0, 7, 1] }), SEQ_PATH_FIELD.showed, SEQ_PATH_LABEL);
 			expect(showed, "what the step showed, which is what a document embeds it by").toBe("test-view");
 		});
@@ -678,7 +726,7 @@ describe("step-dispatch", () => {
 			if (!tool) throw new Error("Expected IssuerStepper-issueDemoCredential to be registered");
 
 			const featureStep = buildFeatureStepForTransport(tool, {}, [0, 1]);
-			const result = await dispatchStep({ registry, world, steppers }, featureStep);
+			const result = await dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, featureStep);
 			expect(result.ok).toBe(true);
 
 			const products = result.products as Record<string, unknown>;
@@ -709,7 +757,7 @@ describe("step-dispatch", () => {
 			if (!tool) throw new Error("Expected IsolatedStepper-produce to be registered");
 
 			const featureStep = buildFeatureStepForTransport(tool, {}, [0, 1]);
-			const result = await dispatchStep({ registry, world, steppers }, featureStep);
+			const result = await dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, featureStep);
 			expect(result.ok).toBe(true);
 
 			const products = result.products as Record<string, unknown>;
@@ -747,7 +795,7 @@ describe("step-dispatch", () => {
 			if (!tool) throw new Error("Expected VertexRefStepper-produceVc to be registered");
 
 			const featureStep = buildFeatureStepForTransport(tool, {}, [0, 1]);
-			const result = await dispatchStep({ registry, world, steppers }, featureStep);
+			const result = await dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, featureStep);
 			expect(result.ok).toBe(true);
 
 			const products = result.products as Record<string, unknown>;
@@ -779,7 +827,7 @@ describe("step-dispatch", () => {
 			if (!tool) throw new Error("Expected IdlessStepper-produce to be registered");
 
 			const featureStep = buildFeatureStepForTransport(tool, {}, [0, 1]);
-			const result = await dispatchStep({ registry, world, steppers }, featureStep);
+			const result = await dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, featureStep);
 			expect(result.ok).toBe(true);
 
 			const products = result.products as Record<string, unknown>;

@@ -9,6 +9,7 @@ import { discoverInstance, RpcClient } from "@haibun/core/lib/rpc-client.js";
 import type { TRequestSigner } from "@haibun/core/lib/authority-types.js";
 import { AUTHORITY_CAPABILITIES } from "@haibun/core/steps/authority-stepper.js";
 import { RPC_METHOD } from "./consts.js";
+import { readAction } from "@haibun/core/lib/actions.js";
 import type { AccessLevel } from "@haibun/core/lib/resources.js";
 import type { TCluster, TClusteredQuads, TFederatedGraphSource, TQuad } from "@haibun/core/lib/quad-types.js";
 
@@ -56,7 +57,8 @@ export class RemoteGraphSource implements TFederatedGraphSource {
 			scope: "own",
 			...(opts.types ? { types: JSON.stringify(opts.types) } : {}),
 		};
-		const result = await this.rpc.call<TClusteredQuads>(RPC_METHOD.CLUSTERED_QUADS, params, []);
+		// A read at a level is invoked as one, under a delegation from the peer that allows reading at it.
+		const result = await this.rpc.call<TClusteredQuads>(RPC_METHOD.CLUSTERED_QUADS, params, [], { action: readAction(opts.accessLevel) });
 		if (typeof (result as { error?: unknown }).error === "string")
 			throw new Error(`RemoteGraphSource: getClusteredQuads failed at ${this.config.url}: ${(result as { error: string }).error}`);
 		const r = result as TClusteredQuads;

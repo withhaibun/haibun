@@ -25,12 +25,14 @@ import nodeFS from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { VERIFIED_FILE } from "@haibun/core/lib/util/node/dependency-state.js";
+import { RUN_AUTHORITY, runAuthorizedWith } from "@haibun/core/lib/capability-context.js";
+import { SUPERVISOR_CAPABILITIES } from "./instance-stepper.js";
 
 type TResult = { ok: boolean; errorMessage?: string; products?: { run: string; status: string; endpoint: string } };
 
-/** Stands in for the CLI's run supervisor, under the name the agent calls: the agent reaches it by dispatching a step,
- *  so what is exercised here is the call the real supervisor answers, not an opening made for the test. It answers a
- *  fixed tail so a read is deterministic. */
+/** Stands in for the CLI's run supervisor, under the name the agent calls and requiring what it requires: the agent
+ *  reaches it by dispatching a step, so what is exercised here is the call the real supervisor answers, not an opening
+ *  made for the test. It answers a fixed tail so a read is deterministic. */
 class InstanceStepper extends AStepper {
 	calls: Array<{ step: string; input: Record<string, unknown> }> = [];
 	ended: number | null = null;
@@ -39,6 +41,7 @@ class InstanceStepper extends AStepper {
 	steps = {
 		startRun: {
 			gwta: `start a haibun run of {where} matching {filter} from {from} on port {port: number} as run {run} host {hostId: number}`,
+			capability: SUPERVISOR_CAPABILITIES.run,
 			action: (input: { where: string; filter: string; from: string; port: number; run: string; hostId: number }) => {
 				this.calls.push({ step: "startRun", input });
 				return Promise.resolve(actionOKWithProducts({ run: input.run, where: input.where, filter: input.filter }));
@@ -46,6 +49,7 @@ class InstanceStepper extends AStepper {
 		},
 		readRun: {
 			gwta: `read the haibun run {run} since {cursor: number}`,
+			capability: SUPERVISOR_CAPABILITIES.read,
 			action: (input: { run: string; cursor: number }) => {
 				this.calls.push({ step: "readRun", input });
 				const status = this.ended === null ? "running" : "ended";
@@ -73,6 +77,7 @@ class InstanceStepper extends AStepper {
 		},
 		waitRun: {
 			gwta: `wait for the haibun run {run} to end within {seconds: number} seconds`,
+			capability: SUPERVISOR_CAPABILITIES.read,
 			action: (input: { run: string; seconds: number; cursor: number }) => {
 				this.calls.push({ step: "waitRun", input });
 				return this.steps.readRun.action({ run: input.run, cursor: input.cursor });
@@ -80,6 +85,7 @@ class InstanceStepper extends AStepper {
 		},
 		stopRun: {
 			gwta: `stop the haibun run {run}`,
+			capability: SUPERVISOR_CAPABILITIES.stop,
 			action: (input: { run: string }) => {
 				this.calls.push({ step: "stopRun", input });
 				return Promise.resolve(actionOKWithProducts({ run: input.run }));
@@ -114,11 +120,14 @@ function harness({ supervised = true, standing = false }: { supervised?: boolean
 	for (const s of steppers) void s.setWorld(world, steppers);
 	// The run's registry, as the executor opens it, which a step calls another step through.
 	openRunRegistry(world, steppers);
-	const run = (where: string, filter: string) => (stepper.steps.runTest.action as (a: { where: string; filter: string }) => Promise<TResult>)({ where, filter });
-	const read = () => (stepper.steps.readTestRun.action as () => Promise<TResult & { products?: Record<string, string> }>)();
-	const stop = () => (stepper.steps.stopTestRun.action as () => Promise<TResult>)();
-	const waitFor = (seconds: number) => (stepper.steps.awaitTestRun.action as (a: { seconds: number }) => Promise<TResult & { products?: Record<string, string> }>)({ seconds });
-	return { stepper, supervisor, written, run, read, stop, waitFor };
+	// The agent's steps are taken as the run takes them, holding what the supervisor's steps require.
+	const asRun = <T>(step: () => Promise<T>) => runAuthorizedWith(RUN_AUTHORITY, step);
+	const run = (where: string, filter: string) => asRun(() => (stepper.steps.runTest.action as (a: { where: string; filter: string }) => Promise<TResult>)({ where, filter }));
+	const read = () => asRun(() => (stepper.steps.readTestRun.action as () => Promise<TResult & { products?: Record<string, string> }>)());
+	const stop = () => asRun(() => (stepper.steps.stopTestRun.action as () => Promise<TResult>)());
+	const waitFor = (seconds: number) =>
+		asRun(() => (stepper.steps.awaitTestRun.action as (a: { seconds: number }) => Promise<TResult & { products?: Record<string, string> }>)({ seconds }));
+	return { stepper, supervisor, written, asRun, run, read, stop, waitFor };
 }
 
 describe("the test-runner agent's limits", () => {
@@ -224,7 +233,7 @@ describe("watching a run", () => {
 	});
 
 	it("runs every feature in a base when asked for all of them, rather than by an empty name", async () => {
-		await (h.stepper.steps.runAllTests.action as (a: { where: string }) => Promise<TResult>)({ where: "tests" });
+		await h.asRun(() => (h.stepper.steps.runAllTests.action as (a: { where: string }) => Promise<TResult>)({ where: "tests" }));
 		expect(h.supervisor.calls.find((c) => c.step === "startRun")?.input.filter).toBe("");
 	});
 
@@ -369,7 +378,7 @@ describe("what a finished run's record says about it", () => {
 			const graph = buildDomainChain([stepper as never], domains);
 			const producers = graph.edges.filter((e) => e.to === "feature-execution").map((e) => e.stepName);
 			expect(producers, "both ways of starting a run produce the record").toEqual(expect.arrayContaining(["runTest", "runAllTests"]));
-			const resolved = resolveGoal("feature-execution", { graph, facts: [], capabilities: new Set(["Instance:run"]) });
+			const resolved = resolveGoal("feature-execution", { graph, facts: [], held: ["Instance:run"] });
 			expect(resolved.finding, "a michi is the way there").toBe(GOAL_FINDING.MICHI);
 			const steps = "michi" in resolved ? resolved.michi.flatMap((m) => m.steps.map((s) => s.stepName)) : [];
 			expect(steps).toContain("runTest");

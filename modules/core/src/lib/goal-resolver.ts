@@ -8,8 +8,8 @@
  *
  * Anti-drift invariants:
  *   - Single source of truth: consumes the same TDomainChainGraph dispatch traverses.
- *   - Capabilities required: caller must pass a granted-capability set; resolver
- *     filters producer steps by it. No optimistic assumptions.
+ *   - What the caller holds is required: the resolver filters producer steps by it,
+ *     and refuses to search without it. No optimistic assumptions.
  *   - Cycle protection mandatory: visited set + depth limit; cycles return unreachable.
  *   - Plans are advisory, never auto-executed: this module is pure search; a separate
  *     "run plan" step runs the chain.
@@ -18,6 +18,7 @@ import { SOURCE_DOMAIN, type TDomainChainGraph, type TDomainChainStep } from "./
 import type { TQuad } from "./quad-types.js";
 import { getCompositeFields, zodTypeLabel, type TCompositeField } from "./composite-domain.js";
 import type { TRegisteredDomain } from "./resources.js";
+import { capabilityAllows } from "./actions.js";
 
 export type TPlanStep = {
 	stepperName: string;
@@ -113,7 +114,8 @@ export type TGoalResolution =
 export interface TResolverInputs {
 	graph: TDomainChainGraph;
 	facts: TQuad[];
-	capabilities: ReadonlySet<string>;
+	/** What the caller holds, as dispatch reads it: a producer it may not run is no way to the goal. */
+	held: string | string[] | undefined;
 	depthLimit?: number;
 	/** Per-field filters over the goal fact's object. */
 	where?: Record<string, TShibari | unknown>;
@@ -188,12 +190,12 @@ export function resolveGoal(goal: string, inputs: TResolverInputs): TGoalResolut
  * resolver cannot operate with an accurate result; undefined when it's safe to proceed.
  */
 function checkResolverInvariants(inputs: TResolverInputs, goal: string): TGoalResolution | undefined {
-	if (!inputs.capabilities) {
+	if (inputs.held === undefined) {
 		return {
 			finding: GOAL_FINDING.REFUSED,
 			goal,
 			refusalReason: REFUSAL_REASON.CAPABILITY_CONTEXT_REQUIRED,
-			detail: "resolver requires an explicit capability set; pass an empty Set if the caller has none",
+			detail: "the resolver searches for what a caller may run, so it requires what the caller holds; pass an empty list for a caller that holds nothing",
 		};
 	}
 	const anonymous = inputs.graph.steps.filter((s) => s.outputDomains.length === 0 && producesAnything(s));
@@ -300,7 +302,7 @@ function enumerate(
 			truncated = true;
 			break;
 		}
-		if (step.capability && !inputs.capabilities.has(step.capability)) continue;
+		if (step.capability && !capabilityAllows(inputs.held, step.capability)) continue;
 
 		const inputMichi: TMichi[][] = [];
 		let anyDead = false;

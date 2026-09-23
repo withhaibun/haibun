@@ -1,16 +1,21 @@
 // @vitest-environment jsdom
 /**
- * What a reader is told about their own authority: the actions they hold, where what they hold is recorded, and who this
- * deployment knows.
+ * What a reader is told about their own authority: the key their page signs as, the actions delegated to it, where each
+ * was recorded, and who this deployment knows.
  */
 import { describe, it, expect, vi } from "vitest";
 import { ShuPermissions, type TPermissionsSummary } from "./shu-permissions.js";
+import { ShuPageKey } from "./shu-page-key.js";
 import { AuthorityController, type TAuthority } from "../controllers/index.js";
 
 if (!customElements.get("shu-permissions")) customElements.define("shu-permissions", ShuPermissions);
+if (!customElements.get("shu-page-key")) customElements.define("shu-page-key", ShuPageKey);
 
+const PAGE = "did:key:zDnaePage";
 const held: TAuthority = {
+	controller: PAGE,
 	holds: ["Instance:read", "comment.grant"],
+	grantedBy: {},
 	principals: [{ id: "did:site:0" }, { id: "did:site:0:kihan-session" }],
 };
 
@@ -35,19 +40,21 @@ describe("what a reader may do here", () => {
 		expect(el.shadowRoot?.textContent, "and the rest of them").toContain("comment.grant");
 	});
 
-	it("opens what a reader holds as the record of it, which leads on to what that was granted from", async () => {
-		// A deployment that records what it issues tells the reader where: the action is then a way into that record,
-		// rather than a word naming authority whose origin the reader cannot reach.
-		const el = await mounted({ ...held, heldAs: { persistedAs: "Capability", id: "urn:uuid:session-delegation" } });
-		const link = Array.from(el.shadowRoot?.querySelectorAll("shu-ref") ?? []).find((r) => r.getAttribute("text") === "Instance:read");
-		expect(link?.getAttribute("kind"), "the ordinary way a record opens here").toBe("entity");
-		expect(link?.getAttribute("linkTarget"), "the delegation the reader acts under").toContain("urn:uuid:session-delegation");
-		expect(refTexts(el, "entity"), "and every action it holds leads there, since one delegation granted them all").toEqual(
-			expect.arrayContaining(["Instance:read", "comment.grant"]),
-		);
+	it("shows the key this page signs as, which is what a holder delegates to", async () => {
+		const el = await mounted();
+		expect(el.shadowRoot?.querySelector("shu-page-key")?.getAttribute("controller")).toBe(PAGE);
 	});
 
-	it("names an action nothing here recorded, rather than offering a way to nowhere", async () => {
+	it("opens what a reader holds as the record of the delegation that granted it, which leads on to what that was delegated from", async () => {
+		const delegation = { persistedAs: "Capability", id: "urn:uuid:page-delegation" };
+		const el = await mounted({ ...held, grantedBy: { "Instance:read": delegation, "comment.grant": delegation } });
+		const link = Array.from(el.shadowRoot?.querySelectorAll("shu-ref") ?? []).find((r) => r.getAttribute("text") === "Instance:read");
+		expect(link?.getAttribute("kind"), "the ordinary way a record opens here").toBe("entity");
+		expect(link?.getAttribute("linkTarget"), "the delegation the reader acts under").toContain("urn:uuid:page-delegation");
+		expect(refTexts(el, "entity"), "and every action it holds leads there").toEqual(expect.arrayContaining(["Instance:read", "comment.grant"]));
+	});
+
+	it("names an action nothing here recorded, such as what anyone holds, rather than offering a way to nowhere", async () => {
 		const el = await mounted();
 		expect(refTexts(el), "no record accounts for what it holds").not.toContain("comment.grant");
 		expect(el.shadowRoot?.textContent, "so it is stated plainly instead").toContain("comment.grant");
@@ -87,9 +94,9 @@ describe("what a reader may do here", () => {
 		expect(copy?.source, "and it can be taken away as text").toBe("graphQuery: step not registered");
 	});
 
-	it("says plainly when this page was given no credential", async () => {
-		const el = await mounted({ holds: [], principals: [] });
-		expect(el.shadowRoot?.textContent).toContain("gave this page no credential");
+	it("says plainly when nothing was delegated to this page's key", async () => {
+		const el = await mounted({ controller: PAGE, holds: [], grantedBy: {}, principals: [] });
+		expect(el.shadowRoot?.textContent).toContain("nothing was delegated to this page's key");
 	});
 });
 

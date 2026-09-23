@@ -10,6 +10,7 @@ import { populateActionArgs } from "./populateActionArgs.js";
 import { DOMAIN_STRING, normalizeDomainKey } from "./domains.js";
 import { zodTypeLabel } from "./composite-domain.js";
 import { isPersisted } from "./resources.js";
+import { capabilityAllows, requiredAction } from "./actions.js";
 import { resolveOutputSchema } from "./tool-validation.js";
 import {
 	STEP_DETAIL,
@@ -202,7 +203,7 @@ export function createStepTool(stepper: AStepper, stepName: string, stepDef: TSt
 			description: stepDef.description,
 			paramDomains: Object.fromEntries(paramDomainKeys),
 			productsDomain: stepDef.productsDomain,
-			capability: stepDef.capability,
+			capability: requiredAction(stepperName, stepName, stepDef),
 			read: stepDef.read === true,
 			fallback: stepDef.fallback === true,
 			answersTheTurn: stepDef.answersTheTurn === true,
@@ -376,17 +377,6 @@ function buildInputSchema(stepDef: TStepperStep, world: TWorld): { inputSchema: 
 		paramSchemas,
 		paramDomainKeys,
 	};
-}
-
-export function capabilityAllows(granted: string | string[] | undefined, required: string): boolean {
-	if (!granted) return false;
-	const grantedValues = Array.isArray(granted) ? granted : [granted];
-	return grantedValues.some((entry) => {
-		if (entry === "*" || entry === required) return true;
-		if (!entry.endsWith("*")) return false;
-		const prefix = entry.slice(0, -1);
-		return required.startsWith(prefix);
-	});
 }
 
 export function authorizeToolCapability(step: Pick<TStepDescriptor, "method" | "capability">, granted?: string | string[]): void {

@@ -8,12 +8,8 @@ import { fileURLToPath } from "url";
 import { gzipSync } from "node:zlib";
 import { z } from "zod";
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
-import { objectCoercer } from "@haibun/core/lib/domains.js";
-import { presentedKeySchema, sessionCredentialSchema, type TPresentedKey } from "./session-schema.js";
 import { actionOK, actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption, intOrError } from "@haibun/core/lib/util/index.js";
 import type { TDeploymentSettings } from "./rpc-registry.js";
-import { getAuthority } from "@haibun/core/lib/session-authority.js";
-import { currentRequestBaseIri } from "@haibun/core/lib/request-context.js";
 import { getJsonLdContext } from "@haibun/core/lib/hypermedia.js";
 import { Access, haibunNsForHost, isPersisted } from "@haibun/core/lib/resources.js";
 import { requestBaseIri } from "@haibun/core/lib/request-context.js";
@@ -173,22 +169,6 @@ function createSpaHandler(basePath: string, settings: TDeploymentSettings) {
 	};
 }
 
-/** How long a reader's credential holds. A session is a sitting, not a standing grant, so it lapses on its own. */
-const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
-
-/** The key a reader presents, as a declared domain: what the issuing step requires is in its own declaration, so the
- *  step listing and the generated input form carry it rather than the step checking a shape it never stated. */
-export const DOMAIN_PRESENTED_KEY = "presented-key";
-
-/** The actions SESSION_CAPABILITY names, read from what the deployment wrote. One reader, used by the option's own
- *  check and by the serving, so what is accepted at boot and what is issued at serve cannot differ. */
-export function sessionActions(declared: string | undefined): string[] {
-	return (declared ?? "")
-		.split(",")
-		.map((action) => action.trim())
-		.filter((action) => action.length > 0);
-}
-
 // The graph view's bundled IIFE, under build/assets/ so tsc's per-file ESM emit cannot clobber it. Anchored at the
 // package root so one path resolves whether this runs from `src/` or `build/`, and cached by mtime so a rebuilt
 // bundle is served on the next request.
@@ -218,7 +198,6 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 
 	async setWorld(world: TWorld, steppers: AStepper[]): Promise<void> {
 		await super.setWorld(world, steppers);
-		this.sessionCapability = getStepperOption(this, "SESSION_CAPABILITY", world.moduleOptions) as string | undefined;
 		const timing = (option: string): number | undefined => {
 			const set = getStepperOption(this, option, world.moduleOptions);
 			return set === undefined ? undefined : Number(set);
@@ -226,29 +205,6 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 		const streamReconnectAfterMs = timing("STREAM_RECONNECT_AFTER_MS");
 		const responseTimeoutMs = timing("RESPONSE_TIMEOUT_MS");
 		this.settings = { ...(streamReconnectAfterMs === undefined ? {} : { streamReconnectAfterMs }), ...(responseTimeoutMs === undefined ? {} : { responseTimeoutMs }) };
-	}
-
-	/**
-	 * The credential a reader acts under, issued to a key that reader controls. The page proves control by signing what
-	 * it asks; nothing secret is sent either way. What it may do is what the deployment declared, and it lapses with
-	 * the session, so a page left open stops being able to act rather than holding authority for as long as it is open.
-	 *
-	 * What comes back is a proof, not a secret: the keyId names the reader's key so its signatures resolve, and is not
-	 * kept anywhere it could be presented as authority in its own right. The session is not filed as a bearer grant,
-	 * because the grants listing is what a bearer token resolves through, and the keyId is public: it rides every
-	 * signed request and is written into the credential's own record. A reader's authority is the key it holds, proven
-	 * per request, and nothing a third party can read stands in for it.
-	 */
-	private async sessionCredentialFor(holderKey: Record<string, unknown>, target: string): Promise<Record<string, unknown>> {
-		// A deployment that declares nothing gives a reader nothing, which is an answer rather than a fault: what a
-		// reader may do there needs no authority, so there is nothing to issue and nothing for a page to sign with.
-		const allowedAction = sessionActions(this.sessionCapability);
-		if (allowedAction.length === 0) return { allowedAction };
-		const authority = getAuthority(this.getWorld().runtime);
-		if (!authority) throw new Error("session credential: this run has no authority to issue from (load an authority stepper)");
-		const expires = new Date(Date.now() + SESSION_TTL_MS).toISOString();
-		const { credential, keyId, record } = await authority.issueCredential({ holderKey, allowedAction, expires, target });
-		return { keyId, credential, allowedAction, expires, record };
 	}
 
 	cycles = {
@@ -259,12 +215,6 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 		},
 		getConcerns: () => ({
 			domains: [
-				{
-					selectors: [DOMAIN_PRESENTED_KEY],
-					schema: presentedKeySchema,
-					coerce: objectCoercer(presentedKeySchema),
-					description: "The public half of a key a reader's page controls, as a JSON Web Key",
-				},
 				// Built-in shu views, registering them as domains makes them discoverable
 				// via `show views` (the picker iterates domains with `ui.component`).
 				// External steppers register their own view domains the same way.
@@ -308,7 +258,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 		}),
 	};
 
-	/** What a deployment sets for the app this stepper serves: the timings its page applies, and what a reader may do. */
+	/** What a deployment sets for the app this stepper serves: the timings its page applies. */
 	options = {
 		RESPONSE_TIMEOUT_MS: {
 			desc: "How long a call to this site may take before the page reads it as not answering and reads what the device holds, in milliseconds. Unset, the page allows what the product carries",
@@ -318,43 +268,12 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 			desc: "How long after the event stream breaks the page opens it again, in milliseconds. Unset, the page opens it on the interval the subscriber carries",
 			parse: (input: string) => intOrError(input),
 		},
-		/**
-		 * What a reader of the served app may do, as actions the deployment declares. A reader is issued a credential
-		 * holding them, bound to a key its own page controls, so whoever can reach the issuing step is given them: this is
-		 * for a deployment that answers to its own readers (a session behind the site's own sign-in), not for an open
-		 * port. Unset, nothing is issued and a reader can do only what needs no authority.
-		 */
-		SESSION_CAPABILITY: {
-			// One process's own: a run this one starts serves its own app, from its own authority, and a session this run
-			// issued means nothing there. Inherited, a child that has no authority to issue from failed at boot.
-			perProcess: true,
-			desc: "Actions a reader of the served app may take, comma-separated (a reader is issued a credential holding them, bound to a key its page controls). Unset, nothing is issued",
-			parse: (input: string) => (sessionActions(input).length > 0 ? { result: input } : { parseError: "SESSION_CAPABILITY: name at least one action, comma-separated" }),
-		},
 	};
-	/** SESSION_CAPABILITY as the deployment wrote it; `sessionActions` reads the actions out of it. */
-	private sessionCapability?: string;
 	/** The timings this deployment set, written into every page it serves. A deployment that sets neither serves a page
 	 *  that runs on the values the product carries. */
 	private settings: TDeploymentSettings = {};
 
 	steps = {
-		/**
-		 * A reader's page presents the key it controls and receives what it may act with. This is the one interaction
-		 * that cannot happen while the app is being served: the key is made in the page, after the page has loaded.
-		 */
-		issueSessionCredential: {
-			gwta: `issue a session credential for the presented key {holderKey: ${DOMAIN_PRESENTED_KEY}}`,
-			inputDomains: { holderKey: DOMAIN_PRESENTED_KEY },
-			productsSchema: sessionCredentialSchema,
-			action: async ({ holderKey }: { holderKey: TPresentedKey }) => {
-				// What the reader is given authority over is the instance it is talking to, so every address it asks of is
-				// under what it holds, and a credential cannot be carried to another instance.
-				const target = currentRequestBaseIri();
-				if (!target) return actionNotOK("issue a session credential: this was not asked over a request, so there is no instance to be given authority over");
-				return actionOKWithProducts(await this.sessionCredentialFor(holderKey as Record<string, unknown>, target));
-			},
-		},
 		serveShuApp: {
 			gwta: "serve shu app at {path: string}",
 			action: ({ path }: { path: string }) => {
@@ -362,9 +281,9 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 				if (!webserver) return actionNotOK("webserver not available, load web-server-stepper before shu");
 				const pathError = validateMountPath(path);
 				if (pathError) return actionNotOK(pathError);
-				// The page boots with an empty payload and no credential: it makes its own key after loading and asks
-				// issueSessionCredential for what this deployment lets a reader act under.
-				webserver.addRoute("get", path, { description: `Shu SPA mounted at ${path}` }, createSpaHandler(path, this.settings));
+				// The page boots with an empty payload: it keeps its own key, and reads what was delegated to it here. What
+				// anyone holds here is the web server's to say, and the page is told it so it knows what it may do unsigned.
+				webserver.addRoute("get", path, { description: `Shu SPA mounted at ${path}` }, createSpaHandler(path, { ...this.settings, anyoneHolds: [...webserver.anyoneHolds] }));
 				const domains = this.getWorld().domains;
 				// The context varies only by serving host, drawn from a tiny set of origins, build it once per host.
 				const byHost = new Map<string, Record<string, unknown>>();

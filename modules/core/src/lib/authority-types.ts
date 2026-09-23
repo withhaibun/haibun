@@ -18,51 +18,28 @@ export type TAuthorityEvidence =
 	| { kind: "request"; method: string; url: string; headers: Record<string, string | undefined>; body?: string };
 
 /**
- * Decides whether evidence supports what it claims, and says what it supports. A consumer registers one for the
- * specification its deployment uses; the framework holds no signing key and reads no proof itself.
+ * What was delegated to a controller: the signed documents it presents, as the specification writes them, and the type
+ * the deployment records each as, under the document's own `id`, so a holder can open what it acts under.
+ */
+export type TDelegations = { delegations: Record<string, unknown>[]; recordedAs?: string };
+
+/** The step a key reads what was delegated to it with, which requires nothing: core's AuthorityStepper's `delegationsTo`. */
+export const DELEGATIONS_READ_METHOD = "AuthorityStepper-delegationsTo";
+
+/**
+ * Decides whether evidence supports what it claims, and says what it supports: for a request, everything the delegation
+ * it presents allows, the action it invokes among them. It also answers what this deployment delegated to a controller
+ * and hasn't revoked, which a key reads before it holds anything. A consumer registers one for the specification its
+ * deployment uses; the framework holds no signing key and reads no proof itself.
  */
 export interface IAuthorityVerifier {
 	verify(evidence: TAuthorityEvidence): Promise<{ ok: boolean; error?: string; principal?: string; allowedAction?: string[] }>;
+	delegationsTo(controller: string): Promise<TDelegations>;
 }
 
-/**
- * What a holder is asking to be given: a key it controls, the actions it may exercise with what it is given, and when
- * that lapses. The issuer registered for the deployment's specification decides what form the credential takes.
- */
-export type TCredentialRequest = {
-	/** The public half of the key the holder controls, as a JSON Web Key. The holder keeps the other half and sends it
-	 *  nowhere; what form a credential names this key in is the issuing specification's business. */
-	holderKey: Record<string, unknown>;
-	/** What the credential allows, which is what the deployment declared this kind of holder may do. */
-	allowedAction: string[];
-	/** ISO 8601: authority that never lapses is authority nobody can withdraw by waiting. */
-	expires: string;
-	/** What the credential is over, so a holder cannot exercise it against something else. */
-	target: string;
-};
-
-/** What an issuer answers with: the credential, the identifier of the key it names (what the holder signs as), and
- *  the principal it names as holding it (who acted, when a signature under that key is accepted). `record` is where
- *  the deployment wrote what it issued, when it keeps one: a holder can then reach what it acts under and read how it
- *  came to hold it, rather than holding a document that exists nowhere else. What kind of record that is belongs to
- *  the deployment, so it is named as a type and an identifier and read no further here. */
-export type TIssuedCredential = {
-	credential: Record<string, unknown>;
-	keyId: string;
-	controller: string;
-	record?: { persistedAs: string; id: string };
-};
-
-/**
- * Issues a credential to a holder that proves control of a key. A consumer registers one for the specification its
- * deployment uses; the framework holds no signing key and writes no proof itself.
- */
-export interface IAuthorityIssuer {
-	issue(request: TCredentialRequest): Promise<TIssuedCredential>;
-}
-
-/** A request this process makes, as it is sent: what a signature over it covers. */
-export type TOutgoingRequest = { method: string; url: string; headers: Record<string, string>; body: string };
+/** A request this process makes, as it is sent: what a signature over it covers. A request with no body, such as a GET,
+ *  carries none. */
+export type TOutgoingRequest = { method: string; url: string; headers: Record<string, string>; body?: string };
 
 /** Signs a request that invokes `action` at the far side, answering the headers the request is sent with. */
 export type TRequestSigner = (request: TOutgoingRequest, action: string) => Promise<Record<string, string>>;
@@ -77,15 +54,14 @@ export interface IAuthorityInvoker {
 }
 
 /**
- * The authority a process holds: whatever verifier a consumer registered for evidence that comes from outside it,
- * whatever issuer a consumer registered to give a holder something to present, and whatever invoker a consumer
- * registered to present authority this process holds elsewhere.
+ * The authority a process holds: whatever verifier a consumer registered for evidence that comes from outside it, and
+ * whatever invoker a consumer registered to present authority this process holds elsewhere.
  */
 export interface IAuthority {
 	registerVerifier(verifier: IAuthorityVerifier): void;
-	registerIssuer(issuer: IAuthorityIssuer): void;
-	issueCredential(request: TCredentialRequest): Promise<TIssuedCredential>;
 	registerInvoker(invoker: IAuthorityInvoker): void;
+	/** What was delegated here to a controller: none, where nothing is registered that could verify a delegation. */
+	delegationsTo(controller: string): Promise<TDelegations>;
 	signRequest: TRequestSigner;
 	/** Whether anything is registered to decide evidence at all, so a boundary reading a request knows to ask. */
 	hasVerifier(): boolean;

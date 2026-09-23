@@ -1,15 +1,17 @@
 /**
- * sse-subscriber: EventSource client shared by every consumer of a
- * haibun host's /sse event stream.
+ * sse-subscriber: the client shared by every consumer of a haibun host's
+ * /sse event stream.
  *
  * Browser SPAs connect to their own origin's /sse; Node-side peers
  * connect to another host's /sse. Both need the same primitives: open,
  * dispatch parsed events to listeners, reconnect on error with backoff,
  * filter subscriptions, close cleanly. This class centralises that.
  *
- * Transport-agnostic within the EventSource contract: the caller
- * supplies the URL; whether it resolves to the same origin or a
- * remote host is the caller's concern.
+ * The stream is read with fetch rather than EventSource, because a host's
+ * stream requires authority and a request proves it in headers an
+ * EventSource cannot send. The caller supplies the URL and the headers
+ * each connection is asked for with; whether the URL is the same origin
+ * or a remote host, and what the headers prove, is the caller's concern.
  *
  * The SSE message format this subscriber decodes is the one
  * web-server-hono's SSETransport emits: each `message` event's
@@ -38,9 +40,6 @@ import { failFastOrLog } from "./dev-mode.js";
 
 type EventHandler = (event: THaibunEvent) => void;
 type EventFilter = (event: THaibunEvent) => boolean;
-
-// biome-ignore lint/suspicious/noExplicitAny: EventSource is a DOM/Node global that may be polyfilled.
-type EventSourceCtor = new (url: string) => any;
 
 /** Default cap for the per-subscriber replay buffer. Overrideable via SseSubscriberConfig. */
 export const REPLAY_BUFFER_LIMIT_DEFAULT = 5000;
@@ -106,11 +105,11 @@ export type SseSubscriberConfig = {
 	url: string;
 	/** Reconnect delay on error, in ms. Default 2000. */
 	reconnectDelayMs?: number;
-	/**
-	 * Override the EventSource constructor. Defaults to globalThis.EventSource.
-	 * Tests inject a mock; Node consumers can pass undici's or a polyfill.
-	 */
-	EventSourceCtor?: EventSourceCtor;
+	/** The headers each connection is asked for with, made anew for each, since a proof covers the one request it is sent
+	 *  with. Absent, the stream is asked for with none. */
+	headers?: (url: string) => Promise<Record<string, string>>;
+	/** The fetch the stream is read with. Defaults to globalThis.fetch. */
+	fetchImpl?: typeof fetch;
 	/** Short tag included in log lines to distinguish multiple subscribers. */
 	clientId?: string;
 	/** Cap for the per-subscriber replay buffer. Defaults to REPLAY_BUFFER_LIMIT_DEFAULT. */
@@ -120,10 +119,11 @@ export type SseSubscriberConfig = {
 export class SseSubscriber {
 	private readonly url: string;
 	private readonly reconnectDelayMs: number;
-	private readonly EventSourceCtor: EventSourceCtor;
+	private readonly headers?: (url: string) => Promise<Record<string, string>>;
+	private readonly fetchImpl: typeof fetch;
 	private readonly clientId: string;
-	// biome-ignore lint/suspicious/noExplicitAny: dynamic
-	private source: any | null = null;
+	/** Stops the connection being read, or null where none is open or opening. */
+	private reading: AbortController | null = null;
 	private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 	private readonly listeners: { handler: EventHandler; filter?: EventFilter }[] = [];
 	private closed = false;
@@ -143,55 +143,76 @@ export class SseSubscriber {
 	constructor(config: SseSubscriberConfig) {
 		this.url = config.url;
 		this.reconnectDelayMs = config.reconnectDelayMs ?? 2000;
-		const ctor = config.EventSourceCtor ?? (globalThis as { EventSource?: EventSourceCtor }).EventSource;
-		if (!ctor) {
-			throw new Error("SseSubscriber: no EventSource constructor available (set SseSubscriberConfig.EventSourceCtor)");
-		}
-		this.EventSourceCtor = ctor;
+		this.headers = config.headers;
+		this.fetchImpl = config.fetchImpl ?? ((input, init) => globalThis.fetch(input, init));
 		this.clientId = config.clientId ?? `sse-${Math.random().toString(36).slice(2, 8)}`;
 		this.replayBuffer = new ReplayBuffer(config.replayBufferLimit ?? REPLAY_BUFFER_LIMIT_DEFAULT);
 	}
 
 	/** Open the stream. Subsequent subscribe/close calls operate on this connection. Idempotent. */
 	connect(): void {
-		if (this.closed) return;
-		if (this.source) return;
+		if (this.closed || this.reading) return;
 		if (this.connectedAt === null) this.connectedAt = Date.now();
-		this.source = new this.EventSourceCtor(this.url);
-		this.source.onopen = () => {
-			this.open = true;
-			this.notify(this.openListeners, "opening");
-			if (!this.broken) return;
-			this.broken = false;
-			this.notify(this.reconnectListeners, "reconnection");
-		};
-		this.source.onmessage = (sseEvent: { data: string }) => {
-			let msg: Record<string, unknown>;
-			try {
-				msg = JSON.parse(sseEvent.data);
-			} catch {
-				this.dispatch({ raw: sseEvent.data } as unknown as THaibunEvent);
+		const reading = new AbortController();
+		this.reading = reading;
+		void this.read(reading);
+	}
+
+	/** Read one connection until it ends, then treat its end as a break: a host's stream stays open while the host runs. */
+	private async read(reading: AbortController): Promise<void> {
+		try {
+			const headers = { accept: "text/event-stream", ...(await this.headers?.(this.url)) };
+			const res = await this.fetchImpl(this.url, { headers, signal: reading.signal });
+			// A refusal is the host's answer about this caller, which asking again will not change: the stream is down, and
+			// stays down until whoever follows it holds what following it takes.
+			if (res.status === 401 || res.status === 403) {
+				this.broke(false);
 				return;
 			}
-			// web-server-hono wraps events as { type: "event", event: {...} };
-			// un-wrap when present, pass through otherwise. Server-side already validated against the schema.
-			this.dispatch(msg.type === "event" && msg.event ? (msg.event as THaibunEvent) : (msg as unknown as THaibunEvent));
-		};
-		this.source.onerror = () => {
-			// The break is announced once, when it happens: a page that cannot hear the run cannot say its reading is
-			// current, and that is a fact of the reading rather than something to infer from the silence.
-			const wasOpen = !this.broken;
-			this.broken = true;
-			this.open = false;
-			if (wasOpen) this.notify(this.disconnectListeners, "disconnection");
-			this.source?.close?.();
-			this.source = null;
-			if (this.closed || this.reconnectTimer) return;
-			this.reconnectTimer = setTimeout(() => {
-				this.reconnectTimer = null;
-				this.connect();
-			}, this.reconnectDelayMs);
-		};
+			if (!res.ok || !res.body) throw new Error(`the stream at ${this.url} answered ${res.status}`);
+			this.becameOpen();
+			for await (const data of sseData(res.body)) this.received(data);
+		} catch {
+			// What ended the connection is not what a listener acts on: it acts on the stream being down, which it is.
+		}
+		if (reading.signal.aborted) return;
+		this.broke();
+	}
+
+	private becameOpen(): void {
+		this.open = true;
+		this.notify(this.openListeners, "opening");
+		if (!this.broken) return;
+		this.broken = false;
+		this.notify(this.reconnectListeners, "reconnection");
+	}
+
+	private received(data: string): void {
+		let msg: Record<string, unknown>;
+		try {
+			msg = JSON.parse(data);
+		} catch {
+			this.dispatch({ raw: data } as unknown as THaibunEvent);
+			return;
+		}
+		// web-server-hono wraps events as { type: "event", event: {...} };
+		// un-wrap when present, pass through otherwise. Server-side already validated against the schema.
+		this.dispatch(msg.type === "event" && msg.event ? (msg.event as THaibunEvent) : (msg as unknown as THaibunEvent));
+	}
+
+	private broke(retry = true): void {
+		// The break is announced once, when it happens: a page that cannot hear the run cannot say its reading is
+		// current, and that is a fact of the reading rather than something to infer from the silence.
+		const wasOpen = !this.broken;
+		this.broken = true;
+		this.open = false;
+		if (wasOpen) this.notify(this.disconnectListeners, "disconnection");
+		this.reading = null;
+		if (!retry || this.closed || this.reconnectTimer) return;
+		this.reconnectTimer = setTimeout(() => {
+			this.reconnectTimer = null;
+			this.connect();
+		}, this.reconnectDelayMs);
 	}
 
 	/** Tell each listener of a change to the stream; one that throws is reported and the others are still told. */
@@ -264,8 +285,8 @@ export class SseSubscriber {
 			clearTimeout(this.reconnectTimer);
 			this.reconnectTimer = null;
 		}
-		this.source?.close?.();
-		this.source = null;
+		this.reading?.abort();
+		this.reading = null;
 		// A closed subscriber never opens again, so it holds no listener: a message arriving on the transport it has let
 		// go reaches a consumer that stopped listening otherwise.
 		this.listeners.length = 0;
@@ -308,6 +329,27 @@ export class SseSubscriber {
 			} catch (err) {
 				failFastOrLog(`SseSubscriber[${this.clientId}]: listener threw during dispatch`, err);
 			}
+		}
+	}
+}
+
+/** The data of each message a Server-Sent Events body carries, its `data:` lines joined as the format joins them. */
+async function* sseData(body: ReadableStream<Uint8Array>): AsyncGenerator<string> {
+	const reader = body.getReader();
+	const decoder = new TextDecoder();
+	let pending = "";
+	for (;;) {
+		const { value, done } = await reader.read();
+		if (done) return;
+		pending += decoder.decode(value, { stream: true });
+		for (let end = pending.search(/\r?\n\r?\n/); end >= 0; end = pending.search(/\r?\n\r?\n/)) {
+			const block = pending.slice(0, end);
+			pending = pending.slice(end).replace(/^\r?\n\r?\n/, "");
+			const data = block
+				.split(/\r?\n/)
+				.filter((line) => line.startsWith("data:"))
+				.map((line) => line.slice("data:".length).replace(/^ /, ""));
+			if (data.length > 0) yield data.join("\n");
 		}
 	}
 }

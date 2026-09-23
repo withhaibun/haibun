@@ -2,8 +2,8 @@
  * <shu-permissions>: what this reader may do here, and the authority behind it.
  *
  * A reader who is refused something needs to see why, and an operator deciding on an agent's request needs to see what
- * they themselves hold. Two things say that: the actions this page's own credential holds, and the principals this
- * deployment knows.
+ * they themselves hold. Three things say that: the key this page signs as, the actions delegated to it, and the
+ * principals this deployment knows.
  *
  * Shown from the access indicator, beside the level a read is bounded by: a capability decides whether a question may
  * be put, the level decides how much of the answer comes back, and a reader is looking at both in one place.
@@ -37,7 +37,7 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 	declare level: string;
 	declare levels: readonly string[];
 	declare onLevelChange: (level: string) => void;
-	private held: TAuthority = { holds: [], principals: [] };
+	private held: TAuthority = { holds: [], grantedBy: {}, principals: [] };
 
 	private failure = "";
 
@@ -98,13 +98,13 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 	}
 
 	/**
-	 * An action, as what granted it. A reader holds what it holds by a record this deployment keeps, so the action opens
-	 * that record, and from there what it was delegated from and on to its root. An action nothing here recorded is still
-	 * named, since a reader holds it either way.
+	 * An action, as what granted it. A reader holds what it holds by a delegation this deployment records, so the action
+	 * opens that record, and from there what it was delegated from and on to its root. An action nothing here recorded,
+	 * such as what anyone holds, is still named, since a reader holds it either way.
 	 */
 	private grantedAt(action: string): TemplateResult {
-		const heldAs = this.held.heldAs;
-		if (heldAs) return refTpl("entity", { persistedAs: heldAs.persistedAs, id: heldAs.id }, action, SHU_TEST_IDS.APP.HELD);
+		const grantedBy = this.held.grantedBy[action];
+		if (grantedBy) return refTpl("entity", { persistedAs: grantedBy.persistedAs, id: grantedBy.id }, action, SHU_TEST_IDS.APP.HELD);
 		return html`<span class="action">${action}</span>`;
 	}
 
@@ -113,7 +113,7 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 	};
 
 	render(): TemplateResult {
-		const { holds, principals } = this.held;
+		const { controller, holds, principals } = this.held;
 		return html`
 			<div class="level">
 				<label for="read-access">read access</label>
@@ -128,13 +128,16 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 				${refTpl(this.awaitingRef?.kind ?? "domain", this.awaitingRef?.target ?? {}, "read them", "permissions-awaiting")}
 			</div>
 
-			<h3>what this session may do</h3>
+			<h3>this page signs as</h3>
+			${controller ? html`<shu-page-key controller=${controller}></shu-page-key>` : html`<p class="none">no key; this page holds only what anyone holds here</p>`}
+
+			<h3>what this page may do</h3>
 			${
 				holds.length
 					? html`<ul class="holds">
 						${holds.map((action) => html`<li>${this.grantedAt(action)}</li>`)}
 					</ul>`
-					: html`<p class="none">only what needs no authority here; this deployment gave this page no credential</p>`
+					: html`<p class="none">nothing here; nothing was delegated to this page's key</p>`
 			}
 
 			<h3>

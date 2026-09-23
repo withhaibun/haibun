@@ -4,6 +4,7 @@ import { passWithDefaults, DEF_PROTO_OPTIONS } from "@haibun/core/lib/test/lib.j
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { actionOKWithProducts, getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import { OK } from "@haibun/core/schema/protocol.js";
+import { readingAt } from "@haibun/core/lib/capability-context.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import FakeAuthorityStepper, { FakeInvoker } from "@haibun/core/lib/test/fake-authority.js";
 
@@ -22,6 +23,20 @@ class ProtectedStepper extends AStepper {
 			exact: "admin mcp action",
 			capability: "ProtectedStepper:admin",
 			action: async () => actionOKWithProducts({ admin: true }),
+		},
+		readsAt: {
+			exact: "mcp read level",
+			read: true,
+			action: async () => actionOKWithProducts({ at: readingAt() ?? "unbounded" }),
+		},
+		verifyMcpReadLevel: {
+			gwta: "verify mcp read signed by {holder} for {action} on port {port} reads at {level}",
+			action: async ({ holder, action, port, level }: { holder: string; action: string; port: string; level: string }) => {
+				const toolResult = getToolResult(await callTool(String(port), "ProtectedStepper-readsAt", { holder, action }));
+				const text = toolResult.content?.[0]?.text ?? "";
+				if (toolResult.isError || JSON.parse(text).at !== level) throw new Error(`Expected a read at ${level}, got ${text}`);
+				return OK;
+			},
 		},
 		verifyProtectedMcpDenied: {
 			gwta: "verify protected mcp tool on port {port} is denied",
@@ -84,6 +99,8 @@ const mcpOptions = (port: number) => ({
 	moduleOptions: { [getStepperOptionName(WebServerStepper, "PORT")]: String(port), [getStepperOptionName(McpStepper, "PORT")]: String(port) },
 });
 
+const signedSteppers = [WebServerStepper, McpStepper, AuthorityStepper, FakeAuthorityStepper, ProtectedStepper];
+
 describe("McpStepper capability enforcement", () => {
 	it("denies a protected tool to a caller presenting nothing", async () => {
 		const port = 8134;
@@ -113,6 +130,24 @@ verify protected mcp tool signed by "agent" on port ${port} is refused when its 
 `,
 		};
 		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, AuthorityStepper, FakeAuthorityStepper, ProtectedStepper], mcpOptions(port));
+		if (!result.ok) throw new Error(JSON.stringify(result.featureResults, null, 2));
+		expect(result.ok).toBe(true);
+	});
+
+	it("bounds what a call reads by the broadest read its caller holds, as it does over every transport", async () => {
+		const port = 8141;
+		const feature = {
+			path: "/features/mcp-read-ceiling.feature",
+			content: `
+serve mcp tools at /mcp
+webserver is listening for "mcp read ceiling"
+accept authority from "reader" for "Read:public"
+accept authority from "owner" for "Read:private"
+verify mcp read signed by "reader" for "Read:public" on port ${port} reads at "public"
+verify mcp read signed by "owner" for "Read:private" on port ${port} reads at "private"
+`,
+		};
+		const result = await passWithDefaults([feature], signedSteppers, mcpOptions(port));
 		if (!result.ok) throw new Error(JSON.stringify(result.featureResults, null, 2));
 		expect(result.ok).toBe(true);
 	});

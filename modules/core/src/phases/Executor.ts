@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { RUN_AUTHORITY } from "../lib/capability-context.js";
+import { RUN_AUTHORITY, runAuthorizedWith } from "../lib/capability-context.js";
 import { z } from "zod";
 import { DOMAIN_DOMAIN_KEY } from "../lib/domains.js";
 import type { TWorld } from "../lib/world.js";
@@ -127,7 +127,13 @@ export class Executor {
 		};
 	}
 
-	static async executeFeatures(steppers: AStepper[], world: TWorld, features: TResolvedFeature[]): Promise<TExecutorResult> {
+	/** Run the features as the run itself: every line, cycle and finalizer is the instance's own act, and holds its authority.
+	 *  A caller from outside reaches a step only through a transport, which states what that caller holds. */
+	static executeFeatures(steppers: AStepper[], world: TWorld, features: TResolvedFeature[]): Promise<TExecutorResult> {
+		return runAuthorizedWith(RUN_AUTHORITY, () => Executor.runFeatures(steppers, world, features));
+	}
+
+	private static async runFeatures(steppers: AStepper[], world: TWorld, features: TResolvedFeature[]): Promise<TExecutorResult> {
 		initExecutionRuntime(world);
 		world.runtime.steppers = steppers;
 		const stepRegistry = openRunRegistry(world, steppers);
@@ -334,7 +340,7 @@ export class FeatureExecutor {
 				seqPath: [world.tag.hostId, world.tag.featureNum, currentScenario + 1, ...step.seqPath],
 			};
 
-			const result = await dispatchStep({ registry: this.registry, world, steppers: this.steppers, grantedCapability: RUN_AUTHORITY }, augmentedStep);
+			const result = await dispatchStep({ registry: this.registry, world, steppers: this.steppers }, augmentedStep);
 			ok = ok && result.ok;
 			if (!ok) break;
 

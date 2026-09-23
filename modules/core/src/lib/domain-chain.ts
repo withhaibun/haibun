@@ -12,6 +12,7 @@ import type { AStepper, TStepperStep } from "./astepper.js";
 import type { TRegisteredDomain } from "./resources.js";
 import { constructorName } from "./util/index.js";
 import { normalizeDomainKey } from "./domains.js";
+import { requiredAction } from "./actions.js";
 
 /** Sentinel source domain for terminal producers (steps that need no inputs). */
 export const SOURCE_DOMAIN = "∅";
@@ -71,7 +72,7 @@ export function buildDomainChain(steppers: AStepper[], domains: Record<string, T
 				gwta: stepDef.gwta,
 				inputDomains,
 				outputDomains,
-				capability: stepDef.capability,
+				capability: requiredAction(stepperName, stepName, stepDef),
 			});
 			if (outputDomains.length === 0) continue;
 			if (inputDomains.length === 0) {

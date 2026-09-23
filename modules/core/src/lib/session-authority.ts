@@ -1,26 +1,15 @@
 /**
  * SessionAuthority: the run's one capability authority. It holds what a consumer registers for the specification its
- * deployment uses: a verifier for evidence presented to this run, an issuer, and an invoker for authority this run
- * presents elsewhere. haibun-core stays crypto-free, so it reads no proof and signs nothing itself.
+ * deployment uses: a verifier for evidence presented to this run, and an invoker for authority this run presents
+ * elsewhere. haibun-core stays crypto-free, so it reads no proof and signs nothing itself.
  */
 import type { TRuntime } from "./world.js";
-import type {
-	IAuthority,
-	IAuthorityInvoker,
-	IAuthorityIssuer,
-	IAuthorityVerifier,
-	TAuthorityEvidence,
-	TCredentialRequest,
-	TIssuedCredential,
-	TOutgoingRequest,
-	TRequestSigner,
-} from "./authority-types.js";
+import type { IAuthority, IAuthorityInvoker, IAuthorityVerifier, TAuthorityEvidence, TDelegations, TOutgoingRequest, TRequestSigner } from "./authority-types.js";
 
 export const AUTHORITY_KEY = "authority";
 
 export class SessionAuthority implements IAuthority {
 	private verifier?: IAuthorityVerifier;
-	private issuer?: IAuthorityIssuer;
 	private invoker?: IAuthorityInvoker;
 
 	registerVerifier(verifier: IAuthorityVerifier): void {
@@ -31,13 +20,9 @@ export class SessionAuthority implements IAuthority {
 		return this.verifier !== undefined;
 	}
 
-	registerIssuer(issuer: IAuthorityIssuer): void {
-		this.issuer = issuer;
-	}
-
-	issueCredential(request: TCredentialRequest): Promise<TIssuedCredential> {
-		if (!this.issuer) throw new Error("nothing is registered to issue a credential, so this deployment cannot give a holder authority it can prove");
-		return this.issuer.issue(request);
+	delegationsTo(controller: string): Promise<TDelegations> {
+		// Nothing registered to verify a delegation means nothing here was delegated through one.
+		return this.verifier ? this.verifier.delegationsTo(controller) : Promise.resolve({ delegations: [] });
 	}
 
 	registerInvoker(invoker: IAuthorityInvoker): void {
@@ -56,7 +41,6 @@ export class SessionAuthority implements IAuthority {
 
 	clear(): void {
 		this.verifier = undefined;
-		this.issuer = undefined;
 		this.invoker = undefined;
 	}
 }

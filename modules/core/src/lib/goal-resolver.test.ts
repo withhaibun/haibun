@@ -19,8 +19,8 @@ function singleProducerGraph(input: string, output: string, capability?: string)
 	};
 }
 
-function inputs(graph: TDomainChainGraph, facts: TQuad[] = [], capabilities = new Set<string>()): TResolverInputs {
-	return { graph, facts, capabilities };
+function inputs(graph: TDomainChainGraph, facts: TQuad[] = [], held: string[] = []): TResolverInputs {
+	return { graph, facts, held };
 }
 
 describe("resolveGoal", () => {
@@ -98,7 +98,7 @@ describe("resolveGoal", () => {
 		const graph = singleProducerGraph("a", "b");
 		const f1: TQuad = { subject: "fact-1", predicate: "b", object: { id: "x", role: "issuer" }, namedGraph: "facts", timestamp: 1 };
 		const f2: TQuad = { subject: "fact-2", predicate: "b", object: { id: "y", role: "verifier" }, namedGraph: "facts", timestamp: 2 };
-		const result = resolveGoal("b", { graph, facts: [f1, f2], capabilities: new Set(), where: { role: "issuer" } });
+		const result = resolveGoal("b", { graph, facts: [f1, f2], held: [], where: { role: "issuer" } });
 		expect(result).toMatchObject({ finding: GOAL_FINDING.SATISFIED, factIds: ["fact-1"] });
 	});
 
@@ -150,28 +150,27 @@ describe("resolveGoal", () => {
 		const domains = [];
 		for (let i = 0; i <= stepCount; i++) domains.push({ key: `d${i}`, hasTopology: false });
 		const graph: TDomainChainGraph = { domains, steps, edges };
-		const result = resolveGoal(`d${stepCount}`, { graph, facts: [], capabilities: new Set(), depthLimit: 5 });
+		const result = resolveGoal(`d${stepCount}`, { graph, facts: [], held: [], depthLimit: 5 });
 		expect(result.finding).toBe(GOAL_FINDING.UNREACHABLE);
 	});
 
 	it("filters out producer steps the caller does not have capability for", () => {
 		const graph = singleProducerGraph("a", "b", "auth:signin");
 		const fact: TQuad = { subject: "fact-1", predicate: "a", object: { id: "x" }, namedGraph: "facts", timestamp: 1 };
-		const result = resolveGoal("b", inputs(graph, [fact], new Set([])));
+		const result = resolveGoal("b", inputs(graph, [fact], []));
 		expect(result.finding).toBe(GOAL_FINDING.UNREACHABLE);
 	});
 
 	it("includes the capability-gated step when the caller has the capability", () => {
 		const graph = singleProducerGraph("a", "b", "auth:signin");
 		const fact: TQuad = { subject: "fact-1", predicate: "a", object: { id: "x" }, namedGraph: "facts", timestamp: 1 };
-		const result = resolveGoal("b", inputs(graph, [fact], new Set(["auth:signin"])));
+		const result = resolveGoal("b", inputs(graph, [fact], ["auth:signin"]));
 		expect(result.finding).toBe(GOAL_FINDING.MICHI);
 	});
 
-	it("refuses when the capability set is missing entirely", () => {
+	it("refuses when what the caller holds is missing entirely", () => {
 		const graph = singleProducerGraph("a", "b");
-		const noCapsInputs = { graph, facts: [], capabilities: undefined as unknown as ReadonlySet<string> };
-		const result = resolveGoal("b", noCapsInputs);
+		const result = resolveGoal("b", { graph, facts: [], held: undefined });
 		expect(result.finding).toBe(GOAL_FINDING.REFUSED);
 		if (result.finding === GOAL_FINDING.REFUSED) expect(result.refusalReason).toBe(REFUSAL_REASON.CAPABILITY_CONTEXT_REQUIRED);
 	});

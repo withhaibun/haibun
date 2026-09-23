@@ -39,9 +39,8 @@ import { callStepByName } from "../lib/call-step.js";
 import { buildAffordances, providesWaypoints, AFFORDANCE_EVENT_PREFIX, type TWaypointEntry, satisfiedGoalDomains } from "../lib/affordances.js";
 import { FACT_GRAPH } from "../lib/working-memory.js";
 import { parseSeqPath } from "../lib/seq-path.js";
-import { stepInFlight } from "../lib/capability-context.js";
+import { authorizedWith, RUN_AUTHORITY, stepInFlight } from "../lib/capability-context.js";
 
-const GRANTED_CAPABILITY = "GRANTED_CAPABILITY";
 const SMOKE_GOALS = "SMOKE_GOALS";
 const COMPOSITE_DECOMPOSITION = "COMPOSITE_DECOMPOSITION";
 const COMPOSITE_MAX_DEPTH = "COMPOSITE_MAX_DEPTH";
@@ -59,10 +58,6 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 	description = "Backward-chaining goal resolver and plan runner";
 
 	options: Record<string, TStepperOption> = {
-		[GRANTED_CAPABILITY]: {
-			desc: "Comma-separated list of capabilities the caller holds; passed to the goal resolver",
-			parse: (input: string) => stringOrError(input),
-		},
 		[SMOKE_GOALS]: {
 			desc: "Comma-separated list of domain keys to resolve at boot as a drift-detection signal",
 			parse: (input: string) => stringOrError(input),
@@ -112,7 +107,8 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 					.filter((s: string) => s.length > 0);
 				const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
 				const smokeFindings = goals.map((goal: string) => {
-					const resolution = resolveGoal(goal, { graph, facts, capabilities: this.grantedCapabilities(), ...this.compositeOptions() });
+					// The run's own check, made as the run: what it may reach is everything its steps offer.
+					const resolution = resolveGoal(goal, { graph, facts, held: RUN_AUTHORITY, ...this.compositeOptions() });
 					return { goal, finding: resolution.finding };
 				});
 				world.eventLogger.emit({
@@ -152,17 +148,6 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		},
 	};
 
-	private grantedCapabilities(): ReadonlySet<string> {
-		const raw = getStepperOption(this, GRANTED_CAPABILITY, this.getWorld().moduleOptions);
-		if (!raw) return new Set();
-		return new Set(
-			raw
-				.split(",")
-				.map((s: string) => s.trim())
-				.filter((s: string) => s.length > 0),
-		);
-	}
-
 	/**
 	 * Returns composite-decomposition resolver options threaded from stepper config.
 	 * Defaults: decomposition enabled, depth 4. Call sites spread these into the
@@ -182,7 +167,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		const world = this.getWorld();
 		const graph = buildDomainChain(this.steppers, world.domains);
 		const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
-		return resolveGoal(goal, { graph, facts, capabilities: this.grantedCapabilities(), ...this.compositeOptions() });
+		return resolveGoal(goal, { graph, facts, held: authorizedWith(), ...this.compositeOptions() });
 	}
 
 	/** Walk a michi's steps in order, dispatching each through the synthetic-seqPath path used by other transports. Returns the produced factIds on success; surfaces the offending step's error on first failure. */
@@ -193,7 +178,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		for (let i = 0; i < michi.steps.length; i++) {
 			const step = michi.steps[i];
 			const method = stepMethodName(step.stepperName, step.stepName);
-			const call = await callStepByName({ registry, world, steppers: this.steppers, grantedCapability: Array.from(this.grantedCapabilities()) }, method);
+			const call = await callStepByName({ registry, world, steppers: this.steppers }, method);
 			if (!call.registered) return actionNotOK(`pursue ${goal}: step ${i} (${method}) not registered`);
 			if (!call.result.ok) return actionNotOK(`pursue ${goal}: step ${i} (${method}) failed: ${call.result.errorMessage ?? "(no message)"}`);
 			factIds.push(call.seqPath.join("."));
@@ -217,7 +202,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 			steppers: this.steppers,
 			domains: world.domains,
 			facts,
-			capabilities: this.grantedCapabilities(),
+			held: authorizedWith(),
 			compositeDecomposition: composite.compositeDecomposition,
 			compositeMaxDepth: composite.compositeMaxDepth,
 			asOfSeqPath: asOf,
@@ -313,7 +298,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 			productsDomain: DOMAIN_CHAIN_WALK,
 			action: async ({ walk, args }: { walk: string; args: unknown }) => {
 				const world = this.getWorld();
-				const ctx = { registry: runRegistry(world), world, steppers: this.steppers, grantedCapability: Array.from(this.grantedCapabilities()) };
+				const ctx = { registry: runRegistry(world), world, steppers: this.steppers };
 				const supplied = typeof args === "string" ? (JSON.parse(args) as Record<string, unknown>) : ((args ?? {}) as Record<string, unknown>);
 				const advanced = await advanceChainInstance(ctx, walk, supplied);
 				if (advanced.kind === "failed") return actionNotOK(`advance the walk ${walk}: ${advanced.error}`);
@@ -385,7 +370,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 					steppers: this.steppers,
 					domains: world.domains,
 					facts,
-					capabilities: this.grantedCapabilities(),
+					held: authorizedWith(),
 				});
 				return actionOKWithProducts(chainLintSchema.parse({ ...report, forward: affordances.forward, goals: affordances.goals }));
 			},

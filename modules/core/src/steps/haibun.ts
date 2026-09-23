@@ -111,6 +111,8 @@ class Haibun extends AStepper implements IHasCycles {
 
 		showSteps: {
 			read: true,
+			// A step's description is no authority, and a caller finds out what to hold from it.
+			requiresNothing: true,
 			gwta: `show steps matching {text: string} as {detail: ${DOMAIN_STEP_DETAIL}}`,
 			description: SHOW_STEPS_DESCRIPTION,
 			productsSchema: StepDiscoverySchema,

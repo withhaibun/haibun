@@ -49,7 +49,7 @@ describe("ServerHono", () => {
 
 	beforeEach(() => {
 		store = new QuadStore();
-		server = new ServerHono(mockLogger, "/tmp", () => store);
+		server = new ServerHono(mockLogger, "/tmp", () => store, []);
 	});
 
 	afterEach(async () => {

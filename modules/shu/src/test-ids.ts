@@ -43,6 +43,8 @@ export const SHU_TEST_IDS = {
 		AWAITING: "permissions-awaiting",
 		/** An action this reader caches. A reference, so pressing it opens the record of what granted it. */
 		HELD: "permissions-held",
+		/** The page's own key, as the did:key a holder delegates to. */
+		PAGE_KEY: "page-key",
 	},
 	FILTER: {
 		PROPERTY_0: "app-cond-property-0",

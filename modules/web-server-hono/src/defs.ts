@@ -61,6 +61,8 @@ export interface IWebServer extends IRouteRegistry {
 	/** The method of a served family that an `/rpc` call names, if any. */
 	rpcMethod(method: string): TRpcMethod | undefined;
 	clearMounted(): void;
+	/** What any caller holds here without presenting anything, beside what it proves: nothing, unless the deployment says. */
+	readonly anyoneHolds: readonly string[];
 	use(middleware: MiddlewareHandler): void;
 	readonly app: Hono;
 	readonly port: number | undefined;

@@ -9,6 +9,7 @@ import WebServerStepper from "./web-server-stepper.js";
 import Haibun from "@haibun/core/steps/haibun.js";
 import { EVERY_DEFINITION, SHOW_STEPS_METHOD, readShownSteps, type TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import { streamContext, type TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
+import { readingAt } from "@haibun/core/lib/capability-context.js";
 
 class PingStepper extends AStepper {
 	description = "Steps that answer a ping, one of them protected and one gated by an admin capability.";
@@ -27,6 +28,11 @@ class PingStepper extends AStepper {
 			capability: "PingStepper:admin",
 			action: async () => actionOKWithProducts({ admin: true }),
 		},
+		readsAt: {
+			gwta: "level this reads at",
+			read: true,
+			action: async () => actionOKWithProducts({ at: readingAt() ?? "unbounded" }),
+		},
 	};
 }
 
@@ -41,11 +47,28 @@ async function shownSteps(url: string, headers: Record<string, string>): Promise
 	return readShownSteps(await res.json(), EVERY_DEFINITION.detail).steps;
 }
 
-/** A call to `method` at `url`, signed by `holder` for `action` where a holder is named. */
-async function postRpc(url: string, method: string, signer?: { holder: string; action: string }): Promise<Response> {
-	const body = JSON.stringify({ jsonrpc: "2.0", id: "1", method, params: {}, seqPath: [0, 1, 1, 1] });
+/** A call to `method` at `url`, signed by `holder` for `action` where a holder is named, asking to read at `readingAt`
+ *  where it names one. */
+async function postRpc(url: string, method: string, signer?: { holder: string; action: string }, readingAt?: string): Promise<Response> {
+	const body = JSON.stringify({ jsonrpc: "2.0", id: "1", method, params: {}, seqPath: [0, 1, 1, 1], ...(readingAt ? { readingAt } : {}) });
 	const headers = { "content-type": "application/json" };
 	return fetch(url, { method: "POST", headers: signer ? await new FakeInvoker(signer.holder).sign({ method: "POST", url, headers, body }, signer.action) : headers, body });
+}
+
+/** The level a call of `url` read at, where it was answered. */
+async function readAtLevel(res: Response): Promise<string> {
+	const data = (await res.json()) as { at?: string; error?: string };
+	if (!res.ok || data.error) throw new Error(`the read was refused: ${res.status} ${JSON.stringify(data)}`);
+	return String(data.at);
+}
+
+/** Open the run's event stream at `url`, signed by `holder` for `action` where a holder is named, and answer its status. */
+async function openStream(url: string, signer?: { holder: string; action: string }): Promise<number> {
+	const headers = signer ? await new FakeInvoker(signer.holder).sign({ method: "GET", url, headers: {} }, signer.action) : {};
+	const stopped = new AbortController();
+	const res = await fetch(url, { headers, signal: stopped.signal });
+	stopped.abort();
+	return res.status;
 }
 
 class RpcVerifyStepper extends AStepper {
@@ -172,6 +195,50 @@ class RpcVerifyStepper extends AStepper {
 				return OK;
 			},
 		},
+		rpcCallDeniedPresentingNothing: {
+			gwta: "rpc call to {url} with method {method} presenting nothing is denied for capability {capability}",
+			action: async ({ url, method, capability }: TStepArgs) => {
+				const res = await postRpc(String(url), String(method));
+				const data = (await res.json()) as { error?: string };
+				if (res.status !== 422 || !String(data.error).includes(`capability ${String(capability)} required`)) return actionNotOK(`Expected ${capability} required, got ${res.status} ${JSON.stringify(data)}`);
+				return OK;
+			},
+		},
+		rpcReadsAtPresentingNothing: {
+			gwta: "rpc read at {url} presenting nothing reads at {level}",
+			action: async ({ url, level }: TStepArgs) => {
+				const at = await readAtLevel(await postRpc(String(url), "PingStepper-readsAt"));
+				return at === String(level) ? OK : actionNotOK(`read at ${at}`);
+			},
+		},
+		rpcReadsAtSigned: {
+			gwta: "rpc read at {url} signed by {holder} for {action} reads at {level}",
+			action: async ({ url, holder, action, level }: TStepArgs) => {
+				const at = await readAtLevel(await postRpc(String(url), "PingStepper-readsAt", { holder: String(holder), action: String(action) }));
+				return at === String(level) ? OK : actionNotOK(`read at ${at}`);
+			},
+		},
+		rpcReadsAtAsked: {
+			gwta: "rpc read asking for {asked} at {url} signed by {holder} for {action} reads at {level}",
+			action: async ({ url, holder, action, asked, level }: TStepArgs) => {
+				const at = await readAtLevel(await postRpc(String(url), "PingStepper-readsAt", { holder: String(holder), action: String(action) }, String(asked)));
+				return at === String(level) ? OK : actionNotOK(`read at ${at}`);
+			},
+		},
+		streamAnswers: {
+			gwta: "event stream at {url} presenting nothing answers {status}",
+			action: async ({ url, status }: TStepArgs) => {
+				const answered = await openStream(String(url));
+				return answered === Number(status) ? OK : actionNotOK(`answered ${answered}`);
+			},
+		},
+		streamAnswersSigned: {
+			gwta: "event stream at {url} signed by {holder} for {action} answers {status}",
+			action: async ({ url, holder, action, status }: TStepArgs) => {
+				const answered = await openStream(String(url), { holder: String(holder), action: String(action) });
+				return answered === Number(status) ? OK : actionNotOK(`answered ${answered}`);
+			},
+		},
 		rpcOldFormatIgnored: {
 			gwta: "rpc old format to {url} is not dispatched",
 			action: async ({ url }: TStepArgs) => {
@@ -190,10 +257,14 @@ class RpcVerifyStepper extends AStepper {
 	};
 }
 
-function makeOptions(port: number) {
+/** A server on `port` where every caller holds `anyoneHolds`, where the case states it: nothing otherwise. */
+function makeOptions(port: number, anyoneHolds?: string) {
 	return {
 		...DEF_PROTO_OPTIONS,
-		moduleOptions: { [getStepperOptionName(WebServerStepper, "PORT")]: String(port) },
+		moduleOptions: {
+			[getStepperOptionName(WebServerStepper, "PORT")]: String(port),
+			...(anyoneHolds ? { [getStepperOptionName(WebServerStepper, "ANYONE_HOLDS")]: anyoneHolds } : {}),
+		},
 	};
 }
 
@@ -248,7 +319,7 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-ping" with method "PingSte
 run narrated the call that acted on it and not the call that read it
 `,
 		};
-		const result = await passWithDefaults([feature], steppers, makeOptions(port));
+		const result = await passWithDefaults([feature], steppers, makeOptions(port, "PingStepper:ping,Read:public"));
 		expect(result.ok).toBe(true);
 	});
 
@@ -266,7 +337,7 @@ rpc read at "http://localhost:${port}/rpc/ReadStepper-asked" of "ReadStepper-ask
 rpc read at "http://localhost:${port}/rpc/PingStepper-ping" of "PingStepper-ping" is refused
 `,
 		};
-		const result = await passWithDefaults([feature], steppers, makeOptions(port));
+		const result = await passWithDefaults([feature], steppers, makeOptions(port, "PingStepper:ping,Read:public"));
 		expect(result.ok).toBe(true);
 	});
 
@@ -317,7 +388,77 @@ webserver is listening for "rpc-step-exec"
 rpc call to "http://localhost:${port}/rpc/PingStepper-ping" with method "PingStepper-ping" succeeds
 `,
 		};
+		const result = await passWithDefaults([feature], steppers, makeOptions(port, "PingStepper:ping"));
+		expect(result.ok).toBe(true);
+	});
+
+	it("refuses a step that declares no action to a caller presenting nothing, since it requires its own name", async () => {
+		const port = 8255;
+		const feature = {
+			path: "/features/test.feature",
+			content: `
+enable rpc
+webserver is listening for "rpc-deny-by-default"
+rpc call to "http://localhost:${port}/rpc/PingStepper-ping" with method "PingStepper-ping" presenting nothing is denied for capability "PingStepper:ping"
+rpc call to "http://localhost:${port}/rpc/PingStepper-readsAt" with method "PingStepper-readsAt" presenting nothing is denied for capability "Read:public"
+steps shown to a caller with no token at "http://localhost:${port}/rpc/${SHOW_STEPS_METHOD}" include "PingStepper-ping"
+`,
+		};
 		const result = await passWithDefaults([feature], steppers, makeOptions(port));
+		expect(result.ok, "and what a caller may hold is still shown to it").toBe(true);
+	});
+
+	it("grants every caller what anyone holds here, beside what it proves", async () => {
+		const port = 8256;
+		const feature = {
+			path: "/features/test.feature",
+			content: `
+enable rpc
+webserver is listening for "rpc-anyone-holds"
+accept authority from "agent" for "PingStepper:protected"
+rpc call to "http://localhost:${port}/rpc/PingStepper-ping" with method "PingStepper-ping" succeeds
+rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" succeeds when signed by "agent" for "PingStepper:protected"
+rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "PingStepper-adminPing" presenting nothing is denied for capability "PingStepper:admin"
+`,
+		};
+		const result = await passWithDefaults([feature], signedSteppers, makeOptions(port, "PingStepper:ping"));
+		expect(result.ok).toBe(true);
+	});
+
+	it("bounds what a caller reads by the broadest read it holds, and by the level it asks for, which can only be narrower", async () => {
+		const port = 8257;
+		const url = `http://localhost:${port}/rpc/PingStepper-readsAt`;
+		const feature = {
+			path: "/features/test.feature",
+			content: `
+enable rpc
+webserver is listening for "rpc-read-ceiling"
+accept authority from "owner" for "Read:private"
+rpc read at "${url}" presenting nothing reads at "public"
+rpc read at "${url}" signed by "owner" for "Read:private" reads at "private"
+rpc read asking for "public" at "${url}" signed by "owner" for "Read:private" reads at "public"
+`,
+		};
+		const result = await passWithDefaults([feature], signedSteppers, makeOptions(port, "Read:public"));
+		expect(result.ok).toBe(true);
+	});
+
+	it("opens the run's event stream only to a caller holding a private read, since it carries the run's private records", async () => {
+		const port = 8258;
+		const url = `http://localhost:${port}/sse`;
+		const feature = {
+			path: "/features/test.feature",
+			content: `
+enable rpc
+webserver is listening for "sse-gated"
+accept authority from "owner" for "Read:private"
+accept authority from "reader" for "Read:public"
+event stream at "${url}" presenting nothing answers 403
+event stream at "${url}" signed by "reader" for "Read:public" answers 403
+event stream at "${url}" signed by "owner" for "Read:private" answers 200
+`,
+		};
+		const result = await passWithDefaults([feature], signedSteppers, makeOptions(port));
 		expect(result.ok).toBe(true);
 	});
 
@@ -378,7 +519,7 @@ steps shown to a caller with no token at "http://localhost:${port}/rpc/${SHOW_ST
 rpc call to "http://localhost:${port}/rpc/Injected-ping" with method "Injected-ping" succeeds
 `,
 		};
-		const result = await passWithDefaults([feature], [...steppers, Injects], makeOptions(port));
+		const result = await passWithDefaults([feature], [...steppers, Injects], makeOptions(port, "PingStepper:ping"));
 		expect(result.ok).toBe(true);
 	});
 
@@ -449,7 +590,7 @@ webserver is listening for "rpc-missing-seqpath"
 rpc call to "http://localhost:${port}/rpc/PingStepper-ping" without seqPath succeeds
 `,
 		};
-		const r = await passWithDefaults([feature], [WebServerStepper, PingStepper, MissingSeqPathStepper], makeOptions(port));
+		const r = await passWithDefaults([feature], [WebServerStepper, PingStepper, MissingSeqPathStepper], makeOptions(port, "PingStepper:ping"));
 		expect(r.ok).toBe(true);
 		// External callers without a feature-step context get a server-synthesised seqPath; the call succeeds.
 		expect(rpcResponse?.error).toBeUndefined();
@@ -551,7 +692,7 @@ webserver is listening for "stream-rpc"
 stream rpc call to "http://localhost:${port}/rpc/StreamingStepper-stream3" method "StreamingStepper-stream3" emits chunks
 `,
 		};
-		const result = await passWithDefaults([feature], [WebServerStepper, StreamingStepper, StreamingRpcVerifyStepper], makeOptions(port));
+		const result = await passWithDefaults([feature], [WebServerStepper, StreamingStepper, StreamingRpcVerifyStepper], makeOptions(port, "StreamingStepper:stream3"));
 		expect(result.ok).toBe(true);
 		// All three streamed chunks arrived via streamContext.emit; no terminal "products" record because dispatch was OK.
 		expect(collectedChunks).toEqual([{ status: "starting" }, { text: "alpha" }, { text: "beta" }]);
@@ -616,7 +757,7 @@ stream rpc call to "http://localhost:${port}/rpc/StreamingStepper-refuse" method
 stream rpc call to "http://localhost:${port}/rpc/StreamingStepper-fail" method "StreamingStepper-fail" emits an error
 `,
 		};
-		const result = await passWithDefaults([feature], [WebServerStepper, StreamingStepper, StreamingErrorVerifyStepper], makeOptions(port));
+		const result = await passWithDefaults([feature], [WebServerStepper, StreamingStepper, StreamingErrorVerifyStepper], makeOptions(port, "StreamingStepper:refuse,StreamingStepper:fail"));
 		expect(result.ok).toBe(true);
 		expect(collectedChunks.map((chunk) => chunk.error)).toEqual(["StreamingStepper-refuse: nope", "StreamingStepper-fail: broke"]);
 	});

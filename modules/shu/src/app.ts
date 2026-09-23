@@ -6,14 +6,17 @@ import { getHash, hashWithColumns } from "./view-hash.js";
  * Query pane is sticky on the left, additional columns scroll right.
  * Each pane is resizable and independently rendered.
  */
-import { hydrateFromDom, getHydratedViewHash, getAvailableSteps, findStep, hydratedCache, isOffline } from "./rpc-registry.js";
-import { openSession } from "./session-key.js";
+import { hydrateFromDom, getHydratedViewHash, getAvailableSteps, findStep, hydratedCache, isOffline, deploymentAnyoneHolds } from "./rpc-registry.js";
+import { openPageAuthority, pageMay, type TPageAuthority } from "./page-key.js";
+import { DELEGATIONS_READ_METHOD, type TDelegations } from "@haibun/core/lib/authority-types.js";
+import { readAction } from "@haibun/core/lib/actions.js";
+import { Access } from "@haibun/core/lib/resources.js";
 import { ShuElement } from "./components/shu-element.js";
 import { registerComponents } from "./component-registry.js";
-import { acts, conduit, setConduit, LiveConduit } from "./hypermedia.js";
+import { conduit, reads, setConduit, LiveConduit } from "./hypermedia.js";
 import { installShuTokens } from "./components/styles.js";
 import { applyShuPreferences } from "./components/shu-theme-switch.js";
-import { setEventStream, LiveEventStream, SerializedEventStream, subscribeBatchedEvents } from "./event-stream.js";
+import { eventStream, setEventStream, LiveEventStream, SerializedEventStream, subscribeBatchedEvents } from "./event-stream.js";
 import { followRunningTurns } from "./conversation.js";
 import { ensureUiComponentLoaded as sharedEnsureUiComponentLoaded } from "./external-components.js";
 import { paneOpsFor } from "./pane-event-router.js";
@@ -83,23 +86,22 @@ function seedHashFromQueryString(): void {
 }
 
 /**
- * What this reader may do, if the deployment offers a way to be given anything. The page makes a key it keeps to
- * itself, presents the public half, and holds what comes back; every call needing authority is then signed with that
- * key. A deployment offering no such step gives its readers nothing, and they act with nothing, which is a deployment
- * where nothing a reader can reach requires authority.
- *
- * Started, not waited for. Nothing the page first renders acts under a session, and a reader browsing what needs no
- * authority is not kept waiting for one; a call that does need it waits (rpcHeaders), and fails there with why.
+ * What this reader holds here: the key the page keeps, and what was delegated to it, read through the deployment's read
+ * of delegations, which requires nothing. A deployment offering no such read gives its readers what anyone holds.
  */
-function openReaderSession(): void {
-	const issuing = findStep("issueSessionCredential");
-	if (!issuing) return;
-	// The key goes as the object the step declares it takes, so what the site published as this step's input is what
-	// the page sends.
-	const opening = openSession((holderKey) => conduit().follow<unknown>(acts(issuing.method, { holderKey }), "open this reader's session"));
-	// Said once, where a reader can see it. What waits on the session raises the same failure at the call that needed
-	// it, so this is a notice rather than the handling of it.
-	opening.catch((err: unknown) => console.warn(`[shu] this reader has no session: ${errorDetail(err)}`));
+function openReaderAuthority(): Promise<TPageAuthority> {
+	const reading = findStep(DELEGATIONS_READ_METHOD);
+	const read = reading ? (controller: string) => conduit().follow<TDelegations>(reads(reading.method, { controller }), "read what was delegated to this page") : undefined;
+	return openPageAuthority(read, deploymentAnyoneHolds());
+}
+
+/** A page that may read nothing here shows the key a holder delegates to, and nothing else: every view reads. */
+function showPageKey(appRoot: HTMLElement, authority: TPageAuthority): void {
+	appRoot.innerHTML = `<div style="padding:20px;max-width:48rem">
+		<p>This page holds nothing here. It signs as the key below, and holds what a holder of this instance delegates to that key, once the page is reloaded.</p>
+		<shu-page-key></shu-page-key>
+	</div>`;
+	appRoot.querySelector(SHU_TAG.PAGE_KEY)?.setAttribute("controller", authority.controller);
 }
 
 const main = async (): Promise<void> => {
@@ -120,12 +122,7 @@ const main = async (): Promise<void> => {
 		await hydrateClientCache(carried);
 		ShuElement.pushHash(getHydratedViewHash());
 	} else {
-		const live = new LiveEventStream("/sse");
-		setEventStream(live);
-		// Opened before anything reads the run: the server announces from the moment a page connects, so a page that
-		// waited until its first view was ready would lose what the run said while it booted.
-		live.connect();
-		followRunningTurns();
+		setEventStream(new LiveEventStream("/sse"));
 	}
 	// Install the shared design tokens at document level so combobox dropdowns and other elements rendered into document.body resolve the same `--shu-…` variables that shadow-DOM components inherit.
 	installShuTokens();
@@ -138,12 +135,26 @@ const main = async (): Promise<void> => {
 
 	try {
 		await getAvailableSteps();
-		openReaderSession();
+		if (!carried) {
+			const authority = await openReaderAuthority();
+			if (!pageMay(readAction(Access.public))) {
+				showPageKey(appRoot, authority);
+				return;
+			}
+		}
 	} catch (err) {
 		if (!isOffline()) {
 			appRoot.innerHTML = `<div style="padding:20px;color:#c00;font-family:monospace"><strong>SPA initialization failed:</strong> ${errorDetail(err)}</div>`;
 			return;
 		}
+	}
+	if (!carried) {
+		// Opened before anything reads the run: the server announces from the moment a page connects, so a page that waited
+		// until its first view was ready would lose what the run said while it booted. A page that reached no server opens
+		// it too, and is told at once that it is down; a page that may not follow the run is refused it, and reads without
+		// following.
+		eventStream().connect();
+		followRunningTurns();
 	}
 
 	const apiBase = appRoot.getAttribute("data-api-base") || "/shu";

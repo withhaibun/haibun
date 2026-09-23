@@ -68,7 +68,7 @@ function withComposite(inputs: TResolverInputs): TResolverInputs {
 describe("resolveGoal, composite decomposition", () => {
 	it("emits a flat `argument` binding for the composite when decomposition is disabled (back-compat)", () => {
 		const graph = graphIssuingCredential();
-		const result = resolveGoal("verifiable-credential", { graph, facts: [], capabilities: new Set() });
+		const result = resolveGoal("verifiable-credential", { graph, facts: [], held: [] });
 		if (result.finding !== GOAL_FINDING.MICHI) throw new Error(`expected MICHI, got ${result.finding}`);
 		const m = result.michi[0];
 		expect(m.bindings).toHaveLength(1);
@@ -77,7 +77,7 @@ describe("resolveGoal, composite decomposition", () => {
 
 	it("emits a composite binding whose primitive-only fields each become a field-argument", () => {
 		const graph = graphIssuingCredential();
-		const result = resolveGoal("verifiable-credential", withComposite({ graph, facts: [], capabilities: new Set() }));
+		const result = resolveGoal("verifiable-credential", withComposite({ graph, facts: [], held: [] }));
 		if (result.finding !== GOAL_FINDING.MICHI) throw new Error(`expected MICHI, got ${result.finding}`);
 		const composite = findComposite(result.michi[0].bindings);
 		expect(composite).toBeTruthy();
@@ -94,7 +94,7 @@ describe("resolveGoal, composite decomposition", () => {
 			namedGraph: "facts",
 			timestamp: 1,
 		};
-		const result = resolveGoal("verifiable-credential", withComposite({ graph, facts: [issuerFact], capabilities: new Set() }));
+		const result = resolveGoal("verifiable-credential", withComposite({ graph, facts: [issuerFact], held: [] }));
 		if (result.finding !== GOAL_FINDING.MICHI) throw new Error(`expected MICHI, got ${result.finding}`);
 		const composite = findComposite(result.michi[0].bindings);
 		const issuer = composite?.fields.find((f) => f.fieldName === "issuer");
@@ -116,7 +116,7 @@ describe("resolveGoal, composite decomposition", () => {
 			steps: [{ stepperName: "S", stepName: "f", inputDomains: ["deep"], outputDomains: ["leaf"] }],
 			edges: [{ from: "deep", to: "leaf", stepperName: "S", stepName: "f" }],
 		};
-		const result = resolveGoal("leaf", { graph, facts: [], capabilities: new Set(), domains, compositeDecomposition: true, compositeMaxDepth: 2 });
+		const result = resolveGoal("leaf", { graph, facts: [], held: [], domains, compositeDecomposition: true, compositeMaxDepth: 2 });
 		// Must terminate with some finding, without hanging or producing infinite michi.
 		expect(result.finding === GOAL_FINDING.MICHI || result.finding === GOAL_FINDING.UNREACHABLE).toBe(true);
 	});
@@ -136,7 +136,7 @@ describe("resolveGoal, composite decomposition", () => {
 				{ from: "string", to: "products", stepperName: "V", stepName: "verify" },
 			],
 		};
-		const result = resolveGoal("products", { graph, facts: [], capabilities: new Set() });
+		const result = resolveGoal("products", { graph, facts: [], held: [] });
 		if (result.finding !== GOAL_FINDING.MICHI) throw new Error(`expected MICHI, got ${result.finding}`);
 		expect(result.michi).toHaveLength(1);
 		expect(result.michi[0].steps).toHaveLength(1);
@@ -145,7 +145,7 @@ describe("resolveGoal, composite decomposition", () => {
 
 	it("falls back to flat argument when domains map is missing even though the flag is on", () => {
 		const graph = graphIssuingCredential();
-		const result = resolveGoal("verifiable-credential", { graph, facts: [], capabilities: new Set(), compositeDecomposition: true });
+		const result = resolveGoal("verifiable-credential", { graph, facts: [], held: [], compositeDecomposition: true });
 		if (result.finding !== GOAL_FINDING.MICHI) throw new Error(`expected MICHI, got ${result.finding}`);
 		expect(result.michi[0].bindings[0]).toMatchObject({ kind: "argument", domain: "vc" });
 	});

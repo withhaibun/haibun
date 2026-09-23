@@ -10,7 +10,7 @@ import { FACT_GRAPH } from "./working-memory.js";
 import type { TMichi } from "./goal-resolver.js";
 import { CHAIN_INSTANCE_STATUS, createChainInstance } from "./chain-instance.js";
 import { advanceChainInstance } from "./chain-walker.js";
-import { runActingAs } from "./capability-context.js";
+import { RUN_AUTHORITY, runActingAs } from "./capability-context.js";
 
 const ISSUER_DOMAIN = "issuer";
 const VC_DOMAIN = "vc";
@@ -57,7 +57,8 @@ class BrokenStepper extends AStepper {
 	};
 }
 
-function buildContext(world: TWorld, steppers: AStepper[]): { registry: StepRegistry; world: TWorld; steppers: AStepper[] } {
+/** A walk advanced by the run itself, which holds what every step requires; who began it is a separate question. */
+function buildContext(world: TWorld, steppers: AStepper[]): { registry: StepRegistry; world: TWorld; steppers: AStepper[]; grantedCapability: string[] } {
 	registerDomains(world, [
 		[
 			{ selectors: [ISSUER_DOMAIN], schema: IssuerSchema, description: "issuer identity" },
@@ -65,7 +66,7 @@ function buildContext(world: TWorld, steppers: AStepper[]): { registry: StepRegi
 		],
 	]);
 	const registry = buildStepRegistry(steppers, world);
-	return { registry, world, steppers };
+	return { registry, world, steppers, grantedCapability: RUN_AUTHORITY };
 }
 
 const twoStepMichi: TMichi = {

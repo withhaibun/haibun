@@ -106,6 +106,9 @@ export type TPersistedVertex = z.infer<typeof PersistedVertexSchema>;
  *  the rest see only what is not private. */
 const ACCESS_BREADTH: Record<AccessLevel, number> = { public: 0, opened: 1, private: 2 };
 
+/** Every level, the broadest first. */
+export const ACCESS_BROADEST_FIRST = (Object.keys(ACCESS_BREADTH) as AccessLevel[]).sort((a, b) => ACCESS_BREADTH[b] - ACCESS_BREADTH[a]);
+
 /** The narrower of two levels: what holds once something inside a scope asks for a level of its own. */
 export function narrowerAccess(inForce: AccessLevel, asked: AccessLevel): AccessLevel {
 	return ACCESS_BREADTH[asked] < ACCESS_BREADTH[inForce] ? asked : inForce;

@@ -167,6 +167,11 @@ export const PermissionsSchema = z.object({
 	showPrincipals: z.boolean().default(false),
 });
 
+export const PageKeySchema = z.object({
+	/** The page's key as a did:key: what a holder delegates to. */
+	controller: z.string().default(""),
+});
+
 export const ThemeSwitchSchema = z.object({
 	theme: z.enum(["auto", "light", "dark"]),
 	scale: z.string(),

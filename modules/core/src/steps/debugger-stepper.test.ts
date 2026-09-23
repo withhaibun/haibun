@@ -213,7 +213,7 @@ describe("DebuggerStepper RPC dispatch", () => {
 
 		const featureStep = buildFeatureStepForTransport(tool, {}, [0, 99]);
 		expect(featureStep.programmatic).toBe(true);
-		const result = await dispatchStep({ registry, world, steppers }, featureStep);
+		const result = await dispatchStep({ registry, world, steppers, grantedCapability: tool.descriptor.capability }, featureStep);
 		expect(result.ok).toBe(false);
 		expect(result.errorMessage).toBe("intentional failure");
 	});
@@ -248,7 +248,7 @@ describe("DebuggerStepper RPC dispatch", () => {
 		if (!tool) throw new Error("echo not registered");
 
 		const featureStep = buildFeatureStepForTransport(tool, { what: "hi" }, [0, 100]);
-		const result = await dispatchStep({ registry, world, steppers }, featureStep);
+		const result = await dispatchStep({ registry, world, steppers, grantedCapability: tool.descriptor.capability }, featureStep);
 		expect(result.ok).toBe(true);
 	});
 });
