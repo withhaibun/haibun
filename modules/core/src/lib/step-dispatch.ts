@@ -60,7 +60,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	const { registry, world, steppers } = ctx;
 	// A caller that states a capability decides; failing that, the capability the calling step was authorized with, so a
 	// step dispatched from inside another is neither refused nor allowed for the route taken to it. A statement that
-	// narrows authority, such as `with token`, states it the same way, for its own statements only.
+	// narrows authority, such as `holding only`, states it the same way, for its own statements only.
 	const grantedCapability = ctx.grantedCapability ?? authorizedWith();
 	const { action } = featureStep;
 	const start = Timer.since();
@@ -277,8 +277,7 @@ async function autoAssertProducts(world: TWorld, seqPathKey: string, step: TStep
  * updated by `emitSeqPathEnd` after the action completes.
  */
 /** What a step required and what allowed it, for the step's own record. Written only where the step declares a
- *  capability, so an ordinary step's record gains nothing and a gated one says who got through it. The token itself is
- *  never written: a bearer token is the credential, so recording it would copy the credential into the graph. */
+ *  capability, so an ordinary step's record gains nothing and a gated one says who got through it. */
 type TStepAuthorization = { required: string; held?: string; controller?: string };
 
 async function emitSeqPathStart(world: TWorld, featureStep: TFeatureStep, authorization: TStepAuthorization | undefined, ran: { ranVia: string; ranOn?: string }): Promise<void> {

@@ -162,9 +162,8 @@ export const ColumnStripSchema = z.object({});
 
 // --- Theme switch ---
 
-/** What the permissions view remembers: whether the grants behind this reader's own authority are shown. */
+/** What the permissions view remembers: whether the principals this deployment knows are shown. */
 export const PermissionsSchema = z.object({
-	showGrants: z.boolean().default(false),
 	showPrincipals: z.boolean().default(false),
 });
 

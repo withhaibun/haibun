@@ -72,8 +72,7 @@ export const LAUNCHED_FROM = "LAUNCHED_FROM";
  * runs" are separate grants, and either can be revoked while the other stands.
  *
  * The check itself is in `dispatchStep`, identically for a feature line, an RPC call, an MCP tool call and a model's
- * tool call; the caller's capability comes from the token the step runs under (`with token {t}, …`), so no step here
- * reads a token.
+ * tool call; the caller's capability comes from the authority the step runs under, so no step here reads one.
  */
 export const SUPERVISOR_CAPABILITIES = {
 	/** Start a serving instance from a directory of features. */

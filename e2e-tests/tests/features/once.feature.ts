@@ -1,20 +1,17 @@
 import { withAction, type TKirejiExport } from "@haibun/core/kireji/withAction.js";
 import TestRunnerStepper from "@haibun/cli/test-runner-stepper.js";
-import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import LogicStepper from "@haibun/core/steps/logic-stepper.js";
 import Haibun from "@haibun/core/steps/haibun.js";
 
 const { noteEverythingChanged } = withAction(new TestRunnerStepper());
-const { issueSessionGrant } = withAction(new AuthorityStepper());
 const { setFromStatement, is } = withAction(new VariablesStepper());
 const { not } = withAction(new LogicStepper());
 const { feature, scenario } = withAction(new Haibun());
 
-const TOKEN = '"once-token"';
 const GROUP = '"once"';
-const RUN_ALL = `with token ${TOKEN}, run all the tests in ${GROUP}`;
-const WAIT = `with token ${TOKEN}, wait until the test run ends within 120 seconds`;
+const RUN_ALL = `run all the tests in ${GROUP}`;
+const WAIT = "wait until the test run ends within 120 seconds";
 
 export const features: TKirejiExport = {
 	"A group of features runs once per state of what it depends on": [
@@ -23,8 +20,6 @@ export const features: TKirejiExport = {
 		"A run of features is verified against the content of what the features depend on: the directory they are read from, and the module of every stepper their configuration names. A group runs again only when something it depends on has changed since it passed, because a run over unchanged sources answers what the last run answered. Noting that the group has changed forgets the pass, which is how a caller asks for the run regardless.",
 
 		scenario({ scenario: "A run of a group passes and records what it passed against" }),
-		issueSessionGrant({ token: TOKEN, action: '"Instance:run"' }),
-		issueSessionGrant({ token: TOKEN, action: '"Instance:read"' }),
 		"Whatever an earlier run of this feature recorded is forgotten first, so the scenario starts from the same place every time it runs.",
 		noteEverythingChanged({ where: GROUP }),
 		RUN_ALL,

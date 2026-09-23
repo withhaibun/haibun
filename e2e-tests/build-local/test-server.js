@@ -8,6 +8,7 @@ import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 import { restRoutes } from "./rest.js";
 import { createDynamicAuthMiddleware, authSchemes } from "./authSchemes.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
+import { FakeInvoker } from "@haibun/core/lib/test/fake-authority.js";
 const TALLY = "tally";
 const setTally = (value) => ({
     term: TALLY,
@@ -15,16 +16,14 @@ const setTally = (value) => ({
     domain: DOMAIN_STRING,
     origin: Origin.var,
 });
-async function mcpRpc(url, id, method, params, token) {
-    const response = await fetch(url, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json, text/event-stream",
-            Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ jsonrpc: "2.0", id, method, params }),
-    });
+/** A JSON-RPC call to `url`, signed by the stand-in authority where a signer is named. */
+async function post(url, message, signer) {
+    const body = JSON.stringify({ jsonrpc: "2.0", ...message });
+    const headers = { "content-type": "application/json", accept: "application/json, text/event-stream" };
+    return fetch(url, { method: "POST", headers: signer ? await new FakeInvoker(signer.holder).sign({ method: "POST", url, headers, body }, signer.action) : headers, body });
+}
+async function mcpRpc(url, id, method, params, signer) {
+    const response = await post(url, { id, method, params }, signer);
     if (!response.ok)
         throw new Error(`MCP ${method} failed: ${response.status} ${await response.text()}`);
     return (await response.json());
@@ -32,25 +31,29 @@ async function mcpRpc(url, id, method, params, token) {
 function mcpToolResult(response) {
     return (response.result ?? response);
 }
-async function mcpListTools(url, token) {
-    await mcpRpc(url, 1, "initialize", {
-        protocolVersion: "2024-11-05",
-        capabilities: {},
-        clientInfo: { name: "haibun-e2e-client", version: "1.0" },
-    }, token);
-    const response = await mcpRpc(url, 2, "tools/list", {}, token);
+async function mcpListTools(url) {
+    await mcpRpc(url, 1, "initialize", { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "haibun-e2e-client", version: "1.0" } });
+    const response = await mcpRpc(url, 2, "tools/list", {});
     return response.result?.tools ?? [];
 }
-async function mcpShownSteps(url, token, text) {
-    const response = await mcpRpc(url, 3, "tools/call", { name: SHOW_STEPS_METHOD, arguments: { text, detail: STEP_DETAIL.summary } }, token);
+async function mcpShownSteps(url, text) {
+    const response = await mcpRpc(url, 3, "tools/call", { name: SHOW_STEPS_METHOD, arguments: { text, detail: STEP_DETAIL.summary } });
     const returned = mcpToolResult(response).content?.[0]?.type === "text" ? (mcpToolResult(response).content?.[0]?.text ?? "") : "";
     if (!returned)
         throw new Error(`${SHOW_STEPS_METHOD} returned nothing: ${JSON.stringify(response)}`);
     return readShownSteps(JSON.parse(returned), STEP_DETAIL.summary).steps.map((step) => step.method);
 }
-async function mcpCallTool(url, token, toolName) {
-    return await mcpRpc(url, 4, "tools/call", { name: toolName, arguments: {} }, token);
+async function mcpCallTool(url, toolName, signer) {
+    await mcpListTools(url);
+    return await mcpRpc(url, 4, "tools/call", { name: toolName, arguments: {} }, signer);
 }
+/** What a tool call answered, as text. */
+const mcpText = (response) => {
+    const content = mcpToolResult(response).content?.[0];
+    return content?.type === "text" ? (content.text ?? "") : "";
+};
+/** A call denied for want of `capability`, or the reason it wasn't. */
+const deniedFor = (status, error, capability) => status === 422 && typeof error === "string" && error.includes(`capability ${capability} required`) ? actionOK() : actionNotOK(`Expected a denial for ${capability}, got ${status} ${String(error)}`);
 const cycles = (ts) => ({
     startFeature: () => {
         const p = { when: `${TestServer.name}.cycles.startFeature`, seq: [0] };
@@ -186,161 +189,78 @@ class TestServer extends AStepper {
             action: async () => actionOKWithProducts({ admin: true }),
         },
         mcpStepIndexIncludes: {
-            gwta: "mcp tools at {url} include {toolName} when bearer token is {token}",
-            action: async ({ url, toolName, token }) => {
-                const tools = await mcpListTools(String(url), String(token));
+            gwta: "mcp tools at {url} include {toolName}",
+            action: async ({ url, toolName }) => {
+                const tools = await mcpListTools(String(url));
                 return tools.some((tool) => tool.name === String(toolName))
                     ? actionOK()
                     : actionNotOK(`Expected ${String(toolName)} in the MCP tool list [${tools.map((tool) => tool.name).join(", ")}]`);
             },
         },
         mcpShownStepsInclude: {
-            gwta: "mcp steps shown at {url} matching {text} include {toolName} when bearer token is {token}",
-            action: async ({ url, text, toolName, token }) => {
-                await mcpListTools(String(url), String(token));
-                const shown = await mcpShownSteps(String(url), String(token), String(text));
+            gwta: "mcp steps shown at {url} matching {text} include {toolName}",
+            action: async ({ url, text, toolName }) => {
+                await mcpListTools(String(url));
+                const shown = await mcpShownSteps(String(url), String(text));
                 return shown.includes(String(toolName)) ? actionOK() : actionNotOK(`Expected ${String(toolName)} among the steps shown [${shown.join(", ")}]`);
             },
         },
-        mcpProtectedDeniedWithBearerToken: {
-            gwta: "mcp call to {url} with tool {toolName} is denied when bearer token is {token}",
-            action: async ({ url, toolName, token }) => {
-                await mcpListTools(String(url), String(token));
-                const response = await mcpCallTool(String(url), String(token), String(toolName));
-                const result = mcpToolResult(response);
-                const text = result.content?.[0]?.type === "text" ? (result.content[0].text ?? "") : "";
-                if (!result.isError)
-                    return actionNotOK(`Expected MCP denial, got ${JSON.stringify(response)}`);
-                if (!text.includes("capability TestServer:protected required")) {
-                    return actionNotOK(`Expected capability denial, got ${JSON.stringify(response)}`);
-                }
-                return actionOK();
+        mcpDenied: {
+            gwta: "mcp call to {url} with tool {toolName} presenting nothing is denied for capability {capability}",
+            action: async ({ url, toolName, capability }) => {
+                const response = await mcpCallTool(String(url), String(toolName));
+                return mcpToolResult(response).isError ? deniedFor(422, mcpText(response), String(capability)) : actionNotOK(`Expected MCP denial, got ${JSON.stringify(response)}`);
             },
         },
-        mcpDeniedForCapabilityWithBearerToken: {
-            gwta: "mcp call to {url} with tool {toolName} is denied for capability {capability} when bearer token is {token}",
-            action: async ({ url, toolName, capability, token }) => {
-                await mcpListTools(String(url), String(token));
-                const response = await mcpCallTool(String(url), String(token), String(toolName));
-                const result = mcpToolResult(response);
-                const text = result.content?.[0]?.type === "text" ? (result.content[0].text ?? "") : "";
-                if (!result.isError)
-                    return actionNotOK(`Expected MCP denial, got ${JSON.stringify(response)}`);
-                if (!text.includes(`capability ${String(capability)} required`)) {
-                    return actionNotOK(`Expected capability denial, got ${JSON.stringify(response)}`);
-                }
-                return actionOK();
+        mcpDeniedSigned: {
+            gwta: "mcp call to {url} with tool {toolName} is denied for capability {capability} when signed by {holder} for {action}",
+            action: async ({ url, toolName, capability, holder, action }) => {
+                const response = await mcpCallTool(String(url), String(toolName), { holder: String(holder), action: String(action) });
+                return mcpToolResult(response).isError ? deniedFor(422, mcpText(response), String(capability)) : actionNotOK(`Expected MCP denial, got ${JSON.stringify(response)}`);
             },
         },
-        mcpProtectedAllowedWithBearerToken: {
-            gwta: "mcp call to {url} with tool {toolName} succeeds when bearer token is {token}",
-            action: async ({ url, toolName, token }) => {
-                await mcpListTools(String(url), String(token));
-                const response = await mcpCallTool(String(url), String(token), String(toolName));
-                const result = mcpToolResult(response);
-                if (result.isError)
+        mcpAllowedSigned: {
+            gwta: "mcp call to {url} with tool {toolName} succeeds when signed by {holder} for {action}",
+            action: async ({ url, toolName, holder, action }) => {
+                const response = await mcpCallTool(String(url), String(toolName), { holder: String(holder), action: String(action) });
+                if (mcpToolResult(response).isError)
                     return actionNotOK(`Expected MCP success, got ${JSON.stringify(response)}`);
-                const text = result.content?.[0]?.type === "text" ? (result.content[0].text ?? "{}") : "{}";
-                const parsed = JSON.parse(text);
-                return parsed.protected === true ? actionOK() : actionNotOK(`Expected protected=true, got ${text}`);
+                const parsed = JSON.parse(mcpText(response) || "{}");
+                return parsed.protected === true ? actionOK() : actionNotOK(`Expected protected=true, got ${mcpText(response)}`);
             },
         },
         rpcProtectedDenied: {
             gwta: "rpc call to {url} with method {method} is denied without capability",
             action: async ({ url, method }) => {
-                const response = await fetch(String(url), {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        jsonrpc: "2.0",
-                        id: "rpc-denied",
-                        method: String(method),
-                        params: {},
-                    }),
-                });
-                const data = (await response.json());
-                if (response.status !== 422)
-                    return actionNotOK(`Expected HTTP 422, got ${response.status}`);
-                if (typeof data.error !== "string" || !data.error.includes("capability TestServer:protected required")) {
-                    return actionNotOK(`Expected capability denial, got ${JSON.stringify(data)}`);
-                }
-                return actionOK();
+                const response = await post(String(url), { id: "rpc-denied", method: String(method), params: {} }, undefined);
+                return deniedFor(response.status, (await response.json()).error, "TestServer:protected");
             },
         },
-        rpcProtectedAllowed: {
-            gwta: "rpc call to {url} with method {method} succeeds when bearer token is {token}",
-            action: async ({ url, method, token }) => {
-                const response = await fetch(String(url), {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${String(token)}`,
-                    },
-                    body: JSON.stringify({
-                        jsonrpc: "2.0",
-                        id: "rpc-allowed",
-                        method: String(method),
-                        params: {},
-                    }),
-                });
+        rpcAllowedSigned: {
+            gwta: "rpc call to {url} with method {method} succeeds when signed by {holder} for {action}",
+            action: async ({ url, method, holder, action }) => {
+                const response = await post(String(url), { id: "rpc-allowed", method: String(method), params: {} }, { holder: String(holder), action: String(action) });
                 if (!response.ok)
-                    return actionNotOK(`HTTP ${response.status}`);
+                    return actionNotOK(`HTTP ${response.status}: ${await response.text()}`);
                 const data = (await response.json());
                 if (data.error)
                     return actionNotOK(String(data.error));
-                if (data.protected !== true)
-                    return actionNotOK(`Expected protected=true, got ${JSON.stringify(data)}`);
-                return actionOK();
+                return data.protected === true ? actionOK() : actionNotOK(`Expected protected=true, got ${JSON.stringify(data)}`);
             },
         },
-        rpcProtectedDeniedWithBearerToken: {
-            gwta: "rpc call to {url} with method {method} is denied when bearer token is {token}",
-            action: async ({ url, method, token }) => {
-                const response = await fetch(String(url), {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${String(token)}`,
-                    },
-                    body: JSON.stringify({
-                        jsonrpc: "2.0",
-                        id: "rpc-denied-token",
-                        method: String(method),
-                        params: {},
-                    }),
-                });
-                const data = (await response.json());
-                if (response.status !== 422)
-                    return actionNotOK(`Expected HTTP 422, got ${response.status}`);
-                if (typeof data.error !== "string" || !data.error.includes("capability TestServer:protected required")) {
-                    return actionNotOK(`Expected capability denial, got ${JSON.stringify(data)}`);
-                }
-                return actionOK();
+        rpcDeniedSigned: {
+            gwta: "rpc call to {url} with method {method} is denied for capability {capability} when signed by {holder} for {action}",
+            action: async ({ url, method, capability, holder, action }) => {
+                const response = await post(String(url), { id: "rpc-denied", method: String(method), params: {} }, { holder: String(holder), action: String(action) });
+                return deniedFor(response.status, (await response.json()).error, String(capability));
             },
         },
-        rpcDeniedForCapabilityWithBearerToken: {
-            gwta: "rpc call to {url} with method {method} is denied for capability {capability} when bearer token is {token}",
-            action: async ({ url, method, capability, token }) => {
-                const response = await fetch(String(url), {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${String(token)}`,
-                    },
-                    body: JSON.stringify({
-                        jsonrpc: "2.0",
-                        id: "rpc-denied-token",
-                        method: String(method),
-                        params: {},
-                    }),
-                });
+        rpcRefusedSigned: {
+            gwta: "rpc call to {url} with method {method} is refused when signed by {holder} for {action}",
+            action: async ({ url, method, holder, action }) => {
+                const response = await post(String(url), { id: "rpc-refused", method: String(method), params: {} }, { holder: String(holder), action: String(action) });
                 const data = (await response.json());
-                if (response.status !== 422)
-                    return actionNotOK(`Expected HTTP 422, got ${response.status}`);
-                if (typeof data.error !== "string" || !data.error.includes(`capability ${String(capability)} required`)) {
-                    return actionNotOK(`Expected capability denial, got ${JSON.stringify(data)}`);
-                }
-                return actionOK();
+                return response.status === 401 ? actionOK() : actionNotOK(`Expected the call refused with 401, got ${response.status} ${JSON.stringify(data)}`);
             },
         },
         addTallyRoute: {

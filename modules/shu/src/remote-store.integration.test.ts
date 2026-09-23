@@ -57,8 +57,7 @@ describe("a satellite keeps records in the main instance's store over live RPC",
 		const feature = {
 			path: "/features/remote-store.feature",
 			content: `
-issue session grant for token "launcher" with action "Instance:launch"
-with token "launcher", start a haibun instance from "modules/shu/tests/federate-peer" on port ${PEER_PORT} as host 7
+start a haibun instance from "modules/shu/tests/federate-peer" on port ${PEER_PORT} as host 7
 present authority as "${SATELLITE}"
 use store at "http://localhost:${PEER_PORT}" for "Principal"
 name a connecting site

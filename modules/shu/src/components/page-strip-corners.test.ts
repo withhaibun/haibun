@@ -102,9 +102,9 @@ describe("the page strip's corners", () => {
 
 	it("show on the access indicator the authority the permissions panel reports", () => {
 		const page = aCornersPage();
-		page.host.dispatchEvent(new CustomEvent(PERMISSIONS_SUMMARY, { detail: { holds: 1, principals: 2, grants: 3 } }));
+		page.host.dispatchEvent(new CustomEvent(PERMISSIONS_SUMMARY, { detail: { holds: 1, principals: 2 } }));
 		renderControls(page);
-		expect(control(page.host, "access-indicator").textContent?.replace(/\s+/g, "")).toBe("all+1+2+3");
+		expect(control(page.host, "access-indicator").textContent?.replace(/\s+/g, "")).toBe("all+1+2");
 	});
 
 	it("show the status on the strip while there is one", () => {

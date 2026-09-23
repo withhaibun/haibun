@@ -49,8 +49,8 @@ type TSitePrincipalWorld = { runtime: { keys?: Record<string, unknown> } };
 
 /**
  * This instance's site principal (its identity DID) as seen by a federation: an adopted one when a peer has
- * named it, else the env-resolved default. Distinct from the acting principal (principal.ts), `as subkey`
- * changes who is ACTING; the site a store fact is served by never changes mid-run.
+ * named it, else the env-resolved default. Distinct from the acting principal (principal.ts): a statement under a
+ * capability changes who is ACTING; the site a store fact is served by never changes mid-run.
  */
 export function activeSitePrincipal(world: TSitePrincipalWorld, env: Record<string, string | undefined> = process.env): string {
 	const adopted = world.runtime.keys?.[ADOPTED_SITE_PRINCIPAL];

@@ -392,7 +392,6 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	/** Plain-language names for the roles CORE's own general rels name. A consumer edge's phrase comes from its declared
 	 *  edge label in the concern catalog (getDeclaredEdgeLabel): no consumer vocabulary is named here. */
 	private static readonly ROLE_PHRASE: Record<string, string> = {
-		delegatedFrom: "Delegated from",
 		delegator: "Delegated by",
 		performedBy: "Performed by",
 		controller: "Controlled by",

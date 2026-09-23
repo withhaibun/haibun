@@ -138,7 +138,7 @@ ensure Logged in`,
 	//      doesn't have, the resolver filters it from the producer set. With no other
 	//      producers, the goal becomes unreachable: the step lacking capability cannot
 	//      be invoked, so it cannot satisfy the waypoint. A run's own feature holds the
-	//      run's authority, so the caller lacking it is stated: a token that grants nothing.
+	//      run's authority, so the caller lacking it is stated: one holding only another action.
 	it("(1d) capability gating: producer requiring an unheld capability is filtered, goal becomes unreachable", async () => {
 		class GatedAuthStepper extends AStepper implements IHasCycles {
 			cycles: IStepperCycles = {
@@ -162,7 +162,7 @@ ensure Logged in`,
 sign in as "alice"
 waypoint Logged in resolves ${DOMAIN_AUTH_SESSION}
 
-with token "grants-nothing", ensure Logged in`,
+holding only "auth:read", ensure Logged in`,
 		};
 
 		const { failWithDefaults } = await import("../lib/test/lib.js");

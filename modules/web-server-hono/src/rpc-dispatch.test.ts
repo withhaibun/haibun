@@ -4,6 +4,7 @@ import { AStepper } from "@haibun/core/lib/astepper.js";
 import { OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
 import { actionNotOK, actionOKWithProducts, getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
+import FakeAuthorityStepper, { FakeInvoker } from "@haibun/core/lib/test/fake-authority.js";
 import WebServerStepper from "./web-server-stepper.js";
 import Haibun from "@haibun/core/steps/haibun.js";
 import { EVERY_DEFINITION, SHOW_STEPS_METHOD, readShownSteps, type TStepDefinition } from "@haibun/core/lib/step-discovery.js";
@@ -40,6 +41,13 @@ async function shownSteps(url: string, headers: Record<string, string>): Promise
 	return readShownSteps(await res.json(), EVERY_DEFINITION.detail).steps;
 }
 
+/** A call to `method` at `url`, signed by `holder` for `action` where a holder is named. */
+async function postRpc(url: string, method: string, signer?: { holder: string; action: string }): Promise<Response> {
+	const body = JSON.stringify({ jsonrpc: "2.0", id: "1", method, params: {}, seqPath: [0, 1, 1, 1] });
+	const headers = { "content-type": "application/json" };
+	return fetch(url, { method: "POST", headers: signer ? await new FakeInvoker(signer.holder).sign({ method: "POST", url, headers, body }, signer.action) : headers, body });
+}
+
 class RpcVerifyStepper extends AStepper {
 	description = "Steps that call a run over RPC and check what it answers.";
 	steps = {
@@ -51,9 +59,9 @@ class RpcVerifyStepper extends AStepper {
 			},
 		},
 		shownStepRequires: {
-			gwta: "caller with bearer token {token} is shown {method} at {url} requiring {capability}",
-			action: async ({ url, token, method, capability }: TStepArgs) => {
-				const step = (await shownSteps(String(url), { Authorization: `Bearer ${String(token)}` })).find((shown) => shown.method === String(method));
+			gwta: "any caller is shown {method} at {url} requiring {capability}",
+			action: async ({ url, method, capability }: TStepArgs) => {
+				const step = (await shownSteps(String(url), {})).find((shown) => shown.method === String(method));
 				return step?.capability === String(capability) ? OK : actionNotOK(`${method} is shown as ${JSON.stringify(step)}`);
 			},
 		},
@@ -142,62 +150,20 @@ class RpcVerifyStepper extends AStepper {
 				return String(data.error).includes("nothing here verifies it") ? OK : actionNotOK(`Expected the refusal to say why, got ${JSON.stringify(data)}`);
 			},
 		},
-		rpcCallSucceedsWithBearerToken: {
-			gwta: "rpc call to {url} with method {method} succeeds when bearer token is {token}",
-			action: async ({ url, method, token }: TStepArgs) => {
-				const res = await fetch(String(url), {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${String(token)}`,
-					},
-					body: JSON.stringify({
-						jsonrpc: "2.0",
-						id: "1",
-						method: String(method),
-						params: {},
-						seqPath: [0, 1, 1, 1],
-					}),
-				});
-				if (!res.ok) return actionNotOK(`HTTP ${res.status}`);
+		rpcCallSucceedsSigned: {
+			gwta: "rpc call to {url} with method {method} succeeds when signed by {holder} for {action}",
+			action: async ({ url, method, holder, action }: TStepArgs) => {
+				const res = await postRpc(String(url), String(method), { holder: String(holder), action: String(action) });
+				if (!res.ok) return actionNotOK(`HTTP ${res.status}: ${await res.text()}`);
 				const data = await res.json();
 				if (data.error) return actionNotOK(data.error);
-				if (data.protected !== true) {
-					return actionNotOK(`Expected protected=true, got ${JSON.stringify(data)}`);
-				}
-				return OK;
-			},
-		},
-		rpcCallDeniedWithBearerToken: {
-			gwta: "rpc call to {url} with method {method} is denied when bearer token is {token}",
-			action: async ({ url, method, token }: TStepArgs) => {
-				const res = await fetch(String(url), {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${String(token)}`,
-					},
-					body: JSON.stringify({ jsonrpc: "2.0", id: "1", method: String(method), params: {}, seqPath: [0, 1, 1, 1] }),
-				});
-				const data = await res.json();
-				if (res.status !== 422) return actionNotOK(`Expected HTTP 422, got ${res.status}`);
-				if (typeof data.error !== "string" || !data.error.includes("capability PingStepper:protected required")) {
-					return actionNotOK(`Expected capability error, got ${JSON.stringify(data)}`);
-				}
-				return OK;
+				return data.protected === true ? OK : actionNotOK(`Expected protected=true, got ${JSON.stringify(data)}`);
 			},
 		},
 		rpcCallDeniedForCapability: {
-			gwta: "rpc call to {url} with method {method} is denied for capability {capability} when bearer token is {token}",
-			action: async ({ url, method, capability, token }: TStepArgs) => {
-				const res = await fetch(String(url), {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${String(token)}`,
-					},
-					body: JSON.stringify({ jsonrpc: "2.0", id: "1", method: String(method), params: {}, seqPath: [0, 1, 1, 1] }),
-				});
+			gwta: "rpc call to {url} with method {method} is denied for capability {capability} when signed by {holder} for {action}",
+			action: async ({ url, method, capability, holder, action }: TStepArgs) => {
+				const res = await postRpc(String(url), String(method), { holder: String(holder), action: String(action) });
 				const data = await res.json();
 				if (res.status !== 422) return actionNotOK(`Expected HTTP 422, got ${res.status}`);
 				if (typeof data.error !== "string" || !data.error.includes(`capability ${String(capability)} required`)) {
@@ -266,6 +232,8 @@ class ReadStepper extends AStepper {
 }
 
 const steppers = [WebServerStepper, PingStepper, RpcVerifyStepper, ReadStepper, Haibun];
+/** The steppers with a stand-in authority, for a case whose caller signs what it calls. */
+const signedSteppers = [AuthorityStepper, FakeAuthorityStepper, ...steppers];
 
 describe("RPC dispatch via WebServerStepper", () => {
 	it("does not narrate serving a read, since a page reading the run would read again for its own reading", async () => {
@@ -374,18 +342,12 @@ rpc old format to "http://localhost:${port}/rpc/${SHOW_STEPS_METHOD}" is not dis
 			content: `
 enable rpc
 webserver is listening for "rpc-shown-steps"
-caller with bearer token "rpc-protected-token" is shown "PingStepper-adminPing" at "http://localhost:${port}/rpc/${SHOW_STEPS_METHOD}" requiring "PingStepper:admin"
-rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "PingStepper-adminPing" is denied for capability "PingStepper:admin" when bearer token is "rpc-protected-token"
+accept authority from "agent" for "PingStepper:protected"
+any caller is shown "PingStepper-adminPing" at "http://localhost:${port}/rpc/${SHOW_STEPS_METHOD}" requiring "PingStepper:admin"
+rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "PingStepper-adminPing" is denied for capability "PingStepper:admin" when signed by "agent" for "PingStepper:protected"
 `,
 		};
-		const result = await passWithDefaults([feature], steppers, {
-			...DEF_PROTO_OPTIONS,
-			moduleOptions: {
-				[getStepperOptionName(WebServerStepper, "PORT")]: String(port),
-				[getStepperOptionName(WebServerStepper, "RPC_ACCESS_TOKEN")]: "rpc-protected-token",
-				[getStepperOptionName(WebServerStepper, "RPC_ACCESS_CAPABILITY")]: "PingStepper:protected",
-			},
-		});
+		const result = await passWithDefaults([feature], signedSteppers, makeOptions(port));
 		expect(result.ok).toBe(true);
 	});
 
@@ -501,57 +463,28 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-ping" without seqPath succ
 			content: `
 enable rpc
 webserver is listening for "rpc-protected-step"
+accept authority from "agent" for "PingStepper:protected"
 rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" is denied without capability
-rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" succeeds when bearer token is "rpc-protected-token"
+rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" succeeds when signed by "agent" for "PingStepper:protected"
 `,
 		};
-		const result = await passWithDefaults([feature], steppers, {
-			...DEF_PROTO_OPTIONS,
-			moduleOptions: {
-				[getStepperOptionName(WebServerStepper, "PORT")]: String(port),
-				[getStepperOptionName(WebServerStepper, "RPC_ACCESS_TOKEN")]: "rpc-protected-token",
-				[getStepperOptionName(WebServerStepper, "RPC_ACCESS_CAPABILITY")]: "PingStepper:protected",
-			},
-		});
+		const result = await passWithDefaults([feature], signedSteppers, makeOptions(port));
 		expect(result.ok).toBe(true);
 	});
 
-	it("authorizes protected RPC steps through session grants and revokes them cleanly", async () => {
-		const port = 8240;
-		const feature = {
-			path: "/features/protected-rpc.feature",
-			content: `
-enable rpc
-webserver is listening for "rpc-session-step"
-issue session grant for token "session-token" with action "PingStepper:protected"
-rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" succeeds when bearer token is "session-token"
-revoke session grant for token "session-token"
-rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" is denied when bearer token is "session-token"
-`,
-		};
-		const result = await passWithDefaults([feature], [AuthorityStepper, ...steppers], makeOptions(port));
-		expect(result.ok).toBe(true);
-	});
-
-	it("keeps RPC bearer capability mappings least-privilege", async () => {
+	it("keeps what a signed caller may do least-privilege: a verified action opens only the steps that take it", async () => {
 		const port = 8241;
 		const feature = {
 			path: "/features/rpc-least-privilege.feature",
 			content: `
 enable rpc
 webserver is listening for "rpc-least-privilege"
-rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" succeeds when bearer token is "rpc-protected-token"
-rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "PingStepper-adminPing" is denied for capability "PingStepper:admin" when bearer token is "rpc-protected-token"
+accept authority from "agent" for "PingStepper:protected"
+rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" succeeds when signed by "agent" for "PingStepper:protected"
+rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "PingStepper-adminPing" is denied for capability "PingStepper:admin" when signed by "agent" for "PingStepper:protected"
 `,
 		};
-		const result = await passWithDefaults([feature], steppers, {
-			...DEF_PROTO_OPTIONS,
-			moduleOptions: {
-				[getStepperOptionName(WebServerStepper, "PORT")]: String(port),
-				[getStepperOptionName(WebServerStepper, "RPC_ACCESS_TOKEN")]: "rpc-protected-token",
-				[getStepperOptionName(WebServerStepper, "RPC_ACCESS_CAPABILITY")]: "PingStepper:protected",
-			},
-		});
+		const result = await passWithDefaults([feature], signedSteppers, makeOptions(port));
 		expect(result.ok).toBe(true);
 	});
 

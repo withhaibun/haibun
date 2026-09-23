@@ -56,11 +56,11 @@ describe("ontologyToQuads: the schema rendered as a graph", () => {
 
 	it("carries a domain (rdfs:domain) on a property a type declares: the instances-drill routing (and none for an abstract super-property)", () => {
 		const domains = { p: principalDomainDefinition as unknown as TRegisteredDomain };
-		// delegatedFrom is an edge Principal declares, so its rdfs:domain includes Principal.
-		expect(typesDeclaringRel(domains, LinkRelations.DELEGATED_FROM.rel)).toContain("Principal");
+		// service is an edge Principal declares, so its rdfs:domain includes Principal.
+		expect(typesDeclaringRel(domains, LinkRelations.SERVICE.rel)).toContain("Principal");
 		const { quads } = ontologyToQuads(domains);
 		const domainOf = (rel: string): unknown => quads.find((q) => q.subject === rel && q.predicate === ONTOLOGY_PRED.domain)?.object;
-		expect(domainOf(LinkRelations.DELEGATED_FROM.rel)).toBe("Principal");
+		expect(domainOf(LinkRelations.SERVICE.rel)).toBe("Principal");
 		// an abstract super-property no type declares has no instances to drill to → no domain.
 		expect(domainOf(LinkRelations.IN_ROLE_OF.rel)).toBeUndefined();
 		expect(typesDeclaringRel(domains, LinkRelations.IN_ROLE_OF.rel)).toEqual([]);
@@ -127,7 +127,7 @@ describe("pruneOntologyToUse: the served schema is the part the data exercises",
 
 describe("withOntologySchema: the schema travels with the response (live and offline alike)", () => {
 	const domains = { p: principalDomainDefinition as unknown as TRegisteredDomain };
-	const instance: TQuad = { subject: "did:x", predicate: "delegatedFrom", object: "did:y", namedGraph: "Principal", timestamp: 5 };
+	const instance: TQuad = { subject: "did:x", predicate: "service", object: "/rpc", namedGraph: "Principal", timestamp: 5 };
 	const response = { quads: [instance], clusters: [{ type: "Principal", totalCount: 1, sampledCount: 1, omittedCount: 0, sampledSubjects: ["did:x"], displayLabels: {} }] };
 
 	it("appends the pruned Class + Property clusters and an rdf:type edge per instance, keeping the instance data intact", () => {

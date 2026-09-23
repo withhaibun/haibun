@@ -26,7 +26,7 @@ class ProtectedStepper extends AStepper {
 		verifyProtectedMcpDenied: {
 			gwta: "verify protected mcp tool on port {port} is denied",
 			action: async ({ port }: { port: string }) => {
-				const result = await callProtectedTool(String(port));
+				const result = await callTool(String(port), "ProtectedStepper-protectedAction");
 				const toolResult = getToolResult(result);
 				if (!toolResult.isError) {
 					throw new Error(`Expected protected tool denial, got ${JSON.stringify(result)}`);
@@ -34,22 +34,6 @@ class ProtectedStepper extends AStepper {
 				const text = toolResult.content?.[0]?.type === "text" ? toolResult.content[0].text : "";
 				if (!text.includes("capability ProtectedStepper:invoke required")) {
 					throw new Error(`Expected capability denial, got ${JSON.stringify(result)}`);
-				}
-				return OK;
-			},
-		},
-		verifyProtectedMcpAllowed: {
-			gwta: "verify protected mcp tool on port {port} succeeds",
-			action: async ({ port }: { port: string }) => {
-				const result = await callProtectedTool(String(port));
-				const toolResult = getToolResult(result);
-				if (toolResult.isError) {
-					throw new Error(`Expected protected tool success, got ${JSON.stringify(result)}`);
-				}
-				const text = toolResult.content?.[0]?.type === "text" ? toolResult.content[0].text : "{}";
-				const parsed = JSON.parse(text) as { protected?: boolean };
-				if (parsed.protected !== true) {
-					throw new Error(`Expected protected=true, got ${text}`);
 				}
 				return OK;
 			},
@@ -78,9 +62,9 @@ class ProtectedStepper extends AStepper {
 			},
 		},
 		verifyAdminMcpDenied: {
-			gwta: "verify admin mcp tool on port {port} is denied",
-			action: async ({ port }: { port: string }) => {
-				const result = await callTool(String(port), "ProtectedStepper-adminAction");
+			gwta: "verify admin mcp tool signed by {holder} for {action} on port {port} is denied",
+			action: async ({ holder, action, port }: { holder: string; action: string; port: string }) => {
+				const result = await callTool(String(port), "ProtectedStepper-adminAction", { holder, action });
 				const toolResult = getToolResult(result);
 				if (!toolResult.isError) {
 					throw new Error(`Expected admin tool denial, got ${JSON.stringify(result)}`);
@@ -95,8 +79,13 @@ class ProtectedStepper extends AStepper {
 	};
 }
 
+const mcpOptions = (port: number) => ({
+	...DEF_PROTO_OPTIONS,
+	moduleOptions: { [getStepperOptionName(WebServerStepper, "PORT")]: String(port), [getStepperOptionName(McpStepper, "PORT")]: String(port) },
+});
+
 describe("McpStepper capability enforcement", () => {
-	it("denies protected MCP tools when bearer auth has no capability mapping", async () => {
+	it("denies a protected tool to a caller presenting nothing", async () => {
 		const port = 8134;
 		const feature = {
 			path: "/features/mcp-capability-denied.feature",
@@ -106,78 +95,8 @@ webserver is listening for "mcp capability denied"
 verify protected mcp tool on port ${port} is denied
 `,
 		};
-
-		const moduleOptions = {
-			[getStepperOptionName(WebServerStepper, "PORT")]: String(port),
-			[getStepperOptionName(McpStepper, "PORT")]: String(port),
-			[getStepperOptionName(McpStepper, "ACCESS_TOKEN")]: "test-token",
-		};
-
-		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, ProtectedStepper], {
-			...DEF_PROTO_OPTIONS,
-			moduleOptions,
-		});
-		if (!result.ok) {
-			throw new Error(JSON.stringify(result.featureResults, null, 2));
-		}
-		expect(result.ok).toBe(true);
-	});
-
-	it("allows protected MCP tools when bearer auth maps to the required capability", async () => {
-		const port = 8135;
-		const feature = {
-			path: "/features/mcp-capability-allowed.feature",
-			content: `
-serve mcp tools at /mcp
-webserver is listening for "mcp capability allowed"
-verify protected mcp tool on port ${port} succeeds
-`,
-		};
-
-		const moduleOptions = {
-			[getStepperOptionName(WebServerStepper, "PORT")]: String(port),
-			[getStepperOptionName(McpStepper, "PORT")]: String(port),
-			[getStepperOptionName(McpStepper, "ACCESS_TOKEN")]: "test-token",
-			[getStepperOptionName(McpStepper, "ACCESS_CAPABILITY")]: "ProtectedStepper:invoke",
-		};
-
-		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, ProtectedStepper], {
-			...DEF_PROTO_OPTIONS,
-			moduleOptions,
-		});
-		if (!result.ok) {
-			throw new Error(JSON.stringify(result.featureResults, null, 2));
-		}
-		expect(result.ok).toBe(true);
-	});
-
-	it("allows and then revokes protected MCP tools through a session grant", async () => {
-		const port = 8136;
-		const feature = {
-			path: "/features/mcp-capability.feature",
-			content: `
-serve mcp tools at /mcp
-webserver is listening for "mcp capability"
-issue session grant for token "test-token" with action "ProtectedStepper:invoke"
-verify protected mcp tool on port ${port} succeeds
-revoke session grant for token "test-token"
-verify protected mcp tool on port ${port} is denied
-`,
-		};
-
-		const moduleOptions = {
-			[getStepperOptionName(WebServerStepper, "PORT")]: String(port),
-			[getStepperOptionName(McpStepper, "PORT")]: String(port),
-			[getStepperOptionName(McpStepper, "ACCESS_TOKEN")]: "test-token",
-		};
-
-		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, AuthorityStepper, ProtectedStepper], {
-			...DEF_PROTO_OPTIONS,
-			moduleOptions,
-		});
-		if (!result.ok) {
-			throw new Error(JSON.stringify(result.featureResults, null, 2));
-		}
+		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, ProtectedStepper], mcpOptions(port));
+		if (!result.ok) throw new Error(JSON.stringify(result.featureResults, null, 2));
 		expect(result.ok).toBe(true);
 	});
 
@@ -193,54 +112,30 @@ verify protected mcp tool signed by "agent" on port ${port} succeeds
 verify protected mcp tool signed by "agent" on port ${port} is refused when its body is not the one signed
 `,
 		};
-		const moduleOptions = {
-			[getStepperOptionName(WebServerStepper, "PORT")]: String(port),
-			[getStepperOptionName(McpStepper, "PORT")]: String(port),
-			[getStepperOptionName(McpStepper, "ACCESS_TOKEN")]: "test-token",
-		};
-		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, AuthorityStepper, FakeAuthorityStepper, ProtectedStepper], {
-			...DEF_PROTO_OPTIONS,
-			moduleOptions,
-		});
+		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, AuthorityStepper, FakeAuthorityStepper, ProtectedStepper], mcpOptions(port));
 		if (!result.ok) throw new Error(JSON.stringify(result.featureResults, null, 2));
 		expect(result.ok).toBe(true);
 	});
 
-	it("keeps MCP bearer capability mappings least-privilege", async () => {
+	it("keeps what a signed caller may do least-privilege: a verified action opens only the tools that take it", async () => {
 		const port = 8137;
 		const feature = {
 			path: "/features/mcp-capability-least-privilege.feature",
 			content: `
 serve mcp tools at /mcp
 webserver is listening for "mcp capability least privilege"
-verify protected mcp tool on port ${port} succeeds
-verify admin mcp tool on port ${port} is denied
+accept authority from "agent" for "ProtectedStepper:invoke"
+verify protected mcp tool signed by "agent" on port ${port} succeeds
+verify admin mcp tool signed by "agent" for "ProtectedStepper:invoke" on port ${port} is denied
 `,
 		};
-
-		const moduleOptions = {
-			[getStepperOptionName(WebServerStepper, "PORT")]: String(port),
-			[getStepperOptionName(McpStepper, "PORT")]: String(port),
-			[getStepperOptionName(McpStepper, "ACCESS_TOKEN")]: "test-token",
-			[getStepperOptionName(McpStepper, "ACCESS_CAPABILITY")]: "ProtectedStepper:invoke",
-		};
-
-		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, ProtectedStepper], {
-			...DEF_PROTO_OPTIONS,
-			moduleOptions,
-		});
-		if (!result.ok) {
-			throw new Error(JSON.stringify(result.featureResults, null, 2));
-		}
+		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, AuthorityStepper, FakeAuthorityStepper, ProtectedStepper], mcpOptions(port));
+		if (!result.ok) throw new Error(JSON.stringify(result.featureResults, null, 2));
 		expect(result.ok).toBe(true);
 	});
 });
 
-async function callProtectedTool(port: string): Promise<Record<string, unknown>> {
-	return await callTool(port, "ProtectedStepper-protectedAction");
-}
-
-/** A call signed by `holder` for `action`, where one is given; otherwise one presenting the access token. */
+/** A call signed by `holder` for `action`, where one is given; otherwise one presenting nothing. */
 type TSigned = { holder: string; action: string };
 
 const MCP_HEADERS = { "content-type": "application/json", accept: "application/json, text/event-stream" };
@@ -259,7 +154,7 @@ async function rpc(url: string, id: number, method: string, params: Record<strin
 	const body = JSON.stringify({ jsonrpc: "2.0", id, method, params });
 	const headers = signed
 		? await new FakeInvoker(signed.holder).sign({ method: "POST", url, headers: MCP_HEADERS, body }, signed.action)
-		: { ...MCP_HEADERS, authorization: "Bearer test-token" };
+		: MCP_HEADERS;
 	let response: Response;
 	try {
 		response = await fetch(url, { method: "POST", headers, body });

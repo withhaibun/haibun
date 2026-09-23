@@ -25,7 +25,7 @@ class TestStepper extends AStepper {
 				const mcpUrl = `http://localhost:${port}/mcp`;
 				const client = new Client({ name: "client", version: "1.0" }, { capabilities: {} });
 				try {
-					await client.connect(new StreamableHTTPClientTransport(new URL(mcpUrl), { requestInit: { headers: { Authorization: "Bearer test-token" } } }));
+					await client.connect(new StreamableHTTPClientTransport(new URL(mcpUrl)));
 					const { tools } = await client.listTools();
 					const names = tools.map((tool) => tool.name);
 					for (const expected of ["TestStepper-testA", "TestStepper-verifyTools", SHOW_STEPS_METHOD]) {
@@ -77,7 +77,6 @@ verify mcp tools on port ${port}
 		const moduleOptions = {
 			[getStepperOptionName(WebServerStepper, "PORT")]: String(port),
 			[getStepperOptionName(McpStepper, "PORT")]: String(port),
-			[getStepperOptionName(McpStepper, "ACCESS_TOKEN")]: "test-token",
 		};
 
 		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, TestStepper, Haibun], {

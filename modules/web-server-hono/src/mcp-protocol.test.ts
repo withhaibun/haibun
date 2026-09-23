@@ -49,7 +49,6 @@ class TestStepper extends AStepper {
 					method: "POST",
 					headers: {
 						"Content-Type": "application/json",
-						Authorization: "Bearer test-token",
 						Accept: "application/json, text/event-stream",
 					},
 					body: JSON.stringify(rpcPayload),
@@ -98,7 +97,6 @@ verify mcp protocol on port ${port}
 
 		const moduleOptions = {
 			[getStepperOptionName(WebServerStepper, "PORT")]: String(port),
-			[getStepperOptionName(McpStepper, "ACCESS_TOKEN")]: "test-token",
 		};
 
 		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, TestStepper], {

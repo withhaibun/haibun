@@ -87,8 +87,7 @@ capture the federated clustered read
 			content: `
 enable rpc
 webserver is listening for "federate-two"
-issue session grant for token "launcher" with action "Instance:launch"
-with token "launcher", start a haibun instance from "modules/shu/tests/federate-peer" on port ${peerPort} as host 7
+start a haibun instance from "modules/shu/tests/federate-peer" on port ${peerPort} as host 7
 federate graph reads from "http://localhost:${peerPort}"
 capture the federated clustered read
 `,

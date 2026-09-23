@@ -24,7 +24,7 @@ import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
 import type { IWebServer, Context } from "./defs.js";
 import { WEBSERVER } from "./defs.js";
 import type { IStepTransport } from "./step-transport.js";
-import { grantedCapabilityForRequest, presentsAuthority, validateCapabilityAuthConfig } from "./capability-auth.js";
+import { grantedCapabilityForRequest } from "./capability-auth.js";
 import { actingAs, authorizedWith, runActingAs, runAuthorizedWith } from "@haibun/core/lib/capability-context.js";
 export default class McpStepper extends AStepper implements IHasOptions, IHasCycles, IStepTransport {
 	description = "Expose all Haibun steps as callable MCP tools for LLM agents";
@@ -56,17 +56,6 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 			desc: "Path for MCP endpoint",
 			parse: (p: string) => stringOrError(p),
 		},
-		ACCESS_TOKEN: {
-			desc: "Access token for MCP auth",
-			// Authority is one process's: a process it starts holds only what it is given.
-			perProcess: true,
-			parse: (t: string) => stringOrError(t),
-		},
-		ACCESS_CAPABILITY: {
-			desc: "Capability granted to callers authenticated with ACCESS_TOKEN",
-			perProcess: true,
-			parse: (t: string) => stringOrError(t),
-		},
 		PORT: {
 			desc: "Port to listen on (overrides WebServer default)",
 			parse: (p: string) => stringOrError(p),
@@ -94,19 +83,11 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 	}
 
 	private mcpPath = "/mcp";
-	private accessToken = "";
-	private accessCapability = "";
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
 		this.steppers = steppers;
 		this.mcpPath = (getStepperOption(this, "MCP_PATH", world.moduleOptions) as string) || "/mcp";
-		this.accessToken = (getStepperOption(this, "ACCESS_TOKEN", world.moduleOptions) as string) || "";
-		this.accessCapability = (getStepperOption(this, "ACCESS_CAPABILITY", world.moduleOptions) as string) || "";
-		validateCapabilityAuthConfig("McpStepper", {
-			accessToken: this.accessToken || undefined,
-			accessCapability: this.accessCapability || undefined,
-		});
 	}
 
 	/** Every step of the run as a tool, a step another host injected among them. */
@@ -137,10 +118,6 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 
 	private async setupMcp() {
 		if (this.mcpServer) return;
-
-		if (!this.accessToken) {
-			throw new Error("McpStepper: ACCESS_TOKEN is required. Configure HAIBUN_O_MCPSTEPPER_ACCESS_TOKEN environment variable.");
-		}
 
 		const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER) as IWebServer;
 		if (!webserver) throw new Error("McpStepper: No webserver found in runtime.");
@@ -237,23 +214,11 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 
 			if (c.req.method === "OPTIONS") return c.body(null, 204);
 
-			// 2. Auth. A signed request carries its proof in the Authorization header, so only a request presenting none is
-			// asked for the access token.
-			const headers = c.req.header();
-			if (this.accessToken && !presentsAuthority(headers)) {
-				const auth = c.req.header("authorization");
-				if (!auth?.startsWith("Bearer ") || auth.slice(7) !== this.accessToken) {
-					return c.json({ error: "Unauthorized" }, 401);
-				}
-			}
-			// What the request presents is verified over the whole request, the body its digest covers included, and every
-			// call it carries runs under that and nothing else: the server was started inside a step of the run, and what
-			// that step held is no caller's.
+			// 2. Auth. What the request presents is verified over the whole request, the body its digest covers included, and
+			// every call it carries runs under that and nothing else: the server was started inside a step of the run, and
+			// what that step held is no caller's. A request presenting nothing may call what requires nothing.
 			const body = c.req.method === "POST" ? await c.req.raw.clone().text() : undefined;
-			const { granted, principal, refused } = await grantedCapabilityForRequest({ method: c.req.method, url: c.req.url, headers, body }, this.getWorld().runtime, {
-				accessToken: this.accessToken || undefined,
-				accessCapability: this.accessCapability || undefined,
-			});
+			const { granted, principal, refused } = await grantedCapabilityForRequest({ method: c.req.method, url: c.req.url, headers: c.req.header(), body }, this.getWorld().runtime);
 			if (refused) return c.json({ error: refused }, 401);
 
 			// 3. Disable Compression (Critical for SSE)

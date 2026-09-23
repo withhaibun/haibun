@@ -75,11 +75,11 @@ export type TPageStripCornersDeps = {
 export class PageStripCorners implements ReactiveController {
 	readonly #host: TControllerHost;
 	readonly #deps: TPageStripCornersDeps;
-	/** What this reader holds and how many grants stand behind them: the access indicator says both beside the level. */
+	/** What this reader holds and how many principals this deployment knows: the access indicator says both beside the level. */
 	readonly #authority: AuthorityController;
 	#open: TCorner | null = null;
 	#status = "";
-	#summary: TPermissionsSummary = { holds: 0, principals: 0, grants: 0 };
+	#summary: TPermissionsSummary = { holds: 0, principals: 0 };
 	#awaiting: TAwaiting = { count: 0, ref: null };
 	#timeOffset = "now";
 
@@ -200,13 +200,13 @@ export class PageStripCorners implements ReactiveController {
 	controlsTemplate(): TemplateResult {
 		const prefix = this.#deps.testIdPrefix();
 		const level = this.#deps.accessLevel();
-		const { holds, principals, grants } = this.#summary;
+		const { holds, principals } = this.#summary;
 		const awaiting = this.#awaiting.count;
 		return html`<span class="corner-controls">
 			<button class="pane-icon corner-toggle access-indicator ${awaiting > 0 ? "awaiting" : ""}" aria-label="Access level" aria-expanded=${this.#open === "access"}
-				title=${`read access ${level}; ${holds} actions held, ${principals} principals, ${grants} grants${awaiting > 0 ? `; ${awaiting} awaiting your decision` : ""}`}
+				title=${`read access ${level}; ${holds} actions held, ${principals} principals${awaiting > 0 ? `; ${awaiting} awaiting your decision` : ""}`}
 				data-testid=${`${prefix}access-indicator`} @click=${this.toggle("access")}>${level}
-				+${holds}+${principals}+${grants}${awaiting > 0 ? html`<span class="awaiting-count" title=${`${awaiting} awaiting your decision`}>${awaiting}</span>` : nothing}</button>
+				+${holds}+${principals}${awaiting > 0 ? html`<span class="awaiting-count" title=${`${awaiting} awaiting your decision`}>${awaiting}</span>` : nothing}</button>
 
 			<button class="pane-icon settings-button" aria-label="Settings" aria-expanded=${this.#open === "settings"} data-testid=${`${prefix}settings-button`}
 				@click=${this.toggle("settings")}>⚙</button>

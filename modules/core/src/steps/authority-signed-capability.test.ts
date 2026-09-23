@@ -1,8 +1,7 @@
 /**
- * Signed-capability path of AuthorityStepper: `as subkey holding capability {cap} at {target}, {what}`.
- * Mirrors the bearer `as subkey` attribution test, but the principal is proven by a *signed* capability
- * verified through a registered IAuthorityVerifier (a test double here, haibun-core stays crypto-free; the
- * ZCAP-LD verifier lives in the consumer). On verified, the capability's controller becomes the
+ * Signed-capability path of AuthorityStepper: `holding capability {cap} at {target}, {what}`. The principal is
+ * proven by a signed capability verified through a registered IAuthorityVerifier (a test double here, haibun-core
+ * stays crypto-free; the ZCAP-LD verifier lives in the consumer). On verified, the capability's controller becomes the
  * principal so authored writes are attributed to it.
  */
 import { describe, expect, it } from "vitest";
@@ -61,7 +60,7 @@ const CAP_JSON = JSON.stringify({
 const STEPPERS = [AuthorityStepper, StubVerifierStepper, ResourcesStepper, TestNodeStepper, VariablesStepper];
 
 describe("AuthorityStepper signed-capability path", () => {
-	it("attributes authored writes inside `as subkey holding capability` to the verified capability's controller", async () => {
+	it("attributes authored writes inside `holding capability` to the verified capability's controller", async () => {
 		verifierState.ok = true;
 		verifierState.lastEvidence = undefined;
 		const world = getDefaultWorld({ HAIBUN_LOG_LEVEL: "none" });
@@ -71,7 +70,7 @@ describe("AuthorityStepper signed-capability path", () => {
 			path: "/features/authority-signed-capability.feature",
 			content: `
 set cap as json to ${CAP_JSON}
-as subkey holding capability cap at "urn:res:1", comment on "${TEST_NODE_LABEL}" node-1 with "hi from the capability holder"
+holding capability cap at "urn:res:1", comment on "${TEST_NODE_LABEL}" node-1 with "hi from the capability holder"
 `,
 		};
 
@@ -102,7 +101,7 @@ as subkey holding capability cap at "urn:res:1", comment on "${TEST_NODE_LABEL}"
 			path: "/features/authority-signed-capability-fail.feature",
 			content: `
 set cap as json to ${CAP_JSON}
-as subkey holding capability cap at "urn:res:1", comment on "${TEST_NODE_LABEL}" node-1 with "should never be written"
+holding capability cap at "urn:res:1", comment on "${TEST_NODE_LABEL}" node-1 with "should never be written"
 `,
 		};
 

@@ -373,7 +373,6 @@ export const LinkRelations = {
 	/** An endpoint a principal publishes: what a reader reaches the deployment by, which is how DID Core states the
 	 *  services a controller offers. */
 	SERVICE: { rel: "service", uri: "did:service", range: "iri" },
-	DELEGATED_FROM: { rel: "delegatedFrom", uri: "sec:delegator", range: "iri" },
 	ALLOWED_ACTION: { rel: "allowedAction", uri: "sec:allowedAction", range: "literal", presentation: "governance" as TRelPresentation },
 	CAPABILITY_ACTION: { rel: "capabilityAction", uri: "sec:capabilityAction", range: "literal", presentation: "governance" as TRelPresentation },
 	PUBLIC_KEY: { rel: "publicKey", uri: "sec:publicKeyMultibase", range: "literal" },
@@ -459,7 +458,6 @@ export const EdgePredicates = {
 	isPartOf: { rel: LinkRelations.PART_OF.rel },
 	precededBy: { rel: LinkRelations.PRECEDED_BY.rel },
 	controller: { rel: LinkRelations.CONTROLLER.rel },
-	delegatedFrom: { rel: LinkRelations.DELEGATED_FROM.rel },
 	hasBody: { rel: LinkRelations.HAS_BODY.rel },
 	mentions: { rel: LinkRelations.MENTIONS.rel },
 	hasSource: { rel: LinkRelations.HAS_SOURCE.rel },
@@ -885,19 +883,13 @@ export const commentDomainDefinition: TDomainDefinition = {
 
 /**
  * Principal: a standards-based identity in the graph (W3C DID + Security `sec:`
- * vocabulary + zcap-LD delegation semantics). The acting identity (a Comment's
- * `author`, an artifact's creator) is a DID string; a Principal node is its
- * persisted, public descriptor.
- *
- * Two kinds persist: the root site principal (self-issued, `controller === id`,
- * no delegation) and explicit `issue subkey` delegations (linked to the delegating
- * principal by a single navigable `delegatedFrom` graph edge, `allowedAction` = the
- * delegated actions). Ephemeral `as subkey` / `with token` activations do NOT persist a
- * Principal. Delegation is an edge, not a scalar field, so it never appears in
- * PrincipalSchema; `persistPrincipalIndividual` writes the lone `delegatedFrom` edge.
+ * vocabulary). The acting identity (a Comment's `author`, an artifact's creator) is a
+ * DID string; a Principal node is its persisted, public descriptor. What a principal
+ * may do is not a property of it: it is what the delegations naming it as controller
+ * allow, which a consumer records as capabilities of their own.
  *
  * Comment→Principal authorship is by SHARED DID, not an edge: `Comment.author`
- * (a string) equals the subkey/site `Principal.id`, resolvable via
+ * (a string) equals the `Principal.id`, resolvable via
  * `getIndividual("Principal", comment.author)`.
  *
  * Only PUBLIC material persists: there is no private-key field, by design.
@@ -908,11 +900,8 @@ export const PrincipalSchema = PersistedVertexSchema.extend({
 	/** as:name: an optional human name for this Principal (a DID has none intrinsically). Lets a party be titled by a readable name instead of its DID; resolves as the display headline (rdfs:label → as:name priority). Named `name`, not `label`, so it is a queryable column: `label` is a reserved column name in a graph store. */
 	name: z.string().optional(),
 	controller: z.string().optional(),
-	allowedAction: z.string().optional(),
 	publicKey: z.string().optional(),
 	generatedAtTime: z.string(),
-	expires: z.string().optional(),
-	revoked: z.boolean().optional(),
 	proof: z.string().optional(),
 });
 
@@ -924,11 +913,9 @@ export type TPrincipal = z.infer<typeof PrincipalSchema>;
  * purpose: buildConcernCatalog (hypermedia.ts) rejects a persisted domain whose
  * GENERATED_AT_TIME-rel field is optional.
  *
- * Delegation is the lone topology edge, `delegatedFrom` (sec:delegator), ranging
- * over the delegating Principal: one navigable graph edge per subkey, written by
- * `persistPrincipalIndividual`. `controller` is a plain property: in every persist path
- * `controller === id` (a Principal controls itself), so a self-referential edge
- * draws nothing useful; it stays a scalar in `properties` + `sortColumns`.
+ * `controller` is a plain property: in every persist path `controller === id` (a
+ * Principal controls itself), so a self-referential edge draws nothing useful; it
+ * stays a scalar in `properties` + `sortColumns`.
  */
 export const principalDomainDefinition: TDomainDefinition = {
 	selectors: [PRINCIPAL_DOMAIN],
@@ -949,17 +936,13 @@ export const principalDomainDefinition: TDomainDefinition = {
 			id: LinkRelations.IDENTIFIER.rel,
 			name: LinkRelations.NAME.rel,
 			controller: LinkRelations.CONTROLLER.rel,
-			allowedAction: LinkRelations.ALLOWED_ACTION.rel,
 			publicKey: LinkRelations.PUBLIC_KEY.rel,
 			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
-			expires: LinkRelations.EXPIRES.rel,
-			revoked: LinkRelations.REVOKED.rel,
 		},
 		edges: {
-			delegatedFrom: { rel: LinkRelations.DELEGATED_FROM.rel, range: PRINCIPAL_LABEL },
 			service: { rel: LinkRelations.SERVICE.rel, range: ENDPOINT_LABEL },
 		},
-		sortColumns: { name: "TEXT", controller: "TEXT", generatedAtTime: "TIMESTAMPTZ", revoked: "BOOLEAN" },
+		sortColumns: { name: "TEXT", controller: "TEXT", generatedAtTime: "TIMESTAMPTZ" },
 	},
 };
 

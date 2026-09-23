@@ -2,7 +2,7 @@ import path from "path";
 
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
-import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption, intOrError, stringOrError, errorDetail, optionOrError } from "@haibun/core/lib/util/index.js";
+import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption, intOrError, errorDetail, optionOrError } from "@haibun/core/lib/util/index.js";
 import { AStepper, type IHasCycles, type IHasOptions, type TEndFeature, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { dispatchStep } from "@haibun/core/lib/step-dispatch.js";
 import { parseRpcRequest, RPC_REFUSED } from "@haibun/core/lib/rpc-wire.js";
@@ -17,7 +17,7 @@ import { runReadingAt, runActingAs } from "@haibun/core/lib/capability-context.j
 import { objectCoercer } from "@haibun/core/lib/domains.js";
 
 import { type IWebServer, WEBSERVER, DOMAIN_ENDPOINT, EndpointLabels, EndpointSchema } from "./defs.js";
-import { grantedCapabilityForRequest, validateCapabilityAuthConfig } from "./capability-auth.js";
+import { grantedCapabilityForRequest } from "./capability-auth.js";
 import { ServerHono, DEFAULT_PORT } from "./server-hono.js";
 import { SSETransport, TRANSPORT, type ITransport } from "./sse-transport.js";
 import type { IStepTransport } from "./step-transport.js";
@@ -101,17 +101,6 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			desc: "Change web server interface from default (127.0.0.1). e.g. 0.0.0.0",
 			parse: (input: string) => ({ result: input }),
 		},
-		RPC_ACCESS_TOKEN: {
-			desc: "Bearer token used to authorize protected RPC steps",
-			// Authority is one process's: a process it starts holds only what it is given.
-			perProcess: true,
-			parse: (input: string) => stringOrError(input),
-		},
-		RPC_ACCESS_CAPABILITY: {
-			desc: "Capability granted to callers authenticated with RPC_ACCESS_TOKEN",
-			perProcess: true,
-			parse: (input: string) => stringOrError(input),
-		},
 		READ_CEILING: {
 			desc: `The most a caller reaching this server may see, whatever any step it calls asks for: one of ${AccessLevelSchema.options.join(", ")}. Unset means the run's own level, which is every record it holds; a deployment reachable by anyone states a narrower one.`,
 			parse: (input: string) => optionOrError(input, [...AccessLevelSchema.options]),
@@ -119,8 +108,6 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 	};
 	port: number = DEFAULT_PORT;
 	hostname?: string;
-	rpcAccessToken?: string;
-	rpcAccessCapability?: string;
 	/** What a caller reaching this server may see at most; unset leaves the run's own level in force. */
 	readCeiling?: AccessLevel;
 
@@ -155,16 +142,10 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		if (interfaceOption) {
 			this.hostname = String(interfaceOption);
 		}
-		this.rpcAccessToken = getStepperOption(this, "RPC_ACCESS_TOKEN", world.moduleOptions) as string | undefined;
-		this.rpcAccessCapability = getStepperOption(this, "RPC_ACCESS_CAPABILITY", world.moduleOptions) as string | undefined;
 		// An unreadable ceiling is not a ceiling: unset is the widest setting, so a misspelling that fell back to it
 		// would open the server rather than stop the run.
 		const ceiling = getStepperOption(this, "READ_CEILING", world.moduleOptions);
 		this.readCeiling = ceiling === undefined ? undefined : AccessLevelSchema.parse(ceiling);
-		validateCapabilityAuthConfig("WebServerStepper RPC", {
-			accessToken: this.rpcAccessToken,
-			accessCapability: this.rpcAccessCapability,
-		});
 	}
 
 	steps = {
@@ -291,10 +272,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					// is, with no ungated default.
 					const served = this.webserver?.rpcMethod(method);
 					if (served) {
-						const { granted, refused } = await grantedCapabilityForRequest(requestInfo, this.getWorld().runtime, {
-							accessToken: this.rpcAccessToken,
-							accessCapability: this.rpcAccessCapability,
-						});
+						const { granted, refused } = await grantedCapabilityForRequest(requestInfo, this.getWorld().runtime);
 						if (refused) return { error: `${method}: ${refused}`, [RPC_REFUSED]: true };
 						if (!capabilityAllows(granted, served.action)) return { error: `${method}: capability ${served.action} required` };
 						try {
@@ -316,10 +294,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					if (!tool) return { error: `${method}: unknown step method` };
 
 					try {
-						const { granted: grantedCapability, principal, refused } = await grantedCapabilityForRequest(requestInfo, world.runtime, {
-							accessToken: this.rpcAccessToken,
-							accessCapability: this.rpcAccessCapability,
-						});
+						const { granted: grantedCapability, principal, refused } = await grantedCapabilityForRequest(requestInfo, world.runtime);
 						if (refused) return { error: `${method}: ${refused}`, [RPC_REFUSED]: true };
 						const validatedParams = validateToolInput(seqPath, tool, params as Record<string, unknown>, world);
 						const featureStep = buildFeatureStepForTransport(tool, validatedParams, seqPath);

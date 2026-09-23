@@ -1,7 +1,8 @@
 /**
  * What a request is allowed to do here, and who it proved itself to be. The proof itself is a specification's
  * business and a consumer registers what reads it; what is checked here is what the boundary does with the answer:
- * that a failed or unverifiable proof refuses the request, that a proof says who acted, and that a token names no one.
+ * that a failed or unverifiable proof refuses the request, that a proof says who acted, and that a request presenting
+ * nothing holds nothing.
  */
 import { describe, it, expect } from "vitest";
 import { grantedCapabilityForRequest } from "./capability-auth.js";
@@ -34,7 +35,7 @@ describe("what a request carries to a boundary", () => {
 	it("grants what a proof allows, and says who proved it, so what is done under it can name them", async () => {
 		const authority = new SessionAuthority();
 		authority.registerVerifier(new StubVerifier());
-		const carried = await grantedCapabilityForRequest(signedRequest(ACTION), runtimeWith(authority), {});
+		const carried = await grantedCapabilityForRequest(signedRequest(ACTION), runtimeWith(authority));
 		expect(carried.granted, "exactly what the request proved it may do").toEqual([ACTION]);
 		expect(carried.principal, "and who proved it, which is who acted").toBe(READER);
 	});
@@ -42,23 +43,22 @@ describe("what a request carries to a boundary", () => {
 	it("refuses a request whose proof fails, granting nothing and naming no one", async () => {
 		const authority = new SessionAuthority();
 		authority.registerVerifier(new StubVerifier());
-		const carried = await grantedCapabilityForRequest(signedRequest("comment.revoke"), runtimeWith(authority), {});
+		const carried = await grantedCapabilityForRequest(signedRequest("comment.revoke"), runtimeWith(authority));
 		expect(carried.refused, "the request is refused, with the verifier's reason").toBe("the presented authority failed verification: not this one");
 		expect(carried.granted, "a refused proof allows nothing").toBeUndefined();
 		expect(carried.principal, "and a refusal is nobody acting").toBeUndefined();
 	});
 
 	it("refuses a request presenting a proof that nothing here verifies", async () => {
-		const carried = await grantedCapabilityForRequest(signedRequest(ACTION), runtimeWith(new SessionAuthority()), {});
+		const carried = await grantedCapabilityForRequest(signedRequest(ACTION), runtimeWith(new SessionAuthority()));
 		expect(carried.refused).toBe("the request presents authority, and nothing here verifies it");
 	});
 
-	it("names no one for a token, since holding a token is not being anyone", async () => {
+	it("holds nothing and names no one for a request presenting nothing, whatever else it carries", async () => {
 		const authority = new SessionAuthority();
-		authority.issueSessionGrant({ token: "tkn", allowedAction: [ACTION] });
-		const carried = await grantedCapabilityForRequest({ method: "POST", url: "http://site.test:8123/rpc/x", headers: { authorization: "Bearer tkn" } }, runtimeWith(authority), {});
-		expect(carried.granted, "what the token was issued for").toEqual([ACTION]);
-		expect(carried.principal, "but a token says nothing about who presents it").toBeUndefined();
+		authority.registerVerifier(new StubVerifier());
+		const carried = await grantedCapabilityForRequest({ method: "POST", url: "http://site.test:8123/rpc/x", headers: { authorization: "Bearer tkn" } }, runtimeWith(authority));
+		expect(carried, "a secret it carries is no authority").toEqual({});
 	});
 });
 
