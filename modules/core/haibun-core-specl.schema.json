@@ -17,9 +17,6 @@
             "properties": {
               "remote": {
                 "type": "string"
-              },
-              "token": {
-                "type": "string"
               }
             },
             "required": [

@@ -24,8 +24,8 @@ import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
 import type { IWebServer, Context } from "./defs.js";
 import { WEBSERVER } from "./defs.js";
 import type { IStepTransport } from "./step-transport.js";
-import { grantedCapabilityForRequest, validateCapabilityAuthConfig } from "./capability-auth.js";
-import { runActingAs } from "@haibun/core/lib/capability-context.js";
+import { grantedCapabilityForRequest, presentsAuthority, validateCapabilityAuthConfig } from "./capability-auth.js";
+import { actingAs, authorizedWith, runActingAs, runAuthorizedWith } from "@haibun/core/lib/capability-context.js";
 export default class McpStepper extends AStepper implements IHasOptions, IHasCycles, IStepTransport {
 	description = "Expose all Haibun steps as callable MCP tools for LLM agents";
 	readonly name = "McpStepper";
@@ -58,10 +58,13 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 		},
 		ACCESS_TOKEN: {
 			desc: "Access token for MCP auth",
+			// Authority is one process's: a process it starts holds only what it is given.
+			perProcess: true,
 			parse: (t: string) => stringOrError(t),
 		},
 		ACCESS_CAPABILITY: {
 			desc: "Capability granted to callers authenticated with ACCESS_TOKEN",
+			perProcess: true,
 			parse: (t: string) => stringOrError(t),
 		},
 		PORT: {
@@ -111,8 +114,9 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 		return this.registry().descriptors().map(toolDefinition);
 	}
 
-	/** Call a step by its method, as a tool call names it, under the capability the caller was granted. */
-	public async executeTool(name: string, args: Record<string, unknown>, grantedCapability?: string | string[]): Promise<CallToolResult> {
+	/** Call a step by its method, as a tool call names it, under the capability the caller was granted and as whoever it
+	 *  proved to be. */
+	public async executeTool(name: string, args: Record<string, unknown>, grantedCapability?: string | string[], principal?: string): Promise<CallToolResult> {
 		const tool = this.registry().get(name);
 		if (!tool) throw new McpError(ErrorCode.MethodNotFound, `Tool ${name} not found.`);
 		try {
@@ -121,7 +125,9 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 			const seqPath = allocateSyntheticSeqPath(world);
 			const featureStep = buildFeatureStepForTransport(tool, validateToolInput(seqPath, tool, args, world), seqPath);
 			// A caller holds what it presented and nothing else, not what the step that started this server held.
-			const result = await runActingAs(undefined, () => dispatchStep({ registry: this.registry(), world, steppers: this.steppers, grantedCapability: grantedCapability ?? [] }, featureStep));
+			const result = await runActingAs(principal, () =>
+				dispatchStep({ registry: this.registry(), world, steppers: this.steppers, grantedCapability: grantedCapability ?? [] }, featureStep),
+			);
 			if (!result.ok) return { isError: true, content: [{ type: "text", text: result.errorMessage ?? "Step failed" }] };
 			return { content: [{ type: "text", text: JSON.stringify(result.products ?? {}, null, 2) }] };
 		} catch (err: unknown) {
@@ -151,10 +157,10 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 		this.mcpServer.server.setRequestHandler(ListToolsRequestSchema, () => ({ tools: this.getTools() }));
 
 		// --- HANDLER 2: CALL TOOL ---
-		this.mcpServer.server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
-			const grantedCapability = await this.getGrantedCapability(extra);
-			return await this.executeTool(request.params.name, (request.params.arguments as Record<string, unknown>) ?? {}, grantedCapability);
-		});
+		// A call runs under what its request presented, which the middleware verified over the whole request.
+		this.mcpServer.server.setRequestHandler(CallToolRequestSchema, (request) =>
+			this.executeTool(request.params.name, (request.params.arguments as Record<string, unknown>) ?? {}, authorizedWith(), actingAs()),
+		);
 
 		// --- HANDLER 3: LIST RESOURCES ---
 		this.mcpServer.server.setRequestHandler(ListResourcesRequestSchema, (_request, _extra) => {
@@ -222,25 +228,6 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 		}
 	}
 
-	private async getGrantedCapability(extra: {
-		requestInfo?: { headers?: Record<string, string | string[] | undefined>; method?: string; url?: unknown } | undefined;
-	}): Promise<string[] | undefined> {
-		const headers = extra.requestInfo?.headers;
-		if (!headers) return undefined;
-		const normalizedHeaders = Object.fromEntries(Object.entries(headers).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]));
-		const url = extra.requestInfo?.url;
-		const { granted, refused } = await grantedCapabilityForRequest(
-			{ headers: normalizedHeaders, method: extra.requestInfo?.method, url: url === undefined ? undefined : String(url) },
-			this.getWorld().runtime,
-			{
-				accessToken: this.accessToken || undefined,
-				accessCapability: this.accessCapability || undefined,
-			},
-		);
-		if (refused) throw new Error(refused);
-		return granted;
-	}
-
 	private setupMiddleware(webserver: IWebServer) {
 		const applyMcpMiddleware = async (c: Context, next: () => Promise<void>) => {
 			// 1. CORS
@@ -250,18 +237,29 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 
 			if (c.req.method === "OPTIONS") return c.body(null, 204);
 
-			// 2. Auth
-			if (this.accessToken) {
+			// 2. Auth. A signed request carries its proof in the Authorization header, so only a request presenting none is
+			// asked for the access token.
+			const headers = c.req.header();
+			if (this.accessToken && !presentsAuthority(headers)) {
 				const auth = c.req.header("authorization");
 				if (!auth?.startsWith("Bearer ") || auth.slice(7) !== this.accessToken) {
 					return c.json({ error: "Unauthorized" }, 401);
 				}
 			}
+			// What the request presents is verified over the whole request, the body its digest covers included, and every
+			// call it carries runs under that and nothing else: the server was started inside a step of the run, and what
+			// that step held is no caller's.
+			const body = c.req.method === "POST" ? await c.req.raw.clone().text() : undefined;
+			const { granted, principal, refused } = await grantedCapabilityForRequest({ method: c.req.method, url: c.req.url, headers, body }, this.getWorld().runtime, {
+				accessToken: this.accessToken || undefined,
+				accessCapability: this.accessCapability || undefined,
+			});
+			if (refused) return c.json({ error: refused }, 401);
 
 			// 3. Disable Compression (Critical for SSE)
 			c.header("Cache-Control", "no-transform");
 
-			await next();
+			await runAuthorizedWith(granted ?? [], () => runActingAs(principal, next));
 		};
 
 		webserver.app.use(this.mcpPath, applyMcpMiddleware);

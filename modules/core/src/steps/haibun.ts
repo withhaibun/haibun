@@ -10,6 +10,7 @@ import { findFeatures } from "../lib/features.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { QuadStore } from "../lib/quad-store.js";
 import { RemoteQuadStore } from "../lib/remote-quad-store.js";
+import { requestSigner } from "../lib/session-authority.js";
 import { SERVING } from "../lib/serving.js";
 import { discoverSteps, runRegistry, stepMethodName } from "../lib/step-registry.js";
 import { DOMAIN_STEP_DETAIL, SHOW_STEPS_DESCRIPTION, StepDetailSchema, StepDiscoverySchema, type TStepsQuery } from "../lib/step-discovery.js";
@@ -79,12 +80,13 @@ class Haibun extends AStepper implements IHasCycles {
 
 	steps = {
 		useStoreAt: {
-			gwta: `use store at {where} for {types} with token {token}`,
+			gwta: `use store at {where} for {types}`,
 			productsSchema: z.object({ site: z.string(), types: z.array(z.string()) }),
 			// Mount another instance's store for the given types: writes route through and reads come back over the
 			// capability-gated store surface, so this instance keeps those records in the serving site's store instead
-			// of its own: one store, one custodian. The token is the delegated capability the serving site granted.
-			action: async ({ where, types, token }: { where: string; types: string; token: string }) => {
+			// of its own: one store, one custodian. Each call is signed under a delegation the serving site gave this
+			// process, which the run's invoker presents.
+			action: async ({ where, types }: { where: string; types: string }) => {
 				const store = this.getWorld().shared.getStore();
 				if (!(store instanceof QuadStore)) return actionNotOK("use store at: the world store does not support backing registration");
 				const graphs = types
@@ -92,7 +94,7 @@ class Haibun extends AStepper implements IHasCycles {
 					.map((t) => t.trim())
 					.filter((t) => t.length > 0);
 				if (graphs.length === 0) return actionNotOK("use store at: no types given");
-				const remote = new RemoteQuadStore({ url: where, token, graphs });
+				const remote = new RemoteQuadStore({ url: where, sign: requestSigner(this.getWorld().runtime), graphs });
 				const site = await remote.connect();
 				await store.registerStore(remote, graphs);
 				return actionOKWithProducts({ site, types: graphs });

@@ -5,6 +5,8 @@ import Haibun from "../steps/haibun.js";
 import { AStepper } from "./astepper.js";
 import { actionOKWithProducts, errorDetail } from "./util/index.js";
 import { getDefaultWorld } from "./test/lib.js";
+import { FakeInvoker } from "./test/fake-authority.js";
+import { AUTHORITY_KEY, SessionAuthority } from "./session-authority.js";
 import type { TWorld } from "./world.js";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
@@ -33,6 +35,8 @@ describe("RemoteStepperProxy", () => {
 	let server: Server;
 	let port: number;
 	let world: TWorld;
+	/** What each call to the host presented, by the method it called. */
+	const presented = new Map<string, string | undefined>();
 
 	beforeAll(async () => {
 		// Start a minimal RPC server with EchoStepper
@@ -45,6 +49,7 @@ describe("RemoteStepperProxy", () => {
 		const app = new Hono();
 		app.post("/rpc/:_method", async (c) => {
 			const data = (await c.req.json()) as { method: string; params?: Record<string, unknown> };
+			presented.set(data.method, c.req.header("capability-invocation"));
 			if (data.method === "action.begin") {
 				return c.json({ seqPath: [7, -1, 1], hostId: 7 });
 			}
@@ -70,7 +75,7 @@ describe("RemoteStepperProxy", () => {
 	});
 
 	it("fetches step descriptors from remote host", async () => {
-		const proxy = new RemoteStepperProxy(`http://localhost:${port}`, "test-token");
+		const proxy = new RemoteStepperProxy(`http://localhost:${port}`);
 		await proxy.setWorld(world, []);
 		expect(proxy.descriptors.length).toBeGreaterThan(0);
 		expect(proxy.descriptors.map((d) => d.method)).toContain("EchoStepper-echo");
@@ -131,5 +136,26 @@ describe("RemoteStepperProxy", () => {
 		const tool = registry.get("host7_EchoStepper-protectedPing");
 		if (!tool) throw new Error("Expected prefixed tool to be registered");
 		expect(tool.descriptor.capability).toBe("EchoStepper:admin");
+	});
+
+	it("signs a call to a step that declares a capability for that capability, and a call to one that declares none not at all", async () => {
+		const authority = new SessionAuthority();
+		authority.registerInvoker(new FakeInvoker("proxy"));
+		(world.runtime.keys ??= {})[AUTHORITY_KEY] = authority;
+		const proxy = new RemoteStepperProxy(`http://localhost:${port}`);
+		await proxy.setWorld(world, []);
+		const registry = new StepRegistry([], world);
+		proxy.injectInto(registry);
+		const { buildFeatureStepForTransport } = await import("./step-registry.js");
+		for (const [method, input] of [
+			["host7_EchoStepper-protectedPing", {}],
+			["host7_EchoStepper-echo", { message: "hi" }],
+		] as const) {
+			const tool = registry.get(method);
+			if (!tool) throw new Error(`Expected ${method} to be registered`);
+			expect((await tool.handler(buildFeatureStepForTransport(tool, input, [0, 1]), world)).ok).toBe(true);
+		}
+		expect(presented.get("EchoStepper-protectedPing")).toBe('fake action="EchoStepper:admin"');
+		expect(presented.get("EchoStepper-echo")).toBeUndefined();
 	});
 });

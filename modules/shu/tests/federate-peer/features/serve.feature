@@ -1,5 +1,5 @@
 enable rpc
 webserver is listening for "federate-peer"
 name a connecting site
-issue session grant for token "satellite-store" with action "store.*"
+accept authority from "satellite" for "store.read,store.write"
 this feature runs as a service until stopped

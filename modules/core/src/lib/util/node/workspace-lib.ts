@@ -21,11 +21,11 @@ export async function getSteppers(stepperEntries: TStepperEntry[]) {
 			}
 		} else {
 			// Remote stepper: create a factory that returns a pre-configured RemoteStepperProxy
-			const { remote, token } = entry;
+			const { remote } = entry;
 			steppers.push(
 				class extends RemoteStepperProxy {
 					constructor() {
-						super(remote, token);
+						super(remote);
 					}
 				} as unknown as CStepper,
 			);

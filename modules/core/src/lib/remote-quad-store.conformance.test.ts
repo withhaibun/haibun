@@ -5,6 +5,7 @@ import { RemoteQuadStore } from "./remote-quad-store.js";
 import { handleStoreCall, isStoreMethod } from "./store-protocol.js";
 import { describeQuadStore } from "./test/quad-store-conformance.js";
 import { rpcAnswer } from "./test/rpc-answer.js";
+import { FakeInvoker } from "./test/fake-authority.js";
 
 const graphs = { first: "ConformanceFirst", second: "ConformanceSecond" };
 
@@ -23,7 +24,7 @@ describeQuadStore(
 	"served by another instance",
 	() => {
 		const serving = new QuadStore();
-		return new RemoteQuadStore({ url: "http://serving.example", token: "delegated", graphs: [graphs.first, graphs.second], fetchImpl: servedBy(serving) });
+		return new RemoteQuadStore({ url: "http://serving.example", sign: new FakeInvoker("delegated").sign, graphs: [graphs.first, graphs.second], fetchImpl: servedBy(serving) });
 	},
 	graphs,
 );

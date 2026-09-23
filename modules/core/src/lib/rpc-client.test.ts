@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { RpcClient, type RpcError } from "./rpc-client.js";
+import type { TOutgoingRequest, TRequestSigner } from "./authority-types.js";
 
 /**
  * Build a fake fetch that records calls and returns scripted responses.
@@ -46,20 +47,46 @@ describe("RpcClient.call", () => {
 		expect(body.seqPath).toEqual([0, 1, 2, 3]);
 	});
 
-	it("attaches Bearer token when capabilityToken is configured", async () => {
+	it("signs a call that invokes an action over the address, the method and the body it sends", async () => {
 		const { fetchImpl, calls } = makeFakeFetch([{ ok: true, bodyText: "{}" }]);
-		const client = new RpcClient({ baseUrl: "http://host", capabilityToken: "secret", fetchImpl });
-		await client.call("m", {}, [0]);
-		const headers = calls[0].init?.headers as Record<string, string>;
-		expect(headers.Authorization).toBe("Bearer secret");
+		const signed: Array<{ request: TOutgoingRequest; action: string }> = [];
+		const sign: TRequestSigner = (request, action) => {
+			signed.push({ request, action });
+			return Promise.resolve({ ...request.headers, "capability-invocation": `signed action="${action}"` });
+		};
+		const client = new RpcClient({ baseUrl: "http://host", sign, fetchImpl });
+		await client.call("m", {}, [0], { action: "Stepper:act" });
+		expect(signed).toEqual([
+			{ request: { method: "POST", url: "http://host/rpc/m", headers: { "content-type": "application/json" }, body: calls[0].init?.body }, action: "Stepper:act" },
+		]);
+		expect(calls[0].init?.headers).toEqual({ "content-type": "application/json", "capability-invocation": 'signed action="Stepper:act"' });
 	});
 
-	it("omits Authorization when no token", async () => {
+	it("sends a call that invokes no action unsigned", async () => {
+		const { fetchImpl, calls } = makeFakeFetch([{ ok: true, bodyText: "{}" }]);
+		const sign: TRequestSigner = () => Promise.reject(new Error("a call invoking nothing is not signed"));
+		const client = new RpcClient({ baseUrl: "http://host", sign, fetchImpl });
+		await client.call("m", {}, [0]);
+		expect(calls[0].init?.headers).toEqual({ "content-type": "application/json" });
+	});
+
+	it("refuses a call invoking an action when it has nothing to sign with, before sending anything", async () => {
 		const { fetchImpl, calls } = makeFakeFetch([{ ok: true, bodyText: "{}" }]);
 		const client = new RpcClient({ baseUrl: "http://host", fetchImpl });
-		await client.call("m", {}, [0]);
-		const headers = calls[0].init?.headers as Record<string, string>;
-		expect(headers.Authorization).toBeUndefined();
+		await expect(client.call("m", {}, [0], { action: "Stepper:act" })).rejects.toThrow("a call invoking Stepper:act is signed, and this client has nothing to sign it with");
+		expect(calls).toEqual([]);
+	});
+
+	it("refuses a call its signer refuses, once, without retrying it as a network fault", async () => {
+		const { fetchImpl, calls } = makeFakeFetch([{ ok: true, bodyText: "{}" }]);
+		let asked = 0;
+		const sign: TRequestSigner = () => {
+			asked++;
+			return Promise.reject(new Error("no delegation allows Stepper:act"));
+		};
+		const client = new RpcClient({ baseUrl: "http://host", sign, fetchImpl, retry: { maxAttempts: 3, baseDelayMs: 0 } });
+		await expect(client.call("m", {}, [0], { action: "Stepper:act" })).rejects.toThrow("no delegation allows Stepper:act");
+		expect([asked, calls.length]).toEqual([1, 0]);
 	});
 
 	it("refuses an answer that is not JSON with its status and what the server sent, as a path it does not serve answers", async () => {

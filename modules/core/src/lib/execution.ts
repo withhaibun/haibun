@@ -7,7 +7,7 @@ import type { TAnyFixme } from "./fixme.js";
 // Specl (runtime config file)
 // ============================================================================
 
-export const RemoteStepperSchema = zr.object({ remote: zr.string(), token: zr.string().optional() });
+export const RemoteStepperSchema = zr.object({ remote: zr.string() });
 export type TRemoteStepper = z.infer<typeof RemoteStepperSchema>;
 
 export const StepperEntrySchema = zr.union([zr.string(), RemoteStepperSchema]);

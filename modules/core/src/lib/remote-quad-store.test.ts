@@ -2,14 +2,17 @@ import { describe, expect, it } from "vitest";
 import { QuadStore } from "./quad-store.js";
 import { handleStoreCall, isStoreMethod } from "./store-protocol.js";
 import { RemoteQuadStore } from "./remote-quad-store.js";
+import { FakeInvoker } from "./test/fake-authority.js";
+
+const sign = new FakeInvoker("satellite").sign;
 
 /** A canned serving instance: a real in-memory QuadStore behind the real protocol handler, plus the handshake. */
 function servingPeer(store: QuadStore) {
-	const calls: Array<{ method: string; params: Record<string, unknown>; authorization?: string }> = [];
+	const calls: Array<{ method: string; params: Record<string, unknown>; invoked?: string }> = [];
 	const fetchImpl = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
 		const body = JSON.parse(String(init?.body)) as { method: string; params: Record<string, unknown> };
 		const headers = init?.headers as Record<string, string>;
-		calls.push({ method: body.method, params: body.params, authorization: headers.Authorization });
+		calls.push({ method: body.method, params: body.params, invoked: headers["capability-invocation"]?.match(/action="([^"]+)"/)?.[1] });
 		const json = (v: unknown, status = 200) => new Response(JSON.stringify(v), { status, headers: { "Content-Type": "application/json" } });
 		if (body.method === "action.begin") return json({ seqPath: [7, -1, 1], hostId: 7, site: "did:site:main" });
 		if (!isStoreMethod(body.method)) return json({ error: `unexpected ${body.method}` }, 422);
@@ -23,22 +26,26 @@ function servingPeer(store: QuadStore) {
 }
 
 describe("RemoteQuadStore", () => {
-	it("handshakes the serving site, presents the delegated token on every call, and round-trips individuals", async () => {
+	it("handshakes the serving site, signs every store call for the action its method takes, and round-trips individuals", async () => {
 		const backing = new QuadStore();
 		const peer = servingPeer(backing);
-		const remote = new RemoteQuadStore({ url: "http://main:1", token: "sat-token", graphs: ["Widget"], fetchImpl: peer.fetchImpl });
+		const remote = new RemoteQuadStore({ url: "http://main:1", sign, graphs: ["Widget"], fetchImpl: peer.fetchImpl });
 		expect(() => remote.site).toThrow(/connect/);
 		expect(await remote.connect()).toBe("did:site:main");
 		expect(await remote.upsertIndividual("Widget", { id: "w-1", name: "One" })).toBe("w-1");
 		expect(await remote.getIndividual("Widget", "w-1")).toEqual({ id: "w-1", name: "One" });
 		expect(await backing.getIndividual("Widget", "w-1")).toEqual({ id: "w-1", name: "One" });
-		for (const c of peer.calls) expect(c.authorization).toBe("Bearer sat-token");
+		expect(peer.calls.map((c) => [c.method, c.invoked])).toEqual([
+			["action.begin", undefined],
+			["store.upsertIndividual", "store.write"],
+			["store.getIndividual", "store.read"],
+		]);
 	});
 
 	it("routes through QuadStore registration: a satellite write lands in the serving store, reads come back", async () => {
 		const backing = new QuadStore();
 		const peer = servingPeer(backing);
-		const remote = new RemoteQuadStore({ url: "http://main:1", token: "sat-token", graphs: ["Widget"], fetchImpl: peer.fetchImpl });
+		const remote = new RemoteQuadStore({ url: "http://main:1", sign, graphs: ["Widget"], fetchImpl: peer.fetchImpl });
 		await remote.connect();
 		const satellite = new QuadStore();
 		await satellite.registerStore(remote, ["Widget"]);
@@ -52,7 +59,7 @@ describe("RemoteQuadStore", () => {
 		await backing.add({ subject: "w-1", predicate: "name", object: "One", namedGraph: "Widget" });
 		await backing.add({ subject: "p-1", predicate: "name", object: "Private", namedGraph: "Elsewhere" });
 		const peer = servingPeer(backing);
-		const remote = new RemoteQuadStore({ url: "http://main:1", token: "sat-token", graphs: ["Widget"], fetchImpl: peer.fetchImpl });
+		const remote = new RemoteQuadStore({ url: "http://main:1", sign, graphs: ["Widget"], fetchImpl: peer.fetchImpl });
 		await remote.connect();
 		expect((await remote.all()).map((q) => q.namedGraph)).toEqual(["Widget"]);
 		const clustered = await remote.getClusteredQuads({ perTypeLimit: 10, accessLevel: "private" });
@@ -67,7 +74,7 @@ describe("RemoteQuadStore", () => {
 			if (body.method === "action.begin") return json({ seqPath: [7, -1, 1], hostId: 7, site: "did:site:main" });
 			return json({ error: `${body.method}: capability store.write required` }, 422);
 		}) as typeof fetch;
-		const denied = new RemoteQuadStore({ url: "http://main:1", token: "wrong", graphs: ["Widget"], fetchImpl: denyingFetch });
+		const denied = new RemoteQuadStore({ url: "http://main:1", sign, graphs: ["Widget"], fetchImpl: denyingFetch });
 		await denied.connect();
 		await expect(denied.upsertIndividual("Widget", { id: "w-1" })).rejects.toThrow(/capability store.write required/);
 	});

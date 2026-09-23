@@ -1,23 +1,22 @@
 import { errorDetail } from "./util/index.js";
 import { readingAt } from "./capability-context.js";
 import { rpcEnvelope, readNdjson, readRpcAnswer } from "./rpc-wire.js";
+import type { TRequestSigner } from "./authority-types.js";
 
 /**
- * rpc-client: capability-scoped client for a haibun host's RPC
- * transport (modules/web-server-hono/sse-transport.ts).
+ * rpc-client: client for a haibun host's RPC transport (modules/web-server-hono/sse-transport.ts).
  *
- * Centralises Bearer-token auth, seqPath threading, timeout, retry
- * with backoff, and streaming-NDJSON parsing. Callers that already
- * have a seqPath (feature-step context) pass it; external callers
- * may pass `[]` and the server synthesises a seqPath rooted on its
- * own hostId, matching the MCP dispatch path.
+ * Centralises signed invocation, seqPath threading, timeout, retry with backoff, and streaming-NDJSON parsing. A call
+ * that invokes an action is signed over the request it sends; a call that invokes none is sent as it is. Callers that
+ * already have a seqPath (feature-step context) pass it; external callers may pass `[]` and the server synthesises a
+ * seqPath rooted on its own hostId, matching the MCP dispatch path.
  */
 
 export type RpcClientConfig = {
 	/** Base URL of the main host (e.g. "http://localhost:8223"). */
 	baseUrl: string;
-	/** Bearer token granting the caller's scoped capabilities on the target host. */
-	capabilityToken?: string;
+	/** Signs a call that invokes an action, with authority this process holds at the host. */
+	sign?: TRequestSigner;
 	/** Per-call timeout in ms before abort. Default 30_000. */
 	timeoutMs?: number;
 	/** Retry policy. */
@@ -32,6 +31,8 @@ export type RpcClientConfig = {
 export type RpcCallOptions = {
 	/** Abort signal from the caller. Fires in addition to the per-call timeout. */
 	signal?: AbortSignal;
+	/** The action the call invokes at the host, which its signature names. A call that names none is not signed. */
+	action?: string;
 };
 
 export type RpcError = { error: string; [k: string]: unknown };
@@ -44,7 +45,7 @@ export type RpcError = { error: string; [k: string]: unknown };
  */
 export class RpcClient {
 	private readonly baseUrl: string;
-	private readonly capabilityToken?: string;
+	private readonly sign?: TRequestSigner;
 	private readonly timeoutMs: number;
 	private readonly maxAttempts: number;
 	private readonly baseDelayMs: number;
@@ -52,7 +53,7 @@ export class RpcClient {
 
 	constructor(config: RpcClientConfig) {
 		this.baseUrl = config.baseUrl.replace(/\/+$/, "");
-		this.capabilityToken = config.capabilityToken;
+		this.sign = config.sign;
 		this.timeoutMs = config.timeoutMs ?? 30_000;
 		this.maxAttempts = config.retry?.maxAttempts ?? 3;
 		this.baseDelayMs = config.retry?.baseDelayMs ?? 250;
@@ -63,17 +64,16 @@ export class RpcClient {
 	 * Blocking JSON-RPC call. Returns parsed JSON on success; an RpcError
 	 * object (with string `error` field) on HTTP or application error.
 	 */
-	call<T = unknown>(method: string, params: Record<string, unknown>, seqPath: number[], opts: RpcCallOptions = {}): Promise<T | RpcError> {
+	async call<T = unknown>(method: string, params: Record<string, unknown>, seqPath: number[], opts: RpcCallOptions = {}): Promise<T | RpcError> {
+		const url = `${this.baseUrl}/rpc/${encodeURIComponent(method)}`;
+		// What this caller may see travels with the call, so a host answers no wider than whoever is reading it: the far side
+		// takes the narrower of this and its own ceiling.
+		const body = rpcEnvelope({ id: `rpc-${Date.now()}`, method, params, seqPath, readingAt: readingAt() });
+		// Signed once, before anything is sent: a refusal to sign is this process's answer, not a fault the network might
+		// not repeat, so only sending is retried.
+		const headers = await headersFor(url, body, this.signing(opts.action));
 		return this.withRetry(async (signal) => {
-			const url = `${this.baseUrl}/rpc/${encodeURIComponent(method)}`;
-			const res = await this.fetchImpl(url, {
-				method: "POST",
-				headers: this.buildHeaders(),
-				// What this caller may see travels with the call, so a host answers no wider than whoever is reading it:
-				// the far side takes the narrower of this and its own ceiling.
-				body: rpcEnvelope({ id: `rpc-${Date.now()}`, method, params, seqPath, readingAt: readingAt() }),
-				signal,
-			});
+			const res = await this.fetchImpl(url, { method: "POST", headers, body, signal });
 			const answer = await readRpcAnswer(method, res);
 			return answer.kind === "answered" ? (answer.body as T) : { error: answer.error };
 		}, opts.signal);
@@ -85,6 +85,7 @@ export class RpcClient {
 	 * Consumers may `break` early; the underlying connection is aborted.
 	 */
 	async *stream<TChunk = unknown>(method: string, params: Record<string, unknown>, seqPath: number[], opts: RpcCallOptions = {}): AsyncGenerator<TChunk, void, unknown> {
+		const signing = this.signing(opts.action);
 		const controller = new AbortController();
 		if (opts.signal) {
 			if (opts.signal.aborted) controller.abort();
@@ -93,12 +94,8 @@ export class RpcClient {
 		const timeoutHandle = setTimeout(() => controller.abort(), this.timeoutMs);
 		try {
 			const url = `${this.baseUrl}/rpc/${encodeURIComponent(method)}`;
-			const res = await this.fetchImpl(url, {
-				method: "POST",
-				headers: this.buildHeaders(),
-				body: rpcEnvelope({ id: `rpc-stream-${Date.now()}`, method, params, seqPath, stream: true, readingAt: readingAt() }),
-				signal: controller.signal,
-			});
+			const body = rpcEnvelope({ id: `rpc-stream-${Date.now()}`, method, params, seqPath, stream: true, readingAt: readingAt() });
+			const res = await this.fetchImpl(url, { method: "POST", headers: await headersFor(url, body, signing), body, signal: controller.signal });
 			if (!res.ok || !res.body) {
 				const text = res.body ? await res.text().catch(() => "") : "";
 				throw new Error(`stream ${method}: HTTP ${res.status}${text ? `, ${text}` : ""}`);
@@ -112,10 +109,12 @@ export class RpcClient {
 		}
 	}
 
-	private buildHeaders(): Record<string, string> {
-		const h: Record<string, string> = { "Content-Type": "application/json" };
-		if (this.capabilityToken) h.Authorization = `Bearer ${this.capabilityToken}`;
-		return h;
+	/** How a call invoking `action` is signed. A client with nothing to sign with refuses such a call, since the host
+	 *  would refuse it unsigned. */
+	private signing(action: string | undefined): TSigning | undefined {
+		if (!action) return undefined;
+		if (!this.sign) throw new Error(`rpc ${this.baseUrl}: a call invoking ${action} is signed, and this client has nothing to sign it with`);
+		return { action, sign: this.sign };
 	}
 
 	/**
@@ -154,6 +153,15 @@ export class RpcClient {
 		}
 		return { error: `rpc failed after ${this.maxAttempts} attempts: ${errorDetail(lastErr)}` };
 	}
+}
+
+type TSigning = { action: string; sign: TRequestSigner };
+
+/** The headers a call is sent with, signed over the address, the method and the body when it invokes an action. One
+ *  header set in one casing, since a signature covers the headers as they are sent. */
+function headersFor(url: string, body: string, signing: TSigning | undefined): Promise<Record<string, string>> {
+	const headers = { "content-type": "application/json" };
+	return signing ? signing.sign({ method: "POST", url, headers, body }, signing.action) : Promise.resolve(headers);
 }
 
 /**

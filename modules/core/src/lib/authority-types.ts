@@ -86,9 +86,25 @@ export interface IAuthorityIssuer {
 	issue(request: TCredentialRequest): Promise<TIssuedCredential>;
 }
 
+/** A request this process makes, as it is sent: what a signature over it covers. */
+export type TOutgoingRequest = { method: string; url: string; headers: Record<string, string>; body: string };
+
+/** Signs a request that invokes `action` at the far side, answering the headers the request is sent with. */
+export type TRequestSigner = (request: TOutgoingRequest, action: string) => Promise<Record<string, string>>;
+
+/**
+ * Signs a request this process makes, invoking an action under authority this process holds at the far side. A consumer
+ * registers one for the specification its deployment uses, and it chooses what the request presents; the framework
+ * holds no key and chooses nothing.
+ */
+export interface IAuthorityInvoker {
+	sign: TRequestSigner;
+}
+
 /**
  * The authority a process holds: its own session grants, whatever verifier a consumer registered for evidence that
- * comes from outside it, and whatever issuer a consumer registered to give a holder something to present.
+ * comes from outside it, whatever issuer a consumer registered to give a holder something to present, and whatever
+ * invoker a consumer registered to present authority this process holds elsewhere.
  */
 export interface IAuthority {
 	issueSessionGrant(grant: { token: string; allowedAction: string[]; controller?: string; note?: string; expires?: number; seqPath?: string }): TSessionGrant;
@@ -99,6 +115,8 @@ export interface IAuthority {
 	registerVerifier(verifier: IAuthorityVerifier): void;
 	registerIssuer(issuer: IAuthorityIssuer): void;
 	issueCredential(request: TCredentialRequest): Promise<TIssuedCredential>;
+	registerInvoker(invoker: IAuthorityInvoker): void;
+	signRequest: TRequestSigner;
 	/** Whether anything is registered to decide evidence at all, so a boundary reading a request knows to ask. */
 	hasVerifier(): boolean;
 	verifyEvidence(evidence: TAuthorityEvidence): Promise<{ ok: boolean; error?: string; principal?: string; allowedAction?: string[] }>;

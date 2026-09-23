@@ -3,15 +3,16 @@
  * `store.*` protocol (store-protocol.ts). Registered as a backing store (QuadStore.registerStore) for the
  * graphs it is mounted for, so a satellite instance keeps those records in the main instance's store
  * instead of its own: writes route through, reads come back: one store, one custodian. Every call
- * presents the delegated capability token; a peer without the grant is refused by the serving side.
+ * is signed, invoking the action its method takes; a peer holding no delegation for it is refused by the serving side.
  * Mount-scoped: clustered reads and all() cover only the mounted graphs, never the peer's whole store.
  */
 import { discoverInstance, RpcClient, type RpcError } from "./rpc-client.js";
-import { STORE_METHOD_PREFIX } from "./store-protocol.js";
+import { STORE_METHOD_PREFIX, requiredStoreCapability } from "./store-protocol.js";
+import type { TRequestSigner } from "./authority-types.js";
 import type { AccessLevel } from "./resources.js";
 import type { IQuadStore, TClusteredQuads, TClusteredQuadsOpts, TDensityQuery, TDensityResult, TQuad, TQuadPattern } from "./quad-types.js";
 
-export type TRemoteQuadStoreConfig = { url: string; token: string; graphs: string[]; fetchImpl?: typeof fetch };
+export type TRemoteQuadStoreConfig = { url: string; sign: TRequestSigner; graphs: string[]; fetchImpl?: typeof fetch };
 
 export class RemoteQuadStore implements IQuadStore {
 	readonly isRemote = true;
@@ -19,7 +20,7 @@ export class RemoteQuadStore implements IQuadStore {
 	private remoteSite?: string;
 
 	constructor(private config: TRemoteQuadStoreConfig) {
-		this.rpc = new RpcClient({ baseUrl: config.url, capabilityToken: config.token, fetchImpl: config.fetchImpl });
+		this.rpc = new RpcClient({ baseUrl: config.url, sign: config.sign, fetchImpl: config.fetchImpl });
 	}
 
 	/** Handshake before use: the serving instance self-reports its site principal: the custodian of everything mounted here. */
@@ -39,7 +40,8 @@ export class RemoteQuadStore implements IQuadStore {
 	}
 
 	private async call<T>(method: string, params: Record<string, unknown>): Promise<T> {
-		const result = await this.rpc.call<{ result: T }>(`${STORE_METHOD_PREFIX}${method}`, params, []);
+		const storeMethod = `${STORE_METHOD_PREFIX}${method}`;
+		const result = await this.rpc.call<{ result: T }>(storeMethod, params, [], { action: requiredStoreCapability(storeMethod) });
 		if (typeof (result as RpcError).error === "string") throw new Error(`RemoteQuadStore: ${method} failed at ${this.config.url}: ${(result as RpcError).error}`);
 		return (result as { result: T }).result;
 	}

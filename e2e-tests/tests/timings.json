@@ -42,17 +42,17 @@
 				"declaredStepTextHash": "4f2c94ae645eda3071bcdce65b58a9a9b48a9d58cdbcc27edc047200d226cd22"
 			},
 			"/features/counter.feature": {
-				"seconds": 1.7,
+				"seconds": 1.6,
 				"steps": 19,
 				"declaredStepTextHash": "2f70ffa43d3f1498ca7807f6a570b166e456aa1830c1890cdbeba09ddabc773d"
 			},
 			"/features/counter.feature.ts": {
-				"seconds": 1.6,
+				"seconds": 1.1,
 				"steps": 19,
 				"declaredStepTextHash": "2bacbd5da344c9602608a02dc1f56199b85a5c69b1c5117a0e2cadc3d54518d3"
 			},
 			"/features/counts.feature.ts": {
-				"seconds": 0.4,
+				"seconds": 0.5,
 				"steps": 22,
 				"declaredStepTextHash": "652c388ee70912af2a7946070e41462d929458d68bc7766c8eeca3840cd4ec1b"
 			},
@@ -132,7 +132,7 @@
 				"declaredStepTextHash": "e9678d64ba12e46fbc4caa36cf6e466eac5684c78c8952b82f9da96f79a0e073"
 			},
 			"/features/wikipedia.feature.ts": {
-				"seconds": 1.2,
+				"seconds": 1,
 				"steps": 143,
 				"declaredStepTextHash": "b162c447aa4626651d8e903bcce16dc77fdff6ddf5cdcb3dd48ed79db2d59972"
 			},
@@ -148,6 +148,6 @@
 			}
 		},
 		"steps": 1153,
-		"seconds": 17.5
+		"seconds": 16.8
 	}
 }

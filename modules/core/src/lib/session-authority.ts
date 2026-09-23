@@ -14,7 +14,18 @@
  */
 import type { TRuntime } from "./world.js";
 import { runActingAs, runAuthorizedWith } from "./capability-context.js";
-import type { IAuthority, IAuthorityIssuer, IAuthorityVerifier, TSessionGrant, TAuthorityEvidence, TCredentialRequest, TIssuedCredential } from "./authority-types.js";
+import type {
+	IAuthority,
+	IAuthorityInvoker,
+	IAuthorityIssuer,
+	IAuthorityVerifier,
+	TSessionGrant,
+	TAuthorityEvidence,
+	TCredentialRequest,
+	TIssuedCredential,
+	TOutgoingRequest,
+	TRequestSigner,
+} from "./authority-types.js";
 
 export const AUTHORITY_KEY = "authority";
 /** Runtime flag a trusted system actor sets to act without presenting evidence of authority. */
@@ -24,6 +35,7 @@ export class SessionAuthority implements IAuthority {
 	private grants = new Map<string, TSessionGrant[]>();
 	private verifier?: IAuthorityVerifier;
 	private issuer?: IAuthorityIssuer;
+	private invoker?: IAuthorityInvoker;
 
 	issueSessionGrant(grant: { token: string; allowedAction: string[]; controller?: string; note?: string; expires?: number; seqPath?: string }): TSessionGrant {
 		const now = Date.now();
@@ -114,6 +126,15 @@ export class SessionAuthority implements IAuthority {
 		return this.issuer.issue(request);
 	}
 
+	registerInvoker(invoker: IAuthorityInvoker): void {
+		this.invoker = invoker;
+	}
+
+	signRequest(request: TOutgoingRequest, action: string): Promise<Record<string, string>> {
+		if (!this.invoker) throw new Error(`nothing is registered to sign a request, so this process can't invoke ${action} at ${request.url}`);
+		return this.invoker.sign(request, action);
+	}
+
 	verifyEvidence(evidence: TAuthorityEvidence): Promise<{ ok: boolean; error?: string; principal?: string; allowedAction?: string[] }> {
 		if (!this.verifier) return Promise.resolve({ ok: false, error: "no verifier is registered to decide this evidence" });
 		return this.verifier.verify(evidence);
@@ -123,11 +144,22 @@ export class SessionAuthority implements IAuthority {
 		this.grants.clear();
 		this.verifier = undefined;
 		this.issuer = undefined;
+		this.invoker = undefined;
 	}
 }
 
 export function getAuthority(runtime: TRuntime): IAuthority | undefined {
 	return runtime.keys?.[AUTHORITY_KEY] as IAuthority | undefined;
+}
+
+/** How a client in this process signs what it invokes elsewhere: through whatever invoker the run's authority holds when
+ *  the call is made, so a client made before the invoker was registered still signs with it. */
+export function requestSigner(runtime: TRuntime): TRequestSigner {
+	return (request, action) => {
+		const authority = getAuthority(runtime);
+		if (!authority) throw new Error(`this process holds no authority, so it can't invoke ${action} at ${request.url}`);
+		return authority.signRequest(request, action);
+	};
 }
 
 /** Runs `within` with exactly what `token` grants, nothing where it grants nothing, as the token's controller or else

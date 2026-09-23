@@ -34,8 +34,7 @@ export type TRequestAuthority = { granted?: string[]; principal?: string; refuse
  */
 export async function grantedCapabilityForRequest(request: TAuthorizedRequest | undefined, runtime: TRuntime, config: TCapabilityAuthConfig): Promise<TRequestAuthority> {
 	const authority = getAuthority(runtime);
-	const presented = getHeader(request?.headers, PRESENTED_AUTHORITY_HEADER);
-	if (presented) {
+	if (presentsAuthority(request?.headers)) {
 		if (!authority?.hasVerifier()) return { refused: "the request presents authority, and nothing here verifies it" };
 		if (!request?.method || !request.url) return { refused: "the request presents authority without the method and address its proof covers" };
 		const verdict = await authority.verifyEvidence({ kind: "request", method: request.method, url: request.url, headers: request.headers ?? {}, body: request.body });
@@ -43,6 +42,11 @@ export async function grantedCapabilityForRequest(request: TAuthorizedRequest | 
 		return { granted: verdict.allowedAction?.length ? verdict.allowedAction : undefined, principal: verdict.principal };
 	}
 	return { granted: getGrantedCapabilityFromHeaders(request?.headers, runtime, config) };
+}
+
+/** Whether a request presents proven authority, which its whole request is then verified for. */
+export function presentsAuthority(headers: TRequestHeaders | undefined): boolean {
+	return getHeader(headers, PRESENTED_AUTHORITY_HEADER) !== undefined;
 }
 
 /** What a token this process issued grants: the actions the authority resolves it to, plus a configured access token's own. */

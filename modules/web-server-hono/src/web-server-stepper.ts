@@ -93,10 +93,13 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		},
 		RPC_ACCESS_TOKEN: {
 			desc: "Bearer token used to authorize protected RPC steps",
+			// Authority is one process's: a process it starts holds only what it is given.
+			perProcess: true,
 			parse: (input: string) => stringOrError(input),
 		},
 		RPC_ACCESS_CAPABILITY: {
 			desc: "Capability granted to callers authenticated with RPC_ACCESS_TOKEN",
+			perProcess: true,
 			parse: (input: string) => stringOrError(input),
 		},
 		READ_CEILING: {

@@ -6,6 +6,7 @@
 		"variables-stepper",
 		"resources-stepper",
 		"authority-stepper",
+		"@haibun/core/lib/test/fake-authority",
 		"@haibun/web-server-hono/web-server-stepper",
 		"@haibun/storage-fs/storage-fs",
 		"@haibun/shu/shu-stepper",

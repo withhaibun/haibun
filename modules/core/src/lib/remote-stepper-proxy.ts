@@ -3,8 +3,8 @@
  *
  * Client-side proxy for a remote haibun host. Reads step descriptors through
  * the host's show steps step, then injects proxy StepTools into
- * the parent registry. Each proxy handler forwards calls over HTTP with
- * an Authorization: Bearer header.
+ * the parent registry. Each proxy handler forwards calls over HTTP, signed
+ * for the capability the remote step declares, where it declares one.
  *
  * Follows the same pattern as SubprocessTransport.injectInto() but uses
  * HTTP/JSON-RPC instead of Node.js fork() IPC.
@@ -17,6 +17,7 @@ import { actionNotOK } from "./util/index.js";
 import { type StepTool, type StepRegistry, hostScopedMethodName, transportInput } from "./step-registry.js";
 import { EVERY_DEFINITION, SHOW_STEPS_METHOD, readShownSteps, type TStepDescriptor } from "./step-discovery.js";
 import { RpcClient, type RpcError } from "./rpc-client.js";
+import { requestSigner } from "./session-authority.js";
 
 export class RemoteStepperProxy extends AStepper {
 	readonly name: string;
@@ -30,15 +31,12 @@ export class RemoteStepperProxy extends AStepper {
 	 */
 	private hostId: number | undefined;
 
-	constructor(
-		private remoteUrl: string,
-		private token?: string,
-	) {
+	constructor(private remoteUrl: string) {
 		super();
 		const host = new URL(remoteUrl).host;
 		this.name = `RemoteProxy_${host.replace(/[^a-zA-Z0-9]/g, "_")}`;
 		this.description = `Proxy for remote stepper host at ${remoteUrl}`;
-		this.rpc = new RpcClient({ baseUrl: remoteUrl, capabilityToken: token });
+		this.rpc = new RpcClient({ baseUrl: remoteUrl, sign: (request, action) => requestSigner(this.getWorld().runtime)(request, action) });
 	}
 
 	async setWorld(world: TWorld, steppers: AStepper[]): Promise<void> {
@@ -92,15 +90,15 @@ export class RemoteStepperProxy extends AStepper {
 				transport: "remote",
 				// Dispatch over RPC using the un-prefixed method name: the prefix is
 				// a local registry-naming concern, not part of the wire call.
-				handler: (featureStep) => this.call(descriptor.method, transportInput(featureStep), featureStep.seqPath),
+				handler: (featureStep) => this.call(descriptor.method, transportInput(featureStep), featureStep.seqPath, descriptor.capability),
 			}),
 		);
 		registry.inject(tools);
 	}
 
-	/** Call a step on the remote host via shared RpcClient. */
-	private async call(method: string, params: Record<string, unknown>, seqPath: number[] = []): Promise<TActionResult> {
-		const result = await this.rpc.call<Record<string, unknown>>(method, params, seqPath);
+	/** Call a step on the remote host via shared RpcClient, invoking the capability it declares, where it declares one. */
+	private async call(method: string, params: Record<string, unknown>, seqPath: number[] = [], action?: string): Promise<TActionResult> {
+		const result = await this.rpc.call<Record<string, unknown>>(method, params, seqPath, { action });
 		if ("error" in result && typeof (result as RpcError).error === "string") {
 			return actionNotOK(`${method}: ${(result as RpcError).error}`);
 		}

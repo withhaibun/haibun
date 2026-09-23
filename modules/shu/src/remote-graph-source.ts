@@ -10,14 +10,14 @@ import { RPC_METHOD } from "./consts.js";
 import type { AccessLevel } from "@haibun/core/lib/resources.js";
 import type { TCluster, TClusteredQuads, TFederatedGraphSource, TQuad } from "@haibun/core/lib/quad-types.js";
 
-export type TRemoteGraphSourceConfig = { url: string; token?: string; fetchImpl?: typeof fetch };
+export type TRemoteGraphSourceConfig = { url: string; fetchImpl?: typeof fetch };
 
 export class RemoteGraphSource implements TFederatedGraphSource {
 	private rpc: RpcClient;
 	private remoteSite?: string;
 
 	constructor(private config: TRemoteGraphSourceConfig) {
-		this.rpc = new RpcClient({ baseUrl: config.url, capabilityToken: config.token, fetchImpl: config.fetchImpl });
+		this.rpc = new RpcClient({ baseUrl: config.url, fetchImpl: config.fetchImpl });
 	}
 
 	/** Handshake: the peer self-reports its site principal via action.begin. Must complete before reads. */

@@ -5,6 +5,7 @@ import { AStepper } from "@haibun/core/lib/astepper.js";
 import { actionOKWithProducts, getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import { OK } from "@haibun/core/schema/protocol.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
+import FakeAuthorityStepper, { FakeInvoker } from "@haibun/core/lib/test/fake-authority.js";
 
 import McpStepper from "./mcp-stepper.js";
 import WebServerStepper from "./web-server-stepper.js";
@@ -50,6 +51,29 @@ class ProtectedStepper extends AStepper {
 				if (parsed.protected !== true) {
 					throw new Error(`Expected protected=true, got ${text}`);
 				}
+				return OK;
+			},
+		},
+		verifySignedProtectedMcpAllowed: {
+			gwta: "verify protected mcp tool signed by {holder} on port {port} succeeds",
+			action: async ({ holder, port }: { holder: string; port: string }) => {
+				const result = await callTool(String(port), "ProtectedStepper-protectedAction", { holder, action: "ProtectedStepper:invoke" });
+				const toolResult = getToolResult(result);
+				if (toolResult.isError) throw new Error(`Expected signed protected tool success, got ${JSON.stringify(result)}`);
+				return OK;
+			},
+		},
+		verifySignedMcpTamperedRefused: {
+			gwta: "verify protected mcp tool signed by {holder} on port {port} is refused when its body is not the one signed",
+			action: async ({ holder, port }: { holder: string; port: string }) => {
+				const url = `http://localhost:${port}/mcp`;
+				await rpc(url, 1, "initialize", { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "capability-client", version: "1.0" } });
+				const signedBody = JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "ProtectedStepper-protectedAction", arguments: {} } });
+				const headers = await new FakeInvoker(holder).sign({ method: "POST", url, headers: MCP_HEADERS, body: signedBody }, "ProtectedStepper:invoke");
+				const sent = JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "ProtectedStepper-adminAction", arguments: {} } });
+				const response = await fetch(url, { method: "POST", headers, body: sent });
+				const text = await response.text();
+				if (response.status !== 401 || !text.includes("the presented digest is not of this request's body")) throw new Error(`Expected refusal, got ${response.status} ${text}`);
 				return OK;
 			},
 		},
@@ -157,6 +181,31 @@ verify protected mcp tool on port ${port} is denied
 		expect(result.ok).toBe(true);
 	});
 
+	it("runs a signed call under what its request presented, verified over the whole request, body included", async () => {
+		const port = 8139;
+		const feature = {
+			path: "/features/mcp-capability-signed.feature",
+			content: `
+serve mcp tools at /mcp
+webserver is listening for "mcp capability signed"
+accept authority from "agent" for "ProtectedStepper:invoke"
+verify protected mcp tool signed by "agent" on port ${port} succeeds
+verify protected mcp tool signed by "agent" on port ${port} is refused when its body is not the one signed
+`,
+		};
+		const moduleOptions = {
+			[getStepperOptionName(WebServerStepper, "PORT")]: String(port),
+			[getStepperOptionName(McpStepper, "PORT")]: String(port),
+			[getStepperOptionName(McpStepper, "ACCESS_TOKEN")]: "test-token",
+		};
+		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, AuthorityStepper, FakeAuthorityStepper, ProtectedStepper], {
+			...DEF_PROTO_OPTIONS,
+			moduleOptions,
+		});
+		if (!result.ok) throw new Error(JSON.stringify(result.featureResults, null, 2));
+		expect(result.ok).toBe(true);
+	});
+
 	it("keeps MCP bearer capability mappings least-privilege", async () => {
 		const port = 8137;
 		const feature = {
@@ -191,31 +240,29 @@ async function callProtectedTool(port: string): Promise<Record<string, unknown>>
 	return await callTool(port, "ProtectedStepper-protectedAction");
 }
 
-async function callTool(port: string, toolName: string): Promise<Record<string, unknown>> {
+/** A call signed by `holder` for `action`, where one is given; otherwise one presenting the access token. */
+type TSigned = { holder: string; action: string };
+
+const MCP_HEADERS = { "content-type": "application/json", accept: "application/json, text/event-stream" };
+
+async function callTool(port: string, toolName: string, signed?: TSigned): Promise<Record<string, unknown>> {
 	const mcpUrl = `http://localhost:${port}/mcp`;
 	await rpc(mcpUrl, 1, "initialize", {
 		protocolVersion: "2024-11-05",
 		capabilities: {},
 		clientInfo: { name: "capability-client", version: "1.0" },
 	});
-	return await rpc(mcpUrl, 2, "tools/call", {
-		name: toolName,
-		arguments: {},
-	});
+	return await rpc(mcpUrl, 2, "tools/call", { name: toolName, arguments: {} }, signed);
 }
 
-async function rpc(url: string, id: number, method: string, params: Record<string, unknown>): Promise<Record<string, unknown>> {
+async function rpc(url: string, id: number, method: string, params: Record<string, unknown>, signed?: TSigned): Promise<Record<string, unknown>> {
+	const body = JSON.stringify({ jsonrpc: "2.0", id, method, params });
+	const headers = signed
+		? await new FakeInvoker(signed.holder).sign({ method: "POST", url, headers: MCP_HEADERS, body }, signed.action)
+		: { ...MCP_HEADERS, authorization: "Bearer test-token" };
 	let response: Response;
 	try {
-		response = await fetch(url, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				Accept: "application/json, text/event-stream",
-				Authorization: "Bearer test-token",
-			},
-			body: JSON.stringify({ jsonrpc: "2.0", id, method, params }),
-		});
+		response = await fetch(url, { method: "POST", headers, body });
 	} catch (error) {
 		const detail = error instanceof Error ? `${error.message}${error.cause ? ` | cause: ${String(error.cause)}` : ""}` : String(error);
 		throw new Error(`MCP ${method} fetch failed: ${detail}`);
