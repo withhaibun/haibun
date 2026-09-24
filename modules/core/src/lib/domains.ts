@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
 	DOMAIN_PERSISTED_TYPE,
+	PRINCIPAL_DOMAIN,
 	isPersisted,
 	LinkRelations,
 	type TDomainDefinition,
@@ -19,6 +20,10 @@ export const DOMAIN_LINK = "link";
 export const DOMAIN_NUMBER = "number";
 export const DOMAIN_JSON = "json";
 export const DOMAIN_DATE = "date";
+/** The actions a caller holds or a delegation allows. */
+export const DOMAIN_ACTIONS = "actions";
+/** A reference to a Principal by its DID. */
+export const DOMAIN_PRINCIPAL_REF = "principal-ref";
 export const BASE_TYPES = [DOMAIN_STRING, DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_DATE, DOMAIN_STATEMENT, DOMAIN_JSON];
 
 // Goal resolver domains.
@@ -30,6 +35,11 @@ export const PRIMITIVE_DOMAINS: ReadonlySet<string> = new Set<string>([...BASE_T
 
 /** Whether a domain key is primitive: a primitive, or a union with one, which a caller can always supply as it. */
 export const isPrimitiveDomain = (domainKey: string): boolean => domainKey.split(" | ").some((part) => PRIMITIVE_DOMAINS.has(part));
+
+/** Whether a caller writes a value of the domain in a step's line, so no step needs to produce it: a primitive, or a value
+ *  domain naming no thing, which has no topology. A persisted type, or a reference to one, is a thing a step produces. */
+export const isWrittenByCaller = (domainKey: string, domains: Record<string, TRegisteredDomain>): boolean =>
+	isPrimitiveDomain(domainKey) || domainKey.split(" | ").every((part) => domains[part] !== undefined && domains[part].topology === undefined);
 export const DOMAIN_GOAL_RESOLUTION = "goal-resolution";
 export const DOMAIN_MICHI = "michi";
 export const DOMAIN_AFFORDANCES = "affordances";
@@ -176,6 +186,9 @@ export function individualRefDomain(refKey: string, targetKey: string, descripti
 		topology: { ranges: { id: targetKey } },
 	};
 }
+
+/** A reference to a Principal: the DID of a person or service that acts here, or its record. */
+export const principalRefDomainDefinition = individualRefDomain(DOMAIN_PRINCIPAL_REF, PRINCIPAL_DOMAIN, "A reference to a Principal by its DID.");
 
 /** Build a Map from persistedAs → TRegisteredDomain for all persisted domains. Returned domains carry a THypermediaTopology so consumers can read id/properties/edges without narrowing. */
 export function hypermediaDomainMap(domains: Record<string, TRegisteredDomain>): Map<string, TRegisteredDomain & { topology: THypermediaTopology }> {

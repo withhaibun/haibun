@@ -2,11 +2,13 @@ import { z } from "zod";
 import { DOMAIN_GRAPH_QUERY, GraphQuerySchema, DOMAIN_DENSITY_QUERY, DensityQuerySchema } from "./quad-types.js";
 import { fromJsonText } from "./json-text.js";
 import { LintFindingSchema, LintSummarySchema } from "./domain-chain-lint.js";
+import { actionList } from "./actions.js";
 import { AStepper, TFeatureStep } from "./astepper.js";
 import { TDomainDefinition } from "./resources.js";
 import type { TWorld } from "./world.js";
 import { TStepValue } from "../schema/protocol.js";
 import {
+	DOMAIN_ACTIONS,
 	DOMAIN_AFFORDANCES,
 	DOMAIN_CHAIN_LINT,
 	DOMAIN_CHAIN_WALK,
@@ -192,6 +194,11 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		selectors: [DOMAIN_DENSITY_QUERY],
 		schema: fromJsonText(DensityQuerySchema),
 		description: "A request for how many records of one type fall in each division of a span of time, by how each turned out.",
+	},
+	{
+		selectors: [DOMAIN_ACTIONS],
+		schema: z.preprocess((value) => (typeof value === "string" ? actionList(value) : value), z.array(z.string().min(1)).min(1, "names no action")),
+		description: "The actions a caller holds or a delegation allows, such as `Read:public` or `WebPlaywright:attach`, given as a list or as text separated by commas.",
 	},
 	{
 		selectors: [DOMAIN_JSON],

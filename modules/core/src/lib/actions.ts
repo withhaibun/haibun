@@ -97,3 +97,23 @@ export function actionUnder(delegation: TDelegation, required: string, target: s
 	if (delegation.allowedAction === undefined) return required;
 	return delegatedActions(delegation).find((action) => capabilityAllows(action, required));
 }
+
+/** What a holder delegates to another key: the delegation it holds that it narrows, the actions the new one lists, and
+ *  when it ends. */
+export type TNarrowing = { parent: TDelegation; allowedAction: string[] | undefined; expires: string };
+
+/**
+ * How a holder narrows what it holds for another key: from the first delegation it holds that allows every action wanted
+ * at the target, listing for each the action that delegation lists that allows it, since zcap-LD narrows a delegation by
+ * the exact actions its parent lists, and ending no later than that delegation does. Undefined where none allows them all.
+ */
+export function narrowing(held: TDelegation[], to: { wanted: string[]; expires: string; target: string }): TNarrowing | undefined {
+	for (const parent of held) {
+		const listed = to.wanted.map((action) => actionUnder(parent, action, to.target));
+		if (listed.some((action) => action === undefined)) continue;
+		const parentEnds = typeof parent.expires === "string" ? parent.expires : undefined;
+		const expires = parentEnds && Date.parse(parentEnds) < Date.parse(to.expires) ? parentEnds : to.expires;
+		return { parent, allowedAction: allowedActionFor([...new Set(listed as string[])]), expires };
+	}
+	return undefined;
+}

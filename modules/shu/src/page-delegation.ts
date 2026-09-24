@@ -14,7 +14,7 @@ import * as multikeyContext from "@digitalbazaar/multikey-context";
 import * as zcapContext from "@digitalbazaar/zcap-context";
 import * as didContext from "did-context";
 import { documentLoader, registerContext } from "@haibun/core/lib/jsonld-loader.js";
-import { actionUnder, allowedActionFor, type TDelegation } from "@haibun/core/lib/actions.js";
+import { narrowing } from "@haibun/core/lib/actions.js";
 import { pageAuthority, pageSigner } from "./page-key.js";
 
 for (const bundled of [dataIntegrityContext, securityContext, multikeyContext, zcapContext, didContext])
@@ -28,28 +28,19 @@ export async function delegateFromPage(to: TDelegationTo): Promise<Record<string
 	const authority = pageAuthority();
 	const signer = pageSigner();
 	if (!authority || !signer) throw new Error("a page delegates once it has read what it holds, and this one hasn't");
-	for (const parent of authority.delegations) {
-		const listed = to.wanted.map((action) => actionUnder(parent, action, to.target));
-		if (listed.some((action) => action === undefined)) continue;
-		const allowedAction = allowedActionFor([...new Set(listed as string[])]);
-		const document = {
-			"@context": zcapConstants.ZCAP_CONTEXT_URL,
-			id: `urn:uuid:${crypto.randomUUID()}`,
-			controller: to.controller,
-			parentCapability: String(parent.id),
-			invocationTarget: String(parent.invocationTarget),
-			...(allowedAction ? { allowedAction } : {}),
-			expires: earlierOf(to.expires, parent),
-		};
-		const suite = new DataIntegrityProof({ signer: { id: signer.keyId, algorithm: "P-256", sign: signer.sign }, cryptosuite: ecdsaRdfc2019Cryptosuite });
-		const purpose = new CapabilityDelegation({ parentCapability: parent, allowTargetAttenuation: true });
-		return await jsigs.sign(document, { suite, purpose, documentLoader: extendDocumentLoader(documentLoader) });
-	}
-	throw new Error(`this page holds no delegation that allows everything the delegation it gives needs: ${to.wanted.join(", ")}`);
-}
-
-/** The earlier of when the delegation given was asked to end and when the one it narrows ends. */
-function earlierOf(expires: string, parent: TDelegation): string {
-	const parentEnds = typeof parent.expires === "string" ? parent.expires : undefined;
-	return parentEnds && Date.parse(parentEnds) < Date.parse(expires) ? parentEnds : expires;
+	const narrowed = narrowing(authority.delegations, to);
+	if (!narrowed) throw new Error(`this page holds no delegation that allows everything the delegation it gives needs: ${to.wanted.join(", ")}`);
+	const { parent, allowedAction, expires } = narrowed;
+	const document = {
+		"@context": zcapConstants.ZCAP_CONTEXT_URL,
+		id: `urn:uuid:${crypto.randomUUID()}`,
+		controller: to.controller,
+		parentCapability: String(parent.id),
+		invocationTarget: String(parent.invocationTarget),
+		...(allowedAction ? { allowedAction } : {}),
+		expires,
+	};
+	const suite = new DataIntegrityProof({ signer: { id: signer.keyId, algorithm: "P-256", sign: signer.sign }, cryptosuite: ecdsaRdfc2019Cryptosuite });
+	const purpose = new CapabilityDelegation({ parentCapability: parent, allowTargetAttenuation: true });
+	return await jsigs.sign(document, { suite, purpose, documentLoader: extendDocumentLoader(documentLoader) });
 }

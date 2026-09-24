@@ -59,7 +59,18 @@ export type TVerdict = { ok: boolean; error?: string; principal?: string; allowe
 export interface IAuthorityVerifier {
 	verify(evidence: TAuthorityEvidence): Promise<TVerdict>;
 	delegationsTo(controller: string): Promise<TDelegations>;
+	/** Record a delegation, so the key it names finds it and a delegator above it can revoke it: one `by` signed from a
+	 *  delegation `by` holds here, or any that verifies for the root. */
+	record(document: Record<string, unknown>, by: TActingFor): Promise<TAuthorityAct>;
+	/** Record a capability's revocation: one `by` signed, or one below it, or any for the root. */
+	revoke(capabilityId: string, by: TActingFor): Promise<TAuthorityAct>;
 }
+
+/** Who an act of the authority is done for: the root, for a caller holding every action, or the key a caller proved. */
+export type TActingFor = { root: true } | { root: false; controller: string };
+
+/** What the authority did: the id of what it recorded or revoked and when, or why it refused. */
+export type TAuthorityAct = { ok: true; id: string; at: string } | { ok: false; error: string };
 
 /** A request this process makes, as it is sent: what a signature over it covers. A request with no body, such as a GET,
  *  carries none. */
@@ -91,6 +102,10 @@ export interface IAuthority {
 	/** Whether anything is registered to decide evidence at all, so a boundary reading a request knows to ask. */
 	hasVerifier(): boolean;
 	verifyEvidence(evidence: TAuthorityEvidence): Promise<TVerdict>;
+	/** Record a delegation for the call in progress, read and written as the instance. */
+	recordDelegation(document: Record<string, unknown>): Promise<TAuthorityAct>;
+	/** Revoke a capability for the call in progress, read and written as the instance. */
+	revoke(capabilityId: string): Promise<TAuthorityAct>;
 	/** Report that a capability was revoked, so every call held open on it ends. Whatever records a revocation reports it. */
 	revoked(capabilityId: string): void;
 	/** A signal that aborts, with the reason, once what a held call rests on lapses: a capability it names is revoked, or

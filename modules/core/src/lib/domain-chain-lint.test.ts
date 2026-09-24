@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { AStepper, type TStepperSteps } from "./astepper.js";
 import { mapDefinitionsToDomains } from "./domains.js";
+import { LinkRelations } from "./resources.js";
 import { actionOKWithProducts } from "./util/index.js";
 import { OK } from "../schema/protocol.js";
 import { buildDomainChain } from "./domain-chain.js";
@@ -15,13 +16,24 @@ const EMAIL = "email";
 const ARCHIVED = "archived-email";
 const ORPHAN_OUTPUT = "orphan-output";
 
+const GREETING = "greeting";
+
+/** A thing a step produces: a persisted type. */
+const thing = (selector: string, description: string) => ({
+	selectors: [selector],
+	schema: z.unknown(),
+	description,
+	topology: { persistedAs: selector, id: "id", properties: { id: LinkRelations.IDENTIFIER.rel } },
+});
+
 const domains = () =>
 	mapDefinitionsToDomains([
-		{ selectors: [PERSON], schema: z.unknown(), description: "person" },
-		{ selectors: [EMAIL], schema: z.unknown(), description: "email" },
-		{ selectors: [ARCHIVED], schema: z.unknown(), description: "archived email" },
-		{ selectors: [ORPHAN_OUTPUT], schema: z.unknown(), description: "orphan output" },
-		{ selectors: ["dead-registered"], schema: z.unknown(), description: "registered but no producer or consumer" },
+		thing(PERSON, "person"),
+		thing(EMAIL, "email"),
+		thing(ARCHIVED, "archived email"),
+		thing(ORPHAN_OUTPUT, "orphan output"),
+		thing("dead-registered", "registered but no producer or consumer"),
+		{ selectors: [GREETING], schema: z.enum(["hello", "goodbye"]), description: "a value its caller writes" },
 	]);
 
 class EmailFromPerson extends AStepper {
@@ -97,6 +109,14 @@ describe("lintDomainChain", () => {
 		expect(unsupplied).toHaveLength(1);
 		const first = unsupplied[0];
 		if (first.kind === "unsupplied-step") expect(first.inputDomain).toBe(PERSON);
+	});
+
+	it("reports no unsupplied-step for a value its caller writes in the line, a value domain naming no thing", () => {
+		class Greets extends AStepper {
+			steps: TStepperSteps = { greet: { gwta: `say {what: ${GREETING}}`, productsDomain: EMAIL, action: () => actionOKWithProducts({ id: "e1" }) } };
+		}
+		const report = lintDomainChain(buildDomainChain([new Greets()], domains()), domains());
+		expect(report.findings.filter((f) => f.kind === "unsupplied-step" || f.kind === "unproduced-domain")).toEqual([]);
 	});
 
 	it("reports unreachable-domain for a registered domain neither consumed nor produced", () => {

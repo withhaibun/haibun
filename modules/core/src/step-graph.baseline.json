@@ -100,10 +100,6 @@
 	"unnamed-products ResourcesStepper.checkCitations",
 	"unnamed-products ResourcesStepper.comment",
 	"unnamed-products ResourcesStepper.statements",
-	"unproduced-domain annotation-note",
-	"unproduced-domain annotation-placement",
-	"unproduced-domain step-detail",
-	"unproduced-domain urakata-id",
 	"unreachable-domain body",
 	"unreachable-domain comment",
 	"unreachable-domain log-message",
@@ -114,16 +110,5 @@
 	"unreachable-domain seq-path",
 	"unreachable-domain specific-resource",
 	"unreachable-domain text-quote-selector",
-	"unreachable-domain urakata-task",
-	"unsupplied-step Haibun.showSteps consumes step-detail",
-	"unsupplied-step ResourcesStepper.annotate consumes persisted-type",
-	"unsupplied-step ResourcesStepper.annotateAnchored consumes annotation-placement",
-	"unsupplied-step ResourcesStepper.annotateAnchored consumes persisted-type",
-	"unsupplied-step ResourcesStepper.annotateLinking consumes persisted-type",
-	"unsupplied-step ResourcesStepper.annotateNote consumes annotation-note",
-	"unsupplied-step ResourcesStepper.annotations consumes persisted-type",
-	"unsupplied-step ResourcesStepper.comment consumes persisted-type",
-	"unsupplied-step UrakataStepper.forgetUrakata consumes urakata-id",
-	"unsupplied-step UrakataStepper.stopUrakata consumes urakata-id",
-	"unsupplied-step UrakataStepper.urakataIsRunning consumes urakata-id"
+	"unreachable-domain urakata-task"
 ]

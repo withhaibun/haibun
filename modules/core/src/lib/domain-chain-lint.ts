@@ -6,13 +6,12 @@
  *   - orphan-step: a step that produces an output domain no other step consumes.
  *     Often legitimate (terminal producers, reporting steps) but can also signal
  *     a dangling integration.
- *   - unsupplied-step: a step that consumes an input domain no other step produces
- *     and which is not satisfiable from gwta args alone. Signals a missing
- *     producer in the loaded set.
+ *   - unsupplied-step: a step that consumes a thing no other step produces: a persisted type, or a reference to one. A
+ *     value its caller writes in the line, a primitive or a value domain with no topology, needs no producer.
  *   - unreachable-domain: a registered domain that no step consumes AND no step
  *     produces. Dead domain.
- *   - unproduced-domain: a domain referenced as an input but no step declares it
- *     as an output. Strict subset of unsupplied-step at the domain level.
+ *   - unproduced-domain: a thing consumed as an input that no step declares as an output. Strict subset of
+ *     unsupplied-step at the domain level.
  *
  * Pure projection over the domain-chain graph plus the domain registry. No I/O.
  * Drift detection: callers persist a snapshot of findings and diff against a new
@@ -21,7 +20,7 @@
 import { z } from "zod";
 import type { TRegisteredDomain } from "./resources.js";
 import { SOURCE_DOMAIN, type TDomainChainGraph } from "./domain-chain.js";
-import { DOMAIN_STRING, isPrimitiveDomain } from "./domains.js";
+import { DOMAIN_STRING, isPrimitiveDomain, isWrittenByCaller } from "./domains.js";
 
 /** The kinds of finding, each a way the typed step graph is incomplete. */
 export const LINT_FINDING = {
@@ -90,7 +89,7 @@ export function lintDomainChain(graph: TDomainChainGraph, domains: Record<string
 		}
 		for (const inp of step.inputDomains) {
 			if (inp === SOURCE_DOMAIN) continue;
-			if (!producedDomains.has(inp)) findings.push({ kind: LINT_FINDING.UNSUPPLIED_STEP, stepperName, stepName, inputDomain: inp });
+			if (!producedDomains.has(inp) && !isWrittenByCaller(inp, domains)) findings.push({ kind: LINT_FINDING.UNSUPPLIED_STEP, stepperName, stepName, inputDomain: inp });
 		}
 		for (const [param, domain] of Object.entries(step.params)) {
 			if (domain.split(" | ").includes(DOMAIN_STRING)) findings.push({ kind: LINT_FINDING.STRING_PARAM, stepperName, stepName, param, domain });
@@ -102,7 +101,7 @@ export function lintDomainChain(graph: TDomainChainGraph, domains: Record<string
 	// a caller and is no node of the graph, so it is neither.
 	for (const key of Object.keys(domains).filter((k) => !isPrimitiveDomain(k))) {
 		if (!consumedDomains.has(key) && !producedDomains.has(key)) findings.push({ kind: LINT_FINDING.UNREACHABLE_DOMAIN, domain: key });
-		if (consumedDomains.has(key) && !producedDomains.has(key) && key !== SOURCE_DOMAIN) findings.push({ kind: LINT_FINDING.UNPRODUCED_DOMAIN, domain: key });
+		if (consumedDomains.has(key) && !producedDomains.has(key) && !isWrittenByCaller(key, domains)) findings.push({ kind: LINT_FINDING.UNPRODUCED_DOMAIN, domain: key });
 	}
 
 	const summary = Object.fromEntries(Object.values(LINT_FINDING).map((kind) => [kind, 0])) as Record<TLintKind, number>;

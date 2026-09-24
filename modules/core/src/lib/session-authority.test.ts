@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { SessionAuthority } from "./session-authority.js";
-import { readingAt, runReadingAt } from "./capability-context.js";
+import { readingAt, runActingAs, runAuthorizedWith, runReadingAt } from "./capability-context.js";
+import { EVERY_ACTION, readAction } from "./actions.js";
+import { AUTHORITY_CAPABILITIES } from "../steps/authority-stepper.js";
 import { Access } from "./resources.js";
-import type { IAuthorityVerifier, TAuthorityEvidence, TOutgoingRequest } from "./authority-types.js";
+import type { IAuthorityVerifier, TActingFor, TAuthorityEvidence, TOutgoingRequest } from "./authority-types.js";
 
 describe("SessionAuthority", () => {
 	describe("evidence from outside this process", () => {
@@ -36,6 +38,46 @@ describe("SessionAuthority", () => {
 				await authority.delegationsTo("did:key:zHolder");
 			});
 			expect(readAt, "a chain it checks and the delegations it answers a key are read from every record").toEqual(["unbounded", "unbounded"]);
+		});
+	});
+
+	describe("recording and revoking a delegation", () => {
+		const AT = "2026-09-24T00:00:00.000Z";
+		const UNRECORDED = "urn:cap:unrecorded";
+		/** A verifier that records who each act was done for, and the level it read at. */
+		const recording = () => {
+			const acts: Array<{ act: string; by: TActingFor; readAt: unknown }> = [];
+			const verifier: IAuthorityVerifier = {
+				verify: async () => ({ ok: true }),
+				delegationsTo: async () => ({ delegations: [] }),
+				record: async (document, by) => (acts.push({ act: `record ${document.id}`, by, readAt: readingAt() ?? "unbounded" }), { ok: true, id: String(document.id), at: AT }),
+				revoke: async (id, by) => (acts.push({ act: `revoke ${id}`, by, readAt: readingAt() ?? "unbounded" }), { ok: true, id, at: AT }),
+			};
+			const authority = new SessionAuthority();
+			authority.registerVerifier(verifier);
+			return { authority, acts };
+		};
+
+		it("acts for the root where the call holds every action, and for the key a caller proved where it holds less, reading as the instance", async () => {
+			const { authority, acts } = recording();
+			await runAuthorizedWith([EVERY_ACTION], () => authority.recordDelegation({ id: "urn:cap:owner" }));
+			await runAuthorizedWith([AUTHORITY_CAPABILITIES.revoke, readAction(Access.public)], () =>
+				runActingAs("did:key:zLauncher", () => runReadingAt(Access.public, () => authority.revoke("urn:cap:panel"))),
+			);
+			expect(acts).toEqual([
+				{ act: "record urn:cap:owner", by: { root: true }, readAt: "unbounded" },
+				{ act: "revoke urn:cap:panel", by: { root: false, controller: "did:key:zLauncher" }, readAt: "unbounded" },
+			]);
+		});
+
+		it("refuses a caller that proved no key and holds less than every action, and refuses where nothing is registered", async () => {
+			const { authority, acts } = recording();
+			expect(await runAuthorizedWith([AUTHORITY_CAPABILITIES.delegate], () => authority.recordDelegation({ id: UNRECORDED }))).toEqual({
+				ok: false,
+				error: "a caller that proved no key and holds less than every action records and revokes no delegation",
+			});
+			expect(acts).toEqual([]);
+			expect(await new SessionAuthority().revoke(UNRECORDED)).toEqual({ ok: false, error: "no verifier is registered to record or revoke a delegation" });
 		});
 	});
 

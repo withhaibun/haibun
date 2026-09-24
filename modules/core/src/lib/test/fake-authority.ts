@@ -12,7 +12,7 @@ import { OK } from "../../schema/protocol.js";
 import { actionNotOK } from "../util/index.js";
 import { getAuthority } from "../session-authority.js";
 import { actionList, capabilityAllows } from "../actions.js";
-import type { IAuthorityInvoker, IAuthorityVerifier, TAuthorityEvidence, TDelegations, TOutgoingRequest, TVerdict } from "../authority-types.js";
+import type { IAuthorityInvoker, IAuthorityVerifier, TAuthorityAct, TAuthorityEvidence, TDelegations, TOutgoingRequest, TVerdict } from "../authority-types.js";
 
 const HOLDER_HEADER = "fake-holder";
 const INVOCATION_HEADER = "capability-invocation";
@@ -53,6 +53,14 @@ export class FakeVerifier implements IAuthorityVerifier {
 	delegationsTo(): Promise<TDelegations> {
 		// A holder here is granted by name, not by a document it could present.
 		return Promise.resolve({ delegations: [] });
+	}
+
+	record(): Promise<TAuthorityAct> {
+		return Promise.resolve({ ok: false, error: "the fake authority grants by name, and records no delegation document" });
+	}
+
+	revoke(): Promise<TAuthorityAct> {
+		return Promise.resolve({ ok: false, error: "the fake authority's grants are withdrawn with `withdraw authority from {holder}`" });
 	}
 }
 

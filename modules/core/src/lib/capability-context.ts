@@ -15,7 +15,8 @@
  */
 import { AsyncLocalStorage } from "node:async_hooks";
 import { Access, narrowerCeiling, type AccessLevel } from "./resources.js";
-import { EVERY_ACTION } from "./actions.js";
+import { capabilityAllows, EVERY_ACTION } from "./actions.js";
+import type { TActingFor } from "./authority-types.js";
 import type { THaibunLogLevel } from "../schema/protocol.js";
 
 const capabilityStore = new AsyncLocalStorage<string | string[] | undefined>();
@@ -81,6 +82,14 @@ export function runActingAs<T>(principal: string | undefined, within: () => Prom
 /** Who proved themselves at the boundary this call came through, or undefined where nothing did. */
 export function actingAs(): string | undefined {
 	return actingStore.getStore();
+}
+
+/** Who an act of the authority is done for: the root, where the call holds every action, as the run's own features and
+ *  its owner do; else the key the caller proved, which acts only within what it was delegated; else no one. */
+export function actingFor(): TActingFor | undefined {
+	if (capabilityAllows(authorizedWith(), EVERY_ACTION)) return { root: true };
+	const controller = actingAs();
+	return controller ? { root: false, controller } : undefined;
 }
 
 /** The step running: its seqPath, and how prominently what is said while it runs reports. */

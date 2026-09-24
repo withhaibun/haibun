@@ -3,7 +3,7 @@
  * one level allows every narrower read.
  */
 import { describe, expect, it } from "vitest";
-import { actionUnder, allowedActionFor, capabilityAllows, delegatedActions, mayCall, readAction, readCeilingOf, requiredAction } from "./actions.js";
+import { actionUnder, allowedActionFor, capabilityAllows, delegatedActions, mayCall, narrowing, readAction, readCeilingOf, requiredAction } from "./actions.js";
 import { Access } from "./resources.js";
 
 describe("what a step requires", () => {
@@ -88,5 +88,28 @@ describe("what a delegation lists", () => {
 	it("invokes the action required under a delegation that restricts none", () => {
 		const unrestricted = { invocationTarget: "http://site.test", expires: "2099-01-01T00:00:00Z" };
 		expect(actionUnder(unrestricted, "Pool:enter", "http://site.test/rpc/x")).toBe("Pool:enter");
+	});
+});
+
+describe("what a holder delegates to another key", () => {
+	const target = "https://pool.example";
+	const [POOL, ENTER_POOL] = ["Pool:*", "Pool:enter"];
+	const [VISITOR_ENDS, LIFEGUARD_ENDS, ASKED_EARLIER, ASKED_LATER] = ["2099-01-01T00:00:00Z", "2099-06-01T00:00:00Z", "2098-01-01T00:00:00Z", "2100-01-01T00:00:00Z"];
+	const lifeguard = { id: "urn:cap:lifeguard", invocationTarget: target, allowedAction: [POOL, readAction(Access.private)], expires: LIFEGUARD_ENDS };
+	const visitor = { id: "urn:cap:visitor", invocationTarget: target, allowedAction: [readAction(Access.public)], expires: VISITOR_ENDS };
+
+	it("narrows the first delegation that allows every action wanted, listing the actions it lists, and ends no later than it", () => {
+		expect(narrowing([visitor, lifeguard], { wanted: [ENTER_POOL, readAction(Access.public)], expires: ASKED_LATER, target })).toEqual({
+			parent: lifeguard,
+			allowedAction: lifeguard.allowedAction,
+			expires: LIFEGUARD_ENDS,
+		});
+		expect(narrowing([visitor], { wanted: [readAction(Access.public)], expires: ASKED_EARLIER, target })?.expires, "and when it was asked to end, where that is earlier").toBe(
+			ASKED_EARLIER,
+		);
+	});
+
+	it("finds none where no delegation held allows an action wanted", () => {
+		expect(narrowing([visitor], { wanted: [ENTER_POOL], expires: VISITOR_ENDS, target })).toBeUndefined();
 	});
 });

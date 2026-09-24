@@ -4,11 +4,13 @@
  * elsewhere. haibun-core stays crypto-free, so it reads no proof and signs nothing itself.
  */
 import type { TRuntime } from "./world.js";
-import { runReadingAsTheInstance } from "./capability-context.js";
+import { actingFor, runReadingAsTheInstance } from "./capability-context.js";
 import type {
 	IAuthority,
 	IAuthorityInvoker,
 	IAuthorityVerifier,
+	TActingFor,
+	TAuthorityAct,
 	TAuthorityEvidence,
 	TDelegations,
 	TOutgoingRequest,
@@ -56,6 +58,24 @@ export class SessionAuthority implements IAuthority {
 		if (!verifier) return Promise.resolve({ ok: false, error: "no verifier is registered to decide this evidence" });
 		// A chain is checked against the instance's own records, whatever the call presenting it may read.
 		return runReadingAsTheInstance(() => verifier.verify(evidence));
+	}
+
+	recordDelegation(document: Record<string, unknown>): Promise<TAuthorityAct> {
+		return this.act((verifier, by) => verifier.record(document, by));
+	}
+
+	revoke(capabilityId: string): Promise<TAuthorityAct> {
+		return this.act((verifier, by) => verifier.revoke(capabilityId, by));
+	}
+
+	/** An act of the authority for the call in progress, decided against the instance's own records whatever the call may
+	 *  read. */
+	private act(done: (verifier: IAuthorityVerifier, by: TActingFor) => Promise<TAuthorityAct>): Promise<TAuthorityAct> {
+		const verifier = this.verifier;
+		if (!verifier) return Promise.resolve({ ok: false, error: "no verifier is registered to record or revoke a delegation" });
+		const by = actingFor();
+		if (!by) return Promise.resolve({ ok: false, error: "a caller that proved no key and holds less than every action records and revokes no delegation" });
+		return runReadingAsTheInstance(() => done(verifier, by));
 	}
 
 	revoked(capabilityId: string): void {
