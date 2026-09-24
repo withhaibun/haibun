@@ -6,10 +6,11 @@
  * are supplied, or an actionable empty-state message. A spinner that never
  * disappears is a bug.
  */
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ShuDomainChainView } from "./shu-domain-chain-view.js";
 import * as ViewHash from "../view-hash.js";
 import { AFFORDANCE_PARAM } from "../consts.js";
+import { PaneState } from "../pane-state.js";
 
 const deepLink = (name: string): string => ViewHash.hashParam(name);
 const clearDeepLink = (): void => ViewHash.mergeHashParams({ [AFFORDANCE_PARAM.GOAL]: "", [AFFORDANCE_PARAM.WAYPOINT]: "" });
@@ -143,7 +144,7 @@ describe("shu-domain-chain-view", () => {
 	it("routes a node click with link.href to the deep link it names; never dispatches STEP_CHOOSE (every click opens a view)", () => {
 		// Click router contract: every click opens a pane.
 		//   - node.link.href "#?aff-goal=X" → writes that deep link into the view state (the affordances panel opens on it).
-		//   - node.invokes alone (no link.href) → no-op; the projection is expected to set link.href on every domain node.
+		//   - a node with no link.href is refused: the projection sets link.href on every domain node.
 		if (!customElements.get("shu-graph-filter")) {
 			class FakeFilter extends HTMLElement {
 				setAxes(_axes: unknown): void {
@@ -174,10 +175,8 @@ describe("shu-domain-chain-view", () => {
 		expect(announced).toBeGreaterThanOrEqual(1);
 		expect(stepChosen).toBeUndefined();
 
-		// No link.href and not fact-instance → no STEP_CHOOSE, no view-state change. The chain
-		// projection always sets link.href on domain nodes, so a node reaching this branch
-		// is a projection bug; routeNodeClick must not silently dispatch a step.
-		view.routeNodeClick({});
+		// No link.href and not fact-instance is a projection bug, refused rather than dispatching a step.
+		expect(() => view.routeNodeClick({ id: "vc" })).toThrow("chain node vc has no deep link to open");
 		expect(stepChosen).toBeUndefined();
 
 		heard();
@@ -289,21 +288,19 @@ describe("shu-domain-chain-view", () => {
 			clearDeepLink();
 		});
 
-		it("routes a fact-instance node click to step-detail (the producing seqPath) without writing a goal deep link", () => {
-			// Each fact-instance's id is `fact:<seqPath>`. Clicking it opens the step-detail
-			// pane for that seqPath onto the producing step. It must NOT deep-link into the
-			// affordances panel.
+		it("routes a fact-instance node click to the step that produced it, a field's fact included, without writing a goal deep link", () => {
 			const view = mount();
-			let popstateCount = 0;
-			const onPop = () => popstateCount++;
-			window.addEventListener("popstate", onPop);
+			const opened = vi.spyOn(PaneState, "requestFrom").mockImplementation(() => undefined);
 			const initialAffGoal = deepLink(AFFORDANCE_PARAM.GOAL);
-
-			view.routeNodeClick({ id: "fact:0.1.3.2", kind: "fact-instance" });
-
-			expect(popstateCount).toBe(0);
+			view.routeNodeClick({ id: "fact:0.1.3.2", kind: "fact-instance", wasGeneratedBy: { factId: "0.1.3.2", domain: "issuer" } });
+			view.routeNodeClick({ id: "fact:0.1.4#issuer", kind: "fact-instance", wasGeneratedBy: { factId: "0.1.4#issuer", domain: "issuer" } });
+			expect(opened.mock.calls.map(([, pane]) => pane)).toEqual([
+				{ paneType: "step-detail", seqPath: [0, 1, 3, 2] },
+				{ paneType: "step-detail", seqPath: [0, 1, 4] },
+			]);
 			expect(deepLink(AFFORDANCE_PARAM.GOAL)).toBe(initialAffGoal);
-			window.removeEventListener("popstate", onPop);
+			expect(() => view.routeNodeClick({ kind: "fact-instance", wasGeneratedBy: { factId: "issuer-1", domain: "issuer" } })).toThrow(/names no step/);
+			opened.mockRestore();
 		});
 
 		it("accepts an equal-size snapshot whose goals differ", () => {

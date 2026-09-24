@@ -23,10 +23,11 @@ import { SHU_EVENT } from "../consts.js";
 import { getRels } from "../rels-cache.js";
 import { appAccessLevel } from "../util.js";
 import { anIndividual, type TContextPattern } from "../schemas.js";
-import { formatRecordName, formatSeqPath, parseSeqPath, SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
+import { factSeqPath, formatRecordName, formatSeqPath, parseSeqPath, SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { readingExecution } from "../client-cache/index.js";
-import { PaneState } from "../pane-state.js";
+import { refTpl } from "./shu-ref.js";
+import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 
 /** How long a burst of announcements is collected before a still-running step's record is read again. */
 const STEP_RE_READ_AFTER_MS = 400;
@@ -67,7 +68,6 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 			.step-detail .label { font-weight: 600; color: var(--shu-fg-muted); }
 			.step-detail .value { margin-left: var(--shu-space-2); }
 			.step-detail pre { background: var(--shu-bg-elevated); padding: var(--shu-space-3); border-radius: var(--shu-radius); font-size: var(--shu-font-md); white-space: pre-wrap; word-break: break-all; margin: var(--shu-space-2) 0; }
-			.step-detail .entity-link { color: var(--shu-accent); cursor: pointer; text-decoration: underline; }
 			.step-detail .section { border-top: var(--shu-border-w) solid var(--shu-border); padding-top: var(--shu-space-3); margin-top: var(--shu-space-4); }
 			.step-detail .var-row { display: flex; gap: var(--shu-space-4); padding: var(--shu-space-1) 0; }
 			.step-detail .var-name { font-weight: 600; min-width: 120px; }
@@ -151,16 +151,12 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 		return typeof this.#load.value?.step?.[SEQ_PATH_FIELD.endedAtTime] === "string";
 	}
 
-	private onLink = (subject: string, label: string, isVertex: boolean) => (): void => {
-		if (!subject || !label) return;
-		if (isVertex) {
-			this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN, { detail: { subject, label }, bubbles: true, composed: true }));
-			return;
-		}
-		const head = subject.includes("#") ? subject.slice(0, subject.indexOf("#")) : subject;
-		const seqPath = parseSeqPath(head);
-		if (seqPath) PaneState.request({ paneType: "step-detail", seqPath });
-	};
+	/** A variable the step set, as a link to the record it names, or to the step its seqPath names, or else as its name. */
+	private variableRef(name: string, graph: string): TemplateResult | string {
+		if (getRels(graph)) return refTpl(REF_DENOTES.individual, { persistedAs: graph, id: name }, name);
+		const seqPath = factSeqPath(name);
+		return seqPath ? refTpl("seqPath", { seqPath }, name) : name;
+	}
 
 	render(): TemplateResult {
 		const key = formatSeqPath(this.state.seqPath);
@@ -202,10 +198,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 				variablesSet.length > 0
 					? html`
 				<div class="section"><span class="label">Data set (${variablesSet.length}):</span>
-					${variablesSet.map((v) => {
-						const isVertex = !!getRels(v.graph);
-						return html`<div class="var-row"><span style="color:var(--shu-fg-faded);font-size:var(--shu-font-sm)">${v.graph}</span> <span class="entity-link" @click=${this.onLink(v.name, v.graph, isVertex)}>${v.name}</span></div>`;
-					})}
+					${variablesSet.map((v) => html`<div class="var-row"><span style="color:var(--shu-fg-faded);font-size:var(--shu-font-sm)">${v.graph}</span> ${this.variableRef(v.name, v.graph)}</div>`)}
 				</div>
 			`
 					: ""

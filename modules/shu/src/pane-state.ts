@@ -14,6 +14,7 @@
  * via `paneIdOf` / `tagOf` / `labelOf`. No redundant fields, no drift.
  */
 import { QuoteAnchorSchema, type TQuoteAnchor } from "@haibun/core/lib/resources.js";
+import { TEXT_DIRECTIVE, splitTextDirective, textDirectiveFor } from "@haibun/core/lib/typed-links.js";
 import { z } from "zod";
 import * as ViewHash from "./view-hash.js";
 import { objectId } from "./object-id.js";
@@ -59,6 +60,13 @@ export const DesiredPaneSchema = z.discriminatedUnion("paneType", [
 export type DesiredPane = z.infer<typeof DesiredPaneSchema>;
 export type DesiredPaneType = DesiredPane["paneType"];
 
+/** What a view in the other bundle asks the page to open with `SHU_EVENT.PANE_OPEN`: its PaneState isn't the page's. */
+export const PaneOpenSchema = z.object({ pane: DesiredPaneSchema, addToSelection: z.boolean() });
+export type TPaneOpen = z.infer<typeof PaneOpenSchema>;
+
+/** A click with a modifier adds the pane it opens beside the others, where a plain click replaces those to its right. */
+export const addsToSelection = (e?: MouseEvent): boolean => Boolean(e && (e.ctrlKey || e.shiftKey || e.metaKey));
+
 export function paneIdOf(d: DesiredPane): string {
 	switch (d.paneType) {
 		case "component":
@@ -80,6 +88,11 @@ export function paneIdOf(d: DesiredPane): string {
 		case "views-picker":
 			return "views";
 	}
+}
+
+/** The column entry that addresses a pane: its id, and for an individual opened at a passage, the passage it reveals. */
+export function columnEntryOf(d: DesiredPane): string {
+	return d.paneType === "entity" && d.selector ? `${paneIdOf(d)}${TEXT_DIRECTIVE}${textDirectiveFor(d.selector)}` : paneIdOf(d);
 }
 
 export function tagOf(d: DesiredPane): string {
@@ -237,7 +250,7 @@ class PaneStateImpl {
 		const next = new Map<string, DesiredPane>();
 		const idParam = params.get("id");
 		const labelParam = params.get("label");
-		const rawCols = params.getAll("col");
+		const rawCols = params.getAll(ViewHash.COLUMN_PARAM);
 		if (idParam && labelParam && rawCols.length === 0) {
 			const d = parseColEntry(`e:${labelParam}:${idParam}`);
 			if (d) next.set(paneIdOf(d), withPersistedFlag(d));
@@ -506,13 +519,13 @@ class PaneStateImpl {
 		if (!this.hydrated) return;
 		const base = ViewHash.getHash();
 		const params = ViewHash.hashParams(base);
-		params.delete("col");
+		params.delete(ViewHash.COLUMN_PARAM);
 		for (const d of this.desired.values()) {
 			const id = paneIdOf(d);
 			const page = this.pagePanes.get(id)?.pane;
 			if (page && Boolean(page.docked) === Boolean(d.docked) && page.flag === d.flag) continue;
 			const suffix = `${d.docked ? ViewHash.PANE_ENDING.dock : ""}${d.flag ? ViewHash.PANE_ENDING[d.flag] : ""}`;
-			params.append("col", `${id}${suffix}`);
+			params.append(ViewHash.COLUMN_PARAM, `${id}${suffix}`);
 		}
 		if (this.activePaneId) params.set("active", this.activePaneId);
 		else params.delete("active");
@@ -564,9 +577,10 @@ export function parseColEntry(raw: string): DesiredPane | null {
 		return i < 0 ? null : ([s.slice(0, i), s.slice(i + 1)] as const);
 	};
 	if (body.startsWith("e:")) {
-		const split = colon(body.slice(2));
+		const { base, anchor } = splitTextDirective(body.slice(2));
+		const split = colon(base);
 		if (!split) return null;
-		return safe({ paneType: "entity", persistedAs: split[0], id: split[1], ...placement });
+		return safe({ paneType: "entity", persistedAs: split[0], id: split[1], ...(anchor ? { selector: anchor } : {}), ...placement });
 	}
 	if (body.startsWith("f:")) {
 		const split = colon(body.slice(2));

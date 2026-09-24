@@ -1,14 +1,17 @@
 import { isOffline } from "./rpc-registry.js";
 
-/** The hash body as URLSearchParams, tolerant of a leading `#` or `#?`. */
+/** The hash parameter that names one open column by its pane id, once for each column, in order. */
+export const COLUMN_PARAM = "col";
+
 /** The hash that names these columns, in this order: what a page starting on a run's views is given, the same form a
  *  reader's own layout is written in. */
 export function hashWithColumns(columns: readonly string[]): string {
 	const params = new URLSearchParams();
-	for (const column of columns) params.append("col", column);
+	for (const column of columns) params.append(COLUMN_PARAM, column);
 	return `#?${params.toString()}`;
 }
 
+/** The hash body as URLSearchParams, tolerant of a leading `#` or `#?`. */
 export function hashParams(hash: string): URLSearchParams {
 	const body = hash.startsWith("#?") ? hash.slice(2) : hash.startsWith("#") ? hash.slice(1) : hash;
 	return new URLSearchParams(body);
@@ -42,7 +45,7 @@ export function canonicalizeArrival(hash: string, base: string): string {
 	if (opened.length === 0) return hash;
 	const merged = hashParams(base);
 	merged.delete("open");
-	for (const entry of opened) merged.append("col", entry);
+	for (const entry of opened) merged.append(COLUMN_PARAM, entry);
 	merged.set("active", splitPaneEntry(opened[opened.length - 1]).id);
 	return `#?${merged.toString()}`;
 }

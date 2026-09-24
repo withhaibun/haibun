@@ -5,7 +5,7 @@
  * any earlier step in `m.steps` produces a sub-domain that fills one of the
  * goal-step's composite field slots. The projection mirrors this exactly:
  *
- *   - Step nodes are emitted up-front with `kind: "default"` and an `invokes`
+ *   - Step nodes are emitted up-front with the default kind and an `invokes`
  *     payload so a click handler can start the chain. Steps are shared
  *     across paths by `(stepperName, stepName)`; a step that appears in
  *     every path renders as one node with its incoming edges tagged with
@@ -39,8 +39,8 @@
  * `TGraphRenderOptions.highlightedPath` option: the consumer chooses which
  * path to emphasise by passing the same id back.
  */
-import type { TBinding, TFieldBinding, TMichi } from "@haibun/core/lib/goal-resolver.js";
-import type { TGraph, TGraphEdge, TGraphNode } from "./types.js";
+import { GOAL_FINDING, type TBinding, type TFieldBinding, type TMichi } from "@haibun/core/lib/goal-resolver.js";
+import { EDGE_KIND, NODE_KIND, type TGraph, type TGraphEdge, type TGraphNode } from "./types.js";
 
 export function pathId(index: number): string {
 	return `path-${index}`;
@@ -67,7 +67,7 @@ class EdgeBag {
 	private readonly byKey = new Map<string, TGraphEdge>();
 
 	add(edge: TGraphEdge): void {
-		const key = `${edge.from}|${edge.to}|${edge.kind ?? "default"}|${edge.label ?? ""}`;
+		const key = `${edge.from}|${edge.to}|${edge.kind ?? EDGE_KIND.default}|${edge.label ?? ""}`;
 		const existing = this.byKey.get(key);
 		if (!existing) {
 			this.byKey.set(key, { ...edge, paths: edge.paths ? [...edge.paths] : undefined });
@@ -100,7 +100,7 @@ type TEmitContext = {
 function emitBinding(binding: TBinding, ctx: TEmitContext): string {
 	if (binding.kind === "argument") {
 		const id = bindingNodeId(binding.domain);
-		if (!ctx.nodes.has(id)) ctx.nodes.set(id, { id, label: binding.domain, kind: "argument" });
+		if (!ctx.nodes.has(id)) ctx.nodes.set(id, { id, label: binding.domain, kind: NODE_KIND.argument });
 		return id;
 	}
 	if (binding.kind === "fact") {
@@ -109,7 +109,7 @@ function emitBinding(binding: TBinding, ctx: TEmitContext): string {
 			ctx.nodes.set(id, {
 				id,
 				label: `${binding.domain}#${binding.factId}`,
-				kind: "satisfied",
+				kind: NODE_KIND.satisfied,
 				wasGeneratedBy: { factId: binding.factId, domain: binding.domain },
 			});
 		return id;
@@ -118,7 +118,7 @@ function emitBinding(binding: TBinding, ctx: TEmitContext): string {
 	// each field, draw `field → composite` edges so the assembled composite is
 	// what the consuming step receives.
 	const compositeId = `composite:${binding.domain}`;
-	if (!ctx.nodes.has(compositeId)) ctx.nodes.set(compositeId, { id: compositeId, label: binding.domain, kind: "reachable" });
+	if (!ctx.nodes.has(compositeId)) ctx.nodes.set(compositeId, { id: compositeId, label: binding.domain, kind: NODE_KIND.reachable });
 	for (const field of binding.fields) {
 		emitField(field, binding.domain, "", compositeId, ctx);
 	}
@@ -134,14 +134,14 @@ function emitField(field: TFieldBinding, parentDomain: string, parentPath: strin
 	// composite fields stay purple: the incoming edge from the producer step
 	// or typed-argument node tells the reader where the value comes from.
 	const isPrimitiveArgument = field.kind === "argument" && (!field.fieldDomain || field.fieldDomain === field.fieldName);
-	ctx.nodes.set(fieldId, { id: fieldId, label: fieldLabel, kind: isPrimitiveArgument ? "argument" : "field" });
+	ctx.nodes.set(fieldId, { id: fieldId, label: fieldLabel, kind: isPrimitiveArgument ? NODE_KIND.argument : NODE_KIND.field });
 
 	if (field.kind === "argument") {
 		const argDomain = field.fieldDomain;
 		if (argDomain && argDomain !== field.fieldName) {
 			const argId = bindingNodeId(argDomain);
-			if (!ctx.nodes.has(argId)) ctx.nodes.set(argId, { id: argId, label: argDomain, kind: "argument" });
-			ctx.edges.add({ from: argId, to: fieldId, kind: "ready", paths: [ctx.pid], label: field.fieldName });
+			if (!ctx.nodes.has(argId)) ctx.nodes.set(argId, { id: argId, label: argDomain, kind: NODE_KIND.argument });
+			ctx.edges.add({ from: argId, to: fieldId, kind: EDGE_KIND.ready, paths: [ctx.pid], label: field.fieldName });
 		}
 	} else if (field.kind === "fact") {
 		const factId = `fact:${field.fieldDomain}#${field.factId}`;
@@ -149,10 +149,10 @@ function emitField(field: TFieldBinding, parentDomain: string, parentPath: strin
 			ctx.nodes.set(factId, {
 				id: factId,
 				label: `${field.fieldDomain}#${field.factId}`,
-				kind: "satisfied",
+				kind: NODE_KIND.satisfied,
 				wasGeneratedBy: { factId: field.factId, domain: field.fieldDomain ?? "" },
 			});
-		ctx.edges.add({ from: factId, to: fieldId, kind: "ready", paths: [ctx.pid], label: field.fieldName });
+		ctx.edges.add({ from: factId, to: fieldId, kind: EDGE_KIND.ready, paths: [ctx.pid], label: field.fieldName });
 	} else {
 		// Composite field. If a step in this michi produces the field's
 		// domain, the field is satisfied by that step, route the sub-fields
@@ -162,12 +162,12 @@ function emitField(field: TFieldBinding, parentDomain: string, parentPath: strin
 		const producerStepId = field.fieldDomain ? ctx.producerByDomain.get(field.fieldDomain) : undefined;
 		if (producerStepId) {
 			for (const sub of field.fields) emitField(sub, field.fieldDomain || parentDomain, fieldPath, producerStepId, ctx);
-			ctx.edges.add({ from: producerStepId, to: fieldId, kind: "ready", paths: [ctx.pid], label: field.fieldDomain ?? "" });
+			ctx.edges.add({ from: producerStepId, to: fieldId, kind: EDGE_KIND.ready, paths: [ctx.pid], label: field.fieldDomain ?? "" });
 		} else {
 			for (const sub of field.fields) emitField(sub, field.fieldDomain || parentDomain, fieldPath, fieldId, ctx);
 		}
 	}
-	ctx.edges.add({ from: fieldId, to: parentNodeId, kind: "ready", paths: [ctx.pid], label: field.fieldName });
+	ctx.edges.add({ from: fieldId, to: parentNodeId, kind: EDGE_KIND.ready, paths: [ctx.pid], label: field.fieldName });
 }
 
 export type TGoalPathsInput = {
@@ -188,7 +188,7 @@ export function projectGoalPaths(input: TGoalPathsInput): TGraph {
 	const nodes = new Map<string, TGraphNode>();
 	const edges = new EdgeBag();
 	const goalId = `goal:${input.goal}`;
-	const goalKind = input.finding === "satisfied" ? "satisfied" : "reachable";
+	const goalKind = input.finding === GOAL_FINDING.SATISFIED ? NODE_KIND.satisfied : NODE_KIND.reachable;
 	nodes.set(goalId, { id: goalId, label: input.goal, kind: goalKind });
 
 	// Render satisfying facts as nodes pointing at the goal so a satisfied
@@ -200,10 +200,10 @@ export function projectGoalPaths(input: TGoalPathsInput): TGraph {
 				nodes.set(id, {
 					id,
 					label: `${input.goal}#${factId}`,
-					kind: "satisfied",
+					kind: NODE_KIND.satisfied,
 					wasGeneratedBy: { factId, domain: input.goal },
 				});
-			edges.add({ from: id, to: goalId, kind: "ready", label: "satisfies" });
+			edges.add({ from: id, to: goalId, kind: EDGE_KIND.ready, label: "satisfies" });
 		}
 	}
 
@@ -226,7 +226,7 @@ export function projectGoalPaths(input: TGoalPathsInput): TGraph {
 				nodes.set(stepId, {
 					id: stepId,
 					label: step.gwta ?? `${step.stepperName}.${step.stepName}`,
-					kind: "default",
+					kind: NODE_KIND.default,
 					invokes: { stepperName: step.stepperName, stepName: step.stepName },
 				});
 			}
@@ -241,12 +241,12 @@ export function projectGoalPaths(input: TGoalPathsInput): TGraph {
 		for (const binding of m.bindings) {
 			const sourceId = emitBinding(binding, ctx);
 			const sourceDomain = binding.kind === "composite" ? binding.domain : binding.kind === "fact" ? binding.domain : binding.domain;
-			edges.add({ from: sourceId, to: lastStepId, kind: "ready", paths: [pid], label: sourceDomain });
+			edges.add({ from: sourceId, to: lastStepId, kind: EDGE_KIND.ready, paths: [pid], label: sourceDomain });
 		}
 
 		// A bindings-less michi (e.g. a step that takes no graph-typed input)
 		// still needs a visible connection from its first step to the goal.
-		edges.add({ from: lastStepId, to: goalId, kind: "ready", paths: [pid], label: input.goal });
+		edges.add({ from: lastStepId, to: goalId, kind: EDGE_KIND.ready, paths: [pid], label: input.goal });
 	});
 
 	return { nodes: [...nodes.values()], edges: edges.values(), direction: "LR" };

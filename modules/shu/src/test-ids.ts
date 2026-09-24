@@ -71,6 +71,10 @@ export const SHU_TEST_IDS = {
 	COLUMN_BROWSER: {
 		COLUMN: "browser-column",
 		ENTITY_DETAILS: "entity-details",
+		/** The record's type, a link to the type's view. */
+		ENTITY_TYPE_LINK: "entity-type-link",
+		/** One of the classes an `@type` field names, a link to that class's view. */
+		TYPE_VALUE: "type-value",
 		PREDICATE_LINK: "predicate-link",
 		PREDICATE_LINK_FIRST: "predicate-link-first",
 		BODY_IFRAME: "email-body-iframe",

@@ -7,7 +7,7 @@
  *
  * Why component methods, not synthetic WebGL clicks: a Playwright pixel click does not reliably reach the lib's
  * raycaster headless (it emitted zero node clicks across every on-screen candidate). openNode() IS the real path a
- * click takes (onNodeClick → COLUMN_OPEN) and a genuine app entry point, so the open/resize/no-auto-zoom chain is
+ * click takes (onNodeClick → PANE_OPEN) and a genuine app entry point, so the open/resize/no-auto-zoom chain is
  * exercised faithfully. The lib's raycaster is the lib's concern, not this module's.
  *
  * Concern boundary: WHICH column is focused is the column browser's concern (shu-column-strip.controls), not here.
@@ -15,6 +15,8 @@
  * Steps never lead with the article "the", haibun treats such lines as narrative prose, not matchable steps.
  */
 import { SHU_TEST_IDS } from "../test-ids.js";
+import { SHU_EVENT } from "../consts.js";
+import type { TPaneOpen } from "../pane-state.js";
 import { z } from "zod";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps, type TFeatureStep } from "@haibun/core/lib/astepper.js";
 import type { TDomainDefinition } from "@haibun/core/lib/resources.js";
@@ -92,7 +94,6 @@ const graphControlDomains: TDomainDefinition[] = [
 	{ selectors: [DOMAIN_GRAPH_ZBASIS], schema: ZBasisSchema, description: "What the depth (z) axis encodes: valid time, indexed time, or connections" },
 ];
 
-const COLUMN_OPEN = "column-open"; // SHU_EVENT.COLUMN_OPEN, captured to prove a node open reached the graph's onNodeClick
 const SCOPED_REFETCH_BEGIN_MS = 350; // covers the scoped refetch's RPC dispatch + the view's 250ms repaint debounce
 const HOVER_POP_MAX = 2.6; // a hover pop above this reads as "huge" (the regression): an independent ceiling, comfortably clear of the gentle magnify cap so a legit pop passes and a runaway one fails
 
@@ -396,7 +397,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			},
 		},
 		clickGraphNode: {
-			// Click a node via the production reveal path (openNode → onNodeClick) WITHOUT asserting a COLUMN_OPEN, in the
+			// Click a node via the production reveal path (openNode → onNodeClick) WITHOUT asserting the pane it opens: in the
 			// ontology view a node opens a windowed-instances pane (PANE_OPEN → filter-prop), not an entity column. The
 			// column-browser stepper (activeColumnMatches) asserts which pane opened. NOT "click …": that collides with
 			// web-playwright's generic "click {target}".
@@ -610,7 +611,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			},
 		},
 		openGraphNode: {
-			// Open a node's column via the production reveal path (onNodeClick → COLUMN_OPEN) and prove the graph
+			// Open a node's column via the production reveal path (onNodeClick → PANE_OPEN) and prove the graph
 			// emitted open-for-that-node. Remember it by {name} so a later hover can target the same node.
 			gwta: "open graph node {match} as {name}",
 			action: async ({ match, name }: { match: string; name: string }) => {
@@ -621,19 +622,23 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const subject = await page.evaluate(
 					({ nid, evt }) => {
 						const el = document.querySelector("shu-polymorphic-graph-view") as unknown as { openNode(id: string): boolean };
-						(window as unknown as { __colOpen: Array<{ subject?: string }> }).__colOpen = [];
-						document.addEventListener(evt, (e) => (window as unknown as { __colOpen: Array<{ subject?: string }> }).__colOpen.push((e as CustomEvent).detail), {
-							once: true,
-							capture: true,
-						});
+						const asked: { id: string | null } = { id: null };
+						document.addEventListener(
+							evt,
+							(e) => {
+								const { pane } = (e as CustomEvent<TPaneOpen>).detail;
+								asked.id = pane.paneType === "entity" ? pane.id : null;
+							},
+							{ once: true, capture: true },
+						);
 						el.openNode(nid);
-						return (window as unknown as { __colOpen: Array<{ subject?: string }> }).__colOpen[0]?.subject ?? null;
+						return asked.id;
 					},
-					{ nid: id, evt: COLUMN_OPEN },
+					{ nid: id, evt: SHU_EVENT.PANE_OPEN },
 				);
-				if (subject !== id) return actionNotOK(`opening graph node "${id}" did not emit COLUMN_OPEN for it (got subject=${subject})`);
+				if (subject !== id) return actionNotOK(`opening graph node "${id}" did not ask to open its column (got ${subject})`);
 				this.opened.set(name, id);
-				// Opening round-trips through the page (COLUMN_OPEN → the pane → the active record → the view), so the node becomes
+				// Opening round-trips through the page (PANE_OPEN → the pane → the active record → the view), so the node becomes
 				// the active node after the call returns. A node that never does was not opened, and the scene settles once the
 				// column it opened has resized the view.
 				if (!(await this.becomesSelected(page, id)))

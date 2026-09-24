@@ -28,9 +28,7 @@ export const CONVERSATION_PARAM = "ask";
 export const DEEP_LINK_PREFIX = "#?";
 
 export const SHU_EVENT = {
-	COLUMN_OPEN: "column-open",
-	// Open an arbitrary pane (a validated DesiredPane in the detail): the generic bridge an external view (e.g. the
-	// polymorphic graph, a separate bundle) uses to reach PaneState, where COLUMN_OPEN only opens an entity pane for a subject.
+	/** A view in the graph bundle opens a pane (a `TPaneOpen` detail): that bundle's PaneState isn't the page's. */
 	PANE_OPEN: "pane-open",
 	COLUMN_CLOSE: "column-close",
 	PANE_DISMISS: "pane-dismiss",

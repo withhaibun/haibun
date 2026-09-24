@@ -28,8 +28,11 @@ const INSTANCES_PAGE = 100;
 const isKnownType = (name: string): boolean => getRels(name) !== undefined;
 import type { ShuResultTable } from "./shu-result-table.js";
 import { SHU_EVENT } from "../consts.js";
+import { openRef, paneAddressedBy, paneHref, refHref } from "./ref-navigation.js";
+import { PaneState } from "../pane-state.js";
+import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { aType, type TContextPattern } from "../schemas.js";
-import type { TGraph } from "../graph/types.js";
+import { NODE_KIND, type TGraph } from "../graph/types.js";
 import { ShuProductView } from "./shu-product-view.js";
 
 const TypeColumnSchema = z.object({
@@ -41,27 +44,33 @@ const TypeColumnSchema = z.object({
 
 type VertexData = Record<string, unknown>;
 
+type TSchemaNode = TGraph["nodes"][number];
+
+/** A type's node, linked to the type's view. */
+const typeNode = (type: string, kind?: string): TSchemaNode => ({ id: type, label: type, ...(kind ? { kind } : {}), link: { href: refHref(REF_DENOTES.type, { domain: type }) } });
+
 /** Add one type's schema to a graph under construction: an outgoing edge per referenced type (getEdgeRanges) and a leaf
  *  per literal property (a rel that is not an edge). Property nodes are shared across types (`prop:` id): a rel IS one
- *  Property, so two types declaring `name` point at the same node. Pure, derived entirely from concern metadata. */
-function addTypeSchema(nodes: Map<string, TGraph["nodes"][number]>, edges: TGraph["edges"], persistedAs: string): void {
+ *  Property, so two types declaring `name` point at the same node, linked to the records of the first type that adds it,
+ *  ordered by the property. Pure, derived entirely from concern metadata. */
+function addTypeSchema(nodes: Map<string, TSchemaNode>, edges: TGraph["edges"], persistedAs: string): void {
 	const ranges = getEdgeRanges(persistedAs) ?? {};
 	for (const [field, targets] of Object.entries(ranges))
 		for (const target of targets) {
-			if (!nodes.has(target)) nodes.set(target, { id: target, label: target });
+			if (!nodes.has(target)) nodes.set(target, typeNode(target));
 			edges.push({ from: persistedAs, to: target, label: field, rel: field });
 		}
 	for (const field of Object.keys(getRels(persistedAs) ?? {})) {
 		if (field in ranges) continue; // an edge to another type, already drawn
 		const pid = `prop:${field}`;
-		if (!nodes.has(pid)) nodes.set(pid, { id: pid, label: field, kind: "argument" });
+		if (!nodes.has(pid)) nodes.set(pid, { id: pid, label: field, kind: NODE_KIND.argument, link: { href: paneHref({ paneType: "filter-prop", persistedAs, predicate: field }) } });
 		edges.push({ from: persistedAs, to: pid, label: field });
 	}
 }
 
 /** The type's own schema graph: the type at the centre (highlighted), its referenced types, and its properties. */
 export function buildTypeSchemaGraph(persistedAs: string): TGraph {
-	const nodes = new Map<string, TGraph["nodes"][number]>([[persistedAs, { id: persistedAs, label: persistedAs, kind: "current" }]]);
+	const nodes = new Map<string, TSchemaNode>([[persistedAs, typeNode(persistedAs, NODE_KIND.current)]]);
 	const edges: TGraph["edges"] = [];
 	addTypeSchema(nodes, edges, persistedAs);
 	return { nodes: [...nodes.values()], edges };
@@ -70,9 +79,9 @@ export function buildTypeSchemaGraph(persistedAs: string): TGraph {
 /** The ENTIRE schema, every declared type with its edges and properties, with the viewed type highlighted, so a
  *  reader sees where this type sits in the whole vocabulary. The same per-type builder as the local graph. */
 export function buildFullSchemaGraph(current: string): TGraph {
-	const nodes = new Map<string, TGraph["nodes"][number]>();
+	const nodes = new Map<string, TSchemaNode>();
 	const edges: TGraph["edges"] = [];
-	for (const type of getTypes()) nodes.set(type, { id: type, label: type, ...(type === current ? { kind: "current" } : {}) });
+	for (const type of getTypes()) nodes.set(type, typeNode(type, type === current ? NODE_KIND.current : undefined));
 	for (const type of getTypes()) addTypeSchema(nodes, edges, type);
 	return { nodes: [...nodes.values()], edges };
 }
@@ -167,17 +176,23 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 
 	private tableRef = createRef<ShuResultTable>();
 
+	protected onConnected(): void {
+		this.autoListen(this, SHU_EVENT.GRAPH_NODE_CLICK, this.onSchemaNodeClick);
+	}
+
+	/** A schema node opens the view its link addresses; a press on the graph's background opens nothing. */
+	private onSchemaNodeClick = (e: Event): void => {
+		const node = (e as CustomEvent<{ node: TSchemaNode | null }>).detail.node;
+		if (!node) return;
+		const pane = paneAddressedBy(node.link?.href ?? "");
+		if (!pane) throw new Error(`schema node ${node.id} addresses no view`);
+		PaneState.requestFrom(e, pane);
+	};
+
 	/** A row opens the individual it is, exactly as a row in the query or filter view does. */
 	private onRowClick = (e: Event): void => {
 		const { individualId, label, ctrlKey } = (e as CustomEvent).detail;
-		if (!individualId) return;
-		this.dispatchEvent(
-			new CustomEvent(SHU_EVENT.COLUMN_OPEN, {
-				detail: { subject: individualId, label: label || this.state.persistedAs, addToSelection: ctrlKey },
-				bubbles: true,
-				composed: true,
-			}),
-		);
+		if (individualId) openRef(e, REF_DENOTES.individual, { persistedAs: label || this.state.persistedAs, id: individualId }, ctrlKey);
 	};
 
 	private onScopeChange = (e: Event): void => {

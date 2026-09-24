@@ -3,20 +3,14 @@
  * A chat message reads in the order its turn was made: what the answer was made of comes before the answer. A question
  * links to the records it carries, so a reader opens what was asked about from the message itself.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { anIndividual, aType } from "../schemas.js";
 import { INITIAL_SUBJECT, SCOPE, currentSubjectState, scopeEntry } from "../current-subject.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
-
-/** Each reference a click opened: its kind and target. */
-const opened: Array<{ kind: string; target: Record<string, unknown> }> = [];
-vi.mock("./ref-navigation.js", async (actual) => ({
-	...(await actual<Record<string, unknown>>()),
-	openRef: (_source: unknown, kind: string, target: Record<string, unknown>) => opened.push({ kind, target }),
-}));
-
-const { ChatMessageSchema, ShuChatMessage } = await import("./shu-chat-message.js");
-const { ShuRef } = await import("./shu-ref.js");
+import { PaneState } from "../pane-state.js";
+import { followPaneLink } from "./ref-navigation.js";
+import { ChatMessageSchema, ShuChatMessage } from "./shu-chat-message.js";
+import { ShuRef } from "./shu-ref.js";
 
 if (!customElements.get("shu-chat-message")) customElements.define("shu-chat-message", ShuChatMessage);
 if (!customElements.get("shu-ref")) customElements.define("shu-ref", ShuRef);
@@ -39,9 +33,10 @@ const carried = (el: HTMLElement) =>
 
 beforeEach(() => {
 	document.body.innerHTML = "";
-	opened.length = 0;
 	currentSubjectState.set(INITIAL_SUBJECT);
+	document.addEventListener("click", followPaneLink, { capture: true });
 });
+afterEach(() => document.removeEventListener("click", followPaneLink, { capture: true }));
 
 describe("the order a chat message reads in", () => {
 	it("puts the context and calls above the answer", async () => {
@@ -71,8 +66,10 @@ describe("what a question carries", () => {
 
 	it("opens the linked record without selecting the question", async () => {
 		const el = await rendered({ id: "q1", role: "user", text: "what is this", turn: "cmt-ask-0.1.2", recordId: "cmt-ask-0.1.2", bundle: BUNDLE });
-		(el.querySelector(`[data-testid="${SHU_TEST_IDS.APP.CHAT_CARRIES}"] shu-ref`) as HTMLElement).click();
-		expect(opened).toEqual([{ kind: "entity", target: { persistedAs: "Email", id: "a@test.com" } }]);
+		const opened = vi.spyOn(PaneState, "requestFrom").mockImplementation(() => undefined);
+		el.querySelector(`[data-testid="${SHU_TEST_IDS.APP.CHAT_CARRIES}"] shu-ref`)?.shadowRoot?.querySelector("a")?.click();
+		expect(opened.mock.calls.map(([, pane]) => pane)).toEqual([{ paneType: "entity", persistedAs: "Email", id: "a@test.com" }]);
+		opened.mockRestore();
 		expect(scopeEntry(currentSubjectState.get(), SCOPE.actionsBar), "the question is not selected").toBeNull();
 		(el.querySelector(".chat-prompt") as HTMLElement).click();
 		expect(scopeEntry(currentSubjectState.get(), SCOPE.actionsBar)?.record, "a click on the question itself selects it").toEqual({ id: "cmt-ask-0.1.2", label: "Comment" });

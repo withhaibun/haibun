@@ -95,10 +95,6 @@ export type FGLink = {
 
 /** The neutral outputs the scene emits; the host re-dispatches or acts on each. */
 export const GRAPH_SCENE_EVENT = {
-	/** A node open request (an ordinary individual): {label, subject, addToSelection}. */
-	NODE_CLICK: "graph-node-click",
-	/** An ontology term open request: a DesiredPane detail for the windowed-instances pane. */
-	NODE_OPEN_PANE: "graph-node-open-pane",
 	/** A cluster node was clicked to expand its type: {type}. */
 	CLUSTER_EXPAND: "graph-cluster-expand",
 	/** A gantt-bar drag committed: {updates: RescheduleUpdate[]} for the host to persist and refetch. */

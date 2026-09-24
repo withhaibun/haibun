@@ -20,7 +20,7 @@ import { SOURCE_DOMAIN } from "@haibun/core/lib/domain-chain.js";
 import { AFFORDANCE_PARAM, DEEP_LINK_PREFIX } from "../consts.js";
 import { GOAL_FINDING } from "@haibun/core/lib/goal-resolver.js";
 import type { TForwardAffordance, TWaypointEntry, TCompositeRanges } from "@haibun/core/lib/affordances.js";
-import type { TGraph, TGraphEdge, TGraphNode } from "./types.js";
+import { EDGE_KIND, NODE_KIND, type TGraph, type TGraphEdge, type TGraphNode } from "./types.js";
 
 /** The chain projection consumes the waypoint fields it renders: a subset of the core panel entry. */
 export type TWaypointSnapshot = Pick<TWaypointEntry, "outcome" | "kind" | "method" | "resolvesDomain" | "ensured">;
@@ -80,16 +80,16 @@ export function waypointNodeId(outcome: string): string {
  */
 
 function findingToKind(finding: string | undefined): string {
-	if (finding === GOAL_FINDING.SATISFIED) return "satisfied";
-	if (finding === GOAL_FINDING.MICHI) return "reachable";
-	if (finding === GOAL_FINDING.UNREACHABLE) return "unreachable";
-	if (finding === GOAL_FINDING.REFUSED) return "refused";
-	return "default";
+	if (finding === GOAL_FINDING.SATISFIED) return NODE_KIND.satisfied;
+	if (finding === GOAL_FINDING.MICHI) return NODE_KIND.reachable;
+	if (finding === GOAL_FINDING.UNREACHABLE) return NODE_KIND.unreachable;
+	if (finding === GOAL_FINDING.REFUSED) return NODE_KIND.refused;
+	return NODE_KIND.default;
 }
 
 function edgeKind(f: TForwardEdge): string {
-	if (f.capability) return "capability-gated";
-	return f.readyToRun ? "ready" : "blocked";
+	if (f.capability) return EDGE_KIND.capabilityGated;
+	return f.readyToRun ? EDGE_KIND.ready : EDGE_KIND.blocked;
 }
 
 /** Id of the synthetic field node for `${domain}.${fieldName}`. */
@@ -141,7 +141,7 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 		const node: TGraphNode = {
 			id: d,
 			label: isSource ? `${SOURCE_DOMAIN} no preconditions` : d,
-			kind: isSource ? "default" : findingToKind(goalFindings.get(d)),
+			kind: isSource ? NODE_KIND.default : findingToKind(goalFindings.get(d)),
 		};
 		if (!isSource) {
 			node.link = { href: `${DEEP_LINK_PREFIX}${AFFORDANCE_PARAM.GOAL}=${encodeURIComponent(d)}` };
@@ -181,7 +181,7 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 				nodes.push({
 					id: fieldId,
 					label: `${fieldName} : ${fieldDomain}`,
-					kind: "field",
+					kind: NODE_KIND.field,
 					link: { href: `${DEEP_LINK_PREFIX}${AFFORDANCE_PARAM.GOAL}=${encodeURIComponent(fieldDomain)}` },
 				});
 				if (!domains.has(fieldDomain)) {
@@ -192,8 +192,8 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 					nodes.push(node);
 					domains.add(fieldDomain);
 				}
-				edges.push({ from: fieldDomain, to: fieldId, label: undefined, kind: "default" });
-				edges.push({ from: fieldId, to: composite, label: fieldName, kind: "default" });
+				edges.push({ from: fieldDomain, to: fieldId, label: undefined, kind: EDGE_KIND.default });
+				edges.push({ from: fieldId, to: composite, label: fieldName, kind: EDGE_KIND.default });
 			}
 		}
 	}
@@ -204,7 +204,7 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 	if (Array.isArray(a.waypoints)) {
 		for (const w of a.waypoints) {
 			const id = waypointNodeId(w.outcome);
-			const kind = w.ensured ? "waypoint-ensured" : w.kind === "declarative" ? "waypoint-declarative" : "waypoint-imperative";
+			const kind = w.ensured ? NODE_KIND.waypointEnsured : w.kind === "declarative" ? NODE_KIND.waypointDeclarative : NODE_KIND.waypointImperative;
 			const [stepperName, stepName] = w.method.includes("-") ? [w.method.slice(0, w.method.indexOf("-")), w.method.slice(w.method.indexOf("-") + 1)] : [w.method, w.method];
 			nodes.push({
 				id,
@@ -214,7 +214,7 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 				invokes: { stepperName, stepName },
 			});
 			if (w.resolvesDomain && domains.has(w.resolvesDomain)) {
-				edges.push({ from: w.resolvesDomain, to: id, label: "ensures", kind: "default" });
+				edges.push({ from: w.resolvesDomain, to: id, label: "ensures", kind: EDGE_KIND.default });
 			}
 		}
 	}
@@ -256,8 +256,8 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 			for (const factId of factIds) {
 				const id = factNodeId(factId);
 				const label = factId.length > 24 ? `${factId.slice(0, 12)}…${factId.slice(-10)}` : factId;
-				nodes.push({ id, label, kind: "fact-instance", wasGeneratedBy: { factId, domain } });
-				edges.push({ from: domain, to: id, label: undefined, kind: "default" });
+				nodes.push({ id, label, kind: NODE_KIND.factInstance, wasGeneratedBy: { factId, domain } });
+				edges.push({ from: domain, to: id, label: undefined, kind: EDGE_KIND.default });
 			}
 		}
 	}

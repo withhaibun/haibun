@@ -8,7 +8,7 @@ import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { shuBaseStyles } from "./styles.js";
-import { PaneState } from "../pane-state.js";
+import { PaneState, addsToSelection } from "../pane-state.js";
 
 const ViewsPickerSchema = z.object({});
 
@@ -45,8 +45,8 @@ export class ShuViewsPicker extends ShuElement<typeof ViewsPickerSchema> {
 		this.views = views;
 	}
 
-	private onPick = (v: TView) => (): void => {
-		if (v.component) PaneState.request({ paneType: "component", tag: v.component, label: v.description });
+	private onPick = (v: TView) => (e: MouseEvent): void => {
+		if (v.component) PaneState.requestFrom(e, { paneType: "component", tag: v.component, label: v.description }, addsToSelection(e));
 	};
 
 	render(): TemplateResult {

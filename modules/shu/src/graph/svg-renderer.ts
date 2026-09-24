@@ -8,29 +8,29 @@ import { layeredLayout, type NodeBox } from "./layered-layout.js";
 import { presentationForType } from "./type-presentation.js";
 import { xml, MAX_SVG_LABEL, arrowMarker, ARROW_MARKER_ID, SVG_MARGIN as MARGIN } from "./svg-util.js";
 import { ellipsize } from "@haibun/core/lib/util/index.js";
-import type { IGraphRenderer, TGraph, TGraphEdge, TGraphRenderOptions } from "./types.js";
+import { EDGE_KIND, NODE_KIND, type IGraphRenderer, type TGraph, type TGraphEdge, type TGraphRenderOptions } from "./types.js";
 
 /** Built-in node styling by `kind`; consumers override via `graph.styles[kind]`. */
 const NODE_DEFAULTS: Record<string, { fill: string; stroke: string; strokeWidth?: number }> = {
-	default: { fill: "#eee", stroke: "#999" },
-	satisfied: { fill: "#d8edd8", stroke: "#1a6b3c", strokeWidth: 2 },
-	reachable: { fill: "#d8e1f0", stroke: "#2848a8" },
-	refused: { fill: "#fde6c4", stroke: "#b58105" },
-	unreachable: { fill: "#fdd", stroke: "#a02828" },
-	current: { fill: "#fde68a", stroke: "#a16207", strokeWidth: 4 },
-	field: { fill: "#f4f0fa", stroke: "#6a4f9a" },
-	"fact-instance": { fill: "#ecfdf5", stroke: "#1a6b3c" },
-	"waypoint-ensured": { fill: "#d8edd8", stroke: "#1a6b3c", strokeWidth: 2 },
-	"waypoint-declarative": { fill: "#fde6c4", stroke: "#b58105" },
-	"waypoint-imperative": { fill: "#fde6c4", stroke: "#b58105" },
+	[NODE_KIND.default]: { fill: "#eee", stroke: "#999" },
+	[NODE_KIND.satisfied]: { fill: "#d8edd8", stroke: "#1a6b3c", strokeWidth: 2 },
+	[NODE_KIND.reachable]: { fill: "#d8e1f0", stroke: "#2848a8" },
+	[NODE_KIND.refused]: { fill: "#fde6c4", stroke: "#b58105" },
+	[NODE_KIND.unreachable]: { fill: "#fdd", stroke: "#a02828" },
+	[NODE_KIND.current]: { fill: "#fde68a", stroke: "#a16207", strokeWidth: 4 },
+	[NODE_KIND.field]: { fill: "#f4f0fa", stroke: "#6a4f9a" },
+	[NODE_KIND.factInstance]: { fill: "#ecfdf5", stroke: "#1a6b3c" },
+	[NODE_KIND.waypointEnsured]: { fill: "#d8edd8", stroke: "#1a6b3c", strokeWidth: 2 },
+	[NODE_KIND.waypointDeclarative]: { fill: "#fde6c4", stroke: "#b58105" },
+	[NODE_KIND.waypointImperative]: { fill: "#fde6c4", stroke: "#b58105" },
 };
 
 /** Edge dash by `kind`; blocked/capability-gated dash, ready is bold. */
-const EDGE_DASH: Record<string, string> = { blocked: "4 3", "capability-gated": "4 3", context: "6 4" };
-const EDGE_WIDTH: Record<string, number> = { ready: 2.5, reply: 2.5 };
+const EDGE_DASH: Record<string, string> = { [EDGE_KIND.blocked]: "4 3", [EDGE_KIND.capabilityGated]: "4 3", [EDGE_KIND.context]: "6 4" };
+const EDGE_WIDTH: Record<string, number> = { [EDGE_KIND.ready]: 2.5, [EDGE_KIND.reply]: 2.5 };
 
 function nodeStyle(kind: string | undefined, overrides: TGraph["styles"]): { fill: string; stroke: string; strokeWidth: number } {
-	const k = kind ?? "default";
+	const k = kind ?? NODE_KIND.default;
 	const o = overrides?.[k];
 	const base = NODE_DEFAULTS[k];
 	// A built-in workflow kind (satisfied/reachable/…) or an explicit override keeps its styling. Otherwise `kind` is a

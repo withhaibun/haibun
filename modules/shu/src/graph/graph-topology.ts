@@ -12,7 +12,7 @@ import { STORED_TYPE_PROP } from "../consts.js";
 import { formatDate } from "../util.js";
 import { isReplyEdge } from "@haibun/core/lib/resources.js";
 import { type PropertyClassifier, type TGraphViewOpts, isUri } from "../graph-classifier.js";
-import type { TGraph, TGraphNode, TGraphEdge, TGraphGroup, TGraphStyle } from "./types.js";
+import { EDGE_KIND, NODE_KIND, type TGraph, type TGraphNode, type TGraphEdge, type TGraphGroup, type TGraphStyle } from "./types.js";
 
 export type GraphTopology = { graph: TGraph; nodeMap: Map<string, { graph: string; subject: string }> };
 
@@ -30,8 +30,8 @@ export const summaryGraphOf = (id: string): string => id.slice(0, -SUMMARY_SUFFI
 
 /** Edge kind by reply/context/attachment role, mapped to the SVG paint's edge styles (reply bold, context dashed). */
 function edgeKind(predicate: string, rel: string | undefined): TGraphEdge["kind"] {
-	if (rel === LinkRelations.IN_REPLY_TO.rel || isReplyEdge(predicate)) return "reply";
-	if (rel === LinkRelations.CONTEXT.rel || rel === LinkRelations.ATTACHMENT.rel) return "context";
+	if (rel === LinkRelations.IN_REPLY_TO.rel || isReplyEdge(predicate)) return EDGE_KIND.reply;
+	if (rel === LinkRelations.CONTEXT.rel || rel === LinkRelations.ATTACHMENT.rel) return EDGE_KIND.context;
 	return undefined;
 }
 
@@ -155,7 +155,7 @@ export function buildGraphTopology(quads: TQuad[], opts: TGraphViewOpts, classif
 		const id = `${REF_PREFIX}${uri}`;
 		nodeIds.add(id);
 		nodeMap.set(id, { graph: "resource", subject: uri });
-		nodes.push({ id, label: uri, kind: "resource" });
+		nodes.push({ id, label: uri, kind: NODE_KIND.resource });
 	}
 
 	const edges: TGraphEdge[] = [];

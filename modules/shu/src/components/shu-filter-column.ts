@@ -10,7 +10,8 @@ import { property } from "lit/decorators.js";
 import { ref, createRef } from "lit/directives/ref.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
-import { SHU_EVENT } from "../consts.js";
+import { openRef } from "./ref-navigation.js";
+import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { FilterColumnSchema, aType, type TContextPattern } from "../schemas.js";
 import { queryGraph, incomingEdges } from "../quads-snapshot.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
@@ -59,7 +60,7 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 		// in sortColumns). A filter request keyed on it is an open-by-id, so
 		// redirect to the entity column instead of issuing a doomed graphQuery.
 		if (property === getIdField(label)) {
-			this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN, { detail: { subject: value, label }, bubbles: true, composed: true }));
+			openRef(this, REF_DENOTES.individual, { persistedAs: label, id: value });
 			return;
 		}
 		this.setState({ property, value, persistedAs: label, loading: true, error: undefined });
@@ -131,14 +132,7 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 
 	private onRowClick = (e: Event): void => {
 		const { individualId: vid, label: rowLabel, ctrlKey } = (e as CustomEvent).detail;
-		if (!vid) return;
-		this.dispatchEvent(
-			new CustomEvent(SHU_EVENT.COLUMN_OPEN, {
-				detail: { subject: vid, label: rowLabel || this.state.persistedAs || defaultLabel(), addToSelection: ctrlKey },
-				bubbles: true,
-				composed: true,
-			}),
-		);
+		if (vid) openRef(e, REF_DENOTES.individual, { persistedAs: rowLabel || this.state.persistedAs || defaultLabel(), id: vid }, ctrlKey);
 	};
 
 	private onSortChange = (e: Event): void => {

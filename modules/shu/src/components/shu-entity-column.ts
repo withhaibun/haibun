@@ -1,9 +1,7 @@
 /**
  * <shu-entity-column>: Displays a single individual with edges.
  * Fetches individual+edges via RPC on open. Renders once per navigation.
- * HATEOAS rel-based clickable values. Fully type-agnostic, driven by schema metadata.
- *
- * Events: column-open (entity nav), column-open-filter (filter nav)
+ * HATEOAS rel-based links, each addressing the pane it opens. Fully type-agnostic, driven by schema metadata.
  */
 import { ellipsize } from "@haibun/core/lib/util/index.js";
 import {
@@ -28,7 +26,6 @@ import { jsonDisclosure, literalWithJson } from "./json-disclosure.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { ShuElement, TIME_SYNC_CLASS, type TLinkedData } from "./shu-element.js";
 import { SHU_EVENT, ANNOTATION_GLYPH } from "../consts.js";
-import { PaneState } from "../pane-state.js";
 import { bindCopyButtons, copyButtonHtml } from "../copy-util.js";
 import { isReplyEdge, RESOURCE_LABEL, MEDIA_TYPE } from "@haibun/core/lib/resources.js";
 import { anIndividual, EntityColumnSchema, type TContextPattern } from "../schemas.js";
@@ -39,7 +36,8 @@ import type { TQuoteAnchor } from "@haibun/core/lib/resources.js";
 import "./shu-annotated-body.js";
 import { getRelSync, getEdgeTargetLabel, getEdgeTargetLabels, getSummaryFields, getIdField, getQueryableFields, getRels, roleEdgeLabelSet, getDeclaredEdgeLabel } from "../rels-cache.js";
 import { propertyVocabulary } from "../graph/ontology-projection.js";
-import { openRef } from "./ref-navigation.js";
+import { linkHtml, paneHref, refHref } from "./ref-navigation.js";
+import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { pageAddress } from "../view-hash.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 
@@ -301,7 +299,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 				.map(([k, v]) => {
 					if (this.isTypeField(k)) return this.typeRow(k, v);
 					const valueHtml = Array.isArray(v) ? v.map((item) => this.formatFieldValue(item, k)).join(", ") : this.formatFieldValue(v, k);
-					return `<tr><td class="field-name">${this.clickableValue(k, "describedby")}${this.vocabBadge(k)}</td><td data-testid="entity-field-${escAttr(k)}">${valueHtml}</td></tr>`;
+					return `<tr><td class="field-name">${this.predicateLink(k)}${this.vocabBadge(k)}</td><td data-testid="entity-field-${escAttr(k)}">${valueHtml}</td></tr>`;
 				})
 				.join("");
 			const detailTable = detailRows ? `<table class="detail-table fields-table" data-testid="entity-fields">${detailRows}</table>` : "";
@@ -317,7 +315,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 							.map((k) => {
 								const v = fields[k];
 								const valueHtml = Array.isArray(v) ? v.map((item) => this.fieldValueHtml(item, k)).join(", ") : this.fieldValueHtml(v, k);
-								return `<span class="summary-field" data-testid="entity-field-${escAttr(k)}">${this.clickableValue(k, "describedby")}${this.vocabBadge(k)} ${valueHtml}</span>`;
+								return `<span class="summary-field" data-testid="entity-field-${escAttr(k)}">${this.predicateLink(k)}${this.vocabBadge(k)} ${valueHtml}</span>`;
 							})
 							.join(" ")}</div>`
 					: "";
@@ -346,7 +344,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	 *  navigation a @type value and a #Type reference use. Empty for an ad-hoc result view with no registered type. */
 	private typeLine(persistedAs: string): string {
 		if (getRels(persistedAs) === undefined) return "";
-		const link = `<a class="col-link" rel="type-ref" href="#" data-value="${escAttr(persistedAs)}" data-testid="entity-type-link">${esc(persistedAs)}</a>`;
+		const link = linkHtml(refHref(REF_DENOTES.type, { domain: persistedAs }), persistedAs, ` data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_TYPE_LINK}"`);
 		return `<div class="entity-detail" data-testid="entity-details">${link}</div>`;
 	}
 
@@ -378,15 +376,19 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		return tables.join("");
 	}
 
-	/** Render a clickable edge target with label from HATEOAS edge range. */
+	/** Render an edge target as a link to it. */
 	private renderEdgeTarget(target: VertexData, edgeType: string): string {
-		const id = idOf(target);
-		const rangeLabel = getEdgeTargetLabel(edgeType, this.state.persistedAs);
-		const label = (rangeLabel === RESOURCE_LABEL ? undefined : rangeLabel) ?? (target["@type"] as string) ?? defaultLabel();
-		const display = String(target.name ?? target.email ?? target.filename ?? target.subject ?? id);
-		const testId = this.edgeTargetCount === 0 ? ' data-testid="edge-target-first"' : "";
+		const display = String(target.name ?? target.email ?? target.filename ?? target.subject ?? idOf(target));
+		const testId = this.edgeTargetCount === 0 ? ` data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.EDGE_TARGET_FIRST}"` : "";
 		this.edgeTargetCount++;
-		return `<a class="col-link" rel="item" href="#" data-value="${escAttr(id)}" data-label="${escAttr(label)}"${testId}>${esc(ellipsize(display, 60))}</a>`;
+		return linkHtml(this.edgeTargetHref(edgeType, target), ellipsize(display, 60), testId);
+	}
+
+	/** The address of an edge's target, typed by the edge's range where it names one type and by the target otherwise. */
+	private edgeTargetHref(edgeType: string, target: VertexData): string | undefined {
+		const rangeLabel = getEdgeTargetLabel(edgeType, this.state.persistedAs);
+		const persistedAs = (rangeLabel === RESOURCE_LABEL ? undefined : rangeLabel) ?? (target["@type"] as string) ?? defaultLabel();
+		return refHref(REF_DENOTES.individual, { persistedAs, id: idOf(target) });
 	}
 
 	/** Plain-language names for the roles CORE's own general rels name. A consumer edge's phrase comes from its declared
@@ -445,9 +447,11 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			.map(([type, items]) => `<div class="ref-group"><span class="ref-type">${esc(type)}</span>${foldedTargets(items.map((i) => this.renderEdgeTarget(i.target, i.edgeType)))}</div>`)
 			.join("");
 
-		const inHtml = this.incomingCount > 0 ? `<a class="section-label links-here-link" href="#">What links here <span class="ref-count">(${this.incomingCount})</span></a>` : "";
+		const { persistedAs, individualId: subject } = this.state;
+		const incoming = paneHref({ paneType: "filter-incoming", persistedAs, subject });
+		const inHtml = this.incomingCount > 0 ? `<a class="section-label links-here-link" href="${escAttr(incoming)}">What links here <span class="ref-count">(${this.incomingCount})</span></a>` : "";
 		const hasReplies = this.edges.some((e) => isReplyEdge(e.type)) || this.incomingCount > 0;
-		const replyHtml = hasReplies ? `<a class="section-label thread-link" href="#">View replies</a>` : "";
+		const replyHtml = hasReplies ? `<a class="section-label thread-link" href="${escAttr(paneHref({ paneType: "thread", persistedAs, subject }))}">View replies</a>` : "";
 
 		return `<div class="references" data-testid="ref-section">${outHtml}${inHtml}${replyHtml}</div>`;
 	}
@@ -608,15 +612,6 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			.join("");
 	}
 
-	/**
-	 * Render a field's value with the right navigation affordance:
-	 *   - the idField → an entity-open link (rel="item") back to this individual via
-	 *     getIndividualWithEdges (the idField is never a query filter, so a filter
-	 *     route would throw "fields not declared");
-	 *   - a server-declared queryable field → a filter link;
-	 *   - everything else → plain display-only text (no navigation).
-	 * Edge-valued fields are handled inside clickableValue via the "item" rel.
-	 */
 	/** A field's value formatted for the visible field table: an object or array is shown as disclosures a reader opens;
 	 *  everything else falls through to fieldValueHtml (its navigation affordance + escaping). */
 	private formatFieldValue(value: string, propertyName: string): string {
@@ -631,14 +626,12 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		return this.fieldValueHtml(value, propertyName);
 	}
 
+	/** A field's value with the link it takes: the idField links to this individual (the idField is never a query
+	 *  filter), an edge-valued or queryable field links through valueLink, and anything else is text. */
 	private fieldValueHtml(value: string, propertyName: string): string {
 		const label = this.state.persistedAs;
-		if (getRelSync(label, propertyName) === "item") return this.clickableValue(value, "filter", propertyName);
-		if (propertyName === getIdField(label)) {
-			const id = idOf(this.vertex ?? {});
-			return `<a class="col-link" rel="item" href="#" data-value="${escAttr(id)}" data-label="${escAttr(label)}" data-property="${escAttr(propertyName)}">${esc(ellipsize(value, 80))}</a>`;
-		}
-		if (getQueryableFields(label).includes(propertyName)) return this.clickableValue(value, "filter", propertyName);
+		if (propertyName === getIdField(label)) return linkHtml(refHref(REF_DENOTES.individual, { persistedAs: label, id: idOf(this.vertex ?? {}) }), ellipsize(value, 80));
+		if (getRelSync(label, propertyName) === "item" || getQueryableFields(label).includes(propertyName)) return this.valueLink(value, propertyName);
 		return esc(ellipsize(value, 80));
 	}
 
@@ -676,96 +669,36 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const classes = Array.isArray(value) ? value : [value];
 		const links = classes
 			.filter((c) => c)
-			.map((c) => `<a class="col-link" rel="type-ref" href="#" data-value="${escAttr(c)}" data-testid="type-value">${esc(c)}</a>`)
+			.map((c) => linkHtml(refHref(REF_DENOTES.type, { domain: c }), c, ` data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.TYPE_VALUE}"`))
 			.join(", ");
 		return `<tr><td class="field-name">@type</td><td data-testid="entity-field-${escAttr(propertyName)}">${links}</td></tr>`;
 	}
 
-	private clickableValue(value: string, rel: string, propertyName?: string): string {
-		// Use HATEOAS rels + edge ranges to determine navigation semantics
-		let labelAttr = "";
-		let resolvedValue = value;
-		if (rel === "filter" && propertyName) {
-			const serverRel = getRelSync(this.state.persistedAs, propertyName);
-			if (serverRel === "item") {
-				rel = "item";
-				const targetLabel = getEdgeTargetLabel(propertyName, this.state.persistedAs);
-				if (targetLabel && targetLabel !== RESOURCE_LABEL) {
-					labelAttr = ` data-label="${escAttr(targetLabel)}"`;
-					// Resolve entity ID from edge target data: the graph edge
-					// carries the actual target node with its ID field, regardless of type
-					const edge = this.edges.find((e) => e.type === propertyName && e.direction === "out");
-					if (edge?.target) resolvedValue = idOf(edge.target);
-				}
-			}
-		}
-		const isPredicate = rel === "describedby";
-		let testId = "";
-		if (isPredicate) {
-			testId = this.predicateLinkCount === 0 ? ' data-testid="predicate-link-first"' : ' data-testid="predicate-link"';
-			this.predicateLinkCount++;
-		}
-		const propAttr = propertyName ? ` data-property="${escAttr(propertyName)}"` : "";
-		const linkClass = isPredicate ? "pred-link" : "col-link";
-		return `<a class="${linkClass}" rel="${rel}" href="#" data-value="${escAttr(resolvedValue)}"${labelAttr}${propAttr}${testId}>${esc(ellipsize(value, 80))}</a>`;
+	/** A field's value as a link: to the record an edge of that relation points at, or else to the records whose field
+	 *  holds the same value. */
+	private valueLink(value: string, propertyName: string): string {
+		const text = ellipsize(value, 80);
+		const target = getRelSync(this.state.persistedAs, propertyName) === "item" ? this.edges.find((e) => e.type === propertyName && e.direction === "out")?.target : undefined;
+		if (target) return linkHtml(this.edgeTargetHref(propertyName, target), text);
+		return linkHtml(paneHref({ paneType: "filter-eq", persistedAs: this.state.persistedAs, predicate: propertyName, value }), text);
+	}
+
+	/** A field's name as a link to the records of this type, ordered by that field. */
+	private predicateLink(propertyName: string): string {
+		const testId = this.predicateLinkCount === 0 ? SHU_TEST_IDS.COLUMN_BROWSER.PREDICATE_LINK_FIRST : SHU_TEST_IDS.COLUMN_BROWSER.PREDICATE_LINK;
+		this.predicateLinkCount++;
+		return linkHtml(paneHref({ paneType: "filter-prop", persistedAs: this.state.persistedAs, predicate: propertyName }), propertyName, ` data-testid="${testId}"`, "pred-link");
 	}
 
 	// One delegated click listener on the shadow root, attached once. The content is `unsafeHTML` (a raw string lit does
 	// NOT rebuild while unchanged), so a per-node addEventListener in `updated()` (which runs on every render) accumulated
-	// a fresh listener on each surviving link: one click then fired N times, opening N duplicate panes. Delegation binds
-	// one stable listener to the shadow root, which addEventListener dedups by identity, so re-binding every render is a
-	// no-op by spec.
-
+	// a fresh listener on each surviving button: one click then fired N times. Delegation binds one stable listener to
+	// the shadow root, which addEventListener dedups by identity, so re-binding every render is a no-op by spec. Links
+	// need none: the page follows their addresses.
 	private onShadowClick = (e: Event): void => {
-		const t = e.target as Element | null;
-		if (!t) return;
-		const link = t.closest(".col-link, .pred-link") as HTMLElement | null;
-		if (link) return this.routeLinkClick(link, e);
-		const switchBtn = t.closest(".content-switch-btn") as HTMLElement | null;
-		if (switchBtn) return this.switchBody(switchBtn);
-		if (t.closest(".links-here-link")) {
-			e.preventDefault();
-			PaneState.request({ paneType: "filter-incoming", persistedAs: this.state.persistedAs, subject: this.state.individualId });
-			return;
-		}
-		if (t.closest(".thread-link")) {
-			e.preventDefault();
-			PaneState.request({ paneType: "thread", persistedAs: this.state.persistedAs, subject: this.state.individualId });
-		}
+		const switchBtn = (e.target as Element | null)?.closest(".content-switch-btn") as HTMLElement | null;
+		if (switchBtn) this.switchBody(switchBtn);
 	};
-
-	private routeLinkClick(target: HTMLElement, e: Event): void {
-		e.preventDefault();
-		e.stopPropagation();
-		const value = target.dataset.value;
-		const rel = target.getAttribute("rel");
-		const propertyName = target.dataset.property;
-		if (!value) return;
-		// Target label comes from data-label (set at render time by HATEOAS rels + edge ranges)
-		const targetLabel = target.dataset.label || this.state.persistedAs;
-		switch (rel) {
-			case "item":
-				this.dispatchEvent(
-					new CustomEvent(SHU_EVENT.COLUMN_OPEN, {
-						detail: { subject: value, label: targetLabel, addToSelection: (e as MouseEvent).ctrlKey || (e as MouseEvent).shiftKey || (e as MouseEvent).metaKey },
-						bubbles: true,
-						composed: true,
-					}),
-				);
-				break;
-			case "describedby":
-				PaneState.request({ paneType: "filter-prop", persistedAs: this.state.persistedAs, predicate: value });
-				break;
-			case "type-ref":
-				// A class from the @type row, open its type view through the shared hypermedia ref router (a domain
-				// reference), the same navigation a #Type link and a graph class-click use.
-				openRef(e, "domain", { domain: value });
-				break;
-			default:
-				if (propertyName) PaneState.request({ paneType: "filter-eq", persistedAs: this.state.persistedAs, predicate: propertyName, value });
-				break;
-		}
-	}
 
 	/** Show the reading a reader switched to, and read its text where it has not been read. */
 	private switchBody(btn: HTMLElement): void {

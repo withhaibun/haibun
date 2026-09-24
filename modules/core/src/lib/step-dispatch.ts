@@ -11,7 +11,7 @@ import { doStepperCycle } from "./stepper-cycles.js";
 import { actingAs, authorizedWith, runAuthorizedWith, runInStep, runReadingAt } from "./capability-context.js";
 import { capabilityAllows, readCeilingOf } from "./actions.js";
 import { Access, LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS, type SeqPathStatus } from "./resources.js";
-import { SEQ_PATH_FIELD, executionOf, formatRecordName } from "./seq-path.js";
+import { SEQ_PATH_FIELD, executionOf, factIdOf, formatRecordName } from "./seq-path.js";
 import { StepRegistry, stepMethodName, hostScopedMethodName, authorizeToolCapability } from "./step-registry.js";
 import { validateProducts } from "./tool-validation.js";
 import { augmentViewHypermedia, isViewOnlyDomain } from "./step-hypermedia.js";
@@ -262,7 +262,7 @@ async function autoAssertProducts(world: TWorld, seqPathKey: string, step: TStep
 	if (!actionResult.products) return;
 	if (step.productsDomain) {
 		if (isViewOnlyDomain(world, step.productsDomain)) return;
-		await assertFact(world, normalizeDomainKey(step.productsDomain), seqPathKey, actionResult.products, FACT_GRAPH);
+		await assertFact(world, normalizeDomainKey(step.productsDomain), factIdOf(seqPathKey), actionResult.products, FACT_GRAPH);
 		return;
 	}
 	if (step.productsDomains) {
@@ -270,7 +270,7 @@ async function autoAssertProducts(world: TWorld, seqPathKey: string, step: TStep
 		for (const [field, domainKey] of Object.entries(step.productsDomains)) {
 			if (!(field in products)) continue;
 			if (isViewOnlyDomain(world, domainKey)) continue;
-			await assertFact(world, normalizeDomainKey(domainKey), `${seqPathKey}#${field}`, products[field], FACT_GRAPH);
+			await assertFact(world, normalizeDomainKey(domainKey), factIdOf(seqPathKey, field), products[field], FACT_GRAPH);
 		}
 	}
 }

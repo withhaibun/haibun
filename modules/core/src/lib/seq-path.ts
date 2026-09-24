@@ -29,6 +29,19 @@ export function parseSeqPath(id: string): number[] | null {
 	return id.split(".").map((p) => Number.parseInt(p, 10));
 }
 
+/** What separates a fact's seqPath from the field it names, where a step's product has a domain for each field. */
+export const FACT_FIELD_MARK = "#";
+
+/** A fact's id: the seqPath of the step that produced it, and the field of the product it is, where it is one. */
+export function factIdOf(seqPathKey: string, field?: string): string {
+	return field === undefined ? seqPathKey : `${seqPathKey}${FACT_FIELD_MARK}${field}`;
+}
+
+/** The seqPath of the step that produced a fact, read from the fact's id. */
+export function factSeqPath(factId: string): number[] | null {
+	return parseSeqPath(factId.split(FACT_FIELD_MARK)[0]);
+}
+
 /**
  * The leading dot-joined integer seqPath of an id, discarding any suffix; null where the id does not begin with one.
  * This reads an id an event carries, which names a step of the run announcing it.

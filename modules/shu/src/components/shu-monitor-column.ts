@@ -20,7 +20,8 @@ import type { WindowedSource } from "../windowed-source.js";
 import type { TScrollMarker } from "../scrollbar-model.js";
 import { artifactUrl } from "../artifact-url.js";
 import { unavailableOrEmpty } from "./empty-state.js";
-import { PaneState, type DesiredPane } from "../pane-state.js";
+import { PaneState, addsToSelection, type DesiredPane } from "../pane-state.js";
+import { refTpl } from "./shu-ref.js";
 import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_STATUS } from "@haibun/core/lib/resources.js";
 import { currentRowIndex, cursorMark } from "../virtual-column-model.js";
@@ -174,7 +175,6 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		.log-row .time { color: var(--shu-fg-muted); margin-left: auto; flex: 0 0 auto; }
 		.log-row .time-group:hover .time { color: var(--shu-accent); }
 		.log-row .seqpath { color: var(--shu-fg-muted); font-size: var(--shu-font-xs); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-		.log-row .established-by { color: var(--shu-link, #0a58ca); cursor: pointer; }
 		/* What a step produced, at the height of its own row: a reader reading the run's steps sees what each one made,
 		   and follows the image itself to see it whole. */
 		.carried { display: none; }
@@ -337,20 +337,12 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			this.#cursorTo(ts);
 		};
 
-	/** Read the step a substep was run to carry out, which is what pressing that step's own row does. */
-	private onEstablishedByClick =
-		(seqPath: number[]) =>
-		(e: Event): void => {
-			e.stopPropagation();
-			PaneState.requestFrom(this, { paneType: "step-detail", seqPath }, Boolean((e as MouseEvent).ctrlKey || (e as MouseEvent).shiftKey || (e as MouseEvent).metaKey));
-		};
-
 	private onRowClick =
 		(row: TLogRow) =>
 		(e: Event): void => {
 			const opening = opens(row);
 			if (!opening) return;
-			PaneState.requestFrom(this, opening, Boolean((e as MouseEvent).ctrlKey || (e as MouseEvent).shiftKey || (e as MouseEvent).metaKey));
+			PaneState.requestFrom(this, opening, addsToSelection(e as MouseEvent));
 		};
 
 	// Derive the window before each render: the rows it holds, the rail markers (every record
@@ -433,7 +425,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		// A substep says which step it was run to carry out, and reading that step from here is the same act as reading
 		// its own row: a reader shown a step of the machinery is one press from the step of the feature that ran it.
 		const seqPath = r.partOf
-			? html`<span class="seqpath">[<span class="established-by" data-testid=${SHU_TEST_IDS.MONITOR.ESTABLISHED_BY} title="the step this was run to carry out" @click=${this.onEstablishedByClick(r.partOf)}>${r.partOf.join(".")}</span>${(r.seqPath ?? []).slice(r.partOf.length).map((n) => `.${n}`)}] </span>`
+			? html`<span class="seqpath">[<span class="established-by" title="the step this was run to carry out">${refTpl("seqPath", { seqPath: r.partOf }, r.partOf.join("."), SHU_TEST_IDS.MONITOR.ESTABLISHED_BY)}</span>${(r.seqPath ?? []).slice(r.partOf.length).map((n) => `.${n}`)}] </span>`
 			: r.seqPath
 				? html`<span class="seqpath">[${r.seqPath.join(".")}] </span>`
 				: "";

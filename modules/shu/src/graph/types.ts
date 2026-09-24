@@ -14,6 +14,26 @@
  * participates in via `edge.paths`; renderers can highlight a subset of paths.
  */
 
+/** The built-in kinds a node is styled by. */
+export const NODE_KIND = {
+	default: "default",
+	satisfied: "satisfied",
+	reachable: "reachable",
+	unreachable: "unreachable",
+	refused: "refused",
+	argument: "argument",
+	current: "current",
+	field: "field",
+	factInstance: "fact-instance",
+	resource: "resource",
+	waypointEnsured: "waypoint-ensured",
+	waypointDeclarative: "waypoint-declarative",
+	waypointImperative: "waypoint-imperative",
+} as const;
+
+/** The built-in kinds an edge is styled by. */
+export const EDGE_KIND = { default: "default", ready: "ready", blocked: "blocked", capabilityGated: "capability-gated", context: "context", reply: "reply" } as const;
+
 export type TGraphNode = {
 	/** Unique within the graph. */
 	id: string;
@@ -21,7 +41,7 @@ export type TGraphNode = {
 	label: string;
 	/** Extended detail shown as the node's hover hint (a paint renders it as the SVG title / tooltip); falls back to label+kind. */
 	hint?: string;
-	/** Semantic marker for styling. Built-in vocabulary: default, satisfied, reachable, unreachable, refused, argument, current. */
+	/** Semantic marker for styling: one of NODE_KIND, or a data @type. */
 	kind?: string;
 	/** Group this node belongs to. References a key in `groups`. */
 	group?: string;
@@ -47,7 +67,7 @@ export type TGraphEdge = {
 	to: string;
 	/** Edge label. */
 	label?: string;
-	/** Semantic marker for styling. Built-in vocabulary: default, ready, blocked, capability-gated. */
+	/** Semantic marker for styling: one of EDGE_KIND. */
 	kind?: string;
 	/** Link relation this edge carries (e.g. "attributedTo", "inReplyTo"); drives relation-filter selection. */
 	rel?: string;

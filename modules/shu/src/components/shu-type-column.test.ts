@@ -1,8 +1,12 @@
 // @vitest-environment jsdom
 // jsdom: the module defines a ShuElement (extends HTMLElement); the builders under test are pure metadata projections.
-import { describe, it, expect, beforeAll } from "vitest";
-import { buildTypeSchemaGraph, buildFullSchemaGraph } from "./shu-type-column.js";
+import { describe, it, expect, beforeAll, vi } from "vitest";
+import { buildTypeSchemaGraph, buildFullSchemaGraph, ShuTypeColumn } from "./shu-type-column.js";
 import { getUiPresenting, setSiteMetadata, isSystemSchemaType, type SiteMetadata } from "../rels-cache.js";
+import { paneAddressedBy } from "./ref-navigation.js";
+import { NODE_KIND } from "../graph/types.js";
+import { PaneState } from "../pane-state.js";
+import { SHU_EVENT } from "../consts.js";
 
 /** A two-type vocabulary: Issuer --assertionMethod--> VerificationMethod, both declaring a literal `name`. */
 const META: SiteMetadata = {
@@ -23,23 +27,42 @@ const META: SiteMetadata = {
 
 beforeAll(() => setSiteMetadata(META));
 
-const node = (g: { nodes: Array<{ id: string; kind?: string }> }, id: string) => g.nodes.find((n) => n.id === id);
+const node = (g: ReturnType<typeof buildTypeSchemaGraph>, id: string) => g.nodes.find((n) => n.id === id);
 
 describe("buildTypeSchemaGraph: one type's schema", () => {
 	it("centres the type (highlighted), draws an edge per referenced type and a leaf per literal property", () => {
 		const g = buildTypeSchemaGraph("Issuer");
-		expect(node(g, "Issuer")?.kind).toBe("current");
+		expect(node(g, "Issuer")?.kind).toBe(NODE_KIND.current);
 		expect(node(g, "VerificationMethod")).toBeDefined();
 		expect(g.edges).toContainEqual({ from: "Issuer", to: "VerificationMethod", label: "assertionMethod", rel: "assertionMethod" });
-		expect(node(g, "prop:did")?.kind).toBe("argument");
+		expect(node(g, "prop:did")?.kind).toBe(NODE_KIND.argument);
 		expect(node(g, "prop:assertionMethod")).toBeUndefined(); // an edge, not a literal leaf
+	});
+
+	it("links a type's node to the type's view, and a property's node to the type's records ordered by it", () => {
+		const g = buildTypeSchemaGraph("Issuer");
+		const opens = (id: string) => paneAddressedBy(node(g, id)?.link?.href ?? "");
+		expect(opens("VerificationMethod")).toEqual({ paneType: "type", persistedAs: "VerificationMethod" });
+		expect(opens("prop:name")).toEqual({ paneType: "filter-prop", persistedAs: "Issuer", predicate: "name" });
+	});
+
+	it("opens the view a pressed node links, and nothing for a press on the background", () => {
+		if (!customElements.get("shu-type-column")) customElements.define("shu-type-column", ShuTypeColumn);
+		const column = document.body.appendChild(new ShuTypeColumn());
+		const opened = vi.spyOn(PaneState, "requestFrom").mockImplementation(() => undefined);
+		const press = (graphNode: unknown) => column.dispatchEvent(new CustomEvent(SHU_EVENT.GRAPH_NODE_CLICK, { detail: { node: graphNode }, bubbles: true, composed: true }));
+		press(node(buildTypeSchemaGraph("Issuer"), "VerificationMethod"));
+		press(null);
+		expect(opened.mock.calls.map(([, pane]) => pane)).toEqual([{ paneType: "type", persistedAs: "VerificationMethod" }]);
+		opened.mockRestore();
+		column.remove();
 	});
 });
 
 describe("buildFullSchemaGraph: the entire vocabulary with the viewed type highlighted", () => {
 	it("includes every declared type, highlights only the viewed one", () => {
 		const g = buildFullSchemaGraph("Issuer");
-		expect(node(g, "Issuer")?.kind).toBe("current");
+		expect(node(g, "Issuer")?.kind).toBe(NODE_KIND.current);
 		expect(node(g, "VerificationMethod")).toBeDefined();
 		expect(node(g, "VerificationMethod")?.kind).toBeUndefined();
 	});

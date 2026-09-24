@@ -1,6 +1,6 @@
 /**
  * Hypermedia: the SPA-side core of shu's wire layer. One file holds the wire
- * types, link helpers, the affordance union, the `Conduit` interface, both
+ * types, link helpers, the `Conduit` interface, both
  * implementations, and the module accessor. Components and infrastructure
  * import from this one path; tests use `setupShuTest` to install a
  * `LiveConduit`. Nothing else talks to `/rpc/*`, and nothing else owns
@@ -9,9 +9,7 @@
  * A Resource (linked-data sense: an Email node, a Comment, any consumer
  * record) becomes a `TRepresentation` on the wire: the domain fields plus
  * optional hypermedia markers (`_type`, `_summary`, `_description`, `_links`,
- * `_seqPath`). A `TLink` in `_links` is a named follow-up call; `TAffordance`
- * is the SPA's view of a clickable user action (a follow, a step pick, or a
- * column open).
+ * `_seqPath`). A `TLink` in `_links` is a named follow-up call.
  *
  * Every wire call carries a `why`. The explainable-system trace is non-
  * optional: `follow(link, why)`, `followStream(link, onChunk, { why })`, and
@@ -64,12 +62,6 @@ export type TRepresentation = {
 
 /** One streaming chunk delivered to `followStream`'s `onChunk` callback, re-exported from core so the server emitter and this consumer share one definition. */
 export type { TStreamChunk };
-
-/** SPA-side clickable user action. Three kinds cover every existing pattern: `follow` invokes an RPC and surfaces its Representation; `pick-step` pre-fills the step-caller with a method (no RPC); `open-view` opens a column for a subject. Server-emitted `_links` rels become `kind: "follow"` affordances. */
-export type TAffordance =
-	| { kind: "follow"; label: string; summary?: string; method: string; params?: Record<string, unknown>; why: string }
-	| { kind: "pick-step"; label: string; summary?: string; method: string }
-	| { kind: "open-view"; label: string; summary?: string; subject: string; persistedAs: string };
 
 // ─── Guards ──────────────────────────────────────────────────────────────────
 

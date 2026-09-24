@@ -32,7 +32,8 @@ import { setActiveViewId } from "./quads-snapshot.js";
 import { SCOPE, dispatchSubjectEvent, entryOf } from "./current-subject.js";
 import { PageContextSchema, type TContextPattern } from "./schemas.js";
 import { activePane, pageContext, stripPanes, timeCursor } from "./signals.js";
-import { PaneState, DesiredPaneSchema } from "./pane-state.js";
+import { PaneState, PaneOpenSchema } from "./pane-state.js";
+import { followPaneLink } from "./components/ref-navigation.js";
 import type { ShuColumnStrip } from "./components/shu-column-strip.js";
 import type { ShuEntityColumn } from "./components/shu-entity-column.js";
 import type { ShuFilterColumn } from "./components/shu-filter-column.js";
@@ -192,7 +193,7 @@ const main = async (): Promise<void> => {
 	if (shown.length > 0) ShuElement.pushHash(hashWithColumns(shown));
 
 	const reportBootDiagnostic = (level: TClientLogLevel, msg: string, attrs?: Record<string, unknown>): void => reportToRun(level, "shu-app-boot", msg, attrs);
-	reportBootDiagnostic("debug", "shu-app boot reached COLUMN_OPEN_AFFORDANCE wiring");
+	reportBootDiagnostic("debug", "shu-app boot reached pane-open wiring");
 
 	const reportClientLog = (level: TClientLogLevel, message: string, attributes?: Record<string, unknown>): void => reportToRun(level, "shu-app", message, attributes);
 
@@ -263,26 +264,18 @@ const main = async (): Promise<void> => {
 		{ signal },
 	);
 
-	appRoot.addEventListener(
-		SHU_EVENT.COLUMN_OPEN,
-		((e: CustomEvent) => {
-			const { subject, label, addToSelection } = e.detail || {};
-			if (!subject) return;
-			// PaneState.requestFrom centralizes the Miller-column behaviour (dismiss every non-pinned pane to the right of the source). Every component that opens a column from a row click must reach this same path; direct `request` calls in views would skip the pruning and leak stale panes.
-			PaneState.requestFrom(e, { paneType: "entity", id: subject, persistedAs: label || defaultLabel() }, Boolean(addToSelection));
-		}) as EventListener,
-		{ signal },
-	);
+	// A link to a pane opens it beside the pane it was clicked in. The capture phase takes the click before any view
+	// under the link does.
+	appRoot.addEventListener("click", followPaneLink, { capture: true, signal });
 
-	// Generic pane open: a view hands a fully-formed DesiredPane and it goes through the same PaneState path as
-	// COLUMN_OPEN. The polymorphic uses this to open the windowed instances column (filter-prop) for an ontology Class/Property,
-	// which COLUMN_OPEN (entity-only) can't express. Fail fast on a malformed request: no silent default pane.
+	// A view in the other bundle opens a pane through this event, since that bundle's PaneState isn't the page's. Fail
+	// fast on a malformed request: no silent default pane.
 	appRoot.addEventListener(
 		SHU_EVENT.PANE_OPEN,
 		((e: CustomEvent) => {
-			const parsed = DesiredPaneSchema.safeParse(e.detail);
-			if (!parsed.success) throw new Error(`[shu] ${SHU_EVENT.PANE_OPEN}: invalid DesiredPane: ${parsed.error.message}`);
-			PaneState.requestFrom(e, parsed.data, false);
+			const parsed = PaneOpenSchema.safeParse(e.detail);
+			if (!parsed.success) throw new Error(`[shu] ${SHU_EVENT.PANE_OPEN}: invalid pane request: ${parsed.error.message}`);
+			PaneState.requestFrom(e, parsed.data.pane, parsed.data.addToSelection);
 		}) as EventListener,
 		{ signal },
 	);

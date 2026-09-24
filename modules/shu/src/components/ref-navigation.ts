@@ -1,12 +1,15 @@
 /**
  * The one hypermedia navigation router, kept free of any custom-element (HTMLElement) definition so it is importable in
  * any context, a component, a graph click handler, a node test, without dragging a DOM class into the module graph.
- * Maps a typed reference (seqPath / entity / domain / step) to the pane it opens via PaneState.requestFrom, so every
- * node/link navigation routes through one place and the link vocabulary stays consistent. The <shu-ref> element and the
- * graph views both call openRef; none reimplements the routing.
+ * A link is an anchor whose href is the address of a pane (`paneHref`), and the page follows its own addresses
+ * (`followPaneLink`): a click opens the addressed pane beside the one it was clicked in. A typed reference (seqPath /
+ * entity / domain / step) is addressed through `refHref`, and a view that isn't an anchor, a row or a card, opens the
+ * same pane with `openRef`.
  */
 import { esc, escAttr } from "../util.js";
-import { PaneState, paneIdOf, type DesiredPane } from "../pane-state.js";
+import { PaneState, addsToSelection, columnEntryOf, parseColEntry, type DesiredPane } from "../pane-state.js";
+import { COLUMN_PARAM, hashParams, hashWithColumns } from "../view-hash.js";
+import { DEEP_LINK_PREFIX } from "../consts.js";
 import { QuoteAnchorSchema } from "@haibun/core/lib/resources.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 
@@ -36,23 +39,53 @@ export function desiredPaneFor(kind: TRefKind, linkTarget: Record<string, unknow
 	return null;
 }
 
+/** The address of a pane, written as the address bar writes a column, so a link to it can be opened in a tab, copied
+ *  and previewed. */
+export function paneHref(desired: DesiredPane): string {
+	return hashWithColumns([columnEntryOf(desired)]);
+}
+
+/** The pane a link addresses: the one column its href names, or null for any other href, which the browser follows. */
+export function paneAddressedBy(href: string): DesiredPane | null {
+	if (!href.startsWith(DEEP_LINK_PREFIX)) return null;
+	const params = hashParams(href);
+	const columns = params.getAll(COLUMN_PARAM);
+	return columns.length === 1 && [...params.keys()].length === 1 ? parseColEntry(columns[0]) : null;
+}
+
 /**
- * The address of what a reference points at: the view showing that one thing, written exactly as the address bar
- * writes a column (`paneIdOf`). A reference is an anchor with this href, so it is a link in the plain HTML sense: it
- * can be focused, opened in a new tab, copied, and previewed: none of which an anchor without an href can do.
- *
- * Clicking does NOT navigate here: the ref opens the pane beside the one it was clicked from (Miller-column), which is
- * a different, composite address. So this addresses the thing itself, not the reader's resulting column set.
+ * The address of what a reference points at: the view showing that one thing. Clicking does not navigate there: the
+ * page opens the pane beside the one it was clicked from (Miller-column), which is a different, composite address. So
+ * this addresses the thing itself, not the reader's resulting column set.
  */
 export function refHref(kind: TRefKind, linkTarget: Record<string, unknown>): string | undefined {
 	const desired = desiredPaneFor(kind, linkTarget);
-	return desired ? `#?col=${encodeURIComponent(paneIdOf(desired))}` : undefined;
+	return desired ? paneHref(desired) : undefined;
 }
 
-export function openRef(source: Element | Event, kind: TRefKind, linkTarget: Record<string, unknown>): void {
+/** Follow a click on a link to a pane, in the capture phase at the page's root: the pane opens beside the one the link
+ *  was clicked in, and nothing under the link takes the click. A link to anything else is left to the browser. */
+export function followPaneLink(e: MouseEvent): void {
+	if (e.button !== 0) return;
+	const link = e.composedPath().find((target): target is HTMLAnchorElement => target instanceof HTMLAnchorElement);
+	const desired = link ? paneAddressedBy(link.getAttribute("href") ?? "") : null;
+	if (!desired) return;
+	e.preventDefault();
+	e.stopPropagation();
+	PaneState.requestFrom(e, desired, addsToSelection(e));
+}
+
+/** Open what a reference points at from a view that isn't a link. */
+export function openRef(source: Element | Event, kind: TRefKind, linkTarget: Record<string, unknown>, addToSelection = false): void {
 	const desired = desiredPaneFor(kind, linkTarget);
-	// A kind with no pane (step) renders non-functional rather than crashing.
-	if (desired) PaneState.requestFrom(source, desired);
+	if (!desired) throw new Error(`a ${kind} reference to ${JSON.stringify(linkTarget)} addresses no pane`);
+	PaneState.requestFrom(source, desired, addToSelection);
+}
+
+/** The inline markup for a link to a pane, for a view that renders a string of markup: an anchor whose href is the
+ *  pane's address. With no address, the text alone. */
+export function linkHtml(href: string | undefined, text: string, attrs = "", linkClass = "col-link"): string {
+	return href ? `<a class="${linkClass}" href="${escAttr(href)}"${attrs}>${esc(text)}</a>` : esc(text);
 }
 
 /** The text a reference shows when its caller names none: the identifier itself, read out of the target. */

@@ -2,32 +2,32 @@
 	"darwin-arm64-12x-apple-m4-pro": {
 		"features": {
 			"/features/a-a-run-to-come-back-to.feature.ts": {
-				"seconds": 0.9,
-				"steps": 168,
-				"declaredStepTextHash": "cc3338e7beca1e35ccecfdda8bb5d44870348a22156942f415224dadda3c8fef"
+				"seconds": 1,
+				"steps": 170,
+				"declaredStepTextHash": "59bfd67a89f2042c30b0decadc1f8a25c22e71b3159d0296520b4fd04ee4ab14"
 			},
 			"/features/b-reading-a-cached-run.feature.ts": {
 				"seconds": 1.2,
-				"steps": 173,
-				"declaredStepTextHash": "3715a58ac60ab699ec6daf07f260fc6bd6a73a0184fb4d5bfb118e28795585dc"
+				"steps": 175,
+				"declaredStepTextHash": "cae60070031d9fa6cc4275cb89fdaa3924c943c1b8105fd0a6053609a3c995bd"
 			},
 			"/features/c-reading-a-report.feature.ts": {
 				"seconds": 1.2,
-				"steps": 176,
-				"declaredStepTextHash": "ee38559611910e4d9b0d52557e4b5307b0cb6d55ec61e0a1e8725ce5cb7a7ea1"
+				"steps": 178,
+				"declaredStepTextHash": "04b98404775b27549692003395b3b40d029e9bddb344033f485b4617f6342920"
 			},
 			"/features/d-two-origins.feature.ts": {
-				"seconds": 1,
-				"steps": 178,
-				"declaredStepTextHash": "e24765c25e5e822667ae5e4de992af587ce872594de4770310405f9a0dc659b5"
+				"seconds": 1.1,
+				"steps": 180,
+				"declaredStepTextHash": "bb59e95e3b0ee3df62ed504abe7ec879ebc56f5f2192a7fb9694915346dbe175"
 			},
 			"/features/e-forgetting-a-run.feature.ts": {
-				"seconds": 2.6,
-				"steps": 168,
-				"declaredStepTextHash": "a440ebc86a979d49be893f05974352d58586d6d271f9708e93fa56c219222be1"
+				"seconds": 2.9,
+				"steps": 170,
+				"declaredStepTextHash": "bb64be4d25c15edba9fe8fc789076a29f0bd786e5507e4d6831d440420276a9d"
 			}
 		},
-		"steps": 863,
-		"seconds": 6.9
+		"steps": 873,
+		"seconds": 7.4
 	}
 }

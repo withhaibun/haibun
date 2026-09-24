@@ -26,8 +26,8 @@ import { RPC_METHOD, SHU_EVENT, AFFORDANCE_PARAM } from "../consts.js";
 import * as ViewHash from "../view-hash.js";
 import { pathId, projectGoalPaths } from "../graph/project-goal-paths.js";
 import { factIdRef } from "./shu-ref.js";
-import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
-import { PaneState } from "../pane-state.js";
+import { factSeqPath } from "@haibun/core/lib/seq-path.js";
+import { openRef } from "./ref-navigation.js";
 import type { TGraph } from "../graph/types.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { linkTo } from "../rpc-registry.js";
@@ -576,10 +576,9 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 					}
 					const factId = node.wasGeneratedBy?.factId;
 					if (typeof factId !== "string") return;
-					const head = factId.includes("#") ? factId.slice(0, factId.indexOf("#")) : factId;
-					const seqPath = parseSeqPath(head);
-					if (!seqPath) return;
-					PaneState.request({ paneType: "step-detail", seqPath });
+					const seqPath = factSeqPath(factId);
+					if (!seqPath) throw new Error(`fact "${factId}" names no step: a fact's id is the seqPath of the step that produced it`);
+					openRef(e, "seqPath", { seqPath });
 				});
 			}
 		}

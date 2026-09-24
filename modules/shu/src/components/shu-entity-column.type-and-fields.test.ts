@@ -8,6 +8,12 @@ import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import { toRegisteredDomain } from "@haibun/core/lib/domains.js";
 import { fromJsonText } from "@haibun/core/lib/json-text.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
+import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
+import { refHref } from "./ref-navigation.js";
+import { SHU_TEST_IDS } from "../test-ids.js";
+
+/** The href of a link to a type's view, as the column's markup serializes it. */
+const typeHref = (domain: string) => `href="${refHref(REF_DENOTES.type, { domain })}"`;
 
 const typeDomain = (persistedAs: string, selector: string, description: string) => {
 	const schema = z.object({ id: z.string(), name: z.string(), note: z.string(), generatedAtTime: z.string() });
@@ -41,14 +47,14 @@ describe("shu-entity-column type and fields", () => {
 
 	it("names the type as a link to the type's own view, which holds its description, and leaves the description there", async () => {
 		const html = await render("Widget");
-		expect(html).toContain('data-testid="entity-type-link"');
-		expect(html).toContain('rel="type-ref"');
+		expect(html).toContain(`data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_TYPE_LINK}"`);
+		expect(html).toContain(typeHref("Widget"));
 		expect(html).toContain(">Widget</a>");
 		expect(html).not.toContain("A widget.");
 	});
 
 	it("names no type for an ad-hoc result view with no registered type", async () => {
-		expect(await render("Result")).not.toContain('data-testid="entity-type-link"');
+		expect(await render("Result")).not.toContain(`data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_TYPE_LINK}"`);
 	});
 
 	it("shows non-summary fields in a visible fields section (not buried in the collapsed disclosure)", async () => {
@@ -105,8 +111,7 @@ describe("shu-entity-column type and fields", () => {
 		expect(html).toContain("vocab-haibun");
 		// rdf:type renders as the standard @type keyword, each class an explorable link.
 		expect(html).toContain(">@type</td>");
-		expect(html).toContain('rel="type-ref"');
-		expect(html).toContain("AquaticAnimalImportPermit");
+		expect(html).toContain(typeHref("AquaticAnimalImportPermit"));
 		// Who may see the record is shown as its field, under no heading of its own.
 		expect(html).toContain('data-testid="entity-governance"');
 		expect(html).not.toContain(">Governance<");

@@ -27,7 +27,7 @@ import { availablePaints, browserRelOf } from "../paint-select.js";
 import { ganttBarTimes, GANTT_ROW_H, GANTT_BAR_H, GANTT_BAR_D, GANTT_MIN_BAR_W, GANTT_GHOST_PAD } from "../gantt-layout.js";
 import { type Adornment } from "../graph-layout.js";
 import { PolymorphicCamera, clearStripOffset, coveredTogether, type GanttExtent } from "./polymorphic-camera.js";
-import { SHU_ATTR } from "../../consts.js";
+import { SHU_ATTR, SHU_EVENT } from "../../consts.js";
 import { ndcToClient, clientToNdc, ndcOnScreen, NDC_EDGE, NDC_SPAN, type TNdc, type TClientPoint } from "../polymorphic/polymorphic-project.js";
 import { syncPickTarget, restorePickTarget, type TPickObject, type TScaleRestore } from "../polymorphic/polymorphic-pick-sync.js";
 import { RenderContext } from "./polymorphic-render-context.js";
@@ -36,7 +36,7 @@ import { type RenderType, type TViewForces, buildRenderTypeRegistry } from "../p
 import type { ViewType } from "../polymorphic/polymorphic-views.js";
 import { FRAME, VIEW, viewChangeRebuildsNodes } from "../polymorphic/polymorphic-views.js";
 import { ONTOLOGY_CLASS, ONTOLOGY_PROPERTY, isSchemaType, propertyVocabulary } from "../ontology-projection.js";
-import { DesiredPaneSchema } from "../../pane-state.js";
+import { PaneOpenSchema, addsToSelection, type DesiredPane, type TPaneOpen } from "../../pane-state.js";
 import { actorTypesFor, getValidTimeField, roleEdgeLabels, roleNounFor } from "../../rels-cache.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { compositeRenderer, threeRenderer, type IGraphRenderer } from "../polymorphic/polymorphic-renderer.js";
@@ -2318,12 +2318,11 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		// so exploring the schema stays in the schema rather than dropping into a list of instances. A Property opens the
 		// windowed instances of a type that declares it, sorted by it (no instances → no pane).
 		if (n.type === ONTOLOGY_CLASS) {
-			const detail = DesiredPaneSchema.parse({ paneType: "type", persistedAs: n.id });
-			this.dispatchEvent(new CustomEvent(GRAPH_SCENE_EVENT.NODE_OPEN_PANE, { detail, bubbles: true, composed: true }));
+			this.openPane({ paneType: "type", persistedAs: n.id }, e);
 			return;
 		}
 		if (n.type === ONTOLOGY_PROPERTY) {
-			this.openOntologyInstances(n);
+			this.openOntologyInstances(n, e);
 			return;
 		}
 		// Opening a node hands the view to the user: from here the camera is theirs, exactly as after a zoom/pan/orbit.
@@ -2344,27 +2343,22 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		// an already-selected subject: the camera must not wait on either. Choosing a node is the ONLY thing that moves
 		// a following camera, so a pan or orbit afterwards stands until the next node is chosen.
 		if (this.config.follow && n.id !== this.selectedSubject) this.followActive(n.id);
-		// Neutral output: the host re-dispatches this to the app's column-open event.
-		this.dispatchEvent(
-			new CustomEvent(GRAPH_SCENE_EVENT.NODE_CLICK, {
-				detail: { label: n.type, subject: n.id, addToSelection: Boolean(e?.ctrlKey || e?.shiftKey || e?.metaKey) },
-				bubbles: true,
-				composed: true,
-			}),
-		);
+		this.openPane({ paneType: "entity", persistedAs: n.type, id: n.id }, e);
 	}
 
-	/** Open the windowed instances column for a clicked ontology Property: the instances of a declaring type, sorted by it.
-	 *  Routed through the app's PANE_OPEN bridge → the existing filter-prop pane (shu-filter-column → graphQuery). No
-	 *  instances to show (an abstract super-property, or a property no type declares) → nothing opens. */
-	private openOntologyInstances(n: FGNode): void {
+	/** Ask the page to open a pane beside the one this graph is in. This bundle's PaneState isn't the page's, so the ask
+	 *  is an event, parsed here so a malformed pane fails at its source. */
+	private openPane(pane: DesiredPane, e?: MouseEvent): void {
+		const detail: TPaneOpen = PaneOpenSchema.parse({ pane, addToSelection: addsToSelection(e) });
+		this.dispatchEvent(new CustomEvent(SHU_EVENT.PANE_OPEN, { detail, bubbles: true, composed: true }));
+	}
+
+	/** Open the windowed instances column for a clicked ontology Property: the instances of a declaring type, sorted by it
+	 *  (shu-filter-column → graphQuery). No instances to show (an abstract super-property, or a property no type
+	 *  declares) → nothing opens. */
+	private openOntologyInstances(n: FGNode, e?: MouseEvent): void {
 		const target = this.propertyInstancesTarget(n.id);
-		if (!target) return;
-		// The polymorphic is a separate bundle, so this CustomEvent detail isn't type-checked against DesiredPane at compile
-		// time the way an in-bundle PaneState.request() is. Parse it against the shared schema so a shape drift fails fast
-		// here, at the source, rather than surfacing in the app's PANE_OPEN handler.
-		const detail = DesiredPaneSchema.parse({ paneType: "filter-prop", ...target });
-		this.dispatchEvent(new CustomEvent(GRAPH_SCENE_EVENT.NODE_OPEN_PANE, { detail, bubbles: true, composed: true }));
+		if (target) this.openPane({ paneType: "filter-prop", ...target }, e);
 	}
 
 	/** A Property's instances target: the first type whose data USES the rel, or any of its sub-properties, since
@@ -2376,7 +2370,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		return undefined;
 	}
 
-	/** Open a node's column programmatically, exactly the path a click takes (onNodeClick → COLUMN_OPEN). The
+	/** Open a node's column programmatically, exactly the path a click takes (onNodeClick → PANE_OPEN). The
 	 * production "reveal this node" entry point (also lets a test drive the open without a flaky WebGL pixel click,
 	 * which synthetic pointer events can't reliably deliver to the lib's raycaster headless). Returns false if absent. */
 	openNode(id: string): boolean {

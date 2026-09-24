@@ -17,7 +17,6 @@ import { expandNeighborhood } from "../graph-expansion.js";
 import { ShuGraphFilter } from "./shu-graph-filter.js";
 import "../graph/polymorphic/polymorphic-scene.js";
 import { type ShuGraphScene, type GraphSceneModel } from "../graph/polymorphic/polymorphic-scene.js";
-import { GRAPH_SCENE_EVENT } from "../graph/polymorphic/polymorphic-graph-types.js";
 import { effectiveHiddenTypes } from "../graph-filter-projection.js";
 
 const QuadFieldSchema = z.object({
@@ -121,17 +120,11 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 		this.scene?.setModel(this.buildSceneModel());
 	}
 
-	/** Awaited before the first load: the host's scene child exists by then, so the scene outputs every host relays the
+	/** Awaited before the first load: the host's scene child exists by then, so the scene outputs every host takes the
 	 *  same way are wired here. A host adds its own outputs after awaiting this. */
 	protected async onGraphConnected(): Promise<void> {
 		await this.updateComplete; // renders the filter and creates the <shu-graph-scene> child
 		this.setAttribute("data-testid", this.rootTestId);
-		this.autoListen(this, GRAPH_SCENE_EVENT.NODE_CLICK, ((e: CustomEvent<{ label: string; subject: string; addToSelection: boolean }>) => {
-			this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_OPEN, { detail: e.detail, bubbles: true, composed: true }));
-		}) as EventListener);
-		this.autoListen(this, GRAPH_SCENE_EVENT.NODE_OPEN_PANE, ((e: CustomEvent) => {
-			this.dispatchEvent(new CustomEvent(SHU_EVENT.PANE_OPEN, { detail: e.detail, bubbles: true, composed: true }));
-		}) as EventListener);
 		// Hovering a type chip previews its cluster: every other type dims while the pointer is on it.
 		this.autoListen(this, SHU_EVENT.GRAPH_TYPE_PREVIEW, ((e: CustomEvent<{ type: string | null }>) => {
 			this.scene?.setPreviewType(e.detail?.type ?? null);

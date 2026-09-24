@@ -4,7 +4,8 @@ import type { AddressInfo } from "node:net";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium, type Browser, type Page } from "playwright";
-import { GRAPH_SCENE_EVENT } from "./polymorphic-graph-types.js";
+import { SHU_EVENT } from "../../consts.js";
+import type { TPaneOpen } from "../../pane-state.js";
 import { SHARED_SIGNALS_KEY } from "../../signals.js";
 import type { TSubjectState } from "../../current-subject.js";
 
@@ -212,8 +213,15 @@ export async function mountPolymorphicPage(): Promise<TMountedPage> {
 			await page.evaluate((evt) => {
 				const w = window as unknown as { __opened: string | null };
 				w.__opened = null;
-				document.addEventListener(evt, (e) => (w.__opened = (e as CustomEvent<{ subject: string }>).detail.subject), { once: true });
-			}, GRAPH_SCENE_EVENT.NODE_CLICK);
+				document.addEventListener(
+					evt,
+					(e) => {
+						const { pane } = (e as CustomEvent<TPaneOpen>).detail;
+						w.__opened = pane.paneType === "entity" ? pane.id : null;
+					},
+					{ once: true },
+				);
+			}, SHU_EVENT.PANE_OPEN);
 			await page.mouse.click(at.x, at.y);
 			return page.evaluate(() => (window as unknown as { __opened: string | null }).__opened);
 		},

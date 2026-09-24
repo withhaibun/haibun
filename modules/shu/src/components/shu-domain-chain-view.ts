@@ -27,11 +27,13 @@ import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { SHU_EVENT, AFFORDANCE_PARAM, DEEP_LINK_PREFIX, SHU_TAG } from "../consts.js";
 import { RPC_METHOD } from "../consts.js";
 import * as ViewHash from "../view-hash.js";
-import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
+import { factSeqPath } from "@haibun/core/lib/seq-path.js";
+import { openRef } from "./ref-navigation.js";
 import { PaneState } from "../pane-state.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { ShuGraphFilter } from "./shu-graph-filter.js";
 import type { ShuGraph } from "./shu-graph.js";
+import { NODE_KIND } from "../graph/types.js";
 import { linkTo } from "../rpc-registry.js";
 
 const FILTER_KEY = "domain-chain";
@@ -341,30 +343,17 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 
 	/** Click router for a graph node. Public for testability. */
 	routeNodeClick(node: { id?: string; kind?: string; link?: { href?: string }; wasGeneratedBy?: { factId: string; domain: string } }): void {
-		// Fact-instance nodes carry the producing seqPath as `wasGeneratedBy.factId`.
-		// Open the step-detail pane onto the producing step.
-		if (node.kind === "fact-instance" && node.wasGeneratedBy?.factId) {
-			const factId = node.wasGeneratedBy.factId;
-			const seqPath = parseSeqPath(factId);
-			if (seqPath) {
-				PaneState.request({ paneType: "step-detail", seqPath });
-				console.log(`[chain] routeNodeClick: opened step-detail for seqPath ${factId}`);
-			} else {
-				console.log(`[chain] routeNodeClick: fact-instance factId "${factId}" is not a parseable seqPath`);
-			}
+		// A fact-instance node opens the step that produced the fact.
+		if (node.kind === NODE_KIND.factInstance && node.wasGeneratedBy?.factId) {
+			const seqPath = factSeqPath(node.wasGeneratedBy.factId);
+			if (!seqPath) throw new Error(`fact "${node.wasGeneratedBy.factId}" names no step: a fact's id is the seqPath of the step that produced it`);
+			openRef(this, "seqPath", { seqPath });
 			return;
 		}
+		// Every other node of the chain projection deep-links into the affordances panel.
 		const href = node.link?.href;
-		if (typeof href === "string" && href.startsWith(DEEP_LINK_PREFIX)) {
-			const incoming = ViewHash.hashParams(href);
-			ViewHash.mergeHashParams(Object.fromEntries(incoming));
-			PaneState.request({ paneType: "component", tag: "shu-affordances-panel", label: "Affordances" });
-			console.log(`[chain] routeNodeClick: deep-linked ${href}`);
-			return;
-		}
-		// Every node in the chain projection carries `link.href` (deep-link to the
-		// affordances panel) or is a fact-instance handled above. A node reaching this
-		// point has neither, surface it so the projection bug is visible.
-		console.log("[chain] routeNodeClick: node has no link.href to open; check the projection emitted a deep-link", node);
+		if (typeof href !== "string" || !href.startsWith(DEEP_LINK_PREFIX)) throw new Error(`chain node ${node.id ?? "(no id)"} has no deep link to open`);
+		ViewHash.mergeHashParams(Object.fromEntries(ViewHash.hashParams(href)));
+		PaneState.requestFrom(this, { paneType: "component", tag: SHU_TAG.AFFORDANCES_PANEL, label: "Affordances" });
 	}
 }

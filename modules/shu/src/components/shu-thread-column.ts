@@ -7,6 +7,9 @@ import { z } from "zod";
 import { shuBaseStyles } from "./styles.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
+import { openRef } from "./ref-navigation.js";
+import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
+import { addsToSelection } from "../pane-state.js";
 import { appAccessLevel, idOf, persistedTypeOf } from "../util.js";
 import { anIndividual, type TContextPattern } from "../schemas.js";
 import { ellipsize } from "@haibun/core/lib/util/index.js";
@@ -155,16 +158,8 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 
 	private onCardClick =
 		(id: string, cardLabel: string) =>
-		(e: Event): void => {
-			const me = e as MouseEvent;
-			this.dispatchEvent(
-				new CustomEvent(SHU_EVENT.COLUMN_OPEN, {
-					detail: { subject: id, label: cardLabel, addToSelection: me.ctrlKey || me.shiftKey || me.metaKey },
-					bubbles: true,
-					composed: true,
-				}),
-			);
-		};
+		(e: MouseEvent): void =>
+			openRef(e, REF_DENOTES.individual, { persistedAs: cardLabel, id }, addsToSelection(e));
 
 	protected updated(): void {
 		if (this.state.mode !== "graph" || this.state.loading || this.state.error || this.thread.length === 0) {

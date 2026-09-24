@@ -2,6 +2,8 @@ import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { html, css, type TemplateResult } from "lit";
 import { defaultLabel } from "../util.js";
 import { SHU_EVENT, SHU_TAG } from "../consts.js";
+import { openRef } from "./ref-navigation.js";
+import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 /**
  * <shu-graph-query>: Query component for the graph store.
  * Renders in light DOM .results-target, hash state, custom scrollbar, sort, multi-select.
@@ -458,24 +460,9 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 
 				this.dispatchContextChange();
 
-				if (this.selectedIds.size > 0) {
-					// Dispatch from the result table (inside the query pane's results-target)
-					// rather than from this controller (which lives outside the strip), so the
-					// composed path traverses the query shu-column-pane. The Miller-column
-					// pruning logic in app.ts then identifies the source pane via the natural
-					// path with no special case.
-					table.dispatchEvent(
-						new CustomEvent(SHU_EVENT.COLUMN_OPEN, {
-							detail: {
-								subject: vid,
-								label: this.qLabel || defaultLabel(),
-								addToSelection: ctrlKey,
-							},
-							bubbles: true,
-							composed: true,
-						}),
-					);
-				}
+				// The result table is the source, not this controller, which lives outside the strip: the table is in the query
+				// pane, which the Miller-column prune starts from.
+				if (this.selectedIds.size > 0) openRef(table, REF_DENOTES.individual, { persistedAs: this.qLabel || defaultLabel(), id: vid }, ctrlKey);
 			}) as EventListener);
 		}
 

@@ -61,7 +61,7 @@ export type TLinkVocabulary = {
 	isType(name: string): boolean;
 };
 
-const TEXT_DIRECTIVE = ":~:text=";
+export const TEXT_DIRECTIVE = ":~:text=";
 /**
  * The typed form: link text, a colon, a rel. No whitespace touches the colon, so ordinary prose link text
  * ("Section 3: Overview") is not read as typed. The link text may be omitted (`:cites`).
@@ -93,8 +93,15 @@ export function parseTextDirective(directive: string): TQuoteAnchor | undefined 
 	return { exact, ...(prefix ? { prefix } : {}), ...(suffix ? { suffix } : {}) };
 }
 
+/** The text directive that quotes an anchor, the inverse of `parseTextDirective`: each part is encoded, so a dash or a
+ *  comma in the text is never read as a marker. */
+export function textDirectiveFor(anchor: TQuoteAnchor): string {
+	const encode = (text: string) => encodeURIComponent(text).replace(/-/g, "%2D");
+	return `${anchor.prefix ? `${encode(anchor.prefix)}-,` : ""}${encode(anchor.exact)}${anchor.suffix ? `,-${encode(anchor.suffix)}` : ""}`;
+}
+
 /** Split a text directive off an href. */
-function splitTextDirective(href: string): { base: string; anchor?: TQuoteAnchor } {
+export function splitTextDirective(href: string): { base: string; anchor?: TQuoteAnchor } {
 	const at = href.indexOf(TEXT_DIRECTIVE);
 	if (at === -1) return { base: href };
 	const anchor = parseTextDirective(href.slice(at + TEXT_DIRECTIVE.length));

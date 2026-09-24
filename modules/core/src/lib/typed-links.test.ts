@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { classifyLinkText, parseRefHref, parseTextDirective, resolveLinkTarget, typedLinkFacts, type TLinkVocabulary } from "./typed-links.js";
+import { classifyLinkText, parseRefHref, parseTextDirective, resolveLinkTarget, textDirectiveFor, typedLinkFacts, type TLinkVocabulary } from "./typed-links.js";
 import { LinkRelations } from "./resources.js";
 
 const TYPES = new Set(["Document", "Comment", "FieldReport"]);
@@ -19,6 +19,11 @@ describe("parseTextDirective", () => {
 	});
 	it("yields nothing for a range form, which quotes no single passage", () => {
 		expect(parseTextDirective("start,end")).toBeUndefined();
+	});
+	it("reads back the directive written for a quote, whose dashes and commas are text, not markers", () => {
+		const anchor = { exact: "a well-formed, signed claim", prefix: "holds-", suffix: "-, then" };
+		expect(parseTextDirective(textDirectiveFor(anchor))).toEqual(anchor);
+		expect(parseTextDirective(textDirectiveFor({ exact: "-" }))).toEqual({ exact: "-" });
 	});
 });
 
