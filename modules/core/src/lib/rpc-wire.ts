@@ -85,6 +85,21 @@ export function rpcEnvelope(e: Omit<TRpcRequest, "jsonrpc" | "params"> & { param
 	return JSON.stringify({ jsonrpc: "2.0", ...e });
 }
 
+/** The headers that prove a call, made over the request as it is sent: its address, method, headers and body. */
+export type TProveRequest = (request: { url: string; method: string; headers: Record<string, string>; body: string }) => Promise<Record<string, string>>;
+
+/**
+ * Post one call to `method` at the `/rpc` of the host at `base`, carrying the headers `prove` makes over the request. The
+ * request's `host` is among what is proven, as the host receives it. A streamed call is answered as NDJSON and ends when
+ * its `signal` aborts.
+ */
+export async function postRpc(base: string, method: string, params: Record<string, unknown>, prove: TProveRequest, stream?: { signal: AbortSignal }): Promise<Response> {
+	const url = `${base.replace(/\/+$/, "")}/rpc/${method}`;
+	const body = rpcEnvelope({ id: `${method}-${Date.now()}`, method, params, ...(stream ? { stream: true } : {}) });
+	const headers = { "content-type": "application/json", host: new URL(url).host };
+	return await fetch(url, { method: "POST", headers: await prove({ url, method: "POST", headers, body }), body, signal: stream?.signal });
+}
+
 /**
  * Read an NDJSON body: one JSON object per line, a partial line held until its rest arrives, the last line yielded
  * whether or not it ends in a newline.

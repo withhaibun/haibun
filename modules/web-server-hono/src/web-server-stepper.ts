@@ -13,12 +13,13 @@ import { STORE_METHOD_PREFIX, storeMethods } from "@haibun/core/lib/store-protoc
 import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
 import { activeSitePrincipal, allocateSyntheticSeqPath, resolveHostId, syntheticSeqPath } from "@haibun/core/lib/host-id.js";
 import { SERVING } from "@haibun/core/lib/serving.js";
+import { streamContext } from "@haibun/core/lib/step-stream-context.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { runReadingAt, runActingAs } from "@haibun/core/lib/capability-context.js";
 import { objectCoercer } from "@haibun/core/lib/domains.js";
 
 import { type IWebServer, WEBSERVER, DOMAIN_ENDPOINT, EndpointLabels, EndpointSchema } from "./defs.js";
-import { grantedCapabilityForRequest } from "./capability-auth.js";
+import { endWhenLapsed, grantedCapabilityForRequest } from "./capability-auth.js";
 import { ServerHono, DEFAULT_PORT } from "./server-hono.js";
 import { SSETransport, TRANSPORT, type ITransport } from "./sse-transport.js";
 import type { IStepTransport } from "./step-transport.js";
@@ -266,15 +267,21 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 						return { seqPath, hostId: seqPath[0], site: activeSitePrincipal(this.getWorld()), serving: this.getWorld().runtime[SERVING] === true };
 					}
 
+					const authority = await grantedCapabilityForRequest(requestInfo, this.getWorld().runtime, this.allowedWithoutDelegation);
+					const { granted, principal, refused } = authority;
+					if (refused) return { error: `${method}: ${refused}`, [RPC_REFUSED]: true };
+					// A streamed call is held open only while the authority it was allowed under holds.
+					const stream = streamContext.getStore();
+					if (stream) endWhenLapsed(this.getWorld().runtime, authority, stream.signal, stream.end);
+
 					// A method of a served family: gated by the action it declares, verified through the path a step's capability
 					// is, with no ungated default.
 					const served = this.webserver?.rpcMethod(method);
 					if (served) {
-						const { granted, principal, refused } = await grantedCapabilityForRequest(requestInfo, this.getWorld().runtime, this.allowedWithoutDelegation);
-						if (refused) return { error: `${method}: ${refused}`, [RPC_REFUSED]: true };
 						if (!mayCall(granted, { capability: served.action })) return { error: refusal(method, served.action, principal) };
 						try {
-							return await served.handle((params ?? {}) as Record<string, unknown>);
+							// Whoever proved themselves at this boundary is who acts inside it, as in a dispatched step.
+							return await runActingAs(principal, () => served.handle((params ?? {}) as Record<string, unknown>));
 						} catch (err) {
 							return { error: `${method}: ${errorDetail(err)}` };
 						}
@@ -287,8 +294,6 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					}
 
 					try {
-						const { granted, principal, refused } = await grantedCapabilityForRequest(requestInfo, world.runtime, this.allowedWithoutDelegation);
-						if (refused) return { error: `${method}: ${refused}`, [RPC_REFUSED]: true };
 						// A call is refused before its input is read, and alike whether its step exists, so a refusal tells the caller
 						// nothing of the steps it may not call.
 						const tool = registry.get(method);

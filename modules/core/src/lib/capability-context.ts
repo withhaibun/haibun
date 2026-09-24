@@ -136,8 +136,9 @@ export function readLevel(): AccessLevel {
 
 /**
  * Run `within` reading as the instance itself, without the ceiling of the call it is part of. For the authority's own
- * decisions alone: checking a chain a caller presents, and answering a key what was delegated to it. Each reads the
- * instance's records to decide, and returns the decision, or what the key it answers already holds.
+ * decisions and acts alone: checking a chain a caller presents, answering a key what was delegated to it, and delegating,
+ * invoking and revoking for a caller that holds the action each takes. Each reads the instance's records to decide, and
+ * returns the decision, what the key it answers already holds, or what the act made.
  */
 export function runReadingAsTheInstance<T>(within: () => Promise<T>): Promise<T> {
 	return readCeilingStore.run(undefined, within);

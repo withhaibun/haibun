@@ -4,7 +4,8 @@
  */
 import { describe, expect, it } from "vitest";
 import { mayCall, requiredAction } from "@haibun/core/lib/actions.js";
-import WebPlaywright, { WEB_PLAYWRIGHT_ACTIONS } from "./web-playwright.js";
+import WebPlaywright from "./web-playwright.js";
+import { WEB_PLAYWRIGHT_ACTIONS } from "./actions.js";
 
 const wp = new WebPlaywright();
 const step = (name: string) => ({ capability: requiredAction("WebPlaywright", name, wp.steps[name]) });

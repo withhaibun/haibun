@@ -33,7 +33,7 @@ import { actionNotOK, actionOKWithProducts, perProcessOptionNames } from "@haibu
 import { RpcClient } from "@haibun/core/lib/rpc-client.js";
 import { RemoteStepperProxy } from "@haibun/core/lib/remote-stepper-proxy.js";
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
-import { BASE_PREFIX, NDJSON, STAY, STAY_ALWAYS } from "@haibun/core/schema/protocol.js";
+import { BASE_PREFIX, NDJSON, OK, STAY, STAY_ALWAYS } from "@haibun/core/schema/protocol.js";
 import { HAIBUN_HOST_ID_ENV } from "@haibun/core/lib/host-id.js";
 import { type TRunOutcome, emptyOutcome, accrueRunOutcome } from "./run-outcome.js";
 import { getConfigFromBase, processBaseEnvToOptionsAndErrors } from "./lib.js";
@@ -245,6 +245,17 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 				return await this.launch(held.launch);
 			},
 		},
+		reachInstance: {
+			gwta: `reach the steps of the haibun instance on port {port: number}`,
+			description:
+				"Register the steps an instance this run launched offers this run, under its host id, so asking it something is `on host {id}, <step>`, dispatched and gated as a local step is. What it offers is what this run holds there: reading its steps takes a read, which the instance delegates to its launcher's key. The steps stay registered across a restart, which keeps the instance's port and host.",
+			action: async ({ port }: { port: number }) => {
+				const held = this.children.find((c) => c.launch.port === port);
+				if (!held) return actionNotOK(`reach instance: this run launched no instance on port ${port}`);
+				await this.registerHost(`http://localhost:${port}`);
+				return OK;
+			},
+		},
 		startRun: {
 			gwta: `start a haibun run of {where} matching {filter} from {from} on port {port: number} as run {run} host {hostId: number}`,
 			capability: SUPERVISOR_CAPABILITIES.run,
@@ -258,7 +269,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 				if (!started.ok || !standing) return started;
 				// A standing run exists to be asked, so a run whose steps never registered is an error now, not a
 				// surprise later. The child is ended rather than left holding a port nothing can reach.
-				const registered = await this.registerRunHost(run, port, hostId);
+				const registered = await this.registerRunHost(run, port);
 				if (!registered) {
 					const held = this.runs.get(run);
 					const said = held ? held.tail.since(0).output.slice(-STDERR_TAIL_CHARS) : "";
@@ -376,15 +387,20 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 	 * `{hostId}:{method}`. Asking the run something is then `on host {hostId}, <step>`, dispatched and gated exactly
 	 * as a local step is. A run that never serves registers nothing, which is what a run with nothing to answer is.
 	 */
-	private async registerRunHost(run: string, port: number, hostId: number): Promise<boolean> {
+	private async registerRunHost(run: string, port: number): Promise<boolean> {
 		const url = `http://localhost:${port}`;
 		const answered = await this.awaitBegin(url, () => this.runs.get(run)?.ended !== null);
 		if (!answered) return false;
+		await this.registerHost(url);
+		return true;
+	}
+
+	/** Register the steps the host at `url` offers this run, under the host id it answers with. */
+	private async registerHost(url: string): Promise<void> {
 		const world = this.getWorld();
 		const proxy = new RemoteStepperProxy(url);
 		await proxy.setWorld(world, []);
 		proxy.injectInto(runRegistry(world));
-		return true;
 	}
 
 	/** Wait until a child answers the handshake every remote surface begins with, or until it is over. `giveUp` is asked

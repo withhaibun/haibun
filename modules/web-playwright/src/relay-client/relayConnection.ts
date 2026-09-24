@@ -16,20 +16,20 @@
  * Derived from Playwright 7b4b3b0828, packages/extension/src/relayConnection.ts. Changed: formatted to haibun's style;
  * the connection talks through a `TRelayChannel` (the `relay.attach` and `relay.send` calls) where upstream takes a
  * WebSocket; the chrome.* API is the one it is given, where upstream reads the global; it attaches the debugger only to
- * a tab the person chose and the tabs opened from those, where upstream attaches any tab the relay names; `debugLog` is
- * the log it is given; `any` is typed as `unknown` or the shape read.
+ * a tab the person chose and the tabs opened from those, where upstream attaches any tab the relay names; its close says
+ * why it closed; `debugLog` is the log it is given; `any` is typed as `unknown` or the shape read.
  */
 
 import type { TRelayMessage } from "../relay/relay-wire.js";
 import type { Debuggee, DebuggerSession, Tab } from "../relay/protocol.js";
 
-/** A channel to the relay: messages out, messages in, and its end. */
+/** A channel to the relay: messages out, messages in, and its end, with why it ended. */
 export type TRelayChannel = {
 	readonly open: boolean;
 	send(message: TRelayMessage): void;
 	close(reason: string): void;
 	onmessage?: (message: TRelayMessage) => void;
-	onclose?: () => void;
+	onclose?: (reason: string) => void;
 };
 
 type TChromeEvent<A extends unknown[]> = { addListener(listener: (...args: A) => void): void; removeListener(listener: (...args: A) => void): void };
@@ -85,7 +85,7 @@ export class RelayConnection {
 	private _pendingReattach = new Set<number>();
 	private _recentReattach = new Set<number>();
 
-	onclose?: () => void;
+	onclose?: (reason: string) => void;
 	ontabattached?: (tabId: number) => void;
 	ontabdetached?: (tabId: number) => void;
 
@@ -99,7 +99,7 @@ export class RelayConnection {
 		this._log = log;
 		this._installEventForwarders();
 		this._channel.onmessage = (message) => this._onMessage(message);
-		this._channel.onclose = () => this._onClose();
+		this._channel.onclose = (reason) => this._onClose(reason);
 	}
 
 	// Signals the end of the initial-tab handshake — call after the initial
@@ -114,7 +114,7 @@ export class RelayConnection {
 		this._channel.close(message);
 		// The channel's close is reported asynchronously, so we call it here to avoid forwarding
 		// CDP events to the closed connection.
-		this._onClose();
+		this._onClose(message);
 	}
 
 	// Called when the person chooses a tab to hand to the relay. Simulates a
@@ -168,7 +168,7 @@ export class RelayConnection {
 		}
 	}
 
-	private _onClose() {
+	private _onClose(reason: string) {
 		if (this._closed) return;
 		this._closed = true;
 		this._pendingReattach.clear();
@@ -179,7 +179,7 @@ export class RelayConnection {
 			this._chrome.debugger.detach({ tabId }).catch((error: unknown) => this._log("Error detaching tab:", error));
 			this._notifyTabDetached(tabId);
 		}
-		this.onclose?.();
+		this.onclose?.(reason);
 	}
 
 	private _checkLastTabDetached(): void {

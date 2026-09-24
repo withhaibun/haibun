@@ -8,7 +8,9 @@ import type { StepTool } from "./step-registry.js";
 /**
  * Validate input against a step tool's Zod schemas, then apply domain.coerce() if available.
  * Returns validated (and coerced) input on success, throws with descriptive errors on failure.
- * Pass world to enable domain coercion (aligns RPC dispatch with feature-file execution).
+ * Pass world to enable domain coercion (aligns RPC dispatch with feature-file execution): a value in another form the
+ * param's domain takes, such as an id where the domain's form is a reference to it, is taken in the domain's form, so what
+ * a feature line may give a step, a call may give it too.
  */
 export function validateToolInput(fromSeqPath: TSeqPath, tool: StepTool, input: Record<string, unknown>, world?: TWorld): Record<string, unknown> {
 	const validated: Record<string, unknown> = { ...input };
@@ -24,20 +26,14 @@ export function validateToolInput(fromSeqPath: TSeqPath, tool: StepTool, input: 
 	for (const [key, value] of Object.entries(input)) {
 		const schema = tool.paramSchemas.get(key);
 		if (schema) {
-			const result = schema.safeParse(value);
+			const domainKey = tool.paramDomainKeys.get(key);
+			const domain = world && domainKey ? world.domains?.[domainKey] : undefined;
+			const coerce = domain?.coerce ? (v: unknown) => domain.coerce?.({ value: v, domain: domainKey || "", term: key, origin: "defined" }) : undefined;
+			const given = schema.safeParse(value);
+			const inForm = !given.success && coerce ? schema.safeParse(inDomainForm(coerce, value)) : undefined;
+			const result = inForm?.success ? inForm : given;
 			if (result.success) {
-				// Apply domain.coerce() after Zod validation if world is provided
-				if (world) {
-					const domainKey = tool.paramDomainKeys.get(key);
-					const domain = domainKey ? world.domains?.[domainKey] : undefined;
-					if (domain?.coerce) {
-						validated[key] = domain.coerce({ value: result.data, domain: domainKey || "", term: key, origin: "defined" });
-					} else {
-						validated[key] = result.data;
-					}
-				} else {
-					validated[key] = result.data;
-				}
+				validated[key] = coerce ? coerce(result.data) : result.data;
 			} else {
 				const issues = result.error.issues.map((i) => (i.path.length ? `${i.path.join(".")}: ${i.message}` : i.message)).join("; ");
 				errors.push(`"${key}" (value: ${JSON.stringify(value)}): ${issues}`);
@@ -97,4 +93,14 @@ export function resolveOutputSchema(stepperName: string, stepName: string, stepD
 		return stepDef.productsSchema;
 	}
 	return undefined;
+}
+
+/** A value the domain coerces from another form, or undefined where it can't: the schema's refusal of what was given
+ *  then says why. */
+function inDomainForm(coerce: (v: unknown) => unknown, value: unknown): unknown {
+	try {
+		return coerce(value);
+	} catch {
+		return undefined;
+	}
 }

@@ -6,21 +6,15 @@
  * refusal.
  */
 import { errorDetail } from "@haibun/core/lib/util/index.js";
-import { readNdjson, rpcEnvelope } from "@haibun/core/lib/rpc-wire.js";
+import { postRpc, readNdjson, type TProveRequest } from "@haibun/core/lib/rpc-wire.js";
 import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import { RELAY_ATTACHED, RELAY_METHOD_PREFIX, type TRelayBatch, type TRelayCall, type TRelayMessage } from "../relay/relay-wire.js";
 import type { TRelayChannel } from "./relayConnection.js";
 
-/** The headers that prove a request: the caller signs each call, over its address, method and body. */
-export type TSignRequest = (request: { url: string; method: string; headers: Record<string, string>; body: string }) => Promise<Record<string, string>>;
-
-export async function openRelayChannel({ base, sign }: { base: string; sign: TSignRequest }): Promise<TRelayChannel> {
+export async function openRelayChannel({ base, sign }: { base: string; sign: TProveRequest }): Promise<TRelayChannel> {
 	const call = async (relayCall: TRelayCall, params: Record<string, unknown>, stream?: { signal: AbortSignal }): Promise<Response> => {
 		const method = `${RELAY_METHOD_PREFIX}${relayCall}`;
-		const url = `${base}/rpc/${method}`;
-		const body = rpcEnvelope({ id: `${method}-${Date.now()}`, method, params, ...(stream ? { stream: true } : {}) });
-		const headers = { "content-type": "application/json" };
-		const answer = await fetch(url, { method: "POST", headers: { ...headers, ...(await sign({ url, method: "POST", headers, body })) }, body, signal: stream?.signal });
+		const answer = await postRpc(base, method, params, sign, stream);
 		if (!answer.ok) throw new Error(`${method} was refused (${answer.status}): ${await answer.text()}`);
 		return answer;
 	};
@@ -57,7 +51,7 @@ export async function openRelayChannel({ base, sign }: { base: string; sign: TSi
 			if (!open) return;
 			open = false;
 			ending.abort(reason);
-			channel.onclose?.();
+			channel.onclose?.(reason);
 		},
 	};
 	void (async () => {

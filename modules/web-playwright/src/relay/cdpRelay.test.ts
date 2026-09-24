@@ -10,14 +10,15 @@ import type { CDPMessage } from "./browserModel.js";
 
 const TAB = { id: 7, index: 0, windowId: 1, active: true, pinned: false, url: "http://example.com/" };
 
-/** An extension held by the relay: what the relay sent it, and a way to end the attachment. */
-function attached(relay: BrowserRelay) {
+/** An extension `holder` attached, held by the relay: what the relay sent it, and a way to end the attachment. */
+function attached(relay: BrowserRelay, holder = "did:key:zExtension") {
 	const sent: TRelayMessage[] = [];
 	const ending = new AbortController();
 	const held = relay.attach(
 		(message) => void sent.push(message),
 		ending.signal,
 		() => undefined,
+		holder,
 	);
 	return { sent, end: () => ending.abort(), held };
 }
@@ -51,6 +52,7 @@ describe("the browser relay", () => {
 				() => undefined,
 				new AbortController().signal,
 				() => undefined,
+				"did:key:zAnother",
 			),
 		).rejects.toThrow(/already attached/);
 		driven(relay);
@@ -129,6 +131,26 @@ describe("the browser relay", () => {
 		await extension.held;
 		expect(playwright.closed(), "Playwright is told the extension went").toMatch(/Extension disconnected/);
 		expect(() => relay.receive([{ method: "extension.initialized", params: [] }]), "and nothing is attached to answer").toThrow(/no browser is attached/);
+	});
+
+	it("ends a holder's attachment when that holder attaches again, and refuses a caller that proved no key", async () => {
+		const relay = new BrowserRelay(() => undefined);
+		const first = attached(relay);
+		const playwright = driven(relay);
+		const again = attached(relay);
+		await first.held;
+		expect(playwright.closed(), "Playwright's side of the first is closed").toBe("Extension disconnected: the extension attached again");
+		expect(() => driven(relay), "and the second is driven").not.toThrow();
+		await expect(
+			relay.attach(
+				() => undefined,
+				new AbortController().signal,
+				() => undefined,
+				undefined,
+			),
+		).rejects.toThrow(/already attached/);
+		again.end();
+		await again.held;
 	});
 
 	it("ends the attachment when Playwright's client closes, telling the extension to take the debugger off its tabs", async () => {

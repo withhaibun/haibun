@@ -8,7 +8,7 @@
  *
  * The streaming transport (NDJSON over /rpc/:method when `stream: true`)
  * opens the response, builds an emit callback that writes NDJSON chunks,
- * and runs the dispatcher inside `streamContext.run({emit, signal}, …)`.
+ * and runs the dispatcher inside `streamContext.run({emit, signal, end}, …)`.
  * Step actions read `streamContext.getStore()?.emit` to push chunks; if
  * the store is absent the action falls back to buffering and returning
  * the full text as products.
@@ -36,6 +36,19 @@ export type TStreamChunk = { status?: string; text?: string; recorded?: TRecorde
 export type TStreamCtx = {
 	emit: (chunk: TStreamChunk) => void;
 	signal: AbortSignal;
+	/** End the call from the server's side, telling its caller why: the stream's last chunk is the reason, as an error,
+	 *  and `signal` aborts. */
+	end: (reason: string) => void;
 };
 
 export const streamContext = new AsyncLocalStorage<TStreamCtx>();
+
+/** A stream over `emit`, stopped through `stopped`: ending it states the reason as its last chunk, an error, and stops it. */
+export function streamOver(emit: (chunk: TStreamChunk) => void, stopped = new AbortController()): TStreamCtx {
+	const end = (reason: string) => {
+		if (stopped.signal.aborted) return;
+		emit({ error: reason });
+		stopped.abort(reason);
+	};
+	return { emit, signal: stopped.signal, end };
+}

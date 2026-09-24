@@ -4,6 +4,7 @@
  * the extension's answers and its tabs' events back. Both require the action a delegation names to attach a browser.
  */
 import { streamContext } from "@haibun/core/lib/step-stream-context.js";
+import { actingAs } from "@haibun/core/lib/capability-context.js";
 import type { TRpcMethod } from "@haibun/core/lib/rpc-wire.js";
 import type { BrowserRelay } from "./cdpRelay.js";
 import { RELAY_ATTACHED, RelayBatchSchema, type TRelayCall, type TRelayMessage } from "./relay-wire.js";
@@ -19,6 +20,7 @@ export function relayMethods(relay: BrowserRelay, attachAction: string): Record<
 					(message: TRelayMessage) => stream.emit({ message }),
 					stream.signal,
 					() => stream.emit({ message: { method: RELAY_ATTACHED } }),
+					actingAs(),
 				);
 				return { detached: true };
 			},

@@ -18,11 +18,11 @@ import { AStepper, type TStepperStep } from "./astepper.js";
 import { OK } from "../schema/protocol.js";
 import { actionOKWithProducts, actionNotOK } from "./util/index.js";
 import { getDefaultWorld } from "./test/lib.js";
-import { registerDomains } from "./domains.js";
+import { individualRefDomain, registerDomains } from "./domains.js";
 import type { TWorld } from "./world.js";
 import { LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "./resources.js";
 import { SEQ_PATH_FIELD, executionOf, formatRecordName } from "./seq-path.js";
-import { streamContext } from "./step-stream-context.js";
+import { streamContext, streamOver } from "./step-stream-context.js";
 import { capabilityAllows } from "./actions.js";
 import { RUN_AUTHORITY, readingAt, runActingAs, runReadingAt } from "./capability-context.js";
 
@@ -209,6 +209,19 @@ describe("step-dispatch", () => {
 			if (!tool) throw new Error("Expected tool to be registered");
 			const result = validateToolInput([], tool, { val: "hello" }, w);
 			expect(result.val).toBe("HELLO");
+		});
+
+		it("takes a value in another form the domain coerces into its own, as a feature line may give it, and refuses one it can't", () => {
+			const w = getDefaultWorld();
+			registerDomains(w, [[individualRefDomain("test-ref", "test-target")]]);
+			const stepper = new (class extends AStepper {
+				steps = { revoke: { gwta: "revoke {what: test-ref}", action: async () => OK } };
+			})();
+			const tool = buildStepRegistry([stepper], w).get(`${stepper.constructor.name}-revoke`);
+			if (!tool) throw new Error("Expected tool to be registered");
+			expect(validateToolInput([], tool, { what: "urn:uuid:1" }, w).what, "an id").toEqual({ id: "urn:uuid:1" });
+			expect(validateToolInput([], tool, { what: { id: "urn:uuid:1" } }, w).what, "a reference").toEqual({ id: "urn:uuid:1" });
+			expect(() => validateToolInput([], tool, { what: 7 }, w), "a number").toThrow(/"what" \(value: 7\): Invalid input: expected object/);
 		});
 
 		it("skips coerce when world is not provided", () => {
@@ -512,11 +525,13 @@ describe("step-dispatch", () => {
 			const statusOf = (path: number[]) => world.shared.getStore().get(formatRecordName({ execution: executionOf(world.tag), path }), SEQ_PATH_FIELD.actionStatus, SEQ_PATH_LABEL);
 			const stop = new AbortController();
 			stop.abort();
-			await streamContext.run({ emit: () => undefined, signal: stop.signal }, () =>
-				dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, buildFeatureStepForTransport(tool, {}, [0, 3, 6])),
+			await streamContext.run(
+				streamOver(() => undefined, stop),
+				() => dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, buildFeatureStepForTransport(tool, {}, [0, 3, 6])),
 			);
-			await streamContext.run({ emit: () => undefined, signal: new AbortController().signal }, () =>
-				dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, buildFeatureStepForTransport(tool, {}, [0, 3, 7])),
+			await streamContext.run(
+				streamOver(() => undefined),
+				() => dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, buildFeatureStepForTransport(tool, {}, [0, 3, 7])),
 			);
 			expect(await statusOf([0, 3, 6]), "the stopped step's record").toBe(SEQ_PATH_STATUS.stopped);
 			expect(await statusOf([0, 3, 7]), "a step that failed on its own").toBe(SEQ_PATH_STATUS.failed);

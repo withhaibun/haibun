@@ -5,13 +5,13 @@ import type { IWebServer } from "./defs.js";
 import type { IEventLogger } from "@haibun/core/lib/EventLogger.js";
 import { truncateForLog, errorDetail } from "@haibun/core/lib/util/index.js";
 import { refusal, type StepRegistry } from "@haibun/core/lib/step-registry.js";
-import { streamContext, type TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
+import { streamContext, streamOver, type TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import type { IStepTransport } from "./step-transport.js";
 import { RPC_REFUSED } from "@haibun/core/lib/rpc-wire.js";
 import type { TRuntime } from "@haibun/core/lib/world.js";
 import { capabilityAllows, FOLLOWS_THE_RUN, readAction } from "@haibun/core/lib/actions.js";
 import { Access, AccessLevelSchema, type AccessLevel } from "@haibun/core/lib/resources.js";
-import { grantedCapabilityForRequest } from "./capability-auth.js";
+import { endWhenLapsed, grantedCapabilityForRequest } from "./capability-auth.js";
 
 export type TTransportRequestInfo = {
 	headers?: Record<string, string | undefined>;
@@ -54,11 +54,8 @@ export class SSETransport implements ITransport, IStepTransport {
 
 	private setupRoutes(): void {
 		this.webserver.addRoute("get", "/sse", { description: "Server-Sent Events stream for live framework events" }, async (c) => {
-			const { granted, principal, refused } = await grantedCapabilityForRequest(
-				{ method: c.req.method, url: c.req.url, headers: c.req.header() },
-				this.runtime,
-				this.webserver.allowedWithoutDelegation,
-			);
+			const authority = await grantedCapabilityForRequest({ method: c.req.method, url: c.req.url, headers: c.req.header() }, this.runtime, this.webserver.allowedWithoutDelegation);
+			const { granted, principal, refused } = authority;
 			if (refused) return c.json({ error: `/sse: ${refused}` }, 401);
 			if (!capabilityAllows(granted, FOLLOWS_THE_RUN)) return c.json({ error: refusal("/sse", FOLLOWS_THE_RUN, principal) }, 403);
 			this.eventLogger.debug("SSE Client connected");
@@ -73,16 +70,14 @@ export class SSETransport implements ITransport, IStepTransport {
 					});
 				};
 				this.hub.on("event", handler);
-
-				sseStream.onAbort(() => {
-					this.eventLogger.debug("SSE Client disconnected");
-					this.hub.off("event", handler);
-				});
-
-				// Keep connection open
-				while (true) {
-					await sseStream.sleep(1000);
-				}
+				// The stream is open until its follower leaves or the authority it follows under lapses; a follower whose
+				// delegation was revoked or expired is sent nothing more, and connecting again is refused.
+				const followed = new AbortController();
+				sseStream.onAbort(() => followed.abort("the follower left"));
+				endWhenLapsed(this.runtime, authority, followed.signal, (reason) => followed.abort(reason));
+				await new Promise((resolve) => followed.signal.addEventListener("abort", resolve, { once: true }));
+				this.hub.off("event", handler);
+				this.eventLogger.debug(`SSE follower ended: ${String(followed.signal.reason)}`);
 			});
 		});
 
@@ -115,7 +110,7 @@ export class SSETransport implements ITransport, IStepTransport {
 						// Fire-and-forget: NDJSON write order is preserved by hono's stream; awaiting from a synchronous callback would force the action to be aware of backpressure, which is a leaky abstraction.
 						void writeChunk(chunk);
 					};
-					await streamContext.run({ emit, signal: abortController.signal }, async () => {
+					await streamContext.run(streamOver(emit, abortController), async () => {
 						const result = await this.handleMessage(data, requestInfo);
 						if (result === undefined) {
 							const method = (data as Record<string, unknown>).method ?? "unknown";

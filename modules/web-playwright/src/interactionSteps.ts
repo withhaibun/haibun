@@ -8,7 +8,8 @@ import { actionNotOK, actionOKWithProducts, errorDetail, sleep, getStepTerm, jso
 import { AccessibilitySnapshotSchema, DOMAIN_PAGE_LOCATOR, DOMAIN_PAGE_TEST_ID, PageContentsSchema } from "./domains.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { pickLocatorDomain } from "./web-playwright.js";
-import { WEB_PAGE, WEB_PLAYWRIGHT_ACTIONS, WebPlaywright } from "./web-playwright.js";
+import { WEB_PAGE, WebPlaywright } from "./web-playwright.js";
+import { WEB_PLAYWRIGHT_ACTIONS } from "./actions.js";
 import { BROWSERS } from "./BrowserFactory.js";
 
 import { pathToFileURL } from "node:url";
@@ -241,35 +242,6 @@ export const interactionSteps = (wp: WebPlaywright) =>
 				return actionNotOK(`expected ${name} but on ${nowon}`);
 			},
 		},
-		extensionContext: {
-			gwta: `open extension popup for tab {tab}`,
-			action: async ({ tab }: { tab: string }, featureStep) => {
-				if (!wp.factoryOptions?.persistentDirectory || wp.factoryOptions?.launchOptions.headless) {
-					throw Error(`extensions require ${WebPlaywright.PERSISTENT_DIRECTORY} and not HEADLESS`);
-				}
-				const browserContext = await wp.getExistingBrowserContext();
-				if (!browserContext) {
-					throw Error(`no browserContext`);
-				}
-
-				const background = browserContext?.serviceWorkers()[0];
-
-				if (!background) {
-					// background = await context.waitForEvent("serviceworker");
-				}
-
-				console.debug("background", background, browserContext.serviceWorkers());
-
-				const extensionId = background.url().split("/")[2];
-				await wp.getWorld().shared.set({ term: "extensionContext", value: extensionId, domain: "string", origin: Origin.var }, provenanceFromFeatureStep(featureStep));
-				await wp.withPage(async (page: Page) => {
-					const popupURI = `chrome-extension://${extensionId}/popup.html?${tab}`;
-					return await page.goto(popupURI);
-				});
-
-				return OK;
-			},
-		},
 		cookieIs: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.read,
 			gwta: "cookie {name} is {value}",
@@ -447,6 +419,12 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			description:
 				"Drives a running browser through its Chrome DevTools Protocol endpoint instead of launching one. Tab 0 is the one page the browser's own context holds open. The run never closes that page or that context, and leaves their dialogs to whoever runs the browser.",
 			action: ({ endpoint }: { endpoint: string }) => wp.connectTo(endpoint),
+		},
+		loadBrowserExtension: {
+			gwta: "load the browser extension at {where}",
+			description:
+				"Loads the unpacked extension in the directory `where` into the browser the run launches, from the next page it opens, and answers the extension's id and origin, derived from the key its manifest pins, so a step can open its pages.",
+			action: ({ where }: { where: string }) => wp.loadExtension(where),
 		},
 		serveBrowserRelay: {
 			gwta: "serve the browser relay",

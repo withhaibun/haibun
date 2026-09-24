@@ -20,6 +20,8 @@ export type TTaggedBrowserFactoryOptions = {
 		headless?: boolean;
 		devtools?: boolean;
 		args?: string[];
+		/** The browser distribution to launch, as Playwright names it, where not its default. */
+		channel?: string;
 	};
 	defaultTimeout?: number;
 	type?: TBrowserTypes;

@@ -3,6 +3,7 @@
  * client running against a real Chromium through the chrome.* fake, calling the relay over the instance's `/rpc` and
  * signing as a key that holds what attaching a browser requires. The run clicks and enters text in the person's tab;
  * a caller that may not attach, a second extension, and a step with no browser attached are each refused, saying why.
+ * The person attaches again after ending an attachment, and withdrawing what the extension holds ends its attachment.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createServer, type Server } from "node:http";
@@ -12,14 +13,16 @@ import { actionNotOK, errorDetail, getStepperOptionName } from "@haibun/core/lib
 import { DEFAULT_DEST, OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
-import FakeAuthorityStepper, { FakeInvoker } from "@haibun/core/lib/test/fake-authority.js";
+import FakeAuthorityStepper, { FakeInvoker, fakeGrant } from "@haibun/core/lib/test/fake-authority.js";
 import StorageMem from "@haibun/storage-mem/storage-mem.js";
 import WebServerStepper from "@haibun/web-server-hono/web-server-stepper.js";
-import WebPlaywright, { WEB_PLAYWRIGHT_ACTIONS } from "../web-playwright.js";
+import WebPlaywright from "../web-playwright.js";
+import { WEB_PLAYWRIGHT_ACTIONS } from "../actions.js";
 import { BrowserFactory } from "../BrowserFactory.js";
 import { ChromeOverCdp } from "../relay-client/chrome.test-fake.js";
 import { RelayConnection } from "../relay-client/relayConnection.js";
-import { openRelayChannel, type TSignRequest } from "../relay-client/relay-channel.js";
+import { openRelayChannel } from "../relay-client/relay-channel.js";
+import type { TProveRequest } from "@haibun/core/lib/rpc-wire.js";
 
 const PAGE = `<title>attached</title><button onclick="this.textContent='pressed'">press me</button><input aria-label="note" oninput="document.getElementById('echo').textContent=this.value"><p id="echo"></p>`;
 
@@ -29,20 +32,24 @@ let siteUrl: string;
 
 /** Sign each relay call as `holder`, invoking what attaching a browser requires; `nobody` signs nothing. */
 const signedAs =
-	(holder: string): TSignRequest =>
+	(holder: string): TProveRequest =>
 	(request) =>
-		holder === "nobody" ? Promise.resolve({}) : new FakeInvoker(holder).sign(request, WEB_PLAYWRIGHT_ACTIONS.attach);
+		holder === "nobody" ? Promise.resolve(request.headers) : new FakeInvoker(holder).sign(request, WEB_PLAYWRIGHT_ACTIONS.attach);
 
 /** The extension a person runs: it attaches the tab they have open, and ends its attachment when they say. */
 class PersonsExtension extends AStepper {
 	description = "A person's extension, attaching the tab they have open to an instance's browser relay.";
 	private connection?: RelayConnection;
+	private ended?: Promise<string>;
 	steps = {
 		attaches: {
 			gwta: "person's extension attaches their tab at {base}, signed by {holder}",
 			action: async ({ base, holder }: TStepArgs) => {
 				const channel = await openRelayChannel({ base: String(base), sign: signedAs(String(holder)) });
 				this.connection = new RelayConnection(channel, chrome, () => undefined);
+				const ended = Promise.withResolvers<string>();
+				this.connection.onclose = ended.resolve;
+				this.ended = ended.promise;
 				this.connection.attachTab(chrome.firstTab());
 				this.connection.didInitialize();
 				return OK;
@@ -64,6 +71,14 @@ class PersonsExtension extends AStepper {
 			action: () => {
 				this.connection?.close("the person detached");
 				return OK;
+			},
+		},
+		toldEnded: {
+			gwta: "person's extension is told its attachment ended because {why}",
+			action: async ({ why }: TStepArgs) => {
+				if (!this.ended) return actionNotOK("the extension attached nothing");
+				const reason = await this.ended;
+				return reason.includes(String(why)) ? OK : actionNotOK(`it ended because ${reason}`);
 			},
 		},
 	};
@@ -93,7 +108,9 @@ afterAll(async () => {
 });
 
 describe("the browser relay", () => {
-	it("drives the tab a person attached, and refuses a caller that may not attach and a second extension", { timeout: 60_000 }, async () => {
+	it("drives the tab a person attached, refuses a caller that may not attach and a second extension, and ends the attachment when its grant is withdrawn", {
+		timeout: 60_000,
+	}, async () => {
 		const port = await freePort();
 		const base = `http://localhost:${port}`;
 		const feature = [
@@ -101,11 +118,12 @@ describe("the browser relay", () => {
 			'webserver is listening for "relay"',
 			`accept authority from "extension" for "${WEB_PLAYWRIGHT_ACTIONS.attach}"`,
 			'accept authority from "reader" for "Read:public"',
+			`accept authority from "another extension" for "${WEB_PLAYWRIGHT_ACTIONS.attach}"`,
 			"serve the browser relay",
 			`an extension attaching at "${base}", signed by "nobody", is refused for "not a call this caller may make"`,
 			`an extension attaching at "${base}", signed by "reader", is refused for "holds no grant for ${WEB_PLAYWRIGHT_ACTIONS.attach}"`,
 			`the person's extension attaches their tab at "${base}", signed by "extension"`,
-			`an extension attaching at "${base}", signed by "extension", is refused for "a browser is already attached"`,
+			`an extension attaching at "${base}", signed by "another extension", is refused for "a browser is already attached"`,
 			`go to the "${siteUrl}" webpage`,
 			'click "press me"',
 			'see "pressed"',
@@ -113,6 +131,11 @@ describe("the browser relay", () => {
 			'enter "a note" into note',
 			'see "a note"',
 			"the person's extension ends its attachment",
+			`the person's extension attaches their tab at "${base}", signed by "extension"`,
+			`go to the "${siteUrl}" webpage`,
+			'see "press me"',
+			'withdraw authority from "extension"',
+			`the person's extension is told its attachment ended because "${fakeGrant("extension")} was revoked"`,
 		].join("\n");
 		const result = await passWithDefaults([{ path: "/features/relay.feature", content: feature }], steppers, options(port));
 		expect(result.ok, JSON.stringify(result.featureResults?.[0]?.stepResults?.filter((s) => !s.ok))).toBe(true);

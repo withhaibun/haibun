@@ -1,0 +1,7 @@
+{
+	"manifest_version": 3,
+	"name": "haibun test extension",
+	"version": "1.0",
+	"description": "An extension a run loads to open its page, pinned to a key so its id is known before it loads.",
+	"key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzKIqog+sFAHcu5RUj5TuyeNX6uw3F+ghdBLWBR8xlMAg/4M+VFrxxNg5MSgLleXzizmP0Vn2tiVqnFMplncYbNxXspm8oKAhkEnvFS6fbzfAzgW5P56XHcHNV3JyhqPZmJIWUd+a+latnP5MZviEiDmE7RpBbjRPWSICfMAAT0zdQxfzY2CtH4EsbeaBb4fAXGKT3eBHm9AxT8Wmbb98MhSYux3uU+NvcWYIWGazUTaYHCGucTn7KIk283viPDYT3PpMQ0UG+x9uJxulCOkgIL4IZBjuXgdxZEl1vOHrbnPwIGjTpsw6qDW1+jtp+U5iqbmkCJfArpeL17ieuD7YPwIDAQAB"
+}

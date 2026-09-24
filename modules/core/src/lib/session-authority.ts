@@ -5,13 +5,28 @@
  */
 import type { TRuntime } from "./world.js";
 import { runReadingAsTheInstance } from "./capability-context.js";
-import type { IAuthority, IAuthorityInvoker, IAuthorityVerifier, TAuthorityEvidence, TDelegations, TOutgoingRequest, TRequestSigner } from "./authority-types.js";
+import type {
+	IAuthority,
+	IAuthorityInvoker,
+	IAuthorityVerifier,
+	TAuthorityEvidence,
+	TDelegations,
+	TOutgoingRequest,
+	TRequestSigner,
+	TRestsOn,
+	TVerdict,
+} from "./authority-types.js";
 
 export const AUTHORITY_KEY = "authority";
+
+/** The longest delay a timer takes; a longer one fires at once. */
+const LONGEST_TIMER_MS = 2 ** 31 - 1;
 
 export class SessionAuthority implements IAuthority {
 	private verifier?: IAuthorityVerifier;
 	private invoker?: IAuthorityInvoker;
+	/** The held calls resting on each capability, by its id. */
+	private held = new Map<string, Set<AbortController>>();
 
 	registerVerifier(verifier: IAuthorityVerifier): void {
 		this.verifier = verifier;
@@ -36,11 +51,39 @@ export class SessionAuthority implements IAuthority {
 		return this.invoker.sign(request, action);
 	}
 
-	verifyEvidence(evidence: TAuthorityEvidence): Promise<{ ok: boolean; error?: string; principal?: string; allowedAction?: string[] }> {
+	verifyEvidence(evidence: TAuthorityEvidence): Promise<TVerdict> {
 		const verifier = this.verifier;
 		if (!verifier) return Promise.resolve({ ok: false, error: "no verifier is registered to decide this evidence" });
 		// A chain is checked against the instance's own records, whatever the call presenting it may read.
 		return runReadingAsTheInstance(() => verifier.verify(evidence));
+	}
+
+	revoked(capabilityId: string): void {
+		for (const call of this.held.get(capabilityId) ?? []) call.abort(`${capabilityId} was revoked`);
+	}
+
+	holdWhile({ capabilities, expires }: TRestsOn): { signal: AbortSignal; release(): void } {
+		const call = new AbortController();
+		for (const id of capabilities) this.held.set(id, (this.held.get(id) ?? new Set()).add(call));
+		let timer: ReturnType<typeof setTimeout> | undefined;
+		const until = expires === undefined ? undefined : Date.parse(expires);
+		if (Number.isNaN(until)) throw new Error(`a held call rests on authority whose expiry, ${expires}, is not a time`);
+		const expiring = () => {
+			const left = (until as number) - Date.now();
+			if (left <= 0) call.abort(`the authority it rests on expired at ${expires}`);
+			else timer = setTimeout(expiring, Math.min(left, LONGEST_TIMER_MS));
+		};
+		if (until !== undefined) expiring();
+		const release = () => {
+			clearTimeout(timer);
+			for (const id of capabilities) {
+				const calls = this.held.get(id);
+				calls?.delete(call);
+				if (calls?.size === 0) this.held.delete(id);
+			}
+		};
+		call.signal.addEventListener("abort", release, { once: true });
+		return { signal: call.signal, release };
 	}
 
 	clear(): void {

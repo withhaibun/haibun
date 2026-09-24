@@ -41,13 +41,23 @@ export const DELEGATIONS_READ_METHOD = "AuthorityStepper-delegationsTo";
 export const DELEGATIONS_READ_ACTION = "Authority:readOwnDelegations";
 
 /**
+ * What a verified proof rests on: the capabilities its chain descends through, root first, and the earliest time any of
+ * them expires. A call held open for as long as its caller wants lasts only while each of these holds.
+ */
+export type TRestsOn = { capabilities: string[]; expires?: string };
+
+/** A verifier's decision: whether the evidence holds, and when it does, who acted, what they may do, and what that rests
+ *  on. */
+export type TVerdict = { ok: boolean; error?: string; principal?: string; allowedAction?: string[]; restsOn?: TRestsOn };
+
+/**
  * Decides whether evidence supports what it claims, and says what it supports: for a request, everything the delegation
  * it presents allows, the action it invokes among them. It also answers what this deployment delegated to a key and
  * hasn't revoked, which the framework asks only for the key a call proved it holds. A consumer registers one for the specification its
  * deployment uses; the framework holds no signing key and reads no proof itself.
  */
 export interface IAuthorityVerifier {
-	verify(evidence: TAuthorityEvidence): Promise<{ ok: boolean; error?: string; principal?: string; allowedAction?: string[] }>;
+	verify(evidence: TAuthorityEvidence): Promise<TVerdict>;
 	delegationsTo(controller: string): Promise<TDelegations>;
 }
 
@@ -80,6 +90,11 @@ export interface IAuthority {
 	signRequest: TRequestSigner;
 	/** Whether anything is registered to decide evidence at all, so a boundary reading a request knows to ask. */
 	hasVerifier(): boolean;
-	verifyEvidence(evidence: TAuthorityEvidence): Promise<{ ok: boolean; error?: string; principal?: string; allowedAction?: string[] }>;
+	verifyEvidence(evidence: TAuthorityEvidence): Promise<TVerdict>;
+	/** Report that a capability was revoked, so every call held open on it ends. Whatever records a revocation reports it. */
+	revoked(capabilityId: string): void;
+	/** A signal that aborts, with the reason, once what a held call rests on lapses: a capability it names is revoked, or
+	 *  its expiry passes. `release` stops watching when the call ends. */
+	holdWhile(restsOn: TRestsOn): { signal: AbortSignal; release(): void };
 	clear(): void;
 }

@@ -1,10 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
-import { passWithDefaults, DEF_PROTO_OPTIONS } from "@haibun/core/lib/test/lib.js";
+import { passWithDefaults, DEF_PROTO_OPTIONS, freePort } from "@haibun/core/lib/test/lib.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
 import { actionNotOK, actionOKWithProducts, getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
-import FakeAuthorityStepper, { FakeInvoker } from "@haibun/core/lib/test/fake-authority.js";
+import FakeAuthorityStepper, { FakeInvoker, fakeGrant } from "@haibun/core/lib/test/fake-authority.js";
+import { readNdjson } from "@haibun/core/lib/rpc-wire.js";
 import WebServerStepper from "./web-server-stepper.js";
 import Haibun from "@haibun/core/steps/haibun.js";
 import { EVERY_DEFINITION, SHOW_STEPS_ACTION, SHOW_STEPS_METHOD, readShownSteps, type TStepDefinition } from "@haibun/core/lib/step-discovery.js";
@@ -35,6 +36,17 @@ class PingStepper extends AStepper {
 			gwta: "level this reads at",
 			read: true,
 			action: async () => actionOKWithProducts({ at: readingAt() ?? "unbounded" }),
+		},
+		holdOpen: {
+			gwta: "hold open",
+			capability: "PingStepper:protected",
+			action: async () => {
+				const stream = streamContext.getStore();
+				if (!stream) return actionNotOK("held open only as a streamed call");
+				stream.emit({ status: "held" });
+				await new Promise((resolve) => stream.signal.addEventListener("abort", resolve, { once: true }));
+				return OK;
+			},
 		},
 	};
 }
@@ -117,6 +129,8 @@ async function levelsFollowed(url: string, signer: { holder: string; action: str
 
 class RpcVerifyStepper extends AStepper {
 	description = "Steps that call a run over RPC and check what it answers.";
+	private heldStream?: ReadableStreamDefaultReader<Uint8Array>;
+	private heldCall?: AsyncGenerator<TStreamChunk>;
 	steps = {
 		shownStepsPresentingNothing: {
 			gwta: "steps shown at {url} presenting nothing include {included}",
@@ -269,6 +283,50 @@ class RpcVerifyStepper extends AStepper {
 				const transport = this.getWorld().runtime[TRANSPORT] as ITransport;
 				const sent = await levelsFollowed(String(url), { holder: String(holder), action: String(action) }, transport);
 				return sent.join(",") === String(levels) ? OK : actionNotOK(`was sent the events at ${sent.join(",") || "no level"}`);
+			},
+		},
+		holdEventStream: {
+			gwta: "event stream at {url} signed by {holder} for {action} is held open",
+			action: async ({ url, holder, action }: TStepArgs) => {
+				const headers = await new FakeInvoker(String(holder)).sign({ method: "GET", url: String(url), headers: {} }, String(action));
+				const res = await fetch(String(url), { headers });
+				if (res.status !== 200 || !res.body) return actionNotOK(`the stream answered ${res.status}`);
+				this.heldStream = res.body.getReader();
+				return OK;
+			},
+		},
+		heldEventStreamEnds: {
+			gwta: "held event stream ends",
+			action: async () => {
+				const reader = this.heldStream;
+				if (!reader) return actionNotOK("no event stream is held");
+				while (!(await reader.read()).done);
+				return OK;
+			},
+		},
+		holdStreamedCall: {
+			gwta: "streamed call at {url} to {method} signed by {holder} for {action} is held open",
+			action: async ({ url, method, holder, action }: TStepArgs) => {
+				const body = JSON.stringify({ jsonrpc: "2.0", id: "1", method: String(method), params: {}, seqPath: [0, 1, 1, 1], stream: true });
+				const headers = { "content-type": "application/json" };
+				const res = await fetch(String(url), {
+					method: "POST",
+					headers: await new FakeInvoker(String(holder)).sign({ method: "POST", url: String(url), headers, body }, String(action)),
+					body,
+				});
+				if (!res.body) return actionNotOK(`the call answered ${res.status} with no stream`);
+				this.heldCall = readNdjson<TStreamChunk>(res.body);
+				const first = await this.heldCall.next();
+				return first.value?.status === "held" ? OK : actionNotOK(`the call was not held open: ${JSON.stringify(first.value)}`);
+			},
+		},
+		heldCallEnds: {
+			gwta: "held streamed call ends with {reason}",
+			action: async ({ reason }: TStepArgs) => {
+				if (!this.heldCall) return actionNotOK("no streamed call is held");
+				const rest: TStreamChunk[] = [];
+				for await (const chunk of this.heldCall) rest.push(chunk);
+				return rest.at(-1)?.error === String(reason) ? OK : actionNotOK(`ended with ${JSON.stringify(rest)}`);
 			},
 		},
 		rpcOldFormatIgnored: {
@@ -497,6 +555,29 @@ event stream at "${url}" signed by "owner" for "Read:private" is sent the events
 		};
 		const result = await passWithDefaults([feature], signedSteppers, makeOptions(port));
 		expect(result.ok).toBe(true);
+	});
+
+	it("ends a follower's event stream and a streamed call once the authority each was opened under is withdrawn, saying why", async () => {
+		const port = await freePort();
+		const base = `http://localhost:${port}`;
+		const feature = {
+			path: "/features/test.feature",
+			content: `
+enable rpc
+webserver is listening for "lapsing"
+accept authority from "owner" for "Read:private"
+accept authority from "agent" for "PingStepper:protected"
+event stream at "${base}/sse" signed by "owner" for "Read:private" is held open
+streamed call at "${base}/rpc/PingStepper-holdOpen" to "PingStepper-holdOpen" signed by "agent" for "PingStepper:protected" is held open
+withdraw authority from "owner"
+held event stream ends
+event stream at "${base}/sse" signed by "owner" for "Read:private" answers 401
+withdraw authority from "agent"
+held streamed call ends with "${fakeGrant("agent")} was revoked"
+`,
+		};
+		const result = await passWithDefaults([feature], signedSteppers, makeOptions(port));
+		expect(result.ok, JSON.stringify(result.featureResults?.[0]?.stepResults?.filter((step) => !step.ok))).toBe(true);
 	});
 
 	it("rejects old-format RPC envelope", async () => {

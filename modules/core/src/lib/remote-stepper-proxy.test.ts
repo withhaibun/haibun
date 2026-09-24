@@ -9,6 +9,8 @@ import { FakeInvoker } from "./test/fake-authority.js";
 import { AUTHORITY_KEY, SessionAuthority } from "./session-authority.js";
 import { RUN_AUTHORITY, runAuthorizedWith } from "./capability-context.js";
 import type { TWorld } from "./world.js";
+import { DOMAIN_STRING } from "./domains.js";
+import { Origin } from "../schema/protocol.js";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import type { Server } from "http";
@@ -130,6 +132,21 @@ describe("RemoteStepperProxy", () => {
 		const { buildFeatureStepForTransport } = await import("./step-registry.js");
 		const result = await tool.handler(buildFeatureStepForTransport(tool, { query: { label: "Comment" } }, [0, 1]), world);
 		expect(result.products).toMatchObject({ label: "Comment" });
+	});
+
+	it("sends the value a variable holds where the statement was written, not the variable's name", async () => {
+		const proxy = new RemoteStepperProxy(`http://localhost:${port}`);
+		await proxy.setWorld(world, []);
+		const registry = new StepRegistry([], world);
+		proxy.injectInto(registry);
+		const tool = registry.get("host7_EchoStepper-echo");
+		if (!tool) throw new Error("Expected prefixed tool to be registered");
+		await world.shared.set({ term: "greeting", value: "hello from the caller", domain: DOMAIN_STRING, origin: Origin.var }, { seq: [0], when: "test" });
+		const { buildFeatureStepForTransport } = await import("./step-registry.js");
+		const featureStep = buildFeatureStepForTransport(tool, {}, [0, 1]);
+		featureStep.action.stepValuesMap = { message: { term: "greeting", domain: DOMAIN_STRING, origin: Origin.defined } };
+		const result = await tool.handler(featureStep, world);
+		expect(result.products).toMatchObject({ echoed: "hello from the caller" });
 	});
 
 	it("preserves capability metadata from remote", async () => {

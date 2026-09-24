@@ -29,12 +29,21 @@ import type { TRelayMessage } from "./relay-wire.js";
 type CDPCommand = { id: number; sessionId?: string; method: string; params?: unknown };
 
 type TPending = { resolve: (result: unknown) => void; reject: (error: Error) => void; error: Error };
-type TExtension = { emit: (message: TRelayMessage) => void; pending: Map<number, TPending>; lastId: number; protocol: ExtensionProtocolV2; end: (reason: string) => void };
+type TExtension = {
+	emit: (message: TRelayMessage) => void;
+	holder: string | undefined;
+	pending: Map<number, TPending>;
+	lastId: number;
+	protocol: ExtensionProtocolV2;
+	end: (reason: string) => void;
+};
 
 /**
  * A browser a person runs, driven through their extension: Playwright sends CDP to the relay, which answers what it
  * can from its tab model and carries the rest to the extension as the chrome.* calls that do it. One extension is held
- * at a time, for as long as the call that attached it stays open, and one CDP client drives it.
+ * at a time, for as long as the call that attached it stays open, and one CDP client drives it. The holder that attached
+ * it may attach again, which ends the attachment it held: the server learns that a call ended only once its connection
+ * closes, so an extension that ends its attachment and attaches again may arrive first.
  */
 export class BrowserRelay {
 	private extension: TExtension | undefined;
@@ -42,13 +51,17 @@ export class BrowserRelay {
 
 	constructor(private readonly onError: (error: unknown) => void) {}
 
-	/** Hold one extension until `signal` aborts or Playwright's client closes: each command for it goes out through
-	 *  `emit`, and `held` is told once the relay holds it. A second extension is refused while one is held. */
-	async attach(emit: (message: TRelayMessage) => void, signal: AbortSignal, held: () => void): Promise<void> {
-		if (this.extension) throw new Error("a browser is already attached: the relay holds one extension at a time");
+	/** Hold one extension, attached by `holder`, until `signal` aborts or Playwright's client closes: each command for it
+	 *  goes out through `emit`, and `held` is told once the relay holds it. Another holder's extension is refused while
+	 *  one is held. */
+	async attach(emit: (message: TRelayMessage) => void, signal: AbortSignal, held: () => void, holder: string | undefined): Promise<void> {
+		const attached = this.extension;
+		if (attached && (holder === undefined || attached.holder !== holder)) throw new Error("a browser is already attached: the relay holds one extension at a time");
+		if (attached) this.detach(attached, "the extension attached again");
 		const ended = Promise.withResolvers<string>();
 		const extension: TExtension = {
 			emit,
+			holder,
 			pending: new Map(),
 			lastId: 0,
 			protocol: new ExtensionProtocolV2((method, params) => this.command(method, params), this.onError),
@@ -110,9 +123,11 @@ export class BrowserRelay {
 		});
 	}
 
+	/** End an attachment: the call that holds it returns, its commands are refused, and Playwright's side is closed. */
 	private detach(extension: TExtension, reason: string): void {
 		if (this.extension !== extension) return;
 		this.extension = undefined;
+		extension.end(reason);
 		for (const pending of extension.pending.values()) pending.reject(new Error(reason));
 		extension.pending.clear();
 		extension.protocol.onExtensionDisconnect(reason);

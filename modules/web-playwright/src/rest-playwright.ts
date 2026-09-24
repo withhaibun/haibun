@@ -1,5 +1,6 @@
 import { actionNotOK, actionOKWithProducts, getStepTerm } from "@haibun/core/lib/util/index.js";
-import WebPlaywright, { WEB_PLAYWRIGHT_ACTIONS } from "./web-playwright.js";
+import WebPlaywright from "./web-playwright.js";
+import { WEB_PLAYWRIGHT_ACTIONS } from "./actions.js";
 import { OK } from "@haibun/core/schema/protocol.js";
 import { TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { RestJsonCountSchema } from "./domains.js";

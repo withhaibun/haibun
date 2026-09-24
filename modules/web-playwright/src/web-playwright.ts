@@ -1,12 +1,25 @@
 import { Page, Download, Locator, type ConnectOverCDPTransport } from "playwright";
 import { pathToFileURL } from "url";
+import { createHash } from "node:crypto";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { AsyncLocalStorage } from "node:async_hooks";
 
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { TFeatureStep, CycleWhen, TStepAction } from "@haibun/core/lib/astepper.js";
 import { OK, TStepResult, Origin } from "@haibun/core/schema/protocol.js";
 import { BrowserFactory, TTaggedBrowserFactoryOptions, TBrowserTypes, BROWSERS } from "./BrowserFactory.js";
-import { actionNotOK, getStepperOption, boolOrError, intOrError, stringOrError, findStepperFromOptionOrKind, errorDetail } from "@haibun/core/lib/util/index.js";
+import {
+	actionNotOK,
+	actionOKWithProducts,
+	getStepperOption,
+	boolOrError,
+	intOrError,
+	stringOrError,
+	findStepperFromOptionOrKind,
+	errorDetail,
+} from "@haibun/core/lib/util/index.js";
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
 import { saveImageArtifact } from "./artifact.js";
 import { VideoStartArtifact } from "@haibun/core/schema/protocol.js";
@@ -23,15 +36,12 @@ import { WEBSERVER, type IWebServer } from "@haibun/web-server-hono/defs.js";
 import { BrowserRelay } from "./relay/cdpRelay.js";
 import { relayMethods } from "./relay/relay-methods.js";
 import { RELAY_METHOD_PREFIX } from "./relay/relay-wire.js";
+import { WEB_PLAYWRIGHT_ACTIONS } from "./actions.js";
 
 import { TStepperSteps } from "@haibun/core/lib/astepper.js";
 
 export const WEB_PAGE = "webpage";
 
-/** The actions a delegation names to let another party use the browser, each covering a group of steps: reading the page,
- *  acting on it (navigating, input and tabs), running `fetch` inside it with the page's own cookies, and attaching a
- *  browser a person runs to the relay, through their extension. */
-export const WEB_PLAYWRIGHT_ACTIONS = { read: "WebPlaywright:read", act: "WebPlaywright:act", fetch: "WebPlaywright:fetch", attach: "WebPlaywright:attach" } as const;
 /**
  * This is the infrastructure for web-playwright.
  *
@@ -306,6 +316,34 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		return OK;
 	}
 
+	/** Load the unpacked extension at `where` into the browser the run launches, from the next page it opens. An extension
+	 *  loads only into a browser that keeps a profile, so one is made for the run where none is set, and only into
+	 *  Chromium's full browser, whose headless mode loads extensions where the headless shell doesn't. Its id is the one
+	 *  its manifest's pinned key derives, so a step can open its pages. */
+	loadExtension(where: string) {
+		if (this.bf?.hasPage(this.getWorld().tag, this.tab)) return actionNotOK(`load an extension before any step opens a page; ${where} was named after one`);
+		if (this.factoryOptions.cdp !== undefined) return actionNotOK("an extension loads into a browser the run launches, and this run connects to one");
+		const dir = path.resolve(where);
+		const manifest = path.join(dir, "manifest.json");
+		if (!existsSync(manifest)) return actionNotOK(`no extension at ${dir}: it has no manifest.json`);
+		const { key } = JSON.parse(readFileSync(manifest, "utf-8")) as { key?: unknown };
+		if (typeof key !== "string") return actionNotOK(`the extension at ${dir} pins no key in its manifest, so its id isn't known before it loads`);
+		if (!this.factoryOptions.persistentDirectory) {
+			const profile = mkdtempSync(path.join(tmpdir(), "haibun-extension-profile-"));
+			// Removed when the process ends, which is after its browser: a failed run leaves its browser up to be looked at.
+			process.once("exit", () => rmSync(profile, { recursive: true, force: true }));
+			this.factoryOptions.persistentDirectory = profile;
+		}
+		const args = (this.factoryOptions.launchOptions.args ?? []).filter(Boolean);
+		this.factoryOptions.launchOptions = {
+			...this.factoryOptions.launchOptions,
+			channel: "chromium",
+			args: [...args, `--disable-extensions-except=${dir}`, `--load-extension=${dir}`],
+		};
+		const id = extensionIdOf(key);
+		return actionOKWithProducts({ id, origin: `chrome-extension://${id}` });
+	}
+
 	/** Serve the relay an extension attaches a person's browser through, and drive that browser from the next page the
 	 *  run opens. With no browser attached, a step that needs the browser is refused, saying so. */
 	serveRelay() {
@@ -482,3 +520,10 @@ export function pickLocatorDomain(parts: string[]): string {
 }
 
 export default WebPlaywright;
+
+/** An extension's id, as Chromium derives it from the public key its manifest pins: the first 32 hex digits of the key's
+ *  SHA-256, each written as a letter from a to p. */
+export function extensionIdOf(key: string): string {
+	const hex = createHash("sha256").update(Buffer.from(key, "base64")).digest("hex").slice(0, 32);
+	return [...hex].map((digit) => String.fromCharCode(97 + Number.parseInt(digit, 16))).join("");
+}
