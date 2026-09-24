@@ -14,7 +14,7 @@
  * cannot execute code here; a stepper registered in the configuration is already inside the process.
  */
 import { AsyncLocalStorage } from "node:async_hooks";
-import { narrowerCeiling, type AccessLevel } from "./resources.js";
+import { Access, narrowerCeiling, type AccessLevel } from "./resources.js";
 import { EVERY_ACTION } from "./actions.js";
 import type { THaibunLogLevel } from "../schema/protocol.js";
 
@@ -126,6 +126,12 @@ export function runReadingAt<T>(ceiling: AccessLevel | undefined, within: () => 
 /** The ceiling in force, or undefined where nothing bounded the caller (a feature line in its own run). */
 export function readingAt(): AccessLevel | undefined {
 	return readCeilingStore.getStore();
+}
+
+/** The level of what the call in progress may have read, which is the level of what it records and announces: its
+ *  ceiling, or private for the run's own statements, which read without one. */
+export function readLevel(): AccessLevel {
+	return readingAt() ?? Access.private;
 }
 
 /**

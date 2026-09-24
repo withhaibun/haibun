@@ -7,7 +7,7 @@
 				"declaredStepTextHash": "cc3338e7beca1e35ccecfdda8bb5d44870348a22156942f415224dadda3c8fef"
 			},
 			"/features/b-reading-a-cached-run.feature.ts": {
-				"seconds": 1,
+				"seconds": 1.2,
 				"steps": 173,
 				"declaredStepTextHash": "3715a58ac60ab699ec6daf07f260fc6bd6a73a0184fb4d5bfb118e28795585dc"
 			},
@@ -28,6 +28,6 @@
 			}
 		},
 		"steps": 863,
-		"seconds": 6.8
+		"seconds": 7
 	}
 }

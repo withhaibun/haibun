@@ -9,7 +9,8 @@ import { streamContext, type TStreamChunk } from "@haibun/core/lib/step-stream-c
 import type { IStepTransport } from "./step-transport.js";
 import { RPC_REFUSED } from "@haibun/core/lib/rpc-wire.js";
 import type { TRuntime } from "@haibun/core/lib/world.js";
-import { capabilityAllows, FOLLOWS_THE_RUN } from "@haibun/core/lib/actions.js";
+import { capabilityAllows, FOLLOWS_THE_RUN, readAction } from "@haibun/core/lib/actions.js";
+import { Access, AccessLevelSchema, type AccessLevel } from "@haibun/core/lib/resources.js";
 import { grantedCapabilityForRequest } from "./capability-auth.js";
 
 export type TTransportRequestInfo = {
@@ -63,8 +64,10 @@ export class SSETransport implements ITransport, IStepTransport {
 			this.eventLogger.debug("SSE Client connected");
 			return await streamSSE(c, async (sseStream) => {
 				// The stream announces what happens from here on. What happened before is in the graph, which a
-				// connecting page reads; nothing is replayed to it.
-				const handler = (data: string) => {
+				// connecting page reads; nothing is replayed to it. Each announcement goes to a follower that may read at
+				// its level, so one holding a public read follows the public part of the run.
+				const handler = (data: string, level: AccessLevel) => {
+					if (!capabilityAllows(granted, readAction(level))) return;
 					sseStream.writeSSE({ data, event: "message" }).catch((e) => {
 						this.eventLogger.error(`Error writing to SSE stream: ${e}`);
 					});
@@ -188,7 +191,8 @@ export class SSETransport implements ITransport, IStepTransport {
 			payload = JSON.stringify(fallback);
 			this.eventLogger.error(`SSE event dropped (payload too large to serialize): ${fallback.droppedReason}`);
 		}
-		this.hub.emit("event", payload);
+		// Every event of the run states its level as it is emitted, and what states none is taken as private.
+		this.hub.emit("event", payload, AccessLevelSchema.parse(data?.event?.accessLevel ?? Access.private));
 	}
 
 	public onMessage(handler: TMessageHandler) {

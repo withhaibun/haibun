@@ -11,6 +11,8 @@ import { EVERY_DEFINITION, SHOW_STEPS_ACTION, SHOW_STEPS_METHOD, readShownSteps,
 import { refusal } from "@haibun/core/lib/step-registry.js";
 import { streamContext, type TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import { readingAt } from "@haibun/core/lib/capability-context.js";
+import { Access } from "@haibun/core/lib/resources.js";
+import { TRANSPORT, type ITransport } from "./sse-transport.js";
 
 class PingStepper extends AStepper {
 	description = "Steps that answer a ping, one of them protected and one gated by an admin capability.";
@@ -69,6 +71,48 @@ async function openStream(url: string, signer?: { holder: string; action: string
 	const res = await fetch(url, { headers, signal: stopped.signal });
 	stopped.abort();
 	return res.status;
+}
+
+/** The id of the event that ends a following: sent last and at the least level, so every follower is sent it, after
+ *  every event sent before it that it may read. */
+const FOLLOWED_TO_HERE = "followed-to-here";
+/** An event at each level, the least private first. */
+const SENT_LEVELS = [Access.public, Access.opened, Access.private];
+
+/**
+ * Follow the run's event stream at `url` as `signer`, send an event at each access level through `transport` and then
+ * the end marker, and answer the levels of the events the follower was sent. The stream subscribes before it answers,
+ * so what is sent after the answer arrives reaches it.
+ */
+async function levelsFollowed(url: string, signer: { holder: string; action: string }, transport: ITransport): Promise<string[]> {
+	const headers = await new FakeInvoker(signer.holder).sign({ method: "GET", url, headers: {} }, signer.action);
+	const stopped = new AbortController();
+	const res = await fetch(url, { headers, signal: stopped.signal });
+	if (res.status !== 200 || !res.body) throw new Error(`the stream answered ${res.status}`);
+	const event = (id: string, accessLevel: string) => ({ type: "event", event: { id, timestamp: Date.now(), kind: "log", level: "info", message: id, accessLevel } });
+	for (const level of SENT_LEVELS) transport.send(event(level, level));
+	transport.send(event(FOLLOWED_TO_HERE, Access.public));
+	const reader = res.body.getReader();
+	const decoder = new TextDecoder();
+	const sent: string[] = [];
+	let held = "";
+	for (;;) {
+		const { value, done } = await reader.read();
+		if (done) throw new Error("the stream ended before the end of the following");
+		held += decoder.decode(value, { stream: true });
+		const messages = held.split("\n\n");
+		held = messages.pop() ?? "";
+		for (const message of messages) {
+			const data = message.split("\n").find((line) => line.startsWith("data: "));
+			if (!data) continue;
+			const id = (JSON.parse(data.slice("data: ".length)) as { event: { id: string } }).event.id;
+			if (id === FOLLOWED_TO_HERE) {
+				stopped.abort();
+				return sent;
+			}
+			sent.push(id);
+		}
+	}
 }
 
 class RpcVerifyStepper extends AStepper {
@@ -217,6 +261,14 @@ class RpcVerifyStepper extends AStepper {
 			action: async ({ url, holder, action, status }: TStepArgs) => {
 				const answered = await openStream(String(url), { holder: String(holder), action: String(action) });
 				return answered === Number(status) ? OK : actionNotOK(`answered ${answered}`);
+			},
+		},
+		streamSendsLevels: {
+			gwta: "event stream at {url} signed by {holder} for {action} is sent the events at {levels}",
+			action: async ({ url, holder, action, levels }: TStepArgs) => {
+				const transport = this.getWorld().runtime[TRANSPORT] as ITransport;
+				const sent = await levelsFollowed(String(url), { holder: String(holder), action: String(action) }, transport);
+				return sent.join(",") === String(levels) ? OK : actionNotOK(`was sent the events at ${sent.join(",") || "no level"}`);
 			},
 		},
 		rpcOldFormatIgnored: {
@@ -424,7 +476,7 @@ rpc read asking for "public" at "${url}" signed by "owner" for "Read:private" re
 		expect(result.ok).toBe(true);
 	});
 
-	it("opens the run's event stream only to a caller holding a private read, since it carries the run's private records", async () => {
+	it("opens the run's event stream to a caller holding a read, and sends each follower the events it may read at their level", async () => {
 		const port = 8258;
 		const url = `http://localhost:${port}/sse`;
 		const feature = {
@@ -433,10 +485,14 @@ rpc read asking for "public" at "${url}" signed by "owner" for "Read:private" re
 enable rpc
 webserver is listening for "sse-gated"
 accept authority from "owner" for "Read:private"
+accept authority from "member" for "Read:opened"
 accept authority from "reader" for "Read:public"
+accept authority from "agent" for "PingStepper:protected"
 event stream at "${url}" presenting nothing answers 403
-event stream at "${url}" signed by "reader" for "Read:public" answers 403
-event stream at "${url}" signed by "owner" for "Read:private" answers 200
+event stream at "${url}" signed by "agent" for "PingStepper:protected" answers 403
+event stream at "${url}" signed by "reader" for "Read:public" is sent the events at "public"
+event stream at "${url}" signed by "member" for "Read:opened" is sent the events at "public,opened"
+event stream at "${url}" signed by "owner" for "Read:private" is sent the events at "public,opened,private"
 `,
 		};
 		const result = await passWithDefaults([feature], signedSteppers, makeOptions(port));

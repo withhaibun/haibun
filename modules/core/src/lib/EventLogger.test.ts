@@ -2,8 +2,9 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { EventLogger } from "./EventLogger.js";
 import { TFeatureStep } from "./astepper.js";
 import { OBSCURED_VALUE } from "./feature-variables.js";
-import { BlipEvent, ImageArtifact } from "../schema/protocol.js";
-import { runInStep } from "./capability-context.js";
+import { BlipEvent, ImageArtifact, LogEvent, type THaibunEvent } from "../schema/protocol.js";
+import { runInStep, runReadingAt } from "./capability-context.js";
+import { Access } from "./resources.js";
 
 const OK = { ok: true as const };
 
@@ -298,5 +299,20 @@ describe("what a produced thing reports at", () => {
 			emitted.map((e) => (e as { level?: string }).level),
 			"what a run produced is read at every level, so the step's own level does not decide this",
 		).toEqual(["info", "info"]);
+	});
+});
+
+describe("the level an event states", () => {
+	const said = (message: string) => LogEvent.parse({ id: message, timestamp: 0, kind: "log", level: "info", message });
+
+	it("is the read level of the call that emitted it: a call bounded to public reads announces at public, the run's own at private", async () => {
+		const logger = new EventLogger();
+		logger.suppressConsole = true;
+		const levels: Record<string, unknown> = {};
+		logger.subscribe((event: THaibunEvent) => void (levels[event.id] = event.accessLevel));
+		await runReadingAt(Access.public, () => Promise.resolve(logger.emit(said("bounded"))));
+		logger.emit(said("the run's own"));
+		logger.emit({ ...said("stated"), accessLevel: Access.opened });
+		expect(levels).toEqual({ bounded: Access.public, "the run's own": Access.private, stated: Access.opened });
 	});
 });

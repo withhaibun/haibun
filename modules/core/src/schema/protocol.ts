@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AccessLevelSchema } from "../lib/resources.js";
 
 // ============================================================================
 // Constants
@@ -554,6 +555,9 @@ export const BaseEvent = z.object({
 	source: z.string().default("haibun").describe("Source of the event"),
 	emitter: z.string().optional().describe("Code location that emitted the event (e.g. Executor:238)"),
 	level: HaibunLogLevel.default("info").describe("Log level for filtering"),
+	accessLevel: AccessLevelSchema.optional().describe(
+		"The level of what the event may reveal: the read level of the call that emitted it, stated as it is emitted. A follower of the run is sent it only where it may read at this level.",
+	),
 });
 
 // Lifecycle Events

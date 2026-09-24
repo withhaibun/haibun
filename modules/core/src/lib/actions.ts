@@ -60,8 +60,9 @@ export function readCeilingOf(granted: string | string[] | undefined): AccessLev
 	return ACCESS_BROADEST_FIRST.find((level) => capabilityAllows(granted, readAction(level)));
 }
 
-/** What following a run's events requires: they are its record as it is made, private records among it. */
-export const FOLLOWS_THE_RUN = readAction(Access.private);
+/** What following a run's events requires: a read at the least level. Each event states the level of what it may
+ *  reveal, and a follower is sent those it may read at that level. */
+export const FOLLOWS_THE_RUN = readAction(Access.public);
 
 /** A delegation as its holder presents it: what it lets the holder do, over what, and until when. */
 export type TDelegation = Record<string, unknown> & { allowedAction?: unknown; invocationTarget?: unknown; expires?: unknown };
