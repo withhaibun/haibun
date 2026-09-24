@@ -158,14 +158,6 @@ type TStepperStepBase = {
 	exact?: string;
 	resolveFeatureLine?(line: string, path: string, stepper: AStepper, backgrounds: TFeatures, allLines?: string[], lineIndex?: number, actualSourcePath?: string): boolean | void;
 	/**
-	 * Per-parameter typed-fact preconditions. Maps gwta param names to domain keys.
-	 * The dispatcher checks each declared input domain has at least one matching fact
-	 * (or the gwta-resolved value validates against the domain's schema) before firing.
-	 * Cross-checked against gwta-derived param-domain bindings at registration; mismatch
-	 * is a registration error.
-	 */
-	inputDomains?: Record<string, string>;
-	/**
 	 * Single-product postcondition. The step's action must return products matching
 	 * the named domain's schema. The dispatcher auto-asserts the product as a typed
 	 * fact, registers a producer edge in the resolver graph, and exposes the JSON

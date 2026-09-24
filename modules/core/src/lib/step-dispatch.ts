@@ -5,7 +5,7 @@ import { TRACE_SEQ_PATH, Timer, FEATURE_START, SCENARIO_START, stepLevel, SUBSTE
 import { streamContext } from "./step-stream-context.js";
 import type { TFeatureSteps } from "../schema/protocol.js";
 import { actionNotOK } from "./util/index.js";
-import { normalizeDomainKey } from "./domains.js";
+import { isPrimitiveDomain, normalizeDomainKey } from "./domains.js";
 import { OBSERVATION_GRAPH, FACT_GRAPH, assertFact, getFact, queryFacts } from "./working-memory.js";
 import { doStepperCycle } from "./stepper-cycles.js";
 import { actingAs, authorizedWith, runAuthorizedWith, runInStep, runReadingAt } from "./capability-context.js";
@@ -151,7 +151,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 				let doAction = true;
 				while (doAction) {
 					await doStepperCycle(steppers, "beforeStep", <TBeforeStep>{ featureStep });
-					const preconditionError = await checkInputPreconditions(world, action.step, featureStep);
+					const preconditionError = await checkInputPreconditions(world, tool.paramDomainKeys, featureStep);
 					if (preconditionError) {
 						actionResult = actionNotOK(preconditionError);
 						lastStepResult = stepResultFromActionResult(actionResult, action, start, Timer.since(), featureStep, false);
@@ -233,21 +233,19 @@ export function stepResultFromActionResult(actionResult: TActionResult, action: 
 }
 
 /**
- * Verify each declared input domain has at least one matching fact OR that the
- * gwta-resolved value for that param validates against the domain schema. Returns
- * an error message when a precondition is unsatisfiable; undefined when all pass.
+ * Verify each input domain a step's phrase names, other than primitives, has a value given for it or at least one
+ * matching fact. Returns an error message when a precondition is unsatisfiable; undefined when all pass.
  */
-async function checkInputPreconditions(world: TWorld, step: TStepperStep, featureStep: TFeatureStep): Promise<string | undefined> {
-	if (!step.inputDomains) return undefined;
+async function checkInputPreconditions(world: TWorld, paramDomainKeys: ReadonlyMap<string, string>, featureStep: TFeatureStep): Promise<string | undefined> {
 	const stepValuesMap = featureStep.action.stepValuesMap ?? {};
-	for (const [param, domainKey] of Object.entries(step.inputDomains)) {
-		const normalized = normalizeDomainKey(domainKey);
+	for (const [param, normalized] of paramDomainKeys) {
+		if (isPrimitiveDomain(normalized)) continue;
 		const stepValue = stepValuesMap[param];
 		// gwta-captured term covers the precondition: the dispatcher's existing
 		// arg-population path resolves and validates it before the action runs.
 		if (stepValue?.term !== undefined && stepValue.term !== "") continue;
 		const facts = await queryFacts(world, normalized, FACT_GRAPH);
-		if (facts.length === 0) return `precondition-not-satisfied: domain "${domainKey}" has no asserted facts and no resolved value for {${param}}`;
+		if (facts.length === 0) return `precondition-not-satisfied: domain "${normalized}" has no asserted facts and no resolved value for {${param}}`;
 	}
 	return undefined;
 }

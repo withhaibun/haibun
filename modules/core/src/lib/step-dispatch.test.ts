@@ -608,14 +608,8 @@ describe("step-dispatch", () => {
 					productsDomain: "test-email",
 					action: () => actionOKWithProducts({ id: "e1", subject: "hi" }),
 				},
-				badInputDomain: {
-					gwta: "send {who: string}",
-					inputDomains: { who: "test-email" },
-					action: () => OK,
-				},
-				ungatedConsumer: {
-					gwta: "consume an email {who: string}",
-					inputDomains: { who: "string" },
+				unregisteredInput: {
+					gwta: "consume {who: no-such-domain}",
 					action: () => OK,
 				},
 				dualOutput: {
@@ -668,20 +662,13 @@ describe("step-dispatch", () => {
 			expect(tool?.descriptor.outputSchema).toBeDefined();
 		});
 
-		it("rejects inputDomains that disagrees with the gwta-derived domain", () => {
-			const stepper = new DomainEchoStepper();
-			const subset = { ...stepper.steps, badInputDomain: stepper.steps.badInputDomain };
-			class JustBad extends AStepper {
-				steps = { badInputDomain: subset.badInputDomain };
+		it("refuses a parameter whose domain no stepper registers, naming the step, the parameter and the domain", () => {
+			class JustUnregistered extends AStepper {
+				steps = { unregisteredInput: new DomainEchoStepper().steps.unregisteredInput };
 			}
-			expect(() => buildStepRegistry([new JustBad()], world)).toThrow(/disagrees/);
-		});
-
-		it("accepts inputDomains aligned with the gwta-derived domain", () => {
-			class JustOk extends AStepper {
-				steps = { ungatedConsumer: new DomainEchoStepper().steps.ungatedConsumer };
-			}
-			expect(() => buildStepRegistry([new JustOk()], world)).not.toThrow();
+			expect(() => buildStepRegistry([new JustUnregistered()], world)).toThrow(
+				'step JustUnregistered.unregisteredInput: {who} names the domain "no-such-domain", which no loaded stepper registers.',
+			);
 		});
 
 		it("rejects mutually exclusive productsDomain and productsDomains", () => {

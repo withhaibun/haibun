@@ -6,7 +6,9 @@ import { mapDefinitionsToDomains } from "./domains.js";
 import { actionOKWithProducts } from "./util/index.js";
 import { OK } from "../schema/protocol.js";
 import { buildDomainChain } from "./domain-chain.js";
-import { lintDomainChain } from "./domain-chain-lint.js";
+import { LINT_FINDING, lintDomainChain, lintFindingLine } from "./domain-chain-lint.js";
+import { getCoreDomains } from "./core-domains.js";
+import { getDefaultWorld } from "./test/lib.js";
 
 const PERSON = "person";
 const EMAIL = "email";
@@ -26,7 +28,6 @@ class EmailFromPerson extends AStepper {
 	steps: TStepperSteps = {
 		issueEmail: {
 			gwta: `issue email for {who: ${PERSON}}`,
-			inputDomains: { who: PERSON },
 			productsDomain: EMAIL,
 			action: () => actionOKWithProducts({ id: "e1" }),
 		},
@@ -37,7 +38,6 @@ class ArchiveEmail extends AStepper {
 	steps: TStepperSteps = {
 		archive: {
 			gwta: `archive {email: ${EMAIL}}`,
-			inputDomains: { email: EMAIL },
 			productsDomain: ARCHIVED,
 			action: () => actionOKWithProducts({ id: "a1" }),
 		},
@@ -48,10 +48,19 @@ class UnsuppliedConsumer extends AStepper {
 	steps: TStepperSteps = {
 		consume: {
 			gwta: `consume {who: ${PERSON}}`,
-			inputDomains: { who: PERSON },
 			productsDomain: ORPHAN_OUTPUT,
 			action: () => actionOKWithProducts({}),
 		},
+	};
+}
+
+class LooselyTyped extends AStepper {
+	steps: TStepperSteps = {
+		named: { gwta: "name {who}", action: () => OK },
+		stated: { gwta: "state {what: string}", action: () => OK },
+		either: { gwta: `either {target: string | ${PERSON}}`, action: () => OK },
+		typed: { gwta: `greet {who: ${PERSON}}`, action: () => OK },
+		answers: { gwta: "answer", productsSchema: z.object({ said: z.string() }), action: () => actionOKWithProducts({ said: "yes" }) },
 	};
 }
 
@@ -107,7 +116,7 @@ describe("lintDomainChain", () => {
 	it("summary counts match findings counts", () => {
 		const graph = buildDomainChain([new EmailFromPerson(), new ArchiveEmail()], domains());
 		const report = lintDomainChain(graph, domains());
-		const calculated = { "orphan-step": 0, "unsupplied-step": 0, "unreachable-domain": 0, "unproduced-domain": 0 } as Record<string, number>;
+		const calculated = Object.fromEntries(Object.values(LINT_FINDING).map((kind) => [kind, 0])) as Record<string, number>;
 		for (const f of report.findings) calculated[f.kind]++;
 		expect(report.summary).toEqual(calculated);
 	});
@@ -117,5 +126,25 @@ describe("lintDomainChain", () => {
 		const report = lintDomainChain(graph, domains());
 		const stepKinds = report.findings.filter((f) => f.kind === "orphan-step" || f.kind === "unsupplied-step");
 		expect(stepKinds).toHaveLength(0);
+	});
+
+	it("reports each parameter a step types as string, or as a union with it, and products with a schema and no domain", () => {
+		const report = lintDomainChain(buildDomainChain([new LooselyTyped()], domains()), domains());
+		const typing = report.findings.filter((f) => f.kind === LINT_FINDING.STRING_PARAM || f.kind === LINT_FINDING.UNNAMED_PRODUCTS).map(lintFindingLine);
+		expect(typing).toEqual([
+			"string-param LooselyTyped.named {who: string}",
+			"string-param LooselyTyped.stated {what: string}",
+			"string-param LooselyTyped.either {target: person | string}",
+			"unnamed-products LooselyTyped.answers",
+		]);
+	});
+
+	it("reports no primitive domain as unreachable, since a caller supplies it and it is no node of the graph", () => {
+		const world = getDefaultWorld();
+		const withPrimitives = { ...getCoreDomains(world), ...domains() };
+		const report = lintDomainChain(buildDomainChain([new StubStepper()], withPrimitives), withPrimitives);
+		const unreachable = report.findings.filter((f) => f.kind === LINT_FINDING.UNREACHABLE_DOMAIN).map(lintFindingLine);
+		expect(unreachable).not.toContain("unreachable-domain string");
+		expect(unreachable).toContain("unreachable-domain dead-registered");
 	});
 });

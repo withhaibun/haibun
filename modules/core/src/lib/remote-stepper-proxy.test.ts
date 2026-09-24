@@ -5,6 +5,7 @@ import Haibun from "../steps/haibun.js";
 import { AStepper } from "./astepper.js";
 import { actionOKWithProducts, errorDetail } from "./util/index.js";
 import { getDefaultWorld } from "./test/lib.js";
+import { addStepperConcerns } from "../phases/Executor.js";
 import { FakeInvoker } from "./test/fake-authority.js";
 import { AUTHORITY_KEY, SessionAuthority } from "./session-authority.js";
 import { RUN_AUTHORITY, runAuthorizedWith } from "./capability-context.js";
@@ -51,6 +52,7 @@ describe("RemoteStepperProxy", () => {
 		// The host serves its declarations through the show steps step, dispatched like any other.
 		const hosted = [new EchoStepper(), new Haibun()];
 		for (const stepper of hosted) await stepper.setWorld(world, hosted);
+		addStepperConcerns(world, hosted);
 		const localRegistry = openRunRegistry(world, hosted);
 
 		const app = new Hono();

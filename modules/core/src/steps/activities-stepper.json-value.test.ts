@@ -34,7 +34,6 @@ class PersonStepper extends AStepper {
 	steps: TStepperSteps = {
 		registerPerson: {
 			gwta: "register person {person: person-input}",
-			inputDomains: { person: "person-input" },
 			action: ({ person }: { person: { did: string; name: string } }) => {
 				lastReceived = person;
 				return actionOK();

@@ -1,5 +1,14 @@
 import { z } from "zod";
-import { DOMAIN_PERSISTED_TYPE, isPersisted, LinkRelations, type TDomainDefinition, type TDomainTopology, type TRegisteredDomain, type THypermediaTopology, type TRelRange } from "./resources.js";
+import {
+	DOMAIN_PERSISTED_TYPE,
+	isPersisted,
+	LinkRelations,
+	type TDomainDefinition,
+	type TDomainTopology,
+	type TRegisteredDomain,
+	type THypermediaTopology,
+	type TRelRange,
+} from "./resources.js";
 import type { TLinkVocabulary } from "./typed-links.js";
 import type { TWorld } from "./world.js";
 
@@ -13,6 +22,13 @@ export const BASE_TYPES = [DOMAIN_STRING, DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_DAT
 
 // Goal resolver domains.
 export const DOMAIN_DOMAIN_KEY = "domain-key";
+
+/** Primitive domains: a caller supplies their values, no step's product is one, and they aren't nodes of the typed
+ *  step graph, since every step would connect through them. */
+export const PRIMITIVE_DOMAINS: ReadonlySet<string> = new Set<string>([...BASE_TYPES, DOMAIN_DOMAIN_KEY]);
+
+/** Whether a domain key is primitive: a primitive, or a union with one, which a caller can always supply as it. */
+export const isPrimitiveDomain = (domainKey: string): boolean => domainKey.split(" | ").some((part) => PRIMITIVE_DOMAINS.has(part));
 export const DOMAIN_GOAL_RESOLUTION = "goal-resolution";
 export const DOMAIN_MICHI = "michi";
 export const DOMAIN_AFFORDANCES = "affordances";

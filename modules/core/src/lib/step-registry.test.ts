@@ -43,7 +43,9 @@ describe("step tool input schemas", () => {
 
 	it("a domain declaring a type with no JSON Schema representation throws at registration, naming the domain and the type", () => {
 		const unrepresentable = z.object({ handle: z.bigint() });
-		expect(() => createStepTool(new RecordSteps(), "createRecord", stepDef, worldWith(unrepresentable))).toThrow(/test-record.*bigint.*no JSON Schema representation/);
+		expect(() => createStepTool(new RecordSteps(), "createRecord", stepDef, worldWith(unrepresentable))).toThrow(
+			/test-record" declares a "bigint" field, which has no JSON Schema form/,
+		);
 	});
 });
 
@@ -119,8 +121,8 @@ describe("what a read of the run's declarations shows", () => {
 		class ManySteps extends AStepper {
 			description = "steps that read and write records";
 			steps = {
-				readRecord: { gwta: "read record {id}", description: "Reads one record.", action: async () => actionOK() },
-				writeRecord: { gwta: "write record {id}", action: async () => actionOK() },
+				readRecord: { gwta: "read record {id: record-id}", description: "Reads one record.", action: async () => actionOK() },
+				writeRecord: { gwta: "write record {id: record-id}", action: async () => actionOK() },
 			};
 		}
 		const world = {
@@ -148,7 +150,7 @@ describe("what a read of the run's declarations shows", () => {
 		expect(byStepper.steps[0], "a summary names the step, says what it does and links its definition").toEqual({
 			method: "ManySteps-readRecord",
 			stepperName: "ManySteps",
-			pattern: "read record {id}",
+			pattern: "read record {id: record-id}",
 			description: "Reads one record.",
 			capability: "ManySteps:readRecord",
 			_links: { definition: { method: SHOW_STEPS_METHOD, params: { text: "ManySteps-readRecord", detail: "definition" } } },
@@ -213,7 +215,14 @@ describe("what the manifest says about a domain", () => {
 	it("carries the component and its URL, never the component's source", () => {
 		const world = {
 			runtime: {},
-			domains: { "x-viewer": { name: "x-viewer", description: "a viewer", ui: { component: "x-viewer", js: "/assets/x-viewer.js", jsContent: "/* the whole bundle */" } } },
+			domains: {
+				"x-viewer": {
+					name: "x-viewer",
+					schema: z.object({}),
+					description: "a viewer",
+					ui: { component: "x-viewer", js: "/assets/x-viewer.js", jsContent: "/* the whole bundle */" },
+				},
+			},
 		} as unknown as TWorld;
 		const manifest = discoverSteps(world, new StepRegistry([], world), EVERY_DEFINITION, RUN_AUTHORITY);
 		expect(manifest.domains["x-viewer"].ui).toEqual({ component: "x-viewer", js: "/assets/x-viewer.js" });

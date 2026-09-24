@@ -188,17 +188,9 @@ export function buildStepRegistry(steppers: AStepper[], world: TWorld): Map<stri
 
 export function createStepTool(stepper: AStepper, stepName: string, stepDef: TStepperStep, world: TWorld): StepTool {
 	const stepperName = constructorName(stepper);
-	const { inputSchema, paramSchemas, paramDomainKeys } = buildInputSchema(stepDef, world);
-	validateInputDomains(stepperName, stepName, stepDef, paramDomainKeys);
+	const { inputSchema, paramSchemas, paramDomainKeys } = buildInputSchema(stepperName, stepName, stepDef, world);
 	const resolvedOutputSchema = resolveOutputSchema(stepperName, stepName, stepDef, world);
-	let outputSchema: Record<string, unknown> | undefined;
-	if (resolvedOutputSchema) {
-		try {
-			outputSchema = jsonSchemaOf(resolvedOutputSchema, "output", () => z.toJSONSchema(resolvedOutputSchema) as Record<string, unknown>);
-		} catch {
-			/* skip if schema can't be converted */
-		}
-	}
+	const outputSchema = resolvedOutputSchema ? jsonSchemaFor(`step ${stepperName}.${stepName}: its products schema`, resolvedOutputSchema, "output") : undefined;
 	return {
 		descriptor: {
 			method: stepMethodName(stepperName, stepName),
@@ -286,21 +278,43 @@ export function buildFeatureStepForTransport(tool: StepTool, input: Record<strin
 }
 
 /**
- * Cross-check a step's declared `inputDomains` against the gwta-derived param-domain
- * bindings. Mismatch is a registration error, better to fail at boot than to leave
- * the goal-resolver with a graph that disagrees with dispatch.
+ * The domain of each parameter a step's phrase names, by parameter: `{name: domain}`, or `string` where the phrase names
+ * none. The one reading of a step's input domains, which its schemas, the typed step graph and dispatch all take.
  */
-function validateInputDomains(stepperName: string, stepName: string, stepDef: TStepperStep, paramDomainKeys: Map<string, string>): void {
-	if (!stepDef.inputDomains) return;
-	for (const [param, declaredDomain] of Object.entries(stepDef.inputDomains)) {
-		const gwtaDomain = paramDomainKeys.get(param);
-		if (!gwtaDomain) {
-			throw new Error(`step ${stepperName}.${stepName}: inputDomains.${param} declared as "${declaredDomain}" but gwta has no {${param}:...} slot`);
-		}
-		if (normalizeDomainKey(declaredDomain) !== gwtaDomain) {
-			throw new Error(`step ${stepperName}.${stepName}: inputDomains.${param}="${declaredDomain}" disagrees with gwta {${param}:${gwtaDomain}}`);
-		}
+export function stepParamDomains(stepDef: TStepperStep): Map<string, string> {
+	const domains = new Map<string, string>();
+	if (!stepDef.gwta) return domains;
+	for (const v of Object.values(namedInterpolation(stepDef.gwta).stepValuesMap ?? {})) {
+		domains.set(v.term, normalizeDomainKey((v.domain || DOMAIN_STRING).split(" | ").sort().join(" | ")));
 	}
+	return domains;
+}
+
+/**
+ * A schema as JSON Schema, for discovery, MCP and forms: what a caller supplies, or what a step answers. A date is an ISO
+ * date-time string, and a type with no JSON Schema form is refused at registration, naming `subject`, what declares it.
+ */
+function jsonSchemaFor(subject: string, schema: z.ZodType, io: "input" | "output"): Record<string, unknown> {
+	return jsonSchemaOf(
+		schema,
+		io,
+		() =>
+			z.toJSONSchema(schema, {
+				io,
+				unrepresentable: "any",
+				override: (ctx) => {
+					const nodeType = zodTypeLabel(ctx.zodSchema);
+					if (nodeType === "date") {
+						ctx.jsonSchema.type = "string";
+						ctx.jsonSchema.format = "date-time";
+						return;
+					}
+					if (nodeType && UNREPRESENTABLE_ZOD_TYPES.has(nodeType)) {
+						throw new Error(`${subject} declares a "${nodeType}" field, which has no JSON Schema form; declare a representable type`);
+					}
+				},
+			}) as Record<string, unknown>,
+	);
 }
 
 /** Zod types with no JSON Schema representation (dates excepted: they surface as string/date-time). A domain
@@ -313,69 +327,32 @@ const UNREPRESENTABLE_ZOD_TYPES = new Set(["bigint", "symbol", "undefined", "voi
  * (enums, object structures, descriptions, etc.) for MCP and SSE consumers.
  * Returns both the JSON Schema (for documentation/discovery) and the Zod schemas (for runtime validation).
  */
-function buildInputSchema(stepDef: TStepperStep, world: TWorld): { inputSchema: TInputSchema; paramSchemas: Map<string, z.ZodType>; paramDomainKeys: Map<string, string> } {
+function buildInputSchema(
+	stepperName: string,
+	stepName: string,
+	stepDef: TStepperStep,
+	world: TWorld,
+): { inputSchema: TInputSchema; paramSchemas: Map<string, z.ZodType>; paramDomainKeys: Map<string, string> } {
 	const properties: TInputSchema["properties"] = {};
 	const required: string[] = [];
 	const paramSchemas = new Map<string, z.ZodType>();
-	const paramDomainKeys = new Map<string, string>();
+	const paramDomainKeys = stepParamDomains(stepDef);
 
-	if (stepDef.gwta) {
-		const { stepValuesMap } = namedInterpolation(stepDef.gwta);
-		if (stepValuesMap) {
-			for (const v of Object.values(stepValuesMap)) {
-				const rawDomain = v.domain || DOMAIN_STRING;
-				const parts = rawDomain.split(" | ").sort();
-				const domainKey = normalizeDomainKey(parts.join(" | "));
-				const domain = world.domains?.[domainKey];
-
-				paramDomainKeys.set(v.term, domainKey);
-
-				if (domain?.schema) {
-					paramSchemas.set(v.term, domain.schema);
-					// Input semantics: the schema describes what a caller must SUPPLY, so defaulted fields are optional.
-					// Date fields (z.date / z.coerce.date) surface as string/date-time: their input is an ISO string.
-					// Every other type with no JSON Schema representation throws right here, at registration, naming
-					// the domain and the type.
-					const jsonSchema = jsonSchemaOf(
-						domain.schema,
-						"input",
-						() =>
-							z.toJSONSchema(domain.schema, {
-								io: "input",
-								unrepresentable: "any",
-								override: (ctx) => {
-									const nodeType = zodTypeLabel(ctx.zodSchema);
-									if (nodeType === "date") {
-										ctx.jsonSchema.type = "string";
-										ctx.jsonSchema.format = "date-time";
-										return;
-									}
-									if (nodeType && UNREPRESENTABLE_ZOD_TYPES.has(nodeType)) {
-										throw new Error(
-											`step input schema: domain "${domainKey}" declares a "${nodeType}" field, which has no JSON Schema representation, declare a representable input type`,
-										);
-									}
-								},
-							}) as Record<string, unknown>,
-					);
-					const prop: Record<string, unknown> = { ...jsonSchema };
-					if (domain.description && !prop.description) {
-						prop.description = domain.description;
-					}
-					properties[v.term] = prop;
-				} else {
-					properties[v.term] = { type: "string" };
-				}
-				required.push(v.term);
-			}
+	for (const [term, domainKey] of paramDomainKeys) {
+		const domain = world.domains?.[domainKey];
+		if (!domain) {
+			throw new Error(
+				`step ${stepperName}.${stepName}: {${term}} names the domain "${domainKey}", which no loaded stepper registers. A parameter's domain is one a stepper declares in getConcerns, or a union of them registered as one.`,
+			);
 		}
+		paramSchemas.set(term, domain.schema);
+		// The schema describes what a caller must supply, so defaulted fields are optional.
+		const jsonSchema = jsonSchemaFor(`step ${stepperName}.${stepName}: {${term}}'s domain "${domainKey}"`, domain.schema, "input");
+		properties[term] = domain.description && !jsonSchema.description ? { ...jsonSchema, description: domain.description } : { ...jsonSchema };
+		required.push(term);
 	}
 
-	return {
-		inputSchema: { type: "object" as const, properties, required },
-		paramSchemas,
-		paramDomainKeys,
-	};
+	return { inputSchema: { type: "object" as const, properties, required }, paramSchemas, paramDomainKeys };
 }
 
 export function authorizeToolCapability(step: Pick<TStepDescriptor, "method" | "capability">, granted?: string | string[]): void {
@@ -451,7 +428,7 @@ export function discoverSteps(world: TWorld, registry: StepRegistry, query: TSte
 		detail: STEP_DETAIL.definition,
 		steppers,
 		steps: steps.map(stepDefinition),
-		domains: Object.fromEntries(domains.map(([key, domain]) => [key, domainDiscoveryInfo(domain)])),
+		domains: Object.fromEntries(domains.map(([key, domain]) => [key, domainDiscoveryInfo(key, domain)])),
 		concerns: {
 			persisted: Object.fromEntries(Object.entries(catalog.persisted).filter(([label, concern]) => containsText([label, concern.description], query.text))),
 			references: Object.fromEntries(Object.entries(catalog.references).filter(([key, reference]) => containsText([key, reference.targetDomain], query.text))),
@@ -461,16 +438,9 @@ export function discoverSteps(world: TWorld, registry: StepRegistry, query: TSte
 
 /** A registered domain as a read of a run's declarations states it: its enum values where its schema states them, and
  *  how it presents itself without the component's source, which a client loads from the URL the domain names. */
-function domainDiscoveryInfo(domain: TWorld["domains"][string]): TDomainDiscoveryInfo {
-	let values = domain.values;
-	if (!values && domain.schema) {
-		try {
-			const jsonSchema = jsonSchemaOf(domain.schema, "values", () => z.toJSONSchema(domain.schema) as Record<string, unknown>);
-			if (Array.isArray(jsonSchema.enum)) values = jsonSchema.enum as string[];
-		} catch {
-			// schema not convertible, leave values undefined
-		}
-	}
+function domainDiscoveryInfo(key: string, domain: TWorld["domains"][string]): TDomainDiscoveryInfo {
+	const enumerated = domain.values ? undefined : jsonSchemaFor(`domain "${key}"`, domain.schema, "input").enum;
+	const values = domain.values ?? (Array.isArray(enumerated) ? (enumerated as string[]) : undefined);
 	const ui = domain.ui ? (({ jsContent: _source, ...rest }) => rest)(domain.ui as Record<string, unknown> & { jsContent?: string }) : undefined;
 	return {
 		description: domain.description,

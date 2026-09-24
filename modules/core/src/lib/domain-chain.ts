@@ -11,8 +11,9 @@
 import type { AStepper, TStepperStep } from "./astepper.js";
 import type { TRegisteredDomain } from "./resources.js";
 import { constructorName } from "./util/index.js";
-import { normalizeDomainKey } from "./domains.js";
+import { isPrimitiveDomain, normalizeDomainKey } from "./domains.js";
 import { requiredAction } from "./actions.js";
+import { stepParamDomains } from "./step-registry.js";
 
 /** Sentinel source domain for terminal producers (steps that need no inputs). */
 export const SOURCE_DOMAIN = "∅";
@@ -20,7 +21,6 @@ export const SOURCE_DOMAIN = "∅";
 export type TDomainChainNode = {
 	key: string;
 	description?: string;
-	meta?: boolean;
 	hasTopology: boolean;
 };
 
@@ -28,8 +28,12 @@ export type TDomainChainStep = {
 	stepperName: string;
 	stepName: string;
 	gwta?: string;
+	/** The domain of each parameter its phrase names, primitives included. */
+	params: Record<string, string>;
 	inputDomains: string[];
 	outputDomains: string[];
+	/** Whether its products have a schema and no domain, so no step can consume them. */
+	unnamedProducts: boolean;
 	capability: string;
 };
 
@@ -54,7 +58,6 @@ export function buildDomainChain(steppers: AStepper[], domains: Record<string, T
 	const nodes: TDomainChainNode[] = Object.entries(domains).map(([key, def]) => ({
 		key,
 		description: def.description,
-		meta: (def as TRegisteredDomain & { meta?: boolean }).meta === true,
 		hasTopology: !!def.topology,
 	}));
 
@@ -70,8 +73,10 @@ export function buildDomainChain(steppers: AStepper[], domains: Record<string, T
 				stepperName,
 				stepName,
 				gwta: stepDef.gwta,
+				params: Object.fromEntries(stepParamDomains(stepDef)),
 				inputDomains,
 				outputDomains,
+				unnamedProducts: outputDomains.length === 0 && stepDef.productsSchema !== undefined,
 				capability: requiredAction(stepperName, stepName, stepDef),
 			});
 			if (outputDomains.length === 0) continue;
@@ -93,9 +98,9 @@ export function buildDomainChain(steppers: AStepper[], domains: Record<string, T
 	return { domains: nodes, steps, edges };
 }
 
+/** The domains a step consumes: those its phrase's parameters name, other than primitives, which a caller supplies. */
 function collectInputDomains(stepDef: TStepperStep): string[] {
-	if (!stepDef.inputDomains) return [];
-	return Object.values(stepDef.inputDomains).map((d) => normalizeDomainKey(d));
+	return [...new Set([...stepParamDomains(stepDef).values()].filter((d) => !isPrimitiveDomain(d)))];
 }
 
 function collectOutputDomains(stepDef: TStepperStep): string[] {

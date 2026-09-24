@@ -25,7 +25,6 @@ class EmailFromPerson extends AStepper {
 	steps: TStepperSteps = {
 		issueEmail: {
 			gwta: `issue email for {who: ${PERSON}}`,
-			inputDomains: { who: PERSON },
 			productsDomain: EMAIL,
 			action: () => actionOKWithProducts({ id: "e1" }),
 		},

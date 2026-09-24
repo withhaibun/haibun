@@ -78,7 +78,6 @@ class CompositeStepper extends AStepper implements IHasCycles {
 	steps: TStepperSteps = {
 		produceComposite: {
 			gwta: "produce composite {input: composite-input-test}",
-			inputDomains: { input: DOMAIN_COMPOSITE_INPUT },
 			productsDomain: DOMAIN_COMPOSITE_GOAL,
 			action: ({ input }: { input: { session: string; label: string } }) => Promise.resolve(actionOKWithProducts({ value: `${input.session}/${input.label}` })),
 		},

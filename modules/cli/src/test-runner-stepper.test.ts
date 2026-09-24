@@ -115,7 +115,7 @@ function harness({ supervised = true, standing = false }: { supervised?: boolean
 	world.shared.getStore = () => store;
 	// The Principal write declines a world with no domain registry, and runTest's productsDomain resolves its schema
 	// through the same registry, so the harness registers what the stepper's own getConcerns declares in a real run.
-	world.domains = mapDefinitionsToDomains([principalDomainDefinition, featureExecutionDomainDefinition]);
+	world.domains = { ...world.domains, ...mapDefinitionsToDomains([principalDomainDefinition, featureExecutionDomainDefinition]) };
 	const steppers = supervised ? [stepper, supervisor] : [stepper];
 	for (const s of steppers) void s.setWorld(world, steppers);
 	// The run's registry, as the executor opens it, which a step calls another step through.

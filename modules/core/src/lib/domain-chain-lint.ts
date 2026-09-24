@@ -18,20 +18,59 @@
  * Drift detection: callers persist a snapshot of findings and diff against a new
  * snapshot to detect graph-shape regressions across boots.
  */
+import { z } from "zod";
 import type { TRegisteredDomain } from "./resources.js";
 import { SOURCE_DOMAIN, type TDomainChainGraph } from "./domain-chain.js";
+import { DOMAIN_STRING, isPrimitiveDomain } from "./domains.js";
 
-export type TLintFinding =
-	| { kind: "orphan-step"; stepperName: string; stepName: string; outputDomain: string }
-	| { kind: "unsupplied-step"; stepperName: string; stepName: string; inputDomain: string }
-	| { kind: "unreachable-domain"; domain: string }
-	| { kind: "unproduced-domain"; domain: string };
+/** The kinds of finding, each a way the typed step graph is incomplete. */
+export const LINT_FINDING = {
+	ORPHAN_STEP: "orphan-step",
+	UNSUPPLIED_STEP: "unsupplied-step",
+	UNREACHABLE_DOMAIN: "unreachable-domain",
+	UNPRODUCED_DOMAIN: "unproduced-domain",
+	/** A parameter whose domain is `string`, or a union with it, which says nothing of what the value is. */
+	STRING_PARAM: "string-param",
+	/** A step whose products have a schema and no domain, so no step can consume them. */
+	UNNAMED_PRODUCTS: "unnamed-products",
+} as const;
+
+const stepFinding = { stepperName: z.string(), stepName: z.string() };
+export const LintFindingSchema = z.discriminatedUnion("kind", [
+	z.object({ kind: z.literal(LINT_FINDING.ORPHAN_STEP), ...stepFinding, outputDomain: z.string() }).strict(),
+	z.object({ kind: z.literal(LINT_FINDING.UNSUPPLIED_STEP), ...stepFinding, inputDomain: z.string() }).strict(),
+	z.object({ kind: z.literal(LINT_FINDING.UNREACHABLE_DOMAIN), domain: z.string() }).strict(),
+	z.object({ kind: z.literal(LINT_FINDING.UNPRODUCED_DOMAIN), domain: z.string() }).strict(),
+	z.object({ kind: z.literal(LINT_FINDING.STRING_PARAM), ...stepFinding, param: z.string(), domain: z.string() }).strict(),
+	z.object({ kind: z.literal(LINT_FINDING.UNNAMED_PRODUCTS), ...stepFinding }).strict(),
+]);
+export type TLintFinding = z.infer<typeof LintFindingSchema>;
+type TLintKind = TLintFinding["kind"];
+
+export const LintSummarySchema = z.object(Object.fromEntries(Object.values(LINT_FINDING).map((kind) => [kind, z.number()])) as Record<TLintKind, z.ZodNumber>).strict();
 
 export type TDomainChainLintReport = {
 	findings: TLintFinding[];
 	/** Counts per kind for quick inspection. */
-	summary: Record<TLintFinding["kind"], number>;
+	summary: Record<TLintKind, number>;
 };
+
+/** A finding as one line: its kind, then the step or domain it is about. */
+export function lintFindingLine(finding: TLintFinding): string {
+	switch (finding.kind) {
+		case LINT_FINDING.ORPHAN_STEP:
+			return `${finding.kind} ${finding.stepperName}.${finding.stepName} produces ${finding.outputDomain}`;
+		case LINT_FINDING.UNSUPPLIED_STEP:
+			return `${finding.kind} ${finding.stepperName}.${finding.stepName} consumes ${finding.inputDomain}`;
+		case LINT_FINDING.STRING_PARAM:
+			return `${finding.kind} ${finding.stepperName}.${finding.stepName} {${finding.param}: ${finding.domain}}`;
+		case LINT_FINDING.UNNAMED_PRODUCTS:
+			return `${finding.kind} ${finding.stepperName}.${finding.stepName}`;
+		case LINT_FINDING.UNREACHABLE_DOMAIN:
+		case LINT_FINDING.UNPRODUCED_DOMAIN:
+			return `${finding.kind} ${finding.domain}`;
+	}
+}
 
 export function lintDomainChain(graph: TDomainChainGraph, domains: Record<string, TRegisteredDomain>): TDomainChainLintReport {
 	const findings: TLintFinding[] = [];
@@ -43,37 +82,30 @@ export function lintDomainChain(graph: TDomainChainGraph, domains: Record<string
 		for (const d of step.inputDomains) consumedDomains.add(d);
 	}
 
-	// Per-step orphans and unsupplied.
+	// Per-step findings: orphans, unsupplied inputs, untyped parameters and unnamed products.
 	for (const step of graph.steps) {
+		const { stepperName, stepName } = step;
 		for (const out of step.outputDomains) {
-			if (!consumedDomains.has(out)) {
-				findings.push({ kind: "orphan-step", stepperName: step.stepperName, stepName: step.stepName, outputDomain: out });
-			}
+			if (!consumedDomains.has(out)) findings.push({ kind: LINT_FINDING.ORPHAN_STEP, stepperName, stepName, outputDomain: out });
 		}
 		for (const inp of step.inputDomains) {
 			if (inp === SOURCE_DOMAIN) continue;
-			if (!producedDomains.has(inp)) {
-				findings.push({ kind: "unsupplied-step", stepperName: step.stepperName, stepName: step.stepName, inputDomain: inp });
-			}
+			if (!producedDomains.has(inp)) findings.push({ kind: LINT_FINDING.UNSUPPLIED_STEP, stepperName, stepName, inputDomain: inp });
 		}
+		for (const [param, domain] of Object.entries(step.params)) {
+			if (domain.split(" | ").includes(DOMAIN_STRING)) findings.push({ kind: LINT_FINDING.STRING_PARAM, stepperName, stepName, param, domain });
+		}
+		if (step.unnamedProducts) findings.push({ kind: LINT_FINDING.UNNAMED_PRODUCTS, stepperName, stepName });
 	}
 
-	// Domain-level findings: registered domains that are neither consumed nor produced.
-	for (const key of Object.keys(domains)) {
-		if (!consumedDomains.has(key) && !producedDomains.has(key)) {
-			findings.push({ kind: "unreachable-domain", domain: key });
-		}
-		if (consumedDomains.has(key) && !producedDomains.has(key) && key !== SOURCE_DOMAIN) {
-			findings.push({ kind: "unproduced-domain", domain: key });
-		}
+	// Domain-level findings: registered domains that are neither consumed nor produced. A primitive domain is supplied by
+	// a caller and is no node of the graph, so it is neither.
+	for (const key of Object.keys(domains).filter((k) => !isPrimitiveDomain(k))) {
+		if (!consumedDomains.has(key) && !producedDomains.has(key)) findings.push({ kind: LINT_FINDING.UNREACHABLE_DOMAIN, domain: key });
+		if (consumedDomains.has(key) && !producedDomains.has(key) && key !== SOURCE_DOMAIN) findings.push({ kind: LINT_FINDING.UNPRODUCED_DOMAIN, domain: key });
 	}
 
-	const summary: Record<TLintFinding["kind"], number> = {
-		"orphan-step": 0,
-		"unsupplied-step": 0,
-		"unreachable-domain": 0,
-		"unproduced-domain": 0,
-	};
+	const summary = Object.fromEntries(Object.values(LINT_FINDING).map((kind) => [kind, 0])) as Record<TLintKind, number>;
 	for (const f of findings) summary[f.kind]++;
 
 	return { findings, summary };

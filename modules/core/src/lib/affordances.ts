@@ -18,12 +18,9 @@ import type { TQuad } from "./quad-types.js";
 import { stepMethodName } from "./step-registry.js";
 import { mayCall } from "./actions.js";
 import { buildDomainChain, SOURCE_DOMAIN, type TDomainChainGraph } from "./domain-chain.js";
-import { BASE_TYPES, DOMAIN_DOMAIN_KEY } from "./domains.js";
+import { isPrimitiveDomain } from "./domains.js";
 import { resolveGoal, GOAL_FINDING, type TGoalResolution } from "./goal-resolver.js";
 import { compareSeqPath, parseSeqPath } from "./seq-path.js";
-
-/** Primitive domains: their values come from step arguments, not from facts. */
-export const PRIMITIVE_DOMAINS: ReadonlySet<string> = new Set<string>([...BASE_TYPES, DOMAIN_DOMAIN_KEY]);
 
 /** Event-id prefix for the per-step `affordances.<seqPath>` change signal the goal-resolution stepper emits each
  *  afterStep. SPA views filter the event stream on it to know when to re-fetch the affordances snapshot. */
@@ -35,7 +32,7 @@ export const AFFORDANCE_EVENT_PREFIX = "affordances.";
  * value must be passed in as an argument).
  */
 export function isArgumentDomain(domain: string, forward: ReadonlyArray<{ outputDomains: string[] }>): boolean {
-	if (PRIMITIVE_DOMAINS.has(domain)) return true;
+	if (isPrimitiveDomain(domain)) return true;
 	return !forward.some((f) => f.outputDomains.includes(domain));
 }
 
@@ -185,7 +182,7 @@ function buildForwardFrontier(graph: TDomainChainGraph, facts: TQuad[], held: st
 	const assertedDomains = new Set(facts.map((q) => q.predicate));
 	const producedDomains = new Set<string>();
 	for (const step of graph.steps) for (const d of step.outputDomains) producedDomains.add(d);
-	const isArgument = (d: string) => PRIMITIVE_DOMAINS.has(d) || !producedDomains.has(d);
+	const isArgument = (d: string) => isPrimitiveDomain(d) || !producedDomains.has(d);
 	const out: TForwardAffordance[] = [];
 	for (const step of graph.steps) {
 		if (!mayCall(held, step)) continue;

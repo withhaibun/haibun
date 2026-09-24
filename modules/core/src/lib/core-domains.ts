@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { DOMAIN_GRAPH_QUERY, GraphQuerySchema, DOMAIN_DENSITY_QUERY, DensityQuerySchema } from "./quad-types.js";
 import { objectCoercer } from "./domains.js";
+import { LintFindingSchema, LintSummarySchema } from "./domain-chain-lint.js";
 import { AStepper, TFeatureStep } from "./astepper.js";
 import { TDomainDefinition } from "./resources.js";
 import type { TWorld } from "./world.js";
@@ -149,8 +150,8 @@ export const affordancesSchema = z
 /** DOMAIN_CHAIN_LINT product shape, orphan/unsupplied/unreachable findings plus an optional affordance overlay (forward/goals) the bound Mermaid view renders. */
 export const chainLintSchema = z
 	.object({
-		findings: z.array(z.unknown()),
-		summary: z.object({ "orphan-step": z.number(), "unsupplied-step": z.number(), "unreachable-domain": z.number(), "unproduced-domain": z.number() }).strict(),
+		findings: z.array(LintFindingSchema),
+		summary: LintSummarySchema,
 		// Optional graph payload the bound view (shu-domain-chain-view) renders as a Mermaid chain; the view falls back to subscribing to shu:affordances when the producer omits these.
 		forward: z.array(z.unknown()).optional(),
 		goals: z.array(z.unknown()).optional(),

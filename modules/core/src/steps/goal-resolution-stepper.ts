@@ -218,7 +218,6 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 	steps: TStepperSteps = {
 		resolve: {
 			gwta: `resolve {goal: ${DOMAIN_DOMAIN_KEY}}`,
-			inputDomains: { goal: DOMAIN_DOMAIN_KEY },
 			productsDomain: DOMAIN_GOAL_RESOLUTION,
 			action: async ({ goal }: { goal: string }) => {
 				const resolution = await this.runResolution(goal);
@@ -239,7 +238,6 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		 */
 		pursue: {
 			gwta: `pursue {goal: ${DOMAIN_DOMAIN_KEY}}`,
-			inputDomains: { goal: DOMAIN_DOMAIN_KEY },
 			productsDomain: DOMAIN_GOAL_RESOLUTION,
 			action: async ({ goal }: { goal: string }) => {
 				const resolution = await this.runResolution(goal);
@@ -273,7 +271,6 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		 */
 		walkToward: {
 			gwta: `walk toward {goal: ${DOMAIN_DOMAIN_KEY}}`,
-			inputDomains: { goal: DOMAIN_DOMAIN_KEY },
 			productsDomain: DOMAIN_CHAIN_WALK,
 			action: async ({ goal }: { goal: string }) => {
 				const resolution = await this.runResolution(goal);
@@ -294,7 +291,6 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		 */
 		advanceWalk: {
 			gwta: `advance the walk {walk: string} with {args: ${DOMAIN_JSON}}`,
-			inputDomains: { args: DOMAIN_JSON },
 			productsDomain: DOMAIN_CHAIN_WALK,
 			action: async ({ walk, args }: { walk: string; args: unknown }) => {
 				const world = this.getWorld();
@@ -308,7 +304,6 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 
 		resolveWhere: {
 			gwta: `resolve {goal: ${DOMAIN_DOMAIN_KEY}} where {constraint: ${DOMAIN_JSON}}`,
-			inputDomains: { goal: DOMAIN_DOMAIN_KEY, constraint: DOMAIN_JSON },
 			productsDomain: DOMAIN_GOAL_RESOLUTION,
 			action: async ({ goal }: { goal: string; constraint: unknown }) => {
 				// constraint is accepted as a domain input; resolution runs on the goal alone.

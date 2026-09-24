@@ -27,7 +27,7 @@ function supervisedWorld(): TWorld {
 	const store = new QuadStore();
 	world.shared.getStore = () => store;
 	// The registry resolves runTest's productsDomain schema through the world, as registerDomains does in a real run.
-	world.domains = mapDefinitionsToDomains([principalDomainDefinition, featureExecutionDomainDefinition]);
+	world.domains = { ...world.domains, ...mapDefinitionsToDomains([principalDomainDefinition, featureExecutionDomainDefinition]) };
 	return world;
 }
 
@@ -66,9 +66,7 @@ describe("what a caller must hold to run a test", () => {
 
 	it("holds one power at a time: reading a run is not starting one", async () => {
 		const reader = [SUPERVISOR_CAPABILITIES.read];
-		await expect(h.call("TestRunnerStepper-runTest", { where: NOWHERE, filter: "any" }, reader)).rejects.toThrow(
-			new RegExp(`capability ${SUPERVISOR_CAPABILITIES.run} required`),
-		);
+		await expect(h.call("TestRunnerStepper-runTest", { where: NOWHERE, filter: "any" }, reader)).rejects.toThrow(new RegExp(`capability ${SUPERVISOR_CAPABILITIES.run} required`));
 		const read = await h.call("TestRunnerStepper-readTestRun", {}, reader);
 		expect(read.registered && read.result.errorMessage, "the read passed the gate and found nothing to read").toMatch(/nothing to read/);
 	});
