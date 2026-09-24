@@ -29,9 +29,9 @@ export type TRecordedIndividual = { persistedAs: string; id: string };
 export type TRefusedCall = { step: string; action: string };
 
 /** One streamed step chunk: a status update, a text fragment, an individual the step just recorded, a call it was
- *  refused, and/or a terminal error. The same shape is serialized to NDJSON/SSE by the transport and consumed by the shu
- *  client. */
-export type TStreamChunk = { status?: string; text?: string; recorded?: TRecordedIndividual; refused?: TRefusedCall; error?: string };
+ *  refused, a message in the protocol the call carries for its caller to act on, and/or a terminal error. The same shape
+ *  is serialized to NDJSON/SSE by the transport and consumed by the shu client. */
+export type TStreamChunk = { status?: string; text?: string; recorded?: TRecordedIndividual; refused?: TRefusedCall; message?: unknown; error?: string };
 
 export type TStreamCtx = {
 	emit: (chunk: TStreamChunk) => void;

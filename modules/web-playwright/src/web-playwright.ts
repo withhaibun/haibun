@@ -1,4 +1,4 @@
-import { Page, Download, Locator } from "playwright";
+import { Page, Download, Locator, type ConnectOverCDPTransport } from "playwright";
 import { pathToFileURL } from "url";
 import { AsyncLocalStorage } from "node:async_hooks";
 
@@ -19,14 +19,19 @@ import { cycles } from "./cycles.js";
 import { interactionSteps } from "./interactionSteps.js";
 import { restSteps, TCapturedResponse } from "./rest-playwright.js";
 import { TwinPage } from "./twin-page.js";
+import { WEBSERVER, type IWebServer } from "@haibun/web-server-hono/defs.js";
+import { BrowserRelay } from "./relay/cdpRelay.js";
+import { relayMethods } from "./relay/relay-methods.js";
+import { RELAY_METHOD_PREFIX } from "./relay/relay-wire.js";
 
 import { TStepperSteps } from "@haibun/core/lib/astepper.js";
 
 export const WEB_PAGE = "webpage";
 
 /** The actions a delegation names to let another party use the browser, each covering a group of steps: reading the page,
- *  acting on it (navigating, input and tabs), and running `fetch` inside it with the page's own cookies. */
-export const WEB_PLAYWRIGHT_ACTIONS = { read: "WebPlaywright:read", act: "WebPlaywright:act", fetch: "WebPlaywright:fetch" } as const;
+ *  acting on it (navigating, input and tabs), running `fetch` inside it with the page's own cookies, and attaching a
+ *  browser a person runs to the relay, through their extension. */
+export const WEB_PLAYWRIGHT_ACTIONS = { read: "WebPlaywright:read", act: "WebPlaywright:act", fetch: "WebPlaywright:fetch", attach: "WebPlaywright:attach" } as const;
 /**
  * This is the infrastructure for web-playwright.
  *
@@ -287,16 +292,32 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		this.factoryOptions.type = browser as unknown as TBrowserTypes;
 		return OK;
 	}
-	/** Drives the running browser at a CDP endpoint from the next page the run opens, instead of launching one. */
-	connectTo(endpoint: string) {
-		if (this.bf?.hasPage(this.getWorld().tag, this.tab)) return actionNotOK(`connect to a browser before any step opens a page; ${endpoint} was named after one`);
+	/** Drives a running browser from the next page the run opens, instead of launching one: the one at a CDP endpoint, or
+	 *  the one attached through the relay, reached through the transport it makes. */
+	connectTo(cdp: string | (() => ConnectOverCDPTransport)) {
+		const named = typeof cdp === "string" ? cdp : "the attached browser";
+		if (this.bf?.hasPage(this.getWorld().tag, this.tab)) return actionNotOK(`connect to a browser before any step opens a page; ${named} was named after one`);
 		const launchOnly = { CAPTURE_VIDEO: this.captureVideo, TWIN: this.twin, [WebPlaywright.PERSISTENT_DIRECTORY]: !!this.factoryOptions.persistentDirectory };
 		const set = Object.entries(launchOnly)
 			.filter(([, on]) => on)
 			.map(([name]) => name);
 		if (set.length > 0) return actionNotOK(`a connected browser takes no ${set.join(", ")}: each configures a browser the run launches`);
-		this.factoryOptions.cdpEndpoint = endpoint;
+		this.factoryOptions.cdp = cdp;
 		return OK;
+	}
+
+	/** Serve the relay an extension attaches a person's browser through, and drive that browser from the next page the
+	 *  run opens. With no browser attached, a step that needs the browser is refused, saying so. */
+	serveRelay() {
+		const webserver = this.getWorld().runtime[WEBSERVER] as IWebServer | undefined;
+		if (!webserver) return actionNotOK("the browser relay is served by the web server, and none is running: start one before serving the relay");
+		const relay = new BrowserRelay((error) => this.getWorld().eventLogger.error(`browser relay: ${errorDetail(error)}`));
+		webserver.addRpcMethods(
+			RELAY_METHOD_PREFIX,
+			{ description: "The browser a person runs, attached through their extension" },
+			relayMethods(relay, WEB_PLAYWRIGHT_ACTIONS.attach),
+		);
+		return this.connectTo(() => relay.transport());
 	}
 	newTab() {
 		this.tab = this.tab + 1;

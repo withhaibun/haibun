@@ -9,6 +9,9 @@
 		},
 		{
 			"path": "../storage-mem"
+		},
+		{
+			"path": "../web-server-hono"
 		}
 	],
 	"compilerOptions": {

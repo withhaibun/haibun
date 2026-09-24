@@ -1,0 +1,12 @@
+The files in this directory whose header says so are derived from Playwright
+(https://github.com/microsoft/playwright), at commit 7b4b3b0828, and are
+licensed under the Apache License, Version 2.0, a copy of which is in
+LICENSE-playwright. Each such file states what was changed.
+
+Playwright's NOTICE:
+
+Playwright
+Copyright (c) Microsoft Corporation
+
+This software contains code derived from the Puppeteer project (https://github.com/puppeteer/puppeteer),
+available under the Apache 2.0 license (https://github.com/puppeteer/puppeteer/blob/master/LICENSE).

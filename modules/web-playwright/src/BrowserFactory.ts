@@ -1,4 +1,4 @@
-import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices, BrowserContextOptions, LaunchOptions } from "playwright";
+import { Browser, BrowserContext, Page, chromium, firefox, webkit, BrowserType, devices, BrowserContextOptions, LaunchOptions, type ConnectOverCDPTransport } from "playwright";
 
 import { PlaywrightEvents } from "./PlaywrightEvents.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
@@ -24,11 +24,15 @@ export type TTaggedBrowserFactoryOptions = {
 	defaultTimeout?: number;
 	type?: TBrowserTypes;
 	device?: string;
-	/** The CDP endpoint of a running browser the factory connects to instead of launching one. */
-	cdpEndpoint?: string;
+	/** A running browser the factory connects to instead of launching one: its CDP endpoint, or the transport Playwright
+	 *  drives it through in this process, made at the moment of connecting. */
+	cdp?: string | (() => ConnectOverCDPTransport);
 };
 
 export const DEFAULT_CONFIG_TAG = "_default";
+
+/** A connected browser as a run names it: the one at its endpoint, or the one attached through the relay. */
+const cdpName = (cdp: string | (() => ConnectOverCDPTransport)): string => (typeof cdp === "string" ? `the browser at ${cdp}` : "the attached browser");
 
 export type PageInstance = Page & { _guid: string };
 
@@ -56,10 +60,15 @@ export class BrowserFactory {
 
 	public async getBrowser(type: string, tag = DEFAULT_CONFIG_TAG): Promise<Browser> {
 		const config = BrowserFactory.configs[tag];
-		const key = config.cdpEndpoint ?? type;
+		const key = config.cdp === undefined ? type : cdpName(config.cdp);
 		if (!BrowserFactory.browsers[key]) {
 			const browserOptions: LaunchOptions = { ...config.options, ...config.launchOptions };
-			const browser = config.cdpEndpoint ? await chromium.connectOverCDP(config.cdpEndpoint) : await config.browserType.launch(browserOptions);
+			const browser =
+				config.cdp === undefined
+					? await config.browserType.launch(browserOptions)
+					: typeof config.cdp === "string"
+						? await chromium.connectOverCDP(config.cdp)
+						: await chromium.connectOverCDP(config.cdp());
 			browser.on("disconnected", () => {
 				delete BrowserFactory.browsers[key];
 				this.browserContexts = {};
@@ -182,9 +191,9 @@ export class BrowserFactory {
 						},
 					};
 			const launchConfig = { ...deviceContext, ...config.options, ...config.launchOptions };
-			if (config.cdpEndpoint) {
+			if (config.cdp !== undefined) {
 				const [context] = (await this.getBrowser(config.type, tag)).contexts();
-				if (!context) throw Error(`the browser at ${config.cdpEndpoint} has no context to adopt`);
+				if (!context) throw Error(`${cdpName(config.cdp)} has no context to adopt`);
 				this.adoptedContexts.add(context);
 				browserContext = context;
 			} else if (config.persistentDirectory) {

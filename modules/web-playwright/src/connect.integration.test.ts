@@ -58,18 +58,26 @@ describe("connect to the browser at {endpoint}", () => {
 		expect(await queryFacts(res.world, "name", VISITED_PAGE_LABEL), "the owner's navigation is not the run's visit").toEqual([]);
 		expect(await queryFacts(res.world, "url", HTTP_REQUEST_LABEL), "the owner's requests are not traced").toEqual([]);
 
-		const snapshot = res.featureResults?.[0]?.stepResults.find((step) => step.in === "take an accessibility snapshot")?.products as { url: string; title: string; snapshot: string; _links: Record<string, { method: string }> };
+		const snapshot = res.featureResults?.[0]?.stepResults.find((step) => step.in === "take an accessibility snapshot")?.products as {
+			url: string;
+			title: string;
+			snapshot: string;
+			_links: Record<string, { method: string }>;
+		};
 		expect(snapshot.url).toBe(siteUrl);
 		expect(snapshot.title).toBe("owned");
 		expect(snapshot.snapshot).toContain('button "pressed"');
 		const stepNames = Object.keys(new WebPlaywright().steps);
 		const linked = Object.values(snapshot._links).map((link) => link.method);
 		expect(linked).toContain("WebPlaywright-click");
-		expect(linked.every((method) => stepNames.includes(method.replace(/^WebPlaywright-/, ""))), "every link names a step the stepper declares").toBe(true);
+		expect(
+			linked.every((method) => stepNames.includes(method.replace(/^WebPlaywright-/, ""))),
+			"every link names a step the stepper declares",
+		).toBe(true);
 	});
 
 	it("connects again when the connection ends outside the run, rather than keeping the ended one", { timeout: 30_000 }, async () => {
-		const factory = BrowserFactory.getBrowserFactory(getDefaultWorld(), { options: {}, browserType: chromium, launchOptions: {}, cdpEndpoint: endpoint });
+		const factory = BrowserFactory.getBrowserFactory(getDefaultWorld(), { options: {}, browserType: chromium, launchOptions: {}, cdp: endpoint });
 		const ended = await factory.getBrowser("chromium");
 		await ended.close();
 		const next = await factory.getBrowser("chromium");
@@ -80,7 +88,10 @@ describe("connect to the browser at {endpoint}", () => {
 
 	it("connects again in the next feature, after the run disconnected at the end of the first", { timeout: 30_000 }, async () => {
 		const feature = `connect to the browser at "${endpoint}"\ngo to the "${siteUrl}" webpage\nclick "press me"\n`;
-		const features = [{ path: "/features/first.feature", content: feature }, { path: "/features/second.feature", content: feature }];
+		const features = [
+			{ path: "/features/first.feature", content: feature },
+			{ path: "/features/second.feature", content: feature },
+		];
 		const res = await passWithDefaults(features, steppers, { options: { DEST: DEFAULT_DEST }, moduleOptions });
 		expect(res.ok).toBe(true);
 		expect(res.featureResults?.map((result) => result.ok)).toEqual([true, true]);
@@ -89,13 +100,19 @@ describe("connect to the browser at {endpoint}", () => {
 
 	it("refuses an option that configures a browser the run launches", { timeout: 30_000 }, async () => {
 		const options = { ...moduleOptions, [getStepperOptionName(WebPlaywright, WebPlaywright.PERSISTENT_DIRECTORY)]: profile };
-		const res = await failWithDefaults([{ path: "/features/refused.feature", content: `connect to the browser at "${endpoint}"\n` }], steppers, { options: { DEST: DEFAULT_DEST }, moduleOptions: options });
+		const res = await failWithDefaults([{ path: "/features/refused.feature", content: `connect to the browser at "${endpoint}"\n` }], steppers, {
+			options: { DEST: DEFAULT_DEST },
+			moduleOptions: options,
+		});
 		const failed = res.featureResults?.[0]?.stepResults.find((step) => !step.ok);
 		expect(JSON.stringify(failed)).toContain(`takes no ${WebPlaywright.PERSISTENT_DIRECTORY}`);
 	});
 
 	it("refuses to connect once a step has opened a page of a launched browser", { timeout: 30_000 }, async () => {
-		const res = await failWithDefaults([{ path: "/features/late.feature", content: `go to the "${siteUrl}" webpage\nconnect to the browser at "${endpoint}"\n` }], steppers, { options: { DEST: DEFAULT_DEST }, moduleOptions });
+		const res = await failWithDefaults([{ path: "/features/late.feature", content: `go to the "${siteUrl}" webpage\nconnect to the browser at "${endpoint}"\n` }], steppers, {
+			options: { DEST: DEFAULT_DEST },
+			moduleOptions,
+		});
 		const failed = res.featureResults?.[0]?.stepResults.find((step) => !step.ok);
 		expect(failed?.in).toBe(`connect to the browser at "${endpoint}"`);
 		expect(JSON.stringify(failed)).toContain("before any step opens a page");

@@ -1,0 +1,75 @@
+/**
+ * A channel to an instance's browser relay over its `/rpc`: `relay.attach` is held open as a streamed call, and its
+ * stream carries the relay's commands; `relay.send` carries what the extension says back, the messages of one turn in
+ * one call, after the calls before it. Each call is signed by `sign`, which is the extension's key signing under its
+ * delegation. The channel opens once the relay states it holds the extension, and a refused attachment throws its
+ * refusal.
+ */
+import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { readNdjson, rpcEnvelope } from "@haibun/core/lib/rpc-wire.js";
+import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
+import { RELAY_ATTACHED, RELAY_METHOD_PREFIX, type TRelayBatch, type TRelayCall, type TRelayMessage } from "../relay/relay-wire.js";
+import type { TRelayChannel } from "./relayConnection.js";
+
+/** The headers that prove a request: the caller signs each call, over its address, method and body. */
+export type TSignRequest = (request: { url: string; method: string; headers: Record<string, string>; body: string }) => Promise<Record<string, string>>;
+
+export async function openRelayChannel({ base, sign }: { base: string; sign: TSignRequest }): Promise<TRelayChannel> {
+	const call = async (relayCall: TRelayCall, params: Record<string, unknown>, stream?: { signal: AbortSignal }): Promise<Response> => {
+		const method = `${RELAY_METHOD_PREFIX}${relayCall}`;
+		const url = `${base}/rpc/${method}`;
+		const body = rpcEnvelope({ id: `${method}-${Date.now()}`, method, params, ...(stream ? { stream: true } : {}) });
+		const headers = { "content-type": "application/json" };
+		const answer = await fetch(url, { method: "POST", headers: { ...headers, ...(await sign({ url, method: "POST", headers, body })) }, body, signal: stream?.signal });
+		if (!answer.ok) throw new Error(`${method} was refused (${answer.status}): ${await answer.text()}`);
+		return answer;
+	};
+	const ending = new AbortController();
+	const attached = await call("attach", {}, { signal: ending.signal });
+	if (!attached.body) throw new Error("relay.attach answered with no stream to carry the relay's commands");
+	const chunks = readNdjson<TStreamChunk>(attached.body);
+	const first = await chunks.next();
+	const opening = first.done ? undefined : first.value;
+	if (!opening || opening.error || (opening.message as TRelayMessage | undefined)?.method !== RELAY_ATTACHED) {
+		ending.abort();
+		throw new Error(`relay.attach was refused: ${opening ? (opening.error ?? JSON.stringify(opening)) : "the stream ended before the relay held the extension"}`);
+	}
+
+	let open = true;
+	let held: TRelayMessage[] = [];
+	let sending: Promise<void> = Promise.resolve();
+	const channel: TRelayChannel = {
+		get open() {
+			return open;
+		},
+		send(message) {
+			held.push(message);
+			if (held.length > 1) return;
+			queueMicrotask(() => {
+				const batch: TRelayBatch = { messages: held };
+				held = [];
+				// The first failed send ends the channel, so nothing is sent after a message the relay didn't take.
+				sending = sending.then(() => call("send", batch)).then((): undefined => undefined);
+				sending.catch((e: unknown) => channel.close(`relay.send failed: ${errorDetail(e)}`));
+			});
+		},
+		close(reason) {
+			if (!open) return;
+			open = false;
+			ending.abort(reason);
+			channel.onclose?.();
+		},
+	};
+	void (async () => {
+		try {
+			for await (const chunk of chunks) {
+				if (chunk.error) throw new Error(chunk.error);
+				if (chunk.message) channel.onmessage?.(chunk.message as TRelayMessage);
+			}
+		} catch (e) {
+			if (open) channel.close(`the relay ended the attachment: ${errorDetail(e)}`);
+		}
+		channel.close("the relay ended the attachment");
+	})();
+	return channel;
+}

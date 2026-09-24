@@ -448,6 +448,12 @@ export const interactionSteps = (wp: WebPlaywright) =>
 				"Drives a running browser through its Chrome DevTools Protocol endpoint instead of launching one. Tab 0 is the one page the browser's own context holds open. The run never closes that page or that context, and leaves their dialogs to whoever runs the browser.",
 			action: ({ endpoint }: { endpoint: string }) => wp.connectTo(endpoint),
 		},
+		serveBrowserRelay: {
+			gwta: "serve the browser relay",
+			description:
+				"Serves the relay a person's extension attaches their browser through, over `/rpc` as `relay.attach` and `relay.send`, which require `WebPlaywright:attach`, and drives that browser from the next page the run opens. The run never closes the attached browser's pages or context. With no browser attached, a step that needs the browser is refused, saying so.",
+			action: () => wp.serveRelay(),
+		},
 
 		//  FILE DOWNLOAD/UPLOAD
 		uploadFile: {
