@@ -6,14 +6,15 @@
  * read with `observed in`.
  */
 import { AStepper, type IHasCycles, type IObservationSource, type IStepperCycles, type TStepperSteps } from "../lib/astepper.js";
-import { blipDeclarations, blipRollup, blipWatch, WATCH_WINDOW } from "../lib/blips.js";
+import { blipDeclarations, blipDeclared, blipRollup, blipWatch, WATCH_WINDOW, type TBlipSeries } from "../lib/blips.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/util/index.js";
 import { OK } from "../schema/protocol.js";
 import type { TBlipEvent } from "../schema/protocol.js";
 import { z } from "zod";
 
 const WatchSchema = z.object({ watching: z.array(z.string()), window: z.number() });
-const ShowSchema = z.object({ text: z.string(), held: z.number(), seen: z.number(), watching: z.array(z.string()) });
+const SeriesSchema = z.object({ name: z.string(), labels: z.record(z.string(), z.string()), count: z.number(), sum: z.number().optional(), max: z.number().optional() });
+const ShowSchema = z.object({ text: z.string(), held: z.number(), seen: z.number(), watching: z.array(z.string()), totals: z.array(SeriesSchema) });
 const DeclaredSchema = z.object({ text: z.string(), names: z.array(z.string()) });
 
 /** One occurrence as a line: ordinal, name, value, step, attributes. */
@@ -23,12 +24,29 @@ export function renderOccurrence(blip: TBlipEvent, index: number): string {
 	return parts.join(" ");
 }
 
-/** The window as text, oldest first, stating the total recorded and how many are shown. */
-export function renderWatch(occurrences: readonly TBlipEvent[], seen: number): string {
+/** A value as shown: to a tenth, which is finer than any reading of a total. */
+const shown = (value: number) => Number(value.toFixed(1));
+
+/** One series as a line: its name and dimension values, how many, and for measured occurrences their total and the
+ *  largest, in the declared unit. */
+export function renderSeries(series: TBlipSeries): string {
+	const labels = Object.entries(series.labels).map(([dimension, value]) => ` ${dimension}=${value}`);
+	const unit = blipDeclared(series.name)?.unit;
+	const inUnit = (value: number) => `${shown(value)}${unit ? ` ${unit}` : ""}`;
+	const measured = series.sum === undefined || series.max === undefined ? "" : `, ${inUnit(series.sum)} in all, largest ${inUnit(series.max)}`;
+	return `${series.name}${labels.join("")}: ${series.count}${measured}`;
+}
+
+/** The watch as text: the total recorded, each series over every occurrence recorded, and the window, oldest first. */
+export function renderWatch(occurrences: readonly TBlipEvent[], seen: number, totals: readonly TBlipSeries[]): string {
 	if (seen === 0) return "No occurrences were recorded for the watched names.";
 	const dropped = seen - occurrences.length;
-	const head = `${seen} occurrence(s) recorded${dropped > 0 ? `, showing the most recent ${occurrences.length}` : ""}, oldest first:`;
-	return [head, ...occurrences.map(renderOccurrence)].join("\n");
+	return [
+		`${seen} occurrence(s) recorded. By name and dimension, over all of them:`,
+		...totals.map(renderSeries),
+		`In order${dropped > 0 ? `, showing the most recent ${occurrences.length}` : ""}, oldest first:`,
+		...occurrences.map(renderOccurrence),
+	].join("\n");
 }
 
 export default class BlipsStepper extends AStepper implements IHasCycles {
@@ -112,12 +130,14 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 		},
 		showWatchedBlips: {
 			gwta: "show watched blips",
-			description: "The watched occurrences as text, oldest first, each with its name, value, step path and attributes. Reports the total recorded and how many the window holds.",
+			description:
+				"The watched occurrences as text. Opens with each name and value of its declared dimensions, counted over every occurrence recorded, with the total and largest of a measured value, then lists the window oldest first, each occurrence with its name, value, step path and attributes. Reports the total recorded and how many the window holds.",
 			productsSchema: ShowSchema,
 			action: async () => {
 				await Promise.resolve();
 				const held = blipWatch.occurrences();
-				return actionOKWithProducts({ text: renderWatch(held, blipWatch.seen), held: held.length, seen: blipWatch.seen, watching: [...blipWatch.names] });
+				const totals = blipWatch.totals();
+				return actionOKWithProducts({ text: renderWatch(held, blipWatch.seen, totals), held: held.length, seen: blipWatch.seen, watching: [...blipWatch.names], totals: [...totals] });
 			},
 		},
 		showDeclaredBlips: {

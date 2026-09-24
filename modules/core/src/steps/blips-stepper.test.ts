@@ -65,7 +65,7 @@ describe("a watch: which occurrences, in what order", () => {
 		// Oldest first, and the oldest kept is the one just past what the window dropped.
 		expect(held[0].value).toBe(over - WATCH_WINDOW);
 		expect(held[held.length - 1].value).toBe(over - 1);
-		expect(renderWatch(held, blipWatch.seen)).toContain(`showing the most recent ${WATCH_WINDOW}`);
+		expect(renderWatch(held, blipWatch.seen, blipWatch.totals())).toContain(`showing the most recent ${WATCH_WINDOW}`);
 	});
 
 	it("carries the step each occurrence happened under, which is what ties it back to the run", () => {
@@ -73,7 +73,7 @@ describe("a watch: which occurrences, in what order", () => {
 		const { world, eventLogger } = make();
 		blipWatch.start(eventLogger, [SCROLL.name]);
 		runInStep({ seqPath: "0.2.3", reportsAt: undefined }, () => recordBlip(world, SCROLL.name, 4, { view: "a" }));
-		expect(renderWatch(blipWatch.occurrences(), blipWatch.seen)).toContain("step=0.2.3");
+		expect(renderWatch(blipWatch.occurrences(), blipWatch.seen, blipWatch.totals())).toContain("step=0.2.3");
 	});
 
 	it("stops collecting when stopped, and restores the no-subscriber fast path", () => {
@@ -100,7 +100,32 @@ describe("a watch: which occurrences, in what order", () => {
 	});
 
 	it("says so plainly when nothing was recorded", () => {
-		expect(renderWatch([], 0)).toMatch(/No occurrences/);
+		expect(renderWatch([], 0, [])).toMatch(/No occurrences/);
+	});
+
+	it("totals each name and declared dimension over every occurrence recorded, including those the window dropped", () => {
+		const MEASURED = { ...SCROLL, name: "haibun.test.view.measured", dimensions: ["view"] as const };
+		declareBlips(MEASURED);
+		const { world, eventLogger } = make();
+		blipWatch.start(eventLogger, [MEASURED.name]);
+		for (let i = 0; i < WATCH_WINDOW; i++) recordBlip(world, MEASURED.name, 2, { view: "a" });
+		recordBlip(world, MEASURED.name, 7, { view: "b" });
+		expect(blipWatch.totals()).toEqual([
+			{ name: MEASURED.name, labels: { view: "a" }, count: WATCH_WINDOW, sum: 2 * WATCH_WINDOW, max: 2 },
+			{ name: MEASURED.name, labels: { view: "b" }, count: 1, sum: 7, max: 7 },
+		]);
+		const text = renderWatch(blipWatch.occurrences(), blipWatch.seen, blipWatch.totals());
+		expect(text, "the window dropped one of view a, and its total did not").toContain(`${MEASURED.name} view=a: ${WATCH_WINDOW}, ${2 * WATCH_WINDOW} px in all, largest 2 px`);
+		expect(text).toContain(`${MEASURED.name} view=b: 1, 7 px in all, largest 7 px`);
+	});
+
+	it("starts its totals afresh on a new watch", () => {
+		declareBlips(REQUEST);
+		const { world, eventLogger } = make();
+		blipWatch.start(eventLogger, [REQUEST.name]);
+		recordBlip(world, REQUEST.name);
+		blipWatch.start(eventLogger, [REQUEST.name]);
+		expect(blipWatch.totals()).toEqual([]);
 	});
 });
 

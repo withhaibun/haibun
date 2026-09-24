@@ -151,6 +151,21 @@ export const blipRollup = new BlipRollup();
  *  record forever. What falls out is counted, never silently dropped. */
 export const WATCH_WINDOW = 200;
 
+/** One series of a watch: a name, and a value of each dimension its declaration names, with how many occurrences it
+ *  had and, where they carry a value, their total and the largest of them. */
+export type TBlipSeries = { name: string; labels: Record<string, string>; count: number; sum?: number; max?: number };
+
+/** The series an occurrence counts toward: its name and its values of the declared dimensions, whose cardinality the
+ *  declaration bounds, so the series a watch keeps cannot grow past what its names declare. */
+function seriesOf(blip: TBlipEvent): { key: string; name: string; labels: Record<string, string> } {
+	const labels: Record<string, string> = {};
+	for (const dimension of declarations.get(blip.name)?.dimensions ?? []) {
+		const value = blip.attributes?.[dimension];
+		if (value !== undefined) labels[dimension] = String(value);
+	}
+	return { key: JSON.stringify([blip.name, labels]), name: blip.name, labels };
+}
+
 /**
  * A focused, ordered window over named blips. The rollup answers how many; this answers in what order, which is the
  * question a fine-grained occurrence exists to settle and the one a count destroys. Subscribing by name is what keeps
@@ -164,6 +179,7 @@ export class BlipWatch {
 	private at = 0;
 	private named: readonly string[] = [];
 	private recorded = 0;
+	private series = new Map<string, TBlipSeries>();
 	private detachFn: (() => void) | undefined;
 
 	/** Start collecting the named blips, replacing any earlier watch and its window. */
@@ -172,6 +188,7 @@ export class BlipWatch {
 		this.ring = [];
 		this.at = 0;
 		this.recorded = 0;
+		this.series = new Map();
 		this.named = [...names];
 		const cb = (event: THaibunEvent) => {
 			if (event.kind === "blip") this.hold(event);
@@ -195,6 +212,11 @@ export class BlipWatch {
 		return this.recorded;
 	}
 
+	/** Every series the watch counted, over every occurrence it recorded, including those the window no longer holds. */
+	totals(): readonly TBlipSeries[] {
+		return [...this.series.values()];
+	}
+
 	/** The held occurrences, oldest first. */
 	occurrences(): readonly TBlipEvent[] {
 		return this.ring.length < WATCH_WINDOW ? [...this.ring] : [...this.ring.slice(this.at), ...this.ring.slice(0, this.at)];
@@ -202,12 +224,24 @@ export class BlipWatch {
 
 	private hold(blip: TBlipEvent): void {
 		this.recorded++;
+		this.count(blip);
 		if (this.ring.length < WATCH_WINDOW) {
 			this.ring.push(blip);
 			return;
 		}
 		this.ring[this.at] = blip;
 		this.at = (this.at + 1) % WATCH_WINDOW;
+	}
+
+	private count(blip: TBlipEvent): void {
+		const { key, name, labels } = seriesOf(blip);
+		const held = this.series.get(key) ?? { name, labels, count: 0 };
+		held.count++;
+		if (blip.value !== undefined) {
+			held.sum = (held.sum ?? 0) + blip.value;
+			held.max = Math.max(held.max ?? blip.value, blip.value);
+		}
+		this.series.set(key, held);
 	}
 }
 
