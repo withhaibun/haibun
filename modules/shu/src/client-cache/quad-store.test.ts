@@ -82,6 +82,16 @@ describe("an individual in the page's cache", () => {
 		expect(await store.getIndividual("Comment", "c1")).toBeUndefined();
 	});
 
+	it("does not write again a fact the device holds as it is, and writes one that changed", async () => {
+		const store = new IndexedDbQuadStore();
+		const fact = (object: unknown, timestamp: number) => ({ subject: "c1", predicate: "content", object, namedGraph: "Comment", timestamp });
+		await store.setMany([fact({ text: "hello" }, 1)]);
+		await store.setMany([fact({ text: "hello" }, 2)]);
+		expect(await store.query({ subject: "c1" }), "held as it was, so not written again").toMatchObject([{ object: { text: "hello" }, timestamp: 1 }]);
+		await store.setMany([fact({ text: "changed" }, 3)]);
+		expect(await store.query({ subject: "c1" }), "a changed fact replaces what was held").toMatchObject([{ object: { text: "changed" }, timestamp: 3 }]);
+	});
+
 	it("refuses a record that states no identity, rather than holding something no view can ask for again", async () => {
 		await expect(new IndexedDbQuadStore().upsertIndividual("Comment", { content: "no id" })).rejects.toThrow(/states no identity/);
 	});

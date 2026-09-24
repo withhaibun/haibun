@@ -97,15 +97,31 @@ export class IndexedDbQuadStore implements IQuadStore {
 
 	/** Batch upsert in one transaction: each quad replaces any prior quad with the same subject+predicate+namedGraph,
 	 *  so persisting a live merge batch keeps the stored graph bounded (one row per fact) rather than appending. */
+	/** Hold each fact, replacing what is held under its subject, predicate and graph. A fact the device holds as it is
+	 *  is not written again, and which it holds is found in a read, which holds back no other reader: a page reloaded
+	 *  over what it held otherwise rewrote every fact, and the device's other reads queued behind the rewrite. */
 	async setMany(quads: TQuad[]): Promise<void> {
-		if (quads.length === 0) return;
+		const changed = await this.notHeld(quads);
+		if (changed.length === 0) return;
 		await withStore("readwrite", async (store) => {
-			for (const quad of quads) {
+			for (const quad of changed) {
 				const spg = spgKey(quad.namedGraph, quad.subject, quad.predicate);
 				for (const key of await done(store.index(IDX_QUAD_SPG).getAllKeys(spg))) store.delete(key);
 				store.add({ ...quad, spg } satisfies StoredQuad);
 			}
 		});
+	}
+
+	/** The facts the device doesn't hold as they are: one it holds under the same subject, predicate and graph, with the
+	 *  same object, is held, whenever it was held. Without IndexedDB nothing is held, and nothing is written either. */
+	private async notHeld(quads: TQuad[]): Promise<TQuad[]> {
+		if (quads.length === 0) return [];
+		const held = await withStore("readonly", (store) =>
+			Promise.all(quads.map((quad) => done(store.index(IDX_QUAD_SPG).getAll(spgKey(quad.namedGraph, quad.subject, quad.predicate))) as Promise<StoredQuad[]>)),
+		);
+		if (!held) return quads;
+		// An object is compared as the JSON it is held as, so a record read back from the device compares as what was held.
+		return quads.filter((quad, at) => !(held[at].length === 1 && JSON.stringify(held[at][0].object) === JSON.stringify(quad.object)));
 	}
 
 	// --- Individual convenience ops: persist + deref-by-@id, the client store's actual job, over the quad primitives. ---
