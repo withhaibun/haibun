@@ -16,30 +16,7 @@ const QUADS = quadsNamed(Array.from({ length: NODE_COUNT }, (_, i) => `n-${i}`))
 let mounted: TMountedPage;
 type Regulation = { resting: boolean; frameTimeMs: number | null; samples: number };
 const REGULATION = `document.querySelector("shu-polymorphic-graph-view").inspect().regulation`;
-const FRAME = `document.querySelector("a-scene").renderer.info.render.frame`;
 const REST_TICKS = 120;
-
-/** Wait until the scene is at rest: its layout settled and its render loop paused. */
-async function atRest(): Promise<void> {
-	await mounted.settle();
-	await mounted.page.waitForFunction(
-		() => (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { render: { paused: boolean } } }).inspect().render.paused === true,
-		undefined,
-		{ timeout: 10_000 },
-	);
-}
-
-/** Wait until the gate has ticked `REST_TICKS` more times, then return how many frames were drawn over them. */
-async function framesOverRestTicks(): Promise<number> {
-	const before = (await mounted.page.evaluate(FRAME)) as number;
-	const ticks = (await mounted.inspect()).render.ticks;
-	await mounted.page.waitForFunction(
-		(until) => (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { render: { ticks: number } } }).inspect().render.ticks >= until,
-		ticks + REST_TICKS,
-		{ timeout: 15_000 },
-	);
-	return ((await mounted.page.evaluate(FRAME)) as number) - before;
-}
 
 beforeAll(async () => {
 	mounted = await mountPolymorphicPage();
@@ -67,15 +44,15 @@ test("under a software rasterizer the scene measures its frames as slow and rest
 
 test("at rest with a selected node, the scene draws no frame: the glow is held, not breathed", { timeout: 30_000 }, async () => {
 	// The beat after the signal draws the held glow once and the gate pauses the scene; measure from the pause.
-	await atRest();
-	expect(await framesOverRestTicks(), `frames drawn over ${REST_TICKS} gate ticks with the breath resting`).toBe(0);
+	await mounted.atRest();
+	expect(await mounted.framesOver(REST_TICKS), `frames drawn over ${REST_TICKS} gate ticks with the breath resting`).toBe(0);
 	expect(mounted.errors(), "page errors").toEqual([]);
 });
 
 test("a scene at rest given a change between its ticks isn't paused until it draws the change", { timeout: 30_000 }, async () => {
 	// The gate ticks once a frame, so a change made between ticks is drawn from the next one. A reader that waits for the
 	// pause after a change waits for the change to be drawn, however long a frame takes.
-	await atRest();
+	await mounted.atRest();
 	const paused = await mounted.page.evaluate(() => {
 		const view = document.querySelector("shu-polymorphic-graph-view") as unknown as { scene: { setSelectedSubject(s: string): void }; inspect(): { render: { paused: boolean } } };
 		view.scene.setSelectedSubject("n-0");
@@ -88,10 +65,10 @@ test("a scene at rest given a change between its ticks isn't paused until it dra
 test("a canvas that moves without resizing draws no frame; one that resizes draws", { timeout: 60_000 }, async () => {
 	// A page that lays out again after the scene rests, as a late stylesheet or a column opening beside it does, moves the
 	// canvas. What the canvas shows is the same wherever it is, so only a changed size is drawn again.
-	await atRest();
+	await mounted.atRest();
 	await mounted.page.evaluate(`document.getElementById("box").style.top = "41px"`);
-	expect(await framesOverRestTicks(), "frames drawn for a canvas that moved").toBe(0);
-	const before = (await mounted.page.evaluate(FRAME)) as number;
+	expect(await mounted.framesOver(REST_TICKS), "frames drawn for a canvas that moved").toBe(0);
+	const before = await mounted.framesDrawn();
 	await mounted.page.evaluate(`document.getElementById("box").style.width = "${BOX.width / 2}px"`);
 	await mounted.page.waitForFunction(
 		(was) => (document.querySelector("a-scene") as unknown as { renderer: { info: { render: { frame: number } } } }).renderer.info.render.frame > was,
@@ -106,11 +83,11 @@ test("a canvas that moves without resizing draws no frame; one that resizes draw
 test("a feed that changes nothing visible draws no frame; one that changes the visible model draws", { timeout: 60_000 }, async () => {
 	// The page's own requests return to it as observations, and with instrumentation hidden they change nothing
 	// visible. A scene that draws on every feed draws on its own recordings.
-	await atRest();
-	const before = (await mounted.page.evaluate(FRAME)) as number;
+	await mounted.atRest();
+	const before = await mounted.framesDrawn();
 	await mounted.feed(QUADS);
-	expect(await framesOverRestTicks(), "frames drawn for a feed of the same model").toBe(0);
+	expect(await mounted.framesOver(REST_TICKS), "frames drawn for a feed of the same model").toBe(0);
 	await mounted.feed([...QUADS, ...quadsNamed(["n-more"])]);
-	expect(((await mounted.page.evaluate(FRAME)) as number) - before, "a changed model is drawn").toBeGreaterThan(0);
+	expect((await mounted.framesDrawn()) - before, "a changed model is drawn").toBeGreaterThan(0);
 	expect(mounted.errors(), "page errors").toEqual([]);
 });

@@ -44,6 +44,7 @@ export type ChipDeps = {
 	borderColor: string; // the chip's own edge, so a pale type colour still has a shape against a light page
 	highlightColor: string; // the colour the active-node glow is drawn in when the chip wears one (setHighlighted)
 	avatar?: string; // the type's initials, badged at the chip's leading edge; absent for a chip with no type to show
+	laidOut: () => void; // told each time the chip is laid out from measured text, which arrives off the main thread, so a resting scene draws it
 };
 /** Background padding around the measured text, in fontSize units. */
 const PAD_X = 0.55;
@@ -182,6 +183,7 @@ export function makeTroikaChip(label: string, bgColor: string, three: ChipThree,
 		}
 		box = { w: g.glow.w, h: g.glow.h, cx: g.cx, cy: g.cy };
 		if (glow.isLit) glow.set(true);
+		d.laidOut();
 	};
 
 	if (avatarText) {

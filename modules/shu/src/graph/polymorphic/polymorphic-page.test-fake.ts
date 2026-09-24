@@ -49,7 +49,7 @@ type TInspected = {
 	followPending: boolean;
 	highlighted: number;
 	camera: TCamera | null;
-	render: { ticks: number; paused: boolean };
+	render: { ticks: number; paused: boolean; welcoming: number };
 };
 
 const VIEW = `document.querySelector("shu-polymorphic-graph-view")`;
@@ -62,6 +62,12 @@ export type TMountedPage = {
 	feed(quads: TQuadFed[]): Promise<void>;
 	/** Wait for the layout and the camera to rest: nothing running, nothing owed, and following has checked the view. */
 	settle(): Promise<void>;
+	/** Wait until the scene is at rest: its layout settled, its render loop paused, and no change scheduled. */
+	atRest(): Promise<void>;
+	/** How many frames the renderer has drawn since the page loaded. */
+	framesDrawn(): Promise<number>;
+	/** Wait until the gate has ticked `ticks` more times, and return how many frames were drawn over them. */
+	framesOver(ticks: number): Promise<number>;
 	/** Select a node the way the app relays a selection, and wait for its glow. */
 	select(id: string): Promise<void>;
 	/** Run against the scene itself. The function is serialised into the page, so it sees no closure: what it needs
@@ -123,9 +129,33 @@ export async function mountPolymorphicPage(): Promise<TMountedPage> {
 		);
 	};
 
+	const framesDrawn = async (): Promise<number> => (await page.evaluate(`document.querySelector("a-scene").renderer.info.render.frame`)) as number;
+
 	return {
 		page,
 		errors: () => pageErrors.filter((m) => !m.includes("no EventStream installed")),
+		async atRest() {
+			await settle();
+			await page.waitForFunction(
+				() => {
+					const { render } = (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { render: { paused: boolean; welcoming: number } } }).inspect();
+					return render.paused && render.welcoming === 0;
+				},
+				undefined,
+				{ timeout: 15_000 },
+			);
+		},
+		framesDrawn,
+		async framesOver(ticks) {
+			const before = await framesDrawn();
+			const from = (await inspect()).render.ticks;
+			await page.waitForFunction(
+				(until) => (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { render: { ticks: number } } }).inspect().render.ticks >= until,
+				from + ticks,
+				{ timeout: 15_000 },
+			);
+			return (await framesDrawn()) - before;
+		},
 		async feed(quads) {
 			await page.evaluate((fed) => {
 				const el = document.querySelector("shu-polymorphic-graph-view") as unknown as { scene: { setModel(model: unknown): void } };

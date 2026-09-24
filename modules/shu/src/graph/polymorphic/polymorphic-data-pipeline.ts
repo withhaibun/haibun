@@ -56,7 +56,7 @@ export type DataPipelineDeps = {
 	laneZ: (id: string) => number | undefined; // the node's z on a lane view's time axis: the SAME RenderType.lanePlacement source the force lane-y reads, so force target and node-z can't diverge mid-settle
 	lanePinXY: (id: string) => { x: number; y: number } | undefined; // the layered (td/lr) view's EXACT Sugiyama {x,y}, seeded into the data on a re-place so the deterministic layout isn't force-approximated (and compressed); undefined off td/lr
 	userPinXY: (id: string) => { x: number; y: number } | undefined; // where the user dropped this node (persisted across reloads). It outranks every deterministic pin: a placement by hand is a decision, and a layout that puts the node back rejects it
-	startNewcomerPop: (n: FGNode) => void; // register the cartoon grow-in for a streamed node (the magnify subsystem owns the easing)
+	startNewcomerPop: (n: FGNode) => void; // welcome a streamed node: its glow, and the cartoon grow-in where decoration runs (the magnify subsystem owns the easing)
 };
 
 export class DataPipeline {
@@ -269,10 +269,7 @@ export class DataPipeline {
 				} else {
 					unseeded.push(fgNode); // ungrouped (or no anchor): seed from a placed neighbour once links are known
 				}
-				if (!isInitial) {
-					fgNode.__k = 0.25; // newly arrived: grow in with the cartoon pop once its sprite exists
-					this.deps.startNewcomerPop(fgNode);
-				}
+				if (!isInitial) this.deps.startNewcomerPop(fgNode); // newly arrived: welcomed, and grown in where decoration runs
 			}
 			fgNode.properties = n.properties; // carry the model node's properties (including the merged HypermediaRole) so groupKeyOf(fgNode, "role") resolves
 			const subjectTime = times.get(n.id); // the node's time, surfaced on hover + the "label as date" toggle, and the depth value under a time basis

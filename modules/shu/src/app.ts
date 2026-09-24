@@ -40,6 +40,7 @@ import type { ShuGraphQuery } from "./components/shu-graph-query.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { reportToRun, type TClientLogLevel } from "./client-log.js";
+import { observeLongFrames } from "./long-frames.js";
 import { hydrateClientCache, viewsShown, readRunAt } from "./client-cache/index.js";
 
 const LAYOUT_STYLE = `
@@ -131,6 +132,8 @@ const main = async (): Promise<void> => {
 	} else {
 		setEventStream(new LiveEventStream("/sse"));
 	}
+	// What holds the page's main thread is recorded from the start, the frames before this included.
+	observeLongFrames();
 	// Install the shared design tokens at document level so combobox dropdowns and other elements rendered into document.body resolve the same `--shu-…` variables that shadow-DOM components inherit.
 	installShuTokens();
 	applyShuPreferences();

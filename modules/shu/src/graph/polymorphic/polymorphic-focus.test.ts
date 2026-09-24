@@ -25,10 +25,10 @@ function stubVisual(): NodeVisual & { burns: number } {
 	return v as NodeVisual & { burns: number };
 }
 
-function harness(selected: string | null = null) {
+function harness(selected: string | null = null, decorates = true) {
 	const visual = stubVisual();
 	const n: FGNode = { id: "n1", name: "n1", type: "Comment", __visual: visual };
-	const deps = { selectedId: () => selected, nodeMap: () => new Map([[n.id, n]]), glowRamp: () => ["#ffffff", "#ffcc88"] } as unknown as FocusDeps;
+	const deps = { selectedId: () => selected, nodeMap: () => new Map([[n.id, n]]), glowRamp: () => ["#ffffff", "#ffcc88"], decorates: () => decorates } as unknown as FocusDeps;
 	return { focus: new PolymorphicFocus(deps), n, visual };
 }
 
@@ -61,6 +61,58 @@ describe("the glow a newcomer wears", () => {
 		vi.advanceTimersByTime(NEWCOMER_GLOW_MS + 100);
 		expect(focus.updateHighlight(), "the active node's breath goes on").toBe(true);
 		expect(visual.hasHighlight).toBe(true);
+	});
+});
+
+describe("a newcomer's grow-in", () => {
+	it("runs where decoration runs, and the scene draws it until it lands", () => {
+		const { focus, n } = harness();
+		focus.seedNewcomerPop(n);
+		expect(n.__k, "it starts small").toBe(0.25);
+		expect(focus.magnifying).toBe(true);
+	});
+
+	it("rests with the breath: the newcomer lands at its natural size, wearing its glow, and nothing is left to draw", () => {
+		const { focus, n, visual } = harness(null, false);
+		focus.seedNewcomerPop(n);
+		expect(n.__k, "no shrink to grow from").toBeUndefined();
+		expect(focus.magnifying, "no easing keeps the scene drawing").toBe(false);
+		expect(focus.updateHighlight(false), "the glow is drawn once").toBe(true);
+		expect(visual.hasHighlight).toBe(true);
+	});
+});
+
+describe("the focus magnify", () => {
+	/** A focused chip a camera sees too far away to read, so it magnifies to be read. */
+	function focused(decorates: boolean) {
+		const scaled: number[][] = [];
+		const n = {
+			id: "n1",
+			type: "Comment",
+			x: 0,
+			y: 0,
+			z: 0,
+			__k: 1,
+			__baseScale: { x: 1, y: 1 },
+			__sprite: { fontSize: 32, renderOrder: 0, scale: { set: (...xyz: number[]) => scaled.push(xyz) } },
+		} as unknown as FGNode;
+		const deps = { focusId: () => "n1", nodeMap: () => new Map([[n.id, n]]), worldPerPxAt: () => 1, focusTextPx: () => 20, decorates: () => decorates } as unknown as FocusDeps;
+		return { focus: new PolymorphicFocus(deps), n, scaled };
+	}
+
+	it("eases the focused chip to its readable size where decoration runs", () => {
+		const { focus, n } = focused(true);
+		focus.retargetMagnify();
+		expect(focus.magnifying, "the scene draws the easing").toBe(true);
+		expect(n.__k, "not there yet").toBe(1);
+	});
+
+	it("gives the focused chip its readable size at once where decoration rests, leaving nothing to draw after", () => {
+		const { focus, n, scaled } = focused(false);
+		focus.retargetMagnify();
+		expect(focus.magnifying).toBe(false);
+		expect(n.__k).toBeGreaterThan(1);
+		expect(scaled.at(-1), "the sprite takes the size").toEqual([n.__k, n.__k, 1]);
 	});
 });
 

@@ -7,6 +7,8 @@
  * cannot measure which from its main thread. The regulator reads what a drawn frame takes (see `FrameTime`), keeps
  * the median of the last few so one slow frame changes nothing, and compares the breath's share of wall time with
  * its limit. The breath rests over its limit: the glow is drawn once and held. It breathes again within its limit.
+ * Decoration starts at rest and runs once a full window measures within the limit, so a slow renderer never pays for
+ * decoration while it is being measured.
  *
  * The scene acts on the signal itself and records it as a blip, so a run can observe the regulation and the time
  * behind it.
@@ -39,8 +41,9 @@ export const DEFAULT_REGULATION_THRESHOLDS: TRegulationThresholds = {
 
 export type TRegulationState = { frameTimes: number[]; resting: boolean; lastFiredAt?: number };
 
+/** A scene's regulation before it has measured a frame: decoration rests until a measurement shows it may run. */
 export function newRegulationState(): TRegulationState {
-	return { frameTimes: [], resting: false };
+	return { frameTimes: [], resting: true };
 }
 
 /** Keep one measured frame time, dropping the oldest past the window. */

@@ -44,7 +44,7 @@ import { A11yRenderer } from "./polymorphic-a11y-renderer.js";
 import { Drawing, aframeLoop, type TAframeScene } from "./polymorphic-drawing.js";
 import { FrameTime, type TFenceGl } from "./polymorphic-frame-time.js";
 import { DEFAULT_REGULATION_THRESHOLDS, evaluateRegulation, medianOf, newRegulationState, recordFrameTime } from "./polymorphic-regulator.js";
-import { GRAPH_FRAME_BLIP, GRAPH_REGULATION_BLIP } from "../../graph-blips.js";
+import { GRAPH_DRAWING_BLIP, GRAPH_FRAME_BLIP, GRAPH_REGULATION_BLIP, type TDrawingReason, type TWakeCause } from "../../graph-blips.js";
 import { SEQ_LANE_SPACING, actorBars, type TSeqModel } from "../polymorphic/sequence-model.js";
 import { type FGNode, type FGLink, type TSprite, GRAPH_SCENE_EVENT, linkEndId, neighboursOf } from "../polymorphic/polymorphic-graph-types.js";
 import { forceLayout, type IGraphLayout } from "../polymorphic/polymorphic-layout.js";
@@ -166,10 +166,13 @@ const LINK_OPACITY = 0.55; // resting edge opacity; focus raises incident edges 
 const DATA_DEBOUNCE_MS = 500;
 /** How long the camera holds still before a reader's pan or zoom counts as finished: longer than the damping's last visible easing. */
 const CAMERA_REST_MS = 150;
-// The scene renders on demand: after a discrete change (data, selection, resize, theme) it keeps drawing for this many
-// frames so the change and any short ease land, then it idles. Continuous motion (layout settle, tween, drag, camera
-// damping) and the pointer being over the canvas keep it awake on their own.
-const DIRTY_GRACE_FRAMES = 30;
+// The scene renders on demand: a discrete change (data, selection, resize, theme) is drawn on the next frame, and then
+// the scene idles. A change made between gate ticks is seen by the next tick, which starts the renderer's loop, and the
+// renderer draws before the tick after it stops the loop: two ticks draw one frame. A motion (layout settle, tween,
+// drag, magnify ease, camera damping) keeps the scene drawing for as long as it moves, and no longer.
+const DIRTY_GRACE_FRAMES = 2;
+// The library moves a particle a hundredth of its link each drawn frame, so a particle takes this many frames to cross.
+const PARTICLE_CROSSING_FRAMES = 100;
 // Cadence for the canvas-geometry wake detector (mouse-pick bounds + viewport aspect watchdog), sampled even when idle.
 const CANVAS_GEOMETRY_EVERY = 15;
 const LAYOUT_DEBOUNCE_MS = 450;
@@ -331,11 +334,13 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	// drawing, and whether the A-Frame render loop is currently paused because nothing is moving.
 	private rafFrame = 0;
 	private dirtyUntilFrame = 0;
+	private dirtyCause: TWakeCause = "data"; // what set dirtyUntilFrame, named while its grace lasts
 	private drawing?: Drawing; // the gate on the renderer's loop; the scene is paused while it is not drawing
 	private lastBreathAt = 0; // when the active node's glow was last redrawn; the breath runs on BREATH_MS, not on frames
 	private regulation = newRegulationState(); // the scene's own regulator of decorative motion, on what a frame takes
-	/** Set by the per-frame highlight job: an active node's glow is breathing, so the loop must keep drawing. Cleared
-	 *  the frame the selection goes away, which lets the scene idle again. */
+	/** Why the scene draws now, since when and which frame, and how many changes woke it since, so each change of reason
+	 *  records what the last one cost. */
+	private drawingFor: { reason: TDrawingReason; since: number; frame: number; wakes: number } = { reason: "rest", since: 0, frame: 0, wakes: 0 };
 
 	// Set when the focus (selection/hover) changes or a settle rebuilt the visuals: the render loop keeps drawing until it
 	// applies the focus at rest, then clears it. Distinct from dirtyUntilFrame (a fixed grace): a focus may take longer.
@@ -465,6 +470,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	// colour field is always current; it OWNS the magnify animation state, the component delegates and reads nothing back.
 	// (Named focusCtl, not focus, HTMLElement.focus() is a method on the element.)
 	private focusCtl = new PolymorphicFocus({
+		decorates: () => this.decorates(),
 		focusId: () => this.focusId,
 		selectedId: () => this.activeSubject,
 		previewType: () => this.previewType,
@@ -751,7 +757,13 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			// depends on a redraw can tell a paused scene from a live one, and can count ticks over which nothing was drawn.
 			// A change made since the last tick is drawn from the next one, so the scene is paused only while that tick draws
 			// nothing either.
-			render: { paused: this.drawing !== undefined && !this.drawing.drawing && !this.drawsOnTick(this.rafFrame + 1), ticks: this.rafFrame },
+			// `welcoming` counts the newcomers whose welcome glow is still to end, the one change a paused scene has scheduled.
+			render: {
+				paused: this.drawing !== undefined && !this.drawing.drawing && this.drawingReason(this.rafFrame + 1) === "rest",
+				ticks: this.rafFrame,
+				reason: this.drawingFor.reason,
+				welcoming: this.focusCtl.welcoming,
+			},
 			// What a drawn frame takes the renderer (the median of the last few, null before the first measurement) and
 			// whether the breath rests on it. A reader can tell a scene that regulated itself from one that has not measured.
 			regulation: {
@@ -1022,6 +1034,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 							borderColor: NODE_BORDER_COLOR,
 							highlightColor: this.activeHighlightColor,
 							avatar: typeAvatar(mark.type),
+							laidOut: () => this.markDirty("label"),
 						})
 					: spriteVisual(
 							paintMarkScene(mark, {
@@ -1042,6 +1055,8 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			n.__sprite = obj as unknown as TSprite;
 			n.__baseScale = { x: obj.scale.x, y: obj.scale.y };
 			n.__k = 1;
+			// A visual built after the focus was applied wears it from the next pass at rest, however late the library builds it.
+			if (this.hoverSubject || this.selectedSubject) this.requestFocusAtRest();
 			return obj;
 		});
 	}
@@ -1138,7 +1153,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 				if (this.tween || this.nodeDrag.dragging || !this.pointerOverCanvas || this.engine.mode === "settling") return;
 				this.hoverSubject = n?.id ?? null;
 				this.updateHoverInfo(n ?? null);
-				this.focusCtl.applyFocus();
+				this.applyFocus();
 			});
 	}
 
@@ -1288,7 +1303,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.fitGraphFrame(container);
 		this.camera.onContainerResize();
 		const observer = new ResizeObserver(() => {
-			this.markDirty(); // a paused scene must wake to re-fit and redraw on a container resize
+			this.markDirty("resize"); // a paused scene must wake to re-fit and redraw on a container resize
 			this.fitGraphFrame(container);
 			this.camera.onContainerResize();
 		});
@@ -1394,7 +1409,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			this.refreshPickBounds();
 			// What the canvas shows is the same wherever it is on the page, so a move only refreshes the pick bounds, and a
 			// scene at rest stays at rest; a changed size is drawn again at its new aspect.
-			if (prev.width !== r.width || prev.height !== r.height) this.markDirty();
+			if (prev.width !== r.width || prev.height !== r.height) this.markDirty("resize");
 		}
 		this.lastCanvasPos = r;
 	}
@@ -1493,22 +1508,33 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		// reheat the layout (and the unchanged-model skip would suppress it anyway, leaving labels bg-on-bg).
 		for (const l of this.currentLinks) if (l.__labelSprite) l.__labelSprite.color = this.edgeLabelColor;
 		this.enclosureCtl.recolorLabels(this.edgeLabelColor);
-		if (this.focusId) this.focusCtl.applyFocus(); // re-assert focus colours under the new theme
-		this.markDirty();
+		if (this.focusId) this.applyFocus(); // re-assert focus colours under the new theme
+		this.markDirty("theme");
 	}
 
-	/** Wake the on-demand render loop for the next `DIRTY_GRACE_FRAMES` frames, so a discrete change (data, selection,
-	 *  resize, theme) is drawn rather than slept through. Continuous motion keeps itself awake via `isSettling`. */
-	private markDirty(grace = DIRTY_GRACE_FRAMES): void {
-		this.dirtyUntilFrame = Math.max(this.dirtyUntilFrame, this.rafFrame + grace);
+	/** Wake the on-demand render loop for the next `grace` gate ticks, so a discrete change (data, selection, resize,
+	 *  theme) is drawn rather than slept through, and name what woke it. A motion keeps the scene drawing on its own
+	 *  (see `drawingReason`). */
+	private markDirty(cause: TWakeCause, grace = DIRTY_GRACE_FRAMES): void {
+		this.drawingFor.wakes++;
+		if (this.rafFrame + grace < this.dirtyUntilFrame) return;
+		this.dirtyUntilFrame = this.rafFrame + grace;
+		this.dirtyCause = cause;
 	}
 
 	/** Ask the render loop to (re)apply the active focus once the layout is at rest and the node visuals exist.
-	 *  `focusDirty` keeps the loop awake until a frozen frame applies it; the `markDirty` grace keeps it drawing a while
-	 *  longer, covering the case where a node's visual lags past the freeze frame so the next pass catches it. */
+	 *  `focusDirty` keeps the loop awake until a frozen frame applies it. A node whose visual the library builds after
+	 *  that asks again as it is built (`nodeObject`), so no visual is left unfocused. */
 	private requestFocusAtRest(): void {
 		this.focusDirty = true;
-		this.markDirty();
+		this.markDirty("focus");
+	}
+
+	/** Apply the focus, and have the breath take the glows it set on the next tick, so a change of focus is drawn with its
+	 *  glow in one wake rather than a second one a beat later. */
+	private applyFocus(): void {
+		this.focusCtl.applyFocus();
+		this.lastBreathAt = 0;
 	}
 
 	/**
@@ -1521,7 +1547,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 */
 	private reassertFocus(): void {
 		this.requestFocusAtRest();
-		this.focusCtl.applyFocus();
+		this.applyFocus();
 	}
 
 	/** One measured frame time: recorded for the run, kept in the window, and evaluated against the breath's limit.
@@ -1536,17 +1562,24 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.lastBreathAt = 0; // the next tick redraws the glow in its new state
 	}
 
-	/** True while an animation is still in motion: the force layout settling, a layout tween, or a node drag. Camera
-	 *  damping, discrete changes and the active node's breathing glow wake the loop through `markDirty`; the pointer
-	 *  over the canvas keeps it awake for hover. */
-	private isSettling(): boolean {
-		return this.engine.mode !== "frozen" || this.tween != null || this.nodeDrag.dragging;
+	/** Why the gate draws on tick `frame`: a motion in progress (a drag, a tween, the engine settling, a magnify easing),
+	 *  a focus still to apply, or a discrete change within its grace, named by its cause. Rest where none holds, so a
+	 *  scene draws only while something it shows changes. */
+	private drawingReason(frame: number): TDrawingReason {
+		if (this.nodeDrag.dragging) return "drag";
+		if (this.tween) return "tween";
+		if (this.engine.mode !== "frozen") return "settle";
+		if (this.focusCtl.magnifying) return "magnify";
+		if (this.focusDirty) return "focus";
+		return frame < this.dirtyUntilFrame ? this.dirtyCause : "rest";
 	}
 
-	/** Whether the gate draws on tick `frame`: a discrete change is within its grace, the pointer is over the canvas,
-	 *  something is settling, or a focus is still to apply. */
-	private drawsOnTick(frame: number): boolean {
-		return frame < this.dirtyUntilFrame || this.pointerOverCanvas || this.isSettling() || this.focusDirty;
+	/** Record what the last reason to draw cost when the reason changes, so a page's drawing time divides by reason. */
+	private drawFor(reason: TDrawingReason, now: number): void {
+		const was = this.drawingFor;
+		if (reason === was.reason) return;
+		this.recordBlip(GRAPH_DRAWING_BLIP, now - was.since, { reason, was: was.reason, frames: this.rafFrame - was.frame, wakes: was.wakes });
+		this.drawingFor = { reason, since: now, frame: this.rafFrame, wakes: 0 };
 	}
 
 	/**
@@ -1582,13 +1615,13 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		let gesturing = false;
 		controlEvents.addEventListener("start", () => {
 			gesturing = true;
-			this.markDirty();
+			this.markDirty("camera");
 		});
 		controlEvents.addEventListener("end", () => {
 			gesturing = false;
 		});
 		controlEvents.addEventListener("change", () => {
-			this.markDirty(4);
+			this.markDirty("camera", 4);
 			clearTimeout(this.cameraRestTimer);
 			this.cameraRestTimer = window.setTimeout(() => {
 				this.cameraRestTimer = undefined;
@@ -1646,9 +1679,9 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			8,
 		);
 		// Drawing on demand: the frame jobs run and the scene draws only while something is moving (layout settle, tween,
-		// drag, camera damping via the `change` listener), the pointer is over the canvas, a recent discrete change is
-		// within its grace window, or a focus is pending. Otherwise `Drawing` pauses the components and stops the
-		// renderer's loop, so an idle graph draws nothing. The rAF loop below keeps running as a per-frame gate of one
+		// drag, magnify ease, camera damping via the `change` listener), a discrete change is still to be drawn, or a focus
+		// is pending. Otherwise `Drawing` pauses the components and stops the renderer's loop, so an idle graph draws
+		// nothing, wherever the pointer rests. The rAF loop below keeps running as a per-frame gate of one
 		// comparison, so a change wakes the scene within one frame.
 		// What a drawn frame takes is measured after the draw (see `FrameTime`) and read in the gate below, where the
 		// regulator sets whether the breath may keep requesting frames.
@@ -1674,16 +1707,18 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			// the scene idles between them. While the regulator has the breath resting, the glow is drawn once and held.
 			if (now - this.lastBreathAt >= BREATH_MS) {
 				this.lastBreathAt = now;
-				if (this.focusCtl.updateHighlight(!this.regulation.resting)) this.markDirty(1);
+				if (this.focusCtl.updateHighlight(this.decorates())) this.markDirty("breath", 1);
 			}
 			// A pending focus keeps the scene awake until it can be applied: applyFocus needs the layout at rest (its pin +
 			// sim tick would jump an under-converged graph) and the node visuals built (it skips a node with no visual
 			// yet), and either can lag a selection made mid-build. Sleeping before then would leave the dim undrawn.
-			const active = this.drawsOnTick(this.rafFrame);
+			const reason = this.drawingReason(this.rafFrame);
+			this.drawFor(reason, now);
+			const active = reason !== "rest";
 			drawing.moving(active);
 			if (active) {
 				if (this.focusDirty && this.engine.mode === "frozen") {
-					this.focusCtl.applyFocus();
+					this.applyFocus();
 					this.focusDirty = false;
 				}
 				this.frame.tick();
@@ -1799,8 +1834,10 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		};
 		const onMove = (e: PointerEvent) => {
 			// Any move over the canvas proves presence, pointerenter alone misses the page loading with the cursor already
-			// over the canvas (no enter fires), which left hover and drag dead until a re-entry.
+			// over the canvas (no enter fires), which left hover and drag dead until a re-entry. A move is drawn, so hover
+			// follows the pointer; a pointer at rest changes nothing and draws nothing.
 			this.pointerOverCanvas = true;
+			this.markDirty("pointer");
 			this.nodeDrag.move(e);
 		};
 		const onUp = () => this.nodeDrag.up();
@@ -1808,14 +1845,15 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		// dimmed neighbourhood can never outlive the pointer that caused it.
 		const onEnter = () => {
 			this.pointerOverCanvas = true;
+			this.markDirty("pointer");
 		};
 		const onLeave = () => {
 			this.pointerOverCanvas = false;
-			this.markDirty(); // draw the hover magnify easing back out after the pointer leaves
+			this.markDirty("focus"); // draw the hover magnify easing back out after the pointer leaves
 			this.updateHoverInfo(null);
 			if (this.hoverSubject) {
 				this.hoverSubject = null;
-				this.focusCtl.applyFocus();
+				this.applyFocus();
 			}
 		};
 		// Capture phase: a press on a node must disable the controls BEFORE OrbitControls' own (earlier-attached)
@@ -1887,7 +1925,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 
 	/** A layout change (flatten/dag/group/type-filter): longer trailing coalesce so a burst of toggles collapses into one tween. */
 	private scheduleLayout(): void {
-		this.markDirty();
+		this.markDirty("arrange");
 		if (this.layoutTimer !== undefined) clearTimeout(this.layoutTimer);
 		this.layoutTimer = window.setTimeout(() => {
 			this.layoutTimer = undefined;
@@ -1917,7 +1955,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		const hash = this.pipeline.hashCurrentModel(nodes, links);
 		if (hash === this.lastModelHash && !this.nodeRebuildPending) return; // a pending shape rebuild must still feed
 		this.lastModelHash = hash;
-		this.markDirty(); // the visible model changed: draw it
+		this.markDirty("data"); // the visible model changed: draw it
 		this.currentLinks = links;
 		this.emitSceneChanged();
 		// Refresh anchors before the feed reheats the engine, so the cohesion force targets the current group set.
@@ -2158,12 +2196,25 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	}
 
 	/** New edges announce themselves: a short staggered particle burst runs along each (capped: a bulk arrival is its own signal). */
+	/** Whether decorative motion (the breath, a newcomer's grow-in, particles on fresh links) may run: not while the
+	 *  regulator rests it, since a frame then costs more than decoration may take. */
+	private decorates(): boolean {
+		return !this.regulation.resting;
+	}
+
+	/** Particles run along the links a feed brought, as decorative motion. Each particle wakes the scene for the frames
+	 *  it takes to cross its link. */
 	private animateFreshLinks(fresh: FGLink[]): void {
-		if (!this.graph || fresh.length === 0) return;
+		if (!this.graph || fresh.length === 0 || !this.decorates()) return;
 		this.freshTimers = this.freshTimers.slice(-120);
 		for (const l of fresh.slice(0, 20)) {
 			for (const delay of [80, 480, 880]) {
-				this.freshTimers.push(window.setTimeout(() => this.graph?.emitParticle(l), delay));
+				this.freshTimers.push(
+					window.setTimeout(() => {
+						this.graph?.emitParticle(l);
+						this.markDirty("particles", PARTICLE_CROSSING_FRAMES);
+					}, delay),
+				);
 			}
 		}
 	}
@@ -2364,7 +2415,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.hoverSubject = n?.id ?? null;
 		this.updateHoverInfo(n);
 		this.requestFocusAtRest(); // a programmatic hover (external/test) with no pointer over the canvas must still wake the paused loop
-		this.focusCtl.applyFocus();
+		this.applyFocus();
 	}
 
 	/** The current column-view node (the host publishes it through the shared selection system). Sticky focus for

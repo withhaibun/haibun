@@ -20,7 +20,34 @@ export const GRAPH_FRAME_BLIP = "haibun.shu.graph.frame";
  *  time. */
 export const GRAPH_REGULATION_BLIP = "haibun.shu.graph.regulation";
 
+/** What wakes a scene for a discrete change: the visible model changed, the camera moved, the arrangement changed, the
+ *  container or canvas resized, the theme changed, the active node's breath, a focus to apply, the pointer moved over
+ *  the canvas, a label's text was laid out, or particles travel a fresh link. */
+export const WAKE_CAUSES = ["data", "camera", "arrange", "resize", "theme", "breath", "focus", "pointer", "label", "particles"] as const;
+export type TWakeCause = (typeof WAKE_CAUSES)[number];
+
+/** Why a scene draws: nothing (it rests), a motion in progress (a drag, a tween, the engine settling, a magnify
+ *  easing), or a discrete change within its grace, named by what caused it. Bounded, so it is a dimension. */
+export const DRAWING_REASONS = ["rest", "drag", "tween", "settle", "magnify", ...WAKE_CAUSES] as const;
+export type TDrawingReason = (typeof DRAWING_REASONS)[number];
+
+/** A scene's reason to draw changed: `reason` is why it draws from now, `was` why it drew before, and `value` how long it
+ *  drew for that, over `frames` of its frames, woken `wakes` times by a change meanwhile. The drawing time of a page
+ *  divides by reason, so what kept a scene drawing is read rather than guessed, and one long motion reads apart from
+ *  many short changes. */
+export const GRAPH_DRAWING_BLIP = "haibun.shu.graph.drawing";
+
 export const GRAPH_BLIPS: TBlipDeclaration[] = [
+	{
+		name: GRAPH_DRAWING_BLIP,
+		instrument: "span-event",
+		description:
+			"A graph scene's reason to draw changed. `reason` is why it draws from now, or rest where nothing keeps it drawing; `was` is why it drew before, and `value` how long it drew for that, over `frames` frames, during which a change woke it `wakes` times. A scene that never rests draws every frame, and this names what kept it drawing.",
+		unit: "ms",
+		attributes: viewAttributes.extend({ reason: z.enum(DRAWING_REASONS), was: z.enum(DRAWING_REASONS), frames: z.number(), wakes: z.number() }),
+		dimensions: ["view", "reason"],
+		origin: true,
+	},
 	{
 		name: GRAPH_FRAME_BLIP,
 		instrument: "histogram",

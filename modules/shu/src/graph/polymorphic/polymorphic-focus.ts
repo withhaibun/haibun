@@ -87,6 +87,7 @@ export type FocusDeps = {
 	selectedId: () => string | null; // the ACTIVE node alone (never a hover): the one that wears the glow
 	previewType: () => string | null; // a type hovered in the filter legend: dim every other type
 	nodeMap: () => Map<string, FGNode>;
+	decorates: () => boolean; // whether decorative motion may run now: the scene's regulator rests it when a frame costs more than decoration may take
 	currentLinks: () => FGLink[];
 	enclosures: () => Map<string, FocusEnclosure>;
 	graph: () => FocusGraph | undefined;
@@ -116,11 +117,14 @@ export class PolymorphicFocus {
 
 	constructor(private deps: FocusDeps) {}
 
-	/** Register the arrival of a freshly-streamed node: the cartoon grow-in (the DataPipeline seeds it; the magnify owns
-	 *  the easing) and the glow it wears for its first moments, so the eye finds where the new record landed. */
+	/** Register the arrival of a freshly-streamed node: the glow it wears for its first moments, so the eye finds where
+	 *  the new record landed, and the cartoon grow-in, whose easing the magnify owns. The grow-in is decorative motion and
+	 *  rests with the breath, so a newcomer then lands at its natural size. */
 	seedNewcomerPop(n: FGNode): void {
-		this.magnifyAnims.set(n, { from: 0.25, to: 1, start: performance.now() });
 		this.freshGlows.set(n, performance.now());
+		if (!this.deps.decorates()) return;
+		n.__k = 0.25;
+		this.magnifyAnims.set(n, { from: 0.25, to: 1, start: performance.now() });
 	}
 
 	/** A link's focus state: incident edges go full, everything else dims; preview overrides (see focus-policy.ts). */
@@ -253,9 +257,18 @@ export class PolymorphicFocus {
 		sprite.renderOrder = focused ? FOCUS_RENDER_ORDER : NODE_RENDER_ORDER;
 		const current = n.__k ?? 1;
 		const pending = this.magnifyAnims.get(n);
+		const decorates = this.deps.decorates();
 		if (Math.abs((pending?.to ?? current) - to) < 0.05) {
-			// Already at readable size: acknowledge focus with a pop up-and-back instead of a resize.
-			if (freshlyFocused) this.magnifyAnims.set(n, { from: current, to: current, start: performance.now(), pulse: true });
+			// Already at readable size: acknowledge focus with a pop up-and-back instead of a resize, where decoration runs.
+			if (freshlyFocused && decorates) this.magnifyAnims.set(n, { from: current, to: current, start: performance.now(), pulse: true });
+			return;
+		}
+		if (!decorates) {
+			// The size is what makes the chip readable; the easing to it is decoration. At rest the chip takes the size at
+			// once, in the frame the change is drawn in.
+			this.magnifyAnims.delete(n);
+			n.__k = to;
+			sprite.scale.set(n.__baseScale.x * to, n.__baseScale.y * to, 1);
 			return;
 		}
 		this.magnifyAnims.set(n, { from: current, to, start: performance.now() });
@@ -298,6 +311,16 @@ export class PolymorphicFocus {
 		const color = glowColorAt(RESTING_INTENSITY, this.deps.glowRamp());
 		for (const n of glowing) n.__visual?.setHighlighted(true, { intensity: RESTING_INTENSITY, color });
 		return true;
+	}
+
+	/** How many newcomers still wear their welcome glow: each is drawn once more, when its welcome ends. */
+	get welcoming(): number {
+		return this.freshGlows.size;
+	}
+
+	/** Whether a magnify is easing, which the scene draws until it lands. */
+	get magnifying(): boolean {
+		return this.magnifyAnims.size > 0;
 	}
 
 	/** Animate magnify multipliers each frame: easeOutBack overshoots past the target and settles: the cartoon pop. */

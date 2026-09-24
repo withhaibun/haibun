@@ -14,7 +14,7 @@ export type TPacedGraph = {
 	d3ReheatSimulation(): unknown;
 };
 
-const DATA_SETTLE_TICKS = 40; // enough frames for sprites to reach a placed feed and fresh-link particles to run
+const DATA_SETTLE_TICKS = 1; // the feed is placed before it lands, so one tick moves every sprite to its position
 const HOLD_TICKS = 1_000_000; // effectively "keep ticking until told otherwise" (tween/drag drive pins each frame)
 
 export class EngineGovernor {

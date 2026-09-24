@@ -27,40 +27,40 @@ describe("the frame-time window", () => {
 		expect(medianOf([2, 40, 3]), "an anomaly among three").toBe(3);
 	});
 
-	it("compares nothing before the window is full", () => {
-		const state = fed([50, 50, 50]);
+	it("compares nothing before the window is full, and decoration rests until it has been measured", () => {
+		const state = fed([1, 1, 1]);
 		expect(evaluateRegulation(state, thresholds, 0)).toBeUndefined();
-		expect(state.resting).toBe(false);
+		expect(state.resting).toBe(true);
 	});
 });
 
 describe("the breath's limit", () => {
-	it("rests the breath when its share of wall time exceeds the limit, once, and holds through the cooldown", () => {
+	it("keeps decoration at rest on a frame that would take it past its limit: it never starts, and nothing fires", () => {
 		const state = fed([16, 17, 16, 25, 16]); // a software rasterizer: 16 ms a frame at ten beats a second is 16%
+		expect(evaluateRegulation(state, thresholds, 1_000)).toBeUndefined();
+		expect(state.resting).toBe(true);
+	});
+
+	it("starts decoration on a fast frame: the first full window within its limit lets the breath run", () => {
+		const state = fed([1.5, 1.8, 1.4, 2.1, 1.6]); // a GPU: under 2 ms a frame is under 2%
 		const signal = evaluateRegulation(state, thresholds, 1_000);
+		expect(signal).toEqual({ kind: "decorativeWithinLimit", frameTimeMs: 1.6, share: 0.016 });
+		expect(state.resting).toBe(false);
+		expect(describeRegulation(signal as NonNullable<typeof signal>)).toBe("the breath resumes: it takes 2% of wall time at 1.6 ms a frame");
+	});
+
+	it("rests running decoration when its share exceeds the limit after the cooldown, once, and not before", () => {
+		const state = fed([2, 2, 2, 2, 2]);
+		evaluateRegulation(state, thresholds, 1_000);
+		for (const c of [16, 17, 16, 25, 16]) recordFrameTime(state, c, thresholds.windowSamples);
+		expect(evaluateRegulation(state, thresholds, 5_000), "within the cooldown: no flap").toBeUndefined();
+		expect(state.resting).toBe(false);
+		const signal = evaluateRegulation(state, thresholds, 11_001);
 		expect(signal).toEqual({ kind: "decorativeOverLimit", frameTimeMs: 16, share: 0.16 });
 		expect(state.resting).toBe(true);
 		recordFrameTime(state, 16, thresholds.windowSamples);
-		expect(evaluateRegulation(state, thresholds, 5_000), "still over, already resting: no new signal").toBeUndefined();
+		expect(evaluateRegulation(state, thresholds, 30_000), "still over, already resting: no new signal").toBeUndefined();
 		expect(describeRegulation(signal as NonNullable<typeof signal>)).toBe("the breath rests: it would take 16% of wall time at 16.0 ms a frame");
-	});
-
-	it("lets a fast frame breathe: within its limit nothing fires and the breath runs", () => {
-		const state = fed([1.5, 1.8, 1.4, 2.1, 1.6]); // a GPU: under 2 ms a frame is under 2%
-		expect(evaluateRegulation(state, thresholds, 1_000)).toBeUndefined();
-		expect(state.resting).toBe(false);
-	});
-
-	it("resumes the breath when the time falls within its limit after the cooldown, and not before", () => {
-		const state = fed([16, 16, 16, 16, 16]);
-		evaluateRegulation(state, thresholds, 1_000);
-		for (const c of [2, 2, 2, 2, 2]) recordFrameTime(state, c, thresholds.windowSamples);
-		expect(evaluateRegulation(state, thresholds, 5_000), "within the cooldown: no flap").toBeUndefined();
-		expect(state.resting).toBe(true);
-		const signal = evaluateRegulation(state, thresholds, 11_001);
-		expect(signal).toEqual({ kind: "decorativeWithinLimit", frameTimeMs: 2, share: 0.02 });
-		expect(state.resting).toBe(false);
-		expect(describeRegulation(signal as NonNullable<typeof signal>)).toBe("the breath resumes: it takes 2% of wall time at 2.0 ms a frame");
 	});
 
 	it("defaults: five samples, a twentieth of wall time, ten beats a second from the breath's own cadence", () => {
