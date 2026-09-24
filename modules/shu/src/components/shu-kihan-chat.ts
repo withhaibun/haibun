@@ -14,7 +14,7 @@ import { shuBaseStyles } from "./styles.js";
 import { reads, conduit } from "../hypermedia.js";
 import { findStep, getAvailableSteps, requireStep } from "../rpc-registry.js";
 import { getActionBarAskExtensionTags, getActionBarChatExtensionTags } from "../rels-cache.js";
-import { ContextReadBySchema, SessionListSchema, type TComboboxOption } from "../schemas.js";
+import { ContextReadBySchema, SessionListSchema, type TComboboxOption, type TContextPattern } from "../schemas.js";
 import { GraphQueryResultSchema } from "@haibun/core/lib/quad-types.js";
 import { currentSubjectState } from "../current-subject.js";
 import { SignalController } from "../controllers/index.js";
@@ -296,8 +296,8 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 
 	/**
 	 * What the page's turns may do, so the reader sees it and changes it: what the last turn was delegated, each action it
-	 * was refused, with the control that allows it for the page's turns where the page holds it, and what the reader
-	 * allowed, each with the control that withdraws it.
+	 * was refused, with the control that allows it and asks the question again once the turn has ended, where the page
+	 * holds the action, and what the reader allowed, each with the control that withdraws it.
 	 */
 	private turnAuthorityTemplate(asked: TAskedTurn | null): TemplateResult | typeof nothing {
 		const allowed = turnAllowance.get();
@@ -305,6 +305,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		const refused = asked?.refused ?? [];
 		if (delegated.length === 0 && refused.length === 0 && allowed.length === 0) return nothing;
 		const prefix = this.testIdPrefix;
+		const ended = !inFlight(asked?.status);
 		return html`
 			<div class="turn-authority">
 				${delegated.length > 0 ? html`<p data-testid=${`${prefix}turn-held`}>The last turn held ${delegated.join(", ")}.</p>` : nothing}
@@ -314,8 +315,8 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 								({ step, action }) =>
 									html`<li>
 										${step} was refused: the turn didn't hold ${action}.
-										${pageMay(action) && !allowed.includes(action)
-											? html`<button type="button" data-testid=${`${prefix}turn-allow`} value=${action} @click=${this.onAllow}>Allow ${action} for this page's turns</button>`
+										${ended && pageMay(action) && !allowed.includes(action)
+											? html`<button type="button" data-testid=${`${prefix}turn-allow`} value=${action} @click=${this.onAllow}>Allow ${action} for this page's turns and ask again</button>`
 											: nothing}
 									</li>`,
 							)}
@@ -331,15 +332,28 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		`;
 	}
 
-	private onAllow = (e: Event): void => this.changeTurnAllowance(allowForTurns((e.currentTarget as HTMLButtonElement).value));
-	private onWithdraw = (e: Event): void => this.changeTurnAllowance(withdrawFromTurns((e.currentTarget as HTMLButtonElement).value));
-
-	/** A change the page's store refused is shown where a question's refusal is, since the reader made it here. */
-	private changeTurnAllowance(changing: Promise<void>): void {
-		changing.catch((err: unknown) => {
-			this.#refusal = `what this page allows its turns was not changed: ${errorDetail(err)}`;
-			this.requestUpdate();
+	/** Allow the action for the page's turns, and ask the refused question again from where it was asked: a turn that
+	 *  replies where the refused one replied forks the conversation there, and holds what the reader allowed. */
+	private onAllow = (e: Event): void => {
+		const action = (e.currentTarget as HTMLButtonElement).value;
+		const refused = this.#conversation.state.asked;
+		if (!refused) return;
+		void this.showingRefusal(async () => {
+			await allowForTurns(action);
+			await this.loadModels();
+			await this.askWith(refused.prompt, refused.bundle, refused.inReplyTo);
 		});
+	};
+	private onWithdraw = (e: Event): void => void this.showingRefusal(() => withdrawFromTurns((e.currentTarget as HTMLButtonElement).value));
+
+	/** Do what the reader asked for here, and show why it failed where a question's refusal is shown. */
+	private async showingRefusal(doing: () => Promise<unknown>): Promise<void> {
+		try {
+			await doing();
+		} catch (err) {
+			this.#refusal = errorDetail(err);
+			this.requestUpdate();
+		}
 	}
 
 	/** What the reader states about the conversation, which the pane's settings control shows: the session the questions
@@ -426,21 +440,8 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		if (!chatInput || !prompt) return;
 		try {
 			await this.loadModels();
-			const subject = currentSubjectState.get();
-			const { carries, repliesTo } = nextQuestion(subject);
-			const asking = startTurn({
-				prompt,
-				envelope: {
-					patterns: carries?.bundle.patterns ?? [],
-					// The view data is the active pane's, whether it is a column of the workspace or the bar the reader acts through.
-					viewLd: harvestChatViewLd(),
-					maxToolCalls: this.state.toolLimit,
-					contextReadBy: this.state.contextReadBy || undefined,
-					session: this.#conversation.state.session ?? undefined,
-					inReplyTo: repliesTo?.turn,
-				},
-				target: this.offeredModel(),
-			});
+			const { carries, repliesTo } = nextQuestion(currentSubjectState.get());
+			const asking = this.askWith(prompt, carries?.bundle.patterns ?? [], repliesTo?.turn);
 			chatInput.value = "";
 			askDraft.set("");
 			chatInput.style.height = "auto";
@@ -452,6 +453,24 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 			this.requestUpdate();
 		}
 	};
+	/** Ask `prompt` about the records `patterns` name, replying to the turn `inReplyTo` names, in the open conversation,
+	 *  with the model, the tool limit and the context reading the reader set. The view data is the active pane's, whether
+	 *  it is a column of the workspace or the bar the reader acts through. */
+	private askWith(prompt: string, patterns: TContextPattern[], inReplyTo: string | undefined): Promise<TAskedTurn> {
+		return startTurn({
+			prompt,
+			envelope: {
+				patterns,
+				viewLd: harvestChatViewLd(),
+				maxToolCalls: this.state.toolLimit,
+				contextReadBy: this.state.contextReadBy || undefined,
+				session: this.#conversation.state.session ?? undefined,
+				inReplyTo,
+			},
+			target: this.offeredModel(),
+		});
+	}
+
 	private onStop = (): void => {
 		dispatchConversationEvent({ type: "stop", reason: "you stopped it" });
 	};

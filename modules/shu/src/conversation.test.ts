@@ -391,6 +391,15 @@ describe("the transcript", () => {
 		expect(answered).toMatchObject({ role: "llm", status: "failed", error: "connection reset", recordId: answer("0.1.6"), spinnerVisible: false });
 	});
 
+	it("forks at the start where a first question is asked again, offering the other by the first question shown", () => {
+		const again = run(EVENT.open, { type: "read", session: SESSION, turns: [readBack(FIRST), readBack("0.1.2")] });
+		const entries = transcript(again, undefined, LEVEL);
+		expect(shownTurns(entries), "the newest first question starts the branch shown").toEqual([question("0.1.2")]);
+		const firstShown = entries.find((entry) => entry.shown && entry.message.role === "user")?.message;
+		expect(firstShown?.otherBranch, "and the first question it replaced is offered").toMatchObject({ turn: SESSION, count: 1 });
+		expect(shownTurns(transcript(again, SESSION, LEVEL)), "following it shows that branch").toEqual([SESSION]);
+	});
+
 	it("shows every turn of a conversation that never branched and offers nothing, and nothing for a conversation with no turns", () => {
 		const straight = run(EVENT.open, { type: "read", session: SESSION, turns: [readBack(FIRST), readBack("0.1.2", FIRST)] });
 		const entries = transcript(straight, question("0.1.2"), LEVEL);

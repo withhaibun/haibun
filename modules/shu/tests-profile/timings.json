@@ -12,7 +12,7 @@
 				"declaredStepTextHash": "3715a58ac60ab699ec6daf07f260fc6bd6a73a0184fb4d5bfb118e28795585dc"
 			},
 			"/features/c-reading-a-report.feature.ts": {
-				"seconds": 1.1,
+				"seconds": 1.2,
 				"steps": 176,
 				"declaredStepTextHash": "ee38559611910e4d9b0d52557e4b5307b0cb6d55ec61e0a1e8725ce5cb7a7ea1"
 			},
@@ -22,12 +22,12 @@
 				"declaredStepTextHash": "e24765c25e5e822667ae5e4de992af587ce872594de4770310405f9a0dc659b5"
 			},
 			"/features/e-forgetting-a-run.feature.ts": {
-				"seconds": 2.5,
+				"seconds": 2.6,
 				"steps": 168,
 				"declaredStepTextHash": "a440ebc86a979d49be893f05974352d58586d6d271f9708e93fa56c219222be1"
 			}
 		},
 		"steps": 863,
-		"seconds": 6.7
+		"seconds": 6.9
 	}
 }

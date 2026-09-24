@@ -228,32 +228,47 @@ export function transition(conversation: TConversationState, event: TConversatio
  *  bundle its messages carry. */
 type TShownTurn = Omit<TTurn, "bundle"> & { key: string; bundle: TBundle };
 
+/** Where a session's first questions are asked from: a conversation forks there as it forks at a turn, so a first
+ *  question asked again is another branch of the same session. */
+const START = "";
+
 /**
- * The turns on the branch the transcript shows, and the other branch that leaves each of them. The branch runs from the
- * session's first turn to `onTurn`, then along the newest reply below it to a leaf. Unset or unknown, `onTurn` is the
- * newest turn. Where a turn on the branch has replies off it, the newest other branch is offered by its latest answer,
- * or by its question where the turn ended with no answer recorded.
+ * The turns on the branch the transcript shows, its first turn, and the other branch that leaves each place on it. The
+ * branch runs from the session's start to `onTurn`, then along the newest reply below it to a leaf. Unset or unknown,
+ * `onTurn` is the newest turn. Where a turn on the branch has replies off it, the newest other branch is offered by its
+ * latest answer, or by its question where the turn ended with no answer recorded. The other branch that leaves the
+ * start is keyed by `START`.
  */
-function branch(turns: TShownTurn[], onTurn: string | undefined): { onPath: Set<string>; others: Map<string, NonNullable<TChatMessage["otherBranch"]>> } {
+function branch(
+	turns: TShownTurn[],
+	onTurn: string | undefined,
+): { onPath: Set<string>; first: string | undefined; others: Map<string, NonNullable<TChatMessage["otherBranch"]>> } {
 	const byKey = new Map(turns.map((turn) => [turn.key, turn]));
 	const childrenOf = new Map<string, string[]>();
-	for (const turn of turns) if (turn.inReplyTo !== undefined && byKey.has(turn.inReplyTo)) childrenOf.set(turn.inReplyTo, [...(childrenOf.get(turn.inReplyTo) ?? []), turn.key]);
+	for (const turn of turns) {
+		const parent = turn.inReplyTo !== undefined && byKey.has(turn.inReplyTo) ? turn.inReplyTo : START;
+		childrenOf.set(parent, [...(childrenOf.get(parent) ?? []), turn.key]);
+	}
 	const newestLeafBelow = (key: string): string => {
 		let at = key;
 		for (let children = childrenOf.get(at); children?.length; children = childrenOf.get(at)) at = children[children.length - 1];
 		return at;
 	};
 	const onPath = new Set<string>();
+	let first: string | undefined;
 	const start = onTurn !== undefined && byKey.has(onTurn) ? onTurn : turns.at(-1)?.key;
-	if (start === undefined) return { onPath, others: new Map() };
-	for (let at: string | undefined = newestLeafBelow(start); at !== undefined && byKey.has(at) && !onPath.has(at); at = byKey.get(at)?.inReplyTo) onPath.add(at);
+	if (start === undefined) return { onPath, first, others: new Map() };
+	for (let at: string | undefined = newestLeafBelow(start); at !== undefined && byKey.has(at) && !onPath.has(at); at = byKey.get(at)?.inReplyTo) {
+		onPath.add(at);
+		first = at;
+	}
 	const others = new Map<string, NonNullable<TChatMessage["otherBranch"]>>();
-	for (const key of onPath) {
+	for (const key of [START, ...onPath]) {
 		const off = (childrenOf.get(key) ?? []).filter((child) => !onPath.has(child));
 		const latest = off.length > 0 ? byKey.get(newestLeafBelow(off[off.length - 1])) : undefined;
 		if (latest?.askId) others.set(key, { recordId: latest.sayId ?? latest.askId, turn: latest.askId, bundle: latest.bundle, count: off.length });
 	}
-	return { onPath, others };
+	return { onPath, first, others };
 }
 
 /** One message of the transcript, whether the branch shown holds it, and when its turn was asked, which is what a
@@ -263,11 +278,13 @@ type TTranscriptEntry = { message: TChatMessage; shown: boolean; askedAt: number
 /**
  * The messages a transcript shows, in order: each turn's question and answer, keyed by the turn. Every turn's messages
  * are listed, so a view keeps each message where it first appeared; the turns off the branch `onTurn` is on are not
- * shown. The answer where another branch leaves carries that branch.
+ * shown. The answer where another branch leaves carries that branch, and the first question shown carries the branch
+ * another first question of the session starts.
  */
 export function transcript(conversation: TConversationState, onTurn: string | undefined, accessLevel: AccessQueryLevel): TTranscriptEntry[] {
 	const turns = conversation.turns.map((turn) => ({ ...turn, key: turn.askId ?? PENDING, bundle: { patterns: turn.bundle, accessLevel } }));
-	const { onPath, others } = branch(turns, onTurn);
+	const { onPath, first, others } = branch(turns, onTurn);
+	const otherFirst = others.get(START);
 	return turns.flatMap((turn): TTranscriptEntry[] => {
 		const { key, askId, inReplyTo, status, activity } = turn;
 		const shown = onPath.has(key);
@@ -280,7 +297,18 @@ export function transcript(conversation: TConversationState, onTurn: string | un
 			{
 				shown,
 				askedAt,
-				message: { ...common, id: `${key}:ask`, role: "user", text: turn.prompt, recordId: askId ?? undefined, activity: [], spinnerStatus: "", spinnerVisible: false },
+				message: {
+					...common,
+					id: `${key}:ask`,
+					role: "user",
+					text: turn.prompt,
+					recordId: askId ?? undefined,
+					activity: [],
+					spinnerStatus: "",
+					spinnerVisible: false,
+					// The branch another first question starts is offered by the first question shown.
+					...(key === first && otherFirst ? { otherBranch: otherFirst } : {}),
+				},
 			},
 			{
 				shown,
