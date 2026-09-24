@@ -57,9 +57,9 @@ describe("RpcClient.call", () => {
 		const client = new RpcClient({ baseUrl: "http://host", sign, fetchImpl });
 		await client.call("m", {}, [0], { action: "Stepper:act" });
 		expect(signed).toEqual([
-			{ request: { method: "POST", url: "http://host/rpc/m", headers: { "content-type": "application/json" }, body: calls[0].init?.body }, action: "Stepper:act" },
+			{ request: { method: "POST", url: "http://host/rpc/m", headers: { "content-type": "application/json", host: "host" }, body: calls[0].init?.body }, action: "Stepper:act" },
 		]);
-		expect(calls[0].init?.headers).toEqual({ "content-type": "application/json", "capability-invocation": 'signed action="Stepper:act"' });
+		expect(calls[0].init?.headers).toEqual({ "content-type": "application/json", host: "host", "capability-invocation": 'signed action="Stepper:act"' });
 	});
 
 	it("sends a call that invokes no action unsigned", async () => {
@@ -67,7 +67,7 @@ describe("RpcClient.call", () => {
 		const sign: TRequestSigner = () => Promise.reject(new Error("a call invoking nothing is not signed"));
 		const client = new RpcClient({ baseUrl: "http://host", sign, fetchImpl });
 		await client.call("m", {}, [0]);
-		expect(calls[0].init?.headers).toEqual({ "content-type": "application/json" });
+		expect(calls[0].init?.headers).toEqual({ "content-type": "application/json", host: "host" });
 	});
 
 	it("refuses a call invoking an action when it has nothing to sign with, before sending anything", async () => {

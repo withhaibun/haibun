@@ -1,11 +1,13 @@
 import { vitest, describe, it, expect } from "vitest";
 
-import { CONTINUE_AFTER_ERROR, DEFAULT_DEST, STEP_DELAY } from "@haibun/core/schema/protocol.js";
+import { CONTINUE_AFTER_ERROR, DEFAULT_DEST, MODULE_OPTION_PREFIX, STEP_DELAY } from "@haibun/core/schema/protocol.js";
+
+const OTHER_OPTION = `${MODULE_OPTION_PREFIX}TESTSTEPSWITHOPTIONS_OTHER`;
 import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, passWithDefaults } from "@haibun/core/lib/test/lib.js";
 import TestStepsWithOptions from "@haibun/core/lib/test/TestStepsWithOptions.js";
 import { getDefaultOptions } from "@haibun/core/lib/util/index.js";
 
-import type { TSpecl } from "@haibun/core/lib/execution.js";
+import { SpeclSchema, type TSpecl } from "@haibun/core/lib/execution.js";
 import type { TProtoOptions } from "@haibun/core/lib/world.js";
 import { OPTION_RUN_POLICY, OPTION_DRY_RUN, type TRunPolicyConfig } from "@haibun/core/run-policy/run-policy-types.js";
 import * as lib from "./lib.js";
@@ -42,31 +44,42 @@ describe("options", () => {
 	});
 });
 
+/** A base that states no option of its own. */
+const NO_CONFIG: TSpecl = { steppers: [] };
+
 describe("processEnv", () => {
+	it("takes the module options a base's config states, and the environment states an option over it", () => {
+		const specl = SpeclSchema.parse({ steppers: [], moduleOptions: { [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: "from the config", [OTHER_OPTION]: "kept" } });
+		const { moduleOptions } = lib.processBaseEnvToOptionsAndErrors({ [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: "from the environment" }, specl);
+		expect(moduleOptions).toEqual({ [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: "from the environment", [OTHER_OPTION]: "kept" });
+		expect(() => SpeclSchema.parse({ steppers: [], moduleOptions: { EXISTS: "unnamed" } }), "and refuses an option not named as the environment names it").toThrow(
+			`a module option is named ${MODULE_OPTION_PREFIX}{STEPPER}_{OPTION}`,
+		);
+	});
 	it("assigns boolean true", () => {
-		const protoOptions = lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${CONTINUE_AFTER_ERROR}`]: "true" });
+		const protoOptions = lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${CONTINUE_AFTER_ERROR}`]: "true" }, NO_CONFIG);
 		expect(protoOptions.options[CONTINUE_AFTER_ERROR]).toBeDefined();
 		expect(protoOptions.options[CONTINUE_AFTER_ERROR]).toBe(true);
 	});
 	it("errors for non-boolean value ", () => {
-		expect(() => lib.processBaseEnvToOptionsAndErrors({ HAIBUN_TRACE: "wtw" })).toThrow();
+		expect(() => lib.processBaseEnvToOptionsAndErrors({ HAIBUN_TRACE: "wtw" }, NO_CONFIG)).toThrow();
 	});
 	it("runs once where the environment says so, as the command line option does, for every run a script chains", () => {
-		const { options } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_ONCE: "true" });
+		const { options } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_ONCE: "true" }, NO_CONFIG);
 		expect(lib.runsOnce({ once: false }, options), "the environment alone").toBe(true);
-		expect(lib.runsOnce({ once: true }, lib.processBaseEnvToOptionsAndErrors({}).options), "the command line alone").toBe(true);
-		expect(lib.runsOnce({ once: false }, lib.processBaseEnvToOptionsAndErrors({}).options), "neither").toBe(false);
-		expect(() => lib.processBaseEnvToOptionsAndErrors({ HAIBUN_ONCE: "yes" }), "a value that is not true or false").toThrow();
+		expect(lib.runsOnce({ once: true }, lib.processBaseEnvToOptionsAndErrors({}, NO_CONFIG).options), "the command line alone").toBe(true);
+		expect(lib.runsOnce({ once: false }, lib.processBaseEnvToOptionsAndErrors({}, NO_CONFIG).options), "neither").toBe(false);
+		expect(() => lib.processBaseEnvToOptionsAndErrors({ HAIBUN_ONCE: "yes" }, NO_CONFIG), "a value that is not true or false").toThrow();
 	});
 	it("assigns int", () => {
-		const { options } = lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${STEP_DELAY}`]: "1" });
+		const { options } = lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${STEP_DELAY}`]: "1" }, NO_CONFIG);
 		expect(options[STEP_DELAY]).toBe(1);
 	});
 	it("errors for string passed as int", () => {
-		expect(() => lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${STEP_DELAY}`]: "x.2" })).toThrow();
+		expect(() => lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${STEP_DELAY}`]: "x.2" }, NO_CONFIG)).toThrow();
 	});
 	it("errors for non option", () => {
-		expect(() => lib.processBaseEnvToOptionsAndErrors({ HAIBUN_WTW: "x.2" })).toThrow();
+		expect(() => lib.processBaseEnvToOptionsAndErrors({ HAIBUN_WTW: "x.2" }, NO_CONFIG)).toThrow();
 	});
 });
 

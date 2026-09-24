@@ -88,16 +88,32 @@ export function rpcEnvelope(e: Omit<TRpcRequest, "jsonrpc" | "params"> & { param
 /** The headers that prove a call, made over the request as it is sent: its address, method, headers and body. */
 export type TProveRequest = (request: { url: string; method: string; headers: Record<string, string>; body: string }) => Promise<Record<string, string>>;
 
+/** The fields of a call's envelope, as its caller states them. */
+export type TRpcEnvelope = Parameters<typeof rpcEnvelope>[0];
+
+/** A call as it is sent: its address, and the POST carrying its envelope under the headers made over it. */
+export type TRpcCall = { url: string; init: { method: "POST"; headers: Record<string, string>; body: string } };
+
+/** Proving nothing: a call that invokes no action is sent with its headers as they are. */
+export const provesNothing: TProveRequest = (request) => Promise.resolve(request.headers);
+
 /**
- * Post one call to `method` at the `/rpc` of the host at `base`, carrying the headers `prove` makes over the request. The
- * request's `host` is among what is proven, as the host receives it. A streamed call is answered as NDJSON and ends when
- * its `signal` aborts.
+ * A call to the `/rpc` of the host at `base`: its address, its envelope, and the headers `prove` makes over the request,
+ * the request's `host` among them as the host receives it. Every caller builds its calls here, so what a signature
+ * covers is the same whoever sends it, and each caller decides only how it sends: once, with retries, or held open.
  */
-export async function postRpc(base: string, method: string, params: Record<string, unknown>, prove: TProveRequest, stream?: { signal: AbortSignal }): Promise<Response> {
-	const url = `${base.replace(/\/+$/, "")}/rpc/${method}`;
-	const body = rpcEnvelope({ id: `${method}-${Date.now()}`, method, params, ...(stream ? { stream: true } : {}) });
+export async function buildRpcCall(base: string, envelope: TRpcEnvelope, prove: TProveRequest): Promise<TRpcCall> {
+	const url = `${base.replace(/\/+$/, "")}/rpc/${encodeURIComponent(envelope.method)}`;
+	const body = rpcEnvelope(envelope);
 	const headers = { "content-type": "application/json", host: new URL(url).host };
-	return await fetch(url, { method: "POST", headers: await prove({ url, method: "POST", headers, body }), body, signal: stream?.signal });
+	return { url, init: { method: "POST", headers: await prove({ url, method: "POST", headers, body }), body } };
+}
+
+/** Post one call to `method` at the `/rpc` of the host at `base`, proven by `prove`. A streamed call is answered as NDJSON
+ *  and ends when its `signal` aborts. */
+export async function postRpc(base: string, method: string, params: Record<string, unknown>, prove: TProveRequest, stream?: { signal: AbortSignal }): Promise<Response> {
+	const call = await buildRpcCall(base, { id: `${method}-${Date.now()}`, method, params, ...(stream ? { stream: true } : {}) }, prove);
+	return await fetch(call.url, { ...call.init, signal: stream?.signal });
 }
 
 /**

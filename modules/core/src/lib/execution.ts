@@ -2,6 +2,7 @@ import type { z } from "zod";
 import { z as zr } from "zod";
 
 import type { TAnyFixme } from "./fixme.js";
+import { MODULE_OPTION_PREFIX } from "../schema/protocol.js";
 
 // ============================================================================
 // Specl (runtime config file)
@@ -19,6 +20,9 @@ export const SpeclSchema = zr.looseObject({
 	runPolicy: zr.string().optional(),
 	appParameters: zr.record(zr.string(), zr.record(zr.string(), zr.unknown())).optional(),
 	options: zr.record(zr.string(), zr.unknown()).optional(),
+	/** The steppers' options a base states for every run of it, by the name the environment gives them. The environment
+	 *  states an option over what the config states, so a deployment's `.env` or a caller changes it without an edit. */
+	moduleOptions: zr.record(zr.string().startsWith(MODULE_OPTION_PREFIX, `a module option is named ${MODULE_OPTION_PREFIX}{STEPPER}_{OPTION}`), zr.string()).optional(),
 	/** Paths, relative to this config, whose content the features depend on beyond the modules their steppers name:
 	 *  an application's own sources, fixtures a feature reads. A pass is recorded against their content, so a change
 	 *  to any of them runs the features again and a change elsewhere does not. */

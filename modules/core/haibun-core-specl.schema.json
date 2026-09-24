@@ -50,6 +50,16 @@
       },
       "additionalProperties": {}
     },
+    "moduleOptions": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^HAIBUN_O_.*"
+      },
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
     "dependsOn": {
       "type": "array",
       "items": {

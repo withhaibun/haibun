@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { TSpecl } from "../execution.js";
 import type { TWorld, TRuntime, TModuleOptions } from "../world.js";
-import { TActionResult, OK, TDebugSignal } from "../../schema/protocol.js";
+import { TActionResult, OK, TDebugSignal, MODULE_OPTION_PREFIX } from "../../schema/protocol.js";
 import { TAnyFixme } from "../fixme.js";
 import { IHasOptions, AStepper, CStepper, TFeatureStep } from "../astepper.js";
 import { TArtifactEvent, type TJsonArtifact } from "../../schema/protocol.js";
@@ -160,7 +160,7 @@ export async function setStepperWorldsAndDomains(steppers: AStepper[], world: TW
 }
 
 export function getPre(stepper: AStepper) {
-	return ["HAIBUN", "O", constructorName(stepper).toUpperCase()].join("_") + "_";
+	return `${MODULE_OPTION_PREFIX}${constructorName(stepper).toUpperCase()}_`;
 }
 
 /**

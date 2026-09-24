@@ -1,6 +1,6 @@
 import { errorDetail } from "./util/index.js";
 import { readingAt } from "./capability-context.js";
-import { rpcEnvelope, readNdjson, readRpcAnswer } from "./rpc-wire.js";
+import { buildRpcCall, provesNothing, readNdjson, readRpcAnswer, type TProveRequest } from "./rpc-wire.js";
 import type { TRequestSigner } from "./authority-types.js";
 
 /**
@@ -65,15 +65,12 @@ export class RpcClient {
 	 * object (with string `error` field) on HTTP or application error.
 	 */
 	async call<T = unknown>(method: string, params: Record<string, unknown>, seqPath: number[], opts: RpcCallOptions = {}): Promise<T | RpcError> {
-		const url = `${this.baseUrl}/rpc/${encodeURIComponent(method)}`;
 		// What this caller may see travels with the call, so a host answers no wider than whoever is reading it: the far side
-		// takes the narrower of this and its own ceiling.
-		const body = rpcEnvelope({ id: `rpc-${Date.now()}`, method, params, seqPath, readingAt: readingAt() });
-		// Signed once, before anything is sent: a refusal to sign is this process's answer, not a fault the network might
-		// not repeat, so only sending is retried.
-		const headers = await headersFor(url, body, this.signing(opts.action));
+		// takes the narrower of this and its own ceiling. The call is signed once, before anything is sent: a refusal to sign
+		// is this process's answer, not a fault the network might not repeat, so only sending is retried.
+		const call = await buildRpcCall(this.baseUrl, { id: `rpc-${Date.now()}`, method, params, seqPath, readingAt: readingAt() }, this.proving(opts.action));
 		return this.withRetry(async (signal) => {
-			const res = await this.fetchImpl(url, { method: "POST", headers, body, signal });
+			const res = await this.fetchImpl(call.url, { ...call.init, signal });
 			const answer = await readRpcAnswer(method, res);
 			return answer.kind === "answered" ? (answer.body as T) : { error: answer.error };
 		}, opts.signal);
@@ -85,7 +82,7 @@ export class RpcClient {
 	 * Consumers may `break` early; the underlying connection is aborted.
 	 */
 	async *stream<TChunk = unknown>(method: string, params: Record<string, unknown>, seqPath: number[], opts: RpcCallOptions = {}): AsyncGenerator<TChunk, void, unknown> {
-		const signing = this.signing(opts.action);
+		const prove = this.proving(opts.action);
 		const controller = new AbortController();
 		if (opts.signal) {
 			if (opts.signal.aborted) controller.abort();
@@ -93,9 +90,8 @@ export class RpcClient {
 		}
 		const timeoutHandle = setTimeout(() => controller.abort(), this.timeoutMs);
 		try {
-			const url = `${this.baseUrl}/rpc/${encodeURIComponent(method)}`;
-			const body = rpcEnvelope({ id: `rpc-stream-${Date.now()}`, method, params, seqPath, stream: true, readingAt: readingAt() });
-			const res = await this.fetchImpl(url, { method: "POST", headers: await headersFor(url, body, signing), body, signal: controller.signal });
+			const call = await buildRpcCall(this.baseUrl, { id: `rpc-stream-${Date.now()}`, method, params, seqPath, stream: true, readingAt: readingAt() }, prove);
+			const res = await this.fetchImpl(call.url, { ...call.init, signal: controller.signal });
 			if (!res.ok || !res.body) {
 				const text = res.body ? await res.text().catch(() => "") : "";
 				throw new Error(`stream ${method}: HTTP ${res.status}${text ? `, ${text}` : ""}`);
@@ -109,12 +105,13 @@ export class RpcClient {
 		}
 	}
 
-	/** How a call invoking `action` is signed. A client with nothing to sign with refuses such a call, since the host
+	/** How a call invoking `action` is proven. A client with nothing to sign with refuses such a call, since the host
 	 *  would refuse it unsigned. */
-	private signing(action: string | undefined): TSigning | undefined {
-		if (!action) return undefined;
-		if (!this.sign) throw new Error(`rpc ${this.baseUrl}: a call invoking ${action} is signed, and this client has nothing to sign it with`);
-		return { action, sign: this.sign };
+	private proving(action: string | undefined): TProveRequest {
+		if (!action) return provesNothing;
+		const sign = this.sign;
+		if (!sign) throw new Error(`rpc ${this.baseUrl}: a call invoking ${action} is signed, and this client has nothing to sign it with`);
+		return (request) => sign(request, action);
 	}
 
 	/**
@@ -155,14 +152,6 @@ export class RpcClient {
 	}
 }
 
-type TSigning = { action: string; sign: TRequestSigner };
-
-/** The headers a call is sent with, signed over the address, the method and the body when it invokes an action. One
- *  header set in one casing, since a signature covers the headers as they are sent. */
-function headersFor(url: string, body: string, signing: TSigning | undefined): Promise<Record<string, string>> {
-	const headers = { "content-type": "application/json" };
-	return signing ? signing.sign({ method: "POST", url, headers, body }, signing.action) : Promise.resolve(headers);
-}
 
 /**
  * The instance handshake, shared by every remote surface (federated reads, remote stores): `action.begin`

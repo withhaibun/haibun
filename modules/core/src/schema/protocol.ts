@@ -126,6 +126,8 @@ export const CONTINUE_AFTER_ERROR = "CONTINUE_AFTER_ERROR";
 
 export const HAIBUN = "HAIBUN";
 export const BASE_PREFIX = `${HAIBUN}_`;
+/** What begins a stepper's option in the environment and in a base's config: then the stepper's name and the option's. */
+export const MODULE_OPTION_PREFIX = `${BASE_PREFIX}O_`;
 export const CAPTURE = "capture";
 
 export const TEND_FEATURE_DEFAULTS = {

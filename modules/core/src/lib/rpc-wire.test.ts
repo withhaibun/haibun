@@ -1,0 +1,29 @@
+/**
+ * A call to a host's `/rpc`, built once for every caller: its address under the host's base, its envelope, and the
+ * headers its proof makes over the request as it is sent, the request's `host` among them. A call proving nothing is
+ * sent with those headers as they are.
+ */
+import { describe, expect, it } from "vitest";
+import { buildRpcCall, provesNothing, type TProveRequest } from "./rpc-wire.js";
+
+const BASE = "http://site.test:8123/muskeg/";
+const METHOD = "Stepper-act";
+
+describe("a call to a host's rpc", () => {
+	it("is addressed under the host's base, carries its envelope, and is sent with the headers its proof makes over it", async () => {
+		const proven: Parameters<TProveRequest>[0][] = [];
+		const prove: TProveRequest = (request) => (proven.push(request), Promise.resolve({ ...request.headers, proof: "signed" }));
+		const call = await buildRpcCall(BASE, { id: "call-1", method: METHOD, params: { what: 1 }, seqPath: [0, 1] }, prove);
+		expect(call.url).toBe(`http://site.test:8123/muskeg/rpc/${METHOD}`);
+		expect(JSON.parse(call.init.body)).toEqual({ jsonrpc: "2.0", id: "call-1", method: METHOD, params: { what: 1 }, seqPath: [0, 1] });
+		expect(proven, "the proof covers the request as it is sent, its host included").toEqual([
+			{ url: call.url, method: "POST", headers: { "content-type": "application/json", host: "site.test:8123" }, body: call.init.body },
+		]);
+		expect(call.init.headers).toEqual({ "content-type": "application/json", host: "site.test:8123", proof: "signed" });
+	});
+
+	it("proving nothing, is sent with its headers as they are", async () => {
+		const call = await buildRpcCall(BASE, { id: "call-2", method: METHOD, params: {} }, provesNothing);
+		expect(call.init.headers).toEqual({ "content-type": "application/json", host: "site.test:8123" });
+	});
+});

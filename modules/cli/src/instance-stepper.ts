@@ -33,7 +33,7 @@ import { actionNotOK, actionOKWithProducts, perProcessOptionNames } from "@haibu
 import { RpcClient } from "@haibun/core/lib/rpc-client.js";
 import { RemoteStepperProxy } from "@haibun/core/lib/remote-stepper-proxy.js";
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
-import { BASE_PREFIX, NDJSON, OK, STAY, STAY_ALWAYS } from "@haibun/core/schema/protocol.js";
+import { MODULE_OPTION_PREFIX, BASE_PREFIX, NDJSON, OK, STAY, STAY_ALWAYS } from "@haibun/core/schema/protocol.js";
 import { HAIBUN_HOST_ID_ENV } from "@haibun/core/lib/host-id.js";
 import { type TRunOutcome, emptyOutcome, accrueRunOutcome } from "./run-outcome.js";
 import { getConfigFromBase, processBaseEnvToOptionsAndErrors } from "./lib.js";
@@ -49,7 +49,7 @@ const NDJSON_ENV = `${BASE_PREFIX}${NDJSON}`;
  * a launcher assigns a port to an instance whose steppers it does not hold: what a launcher promised its caller is the
  * port the instance serves on, so the assignment cannot depend on which steppers the launcher happens to register.
  */
-const INSTANCE_PORT_ENV = "HAIBUN_O_WEBSERVERSTEPPER_PORT";
+const INSTANCE_PORT_ENV = `${MODULE_OPTION_PREFIX}WEBSERVERSTEPPER_PORT`;
 
 const READY_DEADLINE_MS = 30_000;
 /** How long one handshake attempt is given before the next: a starting child answers late, not slowly. */
@@ -183,7 +183,7 @@ function environmentIn(cwd: string, env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
 export function verifiedRun(config: string, dir: string, filter: string, cwd: string, env: NodeJS.ProcessEnv): TOutcome | undefined {
 	const specl = getConfigFromBase([dir]);
 	if (!specl) return undefined;
-	const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(environmentIn(cwd, env));
+	const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(environmentIn(cwd, env), specl);
 	const v = verificationOf({ configPath: config, specl, bases: [dir], cwd, filter: filter ? filter.split(",") : [], options, moduleOptions });
 	return v === undefined ? undefined : outcomeAgainst(v)?.outcome;
 }

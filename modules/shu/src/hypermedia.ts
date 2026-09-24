@@ -24,7 +24,7 @@ import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import { z } from "zod";
 import { pagePinned } from "./page-pinned.js";
 // The wire itself: envelope and stream reader, shared with every other caller of a haibun host. Free of node imports.
-import { rpcEnvelope, readNdjson, readRpcAnswer } from "@haibun/core/lib/rpc-wire.js";
+import { buildRpcCall, readNdjson, readRpcAnswer, type TProveRequest, type TRpcEnvelope } from "@haibun/core/lib/rpc-wire.js";
 import { findStep, responseTimeoutMs } from "./rpc-registry.js";
 import { keyHeaders, pageAuthorityReady, signedHeaders } from "./page-key.js";
 import { DELEGATIONS_READ_METHOD } from "@haibun/core/lib/authority-types.js";
@@ -132,27 +132,21 @@ async function answerOf(method: string, res: Response): Promise<unknown> {
 }
 
 /**
- * What every call from this page carries. A call to a step is signed with the key this reader controls, over that
- * request: the address, the method and the body, under a delegation that allows the action the step requires. The
- * delegation read proves the key alone, since it is how the page learns what else it holds. A call the page holds no
- * delegation for carries nothing, which the deployment may allow without a delegation.
+ * How a call from this page to `method` is proven. A call to a step is signed with the key this reader controls, over
+ * the request, under a delegation that allows the action the step requires. The delegation read proves the key alone,
+ * since it is how the page learns what else it holds. A call the page holds no delegation for carries nothing, which
+ * the deployment may allow without a delegation.
  */
-async function rpcHeaders(url: string, method: string, body: string): Promise<Record<string, string>> {
-	// One header set, written once and in one casing: a signature covers the headers as they are sent, and the same
-	// header given twice in two casings arrives as one header carrying both values, which is not what was signed.
-	const base: Record<string, string> = { "content-type": "application/json" };
-	// What is signed is the address the request is made to: a proof over a relative path proves nothing about
-	// where it was sent, and the boundary checks the absolute one it received. The body is signed as the string it is
-	// sent as, so the digest the proof carries is over those bytes.
-	const asked = new URL(url, location.href);
-	const request = { url: asked.toString(), method: "POST", headers: { ...base, host: asked.host }, body };
-	if (method === DELEGATIONS_READ_METHOD) return await keyHeaders(request);
-	// Discovery is how the page learns the steps, so what it requires is the one action the page knows without asking.
-	const required = method === SHOW_STEPS_METHOD ? SHOW_STEPS_ACTION : findStep(method)?.capability;
-	if (!required) return base;
-	// A call waits for what the page holds, which the page reads while it boots, and says so there if it could not.
-	await pageAuthorityReady();
-	return (await signedHeaders({ ...request, action: required })) ?? base;
+function provingFor(method: string): TProveRequest {
+	return async (request) => {
+		if (method === DELEGATIONS_READ_METHOD) return await keyHeaders(request);
+		// Discovery is how the page learns the steps, so what it requires is the one action the page knows without asking.
+		const required = method === SHOW_STEPS_METHOD ? SHOW_STEPS_ACTION : findStep(method)?.capability;
+		if (!required) return request.headers;
+		// A call waits for what the page holds, which the page reads while it boots, and says so there if it could not.
+		await pageAuthorityReady();
+		return (await signedHeaders({ ...request, action: required })) ?? request.headers;
+	};
 }
 
 /** `Conduit` implementation against a running haibun service. Sole owner of the SPA's RPC fetch path, wire envelope (jsonrpc + seqPath), `action.begin` allocation, NDJSON streaming reader, and error formatting all live here. Action scope is explicit via the `scope` constructor argument: a top-level instance has none and allocates one per `follow`; a `group`-issued child has a bound scope and appends sub-sequences to it. Concurrent groups can't accidentally share scope because nothing is module-level. */
@@ -222,9 +216,10 @@ export class LiveConduit implements Conduit {
 	}
 
 	// The one wire write: envelope, headers (signed where the step requires authority), POST. Every request above rides it.
-	private async post(method: string, envelope: Omit<Parameters<typeof rpcEnvelope>[0], "id">, signal?: AbortSignal): Promise<Response> {
-		const url = `${this.basePath}/rpc/${method}`;
-		const body = rpcEnvelope({ id: nextRpcId(), ...envelope });
+	private async post(method: string, envelope: Omit<TRpcEnvelope, "id">, signal?: AbortSignal): Promise<Response> {
+		// What is signed is the address the request is made to: a proof over a relative path proves nothing about where
+		// it was sent, and the boundary checks the absolute one it received.
+		const base = new URL(`${this.basePath}/`, location.origin).href;
 		// A request the server accepts without responding to is indistinguishable from an unreachable server, so a
 		// request the page awaits carries a timeout. A caller that supplied a signal governs its own request, and a
 		// stream stays open for as long as the run writes to it, so neither is one this timeout applies to.
@@ -234,10 +229,11 @@ export class LiveConduit implements Conduit {
 		// whatever a read did, because a reader asked for it: a question typed into the page is not answered by a read
 		// that timed out a moment ago. The timeout is allocated after this, so a request that is not issued allocates no
 		// timer.
-		if (awaited && envelope.asks !== "act" && isUnreachable()) throw new ServerUnreachable(url, new Error("a read of this server timed out within the last interval"));
+		if (awaited && envelope.asks !== "act" && isUnreachable()) throw new ServerUnreachable(base, new Error("a read of this server timed out within the last interval"));
+		const call = await buildRpcCall(base, { id: nextRpcId(), ...envelope }, provingFor(method));
 		const bounded = awaited ? AbortSignal.timeout(responseTimeoutMs()) : signal;
 		try {
-			const res = await fetch(url, { method: "POST", headers: await rpcHeaders(url, method, body), body, signal: bounded });
+			const res = await fetch(call.url, { ...call.init, signal: bounded });
 			const state = responded();
 			state.at = Date.now();
 			state.unreachableUntil = 0;
@@ -247,7 +243,7 @@ export class LiveConduit implements Conduit {
 			// Only a timeout withholds later requests. A request the network refuses fails immediately, so the next read
 			// does nothing by issuing one, and a server that recovers is detected on that read.
 			if (bounded?.aborted) responded().unreachableUntil = Date.now() + UNREACHABLE_RETRY_AFTER_MS;
-			throw new ServerUnreachable(url, err);
+			throw new ServerUnreachable(call.url, err);
 		}
 	}
 

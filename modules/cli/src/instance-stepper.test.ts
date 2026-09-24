@@ -20,6 +20,7 @@ import { recordOutcome, verificationOf } from "./verified.js";
 import { emptyOutcome, accrueRunOutcome } from "./run-outcome.js";
 import type { ChildProcess } from "child_process";
 import { EventEmitter } from "node:events";
+import type { TSpecl } from "@haibun/core/lib/execution.js";
 
 /** The supervisor, with a way to hold a run that has no process behind it: what the reading and stopping steps
  *  answer does not depend on a child, and starting a real one belongs to the feature tests. */
@@ -189,7 +190,7 @@ describe("whether a run would answer what an earlier run answered", () => {
 		const env = runEnvironment({}, 0, false);
 		expect(verifiedRun(config, dir, "", dir, env)).toBeUndefined();
 		// What the child would record, under the conditions the child computes from the same environment.
-		const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(env);
+		const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(env, getConfigFromBase([dir]) as TSpecl);
 		const v = () => verificationOf({ configPath: config, specl: getConfigFromBase([dir]) as never, bases: [dir], cwd: dir, filter: [], options, moduleOptions }) as never;
 		recordOutcome(v(), "failed", 1);
 		expect(verifiedRun(config, dir, "", dir, env), "a run that failed against this state would fail the same way").toBe("failed");
@@ -203,7 +204,7 @@ describe("whether a run would answer what an earlier run answered", () => {
 	it("reads the .env of the directory the run is made from, as the run does, so a run given options there is told apart", () => {
 		const { dir, config } = aGroup();
 		const env = runEnvironment({}, 0, false);
-		const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(env);
+		const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(env, getConfigFromBase([dir]) as TSpecl);
 		recordOutcome(
 			verificationOf({ configPath: config, specl: getConfigFromBase([dir]) as never, bases: [dir], cwd: dir, filter: [], options, moduleOptions }) as never,
 			"passed",

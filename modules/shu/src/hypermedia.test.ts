@@ -303,7 +303,7 @@ describe("a server that does not respond", () => {
 		delete (globalThis as unknown as Record<string, unknown>)["__SHU_SERVER_RESPONDED__"];
 		const asked: string[] = [];
 		globalThis.fetch = ((url: string, init?: { signal?: AbortSignal }) => {
-			asked.push(String(url));
+			asked.push(new URL(String(url)).pathname);
 			if (String(url).endsWith("/rpc/action.begin")) return Promise.resolve(rpcAnswer({ seqPath: [0, 1] }, 200));
 			return new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("timed out", "TimeoutError")), { once: true }));
 		}) as unknown as typeof globalThis.fetch;

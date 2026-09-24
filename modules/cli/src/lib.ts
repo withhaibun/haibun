@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { type TSpecl, SpeclSchema } from "@haibun/core/lib/execution.js";
 import type { TBase, TBaseOptions, TProtoOptions, TWorld } from "@haibun/core/lib/world.js";
-import { BASE_PREFIX, CHECK_NO, CHECK_YES, DEFAULT_DEST, STAY, STAY_ALWAYS, Timer, TExecutorResult } from "@haibun/core/schema/protocol.js";
+import { BASE_PREFIX, CHECK_NO, CHECK_YES, DEFAULT_DEST, MODULE_OPTION_PREFIX, STAY, STAY_ALWAYS, Timer, TExecutorResult } from "@haibun/core/schema/protocol.js";
 import { IHasOptions } from "@haibun/core/lib/astepper.js";
 import { getCreateSteppers, getDefaultTag } from "@haibun/core/lib/test/lib.js";
 import { resolveSitePrincipal } from "@haibun/core/lib/host-id.js";
@@ -52,7 +52,7 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 
 	try {
 		const pr = new PhaseRunner();
-		protoOptions = await pr.tryPhase("processBaseEnvToOptionsAndErrors", () => processBaseEnvToOptionsAndErrors(env));
+		protoOptions = await pr.tryPhase("processBaseEnvToOptionsAndErrors", () => processBaseEnvToOptionsAndErrors(env, specl));
 
 		world = getCliWorld(protoOptions, bases);
 		pr.world = world;
@@ -285,8 +285,10 @@ export async function usage(specl: TSpecl, message?: string) {
 	return [...ret, ""].join("\n");
 }
 
-export function processBaseEnvToOptionsAndErrors(env: TEnv) {
-	const protoOptions: TProtoOptions = { options: { DEST: DEFAULT_DEST }, moduleOptions: {} };
+/** A run's options: base options from the environment, and module options from the base's config with the environment
+ *  stating an option over it. */
+export function processBaseEnvToOptionsAndErrors(env: TEnv, specl: TSpecl) {
+	const protoOptions: TProtoOptions = { options: { DEST: DEFAULT_DEST }, moduleOptions: { ...specl.moduleOptions } };
 
 	const errors: string[] = [];
 	let nenv = {};
@@ -312,7 +314,7 @@ export function processBaseEnvToOptionsAndErrors(env: TEnv) {
 				} else {
 					(protoOptions.options as Record<string, unknown>)[opt] = res.result;
 				}
-			} else if (opt.startsWith(`O_`)) {
+			} else if (k.startsWith(MODULE_OPTION_PREFIX)) {
 				protoOptions.moduleOptions[k] = value;
 			} else {
 				errors.push(`no option for ${opt}`);
