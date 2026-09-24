@@ -30,8 +30,11 @@ import {
 	inFlight,
 	openConversation,
 	turnEnded,
+	type TAskedTurn,
 	type TConversationState,
 } from "../conversation.js";
+import { pageMay } from "../page-key.js";
+import { allowForTurns, readTurnAllowance, turnAllowance, withdrawFromTurns } from "../turn-allowance.js";
 import { harvestChatViewLd } from "../chat-context-harvest.js";
 import { SHU_TAG } from "../consts.js";
 import { reportToRun } from "../client-log.js";
@@ -129,6 +132,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		}
 		.tool-limit { width: 4em; font-size: var(--shu-font-sm); }
 		.refusal { flex-basis: 100%; font-size: var(--shu-font-sm); color: var(--shu-error); }
+		.turn-authority { flex: 0 0 auto; padding: 0 var(--shu-space-4); font-size: var(--shu-font-sm); color: var(--shu-fg-muted); }
 		.send-btn, .stop-btn {
 			padding: var(--shu-space-1) var(--shu-space-4); border: var(--shu-border-w) solid transparent;
 			border-radius: var(--shu-radius); font: inherit; font-size: var(--shu-font-md);
@@ -160,7 +164,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		this,
 		conversationState,
 		(conversation, before) => this.onConversationMove(conversation, before),
-		(conversation) => [conversation.status, conversation.session, conversation.asked?.status],
+		(conversation) => [conversation.status, conversation.session, conversation.asked?.status, conversation.asked?.refused.length],
 	);
 
 	static observedHtmlAttributes = ["testid-prefix"];
@@ -181,6 +185,8 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		this.autoTeardown(followReportedTurns(() => void this.refreshSessionList()));
 		// What this page has read of a session decides what the list says each gained, so opening one states the list again.
 		this.watchSignal(sessionsRead);
+		this.watchSignal(turnAllowance);
+		readTurnAllowance().catch((err: unknown) => reportToRun("error", "shu-kihan-chat", `what this page allows its turns was not read: ${errorDetail(err)}`));
 	}
 
 	/** What the selector offers: a new conversation, then each session the run lists. */
@@ -276,6 +282,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		return html`
 			${this.showControls ? this.settingsTemplate(conversation) : nothing}
 			<div class="transcript"><slot></slot></div>
+			${this.turnAuthorityTemplate(conversation.asked)}
 			<div class="input-line">
 				<slot name="mode-toggle"></slot>
 				<textarea class="chat-input" placeholder="Ask about this..." data-testid=${`${this.testIdPrefix}chat-input`} rows="1" autofocus .value=${askDraft.get()} @input=${this.onChatInput} @keydown=${this.onChatKeydown}></textarea>
@@ -285,6 +292,54 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 				${refusal ? html`<span class="refusal" role="status">${refusal}</span>` : nothing}
 			</div>
 		`;
+	}
+
+	/**
+	 * What the page's turns may do, so the reader sees it and changes it: what the last turn was delegated, each action it
+	 * was refused, with the control that allows it for the page's turns where the page holds it, and what the reader
+	 * allowed, each with the control that withdraws it.
+	 */
+	private turnAuthorityTemplate(asked: TAskedTurn | null): TemplateResult | typeof nothing {
+		const allowed = turnAllowance.get();
+		const delegated = asked?.delegated ?? [];
+		const refused = asked?.refused ?? [];
+		if (delegated.length === 0 && refused.length === 0 && allowed.length === 0) return nothing;
+		const prefix = this.testIdPrefix;
+		return html`
+			<div class="turn-authority">
+				${delegated.length > 0 ? html`<p data-testid=${`${prefix}turn-held`}>The last turn held ${delegated.join(", ")}.</p>` : nothing}
+				${refused.length > 0
+					? html`<ul>
+							${refused.map(
+								({ step, action }) =>
+									html`<li>
+										${step} was refused: the turn didn't hold ${action}.
+										${pageMay(action) && !allowed.includes(action)
+											? html`<button type="button" data-testid=${`${prefix}turn-allow`} value=${action} @click=${this.onAllow}>Allow ${action} for this page's turns</button>`
+											: nothing}
+									</li>`,
+							)}
+						</ul>`
+					: nothing}
+				${allowed.length > 0
+					? html`<p>This page's turns are also given:</p>
+							<ul>
+								${allowed.map((action) => html`<li>${action} <button type="button" data-testid=${`${prefix}turn-withdraw`} value=${action} @click=${this.onWithdraw}>Withdraw</button></li>`)}
+							</ul>`
+					: nothing}
+			</div>
+		`;
+	}
+
+	private onAllow = (e: Event): void => this.changeTurnAllowance(allowForTurns((e.currentTarget as HTMLButtonElement).value));
+	private onWithdraw = (e: Event): void => this.changeTurnAllowance(withdrawFromTurns((e.currentTarget as HTMLButtonElement).value));
+
+	/** A change the page's store refused is shown where a question's refusal is, since the reader made it here. */
+	private changeTurnAllowance(changing: Promise<void>): void {
+		changing.catch((err: unknown) => {
+			this.#refusal = `what this page allows its turns was not changed: ${errorDetail(err)}`;
+			this.requestUpdate();
+		});
 	}
 
 	/** What the reader states about the conversation, which the pane's settings control shows: the session the questions

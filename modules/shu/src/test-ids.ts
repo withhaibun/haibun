@@ -23,6 +23,12 @@ export const SHU_TEST_IDS = {
 		CHAT_OTHER_BRANCH: "app-chat-other-branch",
 		/** On a question: the records its bundle names, each a link. */
 		CHAT_CARRIES: "app-chat-carries",
+		/** Under the ask: the actions the page delegated to its last turn. */
+		TURN_HELD: "app-turn-held",
+		/** Under the ask, for an action the last turn was refused: allows it for the page's turns. Its value is the action. */
+		TURN_ALLOW: "app-turn-allow",
+		/** Under the ask, for an action the page's turns are given: withdraws it. Its value is the action. */
+		TURN_WITHDRAW: "app-turn-withdraw",
 		SESSION_SELECT: "app-session-select",
 		STEP_SELECT: "app-step-select",
 		MODE_SELECT: "app-mode-select",

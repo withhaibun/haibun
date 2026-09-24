@@ -25,7 +25,8 @@ export type TPageAuthority = {
 	withoutDelegation: string[];
 };
 
-type TSigningKey = { controller: string; keyId: string; sign(options: { data: Uint8Array }): Promise<Uint8Array> };
+/** The page's key as it signs: its did:key, its verification method, and a signature over bytes. */
+export type TSigningKey = { controller: string; keyId: string; sign(options: { data: Uint8Array }): Promise<Uint8Array> };
 
 // A reader is one reader across every bundle of its page, so what it holds is the page's, and so is the reading of it: a
 // bundle that signs a request waits on the reading the app started rather than starting one of its own.
@@ -60,16 +61,31 @@ async function pageKey(): Promise<TSigningKey> {
 	};
 }
 
-/** The page's key pair from the key store, made and kept there the first time. The connection is closed once the pair is
- *  read, since the key is usable without it, and a connection a page holds open slows every other store it reads. */
+/** The page's key pair from the key store, made and kept there the first time. */
 async function keptPair(): Promise<CryptoKeyPair> {
+	const kept = await readKept<CryptoKeyPair>(PAGE_KEY);
+	if (kept) return kept;
+	const made = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, false, ["sign", "verify"]);
+	await keep(PAGE_KEY, made);
+	return made;
+}
+
+/** What the page keeps in its own store under `name`: its key pair, or what it gives the turns it asks. */
+export function readKept<T>(name: string): Promise<T | undefined> {
+	return withKeyDb((db) => request<T | undefined>(db.transaction(KEY_STORE).objectStore(KEY_STORE).get(name)));
+}
+
+/** Keep `value` in the page's own store under `name`. */
+export async function keep(name: string, value: unknown): Promise<void> {
+	await withKeyDb((db) => request(db.transaction(KEY_STORE, "readwrite").objectStore(KEY_STORE).put(value, name)));
+}
+
+/** The connection is closed once used, since what it read is usable without it, and a connection a page holds open slows
+ *  every other store it reads. */
+async function withKeyDb<T>(use: (db: IDBDatabase) => Promise<T>): Promise<T> {
 	const db = await openKeyDb();
 	try {
-		const kept = await request<CryptoKeyPair | undefined>(db.transaction(KEY_STORE).objectStore(KEY_STORE).get(PAGE_KEY));
-		if (kept) return kept;
-		const made = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, false, ["sign", "verify"]);
-		await request(db.transaction(KEY_STORE, "readwrite").objectStore(KEY_STORE).put(made, PAGE_KEY));
-		return made;
+		return await use(db);
 	} finally {
 		db.close();
 	}
@@ -133,6 +149,11 @@ export async function pageAuthorityReady(): Promise<TPageAuthority | undefined> 
 /** What this page holds, where it has been read. */
 export function pageAuthority(): TPageAuthority | undefined {
 	return pinned().held?.authority;
+}
+
+/** The key this page signs as, once it has read what it holds: what signs a delegation it gives. */
+export function pageSigner(): TSigningKey | undefined {
+	return pinned().held?.key;
 }
 
 /** Every action this page holds: what needs no delegation here, and what its delegations list. */

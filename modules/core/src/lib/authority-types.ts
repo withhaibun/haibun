@@ -10,13 +10,14 @@ import type { AccessLevel } from "./resources.js";
  */
 
 /**
- * What a caller presents to act with authority it holds. In this process, that is the document carrying the authority
- * and what the caller says it lets them do. Over HTTP, the request itself is the presentation: it names what is being
+ * What a caller presents to act with authority it holds. In this process, that is the document carrying the authority,
+ * and what the caller says it lets them do where it names one action; a document presented without one is checked for
+ * everything it allows. Over HTTP, the request itself is the presentation: it names what is being
  * asked of what, and carries the proof that the caller may ask it. The verifier registered for the specification the
  * evidence is written in reads it; the framework never reads inside it.
  */
 export type TAuthorityEvidence =
-	| { kind: "document"; document: Record<string, unknown>; action: string; target: string }
+	| { kind: "document"; document: Record<string, unknown>; action?: string; target: string }
 	| { kind: "request"; method: string; url: string; headers: Record<string, string | undefined>; body?: string };
 
 /** Where a deployment records a delegation: the type of its record and the level the record is kept at, so a view opens

@@ -10,9 +10,14 @@ import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { SCOPE, activeEntry, scopeEntry, type TEntry, type TSubjectState } from "./current-subject.js";
 import { acts, conduit } from "./hypermedia.js";
-import { requireStep } from "./rpc-registry.js";
+import { deploymentVerifiesDelegations, requireStep } from "./rpc-registry.js";
+import { delegateFromPage } from "./page-delegation.js";
+import { delegatedActions, readAction, readCeilingOf } from "@haibun/core/lib/actions.js";
+import { Access, narrowerAccess, storeScopeFor } from "@haibun/core/lib/resources.js";
+import { pageHolds, pageMay } from "./page-key.js";
+import { readTurnAllowance } from "./turn-allowance.js";
 import { reportToRun } from "./client-log.js";
-import { ASK_STEP, askRefusal, conversationState, dispatchConversationEvent, type TAskedTurn } from "./conversation.js";
+import { ASK_STEP, OPEN_TURN_STEP, askRefusal, conversationState, dispatchConversationEvent, type TAskedTurn } from "./conversation.js";
 import { TurnEnvelopeSchema, type TTurnEnvelope } from "./schemas.js";
 import { appAccessLevel } from "./util.js";
 
@@ -26,6 +31,20 @@ export function nextQuestion(state: TSubjectState): { carries: TEntry | null; re
 	return { carries: activeEntry(state), repliesTo: conversation?.turn ? conversation : null };
 }
 
+/**
+ * What a turn this page asks may do, as the delegation the page signs to the turn's key: reading at the level the page
+ * asks at, no wider than the page reads, and each action the page holds of those the instance names for a turn and those
+ * the reader allowed its turns. Undefined where the deployment verifies no delegation, where a turn holds what the
+ * deployment allows without one.
+ */
+async function turnDelegation(): Promise<Record<string, unknown> | undefined> {
+	if (!deploymentVerifiesDelegations()) return undefined;
+	const turn = await conduit().follow<{ controller: string; expires: string; actions: string[] }>(acts(requireStep(OPEN_TURN_STEP)), "chat-turn: open the turn's key");
+	const reads = narrowerAccess(storeScopeFor(appAccessLevel()), readCeilingOf(pageHolds()) ?? Access.public);
+	const given = [...new Set([...turn.actions, ...(await readTurnAllowance())])].filter((action) => pageMay(action));
+	return await delegateFromPage({ controller: turn.controller, wanted: [readAction(reads), ...given], expires: turn.expires, target: location.origin });
+}
+
 /** The events a turn's streamed chunks carry. Text is raised at most once a frame, so a stream faster than the page draws
  *  moves the turn once per drawn frame, and `flush` raises what is held before the turn ends. */
 class ChunkEvents {
@@ -35,6 +54,7 @@ class ChunkEvents {
 	raise = (chunk: TStreamChunk): void => {
 		if (chunk.recorded) dispatchConversationEvent({ type: "recorded", record: { id: chunk.recorded.id, label: chunk.recorded.persistedAs } });
 		if (chunk.status) dispatchConversationEvent({ type: "status", line: chunk.status });
+		if (chunk.refused) dispatchConversationEvent({ type: "refused", call: chunk.refused });
 		if (!chunk.text) return;
 		this.#text += chunk.text;
 		this.#frame ??= requestAnimationFrame(this.flush);
@@ -58,9 +78,11 @@ export async function startTurn({ prompt, envelope, target }: TTurnRequest): Pro
 	const refusal = askRefusal(conversationState.get());
 	if (refusal) throw new Error(refusal);
 	// Stated before the turn is asked, so an envelope that does not serialize is refused and leaves no turn in flight.
-	const stated = TurnEnvelopeSchema.parse(envelope);
+	const delegation = await turnDelegation();
+	const stated = TurnEnvelopeSchema.parse({ ...envelope, ...(delegation ? { delegation } : {}) });
 	const context = JSON.stringify(stated);
-	dispatchConversationEvent({ type: "ask", prompt, patterns: stated.patterns, session: stated.session, inReplyTo: stated.inReplyTo });
+	const delegated = delegation ? delegatedActions(delegation) : [];
+	dispatchConversationEvent({ type: "ask", prompt, patterns: stated.patterns, session: stated.session, inReplyTo: stated.inReplyTo, delegated });
 	const abort = new AbortController();
 	const unsubscribe = conversationState.subscribe(({ asked: turn }) => {
 		if (turn?.stoppedBy && (turn.status === "asking" || turn.askId !== null)) abort.abort();

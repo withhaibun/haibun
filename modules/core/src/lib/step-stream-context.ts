@@ -24,9 +24,14 @@ import { AsyncLocalStorage } from "node:async_hooks";
  *  stream needs to address the record without knowing how the step names it. */
 export type TRecordedIndividual = { persistedAs: string; id: string };
 
-/** One streamed step chunk: a status update, a text fragment, an individual the step just recorded, and/or a terminal
- *  error. The same shape is serialized to NDJSON/SSE by the transport and consumed by the shu client. */
-export type TStreamChunk = { status?: string; text?: string; recorded?: TRecordedIndividual; error?: string };
+/** A call a step made for its caller that what the step holds did not allow: the step it named, and the action that step
+ *  requires, which the caller may hold and allow. */
+export type TRefusedCall = { step: string; action: string };
+
+/** One streamed step chunk: a status update, a text fragment, an individual the step just recorded, a call it was
+ *  refused, and/or a terminal error. The same shape is serialized to NDJSON/SSE by the transport and consumed by the shu
+ *  client. */
+export type TStreamChunk = { status?: string; text?: string; recorded?: TRecordedIndividual; refused?: TRefusedCall; error?: string };
 
 export type TStreamCtx = {
 	emit: (chunk: TStreamChunk) => void;

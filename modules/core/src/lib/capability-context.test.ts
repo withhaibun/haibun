@@ -6,7 +6,7 @@
  * running, so anything that ticks on its own runs with none.
  */
 import { describe, expect, it } from "vitest";
-import { authorizedWith, readingAt, runAuthorizedWith, runReadingAt } from "./capability-context.js";
+import { authorizedWith, readingAt, runAuthorizedWith, runReadingAt, runShowing, shownTo } from "./capability-context.js";
 
 describe("the capability a step runs under", () => {
 	it("is nothing outside a dispatch", () => {
@@ -42,6 +42,17 @@ describe("the capability a step runs under", () => {
 			await runAuthorizedWith("Instance:read", async () => expect(authorizedWith()).toBe("Instance:read"));
 			expect(authorizedWith()).toBe("Instance:run");
 		});
+	});
+});
+
+describe("the steps a listing shows", () => {
+	it("are those the caller holds, where it acts for no one else", async () => {
+		expect(await runAuthorizedWith("Read:public", () => Promise.resolve(shownTo()))).toBe("Read:public");
+	});
+
+	it("are those the caller it acts for holds, while what it may call stays its own", async () => {
+		const seen = await runAuthorizedWith(["*"], () => runShowing(authorizedWith(), () => runAuthorizedWith("Read:public", () => Promise.resolve({ shown: shownTo(), held: authorizedWith() }))));
+		expect(seen).toEqual({ shown: ["*"], held: "Read:public" });
 	});
 });
 

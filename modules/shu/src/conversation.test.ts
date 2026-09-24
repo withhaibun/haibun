@@ -45,17 +45,22 @@ const ANSWER: TRecord = { id: answer("0.1.2"), label: COMMENT_LABEL };
 /** A turn of the session as the store reads it back, asked about the email. */
 const readBack = (turn: string, inReplyTo?: string): TSessionTurn => aReadBack(turn, inReplyTo, [EMAIL]);
 
+/** What the page delegated to its turn, and a call the turn was refused for an action the delegation lacks. */
+const DELEGATED = ["Read:private", "Example:ask"];
+const REFUSED = { step: "Example-act", action: "Example:act" };
+
 /** One event of each type: the session's for the session the conversation opens, and the page's turn a reply in it. */
 const EVENT: Record<TConversationEventType, TConversationEvent> = {
 	open: { type: "open", session: SESSION },
 	read: { type: "read", session: SESSION, turns: [readBack(FIRST)] },
 	failed: { type: "failed", session: SESSION },
 	close: { type: "close" },
-	ask: { type: "ask", prompt: "what does this say", patterns: [EMAIL], session: SESSION, inReplyTo: SESSION },
+	ask: { type: "ask", prompt: "what does this say", patterns: [EMAIL], session: SESSION, inReplyTo: SESSION, delegated: DELEGATED },
 	started: { type: "started" },
 	text: { type: "text", piece: "an answer" },
 	status: { type: "status", line: "context sent" },
 	recorded: { type: "recorded", record: QUESTION },
+	refused: { type: "refused", call: REFUSED },
 	stop: { type: "stop", reason: "you stopped it" },
 	ended: { type: "ended" },
 	erred: { type: "erred", message: "connection reset" },
@@ -210,6 +215,8 @@ describe("each move of the page's turn", () => {
 			activity: [],
 			session: SESSION,
 			stoppedBy: "",
+			delegated: DELEGATED,
+			refused: [],
 		});
 	});
 
@@ -226,6 +233,13 @@ describe("each move of the page's turn", () => {
 		});
 		expect(answered.asked).toMatchObject({ response: "an answeran answer", activity: ["context sent", "context sent"], askId: QUESTION.id, sayId: ANSWER.id });
 		for (const type of ["text", "status", "recorded"] as const) expect(transition(TURN_AT.asking, EVENT[type]), `asking + ${type}`).toBe(TURN_AT.asking);
+	});
+
+	it("refused states each action a running turn was refused once, and nothing of a turn that is not running", () => {
+		const another = { step: "Example-actAgain", action: REFUSED.action };
+		const refused = run(EVENT.open, EVENT.read, EVENT.ask, EVENT.started, EVENT.refused, { type: "refused", call: another });
+		expect(refused.asked?.refused, "one allowing answers every call that needs the action").toEqual([REFUSED]);
+		expect(transition(TURN_AT.asking, EVENT.refused)).toBe(TURN_AT.asking);
 	});
 
 	it("stop keeps the turn in flight with the first reason, and the request's rejection ends it stopped with that reason first", () => {
@@ -278,7 +292,7 @@ describe("any sequence of events", () => {
 			const random = seededRandom(seed);
 			let conversation = CLOSED_CONVERSATION;
 			// What the page's turn holds, stated again from the events since the last question the conversation took.
-			const unasked = () => ({ askId: null as string | null, sayId: undefined as string | undefined, response: "", activity: [] as string[], stoppedBy: "" });
+			const unasked = () => ({ askId: null as string | null, sayId: undefined as string | undefined, response: "", activity: [] as string[], stoppedBy: "", refused: [] as (typeof REFUSED)[] });
 			let held = unasked();
 			const path: string[] = [];
 			for (let step = 0; step < 40; step++) {
@@ -296,13 +310,14 @@ describe("any sequence of events", () => {
 					else held.sayId = event.record.id;
 				}
 				if (event.type === "stop" && inFlight(conversation.asked?.status) && !held.stoppedBy) held.stoppedBy = event.reason;
+				if (event.type === "refused" && running && !held.refused.some((refused) => refused.action === event.call.action)) held.refused = [...held.refused, event.call];
 				conversation = transition(conversation, event);
 				expect(askedStatus(conversation), label).toBe(wanted);
 				expect(conversation.turns.filter((turn) => turn.askId === null).length, `${label}: one turn at most no question names`).toBeLessThanOrEqual(1);
 				const { asked } = conversation;
 				if (!asked) continue;
-				const { askId, sayId, response, activity, stoppedBy } = asked;
-				expect({ askId, sayId, response, activity, stoppedBy }, label).toEqual(held);
+				const { askId, sayId, response, activity, stoppedBy, refused } = asked;
+				expect({ askId, sayId, response, activity, stoppedBy, refused }, label).toEqual(held);
 				if (conversation.status !== "open" || asked.session !== conversation.session) continue;
 				const holds = conversation.turns.filter((turn) => turn.askId === asked.askId);
 				expect(holds, `${label}: the conversation holds the page's turn once`).toHaveLength(1);

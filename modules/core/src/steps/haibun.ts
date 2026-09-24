@@ -14,7 +14,7 @@ import { requestSigner } from "../lib/session-authority.js";
 import { SERVING } from "../lib/serving.js";
 import { discoverSteps, runRegistry, stepMethodName } from "../lib/step-registry.js";
 import { DOMAIN_STEP_DETAIL, SHOW_STEPS_ACTION, SHOW_STEPS_DESCRIPTION, StepDetailSchema, StepDiscoverySchema, type TStepsQuery } from "../lib/step-discovery.js";
-import { authorizedWith } from "../lib/capability-context.js";
+import { shownTo } from "../lib/capability-context.js";
 import { validateStep } from "../lib/step-validation.js";
 
 /** Whether a line resolves to one step, and the method of that step or why it resolves to none or to several. */
@@ -118,7 +118,7 @@ class Haibun extends AStepper implements IHasCycles {
 			productsSchema: StepDiscoverySchema,
 			action: ({ text, detail }: TStepsQuery) => {
 				const world = this.getWorld();
-				return actionOKWithProducts(discoverSteps(world, runRegistry(world), { text, detail }, authorizedWith()));
+				return actionOKWithProducts(discoverSteps(world, runRegistry(world), { text, detail }, shownTo()));
 			},
 		},
 
@@ -129,7 +129,7 @@ class Haibun extends AStepper implements IHasCycles {
 				"Whether a line resolves to exactly one of the steps the caller may call, and which method that step is; otherwise why the line resolves to none or to more than one.",
 			productsSchema: StepValidationSchema,
 			action: ({ text }: { text: string }) => {
-				const validation = validateStep(text, this.steppers, authorizedWith());
+				const validation = validateStep(text, this.steppers, shownTo());
 				return actionOKWithProducts(
 					"error" in validation ? { valid: false, error: validation.error } : { valid: true, method: stepMethodName(validation.action.stepperName, validation.action.actionName) },
 				);

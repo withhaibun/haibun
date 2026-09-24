@@ -13,7 +13,7 @@ import { STEPS_CHANGED, type THaibunEvent } from "../schema/protocol.js";
 import type { TStepDefinitions } from "../lib/step-discovery.js";
 import type { TStepResult } from "../schema/protocol.js";
 import { validateStep } from "../lib/step-validation.js";
-import { RUN_AUTHORITY } from "../lib/capability-context.js";
+import { RUN_AUTHORITY, runAuthorizedWith, runShowing } from "../lib/capability-context.js";
 import { OBSERVATION_GRAPH, assertFact, getFact } from "../lib/working-memory.js";
 
 describe("until", () => {
@@ -232,6 +232,27 @@ describe("show steps", () => {
 		expect(discovery?.steps.map((step) => step.method)).toEqual(["TestSteps-passes"]);
 		expect(discovery?.steps[0]._links.call).toEqual({ method: "TestSteps-passes" });
 		expect(discovery?.steppers.map((entry) => entry.stepper)).toEqual(["TestSteps"]);
+	});
+
+	it("shows a caller that acts for another the steps that other holds, while the caller holds less", async () => {
+		const shown: string[][] = [];
+		class ActsForAnother extends AStepper {
+			description = "Lists steps as a caller holding only a public read that acts for one holding every action.";
+			steps = {
+				actsForAnother: {
+					gwta: "list steps for another",
+					action: async () => {
+						const haibun = this.getWorld().runtime.steppers?.find((stepper) => stepper instanceof Haibun) as Haibun;
+						const list = () => haibun.steps.showSteps.action({ text: "TestSteps-passes", detail: "summary" }) as Promise<{ products: { steps: Array<{ method: string }> } }>;
+						for (const listed of [await runAuthorizedWith(["Read:public"], list), await runShowing(RUN_AUTHORITY, () => runAuthorizedWith(["Read:public"], list))]) shown.push(listed.products.steps.map((step) => step.method));
+						return actionOK();
+					},
+				},
+			};
+		}
+		const result = await passWithDefaults([{ path: "/features/test.feature", content: "list steps for another" }], [Haibun, TestSteps, ActsForAnother]);
+		expect(result.ok).toBe(true);
+		expect(shown).toEqual([[], ["TestSteps-passes"]]);
 	});
 
 	it("states whether a line resolves to one step, and which", async () => {

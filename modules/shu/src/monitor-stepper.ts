@@ -35,7 +35,7 @@ import { loadReportBundle, buildReportHtml, buildGraphSource } from "./shu-stepp
 
 import { discoverSteps, runRegistry } from "@haibun/core/lib/step-registry.js";
 import { EVERY_DEFINITION } from "@haibun/core/lib/step-discovery.js";
-import { authorizedWith } from "@haibun/core/lib/capability-context.js";
+import { shownTo } from "@haibun/core/lib/capability-context.js";
 
 import { DOMAIN_GRAPH_QUERY } from "@haibun/core/lib/quad-types.js";
 import { CACHE_SHAPE, type TCachePayload } from "./client-cache/index.js";
@@ -303,7 +303,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		// caller reads them: the steps the report's writer holds, which for the run's own report is every step.
 		const world = this.getWorld();
 		if (!world.runtime.steppers) throw new Error("a report reads the run's steppers, and the run holds none");
-		const registry = discoverSteps(world, runRegistry(world), EVERY_DEFINITION, authorizedWith());
+		const registry = discoverSteps(world, runRegistry(world), EVERY_DEFINITION, shownTo());
 		// 3. End-of-run snapshots for the affordances panel. Earlier RPC calls cached
 		// the early empty-graph state; the panel's offline render uses the cache, so the
 		// last live snapshot is the one that matters. Re-run the read the panel makes

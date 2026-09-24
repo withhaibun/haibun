@@ -8,7 +8,7 @@ import { DELEGATIONS_READ_ACTION, type IAuthority } from "../lib/authority-types
 import { DOMAIN_JSON, DOMAIN_STRING } from "../lib/domains.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { actingAs, authorizedWith, runActingAs, runAuthorizedWith } from "../lib/capability-context.js";
-import { actionList, capabilityAllows } from "../lib/actions.js";
+import { actionList, capabilityAllows, delegatedActions } from "../lib/actions.js";
 import { activeSitePrincipal, SITE_DID_PREFIX } from "../lib/host-id.js";
 import { AccessLevelSchema, PRINCIPAL_DOMAIN, PRINCIPAL_LABEL } from "../lib/resources.js";
 
@@ -136,18 +136,16 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 			return actionNotOK(`holding capability: invalid signed capability, ${parsed.error.issues.map((i) => i.message).join("; ")}`);
 		}
 		const capability = parsed.data;
-		const actions = capability.allowedAction === undefined ? ["*"] : Array.isArray(capability.allowedAction) ? capability.allowedAction : [capability.allowedAction];
-		const action = actions[0] ?? "*";
-		// The document goes to whoever knows how to read it, with what the caller says it lets them do. Nothing here
-		// reads inside it: the framework holds no key and knows no specification.
-		const verified = await this.getAuthority().verifyEvidence({ kind: "document", document: capability as Record<string, unknown>, action, target });
+		// The document goes to whoever knows how to read it, checked for everything it allows. Nothing here reads inside
+		// it: the framework holds no key and knows no specification.
+		const verified = await this.getAuthority().verifyEvidence({ kind: "document", document: capability as Record<string, unknown>, target });
 		if (!verified.ok) {
 			return actionNotOK(`holding capability: the evidence was refused, ${verified.error ?? "no reason given"}`);
 		}
 		const runner = new FlowRunner(this.getWorld(), this.steppers);
 		const run = () => runner.runSteps(what, { parentStep: featureStep });
 		// What the capability allows is all its statements may do, and its controller is who does it.
-		return await runAuthorizedWith(verified.allowedAction ?? actions, () => runActingAs(verified.principal ?? capability.controller, run));
+		return await runAuthorizedWith(verified.allowedAction ?? delegatedActions(capability), () => runActingAs(verified.principal ?? capability.controller, run));
 	}
 
 	private getAuthority(): IAuthority {

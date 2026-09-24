@@ -288,6 +288,8 @@ export const TurnEnvelopeSchema = z
 		contextReadBy: ContextReadBySchema.optional(),
 		session: z.string().optional(),
 		inReplyTo: z.string().optional(),
+		/** The delegation the asker signed to the turn's key: what the turn may do, which an ask from a key carries. */
+		delegation: z.record(z.string(), z.unknown()).optional(),
 	})
 	.strict()
 	.refine((envelope) => envelope.inReplyTo === undefined || envelope.session !== undefined, { message: "a reply names the session it replies in", path: ["session"] });

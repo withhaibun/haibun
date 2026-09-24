@@ -34,6 +34,19 @@ export function authorizedWith(): string | string[] | undefined {
 	return capabilityStore.getStore();
 }
 
+const shownStore = new AsyncLocalStorage<string | string[] | undefined>();
+
+/** Run `within` showing every listing of steps it makes what `held` allows: a caller that acts for another is shown what
+ *  that other holds, and calls only what it holds itself, so a call it may not make is one the other may allow. */
+export function runShowing<T>(held: string | string[] | undefined, within: () => Promise<T>): Promise<T> {
+	return shownStore.run(held, within);
+}
+
+/** What a listing of steps shows the calling step: what the caller it acts for holds, or else what it holds. */
+export function shownTo(): string | string[] | undefined {
+	return shownStore.getStore() ?? authorizedWith();
+}
+
 const askStore = new AsyncLocalStorage<string | undefined>();
 
 /**

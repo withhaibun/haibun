@@ -42,17 +42,17 @@
 				"declaredStepTextHash": "4f2c94ae645eda3071bcdce65b58a9a9b48a9d58cdbcc27edc047200d226cd22"
 			},
 			"/features/counter.feature": {
-				"seconds": 1.1,
+				"seconds": 1.8,
 				"steps": 19,
 				"declaredStepTextHash": "2f70ffa43d3f1498ca7807f6a570b166e456aa1830c1890cdbeba09ddabc773d"
 			},
 			"/features/counter.feature.ts": {
-				"seconds": 1.6,
+				"seconds": 0.8,
 				"steps": 19,
 				"declaredStepTextHash": "2bacbd5da344c9602608a02dc1f56199b85a5c69b1c5117a0e2cadc3d54518d3"
 			},
 			"/features/counts.feature.ts": {
-				"seconds": 0.5,
+				"seconds": 0.4,
 				"steps": 22,
 				"declaredStepTextHash": "652c388ee70912af2a7946070e41462d929458d68bc7766c8eeca3840cd4ec1b"
 			},
@@ -92,12 +92,12 @@
 				"declaredStepTextHash": "c5dc084f8a55666333aef24f99ca452d4e5423e61b94a005bcb35696a756cd38"
 			},
 			"/features/popup.feature": {
-				"seconds": 0.5,
+				"seconds": 0.4,
 				"steps": 11,
 				"declaredStepTextHash": "61922798c574f99a0333aae78f23b42b09e6952b233534b41697af83e14287a5"
 			},
 			"/features/qrcode.feature": {
-				"seconds": 2.8,
+				"seconds": 2.5,
 				"steps": 18,
 				"declaredStepTextHash": "a027c3737b57ea7afadfa35619c47435fee5194b15576809f74720279f71096a"
 			},
@@ -128,7 +128,7 @@
 			},
 			"/features/wikipedia.feature.ts": {
 				"seconds": 0.9,
-				"steps": 143,
+				"steps": 140,
 				"declaredStepTextHash": "b162c447aa4626651d8e903bcce16dc77fdff6ddf5cdcb3dd48ed79db2d59972"
 			},
 			"/features/workflow.feature.ts": {
@@ -142,7 +142,7 @@
 				"declaredStepTextHash": "6cd1f8da570aba43aee81d7465d496635d67697ce5ab1ecdb00c8eb070900117"
 			}
 		},
-		"steps": 1125,
-		"seconds": 17
+		"steps": 1122,
+		"seconds": 16.4
 	}
 }

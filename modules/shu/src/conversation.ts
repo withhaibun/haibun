@@ -18,6 +18,7 @@
  * turn records in the open conversation. `transcript` states the messages a view shows.
  */
 import { COMMENT_LABEL, type AccessQueryLevel } from "@haibun/core/lib/resources.js";
+import type { TRefusedCall } from "@haibun/core/lib/step-stream-context.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import type { TChatMessage } from "./components/shu-chat-message.js";
 import { reportToRun } from "./client-log.js";
@@ -33,14 +34,17 @@ import { mergeHashParams } from "./view-hash.js";
 
 /** The step a turn runs. */
 export const ASK_STEP = "chatWithContext";
+/** The step that makes the key a turn acts as, which the page delegates to before it asks. */
+export const OPEN_TURN_STEP = "openTurn";
 
 /** A turn: as the store reads it back, or as this page asks it, with what it stated while it ran. Its question's record
  *  names it, and a turn this page asks is named by none until the run records that question. */
 export type TTurn = Omit<TSessionTurn, "askId" | "error"> & { askId: string | null; error: string; activity: string[] };
 
-/** The turn this page asks: the turn, the session it was asked in, and the reason a reader gave to stop it. The session
- *  is null for a first turn until its question is recorded. */
-export type TAskedTurn = TTurn & { session: string | null; stoppedBy: string };
+/** The turn this page asks: the turn, the session it was asked in, the reason a reader gave to stop it, the actions the
+ *  page delegated to it, and each action it was refused, with the first call that needed it. The session is null for a
+ *  first turn until its question is recorded. */
+export type TAskedTurn = TTurn & { session: string | null; stoppedBy: string; delegated: string[]; refused: TRefusedCall[] };
 
 export type TConversationState = {
 	status: "closed" | "opening" | "open";
@@ -55,17 +59,18 @@ export type TConversationEvent =
 	| { type: "read"; session: string; turns: TSessionTurn[] }
 	| { type: "failed"; session: string }
 	| { type: "close" }
-	| { type: "ask"; prompt: string; patterns: TContextPattern[]; session?: string; inReplyTo?: string }
+	| { type: "ask"; prompt: string; patterns: TContextPattern[]; session?: string; inReplyTo?: string; delegated: string[] }
 	| { type: "started" }
 	| { type: "text"; piece: string }
 	| { type: "status"; line: string }
 	| { type: "recorded"; record: TRecord }
+	| { type: "refused"; call: TRefusedCall }
 	| { type: "stop"; reason: string }
 	| { type: "ended" }
 	| { type: "erred"; message: string };
 export type TConversationEventType = TConversationEvent["type"];
 /** The events a turn's request raises, which move the page's turn whatever conversation is open. */
-export const REQUEST_EVENTS = ["started", "text", "status", "recorded", "stop", "ended", "erred"] as const satisfies readonly TConversationEventType[];
+export const REQUEST_EVENTS = ["started", "text", "status", "recorded", "refused", "stop", "ended", "erred"] as const satisfies readonly TConversationEventType[];
 type TRequestEvent = Extract<TConversationEvent, { type: (typeof REQUEST_EVENTS)[number] }>;
 export const CONVERSATION_EVENTS = [
 	"open",
@@ -77,6 +82,7 @@ export const CONVERSATION_EVENTS = [
 	"text",
 	"status",
 	"recorded",
+	"refused",
 	"stop",
 	"ended",
 	"erred",
@@ -118,7 +124,7 @@ function asksIn(conversation: TConversationState): boolean {
 }
 
 /** The turn as the conversation holds it, without what only the page's request holds. */
-export function turnOf({ session: _session, stoppedBy: _stoppedBy, ...turn }: TAskedTurn): TTurn {
+export function turnOf({ session: _session, stoppedBy: _stoppedBy, delegated: _delegated, refused: _refused, ...turn }: TAskedTurn): TTurn {
 	return turn;
 }
 
@@ -147,6 +153,9 @@ function movedAsked(asked: TAskedTurn, event: TRequestEvent): TAskedTurn {
 			// The run records the question first, which names the turn, and the answer after it.
 			if (!running) return asked;
 			return asked.askId === null ? { ...asked, askId: event.record.id, session: asked.session ?? event.record.id } : { ...asked, sayId: event.record.id };
+		case "refused":
+			// One allowing answers every call that needs the action, so an action is stated once.
+			return running && !asked.refused.some((refused) => refused.action === event.call.action) ? { ...asked, refused: [...asked.refused, event.call] } : asked;
 		case "stop":
 			return asked.stoppedBy ? asked : { ...asked, stoppedBy: event.reason };
 		case "ended":
@@ -199,6 +208,8 @@ export function transition(conversation: TConversationState, event: TConversatio
 				activity: [],
 				session: event.session ?? null,
 				stoppedBy: "",
+				delegated: event.delegated,
+				refused: [],
 			};
 			const opened = conversation.status === "closed" ? { status: "open" as const, session: null } : {};
 			return withAsked({ ...conversation, ...opened, turns: conversation.turns.filter((turn) => turn.askId !== null), asked: next });
@@ -266,7 +277,11 @@ export function transcript(conversation: TConversationState, onTurn: string | un
 		const otherBranch = others.get(key);
 		const common = { turn: askId ?? undefined, inReplyTo, bundle: turn.bundle, spinnerSpinning: running, error: "", unverified: [] as string[] };
 		return [
-			{ shown, askedAt, message: { ...common, id: `${key}:ask`, role: "user", text: turn.prompt, recordId: askId ?? undefined, activity: [], spinnerStatus: "", spinnerVisible: false } },
+			{
+				shown,
+				askedAt,
+				message: { ...common, id: `${key}:ask`, role: "user", text: turn.prompt, recordId: askId ?? undefined, activity: [], spinnerStatus: "", spinnerVisible: false },
+			},
 			{
 				shown,
 				askedAt,

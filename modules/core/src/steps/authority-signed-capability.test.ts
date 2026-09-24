@@ -86,7 +86,7 @@ holding capability cap at "urn:res:1", comment on "${TEST_NODE_LABEL}" node-1 wi
 		expect(comments.length).toBe(1);
 		expect(comments[0].author).toBe(SUBKEY_DID);
 
-		expect(verifierState.lastEvidence?.action, "the verifier is told what was asked for").toBe("ResourcesStepper:comment");
+		expect(verifierState.lastEvidence?.action, "the verifier checks the document for everything it allows, since no one action is asked").toBeUndefined();
 		expect(verifierState.lastEvidence?.target, "and what it was asked of").toBe("urn:res:1");
 		expect(verifierState.lastEvidence?.document.id, "and is handed the document itself to read").toBe("urn:zcap:alice-comment");
 	});
