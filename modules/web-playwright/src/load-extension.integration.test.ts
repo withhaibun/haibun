@@ -15,7 +15,7 @@ import StorageMem from "@haibun/storage-mem/storage-mem.js";
 import WebPlaywright from "./web-playwright.js";
 import { BrowserFactory } from "./BrowserFactory.js";
 
-const EXTENSION = path.resolve(import.meta.dirname, "../test/extension");
+const EXTENSION = path.resolve(import.meta.dirname, "../test/browser-extension");
 const steppers = [WebPlaywright, VariablesStepper, StorageMem];
 /** The profile the browser keeps, given here so the test removes it: a run given none makes one, removed as it exits. */
 const profile = mkdtempSync(path.join(tmpdir(), "haibun-load-extension-"));

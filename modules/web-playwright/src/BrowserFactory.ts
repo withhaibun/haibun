@@ -14,6 +14,8 @@ export type TBrowserTypes = "firefox" | "chromium" | "webkit";
 
 export type TTaggedBrowserFactoryOptions = {
 	options: BrowserContextOptions;
+	/** The profile a persistent context keeps, where the run keeps one; empty for one Playwright makes for the browser and
+	 *  removes when it closes. */
 	persistentDirectory?: string;
 	browserType: BrowserType;
 	launchOptions: {
@@ -198,7 +200,7 @@ export class BrowserFactory {
 				if (!context) throw Error(`${cdpName(config.cdp)} has no context to adopt`);
 				this.adoptedContexts.add(context);
 				browserContext = context;
-			} else if (config.persistentDirectory) {
+			} else if (config.persistentDirectory !== undefined) {
 				this.world.eventLogger.debug(`creating new persistent context ${featureNum} ${config.type}, ${config.persistentDirectory} with ${JSON.stringify(BrowserFactory.configs)}`);
 				browserContext = await BrowserFactory.configs[tag].browserType.launchPersistentContext(config.persistentDirectory, launchConfig);
 			} else {

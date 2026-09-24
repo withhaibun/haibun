@@ -1,8 +1,7 @@
 import { Page, Download, Locator, type ConnectOverCDPTransport } from "playwright";
 import { pathToFileURL } from "url";
 import { createHash } from "node:crypto";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { AsyncLocalStorage } from "node:async_hooks";
 
@@ -114,7 +113,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			parse: (input: string) => boolOrError(input),
 		},
 		[WebPlaywright.PERSISTENT_DIRECTORY]: {
-			desc: "run browsers with a persistent directory (true or false)",
+			desc: "the directory a launched browser keeps its profile in, across runs",
 			parse: (input: string) => stringOrError(input),
 		},
 		ARGS: {
@@ -307,7 +306,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	connectTo(cdp: string | (() => ConnectOverCDPTransport)) {
 		const named = typeof cdp === "string" ? cdp : "the attached browser";
 		if (this.bf?.hasPage(this.getWorld().tag, this.tab)) return actionNotOK(`connect to a browser before any step opens a page; ${named} was named after one`);
-		const launchOnly = { CAPTURE_VIDEO: this.captureVideo, TWIN: this.twin, [WebPlaywright.PERSISTENT_DIRECTORY]: !!this.factoryOptions.persistentDirectory };
+		const launchOnly = { CAPTURE_VIDEO: this.captureVideo, TWIN: this.twin, [WebPlaywright.PERSISTENT_DIRECTORY]: this.factoryOptions.persistentDirectory !== undefined };
 		const set = Object.entries(launchOnly)
 			.filter(([, on]) => on)
 			.map(([name]) => name);
@@ -317,9 +316,10 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	}
 
 	/** Load the unpacked extension at `where` into the browser the run launches, from the next page it opens. An extension
-	 *  loads only into a browser that keeps a profile, so one is made for the run where none is set, and only into
-	 *  Chromium's full browser, whose headless mode loads extensions where the headless shell doesn't. Its id is the one
-	 *  its manifest's pinned key derives, so a step can open its pages. */
+	 *  loads only into a browser with a profile of its own, which is the one `PERSISTENT_DIRECTORY` names or else one
+	 *  Playwright makes for the browser and removes when it closes, and only into Chromium's full browser, whose headless
+	 *  mode loads extensions where the headless shell doesn't. Its id is the one its manifest's pinned key derives, so a
+	 *  step can open its pages. */
 	loadExtension(where: string) {
 		if (this.bf?.hasPage(this.getWorld().tag, this.tab)) return actionNotOK(`load an extension before any step opens a page; ${where} was named after one`);
 		if (this.factoryOptions.cdp !== undefined) return actionNotOK("an extension loads into a browser the run launches, and this run connects to one");
@@ -328,12 +328,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		if (!existsSync(manifest)) return actionNotOK(`no extension at ${dir}: it has no manifest.json`);
 		const { key } = JSON.parse(readFileSync(manifest, "utf-8")) as { key?: unknown };
 		if (typeof key !== "string") return actionNotOK(`the extension at ${dir} pins no key in its manifest, so its id isn't known before it loads`);
-		if (!this.factoryOptions.persistentDirectory) {
-			const profile = mkdtempSync(path.join(tmpdir(), "haibun-extension-profile-"));
-			// Removed when the process ends, which is after its browser: a failed run leaves its browser up to be looked at.
-			process.once("exit", () => rmSync(profile, { recursive: true, force: true }));
-			this.factoryOptions.persistentDirectory = profile;
-		}
+		this.factoryOptions.persistentDirectory ??= "";
 		const args = (this.factoryOptions.launchOptions.args ?? []).filter(Boolean);
 		this.factoryOptions.launchOptions = {
 			...this.factoryOptions.launchOptions,
