@@ -29,8 +29,14 @@ const message = { schema: MessageSchema, topology };
 describe("what a type offers a reader", () => {
 	it("states each relation its records point through with the type at the other end, which a reference read takes", () => {
 		// A reader finding the messages a person sent names the person and the relation a message points through.
-		expect(querySurface(message).references).toEqual({ attachment: "File", from: "Person" });
+		expect(querySurface(message).references).toEqual({ attachment: ["File"], from: ["Person"] });
 		expect(pointsThrough(querySurface(message))).toEqual(["attachment (File)", "from (Person)"]);
+	});
+
+	it("states each type a relation may point at, where it points at more than one", () => {
+		const forwarded = { schema: MessageSchema, topology: { ...topology, edges: { ...topology.edges, from: { range: ["Person", "Mailbox"] } } } };
+		expect(querySurface(forwarded).references.from).toEqual(["Person", "Mailbox"]);
+		expect(pointsThrough(querySurface(forwarded))).toEqual(["attachment (File)", "from (Person | Mailbox)"]);
 	});
 
 	it("states a bounded value as one a filter compares", () => {

@@ -12,7 +12,7 @@ import { sanitizeObjectSecrets } from "../lib/util/secret-utils.js";
 import { DOMAIN_STATEMENT, DOMAIN_STRING, normalizeDomainKey, createEnumDomainDefinition, registerDomains, refreshHypermediaTypeDomain } from "../lib/domains.js";
 import { fromJsonText } from "../lib/json-text.js";
 import { hypermediaDomainFromContext, type THypermediaContext } from "../lib/hypermedia.js";
-import { REL_CONTEXT, LinkRelations, type TRel } from "../lib/resources.js";
+import { edgeRanges, REL_CONTEXT, LinkRelations, type TEdgeDef, type TRel } from "../lib/resources.js";
 
 const clearVars = (vars: VariablesStepper) => async () => {
 	await vars.getWorld().shared.getStore().clear();
@@ -433,12 +433,9 @@ class VariablesStepper extends AStepper implements IHasCycles {
 					const persistedAs = topology?.persistedAs as string | undefined;
 					const _edges: { type: string; targetId: string }[] = [];
 					// Edges from topology (persisted-type→persisted-type relationships like Email→Contact)
-					const topologyEdges = topology?.edges as Record<string, { rel: string; range: string }> | undefined;
-					if (topologyEdges) {
-						for (const [edgeName, edge] of Object.entries(topologyEdges)) {
-							if (edge.range && edge.range !== persistedAs) _edges.push({ type: edgeName, targetId: edge.range });
-						}
-					}
+					const topologyEdges = topology?.edges as Record<string, TEdgeDef> | undefined;
+					for (const [edgeName, edge] of Object.entries(topologyEdges ?? {}))
+						for (const range of edgeRanges(edge)) if (range !== persistedAs) _edges.push({ type: edgeName, targetId: range });
 					items.push({ name, description, members, ...(persistedAs ? { persistedAs } : {}), ...(_edges.length ? { _edges } : {}) });
 				}
 				return actionOKWithProducts({ _type: "Domain", _summary: `${items.length} domains`, items });

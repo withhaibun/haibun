@@ -37,7 +37,7 @@ import type { TEntityResult, TEntityView, TAnnotationDraft } from "../entity-sto
 import type { AnnotationView } from "../annotation-resolver.js";
 import type { TQuoteAnchor } from "@haibun/core/lib/resources.js";
 import "./shu-annotated-body.js";
-import { getRelSync, getEdgeTargetLabel, getSummaryFields, getIdField, getQueryableFields, getRels, roleEdgeLabelSet, getDeclaredEdgeLabel } from "../rels-cache.js";
+import { getRelSync, getEdgeTargetLabel, getEdgeTargetLabels, getSummaryFields, getIdField, getQueryableFields, getRels, roleEdgeLabelSet, getDeclaredEdgeLabel } from "../rels-cache.js";
 import { propertyVocabulary } from "../graph/ontology-projection.js";
 import { openRef } from "./ref-navigation.js";
 import { pageAddress } from "../view-hash.js";
@@ -296,7 +296,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			const summaryFields = getSummaryFields(persistedAs);
 			// Every non-summary, non-edge scalar field, shown in full between the type line and the body. Object
 			// values render as formatted JSON. Body-presentation content (a SeqPath's stepText) renders below via bodyLiterals.
-			const detailEntries = Object.entries(fields).filter(([k]) => !getEdgeTargetLabel(k, persistedAs) && !summaryFields.has(k));
+			const detailEntries = Object.entries(fields).filter(([k]) => !getEdgeTargetLabels(k, persistedAs) && !summaryFields.has(k));
 			const detailRows = detailEntries
 				.map(([k, v]) => {
 					if (this.isTypeField(k)) return this.typeRow(k, v);

@@ -36,7 +36,7 @@ describe("hypermediaDomainFromContext, declare a hypermedia domain from a JSON-L
 			}),
 		});
 		expect(cat.persisted.Ingredient.idField).toBe("id");
-		expect(cat.persisted.Ingredient.edges.usedIn.target).toBe("Recipe");
+		expect(cat.persisted.Ingredient.edges.usedIn.targets).toEqual(["Recipe"]);
 	});
 
 	it("requires an @id field: a type is invalid without an identifier", () => {

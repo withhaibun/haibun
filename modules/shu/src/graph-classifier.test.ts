@@ -13,7 +13,7 @@ describe("THREAD_CLASSIFIER", () => {
 
 describe("buildClassifier sorts predicates by their declared rel, never by value", () => {
 	const rels: Record<string, string> = { title: LinkRelations.NAME.rel, ident: LinkRelations.IDENTIFIER.rel, body: LinkRelations.CONTENT.rel, link: LinkRelations.URL.rel };
-	const edgeRanges: Record<string, string> = { author: "Person" };
+	const edgeRanges: Record<string, string[]> = { author: ["Person"] };
 	const classifier = buildClassifier(
 		() => rels,
 		() => edgeRanges,

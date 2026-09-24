@@ -9,7 +9,7 @@
  */
 
 import { z } from "zod";
-import { edgeRel, REL_CONTEXT, LinkRelations, BODY_LABEL, getRelRange, propertyIriOf, isPersisted, type TPropertyDef, type TRel, type THypermediaTopology, PersistedVertexSchema } from "./resources.js";
+import { edgeRanges, edgeRel, REL_CONTEXT, LinkRelations, BODY_LABEL, getRelRange, propertyIriOf, isPersisted, type TPropertyDef, type TRel, type THypermediaTopology, PersistedVertexSchema } from "./resources.js";
 
 /** Resolve a property def to its rel, regardless of plain-string or object (content / term) form. */
 export function relOf(def: TPropertyDef): TRel {
@@ -128,7 +128,7 @@ export type TReachedBy = (typeof REACHED_BY)[keyof typeof REACHED_BY];
 export const QuerySurfaceSchema = z.object({
 	label: z.string(),
 	properties: z.record(z.string(), z.array(z.enum([REACHED_BY.filter, REACHED_BY.search]))),
-	references: z.record(z.string(), z.string()),
+	references: z.record(z.string(), z.array(z.string()).min(1)),
 });
 export type TQuerySurface = z.infer<typeof QuerySurfaceSchema>;
 
@@ -145,7 +145,7 @@ export function reachedBy(surface: TQuerySurface, by: TReachedBy): string[] {
 export function pointsThrough(surface: TQuerySurface): string[] {
 	return Object.entries(surface.references)
 		.sort(([a], [b]) => a.localeCompare(b))
-		.map(([relation, range]) => `${relation} (${range})`);
+		.map(([relation, ranges]) => `${relation} (${ranges.join(" | ")})`);
 }
 
 /** Which primitive reaches each property of a type, and the type each of its relations points at. A property reached two
@@ -157,7 +157,7 @@ export function querySurface(domain: { schema: z.ZodType | undefined; topology: 
 	};
 	for (const field of queryableFields(domain)) reach(field, REACHED_BY.filter);
 	for (const field of searchableFields(domain)) reach(field, REACHED_BY.search);
-	const references = Object.fromEntries(Object.entries(domain.topology.edges ?? {}).map(([relation, edge]) => [relation, edge.range]));
+	const references = Object.fromEntries(Object.entries(domain.topology.edges ?? {}).map(([relation, edge]) => [relation, edgeRanges(edge)]));
 	return QuerySurfaceSchema.parse({ label: domain.topology.persistedAs, properties, references });
 }
 
@@ -207,7 +207,8 @@ type TPropertyConcern = z.infer<typeof PropertyConcernSchema>;
 const EdgeConcernSchema = z.object({
 	term: z.string(),
 	rel: RelSchema,
-	target: z.string(),
+	/** The types the edge may point at. */
+	targets: z.array(z.string()).min(1),
 	rolePriority: z.number().optional(),
 	/** Declared display phrase for the edge (rdfs:label), e.g. a consumer's "Issued by". */
 	label: z.string().optional(),
@@ -330,7 +331,7 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 			edges[edgeField] = {
 				term: edgeDef.iri ?? REL_CONTEXT[rel],
 				rel,
-				target: edgeDef.range,
+				targets: edgeRanges(edgeDef),
 				...(edgeDef.rolePriority !== undefined ? { rolePriority: edgeDef.rolePriority } : {}),
 				...(edgeDef.label !== undefined ? { label: edgeDef.label } : {}),
 				...(edgeDef.roleNoun !== undefined ? { roleNoun: edgeDef.roleNoun } : {}),

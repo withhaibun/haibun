@@ -14,7 +14,7 @@ import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
 import { activeSitePrincipal, allocateSyntheticSeqPath, resolveHostId, syntheticSeqPath } from "@haibun/core/lib/host-id.js";
 import { SERVING } from "@haibun/core/lib/serving.js";
 import { streamContext } from "@haibun/core/lib/step-stream-context.js";
-import { LinkRelations } from "@haibun/core/lib/resources.js";
+import { HTTP_HOST_LABEL, LinkRelations } from "@haibun/core/lib/resources.js";
 import { runReadingAt, runActingAs } from "@haibun/core/lib/capability-context.js";
 import { fromJsonText } from "@haibun/core/lib/json-text.js";
 
@@ -46,6 +46,8 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 						endpointClass: LinkRelations.TAG.rel,
 						generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
 					},
+					// An endpoint is part of the host that serves it, which a request observed reaching it names.
+					edges: { isPartOf: { rel: LinkRelations.PART_OF.rel, range: HTTP_HOST_LABEL } },
 					// url is the endpoint's identity: the natural lookup filter (strings are queryable only by manual opt-in).
 					sortColumns: { url: "TEXT" },
 				},

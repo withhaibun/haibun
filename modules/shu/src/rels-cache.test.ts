@@ -89,9 +89,9 @@ describe("the types an exchange is between", () => {
 					validTimeField: "generatedAtTime",
 					description: "a permit",
 					edges: {
-						issuedBy: { term: "ex:issuedBy", rel: LinkRelations.FROM_ACTOR.rel, target: "Party" },
-						filedIn: { term: "ex:filedIn", rel: LinkRelations.TO_ACTOR.rel, target: "Registry" },
-						about: { term: "ex:about", rel: LinkRelations.ATTACHMENT.rel, target: "Cargo" },
+						issuedBy: { term: "ex:issuedBy", rel: LinkRelations.FROM_ACTOR.rel, targets: ["Party"] },
+						filedIn: { term: "ex:filedIn", rel: LinkRelations.TO_ACTOR.rel, targets: ["Registry"] },
+						about: { term: "ex:about", rel: LinkRelations.ATTACHMENT.rel, targets: ["Cargo"] },
 					},
 				},
 			},

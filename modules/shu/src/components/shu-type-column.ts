@@ -46,10 +46,11 @@ type VertexData = Record<string, unknown>;
  *  Property, so two types declaring `name` point at the same node. Pure, derived entirely from concern metadata. */
 function addTypeSchema(nodes: Map<string, TGraph["nodes"][number]>, edges: TGraph["edges"], persistedAs: string): void {
 	const ranges = getEdgeRanges(persistedAs) ?? {};
-	for (const [field, target] of Object.entries(ranges)) {
-		if (!nodes.has(target)) nodes.set(target, { id: target, label: target });
-		edges.push({ from: persistedAs, to: target, label: field, rel: field });
-	}
+	for (const [field, targets] of Object.entries(ranges))
+		for (const target of targets) {
+			if (!nodes.has(target)) nodes.set(target, { id: target, label: target });
+			edges.push({ from: persistedAs, to: target, label: field, rel: field });
+		}
 	for (const field of Object.keys(getRels(persistedAs) ?? {})) {
 		if (field in ranges) continue; // an edge to another type, already drawn
 		const pid = `prop:${field}`;

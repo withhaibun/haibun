@@ -97,7 +97,7 @@ describe("the scene every deployment has", () => {
 			Comment: { attributedTo: "attributedTo" },
 			Email: { subject: "name" },
 		},
-		edgeRanges: { HttpRequest: { target: "Endpoint", hasBody: "Body" }, SeqPath: { performedBy: "Principal" } },
+		edgeRanges: { HttpRequest: { target: ["Endpoint"], hasBody: ["Body"] }, SeqPath: { performedBy: ["Principal"] } },
 		properties: {},
 		queryable: {},
 		validTimeFields: {},

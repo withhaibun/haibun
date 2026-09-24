@@ -60,7 +60,7 @@ export function isUri(s: string): boolean {
 /** Build a PropertyClassifier from rels/edgeRanges lookup functions (browser-side pattern). */
 export function buildClassifier(
 	getRelsForGraph: (graph: string) => Record<string, string> | undefined,
-	getEdgeRangesForGraph: (graph: string) => Record<string, string> | undefined,
+	getEdgeRangesForGraph: (graph: string) => Record<string, string[]> | undefined,
 	stepperForType?: (label: string) => string | undefined,
 	edgeRelMap?: Record<string, string>,
 ): PropertyClassifier {

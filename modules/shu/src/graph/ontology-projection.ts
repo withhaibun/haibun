@@ -7,7 +7,7 @@
  * edges. Pure + GPU-free (unit-tested). Reusable: any consumer that has the registered domains + LinkRelations can show
  * its own ontology; nothing here is consumer- or credential-specific.
  */
-import { LinkRelations, isPersisted, edgeRel, HAIBUN_NS, HAIBUN_PREFIXES, type TRegisteredDomain } from "@haibun/core/lib/resources.js";
+import { edgeRanges, LinkRelations, isPersisted, edgeRel, HAIBUN_NS, HAIBUN_PREFIXES, type TRegisteredDomain } from "@haibun/core/lib/resources.js";
 import type { TQuad, TCluster, TClusteredQuads } from "@haibun/core/lib/quad-types.js";
 import type { TStandardTerm } from "./standard-vocabulary.js";
 
@@ -174,10 +174,12 @@ export function ontologyToQuads(domains: Record<string, TRegisteredDomain> = {})
 		if (!isPersisted(d.topology)) continue;
 		for (const [edge, edgeDef] of Object.entries(d.topology.edges ?? {})) {
 			const rel = edgeDef.rel ?? edgeRel(edge);
-			if (!rel || !edgeDef.range) continue;
+			if (!rel) continue;
 			addProp(rel);
-			addClass(edgeDef.range);
-			quads.push({ subject: rel, predicate: ONTOLOGY_PRED.range, object: edgeDef.range, namedGraph: ONTOLOGY_PROPERTY, objectType: ONTOLOGY_CLASS, timestamp: ONTOLOGY_TS });
+			for (const range of edgeRanges(edgeDef)) {
+				addClass(range);
+				quads.push({ subject: rel, predicate: ONTOLOGY_PRED.range, object: range, namedGraph: ONTOLOGY_PROPERTY, objectType: ONTOLOGY_CLASS, timestamp: ONTOLOGY_TS });
+			}
 		}
 	}
 

@@ -23,7 +23,7 @@ setSiteMetadata({
 		// A SeqPath's stepText carries the `content` rel (body presentation): the literal-body case extractBodyLiterals covers.
 		SeqPath: { id: "identifier", stepText: "content", actionStatus: "actionStatus", generatedAtTime: "generatedAtTime" },
 	},
-	edgeRanges: { Email: { hasBody: "Body", inReplyTo: "Email" } },
+	edgeRanges: { Email: { hasBody: ["Body"], inReplyTo: ["Email"] } },
 	properties: {
 		Email: ["messageId", "subject", "from", "to", "folder", "account", "body", "bodyHtml", "bodyMarkdown", "accessLevel"],
 		SeqPath: ["id", "stepText", "actionStatus", "generatedAtTime"],

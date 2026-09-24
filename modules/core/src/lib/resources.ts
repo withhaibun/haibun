@@ -600,13 +600,17 @@ export function propertyIriOf(def: TPropertyDef | undefined): string | undefined
 	return typeof def === "object" && def !== null && "iri" in def ? def.iri : undefined;
 }
 
+/** The types an edge may point at. */
+export const edgeRanges = (edge: { range: string | string[] }): string[] => (Array.isArray(edge.range) ? edge.range : [edge.range]);
+
 /** Edge definition: target node type. The rel is resolved from EdgePredicates[key]; override with explicit rel for
  *  domain-specific edges not in the canonical set. A consumer vocabulary's edge declares an UPPER ONTOLOGY POINTER as
  *  its rel (e.g. `fromActor`/`toActor`) with `iri` carrying its genuine term: the edge KEY is the written edge label,
  *  the rel classifies it, the iri serves it. `rolePriority` orders actor edges when a node carries several (highest
  *  names its container/lane), same scale as the core rels' declared rolePriority. */
 export type TEdgeDef = {
-	range: string;
+	/** The type the edge points at, or each type it may point at where it points at more than one. */
+	range: string | string[];
 	rel?: TRel;
 	iri?: string;
 	rolePriority?: number;
@@ -1199,7 +1203,6 @@ export const SCENE_DOMAIN = "scene";
 
 export const SceneSchema = PersistedVertexSchema.extend({
 	id: z.string().describe("The scene's name: what a reader picks it by, and what a link to it names."),
-	author: z.string().optional(),
 	generatedAtTime: z.string(),
 	/** The views' options as JSON, keyed by element tag: `{"shu-polymorphic-graph-view": {…}}`. Opaque to the graph; each view validates its own on apply. */
 	state: z.string(),
@@ -1213,9 +1216,10 @@ export const sceneDomainDefinition: TDomainDefinition = {
 	topology: {
 		persistedAs: SCENE_LABEL,
 		id: "id",
+		// Its id is its name.
+		displayLabel: LinkRelations.IDENTIFIER.rel,
 		properties: {
 			id: LinkRelations.IDENTIFIER.rel,
-			author: LinkRelations.ATTRIBUTED_TO.rel,
 			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
 			state: LinkRelations.SCHEMA_OBJECT.rel,
 		},

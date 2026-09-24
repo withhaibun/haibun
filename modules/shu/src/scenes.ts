@@ -79,7 +79,7 @@ export function networkSceneTypes(): string[] {
 	const reached = seed.flatMap((label) =>
 		Object.entries(getEdgeRanges(label) ?? {})
 			.filter(([edge]) => actorEdges.has(edge))
-			.map(([, range]) => range),
+			.flatMap(([, ranges]) => ranges),
 	);
 	return [...new Set([...seed, ...reached])].filter((label) => getTypes().includes(label)).sort();
 }

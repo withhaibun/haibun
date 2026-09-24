@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { HTTP_CLIENT_LABEL, HTTP_HOST_LABEL, HTTP_REQUEST_LABEL, LinkRelations, PersistedVertexSchema, TDomainDefinition } from "@haibun/core/lib/resources.js";
+import { ENDPOINT_LABEL, HTTP_CLIENT_LABEL, HTTP_HOST_LABEL, HTTP_REQUEST_LABEL, LinkRelations, PersistedVertexSchema, TDomainDefinition } from "@haibun/core/lib/resources.js";
 import { DOMAIN_STRING } from "@haibun/core/lib/domains.js";
 import { ENDPOINT_CLASS } from "@haibun/core/lib/http-observations.js";
 
@@ -58,9 +58,11 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 				endpointClass: LinkRelations.TAG.rel,
 				generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
 			},
+			// The browser performs a request, or the site does where it requests something itself; a request targets the
+			// endpoint of this site it reached, or the external host it was sent to.
 			edges: {
-				performedBy: { rel: LinkRelations.PERFORMED_BY.rel, range: HTTP_CLIENT_LABEL },
-				target: { rel: LinkRelations.AS_TARGET.rel, range: HTTP_HOST_LABEL },
+				performedBy: { rel: LinkRelations.PERFORMED_BY.rel, range: [HTTP_CLIENT_LABEL, HTTP_HOST_LABEL] },
+				target: { rel: LinkRelations.AS_TARGET.rel, range: [ENDPOINT_LABEL, HTTP_HOST_LABEL] },
 			},
 			// No displayLabel: the id ("GET /path") is the title; status and duration are fields, not a stored summary copy.
 		},

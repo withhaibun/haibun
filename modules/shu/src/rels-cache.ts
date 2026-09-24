@@ -29,7 +29,8 @@ export interface SiteMetadata {
 	types: string[];
 	idFields: Record<string, string>;
 	rels: Record<string, Record<string, string>>;
-	edgeRanges: Record<string, Record<string, string>>;
+	/** Each type's edges, and the types each may point at. */
+	edgeRanges: Record<string, Record<string, string[]>>;
 	properties: Record<string, string[]>;
 	/** Fields the server accepts as query filters (the topology's sortColumns), per label. */
 	queryable: Record<string, string[]>;
@@ -49,7 +50,7 @@ export interface SiteMetadata {
 }
 
 let metadata: SiteMetadata | null = null;
-const edgeTypeIndex = new Map<string, string>();
+const edgeTypeIndex = new Map<string, string[]>();
 const metadataReadyResolvers: Array<(m: SiteMetadata) => void> = [];
 
 /** Populate the cache from a getSiteMetadata response. Called once at startup. */
@@ -57,8 +58,8 @@ export function setSiteMetadata(data: SiteMetadata): void {
 	metadata = data;
 	edgeTypeIndex.clear();
 	for (const ranges of Object.values(data.edgeRanges)) {
-		for (const [edge, target] of Object.entries(ranges)) {
-			edgeTypeIndex.set(edge, target);
+		for (const [edge, targets] of Object.entries(ranges)) {
+			edgeTypeIndex.set(edge, targets);
 		}
 	}
 	const resolvers = metadataReadyResolvers.splice(0);
@@ -123,18 +124,22 @@ export function getPropertyDefinition(rel: string): PropertyDefinition | undefin
 	return metadata?.propertyDefinitions?.[rel];
 }
 
-/** Get cached edge ranges for a label. */
-export function getEdgeRanges(label: string): Record<string, string> | undefined {
+/** A type's edges, and the types each may point at. */
+export function getEdgeRanges(label: string): Record<string, string[]> | undefined {
 	return metadata?.edgeRanges[label];
 }
 
-/** Sync lookup, returns target label for an edge type from a source node label. Falls back to global index. */
+/** The types an edge may point at from a source type, else from any type declaring an edge of that name; undefined for a
+ *  name no type declares an edge. */
+export function getEdgeTargetLabels(edgeType: string, sourceLabel?: string): string[] | undefined {
+	return (sourceLabel ? metadata?.edgeRanges[sourceLabel]?.[edgeType] : undefined) ?? edgeTypeIndex.get(edgeType);
+}
+
+/** The one type an edge points at, where it points at one. Where it may point at several, the record at its end states
+ *  its own type. */
 export function getEdgeTargetLabel(edgeType: string, sourceLabel?: string): string | undefined {
-	if (sourceLabel) {
-		const target = metadata?.edgeRanges[sourceLabel]?.[edgeType];
-		if (target) return target;
-	}
-	return edgeTypeIndex.get(edgeType);
+	const labels = getEdgeTargetLabels(edgeType, sourceLabel);
+	return labels?.length === 1 ? labels[0] : undefined;
 }
 
 /** Get cached properties for a label. */
@@ -379,7 +384,7 @@ export function siteMetadataFromConcerns(catalog: TConcernCatalog, domains?: Rec
 	const types: string[] = [];
 	const idFields: Record<string, string> = {};
 	const rels: Record<string, Record<string, string>> = {};
-	const edgeRanges: Record<string, Record<string, string>> = {};
+	const edgeRanges: Record<string, Record<string, string[]>> = {};
 	const properties: Record<string, string[]> = {};
 	const queryable: Record<string, string[]> = {};
 	const validTimeFields: Record<string, string> = {};
@@ -407,9 +412,9 @@ export function siteMetadataFromConcerns(catalog: TConcernCatalog, domains?: Rec
 		rels[label] = labelRels;
 		properties[label] = labelProps;
 		if (labelSummary.length > 0) summary[label] = labelSummary;
-		const labelEdges: Record<string, string> = {};
+		const labelEdges: Record<string, string[]> = {};
 		for (const [edgeName, edge] of Object.entries(concern.edges)) {
-			labelEdges[edgeName] = edge.target;
+			labelEdges[edgeName] = edge.targets;
 		}
 		if (Object.keys(labelEdges).length > 0) edgeRanges[label] = labelEdges;
 		if (concern.ui) ui[label] = concern.ui;
@@ -537,7 +542,7 @@ export function toActorEdgeLabels(): ReadonlySet<string> {
 export function actorTypesFor(sourceTypes: Iterable<string>): string[] {
 	const actorEdges = new Set([...fromActorEdgeLabels(), ...toActorEdgeLabels()]);
 	const types = new Set<string>();
-	for (const source of sourceTypes) for (const [edge, target] of Object.entries(metadata?.edgeRanges[source] ?? {})) if (target && actorEdges.has(edge)) types.add(target);
+	for (const source of sourceTypes) for (const [edge, targets] of Object.entries(metadata?.edgeRanges[source] ?? {})) if (actorEdges.has(edge)) for (const target of targets) types.add(target);
 	return [...types];
 }
 

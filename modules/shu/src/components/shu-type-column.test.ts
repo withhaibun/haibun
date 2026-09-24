@@ -12,7 +12,7 @@ const META: SiteMetadata = {
 		Issuer: { did: "identifier", name: "name", assertionMethod: "assertionMethod" },
 		VerificationMethod: { id: "identifier", name: "name" },
 	},
-	edgeRanges: { Issuer: { assertionMethod: "VerificationMethod" } },
+	edgeRanges: { Issuer: { assertionMethod: ["VerificationMethod"] } },
 	properties: { Issuer: ["did", "name", "assertionMethod"], VerificationMethod: ["id", "name"] },
 	queryable: {},
 	validTimeFields: {},
