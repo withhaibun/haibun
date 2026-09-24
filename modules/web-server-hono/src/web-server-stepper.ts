@@ -16,7 +16,7 @@ import { SERVING } from "@haibun/core/lib/serving.js";
 import { streamContext } from "@haibun/core/lib/step-stream-context.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { runReadingAt, runActingAs } from "@haibun/core/lib/capability-context.js";
-import { objectCoercer } from "@haibun/core/lib/domains.js";
+import { fromJsonText } from "@haibun/core/lib/json-text.js";
 
 import { type IWebServer, WEBSERVER, DOMAIN_ENDPOINT, EndpointLabels, EndpointSchema } from "./defs.js";
 import { endWhenLapsed, grantedCapabilityForRequest } from "./capability-auth.js";
@@ -32,8 +32,7 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 		domains: [
 			{
 				selectors: [DOMAIN_ENDPOINT],
-				schema: EndpointSchema,
-				coerce: objectCoercer(EndpointSchema),
+				schema: fromJsonText(EndpointSchema),
 				description: "HTTP endpoint, route registered on the web server",
 				topology: {
 					persistedAs: EndpointLabels.Endpoint,

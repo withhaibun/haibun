@@ -211,7 +211,7 @@ describe("step-dispatch", () => {
 			expect(result.val).toBe("HELLO");
 		});
 
-		it("takes a value in another form the domain coerces into its own, as a feature line may give it, and refuses one it can't", () => {
+		it("takes a reference as its id, itself or its JSON text, as a feature line may give it, and refuses a number and text that isn't JSON", () => {
 			const w = getDefaultWorld();
 			registerDomains(w, [[individualRefDomain("test-ref", "test-target")]]);
 			const stepper = new (class extends AStepper {
@@ -221,7 +221,9 @@ describe("step-dispatch", () => {
 			if (!tool) throw new Error("Expected tool to be registered");
 			expect(validateToolInput([], tool, { what: "urn:uuid:1" }, w).what, "an id").toEqual({ id: "urn:uuid:1" });
 			expect(validateToolInput([], tool, { what: { id: "urn:uuid:1" } }, w).what, "a reference").toEqual({ id: "urn:uuid:1" });
+			expect(validateToolInput([], tool, { what: '{"id":"urn:uuid:1"}' }, w).what, "its JSON text").toEqual({ id: "urn:uuid:1" });
 			expect(() => validateToolInput([], tool, { what: 7 }, w), "a number").toThrow(/"what" \(value: 7\): Invalid input: expected object/);
+			expect(() => validateToolInput([], tool, { what: '{"id":' }, w), "text that isn't JSON").toThrow(/"what" \(value: .*\): is text that isn't JSON \(.+\): \{"id":/);
 		});
 
 		it("skips coerce when world is not provided", () => {

@@ -7,7 +7,7 @@ import { ControlEvent, STEPS_CHANGED, type TActionResult, type TSeqPath } from "
 import { namedInterpolation, mapInputToStepValues } from "./namedVars.js";
 import { constructorName, actionNotOK } from "./util/index.js";
 import { populateActionArgs } from "./populateActionArgs.js";
-import { DOMAIN_STRING, normalizeDomainKey } from "./domains.js";
+import { paramDomainKey } from "./domains.js";
 import { zodTypeLabel } from "./composite-domain.js";
 import { isPersisted } from "./resources.js";
 import { mayCall, requiredAction } from "./actions.js";
@@ -285,7 +285,7 @@ export function stepParamDomains(stepDef: TStepperStep): Map<string, string> {
 	const domains = new Map<string, string>();
 	if (!stepDef.gwta) return domains;
 	for (const v of Object.values(namedInterpolation(stepDef.gwta).stepValuesMap ?? {})) {
-		domains.set(v.term, normalizeDomainKey((v.domain || DOMAIN_STRING).split(" | ").sort().join(" | ")));
+		domains.set(v.term, paramDomainKey(v.domain));
 	}
 	return domains;
 }

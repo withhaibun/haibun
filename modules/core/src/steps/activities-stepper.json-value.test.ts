@@ -11,7 +11,7 @@ import VariablesStepper from "./variables-stepper.js";
 import Haibun from "./haibun.js";
 import { AStepper, type IStepperCycles, type TStepperSteps } from "../lib/astepper.js";
 import { actionOK } from "../lib/util/index.js";
-import { objectCoercer } from "../lib/domains.js";
+import { fromJsonText } from "../lib/json-text.js";
 import { passWithDefaults } from "../lib/test/lib.js";
 
 const PersonSchema = z.object({ did: z.url(), name: z.string() }).strict();
@@ -24,8 +24,7 @@ class PersonStepper extends AStepper {
 			domains: [
 				{
 					selectors: ["person-input"],
-					schema: PersonSchema,
-					coerce: objectCoercer(PersonSchema),
+					schema: fromJsonText(PersonSchema),
 					description: "A person identified by DID with a display name.",
 				},
 			],

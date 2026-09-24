@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { DOMAIN_GRAPH_QUERY, GraphQuerySchema, DOMAIN_DENSITY_QUERY, DensityQuerySchema } from "./quad-types.js";
-import { objectCoercer } from "./domains.js";
+import { fromJsonText } from "./json-text.js";
 import { LintFindingSchema, LintSummarySchema } from "./domain-chain-lint.js";
 import { AStepper, TFeatureStep } from "./astepper.js";
 import { TDomainDefinition } from "./resources.js";
@@ -24,7 +24,6 @@ import { findFeatureStepsFromStatement } from "../phases/Resolver.js";
 
 const numberSchema = z.coerce.number({ error: "invalid number" }).refine((value) => Number.isFinite(value), "invalid number");
 const stringSchema = z.coerce.string({ error: "value is required" });
-const jsonStringSchema = z.string({ error: "json value is required" });
 const statementSchema = z.string({ error: "statement label is required" }).min(1, "statement cannot be empty");
 const dateSchema = z.coerce.date({ error: "invalid date" });
 
@@ -186,28 +185,18 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		// Declared here, beside the schema it validates with: two steppers each declared this domain from their own
 		// copy of the schema, so which copy validated a query depended on which stepper registered first.
 		selectors: [DOMAIN_GRAPH_QUERY],
-		schema: GraphQuerySchema,
-		coerce: objectCoercer(GraphQuerySchema),
+		schema: fromJsonText(GraphQuerySchema),
 		description: "A request for records of one type from the graph, with optional filters, sort order, and a result limit.",
 	},
 	{
 		selectors: [DOMAIN_DENSITY_QUERY],
-		schema: DensityQuerySchema,
-		coerce: objectCoercer(DensityQuerySchema),
+		schema: fromJsonText(DensityQuerySchema),
 		description: "A request for how many records of one type fall in each division of a span of time, by how each turned out.",
 	},
 	{
 		selectors: [DOMAIN_JSON],
-		schema: jsonStringSchema,
-		description: "JSON string parsed into native JavaScript values.",
-		coerce: (proto: TStepValue) => {
-			const raw = jsonStringSchema.parse(proto.value);
-			try {
-				return JSON.parse(raw);
-			} catch {
-				throw new Error(`invalid json '${raw}'`);
-			}
-		},
+		schema: fromJsonText(z.json()),
+		description: "A JSON value, given as its text or as the value.",
 	},
 	// DOMAIN_DOMAIN_KEY is registered dynamically in Executor.addStepperConcerns
 	// after all other domains are collected, so its enum reflects the live registry.

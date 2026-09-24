@@ -30,6 +30,11 @@ export function boundedPrimitiveKind(field: z.ZodType): TBoundedPrimitiveKind | 
 	return def?.type !== undefined && (BOUNDED_PRIMITIVE_KINDS as Set<string>).has(def.type) ? (def.type as TBoundedPrimitiveKind) : undefined;
 }
 
+/** A persisted type's fields as its schema declares them, none where it declares no schema. */
+function schemaShape(schema: z.ZodType | undefined): Record<string, z.ZodType> {
+	return (schema && unwrapToShape(schema)) || {};
+}
+
 /** The queryable surface of a persisted type, from its declaration alone: declared sortColumns, CONTEXT facets,
  *  the GENERATED_AT_TIME field, and bounded primitive schema fields. The identifier is excluded: an id
  *  dereferences, it is not searched. Every layer that offers or accepts field queries reads this one derivation,
@@ -41,9 +46,7 @@ export function queryableFields(domain: { schema: z.ZodType | undefined; topolog
 		const rel = relOf(def);
 		if (rel === LinkRelations.CONTEXT.rel || rel === LinkRelations.GENERATED_AT_TIME.rel) out.add(field);
 	}
-	if (domain.schema instanceof z.ZodObject) {
-		for (const [field, zodField] of Object.entries(domain.schema.shape as Record<string, z.ZodType>)) if (boundedPrimitiveKind(zodField) !== undefined) out.add(field);
-	}
+	for (const [field, zodField] of Object.entries(schemaShape(domain.schema))) if (boundedPrimitiveKind(zodField) !== undefined) out.add(field);
 	out.delete(topology.id);
 	return [...out].sort();
 }
@@ -84,7 +87,7 @@ function isTextField(field: z.ZodType): boolean {
  * bounded value is left out, since a reader names part of a value and a bounded value is compared whole.
  */
 export function searchableFields(domain: { schema: z.ZodType | undefined; topology: THypermediaTopology }): string[] {
-	const shape = domain.schema instanceof z.ZodObject ? (domain.schema.shape as Record<string, z.ZodType>) : {};
+	const shape = schemaShape(domain.schema);
 	const out: string[] = [];
 	for (const [field, def] of Object.entries(domain.topology.properties)) {
 		if (!SEARCHED_RELS.has(relOf(def))) continue;
@@ -169,7 +172,7 @@ function subPropertyOfRel(rel: string): string | string[] | undefined {
 }
 import { HAIBUN_NS, type TRegisteredDomain } from "./resources.js";
 import { jsonSchemaOf } from "./json-schema-of.js";
-import { unwrap } from "./zod-unwrap.js";
+import { unwrap, unwrapToShape } from "./zod-unwrap.js";
 import { zodTypeLabel } from "./composite-domain.js";
 import { ellipsize } from "./util/index.js";
 
@@ -304,13 +307,13 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 				`persisted domain "${label}" (${domainKey}) declares ${generatedFields.length} properties with rel "${LinkRelations.GENERATED_AT_TIME.rel}": ${generatedFields.join(", ")}; expected exactly one`,
 			);
 		const generatedField = generatedFields[0];
-		if (domain.schema instanceof z.ZodObject) {
-			const fieldSchema = domain.schema.shape[generatedField];
-			if (!fieldSchema) throw new Error(`persisted domain "${label}" (${domainKey}) maps generatedAtTime rel to "${generatedField}" but the schema has no such field`);
-			const probe = fieldSchema.safeParse(undefined);
-			if (probe.success && probe.data === undefined)
-				throw new Error(`persisted domain "${label}" (${domainKey}) generatedAtTime field "${generatedField}" is .optional(), must be required or have a default`);
-		}
+		const shape = unwrapToShape(domain.schema);
+		if (!shape) throw new Error(`persisted domain "${label}" (${domainKey}) has a schema that isn't an object: a persisted type's value is an object of its fields`);
+		const fieldSchema = shape[generatedField];
+		if (!fieldSchema) throw new Error(`persisted domain "${label}" (${domainKey}) maps generatedAtTime rel to "${generatedField}" but the schema has no such field`);
+		const probe = fieldSchema.safeParse(undefined);
+		if (probe.success && probe.data === undefined)
+			throw new Error(`persisted domain "${label}" (${domainKey}) generatedAtTime field "${generatedField}" is .optional(), must be required or have a default`);
 
 		const properties: Record<string, TPropertyConcern> = {};
 		for (const [field, propDef] of Object.entries(topology.properties)) {

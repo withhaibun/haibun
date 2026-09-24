@@ -373,6 +373,6 @@ export const features: TKirejiExport = {
 |-----------|-----|
 | New Steppers | Extend `AStepper`, define `steps` object with `gwta`/`match`/`exact` patterns |
 | Lifecycle Hooks | Implement `IStepperCycles` (`startFeature`, `afterStep`, `onEvent`, etc.) |
-| Domains | Register `TDomainDefinition` with schema and coercer |
+| Domains | Declare `TDomainDefinition` in the cycles' `getConcerns`: a schema that takes each form of the value and yields it |
 | Observation Sources | Implement `IObservationSource` for quantifier iteration (`observed in source`) |
 | Monitors | Implement `onEvent` to receive execution telemetry |

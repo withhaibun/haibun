@@ -5,6 +5,7 @@ import { DOMAIN_STRING, DOMAIN_NUMBER, DOMAIN_JSON, DOMAIN_DATE, registerDomains
 import { TDomainDefinition } from "./resources.js";
 import { Origin, TStepValue } from "../schema/protocol.js";
 import { FeatureVariables } from "./feature-variables.js";
+import { fromJsonText } from "./json-text.js";
 import { DOMAIN_GRAPH_QUERY, type TGraphQuery } from "./quad-types.js";
 
 const p = (value: string, domain = DOMAIN_STRING): TStepValue => ({ term: String(value), value, domain, origin: Origin.var });
@@ -135,7 +136,7 @@ describe("domain coercion", () => {
 		});
 	});
 
-	describe("structured object domain with objectCoercer", () => {
+	describe("structured object domain taking JSON text", () => {
 		const DOMAIN_STRUCTURED = "test-structured";
 		const structuredSchema = z.object({
 			conditions: z.array(z.object({ field: z.string(), value: z.string() })).default([]),
@@ -143,16 +144,11 @@ describe("domain coercion", () => {
 		});
 
 		const structuredWorld = getDefaultWorld();
-		const objectCoercer = (schema: z.ZodType) => (proto: TStepValue) => {
-			const value = typeof proto.value === "string" ? JSON.parse(proto.value) : proto.value;
-			return schema.parse(value);
-		};
 		registerDomains(structuredWorld, [
 			[
 				{
 					selectors: [DOMAIN_STRUCTURED],
-					schema: structuredSchema,
-					coerce: objectCoercer(structuredSchema),
+					schema: fromJsonText(structuredSchema),
 				},
 			],
 		]);
@@ -176,8 +172,8 @@ describe("domain coercion", () => {
 			expect(result).toEqual({ conditions: [] });
 		});
 
-		it("rejects invalid JSON", () => {
-			expect(() => structuredWorld.domains[DOMAIN_STRUCTURED].coerce(p("{bad", DOMAIN_STRUCTURED))).toThrow();
+		it("refuses text that isn't JSON at once, with the parser's reason and the text", () => {
+			expect(() => structuredWorld.domains[DOMAIN_STRUCTURED].coerce(p("{bad", DOMAIN_STRUCTURED))).toThrow(/is text that isn't JSON \(.+\): \{bad/);
 		});
 
 		it("rejects non-object JSON (array)", () => {
@@ -190,18 +186,13 @@ describe("domain coercion", () => {
 		const structuredSchema = z.object({
 			items: z.array(z.string()).default([]),
 		});
-		const objectCoercer = (schema: z.ZodType) => (proto: TStepValue) => {
-			const value = typeof proto.value === "string" ? JSON.parse(proto.value) : proto.value;
-			return schema.parse(value);
-		};
 
 		const testWorld = getDefaultWorld();
 		registerDomains(testWorld, [
 			[
 				{
 					selectors: [DOMAIN_STRUCTURED],
-					schema: structuredSchema,
-					coerce: objectCoercer(structuredSchema),
+					schema: fromJsonText(structuredSchema),
 				},
 			],
 		]);

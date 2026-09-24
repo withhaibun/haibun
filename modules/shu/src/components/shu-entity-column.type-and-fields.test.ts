@@ -5,15 +5,15 @@ import { z } from "zod";
 import { ShuEntityColumn, foldedTargets } from "./shu-entity-column.js";
 import { setConcernCatalog } from "../rels-cache.js";
 import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
-import { toRegisteredDomain, objectCoercer } from "@haibun/core/lib/domains.js";
+import { toRegisteredDomain } from "@haibun/core/lib/domains.js";
+import { fromJsonText } from "@haibun/core/lib/json-text.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 
 const typeDomain = (persistedAs: string, selector: string, description: string) => {
 	const schema = z.object({ id: z.string(), name: z.string(), note: z.string(), generatedAtTime: z.string() });
 	return toRegisteredDomain({
 		selectors: [selector],
-		schema,
-		coerce: objectCoercer(schema),
+		schema: fromJsonText(schema),
 		description,
 		topology: {
 			persistedAs,

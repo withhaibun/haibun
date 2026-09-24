@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { TSpecl } from "../execution.js";
 import type { TWorld, TRuntime, TModuleOptions } from "../world.js";
 import { TActionResult, OK, TDebugSignal } from "../../schema/protocol.js";
@@ -117,6 +118,7 @@ export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve
 
 /** Serialize an unknown thrown value to a full diagnostic string, including error code and cause chain. */
 export function errorDetail(err: unknown): string {
+	if (err instanceof z.ZodError) return err.issues.map((issue) => (issue.path.length ? `${issue.path.join(".")}: ${issue.message}` : issue.message)).join("; ");
 	if (!(err instanceof Error)) return String(err);
 	const parts: string[] = [err.message];
 	const code = (err as NodeJS.ErrnoException).code;

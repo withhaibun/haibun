@@ -10,6 +10,7 @@ import {
 	type TRelRange,
 } from "./resources.js";
 import type { TLinkVocabulary } from "./typed-links.js";
+import { parseJsonText } from "./json-text.js";
 import type { TWorld } from "./world.js";
 
 export const DOMAIN_STATEMENT = "statement";
@@ -55,6 +56,9 @@ export const registerDomains = (world: TWorld, results: TDomainDefinition[][]) =
 };
 
 export const asDomainKey = (domains: string[]) => domains?.sort().join(" | ");
+
+/** The domain key a step parameter takes: the domain its phrase names, `string` where it names none, a union's parts in order. */
+export const paramDomainKey = (declared: string | undefined): string => normalizeDomainKey(asDomainKey((declared || DOMAIN_STRING).split(" | ")));
 
 export const normalizeDomainKey = (domain: string) => {
 	// Split on ' | ' (union separator), not on '/' which is used in variable names
@@ -137,14 +141,6 @@ export const mapDefinitionsToDomains = (definitions: TDomainDefinition[]) => {
 	}, {});
 };
 
-/** Coercer: JSON-parses strings, validates with schema. Used by haibun domain coercion for object-typed params. */
-export function objectCoercer<T extends z.ZodType>(schema: T) {
-	return (proto: { value?: unknown }) => {
-		const value = typeof proto.value === "string" ? JSON.parse(proto.value) : proto.value;
-		return schema.parse(value);
-	};
-}
-
 /**
  * Schema for an individual reference: a single-field composite that carries just
  * the referenced individual's id. Steps whose action only needs the id of an
@@ -152,65 +148,30 @@ export function objectCoercer<T extends z.ZodType>(schema: T) {
  * producers (or fact-bind an existing instance) without forcing the full
  * individual payload through dispatch.
  */
-export const individualRefSchema = z.object({ id: z.string() }).strict();
+const individualRefSchema = z.object({ id: z.string() }).strict();
 export type TIndividualRef = z.infer<typeof individualRefSchema>;
 
 /**
- * Normalise a value to `{ id }`. Step actions whose input is an
- * `individualRefDomain` use this in lieu of accessing `.id` directly: the
- * feature-file dispatch path resolves a bare-name variable through that
- * variable's STORED domain (typically `string`), so the action receives the
- * raw id string rather than the `{id}` object the RPC path produces. Calling
- * `asIndividualRef` is idempotent, accepts an id string, a full individual (extracts
- * `id`), or an already-normalised `{id}` ref.
+ * A reference to an individual as a feature line or a call gives it: its id, a reference or its JSON text, or the
+ * individual itself, whose id it takes. Each is `{ id }` to the step that takes it. Text that opens as JSON is read as
+ * JSON, and refused where it isn't.
  */
-export function asIndividualRef(value: unknown): TIndividualRef {
-	if (typeof value === "string") return { id: value };
-	if (value && typeof value === "object") {
-		const obj = value as Record<string, unknown>;
-		if (typeof obj.id === "string") return { id: obj.id };
-	}
-	throw new Error(`asIndividualRef: cannot normalise ${typeof value} to an individual reference; expected an id string or an object with an "id" string`);
-}
+const individualRefInputSchema = z.preprocess((value, ctx) => {
+	const given = typeof value === "string" && value.trimStart().startsWith("{") ? parseJsonText(value, ctx) : value;
+	if (typeof given === "string") return { id: given };
+	if (given && typeof given === "object" && typeof (given as { id?: unknown }).id === "string") return { id: (given as { id: string }).id };
+	return given;
+}, individualRefSchema);
 
 /**
- * Build a reusable "reference to individual X" input domain. The resulting
- * `TDomainDefinition` registers `refKey` as a composite with one `id` field
- * whose range is `targetKey` (a registered persisted domain). The composite-
- * decomposition layer then treats the field as either a fact-binding (an
- * existing X) or a chain through X's producer steps.
- *
- * The coercer accepts a JSON-stringified `{id}` (what `objectCoercer` does)
- * or a bare id string (test ergonomics: `revokeCredential({ credential: "`x.id`" })`).
- * Either form is normalised to `{ id }` so the action's parameter is the same
- * regardless of how the test or UI supplied the reference.
+ * A reusable "reference to individual X" input domain: a composite with one `id` field whose range is `targetKey`, a
+ * registered persisted domain. The composite-decomposition layer treats the field as either a fact-binding (an existing
+ * X) or a chain through X's producer steps.
  */
 export function individualRefDomain(refKey: string, targetKey: string, description?: string): TDomainDefinition {
 	return {
 		selectors: [refKey],
-		schema: individualRefSchema,
-		coerce: (proto) => {
-			const v = (proto as { value?: unknown }).value;
-			// String: an id directly, or a JSON-stringified `{id}` ref.
-			if (typeof v === "string") {
-				const trimmed = v.trim();
-				if (trimmed.startsWith("{")) {
-					const parsed = JSON.parse(trimmed) as Record<string, unknown>;
-					if (typeof parsed?.id === "string") return { id: parsed.id };
-					throw new Error(`individual ref expected an "id" string; got ${trimmed.slice(0, 120)}`);
-				}
-				return { id: v };
-			}
-			// Object: accept either a {id} ref or a full individual (extract .id).
-			// Without the extraction path, a test that passes the whole
-			// resolved-variable individual (the common haibun pattern) would
-			// fail strict parsing.
-			if (v && typeof v === "object") {
-				const obj = v as Record<string, unknown>;
-				if (typeof obj.id === "string") return { id: obj.id };
-			}
-			throw new Error(`individual ref expects a string id or an object with an "id" string; got ${typeof v}`);
-		},
+		schema: individualRefInputSchema,
 		description: description ?? `Reference to a ${targetKey} by id`,
 		topology: { ranges: { id: targetKey } },
 	};

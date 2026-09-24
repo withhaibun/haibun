@@ -9,7 +9,8 @@ import { actionOK, actionNotOK, actionOKWithProducts, getStepTerm, errorDetail }
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { FeatureVariables, OBSCURED_VALUE } from "../lib/feature-variables.js";
 import { sanitizeObjectSecrets } from "../lib/util/secret-utils.js";
-import { DOMAIN_STATEMENT, DOMAIN_STRING, normalizeDomainKey, createEnumDomainDefinition, registerDomains, refreshHypermediaTypeDomain, objectCoercer } from "../lib/domains.js";
+import { DOMAIN_STATEMENT, DOMAIN_STRING, normalizeDomainKey, createEnumDomainDefinition, registerDomains, refreshHypermediaTypeDomain } from "../lib/domains.js";
+import { fromJsonText } from "../lib/json-text.js";
 import { hypermediaDomainFromContext, type THypermediaContext } from "../lib/hypermedia.js";
 import { REL_CONTEXT, LinkRelations, type TRel } from "../lib/resources.js";
 
@@ -666,7 +667,6 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			const definition: TDomainDefinition = {
 				selectors: [domainKey],
 				schema: mergedSchema,
-				coerce: (proto) => mergedSchema.parse(proto.value),
 				description,
 			};
 			registerDomains(this.getWorld(), [[definition]]);
@@ -714,7 +714,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			const selector = effectiveDomain.toLowerCase();
 			const domainKey = normalizeDomainKey(selector);
 			if (this.getWorld().domains[domainKey]) return actionNotOK(`Domain "${domainKey}" already exists`);
-			registerDomains(this.getWorld(), [[{ selectors: [selector], schema, coerce: objectCoercer(schema), description: effectiveDomain, topology, ui: { declared: true } }]]);
+			registerDomains(this.getWorld(), [[{ selectors: [selector], schema: fromJsonText(schema), description: effectiveDomain, topology, ui: { declared: true } }]]);
 			refreshHypermediaTypeDomain(this.getWorld());
 			return OK;
 		} catch (error) {

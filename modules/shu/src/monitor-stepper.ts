@@ -21,7 +21,7 @@ import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { OBSCURED_VALUE } from "@haibun/core/lib/feature-variables.js";
 import { actionOKWithProducts, stringOrError, findStepperFromOptionOrKind, errorDetail } from "@haibun/core/lib/util/index.js";
 import { actualURI } from "@haibun/core/lib/util/node/actualURI.js";
-import { objectCoercer } from "@haibun/core/lib/domains.js";
+import { fromJsonText } from "@haibun/core/lib/json-text.js";
 import { TRANSPORT, type ITransport } from "@haibun/web-server-hono/sse-transport.js";
 import { WEBSERVER, type IWebServer } from "@haibun/web-server-hono/defs.js";
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
@@ -144,14 +144,12 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			domains: [
 				{
 					selectors: [DOMAIN_LOG_EVENT],
-					schema: LogEventSchema,
-					coerce: objectCoercer(LogEventSchema),
+					schema: fromJsonText(LogEventSchema),
 					description: "Client-side log event forwarded from the SPA",
 				},
 				{
 					selectors: [DOMAIN_CLIENT_BLIPS],
-					schema: ClientBlipsSchema,
-					coerce: objectCoercer(ClientBlipsSchema),
+					schema: fromJsonText(ClientBlipsSchema),
 					description: "A batch of fine-grained occurrences recorded in the SPA",
 				},
 			],

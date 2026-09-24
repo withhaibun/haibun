@@ -18,6 +18,7 @@
  */
 import { z } from "zod";
 import { typedLinkFacts, type TLinkVocabulary, type TTypedLinkFact } from "./typed-links.js";
+import { fromJsonText } from "./json-text.js";
 
 // ============================================================================
 // Resource identity
@@ -1207,9 +1208,7 @@ export type TScene = z.infer<typeof SceneSchema>;
 
 export const sceneDomainDefinition: TDomainDefinition = {
 	selectors: [SCENE_DOMAIN],
-	schema: SceneSchema,
-	// The generated `create scene {data}` step takes its value as JSON text from a feature, as every other composite does.
-	coerce: (proto: { value?: unknown }) => SceneSchema.parse(typeof proto.value === "string" ? JSON.parse(proto.value) : proto.value),
+	schema: fromJsonText(SceneSchema),
 	description: "A named way of looking at the graph: which kinds are shown, how they are laid out, and when, saved so it can be returned to and linked to.",
 	topology: {
 		persistedAs: SCENE_LABEL,
@@ -1260,8 +1259,7 @@ export const AnnotationNoteSchema = z
 export type TAnnotationNote = z.infer<typeof AnnotationNoteSchema>;
 export const annotationNoteDomainDefinition: TDomainDefinition = {
 	selectors: [ANNOTATION_NOTE_DOMAIN],
-	schema: AnnotationNoteSchema,
-	coerce: (proto: { value?: unknown }) => AnnotationNoteSchema.parse(typeof proto.value === "string" ? JSON.parse(proto.value) : proto.value),
+	schema: fromJsonText(AnnotationNoteSchema),
 	description: "A complete annotation act as one value: passage, note, time, and cross-reference links.",
 };
 

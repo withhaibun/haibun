@@ -19,7 +19,7 @@
  * `ranges` is the explicit channel; everything that isn't declared there is
  * treated as a primitive (resolves to a `kind: "argument"` binding).
  */
-import { unwrap } from "./zod-unwrap.js";
+import { unwrap, unwrapToShape } from "./zod-unwrap.js";
 import { z } from "zod";
 import type { TRegisteredDomain } from "./resources.js";
 
@@ -55,19 +55,6 @@ export function zodTypeLabel(zodType: unknown): string {
 	return def?.type ?? "";
 }
 
-/** Return the object-shape map for a Zod object, after wrapper unwrapping; `null` for non-objects. */
-function objectShape(zodType: z.ZodType): Record<string, z.ZodType> | null {
-	const { inner } = unwrap(zodType);
-	const def = (inner as { _zod?: { def?: { type?: string; shape?: Record<string, z.ZodType> } } })._zod?.def;
-	if (def?.type === "object" && def.shape) return def.shape;
-	// Zod v4 ZodObject also exposes .shape directly.
-	if ("shape" in inner) {
-		const shape = (inner as { shape: unknown }).shape;
-		if (shape && typeof shape === "object") return shape as Record<string, z.ZodType>;
-	}
-	return null;
-}
-
 /**
  * Decompose a registered domain into its component fields, or return `null`
  * if the domain isn't composite (schema isn't an object, or isn't registered).
@@ -79,7 +66,7 @@ function objectShape(zodType: z.ZodType): Record<string, z.ZodType> | null {
 export function getCompositeFields(domainKey: string, registry: Record<string, TRegisteredDomain>): TCompositeField[] | null {
 	const def = registry[domainKey];
 	if (!def) return null;
-	const shape = objectShape(def.schema);
+	const shape = unwrapToShape(def.schema);
 	if (!shape) return null;
 	const ranges = def.topology?.ranges ?? {};
 	const out: TCompositeField[] = [];

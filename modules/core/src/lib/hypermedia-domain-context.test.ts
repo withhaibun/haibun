@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { hypermediaDomainFromContext, buildConcernCatalog } from "./hypermedia.js";
 import { LinkRelations, REL_CONTEXT } from "./resources.js";
-import { toRegisteredDomain, objectCoercer } from "./domains.js";
+import { toRegisteredDomain } from "./domains.js";
+import { fromJsonText } from "./json-text.js";
 
 const iri = (rel: string) => REL_CONTEXT[rel];
 
@@ -28,8 +29,7 @@ describe("hypermediaDomainFromContext, declare a hypermedia domain from a JSON-L
 		const cat = buildConcernCatalog({
 			ingredient: toRegisteredDomain({
 				selectors: ["ingredient"],
-				schema,
-				coerce: objectCoercer(schema),
+				schema: fromJsonText(schema),
 				description: "An ingredient used in recipes.",
 				topology,
 				ui: { declared: true },

@@ -97,37 +97,40 @@ Internally every placeholder is represented with a mandatory `domain` field. If 
 Current built-ins:
 
 - `string` – raw text (default)
-- `number` – coerced via `Number(value)`; fails if `NaN`
+- `number` – read as a number; fails if it isn't one
 - `css-selector` – treated as opaque string, but distinguished for tooling / IDEs
 - `json` – parses JSON; fails on invalid syntax
 - `statement` – nested step statement (is parsed & must resolve to an existing step)
 
 #### Domain registry
 
-Domains are resolved at runtime through a registry on the `world` (`world.domains`). Each domain entry provides a `coerce(raw: string)` function returning the typed value or throwing an error string / Error. Adding a new domain is as simple as registering it before steps execute:
+A stepper declares its domains in its cycles' `getConcerns`, each a `TDomainDefinition` with its selectors, a Zod schema and a description. The schema takes each form of the domain's value, as a feature line, a variable or a call gives it, and yields the value the step receives. It parses that value to itself, and its JSON Schema states the form a call sends. A composite takes its JSON text too, through `fromJsonText`:
 
 ```ts
-world.domains['uuid'] = {
-	coerce: (raw) =>
-		/^[0-9a-f-]{36}$/i.test(raw)
-			? raw
-			: (() => {
-					throw new Error(`invalid uuid ${raw}`);
-				})(),
+cycles: IStepperCycles = {
+	getConcerns: () => ({
+		domains: [
+			{ selectors: ["uuid"], schema: z.string().uuid(), description: "A UUID" },
+			{ selectors: ["point"], schema: fromJsonText(PointSchema), description: "A point" },
+		],
+	}),
 };
 ```
 
+Only a meta domain whose value depends on the step it fills, such as `statement`, declares a `coerce`.
+
 #### Validation & errors
 
-- Unknown domain name → immediate error: `unknown domain 'x'`.
-- Coercion failure (e.g. `{age:number}` with `abc`) → error from domain coercer.
+- A parameter naming a domain no loaded stepper registers is refused when the step registers, naming the step and the domain.
+- A value its parameter's domain refuses fails the step, naming the step, the parameter, the term and the schema's reason. Text that isn't JSON where JSON text is taken is refused at once, with the parser's reason and the text.
+- A variable of another domain fills a parameter only where the parameter's domain is a reference to it: otherwise the step fails, naming both domains.
 - `{x:${DOMAIN_STATEMENT}}` whose inner text does not resolve to a known step → `statement '...' invalid`.
 
 #### Authoring guidelines
 
 - Prefer explicit domains when semantic meaning or validation matters (`{ms:number}` over `{ms}`).
 - Use kebab-case for multi-word domain names (`css-selector`).
-- Keep domains narrowly focused; compose behavior in step actions, not coercers.
+- Keep domains narrowly focused; compose behavior in step actions, not schemas.
 - If your step depends on a new data shape, add a domain instead of ad-hoc parsing inside many steps.
 
 #### Example
