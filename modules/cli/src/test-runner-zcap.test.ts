@@ -13,10 +13,10 @@ import { openRunRegistry } from "@haibun/core/lib/step-registry.js";
 import { callStepByName } from "@haibun/core/lib/call-step.js";
 import { runAuthorizedWith } from "@haibun/core/lib/capability-context.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
+import { addStepperConcerns } from "@haibun/core/phases/Executor.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { principalDomainDefinition } from "@haibun/core/lib/resources.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
-import { featureExecutionDomainDefinition } from "./feature-execution.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 
 const NOWHERE = "/nonexistent-base-for-capability-tests";
@@ -26,14 +26,16 @@ function supervisedWorld(): TWorld {
 	const world = getDefaultWorld();
 	const store = new QuadStore();
 	world.shared.getStore = () => store;
-	// The registry resolves runTest's productsDomain schema through the world, as registerDomains does in a real run.
-	world.domains = { ...world.domains, ...mapDefinitionsToDomains([principalDomainDefinition, featureExecutionDomainDefinition]) };
+	// A run registers Principal through a stepper this harness doesn't load.
+	world.domains = { ...world.domains, ...mapDefinitionsToDomains([principalDomainDefinition]) };
 	return world;
 }
 
 function harness() {
 	const world = supervisedWorld();
 	const steppers = [new TestRunnerStepper(), new InstanceStepper()];
+	// The registry resolves each step's products domain through the world, where a run registers what its steppers declare.
+	addStepperConcerns(world, steppers);
 	for (const s of steppers) void s.setWorld(world, steppers);
 	// The run's registry, as the executor opens it, which a step calls another step through.
 	const registry = openRunRegistry(world, steppers);

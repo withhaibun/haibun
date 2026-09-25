@@ -194,6 +194,22 @@ type TRun = { child: ChildProcess; tail: RunTail; outcome: TRunOutcome; ended: n
 /** What a launched instance was launched from, so the same instance can be launched again after it is stopped. */
 type TLaunch = { dir: string; config: string; port: number; hostId: number };
 
+/** Whether a run is running or ended. */
+const runStatus = (held: TRun): string => (held.ended === null ? "running" : "ended");
+
+/** Where an instance this process starts on `port` is reached. */
+const localOrigin = (port: number): string => `http://localhost:${port}`;
+
+/** The domain of the instances and runs this process started. */
+export const DOMAIN_INSTANCES = "haibun-instances";
+/** The instances and runs this process started, which it supervises until they end. */
+const InstancesSchema = z.object({
+	instances: z
+		.array(z.object({ hostId: z.number(), origin: z.string(), label: z.string() }))
+		.describe("Each instance this process launched and still supervises: the host it answers as, where it is reached, and what it was launched from."),
+	runs: z.array(z.object({ run: z.string(), status: z.string() })).describe("Each run this process started, and whether it is running or ended."),
+});
+
 export default class InstanceStepper extends AStepper implements IHasCycles {
 	description = "Start and supervise sibling haibun instances (forked cli.js, readiness via action.begin, terminated at endFeature)";
 
@@ -211,6 +227,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 	/** The host id a standing run took, so its steps are addressable as that host's. */
 
 	cycles: IStepperCycles = {
+		getConcerns: () => ({ domains: [{ selectors: [DOMAIN_INSTANCES], schema: InstancesSchema, description: "The instances and runs a process started" }] }),
 		endFeature: async (endFeature?: TEndFeature) => {
 			if (!endFeature?.shouldClose) return;
 			await Promise.all([...this.children.map(({ child }) => terminate(child)), ...[...this.runs.values()].map((r) => terminate(r.child))]);
@@ -252,7 +269,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			action: async ({ port }: { port: number }) => {
 				const held = this.children.find((c) => c.launch.port === port);
 				if (!held) return actionNotOK(`reach instance: this run launched no instance on port ${port}`);
-				await this.registerHost(`http://localhost:${port}`);
+				await this.registerHost(localOrigin(port));
 				return OK;
 			},
 		},
@@ -279,6 +296,20 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 				}
 				return started;
 			},
+		},
+		showInstances: {
+			read: true,
+			capability: SUPERVISOR_CAPABILITIES.read,
+			gwta: "show the haibun instances",
+			description: "The instances this process launched and the runs it started, each as it stands now: an instance by the host it answers as and where it is reached, a run by whether it is running.",
+			productsDomain: DOMAIN_INSTANCES,
+			action: () =>
+				Promise.resolve(
+					actionOKWithProducts({
+						instances: this.children.map(({ label, launch }) => ({ hostId: launch.hostId, origin: localOrigin(launch.port), label })),
+						runs: [...this.runs].map(([run, held]) => ({ run, status: runStatus(held) })),
+					}),
+				),
 		},
 		readRun: {
 			gwta: `read the haibun run {run} since {cursor: number}`,
@@ -388,7 +419,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 	 * as a local step is. A run that never serves registers nothing, which is what a run with nothing to answer is.
 	 */
 	private async registerRunHost(run: string, port: number): Promise<boolean> {
-		const url = `http://localhost:${port}`;
+		const url = localOrigin(port);
 		const answered = await this.awaitBegin(url, () => this.runs.get(run)?.ended !== null);
 		if (!answered) return false;
 		await this.registerHost(url);
@@ -445,7 +476,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		const [first] = held.outcome.failures;
 		return actionOKWithProducts({
 			run,
-			status: held.ended === null ? "running" : "ended",
+			status: runStatus(held),
 			exitCode: held.ended,
 			...held.tail.since(cursor),
 			features: held.outcome.features.size,
@@ -466,7 +497,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		// it. LAUNCHED_FROM is passed as a run variable ($LAUNCHED_FROM$), which is how a launched instance addresses
 		// the run that started it, mounting its store and reporting to it, without naming a port in its own source.
 		const launcherPort = process.env[INSTANCE_PORT_ENV];
-		const passed = [process.env.HAIBUN_ENV, launcherPort ? `${LAUNCHED_FROM}=http://localhost:${launcherPort}` : ""].filter(Boolean).join(",");
+		const passed = [process.env.HAIBUN_ENV, launcherPort ? `${LAUNCHED_FROM}=${localOrigin(Number(launcherPort))}` : ""].filter(Boolean).join(",");
 		const env = { ...runEnvironment(process.env, port, false, hostId, perProcessOptionNames(this.steppers)), ...(passed ? { HAIBUN_ENV: passed } : {}) };
 		// execArgv: [] keeps the child plain node running the built CLI; it must not inherit a test runner's loader flags.
 		// The child runs in the base it was started from, since what a base's config says is relative to that base: a
@@ -485,7 +516,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		child.stdout?.on("data", (data: Buffer) => saidTail.append(data.toString()));
 		this.children.push({ child, label: `${dir} host ${hostId}`, launch: { dir, config, port, hostId } });
 
-		const url = `http://localhost:${port}`;
+		const url = localOrigin(port);
 		const rpc = new RpcClient({ baseUrl: url, timeoutMs: 1_500, retry: { maxAttempts: 1 } });
 		const deadline = Date.now() + READY_DEADLINE_MS;
 		while (Date.now() < deadline) {

@@ -11,15 +11,27 @@ vi.mock("../rels-cache.js", async (actual) => ({ ...(await actual<Record<string,
 vi.mock("../chat-context-harvest.js", () => ({ harvestChatViewLd: () => [] }));
 /** The models the run holds, which a read of the catalog lists. */
 let models: Array<{ id: string; displayName: string }> = [];
+/** The type the run's models are grouped under, and the records of it discovery wrote. */
+const PROVIDER = "LlmProvider";
+let providers: Array<{ id: string; answered: boolean; models: number; why?: string }> = [];
 vi.mock("../hypermedia.js", async () => {
 	const { hypermedia } = await import("./chat-pane.test-fake.js");
 	return hypermedia(
-		(req) => (req.method === "showKihans" ? { vertices: models, total: models.length } : req.method === "listChatSessions" ? { sessions: [] } : {}),
+		(req) =>
+			req.method === "showKihans"
+				? { vertices: models, total: models.length }
+				: req.method === `show${PROVIDER}s`
+					? { vertices: providers, total: providers.length }
+					: req.method === "listChatSessions"
+						? { sessions: [] }
+						: {},
 		() => Promise.resolve(),
 	);
 });
 
 const { SerializedEventStream, setEventStream } = await import("../event-stream.js");
+const { setSiteMetadata } = await import("../rels-cache.js");
+const { LinkRelations } = await import("@haibun/core/lib/resources.js");
 const { ShuCombobox } = await import("./shu-combobox.js");
 const { ShuKihanChat } = await import("./shu-kihan-chat.js");
 const { SHU_ATTR } = await import("../consts.js");
@@ -47,5 +59,35 @@ describe("the models the ask pane offers", () => {
 		await pane.updateComplete;
 		expect(pane.shadowRoot?.querySelector('[data-testid$="no-models"]')).toBeNull();
 		expect(pane.shadowRoot?.querySelector(".model-select"), "the model the run recorded is offered").not.toBeNull();
+	});
+});
+
+describe("the providers the ask pane lists", () => {
+	it("names each provider the run registered no model of, linked to its record, with why", async () => {
+		setSiteMetadata({
+			types: [KIHAN, PROVIDER],
+			idFields: { [KIHAN]: "id", [PROVIDER]: "id" },
+			rels: { [KIHAN]: { provider: LinkRelations.CONTEXT.rel }, [PROVIDER]: {} },
+			edgeRanges: { [KIHAN]: { provider: [PROVIDER] } },
+			properties: { [KIHAN]: ["id", "provider"], [PROVIDER]: ["id"] },
+			queryable: {},
+			validTimeFields: {},
+			summary: {},
+			ui: {},
+			propertyDefinitions: {},
+		});
+		models = [MODEL];
+		providers = [
+			{ id: "openai", answered: true, models: 1 },
+			{ id: "gemini", answered: false, models: 0, why: "it refused the key" },
+		];
+		const pane = new ShuKihanChat() as unknown as TDriven;
+		pane.setAttribute(SHU_ATTR.SHOW_CONTROLS, "");
+		document.body.appendChild(pane);
+		await flush();
+		await pane.updateComplete;
+		const listed = pane.shadowRoot?.querySelector('[data-testid$="providers-without"]');
+		expect(listed?.textContent).toContain("did not answer discovery: it refused the key");
+		expect(JSON.parse(listed?.querySelector("shu-ref")?.getAttribute("linkTarget") ?? "{}")).toEqual({ persistedAs: PROVIDER, id: "gemini" });
 	});
 });

@@ -21,7 +21,7 @@ export const FEATURE_EXECUTION_LABEL = "FeatureExecution";
 export const FEATURE_EXECUTION_DOMAIN = "feature-execution";
 
 /** How a run stands: started and still going, or ended as its exit code reports, or stopped before it finished. */
-export const RUN_STATUS = { running: "running", passed: "passed", failed: "failed", stopped: "stopped" } as const;
+export const RUN_STATUS = { running: "running", passed: "passed", failed: "failed", stopped: "stopped", notStarted: "not started" } as const;
 export type TRunStatus = (typeof RUN_STATUS)[keyof typeof RUN_STATUS];
 
 export const FeatureExecutionSchema = z.object({
@@ -29,7 +29,9 @@ export const FeatureExecutionSchema = z.object({
 	/** The directory of features the run was started from, and the filter that chose which of them ran. */
 	where: z.string(),
 	filter: z.string(),
-	status: z.enum([RUN_STATUS.running, RUN_STATUS.passed, RUN_STATUS.failed, RUN_STATUS.stopped]),
+	status: z.enum([RUN_STATUS.running, RUN_STATUS.passed, RUN_STATUS.failed, RUN_STATUS.stopped, RUN_STATUS.notStarted]),
+	/** Why the run did not start, where it didn't. */
+	why: z.string().optional(),
 	/** Where the run answers while it stands, so probing it needs nothing but the run. Absent for a run left to its
 	 *  own ports, which ends rather than standing. */
 	endpoint: z.string().optional(),
@@ -79,6 +81,7 @@ export const featureExecutionDomainDefinition: TDomainDefinition = {
 			steps: LinkRelations.TAG.rel,
 			failed: LinkRelations.TAG.rel,
 			firstFailure: LinkRelations.TAG.rel,
+			why: LinkRelations.TAG.rel,
 			host: LinkRelations.TAG.rel,
 			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
 		},

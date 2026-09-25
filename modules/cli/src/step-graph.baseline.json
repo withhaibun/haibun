@@ -1,4 +1,5 @@
 [
+	"orphan-step InstanceStepper.showInstances produces haibun-instances",
 	"orphan-step TestRunnerStepper.runAllTests produces feature-execution",
 	"orphan-step TestRunnerStepper.runTest produces feature-execution",
 	"string-param InstanceStepper.readRun {run: string}",

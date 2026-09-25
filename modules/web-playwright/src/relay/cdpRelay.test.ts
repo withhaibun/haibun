@@ -10,8 +10,10 @@ import type { CDPMessage } from "./browserModel.js";
 
 const TAB = { id: 7, index: 0, windowId: 1, active: true, pinned: false, url: "http://example.com/" };
 
+const HOLDER = "did:key:zExtension";
+
 /** An extension `holder` attached, held by the relay: what the relay sent it, and a way to end the attachment. */
-function attached(relay: BrowserRelay, holder = "did:key:zExtension") {
+function attached(relay: BrowserRelay, holder = HOLDER) {
 	const sent: TRelayMessage[] = [];
 	const ending = new AbortController();
 	const held = relay.attach(
@@ -68,6 +70,7 @@ describe("the browser relay", () => {
 	it("answers Playwright once the extension's handshake is done, attaching its tabs and forwarding the rest", async () => {
 		const reported: unknown[] = [];
 		const relay = new BrowserRelay((e) => void reported.push(e));
+		expect(relay.attachment(), "nothing is held before an extension attaches").toEqual({ attached: false, tabs: [] });
 		const extension = attached(relay);
 		const playwright = driven(relay);
 		playwright.send(1, "Browser.getVersion");
@@ -93,6 +96,11 @@ describe("the browser relay", () => {
 			params: { sessionId: "pw-tab-1", targetInfo: { targetId: "T7", type: "page", attached: true }, waitingForDebugger: false },
 		});
 		expect(playwright.received).toContainEqual({ id: 2, result: {} });
+		expect(relay.attachment(), "what the relay holds: the holder, and the tab it drives").toEqual({
+			attached: true,
+			holder: HOLDER,
+			tabs: [{ id: TAB.id, url: TAB.url, attached: true }],
+		});
 
 		playwright.send(3, "Runtime.evaluate", { expression: "1+1" }, "pw-tab-1");
 		await settle();

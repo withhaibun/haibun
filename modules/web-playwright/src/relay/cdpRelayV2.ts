@@ -34,6 +34,7 @@ import { BrowserModel } from "./browserModel.js";
 
 import type { SendCommand, SendToCDPClient } from "./browserModel.js";
 import type { ExtensionEventsV2 } from "./protocol.js";
+import type { TRelayAttachment } from "./relay-wire.js";
 
 export class ExtensionProtocolV2 {
 	private _model: BrowserModel;
@@ -51,6 +52,11 @@ export class ExtensionProtocolV2 {
 	// relay may start processing CDP commands from Playwright.
 	ready(): Promise<void> {
 		return this._ready.promise;
+	}
+
+	/** The tabs the extension reported, each with whether the relay drives it. */
+	tabs(): TRelayAttachment["tabs"] {
+		return this._model.tabs();
 	}
 
 	connectOverCDP(sendToCDPClient: SendToCDPClient): void {

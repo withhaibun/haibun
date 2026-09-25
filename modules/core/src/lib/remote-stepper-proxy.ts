@@ -17,7 +17,7 @@ import { actionNotOK } from "./util/index.js";
 import { type StepTool, type StepRegistry, hostScopedMethodName } from "./step-registry.js";
 import { populateActionArgs } from "./populateActionArgs.js";
 import { EVERY_DEFINITION, SHOW_STEPS_ACTION, SHOW_STEPS_METHOD, readShownSteps, type TStepDescriptor } from "./step-discovery.js";
-import { RpcClient, type RpcError } from "./rpc-client.js";
+import { RpcClient, discoverInstance, type RpcError } from "./rpc-client.js";
 import { requestSigner } from "./session-authority.js";
 
 export class RemoteStepperProxy extends AStepper {
@@ -46,17 +46,9 @@ export class RemoteStepperProxy extends AStepper {
 		await this.fetchStepDescriptors();
 	}
 
-	/** Read hostId from action.begin so injected tools carry a correct prefix. */
+	/** Read the host id through the handshake every remote surface begins with, so injected tools carry its prefix. */
 	private async discoverHostId(): Promise<void> {
-		const result = await this.rpc.call<{ hostId?: number; seqPath?: number[] }>("action.begin", {}, []);
-		if ("error" in result) {
-			throw new Error(`RemoteStepperProxy: action.begin failed at ${this.remoteUrl}: ${(result as { error: string }).error}`);
-		}
-		const id = (result as { hostId?: number; seqPath?: number[] }).hostId ?? (result as { seqPath?: number[] }).seqPath?.[0];
-		if (typeof id !== "number") {
-			throw new Error(`RemoteStepperProxy: action.begin at ${this.remoteUrl} did not surface a hostId`);
-		}
-		this.hostId = id;
+		this.hostId = (await discoverInstance(this.rpc, this.remoteUrl)).hostId;
 	}
 
 	/** The remote host's hostId. Undefined before setWorld completes. */
@@ -82,10 +74,10 @@ export class RemoteStepperProxy extends AStepper {
 	injectInto(registry: StepRegistry): void {
 		if (this.hostId === undefined) throw new Error("RemoteStepperProxy.injectInto called before setWorld discovered the host id");
 		const hostId = this.hostId;
-		const remoteHost = new URL(this.remoteUrl).host;
+		const remoteOrigin = new URL(this.remoteUrl).origin;
 		const tools = this.stepDescriptors.map(
 			(descriptor): StepTool => ({
-				descriptor: { ...descriptor, method: hostScopedMethodName(hostId, descriptor.method), remoteHost },
+				descriptor: { ...descriptor, method: hostScopedMethodName(hostId, descriptor.method), remoteOrigin },
 				paramSchemas: new Map(),
 				paramDomainKeys: new Map(),
 				isAsync: true,

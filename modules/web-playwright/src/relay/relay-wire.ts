@@ -27,3 +27,15 @@ export type TRelayMessage = z.infer<typeof RelayMessageSchema>;
 /** What `relay.send` carries: the extension's messages, in the order it sent them. */
 export const RelayBatchSchema = z.object({ messages: z.array(RelayMessageSchema) });
 export type TRelayBatch = z.infer<typeof RelayBatchSchema>;
+
+/** The domain of what the relay holds. */
+export const DOMAIN_RELAY_ATTACHMENT = "relay-attachment";
+/** What the relay holds: whether a person's browser is attached, the key that attached it, and its tabs. */
+export const RelayAttachmentSchema = z.object({
+	attached: z.boolean().describe("Whether a browser is attached."),
+	holder: z.string().optional().describe("The key that attached it, where it proved one."),
+	tabs: z
+		.array(z.object({ id: z.number(), title: z.string().optional(), url: z.string().optional(), attached: z.boolean().describe("Whether the run drives the tab.") }))
+		.describe("The tabs the extension reported."),
+});
+export type TRelayAttachment = z.infer<typeof RelayAttachmentSchema>;

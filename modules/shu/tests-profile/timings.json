@@ -22,12 +22,12 @@
 				"declaredStepTextHash": "f0e675cd5174ff1e2bc4d26bcae37650e7fe617eca8281c57c77f3f2afd52ef0"
 			},
 			"/features/e-forgetting-a-run.feature.ts": {
-				"seconds": 3.7,
+				"seconds": 3.6,
 				"steps": 199,
 				"declaredStepTextHash": "11061e01088e194f425ab0f5cd0e14396a1dbf2548e9d79b3c3bef374895a78a"
 			}
 		},
 		"steps": 1018,
-		"seconds": 9
+		"seconds": 8.9
 	}
 }

@@ -55,12 +55,14 @@ const SUPERVISOR = { start: "InstanceStepper-startRun", read: "InstanceStepper-r
 /** What a run answered, as much of it as an answer can carry: the whole of a small one, and a large one's own
  *  summary fields with a note of what was left, since a listing of a busy run is longer than a model's window. */
 export function answerOfRun(products: Record<string, unknown>): { text: string; answer: string } {
-	// What the run says about itself comes first, and its listings are counted rather than repeated: a reader asking
-	// how many reads the front of an answer, and a listing pushes the count past where it stops. The whole of it is
-	// there for a caller that wants the entries, and only the summary is handed to a model.
+	// What the run says about itself comes first. An answer that states how many it holds has its listings counted rather
+	// than repeated: a reader asking how many reads the front of an answer, and a listing pushes the count past where it
+	// stops. An answer that states no count, as a listing of steps, is its entries, so they are handed on. The whole of it
+	// is there for a caller that wants the entries.
 	const entries = Object.entries(products);
 	const ordered = [...entries.filter(([, value]) => !Array.isArray(value)), ...entries.filter(([, value]) => Array.isArray(value))];
-	const counted = ordered.map(([name, value]) => [name, Array.isArray(value) ? `${value.length} entries; ask the run for one to see it` : value]);
+	const counts = "total" in products;
+	const counted = ordered.map(([name, value]) => [name, counts && Array.isArray(value) ? `${value.length} entries; ask the run for one to see it` : value]);
 	return { text: bounded(JSON.stringify(Object.fromEntries(counted))), answer: bounded(JSON.stringify(Object.fromEntries(ordered))) };
 }
 
@@ -166,6 +168,9 @@ type TTrackedRun = {
 	reported?: z.infer<typeof runReadSchema>;
 };
 
+/** A run's identity: what ran, and when it was asked to start. */
+const runId = (filter: string, startedAt: string): string => `run:${filter}:${startedAt}`;
+
 export default class TestRunnerStepper extends AStepper implements IHasOptions, IHasCycles {
 	description = "An agent that runs named tests, watches them, probes what they left standing, and reports what it found into the discourse";
 
@@ -208,8 +213,9 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 	/** The last run this agent started, whichever ask started it. An operator asks about a test after the exchange that
 	 *  ran it, so a question in a later ask is about that run, and an answer saying none was started is false. */
 	private lastRun: TTrackedRun | undefined;
-	/** Why the last attempt to start a run failed, so a step that finds no run says what became of it. */
-	private lastFailure = "";
+	/** The record of the last attempt to start a run, where it did not start, so a step that finds no run says what
+	 *  became of it. */
+	private notStarted: TFeatureExecution | undefined;
 	/** Runs given a port, which stand after their features finish and hold that port until they are stopped. */
 	private standing = new Map<string, TTrackedRun>();
 	private principalWritten = new WeakSet<object>();
@@ -417,12 +423,14 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 		// than remembered here.
 		const run = await this.startRun(where, filter);
 		if ("why" in run) {
-			// What went wrong is kept, so the steps that follow answer with it: a caller told only "no run is in flight"
-			// has to go looking for a failure it was already told about, and an agent has nothing to report at all.
-			this.lastFailure = run.why;
+			// What went wrong is recorded, so a reader finds the run that did not start, and the steps that follow answer
+			// with it: a caller told only "no run is in flight" has to go looking for a failure it was already told about.
+			const startedAt = new Date().toISOString();
+			const attempt = { id: runId(filter, startedAt), filter, where, cursor: 0, status: RUN_STATUS.notStarted, startedAt, endpoint: "", host: 0 };
+			this.notStarted = await this.writeRun({ ...attempt, attributedTo: this.actingPrincipal(), askedIn: askedIn() }, { why: run.why });
 			return actionNotOK(run.why);
 		}
-		this.lastFailure = "";
+		this.notStarted = undefined;
 		// The record IS the products: the run as its individual stands, which is what the goal resolver asserts as the
 		// satisfied `feature-execution` and what a caller reads the id, endpoint and host from: the host being how a
 		// standing run is addressed afterwards (`on host {host}, <step>`); a run that ends with its features carries none.
@@ -437,7 +445,8 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 	/** Why there is no run to work with: the failure that stopped the last one from starting, where there was one, so a
 	 *  caller is answered with what happened rather than with its consequence. */
 	private nothingToRead(what: string): string {
-		return this.lastFailure ? `there is no run to ${what}: the last one did not start, ${this.lastFailure}` : `no run has been started in this ask, so there is nothing to ${what}`;
+		const why = this.notStarted?.why;
+		return why ? `there is no run to ${what}: the last one did not start, ${why}` : `no run has been started in this ask, so there is nothing to ${what}`;
 	}
 
 	/** Whether this agent has a run to be asked about at all: one in flight, one standing, or one it started earlier
@@ -511,7 +520,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 		const stands = this.runStands();
 		if (stands && port === 0) return { ok: false, why: "a standing run needs a port: set RUN_PORT, or leave RUN_STANDS off" };
 		const startedAt = new Date().toISOString();
-		const id = `run:${filter}:${startedAt}`;
+		const id = runId(filter, startedAt);
 		// Only a run left standing answers afterwards, so only such a run has an endpoint to record.
 		const endpoint = stands ? `http://localhost:${port}` : "";
 		const from = (getStepperOption(this, "RUN_FROM", this.getWorld().moduleOptions) as string | undefined) ?? where;

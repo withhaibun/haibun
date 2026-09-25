@@ -10,6 +10,7 @@ import { FakeInvoker } from "./test/fake-authority.js";
 import { AUTHORITY_KEY, SessionAuthority } from "./session-authority.js";
 import { RUN_AUTHORITY, runAuthorizedWith } from "./capability-context.js";
 import type { TWorld } from "./world.js";
+import { SITE_DID_PREFIX } from "./host-id.js";
 import { DOMAIN_STRING } from "./domains.js";
 import { Origin } from "../schema/protocol.js";
 import { serve } from "@hono/node-server";
@@ -60,7 +61,7 @@ describe("RemoteStepperProxy", () => {
 			const data = (await c.req.json()) as { method: string; params?: Record<string, unknown> };
 			presented.set(data.method, c.req.header("capability-invocation"));
 			if (data.method === "action.begin") {
-				return c.json({ seqPath: [7, -1, 1], hostId: 7 });
+				return c.json({ seqPath: [7, -1, 1], hostId: 7, site: `${SITE_DID_PREFIX}7` });
 			}
 			const tool = localRegistry.get(data.method);
 			if (!tool) return c.json({ error: `not found: ${data.method}` }, 422);
@@ -110,7 +111,7 @@ describe("RemoteStepperProxy", () => {
 			stepperName: "EchoStepper",
 			stepperDescription: "Steps that echo a message and answer a protected ping, served by a remote host.",
 			pattern: "echo {message: string}",
-			remoteHost: `localhost:${port}`,
+			remoteOrigin: `http://localhost:${port}`,
 			paramDomains: { message: "string" },
 			read: false,
 			fallback: false,

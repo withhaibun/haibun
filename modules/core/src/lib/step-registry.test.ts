@@ -69,7 +69,7 @@ const remoteTool = (stepName: string, pattern: string, capability = `RemoteSteps
 		capability,
 		read: false,
 		fallback: false,
-		remoteHost: "localhost:8331",
+		remoteOrigin: "http://localhost:8331",
 		inputSchema: { type: "object", properties: {}, required: [] },
 	},
 	paramSchemas: new Map(),
@@ -93,7 +93,7 @@ describe("what a read of the run's declarations shows", () => {
 		const shown = definitionsOf(emptyWorld, registry, "");
 		expect(shown.steps.find((step) => step.method === hostScopedMethodName(9, "RemoteSteps-listTyped"))).toMatchObject({
 			pattern: "list {domain: string}",
-			remoteHost: "localhost:8331",
+			remoteOrigin: "http://localhost:8331",
 		});
 		expect(
 			shown.steps.find((step) => step.method === "LocalSteps-passes"),

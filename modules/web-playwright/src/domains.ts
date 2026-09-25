@@ -2,6 +2,7 @@ import { z } from "zod";
 import { ENDPOINT_LABEL, HTTP_CLIENT_LABEL, HTTP_HOST_LABEL, HTTP_REQUEST_LABEL, LinkRelations, PersistedVertexSchema, TDomainDefinition } from "@haibun/core/lib/resources.js";
 import { DOMAIN_STRING } from "@haibun/core/lib/domains.js";
 import { ENDPOINT_CLASS } from "@haibun/core/lib/http-observations.js";
+import { DOMAIN_RELAY_ATTACHMENT, RelayAttachmentSchema } from "./relay/relay-wire.js";
 
 /** A page the browser navigated to. */
 export const VISITED_PAGE_LABEL = "VisitedPage";
@@ -39,6 +40,7 @@ const httpHostSchema = PersistedVertexSchema.extend({ id: z.string(), name: z.st
 const visitedPageSchema = PersistedVertexSchema.extend({ id: z.string(), name: z.string().optional(), generatedAtTime: z.string() });
 
 export const WebPlaywrightDomains: TDomainDefinition[] = [
+	{ selectors: [DOMAIN_RELAY_ATTACHMENT], schema: RelayAttachmentSchema, description: "What the browser relay holds: a person's attached browser, its holder and its tabs" },
 	{
 		selectors: [HTTP_REQUEST_LABEL],
 		schema: httpRequestSchema,

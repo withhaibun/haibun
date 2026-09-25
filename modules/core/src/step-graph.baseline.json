@@ -1,4 +1,5 @@
 [
+	"orphan-step AuthorityStepper.showHeldCalls produces held-calls",
 	"orphan-step GoalResolutionStepper.advanceWalk produces chain-walk",
 	"orphan-step GoalResolutionStepper.pursue produces goal-resolution",
 	"orphan-step GoalResolutionStepper.resolve produces goal-resolution",

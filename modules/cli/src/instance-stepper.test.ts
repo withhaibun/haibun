@@ -84,6 +84,16 @@ describe("a run's tail", () => {
 	});
 });
 
+describe("the instances and runs a process started", () => {
+	it("lists each run with whether it is running or ended", async () => {
+		const s = stepper();
+		s.hold("a-run");
+		s.hold("an-ended-run", "", 0);
+		const shown = await s.steps.showInstances.action();
+		expect(shown.products).toEqual({ instances: [], runs: [{ run: "a-run", status: "running" }, { run: "an-ended-run", status: "ended" }] });
+	});
+});
+
 describe("watching a run", () => {
 	it("answers with what the run has said since the cursor it was given", async () => {
 		const s = stepper();

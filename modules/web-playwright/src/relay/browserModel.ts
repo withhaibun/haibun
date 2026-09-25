@@ -38,6 +38,7 @@
  */
 
 import type { DebuggerSession, Debuggee, Tab } from "./protocol.js";
+import type { TRelayAttachment } from "./relay-wire.js";
 
 export type CDPMessage = {
 	id?: number;
@@ -62,6 +63,13 @@ type TabSession = {
 };
 
 export class BrowserModel {
+	/** The tabs the extension reported, each with whether the relay attached the debugger to it. */
+	tabs(): TRelayAttachment["tabs"] {
+		return [...this._knownTabs.values()].flatMap((tab) =>
+			tab.id === undefined ? [] : [{ id: tab.id, ...(tab.title ? { title: tab.title } : {}), ...(tab.url ? { url: tab.url } : {}), attached: this._tabSessions.has(tab.id) }],
+		);
+	}
+
 	private _sendToExtension: SendCommand;
 	// Set only while a Playwright CDP connection is attached (see
 	// `connectOverCDP`). Before that, any attempt to emit to Playwright is a

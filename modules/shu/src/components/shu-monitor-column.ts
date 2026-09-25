@@ -21,7 +21,7 @@ import type { TScrollMarker } from "../scrollbar-model.js";
 import { artifactUrl } from "../artifact-url.js";
 import { unavailableOrEmpty } from "./empty-state.js";
 import { PaneState, addsToSelection, type DesiredPane } from "../pane-state.js";
-import { actionRef, fieldRef, refTpl } from "./shu-ref.js";
+import { actionRef, fieldRef, originLink, refTpl } from "./shu-ref.js";
 import { parseSeqPath, SEQ_PATH_EDGE } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "@haibun/core/lib/resources.js";
 import { currentRowIndex, cursorMark } from "../virtual-column-model.js";
@@ -414,7 +414,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		// Where the step ran, how long it took, and what it had to hold to run: its own record says all of it, so a row
 		// states it rather than being paired with a separate account of the same act. A step requiring nothing states
 		// nothing, so the rows mentioning a capability are exactly the acts that needed one.
-		const dispatchText = r.ranVia ? `${r.ranVia}${r.ranOn ? ` ${r.ranOn}` : ""}${r.durationMs === undefined ? "" : ` ${r.durationMs}ms`}` : "";
+		const dispatchText = r.ranVia ? html`${r.ranVia}${r.ranOn ? html` ${originLink(r.ranOn)}` : ""}${r.durationMs === undefined ? "" : ` ${r.durationMs}ms`}` : "";
 		const capabilityRefused = r.capabilityAction !== undefined && r.allowedAction === undefined;
 		const capability = r.capabilityAction ? html`${capabilityRefused ? "🔒" : "🔓"} ${actionRef(r.capabilityAction)}${r.performedBy ? html` ${fieldRef(SEQ_PATH_LABEL, SEQ_PATH_EDGE.performedBy, r.performedBy)}` : ""}` : "";
 		// What the step produced, beside its words: the row of the step a reader sees is where a screenshot taken during it

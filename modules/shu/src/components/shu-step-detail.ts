@@ -26,7 +26,7 @@ import { anIndividual, type TContextPattern } from "../schemas.js";
 import { factSeqPath, formatRecordName, formatSeqPath, parseSeqPath, SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { readingExecution } from "../client-cache/index.js";
-import { actionRef, calledRef, refTpl } from "./shu-ref.js";
+import { actionRef, calledRef, originLink, refTpl } from "./shu-ref.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 
 /** How long a burst of announcements is collected before a still-running step's record is read again. */
@@ -189,7 +189,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 				<div class="field"><span class="label">Step:</span> <span class="value">${field(SEQ_PATH_FIELD.stepText)}</span></div>
 				<div class="field"><span class="label">Action:</span> <span class="value">${status} ${field(SEQ_PATH_FIELD.called) ? calledRef(field(SEQ_PATH_FIELD.called)) : ""}</span></div>
 				${field(SEQ_PATH_FIELD.error) ? html`<div class="field"><span class="label">Error:</span> <span class="value" style="color:var(--shu-error)">${field(SEQ_PATH_FIELD.error)}</span></div>` : ""}
-				<div class="section"><span class="label">Ran:</span> <span class="value">${field(SEQ_PATH_FIELD.ranVia)}${ranOn ? ` ${ranOn}` : ""}${took ? ` ${took}` : ""}</span></div>
+				<div class="section"><span class="label">Ran:</span> <span class="value">${field(SEQ_PATH_FIELD.ranVia)}${ranOn ? html` ${originLink(ranOn)}` : ""}${took ? ` ${took}` : ""}</span></div>
 				${capability ? html`<div class="field"><span class="label">Capability:</span> <span class="value">${actionRef(capability)}${allowed ? html` allowed by ${actionRef(allowed)}` : ""}</span></div>` : ""}
 			`
 					: ""

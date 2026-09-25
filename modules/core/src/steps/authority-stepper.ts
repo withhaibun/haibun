@@ -4,13 +4,13 @@ import type { TWorld } from "../lib/world.js";
 import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature, type TFeatureStep } from "../lib/astepper.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/util/index.js";
 import { AUTHORITY_KEY, SessionAuthority } from "../lib/session-authority.js";
-import { DELEGATIONS_READ_ACTION, type IAuthority } from "../lib/authority-types.js";
+import { DELEGATIONS_READ_ACTION, DOMAIN_HELD_CALLS, HeldCallsSchema, type IAuthority } from "../lib/authority-types.js";
 import { DOMAIN_JSON, DOMAIN_STRING } from "../lib/domains.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { actingAs, authorizedWith, runActingAs, runAuthorizedWith } from "../lib/capability-context.js";
-import { actionList, capabilityAllows, delegatedActions } from "../lib/actions.js";
+import { actionList, capabilityAllows, delegatedActions, readAction } from "../lib/actions.js";
 import { activeSitePrincipal, SITE_DID_PREFIX } from "../lib/host-id.js";
-import { AccessLevelSchema, PRINCIPAL_DOMAIN, PRINCIPAL_LABEL } from "../lib/resources.js";
+import { Access, AccessLevelSchema, PRINCIPAL_DOMAIN, PRINCIPAL_LABEL } from "../lib/resources.js";
 
 const authorityActionSchema = z
 	.string()
@@ -56,6 +56,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 	}
 
 	cycles: IStepperCycles = {
+		getConcerns: () => ({ domains: [{ selectors: [DOMAIN_HELD_CALLS], schema: HeldCallsSchema, description: "The calls an instance holds open, by the capability each rests on" }] }),
 		endFeature: (endFeature?: TEndFeature) => {
 			if (!endFeature?.shouldClose) return Promise.resolve();
 			this.authority?.clear();
@@ -104,6 +105,15 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 				if (!controller) return actionNotOK("the delegation read answers the key that signs the call, and this call proves no key");
 				return actionOKWithProducts(await this.getAuthority().delegationsTo(controller));
 			},
+		},
+		showHeldCalls: {
+			// Which calls rest on which capability is who is connected under what, which is private.
+			read: true,
+			capability: readAction(Access.private),
+			gwta: "show held calls",
+			description: "The calls held open at this instance, by the capability each rests on: what revoking that capability ends.",
+			productsDomain: DOMAIN_HELD_CALLS,
+			action: () => Promise.resolve(actionOKWithProducts(this.getAuthority().heldCalls())),
 		},
 		holdingOnly: {
 			gwta: `holding only {actions: ${DOMAIN_STRING}}, {what: statement}`,

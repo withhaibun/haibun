@@ -13,6 +13,7 @@ import type {
 	TAuthorityAct,
 	TAuthorityEvidence,
 	TDelegations,
+	THeldCalls,
 	TOutgoingRequest,
 	TRequestSigner,
 	TRestsOn,
@@ -76,6 +77,10 @@ export class SessionAuthority implements IAuthority {
 		const by = actingFor();
 		if (!by) return Promise.resolve({ ok: false, error: "a caller that proved no key and holds less than every action records and revokes no delegation" });
 		return runReadingAsTheInstance(() => done(verifier, by));
+	}
+
+	heldCalls(): THeldCalls {
+		return { capabilities: [...this.held].map(([capability, calls]) => ({ capability, calls: calls.size })) };
 	}
 
 	revoked(capabilityId: string): void {

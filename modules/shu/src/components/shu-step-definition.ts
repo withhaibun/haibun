@@ -14,7 +14,7 @@ import { shuBaseStyles } from "./styles.js";
 import { SHU_EVENT } from "../consts.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { getAvailableSteps } from "../rpc-registry.js";
-import { actionRef, domainRef } from "./shu-ref.js";
+import { actionRef, domainRef, originLink } from "./shu-ref.js";
 
 const StateSchema = z.object({ method: z.string().default("") });
 
@@ -96,7 +96,7 @@ export class ShuStepDefinition extends ShuElement<typeof StateSchema> {
 				${step.productsDomain ? html`<dt>Returns</dt><dd data-testid=${IDS.PRODUCTS}>${domainRef(step.productsDomain)}</dd>` : ""}
 				<dt>Requires</dt><dd>${actionRef(step.capability)}</dd>
 				<dt>Does</dt><dd>${step.read ? "reads, and the run records no reading" : "acts, and the run records it"}</dd>
-				${step.remoteHost ? html`<dt>Runs at</dt><dd>${step.remoteHost}</dd>` : ""}
+				${step.remoteOrigin ? html`<dt>Runs at</dt><dd>${originLink(step.remoteOrigin)}</dd>` : ""}
 			</dl>
 			<button type="button" class="primary" data-testid=${IDS.CHOOSE} @click=${this.onChoose}>Choose this step</button>
 		</div>`;

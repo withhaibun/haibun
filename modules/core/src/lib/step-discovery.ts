@@ -70,8 +70,8 @@ export const StepDescriptorSchema = z
 		fallback: z.boolean(),
 		/** Whether the step's result answers the turn that called it, so that turn ends with it rather than asking its model again. */
 		answersTheTurn: z.boolean(),
-		/** The host a transport calls the step at, where the step runs at another host. */
-		remoteHost: z.string().optional(),
+		/** The origin of the instance a transport calls the step at, where the step runs at another instance. */
+		remoteOrigin: z.string().optional(),
 		inputSchema: InputSchemaSchema,
 		/** The JSON Schema of the products the step returns, where it declares them. */
 		outputSchema: z.record(z.string(), z.unknown()).optional(),
@@ -180,7 +180,7 @@ export type TToolDefinition = { name: string; description: string; inputSchema: 
 /** A step as a tool: its method as the name, its pattern with its description, the capability it requires and the host
  *  it runs at, and the schema of its arguments. */
 export function toolDefinition(step: TStepDescriptor): TToolDefinition {
-	const parts = [step.pattern, step.description, `Requires capability ${step.capability}.`, step.remoteHost === undefined ? undefined : `Runs at ${step.remoteHost}.`];
+	const parts = [step.pattern, step.description, `Requires capability ${step.capability}.`, step.remoteOrigin === undefined ? undefined : `Runs at ${step.remoteOrigin}.`];
 	return { name: step.method, description: parts.filter((part) => part !== undefined).join("\n\n"), inputSchema: step.inputSchema };
 }
 

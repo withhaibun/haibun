@@ -14,6 +14,7 @@ import { DELEGATIONS_READ_ACTION, DELEGATIONS_READ_METHOD, type IAuthorityVerifi
 import AuthorityStepper from "./authority-stepper.js";
 import LogicStepper from "./logic-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
+import { addStepperConcerns } from "../phases/Executor.js";
 
 class PingStepper extends AStepper {
 	description = "A step that takes Ping:protected, for tests of narrowing what a statement holds.";
@@ -31,12 +32,24 @@ class PingStepper extends AStepper {
 			gwta: "repeats {said}",
 			action: ({ said }: { said: string }) => Promise.resolve(said === KEPT ? OK : actionNotOK(`was given ${said}`)),
 		},
+		holdsACall: {
+			exact: "holds a call",
+			action: () => {
+				const authority = getAuthority(this.getWorld().runtime);
+				if (!authority) return Promise.resolve(actionNotOK("the run holds no authority"));
+				authority.holdWhile({ capabilities: [HELD_ON] });
+				return Promise.resolve(OK);
+			},
+		},
 		readsKept: {
 			exact: "reads kept",
 			action: async () => ((await this.getWorld().shared.get(KEPT_NAME)) === undefined ? OK : actionNotOK("read the run's variable above its ceiling")),
 		},
 	};
 }
+
+/** The capability a held call rests on. */
+const HELD_ON = "urn:uuid:held-on";
 
 /** A variable the run sets, which a statement it narrows names. */
 const [KEPT_NAME, KEPT] = ["kept", "the run's"];
@@ -72,6 +85,13 @@ describe("what a narrowed statement reads", () => {
 	});
 });
 
+describe("the calls held open", () => {
+	it("are listed by the capability each rests on", async () => {
+		const result = await passWithDefaults([{ path: "/features/held.feature", content: "holds a call\nshow held calls\n" }], [AuthorityStepper, PingStepper]);
+		expect(result.featureResults?.[0]?.stepResults.at(-1)?.products).toMatchObject({ capabilities: [{ capability: HELD_ON, calls: 1 }] });
+	});
+});
+
 describe("delegations to the caller", () => {
 	const delegation = { id: "urn:uuid:pool", controller: "did:key:zSwimmer", allowedAction: ["Pool:enter"] };
 	const records = { [delegation.id]: { persistedAs: "Capability", accessLevel: "private" as const } };
@@ -83,6 +103,7 @@ describe("delegations to the caller", () => {
 		const world = getDefaultWorld();
 		const stepper = new AuthorityStepper();
 		await stepper.setWorld(world, [stepper]);
+		addStepperConcerns(world, [stepper]);
 		return { world, stepper, readAs: (controller?: string) => runActingAs(controller, () => stepper.steps.delegationsTo.action()) };
 	};
 

@@ -13,9 +13,10 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { reads, conduit } from "../hypermedia.js";
 import { findStep, getAvailableSteps, requireStep } from "../rpc-registry.js";
-import { getActionBarAskExtensionTags, getActionBarChatExtensionTags } from "../rels-cache.js";
+import { edgeRecordType, getActionBarAskExtensionTags, getActionBarChatExtensionTags, getEdgeRanges, getRelSync } from "../rels-cache.js";
 import { ContextReadBySchema, SessionListSchema, type TComboboxOption, type TContextPattern, type TQuestionRestate } from "../schemas.js";
 import { GraphQueryResultSchema, extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
+import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { hasEventStream, subscribeBatchedEvents } from "../event-stream.js";
 import { currentSubjectState } from "../current-subject.js";
 import { SignalController } from "../controllers/index.js";
@@ -38,7 +39,7 @@ import { pageMay } from "../page-key.js";
 import { allowForTurns, readTurnAllowance, turnAllowance, withdrawFromTurns } from "../turn-allowance.js";
 import { harvestChatViewLd } from "../chat-context-harvest.js";
 import { SHU_TAG } from "../consts.js";
-import { actionRef, stepRef } from "./shu-ref.js";
+import { actionRef, recordRef, stepRef } from "./shu-ref.js";
 import { reportToRun } from "../client-log.js";
 
 /** What a reader says a turn sends. The values are the words the registry and a profile state it in; what each of them
@@ -69,6 +70,16 @@ const KIHAN = "Kihan";
 const CATALOG_STEP = `show${KIHAN}s`;
 /** How many models a read of the catalog asks for at a time. */
 const CATALOG_PAGE = 50;
+/** A provider the run's models are grouped under, as discovery recorded what it answered. */
+const ProviderSchema = z.looseObject({ id: z.string(), answered: z.boolean(), models: z.number(), why: z.string().optional() });
+type TProvider = z.infer<typeof ProviderSchema>;
+const ProviderPageSchema = GraphQueryResultSchema.extend({ vertices: z.array(ProviderSchema) });
+
+/** The type a model's records are grouped under, as the model's type declares it: the provider each is called through. */
+function providerType(): string | undefined {
+	const grouping = Object.keys(getEdgeRanges(KIHAN) ?? {}).find((field) => getRelSync(KIHAN, field) === LinkRelations.CONTEXT.rel);
+	return grouping ? edgeRecordType(KIHAN, grouping) : undefined;
+}
 /** Combo option text for a session: what its first question asked, when its newest turn was asked, and how many turns
  *  it gained since this page last read it. */
 function sessionOptionLabel(s: TChatSession): string {
@@ -155,6 +166,8 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	static persistFields = ["model", "toolLimit", "contextReadBy"] as const;
 
 	private _models: TKihanVertex[] = [];
+	/** The providers the run registered no model of, and why, as their records state it. */
+	#providersWithout: { type: string; providers: TProvider[] } | undefined;
 	/** Whether the model catalog was read, so a run that offers no model is said to, rather than showing nothing. */
 	#modelsRead = false;
 	/** The read of the model catalog in flight, so a question asked while it reads waits on that read rather than making
@@ -189,13 +202,14 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 
 	protected override onConnected(): void {
 		this.#readModels();
-		// The run's models are its Kihan records, which discovery and a new profile write, so the catalog is read again
-		// when the run records one.
+		// The run's models are its Kihan records, which discovery and a new profile write, and discovery records each
+		// provider it asked, so the catalog is read again when the run records either.
 		if (hasEventStream())
 			this.autoTeardown(
 				subscribeBatchedEvents({
 					onBatch: (events) => {
-						if (!extractQuadsFromEvents(events).some((quad) => quad.namedGraph === KIHAN)) return;
+						const read = [KIHAN, providerType()];
+						if (!extractQuadsFromEvents(events).some((quad) => read.includes(quad.namedGraph))) return;
 						this.#catalog = undefined;
 						this.#readModels();
 					},
@@ -285,10 +299,29 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 			if (page.vertices.length === 0 || models.length >= page.total) break;
 		}
 		this._models = models;
+		this.#providersWithout = await this.readProvidersWithout();
 		this.#modelsRead = true;
 		this.#modelOptions = this._models.map((m) => ({ value: m.id, label: m.displayName || m.id }));
 		this.offeredModel();
 		this.requestUpdate();
+	}
+
+	/** The providers the run registered no model of, read from the records of the type its models are grouped under. */
+	private async readProvidersWithout(): Promise<{ type: string; providers: TProvider[] } | undefined> {
+		const type = providerType();
+		const listing = `show${type}s`;
+		if (!type || !findStep(listing)) return undefined;
+		const page = ProviderPageSchema.parse(await conduit().follow(reads(requireStep(listing), { offset: 0, limit: CATALOG_PAGE }), "kihan-chat: load providers"));
+		return { type, providers: page.vertices.filter((provider) => provider.models === 0) };
+	}
+
+	/** The providers the run registered no model of, each linked to its record, with why. */
+	private providersWithoutTemplate(): TemplateResult | typeof nothing {
+		const without = this.#providersWithout;
+		if (!without || without.providers.length === 0) return nothing;
+		return html`<span class="providers-without" data-testid=${`${this.testIdPrefix}providers-without`}>${without.providers.map(
+			(provider) => html`<span>${recordRef(without.type, provider.id)}: ${provider.answered ? "listed no models" : `did not answer discovery: ${provider.why ?? ""}`}</span>`,
+		)}</span>`;
 	}
 
 	/** The model a question is sent to, which is one the run offers. A remembered model the run no longer offers, as one
@@ -405,6 +438,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 							? html`<span data-testid=${`${this.testIdPrefix}no-models`}>No models in this run.</span>`
 							: nothing
 				}
+				${this.providersWithoutTemplate()}
 				<label class="tool-limit-label" title="Max chained tool calls the model may run before asking you to confirm the next one. 0 means every tool call needs confirmation.">
 					<span>tool calls</span>
 					<input class="tool-limit" type="number" min=${TOOL_LIMIT_MIN} max=${TOOL_LIMIT_MAX} step="1" .value=${String(this.state.toolLimit)} data-testid=${`${this.testIdPrefix}tool-limit`} @change=${this.onToolLimitChange}>

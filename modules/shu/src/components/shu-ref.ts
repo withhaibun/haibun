@@ -36,6 +36,11 @@ export const fieldRef = (label: string, field: string, value: string, testId?: s
 	return persistedAs ? recordRef(persistedAs, value, value, testId) : value;
 };
 
+/** An instance's origin as a link to it: an address the browser opens, not a record a pane shows, so nothing under the
+ *  link takes the click. */
+export const originLink = (origin: string): TemplateResult =>
+	html`<a href=${origin} target="_blank" rel="noopener" @click=${(e: Event) => e.stopPropagation()}>${origin}</a>`;
+
 /** A domain, by its key, as a link to its view: the view of the type it persists as, or of the domain itself. */
 export const domainRef = (key: string, testId?: string): TemplateResult => refTpl(REF_DENOTES.type, { domain: findDomain(key)?.persistedAs ?? key }, key, testId);
 

@@ -24,7 +24,7 @@
 import type { ConnectOverCDPTransport } from "playwright";
 import { ExtensionProtocolV2 } from "./cdpRelayV2.js";
 import type { CDPMessage } from "./browserModel.js";
-import type { TRelayMessage } from "./relay-wire.js";
+import type { TRelayAttachment, TRelayMessage } from "./relay-wire.js";
 
 type CDPCommand = { id: number; sessionId?: string; method: string; params?: unknown };
 
@@ -50,6 +50,13 @@ export class BrowserRelay {
 	private cdpClient: ConnectOverCDPTransport | undefined;
 
 	constructor(private readonly onError: (error: unknown) => void) {}
+
+	/** What the relay holds: the extension attached, the key that attached it, and its tabs. */
+	attachment(): TRelayAttachment {
+		const extension = this.extension;
+		if (!extension) return { attached: false, tabs: [] };
+		return { attached: true, ...(extension.holder ? { holder: extension.holder } : {}), tabs: extension.protocol.tabs() };
+	}
 
 	/** Hold one extension, attached by `holder`, until `signal` aborts or Playwright's client closes: each command for it
 	 *  goes out through `emit`, and `held` is told once the relay holds it. Another holder's extension is refused while

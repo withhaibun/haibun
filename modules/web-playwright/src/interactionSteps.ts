@@ -10,6 +10,9 @@ import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { pickLocatorDomain } from "./web-playwright.js";
 import { WEB_PAGE, WebPlaywright } from "./web-playwright.js";
 import { WEB_PLAYWRIGHT_ACTIONS } from "./actions.js";
+import { DOMAIN_RELAY_ATTACHMENT } from "./relay/relay-wire.js";
+import { readAction } from "@haibun/core/lib/actions.js";
+import { Access } from "@haibun/core/lib/resources.js";
 import { BROWSERS } from "./BrowserFactory.js";
 
 import { pathToFileURL } from "node:url";
@@ -425,6 +428,16 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			description:
 				"Loads the unpacked extension in the directory `where` into the browser the run launches, from the next page it opens, and answers the extension's id and origin, derived from the key its manifest pins, so a step can open its pages.",
 			action: ({ where }: { where: string }) => wp.loadExtension(where),
+		},
+		showBrowserRelay: {
+			// Who attached a browser, and which of their tabs, is theirs, and private.
+			read: true,
+			capability: readAction(Access.private),
+			gwta: "show the browser relay",
+			description: "Whether a person's browser is attached through the relay, the key that attached it, and its tabs, each with whether the run drives it.",
+			productsDomain: DOMAIN_RELAY_ATTACHMENT,
+			action: () =>
+				Promise.resolve(wp.relay ? actionOKWithProducts(wp.relay.attachment()) : actionNotOK("the browser relay is not served: `serve the browser relay` serves it")),
 		},
 		serveBrowserRelay: {
 			gwta: "serve the browser relay",

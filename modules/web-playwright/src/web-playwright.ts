@@ -139,6 +139,8 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	storage?: AStorage;
 	factoryOptions?: TTaggedBrowserFactoryOptions;
 	tab = 0;
+	/** The relay a person's browser attaches through, where the run serves one. */
+	relay?: BrowserRelay;
 	downloaded: string[] = [];
 	captureVideo: boolean;
 	closers: Array<() => void> = [];
@@ -345,6 +347,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		const webserver = this.getWorld().runtime[WEBSERVER] as IWebServer | undefined;
 		if (!webserver) return actionNotOK("the browser relay is served by the web server, and none is running: start one before serving the relay");
 		const relay = new BrowserRelay((error) => this.getWorld().eventLogger.error(`browser relay: ${errorDetail(error)}`));
+		this.relay = relay;
 		webserver.addRpcMethods(
 			RELAY_METHOD_PREFIX,
 			{ description: "The browser a person runs, attached through their extension" },

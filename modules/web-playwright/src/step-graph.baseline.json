@@ -1,4 +1,5 @@
 [
+	"orphan-step WebPlaywright.showBrowserRelay produces relay-attachment",
 	"string-param WebPlaywright.URIQueryParameterIs {value: string}",
 	"string-param WebPlaywright.URIQueryParameterIs {what: string}",
 	"string-param WebPlaywright.acceptEndpointRequest {accept: string}",

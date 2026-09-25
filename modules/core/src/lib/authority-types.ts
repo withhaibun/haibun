@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { AccessLevel } from "./resources.js";
 
 /**
@@ -111,5 +112,15 @@ export interface IAuthority {
 	/** A signal that aborts, with the reason, once what a held call rests on lapses: a capability it names is revoked, or
 	 *  its expiry passes. `release` stops watching when the call ends. */
 	holdWhile(restsOn: TRestsOn): { signal: AbortSignal; release(): void };
+	/** The calls held open, by the capability each rests on. */
+	heldCalls(): THeldCalls;
 	clear(): void;
 }
+
+/** The domain of the calls an instance holds open. */
+export const DOMAIN_HELD_CALLS = "held-calls";
+/** The calls an instance holds open, by the capability each rests on: what revoking that capability ends. */
+export const HeldCallsSchema = z.object({
+	capabilities: z.array(z.object({ capability: z.string().describe("The capability's id."), calls: z.number().describe("How many calls rest on it.") })),
+});
+export type THeldCalls = z.infer<typeof HeldCallsSchema>;

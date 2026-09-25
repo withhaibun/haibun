@@ -160,7 +160,7 @@ export const SEQ_PATH_FIELD = {
 	/** How the step reached what ran it: in this process, in another host, or in a subprocess. Where a step ran is a
 	 *  fact about that step, so it is written on it rather than traced beside it. */
 	ranVia: "ranVia",
-	/** The host that ran it, where another one did. */
+	/** The origin of the instance that ran it, where another one did. */
 	ranOn: "ranOn",
 	/** How prominently the step reports: a run's own steps at `info`, a call made into a running instance at `trace`.
 	 *  Written on the record because a reader filtering by level filters records, and a page's own calls are steps the

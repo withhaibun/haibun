@@ -429,7 +429,7 @@ describe("what a finished run's record says about it", () => {
 						paramDomains: { text: "string", detail: "step-detail" },
 						read: true,
 						fallback: false,
-						remoteHost: "localhost:8331",
+						remoteOrigin: "http://localhost:8331",
 						inputSchema: { type: "object", properties: { text: { type: "string" }, detail }, required: ["text", "detail"] },
 					},
 					paramSchemas: new Map(),
@@ -452,6 +452,8 @@ describe("what a finished run's record says about it", () => {
 			const asked = answerOfRun({ vertices: [{ id: "cmt-1" }], total: 1 });
 			expect(asked.text, "counted, and what it says about itself first").toBe('{"total":1,"vertices":"1 entries; ask the run for one to see it"}');
 			expect(asked.answer, "the entries are there for a caller that wants them").toBe('{"total":1,"vertices":[{"id":"cmt-1"}]}');
+			const shown = answerOfRun({ detail: "summary", steps: [{ method: "GraphStepper-listTyped" }] });
+			expect(shown.text, "and an answer that states no count, as a listing of steps, is its entries").toBe('{"detail":"summary","steps":[{"method":"GraphStepper-listTyped"}]}');
 			const long = answerOfRun({ total: 40, vertices: Array.from({ length: 500 }, (_, at) => ({ id: `cmt-${at}`, body: "x".repeat(40) })) });
 			expect(long.answer, "and a listing longer than a window says how much was left").toMatch(/characters in all\)$/);
 		});
