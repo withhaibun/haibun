@@ -153,6 +153,8 @@ export const affordancesSchema = z
 					.strict(),
 			)
 			.optional(),
+		// The run whose facts these are, which is where a fact's step is: a fact's id is that step's seqPath.
+		execution: z.string(),
 	})
 	.strict();
 
@@ -165,6 +167,8 @@ export const chainLintSchema = z
 		forward: z.array(z.unknown()).optional(),
 		goals: z.array(z.unknown()).optional(),
 		composites: z.record(z.string(), z.record(z.string(), z.string())).optional(),
+		// The run whose facts these are, which is where a fact's step is: a fact's id is that step's seqPath.
+		execution: z.string(),
 	})
 	.strict();
 

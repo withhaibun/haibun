@@ -31,13 +31,30 @@ import { openRef } from "./ref-navigation.js";
 import type { TGraph } from "../graph/types.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { linkTo } from "../rpc-registry.js";
+import { noteExecution } from "../client-cache/executions.js";
 
 /** The panel's read-projection of the affordances wire blob: forward steps + goal verdicts (+ optional waypoints). forward/goals reuse the core element types; the panel ignores composites/satisfied* that the chain view consumes. */
 type TAffordances = {
+	/** The run whose facts these are, which is where a fact's step is: a fact's id is that step's seqPath. */
+	execution: string;
 	forward: TForwardAffordance[];
 	goals: TGoalAffordance[];
 	waypoints?: TWaypointEntry[];
 };
+
+/** A snapshot of the run's affordances, as a step's products or a read of them give it; refused where the forward
+ *  steps, the goals or the run they are of is missing. */
+function snapshotOf(p: Record<string, unknown>): TAffordances {
+	if (!Array.isArray(p.forward) || !Array.isArray(p.goals) || typeof p.execution !== "string") {
+		throw new Error(`shu-affordances-panel takes \`forward\` and \`goals\` arrays and the \`execution\` they are of. Received keys: [${Object.keys(p).join(", ")}].`);
+	}
+	return {
+		execution: p.execution,
+		forward: p.forward as TForwardAffordance[],
+		goals: p.goals as TGoalAffordance[],
+		waypoints: Array.isArray(p.waypoints) ? (p.waypoints as TWaypointEntry[]) : undefined,
+	};
+}
 
 /** Human-readable label for a resolver finding. */
 function findingLabel(finding: string): string {
@@ -101,6 +118,8 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 
 	protected override onConnected(): void {
 		if (!this.hasAttribute("data-testid")) this.setAttribute("data-testid", "shu-affordances");
+		// Each open goal's graph announces a click on a node, which crosses the shadow root to the host: heard here once.
+		this.autoListen(this, SHU_EVENT.GRAPH_NODE_CLICK, (e) => this.onGraphNodeClick(e));
 		// Hash restoration mounts the panel without products. Fetch the current snapshot
 		// directly so real data shows instead of a forever-spinner. The setter path
 		// still wins when products are threaded through (step invocation).
@@ -159,18 +178,25 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	 * if either is missing, no fallbacks.
 	 */
 	set products(p: Record<string, unknown>) {
-		if (!Array.isArray(p.forward) || !Array.isArray(p.goals)) {
-			throw new Error(
-				`shu-affordances-panel requires products with \`forward\` and \`goals\` arrays. Received keys: [${Object.keys(p).join(", ")}]. The step's productsDomain schema must include both fields; the action must populate them.`,
-			);
-		}
 		// app.ts coalesces the connect-time replay (one PaneState.request per pane per frame), so a burst never reaches
 		// here: apply the latest synchronously. The products carry the whole snapshot, waypoints included.
-		this.applyAffordances({
-			forward: p.forward as TAffordances["forward"],
-			goals: p.goals as TAffordances["goals"],
-			waypoints: Array.isArray(p.waypoints) ? (p.waypoints as TWaypointEntry[]) : undefined,
-		});
+		this.applyAffordances(snapshotOf(p));
+	}
+
+	/** A step on a path opens in the actions bar to be run; a fact opens the step that produced it. */
+	private onGraphNodeClick(e: Event): void {
+		const node = ((e as CustomEvent).detail as { node: { invokes?: { stepperName?: string; stepName?: string }; wasGeneratedBy?: { factId?: string } } | null }).node;
+		if (!node) return;
+		const invokes = node.invokes;
+		if (invokes?.stepperName && invokes?.stepName) {
+			this.chooseStep(stepMethodName(invokes.stepperName, invokes.stepName));
+			return;
+		}
+		const factId = node.wasGeneratedBy?.factId;
+		if (typeof factId !== "string") return;
+		const seqPath = factSeqPath(factId);
+		if (!seqPath) throw new Error(`fact "${factId}" names no step: a fact's id is the seqPath of the step that produced it`);
+		openRef(e, "seqPath", { seqPath });
 	}
 
 	private applyAffordances(a: TAffordances): void {
@@ -179,6 +205,8 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		// across those updates so the section doesn't flicker out between explicit refreshes.
 		const waypoints = a.waypoints ?? this.affordances?.waypoints;
 		this.affordances = { ...a, waypoints };
+		// The facts shown are that run's, so it is the run the page reads, and a fact's step opens there.
+		noteExecution(a.execution);
 		this.assertedDomains = satisfiedGoalDomains(a.goals, GOAL_FINDING.SATISFIED);
 		this.setState({ loadState: "loaded" });
 	}
@@ -205,17 +233,8 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		let lastError = "";
 		for (const method of candidates) {
 			try {
-				const response = await conduit().follow<Record<string, unknown>>(linkTo(method, params), `affordances-panel: ${method}`);
-				if (Array.isArray(response?.forward) && Array.isArray(response?.goals)) {
-					this.applyAffordances({
-						forward: response.forward as TAffordances["forward"],
-						goals: response.goals as TAffordances["goals"],
-						waypoints: Array.isArray(response.waypoints) ? (response.waypoints as TWaypointEntry[]) : undefined,
-					});
-					return;
-				}
-				const keys = response && typeof response === "object" ? Object.keys(response).join(", ") : typeof response;
-				lastError = `${method} returned an unrecognised shape. Expected {forward[], goals[]}; got keys [${keys}]. Full response: ${JSON.stringify(response).slice(0, 500)}`;
+				this.applyAffordances(snapshotOf(await conduit().follow<Record<string, unknown>>(linkTo(method, params), `affordances-panel: ${method}`)));
+				return;
 			} catch (err) {
 				lastError = `RPC ${method} failed: ${errorDetail(err)}`;
 				// Try the next candidate, typical reason is that the stepper providing the method is not loaded.
@@ -562,25 +581,6 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 			const graph: TGraph = projectGoalPaths({ goal: goal.domain, finding: r.finding, michi, factIds });
 			this.goalGraphs.set(goalIdx, graph);
 			(graphEl as HTMLElement & { products: Record<string, unknown> }).products = { graph, options: {} };
-			// One-shot click handler per mount, Lit reuses the same `<shu-graph>` instance across updates, so adding the listener once per `updated()` would stack handlers. Set a sentinel via dataset to bind exactly once per element.
-			if (!graphEl.dataset.boundClick) {
-				graphEl.dataset.boundClick = "1";
-				graphEl.addEventListener(SHU_EVENT.GRAPH_NODE_CLICK as string, (e: Event) => {
-					const detail = (e as CustomEvent).detail as { node: { invokes?: { stepperName?: string; stepName?: string }; wasGeneratedBy?: { factId?: string } } | null };
-					const node = detail.node;
-					if (!node) return;
-					const invokes = node.invokes;
-					if (invokes?.stepperName && invokes?.stepName) {
-						this.chooseStep(stepMethodName(invokes.stepperName, invokes.stepName));
-						return;
-					}
-					const factId = node.wasGeneratedBy?.factId;
-					if (typeof factId !== "string") return;
-					const seqPath = factSeqPath(factId);
-					if (!seqPath) throw new Error(`fact "${factId}" names no step: a fact's id is the seqPath of the step that produced it`);
-					openRef(e, "seqPath", { seqPath });
-				});
-			}
 		}
 
 		// Scroll only once per open-goal / open-waypoint change; leaves manual scroll alone during live re-renders. Walk the relevant data attribute to find the card, avoiding `CSS.escape` (jsdom doesn't ship it) and domain-name characters that need CSS-attribute-selector escaping.

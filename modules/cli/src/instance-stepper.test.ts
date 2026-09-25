@@ -237,11 +237,11 @@ describe("what a run is started with", () => {
 		expect(runEnvironment({}, 0, false).HAIBUN_NDJSON).toBe("true");
 	});
 
-	it("decides the run's port, its identity and whether it stays up, rather than passing on the supervisor's", () => {
+	it("decides the run's port, its identity, whether it stays up and whether it skips a pass, rather than passing on the supervisor's", () => {
 		// What a child must not inherit is read from the options that declare themselves per-process; the port option
 		// is one, and this stands in for its declaration.
 		const perProcess = ["HAIBUN_O_WEBSERVERSTEPPER_PORT"];
-		const supervisorEnv = { HAIBUN_O_WEBSERVERSTEPPER_PORT: "8290", HAIBUN_STAY: "always", HAIBUN_HOST_ID: "1", HAIBUN_KEY: "kept" };
+		const supervisorEnv = { HAIBUN_O_WEBSERVERSTEPPER_PORT: "8290", HAIBUN_STAY: "always", HAIBUN_HOST_ID: "1", HAIBUN_ONCE: "true", HAIBUN_KEY: "kept" };
 		const reported = { HAIBUN_KEY: "kept", HAIBUN_NDJSON: "true" };
 		expect(runEnvironment(supervisorEnv, 0, false, undefined, perProcess), "a run that ends with its features serves where its features say").toEqual(reported);
 		expect(runEnvironment(supervisorEnv, 8331, false, undefined, perProcess), "a port of its own is not a reason to keep it running").toEqual({

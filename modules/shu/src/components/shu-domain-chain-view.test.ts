@@ -9,12 +9,16 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ShuDomainChainView } from "./shu-domain-chain-view.js";
 import * as ViewHash from "../view-hash.js";
-import { AFFORDANCE_PARAM } from "../consts.js";
+import { AFFORDANCE_PARAM, SHU_EVENT } from "../consts.js";
 import { PaneState } from "../pane-state.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { LINT_FINDING } from "@haibun/core/lib/domain-chain-lint.js";
 import { DOMAIN_STRING } from "@haibun/core/lib/domains.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
+import { readingExecution, resetExecutions } from "../client-cache/executions.js";
+
+/** The run a snapshot says its facts are of. */
+const EXECUTION = "1790000000000-1";
 
 const deepLink = (name: string): string => ViewHash.hashParam(name);
 const clearDeepLink = (): void => ViewHash.mergeHashParams({ [AFFORDANCE_PARAM.GOAL]: "", [AFFORDANCE_PARAM.WAYPOINT]: "" });
@@ -73,14 +77,13 @@ describe("shu-domain-chain-view", () => {
 			}
 			customElements.define("shu-graph", FakeGraph);
 		}
-		const view = document.createElement("shu-domain-chain-view") as ShuDomainChainView & {
-			applySseSnapshot: (s: Parameters<ShuDomainChainView["applySseSnapshot"]>[0]) => boolean;
-		};
+		const view = document.createElement("shu-domain-chain-view") as ShuDomainChainView;
 		document.body.appendChild(view);
-		view.applySseSnapshot({
+		view.products = {
+			execution: EXECUTION,
 			forward: [{ stepperName: "S", stepName: "s", inputDomains: [], outputDomains: ["vc"], readyToRun: true }],
 			goals: [{ domain: "vc", resolution: { finding: "michi" } }],
-		});
+		};
 		await view.updateComplete;
 		const controls = view.shadowRoot?.querySelector('[data-testid="domain-chain-toolbar"]') as HTMLElement | null;
 		expect(controls).toBeTruthy();
@@ -120,15 +123,14 @@ describe("shu-domain-chain-view", () => {
 		}
 		clearDeepLink();
 
-		const view = document.createElement("shu-domain-chain-view") as ShuDomainChainView & {
-			applySseSnapshot: (s: Parameters<ShuDomainChainView["applySseSnapshot"]>[0]) => boolean;
-		};
+		const view = document.createElement("shu-domain-chain-view") as ShuDomainChainView;
 		document.body.appendChild(view);
 		// Populate affordances so render() mounts the shu-graph.
-		view.applySseSnapshot({
+		view.products = {
+			execution: EXECUTION,
 			forward: [{ stepperName: "S", stepName: "s", inputDomains: [], outputDomains: ["vc"], readyToRun: true }],
 			goals: [{ domain: "vc", resolution: { finding: "michi" } }],
-		});
+		};
 		await view.updateComplete;
 
 		let announced = 0;
@@ -138,7 +140,11 @@ describe("shu-domain-chain-view", () => {
 		expect(graphEl).toBeTruthy();
 		// Simulate the shu-graph component dispatching a node click for the "vc" domain.
 		graphEl?.dispatchEvent(
-			new CustomEvent("graph-node-click", { detail: { nodeId: "vc", node: { id: "vc", kind: "reachable", link: { href: "#?aff-goal=vc" } } }, bubbles: true, composed: true }),
+			new CustomEvent(SHU_EVENT.GRAPH_NODE_CLICK, {
+				detail: { nodeId: "vc", node: { id: "vc", kind: "reachable", link: { href: "#?aff-goal=vc" } } },
+				bubbles: true,
+				composed: true,
+			}),
 		);
 		expect(deepLink(AFFORDANCE_PARAM.GOAL)).toBe("vc");
 		expect(announced, "and every view reading the same deep link hears that it moved").toBeGreaterThanOrEqual(1);
@@ -187,12 +193,12 @@ describe("shu-domain-chain-view", () => {
 		document.removeEventListener("step-choose", onChoose);
 	});
 
-	describe("applySseSnapshot (SSE reducer)", () => {
-		// Build a snapshot with N forward entries. Used as a synthetic affordances payload.
-		const mkSnap = (n: number, extra?: Partial<Parameters<ShuDomainChainView["applySseSnapshot"]>[0]>): Parameters<ShuDomainChainView["applySseSnapshot"]>[0] => ({
+	describe("a snapshot of the run's affordances", () => {
+		// A snapshot with N forward entries, as a step's products or a read of them give it.
+		const mkSnap = (n: number): Record<string, unknown> => ({
+			execution: EXECUTION,
 			forward: Array.from({ length: n }, (_, i) => ({ stepperName: "S", stepName: `s${i}`, inputDomains: [], outputDomains: [`d${i}`], readyToRun: true })),
 			goals: [],
-			...extra,
 		});
 
 		const mount = (): ShuDomainChainView => {
@@ -212,73 +218,21 @@ describe("shu-domain-chain-view", () => {
 			return view;
 		};
 
-		it("applies the first snapshot", () => {
+		it("takes the run it names as the run the page reads, where a fact's step opens, and refuses one naming no run", () => {
+			resetExecutions();
 			const view = mount();
-			const applied = view.applySseSnapshot(mkSnap(5));
-			expect(applied).toBe(true);
-			expect(view.getAffordances()?.forward?.length).toBe(5);
-		});
-
-		it("drops identical snapshots (fingerprint dedup)", () => {
-			const view = mount();
-			expect(view.applySseSnapshot(mkSnap(5))).toBe(true);
-			// Exact same shape, should not re-apply.
-			expect(view.applySseSnapshot(mkSnap(5))).toBe(false);
-		});
-
-		it("applies a richer snapshot", () => {
-			const view = mount();
-			view.applySseSnapshot(mkSnap(5));
-			const applied = view.applySseSnapshot(mkSnap(10));
-			expect(applied).toBe(true);
-			expect(view.getAffordances()?.forward?.length).toBe(10);
-		});
-
-		it("drops a downgrade: a snapshot with strictly fewer forward entries does not clobber the richer one", () => {
-			// Regression: a partial-context emitter (e.g. subprocess) was sending an affordances
-			// snapshot with ~10 entries, wiping the richer ~60-entry snapshot.
-			const view = mount();
-			view.applySseSnapshot(mkSnap(60));
-			const applied = view.applySseSnapshot(mkSnap(10));
-			expect(applied).toBe(false);
-			expect(view.getAffordances()?.forward?.length).toBe(60);
-		});
-
-		it("preserves waypoints across an afterStep snapshot that omits them", () => {
-			// A snapshot may omit waypoints (e.g. an as-of replay carries none).
-			// Merging must keep the earlier waypoints rather than dropping them.
-			const view = mount();
-			const waypoints = [
-				{
-					outcome: "VC issued",
-					kind: "imperative" as const,
-					method: "ActivitiesStepper-VC issued",
-					paramSlots: [],
-					proofStatements: [],
-					ensured: false,
-					source: { path: "f.feature" },
-					isBackground: false,
-				},
-			];
-			view.applySseSnapshot({ ...mkSnap(5), waypoints });
-			// Subsequent snapshot has the same forward length AND a different goals shape, but no waypoints.
-			view.applySseSnapshot({ ...mkSnap(5), goals: [{ domain: "d0", resolution: { finding: "satisfied" } }] });
-			expect(view.getAffordances()?.waypoints).toEqual(waypoints);
-		});
-
-		it("preserves satisfiedDomains across an afterStep snapshot that omits the field", () => {
-			const view = mount();
-			view.applySseSnapshot({ ...mkSnap(5), satisfiedDomains: ["d0", "d1"] });
-			// Snapshot with a different goals shape but no satisfiedDomains. Forward stays equal so it's not a downgrade.
-			view.applySseSnapshot({ ...mkSnap(5), goals: [{ domain: "d2", resolution: { finding: "michi" } }] });
-			expect(view.getAffordances()?.satisfiedDomains).toEqual(["d0", "d1"]);
+			view.products = mkSnap(1);
+			expect(readingExecution()).toBe(EXECUTION);
+			expect(() => {
+				view.products = { forward: [], goals: [] };
+			}).toThrow(/the `execution` they are of/);
 		});
 
 		it("syncs selectedNodeId from the goal deep link without going through setState", () => {
 			// Selection is a UI-only field outside StateSchema, toggling it must not
 			// trigger a full re-render (relayout shifts the graph).
 			const view = mount();
-			view.applySseSnapshot(mkSnap(2));
+			view.products = mkSnap(2);
 			ViewHash.mergeHashParams({ [AFFORDANCE_PARAM.GOAL]: "d1" });
 			expect((view as unknown as { selectedNodeId: string }).selectedNodeId).toBe("d1");
 			clearDeepLink();
@@ -286,7 +240,7 @@ describe("shu-domain-chain-view", () => {
 
 		it("syncs selectedNodeId from the waypoint deep link as the waypoint-prefixed node id", () => {
 			const view = mount();
-			view.applySseSnapshot(mkSnap(2));
+			view.products = mkSnap(2);
 			ViewHash.mergeHashParams({ [AFFORDANCE_PARAM.WAYPOINT]: "Logged in" });
 			expect((view as unknown as { selectedNodeId: string }).selectedNodeId).toBe("waypoint:Logged in");
 			clearDeepLink();
@@ -295,6 +249,7 @@ describe("shu-domain-chain-view", () => {
 		it("lists a lint report's findings, each step and domain a link to its view", async () => {
 			const view = mount();
 			view.products = {
+				execution: EXECUTION,
 				forward: [],
 				goals: [],
 				findings: [
@@ -327,16 +282,6 @@ describe("shu-domain-chain-view", () => {
 			expect(deepLink(AFFORDANCE_PARAM.GOAL)).toBe(initialAffGoal);
 			expect(() => view.routeNodeClick({ kind: "fact-instance", wasGeneratedBy: { factId: "issuer-1", domain: "issuer" } })).toThrow(/names no step/);
 			opened.mockRestore();
-		});
-
-		it("accepts an equal-size snapshot whose goals differ", () => {
-			// Equal forward.length must not be treated as a downgrade, graph-state changes (a
-			// new fact, a new goal) happen without changing the forward set.
-			const view = mount();
-			view.applySseSnapshot(mkSnap(5));
-			const next = { ...mkSnap(5), goals: [{ domain: "d0", resolution: { finding: "satisfied" } }] };
-			expect(view.applySseSnapshot(next)).toBe(true);
-			expect(view.getAffordances()?.goals.length).toBe(1);
 		});
 	});
 });

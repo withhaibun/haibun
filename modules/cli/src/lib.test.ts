@@ -61,6 +61,9 @@ describe("processEnv", () => {
 		expect(protoOptions.options[CONTINUE_AFTER_ERROR]).toBeDefined();
 		expect(protoOptions.options[CONTINUE_AFTER_ERROR]).toBe(true);
 	});
+	it("assigns boolean false", () => {
+		expect(lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${CONTINUE_AFTER_ERROR}`]: "false" }, NO_CONFIG).options[CONTINUE_AFTER_ERROR]).toBe(false);
+	});
 	it("errors for non-boolean value ", () => {
 		expect(() => lib.processBaseEnvToOptionsAndErrors({ HAIBUN_TRACE: "wtw" }, NO_CONFIG)).toThrow();
 	});
@@ -69,6 +72,7 @@ describe("processEnv", () => {
 		expect(lib.runsOnce({ once: false }, options), "the environment alone").toBe(true);
 		expect(lib.runsOnce({ once: true }, lib.processBaseEnvToOptionsAndErrors({}, NO_CONFIG).options), "the command line alone").toBe(true);
 		expect(lib.runsOnce({ once: false }, lib.processBaseEnvToOptionsAndErrors({}, NO_CONFIG).options), "neither").toBe(false);
+		expect(lib.runsOnce({ once: false }, lib.processBaseEnvToOptionsAndErrors({ HAIBUN_ONCE: "false" }, NO_CONFIG).options), "the environment saying no").toBe(false);
 		expect(() => lib.processBaseEnvToOptionsAndErrors({ HAIBUN_ONCE: "yes" }, NO_CONFIG), "a value that is not true or false").toThrow();
 	});
 	it("assigns int", () => {

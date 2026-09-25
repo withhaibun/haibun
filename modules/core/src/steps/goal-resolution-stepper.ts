@@ -38,7 +38,7 @@ import { runRegistry, stepMethodName, type StepRegistry } from "../lib/step-regi
 import { callStepByName } from "../lib/call-step.js";
 import { buildAffordances, providesWaypoints, AFFORDANCE_EVENT_PREFIX, type TWaypointEntry, satisfiedGoalDomains } from "../lib/affordances.js";
 import { FACT_GRAPH } from "../lib/working-memory.js";
-import { parseSeqPath } from "../lib/seq-path.js";
+import { executionOf, parseSeqPath } from "../lib/seq-path.js";
 import { authorizedWith, RUN_AUTHORITY, stepInFlight } from "../lib/capability-context.js";
 
 const SMOKE_GOALS = "SMOKE_GOALS";
@@ -212,7 +212,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 			const satisfied = satisfiedGoalDomains(affordances.goals, GOAL_FINDING.SATISFIED);
 			for (const stepper of this.steppers) if (providesWaypoints(stepper)) waypoints.push(...(await stepper.waypointEntries(featureStep, satisfied)));
 		}
-		return actionOKWithProducts(affordancesSchema.parse({ ...affordances, waypoints }));
+		return actionOKWithProducts(affordancesSchema.parse({ ...affordances, waypoints, execution: executionOf(world.tag) }));
 	}
 
 	steps: TStepperSteps = {
@@ -367,7 +367,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 					facts,
 					held: authorizedWith(),
 				});
-				return actionOKWithProducts(chainLintSchema.parse({ ...report, forward: affordances.forward, goals: affordances.goals }));
+				return actionOKWithProducts(chainLintSchema.parse({ ...report, forward: affordances.forward, goals: affordances.goals, execution: executionOf(world.tag) }));
 			},
 		},
 	};

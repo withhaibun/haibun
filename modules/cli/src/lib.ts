@@ -309,8 +309,8 @@ export function processBaseEnvToOptionsAndErrors(env: TEnv, specl: TSpecl) {
 					errors.push(res.parseError);
 				} else if (res.env) {
 					nenv = { ...nenv, ...res.env };
-				} else if (!res.result) {
-					errors.push(`no option for ${opt} from ${JSON.stringify(res.result)}`);
+				} else if (res.result === undefined) {
+					errors.push(`no option for ${opt} from ${JSON.stringify(value)}`);
 				} else {
 					(protoOptions.options as Record<string, unknown>)[opt] = res.result;
 				}

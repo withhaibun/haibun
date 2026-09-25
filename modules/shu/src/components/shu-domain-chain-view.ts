@@ -33,6 +33,7 @@ import { domainRef, stepRef } from "./shu-ref.js";
 import { LINT_FINDING, LintFindingSchema, type TLintFinding } from "@haibun/core/lib/domain-chain-lint.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
+import { noteExecution } from "../client-cache/executions.js";
 import { PaneState } from "../pane-state.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { ShuGraphFilter } from "./shu-graph-filter.js";
@@ -41,6 +42,8 @@ import { NODE_KIND } from "../graph/types.js";
 import { linkTo } from "../rpc-registry.js";
 
 const FILTER_KEY = "domain-chain";
+/** How far one press of a zoom button zooms, and the zoom's bounds, in percent. */
+const ZOOM = { step: 10, min: 10, max: 400 } as const;
 void ShuGraphFilter;
 
 const StateSchema = z.object({
@@ -94,7 +97,6 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 	getAffordances(): TAffordancesSnapshot | null {
 		return this.affordances;
 	}
-	private lastSnapshotFingerprint = "";
 	/** UI-only selection, kept outside the Zod state so toggling it doesn't trigger
 	 * a re-render. Pushed to the embedded shu-graph via its `selectedNodeId` property. */
 	private selectedNodeId = "";
@@ -139,6 +141,13 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 		} catch {
 			// No EventStream installed (early jsdom test, standalone). Ignore.
 		}
+		// The embedded graph and filter announce clicks and filter changes, which cross the shadow root to the host: heard
+		// here once, where a listener added on every render would be heard once more for each render.
+		this.autoListen(this, SHU_EVENT.GRAPH_NODE_CLICK, (e) => this.onNodeClick(e));
+		this.autoListen(this, SHU_EVENT.GRAPH_FILTER_CHANGE, (e) => {
+			const hba = ((e as CustomEvent).detail as { hiddenByAxis?: Record<string, string[]> }).hiddenByAxis ?? {};
+			this.setState({ hiddenSteppers: hba.stepper ?? [], hiddenKinds: hba.kind ?? [] });
+		});
 		// React to view-state changes so the highlight follows the address. Selection lives outside the state schema, so
 		// update the shu-graph's selectedNodeId directly: no re-layout, no graph movement.
 		this.autoTeardown(
@@ -151,10 +160,16 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 
 	/** View-open contract, pane-opener assigns producer products on mount. */
 	set products(p: Record<string, unknown>) {
-		if (!Array.isArray(p.forward) || !Array.isArray(p.goals)) {
-			throw new Error(
-				`shu-domain-chain-view requires products with \`forward\` and \`goals\` arrays. Received keys: [${Object.keys(p).join(", ")}]. The step's productsDomain schema must include forward+goals; the action must populate them.`,
-			);
+		// A chain lint report carries its findings beside the chain.
+		this.findings = p.findings === undefined ? [] : z.array(LintFindingSchema).parse(p.findings);
+		this.ingest(p);
+	}
+
+	/** A snapshot of the run's affordances, as a step's products or a read of them give it. Its facts are that run's, so
+	 *  the run it names is the one the page reads, and a fact's step opens there. */
+	private ingest(p: Record<string, unknown>): void {
+		if (!Array.isArray(p.forward) || !Array.isArray(p.goals) || typeof p.execution !== "string") {
+			throw new Error(`shu-domain-chain-view takes \`forward\` and \`goals\` arrays and the \`execution\` they are of. Received keys: [${Object.keys(p).join(", ")}].`);
 		}
 		this.affordances = {
 			forward: p.forward as TAffordancesSnapshot["forward"],
@@ -164,8 +179,7 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 			satisfiedDomains: Array.isArray(p.satisfiedDomains) ? (p.satisfiedDomains as string[]) : undefined,
 			satisfiedFacts: typeof p.satisfiedFacts === "object" && p.satisfiedFacts !== null ? (p.satisfiedFacts as Record<string, string[]>) : undefined,
 		};
-		// A chain lint report carries its findings beside the chain.
-		this.findings = p.findings === undefined ? [] : z.array(LintFindingSchema).parse(p.findings);
+		noteExecution(p.execution);
 		this.setState({ loadState: "loaded", fetchError: "" });
 	}
 
@@ -196,20 +210,8 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 		let lastError = "";
 		for (const method of candidates) {
 			try {
-				const response = await conduit().follow<Record<string, unknown>>(linkTo(method), `domain-chain-view: ${method}`);
-				if (Array.isArray(response?.forward) && Array.isArray(response?.goals)) {
-					this.affordances = {
-						forward: response.forward as TAffordancesSnapshot["forward"],
-						goals: response.goals as TAffordancesSnapshot["goals"],
-						composites: response.composites as TAffordancesSnapshot["composites"],
-						waypoints: Array.isArray(response.waypoints) ? (response.waypoints as TWaypointSnapshot[]) : undefined,
-						satisfiedDomains: Array.isArray(response.satisfiedDomains) ? (response.satisfiedDomains as string[]) : undefined,
-						satisfiedFacts: typeof response.satisfiedFacts === "object" && response.satisfiedFacts !== null ? (response.satisfiedFacts as Record<string, string[]>) : undefined,
-					};
-					this.setState({ loadState: "loaded", fetchError: "" });
-					return;
-				}
-				lastError = `${method} returned an unrecognised shape; expected {forward[], goals[]}`;
+				this.ingest(await conduit().follow<Record<string, unknown>>(linkTo(method), `domain-chain-view: ${method}`));
+				return;
 			} catch (err) {
 				lastError = `RPC ${method} failed: ${errorDetail(err)}`;
 			}
@@ -237,10 +239,10 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 				<p>Click a domain or waypoint to open it in the affordances panel. Click a fact instance to open its producing step.</p>
 			</details>
 			<div class="view-controls" data-testid=${SHU_TEST_IDS.DOMAIN_CHAIN.CONTROLS}>
-				<button data-action="layout" title="Toggle layout direction">${layout}</button>
-				<button data-action="zoom-out" title="Zoom out">−</button>
+				<button data-action="layout" title="Toggle layout direction" @click=${(): void => this.setState({ layout: layout === "TB" ? "LR" : "TB" })}>${layout}</button>
+				<button data-action="zoom-out" title="Zoom out" @click=${(): void => this.zoomBy(-ZOOM.step)}>−</button>
 				<span class="zoom-label"></span>
-				<button data-action="zoom-in" title="Zoom in">+</button>
+				<button data-action="zoom-in" title="Zoom in" @click=${(): void => this.zoomBy(ZOOM.step)}>+</button>
 				<shu-graph-filter data-axis-cookie-key=${FILTER_KEY}></shu-graph-filter>
 			</div>
 			<shu-graph data-testid=${SHU_TEST_IDS.DOMAIN_CHAIN.GRAPH}></shu-graph>
@@ -273,58 +275,41 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 			else filterEl.removeAttribute("show-controls");
 			const axes = graphAxes(rawGraph);
 			filterEl.setAxes({ stepper: axes.steppers, kind: axes.kinds });
-			filterEl.addEventListener(SHU_EVENT.GRAPH_FILTER_CHANGE as string, (e) => {
-				const d = (e as CustomEvent).detail as { hiddenByAxis?: Record<string, string[]> };
-				const hba = d.hiddenByAxis ?? {};
-				this.setState({ hiddenSteppers: hba.stepper ?? [], hiddenKinds: hba.kind ?? [] });
-			});
 		}
 
 		const graphEl = this.shadowRoot?.querySelector("shu-graph") as (ShuGraph & HTMLElement) | null;
 		if (graphEl) {
 			graphEl.products = { graph, options: {} };
 			graphEl.setZoom(this.zoomPercent);
-			graphEl.addEventListener(SHU_EVENT.GRAPH_NODE_CLICK as string, (e) => {
-				const detail = (e as CustomEvent).detail as {
-					nodeId?: string;
-					node?: { id?: string; kind?: string; link?: { href?: string }; wasGeneratedBy?: { factId: string; domain: string } } | null;
-				};
-				const node = detail?.node;
-				if (!detail?.nodeId || !node) {
-					this.selectedNodeId = "";
-					graphEl.selectedNodeId = "";
-					this.clearAffordanceUrl();
-					return;
-				}
-				this.selectedNodeId = detail.nodeId;
-				graphEl.selectedNodeId = detail.nodeId;
-				this.routeNodeClick(node);
-			});
 			this.syncSelectionFromUrl();
 			queueMicrotask(() => this.applySelectionToGraph());
 		}
-
-		this.bindToolbar();
 	}
 
-	private bindToolbar(): void {
-		for (const btn of Array.from(this.shadowRoot?.querySelectorAll<HTMLButtonElement>(".view-controls button[data-action]") ?? [])) {
-			btn.addEventListener("click", () => {
-				const action = btn.dataset.action;
-				if (action === "zoom-in" || action === "zoom-out") {
-					this.zoomPercent = action === "zoom-in" ? Math.min(400, this.zoomPercent + 10) : Math.max(10, this.zoomPercent - 10);
-					const graphEl = this.shadowRoot?.querySelector("shu-graph") as (ShuGraph & HTMLElement) | null;
-					graphEl?.setZoom(this.zoomPercent);
-					const label = this.shadowRoot?.querySelector(".zoom-label");
-					if (label) label.textContent = `${this.zoomPercent}%`;
-					return;
-				}
-				if (action === "layout") {
-					this.setState({ layout: this.state.layout === "TB" ? "LR" : "TB" });
-					return;
-				}
-			});
+	/** Zoom the graph by a step, within its bounds, without laying it out again. */
+	private zoomBy(delta: number): void {
+		this.zoomPercent = Math.min(ZOOM.max, Math.max(ZOOM.min, this.zoomPercent + delta));
+		(this.shadowRoot?.querySelector("shu-graph") as (ShuGraph & HTMLElement) | null)?.setZoom(this.zoomPercent);
+		const label = this.shadowRoot?.querySelector(".zoom-label");
+		if (label) label.textContent = `${this.zoomPercent}%`;
+	}
+
+	/** A click on a graph node, which the embedded shu-graph announces: the node is selected and opens what it names. A
+	 *  click on no node clears the selection. */
+	private onNodeClick(e: Event): void {
+		const detail = (e as CustomEvent).detail as {
+			nodeId?: string;
+			node?: { id?: string; kind?: string; link?: { href?: string }; wasGeneratedBy?: { factId: string; domain: string } } | null;
+		};
+		const graphEl = this.shadowRoot?.querySelector("shu-graph") as (ShuGraph & HTMLElement) | null;
+		const node = detail?.node;
+		this.selectedNodeId = detail?.nodeId && node ? detail.nodeId : "";
+		if (graphEl) graphEl.selectedNodeId = this.selectedNodeId;
+		if (!detail?.nodeId || !node) {
+			this.clearAffordanceUrl();
+			return;
 		}
+		this.routeNodeClick(node);
 	}
 
 	/** Push the current selection to the embedded shu-graph if it exists. */
@@ -343,36 +328,6 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 	/** Drop the deep-link params so deselecting in the chain clears the affordance view state too. */
 	private clearAffordanceUrl(): void {
 		ViewHash.mergeHashParams({ [AFFORDANCE_PARAM.GOAL]: "", [AFFORDANCE_PARAM.WAYPOINT]: "" });
-	}
-
-	/**
-	 * SSE-snapshot reducer. Public for testability.
-	 *
-	 * Three invariants enforced:
-	 *  - Identical snapshots are dropped (a fast fingerprint diff): every step's afterStep
-	 *    emits an event regardless of whether the graph changed, so most snapshots are no-ops.
-	 *  - A "downgrade" (incoming forward strictly shorter than current) is dropped: some
-	 *    emit contexts publish a partial view (subprocess, scoped resolver). Keeping the
-	 *    richer snapshot prevents most of the graph from disappearing mid-session.
-	 *  - Accepted snapshots merge over the previous so fields that only some snapshots
-	 *    supplies (waypoints, satisfiedDomains) survive afterStep updates that omit them.
-	 *
-	 * Returns true when the snapshot was applied, false when dropped. The caller stays
-	 * thin so this method can be unit-tested without DOM / SSE setup.
-	 */
-	applySseSnapshot(incoming: TAffordancesSnapshot): boolean {
-		const currentForward = this.affordances?.forward?.length ?? 0;
-		const incomingForward = incoming.forward?.length ?? 0;
-		if (currentForward > 0 && incomingForward < currentForward) {
-			console.log(`[chain] SSE: skipping downgrade (current forward=${currentForward}, incoming=${incomingForward})`);
-			return false;
-		}
-		const fingerprint = JSON.stringify([incoming.forward, incoming.goals, incoming.satisfiedDomains, incoming.waypoints, incoming.composites]);
-		if (fingerprint === this.lastSnapshotFingerprint) return false;
-		this.lastSnapshotFingerprint = fingerprint;
-		this.affordances = { ...this.affordances, ...incoming };
-		this.setState({ loadState: "loaded" });
-		return true;
 	}
 
 	/** Click router for a graph node. Public for testability. */

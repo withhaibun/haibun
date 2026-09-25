@@ -1,5 +1,5 @@
 import type { TEnvVariables } from "@haibun/core/lib/world.js";
-import { CONTINUE_AFTER_ERROR, STAY_ALWAYS, STAY_FAILURE, STEP_DELAY } from "@haibun/core/schema/protocol.js";
+import { CONTINUE_AFTER_ERROR, ONCE, STAY_ALWAYS, STAY_FAILURE, STEP_DELAY } from "@haibun/core/schema/protocol.js";
 import { IHasOptions } from "@haibun/core/lib/astepper.js";
 import { boolOrError, intOrError, optionOrError, stringOrError } from "@haibun/core/lib/util/index.js";
 
@@ -23,7 +23,7 @@ export class BaseOptions implements IHasOptions {
 			desc: `stay running after execution: ${STAY_ALWAYS}, ${STAY_FAILURE}`,
 			parse: (result: string) => optionOrError(result, [STAY_ALWAYS, STAY_FAILURE]),
 		},
-		ONCE: {
+		[ONCE]: {
 			desc: "run a group only when one of its dependencies changed since it last passed, as --once does, for every run a script chains",
 			parse: (input: string) => boolOrError(input),
 		},

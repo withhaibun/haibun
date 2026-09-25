@@ -34,15 +34,17 @@ import { actionNotOK, actionOKWithProducts, perProcessOptionNames } from "@haibu
 import { RpcClient } from "@haibun/core/lib/rpc-client.js";
 import { RemoteStepperProxy } from "@haibun/core/lib/remote-stepper-proxy.js";
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
-import { MODULE_OPTION_PREFIX, BASE_PREFIX, NDJSON, OK, STAY, STAY_ALWAYS } from "@haibun/core/schema/protocol.js";
+import { MODULE_OPTION_PREFIX, BASE_PREFIX, NDJSON, OK, ONCE, STAY, STAY_ALWAYS } from "@haibun/core/schema/protocol.js";
 import { HAIBUN_HOST_ID_ENV } from "@haibun/core/lib/host-id.js";
 import { type TRunOutcome, emptyOutcome, accrueRunOutcome } from "./run-outcome.js";
 import { getConfigFromBase, processBaseEnvToOptionsAndErrors } from "./lib.js";
 import { outcomeAgainst, verificationOf, type TOutcome } from "./verified.js";
 
-/** The environment names of the two things a process holds for itself, which core owns: whether it stays up, and
- *  which host it is. Everything else per-process is declared by the option that owns it (see `perProcessOptionNames`). */
+/** The environment names of the things a process holds for itself, which core owns: whether it stays up, which host it
+ *  is, and whether it skips a group that passed. Everything else per-process is declared by the option that owns it
+ *  (see `perProcessOptionNames`). */
 const STAY_ENV = `${BASE_PREFIX}${STAY}`;
+const ONCE_ENV = `${BASE_PREFIX}${ONCE}`;
 const NDJSON_ENV = `${BASE_PREFIX}${NDJSON}`;
 
 /**
@@ -155,6 +157,7 @@ export function runEnvironment(inherited: NodeJS.ProcessEnv, port: number, stand
 	// What one process holds, a process it starts does not inherit: each option says so itself.
 	for (const name of perProcess) delete env[name];
 	delete env[STAY_ENV];
+	delete env[ONCE_ENV];
 	delete env[HAIBUN_HOST_ID_ENV];
 	if (port > 0) {
 		for (const name of perProcess.filter((n) => n.endsWith("_PORT"))) env[name] = String(port);

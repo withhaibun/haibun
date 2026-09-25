@@ -8,6 +8,7 @@ import { actionOKWithProducts } from "../lib/util/index.js";
 import VariablesStepper from "./variables-stepper.js";
 import LogicStepper from "./logic-stepper.js";
 import { GoalResolutionStepper } from "./goal-resolution-stepper.js";
+import { executionOf } from "../lib/seq-path.js";
 import { ActivitiesStepper } from "./activities-stepper.js";
 
 const DOMAIN_AUTH_SESSION = "domain-auth-session-test";
@@ -141,6 +142,16 @@ variable affordances exists`,
 		const offered = result.featureResults?.[0].stepResults[1].products as { forward: unknown[]; goals: unknown[] };
 		expect(offered.forward).toEqual(shown.forward);
 		expect(offered.goals).toEqual(shown.goals);
+	});
+
+	it("names the run whose facts it shows, where the step a fact names ran: the affordances and the chain lint alike", async () => {
+		const feature = { path: "/features/test.feature", content: "show affordances\nshow chain lint" };
+		const result = await passWithDefaults([feature], steppers);
+		expect(result.ok).toBe(true);
+		const named = (result.featureResults?.[0].stepResults ?? []).map((r) => (r.products as { execution: string }).execution);
+		// The one feature is the run's first, whose steps' records name its execution.
+		const firstFeature = executionOf({ key: result.world.tag.key, featureNum: 1 });
+		expect(named).toEqual([firstFeature, firstFeature]);
 	});
 
 	it("announces a change after an act and none after a read, since a read changes nothing and the panel's own re-fetch is one", async () => {

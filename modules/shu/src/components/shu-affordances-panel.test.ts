@@ -7,6 +7,10 @@ import { setEventStream, resetEventStream, SerializedEventStream, type TEvent } 
 import * as ViewHash from "../view-hash.js";
 import { AFFORDANCE_PARAM } from "../consts.js";
 import { RPC_METHOD } from "../consts.js";
+import { readingExecution, resetExecutions } from "../client-cache/executions.js";
+
+/** The run a snapshot says its facts are of. */
+const EXECUTION = "1790000000000-1";
 
 /** `products` applies synchronously (app.ts coalesces the replay upstream), so just await the lit render. */
 const applied = async (panel: { updateComplete: Promise<unknown> }): Promise<void> => {
@@ -59,6 +63,7 @@ describe("shu-affordances-panel", () => {
 		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel & { products: Record<string, unknown> };
 		document.body.appendChild(panel);
 		panel.products = {
+			execution: EXECUTION,
 			forward: [{ method: "X-y", stepperName: "X", stepName: "y", inputDomains: [], outputDomains: ["g"], readyToRun: true }],
 			goals: [{ domain: "g", description: "Goal g", resolution: { finding: "satisfied", goal: "g", factIds: ["fact-1"] } }],
 		};
@@ -74,6 +79,7 @@ describe("shu-affordances-panel", () => {
 		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel & { products: Record<string, unknown> };
 		document.body.appendChild(panel);
 		panel.products = {
+			execution: EXECUTION,
 			forward: [],
 			goals: [{ domain: "session", description: "Session", resolution: { finding: "satisfied", goal: "session", factIds: ["s-1", "s-2", "s-3"] } }],
 		};
@@ -92,6 +98,7 @@ describe("shu-affordances-panel", () => {
 		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel & { products: Record<string, unknown> };
 		document.body.appendChild(panel);
 		panel.products = {
+			execution: EXECUTION,
 			forward: [],
 			goals: [
 				{
@@ -125,6 +132,7 @@ describe("shu-affordances-panel", () => {
 		document.body.appendChild(panel);
 		const path = { steps: [{ stepperName: "Issue", stepName: "issueCredential" }], bindings: [{ kind: "argument", domain: "issuer" }] };
 		panel.products = {
+			execution: EXECUTION,
 			forward: [],
 			goals: [{ domain: "vc", description: "Verifiable credential", resolution: { finding: "michi", goal: "vc", truncated: false, michi: [path] } }],
 		};
@@ -148,6 +156,7 @@ describe("shu-affordances-panel", () => {
 		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel & { products: Record<string, unknown> };
 		document.body.appendChild(panel);
 		panel.products = {
+			execution: EXECUTION,
 			forward: [],
 			goals: [
 				{
@@ -167,6 +176,7 @@ describe("shu-affordances-panel", () => {
 		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel & { products: Record<string, unknown> };
 		document.body.appendChild(panel);
 		panel.products = {
+			execution: EXECUTION,
 			forward: [],
 			goals: [
 				{
@@ -196,6 +206,7 @@ describe("shu-affordances-panel", () => {
 		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel & { products: Record<string, unknown> };
 		document.body.appendChild(panel);
 		panel.products = {
+			execution: EXECUTION,
 			forward: [],
 			goals: [{ domain: "g", description: "Goal g", resolution: { finding: "satisfied", goal: "g", factIds: ["fact-x"] } }],
 		};
@@ -205,6 +216,7 @@ describe("shu-affordances-panel", () => {
 		if (!explain) throw new Error("unreachable");
 		explain.open = true;
 		panel.products = {
+			execution: EXECUTION,
 			forward: [],
 			goals: [
 				{ domain: "g", description: "Goal g", resolution: { finding: "satisfied", goal: "g", factIds: ["fact-x"] } },
@@ -234,6 +246,7 @@ describe("shu-affordances-panel", () => {
 			],
 		};
 		panel.products = {
+			execution: EXECUTION,
 			forward: [],
 			goals: [{ domain: "vc", description: "Verifiable credential", resolution: { finding: "michi", goal: "vc", truncated: false, michi: [compositeMichi] } }],
 		};
@@ -245,6 +258,7 @@ describe("shu-affordances-panel", () => {
 		if (!composite) throw new Error("unreachable");
 		composite.open = true;
 		panel.products = {
+			execution: EXECUTION,
 			forward: [],
 			goals: [{ domain: "vc", description: "Verifiable credential", resolution: { finding: "michi", goal: "vc", truncated: false, michi: [compositeMichi] } }],
 		};
@@ -257,6 +271,7 @@ describe("shu-affordances-panel", () => {
 		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel & { products: Record<string, unknown> };
 		document.body.appendChild(panel);
 		panel.products = {
+			execution: EXECUTION,
 			forward: [],
 			goals: [
 				{
@@ -297,7 +312,7 @@ describe("shu-affordances-panel", () => {
 		const wp = { outcome: "deliver-report", kind: "declarative", ensured: false, method: "Acts-ensure", resolvesDomain: "report", paramSlots: [], proofStatements: [] };
 		setConduit(new TestConduit(async () => ({})));
 		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel & { products: Record<string, unknown> };
-		panel.products = { forward: [], goals: [], waypoints: [wp] };
+		panel.products = { execution: EXECUTION, forward: [], goals: [], waypoints: [wp] };
 		document.body.appendChild(panel);
 		await applied(panel);
 		expect(panel.shadowRoot?.querySelector('[data-testid="affordances-waypoints"]')).toBeTruthy();
@@ -312,7 +327,7 @@ describe("shu-affordances-panel", () => {
 		setConduit(
 			new TestConduit((method: string) => {
 				if (method === RPC_METHOD.AFFORDANCES_ON_OFFER) snapshotCalls++;
-				return { waypoints: [], forward: [], goals: [] };
+				return { execution: EXECUTION, waypoints: [], forward: [], goals: [] };
 			}),
 		);
 		const stream = new SerializedEventStream();
@@ -325,5 +340,16 @@ describe("shu-affordances-panel", () => {
 		await new Promise((r) => requestAnimationFrame(() => r(undefined))); // drain the rAF batch
 		await new Promise((r) => setTimeout(r, 500)); // ride out the coalesce window; the single refetch fires within it
 		expect(snapshotCalls).toBe(1);
+	});
+
+	it("takes the run its snapshot names as the run the page reads, where a fact's step opens, and refuses one naming no run", () => {
+		resetExecutions();
+		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel & { products: Record<string, unknown> };
+		document.body.appendChild(panel);
+		panel.products = { execution: EXECUTION, forward: [], goals: [] };
+		expect(readingExecution()).toBe(EXECUTION);
+		expect(() => {
+			panel.products = { forward: [], goals: [] };
+		}).toThrow(/the `execution` they are of/);
 	});
 });

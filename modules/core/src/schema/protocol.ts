@@ -117,6 +117,9 @@ export const STAY = "STAY";
 /** Report events as NDJSON on stdout. Declared here so the option, the env name a launcher writes, and the logger
  *  that reads it all say it once. */
 export const NDJSON = "NDJSON";
+/** Run a group only when a dependency changed since it last passed: a choice about the chain a script runs, so a run
+ *  started by another does not inherit it. */
+export const ONCE = "ONCE";
 
 export const STEP_DELAY = "STEP_DELAY";
 export const DEFAULT_DEST = "default";

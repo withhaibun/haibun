@@ -7,27 +7,27 @@
 				"declaredStepTextHash": "d0c28f65c3c278373d6f3a36ce8b8546b763025c9f36115cbcff2df50e20aeae"
 			},
 			"/features/b-reading-a-cached-run.feature.ts": {
-				"seconds": 1.3,
+				"seconds": 1.4,
 				"steps": 203,
 				"declaredStepTextHash": "e6dca266f39099e57d965bc28eb89b27a6881ac2ebf79694e2402aa74b927b1a"
 			},
 			"/features/c-reading-a-report.feature.ts": {
-				"seconds": 1.5,
+				"seconds": 1.6,
 				"steps": 206,
 				"declaredStepTextHash": "3f990126cc5f0fdfe37b399c07dc641610c10639ce6638d354b1008ffbdbba96"
 			},
 			"/features/d-two-origins.feature.ts": {
-				"seconds": 1.2,
+				"seconds": 1.3,
 				"steps": 208,
 				"declaredStepTextHash": "07ae92bc26a6531f3a6613e38e9f8b4a7158743c586608b2401ccd1311c1ba3c"
 			},
 			"/features/e-forgetting-a-run.feature.ts": {
-				"seconds": 3.6,
+				"seconds": 4.4,
 				"steps": 198,
 				"declaredStepTextHash": "a662d5521a73a0b448dc3ea7c3fa24952538e6c80a0de151a0adbeaad47de19e"
 			}
 		},
 		"steps": 1013,
-		"seconds": 8.9
+		"seconds": 10
 	}
 }
