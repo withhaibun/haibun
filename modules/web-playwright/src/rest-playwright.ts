@@ -3,7 +3,7 @@ import WebPlaywright from "./web-playwright.js";
 import { WEB_PLAYWRIGHT_ACTIONS } from "./actions.js";
 import { OK } from "@haibun/core/schema/protocol.js";
 import { TStepperSteps } from "@haibun/core/lib/astepper.js";
-import { DOMAIN_NUMBER, DOMAIN_LINK, DOMAIN_TEXT } from "@haibun/core/lib/domains.js";
+import { DOMAIN_NUMBER, DOMAIN_LINK, DOMAIN_TEXT, DOMAIN_JSON } from "@haibun/core/lib/domains.js";
 import { DOMAIN_HTTP_METHOD, DOMAIN_HTTP_METHOD_WITH_BODY, DOMAIN_HTTP_METHOD_WITHOUT_BODY, DOMAIN_JSON_RESPONSE_COUNT, HTTP_METHODS_WITH_BODY } from "./domains.js";
 
 export const AUTHORIZATION = "Authorization";
@@ -158,9 +158,9 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 		restEndpointRequestWithPayload: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
 			precludes: ["WebPlaywright.restEndpointRequest"],
-			gwta: `make an ${HTTP} {method: ${DOMAIN_HTTP_METHOD_WITH_BODY}} to {endpoint: ${DOMAIN_LINK}} with {payload}`,
-			action: async ({ method, endpoint, payload }: { method: string; endpoint: string; payload: string }, featureStep) => {
-				const requestOptions = { postData: payload, headers: { "Content-Type": "application/json" } };
+			gwta: `make an ${HTTP} {method: ${DOMAIN_HTTP_METHOD_WITH_BODY}} to {endpoint: ${DOMAIN_LINK}} with {payload: ${DOMAIN_JSON}}`,
+			action: async ({ method, endpoint, payload }: { method: string; endpoint: string; payload: unknown }, featureStep) => {
+				const requestOptions = { postData: JSON.stringify(payload), headers: { "Content-Type": "application/json" } };
 				const serialized = await webPlaywright.withPageFetch(endpoint, method.toLowerCase(), requestOptions);
 				await webPlaywright.setLastResponse(serialized, featureStep);
 				return OK;

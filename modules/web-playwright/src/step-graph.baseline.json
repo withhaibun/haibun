@@ -23,7 +23,6 @@
 	"string-param WebPlaywright.gotoPage {name: string}",
 	"string-param WebPlaywright.inElement {container: page-locator | string}",
 	"string-param WebPlaywright.press {key: string}",
-	"string-param WebPlaywright.restEndpointRequestWithPayload {payload: string}",
 	"string-param WebPlaywright.restFilterPropertyRequest {property: string}",
 	"string-param WebPlaywright.restResponseIs {value: string}",
 	"string-param WebPlaywright.restResponsePropertyIs {property: string}",

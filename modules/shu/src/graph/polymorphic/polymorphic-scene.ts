@@ -119,11 +119,11 @@ export interface GraphSceneConfig {
 	readAsDocument: boolean;
 }
 
-/** One vertex the host must persist for a gantt-bar reschedule: the vertex to rewrite and its new start/end as a JSON string. */
+/** One vertex the host must persist for a gantt-bar reschedule: the vertex to rewrite and its new start and end. */
 export interface RescheduleUpdate {
 	label: string;
 	id: string;
-	data: string;
+	data: { startedAtTime: string; endedAtTime: string };
 }
 
 /** The graph-scene-changed payload: the control-bar inputs the host renders. */
@@ -1256,7 +1256,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		const updates: RescheduleUpdate[] = [...shifted].map(([id, { start, end }]) => ({
 			label: node.type,
 			id,
-			data: JSON.stringify({ startedAtTime: new Date(start).toISOString(), endedAtTime: new Date(end).toISOString() }),
+			data: { startedAtTime: new Date(start).toISOString(), endedAtTime: new Date(end).toISOString() },
 		}));
 		if (updates.length === 0) return;
 		// The host persists each vertex + refetches, then calls flushRepaint() so the rescheduled bars redraw at once.
