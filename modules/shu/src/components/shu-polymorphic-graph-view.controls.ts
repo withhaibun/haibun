@@ -20,8 +20,8 @@ import type { TPaneOpen } from "../pane-state.js";
 import { z } from "zod";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps, type TFeatureStep } from "@haibun/core/lib/astepper.js";
 import type { TDomainDefinition } from "@haibun/core/lib/resources.js";
-import { DOMAIN_NUMBER, DOMAIN_TEXT } from "@haibun/core/lib/domains.js";
-import { actionOK, actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
+import { DOMAIN_NUMBER, DOMAIN_TEXT, individualRefInputSchema } from "@haibun/core/lib/domains.js";
+import { actionOK, actionNotOK, actionOKWithProducts, getStepTerm } from "@haibun/core/lib/util/index.js";
 import type { TActionResult } from "@haibun/core/schema/protocol.js";
 import WebPlaywright from "@haibun/web-playwright";
 import { saveImageArtifact } from "@haibun/web-playwright/artifact.js";
@@ -86,8 +86,23 @@ const ZBASIS_VALUE: Record<string, string> = { "valid time": "valid", "indexed t
 /** The domain of a graph still a step saved: where it is, and how many nodes it drew. */
 const DOMAIN_GRAPH_STILL = "graph-still";
 const GraphStillSchema = z.object({ path: z.string(), nodes: z.number() });
+export const DOMAIN_GRAPH_SNAPSHOT = "graph-snapshot";
+const PointSchema = z.object({ x: z.number(), y: z.number(), z: z.number() });
+// fov is not compared: it moves to hold worldPerPx, which is the zoom signal.
+const CameraSchema = PointSchema.extend({ target: PointSchema.nullable().optional() }).nullable();
+const ViewportSchema = z.object({ h: z.number(), w: z.number(), worldPerPx: z.number(), calibratedH: z.number() }).nullable();
+const GraphSnapshotSchema = z.object({ camera: CameraSchema, viewport: ViewportSchema, pos: z.record(z.string(), PointSchema) });
+export const DOMAIN_GRAPH_NODE = "graph-node";
+export const DOMAIN_GRAPH_DROP = "graph-drop";
+const GraphDropSchema = z.object({ id: z.string(), x: z.number(), y: z.number() });
+export const DOMAIN_GRAPH_SCENE = "graph-scene";
+const GraphSceneSchema = z.object({ name: z.string(), setup: z.record(z.string(), z.record(z.string(), z.unknown())) });
 const graphControlDomains: TDomainDefinition[] = [
 	{ selectors: [DOMAIN_GRAPH_STILL], schema: GraphStillSchema, description: "A graph still a step saved, and how many nodes it drew" },
+	{ selectors: [DOMAIN_GRAPH_SNAPSHOT], schema: GraphSnapshotSchema, description: "The graph's framing and where it placed each node, as a step read them" },
+	{ selectors: [DOMAIN_GRAPH_NODE], schema: individualRefInputSchema, description: "A node the graph draws, by the id of the record it draws" },
+	{ selectors: [DOMAIN_GRAPH_DROP], schema: GraphDropSchema, description: "A node a drag pinned, and where it was dropped" },
+	{ selectors: [DOMAIN_GRAPH_SCENE], schema: GraphSceneSchema, description: "A scene a step saved, and how the view was set up when it was saved" },
 	{ selectors: [DOMAIN_GRAPH_ZOOM], schema: ZoomDirSchema, description: "Zoom direction: in or out" },
 	{ selectors: [DOMAIN_GRAPH_PAN], schema: PanDirSchema, description: "Pan/orbit direction: left, right, up, or down" },
 	{ selectors: [DOMAIN_GRAPH_UNIT], schema: UnitSchema, description: "Measure unit: pixels or percent" },
@@ -103,16 +118,15 @@ const graphControlDomains: TDomainDefinition[] = [
 const SCOPED_REFETCH_BEGIN_MS = 350; // covers the scoped refetch's RPC dispatch + the view's 250ms repaint debounce
 const HOVER_POP_MAX = 2.6; // a hover pop above this reads as "huge" (the regression): an independent ceiling, comfortably clear of the gentle magnify cap so a legit pop passes and a runaway one fails
 
-type Viewport = { h: number; w: number; worldPerPx: number; calibratedH: number } | null;
-type Camera = { x: number; y: number; z: number; target?: { x: number; y: number; z: number } | null } | null; // fov is deliberately NOT compared (it moves to hold worldPerPx); worldPerPx is the zoom signal
-type Snapshot = { camera: Camera; viewport: Viewport; pos: Record<string, { x: number; y: number; z: number }> };
+type Viewport = z.infer<typeof ViewportSchema>;
+type Camera = z.infer<typeof CameraSchema>;
+type Snapshot = z.infer<typeof GraphSnapshotSchema>;
+type TGraphNode = { id: string };
+type TGraphScene = z.infer<typeof GraphSceneSchema>;
 
 export default class ShuPolymorphicGraphViewControls extends AStepper implements IHasCycles {
 	description = "Drives the graph view in a page: finds, reveals, opens and drags nodes, filters by type, zooms, and checks what the graph shows.";
 	cycles: IStepperCycles = { getConcerns: () => ({ domains: graphControlDomains }) };
-	private snapshots = new Map<string, Snapshot>();
-	private opened = new Map<string, string>(); // name → the bare id of the node an open targeted, so a later hover can re-find it
-	private droppedAt = new Map<string, { x: number; y: number }>(); // name → where a drag left the node, so a later check reads the place it must hold
 
 	/** The one lookup of the browser stepper, so the page and the artifact path cannot find different instances. */
 	private webPlaywright(): WebPlaywright {
@@ -539,11 +553,11 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		},
 		graphCentresActive: {
 			// Follow's observable contract: the named node is the active node, and it projects inside the central half of the canvas.
-			gwta: "graph centres the active node {name}",
-			action: async ({ name }: { name: string }) => {
+			gwta: `graph centres the active node {node: ${DOMAIN_GRAPH_NODE}}`,
+			action: async ({ node }: { node: TGraphNode }) => {
 				const page = await this.page();
-				const id = this.opened.get(name) ?? (await this.resolveNodeId(page, name));
-				if (!id) return actionNotOK(`no graph node "${name}"`);
+				const id = await this.resolveNodeId(page, node.id);
+				if (!id) return actionNotOK(`no graph node "${node.id}"`);
 				if (!(await this.becomesSelected(page, id))) return actionNotOK(`graph node "${id}" is not the active node: ${(await this.fullInspect(page)).focus.selected} is`);
 				return await this.centresNode(page, id);
 			},
@@ -551,8 +565,9 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		clickGuideEntry: {
 			// The guide's own activation path: a real click on the reading's entry for a node, focus lands in the guide
 			// (which is what makes the follow aim beside it), and the click drives the same open a pointer on the canvas does.
-			gwta: "open guide entry {match} as {name}",
-			action: async ({ match, name }: { match: string; name: string }) => {
+			gwta: "open guide entry {match}",
+			productsDomain: DOMAIN_GRAPH_NODE,
+			action: async ({ match }: { match: string }) => {
 				const page = await this.page();
 				await this.settle(page);
 				const id = await this.resolveNodeId(page, match);
@@ -561,19 +576,18 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const entry = page.locator(sel).first();
 				if ((await entry.count()) === 0) return actionNotOK(`the guide lists no entry for "${id}"`);
 				await entry.click();
-				this.opened.set(name, id);
-				return actionOK();
+				return actionOKWithProducts({ id });
 			},
 		},
 		graphActiveInClear: {
 			// Following with something over the view: the chosen node lands ON the canvas and OUT from under whatever
 			// covers it, the reading guide and any panel that declares it covers the views. Centred under one of them, or
 			// pushed past the edge by a column-open resize, the reader was shown nothing.
-			gwta: "graph shows the active node {name} clear of what covers it",
-			action: async ({ name }: { name: string }) => {
+			gwta: `graph shows the active node {node: ${DOMAIN_GRAPH_NODE}} clear of what covers it`,
+			action: async ({ node }: { node: TGraphNode }) => {
 				const page = await this.page();
-				const id = this.opened.get(name) ?? (await this.resolveNodeId(page, name));
-				if (!id) return actionNotOK(`no graph node "${name}"`);
+				const id = await this.resolveNodeId(page, node.id);
+				if (!id) return actionNotOK(`no graph node "${node.id}"`);
 				await this.settle(page);
 				await this.settleNodeProjection(page, id);
 				const at = await this.projectNode(page, id, 0);
@@ -606,11 +620,11 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		},
 		fitGraphAround: {
 			// Frame a node + its 1-hop neighbours so a doc/tour feature can jump straight to a node's local context.
-			gwta: "fit graph around {node}",
-			action: async ({ node }: { node: string }) => {
+			gwta: `fit graph around {node: ${DOMAIN_GRAPH_NODE}}`,
+			action: async ({ node }: { node: TGraphNode }) => {
 				const page = await this.page();
-				const id = this.opened.get(node) ?? (await this.resolveNodeId(page, node));
-				if (!id) return actionNotOK(`no graph node "${node}"`);
+				const id = await this.resolveNodeId(page, node.id);
+				if (!id) return actionNotOK(`no graph node "${node.id}"`);
 				await this.settle(page);
 				await this.call(page, "fitGraphAround", [id]);
 				return actionOK();
@@ -618,9 +632,10 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		},
 		openGraphNode: {
 			// Open a node's column via the production reveal path (onNodeClick → PANE_OPEN) and prove the graph
-			// emitted open-for-that-node. Remember it by {name} so a later hover can target the same node.
-			gwta: "open graph node {match} as {name}",
-			action: async ({ match, name }: { match: string; name: string }) => {
+			// emitted open-for-that-node. Returns the node opened, so a later step can target the same node.
+			gwta: "open graph node {match}",
+			productsDomain: DOMAIN_GRAPH_NODE,
+			action: async ({ match }: { match: string }) => {
 				const page = await this.page();
 				await this.settle(page);
 				const id = await this.resolveNodeId(page, match);
@@ -643,14 +658,13 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 					{ nid: id, evt: SHU_EVENT.PANE_OPEN },
 				);
 				if (subject !== id) return actionNotOK(`opening graph node "${id}" did not ask to open its column (got ${subject})`);
-				this.opened.set(name, id);
 				// Opening round-trips through the page (PANE_OPEN → the pane → the active record → the view), so the node becomes
 				// the active node after the call returns. A node that never does was not opened, and the scene settles once the
 				// column it opened has resized the view.
 				if (!(await this.becomesSelected(page, id)))
 					return actionNotOK(`opening graph node "${id}" did not make it the active node: ${(await this.fullInspect(page)).focus.selected} is`);
 				await this.settle(page);
-				return actionOK();
+				return actionOKWithProducts({ id });
 			},
 		},
 		pickActiveGraphNode: {
@@ -660,8 +674,9 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			// the run assigns the id of a conversation's comment. The step reads the active node again until its projection
 			// is still and a pixel picks it, because a record arriving can move it. The phrase avoids "click", which
 			// web-playwright's "click {target}" matches.
-			gwta: "pick the active graph node with the pointer as {name}",
-			action: async ({ name }: { name: string }) => {
+			gwta: "pick the active graph node with the pointer",
+			productsDomain: DOMAIN_GRAPH_NODE,
+			action: async () => {
 				const page = await this.page();
 				for (let tries = 0; tries < ACTIVE_PICK_TRIES; tries++) {
 					await this.settle(page);
@@ -671,8 +686,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 					const at = (await this.fullInspect(page)).focus.selected === id ? await this.aimAtNode(page, id) : null;
 					if (!at) continue;
 					await page.mouse.click(at.x, at.y);
-					this.opened.set(name, id);
-					if (await this.becomesSelected(page, id)) return actionOK();
+					if (await this.becomesSelected(page, id)) return actionOKWithProducts({ id });
 					return actionNotOK(
 						`clicking graph node "${id}" at (${at.x.toFixed(0)},${at.y.toFixed(0)}) did not select it: selected is ${(await this.fullInspect(page)).focus.selected}`,
 					);
@@ -682,11 +696,12 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			},
 		},
 		hoverNode: {
-			gwta: "hover the {name} node",
-			action: async ({ name }: { name: string }) => {
-				const id = this.opened.get(name);
-				if (!id) return actionNotOK(`no graph node remembered as "${name}"`);
-				await this.call(await this.page(), "setHoveredNode", [id]);
+			gwta: `hover the {node: ${DOMAIN_GRAPH_NODE}} node`,
+			action: async ({ node }: { node: TGraphNode }) => {
+				const page = await this.page();
+				const id = await this.resolveNodeId(page, node.id);
+				if (!id) return actionNotOK(`no graph node "${node.id}"`);
+				await this.call(page, "setHoveredNode", [id]);
 				return actionOK();
 			},
 		},
@@ -764,14 +779,14 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				return problems.length === 0 ? actionOK() : actionNotOK(`real pointer over the graph moved it: ${problems.join("; ")}`);
 			},
 		},
-		rememberGraph: {
-			gwta: "remember the graph as {name}",
-			action: async ({ name }: { name: string }) => {
+		snapshotGraph: {
+			gwta: "snapshot the graph",
+			productsDomain: DOMAIN_GRAPH_SNAPSHOT,
+			action: async () => {
 				const page = await this.page();
 				await this.waitForLayoutStable(page); // baseline a SETTLED graph: the auto-fit follows the spreading layout, so a mid-spread baseline would read as a later "re-frame"
 				await this.waitForCalibratedViewport(page);
-				this.snapshots.set(name, await this.snapshot(page));
-				return actionOK();
+				return actionOKWithProducts(await this.snapshot(page));
 			},
 		},
 		graphView: {
@@ -779,10 +794,10 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			// position, and the zoom level (worldPerPx) all held since the snapshot, used after a click/hover/move-off,
 			// where the graph must NOT re-decide its own framing. "changed" confirms a sanctioned pan/orbit/fit moved it.
 			// Node positions are not checked: opening a node may legitimately bring in data; only the framing is pinned.
-			gwta: `graph view is {state: ${DOMAIN_GRAPH_CHANGE}} since {name}`,
-			action: async ({ state, name }: { state: string; name: string }) => {
-				const before = this.snapshots.get(name);
-				if (!before?.camera || !before.viewport) return actionNotOK(`no remembered graph snapshot "${name}"`);
+			gwta: `graph view is {state: ${DOMAIN_GRAPH_CHANGE}} since {before: ${DOMAIN_GRAPH_SNAPSHOT}}`,
+			action: async ({ state, before }: { state: string; before: Snapshot }, featureStep: TFeatureStep) => {
+				const name = getStepTerm(featureStep, "before");
+				if (!before.camera || !before.viewport) return actionNotOK(`graph snapshot "${name}" holds no framing`);
 				const page = await this.page();
 				await this.waitForCalibratedViewport(page);
 				const after = await this.snapshot(page);
@@ -805,10 +820,9 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		graphLayoutSteady: {
 			// Node WORLD positions barely moved since the snapshot: the layout did not wiggle/reheat. This is the
 			// "bananas" guard, distinct from framing: the camera can hold steady while nodes churn under rapid focus switches.
-			gwta: "graph layout is steady since {name}",
-			action: async ({ name }: { name: string }) => {
-				const before = this.snapshots.get(name);
-				if (!before) return actionNotOK(`no remembered graph snapshot "${name}"`);
+			gwta: `graph layout is steady since {before: ${DOMAIN_GRAPH_SNAPSHOT}}`,
+			action: async ({ before }: { before: Snapshot }, featureStep: TFeatureStep) => {
+				const name = getStepTerm(featureStep, "before");
 				const after = await this.snapshot(await this.page());
 				let maxDrift = 0;
 				let worst = "";
@@ -826,10 +840,10 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			},
 		},
 		graphZoom: {
-			gwta: `graph zoom is {comparison: ${DOMAIN_GRAPH_ZOOM_CMP}} than {name}`,
-			action: async ({ comparison, name }: { comparison: string; name: string }) => {
-				const before = this.snapshots.get(name);
-				if (!before?.viewport) return actionNotOK(`no remembered graph snapshot "${name}"`);
+			gwta: `graph zoom is {comparison: ${DOMAIN_GRAPH_ZOOM_CMP}} than {before: ${DOMAIN_GRAPH_SNAPSHOT}}`,
+			action: async ({ comparison, before }: { comparison: string; before: Snapshot }, featureStep: TFeatureStep) => {
+				const name = getStepTerm(featureStep, "before");
+				if (!before.viewport) return actionNotOK(`graph snapshot "${name}" holds no viewport`);
 				const after = await this.snapshot(await this.page());
 				if (!after.viewport) return actionNotOK("no live viewport");
 				const ratio = after.viewport.worldPerPx / before.viewport.worldPerPx; // worldPerPx smaller = closer (more zoomed in)
@@ -881,13 +895,13 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			// unlike the lib's click raycaster). Deterministic: it drags whichever node the view reports DRAGGABLE (un-occluded)
 			// rather than a fixed id: the frontmost node is always pickable, so a non-deterministic layout can't leave the
 			// target buried. The drag GEOMETRY (track/pin/release) is unit-tested in polymorphic-drag.test.ts; this only smoke-tests
-			// the DOM→handler wiring: the dragged node tracks the pointer + pins, others hold still. Remembered under {name}.
-			gwta: "drag a node as {name}",
-			action: async ({ name }: { name: string }) => {
+			// the DOM→handler wiring: the dragged node tracks the pointer + pins, others hold still. Returns the node and where it was dropped.
+			gwta: "drag a node",
+			productsDomain: DOMAIN_GRAPH_DROP,
+			action: async () => {
 				const page = await this.page();
 				const { target, diag } = await this.pressFirstDraggable(page);
 				if (!target) return actionNotOK(`no draggable node, ${diag}`);
-				this.opened.set(name, target.id); // remember which node was dragged so a later pin-check can target it
 				const before = await this.fullInspect(page); // after the press (which moves nothing), so "others hold still" measures only the drag
 				await page.mouse.move(target.x + 120, target.y + 60, { steps: 8 }); // well past the drag threshold (pointer already down on the node)
 				await page.mouse.up();
@@ -899,8 +913,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				if (others > 2) return actionNotOK(`a non-dragged node moved ${others.toFixed(1)} during the drag`);
 				const dropped = after.sample.find((s) => s.id === target.id);
 				if (dropped?.fx == null) return actionNotOK(`the dragged node "${target.id}" was not pinned on release`);
-				this.droppedAt.set(name, { x: dropped.x, y: dropped.y });
-				return actionOK();
+				return actionOKWithProducts({ id: target.id, x: dropped.x, y: dropped.y });
 			},
 		},
 		setFlatten: {
@@ -1362,6 +1375,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			// Save the way the graph is currently set up under a name, through the production control (the settings' name
 			// field + save button), the same path a reader takes, so the write goes through the app's own step RPC.
 			gwta: "save graph scene as {name: string}",
+			productsDomain: DOMAIN_GRAPH_SCENE,
 			action: async ({ name }: { name: string }) => {
 				const page = await this.page();
 				await this.openSettings(page, "scenes");
@@ -1387,8 +1401,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 					{ pickerId: POLYMORPHIC_IDS.SCENE_PICKER, sceneName: name },
 					{ timeout: 10000 },
 				);
-				this.savedScenes.set(name, await this.captureGraphScene(page));
-				return actionOK();
+				return actionOKWithProducts({ name, setup: await this.captureGraphScene(page) });
 			},
 		},
 		applyGraphScene: {
@@ -1435,10 +1448,9 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			// What the view shows now, compared option by option with what it showed when the scene was saved. The
 			// comparison is against the view's OWN record (captureScene), and the values under comparison travelled through
 			// the store and back, so this proves the return restored every option rather than that a control changed.
-			gwta: "graph scene matches {name: string}",
-			action: async ({ name }: { name: string }) => {
-				const saved = this.savedScenes.get(name);
-				if (!saved) return actionNotOK(`no scene was saved as "${name}" in this run`);
+			gwta: `graph scene matches {scene: ${DOMAIN_GRAPH_SCENE}}`,
+			action: async ({ scene }: { scene: TGraphScene }) => {
+				const { name, setup: saved } = scene;
 				const live = await this.captureGraphScene(await this.page());
 				const differing = Object.entries(saved).flatMap(([tag, fields]) =>
 					Object.entries(fields)
@@ -1851,15 +1863,13 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		graphNodePinned: {
 			// A node the user dragged holds the place they dropped it in, through a live data repaint: a streamed arrival
 			// must neither unpin it nor put it back where the layout would have had it.
-			gwta: "graph node {match} stays pinned",
-			action: async ({ match }: { match: string }) => {
+			gwta: `graph node {dropped: ${DOMAIN_GRAPH_DROP}} stays pinned`,
+			action: async ({ dropped }: { dropped: z.infer<typeof GraphDropSchema> }) => {
 				const page = await this.page();
-				const id = this.opened.get(match) ?? (await this.waitForNodePresent(page, match)); // "dragged" resolves to the node the drag step remembered
-				if (!id) return actionNotOK(`graph node "${match}" not present`);
+				const id = await this.waitForNodePresent(page, dropped.id);
+				if (!id) return actionNotOK(`graph node "${dropped.id}" not present`);
 				const now = (await this.fullInspect(page)).sample.find((s) => s.id === id);
 				if (now?.fx == null) return actionNotOK(`graph node "${id}" is no longer pinned (fx=${now?.fx ?? null}): the repaint unpinned it`);
-				const dropped = this.droppedAt.get(match);
-				if (!dropped) return actionOK(); // pinned by a reload rather than by this run's drag: the place is the reloaded one
 				const moved = Math.hypot(now.x - dropped.x, now.y - dropped.y);
 				return moved <= 1
 					? actionOK()
@@ -1873,15 +1883,15 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			// whether that node's label is readable, is set by the camera's distance to its target, which must therefore
 			// be the same after following to another node as before. (inspect's worldPerPx is measured at the ORIGIN, so
 			// it moves whenever the target moves in depth even though nothing zoomed; the distance is the reliable signal.)
-			gwta: "graph holds its distance to what it looks at since {name}",
-			action: async ({ name }: { name: string }) => {
-				const before = this.snapshots.get(name);
+			gwta: `graph holds its distance to what it looks at since {before: ${DOMAIN_GRAPH_SNAPSHOT}}`,
+			action: async ({ before }: { before: Snapshot }, featureStep: TFeatureStep) => {
+				const name = getStepTerm(featureStep, "before");
 				const after = await this.snapshot(await this.page());
 				const span = (s?: Snapshot): number | null =>
 					s?.camera?.target ? Math.hypot(s.camera.x - s.camera.target.x, s.camera.y - s.camera.target.y, s.camera.z - s.camera.target.z) : null;
 				const was = span(before);
 				const now = span(after);
-				if (was === null || now === null) return actionNotOK(`no camera aim to compare (remembered "${name}"=${was}, live=${now})`);
+				if (was === null || now === null) return actionNotOK(`no camera aim to compare (snapshot "${name}"=${was}, live=${now})`);
 				const drift = Math.abs(now - was) / was;
 				return drift <= 0.01
 					? actionOK()
@@ -2006,11 +2016,11 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			// A focused chip pops to ~6× on screen, but the press-pick must read its RESTING footprint, else a magnified node
 			// captures every orbit press around it. Probe pickAt() at fixed offsets with the node at rest vs magnified: the
 			// hittable offsets must not grow. pickAt() has no pointer side effects, so the magnify stays put while the probe runs.
-			gwta: "magnifying the {name} node does not widen where it can be grabbed",
-			action: async ({ name }: { name: string }) => {
+			gwta: `magnifying the {node: ${DOMAIN_GRAPH_NODE}} node does not widen where it can be grabbed`,
+			action: async ({ node }: { node: TGraphNode }) => {
 				const page = await this.page();
-				const id = this.opened.get(name) ?? (await this.resolveNodeId(page, name));
-				if (!id) return actionNotOK(`no graph node "${name}"`);
+				const id = await this.resolveNodeId(page, node.id);
+				if (!id) return actionNotOK(`no graph node "${node.id}"`);
 				// The head-on aim, not fit: fit keeps whatever orbit earlier scenarios left, and an oblique aim can put
 				// another chip in front of the probed one along the ray. The span probe needs the deterministic frame.
 				await this.call(page, "rotateTo", ["xy"]);
@@ -2265,9 +2275,6 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		await this.settleScopedRefetch(page);
 		return actionOK();
 	}
-
-	/** What the view showed when each scene was saved in this run, so a later comparison has something to compare against. */
-	private savedScenes = new Map<string, Record<string, Record<string, unknown>>>();
 
 	/** The view's own record of how it is set up: the same reading a scene saves. */
 	private captureGraphScene(page: Page): Promise<Record<string, Record<string, unknown>>> {

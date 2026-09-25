@@ -260,7 +260,7 @@ export type TIndividualRef = z.infer<typeof individualRefSchema>;
  * individual itself, whose id it takes. Each is `{ id }` to the step that takes it. Text that opens as JSON is read as
  * JSON, and refused where it isn't.
  */
-const individualRefInputSchema = z.preprocess((value, ctx) => {
+export const individualRefInputSchema = z.preprocess((value, ctx) => {
 	const given = typeof value === "string" && value.trimStart().startsWith("{") ? parseJsonText(value, ctx) : value;
 	if (typeof given === "string") return { id: given };
 	if (given && typeof given === "object" && typeof (given as { id?: unknown }).id === "string") return { id: (given as { id: string }).id };
