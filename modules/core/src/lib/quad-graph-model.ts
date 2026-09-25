@@ -13,7 +13,7 @@
  * never hardcoded here: it is injected, so core names no downstream.
  */
 import type { TCluster, TClusteredQuads, TQuad } from "./quad-types.js";
-import { displayLabelForQuads, displayLabelResolvesThrough } from "./hypermedia.js";
+import { displayLabelForQuads, type TDeclaredTitle, type TTitledBy } from "./hypermedia.js";
 import { BODY_LABEL } from "./resources.js";
 
 // A scalar PROPERTY (no objectType) keys by subject+predicate, so a later value for the same fact REPLACES in place:
@@ -28,9 +28,9 @@ const quadKey = (q: TQuad): string =>
 /** Rels for a type, used by the shared display-label rule. Server: the registry's fields; client: getRels. */
 export type RelsProvider = (type: string) => Record<string, string> | undefined;
 
-/** The property type (rel) a type declares as its labeling property (topology.displayLabel), or undefined where its
- *  vocabulary designates none. Server: the registry's displayLabelRel; client: getDisplayLabelRel from the rels cache. */
-export type DisplayLabelRelProvider = (type: string) => string | undefined;
+/** The property or edge a type declares titles it (topology.displayLabel), or undefined where it declares none. Server:
+ *  the registry's titledBy; client: getTitledBy from the rels cache. */
+export type TitledByProvider = (type: string) => TTitledBy | undefined;
 
 /** Body preview text for a body subject. Client: read from in-memory body quads (the default); server: SQL previews. */
 export type BodyContentProvider = (subject: string) => string | undefined;
@@ -55,7 +55,7 @@ export class QuadGraphModel {
 	constructor(
 		private readonly limit: number,
 		private readonly relsFor: RelsProvider,
-		private readonly displayLabelRelFor: DisplayLabelRelProvider = () => undefined,
+		private readonly titledByFor: TitledByProvider = () => undefined,
 	) {}
 
 	get snapshot(): TClusteredQuads {
@@ -198,23 +198,26 @@ export class QuadGraphModel {
 	}
 
 	/**
-	 * The type's declared labeling property (topology.displayLabel) resolved for this node, or undefined when it declares
-	 * none: its own value for a literal-ranged rel (read from the node's quads by composeDisplayLabel), else the label of
-	 * the individual its iri-ranged rel points at: one hop, from the same quads, mirroring the server's batchLinkedLabels.
+	 * The type's declared title (topology.displayLabel) resolved for this node, or undefined when it declares none: its
+	 * property, read from the node's quads by composeDisplayLabel, or the title of the record its edge points at, from
+	 * the same quads, as the server's batchLinkedLabels resolves it. A record titled by another titled by a third takes
+	 * the third's title; a record met again ends the chain, so a cycle can't spin.
 	 */
-	private declaredLabelFor(type: string, subject: string, quadsBySubject: Map<string, TQuad[]>, bodyFor: BodyContentProvider): { rel: string; linkedLabel?: string } | undefined {
-		const rel = this.displayLabelRelFor(type);
-		if (!rel) return undefined;
-		if (!displayLabelResolvesThrough(rel)) return { rel };
-		const edge = (quadsBySubject.get(subject) ?? []).find((q) => q.predicate === rel && q.objectType !== undefined);
-		if (!edge) return { rel };
+	private declaredLabelFor(
+		type: string,
+		subject: string,
+		quadsBySubject: Map<string, TQuad[]>,
+		bodyFor: BodyContentProvider,
+		met: ReadonlySet<string> = new Set(),
+	): TDeclaredTitle | undefined {
+		const titledBy = this.titledByFor(type);
+		if (!titledBy?.through) return titledBy;
+		const edge = (quadsBySubject.get(subject) ?? []).find((q) => q.predicate === titledBy.key && q.objectType !== undefined);
+		if (!edge || met.has(String(edge.object))) return titledBy;
 		const targetType = String(edge.objectType);
 		const targetId = String(edge.object);
-		// One hop only: the target is titled from its own literal-ranged labeling property, so a chain of proxies resolves
-		// no further and the last falls back to its id: the bound that keeps a cycle from spinning.
-		const targetRel = this.displayLabelRelFor(targetType);
-		const targetDeclared = targetRel && !displayLabelResolvesThrough(targetRel) ? { rel: targetRel } : undefined;
+		const targetDeclared = this.declaredLabelFor(targetType, targetId, quadsBySubject, bodyFor, new Set([...met, subject]));
 		const linkedLabel = displayLabelForQuads(targetType, targetId, quadsBySubject.get(targetId) ?? [], bodyFor, this.relsFor(targetType), targetDeclared);
-		return { rel, linkedLabel };
+		return { ...titledBy, linkedLabel };
 	}
 }

@@ -43,8 +43,8 @@ export interface SiteMetadata {
 	/** Per label, the type's class IRI (topology.type / the concern's asType), when it declares one, lets a view tell a
 	 *  haibun-namespace (system) type from a standard/consumer one. The builder always sets it; optional for partial fixtures. */
 	classIris?: Record<string, string>;
-	/** Per label, the property type (rel) whose value titles it, `topology.displayLabel`, where declared. */
-	displayLabelRels?: Record<string, string>;
+	/** Per label, the property or edge that titles it, `topology.displayLabel`, where declared. */
+	titledBy?: Record<string, TTitledBy>;
 	/** The types that record the run's own execution, `topology.instrumentation`. */
 	instrumentationTypes?: string[];
 }
@@ -112,9 +112,9 @@ export function isSystemSchemaType(label: string): boolean {
 	return iri !== undefined && propertyVocabulary(iri).source === "haibun";
 }
 
-/** The property type (rel) whose value titles this type, where its vocabulary designates one (`topology.displayLabel`). */
-export function getDisplayLabelRel(label: string): string | undefined {
-	return metadata?.displayLabelRels?.[label];
+/** The property or edge that titles this type, where it declares one (`topology.displayLabel`). */
+export function getTitledBy(label: string): TTitledBy | undefined {
+	return metadata?.titledBy?.[label];
 }
 
 /** Whether a type records the run's own execution, as its topology declares. */
@@ -322,7 +322,7 @@ export function hasUsableSelectValues(label: string): boolean {
 
 // --- Concern catalog (for haibun domain discovery) ---
 
-import type { TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
+import type { TConcernCatalog, TTitledBy } from "@haibun/core/lib/hypermedia.js";
 import { LinkRelations, RESOURCE_LABEL, getPropertyDefinitions, isSubPropertyOf, roleRels, fromActorRels, toActorRels } from "@haibun/core/lib/resources.js";
 import { pagePinned } from "./page-pinned.js";
 
@@ -400,11 +400,11 @@ export function siteMetadataFromConcerns(catalog: TConcernCatalog, domains?: Rec
 	const summary: Record<string, string[]> = {};
 	const ui: Record<string, Record<string, unknown>> = {};
 	const classIris: Record<string, string> = {};
-	const displayLabelRels: Record<string, string> = {};
+	const titledBy: Record<string, TTitledBy> = {};
 	const instrumentationTypes: string[] = [];
 	for (const [label, concern] of Object.entries(catalog.persisted)) {
 		types.push(label);
-		if (concern.displayLabel) displayLabelRels[label] = concern.displayLabel;
+		if (concern.displayLabel) titledBy[label] = { key: concern.displayLabel, through: concern.edges[concern.displayLabel] !== undefined };
 		if (concern.instrumentation) instrumentationTypes.push(label);
 		idFields[label] = concern.idField;
 		if (concern.asType) classIris[label] = concern.asType;
@@ -466,7 +466,7 @@ export function siteMetadataFromConcerns(catalog: TConcernCatalog, domains?: Rec
 		ui,
 		propertyDefinitions,
 		classIris,
-		displayLabelRels,
+		titledBy,
 		instrumentationTypes,
 	};
 }

@@ -8,7 +8,6 @@ import {
 	PRINCIPAL_LABEL,
 	SPECIFIC_RESOURCE_LABEL,
 	TEXT_QUOTE_SELECTOR_LABEL,
-	LinkRelations,
 	commentDomainDefinition,
 	principalDomainDefinition,
 	bodyDomainDefinition,
@@ -16,7 +15,7 @@ import {
 	textQuoteSelectorDomainDefinition,
 } from "@haibun/core/lib/resources.js";
 import { projectFilterClusters, effectiveHiddenTypes } from "./graph-filter-projection.js";
-import { siteMetadataFromConcerns, setSiteMetadata, getDisplayLabelRel } from "./rels-cache.js";
+import { siteMetadataFromConcerns, setSiteMetadata, getTitledBy } from "./rels-cache.js";
 
 function quad(namedGraph: string, subject: string, timestamp = 1): TQuad {
 	return { namedGraph, subject, predicate: "p", object: "o", timestamp };
@@ -155,10 +154,10 @@ describe("declared labeling property (topology.displayLabel) reaches the browser
 	beforeEach(() => setSiteMetadata(metadata));
 
 	it("serves each type's labeling property, and none for a type titled by the shared headline", () => {
-		expect(getDisplayLabelRel(TEXT_QUOTE_SELECTOR_LABEL)).toBe(LinkRelations.EXACT.rel);
-		expect(getDisplayLabelRel(SPECIFIC_RESOURCE_LABEL)).toBe(LinkRelations.HAS_SELECTOR.rel);
-		expect(getDisplayLabelRel(COMMENT_LABEL)).toBeUndefined();
-		expect(getDisplayLabelRel(PRINCIPAL_LABEL)).toBeUndefined();
+		expect(getTitledBy(TEXT_QUOTE_SELECTOR_LABEL)).toEqual({ key: "exact", through: false });
+		expect(getTitledBy(SPECIFIC_RESOURCE_LABEL)).toEqual({ key: "hasSelector", through: true });
+		expect(getTitledBy(COMMENT_LABEL)).toBeUndefined();
+		expect(getTitledBy(PRINCIPAL_LABEL)).toBeUndefined();
 	});
 
 	it("hides no domain type for being hard to title: a declared type draws like any other", () => {

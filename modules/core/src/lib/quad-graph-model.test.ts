@@ -109,25 +109,48 @@ describe("QuadGraphModel", () => {
 	// property's value in the quad path too, the same rule the server applies, never by the id its store had to generate.
 	it("titles a declared-label type by its property value, not its id (literal rel)", () => {
 		const rels = (type: string) => (type === TEXT_QUOTE_SELECTOR_LABEL ? { exact: LinkRelations.EXACT.rel } : undefined);
-		const declaredRel = (type: string) => (type === TEXT_QUOTE_SELECTOR_LABEL ? LinkRelations.EXACT.rel : undefined);
-		const m = new QuadGraphModel(10, rels, declaredRel);
-		m.merge([q("sel-uuid", LinkRelations.EXACT.rel, "12.1.1 the exact passage", TEXT_QUOTE_SELECTOR_LABEL)]);
+		const titledBy = (type: string) => (type === TEXT_QUOTE_SELECTOR_LABEL ? { key: "exact", through: false } : undefined);
+		const m = new QuadGraphModel(10, rels, titledBy);
+		m.merge([q("sel-uuid", "exact", "12.1.1 the exact passage", TEXT_QUOTE_SELECTOR_LABEL)]);
 		const c = m.clusters.find((c) => c.type === TEXT_QUOTE_SELECTOR_LABEL);
 		expect(c?.displayLabels["sel-uuid"]).toBe("12.1.1 the exact passage");
 	});
 
-	// A proxy whose labeling property is iri-ranged (oa:hasSelector) is titled ONE hop through it, by the passage its
-	// selector locates, resolving the target's quads even though only the proxy was the direct merge subject.
-	it("titles a proxy through its iri-ranged declared rel: one hop to what it points at", () => {
+	// A proxy titled by an edge (oa:hasSelector) takes the title of what it points at, resolving the target's quads even
+	// though only the proxy was the direct merge subject.
+	it("titles a proxy through its declared edge, by what it points at", () => {
 		const rels = (type: string) => (type === TEXT_QUOTE_SELECTOR_LABEL ? { exact: LinkRelations.EXACT.rel } : undefined);
-		const declaredRel = (type: string) =>
-			type === TEXT_QUOTE_SELECTOR_LABEL ? LinkRelations.EXACT.rel : type === SPECIFIC_RESOURCE_LABEL ? LinkRelations.HAS_SELECTOR.rel : undefined;
-		const m = new QuadGraphModel(10, rels, declaredRel);
+		const titledBy = (type: string) =>
+			type === TEXT_QUOTE_SELECTOR_LABEL ? { key: "exact", through: false } : type === SPECIFIC_RESOURCE_LABEL ? { key: "hasSelector", through: true } : undefined;
+		const m = new QuadGraphModel(10, rels, titledBy);
 		m.merge([
-			q("sel-uuid", LinkRelations.EXACT.rel, "the located passage", TEXT_QUOTE_SELECTOR_LABEL),
-			qe("sr-uuid", LinkRelations.HAS_SELECTOR.rel, "sel-uuid", TEXT_QUOTE_SELECTOR_LABEL, SPECIFIC_RESOURCE_LABEL),
+			q("sel-uuid", "exact", "the located passage", TEXT_QUOTE_SELECTOR_LABEL),
+			qe("sr-uuid", "hasSelector", "sel-uuid", TEXT_QUOTE_SELECTOR_LABEL, SPECIFIC_RESOURCE_LABEL),
 		]);
 		const c = m.clusters.find((c) => c.type === SPECIFIC_RESOURCE_LABEL);
 		expect(c?.displayLabels["sr-uuid"]).toBe("the located passage");
+	});
+
+	// An edge is named by its key, not its rel: several of a type's edges share a rel, and the quads carry the key.
+	it("titles through an edge named by its key, along a chain, and ends a cycle", () => {
+		const [CREDENTIAL, PRESENTATION, VERDICT] = ["Credential", "Presentation", "Verdict"];
+		const titledBy = (type: string) =>
+			({
+				[CREDENTIAL]: { key: "type", through: false },
+				[PRESENTATION]: { key: "verifiableCredential", through: true },
+				[VERDICT]: { key: "verifiedPresentation", through: true },
+			})[type];
+		const m = new QuadGraphModel(10, () => ({}), titledBy);
+		m.merge([
+			q("vc", "type", "EmployeeCredential", CREDENTIAL),
+			qe("vp", "verifiableCredential", "vc", CREDENTIAL, PRESENTATION),
+			qe("pv", "verifiedPresentation", "vp", PRESENTATION, VERDICT),
+			qe("loop-a", "verifiedPresentation", "loop-b", VERDICT, VERDICT),
+			qe("loop-b", "verifiedPresentation", "loop-a", VERDICT, VERDICT),
+		]);
+		const labelOf = (type: string, id: string) => m.clusters.find((c) => c.type === type)?.displayLabels[id];
+		expect(labelOf(PRESENTATION, "vp")).toBe("EmployeeCredential");
+		expect(labelOf(VERDICT, "pv"), "through the presentation to its credential").toBe("EmployeeCredential");
+		expect(labelOf(VERDICT, "loop-a"), "a cycle ends at a record met again").toBeTypeOf("string");
 	});
 });

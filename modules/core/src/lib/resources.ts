@@ -700,17 +700,17 @@ export type THypermediaTopology = {
 	/** Default sort field when a query specifies none. Must be one of this type's sort columns. Declare it for a type whose meaningful event/content time differs from its record-creation time (e.g. an email's received time vs its import time); otherwise the universal generatedAtTime is used. */
 	defaultSort?: string;
 	/**
-	 * The property type (rel) whose value titles this type: its vocabulary's labeling property, the way foaf:name or
+	 * The property or edge of this type that titles it: its vocabulary's labeling property, the way foaf:name or
 	 * dcterms:title labels its own type. Declare it for a type that says what it is through a term of its own vocabulary
 	 * rather than the cross-domain rdfs:label / as:name / content that `DISPLAY_LABEL_HEADLINE` resolves: an
 	 * oa:TextQuoteSelector is the passage it quotes (oa:exact), not a thing with a name.
 	 *
-	 * Must be a rel this type declares, as a property OR an edge: the rel's own range decides how it resolves, so both
-	 * are the same declaration: a literal-ranged rel (oa:exact) carries the label text; an iri-ranged one (oa:hasSelector)
-	 * points at the individual whose label this type takes, which is how a proxy standing for another resource is titled.
+	 * A property titles the type by its value, a list by its members. An edge titles it by the title of the record it
+	 * points at, which is how a record standing for another is titled: an oa:SpecificResource by the passage its selector
+	 * locates, a verdict by what it checked. A record titled by another titled by a third takes the third's title.
 	 * An explicit rdfs:label on an individual still wins: this is the type's title, not an override of the reader's.
 	 */
-	displayLabel?: TRel;
+	displayLabel?: string;
 };
 
 /**
@@ -1112,7 +1112,7 @@ export const textQuoteSelectorDomainDefinition: TDomainDefinition = {
 		},
 		// Named as the labeling property, never remapped to CONTENT.rel: the selector has no content, and asserting the
 		// quote as its content would serialize a false claim.
-		displayLabel: LinkRelations.EXACT.rel,
+		displayLabel: "exact",
 		sortColumns: { exact: "TEXT" },
 	},
 };
@@ -1159,7 +1159,7 @@ export const specificResourceDomainDefinition: TDomainDefinition = {
 			hasSelector: { rel: LinkRelations.HAS_SELECTOR.rel, range: TEXT_QUOTE_SELECTOR_LABEL },
 		},
 		// Titled through its selector: the proxy carries no property of its own a reader could be shown.
-		displayLabel: LinkRelations.HAS_SELECTOR.rel,
+		displayLabel: "hasSelector",
 	},
 };
 
@@ -1229,7 +1229,7 @@ export const sceneDomainDefinition: TDomainDefinition = {
 		persistedAs: SCENE_LABEL,
 		id: "id",
 		// Its id is its name.
-		displayLabel: LinkRelations.IDENTIFIER.rel,
+		displayLabel: "id",
 		properties: {
 			id: LinkRelations.IDENTIFIER.rel,
 			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,

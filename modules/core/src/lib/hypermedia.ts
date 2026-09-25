@@ -249,9 +249,8 @@ const HypermediaConcernSchema = z.object({
 	 *  file's own date; the declared defaultSort), as distinct from generatedAtTime, its INDEXED time. Every time-aware
 	 *  consumer reads this one derivation, so an individual places by its own time unless indexed time is asked for. */
 	validTimeField: z.string(),
-	/** The property type (rel) whose value titles this type: the vocabulary's own labeling property
-	 *  (`topology.displayLabel`), resolved through the rel when its range is iri. Absent for a type titled by the
-	 *  cross-domain rdfs:label / as:name / content. */
+	/** The property or edge that titles this type (`topology.displayLabel`): a property by its value, an edge by the
+	 *  title of the record it points at. Absent for a type titled by the cross-domain rdfs:label / as:name / content. */
 	displayLabel: z.string().optional(),
 	/** True when declared at runtime (`set of {domain} by …`) vs by a compiled stepper. */
 	declared: z.boolean().default(false),
@@ -354,11 +353,8 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 
 		assertBoundPrefixes(label, domainKey, topology);
 
-		if (topology.displayLabel !== undefined) {
-			const carriers = [...Object.values(properties).map((p) => p.rel), ...Object.values(edges).map((e) => e.rel)];
-			if (!carriers.includes(topology.displayLabel))
-				throw new Error(`persisted domain "${label}" (${domainKey}) declares displayLabel "${topology.displayLabel}" but has no property or edge with that rel`);
-		}
+		if (topology.displayLabel !== undefined && properties[topology.displayLabel] === undefined && edges[topology.displayLabel] === undefined)
+			throw new Error(`persisted domain "${label}" (${domainKey}) declares displayLabel "${topology.displayLabel}", which is none of its properties or edges`);
 
 		// The domain's own description, carried onto its served schema: a type describes itself ONCE, and every surface:
 		// the type's view, a product's `_description`, a step's tool schema, reads that one text. A `.describe()` on the
@@ -549,8 +545,8 @@ export type ResourceRels = {
 	createdField(type: string): string;
 	nameField(type: string): string | undefined;
 	contentField(type: string): string | undefined;
-	/** The property type (rel) this type declares as its labeling property, where its vocabulary designates one. */
-	displayLabelRel(type: string): TRel | undefined;
+	/** The property or edge that titles this type, where it declares one. */
+	titledBy(type: string): TTitledBy | undefined;
 	/** Whether the type records the run's own execution (`topology.instrumentation`). */
 	instrumentation(type: string): boolean;
 	fields(type: string): Record<string, string>;
@@ -563,7 +559,7 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 	const idFields = new Map<string, string>();
 	const relMaps = new Map<string, Record<string, string>>();
 	const schemas = new Map<string, z.ZodType>();
-	const displayLabelRels = new Map<string, TRel>();
+	const titledBy = new Map<string, TTitledBy>();
 	const instrumentation = new Set<string>();
 
 	for (const domain of Object.values(domains)) {
@@ -573,7 +569,7 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 		types.push(type);
 		idFields.set(type, topology.id);
 		schemas.set(type, domain.schema);
-		if (topology.displayLabel) displayLabelRels.set(type, topology.displayLabel);
+		if (topology.displayLabel) titledBy.set(type, { key: topology.displayLabel, through: topology.edges?.[topology.displayLabel] !== undefined });
 		if (topology.instrumentation) instrumentation.add(type);
 		const rels: Record<string, string> = {};
 		for (const [field, def] of Object.entries(topology.properties ?? {})) {
@@ -610,7 +606,7 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 		},
 		nameField: (type) => fieldByRel(type, LinkRelations.NAME.rel),
 		contentField: (type) => fieldByRel(type, LinkRelations.CONTENT.rel),
-		displayLabelRel: (type) => displayLabelRels.get(type),
+		titledBy: (type) => titledBy.get(type),
 		instrumentation: (type) => instrumentation.has(type),
 		fields: (type) => relMaps.get(type) ?? {},
 		schema: (type) => {
@@ -654,7 +650,26 @@ export const DISPLAY_LABEL_REL_PRIORITY: ReadonlyArray<{ rel: string; bare: bool
  * reading the property's own value. The rel's declared range decides, so a type states only WHICH property titles it,
  * never how that property resolves.
  */
-export const displayLabelResolvesThrough = (rel: string): boolean => getRelRange(rel) === "iri";
+/** What titles a type: the property or edge it declares (`topology.displayLabel`), and whether it is an edge, which
+ *  titles it by the record it points at. */
+export type TTitledBy = { key: string; through: boolean };
+
+/** A title as a type declares it for one record: for an edge, the title of the record it points at, where it points at one. */
+export type TDeclaredTitle = TTitledBy & { linkedLabel?: string };
+
+/** A value as a title: text or a number as it is, a list as its members. */
+export function titleOfValue(value: unknown): string | undefined {
+	if (typeof value === "string") return value.trim() || undefined;
+	if (typeof value === "number" || typeof value === "boolean") return String(value);
+	if (Array.isArray(value))
+		return (
+			value
+				.map(titleOfValue)
+				.filter((member) => member !== undefined)
+				.join(", ") || undefined
+		);
+	return undefined;
+}
 
 /** Maximum length for a display label (bytes/chars). Truncated values are suffixed with an ellipsis. */
 export const MAX_DISPLAY_LABEL_LEN = 80;
@@ -723,7 +738,7 @@ export function composeDisplayLabel(args: {
 	rels: Record<string, string> | undefined;
 	getProperty: (field: string) => unknown;
 	bodyContents?: ReadonlyArray<string | null | undefined>;
-	displayLabel?: { rel: string; linkedLabel?: string };
+	displayLabel?: TDeclaredTitle;
 	id: string;
 }): string {
 	const explicit = resolveFromCandidates(args.rels, args.getProperty, DISPLAY_LABEL_EXPLICIT);
@@ -735,16 +750,12 @@ export function composeDisplayLabel(args: {
 	return clampDisplayLabel(headline ?? body ?? weak ?? args.id);
 }
 
-/** The type's declared labeling property resolved to text: through the edge for an iri-ranged rel, else its own value. */
-function resolveDeclaredLabel(args: {
-	rels: Record<string, string> | undefined;
-	getProperty: (field: string) => unknown;
-	displayLabel?: { rel: string; linkedLabel?: string };
-}): string | undefined {
+/** The type's declared title resolved to text: the title of the record its edge points at, else its property's value. */
+function resolveDeclaredLabel(args: { getProperty: (field: string) => unknown; displayLabel?: TDeclaredTitle }): string | undefined {
 	const declared = args.displayLabel;
 	if (!declared) return undefined;
-	if (displayLabelResolvesThrough(declared.rel)) return declared.linkedLabel?.trim() || undefined;
-	return resolveFromCandidates(args.rels, args.getProperty, [{ rel: declared.rel, bare: true }]);
+	if (declared.through) return declared.linkedLabel?.trim() || undefined;
+	return titleOfValue(args.getProperty(declared.key));
 }
 
 /**
@@ -781,10 +792,16 @@ export function displayLabelForQuads(
 	subjectQuads: ReadonlyArray<LabelQuad>,
 	bodyContentOf: (bodySubject: string) => string | undefined,
 	rels: Record<string, string> | undefined,
-	declared?: { rel: string; linkedLabel?: string },
+	declared?: TDeclaredTitle,
 ): string {
 	const bodyContents = type === BODY_LABEL ? [] : linkedBodyContents(subjectQuads, bodyContentOf);
-	const getProperty = (field: string) => subjectQuads.find((q) => q.predicate === field && (typeof q.object === "string" || typeof q.object === "number"))?.object;
+	// A list arrives as one quad holding it or as a quad for each member.
+	const getProperty = (field: string) => {
+		const values = subjectQuads
+			.filter((q) => q.predicate === field && q.objectType === undefined && (typeof q.object === "string" || typeof q.object === "number" || Array.isArray(q.object)))
+			.map((q) => q.object);
+		return values.length > 1 ? values : values[0];
+	};
 	return composeDisplayLabel({ rels, getProperty, bodyContents, id: subject, ...(declared ? { displayLabel: declared } : {}) });
 }
 

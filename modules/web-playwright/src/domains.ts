@@ -90,7 +90,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 			type: "as:Application",
 			id: "id",
 			properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel },
-			displayLabel: LinkRelations.NAME.rel,
+			displayLabel: "name",
 		},
 	},
 	{
@@ -103,7 +103,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 			type: "as:Service",
 			id: "id",
 			properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel, requestCount: LinkRelations.TAG.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel },
-			displayLabel: LinkRelations.NAME.rel,
+			displayLabel: "name",
 		},
 	},
 	{
@@ -116,7 +116,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 			type: "schema:WebPage",
 			id: "id",
 			properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel },
-			displayLabel: LinkRelations.NAME.rel,
+			displayLabel: "name",
 		},
 	},
 	{

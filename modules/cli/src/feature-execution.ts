@@ -65,7 +65,7 @@ export const featureExecutionDomainDefinition: TDomainDefinition = {
 	topology: {
 		persistedAs: FEATURE_EXECUTION_LABEL,
 		id: "id",
-		displayLabel: LinkRelations.NAME.rel,
+		displayLabel: "filter",
 		properties: {
 			id: LinkRelations.IDENTIFIER.rel,
 			where: LinkRelations.TAG.rel,

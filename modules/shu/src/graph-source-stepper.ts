@@ -160,7 +160,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 				const model = new QuadGraphModel(
 					perTypeLimit,
 					(type) => this.resourceRels().fields(type),
-					(type) => this.resourceRels().displayLabelRel(type),
+					(type) => this.resourceRels().titledBy(type),
 				);
 				model.seed({ quads: result.quads as TQuad[], clusters: [...result.clusters] });
 				const quads = model.snapshot.quads.map(({ subject, predicate, object, objectType, namedGraph, timestamp, properties }) => ({
