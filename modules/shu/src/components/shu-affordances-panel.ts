@@ -336,9 +336,17 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		const action = alreadySatisfied ? "Run again to produce another." : "Pick one to start; the first step opens in the actions bar so you can supply any inputs.";
 		return html`<div class="resolution-detail">
 			<div class="path-heading">${count}${truncatedNote}. ${action}</div>
-			<shu-graph class="goal-graph" data-testid=${`goal-graph-${goalIdx}`} data-goal-idx=${goalIdx}></shu-graph>
+			<shu-graph class="goal-graph" data-testid=${`goal-graph-${this.goalDomainAt(goalIdx)}`} data-goal-idx=${goalIdx}></shu-graph>
 			<div class="path-list">${michi.map((m, i) => this.renderPathCardTpl(m, goalIdx, i))}</div>
 		</div>`;
+	}
+
+	/** The domain of the goal at an index: what a test id names a goal's parts by, since a goal's place in the list moves
+	 *  as other goals come and go. */
+	private goalDomainAt(goalIdx: number): string {
+		const domain = this.affordances?.goals[goalIdx]?.domain;
+		if (domain === undefined) throw new Error(`shu-affordances-panel: no goal at ${goalIdx}`);
+		return domain;
 	}
 
 	private renderPathCardTpl(path: TMichi, goalIdx: number, pathIdx: number): TemplateResult {
@@ -353,7 +361,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		return html`<div class="path-card" data-testid=${`path-card-${goalIdx}-${pathIdx}`} @mouseenter=${(): void => this.highlightPath(goalIdx, pathIdx)} @mouseleave=${(): void => this.highlightPath(goalIdx, undefined)}>
 			<div class="path-card-header">
 				<span class="path-label">Path ${pathIdx + 1}</span>
-				<button class="start-path" data-testid=${`start-path-${goalIdx}-${pathIdx}`} data-goal-idx=${goalIdx} data-path-idx=${pathIdx} title=${`Open the first step (${firstStepLabel}) in the actions bar`} @click=${(): void => this.startPath(path)}>Start this path</button>
+				<button class="start-path" data-testid=${`start-path-${this.goalDomainAt(goalIdx)}-${pathIdx}`} data-goal-idx=${goalIdx} data-path-idx=${pathIdx} title=${`Open the first step (${firstStepLabel}) in the actions bar`} @click=${(): void => this.startPath(path)}>Start this path</button>
 			</div>
 			<ol class="plan-steps">${path.steps.map((s) => html`<li>${actionRef(stepMethodName(s.stepperName, s.stepName))}${s.gwta ? html`, ${s.gwta}` : ""}</li>`)}</ol>
 			${path.bindings.length > 0 ? this.renderBindingsTpl(path.bindings) : ""}

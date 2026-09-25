@@ -768,6 +768,9 @@ export type TDomainDefinition = {
 	coerce?: TDomainCoercer;
 	comparator?: TDomainComparator;
 	values?: string[];
+	/** Whether a word names a member, for a domain whose members are what is registered: too many to list where a step is
+	 *  described, so a bare word is read by this rather than by `values`. */
+	names?: (term: string) => boolean;
 	description: string;
 	/** Stepper that registered this domain (set automatically by registerDomains) */
 	stepperName?: string;
@@ -783,6 +786,9 @@ export type TRegisteredDomain = {
 	coerce: TDomainCoercer;
 	comparator?: TDomainComparator;
 	values?: string[];
+	/** Whether a word names a member, for a domain whose members are what is registered: too many to list where a step is
+	 *  described, so a bare word is read by this rather than by `values`. */
+	names?: (term: string) => boolean;
 	description: string;
 	stepperName?: string;
 	topology?: TDomainTopology;

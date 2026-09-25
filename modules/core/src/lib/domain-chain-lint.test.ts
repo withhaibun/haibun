@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { z } from "zod";
 
 import { AStepper, type TStepperSteps } from "./astepper.js";
-import { mapDefinitionsToDomains } from "./domains.js";
+import { deriveNamingDomains, mapDefinitionsToDomains, refDomainKey } from "./domains.js";
 import { LinkRelations } from "./resources.js";
 import { actionOKWithProducts } from "./util/index.js";
 import { OK } from "../schema/protocol.js";
@@ -116,6 +116,26 @@ describe("lintDomainChain", () => {
 		}
 		const report = lintDomainChain(buildDomainChain([new Greets()], domains()), domains());
 		expect(report.findings.filter((f) => f.kind === "unsupplied-step" || f.kind === "unproduced-domain")).toEqual([]);
+	});
+
+	it("takes a reference as supplied where its type is produced or a step answers with one, and its taker as taking the type", () => {
+		const EMAIL_REF = refDomainKey(EMAIL);
+		class RemovesEmail extends AStepper {
+			steps: TStepperSteps = { remove: { gwta: `remove {email: ${EMAIL_REF}}`, action: () => OK } };
+		}
+		class FindsEmail extends AStepper {
+			steps: TStepperSteps = { find: { gwta: "find an email", productsDomain: EMAIL_REF, action: () => actionOKWithProducts({ id: "e1" }) } };
+		}
+		const findings = (steppers: AStepper[]) => {
+			const withRefs = deriveNamingDomains(domains());
+			return lintDomainChain(buildDomainChain(steppers, withRefs), withRefs).findings;
+		};
+		const unsupplied = (steppers: AStepper[], stepName: string) => findings(steppers).filter((f) => f.kind === LINT_FINDING.UNSUPPLIED_STEP && f.stepName === stepName);
+		expect(unsupplied([new RemovesEmail()], "remove"), "no step produces an email").toHaveLength(1);
+		expect(unsupplied([new RemovesEmail(), new EmailFromPerson()], "remove"), "a step issuing an email supplies a reference to one").toEqual([]);
+		expect(unsupplied([new ArchiveEmail(), new FindsEmail()], "archive"), "a step answering with a reference supplies the email it refers to").toEqual([]);
+		const orphaned = findings([new EmailFromPerson(), new RemovesEmail()]).filter((f) => f.kind === LINT_FINDING.ORPHAN_STEP && f.outputDomain === EMAIL);
+		expect(orphaned, "a step taking a reference to an email takes an email").toEqual([]);
 	});
 
 	it("reports unreachable-domain for a registered domain neither consumed nor produced", () => {

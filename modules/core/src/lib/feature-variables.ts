@@ -3,7 +3,7 @@ import { isLiteralValue } from "./util/index.js";
 import { parseDotPath, navigateValue } from "./util/dot-path.js";
 import type { TWorld } from "./world.js";
 import { Origin, TOrigin, TProvenanceIdentifier, TStepValue } from "../schema/protocol.js";
-import { DOMAIN_JSON, DOMAIN_STRING, DOMAIN_UNION, WRITTEN_DOMAINS, domainParts, normalizeDomainKey } from "./domains.js";
+import { DOMAIN_JSON, DOMAIN_STRING, DOMAIN_UNION, WRITTEN_DOMAINS, domainParts, namesMember, normalizeDomainKey } from "./domains.js";
 import { QuadStore } from "./quad-store.js";
 import { accessBound, readingAsStated } from "./capability-context.js";
 import { declaredAccessLevel } from "./resources.js";
@@ -155,7 +155,7 @@ export class FeatureVariables {
 				} else if (isLiteralValue(input.term)) {
 					resolved.value = input.term;
 					resolved.domain = DOMAIN_STRING;
-				} else if (input.domain && this.world.domains[input.domain]?.values?.includes(input.term)) {
+				} else if (input.domain && namesMember(this.world.domains[input.domain], input.term)) {
 					// A bare word naming a value of its parameter's own domain is that value, as `by placeholder` names a way to find.
 					resolved.value = input.term;
 					resolved.domain = input.domain;

@@ -6,6 +6,7 @@ import { describe, it } from "vitest";
 import path from "node:path";
 import { expectStepGraphAsRecorded } from "@haibun/core/lib/test/step-graph-baseline.js";
 import Haibun from "@haibun/core/steps/haibun.js";
+import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import StorageMem from "@haibun/storage-mem/storage-mem.js";
 import WebServerStepper from "@haibun/web-server-hono/web-server-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
@@ -35,7 +36,7 @@ describe("the typed step graph of shu's steppers", () => {
 				MonitorStepper,
 				ShuStepper,
 			],
-			alongside: [Haibun, StorageMem, VariablesStepper, WebServerStepper],
+			alongside: [Haibun, AuthorityStepper, StorageMem, VariablesStepper, WebServerStepper],
 			baselineFile: path.join(import.meta.dirname, "step-graph.baseline.json"),
 			sourceDir: import.meta.dirname,
 		});

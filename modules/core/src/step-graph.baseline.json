@@ -1,6 +1,6 @@
 [
 	"orphan-step AuthorityStepper.delegationsTo produces delegations",
-	"orphan-step AuthorityStepper.nameConnectingSite produces site-named",
+	"orphan-step AuthorityStepper.nameConnectingSite produces principal-individual-ref",
 	"orphan-step AuthorityStepper.showHeldCalls produces held-calls",
 	"orphan-step BlipsStepper.showDeclaredBlips produces declared-blips",
 	"orphan-step BlipsStepper.showWatchedBlips produces watched-blips",
@@ -58,7 +58,6 @@
 	"unreachable-domain body",
 	"unreachable-domain comment",
 	"unreachable-domain log-message",
-	"unreachable-domain principal-individual",
 	"unreachable-domain reading",
 	"unreachable-domain run-artifact",
 	"unreachable-domain scene",

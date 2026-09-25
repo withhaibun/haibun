@@ -19,8 +19,6 @@
 	"orphan-step ShuStepper.showPolymorphicGraphView produces shu-polymorphic-graph-view",
 	"orphan-step ShuStepper.showShuApps produces shu-apps",
 	"orphan-step ShuStepper.showViews produces shu-view-collection",
-	"string-param GraphSourceStepper.clusteredGraphHoldsFromSite {site: string}",
-	"string-param GraphSourceStepper.clusteredGraphHoldsFromSite {subject: string}",
 	"string-param GraphSourceStepper.getSelectValues {label: string}",
 	"string-param ShuColumnStripControls.activateColumn {match: string}",
 	"string-param ShuColumnStripControls.activeColumnMatches {match: string}",

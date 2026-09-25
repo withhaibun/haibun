@@ -23,7 +23,7 @@ import {
 	type TQuad,
 } from "@haibun/core/lib/quad-types.js";
 import { QuadStore, queryQuadStore, individualWithEdges } from "@haibun/core/lib/quad-store.js";
-import { DOMAIN_RECORD_ID, hypermediaDomainMap, DOMAIN_LINK } from "@haibun/core/lib/domains.js";
+import { DOMAIN_RECORD_ID, hypermediaDomainMap, DOMAIN_LINK, DOMAIN_PRINCIPAL_REF, type TIndividualRef } from "@haibun/core/lib/domains.js";
 import { buildResourceRels, relOf } from "@haibun/core/lib/hypermedia.js";
 import { QuadGraphModel } from "@haibun/core/lib/quad-graph-model.js";
 import { activeSitePrincipal, adoptSitePrincipal, hasDefaultSitePrincipal } from "@haibun/core/lib/host-id.js";
@@ -183,12 +183,13 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			},
 		},
 		clusteredGraphHoldsFromSite: {
-			gwta: `clustered graph holds {type: ${DOMAIN_PERSISTED_TYPE}} {subject} from site {site}`,
+			gwta: `clustered graph holds {type: ${DOMAIN_PERSISTED_TYPE}} {subject: ${DOMAIN_RECORD_ID}} from site {site: ${DOMAIN_PRINCIPAL_REF}}`,
+			recordIds: { subject: "type" },
 			productsDomain: DOMAIN_SUBJECT_SERVED,
 			// Federation-health inspection: does this instance's merged view hold {subject} (a {type} individual)
 			// SERVED BY {site}? Reads the same clustered surface the views render from, so it asserts exactly what a
 			// user would see, including that the subject's stamp names the site that serves it.
-			action: async ({ type, subject, site }: { type: string; subject: string; site: string }) => {
+			action: async ({ type, subject, site: { id: site } }: { type: string; subject: string; site: TIndividualRef }) => {
 				const store = this.getWorld().shared.getStore();
 				if (!store.getClusteredQuads) return actionNotOK("QuadStore does not support getClusteredQuads");
 				const { clusters } = await store.getClusteredQuads({ perTypeLimit: 1000, accessLevel: Access.private });

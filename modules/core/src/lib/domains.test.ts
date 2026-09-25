@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { failWithDefaults, passWithDefaults } from "./test/lib.js";
+import { failWithDefaults, getDefaultWorld, passWithDefaults } from "./test/lib.js";
 import VariablesStepper from "../steps/variables-stepper.js";
 import Haibun from "../steps/haibun.js";
 import LogicStepper from "../steps/logic-stepper.js";
 import { z } from "zod";
-import { toRegisteredDomain } from "./domains.js";
+import { refDomainKey, refTargetOf, registerDomains, toRegisteredDomain } from "./domains.js";
 import { LinkRelations, PersistedVertexSchema, type THypermediaTopology, type TPropertyDef } from "./resources.js";
 
 const steppers = [VariablesStepper, Haibun, LogicStepper];
@@ -116,5 +116,25 @@ describe("a persisted type's level property", () => {
 
 	it("is added where the type is registered, so no declaration repeats it", () => {
 		expect((persisted({}).topology as THypermediaTopology).properties.accessLevel).toBe(LinkRelations.ACCESS_LEVEL.rel);
+	});
+});
+
+describe("a reference to a record of a type", () => {
+	it("is derived for each type a record persists as, one registered as a feature declares it included, and takes a record's id", () => {
+		const RECIPE = "recipe";
+		const world = getDefaultWorld();
+		registerDomains(world, [
+			[
+				{
+					selectors: [RECIPE],
+					schema: z.object({ id: z.string() }),
+					description: "a recipe",
+					topology: { persistedAs: "Recipe", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel } },
+				},
+			],
+		]);
+		const ref = world.domains[refDomainKey(RECIPE)];
+		expect(refTargetOf(ref, world.domains)).toBe(RECIPE);
+		expect(ref.schema.parse("hummus")).toEqual({ id: "hummus" });
 	});
 });

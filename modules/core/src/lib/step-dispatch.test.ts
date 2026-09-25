@@ -204,6 +204,16 @@ describe("step-dispatch", () => {
 			expect(validateToolInput([], tool, { x: LATER }, w).x).toBe(LATER);
 		});
 
+		it("states no list of every domain or type a parameter naming one takes, and refuses an unregistered one", () => {
+			const w = getDefaultWorld();
+			const tool = toolTaking(`test {key: ${DOMAIN_DOMAIN_KEY}} {type: ${DOMAIN_PERSISTED_TYPE}}`, w);
+			const { key, type } = tool.descriptor.inputSchema.properties as Record<string, { enum?: unknown }>;
+			expect(key.enum, "no domain key listed").toBeUndefined();
+			expect(type.enum, "no type listed").toBeUndefined();
+			expect(validateToolInput([], tool, { key: DOMAIN_NUMBER, type: "Anything" }, w).key).toBe(DOMAIN_NUMBER);
+			expect(() => validateToolInput([], tool, { key: "no-such-domain", type: "Anything" }, w)).toThrow(/`show domains` lists them/);
+		});
+
 		it("applies domain.coerce() when world is provided", () => {
 			const w = getDefaultWorld();
 			registerDomains(w, [

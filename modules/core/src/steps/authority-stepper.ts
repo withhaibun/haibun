@@ -5,12 +5,12 @@ import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature, type 
 import { actionNotOK, actionOKWithProducts } from "../lib/util/index.js";
 import { AUTHORITY_KEY, SessionAuthority } from "../lib/session-authority.js";
 import { DELEGATIONS_READ_ACTION, DOMAIN_HELD_CALLS, HeldCallsSchema, type IAuthority } from "../lib/authority-types.js";
-import { DOMAIN_JSON, DOMAIN_STRING } from "../lib/domains.js";
+import { DOMAIN_JSON, DOMAIN_PRINCIPAL_REF, DOMAIN_STRING } from "../lib/domains.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { actingAs, authorizedWith, runActingAs, runAuthorizedWith } from "../lib/capability-context.js";
 import { actionList, capabilityAllows, delegatedActions, readAction } from "../lib/actions.js";
 import { activeSitePrincipal, SITE_DID_PREFIX } from "../lib/host-id.js";
-import { Access, AccessLevelSchema, PRINCIPAL_DOMAIN, PRINCIPAL_LABEL } from "../lib/resources.js";
+import { Access, AccessLevelSchema, PRINCIPAL_LABEL, principalDomainDefinition } from "../lib/resources.js";
 
 const authorityActionSchema = z
 	.string()
@@ -23,9 +23,7 @@ const authorityActionSchema = z
  *  naming the sites that connect to it. */
 export const AUTHORITY_CAPABILITIES = { delegate: "Authority:delegate", revoke: "Authority:revoke", name: "Authority:name" } as const;
 
-const siteNamedSchema = z.object({ site: z.string() });
 /** The domains of the site a connecting instance is named, and the delegations a key holds here. */
-const DOMAIN_SITE_NAMED = "site-named";
 const DOMAIN_DELEGATIONS = "delegations";
 const delegationsSchema = z.object({
 	delegations: z.array(z.record(z.string(), z.unknown())),
@@ -62,7 +60,8 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 		getConcerns: () => ({
 			domains: [
 				{ selectors: [DOMAIN_HELD_CALLS], schema: HeldCallsSchema, description: "The calls an instance holds open, by the capability each rests on" },
-				{ selectors: [DOMAIN_SITE_NAMED], schema: siteNamedSchema, description: "The site a connecting instance is named" },
+				// Naming a connecting site writes a Principal record, so the type it writes is declared here.
+				principalDomainDefinition,
 				{ selectors: [DOMAIN_DELEGATIONS], schema: delegationsSchema, description: "The delegations an instance recorded to a key, as a holder presents them" },
 			],
 		}),
@@ -79,7 +78,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 		nameConnectingSite: {
 			exact: "name a connecting site",
 			capability: AUTHORITY_CAPABILITIES.name,
-			productsDomain: DOMAIN_SITE_NAMED,
+			productsDomains: { site: DOMAIN_PRINCIPAL_REF },
 			// Site principals must be unique within a federation. A default-identified instance (did:site:0 to itself)
 			// asks the site it connects to what it should be called; this end assigns `did:site:<mine>.<n>`, unique
 			// under this site's own principal, and durably records the assignment as a Principal individual, so `n`
@@ -87,8 +86,8 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 			action: async () => {
 				const world = this.getWorld();
 				const store = world.shared?.getStore();
-				if (!world.domains[PRINCIPAL_DOMAIN] || !store) {
-					return actionNotOK("naming a connecting site requires the Principal domain and a store: a namer must durably record the principals it assigns");
+				if (!store) {
+					return actionNotOK("naming a connecting site requires a store: a namer must durably record the principals it assigns");
 				}
 				const myId = activeSitePrincipal(world);
 				const local = myId.startsWith(SITE_DID_PREFIX) ? myId.slice(SITE_DID_PREFIX.length) : myId.replace(/^did:/, "").replace(/:/g, ".");

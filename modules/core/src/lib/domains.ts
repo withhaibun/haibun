@@ -25,7 +25,7 @@ export const DOMAIN_DATE = "date";
 /** The actions a caller holds or a delegation allows. */
 export const DOMAIN_ACTIONS = "actions";
 /** A reference to a Principal by its DID. */
-export const DOMAIN_PRINCIPAL_REF = "principal-ref";
+export const DOMAIN_PRINCIPAL_REF = refDomainKey(PRINCIPAL_DOMAIN);
 /** The id of a record of the type another of its step's parameters names (the step's `recordIds`). */
 export const DOMAIN_RECORD_ID = "record-id";
 export const BASE_TYPES = [DOMAIN_STRING, DOMAIN_TEXT, DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_DATE, DOMAIN_STATEMENT, DOMAIN_JSON];
@@ -105,24 +105,51 @@ export const registerDomains = (world: TWorld, results: TDomainDefinition[][]) =
 	deriveNamingDomains(world.domains);
 };
 
+/** The type a reference domain refers to: the stored type its `topology.ranges.id` names, where the domain is itself
+ *  stored as no type. Undefined for any other domain. */
+export function refTargetOf(domain: TRegisteredDomain, domains: Record<string, TRegisteredDomain>): string | undefined {
+	if (!domain.topology || isPersisted(domain.topology)) return undefined;
+	const target = (domain.topology as { ranges?: Record<string, string> }).ranges?.id;
+	return target !== undefined && isPersisted(domains[target]?.topology) ? target : undefined;
+}
+
+/** The key of the domain whose value is a reference to a record of the type a domain key names. */
+export function refDomainKey(domainKey: string): string {
+	return `${domainKey}-ref`;
+}
+
 /**
  * The domains that name what is registered, derived again whenever a domain is registered, so a type or a domain a
- * feature declares is named: `persisted-type`, the type a record persists as, and `domain-key`, every domain's key.
- * `persisted-type` is open to any type name, since the store holds what exists and records of a type an earlier session
- * declared stay readable; its values are the types declared, so a bare word naming one is that type.
+ * feature declares is named: for each type a record persists as, a reference to one of its records (`refDomainKey`);
+ * `persisted-type`, the type a record persists as; and `domain-key`, every domain's key. The last two test membership
+ * with `names` and list no members, so a step taking one, as a model's prompt describes it, states no list of every type
+ * or domain; `show domains` lists them. `persisted-type` is open to any type name, since the store holds what exists and
+ * records of a type an earlier session declared stay readable; a bare word naming a declared type is that type.
  */
 export const deriveNamingDomains = (domains: Record<string, TRegisteredDomain>) => {
-	const types = [...new Set(getPersistedDomains(domains).map((domain) => domain.topology.persistedAs))].sort();
+	for (const [key, domain] of Object.entries(domains)) {
+		const ref = refDomainKey(key);
+		if (isPersisted(domain.topology)) domains[ref] = toRegisteredDomain(individualRefDomain(ref, key, `A reference to a ${domain.topology.persistedAs} by its id`));
+	}
+	const types = new Set(getPersistedDomains(domains).map((domain) => domain.topology.persistedAs));
 	domains[DOMAIN_PERSISTED_TYPE] = toRegisteredDomain({
 		selectors: [DOMAIN_PERSISTED_TYPE],
 		schema: z.string().min(1),
-		values: types,
+		names: (term) => types.has(term),
 		description: "The type a record persists as",
 	});
-	const keys = Object.keys(domains).filter((key) => key !== DOMAIN_DOMAIN_KEY);
-	domains[DOMAIN_DOMAIN_KEY] = toRegisteredDomain(createEnumDomainDefinition({ name: DOMAIN_DOMAIN_KEY, values: keys, description: "A registered domain's key" }));
+	const registered = (key: string) => key !== DOMAIN_DOMAIN_KEY && domains[key] !== undefined;
+	domains[DOMAIN_DOMAIN_KEY] = toRegisteredDomain({
+		selectors: [DOMAIN_DOMAIN_KEY],
+		schema: z.string().refine(registered, "names no registered domain; `show domains` lists them"),
+		names: registered,
+		description: "A registered domain's key; `show domains` lists them",
+	});
 	return domains;
 };
+
+/** A bare term naming a member of a domain: one of its values, or one its membership test holds for. */
+export const namesMember = (domain: TRegisteredDomain | undefined, term: string): boolean => domain?.values?.includes(term) === true || domain?.names?.(term) === true;
 
 /** The names of the loaded steppers, as the domain a step naming a stepper takes. */
 export const registerStepperNames = (world: TWorld, names: string[]) => {
@@ -203,6 +230,7 @@ export const toRegisteredDomain = (definition: TDomainDefinition): TRegisteredDo
 	coerce: definition.coerce ?? ((proto) => definition.schema.parse(proto.value)),
 	comparator: definition.comparator,
 	values: definition.values,
+	names: definition.names,
 	description: definition.description,
 	stepperName: definition.stepperName,
 	topology: withLevelProperty(definition.topology),
@@ -256,9 +284,6 @@ export function individualRefDomain(refKey: string, targetKey: string, descripti
 		topology: { ranges: { id: targetKey } },
 	};
 }
-
-/** A reference to a Principal: the DID of a person or service that acts here, or its record. */
-export const principalRefDomainDefinition = individualRefDomain(DOMAIN_PRINCIPAL_REF, PRINCIPAL_DOMAIN, "A reference to a Principal by its DID.");
 
 /** Build a Map from persistedAs → TRegisteredDomain for all persisted domains. Returned domains carry a THypermediaTopology so consumers can read id/properties/edges without narrowing. */
 export function hypermediaDomainMap(domains: Record<string, TRegisteredDomain>): Map<string, TRegisteredDomain & { topology: THypermediaTopology }> {

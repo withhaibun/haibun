@@ -18,7 +18,7 @@ import type { TQuad } from "./quad-types.js";
 import { stepMethodName } from "./step-registry.js";
 import { mayCall } from "./actions.js";
 import { buildDomainChain, SOURCE_DOMAIN, type TDomainChainGraph } from "./domain-chain.js";
-import { isPrimitiveDomain } from "./domains.js";
+import { isPrimitiveDomain, refTargetOf } from "./domains.js";
 import { resolveGoal, GOAL_FINDING, type TGoalResolution } from "./goal-resolver.js";
 import { compareSeqPath, parseSeqPath } from "./seq-path.js";
 
@@ -214,6 +214,8 @@ function buildGoalFrontier(
 	const producibleDomains = new Set<string>();
 	for (const step of graph.steps) for (const d of step.outputDomains) producibleDomains.add(d);
 	for (const domain of producibleDomains) {
+		// A reference names a record of its type, and the type is what a reader reaches for.
+		if (domains[domain] && refTargetOf(domains[domain], domains) !== undefined) continue;
 		const resolution = resolveGoal(domain, { graph, facts, held, domains, compositeDecomposition, compositeMaxDepth });
 		// Trivial goals duplicate the forward frontier: a single producer step
 		// whose inputs are all arguments: no upstream facts, no composite

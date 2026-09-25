@@ -194,7 +194,7 @@ describe("shu-affordances-panel", () => {
 		await applied(panel);
 		(panel.shadowRoot?.querySelector('button[data-testid="goal-vc-toggle"]') as HTMLButtonElement | null)?.click();
 		await applied(panel);
-		const graphEl = panel.shadowRoot?.querySelector('shu-graph[data-testid="goal-graph-0"]') as
+		const graphEl = panel.shadowRoot?.querySelector('shu-graph[data-testid="goal-graph-vc"]') as
 			| (HTMLElement & { lastProducts?: { graph?: { nodes: unknown[]; edges: unknown[] } } })
 			| null;
 		expect(graphEl).toBeTruthy();

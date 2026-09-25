@@ -2,7 +2,8 @@ import { describe, it, expect } from "vitest";
 import { z } from "zod";
 
 import { AStepper, type TStepperSteps } from "./astepper.js";
-import { mapDefinitionsToDomains } from "./domains.js";
+import { deriveNamingDomains, mapDefinitionsToDomains, refDomainKey } from "./domains.js";
+import { LinkRelations } from "./resources.js";
 import { OK } from "../schema/protocol.js";
 import { actionOKWithProducts } from "./util/index.js";
 import { buildAffordances } from "./affordances.js";
@@ -101,6 +102,28 @@ describe("buildAffordances", () => {
 		const result = buildAffordances({ steppers: [new EmailFromPerson()], domains: fixedDomains(), facts: [], held: RUN_AUTHORITY });
 		const issue = result.forward.find((f) => f.stepName === "issueEmail");
 		expect(issue?.readyToRun).toBe(true);
+	});
+
+	it("leaves a reference out of the goals, since the type it names is the goal", () => {
+		const domains = deriveNamingDomains(
+			mapDefinitionsToDomains([
+				{ selectors: [PERSON], schema: z.object({ id: z.string() }), description: "person" },
+				{
+					selectors: [EMAIL],
+					schema: z.object({ id: z.string() }),
+					description: "email",
+					topology: { persistedAs: "Email", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel } },
+				},
+			]),
+		);
+		class EmailRefFromPerson extends AStepper {
+			steps: TStepperSteps = { refer: { gwta: `refer to the email of {who: ${PERSON}}`, productsDomain: refDomainKey(EMAIL), action: () => actionOKWithProducts({ id: "e1" }) } };
+		}
+		const goals = buildAffordances({ steppers: [new EmailFromPerson(), new EmailRefFromPerson(), new PersonSource()], domains, facts: [], held: RUN_AUTHORITY }).goals.map(
+			(g) => g.domain,
+		);
+		expect(goals).toContain(EMAIL);
+		expect(goals).not.toContain(refDomainKey(EMAIL));
 	});
 
 	it("offers no step to a caller holding nothing", () => {

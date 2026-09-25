@@ -184,7 +184,7 @@ function subPropertyOfRel(rel: string): string | string[] | undefined {
 	return undefined;
 }
 import { HAIBUN_NS, type TRegisteredDomain } from "./resources.js";
-import { DOMAIN_UNION } from "./domains.js";
+import { DOMAIN_UNION, refTargetOf } from "./domains.js";
 import { jsonSchemaOf } from "./json-schema-of.js";
 import { unwrap, unwrapToShape } from "./zod-unwrap.js";
 import { zodTypeLabel } from "./composite-domain.js";
@@ -386,12 +386,9 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 	// instead of requiring the composite to be constructed from scratch.
 	const references: Record<string, TReferenceConcern> = {};
 	for (const [domainKey, domain] of Object.entries(domains)) {
-		if (!domain.topology || isPersisted(domain.topology)) continue;
-		const ranges = (domain.topology as { ranges?: Record<string, string> }).ranges;
-		const targetDomain = ranges?.id;
-		if (!targetDomain) continue;
-		const target = domains[targetDomain];
-		if (!target || !isPersisted(target.topology)) continue;
+		const targetDomain = refTargetOf(domain, domains);
+		const target = targetDomain === undefined ? undefined : domains[targetDomain];
+		if (targetDomain === undefined || !isPersisted(target?.topology)) continue;
 		references[domainKey] = { refDomain: domainKey, targetDomain, targetPersistedAs: target.topology.persistedAs };
 	}
 

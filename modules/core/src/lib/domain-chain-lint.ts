@@ -20,7 +20,7 @@
 import { z } from "zod";
 import type { TRegisteredDomain } from "./resources.js";
 import { SOURCE_DOMAIN, type TDomainChainGraph } from "./domain-chain.js";
-import { DOMAIN_STRING, domainParts, isPrimitiveDomain, isWrittenByCaller } from "./domains.js";
+import { DOMAIN_STRING, domainParts, isPrimitiveDomain, isWrittenByCaller, refTargetOf } from "./domains.js";
 
 /** The kinds of finding, each a way the typed step graph is incomplete. */
 export const LINT_FINDING = {
@@ -74,6 +74,15 @@ export function lintDomainChain(graph: TDomainChainGraph, domains: Record<string
 	for (const step of graph.steps) {
 		for (const d of step.outputDomains) producedDomains.add(d);
 		for (const d of step.inputDomains) consumedDomains.add(d);
+	}
+	// A reference to a record is supplied wherever a record of its type is produced, as the goal resolver chains it, and a
+	// step answering with a reference supplies the record it refers to. A step taking the reference takes that record.
+	for (const [key, domain] of Object.entries(domains)) {
+		const target = refTargetOf(domain, domains);
+		if (target === undefined) continue;
+		if (producedDomains.has(target)) producedDomains.add(key);
+		if (producedDomains.has(key)) producedDomains.add(target);
+		if (consumedDomains.has(key)) consumedDomains.add(target);
 	}
 
 	// Per-step findings: orphans, unsupplied inputs, untyped parameters and unnamed products.
