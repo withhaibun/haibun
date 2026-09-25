@@ -75,6 +75,9 @@ function bounded(answer: string): string {
 const ANSWER_LIMIT = 4000;
 
 /** A feature line's argument arrives quoted where it holds spaces; a model writes it plain. Either way it is the value. */
+/** A step a test run is asked, and what it is given, as a caller writes them. */
+const DOMAIN_ASKED_STEP = "asked-step";
+const DOMAIN_ASKED_PARAMS = "asked-params";
 const unquote = (value: string): string => value.trim().replace(/^"(.*)"$/s, "$1");
 
 /** The step a name asks for: the name that host knows it by, or the step half of one where that names exactly one
@@ -201,6 +204,16 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 				{ selectors: [DOMAIN_TEST_RUN_READ], schema: TestRunReadSchema, description: "What a test run said since it was last read, and how it stands" },
 				{ selectors: [DOMAIN_TEST_RUN_EXAMINED], schema: TestRunExaminedSchema, description: "What a test run reported: how it ended, what failed, and where its report is" },
 				{ selectors: [DOMAIN_TEST_RUN_ANSWER], schema: TestRunAnswerSchema, description: "What a standing test run answered a step asked of it" },
+				{
+					selectors: [DOMAIN_ASKED_STEP],
+					schema: z.string().min(1, "names no step"),
+					description: "A step a test run is asked, by the name it has there or the step half of that name",
+				},
+				{
+					selectors: [DOMAIN_ASKED_PARAMS],
+					schema: z.string(),
+					description: "What a step asked of a test run takes: name=value pairs, JSON, or the bare value where it takes one parameter; empty where it takes none",
+				},
 			],
 		}),
 	};
@@ -353,7 +366,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			},
 		},
 		askTestRun: {
-			gwta: `ask the test run to {method} with {params}`,
+			gwta: `ask the test run to {method: ${DOMAIN_ASKED_STEP}} with {params: ${DOMAIN_ASKED_PARAMS}}`,
 			capability: SUPERVISOR_CAPABILITIES.read,
 			// Offered once there is a run to ask about, and not before: a model that sees it with nothing started asks a
 			// run that does not exist rather than starting one.

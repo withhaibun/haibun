@@ -211,11 +211,25 @@ export const DOMAIN_INSTANCES = "haibun-instances";
 const DOMAIN_INSTANCE_STARTED = "instance-started";
 /** The domains of what starting, reading and stopping a run answer with, which a stand-in for this supervisor declares too. */
 export const RUN_DOMAIN = { started: "run-started", read: "run-read", stopped: "run-stopped", name: "run-name", featureFilter: "feature-filter" } as const;
-/** The features a run runs, by words of their paths, separated by commas, as haibun-cli takes them; empty runs every one. */
+/** Whether a part of a feature filter is a pattern a feature's path is matched against, as haibun-cli matches it. */
+const isPattern = (part: string): boolean => {
+	try {
+		new RegExp(part);
+		return true;
+	} catch {
+		return false;
+	}
+};
+/** The features a run runs, by patterns of their paths, separated by commas, as haibun-cli takes them; empty runs every one. */
 export const featureFilterDomainDefinition: TDomainDefinition = {
 	selectors: [RUN_DOMAIN.featureFilter],
-	schema: z.string(),
-	description: "The features a run runs, by words of their paths, separated by commas, as haibun-cli takes them; an empty filter runs every feature",
+	schema: z
+		.string()
+		.refine(
+			(filter) => filter.split(",").every(isPattern),
+			"has a part that is no pattern a feature's path is matched against, such as * alone; leave it empty to run every feature",
+		),
+	description: "The features a run runs, by patterns of their paths, such as graph or a.*b, separated by commas, as haibun-cli takes them; an empty filter runs every feature",
 };
 export const runDomainDefinitions: TDomainDefinition[] = [
 	{

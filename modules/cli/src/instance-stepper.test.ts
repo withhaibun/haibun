@@ -10,7 +10,7 @@
  * belongs to the feature tests.
  */
 import { describe, expect, it } from "vitest";
-import InstanceStepper, { RunTail, runEnvironment, verifiedRun } from "./instance-stepper.js";
+import InstanceStepper, { RunTail, featureFilterDomainDefinition, runEnvironment, verifiedRun } from "./instance-stepper.js";
 import { execFileSync } from "node:child_process";
 import nodeFS from "node:fs";
 import os from "node:os";
@@ -300,5 +300,14 @@ describe("a run left standing", () => {
 		const result = await waited;
 		expect(result.products?.finished, "the run said its features were over, and went on serving").toBe(true);
 		expect(result.products?.status, "nothing exited, so it is still running as a process").toBe("running");
+	});
+});
+
+describe("the features a run runs", () => {
+	it("are named by patterns of their paths, every feature by an empty filter, and a part that is no pattern is refused", () => {
+		const { schema } = featureFilterDomainDefinition;
+		expect(schema.safeParse("graph,a.*b").success).toBe(true);
+		expect(schema.safeParse("").success, "every feature").toBe(true);
+		expect(schema.safeParse("graph,*").error?.issues[0]?.message).toMatch(/is no pattern a feature's path is matched against/);
 	});
 });

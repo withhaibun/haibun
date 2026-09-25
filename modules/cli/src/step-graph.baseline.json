@@ -11,7 +11,5 @@
 	"orphan-step TestRunnerStepper.examineTestRun produces test-run-examined",
 	"orphan-step TestRunnerStepper.readTestRun produces test-run-read",
 	"orphan-step TestRunnerStepper.runAllTests produces feature-execution",
-	"orphan-step TestRunnerStepper.runTest produces feature-execution",
-	"string-param TestRunnerStepper.askTestRun {method: string}",
-	"string-param TestRunnerStepper.askTestRun {params: string}"
+	"orphan-step TestRunnerStepper.runTest produces feature-execution"
 ]
