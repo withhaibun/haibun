@@ -7,7 +7,7 @@ import { css, html, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
-import { renderRefAnswer } from "../markdown-refs.js";
+import { proseText, renderRefAnswer, renderRefProse } from "../markdown-refs.js";
 import { isKnownType } from "../rels-cache.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import type { ShuSpinner } from "./shu-spinner.js";
@@ -15,7 +15,7 @@ import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
 import { SCOPE, dispatchSubjectEvent } from "../current-subject.js";
 import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../consts.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
-import { patternRef } from "./shu-ref.js";
+import { patternRef, recordRef } from "./shu-ref.js";
 import { BundleSchema, ChatRoleSchema, ChatStatusSchema, UNVERIFIED_TURN, type TBundle, type TChatRole, type TQuestionRestate } from "../schemas.js";
 
 /** Styles for a light-DOM chat message, exported for the shadow scope that hosts the activity history: the message
@@ -138,7 +138,9 @@ export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
 		const spinner = this.querySelector(":scope > .msg > .msg-content > shu-spinner") as ShuSpinner | null;
 		if (!spinner) return;
 		const m = this.message;
-		if (spinner.status !== m.spinnerStatus) spinner.status = m.spinnerStatus;
+		// The spinner shows text alone, so a line naming a record shows the words that name it.
+		const status = proseText(m.spinnerStatus, isKnownType);
+		if (spinner.status !== status) spinner.status = status;
 		if (spinner.visible !== m.spinnerVisible) spinner.visible = m.spinnerVisible;
 		if (spinner.spinning !== m.spinnerSpinning) spinner.spinning = m.spinnerSpinning;
 	}
@@ -157,7 +159,7 @@ export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
 		}
 		return html`
 			<div class="msg" @click=${this.onSelect}>
-				<span class="msg-label">${ROLE_LABEL[m.role]}</span>
+				<span class="msg-label">${m.recordId ? recordRef(COMMENT_LABEL, m.recordId, ROLE_LABEL[m.role], SHU_TEST_IDS.APP.CHAT_RECORD) : ROLE_LABEL[m.role]}</span>
 				<div class="msg-content">
 					${m.role === "user" ? html`<div class="chat-prompt">${m.text}</div>` : ""}
 					${
@@ -178,9 +180,9 @@ export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
 						// What the answer was made of reads before the answer: the context it was sent and the calls it made
 						// come first in time, and a reader weighing the answer reads them first.
 						m.activity.length > 0
-							? html`<details class="chat-activity" data-testid="app-chat-activity">
+							? html`<details class="chat-activity" data-testid=${SHU_TEST_IDS.APP.CHAT_ACTIVITY}>
 								<summary>context and calls (${m.activity.length})</summary>
-								<ol>${m.activity.map((line) => html`<li>${line}</li>`)}</ol>
+								<ol>${m.activity.map((line) => html`<li>${unsafeHTML(renderRefProse(line, isKnownType))}</li>`)}</ol>
 							</details>`
 							: ""
 					}

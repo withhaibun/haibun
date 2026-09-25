@@ -18,6 +18,7 @@ import type { IWebServer } from "@haibun/web-server-hono/defs.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 import type { Context } from "@haibun/web-server-hono/defs.js";
 import { SHU_TYPE, SHU_TAG } from "./consts.js";
+import { DOMAIN_SHU_APPS, ShuAppsSchema } from "./schemas.js";
 import type { IQuadStore, TQuad } from "@haibun/core/lib/quad-types.js";
 import { buildGraphModelFromQuads } from "./graph-model.js";
 import { withOntologySchema } from "./graph/ontology-projection.js";
@@ -195,6 +196,8 @@ function validateMountPath(path: string): string | undefined {
 export default class ShuStepper extends AStepper implements IHasOptions {
 	/** One route per host for the view bundle, however many apps are mounted. */
 	private viewBundleServed = false;
+	/** The path of each app this feature's web server serves. */
+	private readonly appPaths = new Set<string>();
 	description = "Serves the @haibun/shu hypermedia SPA at a given path";
 
 	async setWorld(world: TWorld, steppers: AStepper[]): Promise<void> {
@@ -213,6 +216,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 		// that stops a duplicate route within a feature must not outlive that feature, or the next one serves no bundle.
 		startFeature: (): void => {
 			this.viewBundleServed = false;
+			this.appPaths.clear();
 		},
 		getConcerns: () => ({
 			domains: [
@@ -249,6 +253,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 				},
 				{ selectors: [SHU_TAG.MONITOR_COLUMN], schema: z.object({}), description: "Execution monitor and event log", ui: { component: SHU_TAG.MONITOR_COLUMN } },
 				{ selectors: [SHU_TAG.DOCUMENT_COLUMN], schema: z.object({}), description: "Document/artifact viewer", ui: { component: SHU_TAG.DOCUMENT_COLUMN } },
+				{ selectors: [DOMAIN_SHU_APPS], schema: ShuAppsSchema, description: "Where an instance serves shu" },
 				{
 					selectors: [DOMAIN_SHU_VIEW_COLLECTION],
 					schema: ShuViewCollectionSchema,
@@ -291,6 +296,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 					verifiesDelegations: getAuthority(this.getWorld().runtime)?.hasVerifier() === true,
 				});
 				webserver.addRoute("get", path, { description: `Shu SPA mounted at ${path}` }, createSpaHandler(path, settings));
+				this.appPaths.add(path);
 				const domains = this.getWorld().domains;
 				// The context varies only by serving host, drawn from a tiny set of origins, build it once per host.
 				const byHost = new Map<string, Record<string, unknown>>();
@@ -325,6 +331,13 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 				webserver.addRoute("get", "/ns/context.jsonld", { description: "JSON-LD @context (namespace alias of haibun-context.jsonld)" }, jsonLdHandler);
 				return actionOK();
 			},
+		},
+		showShuApps: {
+			read: true,
+			gwta: "show shu apps",
+			description: "Where this instance serves shu: the path of each app it mounted, which a reader opens under the instance's address.",
+			productsDomain: DOMAIN_SHU_APPS,
+			action: () => actionOKWithProducts({ apps: [...this.appPaths] }),
 		},
 		maximizeView: {
 			gwta: "maximize view",

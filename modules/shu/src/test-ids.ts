@@ -17,6 +17,8 @@ export const SHU_TEST_IDS = {
 		CHAT_OUTPUT: "app-chat-output",
 		CHAT_TEXT: "app-chat-text",
 		CHAT_ACTIVITY: "app-chat-activity",
+		/** A message's link to the Comment the run recorded for it. */
+		CHAT_RECORD: "app-chat-record",
 		/** On a view whose reader scrolled away from the end: the control that states what arrived and returns them to it. */
 		CHAT_ARRIVED: "app-chat-arrived",
 		/** On a reply where another branch of the conversation leaves the one shown: follows that branch. */
@@ -141,6 +143,11 @@ export const SHU_TEST_IDS = {
 		ERROR: "type-error",
 	},
 	/** An action, by the steps this page may call that it allows. */
+	/** A thread's cards: each card's type and who sent it. */
+	THREAD: {
+		ITEM_TYPE: "thread-item-type",
+		SENDER: "thread-sender",
+	},
 	ACTION_COLUMN: {
 		ROOT: "action-column",
 		STEP: "action-column-step",

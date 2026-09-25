@@ -13,6 +13,7 @@ import { buildStepRegistry } from "../lib/step-registry.js";
 import { DELEGATIONS_READ_ACTION, DELEGATIONS_READ_METHOD, type IAuthorityVerifier } from "../lib/authority-types.js";
 import AuthorityStepper from "./authority-stepper.js";
 import LogicStepper from "./logic-stepper.js";
+import VariablesStepper from "./variables-stepper.js";
 
 class PingStepper extends AStepper {
 	description = "A step that takes Ping:protected, for tests of narrowing what a statement holds.";
@@ -26,10 +27,21 @@ class PingStepper extends AStepper {
 			exact: "reads public only",
 			action: () => Promise.resolve(readingAt() === "public" ? OK : actionNotOK(`reads at ${readingAt() ?? "no ceiling"}`)),
 		},
+		repeats: {
+			gwta: "repeats {said}",
+			action: ({ said }: { said: string }) => Promise.resolve(said === KEPT ? OK : actionNotOK(`was given ${said}`)),
+		},
+		readsKept: {
+			exact: "reads kept",
+			action: async () => ((await this.getWorld().shared.get(KEPT_NAME)) === undefined ? OK : actionNotOK("read the run's variable above its ceiling")),
+		},
 	};
 }
 
-const holds = async (content: string) => (await passWithDefaults([{ path: "/features/holding.feature", content }], [AuthorityStepper, LogicStepper, PingStepper])).ok;
+/** A variable the run sets, which a statement it narrows names. */
+const [KEPT_NAME, KEPT] = ["kept", "the run's"];
+
+const holds = async (content: string) => (await passWithDefaults([{ path: "/features/holding.feature", content }], [AuthorityStepper, LogicStepper, VariablesStepper, PingStepper])).ok;
 
 describe("holding only", () => {
 	it("runs a statement with a listed action its caller holds", async () => {
@@ -50,6 +62,13 @@ describe("holding only a read", () => {
 	it("bounds what the statement reads to the level listed", async () => {
 		expect(await holds(`holding only "PingStepper:readsPublicOnly,Read:public", reads public only`)).toBe(true);
 		expect(await holds(`reads public only`), "where the run itself reads everything").toBe(false);
+	});
+});
+
+describe("what a narrowed statement reads", () => {
+	it("reads its arguments as the run that stated them, and the step reads only within what it holds", async () => {
+		expect(await holds(`set ${KEPT_NAME} to "${KEPT}"\nholding only "PingStepper:repeats", repeats ${KEPT_NAME}`)).toBe(true);
+		expect(await holds(`set ${KEPT_NAME} to "${KEPT}"\nholding only "PingStepper:readsKept", reads kept`)).toBe(true);
 	});
 });
 

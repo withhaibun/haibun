@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { ShuStepDefinition } from "./shu-step-definition.js";
-import { ShuRef } from "./shu-ref.js";
+import { ShuRef } from "./shu-ref-element.js";
 import { resetStepRegistry } from "../rpc-registry.js";
 import { setupShuTest, stepsShown, type TShuTestHandle } from "../test-setup.js";
 import { setDeviceStore, MemoryDeviceStore } from "../client-cache/index.js";

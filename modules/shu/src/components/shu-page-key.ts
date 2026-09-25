@@ -9,6 +9,8 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { PageKeySchema } from "../schemas.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
+import { recordRef } from "./shu-ref.js";
+import { PRINCIPAL_LABEL } from "@haibun/core/lib/resources.js";
 
 export class ShuPageKey extends ShuElement<typeof PageKeySchema> {
 	static attributeFields = { controller: "controller" };
@@ -32,6 +34,7 @@ export class ShuPageKey extends ShuElement<typeof PageKeySchema> {
 
 	render(): TemplateResult {
 		const { controller } = this.state;
-		return html`<code data-testid=${SHU_TEST_IDS.APP.PAGE_KEY}>${controller}</code><shu-copy-button label="copy" title="copy this page's key" .source=${controller}></shu-copy-button>`;
+		// The key a delegation names is recorded as the Principal it is, so it opens as that record.
+		return html`<code data-testid=${SHU_TEST_IDS.APP.PAGE_KEY}>${recordRef(PRINCIPAL_LABEL, controller)}</code><shu-copy-button label="copy" title="copy this page's key" .source=${controller}></shu-copy-button>`;
 	}
 }

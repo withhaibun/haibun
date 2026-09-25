@@ -6,6 +6,7 @@
 	"orphan-step ShuGraphQueryControls.sortBy produces view-query",
 	"orphan-step ShuGraphQueryControls.viewType produces view-query",
 	"orphan-step ShuStepper.showPolymorphicGraphView produces shu-polymorphic-graph-view",
+	"orphan-step ShuStepper.showShuApps produces shu-apps",
 	"orphan-step ShuStepper.showViews produces shu-view-collection",
 	"string-param GraphSourceStepper.clusteredGraphHoldsFromSite {site: string}",
 	"string-param GraphSourceStepper.clusteredGraphHoldsFromSite {subject: string}",

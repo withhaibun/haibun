@@ -27,14 +27,14 @@ import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { ShuElement, TIME_SYNC_CLASS, type TLinkedData } from "./shu-element.js";
 import { SHU_EVENT, ANNOTATION_GLYPH } from "../consts.js";
 import { bindCopyButtons, copyButtonHtml } from "../copy-util.js";
-import { isReplyEdge, RESOURCE_LABEL, MEDIA_TYPE } from "@haibun/core/lib/resources.js";
+import { isReplyEdge, MEDIA_TYPE } from "@haibun/core/lib/resources.js";
 import { anIndividual, EntityColumnSchema, type TContextPattern } from "../schemas.js";
 import { EntityController } from "../controllers/index.js";
 import type { TEntityResult, TEntityView, TAnnotationDraft } from "../entity-store.js";
 import type { AnnotationView } from "../annotation-resolver.js";
 import type { TQuoteAnchor } from "@haibun/core/lib/resources.js";
 import "./shu-annotated-body.js";
-import { getRelSync, getEdgeTargetLabel, getEdgeTargetLabels, getSummaryFields, getIdField, getQueryableFields, getRels, isKnownType, roleEdgeLabelSet, getDeclaredEdgeLabel } from "../rels-cache.js";
+import { edgeRecordType, getRelSync, getEdgeTargetLabels, getSummaryFields, getIdField, getQueryableFields, getRels, isKnownType, roleEdgeLabelSet, getDeclaredEdgeLabel } from "../rels-cache.js";
 import { propertyVocabulary } from "../graph/ontology-projection.js";
 import { linkHtml, paneHref, refHref, renderRef } from "./ref-navigation.js";
 import { refsInContent } from "../markdown-refs.js";
@@ -361,11 +361,13 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			const items = v as Record<string, unknown>[];
 			// Inner table: items don't have a per-row label, fall back to projection-only filter.
 			const keys = Object.keys(items[0]).filter((key) => isVisibleKey(key));
-			const header = keys.map((key) => `<th>${esc(key)}</th>`).join("");
+			// An item that names its type and identity is a record, and its row opens it.
+			const records = items.some((item) => typeof item["@type"] === "string" && typeof item["@id"] === "string");
+			const header = `${records ? "<th>@id</th>" : ""}${keys.map((key) => `<th>${esc(key)}</th>`).join("")}`;
 			const rows = items
 				.map(
 					(item) =>
-						`<tr>${keys
+						`<tr>${records ? `<td>${linkHtml(typeof item["@type"] === "string" ? refHref(REF_DENOTES.individual, { persistedAs: item["@type"], id: idOf(item) }) : undefined, idOf(item))}</td>` : ""}${keys
 							.map((key) => {
 								const val = item[key];
 								return `<td>${esc(typeof val === "object" && val !== null ? JSON.stringify(val) : String(val ?? ""))}</td>`;
@@ -388,8 +390,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 
 	/** The address of an edge's target, typed by the edge's range where it names one type and by the target otherwise. */
 	private edgeTargetHref(edgeType: string, target: VertexData): string | undefined {
-		const rangeLabel = getEdgeTargetLabel(edgeType, this.state.persistedAs);
-		const persistedAs = (rangeLabel === RESOURCE_LABEL ? undefined : rangeLabel) ?? (target["@type"] as string) ?? defaultLabel();
+		const persistedAs = edgeRecordType(this.state.persistedAs, edgeType) ?? (target["@type"] as string) ?? defaultLabel();
 		return refHref(REF_DENOTES.individual, { persistedAs, id: idOf(target) });
 	}
 

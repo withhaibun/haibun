@@ -145,6 +145,12 @@ export function getEdgeTargetLabel(edgeType: string, sourceLabel?: string): stri
 	return labels?.length === 1 ? labels[0] : undefined;
 }
 
+/** The type of the record a field of `label` names, where the type declares the field an edge to one type. */
+export function edgeRecordType(label: string, field: string): string | undefined {
+	const range = getEdgeTargetLabel(field, label);
+	return range === RESOURCE_LABEL ? undefined : range;
+}
+
 /** Get cached properties for a label. */
 export function getProperties(label: string): string[] | undefined {
 	return metadata?.properties[label];
@@ -317,7 +323,7 @@ export function hasUsableSelectValues(label: string): boolean {
 // --- Concern catalog (for haibun domain discovery) ---
 
 import type { TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
-import { LinkRelations, getPropertyDefinitions, isSubPropertyOf, roleRels, fromActorRels, toActorRels } from "@haibun/core/lib/resources.js";
+import { LinkRelations, RESOURCE_LABEL, getPropertyDefinitions, isSubPropertyOf, roleRels, fromActorRels, toActorRels } from "@haibun/core/lib/resources.js";
 import { pagePinned } from "./page-pinned.js";
 
 // What the site declares is one thing per page, and a page is more than one bundle: the app, the graph view, a panel a

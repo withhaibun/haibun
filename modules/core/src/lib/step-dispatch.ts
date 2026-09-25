@@ -8,7 +8,7 @@ import { actionNotOK } from "./util/index.js";
 import { isPrimitiveDomain, normalizeDomainKey } from "./domains.js";
 import { OBSERVATION_GRAPH, FACT_GRAPH, assertFact, getFact, queryFacts } from "./working-memory.js";
 import { doStepperCycle } from "./stepper-cycles.js";
-import { actingAs, authorizedWith, runAuthorizedWith, runInStep, runReadingAt } from "./capability-context.js";
+import { actingAs, authorizedWith, readingAsStated, readingAt, runAuthorizedWith, runInStep, runReadingAt, runStatedAt } from "./capability-context.js";
 import { capabilityAllows, readCeilingOf } from "./actions.js";
 import { Access, LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS, type SeqPathStatus } from "./resources.js";
 import { SEQ_PATH_FIELD, calledOf, executionOf, factIdOf, formatRecordName } from "./seq-path.js";
@@ -131,6 +131,8 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	// What the step may read is what its caller holds a read for: a caller holding none reads at public inside the step
 	// it may run, so no step reads a record for a caller who could not have read it.
 	const ceiling = readCeilingOf(grantedCapability) ?? Access.public;
+	// Where the statement was stated, which its arguments are read at.
+	const statedAt = readingAt();
 
 	if (recorded) {
 		const usageKey = `${action.stepperName}.${action.actionName}`;
@@ -147,46 +149,48 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	let lastStepResult: TStepResult;
 	await runInStep(step, () =>
 		runAuthorizedWith(grantedCapability, () =>
-			runReadingAt(ceiling, async () => {
-				let doAction = true;
-				while (doAction) {
-					await doStepperCycle(steppers, "beforeStep", <TBeforeStep>{ featureStep });
-					const preconditionError = await checkInputPreconditions(world, tool.paramDomainKeys, featureStep);
-					if (preconditionError) {
-						actionResult = actionNotOK(preconditionError);
-						lastStepResult = stepResultFromActionResult(actionResult, action, start, Timer.since(), featureStep, false);
-						keep(lastStepResult);
-						ok = false;
-						doAction = false;
-						continue;
-					}
-					actionResult = await tool.handler(featureStep, world);
-					if (actionResult.ok) {
-						const productsError = validateProducts(action.stepperName, action.actionName, action.step, world, actionResult.products);
-						if (productsError) {
-							actionResult = actionNotOK(productsError);
-						} else {
-							if (actionResult.products) {
-								actionResult = { ...actionResult, products: { ...actionResult.products, [TRACE_SEQ_PATH]: featureStep.seqPath } };
+			runStatedAt(statedAt, () =>
+				runReadingAt(ceiling, async () => {
+					let doAction = true;
+					while (doAction) {
+						await doStepperCycle(steppers, "beforeStep", <TBeforeStep>{ featureStep });
+						const preconditionError = await checkInputPreconditions(world, tool.paramDomainKeys, featureStep);
+						if (preconditionError) {
+							actionResult = actionNotOK(preconditionError);
+							lastStepResult = stepResultFromActionResult(actionResult, action, start, Timer.since(), featureStep, false);
+							keep(lastStepResult);
+							ok = false;
+							doAction = false;
+							continue;
+						}
+						actionResult = await tool.handler(featureStep, world);
+						if (actionResult.ok) {
+							const productsError = validateProducts(action.stepperName, action.actionName, action.step, world, actionResult.products);
+							if (productsError) {
+								actionResult = actionNotOK(productsError);
+							} else {
+								if (actionResult.products) {
+									actionResult = { ...actionResult, products: { ...actionResult.products, [TRACE_SEQ_PATH]: featureStep.seqPath } };
+								}
+								actionResult = augmentViewHypermedia(world, action.step, actionResult, steppers);
+								await autoAssertProducts(world, step.seqPath, action.step, actionResult);
 							}
-							actionResult = augmentViewHypermedia(world, action.step, actionResult, steppers);
-							await autoAssertProducts(world, step.seqPath, action.step, actionResult);
+						}
+						if (!actionResult.ok && actionResult.errorMessage && featureStep.intent?.mode !== "speculative") {
+							world.eventLogger.log(featureStep, "error", actionResult.errorMessage);
+						}
+						lastStepResult = stepResultFromActionResult(actionResult, action, start, Timer.since(), featureStep, ok && actionResult.ok);
+						keep(lastStepResult);
+						const instructions: TAfterStepResult[] = await doStepperCycle(steppers, "afterStep", <TAfterStep>{ featureStep, actionResult }, action.actionName);
+						doAction = instructions.some((i) => i?.rerunStep);
+						if (instructions.some((i) => i?.failed)) {
+							ok = false;
+						} else if (instructions.some((i) => i?.nextStep)) {
+							actionResult = { ...actionResult, ok: true };
 						}
 					}
-					if (!actionResult.ok && actionResult.errorMessage && featureStep.intent?.mode !== "speculative") {
-						world.eventLogger.log(featureStep, "error", actionResult.errorMessage);
-					}
-					lastStepResult = stepResultFromActionResult(actionResult, action, start, Timer.since(), featureStep, ok && actionResult.ok);
-					keep(lastStepResult);
-					const instructions: TAfterStepResult[] = await doStepperCycle(steppers, "afterStep", <TAfterStep>{ featureStep, actionResult }, action.actionName);
-					doAction = instructions.some((i) => i?.rerunStep);
-					if (instructions.some((i) => i?.failed)) {
-						ok = false;
-					} else if (instructions.some((i) => i?.nextStep)) {
-						actionResult = { ...actionResult, ok: true };
-					}
-				}
-			}),
+				}),
+			),
 		),
 	);
 	if (!actionResult || !lastStepResult) {
@@ -244,7 +248,8 @@ async function checkInputPreconditions(world: TWorld, paramDomainKeys: ReadonlyM
 		// gwta-captured term covers the precondition: the dispatcher's existing
 		// arg-population path resolves and validates it before the action runs.
 		if (stepValue?.term !== undefined && stepValue.term !== "") continue;
-		const facts = await queryFacts(world, normalized, FACT_GRAPH);
+		// The facts that stand for an input are the statement's, read at the ceiling it was stated at, as its arguments are.
+		const facts = await readingAsStated(() => queryFacts(world, normalized, FACT_GRAPH));
 		if (facts.length === 0) return `precondition-not-satisfied: domain "${normalized}" has no asserted facts and no resolved value for {${param}}`;
 	}
 	return undefined;

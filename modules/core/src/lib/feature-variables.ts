@@ -5,7 +5,7 @@ import type { TWorld } from "./world.js";
 import { Origin, TOrigin, TProvenanceIdentifier, TStepValue } from "../schema/protocol.js";
 import { DOMAIN_JSON, DOMAIN_STRING, DOMAIN_UNION, domainParts, normalizeDomainKey } from "./domains.js";
 import { QuadStore } from "./quad-store.js";
-import { accessBound } from "./capability-context.js";
+import { accessBound, readingAsStated } from "./capability-context.js";
 import { declaredAccessLevel } from "./resources.js";
 import { IQuadStore, SHARED_GRAPH, TQuad, emitQuadObservation } from "./quad-types.js";
 
@@ -107,7 +107,18 @@ export class FeatureVariables {
 		return undefined;
 	}
 
-	async resolveVariable(
+	/** Resolve a term a statement names. A statement's terms are its author's, so they are read at the ceiling the statement
+	 *  was stated at, whatever the step it states narrows its own reads to. */
+	resolveVariable(
+		input: { term: string; origin: TOrigin; domain?: string },
+		featureStep?: TFeatureStep,
+		steppers?: AStepper[],
+		options: { secure: boolean } = { secure: false },
+	): Promise<TStepValue> {
+		return readingAsStated(() => this.resolveTerm(input, featureStep, steppers, options));
+	}
+
+	private async resolveTerm(
 		input: { term: string; origin: TOrigin; domain?: string },
 		featureStep?: TFeatureStep,
 		steppers?: AStepper[],
@@ -226,8 +237,9 @@ export class FeatureVariables {
 		return { values: memberValues };
 	}
 
+	/** A variable as the step in progress reads it, within its own ceiling. */
 	async get(term: string, secure: boolean = false) {
-		return (await this.resolveVariable({ term, origin: Origin.defined }, undefined, undefined, { secure })).value;
+		return (await this.resolveTerm({ term, origin: Origin.defined }, undefined, undefined, { secure })).value;
 	}
 
 	async allQuads(): Promise<TQuad[]> {

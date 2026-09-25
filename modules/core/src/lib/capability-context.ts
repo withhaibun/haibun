@@ -143,6 +143,23 @@ export function readLevel(): AccessLevel {
 	return readingAt() ?? Access.private;
 }
 
+const statedAtStore = new AsyncLocalStorage<{ ceiling: AccessLevel | undefined }>();
+
+/**
+ * Run `within` as the step a statement states, where the statement was stated at `ceiling`: the ceiling in force where it
+ * was dispatched, before the step's own authority narrows it. A statement's arguments are its author's, so they are read
+ * at the ceiling the author reads at, while the step reads at its own.
+ */
+export function runStatedAt<T>(ceiling: AccessLevel | undefined, within: () => Promise<T>): Promise<T> {
+	return statedAtStore.run({ ceiling }, within);
+}
+
+/** Read a statement's arguments at the ceiling it was stated at, or at the ceiling in force outside any dispatch. */
+export function readingAsStated<T>(within: () => Promise<T>): Promise<T> {
+	const stated = statedAtStore.getStore();
+	return stated ? readCeilingStore.run(stated.ceiling, within) : within();
+}
+
 /** What bounds the call in progress, which every store writes and reads by: its ceiling and what it holds. */
 export function accessBound(): TAccessBound {
 	return { ceiling: readingAt(), held: authorizedWith() };

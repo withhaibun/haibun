@@ -8,7 +8,7 @@ import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { readAction } from "@haibun/core/lib/actions.js";
 import { Access } from "@haibun/core/lib/resources.js";
 import { ShuActionColumn } from "./shu-action-column.js";
-import { ShuRef } from "./shu-ref.js";
+import { ShuRef } from "./shu-ref-element.js";
 import { resetStepRegistry } from "../rpc-registry.js";
 import { setupShuTest, stepsShown, type TShuTestHandle } from "../test-setup.js";
 import { setDeviceStore, MemoryDeviceStore } from "../client-cache/index.js";

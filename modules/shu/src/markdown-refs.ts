@@ -120,6 +120,13 @@ export function renderRefAnswer(markdown: string, isType: (name: string) => bool
 	return DOMPurify.sanitize(answerRenderer.render(markdown), refSanitizeOptions);
 }
 
+/** The words a short piece of prose reads as, each reference by the text that names it, for a surface that shows text alone. */
+export function proseText(text: string, isType: (name: string) => boolean): string {
+	const template = document.createElement("template");
+	template.innerHTML = renderRefProse(text, isType);
+	return template.content.textContent ?? "";
+}
+
 /**
  * Render a SHORT piece of prose, a type's description, a step's, with its `#Type` / `#Type:id` links live, so a
  * description names another type by linking to it rather than re-explaining it wherever it comes up. Inline-only: a

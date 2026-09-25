@@ -28,7 +28,8 @@ import { renderContentHtml, BODY_READING_STYLE } from "../util.js";
 import { refSanitizeOptions } from "../markdown-refs.js";
 import type { TAnnotationDraft } from "../entity-store.js";
 import { type AnnotationView, type W3CTextAnnotation, toW3CAnnotations, locateQuoteOffsets } from "../annotation-resolver.js";
-import type { TQuoteAnchor } from "@haibun/core/lib/resources.js";
+import { COMMENT_LABEL, LinkRelations, type TQuoteAnchor } from "@haibun/core/lib/resources.js";
+import { fieldRef } from "./shu-ref.js";
 import "./shu-scrollbar.js";
 import { SCROLL_TO_INDEX } from "./shu-scrollbar.js";
 import type { TScrollMarker, TWindow } from "../scrollbar-model.js";
@@ -535,7 +536,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 						>
 							<div class="annotation-card-quote">“${a.exact}”</div>
 							${a.body ? html`<div class="annotation-card-body">${unsafeHTML(DOMPurify.sanitize(renderContentHtml(a.body, "text/markdown"), STYLED_REF_SANITIZE))}</div>` : html``}
-							${a.author ? html`<div class="annotation-card-author">${a.author}</div>` : html``}
+							${a.author ? html`<div class="annotation-card-author">${fieldRef(COMMENT_LABEL, LinkRelations.ATTRIBUTED_TO.rel, a.author)}</div>` : html``}
 							${(a.links ?? []).map(
 								(link) => html`<span
 										class="annotation-card-link"

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { classifyLinkText, parseRefHref, parseTextDirective, resolveLinkTarget, textDirectiveFor, typedLinkFacts, type TLinkVocabulary } from "./typed-links.js";
+import { classifyLinkText, markdownRef, parseRefHref, parseTextDirective, resolveLinkTarget, textDirectiveFor, typedHref, typedLinkFacts, type TLinkVocabulary } from "./typed-links.js";
 import { LinkRelations } from "./resources.js";
 
 const TYPES = new Set(["Document", "Comment", "FieldReport"]);
@@ -48,6 +48,19 @@ describe("resolveLinkTarget", () => {
 		expect(resolveLinkTarget("#introduction", isType)).toBeNull();
 		expect(resolveLinkTarget("#Unknown:x", isType)).toBeNull();
 		expect(resolveLinkTarget("", isType)).toBeNull();
+	});
+});
+
+describe("writing a reference", () => {
+	const [DOCUMENT, DID] = ["Document", "did:key:z6Mk(test)"];
+
+	it("writes the href resolveLinkTarget reads back, an id with colons and parentheses whole", () => {
+		expect(resolveLinkTarget(typedHref(DOCUMENT, DID), isType)).toEqual({ kind: "individual", persistedAs: DOCUMENT, id: DID });
+		expect(resolveLinkTarget(typedHref(DOCUMENT), isType), "and a type's").toEqual({ kind: "type", persistedAs: DOCUMENT });
+	});
+
+	it("writes a markdown link whose text keeps its brackets and whose destination is that href", () => {
+		expect(markdownRef("the [draft]", DOCUMENT, "d-1")).toBe(`[the \\[draft\\]](${typedHref(DOCUMENT, "d-1")})`);
 	});
 });
 

@@ -2,32 +2,32 @@
 	"darwin-arm64-12x-apple-m4-pro": {
 		"features": {
 			"/features/a-a-run-to-come-back-to.feature.ts": {
-				"seconds": 1.1,
-				"steps": 196,
-				"declaredStepTextHash": "b2d3a00f6a5df1eb975bb19f0b550ed3209b7fbce85ef59ed426b927e5f5acb6"
+				"seconds": 1.3,
+				"steps": 199,
+				"declaredStepTextHash": "f46c646e9b852d0bfa489c616229badf961a643de7266b09c7d0ad9b0b315925"
 			},
 			"/features/b-reading-a-cached-run.feature.ts": {
-				"seconds": 1.2,
-				"steps": 201,
-				"declaredStepTextHash": "e181cfda76a12093f6c6b2733c560254f03f907a93d0a5ef086f782de51dc69e"
+				"seconds": 1.3,
+				"steps": 204,
+				"declaredStepTextHash": "84236b4a86a2d9ae36e11c32dcac3eb509d8ba93f6b2fe7de8e528b9fa8d94d1"
 			},
 			"/features/c-reading-a-report.feature.ts": {
-				"seconds": 1.4,
-				"steps": 204,
-				"declaredStepTextHash": "e5a4d90015b8364b55904653f090d84ddc74a224a0ef532f17dccdacb43c7977"
+				"seconds": 1.5,
+				"steps": 207,
+				"declaredStepTextHash": "7e9d990e5a5647d75a39ccbff8683a0ddd41b3bf2413c37f6be38725219f6ecb"
 			},
 			"/features/d-two-origins.feature.ts": {
-				"seconds": 1.1,
-				"steps": 206,
-				"declaredStepTextHash": "4ab478d9f035d2e247df01628feb863c2437d82b621312a27818b6936090c0c2"
+				"seconds": 1.2,
+				"steps": 209,
+				"declaredStepTextHash": "f0e675cd5174ff1e2bc4d26bcae37650e7fe617eca8281c57c77f3f2afd52ef0"
 			},
 			"/features/e-forgetting-a-run.feature.ts": {
 				"seconds": 3.7,
-				"steps": 196,
-				"declaredStepTextHash": "ef770aa9972e5a57f42a037abbc6dd04b2c269e2dd5491ad25409e57bfe94b58"
+				"steps": 199,
+				"declaredStepTextHash": "11061e01088e194f425ab0f5cd0e14396a1dbf2548e9d79b3c3bef374895a78a"
 			}
 		},
-		"steps": 1003,
-		"seconds": 8.5
+		"steps": 1018,
+		"seconds": 9
 	}
 }

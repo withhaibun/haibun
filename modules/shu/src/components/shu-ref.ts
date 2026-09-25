@@ -1,67 +1,17 @@
 /**
- * <shu-ref>: a link to the view of a structured identifier (seqPath, entity id, domain key, step, action). Every
- * panel that shows one uses this component, so the link vocabulary stays consistent: panels emit `<shu-ref kind="…">`
- * markup and never wire their own click handlers. The link's href is the address of the referenced pane, which the page
- * follows (`followPaneLink`), opening it beside the pane it was clicked in.
- *
- * Attributes:
- *   kind: "seqPath" | "entity" | "domain" | "step" | "action"
- *   linkTarget: JSON describing the target. Shape varies by kind:
- *                 seqPath → `{ "seqPath": [0,1,2] }`
- *                 entity  → `{ "persistedAs": "Issuer", "id": "..." }`
- *                 step    → `{ "method": "..." }`
- *                 action  → `{ "action": "..." }`
- *                 domain: `{ "domain": "..." }`
- *   text: display label (defaults to a derived label per kind)
+ * The lit templates of a reference: every panel that shows a structured identifier (seqPath, entity id, domain key, step,
+ * action) renders it through these, so the link vocabulary stays consistent. They write `<shu-ref>` markup, the element
+ * `shu-ref-element.ts` defines, and are free of it, so a module that renders a reference imports in any context.
  */
 import { html, nothing, type TemplateResult } from "lit";
 import { calledParts, factSeqPath } from "@haibun/core/lib/seq-path.js";
 import { esc } from "../util.js";
 import { DENOTES, REF_DENOTES } from "@haibun/core/lib/typed-links.js";
-import { isRefKind, refHref, defaultLabel, renderRef, type TRefKind } from "./ref-navigation.js";
+import { defaultLabel, renderRef, type TRefKind } from "./ref-navigation.js";
 import type { TContextPattern } from "../schemas.js";
 import { findDomain } from "../rpc-registry.js";
+import { edgeRecordType } from "../rels-cache.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
-
-export class ShuRef extends HTMLElement {
-	connectedCallback(): void {
-		if (!this.shadowRoot) this.attachShadow({ mode: "open" });
-		this.render();
-	}
-
-	static observedHtmlAttributes = ["kind", "linkTarget", "text"];
-
-	attributeChangedCallback(): void {
-		if (this.shadowRoot) this.render();
-	}
-
-	private render(): void {
-		if (!this.shadowRoot) return;
-		const kind = this.getAttribute("kind") ?? "";
-		const text = this.getAttribute("text") ?? defaultLabel(kind, this.getAttribute("linkTarget"));
-		// A real href: the address of the thing itself, which the browser can open in a tab, copy and preview. A kind
-		// with no pane is text, not a link that goes nowhere.
-		const href = this.hrefForRef();
-		const code = `<code>${esc(text)}</code>`;
-		this.shadowRoot.innerHTML = `<style>
-			:host { display: inline; }
-			a { color: var(--shu-link); text-decoration: none; }
-			a:hover { text-decoration: underline; }
-			code { font-family: var(--shu-font-family); font-size: 0.95em; }
-		</style>${href ? `<a href="${esc(href)}">${code}</a>` : code}`;
-	}
-
-	/** The address of this reference's target, or undefined for a kind with no pane. */
-	private hrefForRef(): string | undefined {
-		const kind = this.getAttribute("kind") ?? "";
-		if (!isRefKind(kind)) return undefined;
-		try {
-			return refHref(kind, JSON.parse(this.getAttribute("linkTarget") ?? "{}") as Record<string, unknown>);
-		} catch {
-			return undefined; // a malformed linkTarget renders as text
-		}
-	}
-}
 
 /**
  * The lit form of the same reference, for a view that renders a template rather than a string of markup: one place
@@ -73,6 +23,17 @@ export const refTpl = (kind: TRefKind, linkTarget: Record<string, unknown>, text
 	const targetJson = JSON.stringify(linkTarget);
 	const display = text ?? defaultLabel(kind, targetJson);
 	return html`<shu-ref data-testid=${testId ?? nothing} kind=${kind} linkTarget=${targetJson} text=${display}>${display}</shu-ref>`;
+};
+
+/** A record, by its type and id, as a link to its view. */
+export const recordRef = (persistedAs: string, id: string, text?: string, testId?: string): TemplateResult =>
+	refTpl(REF_DENOTES.individual, { persistedAs, id }, text ?? id, testId);
+
+/** What a field of `label` holds, as a link to the record it names where the type declares the field an edge, and as text
+ *  where it doesn't. */
+export const fieldRef = (label: string, field: string, value: string, testId?: string): TemplateResult | string => {
+	const persistedAs = edgeRecordType(label, field);
+	return persistedAs ? recordRef(persistedAs, value, value, testId) : value;
 };
 
 /** A domain, by its key, as a link to its view: the view of the type it persists as, or of the domain itself. */

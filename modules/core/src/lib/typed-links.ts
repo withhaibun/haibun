@@ -108,6 +108,16 @@ export function splitTextDirective(href: string): { base: string; anchor?: TQuot
 	return { base: href.slice(0, at).replace(/#$/, ""), ...(anchor ? { anchor } : {}) };
 }
 
+/** The href a reference to a type, or to one of its records, is written with, which `resolveLinkTarget` reads back. The id
+ *  is encoded, parentheses included, so it stays whole as a markdown link's destination. */
+export function typedHref(persistedAs: string, id?: string): string {
+	if (id === undefined) return `#${persistedAs}`;
+	return `#${persistedAs}:${encodeURIComponent(id).replace(/[()]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`)}`;
+}
+
+/** A markdown link to a type, or to one of its records: how an answer or a turn's activity names one, so a reader opens it. */
+export const markdownRef = (text: string, persistedAs: string, id?: string): string => `[${text.replace(/[[\]]/g, "\\$&")}](${typedHref(persistedAs, id)})`;
+
 /**
  * Resolve an href to what it names, or null when it names no record here (a plain in-page `#anchor`, a path, an
  * address on the web, an empty href). The id may itself contain colons (a DID), so the type/id split is on the FIRST

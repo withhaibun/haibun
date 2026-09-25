@@ -21,9 +21,9 @@ import type { TScrollMarker } from "../scrollbar-model.js";
 import { artifactUrl } from "../artifact-url.js";
 import { unavailableOrEmpty } from "./empty-state.js";
 import { PaneState, addsToSelection, type DesiredPane } from "../pane-state.js";
-import { actionRef, refTpl } from "./shu-ref.js";
-import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
-import { SEQ_PATH_STATUS } from "@haibun/core/lib/resources.js";
+import { actionRef, fieldRef, refTpl } from "./shu-ref.js";
+import { parseSeqPath, SEQ_PATH_EDGE } from "@haibun/core/lib/seq-path.js";
+import { SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "@haibun/core/lib/resources.js";
 import { currentRowIndex, cursorMark } from "../virtual-column-model.js";
 
 const MonitorColumnSchema = z.object({
@@ -416,7 +416,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		// nothing, so the rows mentioning a capability are exactly the acts that needed one.
 		const dispatchText = r.ranVia ? `${r.ranVia}${r.ranOn ? ` ${r.ranOn}` : ""}${r.durationMs === undefined ? "" : ` ${r.durationMs}ms`}` : "";
 		const capabilityRefused = r.capabilityAction !== undefined && r.allowedAction === undefined;
-		const capability = r.capabilityAction ? html`${capabilityRefused ? "🔒" : "🔓"} ${actionRef(r.capabilityAction)}${r.performedBy ? ` ${r.performedBy}` : ""}` : "";
+		const capability = r.capabilityAction ? html`${capabilityRefused ? "🔒" : "🔓"} ${actionRef(r.capabilityAction)}${r.performedBy ? html` ${fieldRef(SEQ_PATH_LABEL, SEQ_PATH_EDGE.performedBy, r.performedBy)}` : ""}` : "";
 		// What the step produced, beside its words: the row of the step a reader sees is where a screenshot taken during it
 		// is shown, and pressing one opens the image itself.
 		const produced = r.produced?.length

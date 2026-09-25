@@ -14,7 +14,9 @@ import { appAccessLevel, idOf, persistedTypeOf } from "../util.js";
 import { anIndividual, type TContextPattern } from "../schemas.js";
 import { ellipsize } from "@haibun/core/lib/util/index.js";
 import { callStep } from "../pane-fetch.js";
-import { getUiPresenting } from "../rels-cache.js";
+import { getRelSync, getUiPresenting } from "../rels-cache.js";
+import { fieldRef } from "./shu-ref.js";
+import { SHU_TEST_IDS } from "../test-ids.js";
 import { ensureUiComponentLoaded } from "../external-components.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 
@@ -235,17 +237,19 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 		const id = idOf(v);
 		const isCurrent = id === this.state.individualId;
 		const label = persistedTypeOf(v) || this.state.label;
-		const sender = String(v.from ?? v.author ?? v.attributedTo ?? "");
+		// Who sent it is the field its type declares with the attribution rel, which links to the record it names.
+		const senderField = Object.keys(v).find((field) => getRelSync(label, field) === LinkRelations.ATTRIBUTED_TO.rel);
+		const sender = senderField ? String(v[senderField] ?? "") : "";
 		const subject = String(v.subject ?? v.name ?? v.topic ?? "");
 		const date = String(v.dateSent ?? v.generatedAtTime ?? v.published ?? "");
 		const preview = String(v.body ?? v.text ?? v.content ?? "");
-		const knownFields = new Set(["from", "author", "attributedTo", "subject", "name", "topic", "dateSent", "generatedAtTime", "published", "body", "text", "content"]);
+		const knownFields = new Set([...(senderField ? [senderField] : []), "subject", "name", "topic", "dateSent", "generatedAtTime", "published", "body", "text", "content"]);
 		const hasKnownContent = !!(sender || subject || date || preview);
 		const isComment = label === COMMENT_LABEL;
 		const extraFields = Object.entries(v).filter(([k, val]) => !k.startsWith("_") && !k.startsWith("@") && !knownFields.has(k) && val !== undefined && val !== null && val !== "");
 		return html`<div class=${`thread-card${isCurrent ? " current" : ""}`} data-id=${id} data-label=${label} @click=${this.onCardClick(id, label)}>
-			${label ? html`<span class="type-badge" data-testid="thread-item-type">${label}</span>` : ""}
-			${hasKnownContent ? html`<div class="meta"><span class="sender">${sender || (isComment ? COMMENT_LABEL : "")}</span><span>${date}</span></div>` : ""}
+			${label ? html`<span class="type-badge" data-testid=${SHU_TEST_IDS.THREAD.ITEM_TYPE}>${label}</span>` : ""}
+			${hasKnownContent ? html`<div class="meta"><span class="sender">${senderField && sender ? fieldRef(label, senderField, sender, SHU_TEST_IDS.THREAD.SENDER) : isComment ? COMMENT_LABEL : ""}</span><span>${date}</span></div>` : ""}
 			${subject ? html`<div class="subject">${subject}</div>` : ""}
 			${preview ? html`<div class="preview">${ellipsize(preview, 120)}</div>` : ""}
 			${

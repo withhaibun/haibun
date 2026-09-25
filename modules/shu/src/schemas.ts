@@ -5,6 +5,7 @@ import { z } from "zod";
 import { SearchConditionSchema, type TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { DENOTES } from "@haibun/core/lib/typed-links.js";
 import { AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
+import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 
 // --- Combobox ---
 
@@ -318,3 +319,11 @@ export const ActionsBarSchema = z.object({
 	// ask-capable step is registered (the extension system), so the mode-select offers it conditionally.
 	mode: z.enum(["search", "ask", "step"]).default("search"),
 });
+
+/** The domain of where an instance serves shu. */
+export const DOMAIN_SHU_APPS = "shu-apps";
+/** Where an instance serves shu: the path of each app it mounted, which a reader opens under the instance's address. */
+export const ShuAppsSchema = z.object({ apps: z.array(z.string()).describe("The path of each app this instance serves shu at, under its address.") });
+export type TShuApps = z.infer<typeof ShuAppsSchema>;
+/** The step that states where an instance serves shu. */
+export const SHU_APPS_METHOD = stepMethodName("ShuStepper", "showShuApps");
