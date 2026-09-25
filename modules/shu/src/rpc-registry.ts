@@ -6,6 +6,8 @@ import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { STEPS_CHANGED } from "@haibun/core/schema/protocol.js";
 import { EVERY_DEFINITION, SHOW_STEPS_METHOD, readShownSteps, type TDomainDiscoveryInfo, type TStepDefinition, type TStepDefinitions } from "@haibun/core/lib/step-discovery.js";
 import { eventStream } from "./event-stream.js";
+import { domainParts } from "@haibun/core/lib/domains.js";
+import { capabilityAllows } from "@haibun/core/lib/actions.js";
 
 export type DomainOption = {
 	key: string;
@@ -362,6 +364,31 @@ export function linkTo(method: string, params?: Record<string, unknown>, summary
 /** Look up a registered step by either its friendly name (e.g. `"graphQuery"`) or its full `Stepper-method` form. The name is the wire contract, resolution, and any "unknown step" outcome, happen at runtime against the loaded registry. */
 export function findStep(name: string): TStepDefinition | undefined {
 	return registry().byName?.get(name);
+}
+
+/** A domain as the run declares it, by its key. */
+export function findDomain(key: string): TDomainDiscoveryInfo | undefined {
+	return registry().domains?.[key];
+}
+
+/** The steps that take a domain and the steps that return it, the domain named by its key or by the type it persists
+ *  as. A step taking a union takes each of its parts. */
+export function stepsJoining(name: string): { taking: TStepDefinition[]; returning: TStepDefinition[] } {
+	const { steps, domains } = registry();
+	if (!steps || !domains) throw new Error(`the steps joining ${name} are read after the run's steps: call getAvailableSteps() first`);
+	const keys = new Set(Object.entries(domains).flatMap(([key, info]) => (key === name || info.persistedAs === name ? [key] : [])));
+	return {
+		taking: steps.filter((step) => Object.values(step.paramDomains).some((domain) => domainParts(domain).some((part) => keys.has(part)))),
+		returning: steps.filter((step) => step.productsDomain !== undefined && keys.has(step.productsDomain)),
+	};
+}
+
+/** The steps this page may call that an action allows: each step whose required action the action allows, by the one
+ *  reading every gate on a call uses. */
+export function stepsAllowedBy(action: string): TStepDefinition[] {
+	const { steps } = registry();
+	if (!steps) throw new Error(`the steps ${action} allows are read after the run's steps: call getAvailableSteps() first`);
+	return steps.filter((step) => capabilityAllows(action, step.capability));
 }
 
 /** Resolve a friendly name (e.g. `"graphQuery"`) to the loaded stepper's full method (e.g. `"GraphStepper-graphQuery"`). A name no loaded stepper provides fails fast at runtime. */

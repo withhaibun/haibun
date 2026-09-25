@@ -1,7 +1,7 @@
 import { AStepper, TFeatureStep } from "./astepper.js";
 import type { TWorld } from "./world.js";
 import { TStepArgs, TStepValue } from "../schema/protocol.js";
-import { DOMAIN_STRING, isPrimitiveDomain, paramDomainKey } from "./domains.js";
+import { DOMAIN_STRING, domainParts, isPrimitiveDomain, paramDomainKey } from "./domains.js";
 import { errorDetail } from "./util/index.js";
 
 export async function populateActionArgs(featureStep: TFeatureStep, world: TWorld, steppers: AStepper[]): Promise<TStepArgs> {
@@ -37,7 +37,7 @@ export async function populateActionArgs(featureStep: TFeatureStep, world: TWorl
  */
 function inParamDomain(inStep: string, takes: string, resolved: TStepValue, world: TWorld, featureStep: TFeatureStep, steppers: AStepper[]): unknown {
 	const holds = resolved.domain;
-	const parts = takes.split(" | ");
+	const parts = domainParts(takes);
 	if (holds === takes || parts.includes(holds) || parts.includes(DOMAIN_STRING)) return resolved.value;
 	const domain = world.domains[takes];
 	if (!domain) throw new Error(`${inStep} takes the domain "${takes}", which no loaded stepper registers`);

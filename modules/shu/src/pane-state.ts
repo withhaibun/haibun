@@ -18,7 +18,7 @@ import { TEXT_DIRECTIVE, splitTextDirective, textDirectiveFor } from "@haibun/co
 import { z } from "zod";
 import * as ViewHash from "./view-hash.js";
 import { objectId } from "./object-id.js";
-import { INDEX_PANE_KEY, SHU_ATTR, SHU_EVENT } from "./consts.js";
+import { INDEX_PANE_KEY, SHU_ATTR, SHU_EVENT, SHU_TAG } from "./consts.js";
 import { readShowControlsCookie } from "./show-controls.js";
 import { readElementPrefs } from "./element-prefs.js";
 import { presentationForType } from "./graph/type-presentation.js";
@@ -49,6 +49,10 @@ export const DesiredPaneSchema = z.discriminatedUnion("paneType", [
 	z.object({ paneType: z.literal("filter-incoming"), persistedAs: z.string(), subject: z.string(), ...PLACEMENT }),
 	z.object({ paneType: z.literal("thread"), persistedAs: z.string(), subject: z.string(), ...PLACEMENT }),
 	z.object({ paneType: z.literal("step-detail"), seqPath: z.array(z.number()), ...PLACEMENT }),
+	/** A step as the run declares it, by its method. */
+	z.object({ paneType: z.literal("step"), method: z.string().min(1), ...PLACEMENT }),
+	/** An action a caller holds, by what it allows. */
+	z.object({ paneType: z.literal("action"), action: z.string().min(1), ...PLACEMENT }),
 	z.object({
 		paneType: z.literal("views-picker"),
 		views: z.array(z.object({ id: z.string(), description: z.string(), component: z.string() })),
@@ -85,6 +89,10 @@ export function paneIdOf(d: DesiredPane): string {
 			return `t:${d.persistedAs}:${d.subject}`;
 		case "step-detail":
 			return `step:${d.seqPath.join(".")}`;
+		case "step":
+			return `def:${d.method}`;
+		case "action":
+			return `act:${d.action}`;
 		case "views-picker":
 			return "views";
 	}
@@ -113,6 +121,10 @@ export function tagOf(d: DesiredPane): string {
 			return "shu-thread-column";
 		case "step-detail":
 			return "shu-step-detail";
+		case "step":
+			return SHU_TAG.STEP_DEFINITION;
+		case "action":
+			return SHU_TAG.ACTION_COLUMN;
 		case "views-picker":
 			return "shu-views-picker";
 	}
@@ -137,6 +149,10 @@ export function labelOf(d: DesiredPane): string {
 			return `Replies: ${d.subject}`;
 		case "step-detail":
 			return `Step [${d.seqPath.join(".")}]`;
+		case "step":
+			return d.method;
+		case "action":
+			return d.action;
 	}
 }
 
@@ -566,7 +582,7 @@ function withPersistedFlag(d: DesiredPane): DesiredPane {
  * entries: `fromHash` skips nulls so a stale hash never crashes the boot.
  *
  * Each prefix maps to one paneType: `e:` entity, `type:` type, `f:` filter-eq, `p:` filter-prop,
- * `i:` filter-incoming, `t:` thread, `step:` step-detail. Anything else is a component tag. An entry ends in any of
+ * `i:` filter-incoming, `t:` thread, `step:` step-detail, `def:` step, `act:` action. Anything else is a component tag. An entry ends in any of
  * the `PANE_ENDING`s of view-hash, which state where the pane stands.
  */
 export function parseColEntry(raw: string): DesiredPane | null {
@@ -605,6 +621,8 @@ export function parseColEntry(raw: string): DesiredPane | null {
 		if (!split) return null;
 		return safe({ paneType: "thread", persistedAs: split[0], subject: split[1], ...placement });
 	}
+	if (body.startsWith("def:")) return safe({ paneType: "step", method: body.slice(4), ...placement });
+	if (body.startsWith("act:")) return safe({ paneType: "action", action: body.slice(4), ...placement });
 	if (body.startsWith("step:")) {
 		const seq = body.slice(5).split(".").map(Number);
 		if (seq.some((n) => Number.isNaN(n))) return null;

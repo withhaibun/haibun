@@ -32,6 +32,8 @@ export const registerComponents = async (): Promise<void> => {
 	const { ShuCopyButton } = await import("./components/shu-copy-button.js");
 	const { ShuRef } = await import("./components/shu-ref.js");
 	const { ShuTypeColumn } = await import("./components/shu-type-column.js");
+	const { ShuStepDefinition } = await import("./components/shu-step-definition.js");
+	const { ShuActionColumn } = await import("./components/shu-action-column.js");
 	const { ShuThemeSwitch } = await import("./components/shu-theme-switch.js");
 	const { ShuPermissions } = await import("./components/shu-permissions.js");
 	const { ShuPageKey } = await import("./components/shu-page-key.js");
@@ -67,6 +69,8 @@ export const registerComponents = async (): Promise<void> => {
 		[SHU_TAG.COPY_BUTTON, ShuCopyButton],
 		[SHU_TAG.REF, ShuRef],
 		[SHU_TAG.TYPE_COLUMN, ShuTypeColumn],
+		[SHU_TAG.STEP_DEFINITION, ShuStepDefinition],
+		[SHU_TAG.ACTION_COLUMN, ShuActionColumn],
 		[SHU_TAG.THEME_SWITCH, ShuThemeSwitch],
 	];
 

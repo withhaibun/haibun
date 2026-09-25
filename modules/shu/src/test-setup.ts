@@ -75,22 +75,34 @@ export type TShuTestHandle = {
 	eventStream: SerializedEventStream;
 };
 
-/** The steps given, as the show steps step returns them when they are all a run declares. */
+/** The steps given, and the domains given, as the show steps step returns them when they are all a run declares. */
 export function stepsShown(
-	steps: Array<{ method: string; stepperName: string; stepName: string; pattern: string; fallback?: boolean; read?: boolean; answersTheTurn?: boolean; capability?: string }>,
+	steps: Array<{
+		method: string;
+		stepperName: string;
+		stepName: string;
+		pattern: string;
+		fallback?: boolean;
+		read?: boolean;
+		answersTheTurn?: boolean;
+		capability?: string;
+		paramDomains?: Record<string, string>;
+		productsDomain?: string;
+	}>,
+	domains: TStepDefinitions["domains"] = {},
 ): TStepDefinitions {
 	const described = steps.map((step) => ({
 		...step,
 		// Each step requires what a run's step would: what it declares, a public read for a read, and otherwise its name.
 		capability: requiredAction(step.stepperName, step.stepName, step),
 		stepperDescription: `the steps of ${step.stepperName}`,
-		paramDomains: {},
+		paramDomains: step.paramDomains ?? {},
 		read: step.read === true,
 		fallback: step.fallback === true,
 		answersTheTurn: step.answersTheTurn === true,
 		inputSchema: { type: "object" as const, properties: {}, required: [] },
 	}));
-	const shown = { detail: STEP_DETAIL.definition, steppers: steppersOf(described), steps: described.map(stepDefinition), domains: {}, concerns: { persisted: {}, references: {} } };
+	const shown = { detail: STEP_DETAIL.definition, steppers: steppersOf(described), steps: described.map(stepDefinition), domains, concerns: { persisted: {}, references: {} } };
 	return readShownSteps(shown, STEP_DETAIL.definition);
 }
 

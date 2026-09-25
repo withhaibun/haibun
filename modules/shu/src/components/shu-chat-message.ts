@@ -7,7 +7,8 @@ import { css, html, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
-import MarkdownIt from "markdown-it";
+import { renderRefAnswer } from "../markdown-refs.js";
+import { isKnownType } from "../rels-cache.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import type { ShuSpinner } from "./shu-spinner.js";
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
@@ -82,7 +83,6 @@ export type TChatMessage = z.infer<typeof ChatMessageSchema>;
 
 const EmptySchema = z.object({});
 const ROLE_LABEL: Record<TChatRole, string> = { user: "🧘", llm: "🤖" };
-const md = new MarkdownIt();
 
 /** Activate a comment of the conversation in the actions bar's scope, with the bundle its turn was sent with. */
 function activateComment(id: string, turn: string, bundle: TBundle): void {
@@ -167,7 +167,7 @@ export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
 							</details>`
 							: ""
 					}
-					${m.role === "llm" && m.text ? html`<div class="chat-text" data-testid="app-chat-text">${unsafeHTML(md.render(m.text))}</div>` : ""}
+					${m.role === "llm" && m.text ? html`<div class="chat-text" data-testid="app-chat-text">${unsafeHTML(renderRefAnswer(m.text, isKnownType))}</div>` : ""}
 					${m.error ? html`<div class="chat-error">${m.error}</div>` : ""}
 					${m.unverified.length > 0 ? html`<div class="chat-unverified" data-testid="app-chat-unverified">${UNVERIFIED_TURN}: ${m.unverified.join(", ")}</div>` : ""}
 					${

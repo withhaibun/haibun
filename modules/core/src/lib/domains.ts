@@ -29,17 +29,23 @@ export const BASE_TYPES = [DOMAIN_STRING, DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_DAT
 // Goal resolver domains.
 export const DOMAIN_DOMAIN_KEY = "domain-key";
 
+/** What separates the parts of a union domain's key. */
+export const DOMAIN_UNION = " | ";
+
+/** The domains a domain key names: itself, or each part of a union. */
+export const domainParts = (domainKey: string): string[] => domainKey.split(DOMAIN_UNION);
+
 /** Primitive domains: a caller supplies their values, no step's product is one, and they aren't nodes of the typed
  *  step graph, since every step would connect through them. */
 export const PRIMITIVE_DOMAINS: ReadonlySet<string> = new Set<string>([...BASE_TYPES, DOMAIN_DOMAIN_KEY]);
 
 /** Whether a domain key is primitive: a primitive, or a union with one, which a caller can always supply as it. */
-export const isPrimitiveDomain = (domainKey: string): boolean => domainKey.split(" | ").some((part) => PRIMITIVE_DOMAINS.has(part));
+export const isPrimitiveDomain = (domainKey: string): boolean => domainParts(domainKey).some((part) => PRIMITIVE_DOMAINS.has(part));
 
 /** Whether a caller writes a value of the domain in a step's line, so no step needs to produce it: a primitive, or a value
  *  domain naming no thing, which has no topology. A persisted type, or a reference to one, is a thing a step produces. */
 export const isWrittenByCaller = (domainKey: string, domains: Record<string, TRegisteredDomain>): boolean =>
-	isPrimitiveDomain(domainKey) || domainKey.split(" | ").every((part) => domains[part] !== undefined && domains[part].topology === undefined);
+	isPrimitiveDomain(domainKey) || domainParts(domainKey).every((part) => domains[part] !== undefined && domains[part].topology === undefined);
 export const DOMAIN_GOAL_RESOLUTION = "goal-resolution";
 export const DOMAIN_MICHI = "michi";
 export const DOMAIN_AFFORDANCES = "affordances";
@@ -65,15 +71,15 @@ export const registerDomains = (world: TWorld, results: TDomainDefinition[][]) =
 	}
 };
 
-export const asDomainKey = (domains: string[]) => domains?.sort().join(" | ");
+export const asDomainKey = (domains: string[]) => domains?.sort().join(DOMAIN_UNION);
 
 /** The domain key a step parameter takes: the domain its phrase names, `string` where it names none, a union's parts in order. */
-export const paramDomainKey = (declared: string | undefined): string => normalizeDomainKey(asDomainKey((declared || DOMAIN_STRING).split(" | ")));
+export const paramDomainKey = (declared: string | undefined): string => normalizeDomainKey(asDomainKey(domainParts(declared || DOMAIN_STRING)));
 
 export const normalizeDomainKey = (domain: string) => {
-	// Split on ' | ' (union separator), not on '/' which is used in variable names
+	// Split on the union separator, not on '/' which is used in variable names
 	const parts = domain
-		?.split(" | ")
+		?.split(DOMAIN_UNION)
 		.map((selector) => selector.trim())
 		.filter(Boolean);
 	const normalized = asDomainKey(parts);

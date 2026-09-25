@@ -11,6 +11,10 @@ import { ShuDomainChainView } from "./shu-domain-chain-view.js";
 import * as ViewHash from "../view-hash.js";
 import { AFFORDANCE_PARAM } from "../consts.js";
 import { PaneState } from "../pane-state.js";
+import { SHU_TEST_IDS } from "../test-ids.js";
+import { LINT_FINDING } from "@haibun/core/lib/domain-chain-lint.js";
+import { DOMAIN_STRING } from "@haibun/core/lib/domains.js";
+import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 
 const deepLink = (name: string): string => ViewHash.hashParam(name);
 const clearDeepLink = (): void => ViewHash.mergeHashParams({ [AFFORDANCE_PARAM.GOAL]: "", [AFFORDANCE_PARAM.WAYPOINT]: "" });
@@ -286,6 +290,25 @@ describe("shu-domain-chain-view", () => {
 			ViewHash.mergeHashParams({ [AFFORDANCE_PARAM.WAYPOINT]: "Logged in" });
 			expect((view as unknown as { selectedNodeId: string }).selectedNodeId).toBe("waypoint:Logged in");
 			clearDeepLink();
+		});
+
+		it("lists a lint report's findings, each step and domain a link to its view", async () => {
+			const view = mount();
+			view.products = {
+				forward: [],
+				goals: [],
+				findings: [
+					{ kind: LINT_FINDING.STRING_PARAM, stepperName: "S", stepName: "s", param: "p", domain: DOMAIN_STRING },
+					{ kind: LINT_FINDING.UNREACHABLE_DOMAIN, domain: "dead" },
+				],
+			};
+			await view.updateComplete;
+			const refs = [...(view.shadowRoot?.querySelectorAll(`[data-testid="${SHU_TEST_IDS.DOMAIN_CHAIN.FINDING}"] shu-ref`) ?? [])].map((ref) => [ref.getAttribute("kind"), JSON.parse(ref.getAttribute("linkTarget") ?? "{}")]);
+			expect(refs).toEqual([
+				["step", { method: "S-s" }],
+				[REF_DENOTES.type, { domain: DOMAIN_STRING }],
+				[REF_DENOTES.type, { domain: "dead" }],
+			]);
 		});
 
 		it("routes a fact-instance node click to the step that produced it, a field's fact included, without writing a goal deep link", () => {

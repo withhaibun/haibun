@@ -37,6 +37,7 @@ import { pageMay } from "../page-key.js";
 import { allowForTurns, readTurnAllowance, turnAllowance, withdrawFromTurns } from "../turn-allowance.js";
 import { harvestChatViewLd } from "../chat-context-harvest.js";
 import { SHU_TAG } from "../consts.js";
+import { actionRef, stepRef } from "./shu-ref.js";
 import { reportToRun } from "../client-log.js";
 
 /** What a reader says a turn sends. The values are the words the registry and a profile state it in; what each of them
@@ -308,13 +309,13 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		const ended = !inFlight(asked?.status);
 		return html`
 			<div class="turn-authority">
-				${delegated.length > 0 ? html`<p data-testid=${`${prefix}turn-held`}>The last turn held ${delegated.join(", ")}.</p>` : nothing}
+				${delegated.length > 0 ? html`<p data-testid=${`${prefix}turn-held`}>The last turn held ${delegated.map((action, i) => html`${i ? ", " : ""}${actionRef(action)}`)}.</p>` : nothing}
 				${refused.length > 0
 					? html`<ul>
 							${refused.map(
 								({ step, action }) =>
 									html`<li>
-										${step} was refused: the turn didn't hold ${action}.
+										${stepRef(step)} was refused: the turn didn't hold ${actionRef(action)}.
 										${ended && pageMay(action) && !allowed.includes(action)
 											? html`<button type="button" data-testid=${`${prefix}turn-allow`} value=${action} @click=${this.onAllow}>Allow ${action} for this page's turns and ask again</button>`
 											: nothing}
@@ -325,7 +326,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 				${allowed.length > 0
 					? html`<p>This page's turns are also given:</p>
 							<ul>
-								${allowed.map((action) => html`<li>${action} <button type="button" data-testid=${`${prefix}turn-withdraw`} value=${action} @click=${this.onWithdraw}>Withdraw</button></li>`)}
+								${allowed.map((action) => html`<li>${actionRef(action)} <button type="button" data-testid=${`${prefix}turn-withdraw`} value=${action} @click=${this.onWithdraw}>Withdraw</button></li>`)}
 							</ul>`
 					: nothing}
 			</div>

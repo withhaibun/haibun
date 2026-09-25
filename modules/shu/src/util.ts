@@ -58,7 +58,7 @@ export function defaultLabel(): string {
 }
 
 import { renderRefBody } from "./markdown-refs.js";
-import { getRels } from "./rels-cache.js";
+import { isKnownType } from "./rels-cache.js";
 /** The one reading style for a record's body text. The body iframe's document and the inline annotated view both use
  *  it, so toggling the annotation gutter never changes how the text reads. */
 export const BODY_READING_STYLE = "font-family: sans-serif; font-size: 14px; line-height: 1.5;";
@@ -71,7 +71,7 @@ const preBlock = (text: string) => `<pre style="font-family:monospace;white-spac
  * without the element (the sandboxed body iframe) still shows the text. Callers sanitize with `refSanitizeOptions`.
  */
 export function renderContentHtml(raw: string, mimeType: string): string {
-	if (mimeType === "text/markdown") return renderRefBody(raw, (name) => getRels(name) !== undefined);
+	if (mimeType === "text/markdown") return renderRefBody(raw, isKnownType);
 	if (mimeType === "text/html") return raw;
 	if (mimeType === "application/ld+json" || mimeType === "application/json") {
 		try {

@@ -15,7 +15,7 @@ import { shuBaseStyles } from "./styles.js";
 import { PermissionsSchema } from "../schemas.js";
 import { AuthorityController, type TAuthority } from "../controllers/index.js";
 import { PRINCIPAL_LABEL } from "@haibun/core/lib/resources.js";
-import { refTpl } from "./shu-ref.js";
+import { actionRef, refTpl } from "./shu-ref.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import type { TRefKind } from "./ref-navigation.js";
 
@@ -105,7 +105,7 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 	private grantedAt(action: string): TemplateResult {
 		const grantedBy = this.held.grantedBy[action];
 		if (grantedBy) return refTpl("entity", { persistedAs: grantedBy.persistedAs, id: grantedBy.id }, action, SHU_TEST_IDS.APP.HELD);
-		return html`<span class="action">${action}</span>`;
+		return html`<span class="action">${actionRef(action)}</span>`;
 	}
 
 	private onTogglePrincipals = (): void => {

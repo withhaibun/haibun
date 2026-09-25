@@ -2,7 +2,7 @@
 // jsdom: refLinksPlugin imports renderRef from shu-ref, which defines a custom element (extends HTMLElement).
 import { describe, expect, it } from "vitest";
 import MarkdownIt from "markdown-it";
-import { refLinksPlugin, renderRefProse } from "./markdown-refs.js";
+import { refLinksPlugin, renderRefAnswer, renderRefProse } from "./markdown-refs.js";
 import { parseRefHref } from "@haibun/core/lib/typed-links.js";
 
 const isType = (name: string) => name === "FieldReport" || name === "SiteSurvey";
@@ -92,6 +92,16 @@ describe("renderRefProse", () => {
 	it("renders markup a description carries as text: a description is prose, not a document body", () => {
 		const html = renderRefProse('<img src=x onerror="alert(1)"> plain', isType);
 		expect(html).not.toContain("<img"); // escaped, so nothing of it is live
+		expect(html).toContain("&lt;img");
+	});
+});
+
+describe("renderRefAnswer", () => {
+	it("turns a record a model's answer links into a live reference, and renders markup the model wrote as text", () => {
+		const html = renderRefAnswer('The [site survey](#SiteSurvey:survey-1) holds it.\n\n<img src=x onerror="alert(1)">', isType);
+		expect(html).toContain('<shu-ref kind="entity"');
+		expect(html).toContain("survey-1");
+		expect(html).not.toContain("<img");
 		expect(html).toContain("&lt;img");
 	});
 });

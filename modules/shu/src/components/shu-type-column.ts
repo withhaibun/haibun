@@ -16,7 +16,7 @@ import { shuBaseStyles } from "./styles.js";
 import { QueryController } from "../controllers/query-controller.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { appAccessLevel } from "../util.js";
-import { getEdgeRanges, getQueryableFields, getRels, getTypeDescription, getTypes, getUiPresenting, isSystemSchemaType } from "../rels-cache.js";
+import { getEdgeRanges, getQueryableFields, getRels, getTypeDescription, getTypes, getUiPresenting, isKnownType, isSystemSchemaType } from "../rels-cache.js";
 import { renderRefProse } from "../markdown-refs.js";
 import { arrayWindowedSource, readWindowedSource, type WindowedSource } from "../windowed-source.js";
 
@@ -25,9 +25,14 @@ import { arrayWindowedSource, readWindowedSource, type WindowedSource } from "..
 const INSTANCES_PAGE = 100;
 
 /** A `#Type` link resolves against the site's own declared types: the same test every ref surface uses. */
-const isKnownType = (name: string): boolean => getRels(name) !== undefined;
 import type { ShuResultTable } from "./shu-result-table.js";
 import { SHU_EVENT } from "../consts.js";
+import { SHU_TEST_IDS } from "../test-ids.js";
+import { findDomain, stepsJoining } from "../rpc-registry.js";
+import { stepRef } from "./shu-ref.js";
+import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
+
+const IDS = SHU_TEST_IDS.TYPE_COLUMN;
 import { openRef, paneAddressedBy, paneHref, refHref } from "./ref-navigation.js";
 import { PaneState } from "../pane-state.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
@@ -106,6 +111,8 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 			shu-graph, ::slotted(shu-product-view) { display: block; flex: 1 1 auto; min-height: 160px; overflow: auto; border-bottom: var(--shu-border-w) solid var(--shu-border); }
 			.schema-scope { display: flex; align-items: center; gap: var(--shu-space-2); padding: var(--shu-space-1) var(--shu-space-4); font-size: var(--shu-font-sm); color: var(--shu-fg-muted); }
 			.instances { flex: 0 0 auto; padding: var(--shu-space-3) var(--shu-space-4); }
+			.joins { padding: 0 var(--shu-space-4); margin: var(--shu-space-2) 0; }
+			.joins .section-label { display: inline; margin-right: var(--shu-space-2); }
 			.section-label { display: block; font-size: var(--shu-font-sm); color: var(--shu-fg-muted); margin-bottom: var(--shu-space-2); }
 			.instances ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--shu-space-1); }
 			.error { color: var(--shu-error); }
@@ -230,7 +237,7 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 		let mounted = view;
 		if (!mounted) {
 			mounted = new ShuProductView();
-			mounted.setAttribute("data-testid", "type-schema-graph");
+			mounted.setAttribute("data-testid", IDS.SCHEMA_GRAPH);
 			if (this.showControls) mounted.setAttribute("data-show-controls", "");
 			this.appendChild(mounted);
 		}
@@ -243,29 +250,41 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 
 	render(): TemplateResult {
 		const type = this.state.persistedAs;
-		const desc = getTypeDescription(type);
+		const domain = findDomain(type);
+		const desc = getTypeDescription(type) ?? domain?.description;
 		// The site's declared schema presenter (scoped by focusType), projected from light DOM through the slot;
 		// standalone falls back to the static SVG, rebuilt per render: a light pure projection of the metadata cache,
 		// so no stored copy to fall stale.
 		const hasPresenter = ShuTypeColumn.schemaPresenter() !== undefined;
+		const persisted = getTypes().includes(type);
 		const graphView = hasPresenter
 			? html`<slot></slot>`
 			: html`
-				<label class="schema-scope"><input type="checkbox" data-testid="type-schema-scope" .checked=${this.state.fullSchema} @change=${this.onScopeChange} /> entire schema</label>
-				<shu-graph data-testid="type-schema-graph" .products=${{ graph: this.state.fullSchema ? buildFullSchemaGraph(type) : buildTypeSchemaGraph(type) }}></shu-graph>`;
+				<label class="schema-scope"><input type="checkbox" data-testid=${IDS.SCHEMA_SCOPE} .checked=${this.state.fullSchema} @change=${this.onScopeChange} /> entire schema</label>
+				<shu-graph data-testid=${IDS.SCHEMA_GRAPH} .products=${{ graph: this.state.fullSchema ? buildFullSchemaGraph(type) : buildTypeSchemaGraph(type) }}></shu-graph>`;
 		return html`
-			${desc ? html`<p class="type-desc" data-testid="type-description">${unsafeHTML(renderRefProse(desc, isKnownType))}</p>` : ""}
-			${isSystemSchemaType(type) ? html`<p class="system-schema-note" data-testid="type-system-schema">A system schema, defined in haibun's own vocabulary.</p>` : ""}
+			${desc ? html`<p class="type-desc" data-testid=${IDS.DESCRIPTION}>${unsafeHTML(renderRefProse(desc, isKnownType))}</p>` : ""}
+			${isSystemSchemaType(type) ? html`<p class="system-schema-note" data-testid=${IDS.SYSTEM_SCHEMA}>A system schema, defined in haibun's own vocabulary.</p>` : ""}
+			${domain?.values?.length ? html`<p class="joins" data-testid=${IDS.VALUES}><span class="section-label">Values</span> ${domain.values.map((value, i) => html`${i ? ", " : ""}<code>${value}</code>`)}</p>` : ""}
+			${type ? this.renderJoins(type) : ""}
 			${graphView}
 			${
-				hasPresenter
+				hasPresenter || !persisted
 					? ""
 					: html`<div class="instances">
 				<span class="section-label">Individuals${this.#instances.count() ? ` (${this.#instances.count()})` : ""}</span>
 				${this.state.loading ? html`<span>Loading…</span>` : ""}
-				${this.state.error ? html`<div class="error" data-testid="type-error">${this.state.error}</div>` : ""}
-				<shu-result-table ${ref(this.tableRef)} data-testid="type-instances" @row-click=${this.onRowClick}></shu-result-table>
+				${this.state.error ? html`<div class="error" data-testid=${IDS.ERROR}>${this.state.error}</div>` : ""}
+				<shu-result-table ${ref(this.tableRef)} data-testid=${IDS.INSTANCES} @row-click=${this.onRowClick}></shu-result-table>
 			</div>`
 			}`;
+	}
+
+	/** The steps that return this domain and the steps that take it, each a link to the step. */
+	private renderJoins(type: string): TemplateResult {
+		const { returning, taking } = stepsJoining(type);
+		const steps = (label: string, joined: TStepDefinition[], testId: string) =>
+			joined.length ? html`<p class="joins" data-testid=${testId}><span class="section-label">${label}</span> ${joined.map((step, i) => html`${i ? ", " : ""}${stepRef(step.method)}`)}</p>` : "";
+		return html`${steps("Returned by", returning, IDS.RETURNED_BY)}${steps("Taken by", taking, IDS.TAKEN_BY)}`;
 	}
 }

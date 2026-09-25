@@ -133,6 +133,8 @@ export const SHU_TAG = {
 	POLYMORPHIC_GRAPH_VIEW: "shu-polymorphic-graph-view",
 	THREAD_COLUMN: "shu-thread-column",
 	STEP_DETAIL: "shu-step-detail",
+	STEP_DEFINITION: "shu-step-definition",
+	ACTION_COLUMN: "shu-action-column",
 	INDEX_SUMMARY: "shu-index-summary",
 	PLAYBACK: "shu-playback",
 	DOCUMENT_COLUMN: "shu-document-column",

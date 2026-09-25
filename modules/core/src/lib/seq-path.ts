@@ -29,6 +29,16 @@ export function parseSeqPath(id: string): number[] | null {
 	return id.split(".").map((p) => Number.parseInt(p, 10));
 }
 
+/** What a step's record says it called: the stepper and the action within it. */
+export const calledOf = (stepperName: string, actionName: string): string => `${stepperName}.${actionName}`;
+
+/** The stepper and the action a step's record says it called. */
+export function calledParts(called: string): { stepperName: string; actionName: string } {
+	const at = called.indexOf(".");
+	if (at < 1 || at === called.length - 1) throw new Error(`"${called}" names no stepper and action`);
+	return { stepperName: called.slice(0, at), actionName: called.slice(at + 1) };
+}
+
 /** What separates a fact's seqPath from the field it names, where a step's product has a domain for each field. */
 export const FACT_FIELD_MARK = "#";
 

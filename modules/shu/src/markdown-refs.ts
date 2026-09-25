@@ -12,7 +12,7 @@
 import MarkdownIt from "markdown-it";
 import DOMPurify from "dompurify";
 import { parseRefHref } from "@haibun/core/lib/typed-links.js";
-import { renderRef } from "./components/ref-navigation.js";
+import { isRefKind, renderRef, type TRefKind } from "./components/ref-navigation.js";
 import { getPropertyDefinition } from "./rels-cache.js";
 
 /**
@@ -81,8 +81,44 @@ export function renderRefBody(markdown: string, isType: (name: string) => boolea
 	return bodyRenderer.render(markdown);
 }
 
+/** A reference a rendered text makes: its kind, what it points at, and the words that name it. */
+export type TContentRef = { kind: TRefKind; target: Record<string, unknown>; text: string };
+
+/** The references a rendered text makes, once each: every `<shu-ref>` its markdown became, and every `#Type` or `#Type:id`
+ *  link an HTML text carries. A surface that shows the text where references don't work, the sandboxed body iframe,
+ *  lists these beside it. */
+export function refsInContent(html: string, isType: (name: string) => boolean): TContentRef[] {
+	const template = document.createElement("template");
+	template.innerHTML = html;
+	const found = new Map<string, TContentRef>();
+	for (const ref of template.content.querySelectorAll("shu-ref")) {
+		const kind = ref.getAttribute("kind") ?? "";
+		if (!isRefKind(kind)) continue;
+		const target = JSON.parse(ref.getAttribute("linkTarget") ?? "{}") as Record<string, unknown>;
+		found.set(`${kind} ${JSON.stringify(target)}`, { kind, target, text: ref.getAttribute("text") ?? "" });
+	}
+	for (const anchor of template.content.querySelectorAll("a[href]")) {
+		const ref = parseRefHref(anchor.getAttribute("href"), isType);
+		if (ref) found.set(`${ref.kind} ${JSON.stringify(ref.target)}`, { kind: ref.kind, target: ref.target, text: anchor.textContent ?? "" });
+	}
+	return [...found.values()];
+}
+
 /** What a sanitizer must allow through for a rewritten reference to survive: the element and the attributes carrying it. */
 export const refSanitizeOptions = { ADD_TAGS: ["shu-ref"], ADD_ATTR: ["kind", "linktarget", "text"] };
+
+/** The renderer for what a model answers: block markdown with its in-app references live, shown as the model wrote it,
+ *  with no raw HTML, since a model's text is not the run's. Built once, like the others. */
+let answerRenderer: MarkdownIt | undefined;
+
+/** Render a model's answer with its `#Type` / `#Type:id` links live. Sanitized, because a model writes it. */
+export function renderRefAnswer(markdown: string, isType: (name: string) => boolean): string {
+	if (!answerRenderer) {
+		answerRenderer = new MarkdownIt({ html: false, linkify: false, typographer: false });
+		refLinksPlugin(answerRenderer, isType);
+	}
+	return DOMPurify.sanitize(answerRenderer.render(markdown), refSanitizeOptions);
+}
 
 /**
  * Render a SHORT piece of prose, a type's description, a step's, with its `#Type` / `#Type:id` links live, so a

@@ -11,7 +11,7 @@ import { doStepperCycle } from "./stepper-cycles.js";
 import { actingAs, authorizedWith, runAuthorizedWith, runInStep, runReadingAt } from "./capability-context.js";
 import { capabilityAllows, readCeilingOf } from "./actions.js";
 import { Access, LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS, type SeqPathStatus } from "./resources.js";
-import { SEQ_PATH_FIELD, executionOf, factIdOf, formatRecordName } from "./seq-path.js";
+import { SEQ_PATH_FIELD, calledOf, executionOf, factIdOf, formatRecordName } from "./seq-path.js";
 import { StepRegistry, stepMethodName, hostScopedMethodName, authorizeToolCapability } from "./step-registry.js";
 import { validateProducts } from "./tool-validation.js";
 import { augmentViewHypermedia, isViewOnlyDomain } from "./step-hypermedia.js";
@@ -299,7 +299,7 @@ async function emitSeqPathStart(world: TWorld, featureStep: TFeatureStep, author
 		[SEQ_PATH_FIELD.recordedAtTime]: new Date().toISOString(),
 		[SEQ_PATH_FIELD.stepText]: featureStep.in,
 		// What ran, beside what was asked for: a step's own record otherwise says only the words of the line.
-		[SEQ_PATH_FIELD.called]: `${featureStep.action.stepperName}.${featureStep.action.actionName}`,
+		[SEQ_PATH_FIELD.called]: calledOf(featureStep.action.stepperName, featureStep.action.actionName),
 		[SEQ_PATH_FIELD.actionStatus]: SEQ_PATH_STATUS.running,
 		[SEQ_PATH_FIELD.generatedAtTime]: new Date().toISOString(),
 		// Written for every step, the default included: a reader asking for the steps that were NOT speculative can only

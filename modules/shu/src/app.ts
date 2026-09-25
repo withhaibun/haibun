@@ -36,6 +36,8 @@ import { PaneState, PaneOpenSchema } from "./pane-state.js";
 import { followPaneLink } from "./components/ref-navigation.js";
 import type { ShuColumnStrip } from "./components/shu-column-strip.js";
 import type { ShuEntityColumn } from "./components/shu-entity-column.js";
+import type { ShuStepDefinition } from "./components/shu-step-definition.js";
+import type { ShuActionColumn } from "./components/shu-action-column.js";
 import type { ShuFilterColumn } from "./components/shu-filter-column.js";
 import type { ShuGraphQuery } from "./components/shu-graph-query.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
@@ -477,6 +479,14 @@ const main = async (): Promise<void> => {
 					"step-detail": (d, child) => {
 						if (d.paneType !== "step-detail") return;
 						return (child as HTMLElement & { open(s: number[]): Promise<void> }).open(d.seqPath);
+					},
+					step: (d, child) => {
+						if (d.paneType !== "step") return;
+						return (child as ShuStepDefinition).open(d.method);
+					},
+					action: (d, child) => {
+						if (d.paneType !== "action") return;
+						return (child as ShuActionColumn).open(d.action);
 					},
 					"views-picker": (d, child) => {
 						if (d.paneType !== "views-picker") return;

@@ -34,9 +34,10 @@ import type { TEntityResult, TEntityView, TAnnotationDraft } from "../entity-sto
 import type { AnnotationView } from "../annotation-resolver.js";
 import type { TQuoteAnchor } from "@haibun/core/lib/resources.js";
 import "./shu-annotated-body.js";
-import { getRelSync, getEdgeTargetLabel, getEdgeTargetLabels, getSummaryFields, getIdField, getQueryableFields, getRels, roleEdgeLabelSet, getDeclaredEdgeLabel } from "../rels-cache.js";
+import { getRelSync, getEdgeTargetLabel, getEdgeTargetLabels, getSummaryFields, getIdField, getQueryableFields, getRels, isKnownType, roleEdgeLabelSet, getDeclaredEdgeLabel } from "../rels-cache.js";
 import { propertyVocabulary } from "../graph/ontology-projection.js";
-import { linkHtml, paneHref, refHref } from "./ref-navigation.js";
+import { linkHtml, paneHref, refHref, renderRef } from "./ref-navigation.js";
+import { refsInContent } from "../markdown-refs.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { pageAddress } from "../view-hash.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
@@ -129,6 +130,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		.vocab-haibun { color: var(--shu-fg-faded); }
 		.body-container { display: flex; flex-direction: column; flex: 1; min-height: 200px; }
 		.body-iframe { width: 100%; height: 100%; min-height: 200px; border: none; background: #fff; }
+		.body-refs { padding: var(--shu-space-2) 0; font-size: var(--shu-font-sm); }
 		/* Locally-rendered (black-on-white) bodies invert in dark themes so they read natively; a text/html body is
 		   the original document with its own colours and never inverts (see renderContentIframe). */
 		.body-iframe.invertible { filter: invert(var(--shu-invert, 0)) hue-rotate(calc(var(--shu-invert, 0) * 180deg)); }
@@ -496,7 +498,10 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const copyBtn = copyButtonHtml(raw);
 		const annotateBtn = this.annotatableBody() ? this.annotateButtonHtml(false) : "";
 		const toolbar = `<div class="content-toolbar">${switcherHtml}${copyBtn}${annotateBtn}</div>`;
-		return `<div class="body-container">${toolbar}${iframeHtml}</div>`;
+		// References don't work inside the sandbox, so the ones the body makes are listed beside it.
+		const refs = refsInContent(content, isKnownType);
+		const refsHtml = refs.length ? `<div class="body-refs" data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.BODY_REFS}">${refs.map((ref) => renderRef(ref.kind, ref.target, ref.text)).join(", ")}</div>` : "";
+		return `<div class="body-container">${toolbar}${iframeHtml}${refsHtml}</div>`;
 	}
 
 	/** The bodies this record links, as it names them: id + media type. `content` is absent from a graph read (a body's

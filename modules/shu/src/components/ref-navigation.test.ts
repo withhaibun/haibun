@@ -25,11 +25,11 @@ describe("refHref", () => {
 	it("addresses exactly the pane a click opens: one reading of (kind, target) serves both, so they cannot drift", () => {
 		expect(desiredPaneFor("domain", { domain: "Principal" })).toEqual({ paneType: "type", persistedAs: "Principal" });
 		expect(desiredPaneFor("entity", { persistedAs: "Person", id: "ada@test.com" })).toEqual({ paneType: "entity", persistedAs: "Person", id: "ada@test.com" });
-		expect(desiredPaneFor("step", { stepperName: "S", stepName: "s" })).toBeNull();
+		expect(desiredPaneFor("step", { method: "S-s" })).toEqual({ paneType: "step", method: "S-s" });
 	});
 
 	it("is no link at all for a kind with no pane, rather than one that goes nowhere", () => {
-		expect(refHref("step", { stepperName: "S", stepName: "s" })).toBeUndefined();
+		expect(refHref("step", { stepperName: "S", stepName: "s" }), "a step is named by its method").toBeUndefined();
 		expect(refHref("domain", {})).toBeUndefined();
 	});
 });
@@ -43,6 +43,8 @@ describe("a link to a pane", () => {
 		{ paneType: "filter-incoming", persistedAs: "Email", subject: "m-1" },
 		{ paneType: "thread", persistedAs: "Email", subject: "m-1" },
 		{ paneType: "step-detail", seqPath: [0, 1, 2] },
+		{ paneType: "step", method: "GraphStepper-graphQuery" },
+		{ paneType: "action", action: "Read:private" },
 	];
 
 	it("reads back as the pane it addresses, an individual's passage included", () => {

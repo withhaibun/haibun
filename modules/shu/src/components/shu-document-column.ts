@@ -33,7 +33,7 @@ import { SEQ_PATH_STATUS } from "@haibun/core/lib/resources.js";
 import { eventMarkerStyle } from "../event-marker.js";
 import { HAIBUN_LOG_LEVELS } from "@haibun/core/schema/protocol.js";
 import { esc } from "../util.js";
-import { getRels } from "../rels-cache.js";
+import { isKnownType } from "../rels-cache.js";
 import { artifactUrl } from "../artifact-url.js";
 import { refLinksPlugin } from "../markdown-refs.js";
 
@@ -44,7 +44,7 @@ const DocumentColumnSchema = z.object({
 const mdRenderer = new MarkdownIt({ html: true, linkify: true, typographer: true });
 withHeadingAnchors(mdRenderer);
 // A `#Type` / `#Type:id` link in prose opens the type or individual in a column (shu-ref), never navigating the page.
-refLinksPlugin(mdRenderer, (name) => getRels(name) !== undefined);
+refLinksPlugin(mdRenderer, isKnownType);
 
 const SANITIZE_OPTS = {
 	// `kind`/`linktarget`/`text` carry the shu-ref reference (a `#Type` link the refLinksPlugin rewrote); DOMPurify

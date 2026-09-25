@@ -18,7 +18,9 @@ import {
 	requireStep,
 	resetStepRegistry,
 	responseTimeoutMs,
+	stepsJoining,
 } from "./rpc-registry.js";
+import { asDomainKey } from "@haibun/core/lib/domains.js";
 import { setupShuTest, stepsShown, type TShuTestHandle } from "./test-setup.js";
 import { ServerUnreachable } from "./hypermedia.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
@@ -222,5 +224,36 @@ describe("the registry cached on the device", () => {
 		setDeviceStore(store);
 		await expect(getAvailableSteps()).rejects.toThrow("capability Read:public required");
 		expect(registryOrigin()?.from, "and runs on nothing it was refused").not.toBe("device");
+	});
+});
+
+describe("the steps a domain joins", () => {
+	let handle: TShuTestHandle;
+	afterEach(() => {
+		handle?.teardown();
+		resetStepRegistry();
+	});
+
+	it("are the steps that return it and the steps that take it, named by its key or by the type it persists as, a union's parts included", async () => {
+		const [CREDENTIAL, CREDENTIAL_TYPE, CHECK] = ["credential", "VerifiableCredential", "verification"];
+		const [issue, verify, either] = [
+			{ ...aStep("CredentialsStepper", "issue", false), productsDomain: CREDENTIAL },
+			{ ...aStep("VerifierStepper", "verify", false), paramDomains: { credential: CREDENTIAL }, productsDomain: CHECK },
+			{ ...aStep("VerifierStepper", "either", false), paramDomains: { what: asDomainKey([CREDENTIAL, CHECK]) } },
+		];
+		setHydration({});
+		resetStepRegistry();
+		setDeviceStore(new MemoryDeviceStore());
+		handle = setupShuTest({
+			dispatch: (method) => (method === SHOW_STEPS_METHOD ? stepsShown([issue, verify, either], { [CREDENTIAL]: { persistedAs: CREDENTIAL_TYPE }, [CHECK]: {} }) : undefined),
+		});
+		await getAvailableSteps();
+		const joined = (name: string) => {
+			const { returning, taking } = stepsJoining(name);
+			return { returning: returning.map((step) => step.method), taking: taking.map((step) => step.method) };
+		};
+		expect(joined(CREDENTIAL)).toEqual({ returning: [issue.method], taking: [verify.method, either.method] });
+		expect(joined(CREDENTIAL_TYPE), "the same, by the type it persists as").toEqual(joined(CREDENTIAL));
+		expect(joined(CHECK)).toEqual({ returning: [verify.method], taking: [either.method] });
 	});
 });

@@ -13,7 +13,7 @@ import { DEEP_LINK_PREFIX } from "../consts.js";
 import { QuoteAnchorSchema } from "@haibun/core/lib/resources.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 
-export const REF_KIND = ["seqPath", REF_DENOTES.individual, REF_DENOTES.type, "step"] as const;
+export const REF_KIND = ["seqPath", REF_DENOTES.individual, REF_DENOTES.type, "step", "action"] as const;
 export type TRefKind = (typeof REF_KIND)[number];
 
 export function isRefKind(v: string | undefined): v is TRefKind {
@@ -35,7 +35,10 @@ export function desiredPaneFor(kind: TRefKind, linkTarget: Record<string, unknow
 	}
 	// A type reference opens the type column: its description, schema graph, and individuals.
 	if (kind === REF_DENOTES.type && typeof linkTarget.domain === "string") return { paneType: "type", persistedAs: linkTarget.domain };
-	// step kind: no dedicated pane yet.
+	// A step reference opens the step as the run declares it.
+	if (kind === "step" && typeof linkTarget.method === "string") return { paneType: "step", method: linkTarget.method };
+	// An action reference opens what the action allows.
+	if (kind === "action" && typeof linkTarget.action === "string") return { paneType: "action", action: linkTarget.action };
 	return null;
 }
 
@@ -96,7 +99,8 @@ export function defaultLabel(kind: string | null, targetJson: string | null): st
 		if (kind === "seqPath" && Array.isArray(target.seqPath)) return (target.seqPath as number[]).join(".");
 		if (kind === REF_DENOTES.individual && typeof target.id === "string") return target.id;
 		if (kind === REF_DENOTES.type && typeof target.domain === "string") return target.domain;
-		if (kind === "step" && typeof target.stepperName === "string" && typeof target.stepName === "string") return `${target.stepperName}.${target.stepName}`;
+		if (kind === "step" && typeof target.method === "string") return target.method;
+		if (kind === "action" && typeof target.action === "string") return target.action;
 	} catch {
 		// fallthrough
 	}

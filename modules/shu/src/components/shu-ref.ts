@@ -1,24 +1,27 @@
 /**
- * <shu-ref>: a link to the view of a structured identifier (seqPath, entity id, domain key, step descriptor). Every
+ * <shu-ref>: a link to the view of a structured identifier (seqPath, entity id, domain key, step, action). Every
  * panel that shows one uses this component, so the link vocabulary stays consistent: panels emit `<shu-ref kind="…">`
  * markup and never wire their own click handlers. The link's href is the address of the referenced pane, which the page
  * follows (`followPaneLink`), opening it beside the pane it was clicked in.
  *
  * Attributes:
- *   kind: "seqPath" | "entity" | "domain" | "step"
+ *   kind: "seqPath" | "entity" | "domain" | "step" | "action"
  *   linkTarget: JSON describing the target. Shape varies by kind:
  *                 seqPath → `{ "seqPath": [0,1,2] }`
  *                 entity  → `{ "persistedAs": "Issuer", "id": "..." }`
- *                 step    → `{ "stepperName": "...", "stepName": "..." }`
+ *                 step    → `{ "method": "..." }`
+ *                 action  → `{ "action": "..." }`
  *                 domain: `{ "domain": "..." }`
  *   text: display label (defaults to a derived label per kind)
  */
 import { html, nothing, type TemplateResult } from "lit";
-import { factSeqPath } from "@haibun/core/lib/seq-path.js";
+import { calledParts, factSeqPath } from "@haibun/core/lib/seq-path.js";
 import { esc } from "../util.js";
 import { DENOTES, REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { isRefKind, refHref, defaultLabel, renderRef, type TRefKind } from "./ref-navigation.js";
 import type { TContextPattern } from "../schemas.js";
+import { findDomain } from "../rpc-registry.js";
+import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 
 export class ShuRef extends HTMLElement {
 	connectedCallback(): void {
@@ -70,6 +73,21 @@ export const refTpl = (kind: TRefKind, linkTarget: Record<string, unknown>, text
 	const targetJson = JSON.stringify(linkTarget);
 	const display = text ?? defaultLabel(kind, targetJson);
 	return html`<shu-ref data-testid=${testId ?? nothing} kind=${kind} linkTarget=${targetJson} text=${display}>${display}</shu-ref>`;
+};
+
+/** A domain, by its key, as a link to its view: the view of the type it persists as, or of the domain itself. */
+export const domainRef = (key: string, testId?: string): TemplateResult => refTpl(REF_DENOTES.type, { domain: findDomain(key)?.persistedAs ?? key }, key, testId);
+
+/** A step, by its method, as a link to the step as the run declares it. */
+export const stepRef = (method: string, text?: string, testId?: string): TemplateResult => refTpl("step", { method }, text ?? method, testId);
+
+/** An action a caller holds or a step requires, as a link to what it allows. */
+export const actionRef = (action: string, testId?: string): TemplateResult => refTpl("action", { action }, action, testId);
+
+/** What a step's record says it called, as a link to that step. */
+export const calledRef = (called: string): TemplateResult => {
+	const { stepperName, actionName } = calledParts(called);
+	return stepRef(stepMethodName(stepperName, actionName), called);
 };
 
 /** The link to what a context pattern names: its individual, or its type. */

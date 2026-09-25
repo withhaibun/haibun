@@ -3,7 +3,7 @@ import { isLiteralValue } from "./util/index.js";
 import { parseDotPath, navigateValue } from "./util/dot-path.js";
 import type { TWorld } from "./world.js";
 import { Origin, TOrigin, TProvenanceIdentifier, TStepValue } from "../schema/protocol.js";
-import { DOMAIN_JSON, DOMAIN_STRING, normalizeDomainKey } from "./domains.js";
+import { DOMAIN_JSON, DOMAIN_STRING, DOMAIN_UNION, domainParts, normalizeDomainKey } from "./domains.js";
 import { QuadStore } from "./quad-store.js";
 import { IQuadStore, SHARED_GRAPH, TQuad, emitQuadObservation } from "./quad-types.js";
 
@@ -163,12 +163,11 @@ export class FeatureVariables {
 
 		if (resolved.value !== undefined) {
 			const rawDomainKey = resolved.domain ?? DOMAIN_STRING;
-			const parts = rawDomainKey
-				.split(" | ")
+			const parts = domainParts(rawDomainKey)
 				.map((s) => s.trim())
 				.filter(Boolean)
 				.sort();
-			const sortedKey = parts.join(" | ");
+			const sortedKey = parts.join(DOMAIN_UNION);
 			const isUnion = parts.length > 1;
 			const domainKey = this.world.domains[sortedKey] ? sortedKey : isUnion ? DOMAIN_STRING : sortedKey;
 			const domain = this.world.domains[domainKey];

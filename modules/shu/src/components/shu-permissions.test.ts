@@ -54,10 +54,10 @@ describe("what a reader may do here", () => {
 		expect(refTexts(el, "entity"), "and every action it holds leads there").toEqual(expect.arrayContaining(["Instance:read", "comment.grant"]));
 	});
 
-	it("names an action nothing here recorded, such as one allowed without a delegation, rather than offering a way to nowhere", async () => {
+	it("links an action nothing here recorded, such as one allowed without a delegation, to what it allows rather than to a record", async () => {
 		const el = await mounted();
-		expect(refTexts(el), "no record accounts for what it holds").not.toContain("comment.grant");
-		expect(el.shadowRoot?.textContent, "so it is stated plainly instead").toContain("comment.grant");
+		expect(refTexts(el, "entity"), "no record accounts for what it holds").not.toContain("comment.grant");
+		expect(refTexts(el, "action"), "so it opens the steps it allows").toContain("comment.grant");
 	});
 
 	it("opens with the read access in force, labelled as what it is", async () => {

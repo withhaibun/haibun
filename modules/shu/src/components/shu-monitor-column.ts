@@ -21,7 +21,7 @@ import type { TScrollMarker } from "../scrollbar-model.js";
 import { artifactUrl } from "../artifact-url.js";
 import { unavailableOrEmpty } from "./empty-state.js";
 import { PaneState, addsToSelection, type DesiredPane } from "../pane-state.js";
-import { refTpl } from "./shu-ref.js";
+import { actionRef, refTpl } from "./shu-ref.js";
 import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_STATUS } from "@haibun/core/lib/resources.js";
 import { currentRowIndex, cursorMark } from "../virtual-column-model.js";
@@ -416,7 +416,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		// nothing, so the rows mentioning a capability are exactly the acts that needed one.
 		const dispatchText = r.ranVia ? `${r.ranVia}${r.ranOn ? ` ${r.ranOn}` : ""}${r.durationMs === undefined ? "" : ` ${r.durationMs}ms`}` : "";
 		const capabilityRefused = r.capabilityAction !== undefined && r.allowedAction === undefined;
-		const capabilityText = r.capabilityAction ? `${capabilityRefused ? "🔒" : "🔓"} ${r.capabilityAction}${r.performedBy ? ` ${r.performedBy}` : ""}` : "";
+		const capability = r.capabilityAction ? html`${capabilityRefused ? "🔒" : "🔓"} ${actionRef(r.capabilityAction)}${r.performedBy ? ` ${r.performedBy}` : ""}` : "";
 		// What the step produced, beside its words: the row of the step a reader sees is where a screenshot taken during it
 		// is shown, and pressing one opens the image itself.
 		const produced = r.produced?.length
@@ -431,7 +431,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 				: "";
 		return html`<div class="log-row${cls}" data-testid=${testId}>
 			<span class="time-group" @click=${this.onTimeClick(r.timestamp)}>${seqPath}<span class="time">${r.time}</span></span>
-			<span class="row-content" @click=${this.onRowClick(r)}>${r.status === SEQ_PATH_STATUS.running ? html`<span class="loader"></span>` : html`<span class="icon">${r.icon}</span>`} <span class="step">${r.step}</span> <span class="msg">${r.message}</span>${dispatchText ? html` <span class="dispatch">${dispatchText}</span>` : ""}${capabilityText ? html` <span class="capability${capabilityRefused ? " refused" : ""}" title="capability required to run this step">${capabilityText}</span>` : ""}${produced}</span>
+			<span class="row-content" @click=${this.onRowClick(r)}>${r.status === SEQ_PATH_STATUS.running ? html`<span class="loader"></span>` : html`<span class="icon">${r.icon}</span>`} <span class="step">${r.step}</span> <span class="msg">${r.message}</span>${dispatchText ? html` <span class="dispatch">${dispatchText}</span>` : ""}${capability ? html` <span class="capability${capabilityRefused ? " refused" : ""}" title="capability required to run this step">${capability}</span>` : ""}${produced}</span>
 		</div>`;
 	};
 }

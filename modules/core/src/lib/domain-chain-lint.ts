@@ -20,7 +20,7 @@
 import { z } from "zod";
 import type { TRegisteredDomain } from "./resources.js";
 import { SOURCE_DOMAIN, type TDomainChainGraph } from "./domain-chain.js";
-import { DOMAIN_STRING, isPrimitiveDomain, isWrittenByCaller } from "./domains.js";
+import { DOMAIN_STRING, domainParts, isPrimitiveDomain, isWrittenByCaller } from "./domains.js";
 
 /** The kinds of finding, each a way the typed step graph is incomplete. */
 export const LINT_FINDING = {
@@ -92,7 +92,7 @@ export function lintDomainChain(graph: TDomainChainGraph, domains: Record<string
 			if (!producedDomains.has(inp) && !isWrittenByCaller(inp, domains)) findings.push({ kind: LINT_FINDING.UNSUPPLIED_STEP, stepperName, stepName, inputDomain: inp });
 		}
 		for (const [param, domain] of Object.entries(step.params)) {
-			if (domain.split(" | ").includes(DOMAIN_STRING)) findings.push({ kind: LINT_FINDING.STRING_PARAM, stepperName, stepName, param, domain });
+			if (domainParts(domain).includes(DOMAIN_STRING)) findings.push({ kind: LINT_FINDING.STRING_PARAM, stepperName, stepName, param, domain });
 		}
 		if (step.unnamedProducts) findings.push({ kind: LINT_FINDING.UNNAMED_PRODUCTS, stepperName, stepName });
 	}

@@ -78,6 +78,8 @@ export const SHU_TEST_IDS = {
 		PREDICATE_LINK: "predicate-link",
 		PREDICATE_LINK_FIRST: "predicate-link-first",
 		BODY_IFRAME: "email-body-iframe",
+		/** The references a body shown in the sandboxed iframe makes, listed beside it where they work. */
+		BODY_REFS: "body-refs",
 		/** One button per reading of a record's content; the one shown is pressed. */
 		BODY_READING: "body-reading-switch",
 		REF_SECTION: "ref-section",
@@ -118,6 +120,32 @@ export const SHU_TEST_IDS = {
 	},
 	SETTINGS: {
 		WINDOW_SIZE: "settings-window-size",
+	},
+	/** A type's or a domain's view: what it is, its schema, its individuals, and the steps that return and take it. */
+	TYPE_COLUMN: {
+		DESCRIPTION: "type-description",
+		SYSTEM_SCHEMA: "type-system-schema",
+		SCHEMA_SCOPE: "type-schema-scope",
+		SCHEMA_GRAPH: "type-schema-graph",
+		VALUES: "type-values",
+		RETURNED_BY: "type-returned-by",
+		TAKEN_BY: "type-taken-by",
+		INSTANCES: "type-instances",
+		ERROR: "type-error",
+	},
+	/** An action, by the steps this page may call that it allows. */
+	ACTION_COLUMN: {
+		ROOT: "action-column",
+		STEP: "action-column-step",
+	},
+	/** A step as the run declares it: its line, the domain of each argument and of what it returns, and its choice. */
+	STEP_DEFINITION: {
+		ROOT: "step-definition",
+		PATTERN: "step-definition-pattern",
+		PARAM: "step-definition-param",
+		PRODUCTS: "step-definition-products",
+		CHOOSE: "step-definition-choose",
+		ERROR: "step-definition-error",
 	},
 	/** The list of views a deployment declares: its root, and a row named by the component it opens. */
 	VIEWS_PICKER: {
@@ -242,5 +270,10 @@ export const SHU_TEST_IDS = {
 		ROOT: "shu-domain-chain",
 		GRAPH: "domain-chain-graph",
 		CONTROLS: "domain-chain-toolbar",
+		ERROR: "domain-chain-error",
+		EMPTY: "domain-chain-empty",
+		/** What a chain lint report found, and each finding. */
+		FINDINGS: "domain-chain-findings",
+		FINDING: "domain-chain-finding",
 	},
 } as const;

@@ -29,6 +29,10 @@ import { RPC_METHOD } from "../consts.js";
 import * as ViewHash from "../view-hash.js";
 import { factSeqPath } from "@haibun/core/lib/seq-path.js";
 import { openRef } from "./ref-navigation.js";
+import { domainRef, stepRef } from "./shu-ref.js";
+import { LINT_FINDING, LintFindingSchema, type TLintFinding } from "@haibun/core/lib/domain-chain-lint.js";
+import { stepMethodName } from "@haibun/core/lib/step-registry.js";
+import { SHU_TEST_IDS } from "../test-ids.js";
 import { PaneState } from "../pane-state.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { ShuGraphFilter } from "./shu-graph-filter.js";
@@ -160,7 +164,31 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 			satisfiedDomains: Array.isArray(p.satisfiedDomains) ? (p.satisfiedDomains as string[]) : undefined,
 			satisfiedFacts: typeof p.satisfiedFacts === "object" && p.satisfiedFacts !== null ? (p.satisfiedFacts as Record<string, string[]>) : undefined,
 		};
+		// A chain lint report carries its findings beside the chain.
+		this.findings = p.findings === undefined ? [] : z.array(LintFindingSchema).parse(p.findings);
 		this.setState({ loadState: "loaded", fetchError: "" });
+	}
+
+	/** What a chain lint report found, when the view shows one. */
+	private findings: TLintFinding[] = [];
+
+	/** One finding, its step and its domain each a link to its view. */
+	private findingTpl(f: TLintFinding): TemplateResult {
+		const step = (stepperName: string, stepName: string) => stepRef(stepMethodName(stepperName, stepName));
+		switch (f.kind) {
+			case LINT_FINDING.ORPHAN_STEP:
+				return html`${step(f.stepperName, f.stepName)} returns ${domainRef(f.outputDomain)}, which no step takes`;
+			case LINT_FINDING.UNSUPPLIED_STEP:
+				return html`${step(f.stepperName, f.stepName)} takes ${domainRef(f.inputDomain)}, which no step returns and a caller doesn't write`;
+			case LINT_FINDING.UNREACHABLE_DOMAIN:
+				return html`no step takes or returns ${domainRef(f.domain)}`;
+			case LINT_FINDING.UNPRODUCED_DOMAIN:
+				return html`a step takes ${domainRef(f.domain)}, and no step returns it`;
+			case LINT_FINDING.STRING_PARAM:
+				return html`${step(f.stepperName, f.stepName)} takes ${f.param} as ${domainRef(f.domain)}, which says nothing of what the value is`;
+			case LINT_FINDING.UNNAMED_PRODUCTS:
+				return html`${step(f.stepperName, f.stepName)} returns products with a schema and no domain`;
+		}
 	}
 
 	private async fetchInitial(quiet = false): Promise<void> {
@@ -197,8 +225,8 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 		if (!a) {
 			if (loadState === "fetching") return html`<shu-spinner visible status="Loading domain chain…"></shu-spinner>`;
 			return html`
-				${fetchError ? html`<div class="error" data-testid="domain-chain-error">${fetchError}</div>` : ""}
-				<div class="empty" data-testid="domain-chain-empty">No chain data yet. Invoke <code>show affordances</code> from the actions bar (Step mode), or run any step.</div>
+				${fetchError ? html`<div class="error" data-testid=${SHU_TEST_IDS.DOMAIN_CHAIN.ERROR}>${fetchError}</div>` : ""}
+				<div class="empty" data-testid=${SHU_TEST_IDS.DOMAIN_CHAIN.EMPTY}>No chain data yet. Invoke <code>show affordances</code> from the actions bar (Step mode), or run any step.</div>
 			`;
 		}
 		return html`
@@ -210,14 +238,22 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 				<p><strong>Edge style</strong>, solid bold: ready; dashed: blocked. Edges traversed by a goal-resolver path render in amber to mark which steps the resolver currently routes through. A ⚷ on the label means the step needs a capability that has not been granted.</p>
 				<p>Click a domain or waypoint to open it in the affordances panel. Click a fact instance to open its producing step.</p>
 			</details>
-			<div class="view-controls" data-testid="domain-chain-toolbar">
+			<div class="view-controls" data-testid=${SHU_TEST_IDS.DOMAIN_CHAIN.CONTROLS}>
 				<button data-action="layout" title="Toggle layout direction">${layout}</button>
 				<button data-action="zoom-out" title="Zoom out">−</button>
 				<span class="zoom-label"></span>
 				<button data-action="zoom-in" title="Zoom in">+</button>
 				<shu-graph-filter data-axis-cookie-key=${FILTER_KEY}></shu-graph-filter>
 			</div>
-			<shu-graph data-testid="domain-chain-graph"></shu-graph>
+			<shu-graph data-testid=${SHU_TEST_IDS.DOMAIN_CHAIN.GRAPH}></shu-graph>
+			${
+				this.findings.length
+					? html`<details class="findings" open data-testid=${SHU_TEST_IDS.DOMAIN_CHAIN.FINDINGS}>
+							<summary>${this.findings.length} findings</summary>
+							<ul>${this.findings.map((f) => html`<li data-testid=${SHU_TEST_IDS.DOMAIN_CHAIN.FINDING}>${this.findingTpl(f)}</li>`)}</ul>
+						</details>`
+					: ""
+			}
 		`;
 	}
 

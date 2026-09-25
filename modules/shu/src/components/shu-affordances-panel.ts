@@ -25,7 +25,7 @@ import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { RPC_METHOD, SHU_EVENT, AFFORDANCE_PARAM } from "../consts.js";
 import * as ViewHash from "../view-hash.js";
 import { pathId, projectGoalPaths } from "../graph/project-goal-paths.js";
-import { factIdRef } from "./shu-ref.js";
+import { actionRef, domainRef, factIdRef } from "./shu-ref.js";
 import { factSeqPath } from "@haibun/core/lib/seq-path.js";
 import { openRef } from "./ref-navigation.js";
 import type { TGraph } from "../graph/types.js";
@@ -264,7 +264,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		const forward = this.affordances.forward;
 		const missingTyped = a.inputDomains.filter((d) => !isArgumentDomain(d, forward) && !this.assertedDomains.has(d));
 		if (missingTyped.length === 0 && a.capability) {
-			return html`<div class="blocked"><span class="blocked-label">Blocked:</span> requires capability <code>${a.capability}</code>. The granted-capability set the resolver was given does not include it.</div>`;
+			return html`<div class="blocked"><span class="blocked-label">Blocked:</span> requires capability ${actionRef(a.capability)}. The granted-capability set the resolver was given does not include it.</div>`;
 		}
 		if (missingTyped.length === 0) return "";
 		const producers = this.producersFor(missingTyped).filter((p) => p.readyToRun);
@@ -272,7 +272,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 			producers.length > 0
 				? html`<div class="blocked-producers">Producers ready to run: ${producers.map((p) => html`<button class="produce" @click=${(): void => this.chooseStep(p.method)}><code>${p.gwta ?? p.method}</code></button> `)}</div>`
 				: html`<div class="blocked-producers">No producer step is registered. Add a step whose <code>productsDomain</code> matches, or assert ${missingTyped.length > 1 ? "these facts" : "this fact"} directly.</div>`;
-		return html`<div class="blocked"><span class="blocked-label">Blocked:</span> input${missingTyped.length > 1 ? "s" : ""} ${missingTyped.map((m, i) => html`${i > 0 ? ", " : ""}<code>${m}</code>`)} ${missingTyped.length > 1 ? "have" : "has"} no asserted fact yet.${producerTpl}</div>`;
+		return html`<div class="blocked"><span class="blocked-label">Blocked:</span> input${missingTyped.length > 1 ? "s" : ""} ${missingTyped.map((m, i) => html`${i > 0 ? ", " : ""}${domainRef(m)}`)} ${missingTyped.length > 1 ? "have" : "has"} no asserted fact yet.${producerTpl}</div>`;
 	}
 
 	private producersFor(missing: string[]): TForwardAffordance[] {
@@ -298,7 +298,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		}
 		if (r.finding === GOAL_FINDING.UNREACHABLE) {
 			if (!Array.isArray(r.missing)) throw new Error(`shu-affordances-panel: unreachable resolution for ${g.domain} has no missing[]. Got: ${JSON.stringify(r).slice(0, 200)}.`);
-			return html`<span class="resolution-detail">no producer chain. Missing leaves: ${r.missing.map((m, i) => html`${i > 0 ? ", " : ""}<code>${m}</code>`)}</span>`;
+			return html`<span class="resolution-detail">no producer chain. Missing leaves: ${r.missing.map((m, i) => html`${i > 0 ? ", " : ""}${domainRef(m)}`)}</span>`;
 		}
 		if (r.finding === GOAL_FINDING.REFUSED) {
 			if (typeof r.refusalReason !== "string" || typeof r.detail !== "string")
@@ -336,7 +336,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 				<span class="path-label">Path ${pathIdx + 1}</span>
 				<button class="start-path" data-testid=${`start-path-${goalIdx}-${pathIdx}`} data-goal-idx=${goalIdx} data-path-idx=${pathIdx} title=${`Open the first step (${firstStepLabel}) in the actions bar`} @click=${(): void => this.startPath(path)}>Start this path</button>
 			</div>
-			<ol class="plan-steps">${path.steps.map((s) => html`<li><code>${s.stepperName}.${s.stepName}</code>${s.gwta ? html`, ${s.gwta}` : ""}</li>`)}</ol>
+			<ol class="plan-steps">${path.steps.map((s) => html`<li>${actionRef(stepMethodName(s.stepperName, s.stepName))}${s.gwta ? html`, ${s.gwta}` : ""}</li>`)}</ol>
 			${path.bindings.length > 0 ? this.renderBindingsTpl(path.bindings) : ""}
 		</div>`;
 	}
@@ -347,10 +347,10 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 			const sep = i > 0 ? html`, ` : "";
 			if (b.kind === "fact") {
 				if (typeof b.factId !== "string") throw new Error(`shu-affordances-panel: fact-binding[${i}] (domain ${b.domain}) has no factId. Got: ${JSON.stringify(b)}`);
-				return html`${sep}<span class="binding-fact">${b.domain}#${unsafeHTML(factIdRef(b.factId))}</span>`;
+				return html`${sep}<span class="binding-fact">${domainRef(b.domain)}#${unsafeHTML(factIdRef(b.factId))}</span>`;
 			}
 			if (b.kind === "composite") return html`${sep}${this.renderCompositeBindingTpl(b.domain, b.fields)}`;
-			return html`${sep}<code class="binding-arg">${b.domain} (you supply)</code>`;
+			return html`${sep}<span class="binding-arg">${domainRef(b.domain)} (you supply)</span>`;
 		})}</div>`;
 	}
 
@@ -363,7 +363,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	/** Render a composite binding as a nested tree of per-field bindings. Field bindings can recurse into further composites (via topology.ranges chains). Fact / argument leaves render with the same vocabulary as flat bindings, "✓ existing fact" vs "(you supply)" at every level. */
 	private renderCompositeBindingTpl(domain: string, fields: TFieldBinding[]): TemplateResult {
 		const detailsKey = `composite:${domain}`;
-		return html`<details class="composite-binding" open data-key=${detailsKey}><summary><code class="binding-composite">${domain}</code></summary><ul class="composite-fields">${fields.map(
+		return html`<details class="composite-binding" open data-key=${detailsKey}><summary><span class="binding-composite">${domainRef(domain)}</span></summary><ul class="composite-fields">${fields.map(
 			(f) => {
 				const typeLabel = f.fieldDomain || f.fieldType || "value";
 				const optionalMark = f.optional ? "?" : "";
@@ -385,7 +385,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 				<span class="wp-kind">${w.kind}</span>
 				<span class="wp-state">${stateLabel}</span>
 			</div>
-			${w.resolvesDomain ? html`<div class="wp-resolves">resolves: <code>${w.resolvesDomain}</code></div>` : ""}
+			${w.resolvesDomain ? html`<div class="wp-resolves">resolves: ${domainRef(w.resolvesDomain)}</div>` : ""}
 			${w.paramSlots.length > 0 ? html`<div class="wp-slots">slots: ${w.paramSlots.map((s, i) => html`${i > 0 ? ", " : ""}<code>${s}</code>`)}</div>` : ""}
 			${w.proofStatements.length > 0 ? html`<div class="wp-proof">proof: ${w.proofStatements.map((p, i) => html`${i > 0 ? " · " : ""}<code>${p}</code>`)}</div>` : ""}
 			${w.error ? html`<div class="wp-error">${w.error}</div>` : ""}

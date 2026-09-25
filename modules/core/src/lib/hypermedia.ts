@@ -145,7 +145,7 @@ export function reachedBy(surface: TQuerySurface, by: TReachedBy): string[] {
 export function pointsThrough(surface: TQuerySurface): string[] {
 	return Object.entries(surface.references)
 		.sort(([a], [b]) => a.localeCompare(b))
-		.map(([relation, ranges]) => `${relation} (${ranges.join(" | ")})`);
+		.map(([relation, ranges]) => `${relation} (${ranges.join(DOMAIN_UNION)})`);
 }
 
 /** Which primitive reaches each property of a type, and the type each of its relations points at. A property reached two
@@ -171,6 +171,7 @@ function subPropertyOfRel(rel: string): string | string[] | undefined {
 	return undefined;
 }
 import { HAIBUN_NS, type TRegisteredDomain } from "./resources.js";
+import { DOMAIN_UNION } from "./domains.js";
 import { jsonSchemaOf } from "./json-schema-of.js";
 import { unwrap, unwrapToShape } from "./zod-unwrap.js";
 import { zodTypeLabel } from "./composite-domain.js";
