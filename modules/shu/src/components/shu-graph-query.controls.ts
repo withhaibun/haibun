@@ -4,6 +4,7 @@ import { z } from "zod";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { DOMAIN_PERSISTED_TYPE, type TDomainDefinition } from "@haibun/core/lib/resources.js";
 import { actionOK, actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
+import { DOMAIN_RECORD_ID } from "@haibun/core/lib/domains.js";
 import { ViewQueryControlSchema } from "./shu-graph-query.controls-schema.js";
 import { countMatching, pollUntil, type EvalPage } from "./controls-util.js";
 
@@ -45,16 +46,17 @@ export default class ShuGraphQueryControls extends AStepper implements IHasCycle
 			// and the view asks again to place it. Waits for the row rather than for a length of time. The row carries the
 			// listed individual's id, so the match never depends on how a cell renders or truncates a value. The phrase names
 			// the individual so a sentence about querying in a feature's prose is not read as this step.
-			gwta: "query lists the individual {id}",
-			action: async ({ id }: { id: string }) => {
+			gwta: `query lists the {label: ${DOMAIN_PERSISTED_TYPE}} individual {id: ${DOMAIN_RECORD_ID}}`,
+			recordIds: { id: "label" },
+			action: async ({ label, id }: { label: string; id: string }) => {
 				const page = await this.page();
 				const listed = await pollUntil(
 					page,
-					(p) => countMatching(p, `[data-individual-id="${id}"]`),
+					(p) => countMatching(p, `[data-persisted-as="${label}"][data-individual-id="${id}"]`),
 					(n) => n > 0,
 					LISTED_TRIES,
 				);
-				return listed > 0 ? actionOK() : actionNotOK(`the query never listed the record "${id}"`);
+				return listed > 0 ? actionOK() : actionNotOK(`the query never listed the ${label} "${id}"`);
 			},
 		},
 		searchFor: {

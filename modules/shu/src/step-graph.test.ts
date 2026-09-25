@@ -10,6 +10,7 @@ import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import StorageMem from "@haibun/storage-mem/storage-mem.js";
 import WebServerStepper from "@haibun/web-server-hono/web-server-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
+import WebPlaywright from "@haibun/web-playwright";
 import ClientCacheStepper from "./client-cache/client-cache-stepper.js";
 import ShuActivityHistoryControls from "./components/shu-activity-history.controls.js";
 import ShuColumnStripControls from "./components/shu-column-strip.controls.js";
@@ -36,7 +37,7 @@ describe("the typed step graph of shu's steppers", () => {
 				MonitorStepper,
 				ShuStepper,
 			],
-			alongside: [Haibun, AuthorityStepper, StorageMem, VariablesStepper, WebServerStepper],
+			alongside: [Haibun, AuthorityStepper, StorageMem, VariablesStepper, WebServerStepper, WebPlaywright],
 			baselineFile: path.join(import.meta.dirname, "step-graph.baseline.json"),
 			sourceDir: import.meta.dirname,
 		});

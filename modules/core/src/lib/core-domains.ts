@@ -1,8 +1,7 @@
 import { z } from "zod";
 import { DOMAIN_GRAPH_QUERY, GraphQuerySchema, DOMAIN_DENSITY_QUERY, DensityQuerySchema } from "./quad-types.js";
-import { fromJsonText, parseJsonText } from "./json-text.js";
+import { fromJsonText } from "./json-text.js";
 import { LintFindingSchema, LintSummarySchema } from "./domain-chain-lint.js";
-import { actionList } from "./actions.js";
 import { AStepper, TFeatureStep } from "./astepper.js";
 import { TDomainDefinition } from "./resources.js";
 import type { TWorld } from "./world.js";
@@ -30,6 +29,10 @@ import {
 	DOMAIN_BEARER_TOKEN,
 	DOMAIN_USER_NAME,
 	DOMAIN_PASSWORD,
+	DOMAIN_PERSISTED_TYPES,
+	DOMAIN_BACKGROUND_NAMES,
+	listedSchema,
+	backgroundNamesSchema,
 	DOMAIN_TITLE,
 	deriveNamingDomains,
 	mapDefinitionsToDomains,
@@ -201,6 +204,12 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		description: "A token whose holder is granted what it grants, sent as `Authorization: Bearer` (RFC 6750).",
 	},
 	{ selectors: [DOMAIN_USER_NAME], schema: nameSchema, description: "The name an account signs in with." },
+	{ selectors: [DOMAIN_PERSISTED_TYPES], schema: listedSchema(nameSchema, "type"), description: "Types records persist as, given as a list or as text separated by commas." },
+	{
+		selectors: [DOMAIN_BACKGROUND_NAMES],
+		schema: backgroundNamesSchema,
+		description: "The backgrounds a feature includes, by name, given as a list or as text separated by commas.",
+	},
 	{ selectors: [DOMAIN_PASSWORD], schema: z.string().min(1, "a password cannot be empty"), description: "The secret an account signs in with." },
 	{
 		selectors: [DOMAIN_LINK],
@@ -289,15 +298,4 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 ];
 
 // Core domain registry factory. Returns coercion functions for built-in domains.
-/** A list as a caller gives it: an array, its JSON text, or text separated by commas, each member read by `member`. A list
- *  naming no `what` is refused. */
-export const listedSchema = (member: z.ZodType<string>, what: string) =>
-	z.preprocess(
-		(value, ctx) => {
-			if (typeof value !== "string") return value;
-			return value.trimStart().startsWith("[") ? parseJsonText(value, ctx) : actionList(value);
-		},
-		z.array(member).min(1, `names no ${what}`),
-	);
-
 export const getCoreDomains = (world: TWorld) => deriveNamingDomains(mapDefinitionsToDomains(getCoreDomainDefinitions(world)));

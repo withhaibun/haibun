@@ -5,7 +5,16 @@ import { OK } from "../schema/protocol.js";
 import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TResolvedFeature, TStartFeature, TEndFeature, CycleWhen } from "../lib/astepper.js";
 import { actionNotOK, actionOK, actionOKWithProducts, sleep } from "../lib/util/index.js";
 import { findFeatureStepsFromStatement } from "../phases/Resolver.js";
-import { DOMAIN_LINK, DOMAIN_STATEMENT, DOMAIN_STEPPER_NAME, DOMAIN_TEXT, DOMAIN_TITLE } from "../lib/domains.js";
+import {
+	DOMAIN_BACKGROUND_NAMES,
+	DOMAIN_LINK,
+	DOMAIN_PERSISTED_TYPES,
+	DOMAIN_STATEMENT,
+	DOMAIN_STEPPER_NAME,
+	DOMAIN_TEXT,
+	DOMAIN_TITLE,
+	backgroundNamesSchema,
+} from "../lib/domains.js";
 import { findFeatures } from "../lib/features.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { QuadStore } from "../lib/quad-store.js";
@@ -92,20 +101,15 @@ class Haibun extends AStepper implements IHasCycles {
 
 	steps = {
 		useStoreAt: {
-			gwta: `use store at {where: ${DOMAIN_LINK}} for {types}`,
+			gwta: `use store at {where: ${DOMAIN_LINK}} for {types: ${DOMAIN_PERSISTED_TYPES}}`,
 			productsDomain: DOMAIN_STORE_IN_USE,
 			// Mount another instance's store for the given types: writes route through and reads come back over the
 			// capability-gated store surface, so this instance keeps those records in the serving site's store instead
 			// of its own: one store, one custodian. Each call is signed under a delegation the serving site gave this
 			// process, which the run's invoker presents.
-			action: async ({ where, types }: { where: string; types: string }) => {
+			action: async ({ where, types: graphs }: { where: string; types: string[] }) => {
 				const store = this.getWorld().shared.getStore();
 				if (!(store instanceof QuadStore)) return actionNotOK("use store at: the world store does not support backing registration");
-				const graphs = types
-					.split(",")
-					.map((t) => t.trim())
-					.filter((t) => t.length > 0);
-				if (graphs.length === 0) return actionNotOK("use store at: no types given");
 				const remote = new RemoteQuadStore({ url: where, sign: requestSigner(this.getWorld().runtime), graphs });
 				const site = await remote.connect();
 				await store.registerStore(remote, graphs);
@@ -180,16 +184,13 @@ class Haibun extends AStepper implements IHasCycles {
 		},
 
 		backgrounds: {
-			gwta: "Backgrounds: {names}",
+			gwta: `Backgrounds: {names: ${DOMAIN_BACKGROUND_NAMES}}`,
 			resolveFeatureLine: (line: string, _path: string, _stepper: AStepper, backgrounds: TFeatures) => {
 				if (!line.match(/^Backgrounds:\s*/i)) {
 					return false;
 				}
 
-				const names = line.replace(/^Backgrounds:\s*/i, "").trim();
-				const bgNames = names.split(",").map((a) => a.trim());
-
-				for (const bgName of bgNames) {
+				for (const bgName of backgroundNamesSchema.parse(line.replace(/^Backgrounds:\s*/i, ""))) {
 					const bg = findFeatures(bgName, backgrounds);
 					if (bg.length !== 1) {
 						throw new Error(`can't find single "${bgName}.feature" from ${backgrounds.map((b) => b.path).join(", ")}`);
@@ -197,10 +198,10 @@ class Haibun extends AStepper implements IHasCycles {
 				}
 				return false;
 			},
-			action: async ({ names }: { names: string }, featureStep: TFeatureStep) => {
+			action: async ({ names }: { names: string[] }, featureStep: TFeatureStep) => {
 				const world = this.getWorld();
 				// Prepend 'Backgrounds: ' so expandLine correctly recognizes this as a background directive
-				const expanded = findFeatureStepsFromStatement(`Backgrounds: ${names}`, this.steppers, world, featureStep.source?.path, featureStep.seqPath, 1);
+				const expanded = findFeatureStepsFromStatement(`Backgrounds: ${names.join(", ")}`, this.steppers, world, featureStep.source?.path, featureStep.seqPath, 1);
 				const mode = featureStep.intent?.mode ?? "authoritative";
 				const result = await this.runner.runSteps(expanded, { intent: { mode }, parentStep: featureStep });
 				return result.ok ? OK : actionNotOK(`backgrounds failed: ${result.errorMessage}`);

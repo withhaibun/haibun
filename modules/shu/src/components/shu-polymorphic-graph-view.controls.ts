@@ -23,7 +23,7 @@ import type { TPaneOpen } from "../pane-state.js";
 import { z } from "zod";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps, type TFeatureStep } from "@haibun/core/lib/astepper.js";
 import type { TDomainDefinition } from "@haibun/core/lib/resources.js";
-import { DOMAIN_NUMBER, DOMAIN_TEXT, individualRefInputSchema } from "@haibun/core/lib/domains.js";
+import { DOMAIN_NUMBER, DOMAIN_PERSISTED_TYPES, DOMAIN_TEXT, individualRefInputSchema, listedSchema } from "@haibun/core/lib/domains.js";
 import { actionOK, actionNotOK, actionOKWithProducts, getStepTerm } from "@haibun/core/lib/util/index.js";
 import type { TActionResult } from "@haibun/core/schema/protocol.js";
 import WebPlaywright from "@haibun/web-playwright";
@@ -96,16 +96,31 @@ const CameraSchema = PointSchema.extend({ target: PointSchema.nullable().optiona
 const ViewportSchema = z.object({ h: z.number(), w: z.number(), worldPerPx: z.number(), calibratedH: z.number() }).nullable();
 const GraphSnapshotSchema = z.object({ camera: CameraSchema, viewport: ViewportSchema, pos: z.record(z.string(), PointSchema) });
 export const DOMAIN_GRAPH_NODE = "graph-node";
+export const DOMAIN_GRAPH_PREDICATE = "graph-predicate";
+export const DOMAIN_GRAPH_PREDICATES = "graph-predicates";
 export const DOMAIN_GRAPH_DROP = "graph-drop";
 const GraphDropSchema = z.object({ id: z.string(), x: z.number(), y: z.number() });
 export const DOMAIN_GRAPH_SCENE = "graph-scene";
+/** The name a scene is saved under, which is the id of its record. */
+export const DOMAIN_SCENE_NAME = "scene-name";
 const GraphSceneSchema = z.object({ name: z.string(), setup: z.record(z.string(), z.record(z.string(), z.unknown())) });
 const graphControlDomains: TDomainDefinition[] = [
 	{ selectors: [DOMAIN_GRAPH_STILL], schema: GraphStillSchema, description: "A graph still a step saved, and how many nodes it drew" },
 	{ selectors: [DOMAIN_GRAPH_SNAPSHOT], schema: GraphSnapshotSchema, description: "The graph's framing and where it placed each node, as a step read them" },
-	{ selectors: [DOMAIN_GRAPH_NODE], schema: individualRefInputSchema, description: "A node the graph draws, by the id of the record it draws" },
+	{
+		selectors: [DOMAIN_GRAPH_NODE],
+		schema: individualRefInputSchema,
+		description: "A node the graph draws: its object id (type:id), the id of the record it draws, or words of the name it shows",
+	},
+	{ selectors: [DOMAIN_GRAPH_PREDICATE], schema: z.string().min(1), description: "A predicate the graph's edges or its nodes' properties carry, by name" },
+	{
+		selectors: [DOMAIN_GRAPH_PREDICATES],
+		schema: listedSchema(z.string().min(1), "predicate"),
+		description: "Predicates the graph's edges or its nodes' properties carry, by name, given as a list or as text separated by commas",
+	},
 	{ selectors: [DOMAIN_GRAPH_DROP], schema: GraphDropSchema, description: "A node a drag pinned, and where it was dropped" },
 	{ selectors: [DOMAIN_GRAPH_SCENE], schema: GraphSceneSchema, description: "A scene a step saved, and how the view was set up when it was saved" },
+	{ selectors: [DOMAIN_SCENE_NAME], schema: z.string().min(1), description: "The name a scene is saved under, which is the id of its record" },
 	{ selectors: [DOMAIN_GRAPH_ZOOM], schema: ZoomDirSchema, description: "Zoom direction: in or out" },
 	{ selectors: [DOMAIN_GRAPH_PAN], schema: PanDirSchema, description: "Pan/orbit direction: left, right, up, or down" },
 	{ selectors: [DOMAIN_GRAPH_UNIT], schema: UnitSchema, description: "Measure unit: pixels or percent" },
@@ -427,8 +442,8 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		},
 		waitForGraphNode: {
 			// Wait for a specific node to stream in (a live arrival after a mid-run data write): the streamed-arrival witness.
-			gwta: "graph shows node {match}",
-			action: async ({ match }: { match: string }) => {
+			gwta: `graph shows node {match: ${DOMAIN_GRAPH_NODE}}`,
+			action: async ({ match: { id: match } }: { match: TGraphNode }) => {
 				const page = await this.page();
 				const id = await this.waitForNodePresent(page, match);
 				if (!id) return actionNotOK(`graph node "${match}" did not stream in`);
@@ -442,8 +457,8 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			// ontology view a node opens a windowed-instances pane (PANE_OPEN → filter-prop), not an entity column. The
 			// column-browser stepper (activeColumnMatches) asserts which pane opened. NOT "click …": that collides with
 			// web-playwright's generic "click {target}".
-			gwta: "reveal graph node {match}",
-			action: async ({ match }: { match: string }) => {
+			gwta: `reveal graph node {match: ${DOMAIN_GRAPH_NODE}}`,
+			action: async ({ match: { id: match } }: { match: TGraphNode }) => {
 				const page = await this.page();
 				const id = await this.resolveNodeId(page, match);
 				if (!id) return actionNotOK(`graph node "${match}" not present`);
@@ -465,13 +480,13 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		},
 		untickGraphTypes: {
 			// Un-tick the named type chips, leaving every other type's visibility as it stands.
-			gwta: "untick graph chips {types}",
-			action: ({ types }: { types: string }) => this.setFilterChips("setTypeVisibility", types, false),
+			gwta: `untick graph chips {types: ${DOMAIN_PERSISTED_TYPES}}`,
+			action: ({ types }: { types: string[] }) => this.setFilterChips("setTypeVisibility", types, false),
 		},
 		tickGraphTypes: {
 			// The other half of the chip pair: tick the named type chips back on, leaving every other type as it stands.
-			gwta: "tick graph chips {types}",
-			action: ({ types }: { types: string }) => this.setFilterChips("setTypeVisibility", types, true),
+			gwta: `tick graph chips {types: ${DOMAIN_PERSISTED_TYPES}}`,
+			action: ({ types }: { types: string[] }) => this.setFilterChips("setTypeVisibility", types, true),
 		},
 		soloTypeViaTool: {
 			gwta: `solo graph type {type: ${DOMAIN_PERSISTED_TYPE}} via the 1️⃣ tool`,
@@ -548,15 +563,15 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		untickGraphProperties: {
 			// Un-tick predicate chips in the filter's properties group: those edges leave the model, so every medium
 			// (the 3D view, the sequence, the still, the accessible document) draws the same reduced edge set.
-			gwta: "untick graph properties {predicates}",
-			action: ({ predicates }: { predicates: string }) => this.setFilterChips("setPredicateVisibility", predicates, false),
+			gwta: `untick graph properties {predicates: ${DOMAIN_GRAPH_PREDICATES}}`,
+			action: ({ predicates }: { predicates: string[] }) => this.setFilterChips("setPredicateVisibility", predicates, false),
 		},
 		tickGraphProperties: {
-			gwta: "tick graph properties {predicates}",
-			action: ({ predicates }: { predicates: string }) => this.setFilterChips("setPredicateVisibility", predicates, true),
+			gwta: `tick graph properties {predicates: ${DOMAIN_GRAPH_PREDICATES}}`,
+			action: ({ predicates }: { predicates: string[] }) => this.setFilterChips("setPredicateVisibility", predicates, true),
 		},
 		graphDrawsProperty: {
-			gwta: "graph draws a {predicate} edge",
+			gwta: `graph draws a {predicate: ${DOMAIN_GRAPH_PREDICATE}} edge`,
 			action: async ({ predicate }: { predicate: string }) => {
 				const drawn = await this.drawnPredicates();
 				return drawn.includes(predicate) ? actionOK() : actionNotOK(`the graph draws no "${predicate}" edge (it draws ${[...new Set(drawn)].join(", ") || "nothing"})`);
@@ -586,9 +601,9 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		clickGuideEntry: {
 			// The guide's own activation path: a real click on the reading's entry for a node, focus lands in the guide
 			// (which is what makes the follow aim beside it), and the click drives the same open a pointer on the canvas does.
-			gwta: "open guide entry {match}",
+			gwta: `open guide entry {match: ${DOMAIN_GRAPH_NODE}}`,
 			productsDomain: DOMAIN_GRAPH_NODE,
-			action: async ({ match }: { match: string }) => {
+			action: async ({ match: { id: match } }: { match: TGraphNode }) => {
 				const page = await this.page();
 				await this.settle(page);
 				const id = await this.resolveNodeId(page, match);
@@ -654,9 +669,9 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		openGraphNode: {
 			// Open a node's column via the production reveal path (onNodeClick → PANE_OPEN) and prove the graph
 			// emitted open-for-that-node. Returns the node opened, so a later step can target the same node.
-			gwta: "open graph node {match}",
+			gwta: `open graph node {match: ${DOMAIN_GRAPH_NODE}}`,
 			productsDomain: DOMAIN_GRAPH_NODE,
-			action: async ({ match }: { match: string }) => {
+			action: async ({ match: { id: match } }: { match: TGraphNode }) => {
 				const page = await this.page();
 				await this.settle(page);
 				const id = await this.resolveNodeId(page, match);
@@ -1158,7 +1173,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				});
 				if (actorTypes.length === 0) return actionNotOK("the sequence formed no actors, so there is no actor type to reveal");
 				await this.selectView(page, "force");
-				const hide = await this.setFilterChips("setTypeVisibility", actorTypes.join(","), false);
+				const hide = await this.setFilterChips("setTypeVisibility", actorTypes, false);
 				if (!hide.ok) return hide;
 				await this.selectView(page, "sequence");
 				await this.settle(page);
@@ -1409,7 +1424,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		saveGraphScene: {
 			// Save the way the graph is currently set up under a name, through the production control (the settings' name
 			// field + save button), the same path a reader takes, so the write goes through the app's own step RPC.
-			gwta: "save graph scene as {name: string}",
+			gwta: `save graph scene as {name: ${DOMAIN_SCENE_NAME}}`,
 			productsDomain: DOMAIN_GRAPH_SCENE,
 			action: async ({ name }: { name: string }) => {
 				const page = await this.page();
@@ -1441,7 +1456,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		},
 		applyGraphScene: {
 			// Return the graph to a saved scene through the production control (the settings' scene picker).
-			gwta: "apply graph scene {name: string}",
+			gwta: `apply graph scene {name: ${DOMAIN_SCENE_NAME}}`,
 			action: async ({ name }: { name: string }) => {
 				const page = await this.page();
 				await this.openSettings(page, "scenes");
@@ -1466,7 +1481,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		},
 		graphOffersScene: {
 			// The scene is offered without reloading the page: a scene saved anywhere reaches this view as live data.
-			gwta: "graph offers scene {name: string}",
+			gwta: `graph offers scene {name: ${DOMAIN_SCENE_NAME}}`,
 			action: async ({ name }: { name: string }) => {
 				const page = await this.page();
 				await this.openSettings(page, "scenes");
@@ -1997,8 +2012,8 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		},
 		graphNodePlaced: {
 			// A streamed-in node lands in the layout (not collapsed at the origin), proves a live arrival is laid out, not dropped.
-			gwta: "graph node {match} is placed in the layout",
-			action: async ({ match }: { match: string }) => {
+			gwta: `graph node {match: ${DOMAIN_GRAPH_NODE}} is placed in the layout`,
+			action: async ({ match: { id: match } }: { match: TGraphNode }) => {
 				const page = await this.page();
 				const id = await this.waitForNodePresent(page, match);
 				if (!id) return actionNotOK(`graph node "${match}" not present`);
@@ -2306,23 +2321,11 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		});
 	}
 
-	/**
-	 * Ensure the polymorphic view's settings are open, by clicking the column pane's controls toggle exactly as a reader does.
-	 * The options render only while the settings are open, so any step driving one opens them first: the step can reach
-	 * only what a reader can reach. Idempotent: it probes an option, never the toggle, so an already-open panel is left
-	 * alone (the pane's toggle would close it).
-	 */
-	/** Tick or un-tick the named type chips, leaving every other type's visibility as it stands, as a reader does to the legend. */
-
-	/** Show or hide a comma-separated set of chips through the filter's own public setter: one path for the types and
-	 *  the properties, which differ only in which facet the filter is asked about. */
-	private async setFilterChips(method: "setTypeVisibility" | "setPredicateVisibility", csv: string, visible: boolean) {
+	/** Show or hide a set of chips through the filter's own public setter: one path for the types and the properties,
+	 *  which differ only in which facet the filter is asked about. */
+	private async setFilterChips(method: "setTypeVisibility" | "setPredicateVisibility", list: string[], visible: boolean) {
 		const page = await this.page();
 		await this.waitForNodes(page, 1);
-		const list = csv
-			.split(",")
-			.map((t) => t.trim())
-			.filter(Boolean);
 		const ok = await this.callGraphFilter(page, method, [list, visible]);
 		if (!ok) return actionNotOK("no graph filter on the view");
 		await this.settleScopedRefetch(page);

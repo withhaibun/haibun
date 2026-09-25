@@ -6,13 +6,24 @@
  *
  * Steps never lead with the article "the", haibun treats such lines as narrative prose, not matchable steps.
  */
-import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
+import { z } from "zod";
+import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionOK, actionNotOK } from "@haibun/core/lib/util/index.js";
 
 import { pollUntil, type EvalPage } from "./controls-util.js";
 
-export default class ShuColumnStripControls extends AStepper {
+/** A column, by words of the key it is open under, such as `e:Email:` for an Email's column. */
+export const DOMAIN_COLUMN_MATCH = "column-match";
+
+export default class ShuColumnStripControls extends AStepper implements IHasCycles {
 	description = "Column-browser (Miller columns) controls: click a column to activate it, assert which is active.";
+	cycles: IStepperCycles = {
+		getConcerns: () => ({
+			domains: [
+				{ selectors: [DOMAIN_COLUMN_MATCH], schema: z.string().min(1), description: "A column, by words of the key it is open under, such as e:Email: for an Email's column" },
+			],
+		}),
+	};
 
 	private page(): Promise<EvalPage> {
 		const wp = this.getWorld().runtime.steppers?.find((s) => typeof (s as { getPage?: unknown }).getPage === "function") as { getPage(): Promise<EvalPage> } | undefined;
@@ -48,7 +59,7 @@ export default class ShuColumnStripControls extends AStepper {
 			// Activate a column the production way: a pointerdown anywhere in the pane (shu-column-pane's capture-phase
 			// handler → COLUMN_ACTIVATE), so it works even where slotted content stops propagation. NOT "click column …":
 			// that collides with web-playwright's generic "click {target}".
-			gwta: "activate column {match}",
+			gwta: `activate column {match: ${DOMAIN_COLUMN_MATCH}}`,
 			action: async ({ match }: { match: string }) => {
 				const ok = await (await this.page()).evaluate((m) => {
 					const pane = Array.from(document.querySelectorAll("shu-column-pane")).find((p) => ((p as HTMLElement).dataset.columnKey ?? "").includes(m)) as HTMLElement | undefined;
@@ -63,7 +74,7 @@ export default class ShuColumnStripControls extends AStepper {
 			// Close a column the production way: press its own close control, which is what a reader presses. Asserting
 			// the column is gone afterwards is the point: a close that leaves the pane in place is the failure this
 			// drives out, and it cannot be seen by dispatching the event directly.
-			gwta: "close column {match}",
+			gwta: `close column {match: ${DOMAIN_COLUMN_MATCH}}`,
 			action: async ({ match }: { match: string }) => {
 				const page = await this.page();
 				const pressed = await page.evaluate((m) => {
@@ -96,7 +107,7 @@ export default class ShuColumnStripControls extends AStepper {
 		activeColumnMatches: {
 			// {match} is a substring of the active pane's column key, e.g. an entity column's key is `e:${type}:${id}`,
 			// so "e:Email:" proves a node click opened AND activated an Email column (open ⟹ active is unconditional).
-			gwta: "active column matches {match}",
+			gwta: `active column matches {match: ${DOMAIN_COLUMN_MATCH}}`,
 			action: async ({ match }: { match: string }) => {
 				// A page opens its columns once it has loaded, so the step reads until a column matching is active.
 				const cols = await pollUntil(

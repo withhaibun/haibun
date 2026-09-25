@@ -12,6 +12,7 @@ import {
 } from "./resources.js";
 import type { TLinkVocabulary } from "./typed-links.js";
 import { parseJsonText } from "./json-text.js";
+import { actionList } from "./actions.js";
 import type { TWorld } from "./world.js";
 
 export const DOMAIN_STATEMENT = "statement";
@@ -46,6 +47,10 @@ export const DOMAIN_TITLE = "title";
 export const DOMAIN_FILE_PATH = "file-path";
 /** The path a web server serves something at, such as `/shu`. */
 export const DOMAIN_ROUTE = "route";
+/** Types records persist as, given as a list. */
+export const DOMAIN_PERSISTED_TYPES = "persisted-types";
+/** The backgrounds a feature includes, by name, given as a list. */
+export const DOMAIN_BACKGROUND_NAMES = "background-names";
 /** A token whose holder is granted what it grants, sent as `Authorization: Bearer` (RFC 6750). */
 export const DOMAIN_BEARER_TOKEN = "bearer-token";
 /** The name an account signs in with. */
@@ -272,6 +277,20 @@ export const individualRefInputSchema = z.preprocess((value, ctx) => {
 	if (given && typeof given === "object" && typeof (given as { id?: unknown }).id === "string") return { id: (given as { id: string }).id };
 	return given;
 }, individualRefSchema);
+
+/** A list as a caller gives it: an array, its JSON text, or text separated by commas, each member read by `member`. A list
+ *  naming no `what` is refused. */
+export const listedSchema = (member: z.ZodType<string>, what: string) =>
+	z.preprocess(
+		(value, ctx) => {
+			if (typeof value !== "string") return value;
+			return value.trimStart().startsWith("[") ? parseJsonText(value, ctx) : actionList(value);
+		},
+		z.array(member).min(1, `names no ${what}`),
+	);
+
+/** The backgrounds a `Backgrounds:` line includes, as its domain reads them. */
+export const backgroundNamesSchema = listedSchema(z.string().min(1), "background");
 
 /** The id of a record as a feature line or a call gives it: the id, or a reference or individual carrying it. The step
  *  takes the id. */

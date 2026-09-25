@@ -13,6 +13,7 @@
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionOK, actionNotOK } from "@haibun/core/lib/util/index.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
+import { DOMAIN_PAGE_LOCATOR } from "@haibun/web-playwright/domains.js";
 
 import type { EvalPage } from "./controls-util.js";
 
@@ -152,7 +153,7 @@ export default class ShuScrollbarControls extends AStepper {
 			// is drawn on the same rail, and a mark over the thumb would take that press and jump to itself,
 			// leaving the thumb ungrabbable on exactly the runs with the most to look through. Nothing below a browser
 			// can see this: it is a question of what paints over what.
-			gwta: "rail thumb in {host} takes a press",
+			gwta: `rail thumb in {host: ${DOMAIN_PAGE_LOCATOR}} takes a press`,
 			action: async ({ host }: { host: string }) => {
 				const at = await this.thumbPressReaches(await this.page(), host);
 				if (at === null) return actionNotOK(`no scroll rail thumb found in ${host} to press`);
@@ -165,7 +166,7 @@ export default class ShuScrollbarControls extends AStepper {
 			// The thumb states how much of the column is on screen, so it must not resize as the reader scrolls past
 			// content of differing heights: a run document holds both a line of prose and a screenshot. It must also
 			// travel, or a steady thumb would pass by being stuck.
-			gwta: "rail thumb in {host} holds its size and travels while scrolling",
+			gwta: `rail thumb in {host: ${DOMAIN_PAGE_LOCATOR}} holds its size and travels while scrolling`,
 			action: async ({ host }: { host: string }) => {
 				const readings = await this.thumbAcrossScroll(await this.page(), host);
 				if (readings.length < SAMPLES.length) return actionNotOK(`no scroll rail found in ${host} with anything to scroll`);

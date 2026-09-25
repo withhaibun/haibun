@@ -11,6 +11,7 @@ import { actionNotOK, actionOKWithProducts } from "../lib/util/index.js";
 import { OK } from "../schema/protocol.js";
 import type { TBlipEvent } from "../schema/protocol.js";
 import { z } from "zod";
+import { listedSchema } from "../lib/domains.js";
 
 const WatchSchema = z.object({ watching: z.array(z.string()), window: z.number() });
 const SeriesSchema = z.object({ name: z.string(), labels: z.record(z.string(), z.string()), count: z.number(), sum: z.number().optional(), max: z.number().optional() });
@@ -18,6 +19,8 @@ const ShowSchema = z.object({ text: z.string(), held: z.number(), seen: z.number
 const DeclaredSchema = z.object({ text: z.string(), names: z.array(z.string()) });
 /** The domains of what watching and showing blips answer with. */
 const DOMAIN_BLIP_WATCH = "blip-watch";
+/** The blips a watch names, given as a list; a dotted namespace names everything under it. */
+const DOMAIN_BLIP_NAMES = "blip-names";
 const DOMAIN_WATCHED_BLIPS = "watched-blips";
 const DOMAIN_DECLARED_BLIPS = "declared-blips";
 
@@ -91,6 +94,11 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 			sources: this.sources,
 			domains: [
 				{ selectors: [DOMAIN_BLIP_WATCH], schema: WatchSchema, description: "The blips a run watches, and over what window" },
+				{
+					selectors: [DOMAIN_BLIP_NAMES],
+					schema: listedSchema(z.string().min(1), "blip"),
+					description: "The blips a watch names, given as a list or as text separated by commas; a dotted namespace names everything under it",
+				},
 				{ selectors: [DOMAIN_WATCHED_BLIPS], schema: ShowSchema, description: "What the watched blips held and totalled" },
 				{ selectors: [DOMAIN_DECLARED_BLIPS], schema: DeclaredSchema, description: "The blips a run declares" },
 			],
@@ -112,17 +120,12 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 
 	steps: TStepperSteps = {
 		watchBlips: {
-			gwta: "watch blips {names: string}",
+			gwta: `watch blips {names: ${DOMAIN_BLIP_NAMES}}`,
 			description:
 				"Start collecting occurrences with the given names, in order. Names are comma separated; a dotted namespace matches everything under it (`haibun.http` matches `haibun.http.request`). Each name must be declared. Replaces any earlier watch. Read with `show watched blips`.",
 			productsDomain: DOMAIN_BLIP_WATCH,
-			action: async ({ names }: { names: string }) => {
+			action: async ({ names: watching }: { names: string[] }) => {
 				await Promise.resolve();
-				const watching = names
-					.split(",")
-					.map((n) => n.trim())
-					.filter((n) => n.length > 0);
-				if (watching.length === 0) return actionNotOK("watch blips: name at least one blip to watch");
 				const declared = blipDeclarations().map((d) => d.name);
 				const unknown = watching.filter((n) => !declared.some((d) => d === n || d.startsWith(`${n}.`)));
 				if (unknown.length > 0) return actionNotOK(`watch blips: nothing declares ${unknown.join(", ")}; declared names are ${declared.join(", ") || "(none)"}`);

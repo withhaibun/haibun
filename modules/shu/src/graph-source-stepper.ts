@@ -109,7 +109,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 		},
 		getSelectValues: {
 			read: true,
-			gwta: "get select values for {label: string}",
+			gwta: `get select values for {label: ${DOMAIN_PERSISTED_TYPE}}`,
 			productsDomain: DOMAIN_SELECT_VALUES,
 			action: async ({ label }: { label: string }) => {
 				const store = this.getWorld().shared.getStore();
