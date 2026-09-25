@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { DOMAIN_GRAPH_QUERY, GraphQuerySchema, DOMAIN_DENSITY_QUERY, DensityQuerySchema } from "./quad-types.js";
-import { fromJsonText } from "./json-text.js";
+import { fromJsonText, parseJsonText } from "./json-text.js";
 import { LintFindingSchema, LintSummarySchema } from "./domain-chain-lint.js";
 import { actionList } from "./actions.js";
 import { AStepper, TFeatureStep } from "./astepper.js";
@@ -27,6 +27,9 @@ import {
 	DOMAIN_GLOB,
 	DOMAIN_FILE_PATH,
 	DOMAIN_ROUTE,
+	DOMAIN_BEARER_TOKEN,
+	DOMAIN_USER_NAME,
+	DOMAIN_PASSWORD,
 	DOMAIN_TITLE,
 	deriveNamingDomains,
 	mapDefinitionsToDomains,
@@ -193,6 +196,13 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 	{ selectors: [DOMAIN_TITLE], schema: nameSchema, description: "The title a feature, scenario, activity or waypoint is given, as the line writes it." },
 	{ selectors: [DOMAIN_ROUTE], schema: nameSchema, description: "The path a web server serves something at, such as /shu." },
 	{
+		selectors: [DOMAIN_BEARER_TOKEN],
+		schema: z.string().min(1, "a token cannot be empty"),
+		description: "A token whose holder is granted what it grants, sent as `Authorization: Bearer` (RFC 6750).",
+	},
+	{ selectors: [DOMAIN_USER_NAME], schema: nameSchema, description: "The name an account signs in with." },
+	{ selectors: [DOMAIN_PASSWORD], schema: z.string().min(1, "a password cannot be empty"), description: "The secret an account signs in with." },
+	{
 		selectors: [DOMAIN_LINK],
 		schema: stringSchema,
 		description: "URI string representing a navigable link.",
@@ -223,7 +233,7 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 	},
 	{
 		selectors: [DOMAIN_ACTIONS],
-		schema: z.preprocess((value) => (typeof value === "string" ? actionList(value) : value), z.array(z.string().min(1)).min(1, "names no action")),
+		schema: listedSchema(z.string().min(1), "action"),
 		description: "The actions a caller holds or a delegation allows, such as `Read:public` or `WebPlaywright:attach`, given as a list or as text separated by commas.",
 	},
 	{
@@ -279,4 +289,15 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 ];
 
 // Core domain registry factory. Returns coercion functions for built-in domains.
+/** A list as a caller gives it: an array, its JSON text, or text separated by commas, each member read by `member`. A list
+ *  naming no `what` is refused. */
+export const listedSchema = (member: z.ZodType<string>, what: string) =>
+	z.preprocess(
+		(value, ctx) => {
+			if (typeof value !== "string") return value;
+			return value.trimStart().startsWith("[") ? parseJsonText(value, ctx) : actionList(value);
+		},
+		z.array(member).min(1, `names no ${what}`),
+	);
+
 export const getCoreDomains = (world: TWorld) => deriveNamingDomains(mapDefinitionsToDomains(getCoreDomainDefinitions(world)));

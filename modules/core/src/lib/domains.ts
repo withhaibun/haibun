@@ -46,6 +46,12 @@ export const DOMAIN_TITLE = "title";
 export const DOMAIN_FILE_PATH = "file-path";
 /** The path a web server serves something at, such as `/shu`. */
 export const DOMAIN_ROUTE = "route";
+/** A token whose holder is granted what it grants, sent as `Authorization: Bearer` (RFC 6750). */
+export const DOMAIN_BEARER_TOKEN = "bearer-token";
+/** The name an account signs in with. */
+export const DOMAIN_USER_NAME = "user-name";
+/** The secret an account signs in with. */
+export const DOMAIN_PASSWORD = "password";
 /** Domains whose value is the term its line writes, never a variable or an environment value the term names. */
 export const WRITTEN_DOMAINS: ReadonlySet<string> = new Set([DOMAIN_STATEMENT, DOMAIN_VARIABLE_NAME, DOMAIN_DOMAIN_NAME, DOMAIN_TITLE]);
 

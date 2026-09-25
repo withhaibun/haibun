@@ -5,10 +5,10 @@ import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature, type 
 import { actionNotOK, actionOKWithProducts } from "../lib/util/index.js";
 import { AUTHORITY_KEY, SessionAuthority } from "../lib/session-authority.js";
 import { DELEGATIONS_READ_ACTION, DOMAIN_HELD_CALLS, HeldCallsSchema, type IAuthority } from "../lib/authority-types.js";
-import { DOMAIN_JSON, DOMAIN_PRINCIPAL_REF, DOMAIN_STRING } from "../lib/domains.js";
+import { DOMAIN_ACTIONS, DOMAIN_JSON, DOMAIN_LINK, DOMAIN_PRINCIPAL_REF } from "../lib/domains.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { actingAs, authorizedWith, runActingAs, runAuthorizedWith } from "../lib/capability-context.js";
-import { actionList, capabilityAllows, delegatedActions, readAction } from "../lib/actions.js";
+import { capabilityAllows, delegatedActions, readAction } from "../lib/actions.js";
 import { activeSitePrincipal, SITE_DID_PREFIX } from "../lib/host-id.js";
 import { Access, AccessLevelSchema, PRINCIPAL_LABEL, principalDomainDefinition } from "../lib/resources.js";
 
@@ -124,20 +124,20 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 			action: () => Promise.resolve(actionOKWithProducts(this.getAuthority().heldCalls())),
 		},
 		holdingOnly: {
-			gwta: `holding only {actions: ${DOMAIN_STRING}}, {what: statement}`,
+			gwta: `holding only {actions: ${DOMAIN_ACTIONS}}, {what: statement}`,
 			productsOf: "what",
 			description:
 				"Run a statement with only the listed actions, comma-separated, of those its caller holds, as the same caller. A statement can do less than its caller and never more, so a feature states a caller that holds some actions and not others, and a refusal names the action the caller lacks.",
-			action: ({ actions, what }: { actions: string; what: TFeatureStep[] }, featureStep: TFeatureStep) => {
+			action: ({ actions, what }: { actions: string[]; what: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				const held = authorizedWith();
 				return runAuthorizedWith(
-					actionList(actions).filter((action) => capabilityAllows(held, action)),
+					actions.filter((action) => capabilityAllows(held, action)),
 					() => new FlowRunner(this.getWorld(), this.steppers).runSteps(what, { parentStep: featureStep }),
 				);
 			},
 		},
 		holdingCapability: {
-			gwta: `holding capability {cap: ${DOMAIN_JSON}} at {target: ${DOMAIN_STRING}}, {what: statement}`,
+			gwta: `holding capability {cap: ${DOMAIN_JSON}} at {target: ${DOMAIN_LINK}}, {what: statement}`,
 			productsOf: "what",
 			action: ({ cap, target, what }: { cap: unknown; target: string; what: TFeatureStep[] }, featureStep: TFeatureStep) => this.runUnderCapability(cap, target, what, featureStep),
 		},

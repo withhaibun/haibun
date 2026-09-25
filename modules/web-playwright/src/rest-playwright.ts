@@ -3,7 +3,7 @@ import WebPlaywright from "./web-playwright.js";
 import { WEB_PLAYWRIGHT_ACTIONS } from "./actions.js";
 import { OK } from "@haibun/core/schema/protocol.js";
 import { TStepperSteps } from "@haibun/core/lib/astepper.js";
-import { DOMAIN_NUMBER, DOMAIN_LINK, DOMAIN_TEXT, DOMAIN_JSON } from "@haibun/core/lib/domains.js";
+import { DOMAIN_NUMBER, DOMAIN_LINK, DOMAIN_TEXT, DOMAIN_JSON, DOMAIN_BEARER_TOKEN, DOMAIN_PASSWORD, DOMAIN_USER_NAME } from "@haibun/core/lib/domains.js";
 import { DOMAIN_HTTP_METHOD, DOMAIN_HTTP_METHOD_WITH_BODY, DOMAIN_HTTP_METHOD_WITHOUT_BODY, DOMAIN_JSON_RESPONSE_COUNT, HTTP_METHODS_WITH_BODY } from "./domains.js";
 
 export const AUTHORIZATION = "Authorization";
@@ -25,7 +25,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 		},
 		addBasicAuthCredentials: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
-			gwta: `use Authorization Basic header with {username}, {password}`,
+			gwta: `use Authorization Basic header with {username: ${DOMAIN_USER_NAME}}, {password: ${DOMAIN_PASSWORD}}`,
 			action: async ({ username, password }: { username: string; password: string }) => {
 				await webPlaywright.setExtraHTTPHeaders({ [AUTHORIZATION]: `Basic ${base64Encode({ username, password })}` });
 				return OK;
@@ -33,7 +33,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 		},
 		addAuthBearerToken: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
-			gwta: `use Authorization Bearer header with {token}`,
+			gwta: `use Authorization Bearer header with {token: ${DOMAIN_BEARER_TOKEN}}`,
 			action: async ({ token }: { token: string }) => {
 				await webPlaywright.setExtraHTTPHeaders({ [AUTHORIZATION]: `Bearer ${token}` });
 				return OK;

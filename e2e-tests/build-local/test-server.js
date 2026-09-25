@@ -1,7 +1,7 @@
 import { rmSync, writeFileSync, readFileSync } from "fs";
 import { setCookie } from "@haibun/web-server-hono/cookie.js";
 import { actionNotOK, actionOK, actionOKWithProducts, getFromRuntime, sleep } from "@haibun/core/lib/util/index.js";
-import { DOMAIN_STRING } from "@haibun/core/lib/domains.js";
+import { DOMAIN_BEARER_TOKEN, DOMAIN_STRING } from "@haibun/core/lib/domains.js";
 import { SHOW_STEPS_ACTION, SHOW_STEPS_METHOD, STEP_DETAIL, readShownSteps } from "@haibun/core/lib/step-discovery.js";
 import { refusal } from "@haibun/core/lib/step-registry.js";
 import { OK, Origin } from "@haibun/core/schema/protocol.js";
@@ -296,7 +296,7 @@ class TestServer extends AStepper {
             action: this.addRoute(restRoutes(this).createAuthToken),
         },
         changeServerAuthToken: {
-            gwta: "change server auth token to {token}",
+            gwta: `change server auth token to {token: ${DOMAIN_BEARER_TOKEN}}`,
             action: (args, _vstep) => {
                 const { token } = args;
                 this.authToken = token;

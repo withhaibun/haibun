@@ -39,6 +39,7 @@ const CHAIN_PANE = `shu-column-pane:has(${SHU_TAG.DOMAIN_CHAIN_VIEW})`;
 const MAIN_GRAPH_PANE = `shu-column-pane:has(${SHU_TAG.POLYMORPHIC_GRAPH_VIEW}:not([data-external]))`;
 /** The canvas the chain's graph draws on: the graph view mounted in the chain view's slot. */
 const CHAIN_GRAPH_CANVAS = "chain-graph-canvas";
+const CHAIN_GRAPH_CANVAS_SELECTOR = `${SHU_TAG.DOMAIN_CHAIN_VIEW} > [slot='${IDS.DOMAIN_CHAIN.GRAPH}'] [data-testid='${IDS.POLYMORPHIC_VIEW.SCENE}'] canvas`;
 /** The list of views the deployment declares, and the row in it that opens the run's own log. */
 const VIEWS_PICKER = SHU_TEST_IDS.VIEWS_PICKER.ROOT;
 const VIEWS_PICKER_MONITOR = `${SHU_TEST_IDS.VIEWS_PICKER.ROW}${SHU_TAG.MONITOR_COLUMN}`;
@@ -159,11 +160,7 @@ export const features: TKirejiExport = {
 		...passesStepExecution("GoalResolutionStepper-showDomainChainLint"),
 		waitFor({ target: IDS.DOMAIN_CHAIN.ROOT }),
 		waitFor({ target: IDS.DOMAIN_CHAIN.GRAPH }),
-		setAs({
-			what: CHAIN_GRAPH_CANVAS,
-			domain: "page-locator",
-			value: `"${SHU_TAG.DOMAIN_CHAIN_VIEW} > [slot='${IDS.DOMAIN_CHAIN.GRAPH}'] [data-testid='${IDS.POLYMORPHIC_VIEW.SCENE}'] canvas"`,
-		}),
+		setAs({ what: CHAIN_GRAPH_CANVAS, domain: "page-locator", value: `"${CHAIN_GRAPH_CANVAS_SELECTOR}"` }),
 		waitFor({ target: CHAIN_GRAPH_CANVAS }),
 
 		scenario({ scenario: "Goal resolution: `resolve` returns a verdict for a registered domain" }),

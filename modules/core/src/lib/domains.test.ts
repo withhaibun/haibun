@@ -4,7 +4,7 @@ import VariablesStepper from "../steps/variables-stepper.js";
 import Haibun from "../steps/haibun.js";
 import LogicStepper from "../steps/logic-stepper.js";
 import { z } from "zod";
-import { refDomainKey, refTargetOf, registerDomains, toRegisteredDomain } from "./domains.js";
+import { DOMAIN_ACTIONS, refDomainKey, refTargetOf, registerDomains, toRegisteredDomain } from "./domains.js";
 import { LinkRelations, PersistedVertexSchema, type THypermediaTopology, type TPropertyDef } from "./resources.js";
 
 const steppers = [VariablesStepper, Haibun, LogicStepper];
@@ -136,5 +136,17 @@ describe("a reference to a record of a type", () => {
 		const ref = world.domains[refDomainKey(RECIPE)];
 		expect(refTargetOf(ref, world.domains)).toBe(RECIPE);
 		expect(ref.schema.parse("hummus")).toEqual({ id: "hummus" });
+	});
+});
+
+describe("a list a caller gives", () => {
+	it("is an array, its JSON text or text separated by commas, and is refused naming nothing", () => {
+		const { schema } = getDefaultWorld().domains[DOMAIN_ACTIONS];
+		const READ_AND_RUN = ["Read:private", "Instance:run"];
+		expect(schema.parse(READ_AND_RUN)).toEqual(READ_AND_RUN);
+		expect(schema.parse(JSON.stringify(READ_AND_RUN))).toEqual(READ_AND_RUN);
+		expect(schema.parse(" Read:private, Instance:run ")).toEqual(READ_AND_RUN);
+		expect(schema.safeParse(" , ").success, "text naming no action").toBe(false);
+		expect(schema.safeParse("[not json").success, "text opening as JSON that is none").toBe(false);
 	});
 });
