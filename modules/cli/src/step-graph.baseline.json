@@ -12,13 +12,6 @@
 	"orphan-step TestRunnerStepper.readTestRun produces test-run-read",
 	"orphan-step TestRunnerStepper.runAllTests produces feature-execution",
 	"orphan-step TestRunnerStepper.runTest produces feature-execution",
-	"string-param InstanceStepper.readRun {run: string}",
-	"string-param InstanceStepper.startRun {filter: string}",
-	"string-param InstanceStepper.startRun {run: string}",
-	"string-param InstanceStepper.stopRun {run: string}",
-	"string-param InstanceStepper.waitRun {run: string}",
 	"string-param TestRunnerStepper.askTestRun {method: string}",
-	"string-param TestRunnerStepper.askTestRun {params: string}",
-	"string-param TestRunnerStepper.noteSourceChanged {filter: string}",
-	"string-param TestRunnerStepper.runTest {filter: string}"
+	"string-param TestRunnerStepper.askTestRun {params: string}"
 ]

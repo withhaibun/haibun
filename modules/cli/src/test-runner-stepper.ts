@@ -39,7 +39,7 @@ import {
 	type TFeatureExecution,
 	type TRunStatus,
 } from "./feature-execution.js";
-import { SUPERVISOR_CAPABILITIES, runReadSchema, runStartedSchema } from "./instance-stepper.js";
+import { RUN_DOMAIN, SUPERVISOR_CAPABILITIES, featureFilterDomainDefinition, runReadSchema, runStartedSchema } from "./instance-stepper.js";
 import { bareMethodName, hostOfMethodName, hostScopedMethodName, runRegistry } from "@haibun/core/lib/step-registry.js";
 import { examineRun } from "./run-outcome.js";
 import { forgetOutcomes } from "./verified.js";
@@ -197,6 +197,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 		getConcerns: () => ({
 			domains: [
 				featureExecutionDomainDefinition,
+				featureFilterDomainDefinition,
 				{ selectors: [DOMAIN_TEST_RUN_READ], schema: TestRunReadSchema, description: "What a test run said since it was last read, and how it stands" },
 				{ selectors: [DOMAIN_TEST_RUN_EXAMINED], schema: TestRunExaminedSchema, description: "What a test run reported: how it ended, what failed, and where its report is" },
 				{ selectors: [DOMAIN_TEST_RUN_ANSWER], schema: TestRunAnswerSchema, description: "What a standing test run answered a step asked of it" },
@@ -255,7 +256,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 
 	steps = {
 		runTest: {
-			gwta: `run the tests in {where: ${DOMAIN_FILE_PATH}} matching {filter}`,
+			gwta: `run the tests in {where: ${DOMAIN_FILE_PATH}} matching {filter: ${RUN_DOMAIN.featureFilter}}`,
 			capability: SUPERVISOR_CAPABILITIES.run,
 			description:
 				"Start a run of the named features and record it, so what happens next can be said to be about it. The products are that record: its id, and its endpoint and host where it stands. One run at a time: asking while a run is live answers with the live run rather than starting a second, and features that have run against the present state of what they depend on are not run again until that state changes or a change is noted.",
@@ -399,7 +400,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			},
 		},
 		noteSourceChanged: {
-			gwta: `note that {filter} in {where: ${DOMAIN_FILE_PATH}} has changed`,
+			gwta: `note that {filter: ${RUN_DOMAIN.featureFilter}} in {where: ${DOMAIN_FILE_PATH}} has changed`,
 			description:
 				"Say that something was applied to the features named, so they run again whatever their dependencies show. A run of features that have run against their present state answers what that run answered, whether it passed or failed, so it is refused until their state changes or this is said.",
 			action: ({ filter, where }: { filter: string; where: string }) => {

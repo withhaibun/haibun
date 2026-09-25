@@ -12,7 +12,7 @@
  * (`advanceChainInstance` in lib/chain-walker.js) does.
  *
  *   walk toward {goal: domain-key}                      → DOMAIN_CHAIN_WALK (begins a walk, stops before its first step)
- *   advance the walk {walk} with {args: json}           → DOMAIN_CHAIN_WALK (runs the next step with what it takes)
+ *   advance the walk {walk: walk-id} with {args: json}  → DOMAIN_CHAIN_WALK (runs the next step with what it takes)
  */
 import { z } from "zod";
 import {
@@ -27,7 +27,16 @@ import {
 	type TStepperOption,
 } from "../lib/astepper.js";
 import { actionNotOK, actionOKWithProducts, getStepperOption, stringOrError } from "../lib/util/index.js";
-import { DOMAIN_AFFORDANCES, DOMAIN_CHAIN_LINT, DOMAIN_CHAIN_WALK, DOMAIN_DOMAIN_KEY, DOMAIN_GOAL_RESOLUTION, DOMAIN_JSON } from "../lib/domains.js";
+import {
+	DOMAIN_AFFORDANCES,
+	DOMAIN_CHAIN_LINT,
+	DOMAIN_CHAIN_WALK,
+	DOMAIN_DOMAIN_KEY,
+	DOMAIN_GOAL_RESOLUTION,
+	DOMAIN_JSON,
+	DOMAIN_STEP_PATH,
+	DOMAIN_WALK_ID,
+} from "../lib/domains.js";
 import { affordancesSchema, chainLintSchema, chainWalkSchema, goalResolutionSchema } from "../lib/core-domains.js";
 import { createChainInstance, type TChainInstance } from "../lib/chain-instance.js";
 import { advanceChainInstance } from "../lib/chain-walker.js";
@@ -38,7 +47,7 @@ import { runRegistry, stepMethodName, type StepRegistry } from "../lib/step-regi
 import { callStepByName } from "../lib/call-step.js";
 import { buildAffordances, providesWaypoints, AFFORDANCE_EVENT_PREFIX, type TWaypointEntry, satisfiedGoalDomains } from "../lib/affordances.js";
 import { FACT_GRAPH } from "../lib/working-memory.js";
-import { executionOf, parseSeqPath } from "../lib/seq-path.js";
+import { executionOf } from "../lib/seq-path.js";
 import { authorizedWith, RUN_AUTHORITY, stepInFlight } from "../lib/capability-context.js";
 
 const SMOKE_GOALS = "SMOKE_GOALS";
@@ -290,7 +299,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		 * arguments a step runs with are theirs.
 		 */
 		advanceWalk: {
-			gwta: `advance the walk {walk: string} with {args: ${DOMAIN_JSON}}`,
+			gwta: `advance the walk {walk: ${DOMAIN_WALK_ID}} with {args: ${DOMAIN_JSON}}`,
 			productsDomain: DOMAIN_CHAIN_WALK,
 			action: async ({ walk, args }: { walk: string; args: unknown }) => {
 				const world = this.getWorld();
@@ -319,13 +328,9 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		},
 
 		showAffordancesAsOf: {
-			gwta: "show affordances as of {asOf: string}",
+			gwta: `show affordances as of {asOf: ${DOMAIN_STEP_PATH}}`,
 			productsDomain: DOMAIN_AFFORDANCES,
-			action: ({ asOf }: { asOf: string }, featureStep) => {
-				const parsed = parseSeqPath(asOf);
-				if (!parsed) return actionNotOK(`show affordances as of: ${asOf} is not a seqPath (expected dot-joined integers, e.g. "0.-1.5.1")`);
-				return this.computeAffordances(parsed, featureStep);
-			},
+			action: ({ asOf }: { asOf: number[] }, featureStep) => this.computeAffordances(asOf, featureStep),
 		},
 
 		// The same snapshot the showing steps produce, as a read: what a page showing the panel asks for after every
@@ -339,14 +344,10 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		},
 
 		affordancesOnOfferAsOf: {
-			gwta: "affordances on offer as of {asOf: string}",
+			gwta: `affordances on offer as of {asOf: ${DOMAIN_STEP_PATH}}`,
 			read: true,
 			productsDomain: DOMAIN_AFFORDANCES,
-			action: ({ asOf }: { asOf: string }, featureStep) => {
-				const parsed = parseSeqPath(asOf);
-				if (!parsed) return actionNotOK(`affordances on offer as of: ${asOf} is not a seqPath (expected dot-joined integers, e.g. "0.-1.5.1")`);
-				return this.computeAffordances(parsed, featureStep);
-			},
+			action: ({ asOf }: { asOf: number[] }, featureStep) => this.computeAffordances(asOf, featureStep),
 		},
 
 		showDomainChainLint: {

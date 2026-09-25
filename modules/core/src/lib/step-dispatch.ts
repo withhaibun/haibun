@@ -5,7 +5,7 @@ import { TRACE_SEQ_PATH, Timer, FEATURE_START, SCENARIO_START, stepLevel, SUBSTE
 import { streamContext } from "./step-stream-context.js";
 import type { TFeatureSteps } from "../schema/protocol.js";
 import { actionNotOK } from "./util/index.js";
-import { isPrimitiveDomain, normalizeDomainKey } from "./domains.js";
+import { isWrittenByCaller, normalizeDomainKey } from "./domains.js";
 import { OBSERVATION_GRAPH, FACT_GRAPH, assertFact, getFact, queryFacts } from "./working-memory.js";
 import { doStepperCycle } from "./stepper-cycles.js";
 import { actingAs, authorizedWith, readingAsStated, readingAt, runAuthorizedWith, runInStep, runReadingAt, runStatedAt } from "./capability-context.js";
@@ -232,13 +232,14 @@ export function stepResultFromActionResult(actionResult: TActionResult, action: 
 }
 
 /**
- * Verify each input domain a step's phrase names, other than primitives, has a value given for it or at least one
- * matching fact. Returns an error message when a precondition is unsatisfiable; undefined when all pass.
+ * Verify each input domain a step's phrase names that stands for something a step produces has a value given for it or
+ * at least one matching fact. A value a caller writes has no fact to stand for it, and its domain judges it, an empty
+ * value included. Returns an error message when a precondition is unsatisfiable; undefined when all pass.
  */
 async function checkInputPreconditions(world: TWorld, paramDomainKeys: ReadonlyMap<string, string>, featureStep: TFeatureStep): Promise<string | undefined> {
 	const stepValuesMap = featureStep.action.stepValuesMap ?? {};
 	for (const [param, normalized] of paramDomainKeys) {
-		if (isPrimitiveDomain(normalized)) continue;
+		if (isWrittenByCaller(normalized, world.domains)) continue;
 		const stepValue = stepValuesMap[param];
 		// gwta-captured term covers the precondition: the dispatcher's existing
 		// arg-population path resolves and validates it before the action runs.

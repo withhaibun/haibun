@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { DOMAIN_GRAPH_QUERY, GraphQuerySchema, DOMAIN_DENSITY_QUERY, DensityQuerySchema } from "./quad-types.js";
 import { fromJsonText } from "./json-text.js";
+import { extractSeqPathPrefix, parseSeqPath } from "./seq-path.js";
 import { LintFindingSchema, LintSummarySchema } from "./domain-chain-lint.js";
 import { AStepper, TFeatureStep } from "./astepper.js";
 import { TDomainDefinition } from "./resources.js";
@@ -31,6 +32,11 @@ import {
 	DOMAIN_PASSWORD,
 	DOMAIN_PERSISTED_TYPES,
 	DOMAIN_BACKGROUND_NAMES,
+	DOMAIN_STEP_PATH,
+	DOMAIN_DURATION,
+	DOMAIN_STEP_METHOD,
+	DOMAIN_LINK_REL,
+	DOMAIN_WALK_ID,
 	listedSchema,
 	backgroundNamesSchema,
 	DOMAIN_TITLE,
@@ -45,6 +51,21 @@ const stringSchema = z.coerce.string({ error: "value is required" });
 const statementSchema = z.string({ error: "statement label is required" }).min(1, "statement cannot be empty");
 const nameSchema = z.string().min(1, "a name cannot be empty");
 const dateSchema = z.coerce.date({ error: "invalid date" });
+/** A step's place read from its dot-joined sequence path, or from an id beginning with one. */
+const stepPathSchema = z.preprocess((value, ctx) => {
+	if (typeof value !== "string") return value;
+	const prefix = extractSeqPathPrefix(value);
+	const path = prefix === null ? null : parseSeqPath(prefix);
+	if (path === null) ctx.addIssue({ code: "custom", message: `${JSON.stringify(value)} names no step: a step's place is dot-joined integers, such as 0.1.5.3` });
+	return path ?? value;
+}, z.array(z.number().int()).min(1));
+/** A length of time in milliseconds, read from seconds or milliseconds such as `2s` or `30 ms`, or a number of milliseconds. */
+const durationSchema = z.preprocess((value, ctx) => {
+	if (typeof value !== "string") return value;
+	const match = /^(\d+(?:\.\d+)?)\s*(ms|s)$/.exec(value.trim());
+	if (!match) ctx.addIssue({ code: "custom", message: `${JSON.stringify(value)} is no length of time: give seconds or milliseconds, such as 2s or 30 ms` });
+	return match ? Number(match[1]) * (match[2] === "s" ? 1000 : 1) : value;
+}, z.number().nonnegative());
 
 /**
  * Per-field binding inside a composite binding. Mirrors `TFieldBinding` in
@@ -211,6 +232,19 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		description: "The backgrounds a feature includes, by name, given as a list or as text separated by commas.",
 	},
 	{ selectors: [DOMAIN_PASSWORD], schema: z.string().min(1, "a password cannot be empty"), description: "The secret an account signs in with." },
+	{
+		selectors: [DOMAIN_STEP_PATH],
+		schema: stepPathSchema,
+		description: "A step's place in the run: its dot-joined sequence path, such as 0.1.5.3, or an id that begins with one, as an event's does.",
+	},
+	{ selectors: [DOMAIN_DURATION], schema: durationSchema, description: "A length of time, given as seconds or milliseconds, such as 2s or 30 ms, read as milliseconds." },
+	{
+		selectors: [DOMAIN_STEP_METHOD],
+		schema: z.string().regex(/^[A-Za-z0-9_]+-[A-Za-z0-9_]+$/, "names no step: a step is named by its stepper and step joined by a hyphen"),
+		description: "A step as a call names it, its stepper and step joined by a hyphen, such as Haibun-showSteps.",
+	},
+	{ selectors: [DOMAIN_LINK_REL], schema: nameSchema, description: "A link relation, by the name a predicate carries it under, such as cites." },
+	{ selectors: [DOMAIN_WALK_ID], schema: nameSchema, description: "The id of a walk begun toward a goal, which each advance of it names." },
 	{
 		selectors: [DOMAIN_LINK],
 		schema: stringSchema,

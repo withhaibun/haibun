@@ -47,6 +47,16 @@ export const DOMAIN_TITLE = "title";
 export const DOMAIN_FILE_PATH = "file-path";
 /** The path a web server serves something at, such as `/shu`. */
 export const DOMAIN_ROUTE = "route";
+/** A step's place in the run: its dot-joined sequence path, such as `0.1.5.3`, or an id that begins with one. */
+export const DOMAIN_STEP_PATH = "step-path";
+/** A length of time, given as seconds or milliseconds, such as `2s` or `30 ms`, read as milliseconds. */
+export const DOMAIN_DURATION = "duration";
+/** A step as a call names it, its stepper and step joined by a hyphen, such as `Haibun-showSteps`. */
+export const DOMAIN_STEP_METHOD = "step-method";
+/** The id of a walk begun toward a goal, which each advance of it names. */
+export const DOMAIN_WALK_ID = "walk-id";
+/** A link relation, by the name a predicate carries it under, such as `cites`. */
+export const DOMAIN_LINK_REL = "link-rel";
 /** Types records persist as, given as a list. */
 export const DOMAIN_PERSISTED_TYPES = "persisted-types";
 /** The backgrounds a feature includes, by name, given as a list. */

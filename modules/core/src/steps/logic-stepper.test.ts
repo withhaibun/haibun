@@ -210,7 +210,7 @@ describe("variable composition", () => {
 describe("backgrounds", () => {
 	it("where condition with backgrounds", async () => {
 		const feature = { path: "/features/test.feature", content: "where passes, Backgrounds: bg" };
-		const background = { path: "/backgrounds/bg.feature", content: 'set ran to "true"\nends with "ok"' };
+		const background = { path: "/backgrounds/bg.feature", content: 'set ran to "true"\nends with "OK"' };
 		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 

@@ -44,7 +44,7 @@ import {
 	QuoteAnchorSchema,
 	type TQuoteAnchor,
 } from "../lib/resources.js";
-import { DOMAIN_RECORD_ID, DOMAIN_TEXT, linkVocabularyFor } from "../lib/domains.js";
+import { DOMAIN_LINK_REL, DOMAIN_RECORD_ID, DOMAIN_TEXT, linkVocabularyFor } from "../lib/domains.js";
 import { executionOf, formatRecordName, formatSeqPath, seqPathDomainDefinition } from "../lib/seq-path.js";
 import { logMessageDomainDefinition } from "../lib/log-message.js";
 import { runArtifactDomainDefinition } from "../lib/run-artifact.js";
@@ -219,7 +219,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 		statements: {
 			// The general read: every statement made with a predicate, and where each came from. A coverage table (which
 			// requirements a run evidenced, and how it ended) is this read with the citation predicate, not a report of its own.
-			gwta: `statements with {rel: string}`,
+			gwta: `statements with {rel: ${DOMAIN_LINK_REL}}`,
 			productsDomain: DOMAIN_STATEMENTS,
 			action: async ({ rel }: { rel: string }) => {
 				const statements = (await statementsWith(this.getWorld().shared.getStore(), rel)) as TStatementRow[];

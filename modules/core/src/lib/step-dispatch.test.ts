@@ -383,6 +383,26 @@ describe("step-dispatch", () => {
 			expect(result.products).toMatchObject({ echoed: "hello", _seqPath: [0, 7] });
 		});
 
+		it("judges an empty value a caller writes by its domain, since no fact stands for a value", async () => {
+			const FILTER = "empty-means-every";
+			registerDomains(world, [[{ selectors: [FILTER], schema: z.string(), description: "a filter an empty value runs everything by" }]]);
+			const stepper = new (class extends AStepper {
+				steps = {
+					filters: {
+						gwta: `filter by {filter: ${FILTER}}`,
+						productsDomain: TEST_DOMAIN.echoed,
+						action: async ({ filter }: { filter: string }) => actionOKWithProducts({ echoed: filter }),
+					},
+				};
+			})();
+			const steppers = [stepper];
+			const registry = new StepRegistry(steppers, world);
+			const tool = registry.get(`${stepper.constructor.name}-filters`) as StepTool;
+			const result = await dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, buildFeatureStepForTransport(tool, { filter: "" }, [0, 8]));
+			expect(result.errorMessage).toBeUndefined();
+			expect(result.products).toMatchObject({ echoed: "" });
+		});
+
 		it("refuses products a step names no domain of, and checks what a step passes on against its statement's domain", async () => {
 			const said = async (line: string) => {
 				const res = await testWithWorld(getDefaultWorld(), line, [PassesOn]);

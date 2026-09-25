@@ -210,8 +210,20 @@ export const DOMAIN_INSTANCES = "haibun-instances";
 /** The domain of what starting an instance answers with. */
 const DOMAIN_INSTANCE_STARTED = "instance-started";
 /** The domains of what starting, reading and stopping a run answer with, which a stand-in for this supervisor declares too. */
-export const RUN_DOMAIN = { started: "run-started", read: "run-read", stopped: "run-stopped" } as const;
+export const RUN_DOMAIN = { started: "run-started", read: "run-read", stopped: "run-stopped", name: "run-name", featureFilter: "feature-filter" } as const;
+/** The features a run runs, by words of their paths, separated by commas, as haibun-cli takes them; empty runs every one. */
+export const featureFilterDomainDefinition: TDomainDefinition = {
+	selectors: [RUN_DOMAIN.featureFilter],
+	schema: z.string(),
+	description: "The features a run runs, by words of their paths, separated by commas, as haibun-cli takes them; an empty filter runs every feature",
+};
 export const runDomainDefinitions: TDomainDefinition[] = [
+	{
+		selectors: [RUN_DOMAIN.name],
+		schema: z.string().min(1, "a run's name cannot be empty"),
+		description: "The name a started run is known by, which reading, waiting for and stopping it name",
+	},
+	featureFilterDomainDefinition,
 	{ selectors: [RUN_DOMAIN.started], schema: runStartedSchema, description: "A run a process started, and what it runs" },
 	{ selectors: [RUN_DOMAIN.read], schema: runReadSchema, description: "What a run said since a cursor, and how it stands" },
 	{ selectors: [RUN_DOMAIN.stopped], schema: z.object({ run: z.string() }), description: "A run a process ended" },
@@ -294,7 +306,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			},
 		},
 		startRun: {
-			gwta: `start a haibun run of {where: ${DOMAIN_FILE_PATH}} matching {filter} from {from: ${DOMAIN_FILE_PATH}} on port {port: ${DOMAIN_NUMBER}} as run {run} host {hostId: ${DOMAIN_NUMBER}}`,
+			gwta: `start a haibun run of {where: ${DOMAIN_FILE_PATH}} matching {filter: ${RUN_DOMAIN.featureFilter}} from {from: ${DOMAIN_FILE_PATH}} on port {port: ${DOMAIN_NUMBER}} as run {run: ${RUN_DOMAIN.name}} host {hostId: ${DOMAIN_NUMBER}}`,
 			capability: SUPERVISOR_CAPABILITIES.run,
 			description:
 				"Run features from a directory, filtered to the ones named, in a child of this process, started rather than awaited, so the caller watches it while it happens (see `read the haibun run`). It runs FROM the directory given, because a config's relative stepper paths and a base's served files are read from where a run is started: for most bases that is the base itself, and for a base run from its parent it is that parent. The port is the one its own web server takes, so two runs can go at once without meeting on a default; port zero leaves it to whatever ports its features declare. Host zero is a run that ends when its features do; a host above zero is a run that stays, takes that id, and has its steps registered here, so asking it something is `on host {id}, <step>` rather than a second way of calling. A run that stays needs a port of its own, since a run nobody can address is a run nobody can ask.",
@@ -333,7 +345,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 				),
 		},
 		readRun: {
-			gwta: `read the haibun run {run} since {cursor: number}`,
+			gwta: `read the haibun run {run: ${RUN_DOMAIN.name}} since {cursor: number}`,
 			capability: SUPERVISOR_CAPABILITIES.read,
 			// The run's output is what the caller asked for, not something to write again: the event carries how much
 			// was read, and the caller keeps the text.
@@ -344,7 +356,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			action: ({ run, cursor }: { run: string; cursor: number }) => Promise.resolve(this.readRun(run, cursor)),
 		},
 		waitRun: {
-			gwta: `wait for the haibun run {run} to end within {seconds: number} seconds`,
+			gwta: `wait for the haibun run {run: ${RUN_DOMAIN.name}} to end within {seconds: number} seconds`,
 			capability: SUPERVISOR_CAPABILITIES.read,
 			description:
 				"Wait for the run to end, then answer, instead of the caller asking repeatedly. This process supervises the child directly and is told the moment it exits, so it answers as soon as that happens. The answer has the same shape as readRun: everything the run said since the given cursor, and whether it is still running. Reaching the timeout answers the same way, with the run still running; that is not a failure, and the caller decides whether to wait again or stop it.",
@@ -352,7 +364,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			action: ({ run, seconds, cursor }: { run: string; seconds: number; cursor: number }) => this.waitRun(run, seconds, cursor),
 		},
 		stopRun: {
-			gwta: `stop the haibun run {run}`,
+			gwta: `stop the haibun run {run: ${RUN_DOMAIN.name}}`,
 			capability: SUPERVISOR_CAPABILITIES.stop,
 			description: "End a run this process started, whether or not it has finished. A run left standing holds its port until it is stopped.",
 			productsDomain: RUN_DOMAIN.stopped,

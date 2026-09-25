@@ -7,6 +7,7 @@ import { actionNotOK, actionOK, actionOKWithProducts, sleep } from "../lib/util/
 import { findFeatureStepsFromStatement } from "../phases/Resolver.js";
 import {
 	DOMAIN_BACKGROUND_NAMES,
+	DOMAIN_DURATION,
 	DOMAIN_LINK,
 	DOMAIN_PERSISTED_TYPES,
 	DOMAIN_STATEMENT,
@@ -14,6 +15,7 @@ import {
 	DOMAIN_TEXT,
 	DOMAIN_TITLE,
 	backgroundNamesSchema,
+	createEnumDomainDefinition,
 } from "../lib/domains.js";
 import { findFeatures } from "../lib/features.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
@@ -35,6 +37,10 @@ const DOMAIN_STEP_DISCOVERY = "step-discovery";
 const DOMAIN_STEP_VALIDATION = "step-validation";
 const DOMAIN_STORE_IN_USE = "store-in-use";
 
+/** How `ends with` ends a feature. */
+const DOMAIN_ENDING = "ending";
+const ENDING = { ok: "OK", notOk: "not OK" } as const;
+
 class Haibun extends AStepper implements IHasCycles {
 	description = "Core steps for features, scenarios, backgrounds, and prose";
 
@@ -55,6 +61,7 @@ class Haibun extends AStepper implements IHasCycles {
 				{ selectors: [DOMAIN_STEP_DISCOVERY], schema: StepDiscoverySchema, description: "The steps, domains and steppers a run declares that a read matched" },
 				{ selectors: [DOMAIN_STEP_VALIDATION], schema: StepValidationSchema, description: "Whether a line resolves to exactly one step, and which" },
 				{ selectors: [DOMAIN_STORE_IN_USE], schema: StoreInUseSchema, description: "The store a run reads and writes through, and the types it holds" },
+				createEnumDomainDefinition({ name: DOMAIN_ENDING, values: Object.values(ENDING), description: "How ends with ends a feature: OK, or not OK" }),
 			],
 		}),
 		startFeature({ resolvedFeature, index }: TStartFeature) {
@@ -232,18 +239,14 @@ class Haibun extends AStepper implements IHasCycles {
 			},
 		},
 		endsWith: {
-			gwta: "ends with {result}",
-			action: ({ result }: { result: string }) => (result.toUpperCase() === "OK" ? actionOK() : actionNotOK("ends with not ok")),
+			gwta: `ends with {result: ${DOMAIN_ENDING}}`,
+			action: ({ result }: { result: string }) => (result === ENDING.ok ? actionOK() : actionNotOK("ends with not ok")),
 		},
 		pause: {
 			description: 'Pause for a duration. Accepts seconds or milliseconds with an optional space, e.g. `pause for "2s"` or `pause for "30 ms"`.',
-			gwta: "pause for {duration: string}",
-			action: async ({ duration }: { duration: string }) => {
-				const match = /^(-?\d+(?:\.\d+)?)\s*(ms|s)$/.exec(duration.trim());
-				if (!match) return actionNotOK(`pause: expected "<number>s" or "<number>ms", got: ${duration}`);
-				const value = Number(match[1]);
-				if (!Number.isFinite(value)) return actionNotOK(`pause: value is not finite: ${match[1]}`);
-				await sleep(match[2] === "ms" ? value : value * 1000);
+			gwta: `pause for {duration: ${DOMAIN_DURATION}}`,
+			action: async ({ duration }: { duration: number }) => {
+				await sleep(duration);
 				return OK;
 			},
 		},

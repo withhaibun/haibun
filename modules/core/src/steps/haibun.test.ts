@@ -303,7 +303,7 @@ describe("ends with", () => {
 describe("backgrounds", () => {
 	it("where with Backgrounds shows condition, directive, background steps, then parent", async () => {
 		const feature = { path: "/features/test.feature", content: "where passes, Backgrounds: bg" };
-		const background = { path: "/backgrounds/bg.feature", content: 'set ran to "true"\nends with "ok"' };
+		const background = { path: "/backgrounds/bg.feature", content: 'set ran to "true"\nends with "OK"' };
 		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 		const seqs = result.featureResults?.[0].stepResults.map((r) => r.seqPath);
@@ -351,7 +351,7 @@ describe("backgrounds", () => {
 			path: "/features/test.feature",
 			content: 'set ran to "false"\nwhere variable "ran" is "false", Backgrounds: bg',
 		};
-		const background = { path: "/backgrounds/bg.feature", content: 'set ran to "true"\nends with "ok"' };
+		const background = { path: "/backgrounds/bg.feature", content: 'set ran to "true"\nends with "OK"' };
 		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 

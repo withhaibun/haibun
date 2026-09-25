@@ -4,7 +4,7 @@ import VariablesStepper from "../steps/variables-stepper.js";
 import Haibun from "../steps/haibun.js";
 import LogicStepper from "../steps/logic-stepper.js";
 import { z } from "zod";
-import { DOMAIN_ACTIONS, refDomainKey, refTargetOf, registerDomains, toRegisteredDomain } from "./domains.js";
+import { DOMAIN_ACTIONS, DOMAIN_DURATION, DOMAIN_STEP_PATH, refDomainKey, refTargetOf, registerDomains, toRegisteredDomain } from "./domains.js";
 import { LinkRelations, PersistedVertexSchema, type THypermediaTopology, type TPropertyDef } from "./resources.js";
 
 const steppers = [VariablesStepper, Haibun, LogicStepper];
@@ -148,5 +148,21 @@ describe("a list a caller gives", () => {
 		expect(schema.parse(" Read:private, Instance:run ")).toEqual(READ_AND_RUN);
 		expect(schema.safeParse(" , ").success, "text naming no action").toBe(false);
 		expect(schema.safeParse("[not json").success, "text opening as JSON that is none").toBe(false);
+	});
+});
+
+describe("a step's place and a length of time", () => {
+	it("reads a step's place from its sequence path or an id beginning with one, and refuses an id naming no step", () => {
+		const { schema } = getDefaultWorld().domains[DOMAIN_STEP_PATH];
+		expect(schema.parse("0.1.-5.3")).toEqual([0, 1, -5, 3]);
+		expect(schema.parse("0.1.5.3.artifact.0"), "an event's id").toEqual([0, 1, 5, 3]);
+		expect(schema.safeParse("artifact.0").error?.issues[0]?.message).toMatch(/names no step/);
+	});
+
+	it("reads seconds and milliseconds as milliseconds, and refuses a length given in no unit", () => {
+		const { schema } = getDefaultWorld().domains[DOMAIN_DURATION];
+		expect(schema.parse("2s")).toBe(2000);
+		expect(schema.parse("30 ms")).toBe(30);
+		expect(schema.safeParse("2 minutes").error?.issues[0]?.message).toMatch(/is no length of time/);
 	});
 });

@@ -11,6 +11,7 @@ import { OK, type TBlipEvent } from "@haibun/core/schema/protocol.js";
 import { THaibunEvent, EventFormatter } from "@haibun/core/monitor/index.js";
 import { stringOrError, getStepperOption } from "@haibun/core/lib/util/index.js";
 
+import { z } from "zod";
 import { trace, Tracer, Span, SpanStatusCode, context } from "@opentelemetry/api";
 import { NodeTracerProvider, SimpleSpanProcessor } from "@opentelemetry/sdk-trace-node";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
@@ -20,6 +21,9 @@ import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from "@opentelemetry/semantic
 import { LoggerProvider, BatchLogRecordProcessor } from "@opentelemetry/sdk-logs";
 import { OTLPLogExporter } from "@opentelemetry/exporter-logs-otlp-http";
 import { logs, SeverityNumber } from "@opentelemetry/api-logs";
+
+/** The name a span a feature starts and ends is known by. */
+const DOMAIN_SPAN_NAME = "otel-span-name";
 
 export default class MonitorOtelStepper extends AStepper implements IHasCycles, IHasOptions {
 	description = "Exports a run's features, steps and logs as OpenTelemetry spans and log records, and starts and ends named spans.";
@@ -93,6 +97,11 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 	}
 
 	cycles: IStepperCycles = {
+		getConcerns: () => ({
+			domains: [
+				{ selectors: [DOMAIN_SPAN_NAME], schema: z.string().min(1, "a span's name cannot be empty"), description: "The name a span a feature starts and ends is known by" },
+			],
+		}),
 		startExecution: async () => {
 			// Initialize OTel provider at start of execution
 			await Promise.resolve();
@@ -299,7 +308,7 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 	steps = {
 		// Placeholder step - can be extended for manual span creation
 		startSpan: {
-			gwta: "start otel span {name}",
+			gwta: `start otel span {name: ${DOMAIN_SPAN_NAME}}`,
 			action: async ({ name }: { name: string }) => {
 				await Promise.resolve();
 				if (this.tracer && this.featureSpan) {
@@ -311,7 +320,7 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 			},
 		},
 		endSpan: {
-			gwta: "end otel span {name}",
+			gwta: `end otel span {name: ${DOMAIN_SPAN_NAME}}`,
 			action: async ({ name }: { name: string }) => {
 				await Promise.resolve();
 				const span = this.stepSpans.get(`custom-${name}`);

@@ -13,7 +13,7 @@
 			},
 			"/features/monitor.feature.ts": {
 				"seconds": 9.4,
-				"steps": 550,
+				"steps": 548,
 				"declaredStepTextHash": "e792cbc5c86e8c45f4af142b43abe587638c708b1555506ba1620dc4fc368ba2"
 			},
 			"/features/remote-store.feature.ts": {
@@ -27,7 +27,7 @@
 				"declaredStepTextHash": "cb952f265cabaf610ead36d8abfa2dfb94e14acacd1a87c6d5d8c8f38d951fad"
 			}
 		},
-		"steps": 963,
+		"steps": 961,
 		"seconds": 13
 	}
 }
