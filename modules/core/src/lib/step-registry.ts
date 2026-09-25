@@ -7,9 +7,9 @@ import { ControlEvent, STEPS_CHANGED, type TActionResult, type TSeqPath } from "
 import { namedInterpolation, mapInputToStepValues } from "./namedVars.js";
 import { constructorName, actionNotOK } from "./util/index.js";
 import { populateActionArgs } from "./populateActionArgs.js";
-import { DOMAIN_STATEMENT, paramDomainKey } from "./domains.js";
+import { DOMAIN_DOMAIN_KEY, DOMAIN_RECORD_ID, DOMAIN_STATEMENT, paramDomainKey } from "./domains.js";
 import { zodTypeLabel } from "./composite-domain.js";
-import { isPersisted } from "./resources.js";
+import { DOMAIN_PERSISTED_TYPE, isPersisted } from "./resources.js";
 import { mayCall, requiredAction } from "./actions.js";
 import { resolveOutputSchema, validateProducts } from "./tool-validation.js";
 import {
@@ -191,6 +191,7 @@ export function createStepTool(stepper: AStepper, stepName: string, stepDef: TSt
 	const { inputSchema, paramSchemas, paramDomainKeys } = buildInputSchema(stepperName, stepName, stepDef, world);
 	if (stepDef.productsOf !== undefined && paramDomainKeys.get(stepDef.productsOf) !== DOMAIN_STATEMENT)
 		throw new Error(`step ${stepperName}.${stepName}: productsOf names {${stepDef.productsOf}}, which is no statement its phrase takes`);
+	assertRecordIds(`step ${stepperName}.${stepName}`, stepDef, paramDomainKeys);
 	const resolvedOutputSchema = resolveOutputSchema(stepperName, stepName, stepDef, world);
 	const outputSchema = resolvedOutputSchema ? jsonSchemaFor(`step ${stepperName}.${stepName}: its products schema`, resolvedOutputSchema, "output") : undefined;
 	return {
@@ -204,6 +205,7 @@ export function createStepTool(stepper: AStepper, stepName: string, stepDef: TSt
 			paramDomains: Object.fromEntries(paramDomainKeys),
 			productsDomain: stepDef.productsDomain,
 			productsOf: stepDef.productsOf,
+			...(stepDef.recordIds ? { recordIds: stepDef.recordIds } : {}),
 			capability: requiredAction(stepperName, stepName, stepDef),
 			read: stepDef.read === true,
 			fallback: stepDef.fallback === true,
@@ -218,6 +220,19 @@ export function createStepTool(stepper: AStepper, stepName: string, stepDef: TSt
 		isAsync: stepDef.action.constructor.name === "AsyncFunction",
 		handler: createStepHandler(stepperName, stepName, stepDef),
 	};
+}
+
+/** The domains a parameter naming a record's type takes. */
+const TYPE_NAMING_DOMAINS: readonly string[] = [DOMAIN_PERSISTED_TYPE, DOMAIN_DOMAIN_KEY];
+
+/** Each `record-id` parameter is paired with a parameter naming its record's type, and each pairing names such parameters. */
+function assertRecordIds(step: string, stepDef: TStepperStep, paramDomainKeys: Map<string, string>): void {
+	for (const [id, type] of Object.entries(stepDef.recordIds ?? {})) {
+		if (paramDomainKeys.get(id) !== DOMAIN_RECORD_ID) throw new Error(`${step}: recordIds names {${id}}, which is no ${DOMAIN_RECORD_ID} its phrase takes`);
+		if (!TYPE_NAMING_DOMAINS.includes(paramDomainKeys.get(type) ?? "")) throw new Error(`${step}: recordIds pairs {${id}} with {${type}}, which names no type`);
+	}
+	for (const [param, domain] of paramDomainKeys)
+		if (domain === DOMAIN_RECORD_ID && stepDef.recordIds?.[param] === undefined) throw new Error(`${step}: {${param}} is a ${DOMAIN_RECORD_ID} its recordIds pairs with no type`);
 }
 
 /**

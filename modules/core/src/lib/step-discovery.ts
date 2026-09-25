@@ -64,6 +64,8 @@ export const StepDescriptorSchema = z
 		productsDomain: z.string().optional(),
 		/** The statement parameter whose products the step passes on, where it answers with what a statement answered. */
 		productsOf: z.string().optional(),
+		/** Each parameter naming a record by its id, with the parameter naming the record's type. */
+		recordIds: z.record(z.string(), z.string()).optional(),
 		/** The action a caller holds to call the step. */
 		capability: z.string(),
 		/** Whether the step is a read: a caller that names it asks to read, and the run answers without recording the reading. */

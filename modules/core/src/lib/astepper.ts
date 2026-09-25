@@ -176,6 +176,11 @@ type TStepperStepBase = {
 	 */
 	productsOf?: string;
 	/**
+	 * Each parameter naming a record by its id (`record-id`), with the parameter naming the record's type
+	 * (`persisted-type` or `domain-key`): `{ id: "label" }` for `get {label} {id}`. A step taking two records names both.
+	 */
+	recordIds?: Record<string, string>;
+	/**
 	 * Which of the step's products are kept on its lifecycle event. Default (absent/true): all. `false`: none, for a step
 	 * whose products are bulk payload consumed via the action result or a separate fetch (a query's rows, a captured page's
 	 * HTML), which would otherwise bloat the in-memory event stream. A function: the subset it returns, for a product that

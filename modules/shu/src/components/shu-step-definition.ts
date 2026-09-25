@@ -93,7 +93,10 @@ export class ShuStepDefinition extends ShuElement<typeof StateSchema> {
 			<dl>
 				<dt>Stepper</dt><dd>${step.stepperName}: ${step.stepperDescription}</dd>
 				<dt>Method</dt><dd><code>${step.method}</code></dd>
-				${params.map(([name, domain]) => html`<dt>${name}</dt><dd data-testid=${IDS.PARAM}>${domainRef(domain)}</dd>`)}
+				${params.map(
+					([name, domain]) =>
+						html`<dt>${name}</dt><dd data-testid=${IDS.PARAM}>${domainRef(domain)}${step.recordIds?.[name] ? html` of the type <code>{${step.recordIds[name]}}</code> names` : ""}</dd>`,
+				)}
 				${step.productsDomain ? html`<dt>Returns</dt><dd data-testid=${IDS.PRODUCTS}>${domainRef(step.productsDomain)}</dd>` : ""}
 				${step.productsOf ? html`<dt>Returns</dt><dd data-testid=${IDS.PRODUCTS}>what its <code>{${step.productsOf}}</code> returns</dd>` : ""}
 				<dt>Requires</dt><dd>${actionRef(step.capability)}</dd>

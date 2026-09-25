@@ -26,6 +26,15 @@ const VERIFY = {
 	productsDomain: CHECK,
 };
 const STATEMENT_PARAM = "what";
+const [TYPE_PARAM, RECORD_ID] = ["label", "record-id"];
+const READ = {
+	method: "GraphStepper-getRelated",
+	stepperName: "GraphStepper",
+	stepName: "getRelated",
+	pattern: `get related for {${TYPE_PARAM}} {id}`,
+	paramDomains: { [TYPE_PARAM]: "persisted-type", id: RECORD_ID },
+	recordIds: { id: TYPE_PARAM },
+};
 const HOLDING = {
 	method: "AuthorityStepper-holdingOnly",
 	stepperName: "AuthorityStepper",
@@ -41,7 +50,7 @@ describe("a step's view", () => {
 		resetStepRegistry();
 		setDeviceStore(new MemoryDeviceStore());
 		handle = setupShuTest({
-			dispatch: (method) => (method === SHOW_STEPS_METHOD ? stepsShown([VERIFY, HOLDING], { [CREDENTIAL]: { persistedAs: CREDENTIAL_TYPE }, [CHECK]: {} }) : undefined),
+			dispatch: (method) => (method === SHOW_STEPS_METHOD ? stepsShown([VERIFY, HOLDING, READ], { [CREDENTIAL]: { persistedAs: CREDENTIAL_TYPE }, [CHECK]: {} }) : undefined),
 		});
 		for (const [tag, element] of [
 			[SHU_TAG.STEP_DEFINITION, ShuStepDefinition],
@@ -73,6 +82,12 @@ describe("a step's view", () => {
 		expect(view.shadowRoot?.querySelector(`[data-testid="${IDS.PATTERN}"]`)?.textContent).toBe(VERIFY.pattern);
 		expect(refsAt(view, IDS.PARAM)).toEqual([{ kind: REF_DENOTES.type, target: { domain: CREDENTIAL_TYPE }, text: CREDENTIAL }]);
 		expect(refsAt(view, IDS.PRODUCTS)).toEqual([{ kind: REF_DENOTES.type, target: { domain: CHECK }, text: CHECK }]);
+	});
+
+	it("states the type a record id's step names it by", async () => {
+		const view = await opened(READ.method);
+		const params = [...(view.shadowRoot?.querySelectorAll(`[data-testid="${IDS.PARAM}"]`) ?? [])].map((dd) => dd.textContent?.replace(/\s+/g, " ").trim());
+		expect(params).toContain(`${RECORD_ID} of the type {${TYPE_PARAM}} names`);
 	});
 
 	it("states that a step passing on what its statement returns returns that", async () => {

@@ -24,6 +24,8 @@ export const DOMAIN_DATE = "date";
 export const DOMAIN_ACTIONS = "actions";
 /** A reference to a Principal by its DID. */
 export const DOMAIN_PRINCIPAL_REF = "principal-ref";
+/** The id of a record of the type another of its step's parameters names (the step's `recordIds`). */
+export const DOMAIN_RECORD_ID = "record-id";
 export const BASE_TYPES = [DOMAIN_STRING, DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_DATE, DOMAIN_STATEMENT, DOMAIN_JSON];
 
 // Goal resolver domains.
@@ -178,6 +180,10 @@ const individualRefInputSchema = z.preprocess((value, ctx) => {
 	if (given && typeof given === "object" && typeof (given as { id?: unknown }).id === "string") return { id: (given as { id: string }).id };
 	return given;
 }, individualRefSchema);
+
+/** The id of a record as a feature line or a call gives it: the id, or a reference or individual carrying it. The step
+ *  takes the id. */
+export const recordIdInputSchema = individualRefInputSchema.transform((ref) => ref.id);
 
 /**
  * A reusable "reference to individual X" input domain: a composite with one `id` field whose range is `targetKey`, a

@@ -23,8 +23,6 @@
 	"string-param GraphSourceStepper.clusteredGraphHoldsFromSite {subject: string}",
 	"string-param GraphSourceStepper.clusteredGraphHoldsFromSite {type: string}",
 	"string-param GraphSourceStepper.federateGraphReads {where: string}",
-	"string-param GraphSourceStepper.getIndividualWithEdges {id: string}",
-	"string-param GraphSourceStepper.getIndividualWithEdges {label: string}",
 	"string-param GraphSourceStepper.getSelectValues {label: string}",
 	"string-param MonitorStepper.savesShuTo {where: string}",
 	"string-param MonitorStepper.savesShuUncompressedTo {where: string}",

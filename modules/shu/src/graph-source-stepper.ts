@@ -10,7 +10,7 @@
  */
 import { z } from "zod";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
-import { Access, AccessQueryLevelSchema, LinkRelations, storeScopeFor, type TDomainDefinition } from "@haibun/core/lib/resources.js";
+import { Access, AccessQueryLevelSchema, DOMAIN_PERSISTED_TYPE, LinkRelations, storeScopeFor, type TDomainDefinition } from "@haibun/core/lib/resources.js";
 import { actionNotOK, actionOKWithProducts, errorDetail } from "@haibun/core/lib/util/index.js";
 import {
 	DOMAIN_GRAPH_QUERY,
@@ -23,7 +23,7 @@ import {
 	type TQuad,
 } from "@haibun/core/lib/quad-types.js";
 import { QuadStore, queryQuadStore, individualWithEdges } from "@haibun/core/lib/quad-store.js";
-import { hypermediaDomainMap } from "@haibun/core/lib/domains.js";
+import { DOMAIN_RECORD_ID, hypermediaDomainMap } from "@haibun/core/lib/domains.js";
 import { buildResourceRels, relOf } from "@haibun/core/lib/hypermedia.js";
 import { QuadGraphModel } from "@haibun/core/lib/quad-graph-model.js";
 import { activeSitePrincipal, adoptSitePrincipal, hasDefaultSitePrincipal } from "@haibun/core/lib/host-id.js";
@@ -95,7 +95,8 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 	steps = {
 		getIndividualWithEdges: {
 			read: true,
-			gwta: "get individual {label: string} {id: string} with edges",
+			gwta: `get individual {label: ${DOMAIN_PERSISTED_TYPE}} {id: ${DOMAIN_RECORD_ID}} with edges`,
+			recordIds: { id: "label" },
 			fallback: true,
 			productsDomain: DOMAIN_INDIVIDUAL_WITH_EDGES,
 			// A page reads an individual with its edges the same way whatever answers the read. This answers from the store

@@ -18,9 +18,11 @@ import {
 	DOMAIN_JSON,
 	DOMAIN_LINK,
 	DOMAIN_NUMBER,
+	DOMAIN_RECORD_ID,
 	DOMAIN_STATEMENT,
 	DOMAIN_STRING,
 	mapDefinitionsToDomains,
+	recordIdInputSchema,
 } from "./domains.js";
 import { findFeatureStepsFromStatement } from "../phases/Resolver.js";
 
@@ -199,6 +201,11 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		selectors: [DOMAIN_ACTIONS],
 		schema: z.preprocess((value) => (typeof value === "string" ? actionList(value) : value), z.array(z.string().min(1)).min(1, "names no action")),
 		description: "The actions a caller holds or a delegation allows, such as `Read:public` or `WebPlaywright:attach`, given as a list or as text separated by commas.",
+	},
+	{
+		selectors: [DOMAIN_RECORD_ID],
+		schema: recordIdInputSchema,
+		description: "The id of a record, of the type another parameter of the same step names.",
 	},
 	{
 		selectors: [DOMAIN_JSON],

@@ -20,9 +20,9 @@ import { FlowRunner } from "./core/flow-runner.js";
 import { actionOKWithProducts, actionNotOK } from "./util/index.js";
 import { getDefaultWorld, testWithWorld } from "./test/lib.js";
 import { TEST_DOMAIN, declaresTestDomains, testDomainDefinitions } from "./test/test-domains.js";
-import { individualRefDomain, registerDomains } from "./domains.js";
+import { DOMAIN_RECORD_ID, individualRefDomain, refreshHypermediaTypeDomain, registerDomains } from "./domains.js";
 import type { TWorld } from "./world.js";
-import { LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "./resources.js";
+import { DOMAIN_PERSISTED_TYPE, LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "./resources.js";
 import { SEQ_PATH_FIELD, executionOf, factIdOf, formatRecordName } from "./seq-path.js";
 import { FACT_GRAPH, getFact } from "./working-memory.js";
 import { streamContext, streamOver } from "./step-stream-context.js";
@@ -412,6 +412,49 @@ describe("step-dispatch", () => {
 			})();
 			expect(() => new StepRegistry([naming], world), "a step naming a parameter that takes no statement").toThrow(
 				/productsOf names \{n\}, which is no statement its phrase takes/,
+			);
+		});
+
+		it("pairs a record id with the parameter naming its type, and takes the id however a line gives it", async () => {
+			refreshHypermediaTypeDomain(world);
+			const reads = new (class extends AStepper {
+				steps = {
+					readsRecord: {
+						gwta: `read {label: ${DOMAIN_PERSISTED_TYPE}} {id: ${DOMAIN_RECORD_ID}}`,
+						recordIds: { id: "label" },
+						productsDomain: TEST_DOMAIN.echoed,
+						action: async ({ id }: { id: string }) => actionOKWithProducts({ echoed: id }),
+					},
+				};
+			})();
+			const steppers = [reads];
+			const registry = new StepRegistry(steppers, world);
+			const tool = registry.get(`${reads.constructor.name}-readsRecord`) as StepTool;
+			const read = (id: unknown, path: number[]) =>
+				dispatchStep(
+					{ registry, world, steppers, grantedCapability: RUN_AUTHORITY },
+					buildFeatureStepForTransport(tool, validateToolInput(path, tool, { label: "Email", id }, world), path),
+				);
+			for (const [given, path] of [
+				["e1", [0, 31, 1]],
+				[{ id: "e1" }, [0, 31, 2]],
+				['{"id": "e1", "subject": "hi"}', [0, 31, 3]],
+			] as const)
+				expect((await read(given, [...path])).products, `the id from ${JSON.stringify(given)}`).toMatchObject({ echoed: "e1" });
+			const declaring = (step: Partial<TStepperStep>) =>
+				new StepRegistry(
+					[
+						new (class extends AStepper {
+							steps = { reads: { action: async () => OK, ...step } as TStepperStep };
+						})(),
+					],
+					world,
+				);
+			expect(() => declaring({ gwta: `read {label: ${DOMAIN_PERSISTED_TYPE}} {id: ${DOMAIN_RECORD_ID}}` }), "a record id paired with nothing").toThrow(
+				/\{id\} is a record-id its recordIds pairs with no type/,
+			);
+			expect(() => declaring({ gwta: `read {label: string} {id: ${DOMAIN_RECORD_ID}}`, recordIds: { id: "label" } }), "paired with a parameter naming no type").toThrow(
+				/recordIds pairs \{id\} with \{label\}, which names no type/,
 			);
 		});
 

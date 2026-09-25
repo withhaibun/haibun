@@ -44,7 +44,7 @@ import {
 	QuoteAnchorSchema,
 	type TQuoteAnchor,
 } from "../lib/resources.js";
-import { linkVocabularyFor } from "../lib/domains.js";
+import { DOMAIN_RECORD_ID, linkVocabularyFor } from "../lib/domains.js";
 import { executionOf, formatRecordName, formatSeqPath, seqPathDomainDefinition } from "../lib/seq-path.js";
 import { logMessageDomainDefinition } from "../lib/log-message.js";
 import { runArtifactDomainDefinition } from "../lib/run-artifact.js";
@@ -227,7 +227,8 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			},
 		},
 		comment: {
-			gwta: `comment on {label: ${DOMAIN_PERSISTED_TYPE}} {id: string} with {text: string}`,
+			gwta: `comment on {label: ${DOMAIN_PERSISTED_TYPE}} {id: ${DOMAIN_RECORD_ID}} with {text: string}`,
+			recordIds: { id: "label" },
 			productsDomain: DOMAIN_COMMENT_CREATED,
 			action: async ({ label, id, text }: { label: string; id: string; text: string }) => {
 				const author = requirePrincipal(this.getWorld());
@@ -241,7 +242,8 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			},
 		},
 		annotate: {
-			gwta: `annotate {label: ${DOMAIN_PERSISTED_TYPE}} {id: string} quoting {exact: string} with {text: string}`,
+			gwta: `annotate {label: ${DOMAIN_PERSISTED_TYPE}} {id: ${DOMAIN_RECORD_ID}} quoting {exact: string} with {text: string}`,
+			recordIds: { id: "label" },
 			productsDomain: DOMAIN_ANNOTATION_CREATED,
 			// The prose gwta binds label/id/exact/text; UI authoring calls this same action over RPC with the extra
 			// prefix/suffix (the selection's context, for a reliable anchor) and an optional link passage.
@@ -250,7 +252,8 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 		annotateLinking: {
 			// `linking` sits right after the id (before `quoting`) so the plain `annotate … quoting …` gwta cannot also
 			// match this prose: the two steps stay unambiguous.
-			gwta: `annotate {label: ${DOMAIN_PERSISTED_TYPE}} {id: string} linking {exact: string} to {linkExact: string} with {text: string}`,
+			gwta: `annotate {label: ${DOMAIN_PERSISTED_TYPE}} {id: ${DOMAIN_RECORD_ID}} linking {exact: string} to {linkExact: string} with {text: string}`,
+			recordIds: { id: "label" },
 			productsDomain: DOMAIN_ANNOTATION_CREATED,
 			action: async ({ label, id, exact, linkExact, text }: { label: string; id: string; exact: string; linkExact: string; text: string }) =>
 				this.runAnnotate({ label, id, exact, text, links: [{ exact: linkExact }] }),
@@ -260,7 +263,8 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			// makes the context the prefix, "followed by" makes it the suffix, so a short or repeated quote resolves to the
 			// intended occurrence. `anchoring` sits right after the id (a distinct keyword from `quoting`/`linking`) to keep
 			// the three annotate prose forms unambiguous.
-			gwta: `annotate {label: ${DOMAIN_PERSISTED_TYPE}} {id: string} anchoring {exact: string} {placement: ${ANNOTATION_PLACEMENT_DOMAIN}} {context: string} with {text: string}`,
+			gwta: `annotate {label: ${DOMAIN_PERSISTED_TYPE}} {id: ${DOMAIN_RECORD_ID}} anchoring {exact: string} {placement: ${ANNOTATION_PLACEMENT_DOMAIN}} {context: string} with {text: string}`,
+			recordIds: { id: "label" },
 			productsDomain: DOMAIN_ANNOTATION_CREATED,
 			action: async ({
 				label,
@@ -289,7 +293,8 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 		},
 		annotations: {
 			read: true,
-			gwta: `get annotations for {label: ${DOMAIN_PERSISTED_TYPE}} {id: string}`,
+			gwta: `get annotations for {label: ${DOMAIN_PERSISTED_TYPE}} {id: ${DOMAIN_RECORD_ID}}`,
+			recordIds: { id: "label" },
 			productsDomain: DOMAIN_ANNOTATIONS,
 			action: async ({ id }: { label: string; id: string }) => {
 				const store = this.getWorld().shared.getStore();

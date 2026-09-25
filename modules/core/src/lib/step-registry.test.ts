@@ -121,14 +121,14 @@ describe("what a read of the run's declarations shows", () => {
 		class ManySteps extends AStepper {
 			description = "steps that read and write records";
 			steps = {
-				readRecord: { gwta: "read record {id: record-id}", description: "Reads one record.", action: async () => actionOK() },
-				writeRecord: { gwta: "write record {id: record-id}", action: async () => actionOK() },
+				readRecord: { gwta: "read record {id: record-key}", description: "Reads one record.", action: async () => actionOK() },
+				writeRecord: { gwta: "write record {id: record-key}", action: async () => actionOK() },
 			};
 		}
 		const world = {
 			runtime: {},
 			domains: {
-				"record-id": { selectors: ["record-id"], schema: z.string(), description: "the id of a record" },
+				"record-key": { selectors: ["record-key"], schema: z.string(), description: "the id of a record" },
 				colour: { selectors: ["colour"], schema: z.string(), description: "a colour" },
 			},
 		} as unknown as TWorld;
@@ -150,7 +150,7 @@ describe("what a read of the run's declarations shows", () => {
 		expect(byStepper.steps[0], "a summary names the step, says what it does and links its definition").toEqual({
 			method: "ManySteps-readRecord",
 			stepperName: "ManySteps",
-			pattern: "read record {id: record-id}",
+			pattern: "read record {id: record-key}",
 			description: "Reads one record.",
 			capability: "ManySteps:readRecord",
 			_links: { definition: { method: SHOW_STEPS_METHOD, params: { text: "ManySteps-readRecord", detail: "definition" } } },
@@ -163,7 +163,7 @@ describe("what a read of the run's declarations shows", () => {
 		).toEqual(["ManySteps-readRecord"]);
 		expect(defined.steps[0]._links.call, "and a definition links the step's call").toEqual({ method: "ManySteps-readRecord" });
 		expect(defined.steps[0].inputSchema.required, "with the schema of its arguments").toEqual(["id"]);
-		expect(Object.keys(summariesOf(world, registry, "record").domains), "a domain is matched by its name or description").toEqual(["record-id"]);
+		expect(Object.keys(summariesOf(world, registry, "record").domains), "a domain is matched by its name or description").toEqual(["record-key"]);
 		expect(
 			steppersOf(registry.descriptors()).map((entry) => [entry.stepper, entry.steps]),
 			"and the run's steppers are every stepper with every step",
