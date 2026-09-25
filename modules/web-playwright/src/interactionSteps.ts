@@ -2,7 +2,7 @@ import { Page, Response, type Locator } from "playwright";
 
 import { TFeatureStep } from "@haibun/core/lib/astepper.js";
 import { OK, Origin, TStepResult } from "@haibun/core/schema/protocol.js";
-import { DOMAIN_NUMBER, DOMAIN_STATEMENT, DOMAIN_STRING, DOMAIN_TEXT } from "@haibun/core/lib/domains.js";
+import { DOMAIN_GLOB, DOMAIN_NUMBER, DOMAIN_STATEMENT, DOMAIN_STRING, DOMAIN_TEXT, DOMAIN_VARIABLE_NAME, globSource } from "@haibun/core/lib/domains.js";
 import { actionNotOK, actionOKWithProducts, errorDetail, sleep, getStepTerm, jsonArtifact } from "@haibun/core/lib/util/index.js";
 import {
 	DOMAIN_ACCESSIBILITY_SNAPSHOT,
@@ -12,6 +12,7 @@ import {
 	DOMAIN_PAGE_LOCATOR,
 	DOMAIN_PAGE_TEST_ID,
 	DOMAIN_REQUEST_STATE,
+	DOMAIN_URL_GLOB,
 	REQUEST_STATE,
 	type TFindWay,
 } from "./domains.js";
@@ -81,7 +82,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 		dialogIs: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.read,
-			gwta: "dialog {what} {type} says {value}",
+			gwta: `dialog {what: ${DOMAIN_VARIABLE_NAME}} {type} says {value}`,
 			action: async ({ what, type, value }: { what: string; type: string; value: string }) => {
 				const resolvedValue = await wp.getWorld().shared.get(what, true);
 				const cur = (resolvedValue as Record<string, unknown> | undefined)?.[type];
@@ -90,7 +91,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 		dialogIsUnset: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.read,
-			gwta: "dialog {what} {type} not set",
+			gwta: `dialog {what: ${DOMAIN_VARIABLE_NAME}} {type} not set`,
 			action: async ({ what, type }: { what: string; type: string }) => {
 				const resolvedValue = await wp.getWorld().shared.get(what, true);
 				const cur = (resolvedValue as Record<string, unknown> | undefined)?.[type];
@@ -273,13 +274,10 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 		waitForURIMatch: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.read,
-			gwta: "wait until URI matches {pattern}",
-			handlesUndefined: ["pattern"],
-			action: async (_args: Record<string, unknown>, featureStep) => {
-				const pattern = getStepTerm(featureStep, "pattern") ?? "";
-				// Glob -> anchored regex source once (same `*`-as-wildcard convention as the `matches` step), so the
-				// polled predicate only re-tests location.href rather than re-escaping the pattern every tick.
-				const source = `^${pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*")}$`;
+			gwta: `wait until URI matches {pattern: ${DOMAIN_GLOB}}`,
+			action: async ({ pattern }: { pattern: string }) => {
+				// The glob as a regular expression's source once, so the polled predicate only tests location.href.
+				const source = globSource(pattern);
 				const page = await wp.getPage();
 				try {
 					await page.waitForFunction((s: string) => new RegExp(s, "s").test(location.href), source);
@@ -488,7 +486,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		//                          MISC
 		captureDialog: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
-			gwta: "accept next dialog to {where}",
+			gwta: `accept next dialog to {where: ${DOMAIN_VARIABLE_NAME}}`,
 			action: async ({ where }: { where: string }, featureStep) => {
 				await wp.withPage((page: Page) => {
 					return page.on("dialog", async (dialog) => {
@@ -498,10 +496,6 @@ export const interactionSteps = (wp: WebPlaywright) =>
 							type: dialog.type(),
 						};
 						await dialog.accept();
-						if (!where) {
-							console.error('Error: captureDialog called with empty "where" argument');
-							return;
-						}
 						// fire-and-forget: sync dialog callback cannot await; in-memory QuadStore resolves synchronously
 						void wp.getWorld().shared.setJSON(where, res, Origin.var, featureStep);
 					});
@@ -594,10 +588,8 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 		saveURI: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.read,
-			gwta: "save URI to {where}",
-			handlesUndefined: ["where"],
-			action: async (_args: Record<string, unknown>, featureStep) => {
-				const where = getStepTerm(featureStep, "where") ?? "";
+			gwta: `save URI to {where: ${DOMAIN_VARIABLE_NAME}}`,
+			action: async ({ where }: { where: string }, featureStep) => {
 				const uri = await wp.withPage<string>(async (page: Page) => await page.url());
 				await wp.getWorld().shared.set({ term: where, value: uri, domain: DOMAIN_STRING, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
 				return OK;
@@ -605,11 +597,8 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 		saveURIQueryParameter: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.read,
-			gwta: "save URI query parameter {what} to {where}",
-			handlesUndefined: ["what", "where"],
-			action: async (_args: Record<string, unknown>, featureStep) => {
-				const what = getStepTerm(featureStep, "what") ?? "";
-				const where = getStepTerm(featureStep, "where") ?? "";
+			gwta: `save URI query parameter {what} to {where: ${DOMAIN_VARIABLE_NAME}}`,
+			action: async ({ what, where }: { what: string; where: string }, featureStep) => {
 				const uri = await wp.withPage<string>(async (page: Page) => await page.url());
 				const found = new URL(uri).searchParams.get(what);
 				await wp.getWorld().shared.set({ term: where, value: found, domain: DOMAIN_STRING, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
@@ -618,10 +607,8 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 		saveTextFrom: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.read,
-			gwta: `save text from {element: ${DOMAIN_STRING_OR_PAGE_LOCATOR}} to {where}`,
-			handlesUndefined: ["where"],
-			action: async (_args: Record<string, unknown>, featureStep) => {
-				const where = getStepTerm(featureStep, "where") ?? "";
+			gwta: `save text from {element: ${DOMAIN_STRING_OR_PAGE_LOCATOR}} to {where: ${DOMAIN_VARIABLE_NAME}}`,
+			action: async ({ where }: { where: string }, featureStep) => {
 				const text = await wp.withPage<string>(async (page: Page) => {
 					const locator = await wp.locateByDomain(page, featureStep, "element");
 					const content = await locator.textContent();
@@ -629,7 +616,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 					if (content !== null) return content.trim();
 					return await locator.inputValue();
 				});
-				await wp.getWorld().shared.set({ term: where, value: text, domain: "string", origin: Origin.var }, provenanceFromFeatureStep(featureStep));
+				await wp.getWorld().shared.set({ term: where, value: text, domain: DOMAIN_STRING, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
 				return OK;
 			},
 		},
@@ -657,7 +644,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 		requestsMatching: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.read,
-			gwta: `requests matching {pattern} are {state: ${DOMAIN_REQUEST_STATE}}`,
+			gwta: `requests matching {pattern: ${DOMAIN_URL_GLOB}} are {state: ${DOMAIN_REQUEST_STATE}}`,
 			description: `Block or allow the requests this page makes, by URL glob, for the rest of the feature: what a view does when the server it reads from is unreachable, and what it does when the server responds again. ${Object.values(REQUEST_STATE).join(" or ")}.`,
 			action: async ({ pattern, state }: { pattern: string; state: string }) => {
 				// On the page, so the state applies to this page's requests and to no other page of the context.

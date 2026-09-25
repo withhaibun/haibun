@@ -369,7 +369,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 				// is answered from; saying nothing was started, or leaving a model to guess where the run went, is false.
 				if (!tracked.host || (!this.inFlight && !this.standing.has(tracked.id)))
 					return actionNotOK(
-						`the run "${tracked.filter}" in "${tracked.where}" is no longer up, so it answers nothing now; what is left of it is its record here, which TestRunnerStepper-examineTestRun and a list of "feature-execution" report`,
+						`the run "${tracked.filter}" in "${tracked.where}" is no longer up, so it answers nothing now; what is left of it is its record here, which TestRunnerStepper-examineTestRun and a list of "${FEATURE_EXECUTION_LABEL}" report`,
 					);
 				const atRun = this.stepsAtRun(tracked.host);
 				const target = stepAtRun(atRun, tracked.host, unquote(method));

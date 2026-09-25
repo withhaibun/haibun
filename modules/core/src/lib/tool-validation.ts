@@ -1,18 +1,17 @@
 import { z } from "zod";
 import type { TFeatureStep, TStepperStep } from "./astepper.js";
 import type { TWorld } from "./world.js";
-import { productData, type TSeqPath, type TStepArgs } from "../schema/protocol.js";
+import { Origin, productData, type TSeqPath, type TStepArgs } from "../schema/protocol.js";
 import { normalizeDomainKey } from "./domains.js";
 import type { StepTool } from "./step-registry.js";
 import { errorDetail } from "./util/index.js";
 
 /**
- * Validate input against a step tool's Zod schemas, then apply domain.coerce() if available.
- * Returns validated (and coerced) input on success, throws with descriptive errors on failure.
- * Pass world to enable domain coercion (aligns RPC dispatch with feature-file execution). Each domain's schema takes the
- * forms of its value a feature line may give, so a call may give them too.
+ * A call's input as the domain of each parameter takes it: validated by the domain's schema as registered now, then
+ * coerced where the domain coerces, as a feature line's value is. Each domain's schema takes the forms of its value a
+ * feature line may give, so a call may give them too. Throws naming every parameter refused.
  */
-export function validateToolInput(fromSeqPath: TSeqPath, tool: StepTool, input: Record<string, unknown>, world?: TWorld): Record<string, unknown> {
+export function validateToolInput(fromSeqPath: TSeqPath, tool: StepTool, input: Record<string, unknown>, world: TWorld): Record<string, unknown> {
 	const validated: Record<string, unknown> = { ...input };
 	const errors: string[] = [];
 
@@ -24,18 +23,15 @@ export function validateToolInput(fromSeqPath: TSeqPath, tool: StepTool, input: 
 	}
 
 	for (const [key, value] of Object.entries(input)) {
-		const schema = tool.paramSchemas.get(key);
-		if (schema) {
-			const domainKey = tool.paramDomainKeys.get(key);
-			const domain = world && domainKey ? world.domains?.[domainKey] : undefined;
-			const coerce = domain?.coerce ? (v: unknown) => domain.coerce?.({ value: v, domain: domainKey || "", term: key, origin: "defined" }) : undefined;
-			const result = schema.safeParse(value);
-			if (result.success) {
-				validated[key] = coerce ? coerce(result.data) : result.data;
-			} else {
-				errors.push(`"${key}" (value: ${JSON.stringify(value)}): ${errorDetail(result.error)}`);
-			}
+		const domainKey = tool.paramDomainKeys.get(key);
+		if (domainKey === undefined) continue;
+		const domain = world.domains[domainKey];
+		const result = domain.schema.safeParse(value);
+		if (!result.success) {
+			errors.push(`"${key}" (value: ${JSON.stringify(value)}): ${errorDetail(result.error)}`);
+			continue;
 		}
+		validated[key] = domain.coerce ? domain.coerce({ value: result.data, domain: domainKey, term: key, origin: Origin.defined }) : result.data;
 	}
 
 	if (errors.length) {

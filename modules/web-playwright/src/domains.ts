@@ -59,13 +59,20 @@ export const DOMAIN_FIND_WAY = "page-find-way";
 /** What the requests a page makes to a URL are: refused, left without an answer, or answered. */
 export const REQUEST_STATE = { blocked: "blocked", unanswered: "unanswered", allowed: "allowed" } as const;
 export const DOMAIN_REQUEST_STATE = "request-state";
+/** A URL pattern as a page routes requests by it: `*` within a path segment, `**` across segments. */
+export const DOMAIN_URL_GLOB = "url-glob";
 
 export const WebPlaywrightDomains: TDomainDefinition[] = [
 	createEnumDomainDefinition({ name: DOMAIN_HTTP_METHOD, values: [...HTTP_METHODS_WITHOUT_BODY, ...HTTP_METHODS_WITH_BODY], description: "An HTTP method a request is made with" }),
 	createEnumDomainDefinition({ name: DOMAIN_HTTP_METHOD_WITH_BODY, values: [...HTTP_METHODS_WITH_BODY], description: "An HTTP method whose request sends a body" }),
 	createEnumDomainDefinition({ name: DOMAIN_HTTP_METHOD_WITHOUT_BODY, values: [...HTTP_METHODS_WITHOUT_BODY], description: "An HTTP method whose request sends no body" }),
 	createEnumDomainDefinition({ name: DOMAIN_FIND_WAY, values: [...FIND_WAYS], description: "A way to find what a click presses" }),
-	createEnumDomainDefinition({ name: DOMAIN_REQUEST_STATE, values: Object.values(REQUEST_STATE), description: "Whether the requests a page makes are refused, left unanswered or answered" }),
+	createEnumDomainDefinition({
+		name: DOMAIN_REQUEST_STATE,
+		values: Object.values(REQUEST_STATE),
+		description: "Whether the requests a page makes are refused, left unanswered or answered",
+	}),
+	{ selectors: [DOMAIN_URL_GLOB], schema: z.string().min(1), description: "A URL pattern as a page routes requests by it: * within a path segment, ** across segments" },
 	{ selectors: [DOMAIN_PAGE_CONTENTS], schema: PageContentsSchema, description: "A page's markup, as the browser holds it" },
 	{ selectors: [DOMAIN_ACCESSIBILITY_SNAPSHOT], schema: AccessibilitySnapshotSchema, description: "A page as its accessibility tree reads, with the steps that act on it" },
 	{ selectors: [DOMAIN_JSON_RESPONSE_COUNT], schema: RestJsonCountSchema, description: "How many entries the last JSON response held" },

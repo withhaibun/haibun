@@ -1,6 +1,6 @@
 import { TStepperStep, TStepAction } from "./astepper.js";
 import { TStepValue, TOrigin, Origin } from "../schema/protocol.js";
-import { DOMAIN_STATEMENT, DOMAIN_STRING } from "./domains.js";
+import { DOMAIN_STRING } from "./domains.js";
 
 export const TYPE_QUOTED = "q_";
 export const TYPE_ENV = "e_";
@@ -153,8 +153,6 @@ export const getMatch = (actionable: string, r: RegExp, actionName: string, step
 						}
 					}
 				}
-				// domain 'statement' should force origin to 'statement'
-				if (ph.domain === DOMAIN_STATEMENT) ph.origin = Origin.statement;
 			}
 			i++;
 		}

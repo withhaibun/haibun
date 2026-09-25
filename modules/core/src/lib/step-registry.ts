@@ -34,9 +34,8 @@ import {
 export type StepTool = {
 	/** The step as every caller discovers it. */
 	descriptor: TStepDescriptor;
-	/** Zod schemas for each input parameter, keyed by parameter name. Used for runtime validation. */
-	paramSchemas: Map<string, z.ZodType>;
-	/** Domain key for each parameter, keyed by parameter name. Used for domain.coerce() after Zod validation. */
+	/** The domain each parameter takes, keyed by parameter name. A call is validated by each domain as registered when it
+	 *  arrives, so a domain a feature declared since the registry was built is taken. */
 	paramDomainKeys: Map<string, string>;
 	/** The registered stepper-step definition. Absent for proxy tools (RemoteStepperProxy, subprocess), which dispatch out of process. */
 	stepDef?: TStepperStep;
@@ -188,7 +187,7 @@ export function buildStepRegistry(steppers: AStepper[], world: TWorld): Map<stri
 
 export function createStepTool(stepper: AStepper, stepName: string, stepDef: TStepperStep, world: TWorld): StepTool {
 	const stepperName = constructorName(stepper);
-	const { inputSchema, paramSchemas, paramDomainKeys } = buildInputSchema(stepperName, stepName, stepDef, world);
+	const { inputSchema, paramDomainKeys } = buildInputSchema(stepperName, stepName, stepDef, world);
 	if (stepDef.productsOf !== undefined && paramDomainKeys.get(stepDef.productsOf) !== DOMAIN_STATEMENT)
 		throw new Error(`step ${stepperName}.${stepName}: productsOf names {${stepDef.productsOf}}, which is no statement its phrase takes`);
 	assertRecordIds(`step ${stepperName}.${stepName}`, stepDef, paramDomainKeys);
@@ -213,7 +212,6 @@ export function createStepTool(stepper: AStepper, stepName: string, stepDef: TSt
 			inputSchema,
 			outputSchema,
 		},
-		paramSchemas,
 		paramDomainKeys,
 		stepDef,
 		transport: "local",
@@ -348,15 +346,9 @@ const UNREPRESENTABLE_ZOD_TYPES = new Set(["bigint", "symbol", "undefined", "voi
  * (enums, object structures, descriptions, etc.) for MCP and SSE consumers.
  * Returns both the JSON Schema (for documentation/discovery) and the Zod schemas (for runtime validation).
  */
-function buildInputSchema(
-	stepperName: string,
-	stepName: string,
-	stepDef: TStepperStep,
-	world: TWorld,
-): { inputSchema: TInputSchema; paramSchemas: Map<string, z.ZodType>; paramDomainKeys: Map<string, string> } {
+function buildInputSchema(stepperName: string, stepName: string, stepDef: TStepperStep, world: TWorld): { inputSchema: TInputSchema; paramDomainKeys: Map<string, string> } {
 	const properties: TInputSchema["properties"] = {};
 	const required: string[] = [];
-	const paramSchemas = new Map<string, z.ZodType>();
 	const paramDomainKeys = stepParamDomains(stepDef);
 
 	for (const [term, domainKey] of paramDomainKeys) {
@@ -366,14 +358,13 @@ function buildInputSchema(
 				`step ${stepperName}.${stepName}: {${term}} names the domain "${domainKey}", which no loaded stepper registers. A parameter's domain is one a stepper declares in getConcerns, or a union of them registered as one.`,
 			);
 		}
-		paramSchemas.set(term, domain.schema);
 		// The schema describes what a caller must supply, so defaulted fields are optional.
 		const jsonSchema = jsonSchemaFor(`step ${stepperName}.${stepName}: {${term}}'s domain "${domainKey}"`, domain.schema, "input");
 		properties[term] = domain.description && !jsonSchema.description ? { ...jsonSchema, description: domain.description } : { ...jsonSchema };
 		required.push(term);
 	}
 
-	return { inputSchema: { type: "object" as const, properties, required }, paramSchemas, paramDomainKeys };
+	return { inputSchema: { type: "object" as const, properties, required }, paramDomainKeys };
 }
 
 export function authorizeToolCapability(step: Pick<TStepDescriptor, "method" | "capability">, granted?: string | string[]): void {

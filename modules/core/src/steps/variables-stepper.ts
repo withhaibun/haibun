@@ -1,14 +1,25 @@
 import { z } from "zod";
 
 import type { TWorld } from "../lib/world.js";
-import { OK, TStepArgs, Origin, TProvenanceIdentifier, TOrigin, TActionResult } from "../schema/protocol.js";
+import { OK, Origin, TProvenanceIdentifier, TOrigin, TActionResult } from "../schema/protocol.js";
 import { TAnyFixme } from "../lib/fixme.js";
 import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TStartScenario } from "../lib/astepper.js";
 import { actionOK, actionNotOK, actionOKWithProducts, getStepTerm, errorDetail } from "../lib/util/index.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { FeatureVariables, OBSCURED_VALUE } from "../lib/feature-variables.js";
 import { sanitizeObjectSecrets } from "../lib/util/secret-utils.js";
-import { DOMAIN_STATEMENT, DOMAIN_STRING, normalizeDomainKey, createEnumDomainDefinition, registerDomains, refreshHypermediaTypeDomain } from "../lib/domains.js";
+import {
+	DOMAIN_DOMAIN_KEY,
+	DOMAIN_DOMAIN_NAME,
+	DOMAIN_GLOB,
+	DOMAIN_STATEMENT,
+	DOMAIN_STRING,
+	DOMAIN_VARIABLE_NAME,
+	normalizeDomainKey,
+	createEnumDomainDefinition,
+	globSource,
+	registerDomains,
+} from "../lib/domains.js";
 import { fromJsonText } from "../lib/json-text.js";
 import { hypermediaDomainFromContext, type THypermediaContext } from "../lib/hypermedia.js";
 import { edgeRanges, isPersisted, REL_CONTEXT, LinkRelations, type TRel, type TRegisteredDomain, type TDomainDefinition } from "../lib/resources.js";
@@ -99,21 +110,18 @@ class VariablesStepper extends AStepper implements IHasCycles {
 	}
 	steps = {
 		defineOpenSet: {
-			gwta: `set of {domain: string} as {superdomains: ${DOMAIN_STATEMENT}}`,
-			handlesUndefined: ["domain"],
+			gwta: `set of {domain: ${DOMAIN_DOMAIN_NAME}} as {superdomains: ${DOMAIN_STATEMENT}}`,
 			action: ({ domain, superdomains }: { domain: string; superdomains: TFeatureStep[] }, featureStep: TFeatureStep) =>
 				this.registerSubdomainFromStatement(domain, superdomains, featureStep),
 		},
 		defineOrderedSet: {
 			precludes: [`${VariablesStepper.name}.defineValuesSet`, `${VariablesStepper.name}.defineSet`],
-			handlesUndefined: ["domain"],
-			gwta: `ordered set of {domain: string} is {values:${DOMAIN_STATEMENT}}`,
+			gwta: `ordered set of {domain: ${DOMAIN_DOMAIN_NAME}} is {values:${DOMAIN_STATEMENT}}`,
 			action: ({ domain, values }: { domain: string; values: TFeatureStep[] }, featureStep: TFeatureStep) =>
 				this.registerValuesDomainFromStatement(domain, values, featureStep, { ordered: true, label: "ordered set" }),
 		},
 		defineValuesSet: {
-			gwta: `set of {domain: string} is {values:${DOMAIN_STATEMENT}}`,
-			handlesUndefined: ["domain"],
+			gwta: `set of {domain: ${DOMAIN_DOMAIN_NAME}} is {values:${DOMAIN_STATEMENT}}`,
 			action: ({ domain, values }: { domain: string; values: TFeatureStep[] }, featureStep: TFeatureStep) =>
 				this.registerValuesDomainFromStatement(domain, values, featureStep, { ordered: false, label: "set" }),
 		},
@@ -121,20 +129,18 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		// @context or its prose shorthand. `by` is the direction word (not `from`, which means "from a
 		// statement's result").
 		defineHypermediaDomain: {
-			gwta: `set of {domain: string} by {spec: string}`,
-			handlesUndefined: ["domain"],
-			action: ({ domain, spec }: { domain: string; spec: string }, featureStep: TFeatureStep) => this.registerHypermediaDomain(domain, spec, featureStep),
+			gwta: `set of {domain: ${DOMAIN_DOMAIN_NAME}} by {spec: string}`,
+			action: ({ domain, spec }: { domain: string; spec: string }) => this.registerHypermediaDomain(domain, spec),
 		},
 		statementSetValues: {
 			gwta: "\\[{items: string}\\]",
 			action: () => OK,
 		},
 		composeAs: {
-			gwta: "compose {what} as {domain} with {template}",
-			handlesUndefined: ["what", "template"],
+			gwta: `compose {what: ${DOMAIN_VARIABLE_NAME}} as {domain: ${DOMAIN_DOMAIN_KEY}} with {template}`,
+			handlesUndefined: ["template"],
 			precludes: [`${VariablesStepper.name}.compose`],
-			action: async ({ domain }: { domain: string }, featureStep: TFeatureStep) => {
-				const { term } = featureStep.action.stepValuesMap.what;
+			action: async ({ what, domain }: { what: string; domain: string }, featureStep: TFeatureStep) => {
 				const templateVal = featureStep.action.stepValuesMap.template;
 				if (!templateVal?.term) return actionNotOK("template not provided");
 
@@ -143,16 +149,15 @@ class VariablesStepper extends AStepper implements IHasCycles {
 
 				return trySetVariable(
 					this.getWorld().shared,
-					{ term: String(term), value: result.value, domain, origin: Origin.var, secret: result.secret },
+					{ term: what, value: result.value, domain, origin: Origin.var, secret: result.secret },
 					provenanceFromFeatureStep(featureStep),
 				);
 			},
 		},
 		compose: {
-			gwta: "compose {what} with {template}",
-			handlesUndefined: ["what", "template"],
-			action: async (_: TStepArgs, featureStep: TFeatureStep) => {
-				const { term } = featureStep.action.stepValuesMap.what;
+			gwta: `compose {what: ${DOMAIN_VARIABLE_NAME}} with {template}`,
+			handlesUndefined: ["template"],
+			action: async ({ what }: { what: string }, featureStep: TFeatureStep) => {
 				const templateVal = featureStep.action.stepValuesMap.template;
 				if (!templateVal?.term) return actionNotOK("template not provided");
 
@@ -161,29 +166,25 @@ class VariablesStepper extends AStepper implements IHasCycles {
 
 				return trySetVariable(
 					this.getWorld().shared,
-					{ term: String(term), value: result.value, domain: DOMAIN_STRING, origin: Origin.var, secret: result.secret },
+					{ term: what, value: result.value, domain: DOMAIN_STRING, origin: Origin.var, secret: result.secret },
 					provenanceFromFeatureStep(featureStep),
 				);
 			},
 		},
 		setFromStatement: {
-			gwta: `set {what: string} from {statement: ${DOMAIN_STATEMENT}}`,
-			handlesUndefined: ["what"],
+			gwta: `set {what: ${DOMAIN_VARIABLE_NAME}} from {statement: ${DOMAIN_STATEMENT}}`,
 			precludes: [`${VariablesStepper.name}.set`],
-			action: async ({ statement }: { statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
-				const { term } = featureStep.action.stepValuesMap.what;
+			action: async ({ what, statement }: { what: string; statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				const result = await this.runner.runSteps(statement, { intent: { mode: "authoritative" }, parentStep: featureStep });
 				if (!result.ok) return actionNotOK(`set from statement failed: ${result.errorMessage}`);
-				await this.getWorld().shared.setJSON(String(term), result.products ?? {}, Origin.var, featureStep);
+				await this.getWorld().shared.setJSON(what, result.products ?? {}, Origin.var, featureStep);
 				return actionOK();
 			},
 		},
 		increment: {
-			gwta: "increment {what}",
-			handlesUndefined: ["what"],
-			action: async (_: TStepArgs, featureStep: TFeatureStep) => {
-				const { term: rawTerm } = featureStep.action.stepValuesMap.what;
-				const interpolated = await this.interpolateTemplate(rawTerm, featureStep);
+			gwta: `increment {what: ${DOMAIN_VARIABLE_NAME}}`,
+			action: async ({ what }: { what: string }, featureStep: TFeatureStep) => {
+				const interpolated = await this.interpolateTemplate(what, featureStep);
 				if (interpolated.error) return actionNotOK(interpolated.error);
 				const term = interpolated?.value;
 				const resolved = await this.getWorld().shared.resolveVariable({ term, origin: Origin.var }, featureStep);
@@ -249,66 +250,51 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			},
 		},
 		set: {
-			gwta: "set( empty)? {what: string} to {value: string}",
-			handlesUndefined: ["what", "value"],
+			gwta: `set( empty)? {what: ${DOMAIN_VARIABLE_NAME}} to {value: string}`,
+			handlesUndefined: ["value"],
 			precludes: ["Haibun.prose"],
-			action: async (_: TStepArgs, featureStep: TFeatureStep) => {
-				const { term: rawTerm, domain, origin } = featureStep.action.stepValuesMap.what;
+			action: async ({ what }: { what: string }, featureStep: TFeatureStep) => {
 				const parsedValue = await this.getWorld().shared.resolveVariable(featureStep.action.stepValuesMap.value, featureStep, undefined, {
 					secure: true,
 				});
 				if (parsedValue.value === undefined) return actionNotOK(`Variable ${featureStep.action.stepValuesMap.value.term} not found`);
 				const resolved = { value: String(parsedValue.value) };
 
-				const interpolated = await this.interpolateTemplate(rawTerm, featureStep);
+				const interpolated = await this.interpolateTemplate(what, featureStep);
 				if (interpolated.error) return actionNotOK(interpolated.error);
 				const term = interpolated?.value;
 
 				const skip = await shouldSkipEmpty(featureStep, term, this.getWorld().shared);
 				if (skip) return skip;
 
-				// Inherit domain from existing variable if not explicitly specified
+				// A variable set again keeps its domain.
 				const existing = await this.getWorld().shared.resolveVariable({ term, origin: Origin.var }, featureStep);
-				const effectiveDomain = domain === DOMAIN_STRING && existing?.domain ? existing.domain : domain || DOMAIN_STRING;
-
 				const result = trySetVariable(
 					this.getWorld().shared,
-					{ term, value: resolved.value, domain: effectiveDomain, origin, secret: interpolated.secret || parsedValue.secret },
+					{ term, value: resolved.value, domain: existing?.domain ?? DOMAIN_STRING, origin: Origin.var, secret: interpolated.secret || parsedValue.secret },
 					provenanceFromFeatureStep(featureStep),
 				);
 				return result;
 			},
 		},
 		setAs: {
-			gwta: "set( empty)? {what} as {domain} to {value}",
-			handlesUndefined: ["what", "domain", "value"],
+			gwta: `set( empty)? {what: ${DOMAIN_VARIABLE_NAME}} as( read-only)? {domain: ${DOMAIN_DOMAIN_KEY}} to {value}`,
+			handlesUndefined: ["value"],
 			precludes: [`${VariablesStepper.name}.set`],
-			action: async ({ domain }: { value: string; domain: string }, featureStep: TFeatureStep) => {
+			action: async ({ what, domain }: { what: string; domain: string }, featureStep: TFeatureStep) => {
 				const readonly = !!featureStep.in.match(/ as read-only /);
-				const { term: rawTerm, origin } = featureStep.action.stepValuesMap.what;
 				const parsedValue = await this.getWorld().shared.resolveVariable(featureStep.action.stepValuesMap.value, featureStep, undefined, {
 					secure: true,
 				});
 				if (parsedValue.value === undefined) return actionNotOK(`Variable ${featureStep.action.stepValuesMap.value.term} not found`);
 				const resolved = { value: String(parsedValue.value) };
 
-				const interpolated = await this.interpolateTemplate(rawTerm, featureStep);
+				const interpolated = await this.interpolateTemplate(what, featureStep);
 				if (interpolated.error) return actionNotOK(interpolated.error);
 				const term = interpolated.value;
 
 				const skip = await shouldSkipEmpty(featureStep, term, this.getWorld().shared);
 				if (skip) return skip;
-
-				// Fallback for unquoted domain names (e.g. 'as number') that resolve to undefined
-				let effectiveDomain = domain ?? getStepTerm(featureStep, "domain");
-				if (effectiveDomain) {
-					if (effectiveDomain.startsWith("read-only ")) {
-						effectiveDomain = effectiveDomain.replace("read-only ", "");
-					}
-					if (effectiveDomain.startsWith('"') && effectiveDomain.endsWith('"')) {
-						effectiveDomain = effectiveDomain.slice(1, -1);
-					}
-				}
 
 				let finalValue = resolved.value;
 				if (typeof finalValue === "string" && finalValue.startsWith('"') && finalValue.endsWith('"')) {
@@ -316,26 +302,22 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				}
 				return trySetVariable(
 					this.getWorld().shared,
-					{ term, value: finalValue, domain: effectiveDomain, origin, readonly, secret: interpolated.secret || parsedValue.secret },
+					{ term, value: finalValue, domain, origin: Origin.var, readonly, secret: interpolated.secret || parsedValue.secret },
 					provenanceFromFeatureStep(featureStep),
 				);
 			},
 		},
 		unset: {
-			gwta: "unset {what: string}",
-			action: async (_: TStepArgs, featureStep: TFeatureStep) => {
-				const { term } = featureStep.action.stepValuesMap.what;
-				await this.getWorld().shared.unset(term);
+			gwta: `unset {what: ${DOMAIN_VARIABLE_NAME}}`,
+			action: async ({ what }: { what: string }) => {
+				await this.getWorld().shared.unset(what);
 				return OK;
 			},
 		},
 		setRandom: {
 			precludes: [`${VariablesStepper.name}.set`],
-			gwta: `set( empty)? {what: string} to {length: number} random characters`,
-			handlesUndefined: ["what"],
-			action: async ({ length }: { length: number }, featureStep: TFeatureStep) => {
-				const { term } = featureStep.action.stepValuesMap.what;
-
+			gwta: `set( empty)? {what: ${DOMAIN_VARIABLE_NAME}} to {length: number} random characters`,
+			action: async ({ what: term, length }: { what: string; length: number }, featureStep: TFeatureStep) => {
 				if (length < 1 || length > 100) {
 					return actionNotOK(`length ${length} must be between 1 and 100`);
 				}
@@ -355,11 +337,10 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 
 		is: {
-			gwta: "variable {what} is {value}",
-			handlesUndefined: ["what", "value"],
-			action: async (_: TStepArgs, featureStep: TFeatureStep) => {
-				const { term: rawTerm } = featureStep.action.stepValuesMap.what;
-				const interpolated = await this.interpolateTemplate(rawTerm, featureStep);
+			gwta: `variable {what: ${DOMAIN_VARIABLE_NAME}} is {value}`,
+			handlesUndefined: ["value"],
+			action: async ({ what }: { what: string }, featureStep: TFeatureStep) => {
+				const interpolated = await this.interpolateTemplate(what, featureStep);
 				if (interpolated.error) return actionNotOK(interpolated.error);
 				const term = interpolated.value;
 
@@ -383,28 +364,24 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			},
 		},
 		isLessThan: {
-			gwta: "variable {what} is less than {value}",
-			handlesUndefined: ["what", "value"],
+			gwta: `variable {what: ${DOMAIN_VARIABLE_NAME}} is less than {value}`,
+			handlesUndefined: ["value"],
 			precludes: ["VariablesStepper.is"],
 			action: ({ what, value }: { what: string; value: string }, featureStep: TFeatureStep) => {
-				const term = getStepTerm(featureStep, "what") ?? what;
-				return this.compareValues(featureStep, term, value, "<");
+				return this.compareValues(featureStep, what, value, "<");
 			},
 		},
 		isMoreThan: {
-			gwta: "variable {what} is more than {value}",
-			handlesUndefined: ["what", "value"],
+			gwta: `variable {what: ${DOMAIN_VARIABLE_NAME}} is more than {value}`,
+			handlesUndefined: ["value"],
 			precludes: ["VariablesStepper.is"],
 			action: ({ what, value }: { what: string; value: string }, featureStep: TFeatureStep) => {
-				const term = getStepTerm(featureStep, "what") ?? what;
-				return this.compareValues(featureStep, term, value, ">");
+				return this.compareValues(featureStep, what, value, ">");
 			},
 		},
 		exists: {
-			gwta: "variable {what} exists",
-			handlesUndefined: ["what"],
-			action: async ({ what }: TStepArgs, featureStep: TFeatureStep) => {
-				const term = (getStepTerm(featureStep, "what") ?? what) as string;
+			gwta: `variable {what: ${DOMAIN_VARIABLE_NAME}} exists`,
+			action: async ({ what: term }: { what: string }, featureStep: TFeatureStep) => {
 				// Dot-path aware: matches the resolution used by `matches`, `show var`, and
 				// every other variable-consuming step. Without this, `variable
 				// foo.bar exists` fails even when `foo` is a JSON-stored object whose
@@ -412,17 +389,14 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				const resolved = await this.getWorld().shared.resolveVariable({ term, origin: Origin.var }, featureStep);
 				if (resolved.value !== undefined) return OK;
 				const envVars = this.getWorld().options.envVariables || {};
-				return envVars[term] !== undefined ? OK : actionNotOK(`${what} not set`);
+				return envVars[term] !== undefined ? OK : actionNotOK(`${term} not set`);
 			},
 		},
 		showVar: {
-			gwta: "show var {what}",
-			handlesUndefined: ["what"],
+			gwta: `show var {what: ${DOMAIN_VARIABLE_NAME}}`,
 			productsDomain: DOMAIN_VAR_SNAPSHOT,
-			action: async (_: TStepArgs, featureStep: TFeatureStep) => {
-				const rawTerm = getStepTerm(featureStep, "what");
-				if (rawTerm === undefined) return actionNotOK("variable not provided");
-				const interpolated = await this.interpolateTemplate(rawTerm, featureStep);
+			action: async ({ what }: { what: string }, featureStep: TFeatureStep) => {
+				const interpolated = await this.interpolateTemplate(what, featureStep);
 				if (interpolated.error) return actionNotOK(interpolated.error);
 				const term = interpolated.value || "";
 
@@ -467,11 +441,9 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			},
 		},
 		showDomain: {
-			gwta: "show domain {name}",
-			handlesUndefined: ["name"],
+			gwta: `show domain {name: ${DOMAIN_DOMAIN_KEY}}`,
 			productsDomain: DOMAIN_DOMAIN_SNAPSHOT,
-			action: async (_: TStepArgs, featureStep: TFeatureStep) => {
-				const name = getStepTerm(featureStep, "name");
+			action: async ({ name }: { name: string }) => {
 				const domain = this.getWorld().domains[name];
 				if (!domain) {
 					return actionNotOK(`Domain "${name}" not found`);
@@ -548,7 +520,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		// Supports * as wildcard (matches any characters)
 		// Variables in pattern are interpolated: "{counter URI}*" resolves to actual value
 		matches: {
-			gwta: "matches {value} with {pattern}",
+			gwta: `matches {value} with {pattern: ${DOMAIN_GLOB}}`,
 			action: async ({ value, pattern }: { value: string; pattern: string }, featureStep: TFeatureStep) => {
 				// value/pattern are text being compared: an unresolved {X} is literal data (e.g. a captured reply echoing
 				// "{StepperName}"), not a variable reference, so interpolate leniently and leave unknown braces in place.
@@ -565,11 +537,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				if (interpolated.error) return actionNotOK(interpolated.error);
 				const actualPattern = interpolated.value;
 
-				const escaped = actualPattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
-				const regexPattern = escaped.replace(/\*/g, ".*");
-				const regex = new RegExp(`^${regexPattern}$`, "s");
-
-				const isMatch = regex.test(actualValue);
+				const isMatch = new RegExp(globSource(actualPattern), "s").test(actualValue);
 
 				return isMatch ? OK : actionNotOK(`"${actualValue}" does not match pattern "${actualPattern}"`);
 			},
@@ -661,9 +629,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				throw new Error("Superdomain set must specify at least one superdomain");
 			}
 			const uniqueNames = Array.from(new Set(superdomainNames));
-			const effectiveDomain = domain ?? getStepTerm(featureStep, "domain");
-			if (!effectiveDomain) return actionNotOK("Domain name must be provided");
-			const domainKey = normalizeDomainKey(effectiveDomain);
+			const domainKey = normalizeDomainKey(domain);
 			if (this.getWorld().domains[domainKey]) {
 				return actionNotOK(`Domain "${domainKey}" already exists`);
 			}
@@ -711,9 +677,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 	) {
 		try {
 			const values = extractValuesFromFragments(valueFragments, getStepTerm(featureStep, "values") ?? featureStep.in);
-			const effectiveDomain = domain ?? getStepTerm(featureStep, "domain");
-			if (!effectiveDomain) return actionNotOK("Domain name must be provided");
-			const domainKey = normalizeDomainKey(effectiveDomain);
+			const domainKey = normalizeDomainKey(domain);
 			if (this.getWorld().domains[domainKey]) {
 				return actionNotOK(`Domain "${domainKey}" already exists`);
 			}
@@ -730,19 +694,16 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		}
 	}
 
-	private registerHypermediaDomain(domain: string, spec: string, featureStep: TFeatureStep) {
+	private registerHypermediaDomain(domain: string, spec: string) {
 		try {
-			const effectiveDomain = domain ?? getStepTerm(featureStep, "domain");
-			if (!effectiveDomain) return actionNotOK("Domain name must be provided");
 			const trimmed = (spec ?? "").trim();
-			if (!trimmed) return actionNotOK(`set of ${effectiveDomain}: declaration is empty`);
-			const doc: THypermediaContext = trimmed.startsWith("{") ? JSON.parse(trimmed) : parseHypermediaDeclProse(effectiveDomain, trimmed);
-			const { topology, schema } = hypermediaDomainFromContext(effectiveDomain, doc);
-			const selector = effectiveDomain.toLowerCase();
+			if (!trimmed) return actionNotOK(`set of ${domain}: declaration is empty`);
+			const doc: THypermediaContext = trimmed.startsWith("{") ? JSON.parse(trimmed) : parseHypermediaDeclProse(domain, trimmed);
+			const { topology, schema } = hypermediaDomainFromContext(domain, doc);
+			const selector = domain.toLowerCase();
 			const domainKey = normalizeDomainKey(selector);
 			if (this.getWorld().domains[domainKey]) return actionNotOK(`Domain "${domainKey}" already exists`);
-			registerDomains(this.getWorld(), [[{ selectors: [selector], schema: fromJsonText(schema), description: effectiveDomain, topology, ui: { declared: true } }]]);
-			refreshHypermediaTypeDomain(this.getWorld());
+			registerDomains(this.getWorld(), [[{ selectors: [selector], schema: fromJsonText(schema), description: domain, topology, ui: { declared: true } }]]);
 			return OK;
 		} catch (error) {
 			return actionNotOK(errorDetail(error));

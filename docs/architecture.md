@@ -319,7 +319,7 @@ Monitors receive `THaibunEvent` via `onEvent` during execution. They track progr
 
 ## Variable Resolution
 
-`FeatureVariables.resolveVariable()` resolves values based on origin:
+`FeatureVariables.resolveVariable()` resolves values based on origin. A parameter of a written domain (`statement`, `variable-name`, `domain-name`) takes the term the line writes, whatever its origin: `set x to 1` names the variable x, and never reads a variable called x.
 
 For `Origin.defined` (the common case for unquoted variable references):
 

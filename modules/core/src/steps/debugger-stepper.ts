@@ -3,8 +3,9 @@ import type { TWorld } from "../lib/world.js";
 import { TActionResult, OK, TDebugSignal } from "../schema/protocol.js";
 import { makePrompt } from "../lib/prompter.js";
 import { formatSeqPath } from "../lib/seq-path.js";
-import { actionNotOK, actionOK, getStepperOption, stringOrError } from "../lib/util/index.js";
+import { actionOK, getStepperOption, stringOrError } from "../lib/util/index.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
+import { DOMAIN_STEPPER_NAME } from "../lib/domains.js";
 import { advanceSyntheticSeqPath, syntheticBranchSeqPath, syntheticSeqPathDirection } from "../phases/Executor.js";
 
 export enum TDebuggingType {
@@ -203,32 +204,16 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 			},
 		},
 		debugStepper: {
-			gwta: `debug stepper { stepperName }`,
-			action: ({ stepperName }) => {
-				if (Array.isArray(stepperName)) throw new Error("stepperName must be string");
-				const stepperNames = (stepperName as string).split(",").map((name) => name.trim());
-				for (const name of stepperNames) {
-					const found = this.steppers.find((s) => s.constructor.name === name);
-					if (!found) {
-						return Promise.resolve(actionNotOK(`Stepper ${name} not found`));
-					}
-				}
-				this.debugSteppers = this.debugSteppers.concat(stepperNames);
+			gwta: `debug stepper {stepperName: ${DOMAIN_STEPPER_NAME}}`,
+			action: ({ stepperName }: { stepperName: string }) => {
+				this.debugSteppers.push(stepperName);
 				return Promise.resolve(OK);
 			},
 		},
 		continueStepper: {
-			gwta: `continue stepper { stepperName } `,
-			action: ({ stepperName }) => {
-				if (Array.isArray(stepperName)) throw new Error("stepperName must be string");
-				const stepperNames = (stepperName as string).split(",").map((name) => name.trim());
-				for (const name of stepperNames) {
-					const found = this.steppers.find((s) => s.constructor.name === name);
-					if (!found) {
-						return Promise.resolve(actionNotOK(`Stepper ${name} not found`));
-					}
-				}
-				this.debugSteppers = this.debugSteppers.filter((name) => !stepperNames.includes(name));
+			gwta: `continue stepper {stepperName: ${DOMAIN_STEPPER_NAME}}`,
+			action: ({ stepperName }: { stepperName: string }) => {
+				this.debugSteppers = this.debugSteppers.filter((name) => name !== stepperName);
 				return Promise.resolve(OK);
 			},
 		},

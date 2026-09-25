@@ -76,7 +76,6 @@ export enum Origin {
 	var = "var",
 	env = "env",
 	quoted = "quoted",
-	statement = "statement",
 }
 export type TOrigin = keyof typeof Origin;
 

@@ -3,9 +3,9 @@ import type { TFeatures } from "../lib/execution.js";
 import type { TWorld } from "../lib/world.js";
 import { OK } from "../schema/protocol.js";
 import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TResolvedFeature, TStartFeature, TEndFeature, CycleWhen } from "../lib/astepper.js";
-import { actionNotOK, actionOK, actionOKWithProducts, constructorName, sleep } from "../lib/util/index.js";
+import { actionNotOK, actionOK, actionOKWithProducts, sleep } from "../lib/util/index.js";
 import { findFeatureStepsFromStatement } from "../phases/Resolver.js";
-import { DOMAIN_STATEMENT, DOMAIN_TEXT } from "../lib/domains.js";
+import { DOMAIN_STATEMENT, DOMAIN_STEPPER_NAME, DOMAIN_TEXT } from "../lib/domains.js";
 import { findFeatures } from "../lib/features.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { QuadStore } from "../lib/quad-store.js";
@@ -255,16 +255,9 @@ class Haibun extends AStepper implements IHasCycles {
 		},
 		afterEveryStepper: {
 			precludes: [`Haibun.prose`],
-			gwta: `after every {stepperName: string}, {statement: ${DOMAIN_STATEMENT}}`,
-			handlesUndefined: ["stepperName"],
-			action: ({ statement }: { stepperName: string; statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
-				const { term: stepperName } = featureStep.action.stepValuesMap.stepperName;
-				const matchedStepper = this.steppers.find((s) => constructorName(s) === stepperName);
-				if (!matchedStepper) {
-					return actionNotOK(`Didn't find stepper "${stepperName}" from [${this.steppers.map((s) => constructorName(s)).join(", ")}]`);
-				}
-				// Use constructorName for consistent key (handles vitest naming)
-				this.afterEverySteps[constructorName(matchedStepper)] = statement;
+			gwta: `after every {stepperName: ${DOMAIN_STEPPER_NAME}}, {statement: ${DOMAIN_STATEMENT}}`,
+			action: ({ stepperName, statement }: { stepperName: string; statement: TFeatureStep[] }) => {
+				this.afterEverySteps[stepperName] = statement;
 				return OK;
 			},
 		},

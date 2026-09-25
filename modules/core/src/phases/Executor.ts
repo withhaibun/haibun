@@ -1,7 +1,5 @@
 import { createHash } from "node:crypto";
 import { RUN_AUTHORITY, runAuthorizedWith } from "../lib/capability-context.js";
-import { z } from "zod";
-import { DOMAIN_DOMAIN_KEY } from "../lib/domains.js";
 import type { TWorld } from "../lib/world.js";
 import { TResolvedFeature, TEndFeature, type TFeatureStep } from "../lib/astepper.js";
 import {
@@ -26,7 +24,7 @@ import { openRunRegistry, type StepRegistry } from "../lib/step-registry.js";
 import { featureAsData } from "../lib/features.js";
 import { SCENARIO_START } from "../schema/protocol.js";
 import { FeatureVariables } from "../lib/feature-variables.js";
-import { registerDomains, refreshHypermediaTypeDomain } from "../lib/domains.js";
+import { registerDomains, registerStepperNames } from "../lib/domains.js";
 import { doStepperCycle, doStepperCycleSync } from "../lib/stepper-cycles.js";
 import { basename } from "path";
 
@@ -375,23 +373,11 @@ export const addStepperConcerns = (world: TWorld, steppers: AStepper[]) => {
 			}
 		}
 	}
+	registerStepperNames(
+		world,
+		steppers.map((stepper) => constructorName(stepper)),
+	);
 	registerDomains(world, [allDomains]);
-	// Register the persisted-type enum over all registered persisted types.
-	refreshHypermediaTypeDomain(world);
-	// Register domain-key domain as an enum over every domain currently in the
-	// registry. Renders as a dropdown in form-based step callers (shu step-caller).
-	const domainKeys = Object.keys(world.domains).sort();
-	if (domainKeys.length > 0) {
-		registerDomains(world, [
-			[
-				{
-					selectors: [DOMAIN_DOMAIN_KEY],
-					schema: z.enum(domainKeys as [string, ...string[]]),
-					description: "A registered domain identifier, referenced by goal-resolution and meta-introspection steps.",
-				},
-			],
-		]);
-	}
 };
 
 // SeqPath conventions:

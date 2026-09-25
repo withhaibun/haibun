@@ -280,7 +280,7 @@ describe("FeatureVariables", () => {
 
 		it("should prioritize defined variables over literal fallback", async () => {
 			const fv = new FeatureVariables(world);
-			await fv.set({ term: "/path", value: "defined value", domain: DOMAIN_STRING, origin: Origin.statement }, { in: "test", seq: [0], when: "now" });
+			await fv.set({ term: "/path", value: "defined value", domain: DOMAIN_STRING, origin: Origin.var }, { in: "test", seq: [0], when: "now" });
 			const result = await fv.resolveVariable({ term: "/path", origin: Origin.defined });
 			expect(result.value).toBe("defined value");
 		});

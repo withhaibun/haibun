@@ -71,7 +71,6 @@ export class SubprocessTransport {
 		const tools = this.stepDescriptors.map(
 			(descriptor): StepTool => ({
 				descriptor,
-				paramSchemas: new Map(),
 				paramDomainKeys: new Map(),
 				isAsync: true,
 				transport: "subprocess",

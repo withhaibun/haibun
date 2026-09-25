@@ -10,6 +10,7 @@ import { actionNotOK } from "../lib/util/index.js";
 import { OK } from "../schema/protocol.js";
 import { dispatchStep } from "../lib/step-dispatch.js";
 import { buildFeatureStepForTransport, StepRegistry } from "../lib/step-registry.js";
+import { addStepperConcerns } from "../phases/Executor.js";
 
 class TestPrompter implements IPrompter {
 	prompt = (_p: TPrompt) => Promise.resolve("continue");
@@ -208,6 +209,7 @@ describe("DebuggerStepper RPC dispatch", () => {
 		const debuggerStepper = new DebuggerStepper();
 		const steppers = [debuggerStepper, failing];
 		await debuggerStepper.setWorld(world, steppers);
+		addStepperConcerns(world, steppers);
 		const registry = new StepRegistry(steppers, world);
 		const tool = registry.get(`${failing.constructor.name}-alwaysFails`);
 		if (!tool) throw new Error("alwaysFails not registered");
@@ -244,6 +246,7 @@ describe("DebuggerStepper RPC dispatch", () => {
 		debuggerStepper.debuggingType = TDebuggingType.StepByStep;
 		const steppers = [debuggerStepper, echo];
 		await debuggerStepper.setWorld(world, steppers);
+		addStepperConcerns(world, steppers);
 		const registry = new StepRegistry(steppers, world);
 		const tool = registry.get(`${echo.constructor.name}-echo`);
 		if (!tool) throw new Error("echo not registered");

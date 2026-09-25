@@ -385,7 +385,7 @@ export default GoalResolutionStepper;
 function walkProducts(instance: TChainInstance, registry: StepRegistry): z.infer<typeof chainWalkSchema> {
 	const steps = instance.michi.steps.map((step) => stepMethodName(step.stepperName, step.stepName));
 	const next = steps[instance.stepIndex];
-	const takes = next === undefined ? [] : [...(registry.get(next)?.paramSchemas.keys() ?? [])];
+	const takes = next === undefined ? [] : [...(registry.get(next)?.paramDomainKeys.keys() ?? [])];
 	return chainWalkSchema.parse({
 		walk: instance.id,
 		goal: instance.goal,

@@ -30,8 +30,18 @@ export const DOMAIN_PRINCIPAL_REF = "principal-ref";
 export const DOMAIN_RECORD_ID = "record-id";
 export const BASE_TYPES = [DOMAIN_STRING, DOMAIN_TEXT, DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_DATE, DOMAIN_STATEMENT, DOMAIN_JSON];
 
-// Goal resolver domains.
+/** A registered domain's key. */
 export const DOMAIN_DOMAIN_KEY = "domain-key";
+/** The name of a variable, as the line writes it. */
+export const DOMAIN_VARIABLE_NAME = "variable-name";
+/** The name a declaration gives a new domain, as the line writes it. */
+export const DOMAIN_DOMAIN_NAME = "domain-name";
+/** A loaded stepper's name. */
+export const DOMAIN_STEPPER_NAME = "stepper-name";
+/** A pattern in which `*` stands for any run of characters. */
+export const DOMAIN_GLOB = "glob";
+/** Domains whose value is the term its line writes, never a variable or an environment value the term names. */
+export const WRITTEN_DOMAINS: ReadonlySet<string> = new Set([DOMAIN_STATEMENT, DOMAIN_VARIABLE_NAME, DOMAIN_DOMAIN_NAME]);
 
 /** What separates the parts of a union domain's key. */
 export const DOMAIN_UNION = " | ";
@@ -41,7 +51,17 @@ export const domainParts = (domainKey: string): string[] => domainKey.split(DOMA
 
 /** Primitive domains: a caller supplies their values, no step's product is one, and they aren't nodes of the typed
  *  step graph, since every step would connect through them. */
-export const PRIMITIVE_DOMAINS: ReadonlySet<string> = new Set<string>([...BASE_TYPES, DOMAIN_DOMAIN_KEY]);
+export const PRIMITIVE_DOMAINS: ReadonlySet<string> = new Set<string>([
+	...BASE_TYPES,
+	DOMAIN_DOMAIN_KEY,
+	DOMAIN_VARIABLE_NAME,
+	DOMAIN_DOMAIN_NAME,
+	DOMAIN_STEPPER_NAME,
+	DOMAIN_GLOB,
+]);
+
+/** A glob as the source of an anchored regular expression that matches what it matches. */
+export const globSource = (glob: string): string => `^${glob.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*")}$`;
 
 /** Whether a domain key is primitive: a primitive, or a union with one, which a caller can always supply as it. */
 export const isPrimitiveDomain = (domainKey: string): boolean => domainParts(domainKey).some((part) => PRIMITIVE_DOMAINS.has(part));
@@ -73,6 +93,33 @@ export const registerDomains = (world: TWorld, results: TDomainDefinition[][]) =
 			world.domains[domainKey] = toRegisteredDomain(definition);
 		}
 	}
+	deriveNamingDomains(world.domains);
+};
+
+/**
+ * The domains that name what is registered, derived again whenever a domain is registered, so a type or a domain a
+ * feature declares is named: `persisted-type`, the type a record persists as, and `domain-key`, every domain's key.
+ * `persisted-type` is open to any type name, since the store holds what exists and records of a type an earlier session
+ * declared stay readable; its values are the types declared, so a bare word naming one is that type.
+ */
+export const deriveNamingDomains = (domains: Record<string, TRegisteredDomain>) => {
+	const types = [...new Set(getPersistedDomains(domains).map((domain) => domain.topology.persistedAs))].sort();
+	domains[DOMAIN_PERSISTED_TYPE] = toRegisteredDomain({
+		selectors: [DOMAIN_PERSISTED_TYPE],
+		schema: z.string().min(1),
+		values: types,
+		description: "The type a record persists as",
+	});
+	const keys = Object.keys(domains).filter((key) => key !== DOMAIN_DOMAIN_KEY);
+	domains[DOMAIN_DOMAIN_KEY] = toRegisteredDomain(createEnumDomainDefinition({ name: DOMAIN_DOMAIN_KEY, values: keys, description: "A registered domain's key" }));
+	return domains;
+};
+
+/** The names of the loaded steppers, as the domain a step naming a stepper takes. */
+export const registerStepperNames = (world: TWorld, names: string[]) => {
+	world.domains[DOMAIN_STEPPER_NAME] = toRegisteredDomain(
+		createEnumDomainDefinition({ name: DOMAIN_STEPPER_NAME, values: [...new Set(names)], description: "A loaded stepper's name" }),
+	);
 };
 
 export const asDomainKey = (domains: string[]) => domains?.sort().join(DOMAIN_UNION);
@@ -248,17 +295,3 @@ export function linkVocabularyFromDomains(domains: Record<string, TRegisteredDom
 export function getPersistedDomains(domains: Record<string, TRegisteredDomain>): Array<TRegisteredDomain & { topology: THypermediaTopology }> {
 	return Object.values(domains).filter((d): d is TRegisteredDomain & { topology: THypermediaTopology } => isPersisted(d.topology));
 }
-
-/** (Re)register the `persisted-type` domain used by the generic graph steps' `{label: persisted-type}` argument.
- * Validation is OPEN, any non-empty type name is accepted, because the store, not a compiled enum, is the source of
- * truth for what exists: persisted data of a type declared in an earlier session (the `set of …` declaration is
- * session-only, its data is not) must stay explorable, and a absent type resolves to "not found" at the store
- * rather than a validation error. Known types reach autocomplete through the concern catalog / site metadata, so the
- * generalized graph/column views never need every type enumerated here. */
-export const refreshHypermediaTypeDomain = (world: TWorld) => {
-	world.domains[asDomainKey([DOMAIN_PERSISTED_TYPE])] = toRegisteredDomain({
-		selectors: [DOMAIN_PERSISTED_TYPE],
-		schema: z.string().min(1),
-		description: "Persisted type",
-	});
-};

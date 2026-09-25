@@ -72,7 +72,6 @@ const remoteTool = (stepName: string, pattern: string, capability = `RemoteSteps
 		remoteOrigin: "http://localhost:8331",
 		inputSchema: { type: "object", properties: {}, required: [] },
 	},
-	paramSchemas: new Map(),
 	paramDomainKeys: new Map(),
 	transport: "remote",
 	isAsync: true,

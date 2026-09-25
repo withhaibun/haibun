@@ -20,7 +20,7 @@ import { FlowRunner } from "./core/flow-runner.js";
 import { actionOKWithProducts, actionNotOK } from "./util/index.js";
 import { getDefaultWorld, testWithWorld } from "./test/lib.js";
 import { TEST_DOMAIN, declaresTestDomains, testDomainDefinitions } from "./test/test-domains.js";
-import { DOMAIN_RECORD_ID, individualRefDomain, refreshHypermediaTypeDomain, registerDomains } from "./domains.js";
+import { DOMAIN_DOMAIN_KEY, DOMAIN_NUMBER, DOMAIN_RECORD_ID, DOMAIN_STRING, individualRefDomain, registerDomains } from "./domains.js";
 import type { TWorld } from "./world.js";
 import { DOMAIN_PERSISTED_TYPE, LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "./resources.js";
 import { SEQ_PATH_FIELD, executionOf, factIdOf, formatRecordName } from "./seq-path.js";
@@ -170,40 +170,38 @@ describe("step-dispatch", () => {
 	});
 
 	describe("validateToolInput", () => {
-		const makeTool = (paramSchemas: StepTool["paramSchemas"], xType: string): StepTool => ({
-			descriptor: {
-				method: "Test-test",
-				stepperName: "Test",
-				stepperDescription: "a step that takes x",
-				stepName: "test",
-				pattern: "test {x}",
-				params: { x: "string" },
-				paramDomains: { x: "string" },
-				read: false,
-				fallback: false,
-				inputSchema: { type: "object", properties: { x: { type: xType } }, required: ["x"] },
-			},
-			paramSchemas,
-			paramDomainKeys: new Map(),
-			transport: "local",
-			isAsync: true,
-			handler: async () => ({ ok: true }),
-		});
+		const toolTaking = (gwta: string, w: TWorld) => {
+			const stepper = new (class extends AStepper {
+				steps = { test: { gwta, action: async () => OK } };
+			})();
+			const tool = buildStepRegistry([stepper], w).get(`${stepper.constructor.name}-test`);
+			if (!tool) throw new Error("Expected tool to be registered");
+			return tool;
+		};
 
 		it("passes valid input", () => {
-			const tool = makeTool(new Map([["x", z.string()]]), "string");
-			const result = validateToolInput([], tool, { x: "hello" });
-			expect(result.x).toBe("hello");
+			const w = getDefaultWorld();
+			expect(validateToolInput([], toolTaking(`test {x: ${DOMAIN_STRING}}`, w), { x: "hello" }, w).x).toBe("hello");
 		});
 
 		it("throws on missing required input", () => {
-			const tool = makeTool(new Map([["x", z.string()]]), "string");
-			expect(() => validateToolInput([], tool, {})).toThrow(/validation failed.*"x": required/);
+			const w = getDefaultWorld();
+			expect(() => validateToolInput([], toolTaking(`test {x: ${DOMAIN_STRING}}`, w), {}, w)).toThrow(/validation failed.*"x": required/);
 		});
 
 		it("throws on invalid type", () => {
-			const tool = makeTool(new Map([["x", z.number()]]), "number");
-			expect(() => validateToolInput([], tool, { x: "not-a-number" })).toThrow(/validation failed/);
+			const w = getDefaultWorld();
+			expect(() => validateToolInput([], toolTaking(`test {x: ${DOMAIN_NUMBER}}`, w), { x: "not-a-number" }, w)).toThrow(/validation failed/);
+		});
+
+		it("takes a domain registered after the registry was built", () => {
+			const w = getDefaultWorld();
+			registerDomains(w, []);
+			const tool = toolTaking(`test {x: ${DOMAIN_DOMAIN_KEY}}`, w);
+			const LATER = "declared-later";
+			expect(() => validateToolInput([], tool, { x: LATER }, w), "before it is declared").toThrow(/validation failed/);
+			registerDomains(w, [[{ selectors: [LATER], schema: z.string(), description: "a domain a feature declares" }]]);
+			expect(validateToolInput([], tool, { x: LATER }, w).x).toBe(LATER);
 		});
 
 		it("applies domain.coerce() when world is provided", () => {
@@ -240,28 +238,6 @@ describe("step-dispatch", () => {
 			expect(validateToolInput([], tool, { what: '{"id":"urn:uuid:1"}' }, w).what, "its JSON text").toEqual({ id: "urn:uuid:1" });
 			expect(() => validateToolInput([], tool, { what: 7 }, w), "a number").toThrow(/"what" \(value: 7\): Invalid input: expected object/);
 			expect(() => validateToolInput([], tool, { what: '{"id":' }, w), "text that isn't JSON").toThrow(/"what" \(value: .*\): is text that isn't JSON \(.+\): \{"id":/);
-		});
-
-		it("skips coerce when world is not provided", () => {
-			const w = getDefaultWorld();
-			registerDomains(w, [
-				[
-					{
-						selectors: ["myDomain"],
-						schema: z.string(),
-						coerce: (proto) => String(proto.value).toUpperCase(),
-					},
-				],
-			]);
-			const stepper = new (class extends AStepper {
-				steps = { doIt: { gwta: "do it with {val: myDomain}", action: async () => OK } };
-			})();
-			const registry = buildStepRegistry([stepper], w);
-			const tool = registry.get(`${stepper.constructor.name}-doIt`);
-			if (!tool) throw new Error("Expected tool to be registered");
-			// Without world, no coercion, returns Zod-parsed value as-is
-			const result = validateToolInput([], tool, { val: "hello" });
-			expect(result.val).toBe("hello");
 		});
 	});
 
@@ -416,7 +392,6 @@ describe("step-dispatch", () => {
 		});
 
 		it("pairs a record id with the parameter naming its type, and takes the id however a line gives it", async () => {
-			refreshHypermediaTypeDomain(world);
 			const reads = new (class extends AStepper {
 				steps = {
 					readsRecord: {

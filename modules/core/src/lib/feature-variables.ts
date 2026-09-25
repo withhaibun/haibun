@@ -3,7 +3,7 @@ import { isLiteralValue } from "./util/index.js";
 import { parseDotPath, navigateValue } from "./util/dot-path.js";
 import type { TWorld } from "./world.js";
 import { Origin, TOrigin, TProvenanceIdentifier, TStepValue } from "../schema/protocol.js";
-import { DOMAIN_JSON, DOMAIN_STRING, DOMAIN_UNION, domainParts, normalizeDomainKey } from "./domains.js";
+import { DOMAIN_JSON, DOMAIN_STRING, DOMAIN_UNION, WRITTEN_DOMAINS, domainParts, normalizeDomainKey } from "./domains.js";
 import { QuadStore } from "./quad-store.js";
 import { accessBound, readingAsStated } from "./capability-context.js";
 import { declaredAccessLevel } from "./resources.js";
@@ -128,7 +128,7 @@ export class FeatureVariables {
 		let lookupTerm = input.term;
 		if (lookupTerm.startsWith("{") && lookupTerm.endsWith("}")) lookupTerm = lookupTerm.slice(1, -1);
 
-		if (!input.origin || input.origin === Origin.statement) {
+		if (!input.origin || (input.domain && WRITTEN_DOMAINS.has(input.domain))) {
 			resolved.value = input.term;
 			resolved.domain = input.domain;
 		} else if (input.origin === Origin.env) {

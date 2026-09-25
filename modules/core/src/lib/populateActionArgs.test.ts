@@ -5,7 +5,7 @@ import { populateActionArgs } from "./populateActionArgs";
 import { TFeatureStep } from "./defs";
 import { Origin } from "../schema/protocol.js";
 import { AStepper } from "./astepper.js";
-import { DOMAIN_NUMBER, DOMAIN_STRING, individualRefDomain, registerDomains } from "./domains.js";
+import { DOMAIN_NUMBER, DOMAIN_STRING, DOMAIN_VARIABLE_NAME, individualRefDomain, registerDomains } from "./domains.js";
 import { fromJsonText } from "./json-text.js";
 
 function makeStep(name: string, label: string, domain: string, origin: Origin): TFeatureStep {
@@ -29,12 +29,11 @@ function makeStep(name: string, label: string, domain: string, origin: Origin): 
 }
 
 describe("populateActionArgs integration", () => {
-	it("resolves statement origin and coerces string", async () => {
-		const step = makeStep("foo", "bar", "string", Origin.statement);
+	it("takes the term a written domain's parameter writes, and not a variable of that name", async () => {
 		const world = getTestWorldWithOptions();
-		const steppers: AStepper[] = [];
-		const args = await populateActionArgs(step, world, steppers);
-		expect(args.foo).toBe("bar");
+		await world.shared.set({ term: "bar", value: "the variable's value", domain: DOMAIN_STRING, origin: Origin.var }, { in: "test", seq: [0], when: "test" });
+		expect((await populateActionArgs(makeStep("foo", "bar", DOMAIN_VARIABLE_NAME, Origin.defined), world, [])).foo).toBe("bar");
+		expect((await populateActionArgs(makeStep("foo", "bar", DOMAIN_VARIABLE_NAME, Origin.quoted), world, [])).foo).toBe("bar");
 	});
 
 	it("resolves env origin", async () => {
@@ -53,7 +52,7 @@ describe("populateActionArgs integration", () => {
 	});
 
 	it("throws on missing domain coercer", async () => {
-		const step = makeStep("foo", "bar", "notadomain", Origin.statement);
+		const step = makeStep("foo", "bar", "notadomain", Origin.quoted);
 		const world = getTestWorldWithOptions();
 		const steppers: AStepper[] = [];
 		await expect(async () => await populateActionArgs(step, world, steppers)).rejects.toThrow();

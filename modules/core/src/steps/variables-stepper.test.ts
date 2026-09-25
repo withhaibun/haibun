@@ -2,7 +2,7 @@ import { it, expect, describe } from "vitest";
 
 import { failWithDefaults, passWithDefaults } from "../lib/test/lib.js";
 import VariablesStepper from "./variables-stepper.js";
-import { DEFAULT_DEST } from "../schema/protocol.js";
+import { DEFAULT_DEST, Origin } from "../schema/protocol.js";
 import Haibun from "./haibun.js";
 import LogicStepper from "./logic-stepper.js";
 import { OBSCURED_VALUE } from "../lib/feature-variables.js";
@@ -22,7 +22,7 @@ describe("vars", () => {
 		const res = await passWithDefaults(content, steppers);
 		expect(res.ok).toBe(true);
 		const all = await res.world.shared.all();
-		expect(all.x.origin).toBe("defined");
+		expect(all.x.origin, "a variable a step sets is a variable").toBe(Origin.var);
 	});
 	it("empty does not overwrite", async () => {
 		const content = 'set empty x to "y"\nset empty x to "z"\nvariable x is "y"';

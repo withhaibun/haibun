@@ -78,7 +78,6 @@ export class RemoteStepperProxy extends AStepper {
 		const tools = this.stepDescriptors.map(
 			(descriptor): StepTool => ({
 				descriptor: { ...descriptor, method: hostScopedMethodName(hostId, descriptor.method), remoteOrigin },
-				paramSchemas: new Map(),
 				paramDomainKeys: new Map(),
 				isAsync: true,
 				transport: "remote",

@@ -22,6 +22,10 @@ import {
 	DOMAIN_STATEMENT,
 	DOMAIN_STRING,
 	DOMAIN_TEXT,
+	DOMAIN_VARIABLE_NAME,
+	DOMAIN_DOMAIN_NAME,
+	DOMAIN_GLOB,
+	deriveNamingDomains,
 	mapDefinitionsToDomains,
 	recordIdInputSchema,
 } from "./domains.js";
@@ -30,6 +34,7 @@ import { findFeatureStepsFromStatement } from "../phases/Resolver.js";
 const numberSchema = z.coerce.number({ error: "invalid number" }).refine((value) => Number.isFinite(value), "invalid number");
 const stringSchema = z.coerce.string({ error: "value is required" });
 const statementSchema = z.string({ error: "statement label is required" }).min(1, "statement cannot be empty");
+const nameSchema = z.string().min(1, "a name cannot be empty");
 const dateSchema = z.coerce.date({ error: "invalid date" });
 
 /**
@@ -174,6 +179,9 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		schema: stringSchema,
 		description: "Free text a person writes: a note, a question, a reason or a passage quoted, read as written.",
 	},
+	{ selectors: [DOMAIN_VARIABLE_NAME], schema: nameSchema, description: "The name of a variable, as the line writes it." },
+	{ selectors: [DOMAIN_DOMAIN_NAME], schema: nameSchema, description: "The name a declaration gives a new domain, as the line writes it." },
+	{ selectors: [DOMAIN_GLOB], schema: nameSchema, description: "A pattern in which * stands for any run of characters." },
 	{
 		selectors: [DOMAIN_LINK],
 		schema: stringSchema,
@@ -218,8 +226,6 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		schema: fromJsonText(z.json()),
 		description: "A JSON value, given as its text or as the value.",
 	},
-	// DOMAIN_DOMAIN_KEY is registered dynamically in Executor.addStepperConcerns
-	// after all other domains are collected, so its enum reflects the live registry.
 	{
 		selectors: [DOMAIN_MICHI],
 		schema: michiSchema,
@@ -263,4 +269,4 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 ];
 
 // Core domain registry factory. Returns coercion functions for built-in domains.
-export const getCoreDomains = (world: TWorld) => mapDefinitionsToDomains(getCoreDomainDefinitions(world));
+export const getCoreDomains = (world: TWorld) => deriveNamingDomains(mapDefinitionsToDomains(getCoreDomainDefinitions(world)));

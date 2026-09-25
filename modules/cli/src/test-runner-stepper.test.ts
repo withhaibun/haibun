@@ -440,7 +440,6 @@ describe("what a finished run's record says about it", () => {
 						remoteOrigin: "http://localhost:8331",
 						inputSchema: { type: "object", properties: { text: { type: "string" }, detail }, required: ["text", "detail"] },
 					},
-					paramSchemas: new Map(),
 					paramDomainKeys: new Map(),
 					transport: "remote",
 					isAsync: true,

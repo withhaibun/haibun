@@ -43,7 +43,6 @@ describe("show monitor markers → parser", () => {
 				answersTheTurn: false,
 				inputSchema: { type: "object", properties: {}, required: [] },
 			},
-			paramSchemas: new Map(),
 			paramDomainKeys: new Map(),
 			stepDef,
 			transport: "local",
