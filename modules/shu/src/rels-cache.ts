@@ -84,10 +84,10 @@ export function getRels(label: string): Record<string, string> | undefined {
 	return metadata?.rels[label];
 }
 
-/** Every persisted type label the site declares: the whole schema vocabulary. Empty until metadata lands. */
 /** Whether records are persisted under this name, which a `#Type` link names. */
 export const isKnownType = (name: string): boolean => getRels(name) !== undefined;
 
+/** Every persisted type label the site declares: the whole schema vocabulary. Empty until metadata lands. */
 export function getTypes(): string[] {
 	return metadata?.types ?? [];
 }

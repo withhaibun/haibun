@@ -12,7 +12,7 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { viewCollection } from "@haibun/core/lib/hypermedia.js";
 import { anIndividual, aType, type TContextPattern, QueryViewSchema } from "../schemas.js";
 import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
-import { viewQuery, type TViewQuery } from "../view-query.js";
+import { typeNotHeld, viewQuery, type TViewQuery } from "../view-query.js";
 import { ViewQueryControlSchema } from "./shu-graph-query.controls-schema.js";
 import { shuBaseStyles } from "./styles.js";
 import { esc, setIdFields } from "../util.js";
@@ -46,6 +46,8 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	private results: VertexRow[] = [];
 	private sortableFields: string[] = [];
 	private labels: string[] = [];
+	/** The read of the run's types, which a query waits on: a type is asked for only where the run holds it. */
+	#metadata: Promise<void> = Promise.resolve();
 	private total = 0;
 	#source: WindowedSource<VertexRow> = arrayWindowedSource<VertexRow>([]);
 	#installedSource: WindowedSource<VertexRow> | null = null;
@@ -117,7 +119,8 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 			viewQuery.hydrate();
 			void this.executeQuery();
 		});
-		void this.loadMetadata().then(() => this.executeQuery());
+		this.#metadata = this.loadMetadata();
+		void this.#metadata.then(() => this.executeQuery());
 
 		// Re-query when the global data window size changes: it sets the server-side limit, so the result set resizes.
 		let firstWindow = true;
@@ -251,19 +254,15 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		this.requestUpdate();
 	}
 
-	executeQuery(): Promise<void> {
+	async executeQuery(): Promise<void> {
+		await this.#metadata;
 		const label = this.qLabel;
 		const textQuery = this.qText;
-		// The server rejects a query naming neither a type nor text; asking anyway fails identically on every
-		// retrigger (each SSE batch fires one), flooding the server and the run log. Say why once instead.
-		if (!label && !textQuery?.trim()) {
-			this.error = "no record type or search text to query";
-			this.results = [];
-			this.total = 0;
-			this.#source = arrayWindowedSource<VertexRow>([]);
-			this.renderResults();
-			return Promise.resolve();
-		}
+		// The server rejects a query naming neither a type nor text, or a type the run doesn't hold; asking anyway fails
+		// identically on every retrigger (each SSE batch fires one), flooding the server and the run log. Say why once
+		// instead. An address outlives the run it was made in, so it keeps the type it names.
+		if (!label && !textQuery?.trim()) return this.#refuse("no record type or search text to query");
+		if (label && !this.labels.includes(label)) return this.#refuse(typeNotHeld(label));
 		const sortBy = this.qSort;
 		const sortOrder = this.qOrder;
 
@@ -467,6 +466,15 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		}
 
 		return this.resultTable;
+	}
+
+	/** Show why nothing was asked for, and no rows. */
+	#refuse(why: string): void {
+		this.error = why;
+		this.results = [];
+		this.total = 0;
+		this.#source = arrayWindowedSource<VertexRow>([]);
+		this.renderResults();
 	}
 
 	private renderResults(): void {

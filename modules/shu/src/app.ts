@@ -1,4 +1,4 @@
-import { appAccessLevel, defaultLabel } from "./util.js";
+import { appAccessLevel, defaultLabel, esc } from "./util.js";
 import { DOCK_FOOTPRINT, INDEX_PANE_KEY, SHU_EVENT, SHU_ATTR, SHU_TAG } from "./consts.js";
 import { getHash, hashWithColumns } from "./view-hash.js";
 /**
@@ -106,11 +106,14 @@ function openReaderAuthority(): Promise<TPageAuthority> {
 	return openPageAuthority(read, deploymentAllowedWithoutDelegation());
 }
 
-/** A page that may read nothing here shows the key a holder delegates to, and nothing else: every view reads. */
+/** A page that may read nothing here shows the key a holder delegates to, what to do with it, and nothing else: every
+ *  view reads. */
 function showPageKey(appRoot: HTMLElement, authority: TPageAuthority): void {
+	const origin = esc(location.origin);
 	appRoot.innerHTML = `<div style="padding:20px;max-width:48rem">
-		<p>This page holds nothing here. It signs as the key below, and holds what a holder of this instance delegates to that key, once the page is reloaded.</p>
+		<p>No access yet. Ask the instance owner to delegate to this key, then reload.</p>
 		<shu-page-key></shu-page-key>
+		<p>This browser keeps the key for ${origin}.</p>
 	</div>`;
 	appRoot.querySelector(SHU_TAG.PAGE_KEY)?.setAttribute("controller", authority.controller);
 }

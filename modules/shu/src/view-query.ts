@@ -38,6 +38,10 @@ export type TViewQuery = z.infer<typeof ViewQuerySchema>;
 
 const QUERY_PARAMS = ["label", "q", "sort", "order", "offset", "access", "f"] as const;
 
+/** What a page says of an address naming a type the run doesn't hold: an address outlives the run it was made in, so it
+ *  keeps the type, and the page offers the run's own. */
+export const typeNotHeld = (label: string): string => `This run holds no type ${label}. Choose one of its types.`;
+
 /** Parse + validate the query params out of a hash string. Throws (fail-fast) on a malformed param. */
 export function parseViewQuery(hash: string): TViewQuery {
 	const p = ViewHash.hashParams(hash);

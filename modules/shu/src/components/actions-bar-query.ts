@@ -19,7 +19,7 @@ import { pageTypes } from "../signals.js";
 import { NOTHING_SELECTED_LABEL, SEARCH_OPERATORS, type TComboboxOption, type TContextPattern } from "../schemas.js";
 import { appAccessLevel } from "../util.js";
 import { getHash } from "../view-hash.js";
-import { parseViewQuery, serializeViewQuery, viewQuery } from "../view-query.js";
+import { parseViewQuery, serializeViewQuery, typeNotHeld, viewQuery } from "../view-query.js";
 import { contextLabel, isEntitySelection, type TContextExtra } from "./actions-bar-model.js";
 import type { TControllerHost } from "./controller-host.js";
 import type { ShuActivityHistory } from "./shu-activity-history.js";
@@ -166,7 +166,7 @@ export class ActionsBarQuery implements ReactiveController {
 	 *  read made before the type's data was indexed returns none, and keeping that would freeze the menus until a reload. */
 	async loadSelectValues(force = false): Promise<void> {
 		const label = this.#selectedLabel;
-		if (!label || (!force && hasUsableSelectValues(label))) return;
+		if (!label || !this.#selectedDomainKey || (!force && hasUsableSelectValues(label))) return;
 		setSelectValues(label, await selectValuesFor(label));
 		this.#host.requestUpdate();
 	}
@@ -229,16 +229,18 @@ export class ActionsBarQuery implements ReactiveController {
 		</span>`;
 	}
 
-	/** The selected type's key, from its label, or the first type where none is selected. A label no type carries fails. */
+	/** The selected type's key, from its label, or the first type where none is selected. A label no type carries stays
+	 *  selected with no key, and the bar says the run holds no such type. */
 	#syncSelectedDomainKey(): void {
 		// A view can state its context before the types are read, when the bar connects after it: the label is held, and
 		// reading the types settles it.
 		if (!this.#typesRead) return;
 		if (this.#selectedLabel) {
+			// A type the run doesn't hold stays chosen, as the address names it, and the page offers the run's types.
 			const matching = this.#domainOptions.find((option) => option.queryLabel === this.#selectedLabel);
-			if (!matching) throw new Error(`Selected label is not present in discovered concerns: ${this.#selectedLabel}`);
-			this.#selectedDomainKey = matching.key;
+			this.#selectedDomainKey = matching?.key ?? "";
 			this.#statePageTypes();
+			if (!matching) this.#deps.setStatus(typeNotHeld(this.#selectedLabel));
 			return;
 		}
 		const first = this.#domainOptions[0];

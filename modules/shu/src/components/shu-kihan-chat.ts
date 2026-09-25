@@ -15,7 +15,8 @@ import { reads, conduit } from "../hypermedia.js";
 import { findStep, getAvailableSteps, requireStep } from "../rpc-registry.js";
 import { getActionBarAskExtensionTags, getActionBarChatExtensionTags } from "../rels-cache.js";
 import { ContextReadBySchema, SessionListSchema, type TComboboxOption, type TContextPattern } from "../schemas.js";
-import { GraphQueryResultSchema } from "@haibun/core/lib/quad-types.js";
+import { GraphQueryResultSchema, extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
+import { hasEventStream, subscribeBatchedEvents } from "../event-stream.js";
 import { currentSubjectState } from "../current-subject.js";
 import { SignalController } from "../controllers/index.js";
 import { nextQuestion, startTurn } from "../chat-turn.js";
@@ -63,6 +64,9 @@ const KihanVertexSchema = z.looseObject({
 type TKihanVertex = z.infer<typeof KihanVertexSchema>;
 /** A page of the model catalog, and how many models the run offers; an answer with no list is a failed read. */
 const CatalogPageSchema = GraphQueryResultSchema.extend({ vertices: z.array(KihanVertexSchema) });
+/** The type the run's models are records of, and the read that lists them. */
+const KIHAN = "Kihan";
+const CATALOG_STEP = `show${KIHAN}s`;
 /** How many models a read of the catalog asks for at a time. */
 const CATALOG_PAGE = 50;
 /** Combo option text for a session: what its first question asked, when its newest turn was asked, and how many turns
@@ -151,6 +155,8 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	static persistFields = ["model", "toolLimit", "contextReadBy"] as const;
 
 	private _models: TKihanVertex[] = [];
+	/** Whether the model catalog was read, so a run that offers no model is said to, rather than showing nothing. */
+	#modelsRead = false;
 	/** The read of the model catalog in flight, so a question asked while it reads waits on that read rather than making
 	 *  another. A read that fails is left for the next question to make again. */
 	#catalog: Promise<void> | undefined;
@@ -179,7 +185,19 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	}
 
 	protected override onConnected(): void {
-		this.loadModels().catch((err: unknown) => reportToRun("error", "shu-kihan-chat", `the model catalog was not read: ${errorDetail(err)}`));
+		this.#readModels();
+		// The run's models are its Kihan records, which discovery and a new profile write, so the catalog is read again
+		// when the run records one.
+		if (hasEventStream())
+			this.autoTeardown(
+				subscribeBatchedEvents({
+					onBatch: (events) => {
+						if (!extractQuadsFromEvents(events).some((quad) => quad.namedGraph === KIHAN)) return;
+						this.#catalog = undefined;
+						this.#readModels();
+					},
+				}),
+			);
 		void this.refreshSessionList();
 		// A turn any page asks changes what a session holds, so the list is read again on the run's reports rather than on
 		// this page's own turns alone.
@@ -238,6 +256,11 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		else void openConversation(value, "activate");
 	};
 
+	/** Read the model catalog, reporting a read that fails to the run. */
+	#readModels(): void {
+		this.loadModels().catch((err: unknown) => reportToRun("error", "shu-kihan-chat", `the model catalog was not read: ${errorDetail(err)}`));
+	}
+
 	private loadModels(): Promise<void> {
 		this.#catalog ??= this.readCatalog().catch((err: unknown) => {
 			this.#catalog = undefined;
@@ -249,16 +272,17 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	/** Every model the run offers, read a page at a time until the pages hold as many as the listing states. */
 	private async readCatalog(): Promise<void> {
 		await getAvailableSteps();
-		if (!findStep("showKihans")) return;
+		if (!findStep(CATALOG_STEP)) return;
 		const models: TKihanVertex[] = [];
 		for (;;) {
 			const page = CatalogPageSchema.parse(
-				await conduit().follow(reads(requireStep("showKihans"), { offset: models.length, limit: CATALOG_PAGE }), "kihan-chat: load model catalog"),
+				await conduit().follow(reads(requireStep(CATALOG_STEP), { offset: models.length, limit: CATALOG_PAGE }), "kihan-chat: load model catalog"),
 			);
 			models.push(...page.vertices);
 			if (page.vertices.length === 0 || models.length >= page.total) break;
 		}
 		this._models = models;
+		this.#modelsRead = true;
 		this.#modelOptions = this._models.map((m) => ({ value: m.id, label: m.displayName || m.id }));
 		this.offeredModel();
 		this.requestUpdate();
@@ -363,7 +387,13 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		return html`
 			<div class="chat-settings">
 				<shu-combobox class="session-select" testid=${`${this.testIdPrefix}session-select`} placeholder="session..." .options=${this.sessionOptions()} .value=${conversation.session ?? NEW_CONVERSATION.value} @combo-change=${this.onSessionChange}></shu-combobox>
-				${this._models.length > 0 ? html`<shu-combobox class="model-select" testid=${`${this.testIdPrefix}model-select`} placeholder="model..." .options=${this.#modelOptions} .value=${this.state.model} @combo-change=${this.onModelChange}></shu-combobox>` : nothing}
+				${
+					this._models.length > 0
+						? html`<shu-combobox class="model-select" testid=${`${this.testIdPrefix}model-select`} placeholder="model..." .options=${this.#modelOptions} .value=${this.state.model} @combo-change=${this.onModelChange}></shu-combobox>`
+						: this.#modelsRead
+							? html`<span data-testid=${`${this.testIdPrefix}no-models`}>No models in this run.</span>`
+							: nothing
+				}
 				<label class="tool-limit-label" title="Max chained tool calls the model may run before asking you to confirm the next one. 0 means every tool call needs confirmation.">
 					<span>tool calls</span>
 					<input class="tool-limit" type="number" min=${TOOL_LIMIT_MIN} max=${TOOL_LIMIT_MAX} step="1" .value=${String(this.state.toolLimit)} data-testid=${`${this.testIdPrefix}tool-limit`} @change=${this.onToolLimitChange}>

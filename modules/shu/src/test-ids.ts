@@ -33,6 +33,8 @@ export const SHU_TEST_IDS = {
 		STEP_SELECT: "app-step-select",
 		MODE_SELECT: "app-mode-select",
 		MODEL_SELECT: "app-model-select",
+		/** In the chat's settings where the run offers no model: that it offers none. */
+		NO_MODELS: "app-no-models",
 		TYPE_SELECT: "app-type-select",
 		FOLDER_SELECT: "app-folder-select",
 		TEXT_SEARCH: "app-text-search",

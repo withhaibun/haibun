@@ -33,7 +33,9 @@ const { ActionsBarQuery, SEARCH_DEBOUNCE_MS, searchConditions } = await import("
 const { aControllerHost } = await import("./controller-host.test-fake.js");
 const { SHU_EVENT, SHU_TAG } = await import("../consts.js");
 const { getSelectValues } = await import("../rels-cache.js");
-const { viewQuery } = await import("../view-query.js");
+const { typeNotHeld, viewQuery } = await import("../view-query.js");
+/** A type the address names that the run doesn't hold. */
+const NOT_HELD = "Nothing";
 
 type TFilterChange = { asked: boolean; label: string; accessLevel: string; conditions: TSearchCondition[] };
 
@@ -43,18 +45,19 @@ async function aQueryPage(hash = "") {
 	const searches = document.createElement("div");
 	host.append(searches);
 	const changes: TFilterChange[] = [];
+	const statuses: string[] = [];
 	host.addEventListener(SHU_EVENT.FILTER_CHANGE, (e) => changes.push((e as CustomEvent<TFilterChange>).detail));
 	const query = new ActionsBarQuery(host, {
 		testIdPrefix: () => "app-",
 		history: searches as never,
-		setStatus: () => undefined,
+		setStatus: (status: string) => void statuses.push(status),
 		onTrailChange: () => undefined,
 	});
 	host.connect();
 	await query.loadDomains();
 	await settled();
 	render(query.template(html``), host);
-	return { host, query, searches, changes };
+	return { host, query, searches, changes, statuses };
 }
 
 const settled = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -99,10 +102,14 @@ describe("the actions bar's search mode", () => {
 		expect(changes).toEqual([{ asked: false, accessLevel: query.accessLevel, label: "File", conditions: [{ predicate: "folder", operator: "eq", value: "Drafts" }] }]);
 	});
 
-	it("reads the first type where the address names none, and fails on a label no type carries", async () => {
-		const { query } = await aQueryPage();
+	it("reads the first type where the address names none, and keeps a label no type carries, saying the run holds no such type", async () => {
+		const { query, statuses } = await aQueryPage();
 		expect(query.selectedLabel).toBe("Email");
-		expect(() => query.setContext([], query.accessLevel, { label: "Nothing" })).toThrow("Selected label is not present in discovered concerns: Nothing");
+		query.setContext([], query.accessLevel, { label: NOT_HELD });
+		expect(query.selectedLabel, "the label stays as it was named").toBe(NOT_HELD);
+		expect(pageTypes.get().selected, "no type the run holds is chosen for it").toBe("");
+		expect(pageTypes.get().options.length, "and the run's types are all offered").toBeGreaterThan(0);
+		expect(statuses).toContain(typeNotHeld(NOT_HELD));
 	});
 
 	it("announces a type the strip states once, as asked for, with its select filters cleared, and states it as the type read", async () => {

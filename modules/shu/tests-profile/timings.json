@@ -3,31 +3,31 @@
 		"features": {
 			"/features/a-a-run-to-come-back-to.feature.ts": {
 				"seconds": 1,
-				"steps": 192,
-				"declaredStepTextHash": "41559a6ab7b1574e4643965d87b8150cb2d24d57d6d6d316b343e5ff6b2da28b"
+				"steps": 193,
+				"declaredStepTextHash": "25d77b2af8e32aefc3c4866698a6af5ceb5be3491362e3fad682d00696d68ade"
 			},
 			"/features/b-reading-a-cached-run.feature.ts": {
 				"seconds": 1.3,
-				"steps": 197,
-				"declaredStepTextHash": "34b47f6ca6e147657f025759dea8ac6a71bc65cfdca141fc6d3a6dd90365cdbf"
+				"steps": 198,
+				"declaredStepTextHash": "ddfc6a00967bd99905dfb5df6ac91f1b7361aed975ddcb5944a30db3af848c9b"
 			},
 			"/features/c-reading-a-report.feature.ts": {
 				"seconds": 1.3,
-				"steps": 200,
-				"declaredStepTextHash": "1b44fd5c18b808d8f7d9adcb0a535a5d193af4417691bb24dbaa37b680d24b1b"
+				"steps": 201,
+				"declaredStepTextHash": "7c7f321e813f365bba6e1c245debaa87fb4aed4533791adff0c37db35a7ecbf2"
 			},
 			"/features/d-two-origins.feature.ts": {
 				"seconds": 1.1,
-				"steps": 202,
-				"declaredStepTextHash": "e9bc16361397cc6dbf0a8e7076c7029df1244877389ffe7de2c27579fcdd79bb"
+				"steps": 203,
+				"declaredStepTextHash": "17bfd29a3b96fd7c53f87847645d7a7e05b90c4d94f63ad51e03852eff9d2872"
 			},
 			"/features/e-forgetting-a-run.feature.ts": {
 				"seconds": 3.4,
-				"steps": 192,
-				"declaredStepTextHash": "ed280f4a484b8c81bca391b21d94b96457dd46a0318ab09b0f412887665a4ae3"
+				"steps": 193,
+				"declaredStepTextHash": "1247e57de7ae36a210b314ab67fd7ddadf1b6795796f7bd629ae3dbd1774de63"
 			}
 		},
-		"steps": 983,
+		"steps": 988,
 		"seconds": 8.1
 	}
 }
