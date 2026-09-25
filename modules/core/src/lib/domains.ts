@@ -67,8 +67,6 @@ export const DOMAIN_BEARER_TOKEN = "bearer-token";
 export const DOMAIN_USER_NAME = "user-name";
 /** The secret an account signs in with. */
 export const DOMAIN_PASSWORD = "password";
-/** Domains whose value is the term its line writes, never a variable or an environment value the term names. */
-export const WRITTEN_DOMAINS: ReadonlySet<string> = new Set([DOMAIN_STATEMENT, DOMAIN_VARIABLE_NAME, DOMAIN_DOMAIN_NAME, DOMAIN_TITLE]);
 
 /** What separates the parts of a union domain's key. */
 export const DOMAIN_UNION = " | ";
@@ -252,6 +250,7 @@ export const toRegisteredDomain = (definition: TDomainDefinition): TRegisteredDo
 	comparator: definition.comparator,
 	values: definition.values,
 	names: definition.names,
+	written: definition.written,
 	description: definition.description,
 	stepperName: definition.stepperName,
 	topology: withLevelProperty(definition.topology),

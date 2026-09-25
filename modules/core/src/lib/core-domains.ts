@@ -213,11 +213,11 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		schema: stringSchema,
 		description: "Free text a person writes: a note, a question, a reason or a passage quoted, read as written.",
 	},
-	{ selectors: [DOMAIN_VARIABLE_NAME], schema: nameSchema, description: "The name of a variable, as the line writes it." },
-	{ selectors: [DOMAIN_DOMAIN_NAME], schema: nameSchema, description: "The name a declaration gives a new domain, as the line writes it." },
+	{ selectors: [DOMAIN_VARIABLE_NAME], schema: nameSchema, written: true, description: "The name of a variable, as the line writes it." },
+	{ selectors: [DOMAIN_DOMAIN_NAME], schema: nameSchema, written: true, description: "The name a declaration gives a new domain, as the line writes it." },
 	{ selectors: [DOMAIN_GLOB], schema: nameSchema, description: "A pattern in which * stands for any run of characters." },
 	{ selectors: [DOMAIN_FILE_PATH], schema: nameSchema, description: "A file or directory's path, as a storage or the file system reads it." },
-	{ selectors: [DOMAIN_TITLE], schema: nameSchema, description: "The title a feature, scenario, activity or waypoint is given, as the line writes it." },
+	{ selectors: [DOMAIN_TITLE], schema: nameSchema, written: true, description: "The title a feature, scenario, activity or waypoint is given, as the line writes it." },
 	{ selectors: [DOMAIN_ROUTE], schema: nameSchema, description: "The path a web server serves something at, such as /shu." },
 	{
 		selectors: [DOMAIN_BEARER_TOKEN],
@@ -319,6 +319,7 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 	{
 		selectors: [DOMAIN_STATEMENT],
 		schema: statementSchema,
+		written: true,
 		description: "Reference to another Haibun statement.",
 		coerce: (proto: TStepValue, featureStep: TFeatureStep, steppers: AStepper[]) => {
 			if (!featureStep || !steppers) {

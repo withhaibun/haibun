@@ -370,6 +370,13 @@ describe("FeatureVariables", () => {
 			expect((await resolveType("Nowhere")).value, "an undeclared word").toBeUndefined();
 		});
 
+		it("is the words its line writes where its parameter's domain is written, even where they name a variable", async () => {
+			const NOTE = "written-note";
+			registerDomains(world, [[{ selectors: [NOTE], schema: z.string(), written: true, description: "a note as its line writes it" }]]);
+			await variables.set({ term: "role", value: "placeholder", domain: DOMAIN_STRING, origin: Origin.var }, { in: "test", seq: [0], when: "test" });
+			expect(await variables.resolveVariable({ term: "role", origin: Origin.defined, domain: NOTE }, mockFeatureStep)).toMatchObject({ value: "role", domain: NOTE });
+		});
+
 		it("is no value where it names none of its domain's, and a variable of that name where one is set", async () => {
 			expect((await resolveBare("nowhere")).value).toBeUndefined();
 			await variables.set({ term: "role", value: "placeholder", domain: WAY, origin: Origin.var }, { in: "test", seq: [0], when: "test" });

@@ -771,6 +771,8 @@ export type TDomainDefinition = {
 	/** Whether a word names a member, for a domain whose members are what is registered: too many to list where a step is
 	 *  described, so a bare word is read by this rather than by `values`. */
 	names?: (term: string) => boolean;
+	/** Whether its value is the term its line writes, never a variable or an environment value the term names. */
+	written?: boolean;
 	description: string;
 	/** Stepper that registered this domain (set automatically by registerDomains) */
 	stepperName?: string;
@@ -789,6 +791,8 @@ export type TRegisteredDomain = {
 	/** Whether a word names a member, for a domain whose members are what is registered: too many to list where a step is
 	 *  described, so a bare word is read by this rather than by `values`. */
 	names?: (term: string) => boolean;
+	/** Whether its value is the term its line writes, never a variable or an environment value the term names. */
+	written?: boolean;
 	description: string;
 	stepperName?: string;
 	topology?: TDomainTopology;
