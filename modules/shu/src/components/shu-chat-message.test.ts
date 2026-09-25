@@ -10,6 +10,7 @@ import { SHU_TEST_IDS } from "../test-ids.js";
 import { PaneState } from "../pane-state.js";
 import { followPaneLink } from "./ref-navigation.js";
 import { ChatMessageSchema, ShuChatMessage } from "./shu-chat-message.js";
+import { SHU_EVENT } from "../consts.js";
 import { ShuRef } from "./shu-ref.js";
 
 if (!customElements.get("shu-chat-message")) customElements.define("shu-chat-message", ShuChatMessage);
@@ -73,5 +74,28 @@ describe("what a question carries", () => {
 		expect(scopeEntry(currentSubjectState.get(), SCOPE.actionsBar), "the question is not selected").toBeNull();
 		(el.querySelector(".chat-prompt") as HTMLElement).click();
 		expect(scopeEntry(currentSubjectState.get(), SCOPE.actionsBar)?.record, "a click on the question itself selects it").toEqual({ id: "cmt-ask-0.1.2", label: "Comment" });
+	});
+});
+
+describe("a question's controls", () => {
+	it("ask it again, or put it in the input, replying where it replied, without selecting it", async () => {
+		const el = await rendered({ id: "q2", role: "user", text: "what is this", turn: "cmt-ask-0.1.2", recordId: "cmt-ask-0.1.2", inReplyTo: "cmt-ask-0.1.1", bundle: BUNDLE });
+		const raised: unknown[] = [];
+		const hear = (e: Event) => raised.push((e as CustomEvent).detail);
+		document.addEventListener(SHU_EVENT.QUESTION_RESTATE, hear);
+		for (const control of [SHU_TEST_IDS.APP.CHAT_ASK_AGAIN, SHU_TEST_IDS.APP.CHAT_EDIT]) (el.querySelector(`[data-testid="${control}"]`) as HTMLButtonElement).click();
+		document.removeEventListener(SHU_EVENT.QUESTION_RESTATE, hear);
+		const asked = { prompt: "what is this", patterns: BUNDLE.patterns, inReplyTo: "cmt-ask-0.1.1" };
+		expect(raised).toEqual([
+			{ ...asked, send: true },
+			{ ...asked, send: false },
+		]);
+		expect(scopeEntry(currentSubjectState.get(), SCOPE.actionsBar), "the question is not selected").toBeNull();
+	});
+
+	it("are on a recorded question only", async () => {
+		const answer = await rendered({ id: "a3", role: "llm", text: "an answer", recordId: "cmt-say-0.1.2" });
+		const unrecorded = await rendered({ id: "q3", role: "user", text: "not yet recorded" });
+		for (const el of [answer, unrecorded]) expect(el.querySelector(`[data-testid="${SHU_TEST_IDS.APP.CHAT_ASK_AGAIN}"]`)).toBeNull();
 	});
 });

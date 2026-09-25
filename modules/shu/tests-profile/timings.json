@@ -2,32 +2,32 @@
 	"darwin-arm64-12x-apple-m4-pro": {
 		"features": {
 			"/features/a-a-run-to-come-back-to.feature.ts": {
-				"seconds": 1,
-				"steps": 193,
-				"declaredStepTextHash": "25d77b2af8e32aefc3c4866698a6af5ceb5be3491362e3fad682d00696d68ade"
+				"seconds": 1.1,
+				"steps": 196,
+				"declaredStepTextHash": "b2d3a00f6a5df1eb975bb19f0b550ed3209b7fbce85ef59ed426b927e5f5acb6"
 			},
 			"/features/b-reading-a-cached-run.feature.ts": {
 				"seconds": 1.3,
-				"steps": 198,
-				"declaredStepTextHash": "ddfc6a00967bd99905dfb5df6ac91f1b7361aed975ddcb5944a30db3af848c9b"
+				"steps": 201,
+				"declaredStepTextHash": "e181cfda76a12093f6c6b2733c560254f03f907a93d0a5ef086f782de51dc69e"
 			},
 			"/features/c-reading-a-report.feature.ts": {
-				"seconds": 1.3,
-				"steps": 201,
-				"declaredStepTextHash": "7c7f321e813f365bba6e1c245debaa87fb4aed4533791adff0c37db35a7ecbf2"
+				"seconds": 1.4,
+				"steps": 204,
+				"declaredStepTextHash": "e5a4d90015b8364b55904653f090d84ddc74a224a0ef532f17dccdacb43c7977"
 			},
 			"/features/d-two-origins.feature.ts": {
 				"seconds": 1.1,
-				"steps": 203,
-				"declaredStepTextHash": "17bfd29a3b96fd7c53f87847645d7a7e05b90c4d94f63ad51e03852eff9d2872"
+				"steps": 206,
+				"declaredStepTextHash": "4ab478d9f035d2e247df01628feb863c2437d82b621312a27818b6936090c0c2"
 			},
 			"/features/e-forgetting-a-run.feature.ts": {
-				"seconds": 3.4,
-				"steps": 193,
-				"declaredStepTextHash": "1247e57de7ae36a210b314ab67fd7ddadf1b6795796f7bd629ae3dbd1774de63"
+				"seconds": 3.5,
+				"steps": 196,
+				"declaredStepTextHash": "ef770aa9972e5a57f42a037abbc6dd04b2c269e2dd5491ad25409e57bfe94b58"
 			}
 		},
-		"steps": 988,
-		"seconds": 8.1
+		"steps": 1003,
+		"seconds": 8.4
 	}
 }

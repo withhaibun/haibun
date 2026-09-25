@@ -233,6 +233,11 @@ export const StepChoiceSchema = z.object({ method: z.string().min(1), args: z.re
 /** The context that goes with an active record: the patterns an ask about the record carries, and the access level
  *  they are read at. */
 export const BundleSchema = z.object({ patterns: ContextQuerySchema, accessLevel: AccessQueryLevelSchema });
+
+/** A question from the history asked again: its words, the records it was about, the turn it replied to, and whether it
+ *  is sent as it was or put in the input to edit. Either way it replies where the question did, as a branch there. */
+export const QuestionRestateSchema = z.object({ prompt: z.string().min(1), patterns: ContextQuerySchema, inReplyTo: z.string().optional(), send: z.boolean() });
+export type TQuestionRestate = z.infer<typeof QuestionRestateSchema>;
 export type TBundle = z.infer<typeof BundleSchema>;
 
 /**

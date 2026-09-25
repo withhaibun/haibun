@@ -21,6 +21,11 @@ export const SHU_TEST_IDS = {
 		CHAT_ARRIVED: "app-chat-arrived",
 		/** On a reply where another branch of the conversation leaves the one shown: follows that branch. */
 		CHAT_OTHER_BRANCH: "app-chat-other-branch",
+		/** On a question in the history: ask it again as it was, or put it in the input to edit, replying where it did. */
+		CHAT_ASK_AGAIN: "app-chat-ask-again",
+		CHAT_EDIT: "app-chat-edit",
+		/** Beside the ask input while an edited question will reply where the original did, with the control that cancels it. */
+		CHAT_RESTATING: "app-chat-restating",
 		/** On a question: the records its bundle names, each a link. */
 		CHAT_CARRIES: "app-chat-carries",
 		/** Under the ask: the actions the page delegated to its last turn. */

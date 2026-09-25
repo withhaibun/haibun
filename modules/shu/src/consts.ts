@@ -33,6 +33,8 @@ export const SHU_EVENT = {
 	COLUMN_CLOSE: "column-close",
 	PANE_DISMISS: "pane-dismiss",
 	STEP_CHOOSE: "step-choose",
+	/** A reader asks a question from the history again, as it was or edited (a `TQuestionRestate` detail). */
+	QUESTION_RESTATE: "question-restate",
 	COLUMN_ACTIVATE: "column-activate",
 	COLUMN_EXPAND: "column-expand",
 	COLUMN_MAXIMIZE: "column-maximize",

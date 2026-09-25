@@ -14,7 +14,7 @@ import { shuBaseStyles } from "./styles.js";
 import { reads, conduit } from "../hypermedia.js";
 import { findStep, getAvailableSteps, requireStep } from "../rpc-registry.js";
 import { getActionBarAskExtensionTags, getActionBarChatExtensionTags } from "../rels-cache.js";
-import { ContextReadBySchema, SessionListSchema, type TComboboxOption, type TContextPattern } from "../schemas.js";
+import { ContextReadBySchema, SessionListSchema, type TComboboxOption, type TContextPattern, type TQuestionRestate } from "../schemas.js";
 import { GraphQueryResultSchema, extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
 import { hasEventStream, subscribeBatchedEvents } from "../event-stream.js";
 import { currentSubjectState } from "../current-subject.js";
@@ -167,6 +167,9 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	/** Why the reader's last question was not asked. It shows beside the input until the turn or the conversation moves,
 	 *  so a refusal is never shown for a question the reader did not submit. */
 	#refusal: string | null = null;
+	/** A question from the history put in the input to edit: the records it was about and the turn it replied to, which
+	 *  the edited question is sent with in place of the active record and the bar's turn. */
+	#restating: Omit<TQuestionRestate, "prompt" | "send"> | null = null;
 	#conversation = new SignalController(
 		this,
 		conversationState,
@@ -308,6 +311,14 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 			${this.showControls ? this.settingsTemplate(conversation) : nothing}
 			<div class="transcript"><slot></slot></div>
 			${this.turnAuthorityTemplate(conversation.asked)}
+			${
+				this.#restating
+					? html`<div class="restating" role="status" data-testid=${`${this.testIdPrefix}chat-restating`}>
+							Editing an earlier question: it replies where that question did.
+							<button type="button" @click=${this.onCancelRestate}>cancel</button>
+						</div>`
+					: nothing
+			}
 			<div class="input-line">
 				<slot name="mode-toggle"></slot>
 				<textarea class="chat-input" placeholder="Ask about this..." data-testid=${`${this.testIdPrefix}chat-input`} rows="1" autofocus .value=${askDraft.get()} @input=${this.onChatInput} @keydown=${this.onChatKeydown}></textarea>
@@ -472,7 +483,9 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		try {
 			await this.loadModels();
 			const { carries, repliesTo } = nextQuestion(currentSubjectState.get());
-			const asking = this.askWith(prompt, carries?.bundle.patterns ?? [], repliesTo?.turn);
+			const restating = this.#restating;
+			this.#restating = null;
+			const asking = restating ? this.askWith(prompt, restating.patterns, restating.inReplyTo) : this.askWith(prompt, carries?.bundle.patterns ?? [], repliesTo?.turn);
 			chatInput.value = "";
 			askDraft.set("");
 			chatInput.style.height = "auto";
@@ -501,6 +514,31 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 			target: this.offeredModel(),
 		});
 	}
+
+	/**
+	 * Ask a question from the history again, replying where it replied, as a branch there: at once as it was, or put in
+	 * the input to edit, sent with the records it was about when the reader sends it. A question sent at once is started,
+	 * as Send starts one, and the turn answers on the stream.
+	 */
+	async restate({ prompt, patterns, inReplyTo, send }: TQuestionRestate): Promise<void> {
+		if (send) {
+			void this.showingRefusal(async () => {
+				await this.loadModels();
+				await this.askWith(prompt, patterns, inReplyTo);
+			});
+			return;
+		}
+		this.#restating = { patterns, inReplyTo };
+		askDraft.set(prompt);
+		this.requestUpdate();
+		await this.updateComplete;
+		this.shadowRoot?.querySelector<HTMLTextAreaElement>(".chat-input")?.focus();
+	}
+
+	private onCancelRestate = (): void => {
+		this.#restating = null;
+		this.requestUpdate();
+	};
 
 	private onStop = (): void => {
 		dispatchConversationEvent({ type: "stop", reason: "you stopped it" });

@@ -13,10 +13,10 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import type { ShuSpinner } from "./shu-spinner.js";
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
 import { SCOPE, dispatchSubjectEvent } from "../current-subject.js";
-import { SHU_ATTR, SHU_TAG } from "../consts.js";
+import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../consts.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { patternRef } from "./shu-ref.js";
-import { BundleSchema, ChatRoleSchema, ChatStatusSchema, UNVERIFIED_TURN, type TBundle, type TChatRole } from "../schemas.js";
+import { BundleSchema, ChatRoleSchema, ChatStatusSchema, UNVERIFIED_TURN, type TBundle, type TChatRole, type TQuestionRestate } from "../schemas.js";
 
 /** Styles for a light-DOM chat message, exported for the shadow scope that hosts the activity history: the message
  *  renders in light DOM, so the scope that contains it declares the rules. */
@@ -35,6 +35,7 @@ export const chatMessageStyles = css`
 	shu-chat-message[data-role="llm"] { background: var(--shu-bg-soft); }
 	shu-chat-message .msg-content { min-width: 0; padding: var(--shu-space-2) var(--shu-space-3); }
 	shu-chat-message .chat-prompt { font-weight: 600; padding: var(--shu-space-1) 0; white-space: pre-wrap; }
+	shu-chat-message .chat-restate { display: flex; gap: var(--shu-space-2); }
 	/* The records the question carries, each a link to its record or type. */
 	shu-chat-message .chat-carries { display: flex; flex-wrap: wrap; gap: var(--shu-space-2); font-size: var(--shu-font-sm); color: var(--shu-fg-muted); }
 	shu-chat-message .chat-text { font-size: inherit; overflow-wrap: break-word; word-break: break-word; }
@@ -115,6 +116,14 @@ export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
 		activateComment(other.recordId, other.turn, other.bundle);
 	};
 
+	/** Ask this question again, as it was or to edit, replying where it replied. The bar the history sits in takes it. */
+	private restate = (send: boolean) => (e: Event): void => {
+		e.stopPropagation(); // the click is on the control, not a selection of this message
+		const m = this.message;
+		const detail: TQuestionRestate = { prompt: m.text, patterns: m.bundle?.patterns ?? [], inReplyTo: m.inReplyTo, send };
+		this.dispatchEvent(new CustomEvent(SHU_EVENT.QUESTION_RESTATE, { detail, bubbles: true, composed: true }));
+	};
+
 	/** Activate the comment this message was recorded as, with the bundle its turn was sent with, in the actions bar's
 	 *  scope. The graph follows that comment, and the next question replies to its turn. A message with no recorded
 	 *  comment activates nothing. */
@@ -151,6 +160,14 @@ export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
 				<span class="msg-label">${ROLE_LABEL[m.role]}</span>
 				<div class="msg-content">
 					${m.role === "user" ? html`<div class="chat-prompt">${m.text}</div>` : ""}
+					${
+						m.role === "user" && m.recordId && m.text
+							? html`<div class="chat-restate">
+									<button type="button" data-testid=${SHU_TEST_IDS.APP.CHAT_ASK_AGAIN} @click=${this.restate(true)}>ask again</button>
+									<button type="button" data-testid=${SHU_TEST_IDS.APP.CHAT_EDIT} @click=${this.restate(false)}>edit</button>
+								</div>`
+							: ""
+					}
 					${
 						m.role === "user" && m.bundle && m.bundle.patterns.length > 0
 							? html`<div class="chat-carries" data-testid=${SHU_TEST_IDS.APP.CHAT_CARRIES}>about ${m.bundle.patterns.map(patternRef)}</div>`

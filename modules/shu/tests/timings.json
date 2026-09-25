@@ -3,8 +3,8 @@
 		"features": {
 			"/features/address.feature.ts": {
 				"seconds": 1,
-				"steps": 198,
-				"declaredStepTextHash": "47776be56d7dfc43a6a2a415316ca0d71e297e9736383b8b02795736c7ad6a56"
+				"steps": 201,
+				"declaredStepTextHash": "e049c592680b61f813a45444b4d1a03097e7f05da6dd1ea0fff20b5321733125"
 			},
 			"/features/federate.feature.ts": {
 				"seconds": 0.3,
@@ -13,8 +13,8 @@
 			},
 			"/features/monitor.feature.ts": {
 				"seconds": 6.1,
-				"steps": 536,
-				"declaredStepTextHash": "b928acfb30de7b1ff92aa7139bc0c947404c820d1cc3091bcf42fd9077ef3289"
+				"steps": 539,
+				"declaredStepTextHash": "ed38d66568f074ed3ba60836d265ad5fa4bd73a574c9cb6253a013635568304f"
 			},
 			"/features/remote-store.feature.ts": {
 				"seconds": 0.3,
@@ -23,11 +23,11 @@
 			},
 			"/features/voice-ui.feature.ts": {
 				"seconds": 0.9,
-				"steps": 193,
-				"declaredStepTextHash": "f944776c2826c079dbea1e7004b37905d29e25ed72f74e667cfac7f5b52001ad"
+				"steps": 196,
+				"declaredStepTextHash": "bbc3538c4ee5c252ff4455eab30395ad87e14b2bfed552bad39b69e0094b9d2f"
 			}
 		},
-		"steps": 941,
+		"steps": 950,
 		"seconds": 8.6
 	}
 }

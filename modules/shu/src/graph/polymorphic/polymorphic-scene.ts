@@ -2715,6 +2715,9 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			nodeCount: nodes.length,
 			edgeCount: edges.length,
 			totalItems: quads.length,
+			// How many records the store holds of each type the graph read, and how many the view draws: a type drawn in
+			// part, or hidden, still has every record it holds.
+			typesHeld: this.model.clusters.map((c) => ({ type: c.type, held: c.totalCount, drawn: hidden.has(c.type) ? 0 : c.sampledCount })),
 			items: quads.map(({ subject, predicate, object, namedGraph }) => ({ subject, predicate, object, namedGraph })),
 		};
 	}

@@ -679,3 +679,42 @@ describe("the transcript of a conversation that branches", () => {
 		expect(otherBranchOn(history, "0.1.1")?.textContent).toContain("2 other branches");
 	});
 });
+
+describe("a question from the history asked again", () => {
+	/** The bar's turn and a record the page activated, which a question asked again replies past and doesn't carry. */
+	const elsewhere = () => {
+		dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: OTHER });
+		dispatchSubjectEvent({ type: "open", scope: SCOPE.actionsBar });
+		dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry: { record: { id: answer("0.1.4"), label: "Comment" }, turn: question("0.1.4"), bundle: OTHER.bundle } });
+		conversationState.set({ status: "open", session: RESTORED, turns: [], asked: null });
+	};
+
+	it("is sent as it was, with the records it was about, replying where it replied", async () => {
+		elsewhere();
+		const { pane } = await aPage();
+		await pane.restate({ prompt: "what is this", patterns: EMAIL.bundle.patterns, inReplyTo: RESTORED, send: true });
+		await settle();
+		await settle();
+		expect(sent.at(-1)).toMatchObject({ inReplyTo: RESTORED, patterns: EMAIL.bundle.patterns });
+	});
+
+	it("is put in the input to edit, and sent with the records it was about, replying where it replied", async () => {
+		elsewhere();
+		const { pane } = await aPage();
+		await pane.restate({ prompt: "what is this", patterns: EMAIL.bundle.patterns, inReplyTo: RESTORED, send: false });
+		expect(chatInput(pane).value).toBe("what is this");
+		expect(pane.shadowRoot?.querySelector('[data-testid$="chat-restating"]'), "it says the question replies where the earlier one did").not.toBeNull();
+		await submit(pane, "what is this, briefly");
+		expect(sent.at(-1)).toMatchObject({ inReplyTo: RESTORED, patterns: EMAIL.bundle.patterns });
+	});
+
+	it("put in the input and cancelled, leaves the next question replying to the bar's turn", async () => {
+		elsewhere();
+		const { pane } = await aPage();
+		await pane.restate({ prompt: "what is this", patterns: EMAIL.bundle.patterns, inReplyTo: RESTORED, send: false });
+		inside<HTMLButtonElement>(pane.shadowRoot, '[data-testid$="chat-restating"] button').click();
+		await pane.updateComplete;
+		await submit(pane, "a new question");
+		expect(sent.at(-1)).toMatchObject({ inReplyTo: question("0.1.4"), patterns: OTHER.bundle.patterns });
+	});
+});

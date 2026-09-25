@@ -19,7 +19,8 @@ import { ACTIONS_BAR_STYLES } from "./actions-bar-styles.js";
 import { SHU_EVENT, ACTION_BAR_ASK_SLOT, ACTION_BAR_CHAT_SLOT, SHU_TAG, CONVERSATION_PARAM } from "../consts.js";
 import { SCOPE, dispatchSubjectEvent } from "../current-subject.js";
 import type { ShuColumnPane } from "./shu-column-pane.js";
-import { ActionsBarSchema, StepChoiceSchema, TypeChoiceSchema } from "../schemas.js";
+import { ActionsBarSchema, QuestionRestateSchema, StepChoiceSchema, TypeChoiceSchema, type TQuestionRestate } from "../schemas.js";
+import type { ShuKihanChat } from "./shu-kihan-chat.js";
 // Constructed with `new` (not createElement + type-cast): the value use keeps the registering module in the
 // bundle: esbuild strips a TS import whose bindings only appear in type positions, silently dropping the
 // customElements.define side effect and leaving un-upgraded elements at runtime.
@@ -118,6 +119,16 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this.#steps.pick(method, args, auto);
 	}
 
+	/** Ask a question from the history again, in Ask mode, where the ask pane asks it. */
+	private async restateQuestion(restating: TQuestionRestate): Promise<void> {
+		this.setState({ mode: "ask" });
+		this.openPane();
+		await this.updateComplete;
+		const pane = this.renderRoot.querySelector<ShuKihanChat>(SHU_TAG.KIHAN_CHAT);
+		if (!pane) this.failFast("a question can be asked again only where the run offers asking");
+		await pane.restate(restating);
+	}
+
 	/** Say something on the page strip. */
 	setStatus(message: string): void {
 		pageStatus.set(message);
@@ -150,6 +161,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			const { method, args, auto } = StepChoiceSchema.parse((e as CustomEvent).detail);
 			void this.chooseStep(method, args, auto);
 		});
+		// A question in the history is asked again from the bar the history sits in, in any mode.
+		this.autoListen(this, SHU_EVENT.QUESTION_RESTATE, (e: Event) => void this.restateQuestion(QuestionRestateSchema.parse((e as CustomEvent).detail)));
 		// The page strip offers the types beside what the search found, and states the one a reader chooses on the document.
 		this.autoListen(document, SHU_EVENT.TYPE_CHOOSE, (e: Event) => this.#query.chooseType(TypeChoiceSchema.parse((e as CustomEvent).detail).key));
 
