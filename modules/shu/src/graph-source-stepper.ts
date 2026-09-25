@@ -9,8 +9,8 @@
  * The monitor records one run. This stepper answers reads of the graph, which every view draws on.
  */
 import { z } from "zod";
-import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
-import { Access, AccessQueryLevelSchema, LinkRelations, storeScopeFor } from "@haibun/core/lib/resources.js";
+import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
+import { Access, AccessQueryLevelSchema, LinkRelations, storeScopeFor, type TDomainDefinition } from "@haibun/core/lib/resources.js";
 import { actionNotOK, actionOKWithProducts, errorDetail } from "@haibun/core/lib/util/index.js";
 import {
 	DOMAIN_GRAPH_QUERY,
@@ -55,8 +55,32 @@ const ClusteredQuadsSchema = z.object({
 	site: z.string().optional(),
 });
 
-export default class GraphSourceStepper extends AStepper {
+/** What the graph a page reads answers with: core's one shape for each, so a site answering for its own store and a page
+ *  reading what it holds answer alike. */
+const DOMAIN_INDIVIDUAL_WITH_EDGES = "individual-with-edges";
+const DOMAIN_SELECT_VALUES = "select-values";
+const DOMAIN_CLUSTERED_QUADS = "clustered-quads";
+const DOMAIN_SUBJECT_SERVED = "subject-served";
+const DOMAIN_SITE_FEDERATED = "site-federated";
+const DOMAIN_DENSITY = "density";
+const DOMAIN_GRAPH_ROWS = "graph-rows";
+/** A subject the merged graph holds, and the site that serves it. */
+const SubjectServedSchema = z.object({ subject: z.string(), site: z.string() });
+/** The site a peer's reads were federated from. */
+const SiteFederatedSchema = z.object({ site: z.string() });
+const GRAPH_SOURCE_DOMAINS: TDomainDefinition[] = [
+	{ selectors: [DOMAIN_INDIVIDUAL_WITH_EDGES], schema: IndividualWithEdgesSchema, description: "A record, the edges either way, and how many edges point at it" },
+	{ selectors: [DOMAIN_SELECT_VALUES], schema: ShuSelectValuesSchema, description: "The values a field of a type holds, which a filter selects from" },
+	{ selectors: [DOMAIN_CLUSTERED_QUADS], schema: ClusteredQuadsSchema, description: "The clustered sample a graph view draws" },
+	{ selectors: [DOMAIN_SUBJECT_SERVED], schema: SubjectServedSchema, description: "A subject the merged graph holds, and the site that serves it" },
+	{ selectors: [DOMAIN_SITE_FEDERATED], schema: SiteFederatedSchema, description: "The site a peer's reads were federated from" },
+	{ selectors: [DOMAIN_DENSITY], schema: DensityResultSchema, description: "How many records fall in each division of a span" },
+	{ selectors: [DOMAIN_GRAPH_ROWS], schema: GraphQueryResultSchema, description: "The rows a graph query matched, and how many there are" },
+];
+
+export default class GraphSourceStepper extends AStepper implements IHasCycles {
 	description = "The graph a page reads: a query, a count over a span, the clustered sample a graph view draws, and the reads a federated peer answers.";
+	cycles: IStepperCycles = { getConcerns: () => ({ domains: GRAPH_SOURCE_DOMAINS }) };
 
 	/** buildResourceRels walks every domain; memoized by domain count so per-read calls reuse it while a runtime-declared
 	 *  domain still invalidates. */
@@ -73,7 +97,7 @@ export default class GraphSourceStepper extends AStepper {
 			read: true,
 			gwta: "get individual {label: string} {id: string} with edges",
 			fallback: true,
-			productsSchema: IndividualWithEdgesSchema,
+			productsDomain: DOMAIN_INDIVIDUAL_WITH_EDGES,
 			// A page reads an individual with its edges the same way whatever answers the read. This answers from the store
 			// this instance holds, which is what a site with no graph engine of its own has; a deployment that gates a
 			// read by what a reader may see declares its own step, and the page reads through that one instead.
@@ -85,7 +109,7 @@ export default class GraphSourceStepper extends AStepper {
 		getSelectValues: {
 			read: true,
 			gwta: "get select values for {label: string}",
-			productsSchema: ShuSelectValuesSchema,
+			productsDomain: DOMAIN_SELECT_VALUES,
 			action: async ({ label }: { label: string }) => {
 				const store = this.getWorld().shared.getStore();
 				const domain = hypermediaDomainMap(this.getWorld().domains).get(label);
@@ -99,7 +123,7 @@ export default class GraphSourceStepper extends AStepper {
 		getClusteredQuads: {
 			read: true,
 			gwta: "get clustered quads",
-			productsSchema: ClusteredQuadsSchema,
+			productsDomain: DOMAIN_CLUSTERED_QUADS,
 			// The sampled graph is the RPC response; keeping it on the event too holds a second copy of it per call.
 			retainProducts: false,
 			action: async (args: { perTypeLimit?: number | string; types?: string[] | string; accessLevel?: string; scope?: string } = {}) => {
@@ -159,7 +183,7 @@ export default class GraphSourceStepper extends AStepper {
 		},
 		clusteredGraphHoldsFromSite: {
 			gwta: "clustered graph holds {type} {subject} from site {site}",
-			productsSchema: z.object({ subject: z.string(), site: z.string() }),
+			productsDomain: DOMAIN_SUBJECT_SERVED,
 			// Federation-health inspection: does this instance's merged view hold {subject} (a {type} individual)
 			// SERVED BY {site}? Reads the same clustered surface the views render from, so it asserts exactly what a
 			// user would see, including that the subject's stamp names the site that serves it.
@@ -175,7 +199,7 @@ export default class GraphSourceStepper extends AStepper {
 		},
 		federateGraphReads: {
 			gwta: "federate graph reads from {where}",
-			productsSchema: z.object({ site: z.string() }),
+			productsDomain: DOMAIN_SITE_FEDERATED,
 			// Reads-first federation: merge a peer instance's clustered graph reads into this one's view, each of the
 			// peer's subjects stamped with its site principal so the view can group by site. Site principals must be
 			// unique in a federation. Where this instance still carries the default (did:site:0 to itself) and collides
@@ -201,7 +225,7 @@ export default class GraphSourceStepper extends AStepper {
 			read: true,
 			gwta: `run shape {query: ${DOMAIN_DENSITY_QUERY}}`,
 			fallback: true,
-			productsSchema: DensityResultSchema,
+			productsDomain: DOMAIN_DENSITY,
 			// The counts are the answer; keeping them on the event too is the per-read bloat.
 			retainProducts: false,
 			// The same answer a page counting over its own copy of the graph gives itself, so the two never drift.
@@ -212,7 +236,7 @@ export default class GraphSourceStepper extends AStepper {
 			read: true,
 			gwta: `graph query {query: ${DOMAIN_GRAPH_QUERY}}`,
 			fallback: true,
-			productsSchema: GraphQueryResultSchema,
+			productsDomain: DOMAIN_GRAPH_ROWS,
 			// The vertex rows are the RPC response; keeping them on the event too is the per-query bloat.
 			retainProducts: false,
 			// The same answer a page reading its own copy of the graph gives itself, so the two never drift.

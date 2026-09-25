@@ -330,7 +330,8 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	 *  thinking model's answer can spend the turn's token budget on reasoning and carry no text back. With no catalog, the
 	 *  remembered one stands. */
 	private offeredModel(): string {
-		if (this._models.length > 0 && !this._models.some((m) => m.id === this.state.model)) this.setState({ model: (this._models.find((m) => m.capabilities?.thinking === false) ?? this._models[0]).id });
+		if (this._models.length > 0 && !this._models.some((m) => m.id === this.state.model))
+			this.setState({ model: (this._models.find((m) => m.capabilities?.thinking === false) ?? this._models[0]).id });
 		return this.state.model;
 	}
 
@@ -378,25 +379,31 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		return html`
 			<div class="turn-authority">
 				${delegated.length > 0 ? html`<p data-testid=${`${prefix}turn-held`}>The last turn held ${delegated.map((action, i) => html`${i ? ", " : ""}${actionRef(action)}`)}.</p>` : nothing}
-				${refused.length > 0
-					? html`<ul>
+				${
+					refused.length > 0
+						? html`<ul>
 							${refused.map(
 								({ step, action }) =>
 									html`<li>
 										${stepRef(step)} was refused: the turn didn't hold ${actionRef(action)}.
-										${ended && pageMay(action) && !allowed.includes(action)
-											? html`<button type="button" data-testid=${`${prefix}turn-allow`} value=${action} @click=${this.onAllow}>Allow ${action} for this page's turns and ask again</button>`
-											: nothing}
+										${
+											ended && pageMay(action) && !allowed.includes(action)
+												? html`<button type="button" data-testid=${`${prefix}turn-allow`} value=${action} @click=${this.onAllow}>Allow ${action} for this page's turns and ask again</button>`
+												: nothing
+										}
 									</li>`,
 							)}
 						</ul>`
-					: nothing}
-				${allowed.length > 0
-					? html`<p>This page's turns are also given:</p>
+						: nothing
+				}
+				${
+					allowed.length > 0
+						? html`<p>This page's turns are also given:</p>
 							<ul>
 								${allowed.map((action) => html`<li>${actionRef(action)} <button type="button" data-testid=${`${prefix}turn-withdraw`} value=${action} @click=${this.onWithdraw}>Withdraw</button></li>`)}
 							</ul>`
-					: nothing}
+						: nothing
+				}
 			</div>
 		`;
 	}

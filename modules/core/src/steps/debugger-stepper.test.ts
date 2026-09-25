@@ -7,6 +7,7 @@ import { IPrompter, TPrompt, TPromptResponse } from "../lib/prompter.js";
 import { ReadlinePrompter } from "../lib/readline-prompter.js";
 import { AStepper } from "../lib/astepper.js";
 import { actionNotOK } from "../lib/util/index.js";
+import { OK } from "../schema/protocol.js";
 import { dispatchStep } from "../lib/step-dispatch.js";
 import { buildFeatureStepForTransport, StepRegistry } from "../lib/step-registry.js";
 
@@ -223,7 +224,7 @@ describe("DebuggerStepper RPC dispatch", () => {
 			steps = {
 				echo: {
 					gwta: "echo {what: string}",
-					action: async ({ what }: { what: string }) => ({ ok: true, products: { echoed: what } }),
+					action: async () => OK,
 				},
 			};
 		})();

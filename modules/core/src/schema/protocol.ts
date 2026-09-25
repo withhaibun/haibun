@@ -406,6 +406,20 @@ export const HYPERMEDIA = {
 	UNDO: "_undo",
 } as const;
 
+/** A product's own data, without the trace it carries or the markers dispatch adds to a product of a named domain to
+ *  name, summarize, describe and link it: what a reader parses by the product's own schema. */
+export function productData(products: Record<string, unknown>): Record<string, unknown> {
+	const {
+		[TRACE_SEQ_PATH]: _trace,
+		[HYPERMEDIA.TYPE]: _type,
+		[HYPERMEDIA.SUMMARY]: _summary,
+		[HYPERMEDIA.DESCRIPTION]: _description,
+		[HYPERMEDIA.LINKS]: _links,
+		...data
+	} = products;
+	return data;
+}
+
 export type THypermediaProducts = {
 	[TRACE_SEQ_PATH]?: TSeqPath;
 	[HYPERMEDIA.TYPE]?: string;

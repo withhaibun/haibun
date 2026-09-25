@@ -8,7 +8,7 @@
  */
 import { z } from "zod";
 import { ConcernCatalogSchema } from "./hypermedia.js";
-import { TRACE_SEQ_PATH } from "../schema/protocol.js";
+import { productData } from "../schema/protocol.js";
 import { readAction } from "./actions.js";
 import { Access } from "./resources.js";
 
@@ -167,7 +167,7 @@ export const stepDefinition = (step: TStepDescriptor): TStepDefinition => ({ ...
 export function readShownSteps(products: unknown, detail: typeof STEP_DETAIL.summary): TStepSummaries;
 export function readShownSteps(products: unknown, detail: typeof STEP_DETAIL.definition): TStepDefinitions;
 export function readShownSteps(products: unknown, detail: TStepDetail): TStepDiscovery {
-	const { [TRACE_SEQ_PATH]: _trace, ...shown } = z.record(z.string(), z.unknown()).parse(products);
+	const shown = productData(z.record(z.string(), z.unknown()).parse(products));
 	return (detail === STEP_DETAIL.summary ? StepSummariesSchema : StepDefinitionsSchema).parse(shown);
 }
 

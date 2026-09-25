@@ -10,8 +10,6 @@ export const SHU_TEST_IDS = {
 		MAIN: "shu-main",
 		/** On the page strip: opens and closes the pane docked along the bottom of the page. */
 		DOCK_TOGGLE: "app-dock-toggle",
-		/** On the page strip: pins the docked pane open against a click elsewhere. */
-		DOCK_PIN: "app-dock-pin",
 		CHAT_INPUT: "app-chat-input",
 		CHAT_SUBMIT: "app-chat-submit",
 		CHAT_OUTPUT: "app-chat-output",

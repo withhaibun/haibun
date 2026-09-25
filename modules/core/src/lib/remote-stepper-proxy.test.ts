@@ -1,10 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { z } from "zod";
 import { RemoteStepperProxy } from "./remote-stepper-proxy.js";
 import { openRunRegistry, StepRegistry } from "./step-registry.js";
 import Haibun from "../steps/haibun.js";
 import { AStepper } from "./astepper.js";
 import { actionOKWithProducts, errorDetail } from "./util/index.js";
 import { getDefaultWorld } from "./test/lib.js";
+import { TEST_DOMAIN, testDomainDefinitions } from "./test/test-domains.js";
 import { addStepperConcerns } from "../phases/Executor.js";
 import { FakeInvoker } from "./test/fake-authority.js";
 import { AUTHORITY_KEY, SessionAuthority } from "./session-authority.js";
@@ -17,20 +19,30 @@ import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import type { Server } from "http";
 
+const ECHOED_LABEL = "test-echoed-label";
+
 class EchoStepper extends AStepper {
 	description = "Steps that echo a message and answer a protected ping, served by a remote host.";
+	cycles = {
+		getConcerns: () => ({
+			domains: [...testDomainDefinitions, { selectors: [ECHOED_LABEL], schema: z.object({ label: z.string().nullable() }), description: "A label a step echoed" }],
+		}),
+	};
 	steps = {
 		echo: {
 			gwta: "echo {message: string}",
+			productsDomain: TEST_DOMAIN.echoed,
 			action: async ({ message }: { message: string }) => actionOKWithProducts({ echoed: message }),
 		},
 		protectedPing: {
 			gwta: "protected ping",
 			capability: "EchoStepper:admin",
+			productsDomain: TEST_DOMAIN.pong,
 			action: async () => actionOKWithProducts({ pong: true }),
 		},
 		echoLabel: {
 			gwta: "echo the label of {query: json}",
+			productsDomain: ECHOED_LABEL,
 			action: async ({ query }: { query: { label?: string } }) => actionOKWithProducts({ label: query.label ?? null }),
 		},
 	};

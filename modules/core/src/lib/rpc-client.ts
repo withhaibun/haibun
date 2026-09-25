@@ -152,7 +152,6 @@ export class RpcClient {
 	}
 }
 
-
 /**
  * The instance handshake, shared by every remote surface (federated reads, remote stores): `action.begin`
  * self-reports the peer's hostId and site principal. Fails fast on a peer that predates the site handshake.

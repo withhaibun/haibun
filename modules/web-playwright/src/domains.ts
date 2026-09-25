@@ -24,6 +24,13 @@ export const AccessibilitySnapshotSchema = z.object({
 	_links: z.record(z.string(), z.object({ method: z.string() }).strict()),
 });
 export const RestJsonCountSchema = z.object({ summary: z.string(), details: z.object({ count: z.number() }) });
+/** The domains of what reading a page and a JSON response answer with. */
+export const DOMAIN_PAGE_CONTENTS = "page-contents";
+export const DOMAIN_ACCESSIBILITY_SNAPSHOT = "accessibility-snapshot";
+export const DOMAIN_JSON_RESPONSE_COUNT = "json-response-count";
+/** The domain of an extension loaded into the browser the run launches: its id and the origin its pages are at. */
+export const DOMAIN_BROWSER_EXTENSION = "browser-extension";
+const BrowserExtensionSchema = z.object({ id: z.string(), origin: z.string() });
 
 const HTTP_NS = { http: "http://www.w3.org/2011/http#" };
 const httpRequestSchema = PersistedVertexSchema.extend({
@@ -40,6 +47,10 @@ const httpHostSchema = PersistedVertexSchema.extend({ id: z.string(), name: z.st
 const visitedPageSchema = PersistedVertexSchema.extend({ id: z.string(), name: z.string().optional(), generatedAtTime: z.string() });
 
 export const WebPlaywrightDomains: TDomainDefinition[] = [
+	{ selectors: [DOMAIN_PAGE_CONTENTS], schema: PageContentsSchema, description: "A page's markup, as the browser holds it" },
+	{ selectors: [DOMAIN_ACCESSIBILITY_SNAPSHOT], schema: AccessibilitySnapshotSchema, description: "A page as its accessibility tree reads, with the steps that act on it" },
+	{ selectors: [DOMAIN_JSON_RESPONSE_COUNT], schema: RestJsonCountSchema, description: "How many entries the last JSON response held" },
+	{ selectors: [DOMAIN_BROWSER_EXTENSION], schema: BrowserExtensionSchema, description: "An extension loaded into the browser the run launches, and the origin its pages are at" },
 	{ selectors: [DOMAIN_RELAY_ATTACHMENT], schema: RelayAttachmentSchema, description: "What the browser relay holds: a person's attached browser, its holder and its tabs" },
 	{
 		selectors: [HTTP_REQUEST_LABEL],

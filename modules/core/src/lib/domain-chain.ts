@@ -32,8 +32,6 @@ export type TDomainChainStep = {
 	params: Record<string, string>;
 	inputDomains: string[];
 	outputDomains: string[];
-	/** Whether its products have a schema and no domain, so no step can consume them. */
-	unnamedProducts: boolean;
 	capability: string;
 };
 
@@ -76,7 +74,6 @@ export function buildDomainChain(steppers: AStepper[], domains: Record<string, T
 				params: Object.fromEntries(stepParamDomains(stepDef)),
 				inputDomains,
 				outputDomains,
-				unnamedProducts: outputDomains.length === 0 && stepDef.productsSchema !== undefined,
 				capability: requiredAction(stepperName, stepName, stepDef),
 			});
 			if (outputDomains.length === 0) continue;
@@ -106,6 +103,5 @@ function collectInputDomains(stepDef: TStepperStep): string[] {
 function collectOutputDomains(stepDef: TStepperStep): string[] {
 	if (stepDef.productsDomain) return [normalizeDomainKey(stepDef.productsDomain)];
 	if (stepDef.productsDomains) return Object.values(stepDef.productsDomains).map((d) => normalizeDomainKey(d));
-	// productsSchema is local-only and does NOT contribute to the resolver graph.
 	return [];
 }

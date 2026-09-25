@@ -5,7 +5,7 @@ import { TFeatureStep } from "@haibun/core/lib/astepper.js";
 import { OK, Origin, TStepResult } from "@haibun/core/schema/protocol.js";
 import { DOMAIN_STATEMENT, DOMAIN_STRING } from "@haibun/core/lib/domains.js";
 import { actionNotOK, actionOKWithProducts, errorDetail, sleep, getStepTerm, jsonArtifact } from "@haibun/core/lib/util/index.js";
-import { AccessibilitySnapshotSchema, DOMAIN_PAGE_LOCATOR, DOMAIN_PAGE_TEST_ID, PageContentsSchema } from "./domains.js";
+import { DOMAIN_ACCESSIBILITY_SNAPSHOT, DOMAIN_BROWSER_EXTENSION, DOMAIN_PAGE_CONTENTS, DOMAIN_PAGE_LOCATOR, DOMAIN_PAGE_TEST_ID } from "./domains.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { pickLocatorDomain } from "./web-playwright.js";
 import { WEB_PAGE, WebPlaywright } from "./web-playwright.js";
@@ -427,6 +427,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			gwta: "load the browser extension at {where}",
 			description:
 				"Loads the unpacked extension in the directory `where` into the browser the run launches, from the next page it opens, and answers the extension's id and origin, derived from the key its manifest pins, so a step can open its pages.",
+			productsDomain: DOMAIN_BROWSER_EXTENSION,
 			action: ({ where }: { where: string }) => wp.loadExtension(where),
 		},
 		showBrowserRelay: {
@@ -436,8 +437,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			gwta: "show the browser relay",
 			description: "Whether a person's browser is attached through the relay, the key that attached it, and its tabs, each with whether the run drives it.",
 			productsDomain: DOMAIN_RELAY_ATTACHMENT,
-			action: () =>
-				Promise.resolve(wp.relay ? actionOKWithProducts(wp.relay.attachment()) : actionNotOK("the browser relay is not served: `serve the browser relay` serves it")),
+			action: () => Promise.resolve(wp.relay ? actionOKWithProducts(wp.relay.attachment()) : actionNotOK("the browser relay is not served: `serve the browser relay` serves it")),
 		},
 		serveBrowserRelay: {
 			gwta: "serve the browser relay",
@@ -582,7 +582,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		getPageContents: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.read,
 			gwta: "get page contents",
-			productsSchema: PageContentsSchema,
+			productsDomain: DOMAIN_PAGE_CONTENTS,
 			// The whole page HTML is the action result; keeping it on the event too can be many MB per call.
 			retainProducts: false,
 			action: async () => {
@@ -596,7 +596,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			description:
 				"Reads the page as Playwright's aria snapshot: YAML naming each element's role and accessible name, which are what the role, label and text locators address. Its links name the steps that act on what it read.",
 			read: true,
-			productsSchema: AccessibilitySnapshotSchema,
+			productsDomain: DOMAIN_ACCESSIBILITY_SNAPSHOT,
 			action: async () => {
 				const read = await wp.withPage(async (target) => {
 					const page = "page" in target ? target.page() : target;

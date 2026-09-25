@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-import { TRegisteredDomain, TDomainDefinition } from "../lib/resources.js";
 import type { TWorld } from "../lib/world.js";
 import { OK, TStepArgs, Origin, TProvenanceIdentifier, TOrigin, TActionResult } from "../schema/protocol.js";
 import { TAnyFixme } from "../lib/fixme.js";
@@ -12,7 +11,7 @@ import { sanitizeObjectSecrets } from "../lib/util/secret-utils.js";
 import { DOMAIN_STATEMENT, DOMAIN_STRING, normalizeDomainKey, createEnumDomainDefinition, registerDomains, refreshHypermediaTypeDomain } from "../lib/domains.js";
 import { fromJsonText } from "../lib/json-text.js";
 import { hypermediaDomainFromContext, type THypermediaContext } from "../lib/hypermedia.js";
-import { edgeRanges, REL_CONTEXT, LinkRelations, type TEdgeDef, type TRel } from "../lib/resources.js";
+import { edgeRanges, isPersisted, REL_CONTEXT, LinkRelations, type TRel, type TRegisteredDomain, type TDomainDefinition } from "../lib/resources.js";
 
 const clearVars = (vars: VariablesStepper) => async () => {
 	await vars.getWorld().shared.getStore().clear();
@@ -21,10 +20,33 @@ const clearVars = (vars: VariablesStepper) => async () => {
 const DOMAIN_ENV_SNAPSHOT = "env-snapshot";
 const DOMAIN_VARS_SNAPSHOT = "vars-snapshot";
 const DOMAIN_VAR_SNAPSHOT = "var-snapshot";
+const DOMAIN_DOMAINS_SNAPSHOT = "domains-snapshot";
+const DOMAIN_DOMAIN_SNAPSHOT = "domain-snapshot";
 
 const EnvSnapshotSchema = z.object({ env: z.record(z.string(), z.string()) });
 const VarsSnapshotSchema = z.object({ vars: z.record(z.string(), z.unknown()) });
 const VarSnapshotSchema = z.object({ term: z.string(), value: z.unknown(), domain: z.string().optional(), secret: z.boolean().optional() });
+const DomainEdgeSchema = z.object({ type: z.string(), targetId: z.string() });
+const DomainsSnapshotSchema = z.object({
+	items: z.array(
+		z.object({
+			name: z.string(),
+			description: z.string(),
+			values: z.array(z.string()).optional(),
+			members: z.number(),
+			persistedAs: z.string().optional(),
+			_edges: z.array(DomainEdgeSchema).optional(),
+		}),
+	),
+});
+const DomainSnapshotSchema = z.object({
+	domain: z.string(),
+	description: z.string(),
+	values: z.array(z.string()).optional(),
+	stepperName: z.string().optional(),
+	topology: z.record(z.string(), z.unknown()).optional(),
+	members: z.record(z.string(), z.unknown()),
+});
 
 const envSummary = (p: Record<string, unknown>) => {
 	const env = p.env as Record<string, string> | undefined;
@@ -44,6 +66,9 @@ const varSummary = (p: Record<string, unknown>) => {
 	return `${term} = ${display}`;
 };
 
+const domainsSummary = (p: Record<string, unknown>) => `${(p.items as unknown[]).length} domains`;
+const domainSummary = (p: Record<string, unknown>) => `${String(p.domain)}: ${Object.keys(p.members as Record<string, unknown>).length} members`;
+
 const cycles = (variablesStepper: VariablesStepper): IStepperCycles => ({
 	startFeature: clearVars(variablesStepper),
 	startScenario: async ({ scopedVars }: TStartScenario) => {
@@ -54,6 +79,8 @@ const cycles = (variablesStepper: VariablesStepper): IStepperCycles => ({
 			{ selectors: [DOMAIN_ENV_SNAPSHOT], schema: EnvSnapshotSchema, description: "Snapshot of environment variables", ui: { summary: envSummary } },
 			{ selectors: [DOMAIN_VARS_SNAPSHOT], schema: VarsSnapshotSchema, description: "Snapshot of feature variables", ui: { summary: varsSummary } },
 			{ selectors: [DOMAIN_VAR_SNAPSHOT], schema: VarSnapshotSchema, description: "Snapshot of a single variable", ui: { summary: varSummary } },
+			{ selectors: [DOMAIN_DOMAINS_SNAPSHOT], schema: DomainsSnapshotSchema, description: "Snapshot of every registered domain", ui: { summary: domainsSummary } },
+			{ selectors: [DOMAIN_DOMAIN_SNAPSHOT], schema: DomainSnapshotSchema, description: "Snapshot of a registered domain and its members", ui: { summary: domainSummary } },
 		],
 	}),
 });
@@ -412,38 +439,37 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 		showDomains: {
 			gwta: "show domains",
+			productsDomain: DOMAIN_DOMAINS_SNAPSHOT,
 			action: async () => {
-				const domains = this.getWorld().domains;
-				const allVars = await this.getWorld().shared.all();
-				type DomainItem = { name: string; description: string | string[]; members: number; persistedAs?: string; _edges?: { type: string; targetId: string }[] };
-				const items: DomainItem[] = [];
-				// Collect persistedAs→name mapping for base type edge targets
-				const labelToDomain = new Map<string, string>();
-				for (const [dname, ddef] of Object.entries(domains)) {
-					const vl = (ddef.topology as Record<string, unknown> | undefined)?.persistedAs as string | undefined;
-					labelToDomain.set(vl || dname, vl || dname);
+				const members = new Map<string, number>();
+				for (const { domain } of Object.values(await this.getWorld().shared.all())) {
+					const key = domain && normalizeDomainKey(domain);
+					if (key) members.set(key, (members.get(key) ?? 0) + 1);
 				}
-				for (const [name, def] of Object.entries(domains)) {
-					let members = 0;
-					for (const variable of Object.values(allVars)) {
-						if (variable.domain && normalizeDomainKey(variable.domain) === name) members++;
-					}
-					const description = def.values || def.description || "schema";
-					const topology = def.topology as Record<string, unknown> | undefined;
-					const persistedAs = topology?.persistedAs as string | undefined;
-					const _edges: { type: string; targetId: string }[] = [];
+				const items = Object.entries(this.getWorld().domains).map(([name, { description, values, topology }]) => {
+					const persistedAs = isPersisted(topology) ? topology.persistedAs : undefined;
 					// Edges from topology (persisted-type→persisted-type relationships like Email→Contact)
-					const topologyEdges = topology?.edges as Record<string, TEdgeDef> | undefined;
-					for (const [edgeName, edge] of Object.entries(topologyEdges ?? {}))
-						for (const range of edgeRanges(edge)) if (range !== persistedAs) _edges.push({ type: edgeName, targetId: range });
-					items.push({ name, description, members, ...(persistedAs ? { persistedAs } : {}), ...(_edges.length ? { _edges } : {}) });
-				}
-				return actionOKWithProducts({ _type: "Domain", _summary: `${items.length} domains`, items });
+					const _edges = Object.entries((isPersisted(topology) && topology.edges) || {}).flatMap(([type, edge]) =>
+						edgeRanges(edge)
+							.filter((range) => range !== persistedAs)
+							.map((targetId) => ({ type, targetId })),
+					);
+					return {
+						name,
+						description,
+						...(values ? { values } : {}),
+						members: members.get(name) ?? 0,
+						...(persistedAs ? { persistedAs } : {}),
+						...(_edges.length ? { _edges } : {}),
+					};
+				});
+				return actionOKWithProducts({ items });
 			},
 		},
 		showDomain: {
 			gwta: "show domain {name}",
 			handlesUndefined: ["name"],
+			productsDomain: DOMAIN_DOMAIN_SNAPSHOT,
 			action: async (_: TStepArgs, featureStep: TFeatureStep) => {
 				const name = getStepTerm(featureStep, "name");
 				const domain = this.getWorld().domains[name];
@@ -451,15 +477,19 @@ class VariablesStepper extends AStepper implements IHasCycles {
 					return actionNotOK(`Domain "${name}" not found`);
 				}
 				const shared = this.getWorld().shared;
-				const allVars = await shared.all();
 				const members: Record<string, TAnyFixme> = {};
-				for (const [key, variable] of Object.entries(allVars)) {
-					if (variable.domain && normalizeDomainKey(variable.domain) === name) {
-						members[key] = shared.isSecret(key) ? OBSCURED_VALUE : variable.value;
-					}
+				for (const [key, variable] of Object.entries(await shared.all())) {
+					if (variable.domain && normalizeDomainKey(variable.domain) === name) members[key] = shared.isSecret(key) ? OBSCURED_VALUE : variable.value;
 				}
-				const memberCount = Object.keys(members).length;
-				return actionOKWithProducts({ _type: "Domain", _summary: `${name}: ${memberCount} members`, domain: name, ...domain, members });
+				const { description, values, stepperName, topology } = domain;
+				return actionOKWithProducts({
+					domain: name,
+					description,
+					...(values ? { values } : {}),
+					...(stepperName ? { stepperName } : {}),
+					...(topology ? { topology } : {}),
+					members,
+				});
 			},
 		},
 		// Membership check: value is in domain (enum or member values)

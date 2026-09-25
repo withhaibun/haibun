@@ -4,23 +4,21 @@ import VariablesStepper from "./variables-stepper.js";
 import LogicStepper from "./logic-stepper.js";
 import Haibun from "./haibun.js";
 import UrakataStepper from "./urakata-stepper.js";
-import { AStepper, type IHasCycles, type IStepperCycles } from "../lib/astepper.js";
+import { AStepper } from "../lib/astepper.js";
 import { actionOKWithProducts } from "../lib/util/index.js";
-import { z } from "zod";
-import { URAKATA, type IUrakataRegistry, type IUrakataTicker } from "../lib/urakata.js";
+import { URAKATA, URAKATA_ID_DOMAIN, type IUrakataRegistry, type IUrakataTicker } from "../lib/urakata.js";
 import { getFromRuntime } from "../lib/util/index.js";
 import type { TStepResult } from "../schema/protocol.js";
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 /** Test stepper that exposes a `start tick` step which registers a ticker that increments a counter. */
-class TickHarnessStepper extends AStepper implements IHasCycles {
-	cycles: IStepperCycles = { getConcerns: () => ({ domains: [] }) };
+class TickHarnessStepper extends AStepper {
 	tickCount = 0;
 	steps = {
 		startTick: {
 			gwta: "start tick",
-			outputSchema: z.object({ id: z.string() }),
+			productsDomains: { id: URAKATA_ID_DOMAIN },
 			action: () => {
 				const registry = getFromRuntime(this.getWorld().runtime, URAKATA) as IUrakataRegistry;
 				const ticker: IUrakataTicker = {

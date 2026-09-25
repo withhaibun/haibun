@@ -57,6 +57,8 @@ export async function buildGraphSource(world: TWorld): Promise<
 	return { quads: quads as TQuad[], clusters, nodeMap, edges };
 }
 
+/** The domain of where a graph view placed each node. */
+const DOMAIN_GRAPH_LAYOUT = "graph-layout";
 const DOMAIN_SHU_VIEW_COLLECTION = "shu-view-collection";
 const ShuViewCollectionSchema = z.object({
 	view: z.string().optional(),
@@ -254,6 +256,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 				{ selectors: [SHU_TAG.MONITOR_COLUMN], schema: z.object({}), description: "Execution monitor and event log", ui: { component: SHU_TAG.MONITOR_COLUMN } },
 				{ selectors: [SHU_TAG.DOCUMENT_COLUMN], schema: z.object({}), description: "Document/artifact viewer", ui: { component: SHU_TAG.DOCUMENT_COLUMN } },
 				{ selectors: [DOMAIN_SHU_APPS], schema: ShuAppsSchema, description: "Where an instance serves shu" },
+				{ selectors: [DOMAIN_GRAPH_LAYOUT], schema: GraphLayoutSchema, description: "Where a graph view placed each node" },
 				{
 					selectors: [DOMAIN_SHU_VIEW_COLLECTION],
 					schema: ShuViewCollectionSchema,
@@ -367,7 +370,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 		},
 		getGraphLayout: {
 			gwta: "get graph layout",
-			productsSchema: GraphLayoutSchema,
+			productsDomain: DOMAIN_GRAPH_LAYOUT,
 			action: async () => {
 				const built = await buildGraphSource(this.getWorld());
 				if (!built) return actionNotOK("QuadStore does not support getClusteredQuads");

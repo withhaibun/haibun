@@ -165,7 +165,10 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 						}
 						actionResult = await tool.handler(featureStep, world);
 						if (actionResult.ok) {
-							const productsError = validateProducts(action.stepperName, action.actionName, action.step, world, actionResult.products);
+							// A tool of another host or process has no step here: the dispatch where it ran validated what it answered.
+							const productsError = tool.stepDef
+								? validateProducts(action.stepperName, action.actionName, action.step, world, actionResult.products, featureStep.seqPath)
+								: undefined;
 							if (productsError) {
 								actionResult = actionNotOK(productsError);
 							} else {
@@ -173,7 +176,8 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 									actionResult = { ...actionResult, products: { ...actionResult.products, [TRACE_SEQ_PATH]: featureStep.seqPath } };
 								}
 								actionResult = augmentViewHypermedia(world, action.step, actionResult, steppers);
-								await autoAssertProducts(world, step.seqPath, action.step, actionResult);
+								// A fact is a record of the run, so a read the run did not ask for asserts none, as it records no step.
+								if (recorded) await autoAssertProducts(world, step.seqPath, action.step, actionResult);
 							}
 						}
 						if (!actionResult.ok && actionResult.errorMessage && featureStep.intent?.mode !== "speculative") {

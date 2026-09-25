@@ -60,7 +60,7 @@ export async function runSubprocess(csteppers: CStepper[], world: TWorld): Promi
 			const hr = await tool.handler(featureStep, world);
 			if (hr.ok) {
 				if (tool.stepDef) {
-					const productsError = validateProducts(tool.descriptor.stepperName, tool.descriptor.stepName, tool.stepDef, world, hr.products);
+					const productsError = validateProducts(tool.descriptor.stepperName, tool.descriptor.stepName, tool.stepDef, world, hr.products, msg.seqPath);
 					if (productsError) {
 						process.send?.({ type: "result", ok: false, error: productsError } satisfies SubprocessResultMessage);
 						return;

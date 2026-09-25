@@ -10,6 +10,7 @@ import { restRoutes } from "./rest.js";
 import { createDynamicAuthMiddleware, authSchemes } from "./authSchemes.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { FakeInvoker } from "@haibun/core/lib/test/fake-authority.js";
+import { TEST_DOMAIN, testDomainDefinitions } from "@haibun/core/lib/test/test-domains.js";
 const TALLY = "tally";
 const setTally = (value) => ({
     term: TALLY,
@@ -59,6 +60,7 @@ const deniedFor = (status, error, capability) => status === 422 && typeof error 
     ? actionOK()
     : actionNotOK(`Expected a denial for ${capability}, got ${status} ${String(error)}`);
 const cycles = (ts) => ({
+    getConcerns: () => ({ domains: testDomainDefinitions }),
     startFeature: () => {
         const p = { when: `${TestServer.name}.cycles.startFeature`, seq: [0] };
         ts.getWorld().shared.set(setTally(0), p);
@@ -135,7 +137,7 @@ class TestServer extends AStepper {
             try {
                 // Apply dynamic auth middleware that checks scheme at request time
                 webserver.app.use(loc, this.getDynamicAuthMiddleware());
-                webserver.addKnownRoute(method, loc, { description: `e2e test server auth-protected route ${method.toUpperCase()} ${loc}` }, route);
+                webserver.addRoute(method, loc, { description: `e2e test server auth-protected route ${method.toUpperCase()} ${loc}` }, route);
             }
             catch (error) {
                 const err = error instanceof Error ? error : new Error(String(error));
@@ -185,15 +187,17 @@ class TestServer extends AStepper {
         protectedRpcPing: {
             gwta: "protected rpc ping",
             capability: "TestServer:protected",
-            action: async () => actionOKWithProducts({ protected: true }),
+            productsDomain: TEST_DOMAIN.pong,
+            action: async () => actionOKWithProducts({ pong: true }),
         },
         protectedAdminRpcPing: {
             gwta: "protected admin rpc ping",
             capability: "TestServer:admin",
-            action: async () => actionOKWithProducts({ admin: true }),
+            action: async () => OK,
         },
         rpcPing: {
             gwta: "rpc ping",
+            productsDomain: TEST_DOMAIN.pong,
             action: async () => actionOKWithProducts({ pong: true }),
         },
         mcpShownStepsInclude: {
@@ -226,7 +230,7 @@ class TestServer extends AStepper {
                 if (mcpToolResult(response).isError)
                     return actionNotOK(`Expected MCP success, got ${JSON.stringify(response)}`);
                 const parsed = JSON.parse(mcpText(response) || "{}");
-                return parsed.protected === true ? actionOK() : actionNotOK(`Expected protected=true, got ${mcpText(response)}`);
+                return parsed.pong === true ? actionOK() : actionNotOK(`Expected the protected ping answered, got ${mcpText(response)}`);
             },
         },
         rpcRefused: {

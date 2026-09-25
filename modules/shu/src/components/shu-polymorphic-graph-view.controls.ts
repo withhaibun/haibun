@@ -81,7 +81,11 @@ export const DOMAIN_GRAPH_ZBASIS = "graph-z-basis";
 const ZBasisSchema = z.enum(["valid time", "indexed time", "connections"]);
 const ZBASIS_VALUE: Record<string, string> = { "valid time": "valid", "indexed time": "indexed", connections: "connections" };
 
+/** The domain of a graph still a step saved: where it is, and how many nodes it drew. */
+const DOMAIN_GRAPH_STILL = "graph-still";
+const GraphStillSchema = z.object({ path: z.string(), nodes: z.number() });
 const graphControlDomains: TDomainDefinition[] = [
+	{ selectors: [DOMAIN_GRAPH_STILL], schema: GraphStillSchema, description: "A graph still a step saved, and how many nodes it drew" },
 	{ selectors: [DOMAIN_GRAPH_ZOOM], schema: ZoomDirSchema, description: "Zoom direction: in or out" },
 	{ selectors: [DOMAIN_GRAPH_PAN], schema: PanDirSchema, description: "Pan/orbit direction: left, right, up, or down" },
 	{ selectors: [DOMAIN_GRAPH_UNIT], schema: UnitSchema, description: "Measure unit: pixels or percent" },
@@ -1628,7 +1632,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			// the SAME placed nodes the WebGL renderer displays, drawn by the SVG renderer, so a still in a report
 			// always matches what the run's reader saw.
 			gwta: "save a graph still",
-			productsSchema: z.object({ path: z.string(), nodes: z.number() }),
+			productsDomain: DOMAIN_GRAPH_STILL,
 			action: async (_: unknown, featureStep: TFeatureStep) => {
 				const page = await this.page();
 				await this.settle(page);

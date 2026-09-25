@@ -133,7 +133,10 @@ export class ShuActivityHistory extends ShuElement<typeof EmptySchema> {
 		const current = this.#subject.record?.id;
 		// A question the reader's place doesn't show is a turn asked after it, which is what the history offers to reach.
 		this.#turnsAfterThePlace = entries.filter((entry) => entry.message.role === "user" && !this.#view.shows(entry.askedAt)).length;
-		this.#newestShown = entries.reduce<number | null>((at, entry) => (entry.askedAt !== undefined && this.#view.shows(entry.askedAt) ? Math.max(at ?? 0, entry.askedAt) : at), null);
+		this.#newestShown = entries.reduce<number | null>(
+			(at, entry) => (entry.askedAt !== undefined && this.#view.shows(entry.askedAt) ? Math.max(at ?? 0, entry.askedAt) : at),
+			null,
+		);
 		let pin = false;
 		for (const { message, shown, askedAt } of entries) {
 			let held = this.#messages.get(message.id);

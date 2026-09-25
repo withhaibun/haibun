@@ -117,12 +117,14 @@ export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
 	};
 
 	/** Ask this question again, as it was or to edit, replying where it replied. The bar the history sits in takes it. */
-	private restate = (send: boolean) => (e: Event): void => {
-		e.stopPropagation(); // the click is on the control, not a selection of this message
-		const m = this.message;
-		const detail: TQuestionRestate = { prompt: m.text, patterns: m.bundle?.patterns ?? [], inReplyTo: m.inReplyTo, send };
-		this.dispatchEvent(new CustomEvent(SHU_EVENT.QUESTION_RESTATE, { detail, bubbles: true, composed: true }));
-	};
+	private restate =
+		(send: boolean) =>
+		(e: Event): void => {
+			e.stopPropagation(); // the click is on the control, not a selection of this message
+			const m = this.message;
+			const detail: TQuestionRestate = { prompt: m.text, patterns: m.bundle?.patterns ?? [], inReplyTo: m.inReplyTo, send };
+			this.dispatchEvent(new CustomEvent(SHU_EVENT.QUESTION_RESTATE, { detail, bubbles: true, composed: true }));
+		};
 
 	/** Activate the comment this message was recorded as, with the bundle its turn was sent with, in the actions bar's
 	 *  scope. The graph follows that comment, and the next question replies to its turn. A message with no recorded

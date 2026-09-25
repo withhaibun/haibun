@@ -1,5 +1,3 @@
-import type { z } from "zod";
-
 import type { TAnyFixme } from "./fixme.js";
 import type { FeatureVariables } from "./feature-variables.js";
 import type { TWorld, TEnvVariables } from "./world.js";
@@ -161,24 +159,16 @@ type TStepperStepBase = {
 	 * Single-product postcondition. The step's action must return products matching
 	 * the named domain's schema. The dispatcher auto-asserts the product as a typed
 	 * fact, registers a producer edge in the resolver graph, and exposes the JSON
-	 * Schema for discovery. Mutually exclusive with `productsDomains` and `productsSchema`.
+	 * Schema for discovery. A step that returns products names their domain here or in
+	 * `productsDomains`, and dispatch refuses products it names no domain of.
 	 */
 	productsDomain?: string;
 	/**
 	 * Multi-product postconditions, keyed by product field. Each field's value must
 	 * match its declared domain's schema. The dispatcher auto-asserts each as a typed
-	 * fact and registers producer edges per field. Mutually exclusive with `productsDomain`
-	 * and `productsSchema`.
+	 * fact and registers producer edges per field. Mutually exclusive with `productsDomain`.
 	 */
 	productsDomains?: Record<string, string>;
-	/**
-	 * Inline Zod schema for the step's products. The dispatcher validates against this
-	 * schema and exposes the derived JSON Schema for discovery, but does NOT register a
-	 * producer edge in the resolver graph and does NOT auto-assert facts. Use this for
-	 * typed step outputs that are local to the step, handles, identifiers, or readouts
-	 * with no shared semantics. Mutually exclusive with `productsDomain` and `productsDomains`.
-	 */
-	productsSchema?: z.ZodType;
 	/**
 	 * Which of the step's products are kept on its lifecycle event. Default (absent/true): all. `false`: none, for a step
 	 * whose products are bulk payload consumed via the action result or a separate fetch (a query's rows, a captured page's

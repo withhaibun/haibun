@@ -273,6 +273,7 @@ export class QuadStore implements IQuadStore {
 		return this.quads.filter((q) => matchesQuadPattern(q, pattern) && seen(q));
 	}
 
+	// biome-ignore lint/suspicious/useAwait: a write, so a refused level rejects rather than throws, as setQuad states
 	async clear(namedGraph?: string): Promise<void> {
 		if (namedGraph) {
 			// Don't clear persistent backing stores, only clear ephemeral (local) data
@@ -382,7 +383,8 @@ export class QuadStore implements IQuadStore {
 		this.quads = this.quads.filter((q) => !(q.subject === id && q.namedGraph === label));
 		const timestamp = Date.now();
 		for (const [key, value] of Object.entries(validated)) {
-			if (value !== undefined && value !== null) this.quads.push({ subject: id, predicate: key, object: value, namedGraph: label, timestamp, ...(accessLevel ? { accessLevel } : {}) });
+			if (value !== undefined && value !== null)
+				this.quads.push({ subject: id, predicate: key, object: value, namedGraph: label, timestamp, ...(accessLevel ? { accessLevel } : {}) });
 		}
 		return id;
 	}

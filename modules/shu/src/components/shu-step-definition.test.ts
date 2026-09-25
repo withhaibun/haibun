@@ -17,15 +17,28 @@ import { SHU_TEST_IDS } from "../test-ids.js";
 
 const IDS = SHU_TEST_IDS.STEP_DEFINITION;
 const [CREDENTIAL, CREDENTIAL_TYPE, CHECK] = ["credential", "VerifiableCredential", "verification"];
-const VERIFY = { method: "VerifierStepper-verify", stepperName: "VerifierStepper", stepName: "verify", pattern: "verify {credential}", paramDomains: { credential: CREDENTIAL }, productsDomain: CHECK };
+const VERIFY = {
+	method: "VerifierStepper-verify",
+	stepperName: "VerifierStepper",
+	stepName: "verify",
+	pattern: "verify {credential}",
+	paramDomains: { credential: CREDENTIAL },
+	productsDomain: CHECK,
+};
 
 describe("a step's view", () => {
 	let handle: TShuTestHandle;
 	beforeEach(() => {
 		resetStepRegistry();
 		setDeviceStore(new MemoryDeviceStore());
-		handle = setupShuTest({ dispatch: (method) => (method === SHOW_STEPS_METHOD ? stepsShown([VERIFY], { [CREDENTIAL]: { persistedAs: CREDENTIAL_TYPE }, [CHECK]: {} }) : undefined) });
-		for (const [tag, element] of [[SHU_TAG.STEP_DEFINITION, ShuStepDefinition], [SHU_TAG.REF, ShuRef]] as const) if (!customElements.get(tag)) customElements.define(tag, element);
+		handle = setupShuTest({
+			dispatch: (method) => (method === SHOW_STEPS_METHOD ? stepsShown([VERIFY], { [CREDENTIAL]: { persistedAs: CREDENTIAL_TYPE }, [CHECK]: {} }) : undefined),
+		});
+		for (const [tag, element] of [
+			[SHU_TAG.STEP_DEFINITION, ShuStepDefinition],
+			[SHU_TAG.REF, ShuRef],
+		] as const)
+			if (!customElements.get(tag)) customElements.define(tag, element);
 	});
 	afterEach(() => {
 		handle.teardown();
@@ -40,7 +53,11 @@ describe("a step's view", () => {
 		return view;
 	};
 	const refsAt = (view: ShuStepDefinition, testId: string) =>
-		[...(view.shadowRoot?.querySelectorAll(`[data-testid="${testId}"] shu-ref`) ?? [])].map((ref) => ({ kind: ref.getAttribute("kind"), target: JSON.parse(ref.getAttribute("linkTarget") ?? "{}"), text: ref.textContent }));
+		[...(view.shadowRoot?.querySelectorAll(`[data-testid="${testId}"] shu-ref`) ?? [])].map((ref) => ({
+			kind: ref.getAttribute("kind"),
+			target: JSON.parse(ref.getAttribute("linkTarget") ?? "{}"),
+			text: ref.textContent,
+		}));
 
 	it("states its line and links each domain it takes and returns to the domain's view", async () => {
 		const view = await opened(VERIFY.method);

@@ -97,9 +97,7 @@ export const AccessQuery = AccessQueryLevelSchema.enum;
  * declaration; this base is the declaration.
  */
 export const PersistedVertexSchema = z.object({
-	accessLevel: AccessLevelSchema
-		.optional()
-		.describe("How widely the record is shared. A record stating no level is classified by its type at write time."),
+	accessLevel: AccessLevelSchema.optional().describe("How widely the record is shared. A record stating no level is classified by its type at write time."),
 });
 export type TPersistedVertex = z.infer<typeof PersistedVertexSchema>;
 

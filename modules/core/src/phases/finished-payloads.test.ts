@@ -6,6 +6,7 @@
  * let them go, so a passing step is let go of as it passes.
  */
 import { describe, it, expect } from "vitest";
+import { z } from "zod";
 import { passWithDefaults, failWithDefaults } from "../lib/test/lib.js";
 import { AStepper } from "../lib/astepper.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/util/index.js";
@@ -13,10 +14,14 @@ import { RESULTS_READ_IN_FULL, foldStep } from "../lib/step-dispatch.js";
 import { releasePayloads } from "./Executor.js";
 import type { TFeatureSteps, TStepResult } from "../schema/protocol.js";
 
+const LARGE_ANSWER = "test-large-answer";
+
 class ProducingStepper extends AStepper {
+	cycles = { getConcerns: () => ({ domains: [{ selectors: [LARGE_ANSWER], schema: z.object({ big: z.string() }), description: "A large answer" }] }) };
 	steps = {
 		produces: {
 			gwta: "produce a large answer",
+			productsDomain: LARGE_ANSWER,
 			action: () => Promise.resolve(actionOKWithProducts({ big: "x".repeat(10000) })),
 		},
 		refuses: {

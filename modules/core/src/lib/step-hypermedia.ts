@@ -12,9 +12,7 @@ import { normalizeDomainKey } from "./domains.js";
  * Inject hypermedia markers (`_type`, `_summary`, and where applicable `_component`,
  * `id`, `view`) into a step's products. The single source of truth is the registered
  * domain: every step with a `productsDomain` gets markers; their values come from the
- * domain's `ui` configuration. Steps with `productsSchema` (no domain registration) get
- * no markers: they are local typed outputs, not domain-scoped resources. Actions never
- * emit `_type` / `_summary` themselves.
+ * domain's `ui` configuration. Actions never emit `_type` / `_summary` themselves.
  *
  * - `_type` is the registered `ui.component` if set, else the domain key.
  * - `_summary` is `ui.summary`: either a string template or a function taking the

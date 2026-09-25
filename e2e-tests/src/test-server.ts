@@ -13,6 +13,7 @@ import { restRoutes } from "./rest.js";
 import { createDynamicAuthMiddleware, authSchemes, type TSchemeType, type AuthSchemeLogout } from "./authSchemes.js";
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { FakeInvoker } from "@haibun/core/lib/test/fake-authority.js";
+import { TEST_DOMAIN, testDomainDefinitions } from "@haibun/core/lib/test/test-domains.js";
 
 const TALLY = "tally";
 
@@ -81,6 +82,7 @@ const deniedFor = (status: number, error: unknown, capability: string) =>
 		: actionNotOK(`Expected a denial for ${capability}, got ${status} ${String(error)}`);
 
 const cycles = (ts: TestServer): IStepperCycles => ({
+	getConcerns: () => ({ domains: testDomainDefinitions }),
 	startFeature: () => {
 		const p: TProvenanceIdentifier = { when: `${TestServer.name}.cycles.startFeature`, seq: [0] };
 		ts.getWorld().shared.set(setTally(0), p);
@@ -167,7 +169,7 @@ class TestServer extends AStepper {
 			try {
 				// Apply dynamic auth middleware that checks scheme at request time
 				webserver.app.use(loc, this.getDynamicAuthMiddleware());
-				webserver.addKnownRoute(method, loc, { description: `e2e test server auth-protected route ${method.toUpperCase()} ${loc}` }, route);
+				webserver.addRoute(method, loc, { description: `e2e test server auth-protected route ${method.toUpperCase()} ${loc}` }, route);
 			} catch (error) {
 				const err = error instanceof Error ? error : new Error(String(error));
 				this.getWorld().eventLogger.error(`addAuthRoute failed: ${err.message}`);
@@ -227,15 +229,17 @@ class TestServer extends AStepper {
 		protectedRpcPing: {
 			gwta: "protected rpc ping",
 			capability: "TestServer:protected",
-			action: async () => actionOKWithProducts({ protected: true }),
+			productsDomain: TEST_DOMAIN.pong,
+			action: async () => actionOKWithProducts({ pong: true }),
 		},
 		protectedAdminRpcPing: {
 			gwta: "protected admin rpc ping",
 			capability: "TestServer:admin",
-			action: async () => actionOKWithProducts({ admin: true }),
+			action: async () => OK,
 		},
 		rpcPing: {
 			gwta: "rpc ping",
+			productsDomain: TEST_DOMAIN.pong,
 			action: async () => actionOKWithProducts({ pong: true }),
 		},
 		mcpShownStepsInclude: {
@@ -266,8 +270,8 @@ class TestServer extends AStepper {
 			action: async ({ url, toolName, holder, action }: TStepArgs) => {
 				const response = await mcpCallTool(String(url), String(toolName), { holder: String(holder), action: String(action) });
 				if (mcpToolResult(response).isError) return actionNotOK(`Expected MCP success, got ${JSON.stringify(response)}`);
-				const parsed = JSON.parse(mcpText(response) || "{}") as { protected?: boolean };
-				return parsed.protected === true ? actionOK() : actionNotOK(`Expected protected=true, got ${mcpText(response)}`);
+				const parsed = JSON.parse(mcpText(response) || "{}") as { pong?: boolean };
+				return parsed.pong === true ? actionOK() : actionNotOK(`Expected the protected ping answered, got ${mcpText(response)}`);
 			},
 		},
 		rpcRefused: {

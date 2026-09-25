@@ -90,7 +90,13 @@ describe("the instances and runs a process started", () => {
 		s.hold("a-run");
 		s.hold("an-ended-run", "", 0);
 		const shown = await s.steps.showInstances.action();
-		expect(shown.products).toEqual({ instances: [], runs: [{ run: "a-run", status: "running" }, { run: "an-ended-run", status: "ended" }] });
+		expect(shown.products).toEqual({
+			instances: [],
+			runs: [
+				{ run: "a-run", status: "running" },
+				{ run: "an-ended-run", status: "ended" },
+			],
+		});
 	});
 });
 

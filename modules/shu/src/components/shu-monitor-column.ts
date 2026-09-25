@@ -416,7 +416,9 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		// nothing, so the rows mentioning a capability are exactly the acts that needed one.
 		const dispatchText = r.ranVia ? html`${r.ranVia}${r.ranOn ? html` ${originLink(r.ranOn)}` : ""}${r.durationMs === undefined ? "" : ` ${r.durationMs}ms`}` : "";
 		const capabilityRefused = r.capabilityAction !== undefined && r.allowedAction === undefined;
-		const capability = r.capabilityAction ? html`${capabilityRefused ? "🔒" : "🔓"} ${actionRef(r.capabilityAction)}${r.performedBy ? html` ${fieldRef(SEQ_PATH_LABEL, SEQ_PATH_EDGE.performedBy, r.performedBy)}` : ""}` : "";
+		const capability = r.capabilityAction
+			? html`${capabilityRefused ? "🔒" : "🔓"} ${actionRef(r.capabilityAction)}${r.performedBy ? html` ${fieldRef(SEQ_PATH_LABEL, SEQ_PATH_EDGE.performedBy, r.performedBy)}` : ""}`
+			: "";
 		// What the step produced, beside its words: the row of the step a reader sees is where a screenshot taken during it
 		// is shown, and pressing one opens the image itself.
 		const produced = r.produced?.length

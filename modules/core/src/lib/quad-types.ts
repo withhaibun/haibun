@@ -55,9 +55,7 @@ export const GraphQuerySchema = z
 		/** The record whose referencing records this query answers with, through the relations `via` names, or through
 		 *  every relation. A term, a label and a label's filters each narrow the referencing records, so a question naming
 		 *  a party, a type and a subject is one call rather than sets a caller intersects. */
-		references: z
-			.object({ label: z.string(), id: z.string(), via: z.array(z.string()).min(1).optional() })
-			.optional(),
+		references: z.object({ label: z.string(), id: z.string(), via: z.array(z.string()).min(1).optional() }).optional(),
 	})
 	.strict();
 export type TGraphQuery = z.infer<typeof GraphQuerySchema>;

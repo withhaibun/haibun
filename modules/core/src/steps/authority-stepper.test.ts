@@ -54,7 +54,8 @@ const HELD_ON = "urn:uuid:held-on";
 /** A variable the run sets, which a statement it narrows names. */
 const [KEPT_NAME, KEPT] = ["kept", "the run's"];
 
-const holds = async (content: string) => (await passWithDefaults([{ path: "/features/holding.feature", content }], [AuthorityStepper, LogicStepper, VariablesStepper, PingStepper])).ok;
+const holds = async (content: string) =>
+	(await passWithDefaults([{ path: "/features/holding.feature", content }], [AuthorityStepper, LogicStepper, VariablesStepper, PingStepper])).ok;
 
 describe("holding only", () => {
 	it("runs a statement with a listed action its caller holds", async () => {

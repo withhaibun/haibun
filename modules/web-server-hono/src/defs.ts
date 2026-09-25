@@ -12,12 +12,6 @@ export const RouteTypeSchema = z.enum(["get", "post", "put", "delete", "head", "
 export type TRouteTypes = z.infer<typeof RouteTypeSchema>;
 export const ROUTE_TYPES = RouteTypeSchema.options;
 
-export const StaticFolderOptionsSchema = z.object({
-	headers: z.record(z.string(), z.string()).optional(),
-	index: z.boolean().optional(),
-});
-export type TStaticFolderOptions = z.infer<typeof StaticFolderOptionsSchema>;
-
 export type TRouteMap = { [K in TRouteTypes]: { [path: string]: string } };
 export type TRequestHandler = (c: Context) => Response | Promise<Response>;
 
@@ -46,15 +40,14 @@ export { registeredPaths } from "@haibun/core/lib/execution.js";
 import type { IRouteRegistry } from "@haibun/core/lib/execution.js";
 
 export interface IWebServer extends IRouteRegistry {
-	checkAddStaticFolder(relativeFolder: string, mountAt: string, options?: TStaticFolderOptions): void;
-	checkAddIndexFolder(relativeFolder: string, mountAt: string): void;
-	addKnownStaticFolder(folder: string, mountAt: string, options?: TStaticFolderOptions): void;
+	checkAddStaticFolder(relativeFolder: string, mountAt: string, purpose: TRoutePurpose): void;
+	checkAddIndexFolder(relativeFolder: string, mountAt: string, purpose: TRoutePurpose): void;
+	addKnownStaticFolder(folder: string, mountAt: string, purpose: TRoutePurpose): void;
 	listen(why: string, port: number, hostname?: string): Promise<void>;
 	close(): Promise<void>;
 	readonly mounted: TRouteMap;
 	addRoute(type: TRouteTypes, path: string, purpose: TRoutePurpose, ...handlers: TRequestHandler[]): void;
 	addRouteIfAbsent(type: TRouteTypes, path: string, purpose: TRoutePurpose, ...handlers: TRequestHandler[]): void;
-	addKnownRoute(type: TRouteTypes, path: string, purpose: TRoutePurpose, ...handlers: TRequestHandler[]): void;
 	/** Serve a family of `/rpc` methods under `prefix`, which ends in ".", each gated by the action it declares as a step is
 	 *  by its capability. A family adds no route: its methods are called over `/rpc`. */
 	addRpcMethods(prefix: string, purpose: TRoutePurpose, methods: Record<string, TRpcMethod>): void;

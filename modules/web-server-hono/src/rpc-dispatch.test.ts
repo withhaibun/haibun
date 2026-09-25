@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { passWithDefaults, DEF_PROTO_OPTIONS, freePort } from "@haibun/core/lib/test/lib.js";
+import { TEST_DOMAIN, declaresTestDomains } from "@haibun/core/lib/test/test-domains.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
 import { actionNotOK, actionOKWithProducts, getStepperOptionName } from "@haibun/core/lib/util/index.js";
@@ -17,24 +18,28 @@ import { TRANSPORT, type ITransport } from "./sse-transport.js";
 
 class PingStepper extends AStepper {
 	description = "Steps that answer a ping, one of them protected and one gated by an admin capability.";
+	cycles = declaresTestDomains();
 	steps = {
 		ping: {
 			gwta: "ping",
+			productsDomain: TEST_DOMAIN.pong,
 			action: async () => actionOKWithProducts({ pong: true }),
 		},
 		protectedPing: {
 			gwta: "protected ping",
 			capability: "PingStepper:protected",
-			action: async () => actionOKWithProducts({ protected: true }),
+			productsDomain: TEST_DOMAIN.pong,
+			action: async () => actionOKWithProducts({ pong: true }),
 		},
 		adminPing: {
 			gwta: "admin ping",
 			capability: "PingStepper:admin",
-			action: async () => actionOKWithProducts({ admin: true }),
+			action: async () => OK,
 		},
 		readsAt: {
 			gwta: "level this reads at",
 			read: true,
+			productsDomain: TEST_DOMAIN.readAt,
 			action: async () => actionOKWithProducts({ at: readingAt() ?? "unbounded" }),
 		},
 		holdOpen: {
@@ -209,7 +214,7 @@ class RpcVerifyStepper extends AStepper {
 				if (!res.ok) return actionNotOK(`HTTP ${res.status}: ${await res.text()}`);
 				const data = await res.json();
 				if (data.error) return actionNotOK(data.error);
-				return data.protected === true ? OK : actionNotOK(`Expected protected=true, got ${JSON.stringify(data)}`);
+				return data.pong === true ? OK : actionNotOK(`Expected the protected ping answered, got ${JSON.stringify(data)}`);
 			},
 		},
 		rpcCallDeniedForCapability: {
@@ -379,7 +384,7 @@ class ReadStepper extends AStepper {
 		asked: {
 			gwta: "run is asked what it holds",
 			read: true,
-			action: () => Promise.resolve(actionOKWithProducts({ holds: 1 })),
+			action: () => Promise.resolve(OK),
 		},
 		narratedCalls: {
 			gwta: "run narrated the call that acted on it and not the call that read it",
@@ -761,7 +766,7 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "Pi
 						sctx?.emit({ status: "starting" });
 						sctx?.emit({ text: "alpha" });
 						sctx?.emit({ text: "beta" });
-						return actionOKWithProducts({ text: "alphabeta" });
+						return OK;
 					},
 				},
 				failStream: {

@@ -89,6 +89,12 @@ const StatementsSchema = z.object({
 	),
 	total: z.number(),
 });
+/** The domains of what commenting, annotating and reading statements answer with. */
+const DOMAIN_CITATIONS_CHECKED = "citations-checked";
+const DOMAIN_STATEMENTS = "statements";
+const DOMAIN_COMMENT_CREATED = "comment-created";
+const DOMAIN_ANNOTATION_CREATED = "annotation-created";
+const DOMAIN_ANNOTATIONS = "annotations";
 const CitationsCheckedSchema = z.object({ checked: z.number() });
 const CommentCreatedSchema = z.object({ commentId: z.string(), contextRoot: z.string() });
 const AnnotationCreatedSchema = z.object({
@@ -124,6 +130,11 @@ const cycles = (stepper: ResourcesStepper): IStepperCycles => ({
 		domains: [
 			bodyDomainDefinition,
 			commentDomainDefinition,
+			{ selectors: [DOMAIN_CITATIONS_CHECKED], schema: CitationsCheckedSchema, description: "How many citations a check read" },
+			{ selectors: [DOMAIN_STATEMENTS], schema: StatementsSchema, description: "The statements a record makes" },
+			{ selectors: [DOMAIN_COMMENT_CREATED], schema: CommentCreatedSchema, description: "A comment a step wrote" },
+			{ selectors: [DOMAIN_ANNOTATION_CREATED], schema: AnnotationCreatedSchema, description: "An annotation a step anchored in a record" },
+			{ selectors: [DOMAIN_ANNOTATIONS], schema: AnnotationListSchema, description: "The annotations anchored in a record" },
 			readingDomainDefinition,
 			principalDomainDefinition,
 			sceneDomainDefinition,
@@ -180,7 +191,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			// Every anchored passage a reading wrote, re-anchored against what its source says NOW. A quote that no longer
 			// matches means the text moved on and the statements about it are stale, which is a failure to say, not to hide.
 			gwta: `check citations resolve`,
-			productsSchema: CitationsCheckedSchema,
+			productsDomain: DOMAIN_CITATIONS_CHECKED,
 			action: async () => {
 				const store = this.getWorld().shared.getStore();
 				const unresolved: string[] = [];
@@ -209,7 +220,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			// The general read: every statement made with a predicate, and where each came from. A coverage table (which
 			// requirements a run evidenced, and how it ended) is this read with the citation predicate, not a report of its own.
 			gwta: `statements with {rel: string}`,
-			productsSchema: StatementsSchema,
+			productsDomain: DOMAIN_STATEMENTS,
 			action: async ({ rel }: { rel: string }) => {
 				const statements = (await statementsWith(this.getWorld().shared.getStore(), rel)) as TStatementRow[];
 				return actionOKWithProducts({ statements, total: statements.length });
@@ -217,7 +228,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 		},
 		comment: {
 			gwta: `comment on {label: ${DOMAIN_PERSISTED_TYPE}} {id: string} with {text: string}`,
-			productsSchema: CommentCreatedSchema,
+			productsDomain: DOMAIN_COMMENT_CREATED,
 			action: async ({ label, id, text }: { label: string; id: string; text: string }) => {
 				const author = requirePrincipal(this.getWorld());
 				const store = this.getWorld().shared.getStore();
@@ -231,7 +242,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 		},
 		annotate: {
 			gwta: `annotate {label: ${DOMAIN_PERSISTED_TYPE}} {id: string} quoting {exact: string} with {text: string}`,
-			productsSchema: AnnotationCreatedSchema,
+			productsDomain: DOMAIN_ANNOTATION_CREATED,
 			// The prose gwta binds label/id/exact/text; UI authoring calls this same action over RPC with the extra
 			// prefix/suffix (the selection's context, for a reliable anchor) and an optional link passage.
 			action: async (p: { label: string; id: string; exact: string; text: string; prefix?: string; suffix?: string; links?: Array<TQuoteAnchor> }) => this.runAnnotate(p),
@@ -240,7 +251,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			// `linking` sits right after the id (before `quoting`) so the plain `annotate … quoting …` gwta cannot also
 			// match this prose: the two steps stay unambiguous.
 			gwta: `annotate {label: ${DOMAIN_PERSISTED_TYPE}} {id: string} linking {exact: string} to {linkExact: string} with {text: string}`,
-			productsSchema: AnnotationCreatedSchema,
+			productsDomain: DOMAIN_ANNOTATION_CREATED,
 			action: async ({ label, id, exact, linkExact, text }: { label: string; id: string; exact: string; linkExact: string; text: string }) =>
 				this.runAnnotate({ label, id, exact, text, links: [{ exact: linkExact }] }),
 		},
@@ -250,7 +261,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			// intended occurrence. `anchoring` sits right after the id (a distinct keyword from `quoting`/`linking`) to keep
 			// the three annotate prose forms unambiguous.
 			gwta: `annotate {label: ${DOMAIN_PERSISTED_TYPE}} {id: string} anchoring {exact: string} {placement: ${ANNOTATION_PLACEMENT_DOMAIN}} {context: string} with {text: string}`,
-			productsSchema: AnnotationCreatedSchema,
+			productsDomain: DOMAIN_ANNOTATION_CREATED,
 			action: async ({
 				label,
 				id,
@@ -273,13 +284,13 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			// note at the time it is ABOUT, so time-placed views (gantt) show it there; each link renders as a followable
 			// cross-reference in the document.
 			gwta: `annotate note {data: ${ANNOTATION_NOTE_DOMAIN}}`,
-			productsSchema: AnnotationCreatedSchema,
+			productsDomain: DOMAIN_ANNOTATION_CREATED,
 			action: async ({ data }: { data: TAnnotationNote }) => this.runAnnotate(data),
 		},
 		annotations: {
 			read: true,
 			gwta: `get annotations for {label: ${DOMAIN_PERSISTED_TYPE}} {id: string}`,
-			productsSchema: AnnotationListSchema,
+			productsDomain: DOMAIN_ANNOTATIONS,
 			action: async ({ id }: { label: string; id: string }) => {
 				const store = this.getWorld().shared.getStore();
 				// Reverse-walk the W3C Web Annotation chain from the annotated individual with LABEL-SCOPED bulk reads, then

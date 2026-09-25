@@ -149,20 +149,6 @@ describe("the page strip", () => {
 		expect(pane.isCollapsed, "and closes it").toBe(true);
 	});
 
-	it("pins the open docked pane without closing it, since a click in the strip isn't a click elsewhere", async () => {
-		const strip = await mountStrip();
-		const pane = await mountDockedPane();
-		pane.open();
-		await settled(pane, strip);
-		control(strip, SHU_TEST_IDS.APP.DOCK_PIN).click();
-		await settled(pane, strip);
-		expect(pane.state.pinned, "the pin pins the pane").toBe(true);
-		expect(pane.isCollapsed, "and the pane stays open").toBe(false);
-		control(strip, SHU_TEST_IDS.APP.DOCK_PIN).click();
-		await settled(pane, strip);
-		expect(pane.state.pinned, "and unpins it").toBe(false);
-	});
-
 	it("changes the read access level the query reads at", async () => {
 		pageContext.set({ patterns: [], accessLevel: Access.private });
 		const strip = await mountStrip();

@@ -139,23 +139,22 @@ describe("how a docked pane stands", () => {
 		expect(pane.container.style.getPropertyValue(DOCK_FOOTPRINT), "a pane removed from the page").toBe("");
 	});
 
-	it("states itself as the docked pane as it opens, closes and is pinned, and withdraws that in the strip and when it goes", () => {
+	it("states itself as the docked pane as it opens and closes, and withdraws that in the strip and when it goes", () => {
 		const pane = aDockedPane();
 		rendered(pane);
-		expect(dockedPane.get()).toEqual({ key: "Docked", open: false, pinned: false });
+		expect(dockedPane.get()).toEqual({ key: "Docked", open: false });
 		pane.state.closed = false;
-		pane.state.pinned = true;
 		rendered(pane);
-		expect(dockedPane.get()).toEqual({ key: "Docked", open: true, pinned: true });
+		expect(dockedPane.get()).toEqual({ key: "Docked", open: true });
 		pane.state.docked = false;
 		rendered(pane);
 		expect(dockedPane.get(), "a pane returned to the strip").toBeNull();
 		pane.state.docked = true;
 		rendered(pane);
-		dockedPane.set({ key: "Other", open: true, pinned: false });
+		dockedPane.set({ key: "Other", open: true });
 		pane.state.docked = false;
 		rendered(pane);
-		expect(dockedPane.get(), "a pane returned to the strip leaves another docked pane stated as it is").toEqual({ key: "Other", open: true, pinned: false });
+		expect(dockedPane.get(), "a pane returned to the strip leaves another docked pane stated as it is").toEqual({ key: "Other", open: true });
 		pane.state.docked = true;
 		rendered(pane);
 		pane.host.disconnect();

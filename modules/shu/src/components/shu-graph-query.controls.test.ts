@@ -33,7 +33,7 @@ describe("view-query controls", () => {
 		const validated = validateToolInput([0], tool, input, world);
 		const featureStep = buildFeatureStepForTransport(tool, validated, [0]);
 		const result = await tool.handler(featureStep, world);
-		const productError = validateProducts("ShuGraphQueryControls", method, tool.stepDef as never, world, result.products);
+		const productError = validateProducts("ShuGraphQueryControls", method, tool.stepDef as never, world, result.products, featureStep.seqPath);
 		return { result, productError };
 	};
 

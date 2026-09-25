@@ -17,7 +17,6 @@ import { LINT_FINDING, lintDomainChain, lintFindingLine, type TLintFinding } fro
 /** What fixes each kind of finding. */
 const FIX: Record<TLintFinding["kind"], string> = {
 	[LINT_FINDING.STRING_PARAM]: "name the domain of what the value is in the step's phrase",
-	[LINT_FINDING.UNNAMED_PRODUCTS]: "name the domain of the step's products with productsDomain",
 	[LINT_FINDING.ORPHAN_STEP]: "declare the step that consumes the domain",
 	[LINT_FINDING.UNSUPPLIED_STEP]: "declare the step that produces the domain",
 	[LINT_FINDING.UNREACHABLE_DOMAIN]: "declare a step that consumes or produces the domain, or remove it",

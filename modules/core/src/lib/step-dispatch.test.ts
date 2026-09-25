@@ -14,14 +14,16 @@ import {
 } from "./step-registry.js";
 import { validateToolInput } from "./tool-validation.js";
 import { EVERY_DEFINITION } from "./step-discovery.js";
-import { AStepper, type TStepperStep } from "./astepper.js";
-import { OK } from "../schema/protocol.js";
+import { AStepper, type TFeatureStep, type TStepperStep } from "./astepper.js";
+import { OK, type TStepArgs } from "../schema/protocol.js";
 import { actionOKWithProducts, actionNotOK } from "./util/index.js";
 import { getDefaultWorld } from "./test/lib.js";
+import { TEST_DOMAIN, declaresTestDomains, testDomainDefinitions } from "./test/test-domains.js";
 import { individualRefDomain, registerDomains } from "./domains.js";
 import type { TWorld } from "./world.js";
 import { LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "./resources.js";
-import { SEQ_PATH_FIELD, executionOf, formatRecordName } from "./seq-path.js";
+import { SEQ_PATH_FIELD, executionOf, factIdOf, formatRecordName } from "./seq-path.js";
+import { FACT_GRAPH, getFact } from "./working-memory.js";
 import { streamContext, streamOver } from "./step-stream-context.js";
 import { capabilityAllows } from "./actions.js";
 import { RUN_AUTHORITY, readingAt, runActingAs, runReadingAt } from "./capability-context.js";
@@ -39,19 +41,12 @@ class PlainStepper extends AStepper {
 	};
 }
 
-const PRODUCT_COUNT_DOMAIN = "product-count";
-const ProductCountSchema = z.object({ count: z.number() });
-
 class ProductStepper extends AStepper {
-	cycles = {
-		getConcerns: () => ({
-			domains: [{ selectors: [PRODUCT_COUNT_DOMAIN], schema: ProductCountSchema, description: "A counted product" }],
-		}),
-	};
+	cycles = declaresTestDomains();
 	steps = {
 		getCount: {
 			gwta: "get the count",
-			productsDomain: PRODUCT_COUNT_DOMAIN,
+			productsDomain: TEST_DOMAIN.count,
 			action: () => {
 				return actionOKWithProducts({ count: 42 });
 			},
@@ -86,7 +81,7 @@ describe("step-dispatch", () => {
 
 	beforeEach(() => {
 		world = getDefaultWorld();
-		world.domains[PRODUCT_COUNT_DOMAIN] = { selectors: [PRODUCT_COUNT_DOMAIN], schema: ProductCountSchema, coerce: (p) => p.value, description: "A counted product" };
+		registerDomains(world, [testDomainDefinitions]);
 	});
 
 	describe("stepMethodName", () => {
@@ -363,6 +358,7 @@ describe("step-dispatch", () => {
 					protectedEcho: {
 						gwta: "protected echo {message}",
 						capability: "Remote:invoke",
+						productsDomain: TEST_DOMAIN.echoed,
 						action: async ({ message }: { message: string }) => actionOKWithProducts({ echoed: message }),
 					},
 				};
@@ -378,6 +374,29 @@ describe("step-dispatch", () => {
 
 			expect(result.ok).toBe(true);
 			expect(result.products).toMatchObject({ echoed: "hello", _seqPath: [0, 7] });
+		});
+
+		it("refuses products a step answers with and names no domain of, and passes those of a step it ran", async () => {
+			const stepper = new (class extends AStepper {
+				steps = {
+					counts: { gwta: "count", productsDomain: TEST_DOMAIN.count, action: async () => actionOKWithProducts({ count: 1 }) },
+					unnamed: { gwta: "count unnamed", action: async () => actionOKWithProducts({ count: 1 }) },
+					runsTheCount: { gwta: "run the count", action: (_: TStepArgs, featureStep: TFeatureStep) => call("counts", [...featureStep.seqPath, 1]) },
+				};
+			})();
+			const steppers = [stepper];
+			const registry = new StepRegistry(steppers, world);
+			const call = (name: string, path: number[]) =>
+				dispatchStep(
+					{ registry, world, steppers, grantedCapability: RUN_AUTHORITY },
+					buildFeatureStepForTransport(registry.get(`${stepper.constructor.name}-${name}`) as StepTool, {}, path),
+				);
+			const unnamed = await call("unnamed", [0, 30, 1]);
+			expect(unnamed.ok, "a step answering with products of no domain").toBe(false);
+			expect(unnamed.errorMessage).toMatch(/returned products and names no domain/);
+			const ran = await call("runsTheCount", [0, 30, 2]);
+			expect(ran.ok, ran.errorMessage).toBe(true);
+			expect(ran.products, "a step answering with the products of a step it ran").toMatchObject({ count: 1 });
 		});
 
 		it("names the step each call is part of, where two steps are in flight at once", async () => {
@@ -426,8 +445,8 @@ describe("step-dispatch", () => {
 		describe("what the caller holds", () => {
 			class Held extends AStepper {
 				steps = {
-					readsAtCeiling: { gwta: "read at the ceiling", action: async () => actionOKWithProducts({ at: readingAt() ?? "unbounded" }) },
-					describesItself: { gwta: "describe this", read: true, action: async () => actionOKWithProducts({ described: true }) },
+					readsAtCeiling: { gwta: "read at the ceiling", productsDomain: TEST_DOMAIN.readAt, action: async () => actionOKWithProducts({ at: readingAt() ?? "unbounded" }) },
+					describesItself: { gwta: "describe this", read: true, action: async () => OK },
 				};
 			}
 			const held = () => {
@@ -448,7 +467,7 @@ describe("step-dispatch", () => {
 				const { call } = held();
 				await expect(call("readsAtCeiling", [], [0, 20, 1])).rejects.toThrow(/capability Held:readsAtCeiling required/);
 				await expect(call("describesItself", [], [0, 20, 2]), "no step is open to a caller holding nothing").rejects.toThrow(/capability Read:public required/);
-				expect((await call("describesItself", ["Read:private"], [0, 20, 3])).products, "a broader read allows it").toMatchObject({ described: true });
+				expect((await call("describesItself", ["Read:private"], [0, 20, 3])).ok, "a broader read allows it").toBe(true);
 			});
 
 			it("bounds what a step reads by the broadest read its caller holds, and at public for a caller holding none", async () => {
@@ -474,7 +493,7 @@ describe("step-dispatch", () => {
 		it("answers a read the run did not ask for without recording it, however that read arrived, and records the read a feature states in its own body", async () => {
 			const stepper = new (class extends AStepper {
 				steps = {
-					howMany: { gwta: "how many", read: true, action: async () => actionOKWithProducts({ count: 3 }) },
+					howMany: { gwta: "how many", read: true, productsDomain: TEST_DOMAIN.count, action: async () => actionOKWithProducts({ count: 3 }) },
 				};
 			})();
 			const steppers = [stepper];
@@ -492,6 +511,7 @@ describe("step-dispatch", () => {
 			expect(answered.ok).toBe(true);
 			expect(answered.products, "the question is answered").toMatchObject({ count: 3 });
 			expect(await recordOf([0, 9, 1]), "no record of the run being read over a transport").toEqual([]);
+			expect(await getFact(world, TEST_DOMAIN.count, factIdOf("0.9.1"), FACT_GRAPH), "and no fact of what it answered").toBeUndefined();
 			expect(world.runtime.stepResults?.length ?? 0, "nothing kept in the process for it").toBe(kept);
 
 			// Beneath a step the feature states, which is the feature reading through a combinator: `set x from <a read>`
@@ -511,6 +531,7 @@ describe("step-dispatch", () => {
 			const run = await dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, inTheFeature);
 			expect(run.ok).toBe(true);
 			expect((await recordOf([0, 9, 3])).length, "a read a feature states is a step of the run").toBeGreaterThan(0);
+			expect(await getFact(world, TEST_DOMAIN.count, factIdOf("0.9.3"), FACT_GRAPH), "whose answer is a fact of the run").toMatchObject({ count: 3 });
 			expect(world.runtime.stepResults?.length ?? 0, "and is kept with the run's other steps").toBe(kept + 1);
 		});
 

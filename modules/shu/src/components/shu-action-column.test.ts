@@ -30,7 +30,11 @@ describe("an action's view", () => {
 		resetStepRegistry();
 		setDeviceStore(new MemoryDeviceStore());
 		handle = setupShuTest({ dispatch: (method) => (method === SHOW_STEPS_METHOD ? stepsShown([PUBLIC_READ, PRIVATE_READ, DELEGATES, REVOKES]) : undefined) });
-		for (const [tag, element] of [[SHU_TAG.ACTION_COLUMN, ShuActionColumn], [SHU_TAG.REF, ShuRef]] as const) if (!customElements.get(tag)) customElements.define(tag, element);
+		for (const [tag, element] of [
+			[SHU_TAG.ACTION_COLUMN, ShuActionColumn],
+			[SHU_TAG.REF, ShuRef],
+		] as const)
+			if (!customElements.get(tag)) customElements.define(tag, element);
 	});
 	afterEach(() => {
 		handle.teardown();

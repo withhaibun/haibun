@@ -51,7 +51,9 @@ describe("the steps a listing shows", () => {
 	});
 
 	it("are those the caller it acts for holds, while what it may call stays its own", async () => {
-		const seen = await runAuthorizedWith(["*"], () => runShowing(authorizedWith(), () => runAuthorizedWith("Read:public", () => Promise.resolve({ shown: shownTo(), held: authorizedWith() }))));
+		const seen = await runAuthorizedWith(["*"], () =>
+			runShowing(authorizedWith(), () => runAuthorizedWith("Read:public", () => Promise.resolve({ shown: shownTo(), held: authorizedWith() }))),
+		);
 		expect(seen).toEqual({ shown: ["*"], held: "Read:public" });
 	});
 });

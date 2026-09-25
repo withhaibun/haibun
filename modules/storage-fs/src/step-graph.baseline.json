@@ -1,4 +1,5 @@
 [
+	"orphan-step StorageFS.readFile produces file-contents",
 	"string-param StorageFS.createDirectory {where: string}",
 	"string-param StorageFS.createFile {what: string}",
 	"string-param StorageFS.createFile {where: string}",
@@ -19,6 +20,5 @@
 	"string-param StorageFS.testIs {what: string}",
 	"string-param StorageFS.testIs {where: string}",
 	"string-param StorageFS.testNotContains {what: string}",
-	"string-param StorageFS.testNotContains {where: string}",
-	"unnamed-products StorageFS.readFile"
+	"string-param StorageFS.testNotContains {where: string}"
 ]

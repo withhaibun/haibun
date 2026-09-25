@@ -16,6 +16,10 @@ const WatchSchema = z.object({ watching: z.array(z.string()), window: z.number()
 const SeriesSchema = z.object({ name: z.string(), labels: z.record(z.string(), z.string()), count: z.number(), sum: z.number().optional(), max: z.number().optional() });
 const ShowSchema = z.object({ text: z.string(), held: z.number(), seen: z.number(), watching: z.array(z.string()), totals: z.array(SeriesSchema) });
 const DeclaredSchema = z.object({ text: z.string(), names: z.array(z.string()) });
+/** The domains of what watching and showing blips answer with. */
+const DOMAIN_BLIP_WATCH = "blip-watch";
+const DOMAIN_WATCHED_BLIPS = "watched-blips";
+const DOMAIN_DECLARED_BLIPS = "declared-blips";
 
 /** One occurrence as a line: ordinal, name, value, step, attributes. */
 export function renderOccurrence(blip: TBlipEvent, index: number): string {
@@ -83,7 +87,14 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 	];
 
 	cycles: IStepperCycles = {
-		getConcerns: () => ({ sources: this.sources }),
+		getConcerns: () => ({
+			sources: this.sources,
+			domains: [
+				{ selectors: [DOMAIN_BLIP_WATCH], schema: WatchSchema, description: "The blips a run watches, and over what window" },
+				{ selectors: [DOMAIN_WATCHED_BLIPS], schema: ShowSchema, description: "What the watched blips held and totalled" },
+				{ selectors: [DOMAIN_DECLARED_BLIPS], schema: DeclaredSchema, description: "The blips a run declares" },
+			],
+		}),
 		startExecution: async () => {
 			await Promise.resolve();
 			blipRollup.attach(this.getWorld().eventLogger);
@@ -104,7 +115,7 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 			gwta: "watch blips {names: string}",
 			description:
 				"Start collecting occurrences with the given names, in order. Names are comma separated; a dotted namespace matches everything under it (`haibun.http` matches `haibun.http.request`). Each name must be declared. Replaces any earlier watch. Read with `show watched blips`.",
-			productsSchema: WatchSchema,
+			productsDomain: DOMAIN_BLIP_WATCH,
 			action: async ({ names }: { names: string }) => {
 				await Promise.resolve();
 				const watching = names
@@ -132,19 +143,25 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 			gwta: "show watched blips",
 			description:
 				"The watched occurrences as text. Opens with each name and value of its declared dimensions, counted over every occurrence recorded, with the total and largest of a measured value, then lists the window oldest first, each occurrence with its name, value, step path and attributes. Reports the total recorded and how many the window holds.",
-			productsSchema: ShowSchema,
+			productsDomain: DOMAIN_WATCHED_BLIPS,
 			action: async () => {
 				await Promise.resolve();
 				const held = blipWatch.occurrences();
 				const totals = blipWatch.totals();
-				return actionOKWithProducts({ text: renderWatch(held, blipWatch.seen, totals), held: held.length, seen: blipWatch.seen, watching: [...blipWatch.names], totals: [...totals] });
+				return actionOKWithProducts({
+					text: renderWatch(held, blipWatch.seen, totals),
+					held: held.length,
+					seen: blipWatch.seen,
+					watching: [...blipWatch.names],
+					totals: [...totals],
+				});
 			},
 		},
 		showDeclaredBlips: {
 			gwta: "show declared blips",
 			description:
 				"Every name this run can record, with its description and, for declarations using `origin`, the `path:line` that declares it. Use it to find what is to watch and where its code is.",
-			productsSchema: DeclaredSchema,
+			productsDomain: DOMAIN_DECLARED_BLIPS,
 			action: async () => {
 				await Promise.resolve();
 				const declared = blipDeclarations();

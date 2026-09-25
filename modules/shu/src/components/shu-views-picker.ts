@@ -45,9 +45,11 @@ export class ShuViewsPicker extends ShuElement<typeof ViewsPickerSchema> {
 		this.views = views;
 	}
 
-	private onPick = (v: TView) => (e: MouseEvent): void => {
-		if (v.component) PaneState.requestFrom(e, { paneType: "component", tag: v.component, label: v.description }, addsToSelection(e));
-	};
+	private onPick =
+		(v: TView) =>
+		(e: MouseEvent): void => {
+			if (v.component) PaneState.requestFrom(e, { paneType: "component", tag: v.component, label: v.description }, addsToSelection(e));
+		};
 
 	render(): TemplateResult {
 		return html`<ul class="views-list" data-testid=${SHU_TEST_IDS.VIEWS_PICKER.ROOT}>${this.views.map(

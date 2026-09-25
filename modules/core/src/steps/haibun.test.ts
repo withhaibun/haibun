@@ -244,7 +244,8 @@ describe("show steps", () => {
 					action: async () => {
 						const haibun = this.getWorld().runtime.steppers?.find((stepper) => stepper instanceof Haibun) as Haibun;
 						const list = () => haibun.steps.showSteps.action({ text: "TestSteps-passes", detail: "summary" }) as Promise<{ products: { steps: Array<{ method: string }> } }>;
-						for (const listed of [await runAuthorizedWith(["Read:public"], list), await runShowing(RUN_AUTHORITY, () => runAuthorizedWith(["Read:public"], list))]) shown.push(listed.products.steps.map((step) => step.method));
+						for (const listed of [await runAuthorizedWith(["Read:public"], list), await runShowing(RUN_AUTHORITY, () => runAuthorizedWith(["Read:public"], list))])
+							shown.push(listed.products.steps.map((step) => step.method));
 						return actionOK();
 					},
 				},

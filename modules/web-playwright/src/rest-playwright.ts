@@ -3,7 +3,7 @@ import WebPlaywright from "./web-playwright.js";
 import { WEB_PLAYWRIGHT_ACTIONS } from "./actions.js";
 import { OK } from "@haibun/core/schema/protocol.js";
 import { TStepperSteps } from "@haibun/core/lib/astepper.js";
-import { RestJsonCountSchema } from "./domains.js";
+import { DOMAIN_JSON_RESPONSE_COUNT } from "./domains.js";
 
 const PAYLOAD_METHODS = ["post", "put", "patch"];
 const NO_PAYLOAD_METHODS = ["get", "delete", "head"];
@@ -117,7 +117,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 		showResponseLength: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
 			gwta: `show JSON response count`,
-			productsSchema: RestJsonCountSchema,
+			productsDomain: DOMAIN_JSON_RESPONSE_COUNT,
 			action: async () => {
 				const lastResponse = await webPlaywright.getLastResponse();
 				if (!lastResponse?.json || typeof lastResponse.json.length !== "number") {

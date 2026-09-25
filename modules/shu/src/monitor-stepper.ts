@@ -15,7 +15,7 @@ import "./view-blips.js";
 import "./graph-blips.js";
 import "./page-blips.js";
 import { type TWorld } from "@haibun/core/lib/world.js";
-import type { THaibunEvent } from "@haibun/core/schema/protocol.js";
+import { OK, type THaibunEvent } from "@haibun/core/schema/protocol.js";
 
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { OBSCURED_VALUE } from "@haibun/core/lib/feature-variables.js";
@@ -87,6 +87,8 @@ export const LogEventSchema = z.object({
 export type TLogEvent = z.infer<typeof LogEventSchema>;
 
 export const DOMAIN_CLIENT_BLIPS = "shu-client-blips";
+/** The domain of a standalone shu report a step wrote: where it was written. */
+const DOMAIN_SHU_REPORT = "shu-report";
 
 /** A batch of fine-grained occurrences the SPA recorded and handed over together, since one request each is not
  *  sustainable at the rate they happen. `recorded` is everything the page has recorded, so a batch a full buffer
@@ -152,13 +154,14 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 					schema: fromJsonText(ClientBlipsSchema),
 					description: "A batch of fine-grained occurrences recorded in the SPA",
 				},
+				{ selectors: [DOMAIN_SHU_REPORT], schema: z.object({ path: z.string() }), description: "Where a standalone shu report was written" },
 			],
 		}),
 		startFeature: () => {
 			const webserver = this.getWorld().runtime[WEBSERVER] as IWebServer;
 			const artifactDir = resolve(this.storage.getArtifactBasePath());
 			this.storage.ensureDirExists(artifactDir);
-			webserver.addKnownStaticFolder(artifactDir, "/artifacts");
+			webserver.addKnownStaticFolder(artifactDir, "/artifacts", { description: "What the run's steps captured, such as screenshots and videos" });
 		},
 		onEvent: (event: THaibunEvent) => {
 			const e = event as Record<string, unknown>;
@@ -354,6 +357,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			gwta: "saves shu to {where: string}",
 			description:
 				"Write the standalone shu HTML report to the given path. Invokable any time during a feature; endFeature writes once more so the final file always reflects the full run.",
+			productsDomain: DOMAIN_SHU_REPORT,
 			action: async ({ where }: { where: string }) => {
 				this.outputPath = where;
 				const written = await this.writeStandaloneReport({ fixedPath: where, compressed: true });
@@ -364,6 +368,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			gwta: "saves shu uncompressed to {where: string}",
 			description:
 				"Write the standalone shu report with an uncompressed plain-JSON payload, so the redacted text can be read and audited directly, same content as the compressed report, just larger. A one-off write that does not become the feature's canonical output.",
+			productsDomain: DOMAIN_SHU_REPORT,
 			action: async ({ where }: { where: string }) => {
 				const written = await this.writeStandaloneReport({ fixedPath: where, compressed: false });
 				return actionOKWithProducts({ path: written });
@@ -392,7 +397,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				else if (level === "error") this.getWorld().eventLogger.error(line, attributes);
 				else if (level === "debug") this.getWorld().eventLogger.debug(line, attributes);
 				else this.getWorld().eventLogger.info(line, attributes);
-				return actionOKWithProducts({});
+				return OK;
 			},
 		},
 		recordClientBlips: {
@@ -407,7 +412,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				// given, and the page holds the truth about what it saw.
 				const missed = (batch.recorded ?? 0) - (this.clientBlipsReceived += batch.blips.length);
 				if (missed > 0) world.eventLogger.debug(`[shu] ${missed} client occurrence(s) recorded but not delivered; the page's buffer filled between batches`);
-				return actionOKWithProducts({});
+				return OK;
 			},
 		},
 	} satisfies TStepperSteps;

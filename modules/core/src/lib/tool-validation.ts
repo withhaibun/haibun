@@ -1,7 +1,8 @@
 import { z } from "zod";
 import type { TStepperStep } from "./astepper.js";
 import type { TWorld } from "./world.js";
-import type { TSeqPath } from "../schema/protocol.js";
+import { TRACE_SEQ_PATH, type TSeqPath } from "../schema/protocol.js";
+import { formatSeqPath } from "./seq-path.js";
 import { normalizeDomainKey } from "./domains.js";
 import type { StepTool } from "./step-registry.js";
 import { errorDetail } from "./util/index.js";
@@ -45,10 +46,22 @@ export function validateToolInput(fromSeqPath: TSeqPath, tool: StepTool, input: 
 	return validated;
 }
 
-/** Validate step products against the declared output schema; returns error string or undefined. */
-export function validateProducts(stepperName: string, actionName: string, stepDef: TStepperStep, world: TWorld, products: unknown): string | undefined {
+/** Whether products were answered by the step of a statement the step at `seqPath` ran, whose dispatch named and validated them. */
+const answeredByStatement = (products: object, seqPath: TSeqPath): boolean => {
+	const at = (products as Record<string, unknown>)[TRACE_SEQ_PATH];
+	return Array.isArray(at) && formatSeqPath(at) !== formatSeqPath(seqPath);
+};
+
+/**
+ * Validate the products of the step at `seqPath` against the domain it names. A step naming no domain answers with none of
+ * its own: products it returns are an error, but for those of a statement it ran.
+ */
+export function validateProducts(stepperName: string, actionName: string, stepDef: TStepperStep, world: TWorld, products: unknown, seqPath: TSeqPath): string | undefined {
 	const schema = resolveOutputSchema(stepperName, actionName, stepDef, world);
-	if (!schema) return undefined;
+	if (!schema) {
+		if (products === undefined || products === null || (typeof products === "object" && answeredByStatement(products, seqPath))) return undefined;
+		return `step ${stepperName}.${actionName} returned products and names no domain they are`;
+	}
 	if (products === undefined || products === null) {
 		return `step ${stepperName}.${actionName} declared an output schema but action returned no products`;
 	}
@@ -58,20 +71,12 @@ export function validateProducts(stepperName: string, actionName: string, stepDe
 }
 
 /**
- * Resolve a step's output schema from its declarations. Exactly one of `productsDomain`,
- * `productsDomains`, or `productsSchema` may be set:
- *   - `productsDomain` looks up a registered domain and uses its schema.
- *   - `productsDomains` looks up multiple domains and builds an object schema keyed by field.
- *   - `productsSchema` uses an inline Zod schema with no domain registration.
- * A step with none of these produces no typed output.
+ * Resolve a step's output schema from the domains it names. At most one of `productsDomain` and `productsDomains` may be
+ * set: `productsDomain` uses a registered domain's schema, `productsDomains` builds an object schema keyed by field from
+ * each. A step naming neither returns no products.
  */
 export function resolveOutputSchema(stepperName: string, stepName: string, stepDef: TStepperStep, world: TWorld): z.ZodType | undefined {
-	const declared = [stepDef.productsDomain ? "productsDomain" : null, stepDef.productsDomains ? "productsDomains" : null, stepDef.productsSchema ? "productsSchema" : null].filter(
-		Boolean,
-	);
-	if (declared.length > 1) {
-		throw new Error(`step ${stepperName}.${stepName}: only one of productsDomain, productsDomains, productsSchema may be set (got: ${declared.join(", ")})`);
-	}
+	if (stepDef.productsDomain && stepDef.productsDomains) throw new Error(`step ${stepperName}.${stepName}: only one of productsDomain, productsDomains may be set`);
 	if (stepDef.productsDomain) {
 		const domain = world.domains?.[normalizeDomainKey(stepDef.productsDomain)];
 		if (!domain) throw new Error(`step ${stepperName}.${stepName}: productsDomain "${stepDef.productsDomain}" is not a registered domain`);
@@ -85,9 +90,6 @@ export function resolveOutputSchema(stepperName: string, stepName: string, stepD
 			fields[field] = domain.schema;
 		}
 		return z.object(fields);
-	}
-	if (stepDef.productsSchema) {
-		return stepDef.productsSchema;
 	}
 	return undefined;
 }

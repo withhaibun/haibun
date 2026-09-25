@@ -20,10 +20,13 @@ vi.mock("./event-stream.js", async (actual) => ({
 vi.mock("./rpc-registry.js", async (actual) => ({ ...(await actual<Record<string, unknown>>()), ...rpcRegistry, isOffline: () => true }));
 const read: { turns: TSessionTurn[]; reads: number } = { turns: [], reads: 0 };
 vi.mock("./hypermedia.js", () =>
-	hypermedia(() => {
-		read.reads += 1;
-		return { turns: read.turns };
-	}, () => Promise.resolve()),
+	hypermedia(
+		() => {
+			read.reads += 1;
+			return { turns: read.turns };
+		},
+		() => Promise.resolve(),
+	),
 );
 
 const { conversationState, dispatchConversationEvent, followRunningTurns, gainedSince, openConversation } = await import("./conversation.js");

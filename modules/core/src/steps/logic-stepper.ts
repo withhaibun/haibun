@@ -11,7 +11,9 @@ import { OBSERVATION_GRAPH, queryFacts } from "../lib/working-memory.js";
 // the observation/step-usage named graph. Step names are sanitized (dots → underscores)
 // to avoid variable name conflicts with the "observed in {source}" quantifier output.
 
-const MaybeOutcomeSchema = z.object({ outcome: z.unknown() });
+/** What a statement run as a maybe ended with, which fails nothing whether or not it passed. */
+const MaybeOutcomeSchema = z.object({ outcome: z.looseObject({ ok: z.boolean() }) });
+const DOMAIN_MAYBE_OUTCOME = "maybe-outcome";
 
 const builtInSources: IObservationSource[] = [
 	{
@@ -68,6 +70,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 	cycles: IStepperCycles = {
 		getConcerns: () => ({
 			sources: builtInSources,
+			domains: [{ selectors: [DOMAIN_MAYBE_OUTCOME], schema: MaybeOutcomeSchema, description: "What a statement run as a maybe ended with" }],
 		}),
 	};
 
@@ -195,7 +198,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 		maybe: {
 			gwta: `maybe {statements:${DOMAIN_STATEMENT}}`,
 			description: "Executes the statement but suppresses failure if it fails.",
-			productsSchema: MaybeOutcomeSchema,
+			productsDomain: DOMAIN_MAYBE_OUTCOME,
 			action: async ({ statements }: { statements: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				const res = await this.runner.runSteps(statements, { intent: { mode: "speculative" }, parentStep: featureStep });
 

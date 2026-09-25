@@ -182,6 +182,37 @@ describe("shu-step-caller", () => {
 		}
 	});
 
+	it("renders a result's rows as one table whose columns are every row's fields, a field a row lacks an empty cell", async () => {
+		const descriptor = {
+			method: "GoalStepper-showGoals",
+			pattern: "show goals",
+			paramDomains: {},
+			inputSchema: { properties: {}, required: [] },
+			outputSchema: { type: "object", properties: { goals: { type: "array", items: { type: "object" } } } },
+		};
+		if (!HTMLElement.prototype.scrollIntoView) HTMLElement.prototype.scrollIntoView = (): void => undefined;
+		const realFetch = globalThis.fetch;
+		globalThis.fetch = (input: unknown): Promise<Response> => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
+			if (url.endsWith("/rpc/action.begin")) return Promise.resolve(rpcAnswer({ seqPath: [0, -1, 1] }, 200));
+			return Promise.resolve(rpcAnswer({ goals: [{ goal: "issued", factIds: ["f1"] }, { goal: "revoked" }, { goal: "suspended", michi: 2 }] }, 200));
+		};
+		try {
+			const caller = makeCaller(descriptor) as HTMLElement & { callStep: (v: Record<string, string>) => Promise<void>; error: string };
+			await caller.callStep({});
+			expect(caller.error).toBe("");
+			const table = caller.shadowRoot?.querySelector("table");
+			expect([...(table?.querySelectorAll("th") ?? [])].map((th) => th.textContent)).toEqual(["goal", "factIds", "michi"]);
+			expect([...(table?.querySelectorAll("tbody tr") ?? [])].map((tr) => [...tr.querySelectorAll("td")].map((td) => td.textContent))).toEqual([
+				["issued", '["f1"]', ""],
+				["revoked", "", ""],
+				["suspended", "", "2"],
+			]);
+		} finally {
+			globalThis.fetch = realFetch;
+		}
+	});
+
 	it("oversized-response errors (HTTP 413 with `error`) render in the step-error div instead of hanging the caller", async () => {
 		// When a step's products exceed V8's max-string length, the web-server
 		// can't JSON.stringify them. It returns HTTP 413 with a structured

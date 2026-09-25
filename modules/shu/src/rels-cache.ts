@@ -551,7 +551,8 @@ export function toActorEdgeLabels(): ReadonlySet<string> {
 export function actorTypesFor(sourceTypes: Iterable<string>): string[] {
 	const actorEdges = new Set([...fromActorEdgeLabels(), ...toActorEdgeLabels()]);
 	const types = new Set<string>();
-	for (const source of sourceTypes) for (const [edge, targets] of Object.entries(metadata?.edgeRanges[source] ?? {})) if (actorEdges.has(edge)) for (const target of targets) types.add(target);
+	for (const source of sourceTypes)
+		for (const [edge, targets] of Object.entries(metadata?.edgeRanges[source] ?? {})) if (actorEdges.has(edge)) for (const target of targets) types.add(target);
 	return [...types];
 }
 

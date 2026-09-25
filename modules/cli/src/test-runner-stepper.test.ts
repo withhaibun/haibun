@@ -15,9 +15,10 @@ import { examineRun, runEvents } from "./run-outcome.js";
 import { FEATURE_EXECUTION_LABEL, RUN_STATUS, featureExecutionDomainDefinition } from "./feature-execution.js";
 import { principalDomainDefinition } from "@haibun/core/lib/resources.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
-import { AStepper } from "@haibun/core/lib/astepper.js";
+import { AStepper, type IHasCycles, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { actionOKWithProducts } from "@haibun/core/lib/util/index.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
+import { addStepperConcerns } from "@haibun/core/phases/Executor.js";
 import { hostScopedMethodName, openRunRegistry, runRegistry } from "@haibun/core/lib/step-registry.js";
 import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
@@ -26,14 +27,15 @@ import os from "node:os";
 import path from "node:path";
 import { VERIFIED_FILE } from "@haibun/core/lib/util/node/dependency-state.js";
 import { RUN_AUTHORITY, runAuthorizedWith } from "@haibun/core/lib/capability-context.js";
-import { SUPERVISOR_CAPABILITIES } from "./instance-stepper.js";
+import { RUN_DOMAIN, SUPERVISOR_CAPABILITIES, runDomainDefinitions } from "./instance-stepper.js";
 
 type TResult = { ok: boolean; errorMessage?: string; products?: { run: string; status: string; endpoint: string } };
 
 /** Stands in for the CLI's run supervisor, under the name the agent calls and requiring what it requires: the agent
  *  reaches it by dispatching a step, so what is exercised here is the call the real supervisor answers, not an opening
  *  made for the test. It answers a fixed tail so a read is deterministic. */
-class InstanceStepper extends AStepper {
+class InstanceStepper extends AStepper implements IHasCycles {
+	cycles: IStepperCycles = { getConcerns: () => ({ domains: runDomainDefinitions }) };
 	calls: Array<{ step: string; input: Record<string, unknown> }> = [];
 	ended: number | null = null;
 	/** What the run has said so far. A run reports its events, which is what the agent reads it for. */
@@ -42,6 +44,7 @@ class InstanceStepper extends AStepper {
 		startRun: {
 			gwta: `start a haibun run of {where} matching {filter} from {from} on port {port: number} as run {run} host {hostId: number}`,
 			capability: SUPERVISOR_CAPABILITIES.run,
+			productsDomain: RUN_DOMAIN.started,
 			action: (input: { where: string; filter: string; from: string; port: number; run: string; hostId: number }) => {
 				this.calls.push({ step: "startRun", input });
 				return Promise.resolve(actionOKWithProducts({ run: input.run, where: input.where, filter: input.filter }));
@@ -50,6 +53,7 @@ class InstanceStepper extends AStepper {
 		readRun: {
 			gwta: `read the haibun run {run} since {cursor: number}`,
 			capability: SUPERVISOR_CAPABILITIES.read,
+			productsDomain: RUN_DOMAIN.read,
 			action: (input: { run: string; cursor: number }) => {
 				this.calls.push({ step: "readRun", input });
 				const status = this.ended === null ? "running" : "ended";
@@ -78,6 +82,7 @@ class InstanceStepper extends AStepper {
 		waitRun: {
 			gwta: `wait for the haibun run {run} to end within {seconds: number} seconds`,
 			capability: SUPERVISOR_CAPABILITIES.read,
+			productsDomain: RUN_DOMAIN.read,
 			action: (input: { run: string; seconds: number; cursor: number }) => {
 				this.calls.push({ step: "waitRun", input });
 				return this.steps.readRun.action({ run: input.run, cursor: input.cursor });
@@ -86,6 +91,7 @@ class InstanceStepper extends AStepper {
 		stopRun: {
 			gwta: `stop the haibun run {run}`,
 			capability: SUPERVISOR_CAPABILITIES.stop,
+			productsDomain: RUN_DOMAIN.stopped,
 			action: (input: { run: string }) => {
 				this.calls.push({ step: "stopRun", input });
 				return Promise.resolve(actionOKWithProducts({ run: input.run }));
@@ -113,10 +119,12 @@ function harness({ supervised = true, standing = false }: { supervised?: boolean
 			[getStepperOptionName(stepper, "RUN_PORT")]: "8331",
 		};
 	world.shared.getStore = () => store;
-	// The Principal write declines a world with no domain registry, and runTest's productsDomain resolves its schema
-	// through the same registry, so the harness registers what the stepper's own getConcerns declares in a real run.
-	world.domains = { ...world.domains, ...mapDefinitionsToDomains([principalDomainDefinition, featureExecutionDomainDefinition]) };
+	// The Principal write declines a world with no domain registry, and a step's products domain resolves its schema
+	// through the same registry, so the harness registers Principal, whose stepper it doesn't load, and what its steppers
+	// declare, as a run does.
+	world.domains = { ...world.domains, ...mapDefinitionsToDomains([principalDomainDefinition]) };
 	const steppers = supervised ? [stepper, supervisor] : [stepper];
+	addStepperConcerns(world, steppers);
 	for (const s of steppers) void s.setWorld(world, steppers);
 	// The run's registry, as the executor opens it, which a step calls another step through.
 	openRunRegistry(world, steppers);

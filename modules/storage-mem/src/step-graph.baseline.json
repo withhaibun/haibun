@@ -1,4 +1,5 @@
 [
+	"orphan-step StorageMem.readFile produces file-contents",
 	"string-param StorageMem.createDirectory {where: string}",
 	"string-param StorageMem.createFile {what: string}",
 	"string-param StorageMem.createFile {where: string}",
@@ -19,6 +20,5 @@
 	"string-param StorageMem.testIs {what: string}",
 	"string-param StorageMem.testIs {where: string}",
 	"string-param StorageMem.testNotContains {what: string}",
-	"string-param StorageMem.testNotContains {where: string}",
-	"unnamed-products StorageMem.readFile"
+	"string-param StorageMem.testNotContains {where: string}"
 ]

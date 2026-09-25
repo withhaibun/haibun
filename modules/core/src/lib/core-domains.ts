@@ -78,7 +78,7 @@ export const goalResolutionSchema = z.discriminatedUnion("finding", [
 	z.object({ finding: z.literal("satisfied"), goal: z.string(), factIds: z.array(z.string()), michi: z.array(michiSchema), truncated: z.boolean() }),
 	z.object({ finding: z.literal("michi"), goal: z.string(), michi: z.array(michiSchema), truncated: z.boolean() }),
 	z.object({ finding: z.literal("unreachable"), goal: z.string(), missing: z.array(z.string()) }),
-	z.object({ finding: z.literal("refused"), goal: z.string(), refusalReason: z.enum(["anonymous-outputs-present", "capability-context-required"]), detail: z.string() }),
+	z.object({ finding: z.literal("refused"), goal: z.string(), refusalReason: z.enum(["capability-context-required"]), detail: z.string() }),
 ]);
 
 /**

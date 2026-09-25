@@ -34,7 +34,10 @@ describe("what a page sends of a view that states many members", () => {
 	it("carries the members the view stated first, and states the page terms", () => {
 		const carried = harvested(collection(HARVEST_MEMBERS + 50)) as Record<string, unknown>;
 		expect(carried.partOf, "the page has no address of its own: it pages the collection at the view's address").toBe("view:graph");
-		expect((carried.items as Array<{ at: number }>).map((m) => m.at), "the view states the order it wants them read").toEqual(Array.from({ length: HARVEST_MEMBERS }, (_, at) => at));
+		expect(
+			(carried.items as Array<{ at: number }>).map((m) => m.at),
+			"the view states the order it wants them read",
+		).toEqual(Array.from({ length: HARVEST_MEMBERS }, (_, at) => at));
 		expect(carried.totalItems, "the count the view stated stands, so a reader is told how many the view holds").toBe(HARVEST_MEMBERS + 50);
 		expect("membersCarried" in carried, "what arrived is what items carries; the count standing against it says so").toBe(false);
 		expect(carried["@type"], "a context payload claims no resource type; the claim belongs to the boundary").toBeUndefined();

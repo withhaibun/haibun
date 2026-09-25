@@ -186,8 +186,6 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 				return html`a step takes ${domainRef(f.domain)}, and no step returns it`;
 			case LINT_FINDING.STRING_PARAM:
 				return html`${step(f.stepperName, f.stepName)} takes ${f.param} as ${domainRef(f.domain)}, which says nothing of what the value is`;
-			case LINT_FINDING.UNNAMED_PRODUCTS:
-				return html`${step(f.stepperName, f.stepName)} returns products with a schema and no domain`;
 		}
 	}
 

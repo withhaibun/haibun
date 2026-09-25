@@ -1,5 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { classifyLinkText, markdownRef, parseRefHref, parseTextDirective, resolveLinkTarget, textDirectiveFor, typedHref, typedLinkFacts, type TLinkVocabulary } from "./typed-links.js";
+import {
+	classifyLinkText,
+	markdownRef,
+	parseRefHref,
+	parseTextDirective,
+	resolveLinkTarget,
+	textDirectiveFor,
+	typedHref,
+	typedLinkFacts,
+	type TLinkVocabulary,
+} from "./typed-links.js";
 import { LinkRelations } from "./resources.js";
 
 const TYPES = new Set(["Document", "Comment", "FieldReport"]);

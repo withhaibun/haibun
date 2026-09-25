@@ -1,4 +1,5 @@
 import path from "path";
+import { z } from "zod";
 
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
@@ -26,6 +27,13 @@ import type { IStepTransport } from "./step-transport.js";
 
 /** What holding authority over this instance's web server means: ending the process that serves it. */
 export const WEB_SERVER_CAPABILITIES = { stop: "WebServer:stop" } as const;
+/** The domain of the ports this process listens on, each with why it listens. */
+const DOMAIN_LISTENING_PORTS = "listening-ports";
+const ListeningPortsSchema = z.object({ ports: z.record(z.string(), z.string()) });
+const listeningSummary = (p: Record<string, unknown>) =>
+	`listening: ${Object.entries(p.ports as Record<string, string>)
+		.map(([port, why]) => `${port} (${why})`)
+		.join(", ")}`;
 
 const cycles = (wss: WebServerStepper): IStepperCycles => ({
 	getConcerns: () => ({
@@ -52,6 +60,7 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 					sortColumns: { url: "TEXT" },
 				},
 			},
+			{ selectors: [DOMAIN_LISTENING_PORTS], schema: ListeningPortsSchema, description: "The ports this process listens on, each with why", ui: { summary: listeningSummary } },
 		],
 	}),
 	async startFeature() {
@@ -163,16 +172,8 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		},
 		showPorts: {
 			gwta: "show ports",
-			action: () => {
-				const ports = Object.fromEntries(ServerHono.listeningPorts);
-				return actionOKWithProducts({
-					_type: "ServerConfig",
-					_summary: `listening: ${Object.entries(ports)
-						.map(([p, w]) => `${p} (${w})`)
-						.join(", ")}`,
-					ports,
-				});
-			},
+			productsDomain: DOMAIN_LISTENING_PORTS,
+			action: () => actionOKWithProducts({ ports: Object.fromEntries(ServerHono.listeningPorts) }),
 		},
 		isListening: {
 			gwta: "webserver is listening for {why}",
@@ -181,20 +182,11 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 				return OK;
 			},
 		},
-		showMounts: {
-			gwta: "show mounts",
-			action: () => {
-				const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER) as IWebServer;
-				const mounts = webserver.mounted;
-				const paths = Object.entries(mounts).flatMap(([method, routes]) => Object.keys(routes).map((p) => `${method.toUpperCase()} ${p}`));
-				return actionOKWithProducts({ _type: "ServerConfig", _summary: `${paths.length} mounted routes`, mounts });
-			},
-		},
 		serveFiles: {
 			gwta: "serve files from {loc}",
 			action: ({ loc }: TStepArgs) => {
 				try {
-					this.webserver?.checkAddStaticFolder(String(loc), "/");
+					this.webserver?.checkAddStaticFolder(String(loc), "/", { description: `Files from ${loc}` });
 					return OK;
 				} catch (e) {
 					const message = errorDetail(e);
@@ -206,7 +198,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			gwta: "serve files at {where} from {loc}",
 			action: ({ where, loc }: TStepArgs) => {
 				try {
-					this.webserver?.checkAddStaticFolder(String(loc), String(where));
+					this.webserver?.checkAddStaticFolder(String(loc), String(where), { description: `Files from ${loc}` });
 					return OK;
 				} catch (e) {
 					const message = errorDetail(e);
@@ -218,20 +210,12 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			gwta: "index files from {loc}",
 			action: ({ loc }: TStepArgs) => {
 				try {
-					this.webserver?.checkAddIndexFolder(String(loc), "/");
+					this.webserver?.checkAddIndexFolder(String(loc), "/", { description: `An index of the files in ${loc}` });
 					return OK;
 				} catch (e) {
 					const message = errorDetail(e);
 					return actionNotOK(message);
 				}
-			},
-		},
-		showRoutes: {
-			gwta: "show routes",
-			action: () => {
-				const routes = this.webserver?.mounted;
-				const paths = Object.entries(routes ?? {}).flatMap(([method, r]) => Object.keys(r).map((p) => `${method.toUpperCase()} ${p}`));
-				return actionOKWithProducts({ _type: "ServerConfig", _summary: `${paths.length} routes`, routes });
 			},
 		},
 		enableRpc: {

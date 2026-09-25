@@ -24,6 +24,9 @@ const authorityActionSchema = z
 export const AUTHORITY_CAPABILITIES = { delegate: "Authority:delegate", revoke: "Authority:revoke", name: "Authority:name" } as const;
 
 const siteNamedSchema = z.object({ site: z.string() });
+/** The domains of the site a connecting instance is named, and the delegations a key holds here. */
+const DOMAIN_SITE_NAMED = "site-named";
+const DOMAIN_DELEGATIONS = "delegations";
 const delegationsSchema = z.object({
 	delegations: z.array(z.record(z.string(), z.unknown())),
 	records: z.record(z.string(), z.object({ persistedAs: z.string(), accessLevel: AccessLevelSchema })).optional(),
@@ -56,7 +59,13 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 	}
 
 	cycles: IStepperCycles = {
-		getConcerns: () => ({ domains: [{ selectors: [DOMAIN_HELD_CALLS], schema: HeldCallsSchema, description: "The calls an instance holds open, by the capability each rests on" }] }),
+		getConcerns: () => ({
+			domains: [
+				{ selectors: [DOMAIN_HELD_CALLS], schema: HeldCallsSchema, description: "The calls an instance holds open, by the capability each rests on" },
+				{ selectors: [DOMAIN_SITE_NAMED], schema: siteNamedSchema, description: "The site a connecting instance is named" },
+				{ selectors: [DOMAIN_DELEGATIONS], schema: delegationsSchema, description: "The delegations an instance recorded to a key, as a holder presents them" },
+			],
+		}),
 		endFeature: (endFeature?: TEndFeature) => {
 			if (!endFeature?.shouldClose) return Promise.resolve();
 			this.authority?.clear();
@@ -70,7 +79,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 		nameConnectingSite: {
 			exact: "name a connecting site",
 			capability: AUTHORITY_CAPABILITIES.name,
-			productsSchema: siteNamedSchema,
+			productsDomain: DOMAIN_SITE_NAMED,
 			// Site principals must be unique within a federation. A default-identified instance (did:site:0 to itself)
 			// asks the site it connects to what it should be called; this end assigns `did:site:<mine>.<n>`, unique
 			// under this site's own principal, and durably records the assignment as a Principal individual, so `n`
@@ -97,7 +106,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 			read: true,
 			capability: DELEGATIONS_READ_ACTION,
 			gwta: "delegations to the caller",
-			productsSchema: delegationsSchema,
+			productsDomain: DOMAIN_DELEGATIONS,
 			description:
 				"The signed delegations this instance recorded to the key that signs the call and hasn't revoked, as the documents a holder presents: how a key finds what it may do here. A key reads its own, and no other key's.",
 			action: async () => {

@@ -124,11 +124,11 @@ export const pageContext = new SharedSignal<TPageContext | null>("pageContext", 
  *  whether it is docked along the bottom of the app rather than laid out as a column. */
 export type TStripPane = { key: string; label: string; query: boolean; docked: boolean };
 
-/** The pane docked along the bottom of the app: its key, whether it is open, and whether it is pinned. */
-export type TDockedPane = { key: string; open: boolean; pinned: boolean };
+/** The pane docked along the bottom of the app: its key, and whether it is open. */
+export type TDockedPane = { key: string; open: boolean };
 
 /** The pane docked along the bottom of the app, or null where none is. The docked pane is its only writer, and the page
- *  strip reads it to open, close and pin the pane. */
+ *  strip reads it to open and close the pane. */
 export const dockedPane = new SharedSignal<TDockedPane | null>("dockedPane", null);
 
 /** The types the page searches: what each is called, and the one the search reads now. The actions bar's search is its

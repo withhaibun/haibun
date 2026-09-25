@@ -108,9 +108,8 @@ export class PaneDock implements ReactiveController {
 			return;
 		}
 		const open = !this.#deps.closed();
-		const pinned = this.#deps.pinned();
-		if (stated?.key === key && stated.open === open && stated.pinned === pinned) return;
-		dockedPane.set({ key, open, pinned });
+		if (stated?.key === key && stated.open === open) return;
+		dockedPane.set({ key, open });
 	}
 
 	/** Closes an open docked pane to its strip on a click outside it. Three clicks leave it open: a click on a pinned

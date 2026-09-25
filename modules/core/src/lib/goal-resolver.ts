@@ -99,7 +99,6 @@ export const GOAL_FINDING = {
 export type TGoalFinding = (typeof GOAL_FINDING)[keyof typeof GOAL_FINDING];
 
 export const REFUSAL_REASON = {
-	ANONYMOUS_OUTPUTS_PRESENT: "anonymous-outputs-present",
 	CAPABILITY_CONTEXT_REQUIRED: "capability-context-required",
 } as const;
 
@@ -198,29 +197,7 @@ function checkResolverInvariants(inputs: TResolverInputs, goal: string): TGoalRe
 			detail: "the resolver searches for what a caller may run, so it requires what the caller holds; pass an empty list for a caller that holds nothing",
 		};
 	}
-	const anonymous = inputs.graph.steps.filter((s) => s.outputDomains.length === 0 && producesAnything(s));
-	if (anonymous.length > 0) {
-		return {
-			finding: GOAL_FINDING.REFUSED,
-			goal,
-			refusalReason: REFUSAL_REASON.ANONYMOUS_OUTPUTS_PRESENT,
-			detail: `${anonymous.length} step(s) produce content without a declared productsDomain; resolver cannot see their products. Offending: ${anonymous
-				.slice(0, 3)
-				.map((s) => `${s.stepperName}.${s.stepName}`)
-				.join(", ")}`,
-		};
-	}
 	return undefined;
-}
-
-/**
- * A step is treated as "producing anything" in the resolver graph when it declares
- * productsDomain or productsDomains. Steps that declare only productsSchema (inline
- * Zod, no domain registration) are silent to the resolver, their products are typed
- * data, not graph nodes.
- */
-function producesAnything(_step: TDomainChainStep): boolean {
-	return false;
 }
 
 type TEnumResult = { michi: TMichi[]; truncated: boolean };

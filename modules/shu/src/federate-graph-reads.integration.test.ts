@@ -96,7 +96,18 @@ capture the federated clustered read
 		const result = await testWithWorld(
 			world,
 			[feature],
-			[WebServerStepper, ShuStepper, MonitorStepper, GraphSourceStepper, AuthorityStepper, FakeAuthorityStepper, ResourcesStepper, StorageFS, InstanceStepper, FederationVerifyStepper],
+			[
+				WebServerStepper,
+				ShuStepper,
+				MonitorStepper,
+				GraphSourceStepper,
+				AuthorityStepper,
+				FakeAuthorityStepper,
+				ResourcesStepper,
+				StorageFS,
+				InstanceStepper,
+				FederationVerifyStepper,
+			],
 		);
 		if (!result.ok) throw new Error(JSON.stringify({ failure: result.failure, steps: result.featureResults?.map((f) => f.stepResults.map((s) => [s.in, s.ok])) }, null, 2));
 

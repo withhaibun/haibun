@@ -11,7 +11,7 @@ import { describePortOccupant } from "@haibun/core/lib/port-occupant.js";
 import { ENDPOINT_CLASS, isServicePath } from "@haibun/core/lib/http-observations.js";
 import type { IQuadStore } from "@haibun/core/lib/quad-types.js";
 import type { TRpcMethod } from "@haibun/core/lib/rpc-wire.js";
-import { type IWebServer, type TRouteMap, type TRouteTypes, type TRoutePurpose, type TRequestHandler, type TStaticFolderOptions, ROUTE_TYPES, EndpointLabels } from "./defs.js";
+import { type IWebServer, type TRouteMap, type TRouteTypes, type TRoutePurpose, type TRequestHandler, ROUTE_TYPES, EndpointLabels } from "./defs.js";
 
 const DEFAULT_MOUNTED = (): TRouteMap => ROUTE_TYPES.reduce((acc, type) => ({ ...acc, [type]: {} }), {} as TRouteMap);
 
@@ -132,8 +132,7 @@ export class ServerHono implements IWebServer {
 		this.ensureNotMounted(type, path);
 		this.eventLogger.debug(`ServerHono: adding ${type} route at ${path} (${purpose.description})`);
 		this.registerRoute(type, path, handlers);
-		this.markMounted(type, path, handlers.toString());
-		this.persistEndpoint(type, path, purpose);
+		this.mount(type, path, handlers.toString(), purpose);
 	}
 
 	/** Idempotent mount: no-op if the exact path is already mounted for the method. Use for
@@ -143,29 +142,22 @@ export class ServerHono implements IWebServer {
 		this.addRoute(type, path, purpose, ...handlers);
 	}
 
-	addKnownRoute(type: TRouteTypes, path: string, purpose: TRoutePurpose, ...handlers: TRequestHandler[]): void {
-		this.validatePurpose(purpose);
-		this.validateRouteType(type);
-		this.eventLogger.debug(`ServerHono: adding known ${type} route at ${path} (${purpose.description})`);
-		this.registerRoute(type, path, handlers);
-		this.markMounted(type, path, handlers.toString());
-	}
-
-	checkAddStaticFolder(relativeFolder: string, mountAt: string, options?: TStaticFolderOptions): void {
+	checkAddStaticFolder(relativeFolder: string, mountAt: string, purpose: TRoutePurpose): void {
 		if (!relativeFolder) throw new Error("ServerHono.checkAddStaticFolder: relativeFolder is required");
 		if (!mountAt) throw new Error("ServerHono.checkAddStaticFolder: mountAt is required");
-		this.addStaticFolderInternal(join(this.base, relativeFolder), mountAt, options);
+		this.addStaticFolderInternal(join(this.base, relativeFolder), mountAt, purpose);
 	}
 
-	addKnownStaticFolder(folder: string, mountAt: string, options?: TStaticFolderOptions): void {
+	addKnownStaticFolder(folder: string, mountAt: string, purpose: TRoutePurpose): void {
 		if (!folder) throw new Error("ServerHono.addKnownStaticFolder: folder is required");
 		if (!mountAt) throw new Error("ServerHono.addKnownStaticFolder: mountAt is required");
-		this.addStaticFolderInternal(folder, mountAt, options);
+		this.addStaticFolderInternal(folder, mountAt, purpose);
 	}
 
-	checkAddIndexFolder(relativeFolder: string, mountAt: string): void {
+	checkAddIndexFolder(relativeFolder: string, mountAt: string, purpose: TRoutePurpose): void {
 		if (!relativeFolder) throw new Error("ServerHono.checkAddIndexFolder: relativeFolder is required");
 		if (!mountAt) throw new Error("ServerHono.checkAddIndexFolder: mountAt is required");
+		this.validatePurpose(purpose);
 		const folder = join(this.base, relativeFolder);
 		this.ensureNotMounted("get", mountAt);
 		this.validateFolderExists(folder);
@@ -188,10 +180,11 @@ export class ServerHono implements IWebServer {
 			});
 			return notFoundCalled || !response ? c.notFound() : response;
 		});
-		this.markMounted("get", mountAt, folder);
+		this.mount("get", mountAt, folder, purpose);
 	}
 
-	private addStaticFolderInternal(folder: string, mountAt: string, options?: TStaticFolderOptions): void {
+	private addStaticFolderInternal(folder: string, mountAt: string, purpose: TRoutePurpose): void {
+		this.validatePurpose(purpose);
 		this.validatePath(mountAt);
 		this.ensureNotMounted("get", mountAt);
 		this.validateFolderExists(folder);
@@ -199,7 +192,7 @@ export class ServerHono implements IWebServer {
 		const staticPath = mountAt.endsWith("/") ? `${mountAt}*` : `${mountAt}/*`;
 		this._app.get(staticPath, serveStatic({ root: folder, rewriteRequestPath: (path) => path.replace(mountAt, "") }));
 		this._app.get(mountAt, serveStatic({ root: folder, rewriteRequestPath: () => "/index.html" }));
-		this.markMounted("get", mountAt, folder);
+		this.mount("get", mountAt, folder, purpose);
 	}
 
 	private validatePurpose(purpose: TRoutePurpose): void {
@@ -232,8 +225,10 @@ export class ServerHono implements IWebServer {
 		(this._app as unknown as Record<string, (...args: unknown[]) => unknown>)[type](path, ...handlers);
 	}
 
-	private markMounted(type: TRouteTypes, path: string, what: string): void {
+	/** What is served is recorded as its Endpoint, so the graph holds every route the instance serves. */
+	private mount(type: TRouteTypes, path: string, what: string, purpose: TRoutePurpose): void {
 		this._mounted[type][path] = what;
+		this.persistEndpoint(type, path, purpose);
 	}
 
 	/** Persist the mounted route as an Endpoint vertex: the existing object an observed HttpRequest edges to. `id`

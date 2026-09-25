@@ -292,7 +292,14 @@ describe("any sequence of events", () => {
 			const random = seededRandom(seed);
 			let conversation = CLOSED_CONVERSATION;
 			// What the page's turn holds, stated again from the events since the last question the conversation took.
-			const unasked = () => ({ askId: null as string | null, sayId: undefined as string | undefined, response: "", activity: [] as string[], stoppedBy: "", refused: [] as (typeof REFUSED)[] });
+			const unasked = () => ({
+				askId: null as string | null,
+				sayId: undefined as string | undefined,
+				response: "",
+				activity: [] as string[],
+				stoppedBy: "",
+				refused: [] as (typeof REFUSED)[],
+			});
 			let held = unasked();
 			const path: string[] = [];
 			for (let step = 0; step < 40; step++) {

@@ -5,11 +5,13 @@ import { OK, TStepArgs } from "@haibun/core/schema/protocol.js";
 import { captureLocator } from "@haibun/core/lib/capture-locator.js";
 import { IFile, TLocationOptions } from "./domain-storage.js";
 import { EMediaTypes, TMediaType } from "./media-types.js";
-import { AStepper, StepperKinds } from "@haibun/core/lib/astepper.js";
+import { AStepper, StepperKinds, type IHasCycles, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { TAnyFixme } from "@haibun/core/lib/fixme.js";
 import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
 
 const FileContentsSchema = z.object({ contents: z.string() });
+/** The domain of a file's contents, as a storage read them. */
+const DOMAIN_FILE_CONTENTS = "file-contents";
 
 /**
  * Result from saveArtifact with paths for different consumption contexts.
@@ -23,7 +25,10 @@ export interface TSavedArtifact {
 	baseRelativePath: string;
 }
 
-export abstract class AStorage extends AStepper {
+export abstract class AStorage extends AStepper implements IHasCycles {
+	cycles: IStepperCycles = {
+		getConcerns: () => ({ domains: [{ selectors: [DOMAIN_FILE_CONTENTS], schema: FileContentsSchema, description: "A file's contents, as a storage read them" }] }),
+	};
 	description = "Create files, directories, and manage test artifacts";
 
 	kind = StepperKinds.STORAGE;
@@ -195,7 +200,7 @@ export abstract class AStorage extends AStepper {
 		},
 		readFile: {
 			gwta: `read file {where}`,
-			productsSchema: FileContentsSchema,
+			productsDomain: DOMAIN_FILE_CONTENTS,
 			action: async ({ where }: TStepArgs) => {
 				const contents = await this.readFile(String(where), "utf-8");
 				return actionOKWithProducts({ contents });

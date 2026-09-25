@@ -34,7 +34,18 @@ import type { TEntityResult, TEntityView, TAnnotationDraft } from "../entity-sto
 import type { AnnotationView } from "../annotation-resolver.js";
 import type { TQuoteAnchor } from "@haibun/core/lib/resources.js";
 import "./shu-annotated-body.js";
-import { edgeRecordType, getRelSync, getEdgeTargetLabels, getSummaryFields, getIdField, getQueryableFields, getRels, isKnownType, roleEdgeLabelSet, getDeclaredEdgeLabel } from "../rels-cache.js";
+import {
+	edgeRecordType,
+	getRelSync,
+	getEdgeTargetLabels,
+	getSummaryFields,
+	getIdField,
+	getQueryableFields,
+	getRels,
+	isKnownType,
+	roleEdgeLabelSet,
+	getDeclaredEdgeLabel,
+} from "../rels-cache.js";
 import { propertyVocabulary } from "../graph/ontology-projection.js";
 import { linkHtml, paneHref, refHref, renderRef } from "./ref-navigation.js";
 import { refsInContent } from "../markdown-refs.js";
@@ -447,12 +458,17 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			grouped.set(e.type, group);
 		}
 		const outHtml = Array.from(grouped.entries())
-			.map(([type, items]) => `<div class="ref-group"><span class="ref-type">${esc(type)}</span>${foldedTargets(items.map((i) => this.renderEdgeTarget(i.target, i.edgeType)))}</div>`)
+			.map(
+				([type, items]) => `<div class="ref-group"><span class="ref-type">${esc(type)}</span>${foldedTargets(items.map((i) => this.renderEdgeTarget(i.target, i.edgeType)))}</div>`,
+			)
 			.join("");
 
 		const { persistedAs, individualId: subject } = this.state;
 		const incoming = paneHref({ paneType: "filter-incoming", persistedAs, subject });
-		const inHtml = this.incomingCount > 0 ? `<a class="section-label links-here-link" href="${escAttr(incoming)}">What links here <span class="ref-count">(${this.incomingCount})</span></a>` : "";
+		const inHtml =
+			this.incomingCount > 0
+				? `<a class="section-label links-here-link" href="${escAttr(incoming)}">What links here <span class="ref-count">(${this.incomingCount})</span></a>`
+				: "";
 		const hasReplies = this.edges.some((e) => isReplyEdge(e.type)) || this.incomingCount > 0;
 		const replyHtml = hasReplies ? `<a class="section-label thread-link" href="${escAttr(paneHref({ paneType: "thread", persistedAs, subject }))}">View replies</a>` : "";
 
@@ -501,7 +517,9 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const toolbar = `<div class="content-toolbar">${switcherHtml}${copyBtn}${annotateBtn}</div>`;
 		// References don't work inside the sandbox, so the ones the body makes are listed beside it.
 		const refs = refsInContent(content, isKnownType);
-		const refsHtml = refs.length ? `<div class="body-refs" data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.BODY_REFS}">${refs.map((ref) => renderRef(ref.kind, ref.target, ref.text)).join(", ")}</div>` : "";
+		const refsHtml = refs.length
+			? `<div class="body-refs" data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.BODY_REFS}">${refs.map((ref) => renderRef(ref.kind, ref.target, ref.text)).join(", ")}</div>`
+			: "";
 		return `<div class="body-container">${toolbar}${iframeHtml}${refsHtml}</div>`;
 	}
 

@@ -17,6 +17,8 @@ import { namedInterpolation } from "../lib/namedVars.js";
 import { authorizedWith } from "../lib/capability-context.js";
 
 const ActivityOutcomeSchema = z.object({ proofStatements: z.array(z.string()) });
+/** The domain of what an outcome a feature registered answers with: the statements that prove it. */
+const DOMAIN_ACTIVITY_OUTCOME = "activity-outcome";
 
 // need this type because some steps are dynamically generated (e.g. waypoints)
 type TActivitiesFixedSteps = {
@@ -53,6 +55,9 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	private inActivityBlock = false;
 
 	cycles: IStepperCycles = {
+		getConcerns: () => ({
+			domains: [{ selectors: [DOMAIN_ACTIVITY_OUTCOME], schema: ActivityOutcomeSchema, description: "The statements that prove an outcome a feature registered" }],
+		}),
 		startExecution: () => {
 			this.sendGraphLinkMessages();
 		},
@@ -540,7 +545,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				path: actualSourcePath || proofPath,
 			},
 			description: `Outcome: ${outcome}. Proof: ${proofStatements.join("; ")}`,
-			productsSchema: ActivityOutcomeSchema,
+			productsDomain: DOMAIN_ACTIVITY_OUTCOME,
 			action: async (args: TStepArgs, featureStep: TFeatureStep) => {
 				const robustArgs: Record<string, string> = { ...(args as Record<string, string>) };
 				if (featureStep.action.stepValuesMap) {

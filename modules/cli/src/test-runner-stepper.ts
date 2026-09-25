@@ -168,6 +168,24 @@ type TTrackedRun = {
 	reported?: z.infer<typeof runReadSchema>;
 };
 
+/** What reading a test run answers with: what it said since it was last read, and how it stands. */
+const TestRunReadSchema = z.object({ run: z.string(), status: z.string(), exitCode: z.number().nullable(), output: z.string() });
+/** What a test run reported: how it said it ended, each step that failed, where its report is, and how many features and
+ *  steps it ran, where it said. */
+const TestRunExaminedSchema = z.object({
+	run: z.string(),
+	summary: z.string(),
+	failures: z.array(z.object({ seqPath: z.string(), step: z.string(), message: z.string() })),
+	report: z.string(),
+	steps: z.number().optional(),
+	features: z.number().optional(),
+});
+/** What a standing test run answered: the summary a model is handed, and the whole answer beside it. */
+const TestRunAnswerSchema = z.object({ run: z.string(), host: z.string(), method: z.string(), text: z.string(), answer: z.string() });
+const DOMAIN_TEST_RUN_READ = "test-run-read";
+const DOMAIN_TEST_RUN_EXAMINED = "test-run-examined";
+const DOMAIN_TEST_RUN_ANSWER = "test-run-answer";
+
 /** A run's identity: what ran, and when it was asked to start. */
 const runId = (filter: string, startedAt: string): string => `run:${filter}:${startedAt}`;
 
@@ -175,7 +193,14 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 	description = "An agent that runs named tests, watches them, probes what they left standing, and reports what it found into the discourse";
 
 	cycles: IStepperCycles = {
-		getConcerns: () => ({ domains: [featureExecutionDomainDefinition] }),
+		getConcerns: () => ({
+			domains: [
+				featureExecutionDomainDefinition,
+				{ selectors: [DOMAIN_TEST_RUN_READ], schema: TestRunReadSchema, description: "What a test run said since it was last read, and how it stands" },
+				{ selectors: [DOMAIN_TEST_RUN_EXAMINED], schema: TestRunExaminedSchema, description: "What a test run reported: how it ended, what failed, and where its report is" },
+				{ selectors: [DOMAIN_TEST_RUN_ANSWER], schema: TestRunAnswerSchema, description: "What a standing test run answered a step asked of it" },
+			],
+		}),
 	};
 
 	options = {
@@ -251,7 +276,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			capability: SUPERVISOR_CAPABILITIES.read,
 			description:
 				"What the run in flight has said since this was last asked, and whether it is still going. When the run has ended, its record is closed with what its exit code says, which is what releases the next run.",
-			productsSchema: z.object({ run: z.string(), status: z.string(), exitCode: z.string(), output: z.string() }),
+			productsDomain: DOMAIN_TEST_RUN_READ,
 			action: async () => {
 				const tracked = this.inFlight;
 				if (!tracked) return actionNotOK(this.nothingToRead("read"));
@@ -264,7 +289,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 					await this.finishRun(exitCode, status === "ended" ? undefined : read.products.failed > 0 ? RUN_STATUS.failed : RUN_STATUS.passed);
 					await this.recordOutcome(tracked);
 				}
-				return actionOKWithProducts({ run: tracked.id, status, exitCode: String(exitCode ?? ""), output });
+				return actionOKWithProducts({ run: tracked.id, status, exitCode: exitCode ?? null, output });
 			},
 		},
 		awaitTestRun: {
@@ -272,7 +297,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			capability: SUPERVISOR_CAPABILITIES.read,
 			description:
 				"Follow the run in flight to its end and answer with how it ended and its last output. The supervisor answers the moment the run exits, so this is one call however long the run takes. The wait is bounded: reaching the limit is a failure naming how long it waited, never a longer wait, so a run that hangs ends the ask rather than the process.",
-			productsSchema: z.object({ run: z.string(), status: z.string(), exitCode: z.string(), output: z.string() }),
+			productsDomain: DOMAIN_TEST_RUN_READ,
 			action: async ({ seconds }: { seconds: number }) => {
 				const tracked = this.inFlight;
 				if (!tracked) return actionNotOK(this.nothingToRead("wait for"));
@@ -295,7 +320,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 				// A run that failed is a failed step. Answering ok for it would report a passing suite from a run that
 				// never collected a feature, which is the one thing a test runner must not do.
 				if (status !== RUN_STATUS.passed) return actionNotOK(`the run "${tracked.filter}" ${status} (exit ${seen.exitCode}). Its last output:\n${said}`);
-				return actionOKWithProducts({ run: tracked.id, status, exitCode: String(seen.exitCode ?? ""), output: said });
+				return actionOKWithProducts({ run: tracked.id, status, exitCode: seen.exitCode ?? null, output: said });
 			},
 		},
 		examineTestRun: {
@@ -303,7 +328,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			capability: SUPERVISOR_CAPABILITIES.read,
 			description:
 				"What the run reported: how it said it ended, every step it recorded as failed with the seqPath it failed at, and where it wrote its report. All of it is the run's own words. A run whose output is formatted for a person carries no step events, and then the step count is absent rather than zero; the summary and the report say how it went. The report path is recorded on the run, so a later reader reaches it from the record.",
-			productsSchema: z.object({ run: z.string(), summary: z.string(), failures: z.string(), report: z.string(), steps: z.string(), features: z.string() }),
+			productsDomain: DOMAIN_TEST_RUN_EXAMINED,
 			action: async () => {
 				const tracked = this.inFlight ?? this.runsThisAsk.at(-1);
 				if (!tracked) return actionNotOK(this.nothingToRead("examine"));
@@ -318,10 +343,10 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 				return actionOKWithProducts({
 					run: tracked.id,
 					summary: read.products.summary,
-					failures: JSON.stringify(failures),
+					failures,
 					report: read.products.report,
-					steps: String(read.products.steps),
-					features: String(read.products.features),
+					steps: read.products.steps,
+					features: read.products.features,
 				});
 			},
 		},
@@ -335,7 +360,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 				"Ask the standing test run one of its own steps, by the name it has there. Show steps asked of that host returns those names; a wrong one is answered with the names that host does have. The step runs AT the run, under the same capability check as any step, and answers with what that run holds rather than what this one does. Parameters are name=value pairs or JSON; a step taking one parameter also accepts the bare value, an object among them, and an object parameter accepts its JSON text. Use this whenever the question is about the test rather than about this run; every other step answers from this run.",
 			// A model is handed the product named text for a tool call, so that is the summary; the whole answer, with the
 			// entries a listing returned, is beside it for a caller that asked for them.
-			productsSchema: z.object({ run: z.string(), host: z.string(), method: z.string(), text: z.string(), answer: z.string() }),
+			productsDomain: DOMAIN_TEST_RUN_ANSWER,
 			action: async ({ method, params }: { method: string; params: string }) => {
 				const tracked = this.inFlight ?? [...this.standing.values()].at(-1) ?? this.runsThisAsk.at(-1) ?? this.lastRun;
 				if (!tracked)

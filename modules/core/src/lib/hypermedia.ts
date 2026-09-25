@@ -9,7 +9,20 @@
  */
 
 import { z } from "zod";
-import { edgeRanges, edgeRel, REL_CONTEXT, LinkRelations, BODY_LABEL, getRelRange, propertyIriOf, isPersisted, type TPropertyDef, type TRel, type THypermediaTopology, PersistedVertexSchema } from "./resources.js";
+import {
+	edgeRanges,
+	edgeRel,
+	REL_CONTEXT,
+	LinkRelations,
+	BODY_LABEL,
+	getRelRange,
+	propertyIriOf,
+	isPersisted,
+	type TPropertyDef,
+	type TRel,
+	type THypermediaTopology,
+	PersistedVertexSchema,
+} from "./resources.js";
 
 /** Resolve a property def to its rel, regardless of plain-string or object (content / term) form. */
 export function relOf(def: TPropertyDef): TRel {

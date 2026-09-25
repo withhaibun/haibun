@@ -30,8 +30,6 @@ export const LINT_FINDING = {
 	UNPRODUCED_DOMAIN: "unproduced-domain",
 	/** A parameter whose domain is `string`, or a union with it, which says nothing of what the value is. */
 	STRING_PARAM: "string-param",
-	/** A step whose products have a schema and no domain, so no step can consume them. */
-	UNNAMED_PRODUCTS: "unnamed-products",
 } as const;
 
 const stepFinding = { stepperName: z.string(), stepName: z.string() };
@@ -41,7 +39,6 @@ export const LintFindingSchema = z.discriminatedUnion("kind", [
 	z.object({ kind: z.literal(LINT_FINDING.UNREACHABLE_DOMAIN), domain: z.string() }).strict(),
 	z.object({ kind: z.literal(LINT_FINDING.UNPRODUCED_DOMAIN), domain: z.string() }).strict(),
 	z.object({ kind: z.literal(LINT_FINDING.STRING_PARAM), ...stepFinding, param: z.string(), domain: z.string() }).strict(),
-	z.object({ kind: z.literal(LINT_FINDING.UNNAMED_PRODUCTS), ...stepFinding }).strict(),
 ]);
 export type TLintFinding = z.infer<typeof LintFindingSchema>;
 type TLintKind = TLintFinding["kind"];
@@ -63,8 +60,6 @@ export function lintFindingLine(finding: TLintFinding): string {
 			return `${finding.kind} ${finding.stepperName}.${finding.stepName} consumes ${finding.inputDomain}`;
 		case LINT_FINDING.STRING_PARAM:
 			return `${finding.kind} ${finding.stepperName}.${finding.stepName} {${finding.param}: ${finding.domain}}`;
-		case LINT_FINDING.UNNAMED_PRODUCTS:
-			return `${finding.kind} ${finding.stepperName}.${finding.stepName}`;
 		case LINT_FINDING.UNREACHABLE_DOMAIN:
 		case LINT_FINDING.UNPRODUCED_DOMAIN:
 			return `${finding.kind} ${finding.domain}`;
@@ -94,7 +89,6 @@ export function lintDomainChain(graph: TDomainChainGraph, domains: Record<string
 		for (const [param, domain] of Object.entries(step.params)) {
 			if (domainParts(domain).includes(DOMAIN_STRING)) findings.push({ kind: LINT_FINDING.STRING_PARAM, stepperName, stepName, param, domain });
 		}
-		if (step.unnamedProducts) findings.push({ kind: LINT_FINDING.UNNAMED_PRODUCTS, stepperName, stepName });
 	}
 
 	// Domain-level findings: registered domains that are neither consumed nor produced. A primitive domain is supplied by

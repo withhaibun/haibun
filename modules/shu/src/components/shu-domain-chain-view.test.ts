@@ -303,7 +303,10 @@ describe("shu-domain-chain-view", () => {
 				],
 			};
 			await view.updateComplete;
-			const refs = [...(view.shadowRoot?.querySelectorAll(`[data-testid="${SHU_TEST_IDS.DOMAIN_CHAIN.FINDING}"] shu-ref`) ?? [])].map((ref) => [ref.getAttribute("kind"), JSON.parse(ref.getAttribute("linkTarget") ?? "{}")]);
+			const refs = [...(view.shadowRoot?.querySelectorAll(`[data-testid="${SHU_TEST_IDS.DOMAIN_CHAIN.FINDING}"] shu-ref`) ?? [])].map((ref) => [
+				ref.getAttribute("kind"),
+				JSON.parse(ref.getAttribute("linkTarget") ?? "{}"),
+			]);
 			expect(refs).toEqual([
 				["step", { method: "S-s" }],
 				[REF_DENOTES.type, { domain: DOMAIN_STRING }],

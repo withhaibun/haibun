@@ -1,7 +1,7 @@
 /**
  * <shu-page-strip> renders the strip along the bottom of the page, under whatever is docked. It holds the control that
- * opens and closes the docked pane, the pin that holds that pane open, the page's status, the breadcrumb of the search
- * and the columns, and the corner controls. The corner controls hold the read access level, the run's time and playback,
+ * opens and closes the docked pane, the page's status, the breadcrumb of the search and the columns, and the corner
+ * controls. The corner controls hold the read access level, the run's time and playback,
  * and the settings.
  */
 import { html, type CSSResultGroup, type TemplateResult } from "lit";
@@ -132,10 +132,6 @@ export class ShuPageStrip extends ShuElement<typeof PageStripSchema> {
 		else pane.open();
 	};
 
-	#onDockPin = (): void => {
-		this.#dockedPaneElement()?.setPinned(!this.#docked.state?.pinned);
-	};
-
 	render(): TemplateResult {
 		const docked = this.#docked.state;
 		const prefix = this.testIdPrefix;
@@ -150,8 +146,6 @@ export class ShuPageStrip extends ShuElement<typeof PageStripSchema> {
 					@click=${(e: Event) => e.stopPropagation()}></shu-combobox
 			></shu-breadcrumb>
 			${this.#corners.controlsTemplate()}
-			<button class="pane-icon" ?disabled=${!docked} aria-pressed=${docked?.pinned ?? false} aria-label=${docked?.pinned ? "Unpin the docked pane" : "Pin the docked pane open"}
-				data-testid=${`${prefix}dock-pin`} @click=${this.#onDockPin}>\u{1F4CC}</button>
 		</div>`;
 	}
 }

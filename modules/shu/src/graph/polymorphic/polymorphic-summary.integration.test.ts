@@ -38,5 +38,8 @@ test("states each type's records held and drawn, a hidden type drawing none", as
 		{ type: DRAWN, held: 40, drawn: 2 },
 		{ type: HIDDEN, held: 7, drawn: 0 },
 	]);
-	expect(summary.items.every((item) => item.namedGraph === DRAWN), "the hidden type's statements are not among what the view draws").toBe(true);
+	expect(
+		summary.items.every((item) => item.namedGraph === DRAWN),
+		"the hidden type's statements are not among what the view draws",
+	).toBe(true);
 });

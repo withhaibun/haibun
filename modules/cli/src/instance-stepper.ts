@@ -29,6 +29,7 @@ import path from "path";
 import { z } from "zod";
 import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature } from "@haibun/core/lib/astepper.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
+import type { TDomainDefinition } from "@haibun/core/lib/resources.js";
 import { actionNotOK, actionOKWithProducts, perProcessOptionNames } from "@haibun/core/lib/util/index.js";
 import { RpcClient } from "@haibun/core/lib/rpc-client.js";
 import { RemoteStepperProxy } from "@haibun/core/lib/remote-stepper-proxy.js";
@@ -202,6 +203,15 @@ const localOrigin = (port: number): string => `http://localhost:${port}`;
 
 /** The domain of the instances and runs this process started. */
 export const DOMAIN_INSTANCES = "haibun-instances";
+/** The domain of what starting an instance answers with. */
+const DOMAIN_INSTANCE_STARTED = "instance-started";
+/** The domains of what starting, reading and stopping a run answer with, which a stand-in for this supervisor declares too. */
+export const RUN_DOMAIN = { started: "run-started", read: "run-read", stopped: "run-stopped" } as const;
+export const runDomainDefinitions: TDomainDefinition[] = [
+	{ selectors: [RUN_DOMAIN.started], schema: runStartedSchema, description: "A run a process started, and what it runs" },
+	{ selectors: [RUN_DOMAIN.read], schema: runReadSchema, description: "What a run said since a cursor, and how it stands" },
+	{ selectors: [RUN_DOMAIN.stopped], schema: z.object({ run: z.string() }), description: "A run a process ended" },
+];
 /** The instances and runs this process started, which it supervises until they end. */
 const InstancesSchema = z.object({
 	instances: z
@@ -227,7 +237,13 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 	/** The host id a standing run took, so its steps are addressable as that host's. */
 
 	cycles: IStepperCycles = {
-		getConcerns: () => ({ domains: [{ selectors: [DOMAIN_INSTANCES], schema: InstancesSchema, description: "The instances and runs a process started" }] }),
+		getConcerns: () => ({
+			domains: [
+				{ selectors: [DOMAIN_INSTANCES], schema: InstancesSchema, description: "The instances and runs a process started" },
+				{ selectors: [DOMAIN_INSTANCE_STARTED], schema: instanceStartedSchema, description: "An instance a process started, where it is reached, and the site it answers as" },
+				...runDomainDefinitions,
+			],
+		}),
 		endFeature: async (endFeature?: TEndFeature) => {
 			if (!endFeature?.shouldClose) return;
 			await Promise.all([...this.children.map(({ child }) => terminate(child)), ...[...this.runs.values()].map((r) => terminate(r.child))]);
@@ -240,7 +256,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		startInstance: {
 			gwta: `start a haibun instance from {where} on port {port: number} as host {hostId: number}`,
 			capability: SUPERVISOR_CAPABILITIES.launch,
-			productsSchema: instanceStartedSchema,
+			productsDomain: DOMAIN_INSTANCE_STARTED,
 			action: async ({ where, port, hostId }: { where: string; port: number; hostId: number }) => {
 				const dir = path.resolve(String(where));
 				const config = path.join(dir, "config.json");
@@ -253,7 +269,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			capability: SUPERVISOR_CAPABILITIES.launch,
 			description:
 				"Stop an instance this run launched and launch it again from what it was launched from, waiting for it to answer. What an instance serves comes from its source, so a change to that source takes effect only once it runs again. The run that restarts an instance is never the instance being restarted.",
-			productsSchema: instanceStartedSchema,
+			productsDomain: DOMAIN_INSTANCE_STARTED,
 			action: async ({ port }: { port: number }) => {
 				const held = this.children.find((c) => c.launch.port === port);
 				if (!held) return actionNotOK(`restart instance: this run launched no instance on port ${port}`);
@@ -278,7 +294,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			capability: SUPERVISOR_CAPABILITIES.run,
 			description:
 				"Run features from a directory, filtered to the ones named, in a child of this process, started rather than awaited, so the caller watches it while it happens (see `read the haibun run`). It runs FROM the directory given, because a config's relative stepper paths and a base's served files are read from where a run is started: for most bases that is the base itself, and for a base run from its parent it is that parent. The port is the one its own web server takes, so two runs can go at once without meeting on a default; port zero leaves it to whatever ports its features declare. Host zero is a run that ends when its features do; a host above zero is a run that stays, takes that id, and has its steps registered here, so asking it something is `on host {id}, <step>` rather than a second way of calling. A run that stays needs a port of its own, since a run nobody can address is a run nobody can ask.",
-			productsSchema: runStartedSchema,
+			productsDomain: RUN_DOMAIN.started,
 			action: async ({ where, filter, from, port, run, hostId }: { where: string; filter: string; from: string; port: number; run: string; hostId: number }) => {
 				const standing = hostId > 0;
 				if (standing && port <= 0) return actionNotOK("start run: a run that stays needs a port of its own, since a run nobody can address is a run nobody can ask");
@@ -301,7 +317,8 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			read: true,
 			capability: SUPERVISOR_CAPABILITIES.read,
 			gwta: "show the haibun instances",
-			description: "The instances this process launched and the runs it started, each as it stands now: an instance by the host it answers as and where it is reached, a run by whether it is running.",
+			description:
+				"The instances this process launched and the runs it started, each as it stands now: an instance by the host it answers as and where it is reached, a run by whether it is running.",
 			productsDomain: DOMAIN_INSTANCES,
 			action: () =>
 				Promise.resolve(
@@ -319,7 +336,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			retainProducts: (products: Record<string, unknown>) => ({ ...products, output: `${String(products.output ?? "").length} chars` }),
 			description:
 				"The run's own process output since a point in it, and whether it is still running. This is the boot-and-crash channel, which is what exists when a run fails before it serves; a serving run's progress is its event stream, which carries seqPaths and outcomes. The cursor returned is where to read from next, so the same output is never read twice.",
-			productsSchema: runReadSchema,
+			productsDomain: RUN_DOMAIN.read,
 			action: ({ run, cursor }: { run: string; cursor: number }) => Promise.resolve(this.readRun(run, cursor)),
 		},
 		waitRun: {
@@ -327,13 +344,14 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			capability: SUPERVISOR_CAPABILITIES.read,
 			description:
 				"Wait for the run to end, then answer, instead of the caller asking repeatedly. This process supervises the child directly and is told the moment it exits, so it answers as soon as that happens. The answer has the same shape as readRun: everything the run said since the given cursor, and whether it is still running. Reaching the timeout answers the same way, with the run still running; that is not a failure, and the caller decides whether to wait again or stop it.",
-			productsSchema: runReadSchema,
+			productsDomain: RUN_DOMAIN.read,
 			action: ({ run, seconds, cursor }: { run: string; seconds: number; cursor: number }) => this.waitRun(run, seconds, cursor),
 		},
 		stopRun: {
 			gwta: `stop the haibun run {run}`,
 			capability: SUPERVISOR_CAPABILITIES.stop,
 			description: "End a run this process started, whether or not it has finished. A run left standing holds its port until it is stopped.",
+			productsDomain: RUN_DOMAIN.stopped,
 			action: async ({ run }: { run: string }) => {
 				const held = this.runs.get(run);
 				if (!held) return actionNotOK(`stop run: this process started no run "${run}"`);

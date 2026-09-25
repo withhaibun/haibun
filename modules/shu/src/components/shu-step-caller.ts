@@ -355,17 +355,19 @@ export class StepCaller extends HTMLElement {
 		return `<pre>${esc(JSON.stringify(data, null, 2))}</pre>`;
 	}
 
+	/** Rows as one table, its columns every field a row has, since a field one row states another may leave out. */
 	private renderTable(rows: Record<string, unknown>[]): string {
 		if (rows.length === 0) return "<p>No results.</p>";
-		const cols = Object.keys(rows[0]);
+		const cols = [...new Set(rows.flatMap((r) => Object.keys(r)))];
 		const header = cols.map((c) => `<th>${esc(c)}</th>`).join("");
 		const body = rows.map((r) => `<tr>${cols.map((c) => `<td>${this.renderCell(r[c])}</td>`).join("")}</tr>`).join("");
 		return `<table><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table>`;
 	}
 
+	/** A value as the text of its cell: a field a row leaves out is an empty cell. */
 	private renderCell(value: unknown): string {
-		const s = typeof value === "string" ? value : JSON.stringify(value);
-		return esc(s);
+		if (value === undefined) return "";
+		return esc(typeof value === "string" ? value : JSON.stringify(value));
 	}
 
 	private bindEvents(): void {

@@ -1,3 +1,1 @@
-[
-	"string-param RecorderStepper.startRecording {file: string}"
-]
+["string-param RecorderStepper.startRecording {file: string}"]

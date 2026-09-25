@@ -685,7 +685,11 @@ describe("a question from the history asked again", () => {
 	const elsewhere = () => {
 		dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: OTHER });
 		dispatchSubjectEvent({ type: "open", scope: SCOPE.actionsBar });
-		dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry: { record: { id: answer("0.1.4"), label: "Comment" }, turn: question("0.1.4"), bundle: OTHER.bundle } });
+		dispatchSubjectEvent({
+			type: "activate",
+			scope: SCOPE.actionsBar,
+			entry: { record: { id: answer("0.1.4"), label: "Comment" }, turn: question("0.1.4"), bundle: OTHER.bundle },
+		});
 		conversationState.set({ status: "open", session: RESTORED, turns: [], asked: null });
 	};
 

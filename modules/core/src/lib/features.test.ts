@@ -1,6 +1,5 @@
 import { describe, it, test, expect } from "vitest";
 
-import { z } from "zod";
 import { DEFAULT_DEST, OK } from "../schema/protocol.js";
 import * as steps from "./features.js";
 import { passWithDefaults, failWithDefaults } from "./test/lib.js";
@@ -124,9 +123,7 @@ describe("does not include backgrounds that are not referenced", () => {
 });
 
 describe("a resolved feature as data", () => {
-	it("serializes after a run parsed with a recursive schema a step declares, and names each step's stepper and step", () => {
-		const productsSchema = z.object({ value: z.json() });
-		productsSchema.parse({ value: { nested: [1, "two"] } });
+	it("names each step's stepper and step, and holds no step's definition", () => {
 		const feature = {
 			path: "/features/f.feature",
 			base: "/",
@@ -135,11 +132,10 @@ describe("a resolved feature as data", () => {
 				{
 					in: "reads json",
 					seqPath: [0, 1, 1],
-					action: { stepperName: "JsonSteps", actionName: "readsJson", step: { exact: "reads json", productsSchema, action: () => OK }, stepValuesMap: {} },
+					action: { stepperName: "JsonSteps", actionName: "readsJson", step: { exact: "reads json", action: () => OK }, stepValuesMap: {} },
 				},
 			],
 		};
-		expect(() => JSON.stringify(feature), "a feature with its step's definition holds the schema's cycle").toThrow(/circular/);
 		expect(JSON.parse(JSON.stringify(steps.featureAsData(feature))).featureSteps[0].action).toEqual({ stepperName: "JsonSteps", actionName: "readsJson", stepValuesMap: {} });
 	});
 });

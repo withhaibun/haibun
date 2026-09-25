@@ -1,11 +1,14 @@
-import { IHasOptions } from "../astepper.js";
-import { AStepper } from "../astepper.js";
+import { AStepper, type IHasCycles, type IHasOptions, type IStepperCycles } from "../astepper.js";
 import { actionOKWithProducts, getStepperOption } from "../util/index.js";
 import { z } from "zod";
 
 const TestOptionResultSchema = z.object({ summary: z.string() });
+const DOMAIN_TEST_OPTION_RESULT = "test-option-result";
 
-export const TestStepsWithOptions = class TestStepsWithOptions extends AStepper implements IHasOptions {
+export const TestStepsWithOptions = class TestStepsWithOptions extends AStepper implements IHasOptions, IHasCycles {
+	cycles: IStepperCycles = {
+		getConcerns: () => ({ domains: [{ selectors: [DOMAIN_TEST_OPTION_RESULT], schema: TestOptionResultSchema, description: "That a step read its stepper's option" }] }),
+	};
 	options = {
 		EXISTS: {
 			desc: "option exists",
@@ -16,7 +19,7 @@ export const TestStepsWithOptions = class TestStepsWithOptions extends AStepper 
 	steps = {
 		test: {
 			exact: "have a stepper option",
-			productsSchema: TestOptionResultSchema,
+			productsDomain: DOMAIN_TEST_OPTION_RESULT,
 			action: () => {
 				const _res = getStepperOption(this, "EXISTS", this.getWorld().moduleOptions);
 				return Promise.resolve(actionOKWithProducts({ summary: "options" }));

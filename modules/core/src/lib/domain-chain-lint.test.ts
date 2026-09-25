@@ -72,7 +72,6 @@ class LooselyTyped extends AStepper {
 		stated: { gwta: "state {what: string}", action: () => OK },
 		either: { gwta: `either {target: string | ${PERSON}}`, action: () => OK },
 		typed: { gwta: `greet {who: ${PERSON}}`, action: () => OK },
-		answers: { gwta: "answer", productsSchema: z.object({ said: z.string() }), action: () => actionOKWithProducts({ said: "yes" }) },
 	};
 }
 
@@ -148,14 +147,13 @@ describe("lintDomainChain", () => {
 		expect(stepKinds).toHaveLength(0);
 	});
 
-	it("reports each parameter a step types as string, or as a union with it, and products with a schema and no domain", () => {
+	it("reports each parameter a step types as string, or as a union with it", () => {
 		const report = lintDomainChain(buildDomainChain([new LooselyTyped()], domains()), domains());
-		const typing = report.findings.filter((f) => f.kind === LINT_FINDING.STRING_PARAM || f.kind === LINT_FINDING.UNNAMED_PRODUCTS).map(lintFindingLine);
+		const typing = report.findings.filter((f) => f.kind === LINT_FINDING.STRING_PARAM).map(lintFindingLine);
 		expect(typing).toEqual([
 			"string-param LooselyTyped.named {who: string}",
 			"string-param LooselyTyped.stated {what: string}",
 			"string-param LooselyTyped.either {target: person | string}",
-			"unnamed-products LooselyTyped.answers",
 		]);
 	});
 

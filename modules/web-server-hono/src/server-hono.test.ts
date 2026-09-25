@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { tmpdir } from "node:os";
 import { ServerHono } from "./server-hono.js";
 import type { IEventLogger } from "@haibun/core/lib/EventLogger.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
@@ -130,13 +131,6 @@ describe("ServerHono", () => {
 		});
 	});
 
-	describe("addKnownRoute", () => {
-		it("adds route without path validation", () => {
-			server.addKnownRoute("post", "/internal", P, (c) => c.text("ok"));
-			expect(server.mounted.post["/internal"]).toBeDefined();
-		});
-	});
-
 	describe("addRpcMethods", () => {
 		const read = { action: "Fam:read", handle: () => Promise.resolve("read") };
 
@@ -194,11 +188,20 @@ describe("ServerHono", () => {
 
 	describe("checkAddStaticFolder", () => {
 		it("throws if folder missing", () => {
-			expect(() => server.checkAddStaticFolder("", "/static")).toThrow("relativeFolder is required");
+			expect(() => server.checkAddStaticFolder("", "/static", P)).toThrow("relativeFolder is required");
 		});
 
 		it("throws if mountAt missing", () => {
-			expect(() => server.checkAddStaticFolder("public", "")).toThrow("mountAt is required");
+			expect(() => server.checkAddStaticFolder("public", "", P)).toThrow("mountAt is required");
+		});
+
+		it("records a folder it serves as an Endpoint with its purpose, as a route is, and refuses one with none", async () => {
+			server.addKnownStaticFolder(tmpdir(), "/files", { description: "files a test serves" });
+			server.checkAddIndexFolder(".", "/listing", { description: "an index a test serves" });
+			await new Promise((r) => setTimeout(r, 0)); // the mount's persist is fire-and-forget
+			expect(await store.getIndividual(EndpointLabels.Endpoint, "/files")).toMatchObject({ method: "GET", description: "files a test serves" });
+			expect(await store.getIndividual(EndpointLabels.Endpoint, "/listing")).toMatchObject({ method: "GET", description: "an index a test serves" });
+			expect(() => server.addKnownStaticFolder(tmpdir(), "/unstated", { description: "" })).toThrow("purpose.description is required");
 		});
 	});
 });

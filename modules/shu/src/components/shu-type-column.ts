@@ -284,7 +284,9 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 	private renderJoins(type: string): TemplateResult {
 		const { returning, taking } = stepsJoining(type);
 		const steps = (label: string, joined: TStepDefinition[], testId: string) =>
-			joined.length ? html`<p class="joins" data-testid=${testId}><span class="section-label">${label}</span> ${joined.map((step, i) => html`${i ? ", " : ""}${stepRef(step.method)}`)}</p>` : "";
+			joined.length
+				? html`<p class="joins" data-testid=${testId}><span class="section-label">${label}</span> ${joined.map((step, i) => html`${i ? ", " : ""}${stepRef(step.method)}`)}</p>`
+				: "";
 		return html`${steps("Returned by", returning, IDS.RETURNED_BY)}${steps("Taken by", taking, IDS.TAKEN_BY)}`;
 	}
 }

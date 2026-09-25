@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 import { passWithDefaults, DEF_PROTO_OPTIONS } from "@haibun/core/lib/test/lib.js";
+import { TEST_DOMAIN, declaresTestDomains } from "@haibun/core/lib/test/test-domains.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { actionOKWithProducts, getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import { OK } from "@haibun/core/schema/protocol.js";
@@ -14,20 +15,22 @@ import WebServerStepper from "./web-server-stepper.js";
 
 class ProtectedStepper extends AStepper {
 	description = "Steps gated by a protected and an admin capability, for tests of MCP authorization.";
+	cycles = declaresTestDomains();
 	steps = {
 		protectedAction: {
 			exact: "protected mcp action",
 			capability: "ProtectedStepper:invoke",
-			action: async () => actionOKWithProducts({ protected: true }),
+			action: async () => OK,
 		},
 		adminAction: {
 			exact: "admin mcp action",
 			capability: "ProtectedStepper:admin",
-			action: async () => actionOKWithProducts({ admin: true }),
+			action: async () => OK,
 		},
 		readsAt: {
 			exact: "mcp read level",
 			read: true,
+			productsDomain: TEST_DOMAIN.readAt,
 			action: async () => actionOKWithProducts({ at: readingAt() ?? "unbounded" }),
 		},
 		verifyMcpReadLevel: {

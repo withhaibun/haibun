@@ -19,6 +19,12 @@ import { validateStep } from "../lib/step-validation.js";
 
 /** Whether a line resolves to one step, and the method of that step or why it resolves to none or to several. */
 const StepValidationSchema = z.discriminatedUnion("valid", [z.object({ valid: z.literal(true), method: z.string() }), z.object({ valid: z.literal(false), error: z.string() })]);
+/** The store a run reads and writes through: the site it answers for, and the types it holds. */
+const StoreInUseSchema = z.object({ site: z.string(), types: z.array(z.string()) });
+/** The domains of what the run's own steps answer with. */
+const DOMAIN_STEP_DISCOVERY = "step-discovery";
+const DOMAIN_STEP_VALIDATION = "step-validation";
+const DOMAIN_STORE_IN_USE = "store-in-use";
 
 class Haibun extends AStepper implements IHasCycles {
 	description = "Core steps for features, scenarios, backgrounds, and prose";
@@ -35,7 +41,12 @@ class Haibun extends AStepper implements IHasCycles {
 	}
 	cycles: IStepperCycles = {
 		getConcerns: () => ({
-			domains: [{ selectors: [DOMAIN_STEP_DETAIL], schema: StepDetailSchema, description: "How much of each declaration a read of a run's declarations returns." }],
+			domains: [
+				{ selectors: [DOMAIN_STEP_DETAIL], schema: StepDetailSchema, description: "How much of each declaration a read of a run's declarations returns." },
+				{ selectors: [DOMAIN_STEP_DISCOVERY], schema: StepDiscoverySchema, description: "The steps, domains and steppers a run declares that a read matched" },
+				{ selectors: [DOMAIN_STEP_VALIDATION], schema: StepValidationSchema, description: "Whether a line resolves to exactly one step, and which" },
+				{ selectors: [DOMAIN_STORE_IN_USE], schema: StoreInUseSchema, description: "The store a run reads and writes through, and the types it holds" },
+			],
 		}),
 		startFeature({ resolvedFeature, index }: TStartFeature) {
 			this.resolvedFeature = resolvedFeature;
@@ -82,7 +93,7 @@ class Haibun extends AStepper implements IHasCycles {
 	steps = {
 		useStoreAt: {
 			gwta: `use store at {where} for {types}`,
-			productsSchema: z.object({ site: z.string(), types: z.array(z.string()) }),
+			productsDomain: DOMAIN_STORE_IN_USE,
 			// Mount another instance's store for the given types: writes route through and reads come back over the
 			// capability-gated store surface, so this instance keeps those records in the serving site's store instead
 			// of its own: one store, one custodian. Each call is signed under a delegation the serving site gave this
@@ -115,7 +126,7 @@ class Haibun extends AStepper implements IHasCycles {
 			capability: SHOW_STEPS_ACTION,
 			gwta: `show steps matching {text: string} as {detail: ${DOMAIN_STEP_DETAIL}}`,
 			description: SHOW_STEPS_DESCRIPTION,
-			productsSchema: StepDiscoverySchema,
+			productsDomain: DOMAIN_STEP_DISCOVERY,
 			action: ({ text, detail }: TStepsQuery) => {
 				const world = this.getWorld();
 				return actionOKWithProducts(discoverSteps(world, runRegistry(world), { text, detail }, shownTo()));
@@ -127,7 +138,7 @@ class Haibun extends AStepper implements IHasCycles {
 			gwta: "validate step {text: string}",
 			description:
 				"Whether a line resolves to exactly one of the steps the caller may call, and which method that step is; otherwise why the line resolves to none or to more than one.",
-			productsSchema: StepValidationSchema,
+			productsDomain: DOMAIN_STEP_VALIDATION,
 			action: ({ text }: { text: string }) => {
 				const validation = validateStep(text, this.steppers, shownTo());
 				return actionOKWithProducts(
