@@ -16,6 +16,8 @@ import type { TWorld } from "./world.js";
 
 export const DOMAIN_STATEMENT = "statement";
 export const DOMAIN_STRING = "string";
+/** Free text a person writes: a note, a question, a reason or a passage quoted, read as written. */
+export const DOMAIN_TEXT = "text";
 export const DOMAIN_LINK = "link";
 export const DOMAIN_NUMBER = "number";
 export const DOMAIN_JSON = "json";
@@ -26,7 +28,7 @@ export const DOMAIN_ACTIONS = "actions";
 export const DOMAIN_PRINCIPAL_REF = "principal-ref";
 /** The id of a record of the type another of its step's parameters names (the step's `recordIds`). */
 export const DOMAIN_RECORD_ID = "record-id";
-export const BASE_TYPES = [DOMAIN_STRING, DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_DATE, DOMAIN_STATEMENT, DOMAIN_JSON];
+export const BASE_TYPES = [DOMAIN_STRING, DOMAIN_TEXT, DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_DATE, DOMAIN_STATEMENT, DOMAIN_JSON];
 
 // Goal resolver domains.
 export const DOMAIN_DOMAIN_KEY = "domain-key";

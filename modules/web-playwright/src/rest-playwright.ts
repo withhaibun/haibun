@@ -1,12 +1,10 @@
-import { actionNotOK, actionOKWithProducts, getStepTerm } from "@haibun/core/lib/util/index.js";
+import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
 import WebPlaywright from "./web-playwright.js";
 import { WEB_PLAYWRIGHT_ACTIONS } from "./actions.js";
 import { OK } from "@haibun/core/schema/protocol.js";
 import { TStepperSteps } from "@haibun/core/lib/astepper.js";
-import { DOMAIN_JSON_RESPONSE_COUNT } from "./domains.js";
-
-const PAYLOAD_METHODS = ["post", "put", "patch"];
-const NO_PAYLOAD_METHODS = ["get", "delete", "head"];
+import { DOMAIN_NUMBER } from "@haibun/core/lib/domains.js";
+import { DOMAIN_HTTP_METHOD, DOMAIN_HTTP_METHOD_WITH_BODY, DOMAIN_HTTP_METHOD_WITHOUT_BODY, DOMAIN_JSON_RESPONSE_COUNT, HTTP_METHODS_WITH_BODY } from "./domains.js";
 
 export const AUTHORIZATION = "Authorization";
 export const ACCESS_TOKEN = "access_token";
@@ -65,27 +63,20 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 
 		acceptEndpointRequest: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
-			gwta: `accept {accept} using ${HTTP} {method} to {endpoint}`,
-			handlesUndefined: ["method"],
-			action: async ({ accept, endpoint }: { accept: string; method: string; endpoint: string }, featureStep) => {
-				const method = getStepTerm(featureStep, "method")?.toLowerCase() ?? "";
-				if (!NO_PAYLOAD_METHODS.includes(method)) {
-					return actionNotOK(`Method ${method} not supported`);
-				}
-				const serialized = await webPlaywright.withPageFetch(endpoint, method, { headers: { accept } });
+			gwta: `accept {accept} using ${HTTP} {method: ${DOMAIN_HTTP_METHOD_WITHOUT_BODY}} to {endpoint}`,
+			action: async ({ accept, method, endpoint }: { accept: string; method: string; endpoint: string }, featureStep) => {
+				const serialized = await webPlaywright.withPageFetch(endpoint, method.toLowerCase(), { headers: { accept } });
 				await webPlaywright.setLastResponse(serialized, featureStep);
 				return OK;
 			},
 		},
 		restEndpointRequest: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
-			gwta: `make an ${HTTP} {method} to {endpoint}`,
-			handlesUndefined: ["method"],
-			action: async ({ endpoint }: { method: string; endpoint: string }, featureStep) => {
-				const method = getStepTerm(featureStep, "method")?.toLowerCase() ?? "";
-				// Allow all methods - for payload methods (POST/PUT/PATCH), send without body
-				const requestOptions = PAYLOAD_METHODS.includes(method) ? { postData: "", headers: { "Content-Type": "application/json" } } : undefined;
-				const serialized = await webPlaywright.withPageFetch(endpoint, method, requestOptions);
+			gwta: `make an ${HTTP} {method: ${DOMAIN_HTTP_METHOD}} to {endpoint}`,
+			action: async ({ method, endpoint }: { method: string; endpoint: string }, featureStep) => {
+				// A method that sends a body sends an empty one here.
+				const requestOptions = (HTTP_METHODS_WITH_BODY as readonly string[]).includes(method) ? { postData: "", headers: { "Content-Type": "application/json" } } : undefined;
+				const serialized = await webPlaywright.withPageFetch(endpoint, method.toLowerCase(), requestOptions);
 				await webPlaywright.setLastResponse(serialized, featureStep);
 				return OK;
 			},
@@ -105,10 +96,10 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 		},
 		filteredResponseLengthIs: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
-			gwta: `filtered response length is {length}`,
-			action: async ({ length }: { length: string }) => {
+			gwta: `filtered response length is {length: ${DOMAIN_NUMBER}}`,
+			action: async ({ length }: { length: number }) => {
 				const lastResponse = await webPlaywright.getLastResponse();
-				if (!lastResponse?.filtered || lastResponse.filtered.length !== parseInt(length)) {
+				if (!lastResponse?.filtered || lastResponse.filtered.length !== length) {
 					return actionNotOK(`Expected ${length}, got ${lastResponse?.filtered?.length}`);
 				}
 				return OK;
@@ -133,10 +124,10 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 		},
 		responseJsonLengthIs: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
-			gwta: `JSON response length is {length}`,
-			action: async ({ length }: { length: string }) => {
+			gwta: `JSON response length is {length: ${DOMAIN_NUMBER}}`,
+			action: async ({ length }: { length: number }) => {
 				const lastResponse = await webPlaywright.getLastResponse();
-				if (!lastResponse?.json || lastResponse.json.length !== parseInt(length)) {
+				if (!lastResponse?.json || lastResponse.json.length !== length) {
 					return actionNotOK(`Expected ${length}, got ${lastResponse?.json?.length}`);
 				}
 				return OK;
@@ -144,13 +135,8 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 		},
 		restFilterPropertyRequest: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
-			gwta: `for each filtered {property}, make REST {method} to {endpoint} yielding status {status}`,
-			handlesUndefined: ["method"],
-			action: async ({ property, endpoint, status }: { property: string; endpoint: string; status: string }, featureStep) => {
-				const method = getStepTerm(featureStep, "method")?.toLowerCase() ?? "";
-				if (!NO_PAYLOAD_METHODS.includes(method)) {
-					return actionNotOK(`Method ${method} not supported`);
-				}
+			gwta: `for each filtered {property}, make REST {method: ${DOMAIN_HTTP_METHOD_WITHOUT_BODY}} to {endpoint} yielding status {status: ${DOMAIN_NUMBER}}`,
+			action: async ({ property, method, endpoint, status }: { property: string; method: string; endpoint: string; status: number }) => {
 				const lastResponse = await webPlaywright.getLastResponse();
 				const { filtered } = lastResponse;
 				if (!filtered) {
@@ -161,8 +147,8 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 				}
 				for (const item of filtered) {
 					const requestPath = `${endpoint}/${item[property]}`;
-					const serialized = await webPlaywright.withPageFetch(requestPath, method);
-					if (serialized.status !== parseInt(status, 10)) {
+					const serialized = await webPlaywright.withPageFetch(requestPath, method.toLowerCase());
+					if (serialized.status !== status) {
 						return actionNotOK(`Expected status ${status} to ${requestPath}, got ${serialized.status}`);
 					}
 				}
@@ -172,25 +158,20 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 		restEndpointRequestWithPayload: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
 			precludes: ["WebPlaywright.restEndpointRequest"],
-			gwta: `make an ${"HTTP"} {method} to {endpoint} with {payload}`,
-			handlesUndefined: ["method"],
-			action: async ({ endpoint, payload }: { endpoint: string; payload: string }, featureStep) => {
-				const method = getStepTerm(featureStep, "method")?.toLowerCase() ?? "";
-				if (!PAYLOAD_METHODS.includes(method)) {
-					return actionNotOK(`Method ${method} (${method}) does not support payload`);
-				}
+			gwta: `make an ${HTTP} {method: ${DOMAIN_HTTP_METHOD_WITH_BODY}} to {endpoint} with {payload}`,
+			action: async ({ method, endpoint, payload }: { method: string; endpoint: string; payload: string }, featureStep) => {
 				const requestOptions = { postData: payload, headers: { "Content-Type": "application/json" } };
-				const serialized = await webPlaywright.withPageFetch(endpoint, method, requestOptions);
+				const serialized = await webPlaywright.withPageFetch(endpoint, method.toLowerCase(), requestOptions);
 				await webPlaywright.setLastResponse(serialized, featureStep);
 				return OK;
 			},
 		},
 		restLastStatusIs: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
-			gwta: `${HTTP} status is {status}`,
-			action: async ({ status }: { status: string }) => {
+			gwta: `${HTTP} status is {status: ${DOMAIN_NUMBER}}`,
+			action: async ({ status }: { status: number }) => {
 				const lastResponse = await webPlaywright.getLastResponse();
-				if (lastResponse && lastResponse.status === parseInt(status)) {
+				if (lastResponse && lastResponse.status === status) {
 					return OK;
 				}
 				return actionNotOK(`Expected status ${status}, got ${lastResponse?.status || "no response"}`);

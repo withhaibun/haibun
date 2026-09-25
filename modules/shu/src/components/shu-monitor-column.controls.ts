@@ -9,6 +9,7 @@
  */
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionOK, actionNotOK } from "@haibun/core/lib/util/index.js";
+import { DOMAIN_NUMBER, DOMAIN_TEXT } from "@haibun/core/lib/domains.js";
 
 import { type EvalPage, pollUntil, countMatching, firstText, firstAttr, hasText, clickFirst } from "./controls-util.js";
 import { FOLLOW_EDGE_SLACK_PX } from "../controllers/index.js";
@@ -65,9 +66,9 @@ export default class ShuMonitorColumnControls extends AStepper {
 
 	steps: TStepperSteps = {
 		monitorShowsMoreThan: {
-			gwta: "monitor shows more than {min} rows",
-			action: async ({ min }: { min: string }) => {
-				const want = Number(min);
+			gwta: `monitor shows more than {min: ${DOMAIN_NUMBER}} rows`,
+			action: async ({ min }: { min: number }) => {
+				const want = min;
 				const n = await pollUntil(
 					await this.page(),
 					(p) => this.rowCount(p),
@@ -77,9 +78,9 @@ export default class ShuMonitorColumnControls extends AStepper {
 			},
 		},
 		monitorShowsExactly: {
-			gwta: "monitor shows exactly {count} rows",
-			action: async ({ count }: { count: string }) => {
-				const want = Number(count);
+			gwta: `monitor shows exactly {count: ${DOMAIN_NUMBER}} rows`,
+			action: async ({ count }: { count: number }) => {
+				const want = count;
 				const n = await pollUntil(
 					await this.page(),
 					(p) => this.rowCount(p),
@@ -96,29 +97,31 @@ export default class ShuMonitorColumnControls extends AStepper {
 			},
 		},
 		monitorFirstVisibleRow: {
-			gwta: "monitor first visible row reads {ordinal}",
-			action: async ({ ordinal }: { ordinal: string }) => {
+			gwta: `monitor first visible row reads {ordinal: ${DOMAIN_NUMBER}}`,
+			action: async ({ ordinal }: { ordinal: number }) => {
+				const expected = String(ordinal);
 				const v = await pollUntil(
 					await this.page(),
 					(p) => firstText(p, SCROLLBAR_POS_TOP),
-					(x) => x === ordinal,
+					(x) => x === expected,
 					25,
 					100,
 				);
-				return v === ordinal ? actionOK() : actionNotOK(`monitor rail shows first visible row ${v || "(none)"}, expected ${ordinal}`);
+				return v === expected ? actionOK() : actionNotOK(`monitor rail shows first visible row ${v || "(none)"}, expected ${ordinal}`);
 			},
 		},
 		monitorFirstVisibleRowIsNot: {
-			gwta: "monitor first visible row does not read {ordinal}",
-			action: async ({ ordinal }: { ordinal: string }) => {
+			gwta: `monitor first visible row does not read {ordinal: ${DOMAIN_NUMBER}}`,
+			action: async ({ ordinal }: { ordinal: number }) => {
+				const expected = String(ordinal);
 				const v = await pollUntil(
 					await this.page(),
 					(p) => firstText(p, SCROLLBAR_POS_TOP),
-					(x) => x !== "" && x !== ordinal,
+					(x) => x !== "" && x !== expected,
 					25,
 					100,
 				);
-				return v !== "" && v !== ordinal ? actionOK() : actionNotOK(`monitor rail still shows first visible row ${ordinal}; the seek did not move the window`);
+				return v !== "" && v !== expected ? actionOK() : actionNotOK(`monitor rail still shows first visible row ${ordinal}; the seek did not move the window`);
 			},
 		},
 		documentThumbnailsFlow: {
@@ -263,16 +266,16 @@ export default class ShuMonitorColumnControls extends AStepper {
 			},
 		},
 		monitorHoldsRows: {
-			gwta: "monitor holds at least {n} rows of the run",
-			action: async ({ n }: { n: string }) => {
-				const want = Number(n);
+			gwta: `monitor holds at least {n: ${DOMAIN_NUMBER}} rows of the run`,
+			action: async ({ n }: { n: number }) => {
+				const want = n;
 				const read = (p: EvalPage) => firstText(p, MONITOR_COUNT).then((t) => Number(t.replace(/[^0-9]/g, "")) || 0);
 				const v = await pollUntil(await this.page(), read, (x) => x >= want);
 				return v >= want ? actionOK() : actionNotOK(`the monitor holds ${v} rows, expected at least ${want} (what the run recorded did not reach the view)`);
 			},
 		},
 		monitorShowsRowContaining: {
-			gwta: "monitor shows a row containing {text}",
+			gwta: `monitor shows a row containing {text: ${DOMAIN_TEXT}}`,
 			action: async ({ text }: { text: string }) => {
 				const found = await pollUntil(
 					await this.page(),
@@ -321,9 +324,9 @@ export default class ShuMonitorColumnControls extends AStepper {
 			},
 		},
 		monitorFutureRowsAtLeast: {
-			gwta: "monitor dims at least {min} future rows",
-			action: async ({ min }: { min: string }) => {
-				const want = Number(min);
+			gwta: `monitor dims at least {min: ${DOMAIN_NUMBER}} future rows`,
+			action: async ({ min }: { min: number }) => {
+				const want = min;
 				const read = (p: EvalPage) => countMatching(p, `${MONITOR_ROW}.${FUTURE}`);
 				const n = await pollUntil(await this.page(), read, (x) => x >= want, 20, 150);
 				return n >= want ? actionOK() : actionNotOK(`monitor dimmed ${n} future rows after the external cursor moved, expected at least ${want}`);
@@ -337,9 +340,9 @@ export default class ShuMonitorColumnControls extends AStepper {
 			},
 		},
 		documentFutureRowsAtLeast: {
-			gwta: "document dims at least {min} future rows",
-			action: async ({ min }: { min: string }) => {
-				const want = Number(min);
+			gwta: `document dims at least {min: ${DOMAIN_NUMBER}} future rows`,
+			action: async ({ min }: { min: number }) => {
+				const want = min;
 				const read = (p: EvalPage) => countMatching(p, `.doc-block.${FUTURE}, ${DOC_ROW}.${FUTURE}`);
 				const n = await pollUntil(await this.page(), read, (x) => x >= want, 20, 150);
 				return n >= want ? actionOK() : actionNotOK(`document dimmed ${n} future rows after the cursor moved, expected at least ${want}`);

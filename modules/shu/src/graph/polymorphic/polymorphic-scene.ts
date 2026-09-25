@@ -757,12 +757,14 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			// depends on a redraw can tell a paused scene from a live one, and can count ticks over which nothing was drawn.
 			// A change made since the last tick is drawn from the next one, so the scene is paused only while that tick draws
 			// nothing either.
-			// `welcoming` counts the newcomers whose welcome glow is still to end, the one change a paused scene has scheduled.
+			// `welcoming` and `layingOut` count the changes a paused scene has scheduled: newcomers whose welcome glow is still to
+			// end, and chips whose measured text is still to land.
 			render: {
 				paused: this.drawing !== undefined && !this.drawing.drawing && this.drawingReason(this.rafFrame + 1) === "rest",
 				ticks: this.rafFrame,
 				reason: this.drawingFor.reason,
 				welcoming: this.focusCtl.welcoming,
+				layingOut: nodes.filter((n) => n.__visual?.layingOut).length,
 			},
 			// What a drawn frame takes the renderer (the median of the last few, null before the first measurement) and
 			// whether the breath rests on it. A reader can tell a scene that regulated itself from one that has not measured.

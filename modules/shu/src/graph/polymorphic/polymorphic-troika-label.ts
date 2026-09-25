@@ -186,18 +186,26 @@ export function makeTroikaChip(label: string, bgColor: string, three: ChipThree,
 		d.laidOut();
 	};
 
+	let measuring = avatarText ? 2 : 1;
+	const landed = () => {
+		measuring--;
+		layout();
+	};
 	if (avatarText) {
 		avatarText.position.x = d.fontSize * AVATAR_PAD_X;
 		avatarBg?.scale.set(0, 0, 1);
-		avatarText.sync(layout);
+		avatarText.sync(landed);
 	}
-	text.sync(layout);
+	text.sync(landed);
 
 	return {
 		object: group,
 		pickTarget: bg,
 		get hasHighlight() {
 			return glow.isLit;
+		},
+		get layingOut() {
+			return measuring > 0;
 		},
 		setHighlighted: (on, burn) => glow.set(on, burn),
 		get opacity() {
@@ -245,6 +253,7 @@ export function spriteVisual(obj: Obj3D, highlight: { three: GlowThree; color: s
 		get hasHighlight() {
 			return glow.isLit;
 		},
+		layingOut: false, // painted when built
 		setHighlighted: (on, burn) => glow.set(on, burn),
 		get opacity() {
 			return obj.material?.opacity ?? 1;

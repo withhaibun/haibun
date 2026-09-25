@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { ENDPOINT_LABEL, HTTP_CLIENT_LABEL, HTTP_HOST_LABEL, HTTP_REQUEST_LABEL, LinkRelations, PersistedVertexSchema, TDomainDefinition } from "@haibun/core/lib/resources.js";
-import { DOMAIN_STRING } from "@haibun/core/lib/domains.js";
+import { DOMAIN_STRING, createEnumDomainDefinition } from "@haibun/core/lib/domains.js";
 import { ENDPOINT_CLASS } from "@haibun/core/lib/http-observations.js";
 import { DOMAIN_RELAY_ATTACHMENT, RelayAttachmentSchema } from "./relay/relay-wire.js";
 
@@ -46,7 +46,26 @@ const httpClientSchema = PersistedVertexSchema.extend({ id: z.string(), name: z.
 const httpHostSchema = PersistedVertexSchema.extend({ id: z.string(), name: z.string().optional(), requestCount: z.number().optional(), generatedAtTime: z.string() });
 const visitedPageSchema = PersistedVertexSchema.extend({ id: z.string(), name: z.string().optional(), generatedAtTime: z.string() });
 
+/** The HTTP methods a request is made with: those that send a body, and those that send none. */
+export const HTTP_METHODS_WITH_BODY = ["POST", "PUT", "PATCH"] as const;
+export const HTTP_METHODS_WITHOUT_BODY = ["GET", "DELETE", "HEAD"] as const;
+export const DOMAIN_HTTP_METHOD = "http-method";
+export const DOMAIN_HTTP_METHOD_WITH_BODY = "http-method-with-body";
+export const DOMAIN_HTTP_METHOD_WITHOUT_BODY = "http-method-without-body";
+/** The ways to find what a click presses, each a way the page is read by. */
+export const FIND_WAYS = ["alt text", "test id", "placeholder", "role", "label", "title", "text"] as const;
+export type TFindWay = (typeof FIND_WAYS)[number];
+export const DOMAIN_FIND_WAY = "page-find-way";
+/** What the requests a page makes to a URL are: refused, left without an answer, or answered. */
+export const REQUEST_STATE = { blocked: "blocked", unanswered: "unanswered", allowed: "allowed" } as const;
+export const DOMAIN_REQUEST_STATE = "request-state";
+
 export const WebPlaywrightDomains: TDomainDefinition[] = [
+	createEnumDomainDefinition({ name: DOMAIN_HTTP_METHOD, values: [...HTTP_METHODS_WITHOUT_BODY, ...HTTP_METHODS_WITH_BODY], description: "An HTTP method a request is made with" }),
+	createEnumDomainDefinition({ name: DOMAIN_HTTP_METHOD_WITH_BODY, values: [...HTTP_METHODS_WITH_BODY], description: "An HTTP method whose request sends a body" }),
+	createEnumDomainDefinition({ name: DOMAIN_HTTP_METHOD_WITHOUT_BODY, values: [...HTTP_METHODS_WITHOUT_BODY], description: "An HTTP method whose request sends no body" }),
+	createEnumDomainDefinition({ name: DOMAIN_FIND_WAY, values: [...FIND_WAYS], description: "A way to find what a click presses" }),
+	createEnumDomainDefinition({ name: DOMAIN_REQUEST_STATE, values: Object.values(REQUEST_STATE), description: "Whether the requests a page makes are refused, left unanswered or answered" }),
 	{ selectors: [DOMAIN_PAGE_CONTENTS], schema: PageContentsSchema, description: "A page's markup, as the browser holds it" },
 	{ selectors: [DOMAIN_ACCESSIBILITY_SNAPSHOT], schema: AccessibilitySnapshotSchema, description: "A page as its accessibility tree reads, with the steps that act on it" },
 	{ selectors: [DOMAIN_JSON_RESPONSE_COUNT], schema: RestJsonCountSchema, description: "How many entries the last JSON response held" },

@@ -20,6 +20,7 @@ import type { TPaneOpen } from "../pane-state.js";
 import { z } from "zod";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps, type TFeatureStep } from "@haibun/core/lib/astepper.js";
 import type { TDomainDefinition } from "@haibun/core/lib/resources.js";
+import { DOMAIN_NUMBER } from "@haibun/core/lib/domains.js";
 import { actionOK, actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
 import type { TActionResult } from "@haibun/core/schema/protocol.js";
 import WebPlaywright from "@haibun/web-playwright";
@@ -382,9 +383,9 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 
 	steps: TStepperSteps = {
 		waitForGraphNodes: {
-			gwta: "graph has at least {count} nodes",
-			action: async ({ count }: { count: string }) => {
-				await this.waitForNodes(await this.page(), Number(count));
+			gwta: `graph has at least {count: ${DOMAIN_NUMBER}} nodes`,
+			action: async ({ count }: { count: number }) => {
+				await this.waitForNodes(await this.page(), count);
 				return actionOK();
 			},
 		},
@@ -459,20 +460,20 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			},
 		},
 		zoomGraph: {
-			gwta: `zoom {dir: ${DOMAIN_GRAPH_ZOOM}} {amount} {unit: ${DOMAIN_GRAPH_UNIT}}`,
-			action: async ({ dir, amount, unit }: { dir: string; amount: string; unit: string }) => {
+			gwta: `zoom {dir: ${DOMAIN_GRAPH_ZOOM}} {amount: ${DOMAIN_NUMBER}} {unit: ${DOMAIN_GRAPH_UNIT}}`,
+			action: async ({ dir, amount, unit }: { dir: string; amount: number; unit: string }) => {
 				const page = await this.page();
 				await this.settle(page);
-				await this.call(page, "zoomBy", [Number(amount), unit, dir]);
+				await this.call(page, "zoomBy", [amount, unit, dir]);
 				return actionOK();
 			},
 		},
 		panGraph: {
-			gwta: `pan {amount} {unit: ${DOMAIN_GRAPH_UNIT}} {dir: ${DOMAIN_GRAPH_PAN}}`,
-			action: async ({ amount, unit, dir }: { amount: string; unit: string; dir: string }) => {
+			gwta: `pan {amount: ${DOMAIN_NUMBER}} {unit: ${DOMAIN_GRAPH_UNIT}} {dir: ${DOMAIN_GRAPH_PAN}}`,
+			action: async ({ amount, unit, dir }: { amount: number; unit: string; dir: string }) => {
 				const page = await this.page();
 				await this.settle(page);
-				await this.call(page, "panBy", [Number(amount), unit, dir]);
+				await this.call(page, "panBy", [amount, unit, dir]);
 				return actionOK();
 			},
 		},
@@ -1028,15 +1029,15 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			// The gantt calendar places one task per subject carrying a start-kind time (an interval when it also carries an
 			// end, a point milestone otherwise). Asserted from inspect().gantt: the same cached scale/targets the ruler and
 			// bar placement read, so a passing count means the calendar laid out.
-			gwta: "graph places at least {count} gantt tasks",
-			action: async ({ count }: { count: string }) => {
+			gwta: `graph places at least {count: ${DOMAIN_NUMBER}} gantt tasks`,
+			action: async ({ count }: { count: number }) => {
 				const page = await this.page();
 				await this.settle(page);
 				const gantt = await page.evaluate(
 					() => (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { gantt: { from: string; to: string; count: number } | null } }).inspect().gantt,
 				);
 				if (!gantt) return actionNotOK("no gantt placement: the calendar laid out no tasks");
-				if (gantt.count < Number(count)) return actionNotOK(`only ${gantt.count} gantt task(s) placed (${gantt.from} → ${gantt.to}), expected at least ${count}`);
+				if (gantt.count < count) return actionNotOK(`only ${gantt.count} gantt task(s) placed (${gantt.from} → ${gantt.to}), expected at least ${count}`);
 				return actionOK();
 			},
 		},
@@ -1128,8 +1129,8 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			// The 3D sequence view derives one ACTOR per distinct participant (the merged role) from the graph: no hand-
 			// applied labels. Assert at least {count} actors formed in inspect().sequence, the ground truth the lifelines
 			// are drawn from (the lifeline pillars themselves are a 3D overlay, asserted via the lane placement below).
-			gwta: "graph shows at least {count} sequence actors",
-			action: async ({ count }: { count: string }) => {
+			gwta: `graph shows at least {count: ${DOMAIN_NUMBER}} sequence actors`,
+			action: async ({ count }: { count: number }) => {
 				const page = await this.page();
 				await this.settle(page);
 				const actors = await page.evaluate(
@@ -1137,7 +1138,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 						(document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { sequence: { actors: Array<{ id: string; label: string }> } | null } }).inspect()
 							.sequence?.actors ?? [],
 				);
-				if (actors.length < Number(count))
+				if (actors.length < count)
 					return actionNotOK(`only ${actors.length} sequence actor(s) formed [${actors.map((a) => a.label).join(", ")}], expected at least ${count}`);
 				return actionOK();
 			},
@@ -1340,8 +1341,8 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		sequenceHasMessages: {
 			// The sequence's messages are the cross-participant edges, time-ordered. Assert at least {count} messages
 			// formed in inspect().sequence: the ground truth the message arrows between lifelines are drawn from.
-			gwta: "graph shows at least {count} sequence messages",
-			action: async ({ count }: { count: string }) => {
+			gwta: `graph shows at least {count: ${DOMAIN_NUMBER}} sequence messages`,
+			action: async ({ count }: { count: number }) => {
 				const page = await this.page();
 				await this.settle(page);
 				const messages = await page.evaluate(
@@ -1352,7 +1353,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 							}
 						).inspect().sequence?.messages ?? [],
 				);
-				if (messages.length < Number(count))
+				if (messages.length < count)
 					return actionNotOK(`only ${messages.length} sequence message(s) formed [${messages.map((m) => `${m.from}→${m.to}:${m.label}`).join("; ")}], expected at least ${count}`);
 				return actionOK();
 			},

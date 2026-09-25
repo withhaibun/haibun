@@ -155,6 +155,10 @@ export class FeatureVariables {
 				} else if (isLiteralValue(input.term)) {
 					resolved.value = input.term;
 					resolved.domain = DOMAIN_STRING;
+				} else if (input.domain && this.world.domains[input.domain]?.values?.includes(input.term)) {
+					// A bare word naming a value of its parameter's own domain is that value, as `by placeholder` names a way to find.
+					resolved.value = input.term;
+					resolved.domain = input.domain;
 				}
 			}
 		} else if (input.origin === Origin.quoted) {

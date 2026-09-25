@@ -5,7 +5,7 @@ import { OK } from "../schema/protocol.js";
 import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TResolvedFeature, TStartFeature, TEndFeature, CycleWhen } from "../lib/astepper.js";
 import { actionNotOK, actionOK, actionOKWithProducts, constructorName, sleep } from "../lib/util/index.js";
 import { findFeatureStepsFromStatement } from "../phases/Resolver.js";
-import { DOMAIN_STATEMENT } from "../lib/domains.js";
+import { DOMAIN_STATEMENT, DOMAIN_TEXT } from "../lib/domains.js";
 import { findFeatures } from "../lib/features.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { QuadStore } from "../lib/quad-store.js";
@@ -125,7 +125,7 @@ class Haibun extends AStepper implements IHasCycles {
 		showSteps: {
 			read: true,
 			capability: SHOW_STEPS_ACTION,
-			gwta: `show steps matching {text: string} as {detail: ${DOMAIN_STEP_DETAIL}}`,
+			gwta: `show steps matching {text: ${DOMAIN_TEXT}} as {detail: ${DOMAIN_STEP_DETAIL}}`,
 			description: SHOW_STEPS_DESCRIPTION,
 			productsDomain: DOMAIN_STEP_DISCOVERY,
 			action: ({ text, detail }: TStepsQuery) => {
@@ -136,7 +136,7 @@ class Haibun extends AStepper implements IHasCycles {
 
 		validateStep: {
 			read: true,
-			gwta: "validate step {text: string}",
+			gwta: `validate step {text: ${DOMAIN_TEXT}}`,
 			description:
 				"Whether a line resolves to exactly one of the steps the caller may call, and which method that step is; otherwise why the line resolves to none or to more than one.",
 			productsDomain: DOMAIN_STEP_VALIDATION,
@@ -249,7 +249,7 @@ class Haibun extends AStepper implements IHasCycles {
 			},
 		},
 		comment: {
-			gwta: ";;{comment}",
+			gwta: `;;{comment: ${DOMAIN_TEXT}}`,
 			handlesUndefined: ["comment"],
 			action: () => OK,
 		},

@@ -10,6 +10,7 @@ import { ANSWERED_WITHOUT_PRODUCTS, parseRpcRequest, RPC_REFUSED } from "@haibun
 import { runWithRequestContext, requestBaseIri } from "@haibun/core/lib/request-context.js";
 import { buildFeatureStepForTransport, refusal, runRegistry, type StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { actionList, mayCall } from "@haibun/core/lib/actions.js";
+import { DOMAIN_TEXT } from "@haibun/core/lib/domains.js";
 import { STORE_METHOD_PREFIX, storeMethods } from "@haibun/core/lib/store-protocol.js";
 import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
 import { activeSitePrincipal, allocateSyntheticSeqPath, resolveHostId, syntheticSeqPath } from "@haibun/core/lib/host-id.js";
@@ -159,7 +160,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 
 	steps = {
 		stopInstance: {
-			gwta: "stop this instance because {reason}",
+			gwta: `stop this instance because {reason: ${DOMAIN_TEXT}}`,
 			capability: WEB_SERVER_CAPABILITIES.stop,
 			description: "End this instance's process, stating why, so its log says what stopped it.",
 			action: ({ reason }: { reason: string }) => {

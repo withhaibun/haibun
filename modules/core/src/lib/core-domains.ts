@@ -21,6 +21,7 @@ import {
 	DOMAIN_RECORD_ID,
 	DOMAIN_STATEMENT,
 	DOMAIN_STRING,
+	DOMAIN_TEXT,
 	mapDefinitionsToDomains,
 	recordIdInputSchema,
 } from "./domains.js";
@@ -167,6 +168,11 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		selectors: [DOMAIN_STRING],
 		schema: stringSchema,
 		description: "Plain string literal captured from feature text.",
+	},
+	{
+		selectors: [DOMAIN_TEXT],
+		schema: stringSchema,
+		description: "Free text a person writes: a note, a question, a reason or a passage quoted, read as written.",
 	},
 	{
 		selectors: [DOMAIN_LINK],

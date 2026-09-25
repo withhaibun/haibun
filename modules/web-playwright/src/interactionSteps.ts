@@ -1,11 +1,20 @@
-import { Page, Response } from "playwright";
-type ClickResult = import("playwright").Locator;
+import { Page, Response, type Locator } from "playwright";
 
 import { TFeatureStep } from "@haibun/core/lib/astepper.js";
 import { OK, Origin, TStepResult } from "@haibun/core/schema/protocol.js";
-import { DOMAIN_STATEMENT, DOMAIN_STRING } from "@haibun/core/lib/domains.js";
+import { DOMAIN_NUMBER, DOMAIN_STATEMENT, DOMAIN_STRING, DOMAIN_TEXT } from "@haibun/core/lib/domains.js";
 import { actionNotOK, actionOKWithProducts, errorDetail, sleep, getStepTerm, jsonArtifact } from "@haibun/core/lib/util/index.js";
-import { DOMAIN_ACCESSIBILITY_SNAPSHOT, DOMAIN_BROWSER_EXTENSION, DOMAIN_PAGE_CONTENTS, DOMAIN_PAGE_LOCATOR, DOMAIN_PAGE_TEST_ID } from "./domains.js";
+import {
+	DOMAIN_ACCESSIBILITY_SNAPSHOT,
+	DOMAIN_BROWSER_EXTENSION,
+	DOMAIN_FIND_WAY,
+	DOMAIN_PAGE_CONTENTS,
+	DOMAIN_PAGE_LOCATOR,
+	DOMAIN_PAGE_TEST_ID,
+	DOMAIN_REQUEST_STATE,
+	REQUEST_STATE,
+	type TFindWay,
+} from "./domains.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { pickLocatorDomain } from "./web-playwright.js";
 import { WEB_PAGE, WebPlaywright } from "./web-playwright.js";
@@ -22,11 +31,6 @@ import { FlowRunner } from "@haibun/core/lib/core/flow-runner.js";
 
 const DOMAIN_STRING_OR_PAGE_LOCATOR = `${DOMAIN_STRING} | ${DOMAIN_PAGE_LOCATOR}`;
 
-/** Whether the requests a page makes to a URL glob reach the network. `unroute` drops the handler added under the same glob. */
-const BLOCKED = "blocked";
-/** A request the site accepts and never answers, which is a site that has not answered rather than one that refused. */
-const UNANSWERED = "unanswered";
-const REQUEST_STATES = [BLOCKED, UNANSWERED, "allowed"] as const;
 /** The steps that act on what an accessibility snapshot reads, which the snapshot links. */
 const SNAPSHOT_ACTIONS = ["click", "setValue", "press", "selectionOption", "gotoPage", "goBack", "takeScreenshot"] as const;
 
@@ -43,7 +47,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 		type: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
-			gwta: "type {text}",
+			gwta: `type {text: ${DOMAIN_TEXT}}`,
 			action: async ({ text }: { text: string }) => {
 				await wp.withPage(async (page: Page) => await page.keyboard.type(text));
 				return OK;
@@ -118,7 +122,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 		seeText: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.read,
-			gwta: "see {text}",
+			gwta: `see {text: ${DOMAIN_TEXT}}`,
 			action: async ({ text }: { text: string }) => await wp.sees(text, "body"),
 		},
 		waitFor: {
@@ -320,35 +324,18 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 		clickBy: {
 			precludes: [`${wp.constructor.name}.click`],
-			gwta: `click {target: ${DOMAIN_STRING_OR_PAGE_LOCATOR}} by {method}`,
-			handlesUndefined: ["method"],
-			action: async ({ target }: { target: string; method: string }, featureStep: TFeatureStep) => {
-				const method = getStepTerm(featureStep, "method") ?? "";
-				let withModifier: Record<string, unknown> = {};
-
-				const bys: Record<string, (page: Page) => ClickResult | Promise<ClickResult> | Promise<void>> = {
-					"alt text": (page: Page) => page.getByAltText(target),
-					"test id": (page: Page) => page.getByTestId(target),
-					placeholder: (page: Page) => page.getByPlaceholder(target),
-					role: (page: Page) => page.getByRole(target as Parameters<Page["getByRole"]>[0]),
-					label: (page: Page) => page.getByLabel(target),
-					title: (page: Page) => page.getByTitle(target),
-					text: (page: Page) => page.getByText(target),
-					modifier: async (page: Page) => {
-						withModifier = JSON.parse(method);
-						return await wp.locateByDomain(page, featureStep, "target");
-					},
+			gwta: `click {target: ${DOMAIN_STRING_OR_PAGE_LOCATOR}} by {method: ${DOMAIN_FIND_WAY}}`,
+			action: async ({ target, method }: { target: string; method: TFindWay }) => {
+				const bys: Record<TFindWay, (page: Page) => Locator> = {
+					"alt text": (page) => page.getByAltText(target),
+					"test id": (page) => page.getByTestId(target),
+					placeholder: (page) => page.getByPlaceholder(target),
+					role: (page) => page.getByRole(target as Parameters<Page["getByRole"]>[0]),
+					label: (page) => page.getByLabel(target),
+					title: (page) => page.getByTitle(target),
+					text: (page) => page.getByText(target),
 				};
-				if (!bys[method]) {
-					return actionNotOK(`unknown click by "${method}" from ${Object.keys(bys).toString()} `);
-				}
-				await wp.withPage(async (page: Page) => {
-					const locatorResult = await bys[method](page);
-					const maybeLocator = locatorResult as unknown;
-					if (typeof maybeLocator === "object" && maybeLocator && "click" in maybeLocator) {
-						await (maybeLocator as import("playwright").Locator).click(withModifier);
-					}
-				});
+				await wp.withPage(async (page: Page) => await bys[method](page).click());
 				return OK;
 			},
 		},
@@ -648,9 +635,9 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 		resizeWindow: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
-			gwta: "resize window to {width}x{height}",
-			action: async ({ width, height }: { width: string; height: string }) => {
-				await wp.withPage(async (page: Page) => await page.setViewportSize({ width: parseInt(width), height: parseInt(height) }));
+			gwta: `resize window to {width: ${DOMAIN_NUMBER}}x{height: ${DOMAIN_NUMBER}}`,
+			action: async ({ width, height }: { width: number; height: number }) => {
+				await wp.withPage(async (page: Page) => await page.setViewportSize({ width, height }));
 				return OK;
 			},
 		},
@@ -670,28 +657,26 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 		requestsMatching: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.read,
-			gwta: `requests matching {pattern} are {state}`,
-			description: `Block or allow the requests this page makes, by URL glob, for the rest of the feature: what a view does when the server it reads from is unreachable, and what it does when the server responds again. ${REQUEST_STATES.join(" or ")}.`,
+			gwta: `requests matching {pattern} are {state: ${DOMAIN_REQUEST_STATE}}`,
+			description: `Block or allow the requests this page makes, by URL glob, for the rest of the feature: what a view does when the server it reads from is unreachable, and what it does when the server responds again. ${Object.values(REQUEST_STATE).join(" or ")}.`,
 			action: async ({ pattern, state }: { pattern: string; state: string }) => {
-				if (!(REQUEST_STATES as readonly string[]).includes(state)) return actionNotOK(`requests are ${REQUEST_STATES.join(" or ")}, not "${state}"`);
 				// On the page, so the state applies to this page's requests and to no other page of the context.
 				await wp.withPage(async (page: Page) => {
-					if (state === BLOCKED) await page.route(pattern, (route) => route.abort());
+					if (state === REQUEST_STATE.blocked) await page.route(pattern, (route) => route.abort());
 					// Neither answered nor refused: the request is taken and left, which is what a page reading a site that
 					// has stopped answering is given.
-					else if (state === UNANSWERED) await page.route(pattern, () => undefined);
+					else if (state === REQUEST_STATE.unanswered) await page.route(pattern, () => undefined);
 					else await page.unroute(pattern);
 				});
 				return OK;
 			},
 		},
 		usingTimeout: {
-			gwta: "using timeout of {timeout}ms",
-			action: async ({ timeout }: { timeout: string }) => {
-				const timeoutMs = parseInt(timeout, 10);
+			gwta: `using timeout of {timeout: ${DOMAIN_NUMBER}}ms`,
+			action: async ({ timeout }: { timeout: number }) => {
 				await wp.withPage((page: Page) => {
-					page.setDefaultTimeout(timeoutMs);
-					page.setDefaultNavigationTimeout(timeoutMs);
+					page.setDefaultTimeout(timeout);
+					page.setDefaultNavigationTimeout(timeout);
 				});
 				return OK;
 			},

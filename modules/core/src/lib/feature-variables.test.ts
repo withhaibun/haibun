@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import { z } from "zod";
 import { FeatureVariables } from "./feature-variables.js";
 import type { TWorld } from "./world.js";
 import { TFeatureStep } from "./astepper.js";
@@ -347,6 +348,23 @@ describe("FeatureVariables", () => {
 			await variables.setJSON("info", { count: 7 }, Origin.var, mockFeatureStep);
 			const resolved = await variables.resolveVariable({ term: "info.count", origin: Origin.var }, mockFeatureStep);
 			expect(String(resolved.value)).toBe("7");
+		});
+	});
+	describe("a bare word", () => {
+		const WAY = "test-way";
+		const resolveBare = (term: string) => variables.resolveVariable({ term, origin: Origin.defined, domain: WAY }, mockFeatureStep);
+		beforeEach(() => {
+			world.domains[WAY] = { selectors: [WAY], schema: z.enum(["placeholder", "role"]), values: ["placeholder", "role"], coerce: (p) => p.value, description: "a way to find" };
+		});
+
+		it("is the value of its parameter's own domain it names", async () => {
+			expect(await resolveBare("placeholder")).toMatchObject({ value: "placeholder", domain: WAY });
+		});
+
+		it("is no value where it names none of its domain's, and a variable of that name where one is set", async () => {
+			expect((await resolveBare("nowhere")).value).toBeUndefined();
+			await variables.set({ term: "role", value: "placeholder", domain: WAY, origin: Origin.var }, { in: "test", seq: [0], when: "test" });
+			expect((await resolveBare("role")).value, "a variable is read as a variable").toBe("placeholder");
 		});
 	});
 });

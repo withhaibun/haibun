@@ -50,7 +50,7 @@ type TInspected = {
 	followPending: boolean;
 	highlighted: number;
 	camera: TCamera | null;
-	render: { ticks: number; paused: boolean; welcoming: number };
+	render: { ticks: number; paused: boolean; welcoming: number; layingOut: number };
 };
 
 const VIEW = `document.querySelector("shu-polymorphic-graph-view")`;
@@ -139,8 +139,10 @@ export async function mountPolymorphicPage(): Promise<TMountedPage> {
 			await settle();
 			await page.waitForFunction(
 				() => {
-					const { render } = (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { render: { paused: boolean; welcoming: number } } }).inspect();
-					return render.paused && render.welcoming === 0;
+					const { render } = (
+						document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { render: { paused: boolean; welcoming: number; layingOut: number } } }
+					).inspect();
+					return render.paused && render.welcoming === 0 && render.layingOut === 0;
 				},
 				undefined,
 				{ timeout: 15_000 },

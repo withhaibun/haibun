@@ -29,6 +29,7 @@ export interface NodeVisual {
 	readonly object: Obj3D; // the scene object the lib renders + the magnifier scales
 	readonly pickTarget: Obj3D; // the raycast target (a chip's background quad; a sprite is itself)
 	readonly hasHighlight: boolean; // wearing the active-node glow right now: the one observable tests read
+	readonly layingOut: boolean; // measured text still to land, which is drawn when it lands
 	/** Wear or drop the glow that marks the ACTIVE node, `glow` carrying how it burns right now (strength and colour,
 	 *  driven per frame). `hasHighlight` tracks `on` alone, so it stays true through the dimmest part of the breath. */
 	setHighlighted(on: boolean, glow?: TBurn): void;

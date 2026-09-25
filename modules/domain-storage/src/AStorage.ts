@@ -8,6 +8,7 @@ import { EMediaTypes, TMediaType } from "./media-types.js";
 import { AStepper, StepperKinds, type IHasCycles, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { TAnyFixme } from "@haibun/core/lib/fixme.js";
 import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
+import { DOMAIN_NUMBER } from "@haibun/core/lib/domains.js";
 
 const FileContentsSchema = z.object({ contents: z.string() });
 /** The domain of a file's contents, as a storage read them. */
@@ -126,13 +127,6 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 	}
 
 	steps = {
-		createSizedFile: {
-			gwta: `create {x}MB file at {where} with {what}`,
-			action: async ({ where, what }: TStepArgs) => {
-				await this.writeFile(String(where), String(what), EMediaTypes.html);
-				return OK;
-			},
-		},
 		createFile: {
 			gwta: `create file at {where} with {what}`,
 			action: async ({ where, what }: TStepArgs) => {
@@ -148,10 +142,10 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 			},
 		},
 		filesCount: {
-			gwta: `directory {where} has {count} files`,
+			gwta: `directory {where} has {count: ${DOMAIN_NUMBER}} files`,
 			action: async ({ where, count }: TStepArgs) => {
 				const files = await this.readdir(String(where));
-				return files.length === parseInt(String(count)) ? OK : actionNotOK(`directory ${where} has ${files.length} files`);
+				return files.length === count ? OK : actionNotOK(`directory ${where} has ${files.length} files`);
 			},
 		},
 		testIs: {
@@ -207,13 +201,12 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 			},
 		},
 		fileIsRecent: {
-			gwta: `file {where} is recent within {minutes} minutes`,
+			gwta: `file {where} is recent within {minutes: ${DOMAIN_NUMBER}} minutes`,
 			action: async ({ where, minutes }: TStepArgs) => {
 				const file = await this.lstatToIFile(String(where));
 				const now = Date.now();
 				const diff = now - file.created;
-				const mins = parseInt(String(minutes));
-				if (diff <= mins * 60 * 1000) {
+				if (diff <= Number(minutes) * 60 * 1000) {
 					return OK;
 				}
 				return actionNotOK(`file ${where} is not recent within ${minutes} minutes (age: ${Math.round(diff / 1000)}s)`);

@@ -6,6 +6,5 @@
 	"string-param WebServerStepper.serveFiles {loc: string}",
 	"string-param WebServerStepper.serveFilesAt {loc: string}",
 	"string-param WebServerStepper.serveFilesAt {where: string}",
-	"string-param WebServerStepper.stopInstance {reason: string}",
 	"unreachable-domain haibun-endpoint"
 ]

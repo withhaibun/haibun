@@ -14,6 +14,7 @@ function stubVisual(): NodeVisual & { burns: number } {
 		object: {} as never,
 		pickTarget: {} as never,
 		hasHighlight: false,
+		layingOut: false,
 		burns: 0,
 		opacity: 1,
 		setHighlighted(on: boolean, glow?: unknown) {

@@ -327,6 +327,7 @@ For `Origin.defined` (the common case for unquoted variable references):
 2. Environment: Check `world.options.envVariables[term]`
 3. Stored variables: Check `this.values[term]` (set via `set foo to "bar"`)
 4. Literal fallback: If the term looks like a literal value (contains special chars), use it directly
+5. Domain value: If the parameter's domain lists values (an enum) and the term is one of them, the term is that value, so `click "username" by placeholder` and `make an HTTP GET to ...` need no quotes. A variable of the same name still wins
 
 For `Origin.quoted` (quoted strings like `"literal value"`):
 - If `{varName}` syntax inside quotes, resolve via runtimeArgs → stored
