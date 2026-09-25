@@ -8,6 +8,7 @@ import { PolymorphicFocus, type FocusDeps } from "../polymorphic/polymorphic-foc
 import { NEWCOMER_GLOW_MS } from "../polymorphic/polymorphic-highlight.js";
 import type { FGNode } from "../polymorphic/polymorphic-graph-types.js";
 import type { NodeVisual } from "./polymorphic-graph-types.js";
+import type { TGraphPreview } from "../focus-policy.js";
 
 function stubVisual(): NodeVisual & { burns: number } {
 	const v = {
@@ -160,5 +161,45 @@ describe("the breath at rest", () => {
 		expect(focus.updateHighlight(false), "the welcome's end draws the glow off").toBe(true);
 		expect(visual.hasHighlight).toBe(false);
 		expect(focus.updateHighlight(false)).toBe(false);
+	});
+});
+
+describe("the groups a preview lights", () => {
+	/** Two nodes grouped by the party they are attributed to, each group's enclosure dimming as the nodes do. */
+	function grouped() {
+		const nodes = [
+			{ id: "a", name: "a", type: "Email", properties: { party: "alice" } },
+			{ id: "b", name: "b", type: "Person", properties: { party: "bob" } },
+		] as unknown as FGNode[];
+		const enclosure = () => ({ boxMat: { opacity: 1 }, edgeMat: { opacity: 1 }, label: {} });
+		const enclosures = new Map([
+			["alice", enclosure()],
+			["bob", enclosure()],
+		]);
+		let preview: TGraphPreview | null = null;
+		const tiers = { full: 1, dimmed: 0.1, resting: 0.5 };
+		const deps = {
+			focusId: () => null,
+			preview: () => preview,
+			groupOf: (n: FGNode) => String(n.properties?.party),
+			nodeMap: () => new Map(nodes.map((n) => [n.id, n])),
+			enclosures: () => enclosures,
+			enclosureLabelTiers: tiers,
+			enclosureFillTiers: tiers,
+			enclosureEdgeTiers: tiers,
+		} as unknown as FocusDeps;
+		const focus = new PolymorphicFocus(deps);
+		const lit = (next: TGraphPreview): string[] => {
+			preview = next;
+			focus.applyEnclosureFocus();
+			return [...enclosures].filter(([, e]) => e.boxMat.opacity === tiers.full).map(([group]) => group);
+		};
+		return { lit };
+	}
+
+	it("lights the group holding a previewed node, whether the preview names a type or the nodes, under any grouping", () => {
+		const { lit } = grouped();
+		expect(lit({ type: "Person" }), "a type preview, grouped by party").toEqual(["bob"]);
+		expect(lit({ subjects: new Set(["a"]) }), "a preview of nodes").toEqual(["alice"]);
 	});
 });

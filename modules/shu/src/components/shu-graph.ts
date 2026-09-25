@@ -25,7 +25,7 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { SHU_EVENT } from "../consts.js";
 import { SvgGraphRenderer, graphToDot, findSvgNodes, findSvgEdges } from "../graph/svg-renderer.js";
-import { buildNeighbors, connectedNodes } from "../graph/filter-graph.js";
+import { buildNeighbors, connectedNodes } from "../graph/graph-neighbors.js";
 import type { IGraphRenderer, TGraph, TGraphRenderOptions } from "../graph/types.js";
 
 const GraphNodeSchema = z.object({

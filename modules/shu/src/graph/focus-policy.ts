@@ -1,15 +1,23 @@
 /**
  * A graph's focus/dim decision: one pure function every element kind (node, edge line, edge label, group
- * enclosure) runs, mapping the resulting tier to its own opacity/colour constants. Preview (a type hovered in the
- * filter legend) takes precedence over node focus, while a preview is active only the previewed type stays full.
+ * enclosure) runs, mapping the resulting tier to its own opacity/colour constants. A preview (a type hovered in the
+ * filter legend, or the nodes of a path a reader points at) takes precedence over node focus: while a preview is
+ * active only what it lights stays full.
  */
 export type FocusState = "full" | "dimmed" | "resting";
+
+/** What a preview lights: every node of a type, or a set of nodes. */
+export type TGraphPreview = { type: string } | { subjects: ReadonlySet<string> };
+
+/** Whether a preview lights a node. */
+export const previewLights = (preview: TGraphPreview, node: { id: string; type: string }): boolean =>
+	"type" in preview ? node.type === preview.type : preview.subjects.has(node.id);
 
 export interface FocusPolicyInput {
 	focusActive: boolean; // a node is focused (selectedSubject ?? hoverSubject != null)
 	isInFocus: boolean; // this element is the focus node / an incident edge / the focused type's group
-	previewActive: boolean; // a filter type is hovered (previewType != null)
-	matchesPreview: boolean; // this element belongs to the previewed type
+	previewActive: boolean; // a preview is active
+	matchesPreview: boolean; // the preview lights this element
 }
 
 export function focusStateFor(i: FocusPolicyInput): FocusState {

@@ -163,7 +163,6 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	expectedDownload: Promise<Download>;
 	headless: boolean;
 	inContainer: Locator;
-	inContainerSelector: string;
 	private videoStartEmitted = false;
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {

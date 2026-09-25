@@ -12,6 +12,9 @@
  *
  * Concern boundary: WHICH column is focused is the column browser's concern (shu-column-strip.controls), not here.
  *
+ * The steps drive the page's main graph, `shu-polymorphic-graph-view:not([data-external])`: a graph a view embeds to draw
+ * its own data (`data-external`) is its host's, and a page can hold several.
+ *
  * Steps never lead with the article "the", haibun treats such lines as narrative prose, not matchable steps.
  */
 import { SHU_TEST_IDS } from "../test-ids.js";
@@ -164,9 +167,13 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	/** Block until snapshot data has streamed in (RPC + the 250ms repaint debounce): the scene testids
 	 * resolve when the A-Frame scene MOUNTS, which precedes the first data feed, so waiting on them races. */
 	private async waitForNodes(page: Page, min: number): Promise<void> {
-		await page.waitForFunction((m) => ((document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect?(): { nodes: number } })?.inspect?.().nodes ?? 0) >= m, min, {
-			timeout: 15000,
-		});
+		await page.waitForFunction(
+			(m) => ((document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { inspect?(): { nodes: number } })?.inspect?.().nodes ?? 0) >= m,
+			min,
+			{
+				timeout: 15000,
+			},
+		);
 	}
 
 	/** Wait for the layout and the camera to come to rest, so a snapshot is stable and a camera op is not raced by a settling
@@ -175,7 +182,9 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		await page.waitForFunction(
 			() => {
 				const i = (
-					document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect?(): { engineMode: string; tween: unknown; repaintPending: boolean; followPending: boolean } }
+					document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as {
+						inspect?(): { engineMode: string; tween: unknown; repaintPending: boolean; followPending: boolean };
+					}
 				)?.inspect?.();
 				// A debounced repaint that has not run yet leaves the engine idle while the scene still shows the previous
 				// placement, and a camera that has not rested leaves following's check to come: settled means nothing is
@@ -209,7 +218,8 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 
 	/** Poll until the node count stops changing: an async refetch can land in two stages, so one settle isn't enough. */
 	private async waitForStableCount(page: Page): Promise<void> {
-		const count = () => page.evaluate(() => (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { nodes: number } }).inspect().nodes);
+		const count = () =>
+			page.evaluate(() => (document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { inspect(): { nodes: number } }).inspect().nodes);
 		await this.pollUntilStable(page, 300, 12, count, (now, prev) => now === prev);
 	}
 
@@ -225,7 +235,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	private callGraphFilter(page: Page, method: string, args: unknown[]): Promise<boolean> {
 		return page.evaluate(
 			({ m, a }) => {
-				const f = document.querySelector("shu-polymorphic-graph-view shu-graph-filter") as unknown as Record<string, (...x: unknown[]) => void> | null;
+				const f = document.querySelector("shu-polymorphic-graph-view:not([data-external]) shu-graph-filter") as unknown as Record<string, (...x: unknown[]) => void> | null;
 				if (!f) return false;
 				f[m](...a);
 				return true;
@@ -240,7 +250,9 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	private async waitForCalibratedViewport(page: Page): Promise<void> {
 		await page.waitForFunction(
 			() => {
-				const v = (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { viewport: { h: number; calibratedH: number } | null } }).inspect().viewport;
+				const v = (
+					document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { inspect(): { viewport: { h: number; calibratedH: number } | null } }
+				).inspect().viewport;
 				return v !== null && v.h > 0 && v.h === v.calibratedH;
 			},
 			undefined,
@@ -253,7 +265,8 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	 *  STABLE node count, so settle() (frozen) and waitForStableCount (count) both return mid-spread; the auto-fit follows
 	 *  the spread, so any assertion about a SETTLED camera (hover-doesn't-move, fits-the-view) must wait for this. */
 	private async waitForLayoutStable(page: Page): Promise<void> {
-		const radius = () => page.evaluate(() => (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { bboxRadius: number } }).inspect().bboxRadius);
+		const radius = () =>
+			page.evaluate(() => (document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { inspect(): { bboxRadius: number } }).inspect().bboxRadius);
 		await this.pollUntilStable(
 			page,
 			250,
@@ -278,9 +291,11 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	private async resolveNodeId(page: Page, match: string): Promise<string | null> {
 		await this.waitForNodes(page, 1);
 		const nodes = await page.evaluate(() =>
-			Array.from((document.querySelector("shu-polymorphic-graph-view") as unknown as { nodeMap: Map<string, { id: string; type: string; name?: string }> }).nodeMap.values()).map(
-				(n) => ({ id: n.id, type: n.type, name: n.name }),
-			),
+			Array.from(
+				(
+					document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { nodeMap: Map<string, { id: string; type: string; name?: string }> }
+				).nodeMap.values(),
+			).map((n) => ({ id: n.id, type: n.type, name: n.name })),
 		);
 		const t = nodes.find((n) => objectId(n.type, n.id) === match || n.id === match || (n.name && n.name.includes(match)));
 		return t ? t.id : null;
@@ -292,7 +307,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		const page = await this.page();
 		await this.settle(page);
 		return page.evaluate(() => {
-			const view = document.querySelector("shu-polymorphic-graph-view") as unknown as {
+			const view = document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as {
 				graph?: { graphData(): { nodes: Array<{ id: string }>; links: Array<{ source: string | { id: string }; target: string | { id: string } }> } };
 			};
 			const data = view.graph?.graphData() ?? { nodes: [], links: [] };
@@ -311,7 +326,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		const page = await this.page();
 		await this.settle(page);
 		return page.evaluate(() => {
-			const view = document.querySelector("shu-polymorphic-graph-view") as unknown as { graph?: { graphData(): { links: Array<{ predicate: string }> } } };
+			const view = document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { graph?: { graphData(): { links: Array<{ predicate: string }> } } };
 			return (view.graph?.graphData().links ?? []).map((l) => l.predicate);
 		});
 	}
@@ -320,7 +335,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	 *  walk crosses one boundary and is written ONCE here rather than in each step that reads or presses a chip. */
 	private chipStates(page: Page): Promise<Array<{ label: string; checked: boolean }>> {
 		return page.evaluate(() => {
-			const root = document.querySelector("shu-polymorphic-graph-view shu-graph-filter")?.shadowRoot;
+			const root = document.querySelector("shu-polymorphic-graph-view:not([data-external]) shu-graph-filter")?.shadowRoot;
 			return Array.from(root?.querySelectorAll("shu-chip-group") ?? [])
 				.flatMap((g) => Array.from(g.shadowRoot?.querySelectorAll("label.chip") ?? []))
 				.map((chip) => ({ label: (chip.textContent ?? "").trim(), checked: !!(chip.querySelector("input") as HTMLInputElement | null)?.checked }));
@@ -329,7 +344,10 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 
 	/** Drive a method on the live component: the one path a step, key, or button all share. */
 	private async call(page: Page, op: string, args: unknown[]): Promise<void> {
-		await page.evaluate(({ o, a }) => (document.querySelector("shu-polymorphic-graph-view") as unknown as Record<string, (...x: unknown[]) => void>)[o](...a), { o: op, a: args });
+		await page.evaluate(
+			({ o, a }) => (document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as Record<string, (...x: unknown[]) => void>)[o](...a),
+			{ o: op, a: args },
+		);
 	}
 
 	/** Project a node to canvas pixels (the real coordinate a pointer drag/hover hits). nudgeX nudges into a left-anchored
@@ -356,7 +374,9 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	private async projectNode(page: Page, id: string, nudgeX = 12): Promise<{ x: number; y: number }> {
 		const at = await page.evaluate(
 			(nid) =>
-				(document.querySelector("shu-polymorphic-graph-view") as unknown as { projectNodeToScreen(i: string): { x: number; y: number } | null })?.projectNodeToScreen(nid) ?? null,
+				(
+					document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { projectNodeToScreen(i: string): { x: number; y: number } | null }
+				)?.projectNodeToScreen(nid) ?? null,
 			id,
 		);
 		if (!at) throw new Error(`node ${id} has no projection, absent from the graph, or the scene has no camera yet`);
@@ -390,8 +410,9 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	private hoveredK(page: Page, id: string): Promise<number> {
 		return page.evaluate(
 			(nid) =>
-				(document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { sample: Array<{ id: string; k: number }> } }).inspect().sample.find((s) => s.id === nid)
-					?.k ?? 1,
+				(document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { inspect(): { sample: Array<{ id: string; k: number }> } })
+					.inspect()
+					.sample.find((s) => s.id === nid)?.k ?? 1,
 			id,
 		);
 	}
@@ -426,7 +447,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const page = await this.page();
 				const id = await this.resolveNodeId(page, match);
 				if (!id) return actionNotOK(`graph node "${match}" not present`);
-				await page.evaluate((nid) => (document.querySelector("shu-polymorphic-graph-view") as unknown as { openNode(id: string): boolean }).openNode(nid), id);
+				await page.evaluate((nid) => (document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { openNode(id: string): boolean }).openNode(nid), id);
 				await page.waitForTimeout(500); // let the pane open + its graphQuery resolve + render
 				return actionOK();
 			},
@@ -458,7 +479,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const page = await this.page();
 				await this.waitForNodes(page, 1);
 				const result = await page.evaluate((t) => {
-					const root = document.querySelector("shu-polymorphic-graph-view shu-graph-filter")?.shadowRoot;
+					const root = document.querySelector("shu-polymorphic-graph-view:not([data-external]) shu-graph-filter")?.shadowRoot;
 					if (!root) return "no graph filter";
 					const btn = root.querySelector('[data-testid="graph-filter-solo"]') as HTMLButtonElement | null;
 					if (!btn) return "no solo button";
@@ -642,7 +663,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				if (!id) return actionNotOK(`graph node "${match}" not present`);
 				const subject = await page.evaluate(
 					({ nid, evt }) => {
-						const el = document.querySelector("shu-polymorphic-graph-view") as unknown as { openNode(id: string): boolean };
+						const el = document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { openNode(id: string): boolean };
 						const asked: { id: string | null } = { id: null };
 						document.addEventListener(
 							evt,
@@ -726,7 +747,8 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				await this.waitForLayoutStable(page); // the load-time auto-fit follows the spreading layout; only once it rests is the camera fixed
 				const before = await this.snapshot(page);
 				const id = await page.evaluate(
-					() => (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { sample: { id: string }[] } }).inspect().sample[0]?.id ?? null,
+					() =>
+						(document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { inspect(): { sample: { id: string }[] } }).inspect().sample[0]?.id ?? null,
 				);
 				if (!id) return actionNotOK("no node to hover");
 				await this.call(page, "setHoveredNode", [id]);
@@ -753,7 +775,8 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				await this.waitForNodes(page, 1);
 				await this.waitForLayoutStable(page); // the camera is only fixed once the load-time auto-fit has stopped following the spreading layout
 				const id = await page.evaluate(
-					() => (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { sample: { id: string }[] } }).inspect().sample[0]?.id ?? null,
+					() =>
+						(document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { inspect(): { sample: { id: string }[] } }).inspect().sample[0]?.id ?? null,
 				);
 				if (!id) return actionNotOK("no node to hover");
 				const c = await this.projectNode(page, id);
@@ -858,7 +881,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const page = await this.page();
 				await this.waitForNodes(page, 1);
 				const id = await page.evaluate(() => {
-					const el = document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { sample: { id: string }[] } };
+					const el = document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { inspect(): { sample: { id: string }[] } };
 					return el.inspect().sample[0]?.id ?? null;
 				});
 				if (!id) return actionNotOK("no node to focus");
@@ -877,7 +900,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const m = await page.evaluate(
 					() =>
 						(
-							document.querySelector("shu-polymorphic-graph-view") as unknown as {
+							document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as {
 								inspect(): { onScreen: { fraction: number; onScreen: number; total: number; span: number } | null };
 							}
 						).inspect().onScreen,
@@ -928,7 +951,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				await this.openSettings(page, "layout");
 				const ok = await page.evaluate(
 					({ want, flattenId }) => {
-						const cb = document.querySelector(`shu-polymorphic-graph-view [data-testid='${flattenId}']`) as HTMLInputElement | null;
+						const cb = document.querySelector(`shu-polymorphic-graph-view:not([data-external]) [data-testid='${flattenId}']`) as HTMLInputElement | null;
 						if (!cb) return false;
 						if (cb.checked !== want) {
 							cb.checked = want;
@@ -953,7 +976,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				await this.openSettings(page, "layout");
 				const ok = await page.evaluate(
 					({ want, groupedId }) => {
-						const cb = document.querySelector(`shu-polymorphic-graph-view [data-testid='${groupedId}']`) as HTMLInputElement | null;
+						const cb = document.querySelector(`shu-polymorphic-graph-view:not([data-external]) [data-testid='${groupedId}']`) as HTMLInputElement | null;
 						if (!cb) return false;
 						if (cb.checked !== want) {
 							cb.checked = want;
@@ -970,7 +993,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 					await page
 						.waitForFunction(
 							(): boolean => {
-								const el = document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { enclosures: unknown[] } } | null;
+								const el = document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { inspect(): { enclosures: unknown[] } } | null;
 								return !!el && el.inspect().enclosures.length > 0;
 							},
 							undefined,
@@ -991,7 +1014,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				await this.openSettings(page, "layout");
 				const ok = await page.evaluate(
 					({ want, groupedId, groupById }) => {
-						const root = document.querySelector("shu-polymorphic-graph-view");
+						const root = document.querySelector("shu-polymorphic-graph-view:not([data-external])");
 						const cb = root?.querySelector(`[data-testid='${groupedId}']`) as HTMLInputElement | null;
 						const sel = root?.querySelector(`[data-testid='${groupById}']`) as HTMLSelectElement | null;
 						if (!cb || !sel) return false;
@@ -1013,7 +1036,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				await page
 					.waitForFunction(
 						(): boolean => {
-							const el = document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { enclosures: unknown[] } } | null;
+							const el = document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { inspect(): { enclosures: unknown[] } } | null;
 							return !!el && el.inspect().enclosures.length > 0;
 						},
 						undefined,
@@ -1035,7 +1058,9 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				if (!ok) return actionNotOK("no view-type control on the graph");
 				await page.waitForTimeout(500); // the view switch is a debounced relayout tween
 				await this.settle(page);
-				const got = await page.evaluate(() => (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { viewType: string } }).inspect().viewType);
+				const got = await page.evaluate(
+					() => (document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { inspect(): { viewType: string } }).inspect().viewType,
+				);
 				return got === view ? actionOK() : actionNotOK(`view-type did not switch to "${view}" (got "${got}")`);
 			},
 		},
@@ -1048,7 +1073,10 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const page = await this.page();
 				await this.settle(page);
 				const gantt = await page.evaluate(
-					() => (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { gantt: { from: string; to: string; count: number } | null } }).inspect().gantt,
+					() =>
+						(
+							document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { inspect(): { gantt: { from: string; to: string; count: number } | null } }
+						).inspect().gantt,
 				);
 				if (!gantt) return actionNotOK("no gantt placement: the calendar laid out no tasks");
 				if (gantt.count < count) return actionNotOK(`only ${gantt.count} gantt task(s) placed (${gantt.from} → ${gantt.to}), expected at least ${count}`);
@@ -1067,7 +1095,8 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				try {
 					await page.waitForFunction(
 						() => {
-							const c = (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { camera: { x: number; z: number } } }).inspect().camera;
+							const c = (document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { inspect(): { camera: { x: number; z: number } } }).inspect()
+								.camera;
 							return Math.abs(c.x) > Math.abs(c.z);
 						},
 						undefined,
@@ -1075,7 +1104,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 					);
 				} catch {
 					const cam = await page.evaluate(
-						() => (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { camera: { x: number; z: number } } }).inspect().camera,
+						() => (document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { inspect(): { camera: { x: number; z: number } } }).inspect().camera,
 					);
 					return actionNotOK(`camera is not on the lane-plane aim (x ${Math.round(cam.x)}, z ${Math.round(cam.z)})`);
 				}
@@ -1091,7 +1120,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const page = await this.page();
 				await this.settle(page);
 				const wrong = await page.evaluate(() => {
-					const view = document.querySelector("shu-polymorphic-graph-view") as unknown as {
+					const view = document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as {
 						inspect(): { sample: Array<{ id: string; x: number; y: number; z: number }>; sequence: { nodes: Array<{ id: string; y: number; z: number }> } | null };
 					};
 					const i = view.inspect();
@@ -1120,7 +1149,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				await this.selectView(page, "sequence");
 				await this.settle(page);
 				const actorTypes = await page.evaluate(() => {
-					const view = document.querySelector("shu-polymorphic-graph-view") as unknown as {
+					const view = document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as {
 						inspect(): { sample: Array<{ id: string; type: string }>; sequence: { actors: Array<{ id: string }> } | null };
 					};
 					const i = view.inspect();
@@ -1149,8 +1178,11 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				await this.settle(page);
 				const actors = await page.evaluate(
 					() =>
-						(document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { sequence: { actors: Array<{ id: string; label: string }> } | null } }).inspect()
-							.sequence?.actors ?? [],
+						(
+							document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as {
+								inspect(): { sequence: { actors: Array<{ id: string; label: string }> } | null };
+							}
+						).inspect().sequence?.actors ?? [],
 				);
 				if (actors.length < count) return actionNotOK(`only ${actors.length} sequence actor(s) formed [${actors.map((a) => a.label).join(", ")}], expected at least ${count}`);
 				return actionOK();
@@ -1171,12 +1203,15 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 					// actions are still on the head.
 					const seen = await page.evaluate(
 						({ ids, closed, actionIds, viewTypeId }) => {
-							const shown = (id: string) => !!(document.querySelector(`shu-polymorphic-graph-view [data-testid='${id}']`) as HTMLElement | null)?.checkVisibility();
+							const shown = (id: string) =>
+								!!(document.querySelector(`shu-polymorphic-graph-view:not([data-external]) [data-testid='${id}']`) as HTMLElement | null)?.checkVisibility();
 							return {
 								missing: ids.filter((id) => !shown(id)),
 								stillShown: closed && shown(closed) ? closed : "",
 								actionsGone: actionIds.filter((id) => !shown(id)),
-								views: [...((document.querySelector(`shu-polymorphic-graph-view [data-testid='${viewTypeId}']`) as HTMLSelectElement | null)?.options ?? [])].map((o) => o.value),
+								views: [
+									...((document.querySelector(`shu-polymorphic-graph-view:not([data-external]) [data-testid='${viewTypeId}']`) as HTMLSelectElement | null)?.options ?? []),
+								].map((o) => o.value),
 							};
 						},
 						{ ids, closed, actionIds: [POLYMORPHIC_IDS.FIT, POLYMORPHIC_IDS.COPY_GRAPH] as string[], viewTypeId: POLYMORPHIC_IDS.VIEW_TYPE as string },
@@ -1204,7 +1239,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				await this.openSettings(page, "layout");
 				const dom = await page.evaluate(
 					({ containerId, groupById, groupedId }) => {
-						const root = document.querySelector("shu-polymorphic-graph-view");
+						const root = document.querySelector("shu-polymorphic-graph-view:not([data-external])");
 						return {
 							scene: !!root?.querySelector(`[data-testid='${containerId}'] a-scene`),
 							viewType: (root as unknown as { inspect(): { viewType: string } }).inspect().viewType,
@@ -1286,7 +1321,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 					const scene = walk(document, "shu-type-column")?.querySelector("shu-class-browser")?.querySelector("shu-graph-scene") as unknown as {
 						nodeMap: Map<string, unknown>;
 					} | null;
-					const main = walk(document, "shu-polymorphic-graph-view") as ({ nodeMap?: Map<string, unknown> } & Element) | null;
+					const main = walk(document, "shu-polymorphic-graph-view:not([data-external])") as ({ nodeMap?: Map<string, unknown> } & Element) | null;
 					if (!scene || !main) return { err: "class browser or main graph view absent" };
 					// Both views boot from a fresh navigation; wait for each to hold its own nodes before measuring.
 					for (let tries = 0; tries < 60 && (scene.nodeMap.size === 0 || (main.nodeMap?.size ?? 0) === 0); tries++) await new Promise((r) => setTimeout(r, 250));
@@ -1361,7 +1396,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const messages = await page.evaluate(
 					() =>
 						(
-							document.querySelector("shu-polymorphic-graph-view") as unknown as {
+							document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as {
 								inspect(): { sequence: { messages: Array<{ from: string; to: string; label: string }> } | null };
 							}
 						).inspect().sequence?.messages ?? [],
@@ -1381,7 +1416,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				await this.openSettings(page, "scenes");
 				const ok = await page.evaluate(
 					({ sceneName, nameId, saveId }) => {
-						const view = document.querySelector("shu-polymorphic-graph-view");
+						const view = document.querySelector("shu-polymorphic-graph-view:not([data-external])");
 						const input = view?.querySelector(`[data-testid='${nameId}']`) as HTMLInputElement | null;
 						const save = view?.querySelector(`[data-testid='${saveId}']`) as HTMLButtonElement | null;
 						if (!input || !save) return false;
@@ -1395,7 +1430,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				// The save is a round trip; the scene appears in the picker when it lands.
 				await page.waitForFunction(
 					({ pickerId, sceneName }) => {
-						const picker = document.querySelector("shu-polymorphic-graph-view")?.querySelector(`[data-testid='${pickerId}']`) as HTMLSelectElement | null;
+						const picker = document.querySelector("shu-polymorphic-graph-view:not([data-external])")?.querySelector(`[data-testid='${pickerId}']`) as HTMLSelectElement | null;
 						return !!picker && [...picker.options].some((option) => option.value === sceneName);
 					},
 					{ pickerId: POLYMORPHIC_IDS.SCENE_PICKER, sceneName: name },
@@ -1412,7 +1447,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				await this.openSettings(page, "scenes");
 				const ok = await page.evaluate(
 					({ sceneName, pickerId }) => {
-						const picker = document.querySelector("shu-polymorphic-graph-view")?.querySelector(`[data-testid='${pickerId}']`) as HTMLSelectElement | null;
+						const picker = document.querySelector("shu-polymorphic-graph-view:not([data-external])")?.querySelector(`[data-testid='${pickerId}']`) as HTMLSelectElement | null;
 						if (!picker || ![...picker.options].some((option) => option.value === sceneName)) return false;
 						picker.value = sceneName;
 						picker.dispatchEvent(new Event("change", { bubbles: true }));
@@ -1422,7 +1457,9 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				);
 				if (!ok) return actionNotOK(`no scene saved as "${name}" is offered on the view`);
 				// Reading the scene back is a round trip; the view says which scene it is showing once the return has landed.
-				await page.waitForFunction((sceneName) => document.querySelector("shu-polymorphic-graph-view")?.getAttribute("data-scene") === sceneName, name, { timeout: 10000 });
+				await page.waitForFunction((sceneName) => document.querySelector("shu-polymorphic-graph-view:not([data-external])")?.getAttribute("data-scene") === sceneName, name, {
+					timeout: 10000,
+				});
 				await this.settle(page);
 				return actionOK();
 			},
@@ -1435,7 +1472,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				await this.openSettings(page, "scenes");
 				await page.waitForFunction(
 					({ pickerId, sceneName }) => {
-						const picker = document.querySelector("shu-polymorphic-graph-view")?.querySelector(`[data-testid='${pickerId}']`) as HTMLSelectElement | null;
+						const picker = document.querySelector("shu-polymorphic-graph-view:not([data-external])")?.querySelector(`[data-testid='${pickerId}']`) as HTMLSelectElement | null;
 						return !!picker && [...picker.options].some((option) => option.value === sceneName);
 					},
 					{ pickerId: POLYMORPHIC_IDS.SCENE_PICKER, sceneName: name },
@@ -1466,7 +1503,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			action: async () => {
 				const page = await this.page();
 				await this.waitForNodes(page, 1);
-				await page.evaluate(() => (document.querySelector("shu-polymorphic-graph-view") as unknown as { revealSchema(v: boolean): void }).revealSchema(true));
+				await page.evaluate(() => (document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { revealSchema(v: boolean): void }).revealSchema(true));
 				await page.waitForTimeout(400);
 				await this.settle(page);
 				await this.waitForStableCount(page);
@@ -1477,7 +1514,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			gwta: "return the graph to live data",
 			action: async () => {
 				const page = await this.page();
-				await page.evaluate(() => (document.querySelector("shu-polymorphic-graph-view") as unknown as { revealSchema(v: boolean): void }).revealSchema(false));
+				await page.evaluate(() => (document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { revealSchema(v: boolean): void }).revealSchema(false));
 				await page.waitForTimeout(400);
 				await this.settle(page);
 				await this.waitForStableCount(page);
@@ -1490,7 +1527,9 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			gwta: `graph shows a {name: ${DOMAIN_TEXT}} container`,
 			action: async ({ name }: { name: string }) => {
 				const titles = await (await this.page()).evaluate(() =>
-					(document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { enclosures: Array<{ title: string }> } }).inspect().enclosures.map((e) => e.title),
+					(document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { inspect(): { enclosures: Array<{ title: string }> } })
+						.inspect()
+						.enclosures.map((e) => e.title),
 				);
 				return titles.includes(name) ? actionOK() : actionNotOK(`no "${name}" container, containers present: [${titles.join(", ")}]`);
 			},
@@ -1502,7 +1541,8 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			action: async () => {
 				const page = await this.page();
 				await this.settle(page);
-				const count = () => page.evaluate(() => (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { nodes: number } }).inspect().nodes);
+				const count = () =>
+					page.evaluate(() => (document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { inspect(): { nodes: number } }).inspect().nodes);
 				const before = await count();
 				const times = (await this.fullInspect(page)).sample
 					.map((s) => s.t)
@@ -1530,7 +1570,9 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			action: async () => {
 				const i = await (await this.page()).evaluate(() => {
 					const ins = (
-						document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { enclosures: unknown[]; grouped: boolean; sample: Array<{ type: string }> } }
+						document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as {
+							inspect(): { enclosures: unknown[]; grouped: boolean; sample: Array<{ type: string }> };
+						}
 					).inspect();
 					return { boxes: ins.enclosures.length, grouped: ins.grouped, types: [...new Set(ins.sample.map((s) => s.type))] };
 				});
@@ -1549,7 +1591,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const L = await page.evaluate(
 					() =>
 						(
-							document.querySelector("shu-polymorphic-graph-view") as unknown as {
+							document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as {
 								inspect(): { layered: { direction: string; flowAxis: "x" | "y"; nodes: Array<{ id: string; tx: number; ty: number; x: number; y: number; z: number }> } | null };
 							}
 						).inspect().layered,
@@ -1598,7 +1640,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const boxes = await page.evaluate(
 					() =>
 						(
-							document.querySelector("shu-polymorphic-graph-view") as unknown as {
+							document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as {
 								inspect(): { enclosures: Array<{ title: string; x: number; y: number; sx: number; sy: number }> };
 							}
 						).inspect().enclosures,
@@ -1626,8 +1668,11 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				await this.settle(page);
 				const boxes = await page.evaluate(
 					() =>
-						(document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { enclosures: Array<{ x: number; y: number; sx: number; sy: number }> } }).inspect()
-							.enclosures,
+						(
+							document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as {
+								inspect(): { enclosures: Array<{ x: number; y: number; sx: number; sy: number }> };
+							}
+						).inspect().enclosures,
 				);
 				if (boxes.length < 2) return actionNotOK(`only ${boxes.length} container(s), need at least 2 to check compactness`);
 				const bboxArea =
@@ -1650,7 +1695,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const page = await this.page();
 				await this.settle(page);
 				const { svg, sceneNodes } = await page.evaluate(() => {
-					const view = document.querySelector("shu-polymorphic-graph-view") as unknown as { still(): string; nodeMap?: Map<string, unknown> };
+					const view = document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { still(): string; nodeMap?: Map<string, unknown> };
 					return { svg: view?.still() ?? "", sceneNodes: view?.nodeMap?.size ?? 0 };
 				});
 				if (!svg.startsWith("<svg")) return actionNotOK("the view produced no still, is the graph view mounted?");
@@ -1714,7 +1759,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const page = await this.page();
 				await this.settle(page);
 				const res = await page.evaluate((a11y) => {
-					const view = document.querySelector("shu-polymorphic-graph-view") as unknown as ({ inspect(): { nodes: number } } & Element) | null;
+					const view = document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as ({ inspect(): { nodes: number } } & Element) | null;
 					const root = view?.shadowRoot ?? view;
 					const region = root?.querySelector(`[data-testid="${a11y}"]`) ?? null;
 					const entryIds = [...(region?.querySelectorAll("ol > li > [data-node-id]") ?? [])].map((b) => b.getAttribute("data-node-id"));
@@ -1768,7 +1813,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				await this.openSettings(page, "layout");
 				const ok = await page.evaluate(
 					({ value, zBasisId }) => {
-						const sel = document.querySelector(`shu-polymorphic-graph-view [data-testid='${zBasisId}']`) as HTMLSelectElement | null;
+						const sel = document.querySelector(`shu-polymorphic-graph-view:not([data-external]) [data-testid='${zBasisId}']`) as HTMLSelectElement | null;
 						if (!sel) return false;
 						sel.value = value;
 						sel.dispatchEvent(new Event("change", { bubbles: true }));
@@ -1793,7 +1838,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 					await this.settle(page);
 					return page.evaluate(() =>
 						Object.fromEntries(
-							(document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { sample: Array<{ id: string; chip: string | null }> } })
+							(document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { inspect(): { sample: Array<{ id: string; chip: string | null }> } })
 								.inspect()
 								.sample.map((n) => [n.id, n.chip]),
 						),
@@ -1802,7 +1847,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const setLabelAsDepth = (on: boolean): Promise<boolean> =>
 					page.evaluate(
 						({ id, on }) => {
-							const box = document.querySelector(`shu-polymorphic-graph-view [data-testid='${id}']`) as HTMLInputElement | null;
+							const box = document.querySelector(`shu-polymorphic-graph-view:not([data-external]) [data-testid='${id}']`) as HTMLInputElement | null;
 							if (!box) return false;
 							if (box.checked !== on) box.click();
 							return true;
@@ -1916,7 +1961,9 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const page = await this.page();
 				await this.settle(page);
 				const state = await page.evaluate(() => {
-					const view = document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { focus: { selected: string | null }; highlighted: number } };
+					const view = document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as {
+						inspect(): { focus: { selected: string | null }; highlighted: number };
+					};
 					const i = view.inspect();
 					return { selected: i.focus.selected, highlighted: i.highlighted };
 				});
@@ -1932,11 +1979,13 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			action: async () => {
 				const page = await this.page();
 				const count = async (): Promise<number> =>
-					page.evaluate(() => (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { highlighted: number } }).inspect().highlighted);
+					page.evaluate(
+						() => (document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { inspect(): { highlighted: number } }).inspect().highlighted,
+					);
 				// The glow is added on the render after the selection lands, so poll rather than read once.
 				try {
 					await page.waitForFunction(
-						() => (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { highlighted: number } }).inspect().highlighted === 1,
+						() => (document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { inspect(): { highlighted: number } }).inspect().highlighted === 1,
 						undefined,
 						{ timeout: 5000 },
 					);
@@ -2042,7 +2091,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				await this.call(page, "openNode", [id]); // select it → it becomes the focus and magnifies (a hover is ignored while another node is selected)
 				await page.waitForFunction(
 					(nid) =>
-						((document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { sample: Array<{ id: string; k: number }> } })
+						((document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { inspect(): { sample: Array<{ id: string; k: number }> } })
 							.inspect()
 							.sample.find((s) => s.id === nid)?.k ?? 1) > 1,
 					id,
@@ -2067,8 +2116,10 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const page = await this.page();
 				await this.waitForNodes(page, 1);
 				const driven = await page.evaluate((n) => {
-					const view = document.querySelector("shu-polymorphic-graph-view") as unknown as { resetProfile(): void } | null;
-					const slider = document.querySelector("shu-polymorphic-graph-view shu-graph-filter")?.shadowRoot?.querySelector('input[type="range"]') as HTMLInputElement | null;
+					const view = document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { resetProfile(): void } | null;
+					const slider = document
+						.querySelector("shu-polymorphic-graph-view:not([data-external]) shu-graph-filter")
+						?.shadowRoot?.querySelector('input[type="range"]') as HTMLInputElement | null;
 					if (!view || !slider) return false;
 					view.resetProfile(); // measure only the re-render this limit change triggers
 					slider.value = String(n); // drive the real slider: input tracks the label, change (release) dispatches the refetch
@@ -2083,7 +2134,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const p = await page.evaluate(
 					() =>
 						(
-							document.querySelector("shu-polymorphic-graph-view") as unknown as {
+							document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as {
 								inspect(): { profile: { nodes: number; repaints: number; computeMs: number; setMs: number; labelsMs: number } };
 							}
 						).inspect().profile,
@@ -2116,7 +2167,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const c = await this.projectNode(page, id, dx);
 				const p = { x: c.x, y: c.y + dy };
 				if ((await this.pickAt(page, p.x, p.y)) !== id) continue;
-				const reachable = await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest("shu-polymorphic-graph-view") != null, p);
+				const reachable = await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest("shu-polymorphic-graph-view:not([data-external])") != null, p);
 				if (!reachable) continue;
 				await page.mouse.move(p.x, p.y, { steps: 2 });
 				return p;
@@ -2137,7 +2188,9 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	private becomesSelected(page: Page, id: string): Promise<boolean> {
 		return page
 			.waitForFunction(
-				(nid) => (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { focus: { selected: string | null } } }).inspect().focus.selected === nid,
+				(nid) =>
+					(document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { inspect(): { focus: { selected: string | null } } }).inspect().focus
+						.selected === nid,
 				id,
 				{ timeout: 5000 },
 			)
@@ -2209,7 +2262,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	 *  (an invisible one is skipped), and where it sits versus the node the projection aimed at. */
 	private pickTargetState(page: Page, id: string): Promise<string> {
 		return page.evaluate((nid) => {
-			const el = document.querySelector("shu-polymorphic-graph-view") as unknown as { nodeMap: Map<string, Record<string, unknown>> };
+			const el = document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { nodeMap: Map<string, Record<string, unknown>> };
 			const n = el?.nodeMap?.get(nid) as
 				| {
 						x?: number;
@@ -2233,7 +2286,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	 *  plausible pixel, the depth is what says so, and no forward ray can reach it, so an aim there can only miss. */
 	private frustumState(page: Page): Promise<string> {
 		return page.evaluate(() => {
-			const el = document.querySelector("shu-polymorphic-graph-view") as unknown as {
+			const el = document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as {
 				inspect(): { onScreen: { fraction: number; onScreen: number; total: number; span: number } | null; camera: { x: number; y: number; z: number; fov: number | null } | null };
 			};
 			const i = el?.inspect?.();
@@ -2246,7 +2299,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	/** The render canvas' client rect: an aim is only meaningful inside it. */
 	private canvasRect(page: Page): Promise<string> {
 		return page.evaluate(() => {
-			const c = document.querySelector("shu-polymorphic-graph-view canvas");
+			const c = document.querySelector("shu-polymorphic-graph-view:not([data-external]) canvas");
 			if (!c) return "none";
 			const r = c.getBoundingClientRect();
 			return `${r.left.toFixed(0)},${r.top.toFixed(0)} ${r.width.toFixed(0)}x${r.height.toFixed(0)}`;
@@ -2278,7 +2331,9 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 
 	/** The view's own record of how it is set up: the same reading a scene saves. */
 	private captureGraphScene(page: Page): Promise<Record<string, Record<string, unknown>>> {
-		return page.evaluate(() => (document.querySelector("shu-polymorphic-graph-view") as unknown as { captureScene(): Record<string, Record<string, unknown>> }).captureScene());
+		return page.evaluate(() =>
+			(document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { captureScene(): Record<string, Record<string, unknown>> }).captureScene(),
+		);
 	}
 
 	/** Open one settings group's row via its head icon (the groups are exclusive, opening one closes another), then
@@ -2288,7 +2343,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		const probeId = SETTINGS_CONTROLS[group][0] ?? ""; // the filters group has no control of its own: its icon's pressed state is the answer
 		const state = await page.evaluate(
 			({ iconId, probeId }) => {
-				const view = document.querySelector("shu-polymorphic-graph-view");
+				const view = document.querySelector("shu-polymorphic-graph-view:not([data-external])");
 				if (!view) return "no view";
 				if (probeId && view.querySelector(`[data-testid='${probeId}']`)) return "open";
 				const icon = view.querySelector(`[data-testid='${iconId}']`) as HTMLElement | null;
@@ -2301,7 +2356,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		);
 		if (state === "no view" || state === "no icon") throw new Error(`cannot open the polymorphic view ${group} settings: ${state}`);
 		if (state === "open") return;
-		if (probeId) await page.waitForFunction((id) => !!document.querySelector(`shu-polymorphic-graph-view [data-testid='${id}']`), probeId, { timeout: 5000 });
+		if (probeId) await page.waitForFunction((id) => !!document.querySelector(`shu-polymorphic-graph-view:not([data-external]) [data-testid='${id}']`), probeId, { timeout: 5000 });
 	}
 
 	/** Drive the production view control to `value`, exactly as a person choosing it does. */
@@ -2309,7 +2364,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		await this.openSettings(page, "layout");
 		return page.evaluate(
 			({ v, viewId }) => {
-				const sel = document.querySelector(`shu-polymorphic-graph-view [data-testid='${viewId}']`) as HTMLSelectElement | null;
+				const sel = document.querySelector(`shu-polymorphic-graph-view:not([data-external]) [data-testid='${viewId}']`) as HTMLSelectElement | null;
 				if (!sel) return false;
 				sel.value = v;
 				sel.dispatchEvent(new Event("change", { bubbles: true }));
@@ -2322,7 +2377,8 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	/** Fire the filter legend's type-preview (or clear it with null) at the view: the same event a legend hover sends. */
 	private async dispatchPreview(page: Page, type: string | null): Promise<void> {
 		await page.evaluate(
-			(t) => document.querySelector("shu-polymorphic-graph-view")?.dispatchEvent(new CustomEvent("graph-type-preview", { detail: { type: t }, bubbles: true })),
+			(t) =>
+				document.querySelector("shu-polymorphic-graph-view:not([data-external])")?.dispatchEvent(new CustomEvent("graph-type-preview", { detail: { type: t }, bubbles: true })),
 			type,
 		);
 		await page.waitForTimeout(250); // the focus/dim repaint is debounced
@@ -2330,10 +2386,13 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 
 	/** Which node a press at these client pixels would pick, through the view's pickAt(), with no pointer side effects. */
 	private pickAt(page: Page, x: number, y: number): Promise<string | null> {
-		return page.evaluate(({ px, py }) => (document.querySelector("shu-polymorphic-graph-view") as unknown as { pickAt(x: number, y: number): string | null }).pickAt(px, py), {
-			px: x,
-			py: y,
-		});
+		return page.evaluate(
+			({ px, py }) => (document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { pickAt(x: number, y: number): string | null }).pickAt(px, py),
+			{
+				px: x,
+				py: y,
+			},
+		);
 	}
 }
 

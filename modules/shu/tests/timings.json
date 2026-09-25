@@ -3,18 +3,18 @@
 		"features": {
 			"/features/address.feature.ts": {
 				"seconds": 1.3,
-				"steps": 203,
-				"declaredStepTextHash": "4cfef94863e3ed06a3378159199e2130ebeff159488f8615ddcd0889123d7348"
+				"steps": 202,
+				"declaredStepTextHash": "d0e346f5b51691342208998de80debbe0bb83a441ce981f4e2651feecb2e7069"
 			},
 			"/features/federate.feature.ts": {
-				"seconds": 0.6,
+				"seconds": 0.7,
 				"steps": 6,
 				"declaredStepTextHash": "ab37731cb50813b783e0aa872bb80a9b995c504e308a5603c48f254263f91584"
 			},
 			"/features/monitor.feature.ts": {
-				"seconds": 9.2,
-				"steps": 549,
-				"declaredStepTextHash": "fd0a466c2be7091243e9a2b6ade993320a7a09ccceb2897e1c8bd67ea00532dc"
+				"seconds": 9.3,
+				"steps": 547,
+				"declaredStepTextHash": "e792cbc5c86e8c45f4af142b43abe587638c708b1555506ba1620dc4fc368ba2"
 			},
 			"/features/remote-store.feature.ts": {
 				"seconds": 0.6,
@@ -23,11 +23,11 @@
 			},
 			"/features/voice-ui.feature.ts": {
 				"seconds": 1.1,
-				"steps": 198,
-				"declaredStepTextHash": "6b3acfe559aa7377747526af134d8131118e58a483b793b983a767ce4f6c0b31"
+				"steps": 197,
+				"declaredStepTextHash": "cb952f265cabaf610ead36d8abfa2dfb94e14acacd1a87c6d5d8c8f38d951fad"
 			}
 		},
-		"steps": 964,
-		"seconds": 12.8
+		"steps": 960,
+		"seconds": 13
 	}
 }

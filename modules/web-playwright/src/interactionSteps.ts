@@ -142,47 +142,10 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			gwta: `wait for {target: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
 			action: async ({ target }: { target: string }, featureStep: TFeatureStep) => {
 				try {
-					// Check whether this is called from within inElement with a shadow DOM context
-					if (wp.inContainerSelector) {
-						try {
-							// Get the actual Page object (not through withPage which might return a Locator)
-							const page = await wp.getPage();
-							// Assume the container is a shadow DOM host - wait for element in shadow root
-							await page.waitForFunction(
-								({ containerSel, innerSel }) => {
-									const host = document.querySelector(containerSel);
-									if (!host?.shadowRoot) return false;
-
-									const element = host.shadowRoot.querySelector(innerSel);
-									if (!element) return false;
-
-									// Use getBoundingClientRect to check if element has dimensions
-									const rect = element.getBoundingClientRect();
-									if (rect.width === 0 || rect.height === 0) return false;
-
-									// Check computed styles for common hiding methods
-									const computed = window.getComputedStyle(element);
-									if (computed.display === "none" || computed.visibility === "hidden" || computed.opacity === "0") return false;
-
-									// Check if element is behind other layers (negative z-index parent)
-									let current = element.parentElement;
-									while (current) {
-										const style = window.getComputedStyle(current);
-										if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") return false;
-										const zIndex = parseInt(style.zIndex);
-										if (!isNaN(zIndex) && zIndex < 0) return false;
-										current = current.parentElement;
-									}
-
-									return true;
-								},
-								{ containerSel: wp.inContainerSelector, innerSel: target },
-							);
-							return OK;
-						} catch (e) {
-							// Shadow DOM approach failed, return error
-							return actionNotOK(`Did not find ${target} in shadow DOM: ${e}`);
-						}
+					// Within `in {container}`, the target is found in the container as a click there finds it.
+					if (wp.inContainer) {
+						await wp.withPage(async (scope: Page) => (await wp.locateByDomain(scope, featureStep, "target")).waitFor());
+						return OK;
 					}
 
 					// Regular wait, use page.waitForFunction to traverse shadow DOMs for dynamic elements
@@ -320,14 +283,12 @@ export const interactionSteps = (wp: WebPlaywright) =>
 				return await wp.withPage(async (page: Page) => {
 					// For shadow DOM elements, use page.locator directly to ensure CSS selector is used
 					wp.inContainer = page.locator(container);
-					wp.inContainerSelector = container; // Store the selector string for shadow DOM detection
 					try {
 						const flowResult = await new FlowRunner(wp.getWorld(), [wp]).runSteps(what, { parentStep: featureStep });
 						return flowResult.ok ? OK : actionNotOK(flowResult.errorMessage || "inElement flow failed");
 					} finally {
 						// Every caller of a running instance shares the container scope, so a failed flow must not leave it set.
 						wp.inContainer = undefined;
-						wp.inContainerSelector = undefined;
 					}
 				});
 			},

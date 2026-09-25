@@ -14,16 +14,15 @@ import { appAccessLevel, idOf, persistedTypeOf } from "../util.js";
 import { anIndividual, type TContextPattern } from "../schemas.js";
 import { ellipsize } from "@haibun/core/lib/util/index.js";
 import { callStep } from "../pane-fetch.js";
-import { getRelSync, getUiPresenting } from "../rels-cache.js";
+import { getRelSync } from "../rels-cache.js";
 import { fieldRef } from "./shu-ref.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
-import { ensureUiComponentLoaded } from "../external-components.js";
+import { graphPresenterTag, mountGraphPresenter, presenterIn, type TGraphPresenter, type TPresenterNodeClick } from "../graph-presenter.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
-
-/** What this column needs of a graph presenter: take a snapshot of quads and paint it. The site declares WHICH
- *  component that is (`ui.presents: "graph"`), so the column names no particular view. */
-type GraphPresenter = HTMLElement & { setQuads(quads: TQuad[]): void };
 import { COMMENT_LABEL, LinkRelations, isReplyEdge } from "@haibun/core/lib/resources.js";
+
+/** Where the thread's graph is placed in the column, and the scope it keeps its settings under, apart from the main graph's. */
+const THREAD_GRAPH = { slot: "thread-graph", scope: "thread" } as const;
 
 const ThreadColumnSchema = z.object({
 	label: z.string().default(""),
@@ -98,22 +97,25 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 			.empty { padding: var(--shu-space-6); color: var(--shu-fg-muted); text-align: center; }
 			.content-area { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
 			.graph-container { flex: 1; overflow: auto; padding: var(--shu-space-4); min-height: 0; }
+			::slotted([data-external]) { display: block; height: 100%; }
 			.error { padding: var(--shu-space-4); color: var(--shu-error); background: var(--shu-bg-error-soft); border-radius: var(--shu-radius); margin: var(--shu-space-4); }
 		`,
 	];
 
 	private thread: ThreadVertex[] = [];
-	private graphViewEl: GraphPresenter | null = null;
 
 	constructor() {
 		super(ThreadColumnSchema, { label: "", individualId: "", mode: "tree", depth: 2, loading: false });
 	}
 
-	override refresh(): void {
-		if (this.graphViewEl) {
-			if (this.showControls) this.graphViewEl.setAttribute("data-show-controls", "");
-			else this.graphViewEl.removeAttribute("data-show-controls");
-		}
+	protected override onConnected(): void {
+		// A node opened in the thread's graph opens the record it draws, as its card does.
+		this.autoListen(this, SHU_EVENT.GRAPH_NODE_CLICK, (e) => {
+			const { nodeId } = (e as CustomEvent<TPresenterNodeClick>).detail;
+			const vertex = this.thread.find((v) => idOf(v) === nodeId);
+			if (!vertex) throw new Error(`thread graph node "${nodeId}" is no record of the thread`);
+			openRef(e, REF_DENOTES.individual, { persistedAs: persistedTypeOf(vertex) || this.state.label, id: nodeId });
+		});
 	}
 
 	/** Render items directly without RPC fetch. Items are JSON-LD nodes (`@id`/`@type`), optionally with `_edges`. */
@@ -163,38 +165,21 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 		(e: MouseEvent): void =>
 			openRef(e, REF_DENOTES.individual, { persistedAs: cardLabel, id }, addsToSelection(e));
 
+	/** The graph mode draws the thread in the site's graph presenter, mounted once and given the thread on each update. */
 	protected updated(): void {
+		const presenter = presenterIn(this, THREAD_GRAPH.slot);
 		if (this.state.mode !== "graph" || this.state.loading || this.state.error || this.thread.length === 0) {
-			this.graphViewEl = null;
+			presenter?.remove();
 			return;
 		}
-		const container = this.shadowRoot?.querySelector(".graph-container") as HTMLElement | null;
-		if (!container) return;
-		const tag = ShuThreadColumn.graphPresenter();
-		if (!tag) return;
-		if (!container.firstElementChild) void this.mountPresenter(container, tag);
-		this.graphViewEl?.setQuads(this.threadToQuads());
+		if (presenter) this.feedPresenter(presenter);
+		else void mountGraphPresenter(this, THREAD_GRAPH.slot, THREAD_GRAPH.scope).then((mounted) => mounted && this.feedPresenter(mounted));
 	}
 
-	/** The component the site declares as its graph, or undefined where a deployment declares none. */
-	private static graphPresenter(): string | undefined {
-		const component = getUiPresenting("graph")?.ui.component;
-		return typeof component === "string" ? component : undefined;
-	}
-
-	/** Mount the declared presenter in external-data mode: this column feeds it the thread, and it wires nothing of
-	 *  its own. Its module is fetched through the shared loader, exactly as a pane mounts a site component. */
-	private async mountPresenter(container: HTMLElement, tag: string): Promise<void> {
-		if (!customElements.get(tag)) await ensureUiComponentLoaded(tag);
-		if (container.firstElementChild) return; // a second update mounted it while the module loaded
-		const view = document.createElement(tag) as GraphPresenter;
-		view.setAttribute("data-external", "");
-		view.setAttribute("data-classifier", "thread");
-		if (this.showControls) view.setAttribute("data-show-controls", "");
-		view.style.height = "100%";
-		container.appendChild(view);
-		this.graphViewEl = view;
-		view.setQuads(this.threadToQuads());
+	/** Give the presenter the thread, and the record the column is on as its active node. */
+	private feedPresenter(presenter: TGraphPresenter): void {
+		presenter.setQuads(this.threadToQuads());
+		presenter.selectNode(this.state.individualId || null);
 	}
 
 	render(): TemplateResult {
@@ -205,11 +190,11 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 		return html`
 			<div class="toolbar">
 				<button class=${`mode-btn${mode === "tree" ? " active" : ""}`} @click=${this.onModeClick("tree")}>Tree</button>
-				${ShuThreadColumn.graphPresenter() ? html`<button class=${`mode-btn${mode === "graph" ? " active" : ""}`} @click=${this.onModeClick("graph")}>Graph</button>` : ""}
+				${graphPresenterTag() ? html`<button class=${`mode-btn${mode === "graph" ? " active" : ""}`} @click=${this.onModeClick("graph")}>Graph</button>` : ""}
 				<label>depth <input type="number" .value=${String(depth)} min="1" max="99" style="width:40px" @change=${this.onDepthChange}></label>
 				<span class="count">${this.thread.length} items</span>
 			</div>
-			<div class="content-area">${mode === "graph" ? html`<div class="graph-container"></div>` : html`<div class="thread-list">${this.renderTreeTemplate()}</div>`}</div>
+			<div class="content-area">${mode === "graph" ? html`<div class="graph-container"><slot name=${THREAD_GRAPH.slot}></slot></div>` : html`<div class="thread-list">${this.renderTreeTemplate()}</div>`}</div>
 		`;
 	}
 
@@ -263,8 +248,8 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 	}
 
 	/** Build quads from thread items. */
-	private threadToQuads(): { subject: string; predicate: string; object: string; namedGraph: string; objectType?: string; timestamp: number }[] {
-		const quads: { subject: string; predicate: string; object: string; namedGraph: string; objectType?: string; timestamp: number }[] = [];
+	private threadToQuads(): TQuad[] {
+		const quads: TQuad[] = [];
 		const now = Date.now();
 		const labelById = new Map(this.thread.map((v) => [idOf(v), persistedTypeOf(v) || this.state.label]));
 		for (const v of this.thread) {

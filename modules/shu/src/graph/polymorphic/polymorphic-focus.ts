@@ -9,7 +9,7 @@
 // instance, a per-repaint-refreshed nodeMap, or a theme-recoloured colour field is always current; the component still
 // OWNS those, this controller only reads them and owns the magnify animation state. (lovely-finding-babbage.)
 
-import { focusStateFor, opacityFor, isFullContrast, type FocusState, type KindTiers } from "../focus-policy.js";
+import { focusStateFor, opacityFor, isFullContrast, previewLights, type FocusState, type KindTiers, type TGraphPreview } from "../focus-policy.js";
 import { type FGNode, type FGLink, type TSprite, type ThreeObj, linkEndId } from "./polymorphic-graph-types.js";
 import { chipTextHeight } from "./layout-forces.js";
 import { NEWCOMER_GLOW_MS, RESTING_INTENSITY, glowColorAt, pulseAt } from "./polymorphic-highlight.js";
@@ -85,7 +85,8 @@ type FocusGraph = { linkColor(fn: (l: FGLink) => string): unknown; linkDirection
 export type FocusDeps = {
 	focusId: () => string | null; // selected (sticky, column open) else hover (transient)
 	selectedId: () => string | null; // the ACTIVE node alone (never a hover): the one that wears the glow
-	previewType: () => string | null; // a type hovered in the filter legend: dim every other type
+	preview: () => TGraphPreview | null; // what a preview lights (a type hovered in the filter legend, a path a host points at): dim the rest
+	groupOf: (n: FGNode) => string; // the group a node is drawn in, under the grouping the view uses
 	nodeMap: () => Map<string, FGNode>;
 	decorates: () => boolean; // whether decorative motion may run now: the scene's regulator rests it when a frame costs more than decoration may take
 	currentLinks: () => FGLink[];
@@ -130,12 +131,16 @@ export class PolymorphicFocus {
 	/** A link's focus state: incident edges go full, everything else dims; preview overrides (see focus-policy.ts). */
 	private linkFocusState(l: FGLink): FocusState {
 		const focus = this.deps.focusId();
-		const preview = this.deps.previewType();
+		const preview = this.deps.preview();
 		const nodeMap = this.deps.nodeMap();
 		const s = linkEndId(l.source);
 		const t = linkEndId(l.target);
 		const incident = focus !== null && (s === focus || t === focus);
-		const matchesPreview = preview !== null && nodeMap.get(s)?.type === preview && nodeMap.get(t)?.type === preview;
+		const lit = (id: string): boolean => {
+			const n = nodeMap.get(id);
+			return preview !== null && n !== undefined && previewLights(preview, n);
+		};
+		const matchesPreview = lit(s) && lit(t);
 		return focusStateFor({ focusActive: focus !== null, isInFocus: incident, previewActive: preview !== null, matchesPreview });
 	}
 
@@ -156,7 +161,7 @@ export class PolymorphicFocus {
 	applyFocus(): void {
 		const focus = this.deps.focusId();
 		const nodeMap = this.deps.nodeMap();
-		const previewType = this.deps.previewType();
+		const preview = this.deps.preview();
 		// A purely-visual focus must NOT move the layout. Re-pooling linkColor (below) makes the lib tick the sim once,
 		// and a force layout that froze before full convergence (a big graph capped by the warmup limit, so it happens
 		// only ~half the time, when the random layout didn't settle in limit) JUMPS on that one tick: "the graph
@@ -201,7 +206,12 @@ export class PolymorphicFocus {
 		const selected = this.deps.selectedId(); // hoisted: it cannot change during the pass, and reading it takes a map lookup
 		for (const n of nodeMap.values()) {
 			const inFocus = focus !== null && (neighbors?.has(n.id) ?? false);
-			const state = focusStateFor({ focusActive: focus !== null, isInFocus: inFocus, previewActive: previewType !== null, matchesPreview: n.type === previewType });
+			const state = focusStateFor({
+				focusActive: focus !== null,
+				isInFocus: inFocus,
+				previewActive: preview !== null,
+				matchesPreview: preview !== null && previewLights(preview, n),
+			});
 			if (n.__visual) n.__visual.opacity = opacityFor(state, this.deps.nodeTiers); // the visual owns how its concrete object dims (a chip's text fill, a sprite's material)
 			n.__visual?.setHighlighted(n.id === selected || this.freshGlows.has(n)); // the glow: the ACTIVE node wears it always, a newcomer for its first moments
 			const isFocus = n.id === focus;
@@ -210,15 +220,17 @@ export class PolymorphicFocus {
 		this.applyEnclosureFocus();
 	}
 
-	/** Group enclosures follow the node dimming: only the previewed type's (or the focused node's) group stays lit. */
+	/** Group enclosures follow the node dimming: only a group holding a previewed node (or the focused node) stays lit. */
 	applyEnclosureFocus(): void {
 		const enclosures = this.deps.enclosures();
 		if (enclosures.size === 0) return;
-		const focus = this.deps.focusId();
-		const focusType = focus ? (this.deps.nodeMap().get(focus)?.type ?? null) : null;
-		const preview = this.deps.previewType();
+		const nodeMap = this.deps.nodeMap();
+		const focusNode = this.deps.focusId() === null ? undefined : nodeMap.get(this.deps.focusId() as string);
+		const focusGroup = focusNode ? this.deps.groupOf(focusNode) : null;
+		const preview = this.deps.preview();
+		const litGroups = new Set(preview === null ? [] : [...nodeMap.values()].filter((n) => previewLights(preview, n)).map((n) => this.deps.groupOf(n)));
 		for (const [key, e] of enclosures) {
-			const state = focusStateFor({ focusActive: focusType !== null, isInFocus: key === focusType, previewActive: preview !== null, matchesPreview: key === preview });
+			const state = focusStateFor({ focusActive: focusGroup !== null, isInFocus: key === focusGroup, previewActive: preview !== null, matchesPreview: litGroups.has(key) });
 			setOpacityDeep(e.label, opacityFor(state, this.deps.enclosureLabelTiers));
 			e.boxMat.opacity = opacityFor(state, this.deps.enclosureFillTiers);
 			e.edgeMat.opacity = opacityFor(state, this.deps.enclosureEdgeTiers);

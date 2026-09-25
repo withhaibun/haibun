@@ -135,21 +135,21 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 		}
 	}
 
-	const nodes: TGraphNode[] = [];
-	for (const d of domains) {
-		const isSource = d === SOURCE_DOMAIN;
-		const node: TGraphNode = {
-			id: d,
-			label: isSource ? `${SOURCE_DOMAIN} no preconditions` : d,
-			kind: isSource ? NODE_KIND.default : findingToKind(goalFindings.get(d)),
-		};
-		if (!isSource) {
-			node.link = { href: `${DEEP_LINK_PREFIX}${AFFORDANCE_PARAM.GOAL}=${encodeURIComponent(d)}` };
-			const producer = producersByDomain.get(d);
-			if (producer) node.invokes = { stepperName: producer.stepperName, stepName: producer.stepName };
-		}
-		nodes.push(node);
-	}
+	/** A domain's node: its verdict as its kind, a link to it in the affordances panel, and its one producer, if one. */
+	const domainNode = (d: string): TGraphNode => {
+		if (d === SOURCE_DOMAIN) return { id: d, label: `${SOURCE_DOMAIN} no preconditions`, kind: NODE_KIND.default };
+		const node: TGraphNode = { id: d, label: d, kind: findingToKind(goalFindings.get(d)), link: { href: `${DEEP_LINK_PREFIX}${AFFORDANCE_PARAM.GOAL}=${encodeURIComponent(d)}` } };
+		const producer = producersByDomain.get(d);
+		if (producer) node.invokes = { stepperName: producer.stepperName, stepName: producer.stepName };
+		return node;
+	};
+	const nodes: TGraphNode[] = [...domains].map(domainNode);
+	/** A domain an edge ends at is a node of the graph, whether or not a step takes or returns it. */
+	const declareDomain = (d: string): void => {
+		if (domains.has(d)) return;
+		domains.add(d);
+		nodes.push(domainNode(d));
+	};
 
 	const edges: TGraphEdge[] = [];
 	// Dedup edges by (from, to, stepperName, stepName): a step with multiple
@@ -184,14 +184,8 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 					kind: NODE_KIND.field,
 					link: { href: `${DEEP_LINK_PREFIX}${AFFORDANCE_PARAM.GOAL}=${encodeURIComponent(fieldDomain)}` },
 				});
-				if (!domains.has(fieldDomain)) {
-					const node: TGraphNode = { id: fieldDomain, label: fieldDomain, kind: findingToKind(goalFindings.get(fieldDomain)) };
-					node.link = { href: `${DEEP_LINK_PREFIX}${AFFORDANCE_PARAM.GOAL}=${encodeURIComponent(fieldDomain)}` };
-					const producer = producersByDomain.get(fieldDomain);
-					if (producer) node.invokes = { stepperName: producer.stepperName, stepName: producer.stepName };
-					nodes.push(node);
-					domains.add(fieldDomain);
-				}
+				declareDomain(fieldDomain);
+				declareDomain(composite);
 				edges.push({ from: fieldDomain, to: fieldId, label: undefined, kind: EDGE_KIND.default });
 				edges.push({ from: fieldId, to: composite, label: fieldName, kind: EDGE_KIND.default });
 			}

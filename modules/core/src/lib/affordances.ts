@@ -164,11 +164,13 @@ function filterFactsAsOf(facts: TQuad[], asOf: number[]): TQuad[] {
 	});
 }
 
-/** Project the registered domains' `topology.ranges` into the wire-format snapshot. Empty when no domain declares any ranges. */
+/** Project the registered domains' `topology.ranges` into the wire-format snapshot. Empty when no domain declares any ranges.
+ *  A reference is left out: it stands for the type it refers to, as the goals and the chain lint read it. */
 function collectCompositeRanges(domains: Record<string, TRegisteredDomain>): TCompositeRanges | undefined {
 	const out: TCompositeRanges = {};
 	let any = false;
 	for (const [key, def] of Object.entries(domains)) {
+		if (refTargetOf(def, domains) !== undefined) continue;
 		const ranges = def.topology?.ranges;
 		if (ranges && Object.keys(ranges).length > 0) {
 			out[key] = { ...ranges };

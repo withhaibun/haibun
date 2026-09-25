@@ -8,6 +8,8 @@ import * as ViewHash from "../view-hash.js";
 import { AFFORDANCE_PARAM } from "../consts.js";
 import { RPC_METHOD } from "../consts.js";
 import { readingExecution, resetExecutions } from "../client-cache/executions.js";
+import { declareFakeGraphPresenter, mountedPresenter } from "../graph-presenter.test-fake.js";
+import { presenterIn } from "../graph-presenter.js";
 
 /** The run a snapshot says its facts are of. */
 const EXECUTION = "1790000000000-1";
@@ -43,15 +45,7 @@ describe("shu-affordances-panel", () => {
 			class FakeCopyBtn extends HTMLElement {}
 			customElements.define("shu-copy-button", FakeCopyBtn);
 		}
-		if (!customElements.get("shu-graph")) {
-			class FakeGraph extends HTMLElement {
-				lastProducts: Record<string, unknown> | undefined;
-				set products(p: Record<string, unknown>) {
-					this.lastProducts = p;
-				}
-			}
-			customElements.define("shu-graph", FakeGraph);
-		}
+		declareFakeGraphPresenter();
 	});
 
 	afterEach(() => {
@@ -172,7 +166,7 @@ describe("shu-affordances-panel", () => {
 		expect(panel.shadowRoot?.querySelector(".path-heading")?.textContent).toContain("more exist");
 	});
 
-	it("renders one shu-graph per michi goal and hands it the projected TGraph via products", async () => {
+	it("draws an open goal's paths in the site's graph presenter, previews the path a reader points at, and opens a step node in the actions bar", async () => {
 		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel & { products: Record<string, unknown> };
 		document.body.appendChild(panel);
 		panel.products = {
@@ -194,12 +188,33 @@ describe("shu-affordances-panel", () => {
 		await applied(panel);
 		(panel.shadowRoot?.querySelector('button[data-testid="goal-vc-toggle"]') as HTMLButtonElement | null)?.click();
 		await applied(panel);
-		const graphEl = panel.shadowRoot?.querySelector('shu-graph[data-testid="goal-graph-vc"]') as
-			| (HTMLElement & { lastProducts?: { graph?: { nodes: unknown[]; edges: unknown[] } } })
-			| null;
-		expect(graphEl).toBeTruthy();
-		expect(graphEl?.lastProducts?.graph?.nodes?.length).toBeGreaterThan(0);
-		expect(graphEl?.lastProducts?.graph?.edges?.length).toBeGreaterThan(0);
+		const presenter = await mountedPresenter(panel, "goal-graph-vc");
+		expect(panel.shadowRoot?.querySelector('[data-testid="goal-graph-vc"] slot[name="goal-graph-vc"]'), "shown through the goal's slot").toBeTruthy();
+		expect(presenter.dataset.persistScope).toBe("goal-graph");
+		const step = "step:Issue.issueVc";
+		expect(
+			presenter.quads.some((q) => q.subject === step && typeof q.objectType === "string"),
+			"the path's step and its edges",
+		).toBe(true);
+
+		const card = panel.shadowRoot?.querySelector('[data-testid="path-card-0-0"]') as HTMLElement;
+		card.dispatchEvent(new MouseEvent("mouseenter"));
+		expect(presenter.previewed).toContain(step);
+		card.dispatchEvent(new MouseEvent("mouseleave"));
+		expect(presenter.previewed).toBeNull();
+
+		const chosen: string[] = [];
+		const onChoose = (e: Event): void => {
+			chosen.push((e as CustomEvent<{ method: string }>).detail.method);
+		};
+		document.addEventListener("step-choose", onChoose);
+		presenter.openNode(step);
+		document.removeEventListener("step-choose", onChoose);
+		expect(chosen).toEqual(["Issue-issueVc"]);
+
+		(panel.shadowRoot?.querySelector('button[data-testid="goal-vc-toggle"]') as HTMLButtonElement | null)?.click();
+		await applied(panel);
+		expect(presenterIn(panel, "goal-graph-vc"), "a closed goal's graph goes with it").toBeUndefined();
 	});
 
 	it("re-rendering after a new affordances snapshot preserves <details> open state", async () => {

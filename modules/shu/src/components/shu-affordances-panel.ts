@@ -24,7 +24,9 @@ import {
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { RPC_METHOD, SHU_EVENT, AFFORDANCE_PARAM } from "../consts.js";
 import * as ViewHash from "../view-hash.js";
-import { pathId, projectGoalPaths } from "../graph/project-goal-paths.js";
+import { pathNodeIds, projectGoalPaths } from "../graph/project-goal-paths.js";
+import { graphToQuads } from "../graph/graph-quads.js";
+import { mountGraphPresenter, presenterIn, type TGraphPresenter, type TPresenterNodeClick } from "../graph-presenter.js";
 import { actionRef, domainRef, factIdRef } from "./shu-ref.js";
 import { factSeqPath } from "@haibun/core/lib/seq-path.js";
 import { openRef } from "./ref-navigation.js";
@@ -87,6 +89,18 @@ function normalizeSelection(goalInUrl: string, waypointInUrl: string, priorGoal:
 	if (goalChanged && !waypointChanged) return { goal: goalInUrl, waypoint: "" };
 	return { goal: "", waypoint: waypointInUrl };
 }
+
+/** The scope every goal's graph keeps its settings under. */
+const GOAL_GRAPH_SCOPE = "goal-graph";
+
+/** The slot a goal's graph is shown in, which is also the test id its graph is found by. */
+const goalGraphSlot = (domain: string): string => `goal-graph-${domain}`;
+
+/** Draw a goal's projected paths in its presenter. */
+const feedGoalGraph = (presenter: TGraphPresenter, graph: TGraph): void => {
+	const { quads, clusters } = graphToQuads(graph);
+	presenter.setQuads(quads, clusters);
+};
 
 export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSchema> {
 	private affordances: TAffordances | null = null;
@@ -184,9 +198,12 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	}
 
 	/** A step on a path opens in the actions bar to be run; a fact opens the step that produced it. */
+	/** A node a reader opened in a goal's graph: a step opens in the actions bar, a fact opens the step that produced it. */
 	private onGraphNodeClick(e: Event): void {
-		const node = ((e as CustomEvent).detail as { node: { invokes?: { stepperName?: string; stepName?: string }; wasGeneratedBy?: { factId?: string } } | null }).node;
-		if (!node) return;
+		const { nodeId } = (e as CustomEvent<TPresenterNodeClick>).detail;
+		const slot = (e.target as Element).slot;
+		const node = this.goalGraphs.get(slot)?.nodes.find((n) => n.id === nodeId);
+		if (!node) throw new Error(`goal graph node "${nodeId}" is no node of the graph in slot "${slot}"`);
 		const invokes = node.invokes;
 		if (invokes?.stepperName && invokes?.stepName) {
 			this.chooseStep(stepMethodName(invokes.stepperName, invokes.stepName));
@@ -268,14 +285,16 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		this.chooseStep(stepMethodName(first.stepperName, first.stepName));
 	}
 
-	/** Per-goal projected `TGraph` cache, keyed by goal index. Built lazily in `updated()` once the resolution detail mounts the `<shu-graph>` element, so hovering a path card can re-`set products` with a `highlightedPath` option without rebuilding the projection. */
-	private goalGraphs = new Map<number, TGraph>();
+	/** Each open goal's projected paths, keyed by the slot its graph is shown in: a node a reader opens, and a path a
+	 *  reader points at, are found in it. */
+	private goalGraphs = new Map<string, TGraph>();
 
-	private highlightPath(goalIdx: number, pathIdx: number | undefined): void {
-		const graph = this.goalGraphs.get(goalIdx);
-		const graphEl = this.shadowRoot?.querySelector<HTMLElement>(`shu-graph[data-goal-idx="${goalIdx}"]`);
-		if (!graph || !graphEl) return;
-		(graphEl as HTMLElement & { products: Record<string, unknown> }).products = { graph, options: pathIdx === undefined ? {} : { highlightedPath: pathId(pathIdx) } };
+	/** Light the nodes a path runs through in its goal's graph and dim the rest; no path ends the preview. */
+	private previewPath(goalIdx: number, pathIdx: number | undefined): void {
+		const slot = goalGraphSlot(this.goalDomainAt(goalIdx));
+		const graph = this.goalGraphs.get(slot);
+		if (!graph) return;
+		presenterIn(this, slot)?.previewNodes(pathIdx === undefined ? null : pathNodeIds(graph, pathIdx));
 	}
 
 	private renderBlockedReasonTpl(a: TForwardAffordance): TemplateResult | "" {
@@ -336,7 +355,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		const action = alreadySatisfied ? "Run again to produce another." : "Pick one to start; the first step opens in the actions bar so you can supply any inputs.";
 		return html`<div class="resolution-detail">
 			<div class="path-heading">${count}${truncatedNote}. ${action}</div>
-			<shu-graph class="goal-graph" data-testid=${`goal-graph-${this.goalDomainAt(goalIdx)}`} data-goal-idx=${goalIdx}></shu-graph>
+			<div class="goal-graph" data-testid=${goalGraphSlot(this.goalDomainAt(goalIdx))} data-goal-idx=${goalIdx}><slot name=${goalGraphSlot(this.goalDomainAt(goalIdx))}></slot></div>
 			<div class="path-list">${michi.map((m, i) => this.renderPathCardTpl(m, goalIdx, i))}</div>
 		</div>`;
 	}
@@ -358,7 +377,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 			}
 		}
 		const firstStepLabel = path.steps[0]?.gwta ?? `${path.steps[0]?.stepperName}.${path.steps[0]?.stepName}`;
-		return html`<div class="path-card" data-testid=${`path-card-${goalIdx}-${pathIdx}`} @mouseenter=${(): void => this.highlightPath(goalIdx, pathIdx)} @mouseleave=${(): void => this.highlightPath(goalIdx, undefined)}>
+		return html`<div class="path-card" data-testid=${`path-card-${goalIdx}-${pathIdx}`} @mouseenter=${(): void => this.previewPath(goalIdx, pathIdx)} @mouseleave=${(): void => this.previewPath(goalIdx, undefined)}>
 			<div class="path-card-header">
 				<span class="path-label">Path ${pathIdx + 1}</span>
 				<button class="start-path" data-testid=${`start-path-${this.goalDomainAt(goalIdx)}-${pathIdx}`} data-goal-idx=${goalIdx} data-path-idx=${pathIdx} title=${`Open the first step (${firstStepLabel}) in the actions bar`} @click=${(): void => this.startPath(path)}>Start this path</button>
@@ -466,7 +485,8 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		.plan-steps { margin: var(--shu-space-2) 0 var(--shu-space-2) var(--shu-space-6); padding: 0; font-size: var(--shu-font-sm); }
 		.plan-steps li { margin: var(--shu-space-1) 0; }
 		.path-heading { color: var(--shu-fg-muted); margin-bottom: var(--shu-space-3); }
-		.goal-graph { display: block; margin: var(--shu-space-3) 0; }
+		.goal-graph { display: block; height: 320px; margin: var(--shu-space-3) 0; }
+		::slotted([data-external]) { display: block; height: 100%; }
 		.path-list { display: flex; flex-direction: column; gap: var(--shu-space-3); }
 		.path-card { padding: var(--shu-space-3) var(--shu-space-4); border: var(--shu-border-w) solid var(--shu-border-info); border-radius: var(--shu-radius); background: var(--shu-bg-info-card); }
 		.path-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--shu-space-2); }
@@ -576,20 +596,24 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 
 	protected updated(_changedProperties: PropertyValues): void {
 		if (!this.shadowRoot) return;
-		// Mount the projected `TGraph` into each open-goal's `<shu-graph>` and remember it so hover-highlight can re-issue `products` with a `highlightedPath` option without rebuilding the projection. The `<shu-graph>` is created by lit-html; its `products` setter is imperative so it lives here, not in the template.
+		// Each open goal's paths are projected and drawn by the site's graph presenter, mounted in light DOM in the goal's
+		// slot. A presenter whose goal is no longer open goes with it.
 		this.goalGraphs.clear();
-		for (const graphEl of Array.from(this.shadowRoot.querySelectorAll<HTMLElement>("shu-graph.goal-graph"))) {
-			const goalIdx = Number(graphEl.dataset.goalIdx);
-			const goal = this.affordances?.goals[goalIdx];
+		for (const wrapper of Array.from(this.shadowRoot.querySelectorAll<HTMLElement>(".goal-graph"))) {
+			const goal = this.affordances?.goals[Number(wrapper.dataset.goalIdx)];
 			if (!goal) continue;
 			const r = goal.resolution;
 			if (r.finding !== GOAL_FINDING.MICHI && r.finding !== GOAL_FINDING.SATISFIED) continue;
 			const michi = "michi" in r && Array.isArray(r.michi) ? r.michi : [];
 			const factIds = r.finding === GOAL_FINDING.SATISFIED && Array.isArray(r.factIds) ? r.factIds : undefined;
 			const graph: TGraph = projectGoalPaths({ goal: goal.domain, finding: r.finding, michi, factIds });
-			this.goalGraphs.set(goalIdx, graph);
-			(graphEl as HTMLElement & { products: Record<string, unknown> }).products = { graph, options: {} };
+			const slot = goalGraphSlot(goal.domain);
+			this.goalGraphs.set(slot, graph);
+			const presenter = presenterIn(this, slot);
+			if (presenter) feedGoalGraph(presenter, graph);
+			else void mountGraphPresenter(this, slot, GOAL_GRAPH_SCOPE).then((mounted) => mounted && feedGoalGraph(mounted, graph));
 		}
+		for (const presenter of Array.from(this.querySelectorAll<HTMLElement>(":scope > [data-external]"))) if (!this.goalGraphs.has(presenter.slot)) presenter.remove();
 
 		// Scroll only once per open-goal / open-waypoint change; leaves manual scroll alone during live re-renders. Walk the relevant data attribute to find the card, avoiding `CSS.escape` (jsdom doesn't ship it) and domain-name characters that need CSS-attribute-selector escaping.
 		const openGoal = this.state.openGoal;

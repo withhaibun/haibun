@@ -104,7 +104,7 @@ describe("buildAffordances", () => {
 		expect(issue?.readyToRun).toBe(true);
 	});
 
-	it("leaves a reference out of the goals, since the type it names is the goal", () => {
+	it("leaves a reference out of the goals and the composites, since the type it names stands for it", () => {
 		const domains = deriveNamingDomains(
 			mapDefinitionsToDomains([
 				{ selectors: [PERSON], schema: z.object({ id: z.string() }), description: "person" },
@@ -119,11 +119,11 @@ describe("buildAffordances", () => {
 		class EmailRefFromPerson extends AStepper {
 			steps: TStepperSteps = { refer: { gwta: `refer to the email of {who: ${PERSON}}`, productsDomain: refDomainKey(EMAIL), action: () => actionOKWithProducts({ id: "e1" }) } };
 		}
-		const goals = buildAffordances({ steppers: [new EmailFromPerson(), new EmailRefFromPerson(), new PersonSource()], domains, facts: [], held: RUN_AUTHORITY }).goals.map(
-			(g) => g.domain,
-		);
+		const result = buildAffordances({ steppers: [new EmailFromPerson(), new EmailRefFromPerson(), new PersonSource()], domains, facts: [], held: RUN_AUTHORITY });
+		const goals = result.goals.map((g) => g.domain);
 		expect(goals).toContain(EMAIL);
 		expect(goals).not.toContain(refDomainKey(EMAIL));
+		expect(result.composites?.[refDomainKey(EMAIL)], "a reference is no composite to decompose").toBeUndefined();
 	});
 
 	it("offers no step to a caller holding nothing", () => {

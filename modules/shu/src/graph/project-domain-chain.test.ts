@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { SOURCE_DOMAIN } from "@haibun/core/lib/domain-chain.js";
 import { projectDomainChain, waypointNodeId, factNodeId, type TAffordancesSnapshot } from "./project-domain-chain.js";
+import { graphToQuads } from "./graph-quads.js";
 
 describe("projectDomainChain", () => {
 	it("maps the satisfied finding to the satisfied node kind", () => {
@@ -47,6 +48,18 @@ describe("projectDomainChain", () => {
 		const fieldToComposite = g.edges.find((e) => e.from === "order#maker" && e.to === "order");
 		expect(makerToField).toBeTruthy();
 		expect(fieldToComposite).toBeTruthy();
+	});
+
+	it("holds a node for every domain an edge ends at, a composite no step takes or returns included, so the scene draws each edge", () => {
+		const snap: TAffordancesSnapshot = {
+			forward: [{ stepperName: "S", stepName: "s", inputDomains: ["a"], outputDomains: ["b"], readyToRun: true }],
+			goals: [],
+			composites: { unnamed: { part: "a" } },
+		};
+		const g = projectDomainChain(snap);
+		const ids = new Set(g.nodes.map((n) => n.id));
+		expect(g.edges.filter((e) => !ids.has(e.from) || !ids.has(e.to))).toEqual([]);
+		expect(() => graphToQuads(g)).not.toThrow();
 	});
 
 	it("flags capability-gated edges separately from ready / blocked", () => {

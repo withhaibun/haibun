@@ -23,7 +23,6 @@ import { shuBaseStyles, shuRowSeparated } from "./styles.js";
 import { SHU_EVENT } from "../consts.js";
 import { DEFAULT_PER_TYPE_LIMIT, MAX_PER_TYPE_LIMIT } from "../quads-snapshot.js";
 import { colorForType } from "../type-colors.js";
-import { getJsonCookie, setJsonCookie } from "../cookies.js";
 import { clamp } from "../util.js";
 import { readElementPrefs } from "../element-prefs.js";
 import { projectFilterClusters, effectiveHiddenTypes, derivePredicates, explicitlyHidden } from "../graph-filter-projection.js";
@@ -43,24 +42,6 @@ const StateSchema = z.object({
 	predicateOverrides: z.record(z.string(), z.boolean()).default({}),
 	perTypeLimit: z.number().int().positive().default(DEFAULT_PER_TYPE_LIMIT),
 });
-
-// The per-axis hidden-set (chain-graph mode) is a separate keyed store, not this component's own state, so it
-// keeps its own namespaced cookie rather than going through persistFields.
-const AXIS_COOKIE_PREFIX = "shu-graph-filter-axes";
-
-function readAxisCookie(key: string): Record<string, string[]> {
-	const parsed = getJsonCookie<Record<string, unknown> | null>(`${AXIS_COOKIE_PREFIX}-${key}`, null);
-	if (!parsed || typeof parsed !== "object") return {};
-	const out: Record<string, string[]> = {};
-	for (const [axis, values] of Object.entries(parsed)) {
-		if (Array.isArray(values)) out[axis] = values.filter((v): v is string => typeof v === "string");
-	}
-	return out;
-}
-
-function writeAxisCookie(key: string, value: Record<string, string[]>): void {
-	setJsonCookie(`${AXIS_COOKIE_PREFIX}-${key}`, value);
-}
 
 export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 	/** A control, not a view of data, contributes nothing to the Kihan's context. */
@@ -110,12 +91,6 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 
 	private knownClusters = new Map<string, TCluster>();
 	private quads: TQuad[] = [];
-	// Axis mode: alternative to quad/cluster source. When set, the filter renders
-	// one section of checkboxes per named axis (e.g. stepper, kind) and emits
-	// `graph-filter-change` with `{ hiddenByAxis }`. Used by the chain-graph view
-	// where the data is `TGraph`-shaped, not quad-shaped.
-	private axisSource: { axes: Record<string, string[]>; hidden: Record<string, Set<string>> } | null = null;
-	private axisCookieKey: string | null = null;
 	// Transient UI for the 1️⃣ tool: while it waits, the next chip press, a type or a property, shows ONLY that one
 	// instead of toggling it. One press's state, not a durable choice, so it is kept off persistFields.
 	private soloWaiting = false;
@@ -133,7 +108,6 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 	setSource(knownClusters: Map<string, TCluster>, quads: TQuad[]): void {
 		this.knownClusters = knownClusters;
 		this.quads = quads;
-		this.axisSource = null;
 		this.requestUpdate();
 	}
 
@@ -175,42 +149,7 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		this.dispatchChange();
 	}
 
-	/**
-	 * Axis-mode source. The chain-graph view supplies pre-computed axes (stepper,
-	 * kind, etc.) instead of quads; the filter renders one row of checkboxes per
-	 * axis and emits `graph-filter-change` with `{ hiddenByAxis }`. The host
-	 * attribute `data-axis-cookie-key` namespaces persistence so different chain
-	 * views remember their own filters.
-	 */
-	setAxes(axes: Record<string, string[]>): void {
-		const cookieKey = this.dataset.axisCookieKey ?? "default";
-		this.axisCookieKey = cookieKey;
-		const persisted = readAxisCookie(cookieKey);
-		const hidden: Record<string, Set<string>> = {};
-		for (const axis of Object.keys(axes)) hidden[axis] = new Set(persisted[axis] ?? []);
-		this.axisSource = { axes, hidden };
-		this.requestUpdate();
-	}
-
-	/** Hosts call this before their first paint so the persisted hidden-set applies on initial load. */
-	static getPersistedAxes(cookieKey: string): Record<string, string[]> {
-		return readAxisCookie(cookieKey);
-	}
-
 	private dispatchChange(): void {
-		if (this.axisSource) {
-			const hiddenByAxis: Record<string, string[]> = {};
-			for (const [axis, set] of Object.entries(this.axisSource.hidden)) hiddenByAxis[axis] = [...set];
-			if (this.axisCookieKey) writeAxisCookie(this.axisCookieKey, hiddenByAxis);
-			this.dispatchEvent(
-				new CustomEvent(SHU_EVENT.GRAPH_FILTER_CHANGE, {
-					detail: { hiddenByAxis },
-					bubbles: true,
-					composed: true,
-				}),
-			);
-			return;
-		}
 		// overrides/perTypeLimit persist automatically via setState (persistFields); the dispatch just notifies hosts, which
 		// combine the overrides with the instrumentation-default predicate (effectiveHiddenTypes) to decide what renders.
 		this.dispatchEvent(
@@ -297,10 +236,6 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 	};
 
 	render(): TemplateResult {
-		// A filter serves ONE source. An axis host (setAxes) offers the values of each grouping axis; a quad host
-		// (setSource) offers the data's types and properties. The controls that belong to quads: the per-type limit,
-		// the solo tool, the quad count, go with that source, never to a host with no quads to count.
-		if (this.axisSource) return this.rows(Object.entries(this.axisSource.axes).map(([axis, values]) => this.axisRow(axis, values)));
 		const visibleQuads = this.filterByTime(this.quads); // ONE time-filtered pass, shared by the clusters, the predicates and the count
 		const clusters = this.deriveClusters(visibleQuads)
 			.slice()
@@ -347,23 +282,12 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		]);
 	}
 
-	/** The rows a mode offers, each on its own line, with the host's view-settings slot last: the one page shape every
-	 *  mode renders, so a mode decides only WHAT it offers. */
+	/** The filter's rows, each on its own line, with the host's view-settings slot last. */
 	private rows(rows: TemplateResult[]): TemplateResult {
 		return html`${rows.map((row) => html`<div class="row">${row}</div>`)}
 			<div class="row view-settings" ?hidden=${!this.querySelector('[slot="view-settings"]')}>
 				<slot name="view-settings" @slotchange=${this.onViewSettingsSlotChange}></slot>
 			</div>`;
-	}
-
-	/** One grouping axis as its own chip group: its values, each shown or hidden. */
-	private axisRow(axis: string, values: string[]): TemplateResult {
-		const hidden = this.axisSource?.hidden[axis] ?? new Set<string>();
-		const chips = values
-			.slice()
-			.sort((a, b) => a.localeCompare(b))
-			.map((v): TChip => ({ id: v, label: v, checked: !hidden.has(v), color: colorForType(v) }));
-		return html`<shu-chip-group name=${axis} .chips=${chips} .onToggle=${this.onAxisToggle(axis)}></shu-chip-group>`;
 	}
 
 	/** A type chip through the shared group element: the solo tool intercepts the toggle exactly as it intercepted a
@@ -384,18 +308,6 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		const on = (e.target as HTMLInputElement).checked;
 		this.setTypeVisibility([ONTOLOGY_CLASS, ONTOLOGY_PROPERTY], on);
 	};
-
-	private onAxisToggle =
-		(axis: string) =>
-		(value: string, checked: boolean): void => {
-			if (!this.axisSource) return;
-			const set = this.axisSource.hidden[axis] ?? new Set<string>();
-			if (checked) set.delete(value);
-			else set.add(value);
-			this.axisSource.hidden[axis] = set;
-			this.requestUpdate();
-			this.dispatchChange();
-		};
 }
 
 if (!customElements.get("shu-graph-filter")) {

@@ -6,6 +6,8 @@ import { ShuClusteredGraphView, clusteredGraphStateShape } from "./shu-clustered
 import type { TLinkedData } from "@haibun/core/lib/hypermedia.js";
 import { SHU_EVENT } from "../consts.js";
 import { acts, conduit } from "../hypermedia.js";
+import type { TPaneOpen } from "../pane-state.js";
+import type { TPresenterNodeClick } from "../graph-presenter.js";
 import { applyScene, captureScene, listScenes, readScene, saveScene, type TSceneState } from "../scenes.js";
 import { SCENE_LABEL } from "@haibun/core/lib/resources.js";
 
@@ -106,15 +108,41 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		this.buildSceneConfig();
 	}
 
-	/** External-data mode (`data-external` attribute): no RPC/SSE/selection wiring: the caller feeds quads via setQuads. */
+	/** External-data mode (`data-external` attribute): the embedding host gives the quads (setQuads) and the selection
+	 *  (selectNode); the view reads nothing from the store. */
 	protected override get usesExternalData(): boolean {
 		return this.hasAttribute("data-external");
 	}
 
-	/** Feed a complete snapshot (mirrors the overview's setQuads contract). Routes through the normal repaint path. */
+	/** The scope its settings and filter choices are remembered under: its host's (`data-persist-scope`), apart from the
+	 *  main graph's, or the main graph's own. */
+	protected override get persistKey(): string {
+		return this.dataset.persistScope ?? "";
+	}
+	protected override get filterPersistScope(): string {
+		return this.persistKey;
+	}
+
+	/** Draw a host's complete graph. */
 	setQuads(quads: TQuad[], clusters: TCluster[] = []): void {
-		this.setGraphState({ quads, clusters });
-		this.onGraphData();
+		this.setExternalData(quads, clusters);
+	}
+
+	/** The node the host marks as active, held so a scene mounted later marks it too. */
+	private hostSelection: string | null = null;
+	/** The nodes the host lights, held so a scene mounted later lights them too. */
+	private hostPreview: string[] | null = null;
+
+	/** Mark the node its host is on as the active node: an external host's selection, as the page's is the main graph's. */
+	selectNode(id: string | null): void {
+		this.hostSelection = id;
+		this.scene?.setSelectedSubject(id);
+	}
+
+	/** Light these nodes and dim the rest, as a type chip under the pointer lights its type. */
+	previewNodes(ids: string[] | null): void {
+		this.hostPreview = ids;
+		this.scene?.setPreview(ids === null ? null : { subjects: new Set(ids) });
 	}
 
 	/** What a reader is looking at, as the scene states it. The copy-graph button keeps the whole graph in draw order,
@@ -303,7 +331,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 				</div>
 			</div>
 			${this.renderSettingsRow(open)}
-			<shu-graph-filter></shu-graph-filter>
+			<shu-graph-filter data-persist-scope=${this.persistKey}></shu-graph-filter>
 			<div class="graph-area"><shu-graph-scene></shu-graph-scene></div>
 			</div>
 		`;
@@ -358,12 +386,14 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	protected override async onGraphConnected(): Promise<void> {
 		await super.onGraphConnected();
 		// Devtools handle for the layout query: `shuPolymorphic.inspect()`: the method name alone collides with the console's
-		// built-in inspect(). Last connected view wins; cleared on disconnect if still this instance.
-		(globalThis as { shuPolymorphic?: ShuPolymorphicGraphView }).shuPolymorphic = this;
-		this.autoTeardown(() => {
-			const g = globalThis as { shuPolymorphic?: ShuPolymorphicGraphView };
-			if (g.shuPolymorphic === this) g.shuPolymorphic = undefined;
-		});
+		// built-in inspect(). The main graph's: a graph a host embeds draws the host's data, not the page's.
+		if (!this.usesExternalData) {
+			(globalThis as { shuPolymorphic?: ShuPolymorphicGraphView }).shuPolymorphic = this;
+			this.autoTeardown(() => {
+				const g = globalThis as { shuPolymorphic?: ShuPolymorphicGraphView };
+				if (g.shuPolymorphic === this) g.shuPolymorphic = undefined;
+			});
+		}
 		// The scene outputs this view relays beyond the ones every host does.
 		this.autoListen(this, GRAPH_SCENE_EVENT.CLUSTER_EXPAND, ((e: CustomEvent<{ type: string }>) => {
 			this.dispatchEvent(new CustomEvent(SHU_EVENT.GRAPH_CLUSTER_EXPAND, { detail: e.detail, bubbles: true, composed: true }));
@@ -381,6 +411,19 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		this.scene?.setUserPins(this.state.pins);
 		// Seed the persisted layout choices; the base's first refetch (below onGraphConnected) then pushes the initial model.
 		this.scene?.setConfig(this.buildSceneConfig());
+		if (this.usesExternalData) {
+			this.scene?.setSelectedSubject(this.hostSelection);
+			this.previewNodes(this.hostPreview);
+			// A node a reader opens is its host's to open: the host knows what its nodes name, where the main graph's are
+			// records. Reported as the node's id, in place of the record the scene would open.
+			this.autoListen(this, SHU_EVENT.PANE_OPEN, ((e: CustomEvent<TPaneOpen>) => {
+				const { pane } = e.detail;
+				if (pane.paneType !== "entity") return;
+				e.stopPropagation();
+				const detail: TPresenterNodeClick = { nodeId: pane.id };
+				this.dispatchEvent(new CustomEvent(SHU_EVENT.GRAPH_NODE_CLICK, { detail, bubbles: true, composed: true }));
+			}) as EventListener);
+		}
 		void this.loadScenes();
 	}
 

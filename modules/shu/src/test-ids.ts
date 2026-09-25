@@ -281,7 +281,6 @@ export const SHU_TEST_IDS = {
 	DOMAIN_CHAIN: {
 		ROOT: "shu-domain-chain",
 		GRAPH: "domain-chain-graph",
-		CONTROLS: "domain-chain-toolbar",
 		ERROR: "domain-chain-error",
 		EMPTY: "domain-chain-empty",
 		/** What a chain lint report found, and each finding. */

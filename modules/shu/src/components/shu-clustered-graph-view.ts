@@ -88,9 +88,17 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 		this.setState(partial as Partial<z.infer<T>>);
 	}
 
-	/** External-data mode (subclass supplies quads; no RPC/SSE/selection). The overview overrides it for setQuads. */
+	/** External-data mode: the host that embeds the view gives it all its data and its selection, so the view reads
+	 *  nothing from the store and follows no page selection. */
 	protected get usesExternalData(): boolean {
 		return false;
+	}
+
+	/** An external host's graph: its quads and clusters, drawn as given, with the types the reader hid kept hidden. */
+	protected setExternalData(quads: TQuad[], clusters: TCluster[]): void {
+		this.knownClusters = new Map(clusters.map((cluster) => [cluster.type, cluster]));
+		this.setGraphState({ quads, clusters, hiddenGraphs: this.hiddenForSnapshot({ clusters, quads }) });
+		this.onGraphData();
 	}
 
 	/** Light DOM: the scene resolves its A-Frame camera through the document, and its chrome positions against the host. */
@@ -124,10 +132,12 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 	 *  same way are wired here. A host adds its own outputs after awaiting this. */
 	protected async onGraphConnected(): Promise<void> {
 		await this.updateComplete; // renders the filter and creates the <shu-graph-scene> child
-		this.setAttribute("data-testid", this.rootTestId);
+		// A graph a host embeds is found by the host's test id, so a page holding it beside the main graph finds one of each.
+		if (!this.usesExternalData) this.setAttribute("data-testid", this.rootTestId);
 		// Hovering a type chip previews its cluster: every other type dims while the pointer is on it.
 		this.autoListen(this, SHU_EVENT.GRAPH_TYPE_PREVIEW, ((e: CustomEvent<{ type: string | null }>) => {
-			this.scene?.setPreviewType(e.detail?.type ?? null);
+			const type = e.detail?.type ?? null;
+			this.scene?.setPreview(type === null ? null : { type });
 		}) as EventListener);
 	}
 	/** Repaint after a data change: the scene takes the new slice. */
@@ -137,6 +147,7 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 	/** What the reader is on, as the machine decides it: the scene highlights it, and its neighborhood is fetched where
 	 *  the graph does not hold it yet. */
 	#subject = new SubjectController(this, (record) => {
+		if (this.usesExternalData) return;
 		this.onGraphSelection(record?.id ?? null, record?.label ?? null);
 		if (record) void this.fetchIfMissing(record.id, record.label);
 	});
@@ -199,29 +210,25 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 		this.autoListen(this, SHU_EVENT.GRAPH_CLUSTER_EXPAND, (() => {
 			// Raise the sample toward the SAME ceiling the filter slider expresses, never silently past it. The filter
 			// owns the limit: raising it there persists the value and its dispatch drives the one refetch path a slider
-			// change takes. Only a filterless host (external-data views) refetches directly.
+			// change takes.
 			const nextLimit = Math.min(MAX_PER_TYPE_LIMIT, Math.max(this.cgState.perTypeLimit * 2, this.cgState.perTypeLimit + 100));
 			if (nextLimit === this.cgState.perTypeLimit) return;
-			const filter = this.renderRoot.querySelector<ShuGraphFilter>("shu-graph-filter");
-			if (filter) {
-				filter.raiseLimitTo(nextLimit);
-				return;
-			}
-			const visibleTypes = [...this.knownClusters.keys()].filter((t) => !this.cgState.hiddenGraphs.includes(t));
-			void this.refetchSnapshot({ types: visibleTypes.length > 0 ? visibleTypes : undefined, perTypeLimit: nextLimit });
+			const filter = this.filterEl;
+			if (!filter) throw new Error(`${this.localName} holds no graph filter to raise the sample limit on`);
+			filter.raiseLimitTo(nextLimit);
 		}) as EventListener);
 
-		if (this.usesExternalData) {
-			await this.onGraphConnected();
-			return;
-		}
-
 		// One persistence source for the overrides + limit across every clustered view: the embedded <shu-graph-filter>,
-		// read per the view's declared scope (filterPersistScope) so a scoped host (a class browser) never shares the main
-		// graph's choices. hiddenGraphs is computed (defaults + overrides) once the snapshot's clusters arrive, in refetchSnapshot.
+		// read per the view's declared scope (filterPersistScope) so a scoped host (a class browser, an embedded graph) never
+		// shares the main graph's choices. hiddenGraphs is computed (defaults + overrides) as the data arrives.
 		const initial = ShuGraphFilter.getPersistedFilter(this.filterPersistScope);
 		this.filterOverrides = initial.overrides;
 		this.setGraphState({ hiddenPredicates: initial.hiddenPredicates });
+		if (this.usesExternalData) {
+			await this.onGraphConnected();
+			this.onGraphData(); // what the host gave before the scene existed
+			return;
+		}
 		await this.onGraphConnected();
 		await this.refetchSnapshot({ perTypeLimit: initial.perTypeLimit });
 
@@ -280,7 +287,9 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 
 	protected commitHidden(hiddenGraphs: string[], visibleTypes: string[] | undefined, perTypeLimit: number): void {
 		this.setGraphState({ hiddenGraphs });
-		void this.refetchSnapshot({ types: this.narrowsRefetchToVisible ? visibleTypes : undefined, perTypeLimit });
+		// An external host's graph is all there is: the view draws it again, and reads nothing from the store.
+		if (this.usesExternalData) this.onGraphData();
+		else void this.refetchSnapshot({ types: this.narrowsRefetchToVisible ? visibleTypes : undefined, perTypeLimit });
 	}
 
 	/** Hide/show delta: the control-products setter calls this; the on-screen filter sets the visible set directly via commitHidden. */

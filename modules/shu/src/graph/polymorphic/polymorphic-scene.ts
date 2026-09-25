@@ -20,8 +20,8 @@ import { typeAvatar } from "../polymorphic/polymorphic-type-avatar.js";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { PAGE_TERMS } from "@haibun/core/lib/hypermedia.js";
 import { isSubPropertyOf } from "@haibun/core/lib/resources.js";
-import { type GroupKeyMode, easeInOutCubic, type XYZ } from "../grouping.js";
-import { type KindTiers } from "../focus-policy.js";
+import { type GroupKeyMode, easeInOutCubic, groupKeyOf, type XYZ } from "../grouping.js";
+import { type KindTiers, type TGraphPreview } from "../focus-policy.js";
 import { quadsToGanttModel, cascadeReschedule } from "../gantt-model.js";
 import { availablePaints, browserRelOf } from "../paint-select.js";
 import { ganttBarTimes, GANTT_ROW_H, GANTT_BAR_H, GANTT_BAR_D, GANTT_MIN_BAR_W, GANTT_GHOST_PAD } from "../gantt-layout.js";
@@ -74,7 +74,7 @@ import type { NodeMark } from "../graph-scene.js";
  *   setConfig(patch): the layout choices (view type, flatten, grouping, z basis, label-as-z)
  *   setTimeCursorValue(ms): the depth-basis cursor (a re-style, not a data change)
  *   setSelectedSubject(id): the highlighted node (pins it, dims the rest)
- *   setPreviewType(type): a type hovered in a legend (dims every other type)
+ *   setPreview(preview): a type hovered in a legend, or nodes a host points at (dims the rest)
  *   scopeToType(type): an embedded schema view: fit around one type's node
  *
  * It emits (bubbles, composed) the constants in GRAPH_SCENE_EVENT. The host (a data-feeding wrapper such as
@@ -473,7 +473,8 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		decorates: () => this.decorates(),
 		focusId: () => this.focusId,
 		selectedId: () => this.activeSubject,
-		previewType: () => this.previewType,
+		preview: () => this.preview,
+		groupOf: (n) => groupKeyOf(n, this.config.groupBy),
 		nodeMap: () => this.nodeMap,
 		currentLinks: () => this.currentLinks,
 		enclosures: () => this.enclosureCtl.enclosures,
@@ -609,7 +610,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	/** The node following last aimed at, so a subject that arrives after it was chosen is centred once. */
 	private aimedAt: string | null = null;
 	private hoverSubject: string | null = null; // transient: the hovered node
-	private previewType: string | null = null; // a type hovered in the filter legend: dim every other type
+	private preview: TGraphPreview | null = null; // what a preview lights: a type hovered in the filter legend, or nodes a host points at
 	// Ontology (T-Box) mode: the view shows the SCHEMA that drives it: the Class + Property hierarchy from
 	// getOntologyQuads: instead of the live instance data. While on, the live feeders (refetch/SSE) are suspended so a
 	// streamed batch can't clobber the fixed ontology snapshot; toggling off refetches the live graph.
@@ -742,7 +743,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			focus: {
 				hover: this.hoverSubject,
 				selected: this.activeSubject,
-				preview: this.previewType,
+				preview: this.preview === null ? null : "type" in this.preview ? this.preview.type : [...this.preview.subjects],
 				litNodes: nodes.filter((n) => (n.__visual?.opacity ?? 1) > 0.9).length,
 			},
 			drag: this.nodeDrag.draggedId ? { id: this.nodeDrag.draggedId } : null,
@@ -2439,9 +2440,10 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.reassertFocus();
 	}
 
-	/** A type hovered in the host's filter legend: dim every other type. Null clears the preview. */
-	setPreviewType(type: string | null): void {
-		this.previewType = type;
+	/** Light what a preview names and dim the rest: a type hovered in the host's filter legend, or nodes the host points
+	 *  at. Null clears the preview. */
+	setPreview(preview: TGraphPreview | null): void {
+		this.preview = preview;
 		this.reassertFocus();
 	}
 

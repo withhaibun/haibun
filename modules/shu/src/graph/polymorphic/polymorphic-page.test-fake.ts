@@ -21,12 +21,16 @@ const BUNDLE_PATH = join(dirname(fileURLToPath(import.meta.url)), "..", "..", ".
 /** The view's box on the page: fixed, so a test that resizes it knows what it started from. */
 export const BOX = { width: 1000, height: 700 };
 
-const PAGE = `<!doctype html><html><head><meta charset="utf-8"><script src="/bundle.js"></script></head>
+/** The page, its view the page's main graph, or a graph a host embeds to draw its own data (`data-external`). */
+const pageWith = (external: boolean): string => `<!doctype html><html><head><meta charset="utf-8"><script src="/bundle.js"></script></head>
 <body style="margin:0">
 	<div id="box" style="position:fixed;left:0;top:0;width:${BOX.width}px;height:${BOX.height}px;">
-		<shu-polymorphic-graph-view style="display:block;width:100%;height:100%"></shu-polymorphic-graph-view>
+		<shu-polymorphic-graph-view ${external ? `data-external data-persist-scope="${EMBEDDED_SCOPE}"` : ""} style="display:block;width:100%;height:100%"></shu-polymorphic-graph-view>
 	</div>
 </body></html>`;
+
+/** The scope an embedded graph on the page keeps its settings under. */
+export const EMBEDDED_SCOPE = "embedded";
 
 export type TQuadFed = { subject: string; namedGraph: string; predicate: string; object: string; timestamp: number };
 /** One property quad per named node, as a snapshot holds them, so every node is built the way the app builds one. */
@@ -92,10 +96,11 @@ export type TMountedPage = {
 	close(): Promise<void>;
 };
 
-export async function mountPolymorphicPage(): Promise<TMountedPage> {
+export async function mountPolymorphicPage({ external = false }: { external?: boolean } = {}): Promise<TMountedPage> {
+	const html = pageWith(external);
 	const bundle = readFileSync(BUNDLE_PATH, "utf-8"); // throws if not built: run `npm run bundle:polymorphic` first
 	const server: Server = createServer((req, res) => {
-		if (req.url === "/") res.writeHead(200, { "Content-Type": "text/html" }).end(PAGE);
+		if (req.url === "/") res.writeHead(200, { "Content-Type": "text/html" }).end(html);
 		else if (req.url === "/bundle.js") res.writeHead(200, { "Content-Type": "application/javascript" }).end(bundle);
 		else res.writeHead(404).end();
 	});

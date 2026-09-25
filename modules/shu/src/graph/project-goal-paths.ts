@@ -46,6 +46,12 @@ export function pathId(index: number): string {
 	return `path-${index}`;
 }
 
+/** The nodes a path runs through: each end of every edge the path takes. */
+export function pathNodeIds(graph: TGraph, index: number): string[] {
+	const id = pathId(index);
+	return [...new Set(graph.edges.filter((edge) => edge.paths?.includes(id)).flatMap((edge) => [edge.from, edge.to]))];
+}
+
 function stepNodeId(stepperName: string, stepName: string): string {
 	return `step:${stepperName}.${stepName}`;
 }

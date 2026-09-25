@@ -35,6 +35,10 @@ const RPC_GLOB = "**/rpc/**";
 const STREAM_GLOB = "**/sse*";
 /** Every open column carries the same controls, so the log's own column names which one a click is for. */
 const MONITOR_PANE = `shu-column-pane[column-type="${SHU_TAG.MONITOR_COLUMN}"]`;
+const CHAIN_PANE = `shu-column-pane:has(${SHU_TAG.DOMAIN_CHAIN_VIEW})`;
+const MAIN_GRAPH_PANE = `shu-column-pane:has(${SHU_TAG.POLYMORPHIC_GRAPH_VIEW}:not([data-external]))`;
+/** The canvas the chain's graph draws on: the graph view mounted in the chain view's slot. */
+const CHAIN_GRAPH_CANVAS = "chain-graph-canvas";
 /** The list of views the deployment declares, and the row in it that opens the run's own log. */
 const VIEWS_PICKER = SHU_TEST_IDS.VIEWS_PICKER.ROOT;
 const VIEWS_PICKER_MONITOR = `${SHU_TEST_IDS.VIEWS_PICKER.ROW}${SHU_TAG.MONITOR_COLUMN}`;
@@ -149,12 +153,18 @@ export const features: TKirejiExport = {
 		waitFor({ target: IDS.AFFORDANCES.ROOT }),
 		waitFor({ target: IDS.AFFORDANCES.GOALS_LIST }),
 
-		scenario({ scenario: "Invoke `show chain lint` and verify the domain-chain Mermaid graph renders" }),
+		scenario({ scenario: "Invoke `show chain lint` and verify the domain chain renders as a graph" }),
 
-		"The chain-lint step returns both the lint findings (orphan steps, unsupplied steps, unreachable domains) and the graph data (forward edges, goal verdicts). The bound view consumes the graph data to render the Mermaid flowchart, opening the pane without a graph would indicate the producer step or the view-open data-threading is broken.",
+		"The chain-lint step returns both the lint findings (orphan steps, unsupplied steps, unreachable domains) and the graph data (forward edges, goal verdicts). The bound view draws the graph data with the graph view; a pane opened without a graph would indicate the producer step or the view-open data-threading is broken.",
 		...passesStepExecution("GoalResolutionStepper-showDomainChainLint"),
 		waitFor({ target: IDS.DOMAIN_CHAIN.ROOT }),
 		waitFor({ target: IDS.DOMAIN_CHAIN.GRAPH }),
+		setAs({
+			what: CHAIN_GRAPH_CANVAS,
+			domain: "page-locator",
+			value: `"${SHU_TAG.DOMAIN_CHAIN_VIEW} > [slot='${IDS.DOMAIN_CHAIN.GRAPH}'] [data-testid='${IDS.POLYMORPHIC_VIEW.SCENE}'] canvas"`,
+		}),
+		waitFor({ target: CHAIN_GRAPH_CANVAS }),
 
 		scenario({ scenario: "Goal resolution: `resolve` returns a verdict for a registered domain" }),
 
@@ -164,7 +174,7 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "Repeated `show chain lint` invocations must not duplicate the pane" }),
 
-		"Each view-open product is a one-shot signal to mount the pane, not a fact to chain on. Running the same show-X step twice must reuse the existing pane, without that, every refresh of the affordances stream would accumulate new mermaid panes. The dispatcher skips auto-assert for view-only domains; this scenario verifies the no-duplication outcome.",
+		"Each view-open product is a one-shot signal to mount the pane, not a fact to chain on. Running the same show-X step twice must reuse the existing pane, without that, every refresh of the affordances stream would accumulate new panes. The dispatcher skips auto-assert for view-only domains; this scenario verifies the no-duplication outcome.",
 		...passesStepExecution("GoalResolutionStepper-showDomainChainLint"),
 		waitFor({ target: IDS.DOMAIN_CHAIN.ROOT }),
 		waitFor({ target: IDS.DOMAIN_CHAIN.GRAPH }),
@@ -221,17 +231,17 @@ export const features: TKirejiExport = {
 		setFromStatement({ what: "domainsSnapshot", statement: "show domains" }),
 		exists({ what: "domainsSnapshot" }),
 
-		scenario({ scenario: "View settings reveals every chain-view control as one group" }),
+		scenario({ scenario: "The domain chain has the graph view's controls" }),
 
-		"View settings (the gear in the column-pane header) is the single switch for every per-view control: zoom, layout, axis filter. Toggling it on the chain pane reveals the whole controls block at once: this scenario pins the unified-gate invariant so that zoom doesn't drift back into its own toolbar.",
-		"in shu-column-pane:has(shu-domain-chain-view), click pane-controls-toggle",
-		waitFor({ target: IDS.DOMAIN_CHAIN.CONTROLS }),
+		"The chain is drawn by the graph view, so its controls are the graph view's: its layout group opens in the chain pane as it does on the main graph, and offers the view types, the layered flow among them.",
+		inElement({ container: `"${CHAIN_PANE}"`, what: `click ${IDS.POLYMORPHIC_VIEW.SETTINGS.layout}` }),
+		inElement({ container: `"${CHAIN_PANE}"`, what: `wait for ${IDS.POLYMORPHIC_VIEW.VIEW_TYPE}` }),
 
 		scenario({ scenario: "The graph view's layout settings open as one group" }),
 
 		"The graph view caches its options in named groups, each opened by its own head icon. Opening the layout group delivers up every control that decides how the graph is placed, so a reader reaches the view type, the grouping and the flattening in one move rather than hunting for separate toolbars.",
-		click({ target: IDS.POLYMORPHIC_VIEW.SETTINGS.layout }),
-		waitFor({ target: IDS.POLYMORPHIC_VIEW.VIEW_TYPE }),
+		inElement({ container: `"${MAIN_GRAPH_PANE}"`, what: `click ${IDS.POLYMORPHIC_VIEW.SETTINGS.layout}` }),
+		inElement({ container: `"${MAIN_GRAPH_PANE}"`, what: `wait for ${IDS.POLYMORPHIC_VIEW.VIEW_TYPE}` }),
 
 		scenario({ scenario: "Write the standalone HTML report mid-feature" }),
 
