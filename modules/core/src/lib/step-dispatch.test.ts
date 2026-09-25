@@ -14,10 +14,11 @@ import {
 } from "./step-registry.js";
 import { validateToolInput } from "./tool-validation.js";
 import { EVERY_DEFINITION } from "./step-discovery.js";
-import { AStepper, type TFeatureStep, type TStepperStep } from "./astepper.js";
-import { OK, type TStepArgs } from "../schema/protocol.js";
+import { AStepper, type IHasCycles, type TFeatureStep, type TStepperStep } from "./astepper.js";
+import { OK } from "../schema/protocol.js";
+import { FlowRunner } from "./core/flow-runner.js";
 import { actionOKWithProducts, actionNotOK } from "./util/index.js";
-import { getDefaultWorld } from "./test/lib.js";
+import { getDefaultWorld, testWithWorld } from "./test/lib.js";
 import { TEST_DOMAIN, declaresTestDomains, testDomainDefinitions } from "./test/test-domains.js";
 import { individualRefDomain, registerDomains } from "./domains.js";
 import type { TWorld } from "./world.js";
@@ -63,6 +64,26 @@ class ProductStepper extends AStepper {
 				throw new Error("boom");
 			},
 		},
+	};
+}
+
+const [COUNT, COUNT_UNNAMED, ANSWER_AS, PASS_ON, ANSWER_WRONGLY] = ["count", "count unnamed", "answer as", "pass on", "answer wrongly as"];
+
+/** Steps that count, and steps that run a statement and answer with what it answered, declared or not. */
+class PassesOn extends AStepper implements IHasCycles {
+	cycles = declaresTestDomains();
+	private runner!: FlowRunner;
+	async setWorld(world: TWorld, steppers: AStepper[]) {
+		await super.setWorld(world, steppers);
+		this.runner = new FlowRunner(world, steppers);
+	}
+	private ran = ({ what }: { what: TFeatureStep[] }, featureStep: TFeatureStep) => this.runner.runSteps(what, { parentStep: featureStep });
+	steps = {
+		counts: { gwta: COUNT, productsDomain: TEST_DOMAIN.count, action: async () => actionOKWithProducts({ count: 1 }) },
+		unnamed: { gwta: COUNT_UNNAMED, action: async () => actionOKWithProducts({ count: 1 }) },
+		answersAs: { gwta: `${ANSWER_AS} {what: statement}`, productsOf: "what", action: this.ran },
+		passesOn: { gwta: `${PASS_ON} {what: statement}`, action: this.ran },
+		answersWrongly: { gwta: `${ANSWER_WRONGLY} {what: statement}`, productsOf: "what", action: async () => actionOKWithProducts({ said: "no count" }) },
 	};
 }
 
@@ -376,27 +397,22 @@ describe("step-dispatch", () => {
 			expect(result.products).toMatchObject({ echoed: "hello", _seqPath: [0, 7] });
 		});
 
-		it("refuses products a step answers with and names no domain of, and passes those of a step it ran", async () => {
-			const stepper = new (class extends AStepper {
-				steps = {
-					counts: { gwta: "count", productsDomain: TEST_DOMAIN.count, action: async () => actionOKWithProducts({ count: 1 }) },
-					unnamed: { gwta: "count unnamed", action: async () => actionOKWithProducts({ count: 1 }) },
-					runsTheCount: { gwta: "run the count", action: (_: TStepArgs, featureStep: TFeatureStep) => call("counts", [...featureStep.seqPath, 1]) },
-				};
+		it("refuses products a step names no domain of, and checks what a step passes on against its statement's domain", async () => {
+			const said = async (line: string) => {
+				const res = await testWithWorld(getDefaultWorld(), line, [PassesOn]);
+				return { ok: res.ok, error: res.failure?.error.message, products: res.featureResults?.[0]?.stepResults.find((r) => r.in === line)?.products };
+			};
+			expect((await said(COUNT_UNNAMED)).error, "a step answering with products of no domain").toMatch(/returned products and names no domain/);
+			expect(await said(`${ANSWER_AS} ${COUNT}`), "a step passing on what its statement answered").toMatchObject({ ok: true, products: { count: 1 } });
+			expect(await said(`${ANSWER_AS} ${ANSWER_AS} ${COUNT}`), "through a step that passes it on too").toMatchObject({ ok: true, products: { count: 1 } });
+			expect((await said(`${PASS_ON} ${COUNT}`)).error, "a step passing it on that declares nothing").toMatch(/returned products and names no domain/);
+			expect((await said(`${ANSWER_WRONGLY} ${COUNT}`)).error, "products not in its statement's domain").toMatch(/answering as PassesOn\.counts products failed schema validation/);
+			const naming = new (class extends AStepper {
+				steps = { names: { gwta: "name {n: number}", productsOf: "n", action: async () => OK } };
 			})();
-			const steppers = [stepper];
-			const registry = new StepRegistry(steppers, world);
-			const call = (name: string, path: number[]) =>
-				dispatchStep(
-					{ registry, world, steppers, grantedCapability: RUN_AUTHORITY },
-					buildFeatureStepForTransport(registry.get(`${stepper.constructor.name}-${name}`) as StepTool, {}, path),
-				);
-			const unnamed = await call("unnamed", [0, 30, 1]);
-			expect(unnamed.ok, "a step answering with products of no domain").toBe(false);
-			expect(unnamed.errorMessage).toMatch(/returned products and names no domain/);
-			const ran = await call("runsTheCount", [0, 30, 2]);
-			expect(ran.ok, ran.errorMessage).toBe(true);
-			expect(ran.products, "a step answering with the products of a step it ran").toMatchObject({ count: 1 });
+			expect(() => new StepRegistry([naming], world), "a step naming a parameter that takes no statement").toThrow(
+				/productsOf names \{n\}, which is no statement its phrase takes/,
+			);
 		});
 
 		it("names the step each call is part of, where two steps are in flight at once", async () => {

@@ -1,8 +1,7 @@
 import { z } from "zod";
-import type { TStepperStep } from "./astepper.js";
+import type { TFeatureStep, TStepperStep } from "./astepper.js";
 import type { TWorld } from "./world.js";
-import { TRACE_SEQ_PATH, type TSeqPath } from "../schema/protocol.js";
-import { formatSeqPath } from "./seq-path.js";
+import { productData, type TSeqPath, type TStepArgs } from "../schema/protocol.js";
 import { normalizeDomainKey } from "./domains.js";
 import type { StepTool } from "./step-registry.js";
 import { errorDetail } from "./util/index.js";
@@ -46,37 +45,46 @@ export function validateToolInput(fromSeqPath: TSeqPath, tool: StepTool, input: 
 	return validated;
 }
 
-/** Whether products were answered by the step of a statement the step at `seqPath` ran, whose dispatch named and validated them. */
-const answeredByStatement = (products: object, seqPath: TSeqPath): boolean => {
-	const at = (products as Record<string, unknown>)[TRACE_SEQ_PATH];
-	return Array.isArray(at) && formatSeqPath(at) !== formatSeqPath(seqPath);
-};
+/** The step whose domain products are in, and whether it is a statement's step whose products a step passed on. */
+type TAnsweringStep = { stepperName: string; actionName: string; step: TStepperStep; passedOn: boolean };
 
-/**
- * Validate the products of the step at `seqPath` against the domain it names. A step naming no domain answers with none of
- * its own: products it returns are an error, but for those of a statement it ran.
- */
-export function validateProducts(stepperName: string, actionName: string, stepDef: TStepperStep, world: TWorld, products: unknown, seqPath: TSeqPath): string | undefined {
-	const schema = resolveOutputSchema(stepperName, actionName, stepDef, world);
-	if (!schema) {
-		if (products === undefined || products === null || (typeof products === "object" && answeredByStatement(products, seqPath))) return undefined;
-		return `step ${stepperName}.${actionName} returned products and names no domain they are`;
-	}
-	if (products === undefined || products === null) {
-		return `step ${stepperName}.${actionName} declared an output schema but action returned no products`;
-	}
-	const result = schema.safeParse(products);
-	if (result.success) return undefined;
-	return `step ${stepperName}.${actionName} products failed schema validation: ${result.error.issues.map((i) => `${i.path.join(".") || "(root)"} ${i.message}`).join("; ")}`;
+/** The step whose domain a step's products are in: the step itself, or, for one answering with what a statement it ran
+ *  answered, that statement's last step as `args` resolved it, since the last step's result is the one passed on. */
+function answeringStep(stepperName: string, actionName: string, stepDef: TStepperStep, args: TStepArgs): TAnsweringStep | string {
+	if (stepDef.productsOf === undefined) return { stepperName, actionName, step: stepDef, passedOn: false };
+	const ran = (args[stepDef.productsOf] as unknown as TFeatureStep[] | undefined)?.at(-1);
+	if (!ran) return `step ${stepperName}.${actionName} answers with what its {${stepDef.productsOf}} answered, and was given no statement there`;
+	return { stepperName: ran.action.stepperName, actionName: ran.action.actionName, step: ran.action.step, passedOn: true };
 }
 
 /**
- * Resolve a step's output schema from the domains it names. At most one of `productsDomain` and `productsDomains` may be
- * set: `productsDomain` uses a registered domain's schema, `productsDomains` builds an object schema keyed by field from
- * each. A step naming neither returns no products.
+ * Validate a step's products against the domain they are in: the one the step names, or, for a step answering with what
+ * a statement it ran answered, the one that statement's step names. A step answering with what another such step
+ * answered was checked by that step. A step naming no domain answers with no products.
+ */
+export function validateProducts(stepperName: string, actionName: string, stepDef: TStepperStep, world: TWorld, products: unknown, args: TStepArgs): string | undefined {
+	const answering = answeringStep(stepperName, actionName, stepDef, args);
+	if (typeof answering === "string") return answering;
+	if (answering.passedOn && answering.step.productsOf !== undefined) return undefined;
+	const named = `step ${stepperName}.${actionName}${answering.passedOn ? ` answering as ${answering.stepperName}.${answering.actionName}` : ""}`;
+	const schema = resolveOutputSchema(answering.stepperName, answering.actionName, answering.step, world);
+	if (!schema) return products === undefined || products === null ? undefined : `${named} returned products and names no domain they are`;
+	if (products === undefined || products === null) return `${named} declared an output schema but action returned no products`;
+	// What a statement's step answered carries the markers its dispatch added, which are no part of its domain.
+	const result = schema.safeParse(answering.passedOn ? productData(products as Record<string, unknown>) : products);
+	if (result.success) return undefined;
+	return `${named} products failed schema validation: ${result.error.issues.map((i) => `${i.path.join(".") || "(root)"} ${i.message}`).join("; ")}`;
+}
+
+/**
+ * Resolve a step's output schema from the domains it names. At most one of `productsDomain`, `productsDomains` and
+ * `productsOf` may be set: `productsDomain` uses a registered domain's schema, `productsDomains` builds an object schema
+ * keyed by field from each, and `productsOf` has none of its own, since each line's statement names it. A step naming
+ * none returns no products.
  */
 export function resolveOutputSchema(stepperName: string, stepName: string, stepDef: TStepperStep, world: TWorld): z.ZodType | undefined {
-	if (stepDef.productsDomain && stepDef.productsDomains) throw new Error(`step ${stepperName}.${stepName}: only one of productsDomain, productsDomains may be set`);
+	const declared = [stepDef.productsDomain, stepDef.productsDomains, stepDef.productsOf].filter((d) => d !== undefined);
+	if (declared.length > 1) throw new Error(`step ${stepperName}.${stepName}: only one of productsDomain, productsDomains, productsOf may be set`);
 	if (stepDef.productsDomain) {
 		const domain = world.domains?.[normalizeDomainKey(stepDef.productsDomain)];
 		if (!domain) throw new Error(`step ${stepperName}.${stepName}: productsDomain "${stepDef.productsDomain}" is not a registered domain`);

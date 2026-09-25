@@ -32,6 +32,7 @@ export class ShuStepDefinition extends ShuElement<typeof StateSchema> {
 			...(step.description ? { description: step.description } : {}),
 			paramDomains: step.paramDomains,
 			...(step.productsDomain ? { productsDomain: step.productsDomain } : {}),
+			...(step.productsOf ? { productsOf: step.productsOf } : {}),
 			capability: step.capability,
 		};
 	}
@@ -94,6 +95,7 @@ export class ShuStepDefinition extends ShuElement<typeof StateSchema> {
 				<dt>Method</dt><dd><code>${step.method}</code></dd>
 				${params.map(([name, domain]) => html`<dt>${name}</dt><dd data-testid=${IDS.PARAM}>${domainRef(domain)}</dd>`)}
 				${step.productsDomain ? html`<dt>Returns</dt><dd data-testid=${IDS.PRODUCTS}>${domainRef(step.productsDomain)}</dd>` : ""}
+				${step.productsOf ? html`<dt>Returns</dt><dd data-testid=${IDS.PRODUCTS}>what its <code>{${step.productsOf}}</code> returns</dd>` : ""}
 				<dt>Requires</dt><dd>${actionRef(step.capability)}</dd>
 				<dt>Does</dt><dd>${step.read ? "reads, and the run records no reading" : "acts, and the run records it"}</dd>
 				${step.remoteOrigin ? html`<dt>Runs at</dt><dd>${originLink(step.remoteOrigin)}</dd>` : ""}

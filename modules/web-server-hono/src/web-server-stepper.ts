@@ -6,7 +6,7 @@ import { OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
 import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption, intOrError, errorDetail } from "@haibun/core/lib/util/index.js";
 import { AStepper, type IHasCycles, type IHasOptions, type TEndFeature, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { dispatchStep } from "@haibun/core/lib/step-dispatch.js";
-import { parseRpcRequest, RPC_REFUSED } from "@haibun/core/lib/rpc-wire.js";
+import { ANSWERED_WITHOUT_PRODUCTS, parseRpcRequest, RPC_REFUSED } from "@haibun/core/lib/rpc-wire.js";
 import { runWithRequestContext, requestBaseIri } from "@haibun/core/lib/request-context.js";
 import { buildFeatureStepForTransport, refusal, runRegistry, type StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { actionList, mayCall } from "@haibun/core/lib/actions.js";
@@ -298,7 +298,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 							// what that step held is no caller's.
 							runActingAs(principal, () => runReadingAt(msg.readingAt, () => dispatchStep({ registry, world, steppers: this.steppers, grantedCapability: granted }, featureStep))),
 						);
-						if (hr.ok) return hr.products ?? { ok: true };
+						if (hr.ok) return hr.products ?? ANSWERED_WITHOUT_PRODUCTS;
 						return { error: `${method}: ${hr.errorMessage}` };
 					} catch (err) {
 						const detail = errorDetail(err);

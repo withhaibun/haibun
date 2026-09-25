@@ -14,7 +14,8 @@ import { RUN_AUTHORITY, runAuthorizedWith } from "./capability-context.js";
 import type { TWorld } from "./world.js";
 import { SITE_DID_PREFIX } from "./host-id.js";
 import { DOMAIN_STRING } from "./domains.js";
-import { Origin } from "../schema/protocol.js";
+import { OK, Origin } from "../schema/protocol.js";
+import { ANSWERED_WITHOUT_PRODUCTS } from "./rpc-wire.js";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import type { Server } from "http";
@@ -39,6 +40,10 @@ class EchoStepper extends AStepper {
 			capability: "EchoStepper:admin",
 			productsDomain: TEST_DOMAIN.pong,
 			action: async () => actionOKWithProducts({ pong: true }),
+		},
+		acts: {
+			gwta: "act",
+			action: async () => OK,
 		},
 		echoLabel: {
 			gwta: "echo the label of {query: json}",
@@ -82,7 +87,7 @@ describe("RemoteStepperProxy", () => {
 				const featureStep = buildFeatureStepForTransport(tool, data.params ?? {}, [0, 1]);
 				// The host grants the proxy every step it serves, so what the proxy is shown and may call is all of it.
 				const result = await runAuthorizedWith(RUN_AUTHORITY, () => tool.handler(featureStep, world));
-				if (result.ok) return c.json(result.products ?? {});
+				if (result.ok) return c.json(result.products ?? ANSWERED_WITHOUT_PRODUCTS);
 				return c.json({ error: result.errorMessage }, 422);
 			} catch (err) {
 				return c.json({ error: errorDetail(err) }, 422);
@@ -135,6 +140,17 @@ describe("RemoteStepperProxy", () => {
 		const result = await tool.handler(featureStep, world);
 		expect(result.ok).toBe(true);
 		expect(result.products).toMatchObject({ echoed: "hello" });
+	});
+
+	it("answers with no products for a step that declares none, whatever the host's answer carries in their place", async () => {
+		const proxy = new RemoteStepperProxy(`http://localhost:${port}`);
+		await proxy.setWorld(world, []);
+		const registry = new StepRegistry([], world);
+		proxy.injectInto(registry);
+		const tool = registry.get("host7_EchoStepper-acts");
+		if (!tool) throw new Error("Expected the host's step to be registered");
+		const { buildFeatureStepForTransport } = await import("./step-registry.js");
+		expect(await tool.handler(buildFeatureStepForTransport(tool, {}, [0, 1]), world)).toEqual({ ok: true });
 	});
 
 	it("carries a call's object argument to the host as the object, not as its text", async () => {

@@ -115,6 +115,7 @@ class Haibun extends AStepper implements IHasCycles {
 
 		onHost: {
 			gwta: `on host {hostId: number}, {statement:${DOMAIN_STATEMENT}}`,
+			productsOf: "statement",
 			action: ({ hostId, statement }: { hostId: number; statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				const mode = featureStep.intent?.mode ?? "authoritative";
 				return this.runner.runSteps(statement, { intent: { mode }, parentStep: featureStep, targetHostId: hostId });

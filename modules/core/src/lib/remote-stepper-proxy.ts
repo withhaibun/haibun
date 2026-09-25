@@ -85,20 +85,22 @@ export class RemoteStepperProxy extends AStepper {
 				// Dispatch over RPC using the un-prefixed method name: the prefix is
 				// a local registry-naming concern, not part of the wire call.
 				// A statement's values are read where it was written, as a local step's are, so the far side is sent values.
-				handler: async (featureStep, world) =>
-					this.call(descriptor.method, await populateActionArgs(featureStep, world, world.runtime.steppers), featureStep.seqPath, descriptor.capability),
+				handler: async (featureStep, world) => this.call(descriptor, await populateActionArgs(featureStep, world, world.runtime.steppers), featureStep.seqPath),
 			}),
 		);
 		registry.inject(tools);
 	}
 
-	/** Call a step on the remote host via shared RpcClient, invoking the capability it declares, where it declares one. */
-	private async call(method: string, params: Record<string, unknown>, seqPath: number[], action: string): Promise<TActionResult> {
-		const result = await this.rpc.call<Record<string, unknown>>(method, params, seqPath, { action });
+	/** Call a step on the remote host via shared RpcClient, invoking the capability it declares. A step that declares no
+	 *  products answers with none, whatever the answer carries in their place. */
+	private async call(descriptor: TStepDescriptor, params: Record<string, unknown>, seqPath: number[]): Promise<TActionResult> {
+		const { method, capability } = descriptor;
+		const result = await this.rpc.call<Record<string, unknown>>(method, params, seqPath, { action: capability });
 		if ("error" in result && typeof (result as RpcError).error === "string") {
 			return actionNotOK(`${method}: ${(result as RpcError).error}`);
 		}
-		return { ok: true, products: result as Record<string, unknown> };
+		const answersWithProducts = descriptor.outputSchema !== undefined || descriptor.productsOf !== undefined;
+		return answersWithProducts ? { ok: true, products: result as Record<string, unknown> } : { ok: true };
 	}
 
 	/** IStepTransport.attach: duck-typed, no import needed from web-server-hono. */

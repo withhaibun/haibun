@@ -1,7 +1,7 @@
 /**
  * The view-query control steps are tested through the haibun step machinery: the registry builds the tool
  * from the gwta + getConcerns domains, validateToolInput enforces the typed params, the handler runs the
- * action, and validateProducts checks the product against the view-query productsDomain. No browser, no
+ * action, and checks the product against the view-query productsDomain. No browser, no
  * component mount: the step's behaviour is verified end-to-end at the step layer, which is where it lives.
  */
 import { beforeEach, describe, expect, it } from "vitest";
@@ -9,7 +9,7 @@ import { z } from "zod";
 import ShuGraphQueryControls from "./shu-graph-query.controls.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { StepRegistry, buildFeatureStepForTransport } from "@haibun/core/lib/step-registry.js";
-import { validateToolInput, validateProducts } from "@haibun/core/lib/tool-validation.js";
+import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
 import { DOMAIN_PERSISTED_TYPE } from "@haibun/core/lib/resources.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 
@@ -33,8 +33,7 @@ describe("view-query controls", () => {
 		const validated = validateToolInput([0], tool, input, world);
 		const featureStep = buildFeatureStepForTransport(tool, validated, [0]);
 		const result = await tool.handler(featureStep, world);
-		const productError = validateProducts("ShuGraphQueryControls", method, tool.stepDef as never, world, result.products, featureStep.seqPath);
-		return { result, productError };
+		return { result, productError: result.ok ? undefined : result.errorMessage };
 	};
 
 	it("`search for {q}` produces a valid view-query product carrying q", async () => {

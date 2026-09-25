@@ -13,7 +13,6 @@ import { capabilityAllows, readCeilingOf } from "./actions.js";
 import { Access, LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS, type SeqPathStatus } from "./resources.js";
 import { SEQ_PATH_FIELD, calledOf, executionOf, factIdOf, formatRecordName } from "./seq-path.js";
 import { StepRegistry, stepMethodName, hostScopedMethodName, authorizeToolCapability } from "./step-registry.js";
-import { validateProducts } from "./tool-validation.js";
 import { augmentViewHypermedia, isViewOnlyDomain } from "./step-hypermedia.js";
 
 /** The products kept on a step's lifecycle event: all by default, none for `false`, else the subset the filter returns. */
@@ -163,22 +162,14 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 							doAction = false;
 							continue;
 						}
+						// The handler checked what the step answered with against its domain; a tool of another host or process was
+						// checked where it ran.
 						actionResult = await tool.handler(featureStep, world);
 						if (actionResult.ok) {
-							// A tool of another host or process has no step here: the dispatch where it ran validated what it answered.
-							const productsError = tool.stepDef
-								? validateProducts(action.stepperName, action.actionName, action.step, world, actionResult.products, featureStep.seqPath)
-								: undefined;
-							if (productsError) {
-								actionResult = actionNotOK(productsError);
-							} else {
-								if (actionResult.products) {
-									actionResult = { ...actionResult, products: { ...actionResult.products, [TRACE_SEQ_PATH]: featureStep.seqPath } };
-								}
-								actionResult = augmentViewHypermedia(world, action.step, actionResult, steppers);
-								// A fact is a record of the run, so a read the run did not ask for asserts none, as it records no step.
-								if (recorded) await autoAssertProducts(world, step.seqPath, action.step, actionResult);
-							}
+							if (actionResult.products) actionResult = { ...actionResult, products: { ...actionResult.products, [TRACE_SEQ_PATH]: featureStep.seqPath } };
+							actionResult = augmentViewHypermedia(world, action.step, actionResult, steppers);
+							// A fact is a record of the run, so a read the run did not ask for asserts none, as it records no step.
+							if (recorded) await autoAssertProducts(world, step.seqPath, action.step, actionResult);
 						}
 						if (!actionResult.ok && actionResult.errorMessage && featureStep.intent?.mode !== "speculative") {
 							world.eventLogger.log(featureStep, "error", actionResult.errorMessage);

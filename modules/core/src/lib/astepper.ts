@@ -170,6 +170,12 @@ type TStepperStepBase = {
 	 */
 	productsDomains?: Record<string, string>;
 	/**
+	 * The statement parameter whose products the step answers with, for a step that runs a statement and passes on what
+	 * it answered. Their domain is the one that statement's last step names, as each line resolves it, so the step names
+	 * none of its own. Mutually exclusive with `productsDomain` and `productsDomains`.
+	 */
+	productsOf?: string;
+	/**
 	 * Which of the step's products are kept on its lifecycle event. Default (absent/true): all. `false`: none, for a step
 	 * whose products are bulk payload consumed via the action result or a separate fetch (a query's rows, a captured page's
 	 * HTML), which would otherwise bloat the in-memory event stream. A function: the subset it returns, for a product that

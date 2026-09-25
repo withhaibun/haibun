@@ -13,7 +13,7 @@
 import type { TWorld } from "./world.js";
 import type { CStepper } from "./astepper.js";
 import { StepRegistry, buildFeatureStepForTransport } from "./step-registry.js";
-import { validateToolInput, validateProducts } from "./tool-validation.js";
+import { validateToolInput } from "./tool-validation.js";
 import { createSteppers, setStepperWorldsAndDomains, errorDetail } from "./util/index.js";
 import { addStepperConcerns } from "../phases/Executor.js";
 import type { TStepDescriptor } from "./step-discovery.js";
@@ -59,13 +59,6 @@ export async function runSubprocess(csteppers: CStepper[], world: TWorld): Promi
 			const featureStep = buildFeatureStepForTransport(tool, validated, msg.seqPath);
 			const hr = await tool.handler(featureStep, world);
 			if (hr.ok) {
-				if (tool.stepDef) {
-					const productsError = validateProducts(tool.descriptor.stepperName, tool.descriptor.stepName, tool.stepDef, world, hr.products, msg.seqPath);
-					if (productsError) {
-						process.send?.({ type: "result", ok: false, error: productsError } satisfies SubprocessResultMessage);
-						return;
-					}
-				}
 				const products = { ...(hr.products ?? {}), [TRACE_SEQ_PATH]: msg.seqPath };
 				process.send?.({ type: "result", ok: true, products } satisfies SubprocessResultMessage);
 			} else {

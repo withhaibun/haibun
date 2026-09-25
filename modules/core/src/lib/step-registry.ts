@@ -7,11 +7,11 @@ import { ControlEvent, STEPS_CHANGED, type TActionResult, type TSeqPath } from "
 import { namedInterpolation, mapInputToStepValues } from "./namedVars.js";
 import { constructorName, actionNotOK } from "./util/index.js";
 import { populateActionArgs } from "./populateActionArgs.js";
-import { paramDomainKey } from "./domains.js";
+import { DOMAIN_STATEMENT, paramDomainKey } from "./domains.js";
 import { zodTypeLabel } from "./composite-domain.js";
 import { isPersisted } from "./resources.js";
 import { mayCall, requiredAction } from "./actions.js";
-import { resolveOutputSchema } from "./tool-validation.js";
+import { resolveOutputSchema, validateProducts } from "./tool-validation.js";
 import {
 	STEP_DETAIL,
 	containsText,
@@ -189,6 +189,8 @@ export function buildStepRegistry(steppers: AStepper[], world: TWorld): Map<stri
 export function createStepTool(stepper: AStepper, stepName: string, stepDef: TStepperStep, world: TWorld): StepTool {
 	const stepperName = constructorName(stepper);
 	const { inputSchema, paramSchemas, paramDomainKeys } = buildInputSchema(stepperName, stepName, stepDef, world);
+	if (stepDef.productsOf !== undefined && paramDomainKeys.get(stepDef.productsOf) !== DOMAIN_STATEMENT)
+		throw new Error(`step ${stepperName}.${stepName}: productsOf names {${stepDef.productsOf}}, which is no statement its phrase takes`);
 	const resolvedOutputSchema = resolveOutputSchema(stepperName, stepName, stepDef, world);
 	const outputSchema = resolvedOutputSchema ? jsonSchemaFor(`step ${stepperName}.${stepName}: its products schema`, resolvedOutputSchema, "output") : undefined;
 	return {
@@ -201,6 +203,7 @@ export function createStepTool(stepper: AStepper, stepName: string, stepDef: TSt
 			description: stepDef.description,
 			paramDomains: Object.fromEntries(paramDomainKeys),
 			productsDomain: stepDef.productsDomain,
+			productsOf: stepDef.productsOf,
 			capability: requiredAction(stepperName, stepName, stepDef),
 			read: stepDef.read === true,
 			fallback: stepDef.fallback === true,
@@ -239,7 +242,10 @@ export function createStepHandler(stepperName: string, stepName: string, stepDef
 	return async (featureStep: TFeatureStep, world: TWorld): Promise<TActionResult> => {
 		try {
 			const args = await populateActionArgs(featureStep, world, world.runtime.steppers);
-			return await stepDef.action(args, featureStep);
+			const result = await stepDef.action(args, featureStep);
+			// Checked where the arguments were resolved, since a statement the step ran names the domain of what it passes on.
+			const productsError = result.ok ? validateProducts(stepperName, stepName, stepDef, world, result.products, args) : undefined;
+			return productsError ? actionNotOK(productsError) : result;
 		} catch (caught) {
 			// A step that throws fails as a step that refuses does: with what it said. Whoever presents the failure names the
 			// step, as an RPC answer names its method.

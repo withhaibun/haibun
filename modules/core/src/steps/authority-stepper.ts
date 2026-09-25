@@ -126,6 +126,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 		},
 		holdingOnly: {
 			gwta: `holding only {actions: ${DOMAIN_STRING}}, {what: statement}`,
+			productsOf: "what",
 			description:
 				"Run a statement with only the listed actions, comma-separated, of those its caller holds, as the same caller. A statement can do less than its caller and never more, so a feature states a caller that holds some actions and not others, and a refusal names the action the caller lacks.",
 			action: ({ actions, what }: { actions: string; what: TFeatureStep[] }, featureStep: TFeatureStep) => {
@@ -138,6 +139,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 		},
 		holdingCapability: {
 			gwta: `holding capability {cap: ${DOMAIN_JSON}} at {target: ${DOMAIN_STRING}}, {what: statement}`,
+			productsOf: "what",
 			action: ({ cap, target, what }: { cap: unknown; target: string; what: TFeatureStep[] }, featureStep: TFeatureStep) => this.runUnderCapability(cap, target, what, featureStep),
 		},
 	};

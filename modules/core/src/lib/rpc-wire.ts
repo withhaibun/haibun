@@ -30,6 +30,9 @@ export type TRpcRequest = z.infer<typeof RpcRequestSchema>;
 
 /** Marks an answer to a request whose presented authority failed verification, which a transport states as unauthenticated. */
 export const RPC_REFUSED = "refused";
+/** What a call answers where its step succeeded with no products. A caller reads the step's declaration, not this, to know
+ *  whether it answers with products. */
+export const ANSWERED_WITHOUT_PRODUCTS = { ok: true } as const;
 
 /** One method of an `/rpc` method family: the action a caller must invoke, and what answers the call. */
 export type TRpcMethod = { action: string; handle: (params: Record<string, unknown>) => Promise<unknown> };
