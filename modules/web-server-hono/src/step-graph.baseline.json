@@ -1,5 +1,4 @@
 [
 	"orphan-step WebServerStepper.showPorts produces listening-ports",
-	"string-param WebServerStepper.isListening {why: string}",
 	"unreachable-domain haibun-endpoint"
 ]

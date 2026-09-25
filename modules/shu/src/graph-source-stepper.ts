@@ -183,7 +183,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			},
 		},
 		clusteredGraphHoldsFromSite: {
-			gwta: "clustered graph holds {type} {subject} from site {site}",
+			gwta: `clustered graph holds {type: ${DOMAIN_PERSISTED_TYPE}} {subject} from site {site}`,
 			productsDomain: DOMAIN_SUBJECT_SERVED,
 			// Federation-health inspection: does this instance's merged view hold {subject} (a {type} individual)
 			// SERVED BY {site}? Reads the same clustered surface the views render from, so it asserts exactly what a

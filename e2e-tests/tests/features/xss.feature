@@ -8,7 +8,7 @@ Scenario: Check against URI xss exploit
     accept next dialog to "clicked"
     go to the xss webpage
     pause for 1s
-    dialog "clicked" "messag" not set
+    dialog "clicked" "message" not set
 
     compose exploit with {xss}?;alert('hi')
     go to the exploit webpage

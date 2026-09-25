@@ -3,7 +3,7 @@ import WebPlaywright from "./web-playwright.js";
 import { WEB_PLAYWRIGHT_ACTIONS } from "./actions.js";
 import { OK } from "@haibun/core/schema/protocol.js";
 import { TStepperSteps } from "@haibun/core/lib/astepper.js";
-import { DOMAIN_NUMBER, DOMAIN_LINK } from "@haibun/core/lib/domains.js";
+import { DOMAIN_NUMBER, DOMAIN_LINK, DOMAIN_TEXT } from "@haibun/core/lib/domains.js";
 import { DOMAIN_HTTP_METHOD, DOMAIN_HTTP_METHOD_WITH_BODY, DOMAIN_HTTP_METHOD_WITHOUT_BODY, DOMAIN_JSON_RESPONSE_COUNT, HTTP_METHODS_WITH_BODY } from "./domains.js";
 
 export const AUTHORIZATION = "Authorization";
@@ -17,7 +17,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 	({
 		setApiUserAgent: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
-			gwta: `API user agent is {agent}`,
+			gwta: `API user agent is {agent: ${DOMAIN_TEXT}}`,
 			action: ({ agent }: { agent: string }) => {
 				webPlaywright.apiUserAgent = agent;
 				return OK;

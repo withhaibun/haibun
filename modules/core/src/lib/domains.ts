@@ -40,12 +40,14 @@ export const DOMAIN_DOMAIN_NAME = "domain-name";
 export const DOMAIN_STEPPER_NAME = "stepper-name";
 /** A pattern in which `*` stands for any run of characters. */
 export const DOMAIN_GLOB = "glob";
+/** The title a feature, scenario, activity or waypoint is given, as the line writes it. */
+export const DOMAIN_TITLE = "title";
 /** A file or directory's path, as a storage or the file system reads it. */
 export const DOMAIN_FILE_PATH = "file-path";
 /** The path a web server serves something at, such as `/shu`. */
 export const DOMAIN_ROUTE = "route";
 /** Domains whose value is the term its line writes, never a variable or an environment value the term names. */
-export const WRITTEN_DOMAINS: ReadonlySet<string> = new Set([DOMAIN_STATEMENT, DOMAIN_VARIABLE_NAME, DOMAIN_DOMAIN_NAME]);
+export const WRITTEN_DOMAINS: ReadonlySet<string> = new Set([DOMAIN_STATEMENT, DOMAIN_VARIABLE_NAME, DOMAIN_DOMAIN_NAME, DOMAIN_TITLE]);
 
 /** What separates the parts of a union domain's key. */
 export const DOMAIN_UNION = " | ";
@@ -64,6 +66,7 @@ export const PRIMITIVE_DOMAINS: ReadonlySet<string> = new Set<string>([
 	DOMAIN_GLOB,
 	DOMAIN_FILE_PATH,
 	DOMAIN_ROUTE,
+	DOMAIN_TITLE,
 ]);
 
 /** A glob as the source of an anchored regular expression that matches what it matches. */

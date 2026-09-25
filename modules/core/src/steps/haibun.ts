@@ -5,7 +5,7 @@ import { OK } from "../schema/protocol.js";
 import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TResolvedFeature, TStartFeature, TEndFeature, CycleWhen } from "../lib/astepper.js";
 import { actionNotOK, actionOK, actionOKWithProducts, sleep } from "../lib/util/index.js";
 import { findFeatureStepsFromStatement } from "../phases/Resolver.js";
-import { DOMAIN_LINK, DOMAIN_STATEMENT, DOMAIN_STEPPER_NAME, DOMAIN_TEXT } from "../lib/domains.js";
+import { DOMAIN_LINK, DOMAIN_STATEMENT, DOMAIN_STEPPER_NAME, DOMAIN_TEXT, DOMAIN_TITLE } from "../lib/domains.js";
 import { findFeatures } from "../lib/features.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { QuadStore } from "../lib/quad-store.js";
@@ -217,16 +217,14 @@ class Haibun extends AStepper implements IHasCycles {
 		},
 
 		feature: {
-			gwta: "Feature: {feature}",
-			handlesUndefined: ["feature"],
+			gwta: `Feature: {feature: ${DOMAIN_TITLE}}`,
 			action: ({ feature }: { feature: string }) => {
 				this.getWorld().runtime.feature = feature;
 				return OK;
 			},
 		},
 		scenario: {
-			gwta: "Scenario: {scenario}",
-			handlesUndefined: ["scenario"],
+			gwta: `Scenario: {scenario: ${DOMAIN_TITLE}}`,
 			action: ({ scenario }: { scenario: string }) => {
 				this.getWorld().runtime.scenario = scenario;
 				return OK;

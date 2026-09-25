@@ -5,7 +5,7 @@ import type { TWorld } from "../lib/world.js";
 import { TStepArgs, TRegisteredOutcomeEntry, OK } from "../schema/protocol.js";
 import { formatSeqPath } from "../lib/seq-path.js";
 import { actionOK, actionNotOK, actionOKWithProducts, getActionable, errorDetail } from "../lib/util/index.js";
-import { DOMAIN_STATEMENT } from "../lib/domains.js";
+import { DOMAIN_STATEMENT, DOMAIN_TITLE } from "../lib/domains.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { ControlEvent, LifecycleEvent } from "../schema/protocol.js";
 import { buildDomainChain } from "../lib/domain-chain.js";
@@ -138,7 +138,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 
 	readonly baseSteps = {
 		activity: {
-			gwta: "Activity: {activity}",
+			gwta: `Activity: {activity: ${DOMAIN_TITLE}}`,
 			action: () => OK,
 			resolveFeatureLine: (line: string, path: string, _stepper: AStepper, _backgrounds: TFeatures, allLines?: string[], lineIndex?: number, actualSourcePath?: string) => {
 				this.lastResolutionPath = path;
@@ -187,7 +187,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		},
 
 		waypointWithProof: {
-			gwta: `waypoint {outcome} with {proof:${DOMAIN_STATEMENT}}`,
+			gwta: `waypoint {outcome: ${DOMAIN_TITLE}} with {proof:${DOMAIN_STATEMENT}}`,
 			precludes: ["ActivitiesStepper.waypointLabel"],
 			action: async ({ proof }: { proof: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				try {
@@ -204,7 +204,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		},
 
 		waypointLabel: {
-			gwta: `waypoint {outcome}`,
+			gwta: `waypoint {outcome: ${DOMAIN_TITLE}}`,
 			action: async () => actionOK(),
 		},
 

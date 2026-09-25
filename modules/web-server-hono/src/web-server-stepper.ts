@@ -177,7 +177,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			action: () => actionOKWithProducts({ ports: Object.fromEntries(ServerHono.listeningPorts) }),
 		},
 		isListening: {
-			gwta: "webserver is listening for {why}",
+			gwta: `webserver is listening for {why: ${DOMAIN_TEXT}}`,
 			action: async ({ why }: TStepArgs) => {
 				await this.listen(String(why));
 				return OK;

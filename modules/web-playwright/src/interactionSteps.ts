@@ -26,6 +26,7 @@ import {
 	REQUEST_STATE,
 	type TFindWay,
 	DOMAIN_BROWSER_TYPE,
+	DOMAIN_DIALOG_FIELD,
 } from "./domains.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { pickLocatorDomain } from "./web-playwright.js";
@@ -93,7 +94,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 		dialogIs: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.read,
-			gwta: `dialog {what: ${DOMAIN_VARIABLE_NAME}} {type} says {value}`,
+			gwta: `dialog {what: ${DOMAIN_VARIABLE_NAME}} {type: ${DOMAIN_DIALOG_FIELD}} says {value}`,
 			action: async ({ what, type, value }: { what: string; type: string; value: string }) => {
 				const resolvedValue = await wp.getWorld().shared.get(what, true);
 				const cur = (resolvedValue as Record<string, unknown> | undefined)?.[type];
@@ -102,7 +103,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 		dialogIsUnset: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.read,
-			gwta: `dialog {what: ${DOMAIN_VARIABLE_NAME}} {type} not set`,
+			gwta: `dialog {what: ${DOMAIN_VARIABLE_NAME}} {type: ${DOMAIN_DIALOG_FIELD}} not set`,
 			action: async ({ what, type }: { what: string; type: string }) => {
 				const resolvedValue = await wp.getWorld().shared.get(what, true);
 				const cur = (resolvedValue as Record<string, unknown> | undefined)?.[type];
@@ -111,7 +112,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 		shouldSeeTestId: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.read,
-			gwta: "has test id {testId}",
+			gwta: `has test id {testId: ${DOMAIN_PAGE_TEST_ID}}`,
 			action: async ({ testId }: { testId: string }) => {
 				// `getByTestId` returns a Locator unconditionally; the truthiness
 				// check below would silently pass for absent elements. Resolve

@@ -20,7 +20,7 @@ import type { TPaneOpen } from "../pane-state.js";
 import { z } from "zod";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps, type TFeatureStep } from "@haibun/core/lib/astepper.js";
 import type { TDomainDefinition } from "@haibun/core/lib/resources.js";
-import { DOMAIN_NUMBER } from "@haibun/core/lib/domains.js";
+import { DOMAIN_NUMBER, DOMAIN_TEXT } from "@haibun/core/lib/domains.js";
 import { actionOK, actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
 import type { TActionResult } from "@haibun/core/schema/protocol.js";
 import WebPlaywright from "@haibun/web-playwright";
@@ -29,6 +29,7 @@ import type { Page } from "playwright";
 import { objectId } from "../object-id.js";
 import { VIEW_TYPES } from "../graph/polymorphic/polymorphic-views.js";
 import type { TSettingsGroup } from "./view-head.js";
+import { DOMAIN_PERSISTED_TYPE } from "@haibun/core/lib/resources.js";
 
 const POLYMORPHIC_IDS = SHU_TEST_IDS.POLYMORPHIC_VIEW;
 /** The number of reads of the active node before the pointer step fails. A record arriving moves the node once. */
@@ -417,7 +418,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			},
 		},
 		filterToGraphType: {
-			gwta: "filter to graph type {type}",
+			gwta: `filter to graph type {type: ${DOMAIN_PERSISTED_TYPE}}`,
 			action: async ({ type }: { type: string }) => {
 				const page = await this.page();
 				await this.waitForNodes(page, 1);
@@ -438,7 +439,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			action: ({ types }: { types: string }) => this.setFilterChips("setTypeVisibility", types, true),
 		},
 		soloTypeViaTool: {
-			gwta: "solo graph type {type} via the 1️⃣ tool",
+			gwta: `solo graph type {type: ${DOMAIN_PERSISTED_TYPE}} via the 1️⃣ tool`,
 			action: async ({ type }: { type: string }) => {
 				const page = await this.page();
 				await this.waitForNodes(page, 1);
@@ -478,11 +479,11 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			},
 		},
 		orbitGraph: {
-			gwta: `orbit {degrees} degrees {dir: ${DOMAIN_GRAPH_PAN}}`,
-			action: async ({ degrees, dir }: { degrees: string; dir: string }) => {
+			gwta: `orbit {degrees: ${DOMAIN_NUMBER}} degrees {dir: ${DOMAIN_GRAPH_PAN}}`,
+			action: async ({ degrees, dir }: { degrees: number; dir: string }) => {
 				const page = await this.page();
 				await this.settle(page);
-				await this.call(page, "orbitBy", [Number(degrees), dir]);
+				await this.call(page, "orbitBy", [degrees, dir]);
 				return actionOK();
 			},
 		},
@@ -1138,8 +1139,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 						(document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { sequence: { actors: Array<{ id: string; label: string }> } | null } }).inspect()
 							.sequence?.actors ?? [],
 				);
-				if (actors.length < count)
-					return actionNotOK(`only ${actors.length} sequence actor(s) formed [${actors.map((a) => a.label).join(", ")}], expected at least ${count}`);
+				if (actors.length < count) return actionNotOK(`only ${actors.length} sequence actor(s) formed [${actors.map((a) => a.label).join(", ")}], expected at least ${count}`);
 				return actionOK();
 			},
 		},
@@ -1256,7 +1256,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		classBrowserIndependent: {
 			// The browser holds an independent snapshot scope: narrowing the MAIN graph to one type (its own filter's
 			// production path) must not change what the class browser shows.
-			gwta: "class browser is unaffected when the main graph filters to type {typeName}",
+			gwta: `class browser is unaffected when the main graph filters to type {typeName: ${DOMAIN_PERSISTED_TYPE}}`,
 			action: async ({ typeName }: { typeName: string }) => {
 				const page = await this.page();
 				const result = await page.evaluate(async (t) => {
@@ -1290,7 +1290,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		classBrowserHighlights: {
 			// The embedding column publishes its type as the shared selection: the type's Class node is highlighted within
 			// the full schema: it and its incident neighbours (its properties, its superclass) stay lit, the rest dims.
-			gwta: "class browser highlights {typeName} within the schema",
+			gwta: `class browser highlights {typeName: ${DOMAIN_PERSISTED_TYPE}} within the schema`,
 			action: async ({ typeName }: { typeName: string }) => {
 				const page = await this.page();
 				const state = await page.evaluate(async (t) => {
@@ -1475,7 +1475,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		graphHasRoleContainer: {
 			// Assert a role container with the given TITLE exists: the trust-triangle container is named by its party
 			// (Issuer's name, Holder's name, the verifier's name, "Verifiable Data Registry"), never a cryptic id/DID.
-			gwta: "graph shows a {name} container",
+			gwta: `graph shows a {name: ${DOMAIN_TEXT}} container`,
 			action: async ({ name }: { name: string }) => {
 				const titles = await (await this.page()).evaluate(() =>
 					(document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { enclosures: Array<{ title: string }> } }).inspect().enclosures.map((e) => e.title),
@@ -1950,7 +1950,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		},
 		previewGraphType: {
 			// Hovering a type in the filter legend previews it: that type stays full and every other type dims, even over a node focus.
-			gwta: "preview graph type {type}",
+			gwta: `preview graph type {type: ${DOMAIN_PERSISTED_TYPE}}`,
 			action: async ({ type }: { type: string }) => {
 				await this.dispatchPreview(await this.page(), type);
 				return actionOK();
@@ -1965,7 +1965,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		},
 		graphShowsOnlyTypeFull: {
 			// The previewed type is full-opacity and every other type is dim: the preview overriding any focus dimming.
-			gwta: "only graph type {type} is shown full",
+			gwta: `only graph type {type: ${DOMAIN_PERSISTED_TYPE}} is shown full`,
 			action: async ({ type }: { type: string }) => {
 				const s = (await this.fullInspect(await this.page())).sample;
 				const dimOfType = s.filter((n) => n.type === type && (n.opacity ?? 1) < 0.9).length;
@@ -2052,11 +2052,10 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			// graphData set), and label textures (per-node canvas raster + GPU upload). Reports whatever scale the connected
 			// store holds. A limit that does not change the visible set re-renders nothing (0 repaints), profile a limit
 			// below the node count to force truncation, then above it to force expansion.
-			gwta: "profile graph render at {perTypeLimit} nodes per type",
-			action: async ({ perTypeLimit }: { perTypeLimit: string }) => {
+			gwta: `profile graph render at {perTypeLimit: ${DOMAIN_NUMBER}} nodes per type`,
+			action: async ({ perTypeLimit: limit }: { perTypeLimit: number }) => {
 				const page = await this.page();
 				await this.waitForNodes(page, 1);
-				const limit = Number(perTypeLimit);
 				const driven = await page.evaluate((n) => {
 					const view = document.querySelector("shu-polymorphic-graph-view") as unknown as { resetProfile(): void } | null;
 					const slider = document.querySelector("shu-polymorphic-graph-view shu-graph-filter")?.shadowRoot?.querySelector('input[type="range"]') as HTMLInputElement | null;

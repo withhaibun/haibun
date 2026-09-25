@@ -8,6 +8,7 @@ import { actualURI } from "../lib/util/node/actualURI.js";
 import { copyPreRenderedAudio, doExec, doSpawn, playAudioFile, preRenderFeatureProse, TRenderedAudioMap } from "./lib/tts.js";
 import { captureLocator } from "../lib/capture-locator.js";
 import { SpeechArtifact, VideoArtifact } from "../schema/protocol.js";
+import { DOMAIN_TITLE } from "../lib/domains.js";
 
 const CAPTURE_FILENAME = "vcapture.webm";
 
@@ -77,12 +78,12 @@ class Narrator extends AStepper implements IHasOptions, IHasCycles {
 		},
 		feature: {
 			precludes: [`Haibun.feature`],
-			gwta: "Feature: {feature}",
+			gwta: `Feature: {feature: ${DOMAIN_TITLE}}`,
 			action: async ({ feature }: TStepArgs, featureStep: TFeatureStep) => this.rememberAndSay("feature", feature as string, featureStep),
 		},
 		scenario: {
 			precludes: [`Haibun.scenario`],
-			gwta: "Scenario: {scenario}",
+			gwta: `Scenario: {scenario: ${DOMAIN_TITLE}}`,
 			action: async ({ scenario }: TStepArgs, featureStep: TFeatureStep) => this.rememberAndSay("scenario", scenario as string, featureStep),
 		},
 	};

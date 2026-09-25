@@ -5,7 +5,7 @@ import { populateActionArgs } from "./populateActionArgs";
 import { TFeatureStep } from "./defs";
 import { Origin } from "../schema/protocol.js";
 import { AStepper } from "./astepper.js";
-import { DOMAIN_NUMBER, DOMAIN_STRING, DOMAIN_VARIABLE_NAME, individualRefDomain, registerDomains } from "./domains.js";
+import { DOMAIN_NUMBER, DOMAIN_STRING, DOMAIN_TITLE, DOMAIN_VARIABLE_NAME, individualRefDomain, registerDomains } from "./domains.js";
 import { fromJsonText } from "./json-text.js";
 
 function makeStep(name: string, label: string, domain: string, origin: Origin): TFeatureStep {
@@ -34,6 +34,7 @@ describe("populateActionArgs integration", () => {
 		await world.shared.set({ term: "bar", value: "the variable's value", domain: DOMAIN_STRING, origin: Origin.var }, { in: "test", seq: [0], when: "test" });
 		expect((await populateActionArgs(makeStep("foo", "bar", DOMAIN_VARIABLE_NAME, Origin.defined), world, [])).foo).toBe("bar");
 		expect((await populateActionArgs(makeStep("foo", "bar", DOMAIN_VARIABLE_NAME, Origin.quoted), world, [])).foo).toBe("bar");
+		expect((await populateActionArgs(makeStep("foo", "bar", DOMAIN_TITLE, Origin.defined), world, [])).foo, "a title").toBe("bar");
 	});
 
 	it("resolves env origin", async () => {
