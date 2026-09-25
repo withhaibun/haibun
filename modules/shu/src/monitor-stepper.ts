@@ -40,6 +40,7 @@ import { shownTo } from "@haibun/core/lib/capability-context.js";
 
 import { DOMAIN_GRAPH_QUERY } from "@haibun/core/lib/quad-types.js";
 import { CACHE_SHAPE, type TCachePayload } from "./client-cache/index.js";
+import { DOMAIN_FILE_PATH } from "@haibun/core/lib/domains.js";
 
 // The in-memory buffers hold a recent WINDOW, never the run: over months, an unbounded buffer is the process's heap
 // death (a first-time index of a large mailbox OOMed the daemon at ~4GB). The store is canonical for graph data and
@@ -354,7 +355,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 
 	steps = {
 		savesShuTo: {
-			gwta: "saves shu to {where: string}",
+			gwta: `saves shu to {where: ${DOMAIN_FILE_PATH}}`,
 			description:
 				"Write the standalone shu HTML report to the given path. Invokable any time during a feature; endFeature writes once more so the final file always reflects the full run.",
 			productsDomain: DOMAIN_SHU_REPORT,
@@ -365,7 +366,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			},
 		},
 		savesShuUncompressedTo: {
-			gwta: "saves shu uncompressed to {where: string}",
+			gwta: `saves shu uncompressed to {where: ${DOMAIN_FILE_PATH}}`,
 			description:
 				"Write the standalone shu report with an uncompressed plain-JSON payload, so the redacted text can be read and audited directly, same content as the compressed report, just larger. A one-off write that does not become the feature's canonical output.",
 			productsDomain: DOMAIN_SHU_REPORT,

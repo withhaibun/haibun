@@ -4,13 +4,14 @@ import { PlaywrightEvents } from "./PlaywrightEvents.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { Timer } from "@haibun/core/schema/protocol.js";
 import { TTag } from "@haibun/core/lib/ttag.js";
+import type { BROWSER_TYPES } from "./domains.js";
 
 export const BROWSERS: { [name: string]: BrowserType } = {
 	firefox,
 	chromium,
 	webkit,
 };
-export type TBrowserTypes = "firefox" | "chromium" | "webkit";
+export type TBrowserTypes = (typeof BROWSER_TYPES)[number];
 
 export type TTaggedBrowserFactoryOptions = {
 	options: BrowserContextOptions;

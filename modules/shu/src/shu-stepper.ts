@@ -25,6 +25,7 @@ import { withOntologySchema } from "./graph/ontology-projection.js";
 import { enumerateStandardVocab } from "./graph/standard-vocabulary.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import type { IHasOptions } from "@haibun/core/lib/astepper.js";
+import { DOMAIN_ROUTE } from "@haibun/core/lib/domains.js";
 
 /**
  * Project the persisted quads into the renderer-agnostic graph model (nodes + typed-reference edges) the SPA also
@@ -284,7 +285,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 
 	steps = {
 		serveShuApp: {
-			gwta: "serve shu app at {path: string}",
+			gwta: `serve shu app at {path: ${DOMAIN_ROUTE}}`,
 			action: ({ path }: { path: string }) => {
 				const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER) as IWebServer;
 				if (!webserver) return actionNotOK("webserver not available, load web-server-stepper before shu");

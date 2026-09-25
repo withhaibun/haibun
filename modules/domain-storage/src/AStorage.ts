@@ -8,7 +8,7 @@ import { EMediaTypes, TMediaType } from "./media-types.js";
 import { AStepper, StepperKinds, type IHasCycles, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { TAnyFixme } from "@haibun/core/lib/fixme.js";
 import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
-import { DOMAIN_NUMBER } from "@haibun/core/lib/domains.js";
+import { DOMAIN_NUMBER, DOMAIN_FILE_PATH, DOMAIN_TEXT } from "@haibun/core/lib/domains.js";
 
 const FileContentsSchema = z.object({ contents: z.string() });
 /** The domain of a file's contents, as a storage read them. */
@@ -128,49 +128,49 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 
 	steps = {
 		createFile: {
-			gwta: `create file at {where} with {what}`,
+			gwta: `create file at {where: ${DOMAIN_FILE_PATH}} with {what: ${DOMAIN_TEXT}}`,
 			action: async ({ where, what }: TStepArgs) => {
 				await this.writeFile(String(where), String(what), EMediaTypes.html);
 				return OK;
 			},
 		},
 		createDirectory: {
-			gwta: `create directory at {where}`,
+			gwta: `create directory at {where: ${DOMAIN_FILE_PATH}}`,
 			action: async ({ where }: TStepArgs) => {
 				await this.mkdirp(String(where));
 				return OK;
 			},
 		},
 		filesCount: {
-			gwta: `directory {where} has {count: ${DOMAIN_NUMBER}} files`,
+			gwta: `directory {where: ${DOMAIN_FILE_PATH}} has {count: ${DOMAIN_NUMBER}} files`,
 			action: async ({ where, count }: TStepArgs) => {
 				const files = await this.readdir(String(where));
 				return files.length === count ? OK : actionNotOK(`directory ${where} has ${files.length} files`);
 			},
 		},
 		testIs: {
-			gwta: `text at {where} is {what}`,
+			gwta: `text at {where: ${DOMAIN_FILE_PATH}} is {what: ${DOMAIN_TEXT}}`,
 			action: async ({ where, what }: TStepArgs) => {
 				const text = await this.readFile(String(where), "utf-8");
 				return text === String(what) ? OK : actionNotOK(`text at ${where} is not ${what}; it's ${text}`);
 			},
 		},
 		testContains: {
-			gwta: `text at {where} contains {what}`,
+			gwta: `text at {where: ${DOMAIN_FILE_PATH}} contains {what: ${DOMAIN_TEXT}}`,
 			action: async ({ where, what }: TStepArgs) => {
 				const text = await this.readFile(String(where), "utf-8");
 				return text.toString().indexOf(String(what)) > -1 ? OK : actionNotOK(`text at ${where} does not contain ${what}; it's ${text}`);
 			},
 		},
 		testNotContains: {
-			gwta: `text at {where} does not contain {what}`,
+			gwta: `text at {where: ${DOMAIN_FILE_PATH}} does not contain {what: ${DOMAIN_TEXT}}`,
 			action: async ({ where, what }: TStepArgs) => {
 				const text = await this.readFile(String(where), "utf-8");
 				return text.toString().indexOf(String(what)) === -1 ? OK : actionNotOK(`text at ${where} contains ${what}`);
 			},
 		},
 		listFiles: {
-			gwta: `list files from {where}`,
+			gwta: `list files from {where: ${DOMAIN_FILE_PATH}}`,
 			action: async ({ where }: TStepArgs) => {
 				const files = await this.readdir(String(where));
 				this.getWorld().eventLogger.info(`files from ${where}: ${files.join(", ")}`);
@@ -178,14 +178,14 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 			},
 		},
 		fileExists: {
-			gwta: `storage entry {what} exists`,
+			gwta: `storage entry {what: ${DOMAIN_FILE_PATH}} exists`,
 			action: ({ what }: TStepArgs) => {
 				const exists = this.exists(String(what));
 				return Promise.resolve(exists ? OK : actionNotOK(`file ${what} does not exist`));
 			},
 		},
 		isTheSame: {
-			gwta: `{what} is the same as {where}`,
+			gwta: `{what: ${DOMAIN_FILE_PATH}} is the same as {where: ${DOMAIN_FILE_PATH}}`,
 			action: ({ what, where }: TStepArgs) => {
 				const c1 = this.readFile(String(what), "binary");
 				const c2 = this.readFile(String(where), "binary");
@@ -193,7 +193,7 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 			},
 		},
 		readFile: {
-			gwta: `read file {where}`,
+			gwta: `read file {where: ${DOMAIN_FILE_PATH}}`,
 			productsDomain: DOMAIN_FILE_CONTENTS,
 			action: async ({ where }: TStepArgs) => {
 				const contents = await this.readFile(String(where), "utf-8");
@@ -201,7 +201,7 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 			},
 		},
 		fileIsRecent: {
-			gwta: `file {where} is recent within {minutes: ${DOMAIN_NUMBER}} minutes`,
+			gwta: `file {where: ${DOMAIN_FILE_PATH}} is recent within {minutes: ${DOMAIN_NUMBER}} minutes`,
 			action: async ({ where, minutes }: TStepArgs) => {
 				const file = await this.lstatToIFile(String(where));
 				const now = Date.now();

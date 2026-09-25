@@ -5,7 +5,7 @@ import { OK } from "../schema/protocol.js";
 import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TResolvedFeature, TStartFeature, TEndFeature, CycleWhen } from "../lib/astepper.js";
 import { actionNotOK, actionOK, actionOKWithProducts, sleep } from "../lib/util/index.js";
 import { findFeatureStepsFromStatement } from "../phases/Resolver.js";
-import { DOMAIN_STATEMENT, DOMAIN_STEPPER_NAME, DOMAIN_TEXT } from "../lib/domains.js";
+import { DOMAIN_LINK, DOMAIN_STATEMENT, DOMAIN_STEPPER_NAME, DOMAIN_TEXT } from "../lib/domains.js";
 import { findFeatures } from "../lib/features.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { QuadStore } from "../lib/quad-store.js";
@@ -92,7 +92,7 @@ class Haibun extends AStepper implements IHasCycles {
 
 	steps = {
 		useStoreAt: {
-			gwta: `use store at {where} for {types}`,
+			gwta: `use store at {where: ${DOMAIN_LINK}} for {types}`,
 			productsDomain: DOMAIN_STORE_IN_USE,
 			// Mount another instance's store for the given types: writes route through and reads come back over the
 			// capability-gated store surface, so this instance keeps those records in the serving site's store instead

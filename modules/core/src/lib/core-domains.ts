@@ -25,6 +25,8 @@ import {
 	DOMAIN_VARIABLE_NAME,
 	DOMAIN_DOMAIN_NAME,
 	DOMAIN_GLOB,
+	DOMAIN_FILE_PATH,
+	DOMAIN_ROUTE,
 	deriveNamingDomains,
 	mapDefinitionsToDomains,
 	recordIdInputSchema,
@@ -186,6 +188,8 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 	{ selectors: [DOMAIN_VARIABLE_NAME], schema: nameSchema, description: "The name of a variable, as the line writes it." },
 	{ selectors: [DOMAIN_DOMAIN_NAME], schema: nameSchema, description: "The name a declaration gives a new domain, as the line writes it." },
 	{ selectors: [DOMAIN_GLOB], schema: nameSchema, description: "A pattern in which * stands for any run of characters." },
+	{ selectors: [DOMAIN_FILE_PATH], schema: nameSchema, description: "A file or directory's path, as a storage or the file system reads it." },
+	{ selectors: [DOMAIN_ROUTE], schema: nameSchema, description: "The path a web server serves something at, such as /shu." },
 	{
 		selectors: [DOMAIN_LINK],
 		schema: stringSchema,

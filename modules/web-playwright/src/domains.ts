@@ -59,6 +59,9 @@ export const DOMAIN_FIND_WAY = "page-find-way";
 /** What the requests a page makes to a URL are: refused, left without an answer, or answered. */
 export const REQUEST_STATE = { blocked: "blocked", unanswered: "unanswered", allowed: "allowed" } as const;
 export const DOMAIN_REQUEST_STATE = "request-state";
+/** The browsers a run drives. */
+export const BROWSER_TYPES = ["firefox", "chromium", "webkit"] as const;
+export const DOMAIN_BROWSER_TYPE = "browser-type";
 /** A URL pattern as a page routes requests by it: `*` within a path segment, `**` across segments. */
 export const DOMAIN_URL_GLOB = "url-glob";
 
@@ -72,6 +75,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 		values: Object.values(REQUEST_STATE),
 		description: "Whether the requests a page makes are refused, left unanswered or answered",
 	}),
+	createEnumDomainDefinition({ name: DOMAIN_BROWSER_TYPE, values: [...BROWSER_TYPES], description: "A browser a run drives" }),
 	{ selectors: [DOMAIN_URL_GLOB], schema: z.string().min(1), description: "A URL pattern as a page routes requests by it: * within a path segment, ** across segments" },
 	{ selectors: [DOMAIN_PAGE_CONTENTS], schema: PageContentsSchema, description: "A page's markup, as the browser holds it" },
 	{ selectors: [DOMAIN_ACCESSIBILITY_SNAPSHOT], schema: AccessibilitySnapshotSchema, description: "A page as its accessibility tree reads, with the steps that act on it" },

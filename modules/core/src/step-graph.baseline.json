@@ -48,7 +48,6 @@
 	"string-param Haibun.pause {duration: string}",
 	"string-param Haibun.scenario {scenario: string}",
 	"string-param Haibun.useStoreAt {types: string}",
-	"string-param Haibun.useStoreAt {where: string}",
 	"string-param Narrator.feature {feature: string}",
 	"string-param Narrator.scenario {scenario: string}",
 	"string-param ResourcesStepper.statements {rel: string}",

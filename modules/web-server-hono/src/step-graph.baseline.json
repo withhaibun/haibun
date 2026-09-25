@@ -1,10 +1,5 @@
 [
 	"orphan-step WebServerStepper.showPorts produces listening-ports",
-	"string-param McpStepper.serveMcpTools {path: string}",
-	"string-param WebServerStepper.indexFiles {loc: string}",
 	"string-param WebServerStepper.isListening {why: string}",
-	"string-param WebServerStepper.serveFiles {loc: string}",
-	"string-param WebServerStepper.serveFilesAt {loc: string}",
-	"string-param WebServerStepper.serveFilesAt {where: string}",
 	"unreachable-domain haibun-endpoint"
 ]

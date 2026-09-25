@@ -23,7 +23,7 @@ import {
 	type TQuad,
 } from "@haibun/core/lib/quad-types.js";
 import { QuadStore, queryQuadStore, individualWithEdges } from "@haibun/core/lib/quad-store.js";
-import { DOMAIN_RECORD_ID, hypermediaDomainMap } from "@haibun/core/lib/domains.js";
+import { DOMAIN_RECORD_ID, hypermediaDomainMap, DOMAIN_LINK } from "@haibun/core/lib/domains.js";
 import { buildResourceRels, relOf } from "@haibun/core/lib/hypermedia.js";
 import { QuadGraphModel } from "@haibun/core/lib/quad-graph-model.js";
 import { activeSitePrincipal, adoptSitePrincipal, hasDefaultSitePrincipal } from "@haibun/core/lib/host-id.js";
@@ -199,7 +199,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			},
 		},
 		federateGraphReads: {
-			gwta: "federate graph reads from {where}",
+			gwta: `federate graph reads from {where: ${DOMAIN_LINK}}`,
 			productsDomain: DOMAIN_SITE_FEDERATED,
 			// Reads-first federation: merge a peer instance's clustered graph reads into this one's view, each of the
 			// peer's subjects stamped with its site principal so the view can group by site. Site principals must be

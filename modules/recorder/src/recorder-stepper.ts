@@ -12,6 +12,7 @@ import { WebPlaywright } from "@haibun/web-playwright";
 import { TInteraction, TRecordedStep } from "./types.js";
 import { interactionToStep } from "./interaction-mapper.js";
 import { instrumentPage } from "./page-instrumentor.js";
+import { DOMAIN_FILE_PATH } from "@haibun/core/lib/domains.js";
 
 const OUTPUT_OPTION = "OUTPUT";
 const TITLE_OPTION = "TITLE";
@@ -130,7 +131,7 @@ export class RecorderStepper extends AStepper implements IHasOptions, IHasCycles
 
 	steps = {
 		startRecording: {
-			gwta: "record interactions to {file}",
+			gwta: `record interactions to {file: ${DOMAIN_FILE_PATH}}`,
 			action: async ({ file }: { file: string }): Promise<TActionResult> => {
 				this.outputPath = String(file);
 				this.recording = true;

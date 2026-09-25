@@ -2,7 +2,17 @@ import { Page, Response, type Locator } from "playwright";
 
 import { TFeatureStep } from "@haibun/core/lib/astepper.js";
 import { OK, Origin, TStepResult } from "@haibun/core/schema/protocol.js";
-import { DOMAIN_GLOB, DOMAIN_NUMBER, DOMAIN_STATEMENT, DOMAIN_STRING, DOMAIN_TEXT, DOMAIN_VARIABLE_NAME, globSource } from "@haibun/core/lib/domains.js";
+import {
+	DOMAIN_GLOB,
+	DOMAIN_NUMBER,
+	DOMAIN_STATEMENT,
+	DOMAIN_STRING,
+	DOMAIN_TEXT,
+	DOMAIN_VARIABLE_NAME,
+	globSource,
+	DOMAIN_LINK,
+	DOMAIN_FILE_PATH,
+} from "@haibun/core/lib/domains.js";
 import { actionNotOK, actionOKWithProducts, errorDetail, sleep, getStepTerm, jsonArtifact } from "@haibun/core/lib/util/index.js";
 import {
 	DOMAIN_ACCESSIBILITY_SNAPSHOT,
@@ -15,6 +25,7 @@ import {
 	DOMAIN_URL_GLOB,
 	REQUEST_STATE,
 	type TFindWay,
+	DOMAIN_BROWSER_TYPE,
 } from "./domains.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { pickLocatorDomain } from "./web-playwright.js";
@@ -23,7 +34,7 @@ import { WEB_PLAYWRIGHT_ACTIONS } from "./actions.js";
 import { DOMAIN_RELAY_ATTACHMENT } from "./relay/relay-wire.js";
 import { readAction } from "@haibun/core/lib/actions.js";
 import { Access } from "@haibun/core/lib/resources.js";
-import { BROWSERS } from "./BrowserFactory.js";
+import type { TBrowserTypes } from "./BrowserFactory.js";
 
 import { pathToFileURL } from "node:url";
 import { TStepperSteps } from "@haibun/core/lib/astepper.js";
@@ -213,7 +224,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		currentTabIs: {
-			gwta: `current tab is {tab}`,
+			gwta: `current tab is {tab: ${DOMAIN_NUMBER}}`,
 			action: async ({ tab }: { tab: string }) => {
 				const waitForTab = parseInt(tab, 10);
 				let timedOut = false;
@@ -230,7 +241,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 		onTabX: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
-			gwta: `on tab {tab}`,
+			gwta: `on tab {tab: ${DOMAIN_NUMBER}}`,
 			action: ({ tab }: { tab: string }) => {
 				wp.tab = parseInt(tab, 10);
 				return OK;
@@ -394,22 +405,17 @@ export const interactionSteps = (wp: WebPlaywright) =>
 
 		//                         BROWSER
 		usingBrowserVar: {
-			gwta: "using {browser} browser",
-			action: ({ browser }: { browser: string }) => {
-				if (!BROWSERS[browser]) {
-					throw Error(`browserType not recognized ${browser} from ${BROWSERS.toString()} `);
-				}
-				return wp.setBrowser(browser);
-			},
+			gwta: `using {browser: ${DOMAIN_BROWSER_TYPE}} browser`,
+			action: ({ browser }: { browser: TBrowserTypes }) => wp.setBrowser(browser),
 		},
 		connectToBrowser: {
-			gwta: "connect to the browser at {endpoint}",
+			gwta: `connect to the browser at {endpoint: ${DOMAIN_LINK}}`,
 			description:
 				"Drives a running browser through its Chrome DevTools Protocol endpoint instead of launching one. Tab 0 is the one page the browser's own context holds open. The run never closes that page or that context, and leaves their dialogs to whoever runs the browser.",
 			action: ({ endpoint }: { endpoint: string }) => wp.connectTo(endpoint),
 		},
 		loadBrowserExtension: {
-			gwta: "load the browser extension at {where}",
+			gwta: `load the browser extension at {where: ${DOMAIN_FILE_PATH}}`,
 			description:
 				"Loads the unpacked extension in the directory `where` into the browser the run launches, from the next page it opens, and answers the extension's id and origin, derived from the key its manifest pins, so a step can open its pages.",
 			productsDomain: DOMAIN_BROWSER_EXTENSION,
@@ -434,7 +440,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		//  FILE DOWNLOAD/UPLOAD
 		uploadFile: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
-			gwta: `upload file {file} using {selector: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
+			gwta: `upload file {file: ${DOMAIN_FILE_PATH}} using {selector: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
 			action: async ({ file, selector }: { file: string; selector: string }, featureStep: TFeatureStep) => {
 				await wp.withPage(async (page: Page) => await (await wp.locateByDomain(page, featureStep, "selector")).setInputFiles(file));
 				return OK;
@@ -456,7 +462,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 		receiveDownload: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
-			gwta: "receive download as {file}",
+			gwta: `receive download as {file: ${DOMAIN_FILE_PATH}}`,
 			action: async ({ file }: { file: string }) => {
 				try {
 					const download = await wp.expectedDownload;
@@ -469,7 +475,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		waitForDownload: {
-			gwta: "save download to {file}",
+			gwta: `save download to {file: ${DOMAIN_FILE_PATH}}`,
 			action: async ({ file }: { file: string }) => {
 				try {
 					const download = await (await wp.getPage()).waitForEvent("download");
@@ -533,7 +539,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 		takeScreenshotOf: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.read,
-			gwta: `take a screenshot of {what: ${DOMAIN_STRING_OR_PAGE_LOCATOR}} to {where}`,
+			gwta: `take a screenshot of {what: ${DOMAIN_STRING_OR_PAGE_LOCATOR}} to {where: ${DOMAIN_FILE_PATH}}`,
 			action: async ({ what, where }: { what: string; where: string }, featureStep: TFeatureStep) => {
 				try {
 					await wp.withPage(async (page: Page) => {

@@ -1,7 +1,7 @@
 import { withAction, type TKirejiExport } from "@haibun/core/kireji/withAction.js";
 import WebPlaywright from "@haibun/web-playwright";
 import ShuStepper from "../../build/shu-stepper.js";
-import ShuMonitorColumnControls from "../../build/components/shu-monitor-column.controls.js";
+import ShuMonitorColumnControls, { RAIL_END } from "../../build/components/shu-monitor-column.controls.js";
 import ShuScrollbarControls from "../../build/components/shu-scrollbar.controls.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import BlipsStepper from "@haibun/core/steps/blips-stepper.js";
@@ -94,9 +94,9 @@ export const features: TKirejiExport = {
 		watchBlips({ names: '"haibun.shu.view"' }),
 
 		"The rail is not decoration: seeking it moves the window. Seek to the bottom and the first visible row is no longer row one; seek back to the top and it is row one again, proving a drag or click on the rail scrolls the virtualizer (a holey placeholder items array once made every seek a silent no-op).",
-		seekMonitorRail({ where: '"bottom"' }),
+		seekMonitorRail({ where: `"${RAIL_END.bottom}"` }),
 		monitorFirstVisibleRowIsNot({ ordinal: '"1"' }),
-		seekMonitorRail({ where: '"top"' }),
+		seekMonitorRail({ where: `"${RAIL_END.top}"` }),
 		monitorFirstVisibleRow({ ordinal: '"1"' }),
 
 		"The thumb is what a reader grabs to drag, so a press aimed at the middle of it has to reach it. Every event to mark is drawn on this rail, and a mark drawn over the thumb would take that press and jump to itself instead, leaving the thumb ungrabbable on exactly the runs that have the most to look through.",
@@ -106,7 +106,7 @@ export const features: TKirejiExport = {
 		"A reader scrolling back through the log must not be yanked to the newest row every time an event streams in. Scrolled to the top, a streamed event leaves the view where it is: the tail is paused because the reader is no longer at the bottom, not because any cursor was scrubbed. Scroll back to the bottom and the tail re-engages, so the next event is followed again.",
 		setAs({ what: "scrollPausedEvent", domain: "page-test-id", value: '"scroll-paused-marker"' }),
 		monitorFirstVisibleRow({ ordinal: '"1"' }),
-		seekMonitorRail({ where: '"bottom"' }),
+		seekMonitorRail({ where: `"${RAIL_END.bottom}"` }),
 		setAs({ what: "scrollResumedEvent", domain: "page-test-id", value: '"scroll-resumed-marker"' }),
 		monitorShowsRowContaining({ text: '"scrollResumedEvent"' }),
 

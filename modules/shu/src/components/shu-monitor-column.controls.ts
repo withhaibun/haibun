@@ -7,9 +7,9 @@
  *
  * Steps never lead with the article "the", haibun treats such lines as narrative prose, not matchable steps.
  */
-import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
+import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionOK, actionNotOK } from "@haibun/core/lib/util/index.js";
-import { DOMAIN_NUMBER, DOMAIN_TEXT } from "@haibun/core/lib/domains.js";
+import { DOMAIN_NUMBER, DOMAIN_TEXT, createEnumDomainDefinition } from "@haibun/core/lib/domains.js";
 
 import { type EvalPage, pollUntil, countMatching, firstText, firstAttr, hasText, clickFirst } from "./controls-util.js";
 import { FOLLOW_EDGE_SLACK_PX } from "../controllers/index.js";
@@ -28,8 +28,17 @@ const FUTURE = "future-event"; // the dim class shared by monitor rows and docum
 // The follow's own contract for "at the live edge": the assertion holds the component to the slack it re-sticks past.
 const DOC_LIVE_EDGE_PX = FOLLOW_EDGE_SLACK_PX;
 
-export default class ShuMonitorColumnControls extends AStepper {
+/** The ends of the monitor's scroll rail a seek goes to. */
+export const RAIL_END = { top: "top", bottom: "bottom" } as const;
+export const DOMAIN_RAIL_END = "rail-end";
+
+export default class ShuMonitorColumnControls extends AStepper implements IHasCycles {
 	description = "shu-monitor-column inspection: count rendered log rows to assert the data window bounds the view.";
+	cycles: IStepperCycles = {
+		getConcerns: () => ({
+			domains: [createEnumDomainDefinition({ name: DOMAIN_RAIL_END, values: Object.values(RAIL_END), description: "An end of the monitor's scroll rail" })],
+		}),
+	};
 
 	private page(): Promise<EvalPage> {
 		const wp = this.getWorld().runtime.steppers?.find((s) => typeof (s as { getPage?: unknown }).getPage === "function") as { getPage(): Promise<EvalPage> } | undefined;
@@ -46,7 +55,7 @@ export default class ShuMonitorColumnControls extends AStepper {
 	/** Dispatch a pointerdown on the custom rail at its top or bottom, the way a click-to-seek does, so a feature can prove
 	 *  the rail scrolls the virtualizer (a holey placeholder items array once made every seek a silent no-op). */
 	private seekRail(page: EvalPage, where: string): Promise<boolean> {
-		return page.evaluate((w: string) => {
+		return page.evaluate((toTop: boolean) => {
 			let rail: Element | null = null;
 			const stack: Array<Document | ShadowRoot> = [document];
 			while (stack.length > 0 && !rail) {
@@ -58,10 +67,10 @@ export default class ShuMonitorColumnControls extends AStepper {
 			}
 			if (!rail) return false;
 			const r = rail.getBoundingClientRect();
-			const clientY = w === "top" ? r.top + 3 : r.bottom - 3;
+			const clientY = toTop ? r.top + 3 : r.bottom - 3;
 			rail.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, clientX: r.left + 7, clientY, pointerId: 1 }));
 			return true;
-		}, where);
+		}, where === RAIL_END.top);
 	}
 
 	steps: TStepperSteps = {
@@ -90,7 +99,7 @@ export default class ShuMonitorColumnControls extends AStepper {
 			},
 		},
 		seekMonitorRail: {
-			gwta: "seek the monitor rail to the {where}",
+			gwta: `seek the monitor rail to the {where: ${DOMAIN_RAIL_END}}`,
 			action: async ({ where }: { where: string }) => {
 				const ok = await this.seekRail(await this.page(), where);
 				return ok ? actionOK() : actionNotOK("no shu-scrollbar rail found to seek");

@@ -299,8 +299,8 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		...restSteps(this),
 		...interactionSteps(this),
 	};
-	setBrowser(browser: string) {
-		this.factoryOptions.type = browser as unknown as TBrowserTypes;
+	setBrowser(browser: TBrowserTypes) {
+		this.factoryOptions.type = browser;
 		return OK;
 	}
 	/** Drives a running browser from the next page the run opens, instead of launching one: the one at a CDP endpoint, or

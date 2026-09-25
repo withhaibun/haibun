@@ -3,7 +3,7 @@ import WebPlaywright from "./web-playwright.js";
 import { WEB_PLAYWRIGHT_ACTIONS } from "./actions.js";
 import { OK } from "@haibun/core/schema/protocol.js";
 import { TStepperSteps } from "@haibun/core/lib/astepper.js";
-import { DOMAIN_NUMBER } from "@haibun/core/lib/domains.js";
+import { DOMAIN_NUMBER, DOMAIN_LINK } from "@haibun/core/lib/domains.js";
 import { DOMAIN_HTTP_METHOD, DOMAIN_HTTP_METHOD_WITH_BODY, DOMAIN_HTTP_METHOD_WITHOUT_BODY, DOMAIN_JSON_RESPONSE_COUNT, HTTP_METHODS_WITH_BODY } from "./domains.js";
 
 export const AUTHORIZATION = "Authorization";
@@ -41,7 +41,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 		},
 		restTokenRequest: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
-			gwta: `request OAuth 2.0 access token from {endpoint}`,
+			gwta: `request OAuth 2.0 access token from {endpoint: ${DOMAIN_LINK}}`,
 			action: async ({ endpoint }: { endpoint: string }, featureStep) => {
 				const serialized = await webPlaywright.withPageFetch(endpoint);
 				const accessToken = !Array.isArray(serialized.json) ? (serialized.json as TJsonRecord)[ACCESS_TOKEN] : undefined;
@@ -52,7 +52,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 		},
 		restTokenLogout: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
-			gwta: `perform OAuth 2.0 logout from {endpoint}`,
+			gwta: `perform OAuth 2.0 logout from {endpoint: ${DOMAIN_LINK}}`,
 			action: async ({ endpoint }: { endpoint: string }, featureStep) => {
 				await webPlaywright.setExtraHTTPHeaders({});
 				const serialized = await webPlaywright.withPageFetch(endpoint);
@@ -63,7 +63,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 
 		acceptEndpointRequest: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
-			gwta: `accept {accept} using ${HTTP} {method: ${DOMAIN_HTTP_METHOD_WITHOUT_BODY}} to {endpoint}`,
+			gwta: `accept {accept} using ${HTTP} {method: ${DOMAIN_HTTP_METHOD_WITHOUT_BODY}} to {endpoint: ${DOMAIN_LINK}}`,
 			action: async ({ accept, method, endpoint }: { accept: string; method: string; endpoint: string }, featureStep) => {
 				const serialized = await webPlaywright.withPageFetch(endpoint, method.toLowerCase(), { headers: { accept } });
 				await webPlaywright.setLastResponse(serialized, featureStep);
@@ -72,7 +72,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 		},
 		restEndpointRequest: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
-			gwta: `make an ${HTTP} {method: ${DOMAIN_HTTP_METHOD}} to {endpoint}`,
+			gwta: `make an ${HTTP} {method: ${DOMAIN_HTTP_METHOD}} to {endpoint: ${DOMAIN_LINK}}`,
 			action: async ({ method, endpoint }: { method: string; endpoint: string }, featureStep) => {
 				// A method that sends a body sends an empty one here.
 				const requestOptions = (HTTP_METHODS_WITH_BODY as readonly string[]).includes(method) ? { postData: "", headers: { "Content-Type": "application/json" } } : undefined;
@@ -135,7 +135,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 		},
 		restFilterPropertyRequest: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
-			gwta: `for each filtered {property}, make REST {method: ${DOMAIN_HTTP_METHOD_WITHOUT_BODY}} to {endpoint} yielding status {status: ${DOMAIN_NUMBER}}`,
+			gwta: `for each filtered {property}, make REST {method: ${DOMAIN_HTTP_METHOD_WITHOUT_BODY}} to {endpoint: ${DOMAIN_LINK}} yielding status {status: ${DOMAIN_NUMBER}}`,
 			action: async ({ property, method, endpoint, status }: { property: string; method: string; endpoint: string; status: number }) => {
 				const lastResponse = await webPlaywright.getLastResponse();
 				const { filtered } = lastResponse;
@@ -158,7 +158,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 		restEndpointRequestWithPayload: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
 			precludes: ["WebPlaywright.restEndpointRequest"],
-			gwta: `make an ${HTTP} {method: ${DOMAIN_HTTP_METHOD_WITH_BODY}} to {endpoint} with {payload}`,
+			gwta: `make an ${HTTP} {method: ${DOMAIN_HTTP_METHOD_WITH_BODY}} to {endpoint: ${DOMAIN_LINK}} with {payload}`,
 			action: async ({ method, endpoint, payload }: { method: string; endpoint: string; payload: string }, featureStep) => {
 				const requestOptions = { postData: payload, headers: { "Content-Type": "application/json" } };
 				const serialized = await webPlaywright.withPageFetch(endpoint, method.toLowerCase(), requestOptions);

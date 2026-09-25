@@ -39,6 +39,7 @@ import { HAIBUN_HOST_ID_ENV } from "@haibun/core/lib/host-id.js";
 import { type TRunOutcome, emptyOutcome, accrueRunOutcome } from "./run-outcome.js";
 import { getConfigFromBase, processBaseEnvToOptionsAndErrors } from "./lib.js";
 import { outcomeAgainst, verificationOf, type TOutcome } from "./verified.js";
+import { DOMAIN_FILE_PATH, DOMAIN_NUMBER } from "@haibun/core/lib/domains.js";
 
 /** The environment names of the things a process holds for itself, which core owns: whether it stays up, which host it
  *  is, and whether it skips a group that passed. Everything else per-process is declared by the option that owns it
@@ -257,7 +258,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 
 	steps = {
 		startInstance: {
-			gwta: `start a haibun instance from {where} on port {port: number} as host {hostId: number}`,
+			gwta: `start a haibun instance from {where: ${DOMAIN_FILE_PATH}} on port {port: ${DOMAIN_NUMBER}} as host {hostId: ${DOMAIN_NUMBER}}`,
 			capability: SUPERVISOR_CAPABILITIES.launch,
 			productsDomain: DOMAIN_INSTANCE_STARTED,
 			action: async ({ where, port, hostId }: { where: string; port: number; hostId: number }) => {
@@ -293,7 +294,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			},
 		},
 		startRun: {
-			gwta: `start a haibun run of {where} matching {filter} from {from} on port {port: number} as run {run} host {hostId: number}`,
+			gwta: `start a haibun run of {where: ${DOMAIN_FILE_PATH}} matching {filter} from {from: ${DOMAIN_FILE_PATH}} on port {port: ${DOMAIN_NUMBER}} as run {run} host {hostId: ${DOMAIN_NUMBER}}`,
 			capability: SUPERVISOR_CAPABILITIES.run,
 			description:
 				"Run features from a directory, filtered to the ones named, in a child of this process, started rather than awaited, so the caller watches it while it happens (see `read the haibun run`). It runs FROM the directory given, because a config's relative stepper paths and a base's served files are read from where a run is started: for most bases that is the base itself, and for a base run from its parent it is that parent. The port is the one its own web server takes, so two runs can go at once without meeting on a default; port zero leaves it to whatever ports its features declare. Host zero is a run that ends when its features do; a host above zero is a run that stays, takes that id, and has its steps registered here, so asking it something is `on host {id}, <step>` rather than a second way of calling. A run that stays needs a port of its own, since a run nobody can address is a run nobody can ask.",

@@ -22,15 +22,11 @@
 	"string-param GraphSourceStepper.clusteredGraphHoldsFromSite {site: string}",
 	"string-param GraphSourceStepper.clusteredGraphHoldsFromSite {subject: string}",
 	"string-param GraphSourceStepper.clusteredGraphHoldsFromSite {type: string}",
-	"string-param GraphSourceStepper.federateGraphReads {where: string}",
 	"string-param GraphSourceStepper.getSelectValues {label: string}",
-	"string-param MonitorStepper.savesShuTo {where: string}",
-	"string-param MonitorStepper.savesShuUncompressedTo {where: string}",
 	"string-param ShuColumnStripControls.activateColumn {match: string}",
 	"string-param ShuColumnStripControls.activeColumnMatches {match: string}",
 	"string-param ShuColumnStripControls.closeColumn {match: string}",
 	"string-param ShuGraphQueryControls.queryLists {id: string}",
-	"string-param ShuMonitorColumnControls.seekMonitorRail {where: string}",
 	"string-param ShuPolymorphicGraphViewControls.applyGraphScene {name: string}",
 	"string-param ShuPolymorphicGraphViewControls.classBrowserHighlights {typeName: string}",
 	"string-param ShuPolymorphicGraphViewControls.classBrowserIndependent {typeName: string}",
@@ -71,6 +67,5 @@
 	"string-param ShuPolymorphicGraphViewControls.waitForGraphNode {match: string}",
 	"string-param ShuScrollbarControls.railThumbHoldsSize {host: string}",
 	"string-param ShuScrollbarControls.railThumbTakesAPress {host: string}",
-	"string-param ShuStepper.serveShuApp {path: string}",
 	"unreachable-domain shu-class-browser"
 ]
