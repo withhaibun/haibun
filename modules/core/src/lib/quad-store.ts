@@ -30,9 +30,11 @@ import {
 	type TDensityResult,
 	type TQuadEdge,
 	type TIndividualWithEdges,
+	type TStoreLevels,
 } from "./quad-types.js";
 import { displayLabelForQuads } from "./hypermedia.js";
-import { BODY_LABEL } from "./resources.js";
+import { Access, AccessLevelSchema, BODY_LABEL, withinAccess, type AccessLevel } from "./resources.js";
+import { seenAt, writesAtEveryLevel, writtenAt } from "./actions.js";
 
 export class QuadStore implements IQuadStore {
 	private quads: TQuad[] = [];
@@ -50,9 +52,14 @@ export class QuadStore implements IQuadStore {
 	 */
 	private federated: Set<TFederatedGraphSource>;
 
-	constructor(routing?: Map<string, IQuadStore>, federated?: Set<TFederatedGraphSource>) {
+	/** What classifies what this store writes and bounds what it reads, for the call in progress. A store given none holds
+	 *  a copy of what a site served, which was bounded where it was served, and classifies nothing. */
+	private levels: TStoreLevels | undefined;
+
+	constructor(routing?: Map<string, IQuadStore>, federated?: Set<TFederatedGraphSource>, levels?: TStoreLevels) {
 		this.routing = routing ?? new Map();
 		this.federated = federated ?? new Set();
+		this.levels = levels;
 	}
 
 	/** The routing map, for constructing the next store in a chain so it shares this one's registrations. */
@@ -149,15 +156,47 @@ export class QuadStore implements IQuadStore {
 	/** Upsert a batch as one act: each quad replaces any prior quad with the same subject, predicate and named graph, so
 	 *  caching a batch keeps one row per fact rather than appending. The client's store does the same in one transaction. */
 	async setMany(quads: TQuad[]): Promise<void> {
-		for (const q of quads) await this.set(q.subject, q.predicate, q.object, q.namedGraph, q.properties);
+		for (const { timestamp: _, ...q } of quads) await this.setQuad(q);
 	}
 
 	set(subject: string, predicate: string, object: unknown, namedGraph: string, properties?: Record<string, unknown>): Promise<void> {
-		const backing = this.storeFor(namedGraph);
-		if (backing) return backing.set(subject, predicate, object, namedGraph, properties);
-		this.quads = this.quads.filter((q) => !(q.subject === subject && q.predicate === predicate && q.namedGraph === namedGraph));
-		this.quads.push({ subject, predicate, object, namedGraph, timestamp: Date.now(), ...(properties ? { properties } : {}) });
-		return Promise.resolve();
+		return this.setQuad({ subject, predicate, object, namedGraph, ...(properties ? { properties } : {}) });
+	}
+
+	// async, as every write here is, so a refused level reaches a caller's .catch rather than throwing out of a method that
+	// returns a promise.
+	private async setQuad(quad: Omit<TQuad, "timestamp">): Promise<void> {
+		const backing = this.storeFor(quad.namedGraph);
+		if (backing) return await backing.set(quad.subject, quad.predicate, quad.object, quad.namedGraph, quad.properties);
+		const classified = this.classified(quad);
+		this.quads = this.quads.filter((q) => !(q.subject === quad.subject && q.predicate === quad.predicate && q.namedGraph === quad.namedGraph));
+		this.quads.push({ ...classified, timestamp: Date.now() });
+	}
+
+	/**
+	 * A quad as this store holds it: at the level `writtenAt` decides, as every store writes. A quad about a subject this
+	 * store already holds is written into that subject, and states its level; a quad about a new one takes the level its
+	 * type declares, where the writer may write there.
+	 */
+	private classified(quad: Omit<TQuad, "timestamp">): Omit<TQuad, "timestamp"> {
+		if (!this.levels) return quad;
+		const held = this.quads.find((q) => q.subject === quad.subject && q.namedGraph === quad.namedGraph)?.accessLevel;
+		const accessLevel = writtenAt(quad.accessLevel ?? held, this.levels.declared(quad.namedGraph) ?? Access.private, this.levels.bound());
+		return { ...quad, accessLevel };
+	}
+
+	/** Whether a quad this store holds is one a read asking for `asked` may see, by the rule every store reads by. */
+	private seen(asked: AccessLevel = Access.private): (q: TQuad) => boolean {
+		if (!this.levels) return () => true;
+		const level = seenAt(asked, this.levels.bound().ceiling);
+		return (q) => withinAccess(q.accessLevel, level);
+	}
+
+	/** Refuse removing a quad the caller may not write at: removing a fact is written into its subject, as adding one is. */
+	private removable(quads: TQuad[]): TQuad[] {
+		const bound = this.levels?.bound();
+		if (bound && !writesAtEveryLevel(bound)) for (const q of quads) if (q.accessLevel) writtenAt(q.accessLevel, q.accessLevel, bound);
+		return quads;
 	}
 
 	get(subject: string, predicate: string, namedGraph?: string): Promise<unknown | undefined> {
@@ -166,9 +205,10 @@ export class QuadStore implements IQuadStore {
 			if (backing) return backing.get(subject, predicate, namedGraph);
 		}
 		// Search local first
+		const seen = this.seen();
 		for (let i = this.quads.length - 1; i >= 0; i--) {
 			const q = this.quads[i];
-			if (q.subject === subject && q.predicate === predicate && (namedGraph === undefined || q.namedGraph === namedGraph)) return Promise.resolve(q.object);
+			if (q.subject === subject && q.predicate === predicate && (namedGraph === undefined || q.namedGraph === namedGraph) && seen(q)) return Promise.resolve(q.object);
 		}
 		// Then search backing stores if no namedGraph filter
 		if (namedGraph === undefined) {
@@ -185,11 +225,10 @@ export class QuadStore implements IQuadStore {
 		return undefined;
 	}
 
-	add(quad: Omit<TQuad, "timestamp">): Promise<void> {
+	async add(quad: Omit<TQuad, "timestamp">): Promise<void> {
 		const backing = this.storeFor(quad.namedGraph);
-		if (backing) return backing.add(quad);
-		this.quads.push({ ...quad, timestamp: Date.now() });
-		return Promise.resolve();
+		if (backing) return await backing.add(quad);
+		this.quads.push({ ...this.classified(quad), timestamp: Date.now() });
 	}
 
 	/**
@@ -230,32 +269,34 @@ export class QuadStore implements IQuadStore {
 	}
 
 	private localQuery(pattern: TQuadPattern): TQuad[] {
-		return this.quads.filter((q) => matchesQuadPattern(q, pattern));
+		const seen = this.seen();
+		return this.quads.filter((q) => matchesQuadPattern(q, pattern) && seen(q));
 	}
 
-	clear(namedGraph?: string): Promise<void> {
+	async clear(namedGraph?: string): Promise<void> {
 		if (namedGraph) {
 			// Don't clear persistent backing stores, only clear ephemeral (local) data
-			if (this.routing.has(namedGraph)) return Promise.resolve();
-			this.quads = this.quads.filter((q) => q.namedGraph !== namedGraph);
+			if (this.routing.has(namedGraph)) return;
+			const cleared = new Set(this.removable(this.quads.filter((q) => q.namedGraph === namedGraph)));
+			this.quads = this.quads.filter((q) => !cleared.has(q));
 		} else {
 			// Clear ephemeral only
+			this.removable(this.quads);
 			this.quads = [];
 		}
-		return Promise.resolve();
 	}
 
-	remove(pattern: TQuadPattern): Promise<void> {
+	async remove(pattern: TQuadPattern): Promise<void> {
 		if (pattern.namedGraph) {
 			const backing = this.storeFor(pattern.namedGraph);
-			if (backing) return backing.remove(pattern);
+			if (backing) return await backing.remove(pattern);
 		}
-		this.quads = this.quads.filter((q) => !matchesQuadPattern(q, pattern));
-		return Promise.resolve();
+		const removed = new Set(this.removable(this.quads.filter((q) => matchesQuadPattern(q, pattern))));
+		this.quads = this.quads.filter((q) => !removed.has(q));
 	}
 
 	async all(): Promise<TQuad[]> {
-		const local = [...this.quads];
+		const local = this.quads.filter(this.seen());
 		const backingResults = await Promise.all(this.allStores.map((s) => s.all()));
 		return [...local, ...backingResults.flat()].sort((a, b) => a.timestamp - b.timestamp);
 	}
@@ -298,7 +339,8 @@ export class QuadStore implements IQuadStore {
 			for (const c of r.clusters) mergeCluster(c);
 		}
 
-		const localQuads = requested ? this.quads.filter((q) => requested.has(q.namedGraph)) : [...this.quads];
+		const seen = this.seen(opts.accessLevel);
+		const localQuads = this.quads.filter((q) => (!requested || requested.has(q.namedGraph)) && seen(q));
 		const localClustered = sliceQuadsPerType(localQuads, opts.perTypeLimit, allQuads);
 		allQuads.push(...localClustered.quads);
 		for (const c of localClustered.clusters) mergeCluster(c);
@@ -323,19 +365,24 @@ export class QuadStore implements IQuadStore {
 		const backing = this.storeFor(label);
 		if (backing) return await backing.upsertIndividual(label, data);
 		const schema = this.schemas[label];
-		const validated = (schema ? schema.parse(data) : data) as Record<string, unknown>;
+		const validated = { ...((schema ? schema.parse(data) : data) as Record<string, unknown>) };
 		const idField = this.idFields[label] ?? "id";
 		// Read before stringifying: String(undefined) is "undefined", a truthy string, so the guard below it never fired
 		// and the record was written under that literal subject, unreachable and overwritten by the next one.
 		const identity = validated[idField];
 		if (identity === undefined || identity === null || String(identity).trim() === "") throw new Error(`Missing identity field "${idField}" for ${label}`);
 		const id = String(identity);
+		// A record states its level, as every persisted type's record does, and each of its quads is held at that level.
+		const declared = this.levels?.declared(label);
+		const stated = validated.accessLevel === undefined ? undefined : AccessLevelSchema.parse(validated.accessLevel);
+		const accessLevel = this.levels ? writtenAt(stated, declared ?? Access.private, this.levels.bound()) : stated;
+		if (declared) validated.accessLevel = accessLevel;
 		// Atomic replace: no await between the remove and the adds, so a concurrent upsert (fire-and-forget writers), a
 		// scenario-boundary carry, or a mid-flight backing registration never observes a half-written individual.
 		this.quads = this.quads.filter((q) => !(q.subject === id && q.namedGraph === label));
 		const timestamp = Date.now();
 		for (const [key, value] of Object.entries(validated)) {
-			if (value !== undefined && value !== null) this.quads.push({ subject: id, predicate: key, object: value, namedGraph: label, timestamp });
+			if (value !== undefined && value !== null) this.quads.push({ subject: id, predicate: key, object: value, namedGraph: label, timestamp, ...(accessLevel ? { accessLevel } : {}) });
 		}
 		return id;
 	}

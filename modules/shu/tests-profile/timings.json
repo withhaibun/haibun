@@ -7,7 +7,7 @@
 				"declaredStepTextHash": "b2d3a00f6a5df1eb975bb19f0b550ed3209b7fbce85ef59ed426b927e5f5acb6"
 			},
 			"/features/b-reading-a-cached-run.feature.ts": {
-				"seconds": 1.3,
+				"seconds": 1.2,
 				"steps": 201,
 				"declaredStepTextHash": "e181cfda76a12093f6c6b2733c560254f03f907a93d0a5ef086f782de51dc69e"
 			},
@@ -22,12 +22,12 @@
 				"declaredStepTextHash": "4ab478d9f035d2e247df01628feb863c2437d82b621312a27818b6936090c0c2"
 			},
 			"/features/e-forgetting-a-run.feature.ts": {
-				"seconds": 3.5,
+				"seconds": 3.7,
 				"steps": 196,
 				"declaredStepTextHash": "ef770aa9972e5a57f42a037abbc6dd04b2c269e2dd5491ad25409e57bfe94b58"
 			}
 		},
 		"steps": 1003,
-		"seconds": 8.4
+		"seconds": 8.5
 	}
 }

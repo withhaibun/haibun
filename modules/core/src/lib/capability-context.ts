@@ -15,7 +15,7 @@
  */
 import { AsyncLocalStorage } from "node:async_hooks";
 import { Access, narrowerCeiling, type AccessLevel } from "./resources.js";
-import { capabilityAllows, EVERY_ACTION } from "./actions.js";
+import { capabilityAllows, EVERY_ACTION, type TAccessBound } from "./actions.js";
 import type { TActingFor } from "./authority-types.js";
 import type { THaibunLogLevel } from "../schema/protocol.js";
 
@@ -137,10 +137,15 @@ export function readingAt(): AccessLevel | undefined {
 	return readCeilingStore.getStore();
 }
 
-/** The level of what the call in progress may have read, which is the level of what it records and announces: its
- *  ceiling, or private for the run's own statements, which read without one. */
+/** The level of what the call in progress may have read: its ceiling, or private for the run's own statements, which
+ *  read without one. */
 export function readLevel(): AccessLevel {
 	return readingAt() ?? Access.private;
+}
+
+/** What bounds the call in progress, which every store writes and reads by: its ceiling and what it holds. */
+export function accessBound(): TAccessBound {
+	return { ceiling: readingAt(), held: authorizedWith() };
 }
 
 /**

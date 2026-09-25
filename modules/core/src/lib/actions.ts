@@ -6,6 +6,7 @@
 import { ACCESS_BROADEST_FIRST, Access, AccessLevelSchema, narrowerAccess, type AccessLevel } from "./resources.js";
 
 const READ_PREFIX = "Read:";
+const WRITE_PREFIX = "Write:";
 
 /** The actions a comma-separated list names, as a feature, an option or a delegation writes them. */
 export function actionList(listed: string | undefined): string[] {
@@ -63,6 +64,45 @@ export function readCeilingOf(granted: string | string[] | undefined): AccessLev
 /** What following a run's events requires: a read at the least level. Each event states the level of what it may
  *  reveal, and a follower is sent those it may read at that level. */
 export const FOLLOWS_THE_RUN = readAction(Access.public);
+
+/** The action writing a record at `level` requires where `level` is more public than what the writer may read: writing
+ *  what it read where more readers see it. Held exactly, or through `*`. */
+export const writeAction = (level: AccessLevel): string => `${WRITE_PREFIX}${level}`;
+
+/** What bounds a caller: the most it may read, absent where nothing bounds it, and the actions it holds. */
+export type TAccessBound = { ceiling: AccessLevel | undefined; held: string | string[] | undefined };
+
+/** The level a read asking for `asked` sees: what it asked for, never more than its caller's ceiling. Every store bounds
+ *  every read by this, and returns a record where `withinAccess` holds for it at this level. */
+export function seenAt(asked: AccessLevel, ceiling: AccessLevel | undefined): AccessLevel {
+	return ceiling ? narrowerAccess(asked, ceiling) : asked;
+}
+
+/**
+ * The level a record is written at, which every store writes by: the level the record states, or else the narrower of the
+ * level its type declares and the writer's ceiling, so a writer reads back what it wrote. What a writer read reaches what
+ * it writes, so a level more public than its ceiling requires `writeAction` of that level: a stated level is refused
+ * without it, and a declared one gives way to the ceiling. A write bounded by nothing is the run's own and takes the
+ * level stated or declared.
+ */
+export function writtenAt(stated: AccessLevel | undefined, declared: AccessLevel, bound: TAccessBound): AccessLevel {
+	const { ceiling } = bound;
+	if (!ceiling) return stated ?? declared;
+	const level = stated ?? narrowerAccess(ceiling, declared);
+	if (mayWriteAt(level, bound)) return level;
+	if (stated) throw new Error(`writing at ${stated} requires ${writeAction(stated)}: what is read at ${ceiling} is written more publicly only by a caller holding it`);
+	return ceiling;
+}
+
+/** Whether `writtenAt` refuses a caller nothing: nothing bounds it, or it holds the write of every level more public than
+ *  its ceiling. A store asks this before reading the level of a record a write goes into. */
+export function writesAtEveryLevel(bound: TAccessBound): boolean {
+	return ACCESS_BROADEST_FIRST.every((level) => mayWriteAt(level, bound));
+}
+
+function mayWriteAt(level: AccessLevel, { ceiling, held }: TAccessBound): boolean {
+	return !ceiling || narrowerAccess(ceiling, level) === ceiling || capabilityAllows(held, writeAction(level));
+}
 
 /** A delegation as its holder presents it: what it lets the holder do, over what, and until when. */
 export type TDelegation = Record<string, unknown> & { allowedAction?: unknown; invocationTarget?: unknown; expires?: unknown };

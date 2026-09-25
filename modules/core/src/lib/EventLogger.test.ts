@@ -3,7 +3,8 @@ import { EventLogger } from "./EventLogger.js";
 import { TFeatureStep } from "./astepper.js";
 import { OBSCURED_VALUE } from "./feature-variables.js";
 import { BlipEvent, ImageArtifact, LogEvent, type THaibunEvent } from "../schema/protocol.js";
-import { runInStep, runReadingAt } from "./capability-context.js";
+import { runAuthorizedWith, runInStep, runReadingAt } from "./capability-context.js";
+import { readAction, writeAction } from "./actions.js";
 import { Access } from "./resources.js";
 
 const OK = { ok: true as const };
@@ -314,5 +315,13 @@ describe("the level an event states", () => {
 		logger.emit(said("the run's own"));
 		logger.emit({ ...said("stated"), accessLevel: Access.opened });
 		expect(levels).toEqual({ bounded: Access.public, "the run's own": Access.private, stated: Access.opened });
+	});
+
+	it("is refused where it is more public than what the call read, and the call holds no write at that level", async () => {
+		const logger = new EventLogger();
+		logger.suppressConsole = true;
+		const reader = [readAction(Access.private)];
+		const announce = () => runAuthorizedWith(reader, () => runReadingAt(Access.private, async () => logger.emit({ ...said("published"), accessLevel: Access.public })));
+		await expect(announce()).rejects.toThrow(writeAction(Access.public));
 	});
 });

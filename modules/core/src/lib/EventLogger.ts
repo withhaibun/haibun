@@ -5,7 +5,9 @@ import { TFeatureStep } from "./astepper.js";
 import { sanitizeObjectSecrets } from "./util/secret-utils.js";
 import { formatSeqPath } from "./seq-path.js";
 import { failFastOrLog } from "./dev-mode.js";
-import { readLevel, stepInFlight } from "./capability-context.js";
+import { accessBound, stepInFlight } from "./capability-context.js";
+import { writtenAt } from "./actions.js";
+import { Access } from "./resources.js";
 
 export type TIsSecretFn = (name: string) => boolean;
 
@@ -138,11 +140,12 @@ export class EventLogger implements IEventLogger {
 		const narrated = NARRATED_KINDS.has(event.kind);
 		if (!narrated && !this.kindCounts.has(event.kind)) return;
 		const name = event.kind === "blip" ? event.name : undefined;
-		// Every event states the level of what it may reveal, so a follower is sent only what it may read.
+		// Every event states the level of what it may reveal, so a follower is sent only what it may read. An event is
+		// written as a record is, and one stating none is the run's own and private.
 		const eventWithEmitter = {
 			...event,
 			emitter: event.emitter || getEmitter(),
-			accessLevel: event.accessLevel ?? readLevel(),
+			accessLevel: writtenAt(event.accessLevel, Access.private, accessBound()),
 		};
 
 		for (const sub of this.subscribers) {

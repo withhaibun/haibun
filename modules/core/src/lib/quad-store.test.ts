@@ -1,6 +1,9 @@
 import { QuadStore, queryQuadStore, bucketOf } from "./quad-store.js";
 import { GraphQuerySchema } from "./quad-types.js";
 import { describe, it, expect, beforeEach, beforeAll } from "vitest";
+import { accessBound, runAuthorizedWith, runReadingAt } from "./capability-context.js";
+import { readAction, readCeilingOf, writeAction } from "./actions.js";
+import { Access } from "./resources.js";
 
 describe("QuadStore Contexts", () => {
 	let store: QuadStore;
@@ -246,5 +249,38 @@ describe("which division of a span an instant falls in", () => {
 
 	it("puts everything in the first bucket when the span is one instant", () => {
 		expect(bucketOf(5, 5, 5, 4)).toBe(0);
+	});
+});
+
+describe("the level each quad a run holds is written and read at", () => {
+	const [NOTICE, FACTS] = ["Notice", "facts"];
+	const levels = { bound: accessBound, declared: (label: string) => (label === NOTICE ? Access.public : undefined) };
+	const [reader, publicReader] = [[readAction(Access.private)], [readAction(Access.public)]];
+	const as = <T>(held: string[], within: () => Promise<T>): Promise<T> => runAuthorizedWith(held, () => runReadingAt(readCeilingOf(held), within));
+	let store: QuadStore;
+
+	beforeEach(() => {
+		store = new QuadStore(undefined, undefined, levels);
+	});
+
+	it("returns the run's own facts to no public reader", async () => {
+		await store.set("fact-1", "says", "kept", FACTS);
+		expect(await as(publicReader, () => store.query({ namedGraph: FACTS }))).toEqual([]);
+		expect((await store.getClusteredQuads({ perTypeLimit: 10, accessLevel: Access.public })).quads, "nor to a read asking for public").toEqual([]);
+		expect(await as(reader, () => store.get("fact-1", "says", FACTS)), "and to a private reader").toBe("kept");
+	});
+
+	it("writes a record a private reader states no level for at private, where its type is public, and the run's at public", async () => {
+		await as(reader, () => store.upsertIndividual(NOTICE, { id: "notice-1", text: "read privately" }));
+		await store.upsertIndividual(NOTICE, { id: "notice-2", text: "the run's" });
+		const read = await as(publicReader, () => store.queryIndividuals<{ id: string; accessLevel: string }>(NOTICE));
+		expect(read.map(({ id, accessLevel }) => [id, accessLevel])).toEqual([["notice-2", Access.public]]);
+	});
+
+	it("refuses a private reader a write into a public record, and a removal from one", async () => {
+		await store.upsertIndividual(NOTICE, { id: "notice-1", text: "published" });
+		await expect(as(reader, () => store.set("notice-1", "text", "read privately", NOTICE))).rejects.toThrow(writeAction(Access.public));
+		await expect(as(reader, () => store.remove({ subject: "notice-1", namedGraph: NOTICE }))).rejects.toThrow(writeAction(Access.public));
+		expect(await store.get("notice-1", "text", NOTICE), "and the record is as it was published").toBe("published");
 	});
 });

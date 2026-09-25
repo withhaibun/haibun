@@ -3,8 +3,23 @@
  * one level allows every narrower read.
  */
 import { describe, expect, it } from "vitest";
-import { actionUnder, allowedActionFor, capabilityAllows, delegatedActions, mayCall, narrowing, readAction, readCeilingOf, requiredAction } from "./actions.js";
-import { Access } from "./resources.js";
+import {
+	EVERY_ACTION,
+	actionUnder,
+	allowedActionFor,
+	capabilityAllows,
+	delegatedActions,
+	mayCall,
+	narrowing,
+	readAction,
+	readCeilingOf,
+	requiredAction,
+	seenAt,
+	writeAction,
+	writesAtEveryLevel,
+	writtenAt,
+} from "./actions.js";
+import { Access, levelsWithin } from "./resources.js";
 
 describe("what a step requires", () => {
 	it("is the action it declares", () => {
@@ -111,5 +126,52 @@ describe("what a holder delegates to another key", () => {
 
 	it("finds none where no delegation held allows an action wanted", () => {
 		expect(narrowing([visitor], { wanted: [ENTER_POOL], expires: VISITOR_ENDS, target })).toBeUndefined();
+	});
+});
+
+describe("the level a record is written at", () => {
+	const [READS_PRIVATE, PUBLISHES] = [readAction(Access.private), writeAction(Access.public)];
+	const run = { ceiling: undefined, held: undefined };
+	const reader = { ceiling: Access.private, held: [READS_PRIVATE] };
+	const publicReader = { ceiling: Access.public, held: [readAction(Access.public)] };
+
+	it("is the level stated, or else the level its type declares, for a write nothing bounds", () => {
+		expect(writtenAt(Access.opened, Access.public, run)).toBe(Access.opened);
+		expect(writtenAt(undefined, Access.public, run)).toBe(Access.public);
+	});
+
+	it("gives way to the ceiling of a writer that read more than its type shares, where it holds no write at the type's level", () => {
+		expect(writtenAt(undefined, Access.public, reader)).toBe(Access.private);
+		expect(writtenAt(undefined, Access.public, { ...reader, held: [READS_PRIVATE, PUBLISHES] }), "and is the type's where it holds that write").toBe(Access.public);
+		expect(writtenAt(undefined, Access.public, { ...reader, held: [EVERY_ACTION] }), "as it is for a writer holding every action").toBe(Access.public);
+	});
+
+	it("refuses a stated level more public than the writer's ceiling, naming the action it requires", () => {
+		expect(() => writtenAt(Access.public, Access.private, reader)).toThrow(PUBLISHES);
+	});
+
+	it("is what the writer sees where its type shares less, so the writer reads back what it wrote, or the more private level it states", () => {
+		expect(writtenAt(undefined, Access.private, publicReader)).toBe(Access.public);
+		expect(writtenAt(Access.private, Access.private, publicReader)).toBe(Access.private);
+	});
+
+	it("refuses nothing to a writer bounded by nothing or holding every action, so a store reads no level to check either", () => {
+		expect(writesAtEveryLevel(run)).toBe(true);
+		expect(writesAtEveryLevel({ ...reader, held: [EVERY_ACTION] })).toBe(true);
+		expect(writesAtEveryLevel(reader)).toBe(false);
+	});
+});
+
+describe("what a read sees", () => {
+	it("is the level asked for, never more than the caller's ceiling", () => {
+		expect(seenAt(Access.private, Access.opened)).toBe(Access.opened);
+		expect(seenAt(Access.public, Access.private)).toBe(Access.public);
+		expect(seenAt(Access.private, undefined), "and is what was asked where nothing bounds the caller").toBe(Access.private);
+	});
+
+	it("is the records at that level and at each narrower one, so a public reader reads no opened record", () => {
+		expect(levelsWithin(Access.public)).toEqual([Access.public]);
+		expect(levelsWithin(Access.opened)).toEqual([Access.opened, Access.public]);
+		expect(levelsWithin(Access.private)).toEqual([Access.private, Access.opened, Access.public]);
 	});
 });

@@ -12,8 +12,8 @@ import { SCOPE, activeEntry, scopeEntry, type TEntry, type TSubjectState } from 
 import { acts, conduit } from "./hypermedia.js";
 import { deploymentVerifiesDelegations, requireStep } from "./rpc-registry.js";
 import { delegateFromPage } from "./page-delegation.js";
-import { delegatedActions, readAction, readCeilingOf } from "@haibun/core/lib/actions.js";
-import { Access, narrowerAccess, storeScopeFor } from "@haibun/core/lib/resources.js";
+import { delegatedActions, readAction, readCeilingOf, seenAt } from "@haibun/core/lib/actions.js";
+import { Access, storeScopeFor } from "@haibun/core/lib/resources.js";
 import { pageHolds, pageMay } from "./page-key.js";
 import { readTurnAllowance } from "./turn-allowance.js";
 import { reportToRun } from "./client-log.js";
@@ -40,7 +40,7 @@ export function nextQuestion(state: TSubjectState): { carries: TEntry | null; re
 async function turnDelegation(): Promise<Record<string, unknown> | undefined> {
 	if (!deploymentVerifiesDelegations()) return undefined;
 	const turn = await conduit().follow<{ controller: string; expires: string; actions: string[] }>(acts(requireStep(OPEN_TURN_STEP)), "chat-turn: open the turn's key");
-	const reads = narrowerAccess(storeScopeFor(appAccessLevel()), readCeilingOf(pageHolds()) ?? Access.public);
+	const reads = seenAt(storeScopeFor(appAccessLevel()), readCeilingOf(pageHolds()) ?? Access.public);
 	const given = [...new Set([...turn.actions, ...(await readTurnAllowance())])].filter((action) => pageMay(action));
 	return await delegateFromPage({ controller: turn.controller, wanted: [readAction(reads), ...given], expires: turn.expires, target: location.origin });
 }

@@ -7,6 +7,7 @@
  */
 import { z } from "zod";
 import type { AccessLevel } from "./resources.js";
+import type { TAccessBound } from "./actions.js";
 import { ellipsize } from "./util/index.js";
 
 /**
@@ -127,7 +128,14 @@ export interface TQuad {
 	objectType?: string;
 	timestamp: number;
 	properties?: Record<string, unknown>;
+	/** The level the quad was written at, in a store that classifies each quad it holds rather than each record. */
+	accessLevel?: AccessLevel;
 }
+
+/** What a store classifies its own writes and bounds its reads by: what bounds the call in progress, and the level each
+ *  type declares its records at, undefined for a name that is no persisted type. A store given none holds a copy of what
+ *  a site served, which was bounded where it was served. */
+export type TStoreLevels = { bound: () => TAccessBound; declared: (label: string) => AccessLevel | undefined };
 
 export interface TQuadPattern {
 	subject?: string;

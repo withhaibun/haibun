@@ -103,8 +103,8 @@ export const PersistedVertexSchema = z.object({
 });
 export type TPersistedVertex = z.infer<typeof PersistedVertexSchema>;
 
-/** How much of the graph each level lets a reader see, so two of them can be compared: private sees every record, and
- *  the rest see only what is not private. */
+/** How much of the graph each level lets a reader see, so two of them can be compared: a reader at a level sees the
+ *  records at that level and at each level narrower than it, so private sees every record and public the public ones. */
 const ACCESS_BREADTH: Record<AccessLevel, number> = { public: 0, opened: 1, private: 2 };
 
 /** Every level, the broadest first. */
@@ -115,11 +115,16 @@ export function narrowerAccess(inForce: AccessLevel, asked: AccessLevel): Access
 	return ACCESS_BREADTH[asked] < ACCESS_BREADTH[inForce] ? asked : inForce;
 }
 
-/** Whether a record at `level` is within what a read at `asked` may see. A record stating no level of its own is not
- *  something the reading can judge, and is left to whatever served it to decide. */
+/** Whether a record at `level` is within what a read at `asked` may see: the one rule every store reads by. A record
+ *  stating no level of its own is not something the reading can judge, and is left to whatever served it to decide. */
 export function withinAccess(level: unknown, asked: AccessLevel): boolean {
 	const held = typeof level === "string" ? ACCESS_BREADTH[level as AccessLevel] : undefined;
 	return held === undefined || held <= ACCESS_BREADTH[asked];
+}
+
+/** The levels a read at `seen` returns records at, for a store that states the rule as a query rather than a test. */
+export function levelsWithin(seen: AccessLevel): AccessLevel[] {
+	return ACCESS_BROADEST_FIRST.filter((level) => withinAccess(level, seen));
 }
 
 /** The scope a read runs at in a store, from the level it asked for: `all` asks for every level, which a store reads
@@ -731,6 +736,15 @@ export type TDomainTopology = THypermediaTopology | TRangesTopology;
 /** True when a domain's topology marks it as persisted (presence of persistedAs). */
 export function isPersisted(topology: TDomainTopology | undefined): topology is THypermediaTopology {
 	return !!topology && "persistedAs" in topology && typeof topology.persistedAs === "string";
+}
+
+/** The level a type's records are written at where a record states none: what its topology declares, or private. A name
+ *  that is no persisted type, such as the graph a run's variables are held in, declares none. */
+export function declaredAccessLevel(domain: TRegisteredDomain & { topology: THypermediaTopology }): AccessLevel;
+export function declaredAccessLevel(domain: TRegisteredDomain | undefined): AccessLevel | undefined;
+export function declaredAccessLevel(domain: TRegisteredDomain | undefined): AccessLevel | undefined {
+	const topology = domain?.topology;
+	return isPersisted(topology) ? (topology.accessLevel ?? Access.private) : undefined;
 }
 
 /** Domain name for type labels, auto-populated from registered persisted domains. */
