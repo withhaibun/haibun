@@ -14,7 +14,7 @@ import { z } from "zod";
 import MarkdownIt from "markdown-it";
 import DOMPurify from "dompurify";
 import { ShuElement, TIME_SYNC_CLASS, type TLinkedData } from "./shu-element.js";
-import { SHU_EVENT } from "../consts.js";
+import { SHU_ATTR, SHU_EVENT } from "../consts.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { shuBaseStyles } from "./styles.js";
 import { artifactStepId, buildArtifactIndex, generateDocumentMarkdown, stepAncestors } from "@haibun/core/lib/document-content.js";
@@ -442,10 +442,10 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		const step = `data-step-id="${esc(artifactStepId(artifact.id))}"`;
 		if (type === "image") {
 			// Decoded off the thread that draws the page: a strip holds many tiles, and each is a screenshot of a whole page.
-			return `<shu-artifact-frame class="thumb" ${step}><img src="${esc(String(artifactPath))}" loading="lazy" decoding="async" /></shu-artifact-frame>`;
+			return `<shu-artifact-frame class="thumb" ${step}><img ${SHU_ATTR.DATA_ARTIFACT}="${esc(String(artifactPath))}" loading="lazy" decoding="async" /></shu-artifact-frame>`;
 		}
 		if (type === "html")
-			return `<shu-artifact-frame ${step}><iframe src="${esc(String(artifactPath))}" loading="lazy" sandbox="allow-scripts allow-same-origin" style="width:100%;min-height:80vh;border:none;"></iframe></shu-artifact-frame>`;
+			return `<shu-artifact-frame ${step}><iframe ${SHU_ATTR.DATA_ARTIFACT}="${esc(String(artifactPath))}" loading="lazy" sandbox="allow-scripts allow-same-origin" style="width:100%;min-height:80vh;border:none;"></iframe></shu-artifact-frame>`;
 		if (type === "json") return `<shu-artifact-frame ${step}><pre class="json-block">${esc(JSON.stringify(a.json, null, 2))}</pre></shu-artifact-frame>`;
 		if (type === "file") return `<shu-artifact-frame ${step} caption="${esc(String(a.path))}"><a href="${esc(String(a.path))}">${esc(String(a.path))}</a></shu-artifact-frame>`;
 		return "";

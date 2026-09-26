@@ -58,11 +58,28 @@ import { resetRunSources, setDeviceStore, MemoryDeviceStore } from "./client-cac
 import { SHOW_STEPS_METHOD, STEP_DETAIL, readShownSteps, stepDefinition, type TStepDefinitions } from "@haibun/core/lib/step-discovery.js";
 import { requiredAction } from "@haibun/core/lib/actions.js";
 import { steppersOf } from "@haibun/core/lib/step-registry.js";
+import { ARTIFACTS_ROUTE } from "./consts.js";
 
 type TShuTestConfig = {
 	/** Optional dispatch for in-test RPCs. Default throws on every call, naming the unconfigured method, tests opt in by supplying a function that returns wire results for the methods they exercise. */
 	dispatch?: TDispatch;
+	/** What the run answers a read of one of its artifacts with: an empty image unless a test says otherwise. */
+	artifact?: (url: string) => Response;
 };
+
+/** Answer a view's reads of the run's artifacts as the run's artifact route does, and show what it read at an object URL
+ *  a test page can hold, until the returned function restores both. */
+function servingArtifacts(answer: (url: string) => Response): () => void {
+	const through = globalThis.fetch;
+	const objectUrl = URL.createObjectURL;
+	globalThis.fetch = ((url: string | URL | Request, init?: RequestInit) =>
+		String(url).startsWith(`${ARTIFACTS_ROUTE}/`) ? Promise.resolve(answer(String(url))) : through(url, init)) as typeof fetch;
+	URL.createObjectURL = () => "blob:artifact";
+	return () => {
+		globalThis.fetch = through;
+		URL.createObjectURL = objectUrl;
+	};
+}
 
 export type TShuTestHandle = {
 	/** Drive a scripted event into the installed `EventStream`. Components subscribed via `eventStream()` see it as if it had arrived over SSE. */
@@ -153,6 +170,7 @@ export function setupShuTest(config: TShuTestConfig = {}): TShuTestHandle {
 		});
 	const conduit = new TestConduit(dispatch);
 	const eventStream = new SerializedEventStream();
+	const stopServingArtifacts = servingArtifacts(config.artifact ?? (() => new Response(new Blob([], { type: "image/png" }))));
 	setConduit(conduit);
 	setEventStream(eventStream);
 	// The run sources are page-wide singletons (one per level, pinned on globalThis): each test starts them afresh over a
@@ -162,6 +180,7 @@ export function setupShuTest(config: TShuTestConfig = {}): TShuTestHandle {
 	return {
 		emit: (event) => eventStream.emit(event),
 		teardown: () => {
+			stopServingArtifacts();
 			resetRunSources();
 			resetConduit();
 			resetEventStream();

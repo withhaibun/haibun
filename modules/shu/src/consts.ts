@@ -23,6 +23,9 @@ export const PAGE_STRIP_FOOTPRINT = "--shu-page-strip-h";
 /** The hash param that addresses the conversation the ask is open on, by its session's seqPath. */
 export const CONVERSATION_PARAM = "ask";
 
+/** Where the run serves the artifacts its steps captured. */
+export const ARTIFACTS_ROUTE = "/artifacts";
+
 /** What a deep link into the view state begins with: view state is carried in the hash, which a static document can
  *  link to and a page saved for offline reading still keeps. */
 export const DEEP_LINK_PREFIX = "#?";
@@ -174,6 +177,8 @@ export const SEARCH_SLOT = "search";
 
 export const SHU_ATTR = {
 	DATA_MINIMIZED: "data-minimized",
+	/** On an image or frame an artifact frame holds: the address of the run's artifact it shows once the page has read it. */
+	DATA_ARTIFACT: "data-artifact",
 	/** Declared by an overlay while it covers the views beneath it. A framing aims what it frames clear of everything
 	 *  carrying this, and re-aims when one appears or goes, so a reader is never shown a node under a panel. */
 	DATA_COVERS_VIEWS: "data-covers-views",

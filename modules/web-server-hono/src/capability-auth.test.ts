@@ -5,7 +5,8 @@
  * nothing holds what the deployment allows without a delegation, which is nothing unless it says otherwise.
  */
 import { describe, it, expect } from "vitest";
-import { grantedCapabilityForRequest } from "./capability-auth.js";
+import { Hono } from "hono";
+import { grantedCapabilityForRequest, requiring } from "./capability-auth.js";
 import { SessionAuthority, AUTHORITY_KEY } from "@haibun/core/lib/session-authority.js";
 import { runActingAs } from "@haibun/core/lib/capability-context.js";
 import { currentPrincipal } from "@haibun/core/lib/principal.js";
@@ -74,6 +75,31 @@ describe("what a request carries to a boundary", () => {
 		const presentingNothing = { method: "POST", url: "http://site.test:8123/rpc/x", headers: { authorization: "Bearer tkn" } };
 		expect(await grantedCapabilityForRequest(presentingNothing, runtimeWith(authority), NOBODY), "a secret it carries is no authority").toEqual({ granted: [] });
 		expect(await grantedCapabilityForRequest(presentingNothing, runtimeWith(authority), PUBLIC_SITE), "and anyone may read a public site").toEqual({ granted: PUBLIC_SITE });
+	});
+});
+
+describe("a route that requires an action", () => {
+	/** A route answering only a request that allows the action, at a deployment allowing `allowed` without a delegation. */
+	const held = (allowed: string[]) => {
+		const authority = new SessionAuthority();
+		authority.registerVerifier(new StubVerifier());
+		const app = new Hono();
+		app.get("/held/*", requiring(ACTION, runtimeWith(authority), () => allowed), (c) => c.text("held"));
+		return (headers: Record<string, string> = {}) => app.request("http://site.test:8123/held/one", { headers });
+	};
+
+	it("answers a request whose proof allows the action, or a request presenting nothing where the deployment allows it", async () => {
+		expect(await (await held(NOBODY)(signedRequest(ACTION).headers)).text()).toBe("held");
+		expect((await held([ACTION])()).status).toBe(200);
+	});
+
+	it("refuses a request presenting nothing 403, and one whose proof fails 401, naming why", async () => {
+		const unproven = await held(NOBODY)();
+		expect(unproven.status).toBe(403);
+		expect(await unproven.json()).toEqual({ error: "/held/one: not a call this caller may make" });
+		const failed = await held(NOBODY)(signedRequest("comment.revoke").headers);
+		expect(failed.status).toBe(401);
+		expect(await failed.json()).toEqual({ error: "/held/one: the presented authority failed verification: not this one" });
 	});
 });
 

@@ -1,4 +1,7 @@
+import type { Context, MiddlewareHandler } from "hono";
 import type { TRuntime } from "@haibun/core/lib/world.js";
+import { capabilityAllows } from "@haibun/core/lib/actions.js";
+import { refusal } from "@haibun/core/lib/step-registry.js";
 import { getAuthority } from "@haibun/core/lib/session-authority.js";
 import type { TRestsOn } from "@haibun/core/lib/authority-types.js";
 
@@ -36,6 +39,24 @@ export async function grantedCapabilityForRequest(
 	if (!verdict.ok) return { granted: [], refused: `the presented authority failed verification: ${verdict.error ?? "no reason given"}` };
 	return { granted: [...allowedWithoutDelegation, ...(verdict.allowedAction ?? [])], principal: verdict.principal, restsOn: verdict.restsOn };
 }
+
+/** A request's authority where it allows `action`, or else the answer that refuses it: a presented proof that fails is
+ *  refused 401, and authority that doesn't allow the action 403. */
+export async function authorityAllowing(c: Context, action: string, runtime: TRuntime, allowedWithoutDelegation: readonly string[]): Promise<TRequestAuthority | Response> {
+	const authority = await grantedCapabilityForRequest({ method: c.req.method, url: c.req.url, headers: c.req.header() }, runtime, allowedWithoutDelegation);
+	if (authority.refused) return c.json({ error: `${c.req.path}: ${authority.refused}` }, 401);
+	if (!capabilityAllows(authority.granted, action)) return c.json({ error: refusal(c.req.path, action, authority.principal) }, 403);
+	return authority;
+}
+
+/** A route's middleware that answers only a request whose authority allows `action`. */
+export const requiring =
+	(action: string, runtime: TRuntime, allowedWithoutDelegation: () => readonly string[]): MiddlewareHandler =>
+	async (c, next) => {
+		const allowing = await authorityAllowing(c, action, runtime, allowedWithoutDelegation());
+		if (allowing instanceof Response) return allowing;
+		await next();
+	};
 
 /**
  * Hold a call open only while the authority it was allowed under holds: `end` is told why once a capability its proof

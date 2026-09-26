@@ -42,12 +42,12 @@
 				"declaredStepTextHash": "4f2c94ae645eda3071bcdce65b58a9a9b48a9d58cdbcc27edc047200d226cd22"
 			},
 			"/features/counter.feature": {
-				"seconds": 0.5,
+				"seconds": 1.2,
 				"steps": 19,
 				"declaredStepTextHash": "2f70ffa43d3f1498ca7807f6a570b166e456aa1830c1890cdbeba09ddabc773d"
 			},
 			"/features/counter.feature.ts": {
-				"seconds": 1.6,
+				"seconds": 1.8,
 				"steps": 19,
 				"declaredStepTextHash": "2bacbd5da344c9602608a02dc1f56199b85a5c69b1c5117a0e2cadc3d54518d3"
 			},
@@ -57,7 +57,7 @@
 				"declaredStepTextHash": "652c388ee70912af2a7946070e41462d929458d68bc7766c8eeca3840cd4ec1b"
 			},
 			"/features/elements.feature": {
-				"seconds": 0.4,
+				"seconds": 0.3,
 				"steps": 6,
 				"declaredStepTextHash": "f25538464d6291400a6bd6369ba30578b1498e8bde57dfc1a7033ddab3d87054"
 			},
@@ -72,7 +72,7 @@
 				"declaredStepTextHash": "f567c83cdc9db224634e851624576d77db1cdec635c722eabde2b3a633fd9b50"
 			},
 			"/features/identity-and-capability.feature.ts": {
-				"seconds": 0,
+				"seconds": 0.1,
 				"steps": 28,
 				"declaredStepTextHash": "0e004cc14e9c5e6514b75283d91ac33c509ba8f5f400f936ae3175efdd37d7b2"
 			},
@@ -107,7 +107,7 @@
 				"declaredStepTextHash": "973f020efebbbef86f06cda006feef3d98d079e5ecdc0fa7be02b881b43fbe33"
 			},
 			"/features/trauma_center.feature": {
-				"seconds": 0.1,
+				"seconds": 0,
 				"steps": 93,
 				"declaredStepTextHash": "70c4ba0a91793061edb72e073dc62e1fcb3940bac2e90550ab3b2a54ade3f5a6"
 			},
@@ -128,7 +128,7 @@
 			},
 			"/features/wikipedia.feature.ts": {
 				"seconds": 1,
-				"steps": 155,
+				"steps": 137,
 				"declaredStepTextHash": "b162c447aa4626651d8e903bcce16dc77fdff6ddf5cdcb3dd48ed79db2d59972"
 			},
 			"/features/workflow.feature.ts": {
@@ -142,7 +142,7 @@
 				"declaredStepTextHash": "6955f2010a1bca21452d955a0c2558183d56d579763a342a595fe3631cafa921"
 			}
 		},
-		"steps": 1144,
-		"seconds": 16.8
+		"steps": 1126,
+		"seconds": 17.6
 	}
 }

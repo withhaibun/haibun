@@ -76,6 +76,10 @@ export function readCeilingOf(granted: string | string[] | undefined): AccessLev
  *  reveal, and a follower is sent those it may read at that level. */
 export const FOLLOWS_THE_RUN = readAction(Access.public);
 
+/** What reading the run's artifacts requires: a private read, since a capture shows what the run's steps saw, such as a
+ *  person's own page. */
+export const READS_THE_RUNS_ARTIFACTS = readAction(Access.private);
+
 /** The action writing a record at `level` requires where `level` is more public than what the writer may read: writing
  *  what it read where more readers see it. Held exactly, or through `*`. */
 export const writeAction = (level: AccessLevel): string => `${WRITE_PREFIX}${level}`;

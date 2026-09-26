@@ -206,6 +206,14 @@ export async function keyHeaders(request: { url: string; method: string; headers
 	return await signCapabilityInvocation({ ...request, capabilityAction: DELEGATIONS_READ_ACTION, invocationSigner: { id: key.keyId, sign: key.sign } });
 }
 
+/** The headers a page asks for `url` with by GET: signed under a delegation that allows `action`, where it holds one, and
+ *  none otherwise, which the deployment may allow without a delegation. */
+export async function readingHeaders(url: string, action: string): Promise<Record<string, string>> {
+	await pageAuthorityReady();
+	const asked = new URL(url, location.href);
+	return (await signedHeaders({ url: asked.toString(), method: "GET", headers: { host: asked.host }, action })) ?? {};
+}
+
 export async function signedHeaders(request: {
 	url: string;
 	method: string;

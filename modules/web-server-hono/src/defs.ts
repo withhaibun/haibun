@@ -42,7 +42,8 @@ import type { IRouteRegistry } from "@haibun/core/lib/execution.js";
 export interface IWebServer extends IRouteRegistry {
 	checkAddStaticFolder(relativeFolder: string, mountAt: string, purpose: TRoutePurpose): void;
 	checkAddIndexFolder(relativeFolder: string, mountAt: string, purpose: TRoutePurpose): void;
-	addKnownStaticFolder(folder: string, mountAt: string, purpose: TRoutePurpose): void;
+	/** Serve a folder at `mountAt`, each request passing `before` first, such as a middleware that requires an action. */
+	addKnownStaticFolder(folder: string, mountAt: string, purpose: TRoutePurpose, ...before: MiddlewareHandler[]): void;
 	listen(why: string, port: number, hostname?: string): Promise<void>;
 	close(): Promise<void>;
 	readonly mounted: TRouteMap;

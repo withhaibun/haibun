@@ -3,7 +3,8 @@
  * Uses a slot for content, wrap any artifact (img, iframe, pre, shu-product-view) inside.
  * Attributes: caption (display text).
  */
-import { SHU_EVENT } from "../consts.js";
+import { SHU_ATTR, SHU_EVENT } from "../consts.js";
+import { shownOrReported } from "../artifact-url.js";
 
 const STYLES = `
 :host { display: block; margin: var(--shu-space-6) 0 var(--shu-space-6) 32px; border: var(--shu-border-w) solid var(--shu-border); border-radius: 6px; overflow: hidden; }
@@ -122,6 +123,10 @@ export class ShuArtifactFrame extends HTMLElement {
 		});
 		document.addEventListener("keydown", this.onKeydown);
 		window.addEventListener("resize", this.onReposition);
+		// The run serves an artifact only to a reader holding a private read, so what the frame holds shows what the page read.
+		for (const media of this.querySelectorAll(`[${SHU_ATTR.DATA_ARTIFACT}]`)) {
+			void shownOrReported(media.getAttribute(SHU_ATTR.DATA_ARTIFACT) ?? "", "shu-artifact-frame").then((at) => at && media.setAttribute("src", at));
+		}
 	}
 
 	disconnectedCallback(): void {

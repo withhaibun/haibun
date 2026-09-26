@@ -148,10 +148,10 @@ export class ServerHono implements IWebServer {
 		this.addStaticFolderInternal(join(this.base, relativeFolder), mountAt, purpose);
 	}
 
-	addKnownStaticFolder(folder: string, mountAt: string, purpose: TRoutePurpose): void {
+	addKnownStaticFolder(folder: string, mountAt: string, purpose: TRoutePurpose, ...before: MiddlewareHandler[]): void {
 		if (!folder) throw new Error("ServerHono.addKnownStaticFolder: folder is required");
 		if (!mountAt) throw new Error("ServerHono.addKnownStaticFolder: mountAt is required");
-		this.addStaticFolderInternal(folder, mountAt, purpose);
+		this.addStaticFolderInternal(folder, mountAt, purpose, before);
 	}
 
 	checkAddIndexFolder(relativeFolder: string, mountAt: string, purpose: TRoutePurpose): void {
@@ -183,13 +183,14 @@ export class ServerHono implements IWebServer {
 		this.mount("get", mountAt, folder, purpose);
 	}
 
-	private addStaticFolderInternal(folder: string, mountAt: string, purpose: TRoutePurpose): void {
+	private addStaticFolderInternal(folder: string, mountAt: string, purpose: TRoutePurpose, before: MiddlewareHandler[] = []): void {
 		this.validatePurpose(purpose);
 		this.validatePath(mountAt);
 		this.ensureNotMounted("get", mountAt);
 		this.validateFolderExists(folder);
 		this.eventLogger.debug(`ServerHono: serving static files from ${folder} at ${mountAt}`);
 		const staticPath = mountAt.endsWith("/") ? `${mountAt}*` : `${mountAt}/*`;
+		for (const gate of before) for (const path of [staticPath, mountAt]) this._app.use(path, gate);
 		this._app.get(staticPath, serveStatic({ root: folder, rewriteRequestPath: (path) => path.replace(mountAt, "") }));
 		this._app.get(mountAt, serveStatic({ root: folder, rewriteRequestPath: () => "/index.html" }));
 		this.mount("get", mountAt, folder, purpose);

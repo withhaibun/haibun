@@ -4,14 +4,14 @@ import { streamSSE } from "hono/streaming";
 import type { IWebServer } from "./defs.js";
 import type { IEventLogger } from "@haibun/core/lib/EventLogger.js";
 import { truncateForLog, errorDetail } from "@haibun/core/lib/util/index.js";
-import { refusal, type StepRegistry } from "@haibun/core/lib/step-registry.js";
+import type { StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { streamContext, streamOver, type TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import type { IStepTransport } from "./step-transport.js";
 import { RPC_REFUSED } from "@haibun/core/lib/rpc-wire.js";
 import type { TRuntime } from "@haibun/core/lib/world.js";
 import { capabilityAllows, FOLLOWS_THE_RUN, readAction } from "@haibun/core/lib/actions.js";
 import { Access, AccessLevelSchema, type AccessLevel } from "@haibun/core/lib/resources.js";
-import { endWhenLapsed, grantedCapabilityForRequest } from "./capability-auth.js";
+import { authorityAllowing, endWhenLapsed } from "./capability-auth.js";
 
 type TTransportRequestInfo = {
 	headers?: Record<string, string | undefined>;
@@ -54,10 +54,9 @@ export class SSETransport implements ITransport, IStepTransport {
 
 	private setupRoutes(): void {
 		this.webserver.addRoute("get", "/sse", { description: "Server-Sent Events stream for live framework events" }, async (c) => {
-			const authority = await grantedCapabilityForRequest({ method: c.req.method, url: c.req.url, headers: c.req.header() }, this.runtime, this.webserver.allowedWithoutDelegation);
-			const { granted, principal, refused } = authority;
-			if (refused) return c.json({ error: `/sse: ${refused}` }, 401);
-			if (!capabilityAllows(granted, FOLLOWS_THE_RUN)) return c.json({ error: refusal("/sse", FOLLOWS_THE_RUN, principal) }, 403);
+			const authority = await authorityAllowing(c, FOLLOWS_THE_RUN, this.runtime, this.webserver.allowedWithoutDelegation);
+			if (authority instanceof Response) return authority;
+			const { granted } = authority;
 			this.eventLogger.debug("SSE Client connected");
 			return await streamSSE(c, async (sseStream) => {
 				// The stream announces what happens from here on. What happened before is in the graph, which a

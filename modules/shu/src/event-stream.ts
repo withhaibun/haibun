@@ -18,7 +18,7 @@
 import { SseSubscriber } from "@haibun/core/lib/sse-subscriber.js";
 import { FOLLOWS_THE_RUN } from "@haibun/core/lib/actions.js";
 import { deploymentMs } from "./rpc-registry.js";
-import { pageAuthorityReady, signedHeaders } from "./page-key.js";
+import { readingHeaders } from "./page-key.js";
 
 export type TEvent = Record<string, unknown>;
 type TEventHandler = (event: TEvent) => void;
@@ -57,13 +57,8 @@ export interface EventStream {
 
 // ─── LiveEventStream ─────────────────────────────────────────────────────────
 
-/** What the page asks for the run's stream with: signed under a delegation that allows following the run, where it holds
- *  one, and nothing otherwise, which the deployment may allow without a delegation. */
-async function followingHeaders(url: string): Promise<Record<string, string>> {
-	await pageAuthorityReady();
-	const asked = new URL(url, location.href);
-	return (await signedHeaders({ url: asked.toString(), method: "GET", headers: { host: asked.host }, action: FOLLOWS_THE_RUN })) ?? {};
-}
+/** What the page asks for the run's stream with: signed under a delegation that allows following the run. */
+const followingHeaders = (url: string): Promise<Record<string, string>> => readingHeaders(url, FOLLOWS_THE_RUN);
 
 /** `EventStream` over a real `/sse` connection. One shared `SseSubscriber` regardless of how many `LiveEventStream` instances exist; constructed lazily on first `subscribe`, and opened only by `connect`, once the page knows it may follow the run. */
 export class LiveEventStream implements EventStream {
