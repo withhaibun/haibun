@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { ENDPOINT_LABEL, HTTP_CLIENT_LABEL, HTTP_HOST_LABEL, HTTP_REQUEST_LABEL, LinkRelations, PersistedVertexSchema, TDomainDefinition } from "@haibun/core/lib/resources.js";
-import { DOMAIN_STRING, createEnumDomainDefinition } from "@haibun/core/lib/domains.js";
+import { asDomainKey, createEnumDomainDefinition } from "@haibun/core/lib/domains.js";
 import { ENDPOINT_CLASS } from "@haibun/core/lib/http-observations.js";
 import { DOMAIN_RELAY_ATTACHMENT, RelayAttachmentSchema } from "./relay/relay-wire.js";
 
@@ -14,6 +14,31 @@ export const DOMAIN_PAGE_PLACEHOLDER = "page-placeholder";
 export const DOMAIN_PAGE_ROLE = "page-role";
 export const DOMAIN_PAGE_TITLE = "page-title";
 export const DOMAIN_PAGE_ALT_TEXT = "page-alt-text";
+/** Text a page shows, found as it reads. */
+export const DOMAIN_PAGE_TEXT = "page-text";
+/** The ways a page is searched for a place in it, each a part of a page target. */
+export const PAGE_FINDERS = [
+	DOMAIN_PAGE_ALT_TEXT,
+	DOMAIN_PAGE_LABEL,
+	DOMAIN_PAGE_LOCATOR,
+	DOMAIN_PAGE_PLACEHOLDER,
+	DOMAIN_PAGE_ROLE,
+	DOMAIN_PAGE_TEST_ID,
+	DOMAIN_PAGE_TEXT,
+	DOMAIN_PAGE_TITLE,
+];
+/** A place on a page: by any way a page is searched, or by the text it shows. A line's own words are that text. */
+export const DOMAIN_PAGE_TARGET = asDomainKey([...PAGE_FINDERS]);
+/** A key as Playwright names it, such as Enter or Control+A. */
+export const DOMAIN_KEYBOARD_KEY = "keyboard-key";
+/** The name of a cookie a page holds. */
+export const DOMAIN_COOKIE_NAME = "cookie-name";
+/** The name of a parameter of a page's address query, as the line writes it. */
+export const DOMAIN_QUERY_PARAMETER = "query-parameter";
+/** A media type, such as application/json. */
+export const DOMAIN_MEDIA_TYPE = "media-type";
+/** A property of a JSON response's members, by name. */
+export const DOMAIN_JSON_PROPERTY = "json-property";
 
 const locatorSchema = z.string().min(1, "locator cannot be empty");
 export const PageContentsSchema = z.object({ html: z.string() });
@@ -162,11 +187,22 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 		schema: locatorSchema,
 		description: "Playwright selector such as css= or text=",
 	},
+	{ selectors: [DOMAIN_PAGE_TEXT], schema: locatorSchema, description: "Text a page shows, found as it reads" },
 	{
-		selectors: [DOMAIN_PAGE_LOCATOR, DOMAIN_STRING],
+		selectors: [...PAGE_FINDERS],
 		schema: locatorSchema,
-		description: "Locator that also satisfies string semantics.",
+		description: "A place on a page, by any way a page is searched or by the text it shows; a line's own words are that text",
 	},
+	{ selectors: [DOMAIN_KEYBOARD_KEY], schema: z.string().min(1, "names no key"), description: "A key as Playwright names it, such as Enter or Control+A" },
+	{ selectors: [DOMAIN_COOKIE_NAME], schema: z.string().min(1, "names no cookie"), description: "The name of a cookie a page holds" },
+	{
+		selectors: [DOMAIN_QUERY_PARAMETER],
+		schema: z.string().min(1, "names no parameter"),
+		written: true,
+		description: "The name of a parameter of a page's address query, as the line writes it",
+	},
+	{ selectors: [DOMAIN_MEDIA_TYPE], schema: z.string().regex(/^[\w.+-]+\/[\w.+*-]+/, "is no media type"), description: "A media type, such as application/json" },
+	{ selectors: [DOMAIN_JSON_PROPERTY], schema: z.string().min(1, "names no property"), description: "A property of a JSON response's members, by name" },
 	{
 		selectors: [DOMAIN_PAGE_TEST_ID],
 		schema: locatorSchema,

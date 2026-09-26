@@ -4,7 +4,15 @@ import { WEB_PLAYWRIGHT_ACTIONS } from "./actions.js";
 import { OK } from "@haibun/core/schema/protocol.js";
 import { TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { DOMAIN_NUMBER, DOMAIN_LINK, DOMAIN_TEXT, DOMAIN_JSON, DOMAIN_BEARER_TOKEN, DOMAIN_PASSWORD, DOMAIN_USER_NAME } from "@haibun/core/lib/domains.js";
-import { DOMAIN_HTTP_METHOD, DOMAIN_HTTP_METHOD_WITH_BODY, DOMAIN_HTTP_METHOD_WITHOUT_BODY, DOMAIN_JSON_RESPONSE_COUNT, HTTP_METHODS_WITH_BODY } from "./domains.js";
+import {
+	DOMAIN_HTTP_METHOD,
+	DOMAIN_HTTP_METHOD_WITH_BODY,
+	DOMAIN_HTTP_METHOD_WITHOUT_BODY,
+	DOMAIN_JSON_PROPERTY,
+	DOMAIN_JSON_RESPONSE_COUNT,
+	DOMAIN_MEDIA_TYPE,
+	HTTP_METHODS_WITH_BODY,
+} from "./domains.js";
 
 export const AUTHORIZATION = "Authorization";
 export const ACCESS_TOKEN = "access_token";
@@ -63,7 +71,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 
 		acceptEndpointRequest: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
-			gwta: `accept {accept} using ${HTTP} {method: ${DOMAIN_HTTP_METHOD_WITHOUT_BODY}} to {endpoint: ${DOMAIN_LINK}}`,
+			gwta: `accept {accept: ${DOMAIN_MEDIA_TYPE}} using ${HTTP} {method: ${DOMAIN_HTTP_METHOD_WITHOUT_BODY}} to {endpoint: ${DOMAIN_LINK}}`,
 			action: async ({ accept, method, endpoint }: { accept: string; method: string; endpoint: string }, featureStep) => {
 				const serialized = await webPlaywright.withPageFetch(endpoint, method.toLowerCase(), { headers: { accept } });
 				await webPlaywright.setLastResponse(serialized, featureStep);
@@ -83,7 +91,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 		},
 		filterResponseJson: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
-			gwta: `filter JSON response by {property} matching {match}`,
+			gwta: `filter JSON response by {property: ${DOMAIN_JSON_PROPERTY}} matching {match: ${DOMAIN_TEXT}}`,
 			action: async ({ property, match }: { property: string; match: string }, featureStep) => {
 				const lastResponse = await webPlaywright.getLastResponse();
 				if (!lastResponse?.json || !Array.isArray(lastResponse.json)) {
@@ -135,7 +143,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 		},
 		restFilterPropertyRequest: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
-			gwta: `for each filtered {property}, make REST {method: ${DOMAIN_HTTP_METHOD_WITHOUT_BODY}} to {endpoint: ${DOMAIN_LINK}} yielding status {status: ${DOMAIN_NUMBER}}`,
+			gwta: `for each filtered {property: ${DOMAIN_JSON_PROPERTY}}, make REST {method: ${DOMAIN_HTTP_METHOD_WITHOUT_BODY}} to {endpoint: ${DOMAIN_LINK}} yielding status {status: ${DOMAIN_NUMBER}}`,
 			action: async ({ property, method, endpoint, status }: { property: string; method: string; endpoint: string; status: number }) => {
 				const lastResponse = await webPlaywright.getLastResponse();
 				const { filtered } = lastResponse;
@@ -179,7 +187,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 		},
 		restResponsePropertyIs: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
-			gwta: `${HTTP} response property {property} is {value}`,
+			gwta: `${HTTP} response property {property: ${DOMAIN_JSON_PROPERTY}} is {value: ${DOMAIN_TEXT}}`,
 			action: async ({ property, value }: { property: string; value: string }) => {
 				const lastResponse = await webPlaywright.getLastResponse();
 				if (lastResponse && lastResponse.json && !Array.isArray(lastResponse.json) && (lastResponse.json as TJsonRecord)[property] === value) {
@@ -192,7 +200,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 		},
 		restResponseIs: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
-			gwta: `${HTTP} text response is {value}`,
+			gwta: `${HTTP} text response is {value: ${DOMAIN_TEXT}}`,
 			action: async ({ value }: { value: string }) => {
 				const lastResponse = await webPlaywright.getLastResponse();
 				if (lastResponse && lastResponse.text === value) {

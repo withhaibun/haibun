@@ -24,7 +24,16 @@ import { saveImageArtifact } from "./artifact.js";
 import { VideoStartArtifact } from "@haibun/core/schema/protocol.js";
 import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
 import { DOMAIN_STRING } from "@haibun/core/lib/domains.js";
-import { DOMAIN_PAGE_LOCATOR, DOMAIN_PAGE_TEST_ID, DOMAIN_PAGE_LABEL, DOMAIN_PAGE_PLACEHOLDER, DOMAIN_PAGE_ROLE, DOMAIN_PAGE_TITLE, DOMAIN_PAGE_ALT_TEXT } from "./domains.js";
+import {
+	DOMAIN_PAGE_LOCATOR,
+	DOMAIN_PAGE_TEST_ID,
+	DOMAIN_PAGE_LABEL,
+	DOMAIN_PAGE_PLACEHOLDER,
+	DOMAIN_PAGE_ROLE,
+	DOMAIN_PAGE_TITLE,
+	DOMAIN_PAGE_ALT_TEXT,
+	DOMAIN_PAGE_TEXT,
+} from "./domains.js";
 import { AStepper, IHasCycles, IHasOptions, StepperKinds } from "@haibun/core/lib/astepper.js";
 
 import { cycles } from "./cycles.js";
@@ -484,6 +493,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 
 		switch (effectiveDomain) {
 			case DOMAIN_STRING:
+			case DOMAIN_PAGE_TEXT:
 				return page.getByText(strValue, { exact: true });
 			case DOMAIN_PAGE_TEST_ID:
 				return page.getByTestId(strValue);
@@ -504,10 +514,9 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	}
 }
 
-/** For union domains, prefer string (getByText) over generic page-locator (CSS selector). */
+/** How a value of a union of page finders is found: a line's own words are the text a page shows, the most common case. */
 export function pickLocatorDomain(parts: string[]): string {
-	// Prefer string domain for text-based matching (most common for quoted values)
-	if (parts.includes(DOMAIN_STRING)) return DOMAIN_STRING;
+	if (parts.includes(DOMAIN_PAGE_TEXT)) return DOMAIN_PAGE_TEXT;
 	// Then try specific locator domains
 	const locatorDomains = [DOMAIN_PAGE_TEST_ID, DOMAIN_PAGE_LABEL, DOMAIN_PAGE_PLACEHOLDER, DOMAIN_PAGE_ROLE, DOMAIN_PAGE_TITLE, DOMAIN_PAGE_ALT_TEXT, DOMAIN_PAGE_LOCATOR];
 	for (const d of locatorDomains) {

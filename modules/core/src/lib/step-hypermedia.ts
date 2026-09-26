@@ -91,7 +91,7 @@ function deriveActionLinks(
 	const productId = typeof products.id === "string" ? products.id : undefined;
 	const matchesProduct = (paramDomain: string): boolean => {
 		if (paramDomain === productsDomain) return true;
-		// Some gwta params declare a union domain (e.g. `string | page-locator`): those carry no single-domain topology to follow, so skip them. normalizeDomainKey throws on misordered unions; guard with try/catch so a single quirky param doesn't break affordance derivation for every product the step produces.
+		// Some gwta params declare a union domain (e.g. a page target, any way a page is searched): those carry no single-domain topology to follow, so skip them. normalizeDomainKey throws on misordered unions; guard with try/catch so a single quirky param doesn't break affordance derivation for every product the step produces.
 		let refDomain: { topology?: { ranges?: { id?: string } } } | undefined;
 		try {
 			refDomain = world.domains?.[normalizeDomainKey(paramDomain)];

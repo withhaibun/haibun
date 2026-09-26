@@ -13,14 +13,19 @@ import {
 	DOMAIN_LINK,
 	DOMAIN_FILE_PATH,
 } from "@haibun/core/lib/domains.js";
-import { actionNotOK, actionOKWithProducts, errorDetail, sleep, getStepTerm, jsonArtifact } from "@haibun/core/lib/util/index.js";
+import { actionNotOK, actionOKWithProducts, errorDetail, sleep, jsonArtifact } from "@haibun/core/lib/util/index.js";
 import {
 	DOMAIN_ACCESSIBILITY_SNAPSHOT,
 	DOMAIN_BROWSER_EXTENSION,
 	DOMAIN_FIND_WAY,
 	DOMAIN_PAGE_CONTENTS,
 	DOMAIN_PAGE_LOCATOR,
+	DOMAIN_PAGE_TARGET,
 	DOMAIN_PAGE_TEST_ID,
+	DOMAIN_PAGE_TEXT,
+	DOMAIN_KEYBOARD_KEY,
+	DOMAIN_COOKIE_NAME,
+	DOMAIN_QUERY_PARAMETER,
 	DOMAIN_REQUEST_STATE,
 	DOMAIN_URL_GLOB,
 	REQUEST_STATE,
@@ -42,8 +47,6 @@ import { TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { provenanceFromFeatureStep } from "@haibun/core/steps/variables-stepper.js";
 import { FlowRunner } from "@haibun/core/lib/core/flow-runner.js";
 
-const DOMAIN_STRING_OR_PAGE_LOCATOR = `${DOMAIN_STRING} | ${DOMAIN_PAGE_LOCATOR}`;
-
 /** The steps that act on what an accessibility snapshot reads, which the snapshot links. */
 const SNAPSHOT_ACTIONS = ["click", "setValue", "press", "selectionOption", "gotoPage", "goBack", "takeScreenshot"] as const;
 
@@ -52,7 +55,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		// INPUT
 		press: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
-			gwta: "press {key}",
+			gwta: `press {key: ${DOMAIN_KEYBOARD_KEY}}`,
 			action: async ({ key }: { key: string }) => {
 				await wp.withPage(async (page: Page) => await page.keyboard.press(key));
 				return OK;
@@ -68,7 +71,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 		setValue: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
-			gwta: `enter {what} into {field: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
+			gwta: `enter {what: ${DOMAIN_TEXT}} into {field: ${DOMAIN_PAGE_TARGET}}`,
 			action: async ({ what, field }: { what: string; field: string }, featureStep: TFeatureStep) => {
 				await wp.withPage(async (page: Page) => {
 					const locator = await wp.locateByDomain(page, featureStep, "field");
@@ -86,7 +89,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 		selectionOption: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
-			gwta: `select {option} for {field: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
+			gwta: `select {option: ${DOMAIN_PAGE_TEXT}} for {field: ${DOMAIN_PAGE_TARGET}}`,
 			action: async ({ option, field }: { option: string; field: string }, featureStep: TFeatureStep) => {
 				await wp.withPage(async (page: Page) => await (await wp.locateByDomain(page, featureStep, "field")).selectOption({ label: option }));
 				return OK;
@@ -94,7 +97,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 		dialogIs: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.read,
-			gwta: `dialog {what: ${DOMAIN_VARIABLE_NAME}} {type: ${DOMAIN_DIALOG_FIELD}} says {value}`,
+			gwta: `dialog {what: ${DOMAIN_VARIABLE_NAME}} {type: ${DOMAIN_DIALOG_FIELD}} says {value: ${DOMAIN_TEXT}}`,
 			action: async ({ what, type, value }: { what: string; type: string; value: string }) => {
 				const resolvedValue = await wp.getWorld().shared.get(what, true);
 				const cur = (resolvedValue as Record<string, unknown> | undefined)?.[type];
@@ -139,7 +142,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			action: async ({ text }: { text: string }) => await wp.sees(text, "body"),
 		},
 		waitFor: {
-			gwta: `wait for {target: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
+			gwta: `wait for {target: ${DOMAIN_PAGE_TARGET}}`,
 			action: async ({ target }: { target: string }, featureStep: TFeatureStep) => {
 				try {
 					// Within `in {container}`, the target is found in the container as a click there finds it.
@@ -213,7 +216,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 		beOnPage: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.read,
-			gwta: `be on the {name} ${WEB_PAGE}`,
+			gwta: `be on the {name: ${DOMAIN_LINK}} ${WEB_PAGE}`,
 			action: async ({ name }: { name: string }) => {
 				const nowon = await wp.withPage(async (page: Page) => {
 					await page.waitForURL(name);
@@ -227,7 +230,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 		cookieIs: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.read,
-			gwta: "cookie {name} is {value}",
+			gwta: `cookie {name: ${DOMAIN_COOKIE_NAME}} is {value: ${DOMAIN_TEXT}}`,
 			action: async ({ name, value }: { name: string; value: string }) => {
 				const cookies = await wp.getCookies();
 				const found = cookies?.find((c) => c.name === name && c.value === value);
@@ -236,15 +239,14 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 		URIQueryParameterIs: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.read,
-			gwta: "URI query parameter {what} is {value}",
-			action: async ({ value }: { value: string }, featureStep) => {
-				const term = getStepTerm(featureStep, "what") ?? "";
+			gwta: `URI query parameter {what: ${DOMAIN_QUERY_PARAMETER}} is {value: ${DOMAIN_TEXT}}`,
+			action: async ({ what, value }: { what: string; value: string }) => {
 				const uri = await wp.withPage<string>(async (page: Page) => await page.url());
-				const found = new URL(uri).searchParams.get(term);
+				const found = new URL(uri).searchParams.get(what);
 				if (found === value) {
 					return OK;
 				}
-				return actionNotOK(`URI query ${term} contains "${found}", not "${value}"`);
+				return actionNotOK(`URI query ${what} contains "${found}", not "${value}"`);
 			},
 		},
 		waitForURIMatch: {
@@ -267,7 +269,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		//                  CLICK
 		click: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
-			gwta: `click( invisible)? {target: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}( with force)?`,
+			gwta: `click( invisible)? {target: ${DOMAIN_PAGE_TARGET}}( with force)?`,
 			action: async ({ target }: { target: string }, featureStep) => {
 				const forced = featureStep.in.match(/ with force$/) || featureStep.in.match(/^click invisible/) ? { force: true } : {};
 				await wp.withPage(async (page: Page) => {
@@ -278,7 +280,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 		inElement: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.read,
-			gwta: `in {container: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}, {what: ${DOMAIN_STATEMENT}}`,
+			gwta: `in {container: ${DOMAIN_PAGE_LOCATOR}}, {what: ${DOMAIN_STATEMENT}}`,
 			action: async ({ container, what }: { container: string; what: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				return await wp.withPage(async (page: Page) => {
 					// For shadow DOM elements, use page.locator directly to ensure CSS selector is used
@@ -295,7 +297,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 		clickBy: {
 			precludes: [`${wp.constructor.name}.click`],
-			gwta: `click {target: ${DOMAIN_STRING_OR_PAGE_LOCATOR}} by {method: ${DOMAIN_FIND_WAY}}`,
+			gwta: `click {target: ${DOMAIN_PAGE_TARGET}} by {method: ${DOMAIN_FIND_WAY}}`,
 			action: async ({ target, method }: { target: string; method: TFindWay }) => {
 				const bys: Record<TFindWay, (page: Page) => Locator> = {
 					"alt text": (page) => page.getByAltText(target),
@@ -314,7 +316,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 
 		gotoPage: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
-			gwta: `go to the {name} ${WEB_PAGE}`,
+			gwta: `go to the {name: ${DOMAIN_LINK}} ${WEB_PAGE}`,
 			action: async ({ name }: { name: string }) => {
 				const response = await wp.withPage<Response | null>(async (page: Page) => {
 					const res = await page.goto(name, { waitUntil: "domcontentloaded" });
@@ -358,7 +360,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 
 		blur: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
-			gwta: `blur {what: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
+			gwta: `blur {what: ${DOMAIN_PAGE_TARGET}}`,
 			action: async ({ what }: { what: string }, featureStep: TFeatureStep) => {
 				await wp.withPage(async (page: Page) => await (await wp.locateByDomain(page, featureStep, "what")).evaluate((e) => e.blur()));
 				return OK;
@@ -402,7 +404,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		//  FILE DOWNLOAD/UPLOAD
 		uploadFile: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
-			gwta: `upload file {file: ${DOMAIN_FILE_PATH}} using {selector: ${DOMAIN_STRING_OR_PAGE_LOCATOR}}`,
+			gwta: `upload file {file: ${DOMAIN_FILE_PATH}} using {selector: ${DOMAIN_PAGE_TARGET}}`,
 			action: async ({ file, selector }: { file: string; selector: string }, featureStep: TFeatureStep) => {
 				await wp.withPage(async (page: Page) => await (await wp.locateByDomain(page, featureStep, "selector")).setInputFiles(file));
 				return OK;
@@ -472,7 +474,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		canvasIsEmpty: {
-			gwta: "canvas {what} is empty",
+			gwta: `canvas {what: ${DOMAIN_PAGE_LOCATOR}} is empty`,
 			action: async ({ what }: { what: string }) => {
 				const isNotEmpty = await wp.withPage<boolean>(async (page: Page) => {
 					const locator = page.locator(what);
@@ -501,7 +503,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 		takeScreenshotOf: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.read,
-			gwta: `take a screenshot of {what: ${DOMAIN_STRING_OR_PAGE_LOCATOR}} to {where: ${DOMAIN_FILE_PATH}}`,
+			gwta: `take a screenshot of {what: ${DOMAIN_PAGE_TARGET}} to {where: ${DOMAIN_FILE_PATH}}`,
 			action: async ({ what, where }: { what: string; where: string }, featureStep: TFeatureStep) => {
 				try {
 					await wp.withPage(async (page: Page) => {
@@ -565,7 +567,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 		saveURIQueryParameter: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.read,
-			gwta: `save URI query parameter {what} to {where: ${DOMAIN_VARIABLE_NAME}}`,
+			gwta: `save URI query parameter {what: ${DOMAIN_QUERY_PARAMETER}} to {where: ${DOMAIN_VARIABLE_NAME}}`,
 			action: async ({ what, where }: { what: string; where: string }, featureStep) => {
 				const uri = await wp.withPage<string>(async (page: Page) => await page.url());
 				const found = new URL(uri).searchParams.get(what);
@@ -575,7 +577,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 		saveTextFrom: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.read,
-			gwta: `save text from {element: ${DOMAIN_STRING_OR_PAGE_LOCATOR}} to {where: ${DOMAIN_VARIABLE_NAME}}`,
+			gwta: `save text from {element: ${DOMAIN_PAGE_TARGET}} to {where: ${DOMAIN_VARIABLE_NAME}}`,
 			action: async ({ where }: { where: string }, featureStep) => {
 				const text = await wp.withPage<string>(async (page: Page) => {
 					const locator = await wp.locateByDomain(page, featureStep, "element");
