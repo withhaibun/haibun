@@ -43,6 +43,8 @@ export const DOMAIN_STEPPER_NAME = "stepper-name";
 export const DOMAIN_GLOB = "glob";
 /** The title a feature, scenario, activity or waypoint is given, as the line writes it. */
 export const DOMAIN_TITLE = "title";
+/** A waypoint's argument: the text its call writes, or the variable it names. */
+export const DOMAIN_OUTCOME_ARGUMENT = "outcome-argument";
 /** A file or directory's path, as a storage or the file system reads it. */
 export const DOMAIN_FILE_PATH = "file-path";
 /** The path a web server serves something at, such as `/shu`. */

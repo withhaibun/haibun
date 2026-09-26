@@ -122,7 +122,6 @@ type TStepValuesMap = Record<string, TStepValue>;
 // ============================================================================
 
 type TStepperStepBase = {
-	handlesUndefined?: true | string[];
 	description?: string;
 	precludes?: string[];
 	unique?: boolean;

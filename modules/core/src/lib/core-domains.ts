@@ -39,6 +39,7 @@ import {
 	DOMAIN_WALK_ID,
 	DOMAIN_VARIABLE_VALUE,
 	DOMAIN_TEMPLATE,
+	DOMAIN_OUTCOME_ARGUMENT,
 	DOMAIN_HYPERMEDIA_DECLARATION,
 	DOMAIN_SET_VALUES,
 	listedSchema,
@@ -223,6 +224,13 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 	{ selectors: [DOMAIN_GLOB], schema: nameSchema, description: "A pattern in which * stands for any run of characters." },
 	{ selectors: [DOMAIN_FILE_PATH], schema: nameSchema, description: "A file or directory's path, as a storage or the file system reads it." },
 	{ selectors: [DOMAIN_TITLE], schema: nameSchema, written: true, description: "The title a feature, scenario, activity or waypoint is given, as the line writes it." },
+	{
+		selectors: [DOMAIN_OUTCOME_ARGUMENT],
+		schema: nameSchema,
+		// Every word is one: a call names a waypoint's argument by the words it writes, as `Right to Privacy is upheld` does.
+		names: () => true,
+		description: "A waypoint's argument: the text its call writes, or the variable it names.",
+	},
 	{ selectors: [DOMAIN_ROUTE], schema: nameSchema, description: "The path a web server serves something at, such as /shu." },
 	{
 		selectors: [DOMAIN_BEARER_TOKEN],

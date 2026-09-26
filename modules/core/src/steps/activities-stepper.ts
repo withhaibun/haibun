@@ -4,7 +4,7 @@ import type { TWorld } from "../lib/world.js";
 import { TStepArgs, TRegisteredOutcomeEntry, OK } from "../schema/protocol.js";
 import { formatSeqPath } from "../lib/seq-path.js";
 import { actionOK, actionNotOK, getActionable, errorDetail } from "../lib/util/index.js";
-import { DOMAIN_STATEMENT, DOMAIN_TITLE } from "../lib/domains.js";
+import { DOMAIN_OUTCOME_ARGUMENT, DOMAIN_STATEMENT, DOMAIN_TITLE } from "../lib/domains.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { ControlEvent, LifecycleEvent } from "../schema/protocol.js";
 import { buildDomainChain } from "../lib/domain-chain.js";
@@ -508,25 +508,17 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		}
 
 		const step: TStepperStep = {
-			gwta: outcome,
+			// Each argument the outcome names is a waypoint's argument, which a call writes as its text or names as a variable.
+			gwta: outcome.replace(/\{([^}:]+)\}/g, (_, name: string) => `{${name}: ${DOMAIN_OUTCOME_ARGUMENT}}`),
 			virtual: true,
-			handlesUndefined: true,
 			source: {
 				lineNumber,
 				path: actualSourcePath || proofPath,
 			},
 			description: `Outcome: ${outcome}. Proof: ${proofStatements.join("; ")}`,
 			action: async (args: TStepArgs, featureStep: TFeatureStep) => {
-				const robustArgs: Record<string, string> = { ...(args as Record<string, string>) };
-				if (featureStep.action.stepValuesMap) {
-					for (const [key, val] of Object.entries(featureStep.action.stepValuesMap)) {
-						if (robustArgs[key] === undefined && val.term !== undefined) {
-							robustArgs[key] = val.term;
-						}
-					}
-				}
-
-				const run = (steps: TStepInput[], intent: TFeatureStep["intent"]) => this.runner.runStatements(steps, { args: robustArgs, intent, parentStep: featureStep });
+				const run = (steps: TStepInput[], intent: TFeatureStep["intent"]) =>
+					this.runner.runStatements(steps, { args: args as Record<string, string>, intent, parentStep: featureStep });
 				// An outcome whose proof already holds is reached.
 				if (normalizedProofSteps.length > 0 && (await run(normalizedProofSteps, { mode: "speculative" })).ok) return OK;
 				const ensuring = featureStep.intent?.stepperOptions?.isEnsure === true;

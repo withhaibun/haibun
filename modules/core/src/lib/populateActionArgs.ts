@@ -18,11 +18,7 @@ async function readParams(featureStep: TFeatureStep, world: TWorld, steppers: AS
 				: await world.shared.resolveVariable(actionVal, featureStep, steppers, { secure: true }).catch((e: unknown) => {
 						throw new Error(`${inStep} refuses ${actionVal.term}: ${errorDetail(e)}`);
 					});
-		if (resolved.value === undefined) {
-			const handlesUndefined = featureStep.action.step.handlesUndefined;
-			if (handlesUndefined === true || handlesUndefined?.includes(name)) continue;
-			throw Error(`${inStep}: ${actionVal.term} isn't a variable, and a value the line writes is quoted`);
-		}
+		if (resolved.value === undefined) throw Error(`${inStep}: ${actionVal.term} isn't a variable, and a value the line writes is quoted`);
 		const takes = paramDomainKey(actionVal.domain);
 		read.push({ name, takes, read: { ...resolved, value: readInDomain(inStep, takes, resolved, world, featureStep, steppers) } });
 	}

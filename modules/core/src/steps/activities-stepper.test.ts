@@ -4,6 +4,7 @@ import { ActivitiesStepper } from "./activities-stepper.js";
 import { getDefaultWorld, passWithDefaults } from "../lib/test/lib.js";
 import VariablesStepper from "./variables-stepper.js";
 import Haibun from "./haibun.js";
+import { DOMAIN_OUTCOME_ARGUMENT } from "../lib/domains.js";
 
 describe("ActivitiesStepper", () => {
 	describe("registerOutcome", () => {
@@ -15,7 +16,7 @@ describe("ActivitiesStepper", () => {
 
 			const step = stepper.steps["Is logged in as {user}"];
 			expect(step).toBeDefined();
-			expect(step.gwta).toBe("Is logged in as {user}");
+			expect(step.gwta, "each argument the outcome names is a waypoint's argument").toBe(`Is logged in as {user: ${DOMAIN_OUTCOME_ARGUMENT}}`);
 			expect(step.description).toContain("Is logged in as {user}");
 			expect(step.action).toBeDefined();
 			expect(typeof step.action).toBe("function");
@@ -151,6 +152,24 @@ variable Le Artiste/signed is "agreed"`,
 				throw result.failure?.error ?? new Error("ensure flow failed");
 			}
 			expect(result.ok).toBe(true);
+		});
+
+		it("takes a waypoint's argument as the words its call writes, or as the variable its call names", async () => {
+			const feature = {
+				path: "/features/test.feature",
+				content: `Activity: Greet a guest
+set {who} greeted to "yes"
+waypoint Greeted {who} with variable {who} greeted is "yes"
+
+Scenario: Guests
+ensure Greeted Room 101
+variable Room 101 greeted is "yes"
+set guest to "Ada"
+ensure Greeted {guest}
+variable Ada greeted is "yes"`,
+			};
+			const result = await passWithDefaults([feature], [VariablesStepper, ActivitiesStepper, Haibun]);
+			expect(result.ok, result.failure?.error?.message).toBe(true);
 		});
 	});
 });
