@@ -250,11 +250,6 @@ class Haibun extends AStepper implements IHasCycles {
 				return OK;
 			},
 		},
-		comment: {
-			gwta: `;;{comment: ${DOMAIN_TEXT}}`,
-			handlesUndefined: ["comment"],
-			action: () => OK,
-		},
 		afterEveryStepper: {
 			precludes: [`Haibun.prose`],
 			gwta: `after every {stepperName: ${DOMAIN_STEPPER_NAME}}, {statement: ${DOMAIN_STATEMENT}}`,
