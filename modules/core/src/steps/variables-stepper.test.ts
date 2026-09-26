@@ -1,12 +1,15 @@
 import { it, expect, describe } from "vitest";
 
-import { failWithDefaults, passWithDefaults } from "../lib/test/lib.js";
+import { DEF_PROTO_OPTIONS, failWithDefaults, getTestWorldWithOptions, passWithDefaults } from "../lib/test/lib.js";
 import VariablesStepper from "./variables-stepper.js";
 import { DEFAULT_DEST, Origin } from "../schema/protocol.js";
 import Haibun from "./haibun.js";
 import LogicStepper from "./logic-stepper.js";
 import { OBSCURED_VALUE } from "../lib/feature-variables.js";
 import EventCollectorStepper from "../lib/test/EventCollectorStepper.js";
+import { dispatchStep } from "../lib/step-dispatch.js";
+import { buildFeatureStepForTransport, StepRegistry } from "../lib/step-registry.js";
+import { addStepperConcerns } from "../phases/Executor.js";
 
 const steppers = [VariablesStepper, Haibun, LogicStepper];
 
@@ -399,5 +402,22 @@ describe("matches with brace-bearing text", () => {
 	it("a wrong match still fails", async () => {
 		const content = 'set reply to "the {StepperName} echoed"\nmatches reply with totally different';
 		expect((await failWithDefaults(content, steppers)).ok).toBe(false);
+	});
+});
+
+describe("a value a call carries", () => {
+	it("sets a variable to the value a transport's call carries, as it sets a line's value", async () => {
+		const world = getTestWorldWithOptions(DEF_PROTO_OPTIONS);
+		const variables = new VariablesStepper();
+		const callers = [variables];
+		await variables.setWorld(world, callers);
+		addStepperConcerns(world, callers);
+		const registry = new StepRegistry(callers, world);
+		const tool = registry.get(`${VariablesStepper.name}-set`);
+		if (!tool) throw new Error("set isn't registered");
+		const call = buildFeatureStepForTransport(tool, { what: "greeting", value: "hi" }, [0, 1]);
+		const result = await dispatchStep({ registry, world, steppers: callers, grantedCapability: tool.descriptor.capability }, call);
+		expect(result.ok, result.errorMessage).toBe(true);
+		expect(await world.shared.get("greeting")).toBe("hi");
 	});
 });

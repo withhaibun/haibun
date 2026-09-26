@@ -253,7 +253,7 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 	{
 		selectors: [DOMAIN_VARIABLE_VALUE],
 		schema: z.unknown(),
-		description: "A value a variable holds or is given, of whatever domain the variable's is, which that domain reads.",
+		description: "A value a variable holds or is given, carried with its domain, which the domain of the variable it is set to or compared with reads.",
 	},
 	{ selectors: [DOMAIN_TEMPLATE], schema: z.string(), written: true, description: "Text whose #{name} places a composition fills from variables, as the line writes it." },
 	{

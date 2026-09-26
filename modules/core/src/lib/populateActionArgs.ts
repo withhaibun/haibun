@@ -10,19 +10,18 @@ export async function populateActionArgs(featureStep: TFeatureStep, world: TWorl
 	const { stepperName, actionName } = featureStep.action;
 
 	for (const [name, actionVal] of Object.entries(featureStep.action.stepValuesMap)) {
-		if (actionVal.value !== undefined) {
-			stepArgs[name] = actionVal.value;
-			continue;
-		}
 		const inStep = `step ${stepperName}.${actionName}: {${name}}`;
-		const resolved = await world.shared.resolveVariable(actionVal, featureStep, steppers, { secure: true }).catch((e: unknown) => {
-			throw new Error(`${inStep} refuses ${actionVal.term}: ${errorDetail(e)}`);
-		});
+		// A transport's call arrives with its values read already; a line's values are resolved here.
+		const resolved =
+			actionVal.value !== undefined
+				? actionVal
+				: await world.shared.resolveVariable(actionVal, featureStep, steppers, { secure: true }).catch((e: unknown) => {
+						throw new Error(`${inStep} refuses ${actionVal.term}: ${errorDetail(e)}`);
+					});
 		if (resolved.value === undefined) {
 			const handlesUndefined = featureStep.action.step.handlesUndefined;
 			if (handlesUndefined === true || handlesUndefined?.includes(name)) continue;
-			console.error(`undefined ${name} in "${featureStep.in}" for ${stepperName}.${actionName}`, name, resolved, featureStep.action.step);
-			throw Error(`undefined ${name} in "${featureStep.in}" for ${stepperName}.${actionName}`);
+			throw Error(`${inStep}: ${actionVal.term} isn't a variable, and a value the line writes is quoted`);
 		}
 		stepArgs[name] = inParamDomain(inStep, paramDomainKey(actionVal.domain), resolved, world, featureStep, steppers);
 	}
@@ -31,15 +30,17 @@ export async function populateActionArgs(featureStep: TFeatureStep, world: TWorl
 
 /**
  * A resolved value as its parameter's domain takes it. A value of that domain, or of a part of a union it takes, is as it
- * is, as is any value a `string` parameter takes: `string` names no domain of what a value is, and the step graph's
- * baseline records each such parameter. A `variable-value` parameter takes a value of any domain too, which the domain of
- * the variable it is set to or compared with reads. A primitive value, and an individual where the domain is a reference
- * to one, is read by the domain's schema. A value of any other domain is refused, naming both.
+ * is, as is any value a `string` parameter takes: `string` doesn't name a domain of what a value is, and the step graph's
+ * baseline records each such parameter. A `variable-value` parameter takes the resolved value whole: its value, its domain
+ * and whether it is secret, since the domain of the variable it is set to or compared with reads it. A primitive value,
+ * and an individual where the domain is a reference to one, is read by the domain's schema. A value of any other domain is
+ * refused, naming both.
  */
 function inParamDomain(inStep: string, takes: string, resolved: TStepValue, world: TWorld, featureStep: TFeatureStep, steppers: AStepper[]): unknown {
 	const holds = resolved.domain;
 	const parts = domainParts(takes);
-	if (holds === takes || parts.includes(holds) || parts.includes(DOMAIN_STRING) || parts.includes(DOMAIN_VARIABLE_VALUE)) return resolved.value;
+	if (parts.includes(DOMAIN_VARIABLE_VALUE)) return resolved;
+	if (holds === takes || parts.includes(holds) || parts.includes(DOMAIN_STRING)) return resolved.value;
 	const domain = world.domains[takes];
 	if (!domain) throw new Error(`${inStep} takes the domain "${takes}", which no loaded stepper registers`);
 	if (!isPrimitiveDomain(holds) && domain.topology?.ranges?.id !== holds) throw new Error(`${inStep} takes ${takes}, and ${resolved.term} holds ${holds}`);
