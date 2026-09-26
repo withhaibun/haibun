@@ -42,7 +42,7 @@ import { harvestChatViewLd } from "../chat-context-harvest.js";
 import { SHU_TAG } from "../consts.js";
 import { actionRef, recordRef, stepRef } from "./shu-ref.js";
 import { reportToRun } from "../client-log.js";
-import { embeddedViewLd } from "../embedder.js";
+import { embeddedPageView, embeddedViewLd } from "../embedder.js";
 
 /** What a reader says a turn sends. The values are the words the registry and a profile state it in; what each of them
  *  sends is how a reader reads them, and "" is the reader saying nothing, which leaves it to the model. */
@@ -227,6 +227,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		// What this page has read of a session decides what the list says each gained, so opening one states the list again.
 		this.watchSignal(sessionsRead);
 		this.watchSignal(turnAllowance);
+		this.watchSignal(embeddedPageView);
 		readTurnAllowance().catch((err: unknown) => reportToRun("error", "shu-kihan-chat", `what this page allows its turns was not read: ${errorDetail(err)}`));
 	}
 
@@ -359,7 +360,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 			}
 			<div class="input-line">
 				<slot name="mode-toggle"></slot>
-				<textarea class="chat-input" placeholder="Ask about this..." data-testid=${`${this.testIdPrefix}chat-input`} rows="1" autofocus .value=${askDraft.get()} @input=${this.onChatInput} @keydown=${this.onChatKeydown}></textarea>
+				<textarea class="chat-input" placeholder=${`Ask about ${embeddedPageView.get()?.name ?? "this"}...`} data-testid=${`${this.testIdPrefix}chat-input`} rows="1" autofocus .value=${askDraft.get()} @input=${this.onChatInput} @keydown=${this.onChatKeydown}></textarea>
 				${unsafeHTML(uiExtensionTags.map((tag) => `<${tag}></${tag}>`).join(""))}
 				<button type="button" class="send-btn" data-testid=${`${this.testIdPrefix}chat-submit`} style=${running ? "display:none" : ""} @click=${this.submitChat}>Send</button>
 				<button type="button" class="stop-btn" data-testid=${`${this.testIdPrefix}chat-stop`} style=${running ? "" : "display:none"} @click=${this.onStop}>Stop</button>

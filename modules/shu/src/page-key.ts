@@ -162,6 +162,21 @@ export function pageHolds(authority = pageAuthority()): string[] {
 	return [...new Set([...authority.withoutDelegation, ...authority.delegations.flatMap(delegatedActions)])];
 }
 
+/**
+ * Hold a delegation another page gave this page's key, in place of `replacing`, the one it gave before: the page that
+ * embeds this one delegates to its key and renews that delegation before it expires. A delegation to another key is
+ * refused.
+ */
+export function holdGiven(delegation: TDelegation, replacing?: TDelegation): void {
+	const pin = pinned();
+	if (!pin.held) throw new Error("a page holds a delegation it is given once it has read what it holds, and this one hasn't");
+	const { authority } = pin.held;
+	if (delegation.controller !== authority.controller) throw new Error(`the delegation is to ${String(delegation.controller)}, and this page's key is ${authority.controller}`);
+	const holding = { ...authority, delegations: [delegation, ...authority.delegations.filter((held) => held !== replacing)] };
+	pin.held = { ...pin.held, authority: holding };
+	pin.opening = Promise.resolve(holding);
+}
+
 /** Whether this page holds what `action` requires. */
 export function pageMay(action: string): boolean {
 	return capabilityAllows(pageHolds(), action);

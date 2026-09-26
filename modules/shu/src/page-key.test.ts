@@ -5,7 +5,7 @@
  */
 import "fake-indexeddb/auto";
 import { describe, it, expect, afterEach } from "vitest";
-import { forgetPageAuthority, keyHeaders, openPageAuthority, pageAuthority, pageHolds, pageMay, signedHeaders } from "./page-key.js";
+import { forgetPageAuthority, holdGiven, keyHeaders, openPageAuthority, pageAuthority, pageAuthorityReady, pageHolds, pageMay, signedHeaders } from "./page-key.js";
 
 const SITE = "http://localhost:8123";
 const delegatedAll = { id: "urn:uuid:owner", invocationTarget: SITE, allowedAction: ["*"], expires: "2099-01-01T00:00:00Z" };
@@ -96,5 +96,27 @@ describe("what a page sends", () => {
 
 	it("signs nothing before the page has read what it holds", async () => {
 		expect(await signedHeaders(call("ShuStepper:showViews"))).toBeUndefined();
+	});
+});
+
+describe("a delegation another page gives", () => {
+	const given = (controller: string, id: string) => ({ ...delegatedReading, id, controller });
+
+	it("holds a delegation to its key in place of the one given before, and signs with it", async () => {
+		const { controller } = await opened([]);
+		const first = given(controller, "urn:uuid:given-first");
+		holdGiven(first);
+		const renewed = given(controller, "urn:uuid:given-renewed");
+		holdGiven(renewed, first);
+		expect((await pageAuthorityReady())?.delegations, "what a later read of what the page holds answers").toEqual([renewed]);
+		expect(pageMay("Read:private")).toBe(true);
+		expect(await signedHeaders(call("Read:private"))).toBeDefined();
+	});
+
+	it("refuses a delegation to another key, and one given before the page read what it holds", async () => {
+		expect(() => holdGiven(given("did:key:zDnOther", "urn:uuid:early")), "before the page read what it holds").toThrow("hasn't");
+		await opened([]);
+		expect(() => holdGiven(given("did:key:zDnOther", "urn:uuid:other"))).toThrow("did:key:zDnOther");
+		expect(pageHolds()).toEqual([]);
 	});
 });

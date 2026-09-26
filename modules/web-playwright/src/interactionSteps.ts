@@ -253,10 +253,12 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		inElement: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.read,
 			gwta: `in {container: ${DOMAIN_PAGE_LOCATOR}}, {what: ${DOMAIN_STATEMENT}}`,
+			description: "Runs the statement within the element the locator finds, or within the document it shows where it is an iframe.",
 			action: async ({ container, what }: { container: string; what: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				return await wp.withPage(async (page: Page) => {
 					// For shadow DOM elements, use page.locator directly to ensure CSS selector is used
-					wp.inContainer = page.locator(container);
+					const located = page.locator(container);
+					wp.inContainer = (await located.evaluate((element) => element.tagName)) === "IFRAME" ? located.contentFrame().locator(":root") : located;
 					try {
 						const flowResult = await new FlowRunner(wp.getWorld(), [wp]).runSteps(what, { parentStep: featureStep });
 						return flowResult.ok ? OK : actionNotOK(flowResult.errorMessage || "inElement flow failed");

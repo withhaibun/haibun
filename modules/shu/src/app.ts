@@ -27,7 +27,7 @@ import { installShuTokens } from "./components/styles.js";
 import { applyShuPreferences } from "./components/shu-theme-switch.js";
 import { eventStream, setEventStream, LiveEventStream, SerializedEventStream, subscribeBatchedEvents } from "./event-stream.js";
 import { followRunningTurns } from "./conversation.js";
-import { receiveFromEmbedder } from "./embedder.js";
+import { askEmbedderToDelegate, receiveFromEmbedder } from "./embedder.js";
 import { ensureUiComponentLoaded as sharedEnsureUiComponentLoaded } from "./external-components.js";
 import { paneOpsFor } from "./pane-event-router.js";
 import { setActiveViewId } from "./quads-snapshot.js";
@@ -126,9 +126,9 @@ const main = async (): Promise<void> => {
 	// reader with no arrangement, and the run's own views are what they are shown.
 	const arrivedWithAddress = getHash().length > 1;
 	hydrateFromDom();
-	// A page embedding shu at the origin this deployment names posts it the page the reader is on.
-	const embedderOrigin = deploymentEmbedderOrigin();
-	if (embedderOrigin && window.parent !== window) receiveFromEmbedder(embedderOrigin);
+	// A page embedding shu at the origin this deployment names posts it the page the reader is on, and delegates to its key.
+	const embedder = window.parent !== window ? deploymentEmbedderOrigin() : undefined;
+	if (embedder) receiveFromEmbedder(embedder);
 	// One conduit, whatever the page is: a page with a server behind it reaches it, and a page carrying its own run
 	// reaches nothing, which every read already answers from what the page holds. Installed before anything else, since
 	// every component reads through the accessor and would otherwise throw on first use.
@@ -158,6 +158,7 @@ const main = async (): Promise<void> => {
 		// What the reader holds is read first, since every call after it is signed with it, reading the run's steps included.
 		if (!carried) {
 			const authority = await openReaderAuthority();
+			if (embedder && deploymentVerifiesDelegations()) await askEmbedderToDelegate(embedder, authority.controller);
 			if (!pageMay(readAction(Access.public))) {
 				showPageKey(appRoot, authority);
 				return;

@@ -1,12 +1,14 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import "fake-indexeddb/auto";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const reported: Array<{ message: string; attributes?: Record<string, unknown> }> = [];
 vi.mock("./client-log.js", () => ({
 	reportToRun: (_level: string, _source: string, message: string, attributes?: Record<string, unknown>) => reported.push({ message, attributes }),
 }));
 
-const { EMBEDDED_PAGE_TYPE, embeddedPageView, receiveFromEmbedder } = await import("./embedder.js");
+const { EMBED_MESSAGE, EMBEDDED_PAGE_TYPE, askEmbedderToDelegate, embeddedPageView, givenDelegation, receiveFromEmbedder } = await import("./embedder.js");
+const { forgetPageAuthority, openPageAuthority, pageMay } = await import("./page-key.js");
 
 const EMBEDDER = "chrome-extension://abcdefghijklmnop";
 const PAGE = {
@@ -16,6 +18,17 @@ const PAGE = {
 	selection: { "@type": "oa:SpecificResource", source: "https://example.com/bakery", selector: { "@type": "oa:TextQuoteSelector", exact: "sourdough" } },
 	next: { method: "WebPlaywright-readPage", params: {} },
 } as const;
+
+/** A delegation the embedding page signs to `controller`, allowing a private read. */
+const delegationTo = (controller: string, id = "urn:uuid:to-the-frame") => ({
+	id,
+	controller,
+	parentCapability: "urn:uuid:the-embedders",
+	invocationTarget: "http://localhost:8123",
+	allowedAction: ["Read:private"],
+	expires: "2099-01-01T00:00:00.000Z",
+	proof: { type: "DataIntegrityProof" },
+});
 
 /** A frame whose embedding window is `parent`, which receives what is posted to it. */
 const aFrame = (parent: Window) => Object.assign(new EventTarget(), { parent }) as unknown as Window;
@@ -58,5 +71,43 @@ describe("what the page embedding shu posts", () => {
 		expect(embeddedPageView.get(), "the posting window isn't the frame's parent").toBeNull();
 		stop();
 		stopOther();
+	});
+});
+
+describe("the delegation the page embedding shu gives its key", () => {
+	beforeEach(() => {
+		reported.length = 0;
+		givenDelegation.set(null);
+	});
+	afterEach(() => forgetPageAuthority());
+
+	it("is asked for by posting the key to the embedding page, which shu holds once it answers, in place of the one given before", async () => {
+		const { controller } = await openPageAuthority(undefined, []);
+		const posted: Array<{ message: unknown; origin: string }> = [];
+		const parent = { postMessage: (message: unknown, origin: string) => posted.push({ message, origin }) } as unknown as Window;
+		const frame = aFrame(parent);
+		const stop = receiveFromEmbedder(EMBEDDER, frame);
+		const asked = askEmbedderToDelegate(EMBEDDER, controller, frame);
+		expect(posted, "the key, to the embedding page's origin alone").toEqual([{ message: { kind: EMBED_MESSAGE.pageKey, controller }, origin: EMBEDDER }]);
+		post(frame, { kind: EMBED_MESSAGE.delegation, delegation: delegationTo(controller) }, EMBEDDER, parent);
+		await asked;
+		expect(pageMay("Read:private")).toBe(true);
+		const renewed = delegationTo(controller, "urn:uuid:renewed");
+		post(frame, { kind: EMBED_MESSAGE.delegation, delegation: renewed }, EMBEDDER, parent);
+		expect(givenDelegation.get()).toEqual(renewed);
+		stop();
+	});
+
+	it("refuses a delegation to another key and reports it, and goes on with what it holds when none is given in time", async () => {
+		const { controller } = await openPageAuthority(undefined, []);
+		const parent = { postMessage: () => undefined } as unknown as Window;
+		const frame = aFrame(parent);
+		const stop = receiveFromEmbedder(EMBEDDER, frame);
+		post(frame, { kind: EMBED_MESSAGE.delegation, delegation: delegationTo("did:key:zDnOther") }, EMBEDDER, parent);
+		expect(reported.map((r) => r.message)).toEqual(["refused a delegation from the embedding page"]);
+		await askEmbedderToDelegate(EMBEDDER, controller, frame, 10);
+		expect(reported.map((r) => r.message).at(-1)).toBe("the embedding page gave the key shu signs as no delegation");
+		expect(pageMay("Read:private")).toBe(false);
+		stop();
 	});
 });
