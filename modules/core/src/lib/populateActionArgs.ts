@@ -1,7 +1,7 @@
 import { AStepper, TFeatureStep } from "./astepper.js";
 import type { TWorld } from "./world.js";
 import { TStepArgs, TStepValue } from "../schema/protocol.js";
-import { DOMAIN_STRING, domainParts, isPrimitiveDomain, paramDomainKey } from "./domains.js";
+import { DOMAIN_STRING, DOMAIN_VARIABLE_VALUE, domainParts, isPrimitiveDomain, paramDomainKey } from "./domains.js";
 import { errorDetail } from "./util/index.js";
 
 export async function populateActionArgs(featureStep: TFeatureStep, world: TWorld, steppers: AStepper[]): Promise<TStepArgs> {
@@ -32,13 +32,14 @@ export async function populateActionArgs(featureStep: TFeatureStep, world: TWorl
 /**
  * A resolved value as its parameter's domain takes it. A value of that domain, or of a part of a union it takes, is as it
  * is, as is any value a `string` parameter takes: `string` names no domain of what a value is, and the step graph's
- * baseline records each such parameter. A primitive value, and an individual where the domain is a reference to one, is
- * read by the domain's schema. A value of any other domain is refused, naming both.
+ * baseline records each such parameter. A `variable-value` parameter takes a value of any domain too, which the domain of
+ * the variable it is set to or compared with reads. A primitive value, and an individual where the domain is a reference
+ * to one, is read by the domain's schema. A value of any other domain is refused, naming both.
  */
 function inParamDomain(inStep: string, takes: string, resolved: TStepValue, world: TWorld, featureStep: TFeatureStep, steppers: AStepper[]): unknown {
 	const holds = resolved.domain;
 	const parts = domainParts(takes);
-	if (holds === takes || parts.includes(holds) || parts.includes(DOMAIN_STRING)) return resolved.value;
+	if (holds === takes || parts.includes(holds) || parts.includes(DOMAIN_STRING) || parts.includes(DOMAIN_VARIABLE_VALUE)) return resolved.value;
 	const domain = world.domains[takes];
 	if (!domain) throw new Error(`${inStep} takes the domain "${takes}", which no loaded stepper registers`);
 	if (!isPrimitiveDomain(holds) && domain.topology?.ranges?.id !== holds) throw new Error(`${inStep} takes ${takes}, and ${resolved.term} holds ${holds}`);

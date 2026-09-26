@@ -4,7 +4,17 @@ import VariablesStepper from "../steps/variables-stepper.js";
 import Haibun from "../steps/haibun.js";
 import LogicStepper from "../steps/logic-stepper.js";
 import { z } from "zod";
-import { DOMAIN_ACTIONS, DOMAIN_DURATION, DOMAIN_STEP_PATH, refDomainKey, refTargetOf, registerDomains, toRegisteredDomain } from "./domains.js";
+import {
+	DOMAIN_ACTIONS,
+	DOMAIN_DURATION,
+	DOMAIN_HYPERMEDIA_DECLARATION,
+	DOMAIN_SET_VALUES,
+	DOMAIN_STEP_PATH,
+	refDomainKey,
+	refTargetOf,
+	registerDomains,
+	toRegisteredDomain,
+} from "./domains.js";
 import { LinkRelations, PersistedVertexSchema, type THypermediaTopology, type TPropertyDef } from "./resources.js";
 
 const steppers = [VariablesStepper, Haibun, LogicStepper];
@@ -164,5 +174,26 @@ describe("a step's place and a length of time", () => {
 		expect(schema.parse("2s")).toBe(2000);
 		expect(schema.parse("30 ms")).toBe(30);
 		expect(schema.safeParse("2 minutes").error?.issues[0]?.message).toMatch(/is no length of time/);
+	});
+});
+
+describe("what a variable step writes", () => {
+	it("reads a set's quoted members, or else its words, and refuses a set naming none", () => {
+		const { schema } = getDefaultWorld().domains[DOMAIN_SET_VALUES];
+		expect(schema.parse('"red wine", "gin"')).toEqual(["red wine", "gin"]);
+		expect(schema.parse("red, green blue")).toEqual(["red", "green", "blue"]);
+		expect(schema.safeParse(" , ").error?.issues[0]?.message).toMatch(/names no member/);
+	});
+
+	it("reads a hypermedia declaration trimmed, and refuses one declaring nothing", () => {
+		const { schema } = getDefaultWorld().domains[DOMAIN_HYPERMEDIA_DECLARATION];
+		expect(schema.parse("  id, with name ")).toBe("id, with name");
+		expect(schema.safeParse("   ").error?.issues[0]?.message).toMatch(/declares nothing/);
+	});
+
+	it("compares a variable with a value of any domain, which the variable's domain reads", async () => {
+		const set = 'set of colour is [red, green]\nset a as colour to "red"\nset b as colour to "red"\nset c as colour to "green"';
+		expect((await passWithDefaults([{ path: "/features/v.feature", content: `${set}\nvariable a is {b}` }], steppers)).ok).toBe(true);
+		await failWithDefaults([{ path: "/features/v.feature", content: `${set}\nvariable a is {c}` }], steppers);
 	});
 });

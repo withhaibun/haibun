@@ -15,6 +15,11 @@ import {
 	DOMAIN_STATEMENT,
 	DOMAIN_STRING,
 	DOMAIN_VARIABLE_NAME,
+	DOMAIN_VARIABLE_VALUE,
+	DOMAIN_TEMPLATE,
+	DOMAIN_HYPERMEDIA_DECLARATION,
+	DOMAIN_SET_VALUES,
+	parseQuotedOrWordList,
 	normalizeDomainKey,
 	createEnumDomainDefinition,
 	globSource,
@@ -129,22 +134,18 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		// @context or its prose shorthand. `by` is the direction word (not `from`, which means "from a
 		// statement's result").
 		defineHypermediaDomain: {
-			gwta: `set of {domain: ${DOMAIN_DOMAIN_NAME}} by {spec: string}`,
+			gwta: `set of {domain: ${DOMAIN_DOMAIN_NAME}} by {spec: ${DOMAIN_HYPERMEDIA_DECLARATION}}`,
 			action: ({ domain, spec }: { domain: string; spec: string }) => this.registerHypermediaDomain(domain, spec),
 		},
 		statementSetValues: {
-			gwta: "\\[{items: string}\\]",
+			gwta: `\\[{items: ${DOMAIN_SET_VALUES}}\\]`,
 			action: () => OK,
 		},
 		composeAs: {
-			gwta: `compose {what: ${DOMAIN_VARIABLE_NAME}} as {domain: ${DOMAIN_DOMAIN_KEY}} with {template}`,
-			handlesUndefined: ["template"],
+			gwta: `compose {what: ${DOMAIN_VARIABLE_NAME}} as {domain: ${DOMAIN_DOMAIN_KEY}} with {template: ${DOMAIN_TEMPLATE}}`,
 			precludes: [`${VariablesStepper.name}.compose`],
-			action: async ({ what, domain }: { what: string; domain: string }, featureStep: TFeatureStep) => {
-				const templateVal = featureStep.action.stepValuesMap.template;
-				if (!templateVal?.term) return actionNotOK("template not provided");
-
-				const result = await this.interpolateTemplate(templateVal.term, featureStep);
+			action: async ({ what, domain, template }: { what: string; domain: string; template: string }, featureStep: TFeatureStep) => {
+				const result = await this.interpolateTemplate(template, featureStep);
 				if (result.error) return actionNotOK(result.error);
 
 				return trySetVariable(
@@ -155,13 +156,9 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			},
 		},
 		compose: {
-			gwta: `compose {what: ${DOMAIN_VARIABLE_NAME}} with {template}`,
-			handlesUndefined: ["template"],
-			action: async ({ what }: { what: string }, featureStep: TFeatureStep) => {
-				const templateVal = featureStep.action.stepValuesMap.template;
-				if (!templateVal?.term) return actionNotOK("template not provided");
-
-				const result = await this.interpolateTemplate(templateVal.term, featureStep);
+			gwta: `compose {what: ${DOMAIN_VARIABLE_NAME}} with {template: ${DOMAIN_TEMPLATE}}`,
+			action: async ({ what, template }: { what: string; template: string }, featureStep: TFeatureStep) => {
+				const result = await this.interpolateTemplate(template, featureStep);
 				if (result.error) return actionNotOK(result.error);
 
 				return trySetVariable(
@@ -250,7 +247,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			},
 		},
 		set: {
-			gwta: `set( empty)? {what: ${DOMAIN_VARIABLE_NAME}} to {value: string}`,
+			gwta: `set( empty)? {what: ${DOMAIN_VARIABLE_NAME}} to {value: ${DOMAIN_VARIABLE_VALUE}}`,
 			handlesUndefined: ["value"],
 			precludes: ["Haibun.prose"],
 			action: async ({ what }: { what: string }, featureStep: TFeatureStep) => {
@@ -278,7 +275,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			},
 		},
 		setAs: {
-			gwta: `set( empty)? {what: ${DOMAIN_VARIABLE_NAME}} as( read-only)? {domain: ${DOMAIN_DOMAIN_KEY}} to {value}`,
+			gwta: `set( empty)? {what: ${DOMAIN_VARIABLE_NAME}} as( read-only)? {domain: ${DOMAIN_DOMAIN_KEY}} to {value: ${DOMAIN_VARIABLE_VALUE}}`,
 			handlesUndefined: ["value"],
 			precludes: [`${VariablesStepper.name}.set`],
 			action: async ({ what, domain }: { what: string; domain: string }, featureStep: TFeatureStep) => {
@@ -337,7 +334,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 
 		is: {
-			gwta: `variable {what: ${DOMAIN_VARIABLE_NAME}} is {value}`,
+			gwta: `variable {what: ${DOMAIN_VARIABLE_NAME}} is {value: ${DOMAIN_VARIABLE_VALUE}}`,
 			handlesUndefined: ["value"],
 			action: async ({ what }: { what: string }, featureStep: TFeatureStep) => {
 				const interpolated = await this.interpolateTemplate(what, featureStep);
@@ -364,7 +361,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			},
 		},
 		isLessThan: {
-			gwta: `variable {what: ${DOMAIN_VARIABLE_NAME}} is less than {value}`,
+			gwta: `variable {what: ${DOMAIN_VARIABLE_NAME}} is less than {value: ${DOMAIN_VARIABLE_VALUE}}`,
 			handlesUndefined: ["value"],
 			precludes: ["VariablesStepper.is"],
 			action: ({ what, value }: { what: string; value: string }, featureStep: TFeatureStep) => {
@@ -372,7 +369,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			},
 		},
 		isMoreThan: {
-			gwta: `variable {what: ${DOMAIN_VARIABLE_NAME}} is more than {value}`,
+			gwta: `variable {what: ${DOMAIN_VARIABLE_NAME}} is more than {value: ${DOMAIN_VARIABLE_VALUE}}`,
 			handlesUndefined: ["value"],
 			precludes: ["VariablesStepper.is"],
 			action: ({ what, value }: { what: string; value: string }, featureStep: TFeatureStep) => {
@@ -520,7 +517,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		// Supports * as wildcard (matches any characters)
 		// Variables in pattern are interpolated: "{counter URI}*" resolves to actual value
 		matches: {
-			gwta: `matches {value} with {pattern: ${DOMAIN_GLOB}}`,
+			gwta: `matches {value: ${DOMAIN_VARIABLE_VALUE}} with {pattern: ${DOMAIN_GLOB}}`,
 			action: async ({ value, pattern }: { value: string; pattern: string }, featureStep: TFeatureStep) => {
 				// value/pattern are text being compared: an unresolved {X} is literal data (e.g. a captured reply echoing
 				// "{StepperName}"), not a variable reference, so interpolate leniently and leave unknown braces in place.
@@ -696,9 +693,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 
 	private registerHypermediaDomain(domain: string, spec: string) {
 		try {
-			const trimmed = (spec ?? "").trim();
-			if (!trimmed) return actionNotOK(`set of ${domain}: declaration is empty`);
-			const doc: THypermediaContext = trimmed.startsWith("{") ? JSON.parse(trimmed) : parseHypermediaDeclProse(domain, trimmed);
+			const doc: THypermediaContext = spec.startsWith("{") ? JSON.parse(spec) : parseHypermediaDeclProse(domain, spec);
 			const { topology, schema } = hypermediaDomainFromContext(domain, doc);
 			const selector = domain.toLowerCase();
 			const domainKey = normalizeDomainKey(selector);
@@ -764,8 +759,6 @@ export function provenanceFromFeatureStep(featureStep: TFeatureStep): TProvenanc
 	};
 }
 
-const QUOTED_STRING = /"([^"]+)"/g;
-
 const extractValuesFromFragments = (valueFragments?: TFeatureStep[], fallback?: string) => {
 	if (valueFragments?.length) {
 		const innerChunks = valueFragments
@@ -799,17 +792,6 @@ const parseBracketedValues = (raw: string) => {
 	}
 	const inner = trimmed.substring(start + 1, end).trim();
 	return parseQuotedOrWordList(inner);
-};
-
-const parseQuotedOrWordList = (value: string): string[] => {
-	const quoted = [...value.matchAll(QUOTED_STRING)].map((match) => match[1].trim()).filter(Boolean);
-	if (quoted.length) {
-		return quoted;
-	}
-	return value
-		.split(/[\s,]+/)
-		.map((token) => token.trim())
-		.filter(Boolean);
 };
 
 const compareDomainValues = (domain: { comparator?: (a: unknown, b: unknown) => number }, left: unknown, right: unknown, domainName: string): number => {

@@ -57,6 +57,14 @@ export const DOMAIN_STEP_METHOD = "step-method";
 export const DOMAIN_WALK_ID = "walk-id";
 /** A link relation, by the name a predicate carries it under, such as `cites`. */
 export const DOMAIN_LINK_REL = "link-rel";
+/** A value a variable holds or is given, of whatever domain the variable's is, which that domain reads. */
+export const DOMAIN_VARIABLE_VALUE = "variable-value";
+/** Text whose `#{name}` places a composition fills from variables, as the line writes it. */
+export const DOMAIN_TEMPLATE = "template";
+/** A declared type's hypermedia declaration, as the line writes it: its JSON-LD @context, or prose naming its fields. */
+export const DOMAIN_HYPERMEDIA_DECLARATION = "hypermedia-declaration";
+/** The members a bracketed list names, as the line writes them. */
+export const DOMAIN_SET_VALUES = "set-values";
 /** Types records persist as, given as a list. */
 export const DOMAIN_PERSISTED_TYPES = "persisted-types";
 /** The backgrounds a feature includes, by name, given as a list. */
@@ -297,6 +305,21 @@ export const listedSchema = (member: z.ZodType<string>, what: string) =>
 		},
 		z.array(member).min(1, `names no ${what}`),
 	);
+
+const QUOTED_MEMBER = /"([^"]+)"/g;
+
+/** The members a bracketed list writes: its quoted members, or else its words, separated by spaces or commas. */
+export const parseQuotedOrWordList = (value: string): string[] => {
+	const quoted = [...value.matchAll(QUOTED_MEMBER)].map((match) => match[1].trim()).filter(Boolean);
+	if (quoted.length) return quoted;
+	return value
+		.split(/[\s,]+/)
+		.map((token) => token.trim())
+		.filter(Boolean);
+};
+
+/** The members a bracketed list writes, as a set's values read them. */
+export const setValuesSchema = z.preprocess((value) => (typeof value === "string" ? parseQuotedOrWordList(value) : value), z.array(z.string()).min(1, "names no member"));
 
 /** The backgrounds a `Backgrounds:` line includes, as its domain reads them. */
 export const backgroundNamesSchema = listedSchema(z.string().min(1), "background");
