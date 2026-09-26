@@ -133,6 +133,10 @@ export type TDeploymentSettings = {
 	/** Whether anything here verifies a delegation, so the page knows to read what was delegated to its key: a key's
 	 *  proof sent where nothing could check it is refused. */
 	verifiesDelegations?: boolean;
+	/** The origin of a page that embeds shu in a frame and posts it the page the reader is on. */
+	embedderOrigin?: string;
+	/** The rounds of tool calls an ask starts with, before the reader chooses. */
+	askToolLimit?: number;
 };
 
 // The page boots ONCE, but its modules load once PER BUNDLE (the app, the polymorphic view, an actions-bar extension
@@ -184,6 +188,16 @@ export function isOffline(): boolean {
 /** What every reader holds here without presenting anything: nothing, where the page was served saying nothing. */
 export function deploymentAllowedWithoutDelegation(): string[] {
 	return cachedHydration().data?.settings?.allowedWithoutDelegation ?? [];
+}
+
+/** The rounds of tool calls an ask starts with, as this deployment sets them, or undefined where it set none. */
+export function deploymentAskToolLimit(): number | undefined {
+	return cachedHydration().data?.settings?.askToolLimit;
+}
+
+/** The origin of the page this deployment lets embed shu, or undefined where it lets none. */
+export function deploymentEmbedderOrigin(): string | undefined {
+	return cachedHydration().data?.settings?.embedderOrigin;
 }
 
 /** Whether this deployment verifies a delegation: not, where the page was served saying nothing. */

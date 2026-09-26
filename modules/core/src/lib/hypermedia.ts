@@ -440,6 +440,11 @@ export type TViewCollection = z.infer<typeof ViewCollectionSchema>;
  *  `next` holds the call that reads the members the page doesn't carry. */
 export const PAGE_TERMS = { partOf: "partOf", next: "next" } as const;
 
+/** A call a link names: the step it runs, by method, and the parameters it takes. A view's `next` is one, and so is the
+ *  link a record offers to read it. */
+export const CallLinkSchema = z.object({ method: z.string(), params: z.record(z.string(), z.unknown()).optional() });
+export type TCallLink = z.infer<typeof CallLinkSchema>;
+
 /**
  * The fields a read answers a count in: how many records it found, and whether it stopped at a ceiling rather than
  * reaching the end.

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
+import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 import { AUTHORITY_KEY, SessionAuthority } from "@haibun/core/lib/session-authority.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
@@ -46,6 +47,28 @@ describe("the app a deployment serves", () => {
 		authority.registerVerifier({ verify: async () => ({ ok: false }), delegationsTo: async () => ({ delegations: [] }), record: recordsNothing, revoke: recordsNothing });
 		(world.runtime.keys ??= {})[AUTHORITY_KEY] = authority;
 		expect(served(), "a verifier registered after the app was served").toContain('"verifiesDelegations":true');
+	});
+
+	it("lets only this site frame the page, and the embedding page's origin where the deployment names one", async () => {
+		const EMBEDDER = "chrome-extension://abcdefghijklmnop";
+		const headersOf = async (options: Record<string, string>) => {
+			const served = new ShuStepper();
+			const w = getDefaultWorld();
+			w.moduleOptions = { ...w.moduleOptions, ...options };
+			const routes = vi.fn();
+			w.runtime[WEBSERVER] = { addRoute: routes, mounted: { get: {} }, allowedWithoutDelegation: [] };
+			await served.setWorld(w, []);
+			await served.steps.serveShuApp.action({ path: "/spa" });
+			const serve = routes.mock.calls.find(([, path]) => path === "/spa")?.[3] as (c: unknown) => string;
+			const headers: Record<string, string> = {};
+			const page = serve({ header: (name: string, value: string) => (headers[name] = value), html: (body: string) => body });
+			return { headers, page };
+		};
+		expect((await headersOf({})).headers["Content-Security-Policy"]).toBe("frame-ancestors 'self'");
+		const embedded = await headersOf({ [getStepperOptionName(ShuStepper, "EMBEDDER_ORIGIN")]: EMBEDDER });
+		expect(embedded.headers["Content-Security-Policy"]).toBe(`frame-ancestors 'self' ${EMBEDDER}`);
+		expect(embedded.page, "and the page reads the origin to accept messages from").toContain(`"embedderOrigin":"${EMBEDDER}"`);
+		expect(new ShuStepper().options.EMBEDDER_ORIGIN.parse("an origin").parseError).toMatch(/isn't an origin/);
 	});
 });
 

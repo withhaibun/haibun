@@ -12,7 +12,7 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { reads, conduit } from "../hypermedia.js";
-import { findStep, getAvailableSteps, requireStep } from "../rpc-registry.js";
+import { deploymentAskToolLimit, findStep, getAvailableSteps, requireStep } from "../rpc-registry.js";
 import { edgeRecordType, getActionBarAskExtensionTags, getActionBarChatExtensionTags, getEdgeRanges, getRelSync } from "../rels-cache.js";
 import { ContextReadBySchema, SessionListSchema, type TComboboxOption, type TContextPattern, type TQuestionRestate } from "../schemas.js";
 import { GraphQueryResultSchema, extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
@@ -42,6 +42,7 @@ import { harvestChatViewLd } from "../chat-context-harvest.js";
 import { SHU_TAG } from "../consts.js";
 import { actionRef, recordRef, stepRef } from "./shu-ref.js";
 import { reportToRun } from "../client-log.js";
+import { embeddedViewLd } from "../embedder.js";
 
 /** What a reader says a turn sends. The values are the words the registry and a profile state it in; what each of them
  *  sends is how a reader reads them, and "" is the reader saying nothing, which leaves it to the model. */
@@ -61,6 +62,8 @@ const KihanVertexSchema = z.looseObject({
 	id: z.string(),
 	displayName: z.string().optional(),
 	capabilities: z.looseObject({ tools: z.boolean().optional(), thinking: z.boolean().optional() }).optional(),
+	/** Whether this is the run's standing default, the model a call outside any turn is sent to. */
+	standing: z.boolean().optional(),
 	options: z.looseObject({ contextReadBy: ContextReadBySchema.optional() }).optional(),
 });
 type TKihanVertex = z.infer<typeof KihanVertexSchema>;
@@ -198,7 +201,8 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	}
 
 	constructor() {
-		super(ChatSchema, {});
+		// A deployment sets the tool limit an ask starts with, and a limit the reader chose is remembered over it.
+		super(ChatSchema, { toolLimit: deploymentAskToolLimit() ?? TOOL_LIMIT_DEFAULT });
 	}
 
 	protected override onConnected(): void {
@@ -326,13 +330,12 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	}
 
 	/** The model a question is sent to, which is one the run offers. A remembered model the run no longer offers, as one
-	 *  stored under a provider since renamed, is replaced by the offered one the question gets an answer from within its
-	 *  turn: where the registry offers a model that states it does not think beside ones that do, that one stands, since a
-	 *  thinking model's answer can spend the turn's token budget on reasoning and carry no text back. With no catalog, the
-	 *  remembered one stands. */
+	 *  stored under a provider since renamed, is replaced by the run's standing default. Where the run states none, it is
+	 *  replaced by a model that states it does not think, since a thinking model's answer can spend the turn's token budget
+	 *  on reasoning and carry no text back. With no catalog, the remembered one stands. */
 	private offeredModel(): string {
 		if (this._models.length > 0 && !this._models.some((m) => m.id === this.state.model))
-			this.setState({ model: (this._models.find((m) => m.capabilities?.thinking === false) ?? this._models[0]).id });
+			this.setState({ model: (this._models.find((m) => m.standing) ?? this._models.find((m) => m.capabilities?.thinking === false) ?? this._models[0]).id });
 		return this.state.model;
 	}
 
@@ -447,7 +450,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 							: nothing
 				}
 				${this.providersWithoutTemplate()}
-				<label class="tool-limit-label" title="Max chained tool calls the model may run before asking you to confirm the next one. 0 means every tool call needs confirmation.">
+				<label class="tool-limit-label" title="The most rounds of tool calls a turn makes. A round is one reply from the model with the calls it asks for. A turn that uses every round without answering fails, and 0 offers the model no tools.">
 					<span>tool calls</span>
 					<input class="tool-limit" type="number" min=${TOOL_LIMIT_MIN} max=${TOOL_LIMIT_MAX} step="1" .value=${String(this.state.toolLimit)} data-testid=${`${this.testIdPrefix}tool-limit`} @change=${this.onToolLimitChange}>
 				</label>
@@ -547,7 +550,8 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 			prompt,
 			envelope: {
 				patterns,
-				viewLd: harvestChatViewLd(),
+				// The page the reader is on, where a page embedding shu posts it, is part of the view with only the bar open.
+				viewLd: [...harvestChatViewLd(), ...embeddedViewLd()],
 				maxToolCalls: this.state.toolLimit,
 				contextReadBy: this.state.contextReadBy || undefined,
 				session: this.#conversation.state.session ?? undefined,

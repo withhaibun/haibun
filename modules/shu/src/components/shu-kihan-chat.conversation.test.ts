@@ -108,6 +108,7 @@ const { SHU_TEST_IDS } = await import("../test-ids.js");
 const { forgetElementPrefs } = await import("../element-prefs.js");
 const { hashParam, mergeHashParams } = await import("../view-hash.js");
 const { INITIAL_SUBJECT, SCOPE, activeEntry, currentSubject, currentSubjectState, dispatchSubjectEvent, entryOf, scopeEntry } = await import("../current-subject.js");
+const { EMBEDDED_PAGE_TYPE, embeddedPageView } = await import("../embedder.js");
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 const EMAIL = entryOf([anIndividual("Email", "read-me@bakery.test")], "private");
@@ -351,6 +352,20 @@ describe("the model a question is sent to", () => {
 		expect(inside<HTMLElement & { value?: string }>(pane.shadowRoot, ".model-select").value, "and the selector shows the model the question went to").toBe("openai:a-model");
 	});
 
+	it("is the run's standing default where the reader hasn't chosen a model the run offers, before a model that doesn't think", async () => {
+		catalog = () => ({
+			vertices: [
+				{ id: "openai:quick", capabilities: { tools: true, thinking: false } },
+				{ id: "openai:standing", standing: true, capabilities: { tools: true, thinking: true } },
+			],
+			total: 2,
+		});
+		const { pane } = await aPage();
+		pane.setState({ model: "llama:thinker" });
+		await submit(pane, "what is this");
+		expect(sent.at(-1)?.target).toBe("openai:standing");
+	});
+
 	it("is the one that states it does not think, where the catalog offers that beside ones that do, so a question gets an answer within its turn", async () => {
 		catalog = () => ({
 			vertices: [
@@ -444,6 +459,16 @@ describe("the ask and the active record", () => {
 		expect(sent.at(-1)).toMatchObject({ patterns: EMAIL.bundle.patterns, viewLd: VIEW_DATA });
 		expect(sent.at(-1)?.inReplyTo).toBeUndefined();
 		expect(sent.at(-1)?.session).toBeUndefined();
+	});
+
+	it("sends the page an embedding page posted as the turn's view, with only the bar open", async () => {
+		viewData = [];
+		const page = { "@id": "https://example.com/bakery", "@type": EMBEDDED_PAGE_TYPE, name: "The bakery" } as const;
+		embeddedPageView.set(page);
+		const { pane } = await aPage();
+		await submit(pane, "what does this page say");
+		embeddedPageView.set(null);
+		expect(sent.at(-1)?.viewLd).toEqual([page]);
 	});
 
 	it("activates each comment its turn records with the turn's bundle, and the comment leads while the bar is open", async () => {

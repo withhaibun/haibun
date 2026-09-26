@@ -10,6 +10,8 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
 	RESPONSE_TIMEOUT_MS,
+	deploymentAskToolLimit,
+	deploymentEmbedderOrigin,
 	deploymentMs,
 	getAvailableSteps,
 	hydrateFromDom,
@@ -79,6 +81,13 @@ describe("the timings a deployment sets", () => {
 		setHydration({ settings: { streamReconnectAfterMs: 500 } });
 		hydrateFromDom();
 		expect(deploymentMs("streamReconnectAfterMs")).toBe(500);
+	});
+
+	it("answers the embedding page's origin and the rounds an ask starts with, as the deployment set them", () => {
+		setHydration({ settings: { embedderOrigin: "chrome-extension://abcdefghijklmnop", askToolLimit: 7 } });
+		hydrateFromDom();
+		expect(deploymentEmbedderOrigin()).toBe("chrome-extension://abcdefghijklmnop");
+		expect(deploymentAskToolLimit()).toBe(7);
 	});
 
 	it("answers with nothing where the deployment set nothing, so the page applies what it carries", () => {

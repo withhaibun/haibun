@@ -168,11 +168,19 @@ function createSpaHandler(basePath: string, settings: () => TDeploymentSettings)
 	// `no-cache` still permits cached storage with revalidation, so a soft reload
 	// could keep serving a stale bundle; `no-store` forbids caching entirely.
 	return (c: Context) => {
+		const served = settings();
 		c.header("Cache-Control", "no-store, must-revalidate");
 		c.header("Pragma", "no-cache");
-		return c.html(buildSpaHtml(basePath, loadBundle(), settings()));
+		c.header("Content-Security-Policy", frameAncestors(served.embedderOrigin));
+		return c.html(buildSpaHtml(basePath, loadBundle(), served));
 	};
 }
+
+/** The pages that may frame shu: this site's own, and the embedding page's origin where the deployment names one. */
+export const frameAncestors = (embedderOrigin: string | undefined): string => ["frame-ancestors 'self'", ...(embedderOrigin ? [embedderOrigin] : [])].join(" ");
+
+/** An origin as a page states it: a scheme and a host, such as `https://example.com` or `chrome-extension://<id>`. */
+const ORIGIN = /^[a-z][a-z0-9+.-]*:\/\/[^/\s]+$/;
 
 // The graph view's bundled IIFE, under build/assets/ so tsc's per-file ESM emit cannot clobber it. Anchored at the
 // package root so one path resolves whether this runs from `src/` or `build/`, and cached by mtime so a rebuilt
@@ -211,7 +219,14 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 		};
 		const streamReconnectAfterMs = timing("STREAM_RECONNECT_AFTER_MS");
 		const responseTimeoutMs = timing("RESPONSE_TIMEOUT_MS");
-		this.settings = { ...(streamReconnectAfterMs === undefined ? {} : { streamReconnectAfterMs }), ...(responseTimeoutMs === undefined ? {} : { responseTimeoutMs }) };
+		const embedderOrigin = getStepperOption(this, "EMBEDDER_ORIGIN", world.moduleOptions);
+		const askToolLimit = timing("ASK_TOOL_LIMIT");
+		this.settings = {
+			...(streamReconnectAfterMs === undefined ? {} : { streamReconnectAfterMs }),
+			...(responseTimeoutMs === undefined ? {} : { responseTimeoutMs }),
+			...(embedderOrigin === undefined ? {} : { embedderOrigin }),
+			...(askToolLimit === undefined ? {} : { askToolLimit }),
+		};
 	}
 
 	cycles = {
@@ -278,9 +293,21 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 			desc: "How long after the event stream breaks the page opens it again, in milliseconds. Unset, the page opens it on the interval the subscriber carries",
 			parse: (input: string) => intOrError(input),
 		},
+		ASK_TOOL_LIMIT: {
+			desc: "The rounds of tool calls an ask starts with, from 0 to 99, before the reader chooses. Unset, an ask starts with 5",
+			parse: (input: string) => {
+				const parsed = intOrError(input);
+				const rounds = parsed.result;
+				return rounds !== undefined && (rounds < 0 || rounds > 99) ? { parseError: `${input} isn't from 0 to 99` } : parsed;
+			},
+		},
+		EMBEDDER_ORIGIN: {
+			desc: "The origin of a page that embeds shu in a frame and posts it the page the reader is on, such as a browser extension's panel (`chrome-extension://<id>`). Unset, only this site frames shu",
+			parse: (input: string) => (ORIGIN.test(input) ? { result: input } : { parseError: `${input} isn't an origin: a scheme and a host, such as chrome-extension://<id>` }),
+		},
 	};
-	/** The timings this deployment set, written into every page it serves. A deployment that sets neither serves a page
-	 *  that runs on the values the product carries. */
+	/** The timings and the embedding page's origin this deployment set, written into every page it serves. A deployment
+	 *  that sets none serves a page that runs on the values the product carries. */
 	private settings: TDeploymentSettings = {};
 
 	steps = {
