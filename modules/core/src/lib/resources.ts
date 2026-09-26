@@ -259,6 +259,8 @@ export const LinkRelations = {
 	MEDIA_TYPE: { rel: "mediaType", uri: "as:mediaType", range: "literal" },
 	IN_REPLY_TO: { rel: "inReplyTo", uri: "as:inReplyTo", range: "iri" },
 	ATTACHMENT: { rel: "attachment", uri: "as:attachment", range: "iri" },
+	// schema.org: an image a work shows, by the address it is kept at.
+	IMAGE: { rel: "image", uri: "schema:image", range: "literal" },
 	TAG: { rel: "tag", uri: "as:tag", range: "literal" },
 	IDENTIFIER: { rel: "identifier", uri: "dcterms:identifier", range: "iri" },
 	URL: { rel: "url", uri: "as:url", range: "literal" },
@@ -807,6 +809,8 @@ export const CommentSchema = PersistedVertexSchema.extend({
 	/** The handles the note states that the records it was made from don't hold, as an answer names records it was not
 	 *  sent. A reader of the note reads those records as the note's own rather than as records the graph holds. */
 	unverified: z.array(z.string()).optional(),
+	/** The images the note shows, by the addresses the run serves them at, as a question a person asked with an image. */
+	image: z.array(z.string()).optional(),
 });
 
 export type TComment = z.infer<typeof CommentSchema>;
@@ -853,6 +857,7 @@ export const commentDomainDefinition: TDomainDefinition = {
 			seqPath: LinkRelations.SEQ_PATH.rel,
 			body: { rel: LinkRelations.CONTENT.rel, mediaType: MEDIA_TYPE.markdown },
 			unverified: LinkRelations.TAG.rel,
+			image: LinkRelations.IMAGE.rel,
 		},
 		edges: {
 			[HAS_BODY_EDGE]: { rel: LinkRelations.HAS_BODY.rel, range: BODY_LABEL },

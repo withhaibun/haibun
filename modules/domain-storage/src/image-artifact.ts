@@ -1,11 +1,11 @@
 /**
  * The one path an image artifact takes into a run: saved through storage, then announced on the artifact stream the
- * report and the live /artifacts route both read. Every producer of an image, a screenshot, a graph still, uses
- * this, so the artifact id scheme and field set exist once.
+ * report and the live /artifacts route both read. Every producer of an image, a screenshot, a graph still, an image a
+ * person adds to a question, uses this, so the artifact id scheme and field set exist once.
  */
 import type { TWorld } from "@haibun/core/lib/world.js";
-import type { AStorage, TSavedArtifact } from "@haibun/domain-storage/AStorage.js";
-import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
+import type { AStorage, TSavedArtifact } from "./AStorage.js";
+import { EMediaTypes } from "./media-types.js";
 import { ImageArtifact } from "@haibun/core/schema/protocol.js";
 import type { TFeatureStep } from "@haibun/core/lib/astepper.js";
 

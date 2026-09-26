@@ -23,9 +23,6 @@ export const PAGE_STRIP_FOOTPRINT = "--shu-page-strip-h";
 /** The hash param that addresses the conversation the ask is open on, by its session's seqPath. */
 export const CONVERSATION_PARAM = "ask";
 
-/** Where the run serves the artifacts its steps captured. */
-export const ARTIFACTS_ROUTE = "/artifacts";
-
 /** What a deep link into the view state begins with: view state is carried in the hash, which a static document can
  *  link to and a page saved for offline reading still keeps. */
 export const DEEP_LINK_PREFIX = "#?";

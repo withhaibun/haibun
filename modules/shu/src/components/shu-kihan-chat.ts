@@ -11,7 +11,9 @@ import { nothing, html, css, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
-import { reads, conduit } from "../hypermedia.js";
+import { acts, reads, conduit } from "../hypermedia.js";
+import { artifactAt } from "../artifact-url.js";
+import { ImageReferenceSchema, KEPT_IMAGE_FORMATS, type TImageReference } from "@haibun/core/lib/image-reference.js";
 import { deploymentAskToolLimit, findStep, getAvailableSteps, requireStep } from "../rpc-registry.js";
 import { edgeRecordType, getActionBarAskExtensionTags, getActionBarChatExtensionTags, getEdgeRanges, getRelSync } from "../rels-cache.js";
 import { ContextReadBySchema, SessionListSchema, type TComboboxOption, type TContextPattern, type TQuestionRestate } from "../schemas.js";
@@ -31,6 +33,7 @@ import {
 	gainedSince,
 	sessionsRead,
 	inFlight,
+	KEEP_IMAGE_STEP,
 	openConversation,
 	turnEnded,
 	type TAskedTurn,
@@ -96,6 +99,19 @@ function sessionOptionLabel(s: TChatSession): string {
 /** What the chat remembers between visits: which model to ask, how many chained tool calls it may make, and who reads
  *  the records a turn is about. `contextReadBy` is unset until a reader states it, and unset means the model's own
  *  profile says which. The conversation is addressed in the view hash, not remembered here. */
+/** The source the ask pane reports what it couldn't show under. */
+const KIHAN_CHAT_SOURCE = "shu-kihan-chat";
+
+/** A file's bytes as a data: URL. */
+function readAsDataUrl(file: Blob): Promise<string> {
+	return new Promise((resolve, reject) => {
+		const reader = new FileReader();
+		reader.onload = () => resolve(String(reader.result));
+		reader.onerror = () => reject(reader.error ?? new Error("the file couldn't be read"));
+		reader.readAsDataURL(file);
+	});
+}
+
 const ChatSchema = z.object({
 	model: z.string().default(""),
 	toolLimit: z.number().int().min(TOOL_LIMIT_MIN).max(TOOL_LIMIT_MAX).default(TOOL_LIMIT_DEFAULT),
@@ -152,6 +168,8 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		}
 		.tool-limit { width: 4em; font-size: var(--shu-font-sm); }
 		.refusal { flex-basis: 100%; font-size: var(--shu-font-sm); color: var(--shu-error); }
+		/* The images a question shows, as thumbnails above its input line. */
+		.ask-images img { max-height: 4rem; }
 		.turn-authority { flex: 0 0 auto; padding: 0 var(--shu-space-4); font-size: var(--shu-font-sm); color: var(--shu-fg-muted); }
 		.send-btn, .stop-btn {
 			padding: var(--shu-space-1) var(--shu-space-4); border: var(--shu-border-w) solid transparent;
@@ -184,6 +202,8 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	/** Why the reader's last question was not asked. It shows beside the input until the turn or the conversation moves,
 	 *  so a refusal is never shown for a question the reader did not submit. */
 	#refusal: string | null = null;
+	/** The images the reader added to the question being written, kept by the run, which the question shows its model. */
+	#images: TImageReference[] = [];
 	/** A question from the history put in the input to edit: the records it was about and the turn it replied to, which
 	 *  the edited question is sent with in place of the active record and the bar's turn. */
 	#restating: Omit<TQuestionRestate, "prompt" | "send"> | null = null;
@@ -358,8 +378,19 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 						</div>`
 					: nothing
 			}
+			${
+				this.#images.length > 0
+					? html`<div class="ask-images">
+							${this.#images.map(
+								(image) =>
+									html`<img data-testid=${`${this.testIdPrefix}ask-image-shown`} src=${artifactAt(image.contentUrl, KIHAN_CHAT_SOURCE)} alt="an image the question shows" /><button type="button" @click=${() => this.removeImage(image)}>remove</button>`,
+							)}
+						</div>`
+					: nothing
+			}
 			<div class="input-line">
 				<slot name="mode-toggle"></slot>
+				<input type="file" title="Add an image to the question" accept=${KEPT_IMAGE_FORMATS.join(",")} data-testid=${`${this.testIdPrefix}ask-image`} @change=${this.onImageChosen} />
 				<textarea class="chat-input" placeholder=${`Ask about ${embeddedPageView.get()?.name ?? "this"}...`} data-testid=${`${this.testIdPrefix}chat-input`} rows="1" autofocus .value=${askDraft.get()} @input=${this.onChatInput} @keydown=${this.onChatKeydown}></textarea>
 				${unsafeHTML(uiExtensionTags.map((tag) => `<${tag}></${tag}>`).join(""))}
 				<button type="button" class="send-btn" data-testid=${`${this.testIdPrefix}chat-submit`} style=${running ? "display:none" : ""} @click=${this.submitChat}>Send</button>
@@ -532,10 +563,15 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 			const restating = this.#restating;
 			this.#restating = null;
 			const asking = restating ? this.askWith(prompt, restating.patterns, restating.inReplyTo) : this.askWith(prompt, carries?.bundle.patterns ?? [], repliesTo?.turn);
+			const images = this.#images;
+			this.#images = [];
 			chatInput.value = "";
 			askDraft.set("");
 			chatInput.style.height = "auto";
-			const ended = await asking;
+			const ended = await asking.catch((err: unknown) => {
+				this.#images = images;
+				throw err;
+			});
 			if (ended.askId === null) restoreQuestion(chatInput, prompt);
 		} catch (err) {
 			restoreQuestion(chatInput, prompt);
@@ -557,9 +593,30 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 				contextReadBy: this.state.contextReadBy || undefined,
 				session: this.#conversation.state.session ?? undefined,
 				inReplyTo,
+				...(this.#images.length > 0 ? { images: this.#images } : {}),
 			},
 			target: this.offeredModel(),
 		});
+	}
+
+	/** Keep each image the reader chose in the run, which the question then names. */
+	private readonly onImageChosen = async (e: Event): Promise<void> => {
+		const input = e.target as HTMLInputElement;
+		try {
+			for (const file of input.files ?? []) {
+				const kept = await conduit().follow(acts(requireStep(KEEP_IMAGE_STEP), { image: await readAsDataUrl(file) }), "kihan-chat: keep the question's image");
+				this.#images = [...this.#images, ImageReferenceSchema.parse(kept)];
+			}
+		} catch (err) {
+			this.#refusal = errorDetail(err);
+		}
+		input.value = "";
+		this.requestUpdate();
+	};
+
+	private removeImage(image: TImageReference): void {
+		this.#images = this.#images.filter((kept) => kept !== image);
+		this.requestUpdate();
 	}
 
 	/** Asks `text`, as the reader typing it and pressing Send does. */

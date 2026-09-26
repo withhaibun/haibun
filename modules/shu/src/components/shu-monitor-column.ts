@@ -18,14 +18,16 @@ import { SCROLL_TO_INDEX, type TSeekBy } from "./shu-scrollbar.js";
 import { SHU_EVENT } from "../consts.js";
 import type { WindowedSource } from "../windowed-source.js";
 import type { TScrollMarker } from "../scrollbar-model.js";
-import { artifactUrl, shownOrReported } from "../artifact-url.js";
-import { until } from "lit/directives/until.js";
+import { artifactAt, artifactUrl } from "../artifact-url.js";
 import { unavailableOrEmpty } from "./empty-state.js";
 import { PaneState, addsToSelection, type DesiredPane } from "../pane-state.js";
 import { actionRef, fieldRef, originLink, refTpl } from "./shu-ref.js";
 import { parseSeqPath, SEQ_PATH_EDGE } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "@haibun/core/lib/resources.js";
 import { currentRowIndex, cursorMark } from "../virtual-column-model.js";
+
+/** The source the monitor reports an artifact it couldn't show under. */
+const MONITOR_SOURCE = "shu-monitor-column";
 
 const MonitorColumnSchema = z.object({
 	level: z.enum(HAIBUN_LOG_LEVELS).default("info"),
@@ -35,9 +37,6 @@ const MonitorColumnSchema = z.object({
 	substeps: z.boolean().default(false),
 });
 
-
-/** An artifact's address as the monitor shows it, once the page has read it. */
-const artifactAt = (url: string) => until(shownOrReported(url, "shu-monitor-column").then((at) => at ?? nothing), nothing);
 /**
  * What pressing a row opens: the record that row is.
  *
@@ -426,7 +425,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		// What the step produced, beside its words: the row of the step a reader sees is where a screenshot taken during it
 		// is shown, and pressing one opens the image itself.
 		const produced = r.produced?.length
-			? html`<span class="produced" data-testid=${SHU_TEST_IDS.MONITOR.PRODUCED}>${r.produced.map((one) => html`<a href=${artifactAt(one.url)} target="_blank" rel="noreferrer" title=${one.what}><img src=${artifactAt(one.url)} alt=${one.what} loading="lazy" decoding="async" /></a>`)}</span>`
+			? html`<span class="produced" data-testid=${SHU_TEST_IDS.MONITOR.PRODUCED}>${r.produced.map((one) => html`<a href=${artifactAt(one.url, MONITOR_SOURCE)} target="_blank" rel="noreferrer" title=${one.what}><img src=${artifactAt(one.url, MONITOR_SOURCE)} alt=${one.what} loading="lazy" decoding="async" /></a>`)}</span>`
 			: "";
 		// A substep says which step it was run to carry out, and reading that step from here is the same act as reading
 		// its own row: a reader shown a step of the machinery is one press from the step of the feature that ran it.

@@ -30,7 +30,10 @@ let refusedBeforeRecording: string | undefined;
 /** What the run waits on between starting the turn's step and recording its question, where a case holds it there. */
 let recording: Promise<void> | undefined;
 /** The context envelope each turn was sent with, so a case reads what the pane asked for. */
-const sent: Array<{ contextReadBy?: string; patterns?: unknown[]; inReplyTo?: string; viewLd?: unknown[]; session?: string; target?: string; accessLevel?: string }> = [];
+const sent: Array<{ contextReadBy?: string; patterns?: unknown[]; inReplyTo?: string; viewLd?: unknown[]; session?: string; target?: string; accessLevel?: string; images?: unknown[] }> = [];
+/** The image the run keeps for a question, and each image the pane asked it to keep. */
+const KEPT_IMAGE = { contentUrl: "/artifacts/featn-1/image/question-1.png", encodingFormat: "image/png" };
+const keptImages: string[] = [];
 /** The seqPath each turn the stream starts is given, in order; a turn beyond them is given 0.1.2. The run records the
  *  turn's question as the step starts and its answer when it finishes, each named by the turn. */
 const turnSeqPaths: number[][] = [];
@@ -58,6 +61,10 @@ vi.mock("../hypermedia.js", async () => {
 		(req) => {
 			// The registry as the server holds it: a model states who reads its context, which the pane shows on the default.
 			if (req.method === "showKihans") return catalog(req.params ?? {});
+			if (req.method === "keepImage") {
+				keptImages.push(String(req.params?.image));
+				return KEPT_IMAGE;
+			}
 			if (req.method === "listChatSessions") return { sessions: [{ session: RESTORED, label: "an earlier conversation", generatedAtTime: "2026-05-17T05:00:00.000Z", turns: 1 }] };
 			// A read held open, answered when a case says the store got back to the page.
 			if (req.method === "loadChatSession")
@@ -469,6 +476,21 @@ describe("the ask and the active record", () => {
 		await submit(pane, "what does this page say");
 		embeddedPageView.set(null);
 		expect(sent.at(-1)?.viewLd).toEqual([page]);
+	});
+
+	it("keeps an image the reader adds, shows it, and sends the question with it, and the next question without it", async () => {
+		const { pane } = await aPage();
+		const control = inside<HTMLInputElement>(pane.shadowRoot, "input[type=file]");
+		Object.defineProperty(control, "files", { value: [new File(["png"], "door.png", { type: "image/png" })], configurable: true });
+		control.dispatchEvent(new Event("change"));
+		await vi.waitFor(() => expect(keptImages).toHaveLength(1));
+		expect(keptImages[0], "the file, as the run keeps it").toMatch(/^data:image\/png;base64,/);
+		await pane.updateComplete;
+		expect(pane.shadowRoot?.querySelectorAll(".ask-images img"), "the image the question shows").toHaveLength(1);
+		await submit(pane, "what is in the picture");
+		expect(sent.at(-1)?.images).toEqual([KEPT_IMAGE]);
+		expect(pane.shadowRoot?.querySelectorAll(".ask-images img"), "the image went with the question").toHaveLength(0);
+		keptImages.length = 0;
 	});
 
 	it("activates each comment its turn records with the turn's bundle, and the comment leads while the bar is open", async () => {

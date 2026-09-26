@@ -11,3 +11,14 @@ export const ImageReferenceSchema = z.object({
 	encodingFormat: z.string().regex(/^image\//).describe("The image's media type."),
 });
 export type TImageReference = z.infer<typeof ImageReferenceSchema>;
+
+/** The raster formats an image a person adds is kept in. A vector image can carry script, so none is kept. */
+export const KEPT_IMAGE_FORMATS = ["image/png", "image/jpeg", "image/gif", "image/webp"] as const;
+
+export const DOMAIN_IMAGE_DATA = "image-data";
+
+/** An image's bytes as a `data:` URL in base64, in one of the formats kept. */
+export const ImageDataSchema = z
+	.string()
+	.regex(new RegExp(`^data:(${KEPT_IMAGE_FORMATS.map((format) => format.replace("/", "\\/")).join("|")});base64,[A-Za-z0-9+/]+=*$`))
+	.describe("An image's bytes as a data: URL in base64, as PNG, JPEG, GIF or WebP.");

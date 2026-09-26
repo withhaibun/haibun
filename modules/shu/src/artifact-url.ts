@@ -3,10 +3,12 @@
  * file reads it beside itself, since the report is written into the feature's own directory. One rule, so a view that
  * shows an artifact states what to show and not where a page came from.
  */
+import { nothing } from "lit";
+import { until } from "lit/directives/until.js";
 import { READS_THE_RUNS_ARTIFACTS } from "@haibun/core/lib/actions.js";
 import { isOffline } from "./rpc-registry.js";
 import { readingHeaders } from "./page-key.js";
-import { ARTIFACTS_ROUTE } from "./consts.js";
+import { ARTIFACTS_ROUTE, artifactAddress } from "@haibun/core/lib/run-artifact.js";
 import { reportToRun } from "./client-log.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 
@@ -19,7 +21,7 @@ export function artifactUrl(artifact: { url?: unknown; path?: unknown; featureRe
 	// the run-relative path is what the report's own directory already is.
 	const besideTheFile = base ? `./${base.split("/").slice(1).join("/")}` : undefined;
 	if (isOffline()) return (typeof artifact.featureRelativePath === "string" ? artifact.featureRelativePath : undefined) ?? url ?? besideTheFile;
-	return url ?? (base ? `${ARTIFACTS_ROUTE}/${base}` : undefined);
+	return url ?? (base ? artifactAddress(base) : undefined);
 }
 
 /** The run's artifacts this page has read, by address, as the object URLs a view shows them at. */
@@ -45,6 +47,9 @@ export const shownOrReported = (url: string, source: string): Promise<string | u
 		reportToRun("warn", source, `an artifact couldn't be shown: ${errorDetail(err)}`, { url });
 		return undefined;
 	});
+
+/** An artifact's address as a view binds it, once the page has read it: nothing until then, or where it couldn't be read. */
+export const artifactAt = (url: string, source: string) => until(shownOrReported(url, source).then((at) => at ?? nothing), nothing);
 
 async function readArtifact(url: string): Promise<string> {
 	const response = await fetch(url, { headers: await readingHeaders(url, READS_THE_RUNS_ARTIFACTS) });

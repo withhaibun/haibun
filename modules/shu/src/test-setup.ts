@@ -58,7 +58,7 @@ import { resetRunSources, setDeviceStore, MemoryDeviceStore } from "./client-cac
 import { SHOW_STEPS_METHOD, STEP_DETAIL, readShownSteps, stepDefinition, type TStepDefinitions } from "@haibun/core/lib/step-discovery.js";
 import { requiredAction } from "@haibun/core/lib/actions.js";
 import { steppersOf } from "@haibun/core/lib/step-registry.js";
-import { ARTIFACTS_ROUTE } from "./consts.js";
+import { ARTIFACTS_ROUTE } from "@haibun/core/lib/run-artifact.js";
 
 type TShuTestConfig = {
 	/** Optional dispatch for in-test RPCs. Default throws on every call, naming the unconfigured method, tests opt in by supplying a function that returns wire results for the methods they exercise. */

@@ -20,10 +20,11 @@ import {
 	errorDetail,
 } from "@haibun/core/lib/util/index.js";
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
-import { saveImageArtifact } from "./artifact.js";
+import { saveImageArtifact } from "@haibun/domain-storage/image-artifact.js";
 import { VideoStartArtifact } from "@haibun/core/schema/protocol.js";
 import { EMediaTypes, MAPPED_MEDIA_TYPES } from "@haibun/domain-storage/media-types.js";
 import type { TImageReference } from "@haibun/core/lib/image-reference.js";
+import { artifactAddress } from "@haibun/core/lib/run-artifact.js";
 import { DOMAIN_STRING, domainParts } from "@haibun/core/lib/domains.js";
 import {
 	DOMAIN_PAGE_LOCATOR,
@@ -381,13 +382,14 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	}
 
 	async captureScreenshotAndLog(event: string, details: { seq?: number; step?: TStepResult }): Promise<TImageReference> {
-		const image = await this.captureScreenshot(event, details);
-		this.getWorld().eventLogger.debug(`${event} screenshot to ${pathToFileURL(image.contentUrl)}`);
+		const { image, savedTo } = await this.captureScreenshot(event, details);
+		this.getWorld().eventLogger.debug(`${event} screenshot to ${pathToFileURL(savedTo)}`);
 		return image;
 	}
 
-	/** Screenshot the page into the run's storage, as an image artifact, and return where its bytes are kept. */
-	async captureScreenshot(event: string, details: { seq?: number; step?: TStepResult }): Promise<TImageReference> {
+	/** Screenshot the page into the run's storage, as an image artifact, and return the address the run serves it at and
+	 *  where it was saved. */
+	async captureScreenshot(event: string, details: { seq?: number; step?: TStepResult }): Promise<{ image: TImageReference; savedTo: string }> {
 		const filename = `event-${details.step?.seqPath.join(".")}.png`;
 		// Take screenshot to buffer first, then save
 		const buffer = (await this.withPage(async (page: Page) => await page.screenshot())) as Buffer;
@@ -398,7 +400,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			action: {} as TStepAction,
 		};
 		const saved = await saveImageArtifact(this.getWorld(), this.storage, featureStep as unknown as Parameters<typeof saveImageArtifact>[2], filename, buffer, SCREENSHOT_FORMAT);
-		return { contentUrl: saved.absolutePath, encodingFormat: SCREENSHOT_FORMAT };
+		return { image: { contentUrl: artifactAddress(saved.baseRelativePath), encodingFormat: SCREENSHOT_FORMAT }, savedTo: saved.absolutePath };
 	}
 
 	async setExtraHTTPHeaders(headers: { [name: string]: string }) {

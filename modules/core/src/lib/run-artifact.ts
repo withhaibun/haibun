@@ -12,6 +12,12 @@ import { EXECUTION_FIELD, RECORDED_AT_TIME_FIELD } from "./seq-path.js";
 import { LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "./resources.js";
 
 const RUN_ARTIFACT_DOMAIN = "run-artifact";
+
+/** Where the run serves the artifacts its steps captured: an artifact's path is under it. */
+export const ARTIFACTS_ROUTE = "/artifacts";
+
+/** The address the run serves an artifact at, from its path under the run's artifacts. */
+export const artifactAddress = (path: string): string => `${ARTIFACTS_ROUTE}/${path}`;
 export const RUN_ARTIFACT_LABEL = "Artifact";
 
 /** Artifact field names, shared by the schema, the topology and whatever writes one. */
