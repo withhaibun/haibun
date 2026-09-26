@@ -78,8 +78,8 @@ describe("finalizeBlocks", () => {
 		expect(out).toHaveLength(1);
 		expect(out[0].html).toContain("thumb-row");
 	});
-	it("keeps the step each frame names, rather than naming the row before it", () => {
-		// A screenshot whose step's row is on an earlier page, or hidden below the document's level, follows another row.
+	it("keeps each frame's data-step-id, and doesn't replace it with the preceding row's id", () => {
+		// A screenshot whose step's row is on the previous page, or below the document's log level, follows another step's row.
 		const named = `<shu-artifact-frame class="thumb" data-step-id="0.1.1"><img src="x.png" /></shu-artifact-frame>`;
 		const html = `<div class="log-row" data-id="0.1.2" data-raw-time="5">another step</div><div class="standalone-artifact" data-id="shot"></div>`;
 		const out = finalizeBlocks(splitDocumentBlocks(html), () => named);

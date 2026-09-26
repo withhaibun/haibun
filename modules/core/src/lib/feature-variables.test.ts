@@ -351,8 +351,8 @@ describe("FeatureVariables", () => {
 			expect(String(resolved.value)).toBe("7");
 		});
 	});
-	describe("text the line writes", () => {
-		it("is read by its parameter's domain, whether quoted, an environment variable's or a step's argument", async () => {
+	describe("a literal, an environment variable's value and a runtime argument", () => {
+		it("are coerced by the parameter's domain", async () => {
 			world.options.envVariables.PORT = "8080";
 			const argued = { ...mockFeatureStep, runtimeArgs: { port: "8080" } };
 			const read = await Promise.all([

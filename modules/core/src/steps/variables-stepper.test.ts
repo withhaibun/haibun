@@ -405,8 +405,8 @@ describe("matches with brace-bearing text", () => {
 	});
 });
 
-describe("a value a call carries", () => {
-	it("sets a variable to the value a transport's call carries, as it sets a line's value", async () => {
+describe("a transport's call", () => {
+	it("sets a variable from the value in the call's input, as it does from a line", async () => {
 		const world = getTestWorldWithOptions(DEF_PROTO_OPTIONS);
 		const variables = new VariablesStepper();
 		const callers = [variables];

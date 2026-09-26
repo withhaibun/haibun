@@ -249,7 +249,7 @@ describe("generateDocumentMarkdown", () => {
 		}
 	});
 
-	describe("what a step produced is shown on the nearest step it is part of that the document shows", () => {
+	describe("an artifact attaches to the innermost step in its ancestor list that the page renders as a row", () => {
 		const RUN = "1700000000000-1";
 		const lifecycle = (id: string, over: Record<string, unknown> = {}) =>
 			({
@@ -264,23 +264,23 @@ describe("generateDocumentMarkdown", () => {
 				in: "take a screenshot",
 				...over,
 			}) as unknown as THaibunEvent;
-		const shot = (id: string) =>
+		const screenshot = (id: string) =>
 			({ id, timestamp: 1100, source: "h", level: "info", kind: "artifact", artifactType: "image", path: "image/x.png", mimetype: "image/png" }) as unknown as THaibunEvent;
 		const holderOf = (md: string, artifactId: string) => md.match(new RegExp(`class="feature-artifacts" data-ids="${artifactId}" data-id="([^"]*)"`))?.[1];
 
-		it("names the step before `@` as the one an artifact came from, and each step it is part of after it", () => {
+		it("reads an artifact's step id before `@`, and lists a step's enclosing step ids innermost first", () => {
 			expect(artifactStepId(`${RUN}.0.3.12.5@0`)).toBe(`${RUN}.0.3.12.5`);
 			expect(stepAncestors("0.3.12")).toEqual(["0.3.12", "0.3", "0"]);
 		});
 
-		it("claims a step's own shot on the step's row, rather than its scenario's", () => {
-			const events = [lifecycle(`${RUN}.0.3.12`, { type: "scenario", scenarioName: "S" }), lifecycle(`${RUN}.0.3.12.5`), shot(`${RUN}.0.3.12.5@0`)];
+		it("attaches a step's own screenshot to the step's row, not to its scenario's", () => {
+			const events = [lifecycle(`${RUN}.0.3.12`, { type: "scenario", scenarioName: "S" }), lifecycle(`${RUN}.0.3.12.5`), screenshot(`${RUN}.0.3.12.5@0`)];
 			const { md } = generateDocumentMarkdown(events, buildArtifactIndex(events).artifactsByStep);
 			expect(holderOf(md, `${RUN}.0.3.12.5@0`)).toBe(`${RUN}.0.3.12.5`);
 		});
 
-		it("claims a hidden substep's shot on the step it was run to carry out", () => {
-			const events = [lifecycle(`${RUN}.0.3.12.5`), lifecycle(`${RUN}.0.3.12.5.-1`, { level: "trace" }), shot(`${RUN}.0.3.12.5.-1@0`)];
+		it("attaches a hidden substep's screenshot to the row of the step that ran the substep", () => {
+			const events = [lifecycle(`${RUN}.0.3.12.5`), lifecycle(`${RUN}.0.3.12.5.-1`, { level: "trace" }), screenshot(`${RUN}.0.3.12.5.-1@0`)];
 			const { md } = generateDocumentMarkdown(events, buildArtifactIndex(events).artifactsByStep);
 			expect(holderOf(md, `${RUN}.0.3.12.5.-1@0`)).toBe(`${RUN}.0.3.12.5`);
 		});

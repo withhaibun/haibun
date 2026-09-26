@@ -39,7 +39,8 @@ import {
 	DOMAIN_WALK_ID,
 	DOMAIN_VARIABLE_VALUE,
 	DOMAIN_TEMPLATE,
-	DOMAIN_OUTCOME_ARGUMENT,
+	DOMAIN_WAYPOINT_ARGUMENT,
+	DOMAIN_LINE_COMMENT,
 	DOMAIN_HYPERMEDIA_DECLARATION,
 	DOMAIN_SET_VALUES,
 	listedSchema,
@@ -225,11 +226,18 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 	{ selectors: [DOMAIN_FILE_PATH], schema: nameSchema, description: "A file or directory's path, as a storage or the file system reads it." },
 	{ selectors: [DOMAIN_TITLE], schema: nameSchema, written: true, description: "The title a feature, scenario, activity or waypoint is given, as the line writes it." },
 	{
-		selectors: [DOMAIN_OUTCOME_ARGUMENT],
+		selectors: [DOMAIN_WAYPOINT_ARGUMENT],
 		schema: nameSchema,
-		// Every word is one: a call names a waypoint's argument by the words it writes, as `Right to Privacy is upheld` does.
+		// Any string is a member, so an unquoted argument that doesn't refer to a variable is its literal text, such as `Room 101`.
 		names: () => true,
-		description: "A waypoint's argument: the text its call writes, or the variable it names.",
+		description:
+			"An argument in a call to a waypoint, for a placeholder in the waypoint's outcome pattern: the literal text the placeholder matches, or the value of the variable an unquoted name refers to. The activity and the proof read it as a runtime argument.",
+	},
+	{
+		selectors: [DOMAIN_LINE_COMMENT],
+		schema: z.string(),
+		written: true,
+		description: "The text of a line comment, after `;;`, as the feature writes it. The run doesn't act on it.",
 	},
 	{ selectors: [DOMAIN_ROUTE], schema: nameSchema, description: "The path a web server serves something at, such as /shu." },
 	{
@@ -261,7 +269,8 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 	{
 		selectors: [DOMAIN_VARIABLE_VALUE],
 		schema: z.unknown(),
-		description: "A value a variable holds or is given, carried with its domain, which the domain of the variable it is set to or compared with reads.",
+		description:
+			"A value to assign to a variable or to compare with a variable's value. The step receives it as a TStepValue with its domain, and the variable's domain coerces it.",
 	},
 	{ selectors: [DOMAIN_TEMPLATE], schema: z.string(), written: true, description: "Text whose #{name} places a composition fills from variables, as the line writes it." },
 	{

@@ -4,7 +4,7 @@ import type { TWorld } from "../lib/world.js";
 import { TStepArgs, TRegisteredOutcomeEntry, OK } from "../schema/protocol.js";
 import { formatSeqPath } from "../lib/seq-path.js";
 import { actionOK, actionNotOK, getActionable, errorDetail } from "../lib/util/index.js";
-import { DOMAIN_OUTCOME_ARGUMENT, DOMAIN_STATEMENT, DOMAIN_TITLE } from "../lib/domains.js";
+import { DOMAIN_STATEMENT, DOMAIN_TITLE, DOMAIN_WAYPOINT_ARGUMENT } from "../lib/domains.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { ControlEvent, LifecycleEvent } from "../schema/protocol.js";
 import { buildDomainChain } from "../lib/domain-chain.js";
@@ -508,8 +508,8 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		}
 
 		const step: TStepperStep = {
-			// Each argument the outcome names is a waypoint's argument, which a call writes as its text or names as a variable.
-			gwta: outcome.replace(/\{([^}:]+)\}/g, (_, name: string) => `{${name}: ${DOMAIN_OUTCOME_ARGUMENT}}`),
+			// Each placeholder in the outcome pattern takes a waypoint argument.
+			gwta: outcome.replace(/\{([^}:]+)\}/g, (_, name: string) => `{${name}: ${DOMAIN_WAYPOINT_ARGUMENT}}`),
 			virtual: true,
 			source: {
 				lineNumber,

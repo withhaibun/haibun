@@ -25,7 +25,7 @@ const parse = (html: string): HTMLTemplateElement => {
 
 const attrOf = (el: Element, name: string): string => el.getAttribute(name) ?? el.querySelector(`[${name}]`)?.getAttribute(name) ?? "";
 
-/** The text a block shows, which a caption quotes of the step the block renders. */
+/** Returns a block's text content. */
 export const blockText = (block: TDocBlock): string => parse(block.html).content.textContent?.trim() ?? "";
 
 /** Split generated document HTML into one block per top-level element, in order. */
@@ -85,7 +85,7 @@ export function finalizeBlocks(blocks: TDocBlock[], resolveArtifact: TArtifactRe
 	// single full-width tile); a run ends at the next non-thumbnail block, so thumbnails split by a step never share a row.
 	// Each frame is stamped with its ordinal among these blocks, under the caller's prefix (the document generates a page
 	// of the run at a time, and names the page). ←/→ navigation reads it, since under virtualization a frame can't see its
-	// off-window siblings. A frame's step is its artifact's, which the column stamps as it renders the frame.
+	// off-window siblings. The column sets each frame's data-step-id when it renders the artifact.
 	const out: TDocBlock[] = [];
 	let run: { frames: Element[]; id: string; rawTime: number }[] = [];
 	let ordinal = 0;

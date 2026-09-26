@@ -43,8 +43,10 @@ export const DOMAIN_STEPPER_NAME = "stepper-name";
 export const DOMAIN_GLOB = "glob";
 /** The title a feature, scenario, activity or waypoint is given, as the line writes it. */
 export const DOMAIN_TITLE = "title";
-/** A waypoint's argument: the text its call writes, or the variable it names. */
-export const DOMAIN_OUTCOME_ARGUMENT = "outcome-argument";
+/** An argument in a call to a waypoint, for a placeholder in the waypoint's outcome pattern. */
+export const DOMAIN_WAYPOINT_ARGUMENT = "waypoint-argument";
+/** The text of a line comment, after `;;`. */
+export const DOMAIN_LINE_COMMENT = "line-comment";
 /** A file or directory's path, as a storage or the file system reads it. */
 export const DOMAIN_FILE_PATH = "file-path";
 /** The path a web server serves something at, such as `/shu`. */

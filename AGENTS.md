@@ -66,8 +66,8 @@ Use variables for configuration, test data, and efficiency.
 3. **Unquoted values** are resolved dynamically:
    - First, from any existing **Environment Variable**.
    - Second, from any existing **Defined Variable**.
-   - Third, a word naming a member of its parameter's domain is that member, as a waypoint's argument is.
-   - A term that can't be a name, because it holds a character other than a letter, a digit, an underscore or a space, is its text.
+   - Third, a value equal to a member of the parameter's domain is that member. A waypoint argument accepts any text as a member.
+   - A value that starts with a character other than a letter or an underscore, or contains a character other than a letter, a digit, an underscore or a space, is a literal.
    - If none of these applies, the step fails.
 
 #### Examples
@@ -108,9 +108,9 @@ Referring to an undefined variable causes an error.
 
     not set missing setting to UndefinedVar
 
-**7. Text that can't be a name**
+**7. Unquoted literals**
 
-A path holds a slash, which a name doesn't, so it is its own text.
+A path contains a slash, which a variable name doesn't contain, so an unquoted path is a literal.
 
     set endpoint to /api/items
     variable endpoint is "/api/items"

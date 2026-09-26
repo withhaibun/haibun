@@ -125,7 +125,7 @@ export class FeatureVariables {
 		options: { secure: boolean } = { secure: false },
 	): Promise<TStepValue> {
 		const resolved: Partial<TStepValue> = { term: input.term, value: undefined };
-		// Text the line writes, however it reaches the step, is read by its parameter's domain.
+		// A literal, an environment variable's value and a runtime argument are coerced by the parameter's domain.
 		const writtenDomain = input.domain ?? DOMAIN_STRING;
 		let lookupTerm = input.term;
 		if (lookupTerm.startsWith("{") && lookupTerm.endsWith("}")) lookupTerm = lookupTerm.slice(1, -1);

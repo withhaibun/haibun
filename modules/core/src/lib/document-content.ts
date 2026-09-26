@@ -11,20 +11,21 @@ type TArtifactIndex = { artifactsByStep: Map<string, TArtifactEvent[]>; allArtif
 
 const normalizeId = (id: string) => id.replace(/^\[|\]$/g, "");
 
-/** The step an artifact names as the one it came from: a record of what a step produced is named by the step with `@n`
- *  after it. An artifact a step's event carries is named under that step. */
+/** Returns the id of the step that produced an artifact. A run-artifact record's id is that step's id followed by `@n`. An
+ *  artifact embedded in a step's event has an id that begins with that step's id. */
 export function artifactStepId(id: string): string {
 	return normalizeId(id).split("@")[0];
 }
 
-/** A step's id and the ids of the steps it is part of, nearest first. A view shows what a step produced on the nearest
- *  of these it has a row for, since the step that made it can be one the view doesn't show. */
+/** Returns a step id followed by the id of each enclosing step, innermost first. A view attaches an artifact to the first
+ *  of these ids that it renders as a row, because the step that produced the artifact can be a substep it doesn't render. */
 export function stepAncestors(id: string): string[] {
 	const parts = normalizeId(id).split(".");
 	return parts.map((_, i) => parts.slice(0, parts.length - i).join("."));
 }
 
-/** Group artifact events by the step each names, including embedded artifacts from log/lifecycle events. */
+/** Groups artifact events by the id of the step that produced each, including artifacts embedded in log and lifecycle
+ *  events. */
 export function buildArtifactIndex(events: THaibunEvent[]): TArtifactIndex {
 	const map = new Map<string, TArtifactEvent[]>();
 	const allIds = new Set<string>();
@@ -108,7 +109,7 @@ export function generateDocumentMarkdown(
 		const levelIndex = HAIBUN_LOG_LEVELS.indexOf(e.level || "info");
 		return levelIndex !== -1 && minLevelIndex !== -1 && levelIndex < minLevelIndex;
 	};
-	// What a step produced is claimed by the nearest step it is part of that this document shows a row for.
+	// Each artifact attaches to the first id in its step's ancestor list that this page renders as a row.
 	const rows = new Set(events.filter((e) => e.kind === "lifecycle" && !belowLevel(e)).map((e) => normalizeId(e.id)));
 	const claimable = new Map<string, TArtifactEvent[]>();
 	for (const [stepId, artifacts] of artifactsByStep) {

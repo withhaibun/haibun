@@ -4,7 +4,7 @@ import { ActivitiesStepper } from "./activities-stepper.js";
 import { getDefaultWorld, passWithDefaults } from "../lib/test/lib.js";
 import VariablesStepper from "./variables-stepper.js";
 import Haibun from "./haibun.js";
-import { DOMAIN_OUTCOME_ARGUMENT } from "../lib/domains.js";
+import { DOMAIN_WAYPOINT_ARGUMENT } from "../lib/domains.js";
 
 describe("ActivitiesStepper", () => {
 	describe("registerOutcome", () => {
@@ -16,7 +16,7 @@ describe("ActivitiesStepper", () => {
 
 			const step = stepper.steps["Is logged in as {user}"];
 			expect(step).toBeDefined();
-			expect(step.gwta, "each argument the outcome names is a waypoint's argument").toBe(`Is logged in as {user: ${DOMAIN_OUTCOME_ARGUMENT}}`);
+			expect(step.gwta, "each placeholder in the outcome pattern takes a waypoint argument").toBe(`Is logged in as {user: ${DOMAIN_WAYPOINT_ARGUMENT}}`);
 			expect(step.description).toContain("Is logged in as {user}");
 			expect(step.action).toBeDefined();
 			expect(typeof step.action).toBe("function");
@@ -154,7 +154,7 @@ variable Le Artiste/signed is "agreed"`,
 			expect(result.ok).toBe(true);
 		});
 
-		it("takes a waypoint's argument as the words its call writes, or as the variable its call names", async () => {
+		it("binds a waypoint argument to the literal text its placeholder matches, or to the value of the variable it refers to", async () => {
 			const feature = {
 				path: "/features/test.feature",
 				content: `Activity: Greet a guest

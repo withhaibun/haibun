@@ -14,10 +14,10 @@ export const DOMAIN_PAGE_PLACEHOLDER = "page-placeholder";
 export const DOMAIN_PAGE_ROLE = "page-role";
 export const DOMAIN_PAGE_TITLE = "page-title";
 export const DOMAIN_PAGE_ALT_TEXT = "page-alt-text";
-/** Text a page shows, found as it reads. */
+/** Text a page shows, located by `getByText` with an exact match. */
 export const DOMAIN_PAGE_TEXT = "page-text";
-/** The ways a page is searched for a place in it, each a part of a page target. */
-const PAGE_FINDERS = [
+/** The locator domains. Each selects a Playwright `getBy` method, and each is a member of the page-target union. */
+const PAGE_LOCATOR_DOMAINS = [
 	DOMAIN_PAGE_ALT_TEXT,
 	DOMAIN_PAGE_LABEL,
 	DOMAIN_PAGE_LOCATOR,
@@ -27,8 +27,8 @@ const PAGE_FINDERS = [
 	DOMAIN_PAGE_TEXT,
 	DOMAIN_PAGE_TITLE,
 ];
-/** A place on a page: by any way a page is searched, or by the text it shows. A line's own words are that text. */
-export const DOMAIN_PAGE_TARGET = asDomainKey([...PAGE_FINDERS]);
+/** An element on a page, identified by a value of any locator domain. A literal is page text. */
+export const DOMAIN_PAGE_TARGET = asDomainKey([...PAGE_LOCATOR_DOMAINS]);
 /** A key as Playwright names it, such as Enter or Control+A. */
 export const DOMAIN_KEYBOARD_KEY = "keyboard-key";
 /** The name of a cookie a page holds. */
@@ -187,11 +187,11 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 		schema: locatorSchema,
 		description: "Playwright selector such as css= or text=",
 	},
-	{ selectors: [DOMAIN_PAGE_TEXT], schema: locatorSchema, description: "Text a page shows, found as it reads" },
+	{ selectors: [DOMAIN_PAGE_TEXT], schema: locatorSchema, description: "Text a page shows, located by getByText with an exact match" },
 	{
-		selectors: [...PAGE_FINDERS],
+		selectors: [...PAGE_LOCATOR_DOMAINS],
 		schema: locatorSchema,
-		description: "A place on a page, by any way a page is searched or by the text it shows; a line's own words are that text",
+		description: "An element on a page, identified by a value of any locator domain; a literal is page text",
 	},
 	{ selectors: [DOMAIN_KEYBOARD_KEY], schema: z.string().min(1, "names no key"), description: "A key as Playwright names it, such as Enter or Control+A" },
 	{ selectors: [DOMAIN_COOKIE_NAME], schema: z.string().min(1, "names no cookie"), description: "The name of a cookie a page holds" },

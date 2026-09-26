@@ -21,7 +21,7 @@ import { Hono } from "hono";
 import type { Server } from "http";
 
 const ECHOED_LABEL = "test-echoed-label";
-/** Two ways to name a thing, and a parameter that takes either. */
+/** Two domains, and their union, which a parameter takes. */
 const PICKS = ["test-pick-by-name", "test-pick-by-id"];
 const DOMAIN_PICK = asDomainKey(PICKS);
 
@@ -32,8 +32,8 @@ class EchoStepper extends AStepper {
 			domains: [
 				...testDomainDefinitions,
 				{ selectors: [ECHOED_LABEL], schema: z.object({ label: z.string().nullable() }), description: "A label a step echoed" },
-				...PICKS.map((pick) => ({ selectors: [pick], schema: z.string(), description: `A thing named ${pick}` })),
-				{ selectors: PICKS, schema: z.string(), description: "A thing named either way" },
+				...PICKS.map((pick) => ({ selectors: [pick], schema: z.string(), description: `A value of ${pick}` })),
+				{ selectors: PICKS, schema: z.string(), description: "A value of either domain" },
 			],
 		}),
 	};
@@ -193,7 +193,7 @@ describe("RemoteStepperProxy", () => {
 		expect(result.products).toMatchObject({ echoed: "hello from the caller" });
 	});
 
-	it("sends a parameter that takes either of two domains as its value, which the host reads by its own parameter", async () => {
+	it("sends a union parameter's coerced value to the host, not the resolved TStepValue", async () => {
 		const proxy = new RemoteStepperProxy(`http://localhost:${port}`);
 		await proxy.setWorld(world, []);
 		const registry = new StepRegistry([], world);

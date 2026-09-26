@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 
-import { DEF_PROTO_OPTIONS, failWithDefaults, passWithDefaults } from "../lib/test/lib.js";
+import { DEF_PROTO_OPTIONS, failWithDefaults, getTestWorldWithOptions, passWithDefaults } from "../lib/test/lib.js";
+import { Resolver } from "../phases/Resolver.js";
+import { FlowRunner } from "../lib/core/flow-runner.js";
 import TestSteps from "../lib/test/TestSteps.js";
 import Haibun from "./haibun.js";
 import VariablesSteppers from "./variables-stepper.js";
@@ -8,7 +10,8 @@ import LogicStepper from "./logic-stepper.js";
 import { ActivitiesStepper } from "./activities-stepper.js";
 import { AStepper } from "../lib/astepper.js";
 import { actionOK } from "../lib/util/index.js";
-import { hostScopedMethodName, runRegistry, type StepRegistry } from "../lib/step-registry.js";
+import { hostScopedMethodName, openRunRegistry, runRegistry, type StepRegistry } from "../lib/step-registry.js";
+import { addStepperConcerns } from "../phases/Executor.js";
 import { STEPS_CHANGED, type THaibunEvent } from "../schema/protocol.js";
 import type { TStepDefinitions } from "../lib/step-discovery.js";
 import type { TStepResult } from "../schema/protocol.js";
@@ -154,6 +157,19 @@ describe("afterEvery", () => {
 		expect(result.ok).toBe(true);
 		const said = (result.featureResults?.[0].stepResults ?? []).filter((r) => r.in === "Noodles, man.").length;
 		expect(said, "one statement for the step the feature holds, and none for the substep another step ran").toBe(1);
+	});
+});
+
+describe("line comment", () => {
+	const NOTE = ";;unsetVariable is the text of a note";
+	it("resolves a `;;` statement to the comment step, not to prose, and passes without resolving the variable its text refers to", async () => {
+		const world = getTestWorldWithOptions(DEF_PROTO_OPTIONS);
+		const haibun = new Haibun();
+		await haibun.setWorld(world, [haibun]);
+		addStepperConcerns(world, [haibun]);
+		openRunRegistry(world, [haibun]);
+		expect(new Resolver([haibun]).findSingleStepAction(NOTE).actionName).toBe("comment");
+		expect((await runAuthorizedWith(RUN_AUTHORITY, () => new FlowRunner(world, [haibun]).runStatement(NOTE, { seqPath: [0, 1] }))).ok).toBe(true);
 	});
 });
 

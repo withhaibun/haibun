@@ -491,10 +491,10 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	async setLastResponse(serialized: TCapturedResponse, featureStep: TFeatureStep) {
 		await this.getWorld().shared.setJSON(LAST_REST_RESPONSE, serialized, Origin.var, featureStep);
 	}
-	/** Where a page target is found: the way of searching a page that the value's domain names. */
+	/** Returns the Playwright locator for a page target, from the `getBy` method its locator domain selects. */
 	locateByDomain(page: Page, target: TStepValue): Locator {
 		const strValue = String(target.value);
-		switch (finderOf(target)) {
+		switch (locatorDomainOf(target)) {
 			case DOMAIN_STRING:
 			case DOMAIN_PAGE_TEXT:
 				return page.getByText(strValue, { exact: true });
@@ -517,13 +517,15 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	}
 }
 
-/** The way a page is searched for a target: the finder its value holds, or the text a page shows for a line's own words. */
-export const finderOf = (target: TStepValue): string => {
+/** The locator domain of a page target: its own domain when that is a single locator domain, and page text for a literal,
+ *  whose domain is the whole page-target union. */
+export const locatorDomainOf = (target: TStepValue): string => {
 	const parts = domainParts(target.domain);
 	return parts.length === 1 ? parts[0] : pickLocatorDomain(parts);
 };
 
-/** How a value of a union of page finders is found: a line's own words are the text a page shows, the most common case. */
+/** Selects the locator domain for a value whose domain is a union of locator domains: page text where the union contains
+ *  it, since a literal is text the page shows, and otherwise the first specific locator domain the union contains. */
 export function pickLocatorDomain(parts: string[]): string {
 	if (parts.includes(DOMAIN_PAGE_TEXT)) return DOMAIN_PAGE_TEXT;
 	// Then try specific locator domains

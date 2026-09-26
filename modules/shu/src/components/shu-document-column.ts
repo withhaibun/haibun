@@ -356,10 +356,9 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		return this.shadowRoot?.querySelector("shu-virtual-column") ?? null;
 	}
 
-	/** A jump-to from another view: the row is either a block element carrying `data-id`, or an artifact frame carrying the
-	 *  `data-step-id` of the step its artifact came from. The nearest step of that id's that a cached row renders is
-	 *  scrubbed to and scrolled into view, as the document places what a step produced, and an expanded frame is captioned
-	 *  with that step. */
+	/** Scrubs to and reveals the row another view refers to, by a block element's `data-id` or an artifact frame's
+	 *  `data-step-id`. The row is the first cached row whose event id is in that id's ancestor list, the rule the document
+	 *  uses to attach an artifact. An expanded frame's caption is set to that row's step text. */
 	private jumpToRow(row: Element): void {
 		const named = row.getAttribute("data-step-id") ?? row.getAttribute("data-id") ?? "";
 		const rows = named === "" ? [] : this.#builtRows().filter((r) => r.blocks.length > 0);
@@ -439,7 +438,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		const type = artifact.artifactType;
 		const a = artifact as Record<string, unknown>;
 		const artifactPath = artifactUrl(a);
-		// A frame names the step its artifact came from, which its caption and the cursor it moves read.
+		// A frame's data-step-id holds the id of the step that produced its artifact. The fullscreen caption and the time cursor read it.
 		const step = `data-step-id="${esc(artifactStepId(artifact.id))}"`;
 		if (type === "image") {
 			// Decoded off the thread that draws the page: a strip holds many tiles, and each is a screenshot of a whole page.

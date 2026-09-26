@@ -244,9 +244,9 @@ describe("the views of a run, over the records it wrote", () => {
 		expect(doc.shadowRoot?.querySelector("shu-product-view"), "a manual records what a step showed; what that view looked like is the run's own screenshot").toBeNull();
 	});
 
-	it("captions an expanded screenshot with the step it came from, whose row is on an earlier page", async () => {
-		// One shot is taken in the step's hidden substep and one by the step itself, after a page of the run's steps, so
-		// their frames open the next page.
+	it("captions an expanded screenshot with the text of the step that produced it, when that step's row is on the previous page", async () => {
+		// The step's hidden substep produces one screenshot and the step itself produces another, after a page of steps, so
+		// both frames are at the start of the next page.
 		const PAGE = 50;
 		const was = windowSizeSetting.get();
 		windowSizeSetting.set(String(PAGE));

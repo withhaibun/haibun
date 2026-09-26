@@ -8,6 +8,7 @@ import { findFeatureStepsFromStatement } from "../phases/Resolver.js";
 import {
 	DOMAIN_BACKGROUND_NAMES,
 	DOMAIN_DURATION,
+	DOMAIN_LINE_COMMENT,
 	DOMAIN_LINK,
 	DOMAIN_PERSISTED_TYPES,
 	DOMAIN_STATEMENT,
@@ -249,6 +250,10 @@ class Haibun extends AStepper implements IHasCycles {
 				await sleep(duration);
 				return OK;
 			},
+		},
+		comment: {
+			gwta: `;;{comment: ${DOMAIN_LINE_COMMENT}}`,
+			action: () => OK,
 		},
 		afterEveryStepper: {
 			precludes: [`Haibun.prose`],

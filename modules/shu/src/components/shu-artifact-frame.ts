@@ -129,8 +129,8 @@ export class ShuArtifactFrame extends HTMLElement {
 		window.removeEventListener("resize", this.onReposition);
 	}
 
-	/** Caption the expanded frame with the step its artifact came from. The document column holds that step's row, which
-	 *  under virtualization may be outside the rendered window, and calls this as the frame opens. */
+	/** Sets the fullscreen caption to the text of the step that produced the frame's artifact. The document column calls it
+	 *  when the frame opens, because only the column reads a step row outside the rendered window. */
 	showStep(text: string): void {
 		const stepEl = this.shadow.querySelector(".step-caption");
 		if (stepEl) stepEl.textContent = text;

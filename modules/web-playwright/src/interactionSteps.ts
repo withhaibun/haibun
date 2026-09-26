@@ -34,7 +34,7 @@ import {
 	DOMAIN_DIALOG_FIELD,
 } from "./domains.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
-import { finderOf } from "./web-playwright.js";
+import { locatorDomainOf } from "./web-playwright.js";
 import { WEB_PAGE, WebPlaywright } from "./web-playwright.js";
 import { WEB_PLAYWRIGHT_ACTIONS } from "./actions.js";
 import { DOMAIN_RELAY_ATTACHMENT } from "./relay/relay-wire.js";
@@ -145,9 +145,9 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			gwta: `wait for {target: ${DOMAIN_PAGE_TARGET}}`,
 			action: async ({ target }: { target: TStepValue }) => {
 				try {
-					// A test id names an element that is there whether or not it is shown; any other finder names what a page shows.
-					// The wait ends when one element the target names is there.
-					const state = finderOf(target) === DOMAIN_PAGE_TEST_ID ? "attached" : "visible";
+					// A test id waits until the first matching element is attached to the DOM. Every other locator domain waits until
+					// the first matching element is visible.
+					const state = locatorDomainOf(target) === DOMAIN_PAGE_TEST_ID ? "attached" : "visible";
 					await wp.withPage(async (scope: Page) => await wp.locateByDomain(scope, target).first().waitFor({ state }));
 					return OK;
 				} catch (e) {
