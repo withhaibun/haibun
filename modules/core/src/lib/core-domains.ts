@@ -44,6 +44,7 @@ import {
 	DOMAIN_LINE_COMMENT,
 	DOMAIN_HYPERMEDIA_DECLARATION,
 	DOMAIN_SET_VALUES,
+	DOMAIN_STATEMENT_LINES,
 	listedSchema,
 	backgroundNamesSchema,
 	setValuesSchema,
@@ -283,6 +284,7 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		description: "A declared type's hypermedia declaration, as the line writes it: its JSON-LD @context, or prose naming its fields.",
 	},
 	{ selectors: [DOMAIN_SET_VALUES], schema: setValuesSchema, written: true, description: "The members a bracketed list names, as the line writes them." },
+	{ selectors: [DOMAIN_STATEMENT_LINES], schema: fromJsonText(z.array(z.string().min(1)).min(1)), description: "Step lines, in order, as a JSON array: the statements a saved activity runs." },
 	{
 		selectors: [DOMAIN_LINK],
 		schema: stringSchema,

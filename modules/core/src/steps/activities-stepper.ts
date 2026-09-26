@@ -4,7 +4,8 @@ import type { TWorld } from "../lib/world.js";
 import { TStepArgs, TRegisteredOutcomeEntry, OK } from "../schema/protocol.js";
 import { formatSeqPath } from "../lib/seq-path.js";
 import { actionOK, actionNotOK, getActionable, errorDetail } from "../lib/util/index.js";
-import { DOMAIN_STATEMENT, DOMAIN_TITLE, DOMAIN_WAYPOINT_ARGUMENT } from "../lib/domains.js";
+import { DOMAIN_STATEMENT, DOMAIN_STATEMENT_LINES, DOMAIN_TITLE, DOMAIN_WAYPOINT_ARGUMENT } from "../lib/domains.js";
+import { Resolver } from "../phases/Resolver.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { ControlEvent, LifecycleEvent } from "../schema/protocol.js";
 import { buildDomainChain } from "../lib/domain-chain.js";
@@ -17,6 +18,7 @@ import { authorizedWith } from "../lib/capability-context.js";
 
 // need this type because some steps are dynamically generated (e.g. waypoints)
 type TActivitiesFixedSteps = {
+	saveWaypoint: TStepperStep;
 	activity: TStepperStep;
 	waypointWithProof: TStepperStep;
 	waypointLabel: TStepperStep;
@@ -24,6 +26,9 @@ type TActivitiesFixedSteps = {
 };
 
 type TActivitiesStepperSteps = TStepperSteps & TActivitiesFixedSteps;
+
+/** Where a waypoint saved outside any feature line was saved from. */
+const SAVED_WAYPOINT_SOURCE = "a saved waypoint";
 
 /**
  * Stepper that dynamically builds virtual steps from `waypoint` statements.
@@ -129,6 +134,15 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	}
 
 	readonly baseSteps = {
+		saveWaypoint: {
+			description:
+				"Registers a waypoint whose activity is these lines, as a step the run offers from then on. A line that doesn't resolve to one step, and an outcome already registered, are refused before anything is registered.",
+			gwta: `save waypoint {outcome: ${DOMAIN_TITLE}} doing {statements: ${DOMAIN_STATEMENT_LINES}}`,
+			action: ({ outcome, statements }: { outcome: string; statements: string[] }, featureStep: TFeatureStep) => {
+				this.saveWaypoint(outcome, statements, featureStep.source?.path ?? SAVED_WAYPOINT_SOURCE);
+				return OK;
+			},
+		},
 		activity: {
 			gwta: `Activity: {activity: ${DOMAIN_TITLE}}`,
 			action: () => OK,
@@ -376,6 +390,28 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
 		this.runner = new FlowRunner(world, steppers);
+	}
+
+	/**
+	 * Register a waypoint whose activity is `lines`, for the whole run, as a feature's waypoint is registered, and refresh
+	 * the run's registry, which announces the new step. `source` names where it was saved from.
+	 */
+	saveWaypoint(outcome: string, lines: string[], source: string): void {
+		const world = this.getWorld();
+		const steppers = world.runtime.steppers as AStepper[];
+		if (this.steps[outcome]) throw new Error(`the outcome "${outcome}" is already registered`);
+		const resolver = new Resolver(steppers);
+		const unresolved = lines.flatMap((line) => {
+			try {
+				resolver.findSingleStepAction(line);
+				return [];
+			} catch (err) {
+				return [errorDetail(err)];
+			}
+		});
+		if (unresolved.length > 0) throw new Error(`each line of a saved waypoint resolves to one step: ${unresolved.join("; ")}`);
+		this.registerOutcome(outcome, [], source, true, lines);
+		runRegistry(world).refresh(steppers, world);
 	}
 
 	/**

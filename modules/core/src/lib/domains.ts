@@ -69,6 +69,8 @@ export const DOMAIN_TEMPLATE = "template";
 export const DOMAIN_HYPERMEDIA_DECLARATION = "hypermedia-declaration";
 /** The members a bracketed list names, as the line writes them. */
 export const DOMAIN_SET_VALUES = "set-values";
+/** Step lines, in order, as a JSON array: the statements a saved activity runs. */
+export const DOMAIN_STATEMENT_LINES = "statement-lines";
 /** Types records persist as, given as a list. */
 export const DOMAIN_PERSISTED_TYPES = "persisted-types";
 /** The backgrounds a feature includes, by name, given as a list. */
