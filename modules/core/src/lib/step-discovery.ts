@@ -10,7 +10,7 @@ import { z } from "zod";
 import { ConcernCatalogSchema } from "./hypermedia.js";
 import { productData } from "../schema/protocol.js";
 import { readAction } from "./actions.js";
-import { Access } from "./resources.js";
+import { Access, AccessLevelSchema } from "./resources.js";
 
 /** The step that shows what a run declares. `Haibun` declares it, so a run that serves callers lists `haibun`. */
 export const SHOW_STEPS_METHOD = "Haibun-showSteps";
@@ -68,6 +68,8 @@ export const StepDescriptorSchema = z
 		recordIds: z.record(z.string(), z.string()).optional(),
 		/** The action a caller holds to call the step. */
 		capability: z.string(),
+		/** The level of what the step reads, which a caller's read must reach, where the step states one. */
+		readsAt: AccessLevelSchema.optional(),
 		/** Whether the step is a read: a caller that names it asks to read, and the run answers without recording the reading. */
 		read: z.boolean(),
 		/** Whether the step answers only when no other step answers to its name. */

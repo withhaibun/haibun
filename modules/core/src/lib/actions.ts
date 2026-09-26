@@ -35,10 +35,21 @@ export function requiredAction(stepperName: string, stepName: string, step: { ca
 	return step.capability ?? (step.read ? readAction(Access.public) : `${stepperName}:${stepName}`);
 }
 
-/** Whether a caller holding `held` may call `step`: what it holds allows the action the step requires. Every gate on a
- *  call and every listing of steps for a caller reads this. */
-export function mayCall(held: string | string[] | undefined, step: { capability: string }): boolean {
-	return capabilityAllows(held, step.capability);
+/** The step a gate or a listing weighs: the action it requires, and the level of what it reads where it states one. */
+type TCalled = { capability: string; readsAt?: AccessLevel };
+
+/** The action a caller holding `held` lacks to call `step`: the one the step requires, or else a read at the level the
+ *  step reads at. Undefined where it lacks neither. */
+export function lackedAction(held: string | string[] | undefined, step: TCalled): string | undefined {
+	if (!capabilityAllows(held, step.capability)) return step.capability;
+	if (step.readsAt && !capabilityAllows(held, readAction(step.readsAt))) return readAction(step.readsAt);
+	return undefined;
+}
+
+/** Whether a caller holding `held` may call `step`: it lacks no action the step requires. Every gate on a call and every
+ *  listing of steps for a caller reads this. */
+export function mayCall(held: string | string[] | undefined, step: TCalled): boolean {
+	return lackedAction(held, step) === undefined;
 }
 
 /**

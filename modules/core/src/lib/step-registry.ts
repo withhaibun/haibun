@@ -9,8 +9,8 @@ import { constructorName, actionNotOK } from "./util/index.js";
 import { populateActionArgs } from "./populateActionArgs.js";
 import { DOMAIN_DOMAIN_KEY, DOMAIN_RECORD_ID, DOMAIN_STATEMENT, paramDomainKey } from "./domains.js";
 import { zodTypeLabel } from "./composite-domain.js";
-import { DOMAIN_PERSISTED_TYPE, isPersisted } from "./resources.js";
-import { mayCall, requiredAction } from "./actions.js";
+import { DOMAIN_PERSISTED_TYPE, isPersisted, withinAccess, type AccessLevel } from "./resources.js";
+import { lackedAction, mayCall, requiredAction } from "./actions.js";
 import { resolveOutputSchema, validateProducts } from "./tool-validation.js";
 import {
 	STEP_DETAIL,
@@ -206,6 +206,7 @@ export function createStepTool(stepper: AStepper, stepName: string, stepDef: TSt
 			productsOf: stepDef.productsOf,
 			...(stepDef.recordIds ? { recordIds: stepDef.recordIds } : {}),
 			capability: requiredAction(stepperName, stepName, stepDef),
+			...(stepDef.readsAt ? { readsAt: stepDef.readsAt } : {}),
 			read: stepDef.read === true,
 			fallback: stepDef.fallback === true,
 			answersTheTurn: stepDef.answersTheTurn === true,
@@ -367,9 +368,12 @@ function buildInputSchema(stepperName: string, stepName: string, stepDef: TStepp
 	return { inputSchema: { type: "object" as const, properties, required }, paramDomainKeys };
 }
 
-export function authorizeToolCapability(step: Pick<TStepDescriptor, "method" | "capability">, granted?: string | string[]): void {
-	if (mayCall(granted, step)) return;
-	throw new Error(namedRefusal(step.method, step.capability));
+/** Refuse a call its caller may not make: one whose action, or whose read at the level the step reads at, the caller
+ *  doesn't hold, or one made where the read in force is narrower than what the step reads. */
+export function authorizeToolCapability(step: Pick<TStepDescriptor, "method" | "capability" | "readsAt">, granted?: string | string[], readsIn?: AccessLevel): void {
+	const lacked = lackedAction(granted, step);
+	if (lacked) throw new Error(namedRefusal(step.method, lacked));
+	if (step.readsAt && readsIn && !withinAccess(step.readsAt, readsIn)) throw new Error(`${step.method} reads at ${step.readsAt}, and this call reads at ${readsIn}`);
 }
 
 /** A refusal naming the action the step requires, which a caller can ask a holder for. */

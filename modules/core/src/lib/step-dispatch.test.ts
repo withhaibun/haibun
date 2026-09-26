@@ -22,7 +22,7 @@ import { getDefaultWorld, testWithWorld } from "./test/lib.js";
 import { TEST_DOMAIN, declaresTestDomains, testDomainDefinitions } from "./test/test-domains.js";
 import { DOMAIN_DOMAIN_KEY, DOMAIN_NUMBER, DOMAIN_RECORD_ID, DOMAIN_STRING, individualRefDomain, registerDomains } from "./domains.js";
 import type { TWorld } from "./world.js";
-import { DOMAIN_PERSISTED_TYPE, LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "./resources.js";
+import { Access, DOMAIN_PERSISTED_TYPE, LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "./resources.js";
 import { SEQ_PATH_FIELD, executionOf, factIdOf, formatRecordName } from "./seq-path.js";
 import { FACT_GRAPH, getFact } from "./working-memory.js";
 import { streamContext, streamOver } from "./step-stream-context.js";
@@ -166,6 +166,13 @@ describe("step-dispatch", () => {
 			const tool = { method: "CapabilityStepper-protectedPing", capability: "CapabilityStepper:protected" };
 			expect(() => authorizeToolCapability(tool, undefined)).toThrow(/capability CapabilityStepper:protected required/);
 			expect(() => authorizeToolCapability(tool, "Other:*")).toThrow(/capability CapabilityStepper:protected required/);
+		});
+
+		it("refuses a step that reads more than its caller's read, or than the read in force where it is stated", () => {
+			const tool = { method: "CapabilityStepper-look", capability: "CapabilityStepper:look", readsAt: Access.private };
+			expect(() => authorizeToolCapability(tool, ["CapabilityStepper:look", "Read:public"])).toThrow(/capability Read:private required/);
+			expect(() => authorizeToolCapability(tool, "*", Access.public)).toThrow("CapabilityStepper-look reads at private, and this call reads at public");
+			expect(() => authorizeToolCapability(tool, "*", Access.private)).not.toThrow();
 		});
 	});
 

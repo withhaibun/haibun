@@ -37,7 +37,7 @@ import {
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { locatorDomainOf } from "./web-playwright.js";
 import { WEB_PAGE, WebPlaywright } from "./web-playwright.js";
-import { WEB_PLAYWRIGHT_ACTIONS } from "./actions.js";
+import { PAGE_READ, WEB_PLAYWRIGHT_ACTIONS } from "./actions.js";
 import { DOMAIN_RELAY_ATTACHMENT } from "./relay/relay-wire.js";
 import { readAction } from "@haibun/core/lib/actions.js";
 import { Access } from "@haibun/core/lib/resources.js";
@@ -97,7 +97,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		dialogIs: {
-			capability: WEB_PLAYWRIGHT_ACTIONS.read,
+			...PAGE_READ,
 			gwta: `dialog {what: ${DOMAIN_VARIABLE_NAME}} {type: ${DOMAIN_DIALOG_FIELD}} says {value: ${DOMAIN_TEXT}}`,
 			action: async ({ what, type, value }: { what: string; type: string; value: string }) => {
 				const resolvedValue = await wp.getWorld().shared.get(what, true);
@@ -106,7 +106,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		dialogIsUnset: {
-			capability: WEB_PLAYWRIGHT_ACTIONS.read,
+			...PAGE_READ,
 			gwta: `dialog {what: ${DOMAIN_VARIABLE_NAME}} {type: ${DOMAIN_DIALOG_FIELD}} not set`,
 			action: async ({ what, type }: { what: string; type: string }) => {
 				const resolvedValue = await wp.getWorld().shared.get(what, true);
@@ -115,7 +115,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		shouldSeeTestId: {
-			capability: WEB_PLAYWRIGHT_ACTIONS.read,
+			...PAGE_READ,
 			gwta: `has test id {testId: ${DOMAIN_PAGE_TEST_ID}}`,
 			action: async ({ testId }: { testId: string }) => {
 				// `getByTestId` returns a Locator unconditionally; the truthiness
@@ -138,7 +138,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		seeText: {
-			capability: WEB_PLAYWRIGHT_ACTIONS.read,
+			...PAGE_READ,
 			gwta: `see {text: ${DOMAIN_TEXT}}`,
 			action: async ({ text }: { text: string }) => await wp.sees(text, "body"),
 		},
@@ -190,7 +190,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		beOnPage: {
-			capability: WEB_PLAYWRIGHT_ACTIONS.read,
+			...PAGE_READ,
 			gwta: `be on the {name: ${DOMAIN_LINK}} ${WEB_PAGE}`,
 			action: async ({ name }: { name: string }) => {
 				const nowon = await wp.withPage(async (page: Page) => {
@@ -204,7 +204,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		cookieIs: {
-			capability: WEB_PLAYWRIGHT_ACTIONS.read,
+			...PAGE_READ,
 			gwta: `cookie {name: ${DOMAIN_COOKIE_NAME}} is {value: ${DOMAIN_TEXT}}`,
 			action: async ({ name, value }: { name: string; value: string }) => {
 				const cookies = await wp.getCookies();
@@ -213,7 +213,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		URIQueryParameterIs: {
-			capability: WEB_PLAYWRIGHT_ACTIONS.read,
+			...PAGE_READ,
 			gwta: `URI query parameter {what: ${DOMAIN_QUERY_PARAMETER}} is {value: ${DOMAIN_TEXT}}`,
 			action: async ({ what, value }: { what: string; value: string }) => {
 				const uri = await wp.withPage<string>(async (page: Page) => await page.url());
@@ -225,7 +225,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		waitForURIMatch: {
-			capability: WEB_PLAYWRIGHT_ACTIONS.read,
+			...PAGE_READ,
 			gwta: `wait until URI matches {pattern: ${DOMAIN_GLOB}}`,
 			action: async ({ pattern }: { pattern: string }) => {
 				// The glob as a regular expression's source once, so the polled predicate only tests location.href.
@@ -478,7 +478,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		takeScreenshotOf: {
-			capability: WEB_PLAYWRIGHT_ACTIONS.read,
+			...PAGE_READ,
 			gwta: `take a screenshot of {what: ${DOMAIN_PAGE_TARGET}} to {where: ${DOMAIN_FILE_PATH}}`,
 			action: async ({ what, where }: { what: TStepValue; where: string }) => {
 				try {
@@ -497,7 +497,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		takeScreenshot: {
-			capability: WEB_PLAYWRIGHT_ACTIONS.read,
+			...PAGE_READ,
 			gwta: "take a screenshot",
 			description: "Screenshots the page into the run's storage, and returns where the image's bytes are kept and their media type.",
 			productsDomain: DOMAIN_IMAGE_REFERENCE,
@@ -508,7 +508,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		getPageContents: {
-			capability: WEB_PLAYWRIGHT_ACTIONS.read,
+			...PAGE_READ,
 			gwta: "get page contents",
 			productsDomain: DOMAIN_PAGE_CONTENTS,
 			// The whole page HTML is the action result; keeping it on the event too can be many MB per call.
@@ -519,7 +519,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		takeAccessibilitySnapshot: {
-			capability: WEB_PLAYWRIGHT_ACTIONS.read,
+			...PAGE_READ,
 			gwta: "take an accessibility snapshot",
 			description:
 				"Reads the page as Playwright's aria snapshot: YAML naming each element's role and accessible name, which are what the role, label and text locators address. Its links name the steps that act on what it read.",
@@ -534,7 +534,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		saveURI: {
-			capability: WEB_PLAYWRIGHT_ACTIONS.read,
+			...PAGE_READ,
 			gwta: `save URI to {where: ${DOMAIN_VARIABLE_NAME}}`,
 			action: async ({ where }: { where: string }, featureStep) => {
 				const uri = await wp.withPage<string>(async (page: Page) => await page.url());
@@ -543,7 +543,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		saveURIQueryParameter: {
-			capability: WEB_PLAYWRIGHT_ACTIONS.read,
+			...PAGE_READ,
 			gwta: `save URI query parameter {what: ${DOMAIN_QUERY_PARAMETER}} to {where: ${DOMAIN_VARIABLE_NAME}}`,
 			action: async ({ what, where }: { what: string; where: string }, featureStep) => {
 				const uri = await wp.withPage<string>(async (page: Page) => await page.url());
@@ -553,7 +553,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			},
 		},
 		saveTextFrom: {
-			capability: WEB_PLAYWRIGHT_ACTIONS.read,
+			...PAGE_READ,
 			gwta: `save text from {element: ${DOMAIN_PAGE_TARGET}} to {where: ${DOMAIN_VARIABLE_NAME}}`,
 			action: async ({ element, where }: { element: TStepValue; where: string }, featureStep) => {
 				const text = await wp.withPage<string>(async (page: Page) => {

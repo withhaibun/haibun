@@ -117,7 +117,9 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 		return pushAndReturn(stepResultFromActionResult(actionNotOK(`Step not found in registry: ${method}`), action, start, Timer.since(), featureStep, false));
 	}
 
-	authorizeToolCapability(tool.descriptor, grantedCapability);
+	// Where the statement was stated, which its arguments are read at, and which a step reading more than it is refused.
+	const statedAt = readingAt();
+	authorizeToolCapability(tool.descriptor, grantedCapability, statedAt);
 	// What got through the gate, on the step's own record: which action it required and what the caller held, where the
 	// caller is not the run acting as itself, and the principal that proved itself, where one did. A refusal throws above,
 	// so a record with these fields is a record of an allowed call.
@@ -130,8 +132,6 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	// What the step may read is what its caller holds a read for: a caller holding none reads at public inside the step
 	// it may run, so no step reads a record for a caller who could not have read it.
 	const ceiling = readCeilingOf(grantedCapability) ?? Access.public;
-	// Where the statement was stated, which its arguments are read at.
-	const statedAt = readingAt();
 
 	if (recorded) {
 		const usageKey = `${action.stepperName}.${action.actionName}`;

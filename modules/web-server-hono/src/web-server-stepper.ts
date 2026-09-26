@@ -9,7 +9,7 @@ import { dispatchStep } from "@haibun/core/lib/step-dispatch.js";
 import { ANSWERED_WITHOUT_PRODUCTS, parseRpcRequest, RPC_REFUSED } from "@haibun/core/lib/rpc-wire.js";
 import { runWithRequestContext, requestBaseIri } from "@haibun/core/lib/request-context.js";
 import { buildFeatureStepForTransport, refusal, runRegistry, type StepRegistry } from "@haibun/core/lib/step-registry.js";
-import { actionList, mayCall } from "@haibun/core/lib/actions.js";
+import { actionList, lackedAction, mayCall } from "@haibun/core/lib/actions.js";
 import { DOMAIN_TEXT, DOMAIN_FILE_PATH, DOMAIN_ROUTE } from "@haibun/core/lib/domains.js";
 import { STORE_METHOD_PREFIX, storeMethods } from "@haibun/core/lib/store-protocol.js";
 import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
@@ -283,7 +283,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 						// A call is refused before its input is read, and alike whether its step exists, so a refusal tells the caller
 						// nothing of the steps it may not call.
 						const tool = registry.get(method);
-						if (!tool || !mayCall(granted, tool.descriptor)) return { error: refusal(method, tool?.descriptor.capability, principal) };
+						if (!tool || !mayCall(granted, tool.descriptor)) return { error: refusal(method, tool && lackedAction(granted, tool.descriptor), principal) };
 						// External callers (no feature-step context) get a server-synthesised seqPath, matching MCP.
 						const seqPath = msg.seqPath && msg.seqPath.length > 0 ? msg.seqPath : allocateSyntheticSeqPath(world);
 						const validatedParams = validateToolInput(seqPath, tool, params as Record<string, unknown>, world);

@@ -9,6 +9,7 @@ import {
 	allowedActionFor,
 	capabilityAllows,
 	delegatedActions,
+	lackedAction,
 	mayCall,
 	narrowing,
 	readAction,
@@ -40,6 +41,14 @@ describe("whether a caller may call a step", () => {
 		expect(mayCall(["Read:private"], { capability: "Read:public" })).toBe(true);
 		expect(mayCall(["Pool:enter"], { capability: "Pool:drain" })).toBe(false);
 		expect(mayCall(undefined, { capability: "Read:public" }), "and nothing held calls nothing").toBe(false);
+	});
+
+	it("names the action it lacks: the one the step requires, or else a read at the level the step reads at", () => {
+		const readsThePage = { capability: "Pool:look", readsAt: Access.private };
+		expect(lackedAction(["Read:public"], readsThePage)).toBe("Pool:look");
+		expect(lackedAction(["Pool:look", "Read:public"], readsThePage)).toBe(readAction(Access.private));
+		expect(lackedAction(["Pool:look", "Read:private"], readsThePage)).toBeUndefined();
+		expect(mayCall(["Pool:look", "Read:public"], readsThePage)).toBe(false);
 	});
 });
 

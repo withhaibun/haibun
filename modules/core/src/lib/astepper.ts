@@ -3,7 +3,7 @@ import type { FeatureVariables } from "./feature-variables.js";
 import type { TWorld, TEnvVariables } from "./world.js";
 import type { TOptionValue, TFeatures, TSourceLocation } from "./execution.js";
 import type { ExecutionIntent, TSeqPath, TActionResult, TStepArgs, TStepValue, TStepResult, TFeatureResult, TExecutorResult, THaibunEvent } from "../schema/protocol.js";
-import type { TDomainDefinition } from "./resources.js";
+import type { AccessLevel, TDomainDefinition } from "./resources.js";
 import type { IQuadStore } from "./quad-types.js";
 import { constructorName } from "./util/index.js";
 
@@ -135,6 +135,9 @@ type TStepperStepBase = {
 	 *  action so a delegation can name them together. A step that declares none requires `Read:public` if it declares
 	 *  itself a read, and otherwise its own name (actions.ts). */
 	capability?: string;
+	/** The level of what the step reads, where it reads more than records the caller's read bounds: a step reading a
+	 *  person's own page reads at private. A caller whose read is narrower is refused the step. */
+	readsAt?: AccessLevel;
 	/** A step whose result answers the turn that called it, so that turn ends with it rather than asking its model
 	 *  again. A caller reads this from the step's definition, so which steps end a turn is known without running one. */
 	answersTheTurn?: boolean;
