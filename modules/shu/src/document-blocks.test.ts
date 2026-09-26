@@ -78,16 +78,14 @@ describe("finalizeBlocks", () => {
 		expect(out).toHaveLength(1);
 		expect(out[0].html).toContain("thumb-row");
 	});
-	it("stamps each frame with the nearest preceding step's id and label, for the expanded view's caption and cursor", () => {
-		const html = `<div class="log-row" data-id="0.1.2" data-raw-time="5">take a screenshot</div><div class="feature-artifacts" data-ids="img1,img2"></div>`;
-		const out = finalizeBlocks(splitDocumentBlocks(html), resolver);
-		expect(out).toHaveLength(2);
+	it("keeps the step each frame names, rather than naming the row before it", () => {
+		// A screenshot whose step's row is on an earlier page, or hidden below the document's level, follows another row.
+		const named = `<shu-artifact-frame class="thumb" data-step-id="0.1.1"><img src="x.png" /></shu-artifact-frame>`;
+		const html = `<div class="log-row" data-id="0.1.2" data-raw-time="5">another step</div><div class="standalone-artifact" data-id="shot"></div>`;
+		const out = finalizeBlocks(splitDocumentBlocks(html), () => named);
 		const tpl = document.createElement("template");
 		tpl.innerHTML = out[1].html;
-		for (const f of Array.from(tpl.content.querySelectorAll("shu-artifact-frame"))) {
-			expect(f.getAttribute("data-step-id")).toBe("0.1.2");
-			expect(f.getAttribute("data-step-label")).toBe("take a screenshot");
-		}
+		expect(Array.from(tpl.content.querySelectorAll("shu-artifact-frame")).map((f) => f.getAttribute("data-step-id"))).toEqual(["0.1.1"]);
 	});
 	it("does not merge thumbnails separated by a non-thumbnail block", () => {
 		const html = `<div class="feature-artifacts" data-ids="img1"></div><div class="log-row" data-id="s">step</div><div class="feature-artifacts" data-ids="img2"></div>`;

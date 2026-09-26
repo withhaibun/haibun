@@ -2,9 +2,11 @@
 // The views of a run, over the records it wrote. A run is in the graph: a step is one record carrying how it went, and
 // what it said and produced point back at it. So a step is one row rather than a start paired with an end, and a
 // heading is the step that declared the feature or the scenario.
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, onTestFinished } from "vitest";
 import { ShuMonitorColumn } from "./shu-monitor-column.js";
 import { ShuDocumentColumn } from "./shu-document-column.js";
+import type { ShuArtifactFrame } from "./shu-artifact-frame.js";
+import { windowSizeSetting } from "../window-size-setting.js";
 import { WINDOW_CHANGED, ShuVirtualColumn } from "./shu-virtual-column.js";
 import { SCROLL_TO_INDEX } from "./shu-scrollbar.js";
 import type { WindowedSource } from "../windowed-source.js";
@@ -240,6 +242,35 @@ describe("the views of a run, over the records it wrote", () => {
 		const doc = await open<ShuDocumentColumn>(SHU_TAG.DOCUMENT_COLUMN);
 		expect(doc.shadowRoot?.textContent).toContain("show the graph");
 		expect(doc.shadowRoot?.querySelector("shu-product-view"), "a manual records what a step showed; what that view looked like is the run's own screenshot").toBeNull();
+	});
+
+	it("captions an expanded screenshot with the step it came from, whose row is on an earlier page", async () => {
+		// One shot is taken in the step's hidden substep and one by the step itself, after a page of the run's steps, so
+		// their frames open the next page.
+		const PAGE = 50;
+		const was = windowSizeSetting.get();
+		windowSizeSetting.set(String(PAGE));
+		onTestFinished(() => windowSizeSetting.set(was));
+		resetGraphRunSources();
+		const RUN = "1700000000000-1";
+		const shooter = `${RUN}.0.${PAGE}`;
+		const steps = Array.from({ length: PAGE }, (_, i) => stepRecord(i + 1, { id: `${RUN}.0.${i + 1}` }));
+		steps[PAGE - 1].stepText = "take a screenshot";
+		await aRun(
+			[...steps, stepRecord(PAGE + 1, { id: `${shooter}.-1`, isPartOf: shooter, stepText: "capture the page", level: "trace" })],
+			[],
+			[producedRecord(PAGE + 2, { id: `${shooter}.-1@0`, isPartOf: `${shooter}.-1` }), producedRecord(PAGE + 3, { id: `${shooter}@0`, isPartOf: shooter })],
+		);
+		const doc = await open<ShuDocumentColumn>(SHU_TAG.DOCUMENT_COLUMN);
+		const frames = Array.from(doc.shadowRoot?.querySelectorAll<ShuArtifactFrame>(`${SHU_TAG.ARTIFACT_FRAME}.thumb`) ?? []);
+		expect(frames.length, "both screenshots are in the document").toBe(2);
+		const captions = frames.map((frame) => {
+			frame.setFullscreen(true);
+			const caption = frame.shadowRoot?.querySelector(".step-caption")?.textContent;
+			frame.setFullscreen(false);
+			return caption;
+		});
+		expect(captions).toEqual(["take a screenshot", "take a screenshot"]);
 	});
 
 	it("shows no rows when the run has recorded nothing, rather than a false one", async () => {

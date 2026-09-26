@@ -1,29 +1,33 @@
 /**
  * Inspection steps for shu-monitor-column, kept beside the element (the polymorphic view's controls pattern). Counts the
- * rendered log rows across shadow boundaries so a feature can assert the monitor VIRTUALIZES: the DOM holds only the
- * rows in view (plus the virtualizer's small overscan), not every buffered event, no matter how long the run. Polls,
- * since the backfill and re-render land asynchronously. The page-providing stepper is duck-typed, so shu keeps no
- * dependency on it.
+ * rendered log rows so a feature can assert the monitor VIRTUALIZES: the DOM holds only the rows in view (plus the
+ * virtualizer's small overscan), not every buffered event, however long the run is. Waits, since the backfill and
+ * re-render land asynchronously.
  *
  * Steps never lead with the article "the", haibun treats such lines as narrative prose, not matchable steps.
  */
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionOK, actionNotOK } from "@haibun/core/lib/util/index.js";
 import { DOMAIN_NUMBER, DOMAIN_TEXT, createEnumDomainDefinition } from "@haibun/core/lib/domains.js";
-
-import { type EvalPage, pollUntil, countMatching, firstText, firstAttr, hasText, clickFirst } from "./controls-util.js";
+import type { Locator, Page } from "playwright";
+import { INPUT_EVENT, STATE_MS, comesToHold, controlledPage, findsAtLeast, pollUntil } from "./controls-util.js";
 import { FOLLOW_EDGE_SLACK_PX } from "../controllers/index.js";
 import { SHU_TAG } from "../consts.js";
+import { SHU_TEST_IDS } from "../test-ids.js";
 
-// Selectors reused across the assertions, so a markup rename lands in one place.
 /** What a thumbnail is: a tile of the column's grid, never the natural-size shrink-wrap and never the whole column. */
 const MIN_TILE_PX = 140;
 const MAX_TILE_PX = 450;
 
-const MONITOR_ROW = '[data-testid="monitor-log-row"]';
-const MONITOR_COUNT = '[data-testid="monitor-log-stream"] .count';
-const SCROLLBAR_POS_TOP = '[data-testid="scrollbar-pos-top"]';
+const MONITOR_ROW = `[data-testid="${SHU_TEST_IDS.MONITOR.LOG_ROW}"]`;
+const MONITOR_COUNT = `[data-testid="${SHU_TEST_IDS.MONITOR.LOG_STREAM}"] .count`;
+const VIRTUALIZER = "lit-virtualizer";
+const SRC = "src";
 const DOC_ROW = ".doc-row";
+const THUMB_FRAME = `${SHU_TAG.ARTIFACT_FRAME}.thumb`;
+const EXPANDED_FRAME = `${SHU_TAG.ARTIFACT_FRAME}.fullscreen`;
+const THUMB_IMAGE = `${THUMB_FRAME} img`;
+const EXPANDED_IMAGE = `${EXPANDED_FRAME} img`;
 const FUTURE = "future-event"; // the dim class shared by monitor rows and document blocks past the time cursor
 // The follow's own contract for "at the live edge": the assertion holds the component to the slack it re-sticks past.
 const DOC_LIVE_EDGE_PX = FOLLOW_EDGE_SLACK_PX;
@@ -40,97 +44,78 @@ export default class ShuMonitorColumnControls extends AStepper implements IHasCy
 		}),
 	};
 
-	private page(): Promise<EvalPage> {
-		const wp = this.getWorld().runtime.steppers?.find((s) => typeof (s as { getPage?: unknown }).getPage === "function") as { getPage(): Promise<EvalPage> } | undefined;
-		if (!wp) throw new Error("ShuMonitorColumnControls: no page-providing stepper (web-playwright) in the world");
-		return wp.getPage();
+	private page(): Promise<Page> {
+		return controlledPage(this);
 	}
 
-	private rowCount(page: EvalPage): Promise<number> {
-		return countMatching(page, MONITOR_ROW);
+	/** The run's document column. */
+	private document(page: Page) {
+		return page.locator(SHU_TAG.DOCUMENT_COLUMN).first();
 	}
 
-	/** Poll `read` until the count settles (two equal, non-zero reads in a row), so a "fewer than" assertion reads the
-	 *  stable virtualized count, never a mid-backfill snapshot that happens to be small. */
-	/** Dispatch a pointerdown on the custom rail at its top or bottom, the way a click-to-seek does, so a feature can prove
-	 *  the rail scrolls the virtualizer (a holey placeholder items array once made every seek a silent no-op). */
-	private seekRail(page: EvalPage, where: string): Promise<boolean> {
-		return page.evaluate((toTop: boolean) => {
-			let rail: Element | null = null;
-			const stack: Array<Document | ShadowRoot> = [document];
-			while (stack.length > 0 && !rail) {
-				const root = stack.pop();
-				if (!root) break;
-				const sb = root.querySelector("shu-scrollbar");
-				if (sb?.shadowRoot) rail = sb.shadowRoot.querySelector(".rail"); // .rail lives in shu-scrollbar's shadow root
-				for (const el of Array.from(root.querySelectorAll("*"))) if (el.shadowRoot) stack.push(el.shadowRoot);
-			}
-			if (!rail) return false;
-			const r = rail.getBoundingClientRect();
-			const clientY = toTop ? r.top + 3 : r.bottom - 3;
-			rail.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, clientX: r.left + 7, clientY, pointerId: 1 }));
-			return true;
-		}, where === RAIL_END.top);
+	/** The monitor's scroll rail. */
+	private rail(page: Page): Locator {
+		return page.locator(`${SHU_TAG.MONITOR_COLUMN} ${SHU_TAG.SCROLLBAR}`).first();
+	}
+
+	/** The first visible row the monitor's rail states. */
+	private firstRowStated(page: Page): Locator {
+		return this.rail(page).getByTestId(SHU_TEST_IDS.SCROLLBAR.POS_TOP);
+	}
+
+	/** Whether the first visible row the rail states comes to satisfy `test` of its ordinal text. */
+	private firstVisibleRow(page: Page, test: (on: { el: HTMLElement; arg: string }) => boolean, ordinal: number): Promise<boolean> {
+		return comesToHold(this.firstRowStated(page), test, String(ordinal), STATE_MS);
 	}
 
 	steps: TStepperSteps = {
 		monitorShowsMoreThan: {
 			gwta: `monitor shows more than {min: ${DOMAIN_NUMBER}} rows`,
 			action: async ({ min }: { min: number }) => {
-				const want = min;
-				const n = await pollUntil(
-					await this.page(),
-					(p) => this.rowCount(p),
-					(c) => c > want,
-				);
-				return n > want ? actionOK() : actionNotOK(`monitor shows ${n} rows, expected more than ${want}`);
+				const rows = (await this.page()).locator(MONITOR_ROW);
+				return (await findsAtLeast(rows, min + 1)) ? actionOK() : actionNotOK(`monitor shows ${await rows.count()} rows, expected more than ${min}`);
 			},
 		},
 		monitorShowsExactly: {
 			gwta: `monitor shows exactly {count: ${DOMAIN_NUMBER}} rows`,
 			action: async ({ count }: { count: number }) => {
-				const want = count;
+				const page = await this.page();
+				const rows = page.locator(MONITOR_ROW);
 				const n = await pollUntil(
-					await this.page(),
-					(p) => this.rowCount(p),
-					(c) => c === want,
+					page,
+					() => rows.count(),
+					(c) => c === count,
 				);
-				return n === want ? actionOK() : actionNotOK(`monitor shows ${n} rows, expected exactly ${want}`);
+				return n === count ? actionOK() : actionNotOK(`monitor shows ${n} rows, expected exactly ${count}`);
 			},
 		},
 		seekMonitorRail: {
+			// A pointerdown on the custom rail at its top or bottom, the way a click-to-seek does, so a feature can prove the
+			// rail scrolls the virtualizer (a holey placeholder items array once made every seek a silent no-op).
 			gwta: `seek the monitor rail to the {where: ${DOMAIN_RAIL_END}}`,
 			action: async ({ where }: { where: string }) => {
-				const ok = await this.seekRail(await this.page(), where);
-				return ok ? actionOK() : actionNotOK("no shu-scrollbar rail found to seek");
+				const rail = this.rail(await this.page()).getByTestId(SHU_TEST_IDS.SCROLLBAR.RAIL);
+				const box = await rail.boundingBox();
+				if (!box) return actionNotOK("the page doesn't show a scroll rail to seek");
+				const clientY = where === RAIL_END.top ? box.y + 3 : box.y + box.height - 3;
+				await rail.dispatchEvent(INPUT_EVENT.pointerdown, { bubbles: true, cancelable: true, clientX: box.x + 7, clientY, pointerId: 1 });
+				return actionOK();
 			},
 		},
 		monitorFirstVisibleRow: {
 			gwta: `monitor first visible row reads {ordinal: ${DOMAIN_NUMBER}}`,
 			action: async ({ ordinal }: { ordinal: number }) => {
-				const expected = String(ordinal);
-				const v = await pollUntil(
-					await this.page(),
-					(p) => firstText(p, SCROLLBAR_POS_TOP),
-					(x) => x === expected,
-					25,
-					100,
-				);
-				return v === expected ? actionOK() : actionNotOK(`monitor rail shows first visible row ${v || "(none)"}, expected ${ordinal}`);
+				const page = await this.page();
+				if (await this.firstVisibleRow(page, ({ el, arg }) => el.textContent?.trim() === arg, ordinal)) return actionOK();
+				return actionNotOK(`monitor rail shows first visible row ${(await this.firstRowStated(page).textContent())?.trim()}, expected ${ordinal}`);
 			},
 		},
 		monitorFirstVisibleRowIsNot: {
 			gwta: `monitor first visible row does not read {ordinal: ${DOMAIN_NUMBER}}`,
 			action: async ({ ordinal }: { ordinal: number }) => {
-				const expected = String(ordinal);
-				const v = await pollUntil(
-					await this.page(),
-					(p) => firstText(p, SCROLLBAR_POS_TOP),
-					(x) => x !== "" && x !== expected,
-					25,
-					100,
-				);
-				return v !== "" && v !== expected ? actionOK() : actionNotOK(`monitor rail still shows first visible row ${ordinal}; the seek did not move the window`);
+				const page = await this.page();
+				if (await this.firstVisibleRow(page, ({ el, arg }) => !!el.textContent?.trim() && el.textContent.trim() !== arg, ordinal)) return actionOK();
+				return actionNotOK(`monitor rail still shows first visible row ${ordinal}; the seek did not move the window`);
 			},
 		},
 		documentThumbnailsFlow: {
@@ -139,52 +124,41 @@ export default class ShuMonitorColumnControls extends AStepper implements IHasCy
 			// natural-size shrink-wrap and never the whole column), and its image loaded and fills the frame.
 			gwta: "document thumbnails flow as tiles sized to the column grid",
 			action: async () => {
-				const read = (p: EvalPage) =>
-					p.evaluate((docTag: string) => {
-						let doc: Element | null = null;
-						const stack: Array<Document | ShadowRoot> = [document];
-						while (stack.length && !doc) {
-							const r = stack.pop();
-							if (!r) break;
-							doc = r.querySelector(docTag);
-							for (const e of Array.from(r.querySelectorAll("*"))) if (e.shadowRoot) stack.push(e.shadowRoot);
-						}
-						const root = doc?.shadowRoot;
-						if (!root) return { frames: [] as Array<{ w: number; inRow: boolean; imgLoaded: boolean; imgW: number }>, overlapping: 0 };
-						const frames = (Array.from(root.querySelectorAll("shu-artifact-frame.thumb")) as HTMLElement[]).map((f) => {
-							const img = f.querySelector("img") as HTMLImageElement | null;
-							return { w: f.offsetWidth, inRow: f.parentElement?.classList.contains("thumb-row") ?? false, imgLoaded: (img?.naturalWidth ?? 0) > 0, imgW: img?.offsetWidth ?? 0 };
-						});
-						// A row given a height it does not have paints over the row before it, which is what a strip of
-						// screenshots did while every row was estimated. A row is what the virtualizer positions, so the
-						// rows are its own children; the blocks within one row lie side by side and are not compared.
-						const virtualizer = root.querySelector("shu-virtual-column")?.querySelector("lit-virtualizer");
-						// A row is a child the virtualizer positions and that carries a record's identity; the virtualizer's own
-						// hidden sizing element is a child too, and it is not a row.
-						const rows = (Array.from(virtualizer?.children ?? []) as HTMLElement[])
-							.filter((el) => el.hasAttribute("data-id"))
-							.map((el) => el.getBoundingClientRect())
-							.filter((r) => r.height > 0);
-						const ordered = rows.sort((a, b) => a.top - b.top);
-						let overlapping = 0;
-						const where: string[] = [];
-						for (let i = 1; i < ordered.length; i++)
-							if (ordered[i].top < ordered[i - 1].bottom - 1) {
-								overlapping++;
-								where.push(`a row ${Math.round(ordered[i].height)}px high over ${Math.round(ordered[i - 1].bottom - ordered[i].top)}px of the row before it`);
-							}
-						return { frames, overlapping, where };
-					}, SHU_TAG.DOCUMENT_COLUMN);
+				const page = await this.page();
+				const read = () =>
+					this.document(page).evaluate(
+						(doc, tags) => {
+							const root = doc.shadowRoot;
+							if (!root) return { frames: [], overlapping: 0, where: [] };
+							const frames = (Array.from(root.querySelectorAll(tags.frame)) as HTMLElement[]).map((f) => {
+								const img = f.querySelector("img");
+								return { w: f.offsetWidth, inRow: f.parentElement?.classList.contains("thumb-row") ?? false, imgLoaded: (img?.naturalWidth ?? 0) > 0, imgW: img?.offsetWidth ?? 0 };
+							});
+							// A row given a height it does not have paints over the row before it, which is what a strip of screenshots
+							// did while every row was estimated. A row is what the virtualizer positions, so the rows are its own
+							// children, each carrying a record's identity; the virtualizer's hidden sizing element is a child too.
+							const rows = (Array.from(root.querySelector(tags.column)?.querySelector(tags.virtualizer)?.children ?? []) as HTMLElement[])
+								.filter((el) => el.hasAttribute("data-id"))
+								.map((el) => el.getBoundingClientRect())
+								.filter((r) => r.height > 0)
+								.sort((a, b) => a.top - b.top);
+							const where: string[] = [];
+							for (let i = 1; i < rows.length; i++)
+								if (rows[i].top < rows[i - 1].bottom - 1)
+									where.push(`a row ${Math.round(rows[i].height)}px high over ${Math.round(rows[i - 1].bottom - rows[i].top)}px of the row before it`);
+							return { frames, overlapping: where.length, where };
+						},
+						{ column: SHU_TAG.VIRTUAL_COLUMN, virtualizer: VIRTUALIZER, frame: THUMB_FRAME },
+					);
 				// A tile is measured once it has been laid out: an image decodes before its frame is placed, so a read taken
 				// between the two reports a width the reader never sees. What is asserted below is what the poll waits for.
 				const tileSized = (f: { w: number }): boolean => f.w >= MIN_TILE_PX && f.w <= MAX_TILE_PX;
-				const v = await pollUntil(await this.page(), read, (s) => s.frames.length >= 3 && s.frames.every((f) => f.imgLoaded && tileSized(f)), 40, 250);
+				const v = await pollUntil(page, read, (s) => s.frames.length >= 3 && s.frames.every((f) => f.imgLoaded && tileSized(f)), 40, 250);
 				const { frames } = v;
 				if (frames.length < 3) return actionNotOK(`only ${frames.length} real thumbnails rendered, expected the run's screenshots (the artifact placeholders were not filled)`);
 				const offRow = frames.filter((f) => !f.inRow).length;
 				if (offRow > 0) return actionNotOK(`${offRow} thumbnails render outside a .thumb-row grid (holders were not extracted into tiles)`);
-				const badSize = frames.filter((f) => !tileSized(f));
-				if (badSize.length > 0)
+				if (frames.some((f) => !tileSized(f)))
 					return actionNotOK(
 						`thumbnails are not tile-sized: ${JSON.stringify(frames.map((f) => f.w))} (a tiny width is the shrink-wrap regression, a huge one is a tile blown up to the column)`,
 					);
@@ -192,34 +166,26 @@ export default class ShuMonitorColumnControls extends AStepper implements IHasCy
 				if (notLoaded > 0) return actionNotOK(`${notLoaded} thumbnail images failed to load from /artifacts`);
 				const notFilling = frames.filter((f) => f.imgW < f.w * 0.9).length;
 				if (notFilling > 0) return actionNotOK(`${notFilling} thumbnail images do not fill their tile`);
-				if ((v.overlapping ?? 0) > 0)
-					return actionNotOK(
-						`${v.overlapping} rows of the manual paint over the row before them, so a row was given a height it does not have: ${JSON.stringify((v as { where?: string[] }).where)}`,
-					);
+				if (v.overlapping > 0)
+					return actionNotOK(`${v.overlapping} rows of the manual paint over the row before them, so a row was given a height it does not have: ${JSON.stringify(v.where)}`);
 				return actionOK();
 			},
 		},
 		expandFirstThumbnail: {
-			// Click the first real thumbnail's image: the frame expands fullscreen and shows the stamped step caption: the
-			// caption and the cursor scrub both ride the build-time data-step-label/id stamp, not DOM sibling walking (which
-			// virtualization broke).
+			// Click the document's first thumbnail image. The frame expands fullscreen, captioned with the step its artifact
+			// came from: the frame names that step, and the document column captions it from the step's row.
 			gwta: "expanding the first thumbnail shows its step caption",
 			action: async () => {
-				if (!(await clickFirst(await this.page(), "shu-artifact-frame.thumb img"))) return actionNotOK("no rendered thumbnail image to click");
-				const read = (p: EvalPage) =>
-					p.evaluate((docTag: string) => {
-						let doc: Element | null = null;
-						const stack: Array<Document | ShadowRoot> = [document];
-						while (stack.length && !doc) {
-							const rr = stack.pop();
-							if (!rr) break;
-							doc = rr.querySelector(docTag);
-							for (const e of Array.from(rr.querySelectorAll("*"))) if (e.shadowRoot) stack.push(e.shadowRoot);
-						}
-						const f = doc?.shadowRoot?.querySelector("shu-artifact-frame.fullscreen");
+				const page = await this.page();
+				const thumb = this.document(page).locator(THUMB_IMAGE).first();
+				if ((await thumb.count()) === 0) return actionNotOK("the document doesn't show a thumbnail image to click");
+				await thumb.dispatchEvent(INPUT_EVENT.click);
+				const read = () =>
+					this.document(page).evaluate((doc, frame) => {
+						const f = doc.shadowRoot?.querySelector(frame);
 						const fr = f?.getBoundingClientRect();
-						const cr = doc?.getBoundingClientRect();
-						// The top-most element at the overlay's centre must belong to the expanded frame, inside a virtualized
+						const cr = doc.getBoundingClientRect();
+						// The top-most element at the overlay's centre must belong to the expanded frame: inside a virtualized
 						// column the rows are stacking contexts, and without the top layer a later row's tiles paint over it.
 						let onTop = false;
 						if (f && fr) {
@@ -240,15 +206,16 @@ export default class ShuMonitorColumnControls extends AStepper implements IHasCy
 						}
 						return {
 							open: !!f,
+							stepId: f?.getAttribute("data-step-id") ?? "",
 							caption: f?.shadowRoot?.querySelector(".step-caption")?.textContent?.trim() ?? "",
-							dLeft: fr && cr ? Math.abs(fr.left - cr.left) : -1,
-							widthRatio: fr && cr && cr.width > 0 ? fr.width / cr.width : 0,
+							dLeft: fr ? Math.abs(fr.left - cr.left) : -1,
+							widthRatio: fr && cr.width > 0 ? fr.width / cr.width : 0,
 							onTop,
 						};
-					}, SHU_TAG.DOCUMENT_COLUMN);
-				const v = await pollUntil(await this.page(), read, (s) => s.open && s.caption.length > 0, 20, 150);
+					}, EXPANDED_FRAME);
+				const v = await pollUntil(page, read, (s) => s.open && s.caption.length > 0, 20, 150);
 				if (!v.open) return actionNotOK("clicking the thumbnail did not expand it fullscreen");
-				if (!v.caption) return actionNotOK("the expanded thumbnail shows no step caption (the data-step-label stamp is missing)");
+				if (!v.caption) return actionNotOK(`the expanded thumbnail doesn't show a step caption: the document doesn't hold the row of step "${v.stepId}", which it names`);
 				// The overlay must take the WHOLE column box, from its left edge, inside a virtualizer, fixed-position
 				// coordinates resolve against the transformed row, so uncorrected values leave it askew beside the tiles.
 				if (v.dLeft > 2 || v.widthRatio < 0.98)
@@ -263,35 +230,30 @@ export default class ShuMonitorColumnControls extends AStepper implements IHasCy
 			// list (a frame cannot see off-window siblings under virtualization). Asserts the expanded image changes.
 			gwta: "arrow keys move the expanded thumbnail to the next screenshot",
 			action: async () => {
-				const srcOf = (p: EvalPage) => firstAttr(p, "shu-artifact-frame.fullscreen img", "src");
 				const page = await this.page();
-				const before = await srcOf(page);
-				if (!before) return actionNotOK("no expanded thumbnail to navigate from");
-				await page.evaluate(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", cancelable: true })));
-				const after = await pollUntil(page, srcOf, (s) => s !== "" && s !== before, 30, 200);
-				if (after === "" || after === before) return actionNotOK(`ArrowRight did not move to the next screenshot (still showing ${before})`);
-				await page.evaluate(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", cancelable: true })));
+				const image = this.document(page).locator(EXPANDED_IMAGE).first();
+				if ((await image.count()) === 0) return actionNotOK("the document doesn't show an expanded thumbnail to navigate from");
+				const before = await image.getAttribute(SRC);
+				await page.keyboard.press("ArrowRight");
+				const moved = await comesToHold(image, ({ el, arg }) => !!el.getAttribute(arg.src) && el.getAttribute(arg.src) !== arg.before, { src: SRC, before }, STATE_MS);
+				if (!moved) return actionNotOK(`ArrowRight did not move to the next screenshot (still showing ${before})`);
+				await page.keyboard.press("Escape");
 				return actionOK();
 			},
 		},
 		monitorHoldsRows: {
 			gwta: `monitor holds at least {n: ${DOMAIN_NUMBER}} rows of the run`,
 			action: async ({ n }: { n: number }) => {
-				const want = n;
-				const read = (p: EvalPage) => firstText(p, MONITOR_COUNT).then((t) => Number(t.replace(/[^0-9]/g, "")) || 0);
-				const v = await pollUntil(await this.page(), read, (x) => x >= want);
-				return v >= want ? actionOK() : actionNotOK(`the monitor holds ${v} rows, expected at least ${want} (what the run recorded did not reach the view)`);
+				const count = (await this.page()).locator(MONITOR_COUNT).first();
+				if (await comesToHold(count, ({ el, arg }) => (Number(el.textContent?.replace(/[^0-9]/g, "")) || 0) >= arg, n, STATE_MS)) return actionOK();
+				return actionNotOK(`the monitor holds ${await count.textContent()} rows, expected at least ${n} (what the run recorded did not reach the view)`);
 			},
 		},
 		monitorShowsRowContaining: {
 			gwta: `monitor shows a row containing {text: ${DOMAIN_TEXT}}`,
 			action: async ({ text }: { text: string }) => {
-				const found = await pollUntil(
-					await this.page(),
-					(p) => hasText(p, MONITOR_ROW, text),
-					(ok) => ok,
-				);
-				return found ? actionOK() : actionNotOK(`monitor never rendered a row containing "${text}" (it did not follow the live edge)`);
+				const row = (await this.page()).locator(MONITOR_ROW).filter({ hasText: text });
+				return (await findsAtLeast(row, 1)) ? actionOK() : actionNotOK(`monitor never rendered a row containing "${text}" (it did not follow the live edge)`);
 			},
 		},
 		documentAtLiveEdge: {
@@ -302,25 +264,15 @@ export default class ShuMonitorColumnControls extends AStepper implements IHasCy
 			// rendered in the virtualizer's overscan.
 			gwta: "document panel is scrolled to the live edge",
 			action: async () => {
-				const read = async (p: EvalPage): Promise<number> =>
-					p.evaluate((docTag: string) => {
-						let doc: Element | null = null;
-						const stack: Array<Document | ShadowRoot> = [document];
-						while (stack.length && !doc) {
-							const r = stack.pop();
-							if (!r) break;
-							doc = r.querySelector(docTag);
-							for (const e of Array.from(r.querySelectorAll("*"))) if (e.shadowRoot) stack.push(e.shadowRoot);
-						}
-						const virt = doc?.shadowRoot?.querySelector("lit-virtualizer") as HTMLElement | null;
-						return virt ? virt.scrollHeight - virt.scrollTop - virt.clientHeight : Number.POSITIVE_INFINITY;
-					}, SHU_TAG.DOCUMENT_COLUMN);
-				const dist = await pollUntil(await this.page(), read, (d) => d < DOC_LIVE_EDGE_PX, 25, 200);
-				return dist < DOC_LIVE_EDGE_PX
-					? actionOK()
-					: actionNotOK(
-							`document panel is ${Math.round(dist)}px above its live edge (the newest events are scrolled out of view: the panel followed its rail but not its content)`,
-						);
+				const scroller = this.document(await this.page())
+					.locator(VIRTUALIZER)
+					.first();
+				const atEdge = await comesToHold(scroller, ({ el, arg }) => el.scrollHeight - el.scrollTop - el.clientHeight < arg, DOC_LIVE_EDGE_PX, STATE_MS);
+				if (atEdge) return actionOK();
+				const above = await scroller.evaluate((el) => el.scrollHeight - el.scrollTop - el.clientHeight);
+				return actionNotOK(
+					`document panel is ${Math.round(above)}px above its live edge (the newest events are scrolled out of view: the panel followed its rail but not its content)`,
+				);
 			},
 		},
 		scrubMonitorFirstRow: {
@@ -328,33 +280,37 @@ export default class ShuMonitorColumnControls extends AStepper implements IHasCy
 			// the cursor EXTERNALLY, the way the timeline or another view would, isolating whether onTimeSync updates a view.
 			gwta: "scrub the cursor from the monitor's first row",
 			action: async () => {
-				const ok = await clickFirst(await this.page(), `${MONITOR_ROW} .time-group`);
-				return ok ? actionOK() : actionNotOK("no monitor row time to scrub");
+				const time = (await this.page()).locator(`${MONITOR_ROW} .time-group`).first();
+				if ((await time.count()) === 0) return actionNotOK("the monitor doesn't show a row time to scrub");
+				await time.dispatchEvent(INPUT_EVENT.click);
+				return actionOK();
 			},
 		},
 		monitorFutureRowsAtLeast: {
 			gwta: `monitor dims at least {min: ${DOMAIN_NUMBER}} future rows`,
 			action: async ({ min }: { min: number }) => {
-				const want = min;
-				const read = (p: EvalPage) => countMatching(p, `${MONITOR_ROW}.${FUTURE}`);
-				const n = await pollUntil(await this.page(), read, (x) => x >= want, 20, 150);
-				return n >= want ? actionOK() : actionNotOK(`monitor dimmed ${n} future rows after the external cursor moved, expected at least ${want}`);
+				const future = (await this.page()).locator(`${MONITOR_ROW}.${FUTURE}`);
+				return (await findsAtLeast(future, min, STATE_MS))
+					? actionOK()
+					: actionNotOK(`monitor dimmed ${await future.count()} future rows after the external cursor moved, expected at least ${min}`);
 			},
 		},
 		clickFirstDocRow: {
 			gwta: "scrub to the first document row",
 			action: async () => {
-				const ok = await clickFirst(await this.page(), DOC_ROW);
-				return ok ? actionOK() : actionNotOK("no .doc-row to click");
+				const row = (await this.page()).locator(DOC_ROW).first();
+				if ((await row.count()) === 0) return actionNotOK("the document doesn't show a row to click");
+				await row.dispatchEvent(INPUT_EVENT.click);
+				return actionOK();
 			},
 		},
 		documentFutureRowsAtLeast: {
 			gwta: `document dims at least {min: ${DOMAIN_NUMBER}} future rows`,
 			action: async ({ min }: { min: number }) => {
-				const want = min;
-				const read = (p: EvalPage) => countMatching(p, `.doc-block.${FUTURE}, ${DOC_ROW}.${FUTURE}`);
-				const n = await pollUntil(await this.page(), read, (x) => x >= want, 20, 150);
-				return n >= want ? actionOK() : actionNotOK(`document dimmed ${n} future rows after the cursor moved, expected at least ${want}`);
+				const future = (await this.page()).locator(`.doc-block.${FUTURE}, ${DOC_ROW}.${FUTURE}`);
+				return (await findsAtLeast(future, min, STATE_MS))
+					? actionOK()
+					: actionNotOK(`document dimmed ${await future.count()} future rows after the cursor moved, expected at least ${min}`);
 			},
 		},
 	};

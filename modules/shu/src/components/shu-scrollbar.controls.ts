@@ -5,17 +5,17 @@
  * than each view growing its own copy.
  *
  * They measure the RENDERED thumb, its box on screen, not a computed value, because what a reader complains about is
- * the thumb they see. The page-providing stepper (web-playwright) is found by duck-typing getPage, so shu keeps no
- * dependency on it (mirrors shu-column-strip.controls). Pierces shadow roots to find the host.
+ * the thumb they see.
  *
  * Steps never lead with the article "the", haibun treats such lines as narrative prose, not matchable steps.
  */
+import type { Locator, Page } from "playwright";
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionOK, actionNotOK } from "@haibun/core/lib/util/index.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { DOMAIN_PAGE_LOCATOR } from "@haibun/web-playwright/domains.js";
-
-import type { EvalPage } from "./controls-util.js";
+import { INPUT_EVENT, NO_ELEMENT, controlledPage } from "./controls-util.js";
+import { SHU_TAG } from "../consts.js";
 
 /** Where the thumb is measured, as a fraction of the host's scrollable length. The ends are included because a thumb
  *  clamped at a rail end is where an off-by-one in the travel shows. */
@@ -26,6 +26,7 @@ const SETTLE_MS = 300;
  *  approximate: a virtualizer refines its total-height estimate as rows are measured, so the bar is the CONTENT swing
  *  (a screen of prose against a screen of images differs manyfold), not estimate noise. */
 const STEADY_SPREAD = (maxPx: number) => Math.max(4, Math.round(0.25 * maxPx));
+const THUMB_ID = SHU_TEST_IDS.SCROLLBAR.THUMB;
 
 /** One reading of the rendered thumb. */
 type TThumb = { heightPx: number; topPx: number };
@@ -33,117 +34,66 @@ type TThumb = { heightPx: number; topPx: number };
 export default class ShuScrollbarControls extends AStepper {
 	description = "Scroll rail controls: measure the rendered thumb of any view that hosts a rail.";
 
-	private page(): Promise<EvalPage> {
-		const wp = this.getWorld().runtime.steppers?.find((s) => typeof (s as { getPage?: unknown }).getPage === "function") as { getPage(): Promise<EvalPage> } | undefined;
-		if (!wp) throw new Error("ShuScrollbarControls: no page-providing stepper (web-playwright) in the world");
-		return wp.getPage();
+	/** The rail `host` holds. */
+	private async rail(host: string): Promise<Locator> {
+		return (await controlledPage(this)).locator(`${host} ${SHU_TAG.SCROLLBAR}`).first();
 	}
 
-	/** Scroll `host`'s rail through the sample points, reading the rendered thumb at each. Empty when the host or its
-	 *  rail is absent, which the caller reports as a miss rather than a pass. */
-	private async thumbAcrossScroll(page: EvalPage, host: string): Promise<TThumb[]> {
-		return await page.evaluate<Promise<TThumb[]>, { host: string; thumbId: string; samples: number[]; settleMs: number }>(
-			async (arg: { host: string; thumbId: string; samples: number[]; settleMs: number }) => {
-				const deep = (test: (el: Element) => boolean): Element | null => {
-					const stack: Array<Document | ShadowRoot> = [document];
-					while (stack.length > 0) {
-						const root = stack.pop();
-						if (!root) break;
-						for (const el of Array.from(root.querySelectorAll("*"))) {
-							if (test(el)) return el;
-							if (el.shadowRoot) stack.push(el.shadowRoot);
-						}
+	/** Scroll `host`'s rail through the sample points, reading the rendered thumb at each. Empty when the host, its rail
+	 *  or anything to scroll is absent, which the caller reports as a miss rather than a pass. */
+	private async thumbAcrossScroll(page: Page, host: string): Promise<TThumb[]> {
+		const thumb = (await this.rail(host)).getByTestId(THUMB_ID);
+		if ((await thumb.count()) === 0) return [];
+		const handle = await thumb.elementHandle();
+		// The scrolling region driving the rail: whichever element under the host has the most to scroll.
+		return page
+			.locator(host)
+			.first()
+			.locator("*")
+			.evaluateAll(
+				async (els, arg) => {
+					const scroller = (els as HTMLElement[]).reduce<HTMLElement | null>(
+						(most, el) => (el.scrollHeight - el.clientHeight > (most ? most.scrollHeight - most.clientHeight : 0) ? el : most),
+						null,
+					);
+					if (!scroller || !arg.thumb) return [];
+					const over = scroller.scrollHeight - scroller.clientHeight;
+					const scrollTo = async (at: number) => {
+						// A reader's scroll starts with input, and the wheel event is that signal: it pauses the live-edge
+						// follow exactly as it does for a person, so the follow cannot reclaim the pane before the reading.
+						scroller.dispatchEvent(new WheelEvent(arg.wheel, { bubbles: true, composed: true }));
+						scroller.scrollTop = over * at;
+						await new Promise((r) => setTimeout(r, arg.settleMs));
+					};
+					// A first pass lets the virtualizer measure the rows at each position, so the readings compare the thumb
+					// across content rather than across an estimate still refining itself.
+					for (const at of arg.samples) await scrollTo(at);
+					const readings: TThumb[] = [];
+					for (const at of arg.samples) {
+						await scrollTo(at);
+						const box = arg.thumb.getBoundingClientRect();
+						readings.push({ heightPx: Math.round(box.height), topPx: Math.round(box.top) });
 					}
-					return null;
-				};
-				// A host keeps its parts in its own shadow root, so a search under it starts from both.
-				const rootsOf = (el: Element): Array<Element | ShadowRoot> => (el.shadowRoot ? [el, el.shadowRoot] : [el]);
-				const within = (root: Element, test: (el: Element) => boolean): Element | null => {
-					const stack: Array<Element | ShadowRoot> = rootsOf(root);
-					while (stack.length > 0) {
-						const node = stack.pop();
-						if (!node) break;
-						for (const el of Array.from(node.querySelectorAll("*"))) {
-							if (test(el)) return el;
-							if (el.shadowRoot) stack.push(el.shadowRoot);
-						}
-					}
-					return null;
-				};
-				const hostEl = deep((el) => el.tagName.toLowerCase() === arg.host.toLowerCase());
-				if (!hostEl) return [];
-				const rail = within(hostEl, (el) => el.tagName.toLowerCase() === "shu-scrollbar");
-				const thumb = rail?.shadowRoot?.querySelector(`[data-testid="${arg.thumbId}"]`) as HTMLElement | null;
-				// The scrolling region driving the rail: whichever element under the host has somewhere to scroll.
-				let scroller: HTMLElement | null = null;
-				let most = 0;
-				const stack: Array<Element | ShadowRoot> = rootsOf(hostEl);
-				while (stack.length > 0) {
-					const node = stack.pop();
-					if (!node) break;
-					for (const el of Array.from(node.querySelectorAll("*"))) {
-						const over = (el as HTMLElement).scrollHeight - (el as HTMLElement).clientHeight;
-						if (over > most) (most = over), (scroller = el as HTMLElement);
-						if (el.shadowRoot) stack.push(el.shadowRoot);
-					}
-				}
-				if (!thumb || !scroller || most <= 0) return [];
-				const scrollTo = async (at: number) => {
-					// A reader's scroll starts with input, and the wheel event is that signal: it pauses the live-edge
-					// follow exactly as it does for a person, so the follow cannot reclaim the pane before the reading.
-					scroller?.dispatchEvent(new WheelEvent("wheel", { bubbles: true, composed: true }));
-					(scroller as HTMLElement).scrollTop = most * at;
-					await new Promise((r) => setTimeout(r, arg.settleMs));
-				};
-				// A first pass lets the virtualizer measure the rows at each position, so the readings compare the thumb
-				// across content rather than across an estimate still refining itself.
-				for (const at of arg.samples) await scrollTo(at);
-				const readings: TThumb[] = [];
-				for (const at of arg.samples) {
-					await scrollTo(at);
-					const box = thumb.getBoundingClientRect();
-					readings.push({ heightPx: Math.round(box.height), topPx: Math.round(box.top) });
-				}
-				return readings;
-			},
-			{ host, thumbId: SHU_TEST_IDS.SCROLLBAR.THUMB, samples: SAMPLES, settleMs: SETTLE_MS },
-		);
+					return readings;
+				},
+				{ thumb: handle, samples: SAMPLES, settleMs: SETTLE_MS, wheel: INPUT_EVENT.wheel },
+			);
 	}
 
-	/** What a press at the middle of the host's rail thumb reaches: the thumb's own test id when it can be
-	 *  grabbed, otherwise whatever covers it. Read inside the rail's shadow root, which is where both are drawn. */
-	private thumbPressReaches(page: EvalPage, host: string): Promise<string | null> {
-		return page.evaluate<string | null, { host: string; thumbId: string }>(
-			(arg: { host: string; thumbId: string }) => {
-				const stack: Array<Document | ShadowRoot> = [document];
-				while (stack.length > 0) {
-					const root = stack.pop();
-					if (!root) break;
-					for (const el of Array.from(root.querySelectorAll("*"))) {
-						if (el.tagName.toLowerCase() === arg.host.toLowerCase()) {
-							const inner: Array<Element | ShadowRoot> = el.shadowRoot ? [el, el.shadowRoot] : [el];
-							while (inner.length > 0) {
-								const node = inner.pop();
-								if (!node) break;
-								for (const child of Array.from(node.querySelectorAll("*"))) {
-									if (child.tagName.toLowerCase() === "shu-scrollbar") {
-										const thumb = child.shadowRoot?.querySelector(`[data-testid="${arg.thumbId}"]`);
-										if (!thumb) return null;
-										const r = thumb.getBoundingClientRect();
-										const at = child.shadowRoot?.elementFromPoint(Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2));
-										return at?.getAttribute?.("data-testid") ?? String(at?.tagName ?? "nothing").toLowerCase();
-									}
-									if (child.shadowRoot) inner.push(child.shadowRoot);
-								}
-							}
-							return null;
-						}
-						if (el.shadowRoot) stack.push(el.shadowRoot);
-					}
-				}
-				return null;
+	/** What a press at the middle of the host's rail thumb reaches: the thumb's own test id when it can be grabbed,
+	 *  otherwise whatever covers it, or null where the host doesn't hold a rail thumb. Read inside the rail's shadow root, which
+	 *  is where both are drawn. */
+	private async thumbPressReaches(host: string): Promise<string | null> {
+		const rail = await this.rail(host);
+		if ((await rail.getByTestId(THUMB_ID).count()) === 0) return null;
+		return rail.evaluate(
+			(el, a) => {
+				const box = el.shadowRoot?.querySelector(`[data-testid="${a.thumbId}"]`)?.getBoundingClientRect();
+				if (!box) return null;
+				const at = el.shadowRoot?.elementFromPoint(Math.round(box.left + box.width / 2), Math.round(box.top + box.height / 2));
+				return at?.getAttribute("data-testid") ?? String(at?.tagName ?? a.empty).toLowerCase();
 			},
-			{ host, thumbId: SHU_TEST_IDS.SCROLLBAR.THUMB },
+			{ thumbId: THUMB_ID, empty: NO_ELEMENT },
 		);
 	}
 
@@ -155,11 +105,9 @@ export default class ShuScrollbarControls extends AStepper {
 			// can see this: it is a question of what paints over what.
 			gwta: `rail thumb in {host: ${DOMAIN_PAGE_LOCATOR}} takes a press`,
 			action: async ({ host }: { host: string }) => {
-				const at = await this.thumbPressReaches(await this.page(), host);
-				if (at === null) return actionNotOK(`no scroll rail thumb found in ${host} to press`);
-				return at === SHU_TEST_IDS.SCROLLBAR.THUMB
-					? actionOK()
-					: actionNotOK(`a press at the middle of the rail thumb in ${host} reaches the ${at}, so the thumb cannot be grabbed to drag it`);
+				const at = await this.thumbPressReaches(host);
+				if (at === null) return actionNotOK(`${host} doesn't hold a scroll rail thumb to press`);
+				return at === THUMB_ID ? actionOK() : actionNotOK(`a press at the middle of the rail thumb in ${host} reaches the ${at}, so the thumb cannot be grabbed to drag it`);
 			},
 		},
 		railThumbHoldsSize: {
@@ -168,8 +116,8 @@ export default class ShuScrollbarControls extends AStepper {
 			// travel, or a steady thumb would pass by being stuck.
 			gwta: `rail thumb in {host: ${DOMAIN_PAGE_LOCATOR}} holds its size and travels while scrolling`,
 			action: async ({ host }: { host: string }) => {
-				const readings = await this.thumbAcrossScroll(await this.page(), host);
-				if (readings.length < SAMPLES.length) return actionNotOK(`no scroll rail found in ${host} with anything to scroll`);
+				const readings = await this.thumbAcrossScroll(await controlledPage(this), host);
+				if (readings.length < SAMPLES.length) return actionNotOK(`${host} doesn't hold a scroll rail with anything to scroll`);
 				const heights = readings.map((r) => r.heightPx);
 				const spread = Math.max(...heights) - Math.min(...heights);
 				const allowed = STEADY_SPREAD(Math.max(...heights));

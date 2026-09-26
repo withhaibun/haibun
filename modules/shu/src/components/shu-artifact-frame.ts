@@ -129,6 +129,13 @@ export class ShuArtifactFrame extends HTMLElement {
 		window.removeEventListener("resize", this.onReposition);
 	}
 
+	/** Caption the expanded frame with the step its artifact came from. The document column holds that step's row, which
+	 *  under virtualization may be outside the rendered window, and calls this as the frame opens. */
+	showStep(text: string): void {
+		const stepEl = this.shadow.querySelector(".step-caption");
+		if (stepEl) stepEl.textContent = text;
+	}
+
 	/** Expand or collapse this frame. Public: the document column drives it for ←/→ navigation across the run. */
 	setFullscreen(on: boolean): void {
 		this.classList.toggle("fullscreen", on);
@@ -142,10 +149,7 @@ export class ShuArtifactFrame extends HTMLElement {
 			if (typeof this.hidePopover === "function") this.hidePopover();
 			this.removeAttribute("popover");
 		}
-		// The step this thumbnail belongs to is STAMPED on the frame at document build (data-step-label / data-step-id):
-		// under virtualization the step's block may not even exist in the DOM, so it cannot be found by walking siblings.
-		const stepEl = this.shadow.querySelector(".step-caption");
-		if (stepEl) stepEl.textContent = on ? (this.getAttribute("data-step-label") ?? "") : ""; // shown only while fullscreen
+		if (!on) this.showStep("");
 		this.observeColumn(on); // follow the column resizing/maximizing while expanded; stop on exit
 		if (on) {
 			this.pinToColumn(); // expand within the document column's box, not the whole viewport

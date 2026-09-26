@@ -23,6 +23,16 @@ type FgCamera = {
 type FgRenderer = { setSize(w: number, h: number, updateStyle: boolean): void; getPixelRatio(): number; xr?: { isPresenting?: boolean } };
 /** The placed-gantt extent the camera frames, computed by the active gantt view from its bars, kept out of here so
  *  the controller never reaches into render-type state. */
+/** How a camera move measures its amount: screen pixels, or a percentage of the canvas or of the distance to the target. */
+export const MEASURE_UNIT = { pixels: "pixels", percent: "percent" } as const;
+export type TMeasureUnit = (typeof MEASURE_UNIT)[keyof typeof MEASURE_UNIT];
+export const ZOOM_DIRECTION = { in: "in", out: "out" } as const;
+export type TZoomDirection = (typeof ZOOM_DIRECTION)[keyof typeof ZOOM_DIRECTION];
+/** The directions a camera pans or orbits in, on the screen's axes. */
+export const PAN_DIRECTION = { left: "left", right: "right", up: "up", down: "down" } as const;
+export type TPanDirection = (typeof PAN_DIRECTION)[keyof typeof PAN_DIRECTION];
+const RAD_PER_DEG = Math.PI / 180;
+
 export type GanttExtent = { cy: number; cz: number; halfH: number; halfW: number };
 
 /** Live refs + queries the component exposes; every getter is read at CALL time so a ref set late (scene-load) or a
@@ -104,8 +114,10 @@ export function clearStripOffset(canvas: TRect, overlay: TRect): { dxPx: number;
 	return widest.size > 0 ? widest.offset : null;
 }
 
-/** An explicit camera aim: the target→camera direction and the up axis the fit establishes; "keep" preserves both. */
-type Aim = "keep" | { dir: XYZ; up: XYZ };
+/** The aim that preserves the camera's current direction and up axis. */
+const KEEP_AIM = "keep";
+/** An explicit camera aim: the target→camera direction and the up axis the fit establishes; KEEP_AIM preserves both. */
+type Aim = typeof KEEP_AIM | { dir: XYZ; up: XYZ };
 const FRONT_AIM: Aim = { dir: { x: 0, y: 0, z: 1 }, up: { x: 0, y: 1, z: 0 } }; // face the xy layout plane, upright
 const LANE_AIM: Aim = { dir: { x: -1, y: 0, z: 0 }, up: { x: 0, y: 1, z: 0 } }; // gantt: look along +x, z (time) reading left to right and y (the task rows) stacked
 const SEQUENCE_AIM: Aim = { dir: { x: -1, y: 0, z: 0 }, up: { x: 0, y: 0, z: -1 } }; // the same plane, quarter-turned: time reads DOWN and the lifelines stand, as a sequence diagram is read
@@ -165,7 +177,7 @@ export class PolymorphicCamera {
 		const cam = this.deps.camera();
 		const h = this.deps.container()?.clientHeight ?? 0;
 		if (h && this.lastViewH && h !== this.lastViewH && this.deps.hasNodes() && cam?.fov) {
-			cam.fov = (2 * Math.atan(Math.tan((cam.fov * Math.PI) / 180 / 2) * (h / this.lastViewH)) * 180) / Math.PI;
+			cam.fov = (2 * Math.atan(Math.tan((cam.fov * RAD_PER_DEG) / 2) * (h / this.lastViewH))) / RAD_PER_DEG;
 		}
 		if (h) this.lastViewH = h;
 		this.syncViewport();
@@ -220,14 +232,14 @@ export class PolymorphicCamera {
 		if (move === FRAME.sequence) return this.frameLane(this.deps.sequenceExtent(), SEQUENCE_AIM);
 		if (move === FRAME.side) this.fitBounds(this.nodeBounds(), LANE_AIM);
 		else if (move === FRAME.front) this.fitBounds(this.nodeBounds(), FRONT_AIM);
-		else this.fitBounds(this.nodeBounds(), "keep");
+		else this.fitBounds(this.nodeBounds(), KEEP_AIM);
 		return true;
 	}
 
 	/** Frame a subset of nodes by their positions: a node + its 1-hop neighbours, so a doc/tour step can jump straight to
 	 *  a node's local context instead of the whole graph. Same orbit-preserving fit; a no-op for an empty/unknown set. */
 	fitPositions(positions: Iterable<{ x?: number; y?: number; z?: number }>): void {
-		this.fitBounds(this.nodeBounds(positions), "keep");
+		this.fitBounds(this.nodeBounds(positions), KEEP_AIM);
 	}
 
 	/** Look at `pos` from where the camera already is: the target slides to the point, the camera slides with it, so the
@@ -276,7 +288,7 @@ export class PolymorphicCamera {
 	}
 
 	/** The ONE fit kernel every framing move runs through: recentre on `bbox` and back the camera off along the view
-	 *  direction: the current one for "keep", the explicit aim's otherwise (which also owns the roll: an explicit aim
+	 *  direction: the current one for KEEP_AIM, the explicit aim's otherwise (which also owns the roll: an explicit aim
 	 *  writes its up axis, undoing the sequence's z-up). The box is projected onto the camera's screen axes, so one
 	 *  formula frames ANY orientation: size the frustum to the projected lateral extent, then back off by the projected
 	 *  half-depth so the nearest node clears the lens. At the front aim that reduces to the XY-extent + z-half-depth fit:
@@ -289,9 +301,9 @@ export class PolymorphicCamera {
 		if (!bbox || !controls || !cam) return;
 		const center = { x: (bbox.x[0] + bbox.x[1]) / 2, y: (bbox.y[0] + bbox.y[1]) / 2, z: (bbox.z[0] + bbox.z[1]) / 2 };
 		const half = { x: (bbox.x[1] - bbox.x[0]) / 2, y: (bbox.y[1] - bbox.y[0]) / 2, z: (bbox.z[1] - bbox.z[0]) / 2 };
-		if (aim !== "keep") cam.up?.set(aim.up.x, aim.up.y, aim.up.z);
-		const dir = aim !== "keep" ? aim.dir : this.viewDir();
-		const up = aim !== "keep" ? aim.up : { x: cam.up?.x ?? 0, y: cam.up?.y ?? 1, z: cam.up?.z ?? 0 };
+		if (aim !== KEEP_AIM) cam.up?.set(aim.up.x, aim.up.y, aim.up.z);
+		const dir = aim !== KEEP_AIM ? aim.dir : this.viewDir();
+		const up = aim !== KEEP_AIM ? aim.up : { x: cam.up?.x ?? 0, y: cam.up?.y ?? 1, z: cam.up?.z ?? 0 };
 		let right = cross(up, dir);
 		// A degenerate up (unset, or parallel to the view direction) can't span the screen plane, pick a world axis that can.
 		if (Math.hypot(right.x, right.y, right.z) < 1e-6) right = cross(Math.abs(dir.y) < 0.9 ? { x: 0, y: 1, z: 0 } : { x: 0, y: 0, z: 1 }, dir);
@@ -299,7 +311,7 @@ export class PolymorphicCamera {
 		right = { x: right.x / rl, y: right.y / rl, z: right.z / rl };
 		const upv = cross(dir, right);
 		const extent = (v: XYZ) => half.x * Math.abs(v.x) + half.y * Math.abs(v.y) + half.z * Math.abs(v.z);
-		const vHalfFov = ((cam.fov ?? 80) * Math.PI) / 180 / 2;
+		const vHalfFov = ((cam.fov ?? 80) * RAD_PER_DEG) / 2;
 		const hHalfFov = Math.atan(Math.tan(vHalfFov) * (cam.aspect ?? 1));
 		const reach = Math.max(extent(right) / Math.tan(hHalfFov), extent(upv) / Math.tan(vHalfFov)) || 1;
 		const distance = (extent(dir) + reach) * 1.1 + 20; // +20 floor keeps a degenerate single point off the lens
@@ -358,7 +370,7 @@ export class PolymorphicCamera {
 	 * A step must not REACH the target (a camera on it has no direction to zoom back out along), so a step that would
 	 * reach or pass it closes a fraction of what remains instead.
 	 */
-	zoomBy(amount: number, unit: "pixels" | "percent", dir: "in" | "out"): void {
+	zoomBy(amount: number, unit: TMeasureUnit, dir: TZoomDirection): void {
 		const refs = this.orbitRefs();
 		if (!refs) return;
 		this.userControlled = true; // the camera is now the user's, end the load-time auto-fit
@@ -367,8 +379,8 @@ export class PolymorphicCamera {
 			oy = p.y - t.y,
 			oz = p.z - t.z;
 		const dist = Math.hypot(ox, oy, oz) || 1;
-		const delta = unit === "percent" ? dist * (amount / 100) : amount * (this.worldPerPxAt(t) ?? 1);
-		const reached = dir === "in" ? dist - delta : dist + delta;
+		const delta = unit === MEASURE_UNIT.percent ? dist * (amount / 100) : amount * (this.worldPerPxAt(t) ?? 1);
+		const reached = dir === ZOOM_DIRECTION.in ? dist - delta : dist + delta;
 		const k = (reached > 0 ? reached : dist * ZOOM_APPROACH) / dist;
 		finite("zoom", { k, x: t.x + ox * k, y: t.y + oy * k, z: t.z + oz * k });
 		p.set(t.x + ox * k, t.y + oy * k, t.z + oz * k);
@@ -377,20 +389,20 @@ export class PolymorphicCamera {
 
 	/** Slide the view (camera + target together, look direction unchanged). `pixels` = screen travel; `percent` = a
 	 * fraction of the canvas width (left/right) or height (up/down). left/down translate negative along the screen axes. */
-	panBy(amount: number, unit: "pixels" | "percent", dir: "left" | "right" | "up" | "down"): void {
+	panBy(amount: number, unit: TMeasureUnit, dir: TPanDirection): void {
 		const m = this.deps.camera()?.matrixWorld?.elements;
 		const refs = this.orbitRefs();
 		if (!m || !refs) return;
 		this.userControlled = true; // the camera is now the user's, end the load-time auto-fit
 		const { t, p } = refs;
-		const horizontal = dir === "left" || dir === "right"; // matrixWorld columns 0/1 are the camera's orthonormal right/up axes
+		const horizontal = dir === PAN_DIRECTION.left || dir === PAN_DIRECTION.right; // matrixWorld columns 0/1 are the camera's orthonormal right/up axes
 		const ax = horizontal ? m[0] : m[4],
 			ay = horizontal ? m[1] : m[5],
 			az = horizontal ? m[2] : m[6];
 		const dimPx = horizontal ? (this.deps.container()?.clientWidth ?? 0) : (this.deps.container()?.clientHeight ?? 0);
 		const wpp = this.worldPerPxAt(t) ?? 1;
-		const sign = dir === "left" || dir === "down" ? -1 : 1;
-		const d = (unit === "percent" ? (amount / 100) * dimPx : amount) * wpp * sign;
+		const sign = dir === PAN_DIRECTION.left || dir === PAN_DIRECTION.down ? -1 : 1;
+		const d = (unit === MEASURE_UNIT.percent ? (amount / 100) * dimPx : amount) * wpp * sign;
 		finite("pan", { d, ax, ay, az });
 		t.set(t.x + ax * d, t.y + ay * d, t.z + az * d);
 		p.set(p.x + ax * d, p.y + ay * d, p.z + az * d);
@@ -399,7 +411,7 @@ export class PolymorphicCamera {
 
 	/** Orbit the camera around the target: left/right swing the azimuth (around world-up), up/down the pitch (around the
 	 * camera's right axis). Rodrigues rotation of the camera→target offset by `degrees`. */
-	orbitBy(degrees: number, dir: "left" | "right" | "up" | "down"): void {
+	orbitBy(degrees: number, dir: TPanDirection): void {
 		const m = this.deps.camera()?.matrixWorld?.elements;
 		const refs = this.orbitRefs();
 		if (!m || !refs) return;
@@ -408,11 +420,11 @@ export class PolymorphicCamera {
 		const ox = p.x - t.x,
 			oy = p.y - t.y,
 			oz = p.z - t.z;
-		const horizontal = dir === "left" || dir === "right";
+		const horizontal = dir === PAN_DIRECTION.left || dir === PAN_DIRECTION.right;
 		const kx = horizontal ? 0 : m[0],
 			ky = horizontal ? 1 : m[1],
 			kz = horizontal ? 0 : m[2]; // world-up for azimuth; camera-right for pitch (both unit)
-		const angle = (dir === "left" || dir === "up" ? 1 : -1) * ((degrees * Math.PI) / 180);
+		const angle = (dir === PAN_DIRECTION.left || dir === PAN_DIRECTION.up ? 1 : -1) * (degrees * RAD_PER_DEG);
 		const c = Math.cos(angle),
 			s = Math.sin(angle),
 			dot = kx * ox + ky * oy + kz * oz;
@@ -429,7 +441,7 @@ export class PolymorphicCamera {
 		const viewH = this.deps.container()?.clientHeight ?? 0;
 		if (!cam?.position || !viewH) return null;
 		const dist = Math.hypot((pos.x ?? 0) - cam.position.x, (pos.y ?? 0) - cam.position.y, (pos.z ?? 0) - cam.position.z);
-		const fov = ((cam.fov ?? 80) * Math.PI) / 180;
+		const fov = (cam.fov ?? 80) * RAD_PER_DEG;
 		return (2 * dist * Math.tan(fov / 2)) / viewH;
 	}
 

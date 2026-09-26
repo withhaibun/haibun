@@ -25,6 +25,9 @@ const parse = (html: string): HTMLTemplateElement => {
 
 const attrOf = (el: Element, name: string): string => el.getAttribute(name) ?? el.querySelector(`[${name}]`)?.getAttribute(name) ?? "";
 
+/** The text a block shows, which a caption quotes of the step the block renders. */
+export const blockText = (block: TDocBlock): string => parse(block.html).content.textContent?.trim() ?? "";
+
 /** Split generated document HTML into one block per top-level element, in order. */
 export function splitDocumentBlocks(html: string): TDocBlock[] {
 	const blocks: TDocBlock[] = [];
@@ -80,13 +83,11 @@ export function finalizeBlocks(blocks: TDocBlock[], resolveArtifact: TArtifactRe
 	// (extracted from their placeholder holders: a holder as the grid child would nest a step's several frames into one
 	// cell), so per-step screenshots flow as equal tiles that take the column width. A lone thumbnail is wrapped too (a
 	// single full-width tile); a run ends at the next non-thumbnail block, so thumbnails split by a step never share a row.
-	// Each frame is stamped with the step it belongs to (the nearest preceding step/prose/header block) and its ordinal
-	// among these blocks, under the caller's prefix (the document generates a page of the run at a time, and names the
-	// page): the expanded view's caption, cursor scrub, and ←/→ navigation read these, since under virtualization a frame
-	// can neither walk to its step's block nor see its off-window siblings.
+	// Each frame is stamped with its ordinal among these blocks, under the caller's prefix (the document generates a page
+	// of the run at a time, and names the page). ←/→ navigation reads it, since under virtualization a frame can't see its
+	// off-window siblings. A frame's step is its artifact's, which the column stamps as it renders the frame.
 	const out: TDocBlock[] = [];
 	let run: { frames: Element[]; id: string; rawTime: number }[] = [];
-	let step: { id: string; el: Element } | null = null;
 	let ordinal = 0;
 	const flush = () => {
 		if (run.length === 0) return;
@@ -97,17 +98,10 @@ export function finalizeBlocks(blocks: TDocBlock[], resolveArtifact: TArtifactRe
 	for (const b of filled) {
 		const frames = thumbFrames(b.el);
 		if (frames.length > 0) {
-			for (const f of frames) {
-				if (step) {
-					f.setAttribute("data-step-id", step.id);
-					f.setAttribute("data-step-label", step.el.textContent?.trim() ?? "");
-				}
-				f.setAttribute("data-frame-ordinal", `${frameOrdinalPrefix}${ordinal++}`);
-			}
+			for (const f of frames) f.setAttribute("data-frame-ordinal", `${frameOrdinalPrefix}${ordinal++}`);
 			run.push({ frames, id: b.id, rawTime: b.rawTime });
 		} else {
 			flush();
-			if (b.el.matches(STEP_ROW_SELECTOR)) step = { id: b.id, el: b.el };
 			out.push({ html: b.el.outerHTML, id: b.id, rawTime: b.rawTime });
 		}
 	}

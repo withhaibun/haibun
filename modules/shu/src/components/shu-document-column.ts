@@ -17,15 +17,15 @@ import { ShuElement, TIME_SYNC_CLASS, type TLinkedData } from "./shu-element.js"
 import { SHU_EVENT } from "../consts.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { shuBaseStyles } from "./styles.js";
-import { buildArtifactIndex, generateDocumentMarkdown } from "@haibun/core/lib/document-content.js";
+import { artifactStepId, buildArtifactIndex, generateDocumentMarkdown, stepAncestors } from "@haibun/core/lib/document-content.js";
 import "./shu-artifact-frame.js";
-import type { ShuArtifactFrame } from "./shu-artifact-frame.js";
+import { ShuArtifactFrame } from "./shu-artifact-frame.js";
 import type { ShuVirtualColumn } from "./shu-virtual-column.js";
 import "./shu-virtual-column.js";
 import { virtualColumnCss } from "./shu-virtual-column.js";
 import { atLiveEdge, graphRunSource, type RunSource, type TEventRecord } from "../client-cache/index.js";
 import type { WindowedSource } from "../windowed-source.js";
-import { splitDocumentBlocks, finalizeBlocks, blocksByEvent, withHeadingAnchors, type TDocBlock } from "../document-blocks.js";
+import { splitDocumentBlocks, finalizeBlocks, blocksByEvent, blockText, withHeadingAnchors, type TDocBlock } from "../document-blocks.js";
 import { currentRowIndex, cursorMark, rowTimeClass } from "../virtual-column-model.js";
 import type { TScrollMarker } from "../scrollbar-model.js";
 import type { THaibunEvent, TArtifactEvent, THaibunLogLevel } from "@haibun/core/schema/protocol.js";
@@ -356,12 +356,19 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		return this.shadowRoot?.querySelector("shu-virtual-column") ?? null;
 	}
 
-	/** A jump-to from another view: the row is either a block element carrying `data-id`, or an artifact frame carrying its
-	 *  build-time-stamped `data-step-id`; the cached row that rendered that id is scrubbed to and scrolled into view. */
+	/** A jump-to from another view: the row is either a block element carrying `data-id`, or an artifact frame carrying the
+	 *  `data-step-id` of the step its artifact came from. The nearest step of that id's that a cached row renders is
+	 *  scrubbed to and scrolled into view, as the document places what a step produced, and an expanded frame is captioned
+	 *  with that step. */
 	private jumpToRow(row: Element): void {
-		const id = row.getAttribute("data-step-id") ?? row.getAttribute("data-id") ?? "";
-		const hit = id === "" ? undefined : this.#builtRows().find((r) => r.blocks.length > 0 && String(r.event.id ?? "") === id);
-		if (hit) this.#revealRow(hit, "center");
+		const named = row.getAttribute("data-step-id") ?? row.getAttribute("data-id") ?? "";
+		const rows = named === "" ? [] : this.#builtRows().filter((r) => r.blocks.length > 0);
+		const id = stepAncestors(named).find((a) => rows.some((r) => String(r.event.id ?? "") === a));
+		const hit = rows.find((r) => String(r.event.id ?? "") === id);
+		if (!hit) return;
+		const own = hit.blocks.find((b) => b.id === id);
+		if (row instanceof ShuArtifactFrame && own) row.showStep(blockText(own));
+		this.#revealRow(hit, "center");
 	}
 
 	/** The thumbnail frames a page of rows caches, in order, each with the row it is in: stamped `page:ordinal` when the page was built. */
@@ -432,14 +439,16 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		const type = artifact.artifactType;
 		const a = artifact as Record<string, unknown>;
 		const artifactPath = artifactUrl(a);
+		// A frame names the step its artifact came from, which its caption and the cursor it moves read.
+		const step = `data-step-id="${esc(artifactStepId(artifact.id))}"`;
 		if (type === "image") {
 			// Decoded off the thread that draws the page: a strip holds many tiles, and each is a screenshot of a whole page.
-			return `<shu-artifact-frame class="thumb"><img src="${esc(String(artifactPath))}" loading="lazy" decoding="async" /></shu-artifact-frame>`;
+			return `<shu-artifact-frame class="thumb" ${step}><img src="${esc(String(artifactPath))}" loading="lazy" decoding="async" /></shu-artifact-frame>`;
 		}
 		if (type === "html")
-			return `<shu-artifact-frame><iframe src="${esc(String(artifactPath))}" loading="lazy" sandbox="allow-scripts allow-same-origin" style="width:100%;min-height:80vh;border:none;"></iframe></shu-artifact-frame>`;
-		if (type === "json") return `<shu-artifact-frame><pre class="json-block">${esc(JSON.stringify(a.json, null, 2))}</pre></shu-artifact-frame>`;
-		if (type === "file") return `<shu-artifact-frame caption="${esc(String(a.path))}"><a href="${esc(String(a.path))}">${esc(String(a.path))}</a></shu-artifact-frame>`;
+			return `<shu-artifact-frame ${step}><iframe src="${esc(String(artifactPath))}" loading="lazy" sandbox="allow-scripts allow-same-origin" style="width:100%;min-height:80vh;border:none;"></iframe></shu-artifact-frame>`;
+		if (type === "json") return `<shu-artifact-frame ${step}><pre class="json-block">${esc(JSON.stringify(a.json, null, 2))}</pre></shu-artifact-frame>`;
+		if (type === "file") return `<shu-artifact-frame ${step} caption="${esc(String(a.path))}"><a href="${esc(String(a.path))}">${esc(String(a.path))}</a></shu-artifact-frame>`;
 		return "";
 	}
 

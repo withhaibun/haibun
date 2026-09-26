@@ -1,19 +1,27 @@
 /**
  * Assertions for the column browser (the Miller-column strip), kept beside the element (the polymorphic view's controls
  * pattern). WHICH column is focused is the browser's concern, deliberately NOT on any graph/view stepper. Reads the
- * live [active] pane from the page; the page-providing stepper (web-playwright) is found by duck-typing getPage, so
- * shu keeps no runtime dependency on it (mirrors how src/test/step-ui.ts injects it).
+ * live [active] pane from the page.
  *
  * Steps never lead with the article "the", haibun treats such lines as narrative prose, not matchable steps.
  */
 import { z } from "zod";
+import type { Page } from "playwright";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionOK, actionNotOK } from "@haibun/core/lib/util/index.js";
-
-import { pollUntil, type EvalPage } from "./controls-util.js";
+import { INPUT_EVENT, STATE_MS, controlledPage, findsAtLeast } from "./controls-util.js";
+import { SHU_TAG } from "../consts.js";
 
 /** A column, by words of the key it is open under, such as `e:Email:` for an Email's column. */
 const DOMAIN_COLUMN_MATCH = "column-match";
+/** How long a column takes to open, close or become active after the page acts. */
+
+/** The panes whose column key holds `match`, and are `active` where asked. */
+const panesMatching = (page: Page, match: string, active = false) => page.locator(`${SHU_TAG.COLUMN_PANE}${active ? "[active]" : ""}[data-column-key*=${JSON.stringify(match)}]`);
+
+/** Every pane's column key, and the active one's, for a refusal to state. */
+const columnKeys = (page: Page) =>
+	page.locator(SHU_TAG.COLUMN_PANE).evaluateAll((panes) => panes.map((p) => `${(p as HTMLElement).dataset.columnKey}${p.hasAttribute("active") ? " (active)" : ""}`));
 
 export default class ShuColumnStripControls extends AStepper implements IHasCycles {
 	description = "Column-browser (Miller columns) controls: click a column to activate it, assert which is active.";
@@ -25,10 +33,8 @@ export default class ShuColumnStripControls extends AStepper implements IHasCycl
 		}),
 	};
 
-	private page(): Promise<EvalPage> {
-		const wp = this.getWorld().runtime.steppers?.find((s) => typeof (s as { getPage?: unknown }).getPage === "function") as { getPage(): Promise<EvalPage> } | undefined;
-		if (!wp) throw new Error("ShuColumnStripControls: no page-providing stepper (web-playwright) in the world");
-		return wp.getPage();
+	private page(): Promise<Page> {
+		return controlledPage(this);
 	}
 
 	steps: TStepperSteps = {
@@ -37,19 +43,9 @@ export default class ShuColumnStripControls extends AStepper implements IHasCycl
 			// bar (the two-scrollbars report). Assert the region exists, is an overflow scroller, and shows no native gutter.
 			gwta: "annotated body scrolls in its own region with no native scrollbar",
 			action: async () => {
-				const r = await (await this.page()).evaluate(() => {
-					let el: HTMLElement | null = null;
-					const stack: Array<Document | ShadowRoot> = [document];
-					while (stack.length > 0 && !el) {
-						const root = stack.pop();
-						if (!root) break;
-						el = root.querySelector(".annotated-scroll");
-						for (const e of Array.from(root.querySelectorAll("*"))) if (e.shadowRoot) stack.push(e.shadowRoot);
-					}
-					if (!el) return { found: false, overflowY: "", gutter: 0, scrolls: false };
-					return { found: true, overflowY: getComputedStyle(el).overflowY, gutter: el.offsetWidth - el.clientWidth, scrolls: el.scrollHeight > el.clientHeight };
-				});
-				if (!r.found) return actionNotOK("no .annotated-scroll region found");
+				const region = (await this.page()).locator(".annotated-scroll").first();
+				if ((await region.count()) === 0) return actionNotOK("the page doesn't show an .annotated-scroll region");
+				const r = await region.evaluate((el: HTMLElement) => ({ overflowY: getComputedStyle(el).overflowY, gutter: el.offsetWidth - el.clientWidth }));
 				if (r.overflowY !== "auto" && r.overflowY !== "scroll") return actionNotOK(`the annotated content region is not a scroller (overflow-y: ${r.overflowY})`);
 				if (r.gutter > 0) return actionNotOK(`a native scrollbar gutter (${r.gutter}px) is still present beside the glyph rail`);
 				return actionOK();
@@ -61,13 +57,10 @@ export default class ShuColumnStripControls extends AStepper implements IHasCycl
 			// that collides with web-playwright's generic "click {target}".
 			gwta: `activate column {match: ${DOMAIN_COLUMN_MATCH}}`,
 			action: async ({ match }: { match: string }) => {
-				const ok = await (await this.page()).evaluate((m) => {
-					const pane = Array.from(document.querySelectorAll("shu-column-pane")).find((p) => ((p as HTMLElement).dataset.columnKey ?? "").includes(m)) as HTMLElement | undefined;
-					if (!pane) return false;
-					pane.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, composed: true }));
-					return true;
-				}, match);
-				return ok ? actionOK() : actionNotOK(`no column pane matching "${match}"`);
+				const pane = panesMatching(await this.page(), match).first();
+				if ((await pane.count()) === 0) return actionNotOK(`the page doesn't show a column matching "${match}"`);
+				await pane.dispatchEvent(INPUT_EVENT.pointerdown, { bubbles: true, composed: true });
+				return actionOK();
 			},
 		},
 		closeColumn: {
@@ -77,53 +70,32 @@ export default class ShuColumnStripControls extends AStepper implements IHasCycl
 			gwta: `close column {match: ${DOMAIN_COLUMN_MATCH}}`,
 			action: async ({ match }: { match: string }) => {
 				const page = await this.page();
-				const pressed = await page.evaluate((m) => {
-					const pane = Array.from(document.querySelectorAll("shu-column-pane")).find((p) => ((p as HTMLElement).dataset.columnKey ?? "").includes(m));
-					if (!pane) return "no such column";
-					const close = pane.shadowRoot?.querySelector("button.pane-close") as HTMLButtonElement | null;
-					if (!close) return "the column offers no close control";
-					close.click();
-					return "";
-				}, match);
-				if (pressed) return actionNotOK(`close column "${match}": ${pressed}`);
-				const open = await pollUntil(
-					page,
-					(p) =>
-						p.evaluate(
-							(m) =>
-								Array.from(document.querySelectorAll("shu-column-pane"))
-									.map((el) => (el as HTMLElement).dataset.columnKey ?? "?")
-									.filter((k) => k.includes(m)),
-							match,
-						),
-					(keys) => keys.length === 0,
-				);
-				if (open.length === 0) return actionOK();
+				const panes = panesMatching(page, match);
+				if ((await panes.count()) === 0) return actionNotOK(`close column "${match}": the page doesn't show such a column`);
+				const close = panes.first().locator("button.pane-close");
+				if ((await close.count()) === 0) return actionNotOK(`close column "${match}": the column doesn't offer a close control`);
+				await close.click();
+				const closed = await panes
+					.first()
+					.waitFor({ state: "detached", timeout: STATE_MS })
+					.then(
+						() => true,
+						() => false,
+					);
+				if (closed) return actionOK();
 				// The hash is the desired set's own record: still naming the column means the dismissal never reached it.
-				const hash = await page.evaluate(() => location.hash);
-				return actionNotOK(`the column matching "${match}" was closed but is still open: ${open.join(", ")}; hash=${hash}`);
+				return actionNotOK(`the column matching "${match}" was closed but is still open: ${(await columnKeys(page)).join(", ")}; hash=${await page.evaluate(() => location.hash)}`);
 			},
 		},
 		activeColumnMatches: {
 			// {match} is a substring of the active pane's column key, e.g. an entity column's key is `e:${type}:${id}`,
 			// so "e:Email:" proves a node click opened AND activated an Email column (open ⟹ active is unconditional).
+			// A page opens its columns once it has loaded, so the step waits for a matching column to be active.
 			gwta: `active column matches {match: ${DOMAIN_COLUMN_MATCH}}`,
 			action: async ({ match }: { match: string }) => {
-				// A page opens its columns once it has loaded, so the step reads until a column matching is active.
-				const cols = await pollUntil(
-					await this.page(),
-					(page) =>
-						page.evaluate(() => {
-							const panes = Array.from(document.querySelectorAll("shu-column-pane")) as (HTMLElement & { dataset: { columnKey?: string } })[];
-							return {
-								all: panes.map((p) => p.dataset.columnKey ?? "?"),
-								active: (document.querySelector("shu-column-pane[active]") as HTMLElement | null)?.dataset.columnKey ?? null,
-							};
-						}),
-					(read) => read.active?.includes(match) === true,
-				);
-				if (cols.active === null) return actionNotOK(`no active column (panes: [${cols.all.join(", ")}])`);
-				return cols.active.includes(match) ? actionOK() : actionNotOK(`active column key "${cols.active}" does not include "${match}" (panes: [${cols.all.join(", ")}])`);
+				const page = await this.page();
+				if (await findsAtLeast(panesMatching(page, match, true), 1, STATE_MS)) return actionOK();
+				return actionNotOK(`the active column doesn't match "${match}" (panes: [${(await columnKeys(page)).join(", ")}])`);
 			},
 		},
 	};

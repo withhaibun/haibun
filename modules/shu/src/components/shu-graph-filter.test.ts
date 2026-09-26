@@ -2,6 +2,8 @@
 // The filter's two host modes: the main graph's legend: its groups of chips (types, properties) plus the instance-data
 // controls: and a schema-scoped host (data-schema-only, the class browser) carrying only the Class + Property chips
 // with an independent persistence scope. Chips are rendered by <shu-chip-group>, so a chip lives one shadow deeper.
+import { SHU_TEST_IDS } from "../test-ids.js";
+import { SHU_EVENT } from "../consts.js";
 import { describe, it, expect, beforeEach } from "vitest";
 import { ShuGraphFilter } from "./shu-graph-filter.js";
 import { ONTOLOGY_CLASS, ONTOLOGY_PROPERTY } from "../graph/ontology-projection.js";
@@ -54,17 +56,17 @@ describe("shu-graph-filter host modes", () => {
 		expect(chipsOf(el, "types")).toContain("Email");
 		// The schema terms are not type chips: they reveal through the one classes & predicates toggle.
 		expect(chipsOf(el, "types")).not.toContain(ONTOLOGY_CLASS);
-		expect(el.shadowRoot?.querySelector("[data-testid='graph-filter-schema']")).not.toBeNull();
+		expect(el.shadowRoot?.querySelector(`[data-testid='${SHU_TEST_IDS.GRAPH_FILTER.SCHEMA}']`)).not.toBeNull();
 		// A property chip stands for the edges of one predicate: the typed references in the data.
 		expect(chipsOf(el, "properties")).toEqual(["inReplyTo", "references"]);
-		expect(el.shadowRoot?.querySelector("[data-testid='graph-filter-limit-value']")).not.toBeNull();
-		expect(el.shadowRoot?.querySelector("[data-testid='graph-filter-solo']")).not.toBeNull();
+		expect(el.shadowRoot?.querySelector(`[data-testid='${SHU_TEST_IDS.GRAPH_FILTER.LIMIT_VALUE}']`)).not.toBeNull();
+		expect(el.shadowRoot?.querySelector(`[data-testid='${SHU_TEST_IDS.GRAPH_FILTER.SOLO}']`)).not.toBeNull();
 	});
 
 	it("un-ticking a property reports its predicate as hidden, so a host drops those edges", async () => {
 		const el = await mount(false);
 		let detail: { hiddenPredicates?: string[] } | undefined;
-		el.addEventListener("graph-filter-change", ((e: CustomEvent) => {
+		el.addEventListener(SHU_EVENT.GRAPH_FILTER_CHANGE, ((e: CustomEvent) => {
 			detail = e.detail;
 		}) as EventListener);
 		el.setPredicateVisibility(["inReplyTo"], false);
@@ -83,7 +85,7 @@ describe("shu-graph-filter host modes", () => {
 			return box as HTMLInputElement;
 		};
 		expect(emailBox().checked).toBe(true); // shown to begin with: the case that broke
-		const solo = el.shadowRoot?.querySelector("[data-testid='graph-filter-solo']") as HTMLButtonElement | null;
+		const solo = el.shadowRoot?.querySelector(`[data-testid='${SHU_TEST_IDS.GRAPH_FILTER.SOLO}']`) as HTMLButtonElement | null;
 		if (!solo) throw new Error("no solo tool to select");
 		solo.click();
 		await flush();
@@ -96,10 +98,10 @@ describe("shu-graph-filter host modes", () => {
 	it("solo works on a property too: the pressed predicate keeps its edges, every other predicate loses them", async () => {
 		const el = await mount(false);
 		let detail: { hiddenPredicates?: string[] } | undefined;
-		el.addEventListener("graph-filter-change", ((e: CustomEvent) => {
+		el.addEventListener(SHU_EVENT.GRAPH_FILTER_CHANGE, ((e: CustomEvent) => {
 			detail = e.detail;
 		}) as EventListener);
-		const solo = el.shadowRoot?.querySelector("[data-testid='graph-filter-solo']") as HTMLButtonElement | null;
+		const solo = el.shadowRoot?.querySelector(`[data-testid='${SHU_TEST_IDS.GRAPH_FILTER.SOLO}']`) as HTMLButtonElement | null;
 		if (!solo) throw new Error("no solo tool to select");
 		solo.click();
 		await flush();
@@ -116,8 +118,8 @@ describe("shu-graph-filter host modes", () => {
 	it("a schema-only host offers ONLY the Class + Property chips and no instance-data controls", async () => {
 		const el = await mount(true);
 		expect(chipsOf(el).sort()).toEqual([ONTOLOGY_CLASS, ONTOLOGY_PROPERTY]);
-		expect(el.shadowRoot?.querySelector("[data-testid='graph-filter-limit-value']")).toBeNull();
-		expect(el.shadowRoot?.querySelector("[data-testid='graph-filter-solo']")).toBeNull();
+		expect(el.shadowRoot?.querySelector(`[data-testid='${SHU_TEST_IDS.GRAPH_FILTER.LIMIT_VALUE}']`)).toBeNull();
+		expect(el.shadowRoot?.querySelector(`[data-testid='${SHU_TEST_IDS.GRAPH_FILTER.SOLO}']`)).toBeNull();
 	});
 
 	it("a scoped host persists under its own key, never the shared one", () => {

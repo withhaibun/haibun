@@ -8,6 +8,7 @@ import { SHU_EVENT } from "../../consts.js";
 import type { TPaneOpen } from "../../pane-state.js";
 import { SHARED_SIGNALS_KEY } from "../../signals.js";
 import type { TSubjectState } from "../../current-subject.js";
+import type { TMeasureUnit, TPanDirection, TZoomDirection } from "./polymorphic-camera.js";
 
 /**
  * A real page with the polymorphic graph view mounted on it, drawn by a headless browser through a software
@@ -42,8 +43,8 @@ export type TSceneApi = {
 	setConfig(patch: Record<string, unknown>): void;
 	setSelectedSubject(id: string | null): void;
 	fitGraph(): void;
-	panBy(amount: number, unit: "pixels" | "percent", dir: "left" | "right" | "up" | "down"): void;
-	zoomBy(amount: number, unit: "pixels" | "percent", dir: "in" | "out"): void;
+	panBy(amount: number, unit: TMeasureUnit, dir: TPanDirection): void;
+	zoomBy(amount: number, unit: TMeasureUnit, dir: TZoomDirection): void;
 	inspect(): { camera: TCamera | null };
 };
 type TInspected = {

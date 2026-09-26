@@ -11,7 +11,20 @@ type TArtifactIndex = { artifactsByStep: Map<string, TArtifactEvent[]>; allArtif
 
 const normalizeId = (id: string) => id.replace(/^\[|\]$/g, "");
 
-/** Group artifact events by their parent step ID, including embedded artifacts from log/lifecycle events. */
+/** The step an artifact names as the one it came from: a record of what a step produced is named by the step with `@n`
+ *  after it. An artifact a step's event carries is named under that step. */
+export function artifactStepId(id: string): string {
+	return normalizeId(id).split("@")[0];
+}
+
+/** A step's id and the ids of the steps it is part of, nearest first. A view shows what a step produced on the nearest
+ *  of these it has a row for, since the step that made it can be one the view doesn't show. */
+export function stepAncestors(id: string): string[] {
+	const parts = normalizeId(id).split(".");
+	return parts.map((_, i) => parts.slice(0, parts.length - i).join("."));
+}
+
+/** Group artifact events by the step each names, including embedded artifacts from log/lifecycle events. */
 export function buildArtifactIndex(events: THaibunEvent[]): TArtifactIndex {
 	const map = new Map<string, TArtifactEvent[]>();
 	const allIds = new Set<string>();
@@ -19,8 +32,7 @@ export function buildArtifactIndex(events: THaibunEvent[]): TArtifactIndex {
 	for (const e of events) {
 		if (e.kind === "artifact") {
 			allIds.add(e.id);
-			let parentId = e.id.includes(".artifact.") ? e.id.split(".artifact.")[0] : e.id.split(".").length > 1 ? e.id.split(".").slice(0, -1).join(".") : e.id;
-			parentId = normalizeId(parentId);
+			const parentId = artifactStepId(e.id);
 			if (!map.has(parentId)) map.set(parentId, []);
 			map.get(parentId)?.push(e as TArtifactEvent);
 		}
@@ -91,10 +103,22 @@ export function generateDocumentMarkdown(
 	let previousRenderedId = "";
 	const claimedArtifactIds = new Set<string>();
 	const visibleIds = new Set<string>();
+	const minLevelIndex = HAIBUN_LOG_LEVELS.indexOf(minLogLevel);
+	const belowLevel = (e: THaibunEvent) => {
+		const levelIndex = HAIBUN_LOG_LEVELS.indexOf(e.level || "info");
+		return levelIndex !== -1 && minLevelIndex !== -1 && levelIndex < minLevelIndex;
+	};
+	// What a step produced is claimed by the nearest step it is part of that this document shows a row for.
+	const rows = new Set(events.filter((e) => e.kind === "lifecycle" && !belowLevel(e)).map((e) => normalizeId(e.id)));
+	const claimable = new Map<string, TArtifactEvent[]>();
+	for (const [stepId, artifacts] of artifactsByStep) {
+		const claimer = stepAncestors(stepId).find((id) => rows.has(id));
+		if (claimer) claimable.set(claimer, [...(claimable.get(claimer) ?? []), ...artifacts]);
+	}
 
 	const claimArtifacts = (id: string, excludeTypes: string[] = []) => {
 		const nid = normalizeId(id);
-		const artifacts = artifactsByStep.get(nid) || [];
+		const artifacts = claimable.get(nid) || [];
 		const unclaimed = artifacts.filter((a) => !claimedArtifactIds.has(a.id) && !excludeTypes.includes(a.artifactType));
 		if (unclaimed.length > 0) {
 			unclaimed.forEach((a) => claimedArtifactIds.add(a.id));
@@ -113,14 +137,10 @@ export function generateDocumentMarkdown(
 	};
 
 	const renderedHeaders = new Set<string>();
-	const minLevelIndex = HAIBUN_LOG_LEVELS.indexOf(minLogLevel);
 
 	for (let i = 0; i < events.length; i++) {
 		const e = events[i];
-
-		const level = e.level || "info";
-		const levelIndex = HAIBUN_LOG_LEVELS.indexOf(level);
-		if (levelIndex !== -1 && minLevelIndex !== -1 && levelIndex < minLevelIndex) continue;
+		if (belowLevel(e)) continue;
 
 		if (e.kind === "artifact" && e.artifactType === "json") {
 			const ja = e as TJsonArtifact;

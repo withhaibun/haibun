@@ -6,19 +6,20 @@ import { DOMAIN_PERSISTED_TYPE, type TDomainDefinition } from "@haibun/core/lib/
 import { actionOK, actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
 import { DOMAIN_RECORD_ID } from "@haibun/core/lib/domains.js";
 import { ViewQueryControlSchema } from "./shu-graph-query.controls-schema.js";
-import { countMatching, pollUntil, type EvalPage } from "./controls-util.js";
+import type { Page } from "playwright";
+import { ROUND_TRIP_MS, controlledPage, findsAtLeast } from "./controls-util.js";
+import { SHU_TAG } from "../consts.js";
 
 // productsDomain for view-query controls; its ui.component routes the product to the live shu-graph-query,
 // whose `set products()` applies it to the viewQuery store.
 const VIEW_QUERY = "view-query";
-// How many reads a witness gives a record to reach the table, at pollUntil's interval: a live record crosses the server,
-// the event stream and a trailing pause before the view asks again.
-const LISTED_TRIES = 50;
+// How long a witness gives a record to reach the table: a live record crosses the server, the event stream and a trailing
+// pause before the view asks again.
 const DOMAIN_SEARCH_TEXT = "search-text";
 const DOMAIN_SORT_FIELD = "sort-field";
 
 const viewQueryDomains: TDomainDefinition[] = [
-	{ selectors: [VIEW_QUERY], schema: ViewQueryControlSchema, description: "A change to the graph query view, type, text search, or sort", ui: { component: "shu-graph-query" } },
+	{ selectors: [VIEW_QUERY], schema: ViewQueryControlSchema, description: "A change to the graph query view, type, text search, or sort", ui: { component: SHU_TAG.GRAPH_QUERY } },
 	{ selectors: [DOMAIN_SEARCH_TEXT], schema: z.string().min(1), description: "Free-text search over the current type's indexed fields" },
 	{ selectors: [DOMAIN_SORT_FIELD], schema: z.string().min(1), description: "A sortable field of the current type" },
 ];
@@ -33,11 +34,8 @@ export default class ShuGraphQueryControls extends AStepper implements IHasCycle
 	description = "Drives the graph query view in a page: searches, chooses a type, sorts, and checks which individuals the query lists.";
 	cycles: IStepperCycles = { getConcerns: () => ({ domains: viewQueryDomains }) };
 
-	/** The page a web-playwright-like stepper provides, duck-typed so shu keeps no dependency on it. */
-	private page(): Promise<EvalPage> {
-		const wp = this.getWorld().runtime.steppers?.find((s) => typeof (s as { getPage?: unknown }).getPage === "function") as { getPage(): Promise<EvalPage> } | undefined;
-		if (!wp) throw new Error("ShuGraphQueryControls: no page-providing stepper (web-playwright) in the world");
-		return wp.getPage();
+	private page(): Promise<Page> {
+		return controlledPage(this);
 	}
 
 	steps = {
@@ -49,14 +47,8 @@ export default class ShuGraphQueryControls extends AStepper implements IHasCycle
 			gwta: `query lists the {label: ${DOMAIN_PERSISTED_TYPE}} individual {id: ${DOMAIN_RECORD_ID}}`,
 			recordIds: { id: "label" },
 			action: async ({ label, id }: { label: string; id: string }) => {
-				const page = await this.page();
-				const listed = await pollUntil(
-					page,
-					(p) => countMatching(p, `[data-persisted-as="${label}"][data-individual-id="${id}"]`),
-					(n) => n > 0,
-					LISTED_TRIES,
-				);
-				return listed > 0 ? actionOK() : actionNotOK(`the query never listed the ${label} "${id}"`);
+				const row = (await this.page()).locator(`[data-persisted-as=${JSON.stringify(label)}][data-individual-id=${JSON.stringify(id)}]`);
+				return (await findsAtLeast(row, 1, ROUND_TRIP_MS)) ? actionOK() : actionNotOK(`the query never listed the ${label} "${id}"`);
 			},
 		},
 		searchFor: {

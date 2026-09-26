@@ -59,6 +59,13 @@ export const SHU_TEST_IDS = {
 		/** The page's own key, as the did:key a holder delegates to. */
 		PAGE_KEY: "page-key",
 	},
+	/** The graph filter's own controls, beside its chips. */
+	GRAPH_FILTER: {
+		SOLO: "graph-filter-solo",
+		SCHEMA: "graph-filter-schema",
+		LIMIT: "graph-filter-limit",
+		LIMIT_VALUE: "graph-filter-limit-value",
+	},
 	FILTER: {
 		PROPERTY_0: "app-cond-property-0",
 		OPERATOR_0: "app-cond-operator-0",

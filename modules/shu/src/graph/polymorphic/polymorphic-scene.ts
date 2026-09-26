@@ -26,7 +26,7 @@ import { quadsToGanttModel, cascadeReschedule } from "../gantt-model.js";
 import { availablePaints, browserRelOf } from "../paint-select.js";
 import { ganttBarTimes, GANTT_ROW_H, GANTT_BAR_H, GANTT_BAR_D, GANTT_MIN_BAR_W, GANTT_GHOST_PAD } from "../gantt-layout.js";
 import { type Adornment } from "../graph-layout.js";
-import { PolymorphicCamera, clearStripOffset, coveredTogether, type GanttExtent } from "./polymorphic-camera.js";
+import { PolymorphicCamera, clearStripOffset, coveredTogether, type GanttExtent, type TMeasureUnit, type TPanDirection, type TZoomDirection } from "./polymorphic-camera.js";
 import { SHU_ATTR, SHU_EVENT } from "../../consts.js";
 import { ndcToClient, clientToNdc, ndcOnScreen, NDC_EDGE, NDC_SPAN, type TNdc, type TClientPoint } from "../polymorphic/polymorphic-project.js";
 import { syncPickTarget, restorePickTarget, type TPickObject, type TScaleRestore } from "../polymorphic/polymorphic-pick-sync.js";
@@ -314,6 +314,9 @@ type TSceneCamera = {
 	getWorldDirection?(target: Vec3): Vec3;
 	matrixWorld?: { elements: number[] }; // columns 0/1 = the camera's right/up axes, for screen-oriented placement
 };
+
+/** What a graph scene draws, as its `inspect()` states it. */
+export type TGraphState = ReturnType<ShuGraphScene["inspect"]>;
 
 export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	/** The host's time-filtered data slice; replaced whole via setModel. */
@@ -733,7 +736,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 * quality against this surface, never against private fields. `sample` carries every node's actual x/y/z. The host
 	 * delegates its own `inspect()` to this and registers itself on globalThis as `shuPolymorphic` for devtools.
 	 */
-	inspect(): Record<string, unknown> {
+	inspect() {
 		const nodes = [...this.nodeMap.values()];
 		return {
 			nodes: nodes.length,
@@ -884,6 +887,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			edges: this.currentLinks.map((l) => ({
 				s: linkEndId(l.source),
 				t: linkEndId(l.target),
+				predicate: l.predicate,
 				lineOpacity: l.__lineObj?.material?.opacity ?? null,
 				labelOpacity: l.__labelSprite?.material?.opacity ?? null,
 			})),
@@ -2688,15 +2692,15 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	/* Visual-graph navigation, the ONLY sanctioned camera changes: the explicit, user-initiated re-framing. Public
 	 * entries (a control step, key, or button all drive ONE path) that delegate to the camera controller, which owns
 	 * the math and latches the camera away from the load-time auto-fit. */
-	zoomBy(amount: number, unit: "pixels" | "percent", dir: "in" | "out"): void {
+	zoomBy(amount: number, unit: TMeasureUnit, dir: TZoomDirection): void {
 		this.camera.zoomBy(amount, unit, dir);
 	}
 
-	panBy(amount: number, unit: "pixels" | "percent", dir: "left" | "right" | "up" | "down"): void {
+	panBy(amount: number, unit: TMeasureUnit, dir: TPanDirection): void {
 		this.camera.panBy(amount, unit, dir);
 	}
 
-	orbitBy(degrees: number, dir: "left" | "right" | "up" | "down"): void {
+	orbitBy(degrees: number, dir: TPanDirection): void {
 		this.camera.orbitBy(degrees, dir);
 	}
 

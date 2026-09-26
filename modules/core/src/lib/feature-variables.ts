@@ -212,21 +212,20 @@ export class FeatureVariables {
 		};
 	}
 
-	private async resolveDotPath(lookupTerm: string): Promise<{ value: unknown; domain: string; found: boolean }> {
+	private async resolveDotPath(lookupTerm: string): Promise<{ value: unknown; found: boolean }> {
 		const { baseName, pathSegments } = parseDotPath(lookupTerm);
-		if (pathSegments.length === 0) return { value: undefined, domain: DOMAIN_STRING, found: false };
-		const baseEntry = await this.getStoredEntry(baseName);
-		if (!baseEntry) return { value: undefined, domain: DOMAIN_STRING, found: false };
+		const baseEntry = pathSegments.length > 0 ? await this.getStoredEntry(baseName) : undefined;
+		if (!baseEntry) return { value: undefined, found: false };
 		let baseValue = baseEntry.value;
 		if (typeof baseValue === "string") {
 			try {
 				baseValue = JSON.parse(baseValue);
 			} catch {
-				return { value: undefined, domain: DOMAIN_STRING, found: false };
+				// A base that holds text rather than JSON doesn't have fields.
+				return { value: undefined, found: false };
 			}
 		}
-		const result = navigateValue(baseValue, pathSegments);
-		return { ...result, domain: baseEntry.domain ?? DOMAIN_STRING };
+		return navigateValue(baseValue, pathSegments);
 	}
 
 	async getDomainValues(domainName: string): Promise<{ values: unknown[]; error?: string }> {

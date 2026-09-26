@@ -1,32 +1,34 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
+import type { ShuArtifactFrame } from "./shu-artifact-frame.js";
 import "./shu-artifact-frame.js";
 import { SHU_EVENT } from "../consts.js";
 
 const STEP = "the import authority's signing identity is created";
 const stepCaption = (frame: Element) => (frame.shadowRoot as ShadowRoot).querySelector(".step-caption")?.textContent;
 const toggleFullscreen = (frame: Element) => (frame.shadowRoot as ShadowRoot).querySelector<HTMLButtonElement>(".fullscreen-btn")?.click();
-// The document build (finalizeBlocks) stamps every thumbnail with its step; the frame reads only the stamp, under
-// virtualization the step's block may not exist in the DOM, so nothing is derived from siblings.
+// A frame names the step its artifact came from, and the document column, which holds that step's row, captions it as it
+// opens: under virtualization the step's block may not exist in the DOM, so a caption isn't derived from siblings.
 const frameIn = (html: string) => {
 	document.body.innerHTML = html;
 	return document.body.querySelector("shu-artifact-frame") as Element;
 };
-const stamped = `<div class="thumb-row"><shu-artifact-frame class="thumb" data-step-id="0.1.2" data-step-label="${STEP}"><img src="x.png" /></shu-artifact-frame></div>`;
+const stamped = `<div class="thumb-row"><shu-artifact-frame class="thumb" data-step-id="0.1.2"><img src="x.png" /></shu-artifact-frame></div>`;
 
 describe("shu-artifact-frame fullscreen step caption", () => {
-	it("shows the stamped step only while fullscreen, and clears it on exit", () => {
-		const frame = frameIn(stamped);
+	it("shows the step the column gives it while fullscreen, and clears it on exit", () => {
+		const frame = frameIn(stamped) as ShuArtifactFrame;
 		expect(stepCaption(frame)).toBe(""); // not fullscreen
 		toggleFullscreen(frame);
 		expect(frame.classList.contains("fullscreen")).toBe(true);
+		frame.showStep(STEP);
 		expect(stepCaption(frame)).toBe(STEP);
 		toggleFullscreen(frame);
 		expect(frame.classList.contains("fullscreen")).toBe(false);
 		expect(stepCaption(frame)).toBe("");
 	});
 
-	it("shows no caption when the frame carries no stamp (an unstamped frame outside a document)", () => {
+	it("doesn't show a caption until a column gives one (a frame outside a document)", () => {
 		const frame = frameIn(`<shu-artifact-frame class="thumb"><img src="x.png" /></shu-artifact-frame>`);
 		toggleFullscreen(frame);
 		expect(stepCaption(frame)).toBe("");

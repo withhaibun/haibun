@@ -21,6 +21,9 @@ import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles, shuRowSeparated } from "./styles.js";
 import { SHU_EVENT } from "../consts.js";
+import { SHU_TEST_IDS } from "../test-ids.js";
+
+const FILTER_IDS = SHU_TEST_IDS.GRAPH_FILTER;
 import { DEFAULT_PER_TYPE_LIMIT, MAX_PER_TYPE_LIMIT } from "../quads-snapshot.js";
 import { colorForType } from "../type-colors.js";
 import { clamp } from "../util.js";
@@ -269,14 +272,14 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		const predicateChips = derivePredicates(visibleQuads).map((p): TChip => ({ id: p.predicate, label: p.predicate, checked: !hiddenPreds.has(p.predicate), count: p.count }));
 		return this.rows([
 			html`<shu-chip-group name="types" .chips=${clusters.filter((c) => !isSchemaType(c.type)).map(typeChip)} .onToggle=${this.onChipToggle} .onPreview=${this.onChipPreview}></shu-chip-group>
-				<button type="button" class="solo" data-testid="graph-filter-solo" aria-pressed=${this.soloWaiting} title="solo: press this, then a type or property chip, to show only that one" @click=${this.toggleSolo}>1️⃣</button>`,
+				<button type="button" class="solo" data-testid=${FILTER_IDS.SOLO} aria-pressed=${this.soloWaiting} title="solo: press this, then a type or property chip, to show only that one" @click=${this.toggleSolo}>1️⃣</button>`,
 			html`<shu-chip-group name="properties" .chips=${predicateChips} .onToggle=${this.onPredicateToggle}></shu-chip-group>`,
 			html`<shu-field label="classes &amp; predicates" trailing>
-					<input type="checkbox" data-testid="graph-filter-schema" .checked=${schemaShown} @change=${this.onSchemaToggle} />
+					<input type="checkbox" data-testid=${FILTER_IDS.SCHEMA} .checked=${schemaShown} @change=${this.onSchemaToggle} />
 				</shu-field>
 				<shu-field label="per-type limit">
-					<input type="range" min="10" max=${MAX_PER_TYPE_LIMIT} step="10" .value=${String(this.state.perTypeLimit)} @input=${this.onLimitInput} @change=${this.onLimitChange} />
-					<span class="meta" data-testid="graph-filter-limit-value">${this.state.perTypeLimit}</span>
+					<input type="range" data-testid=${FILTER_IDS.LIMIT} min="10" max=${MAX_PER_TYPE_LIMIT} step="10" .value=${String(this.state.perTypeLimit)} @input=${this.onLimitInput} @change=${this.onLimitChange} />
+					<span class="meta" data-testid=${FILTER_IDS.LIMIT_VALUE}>${this.state.perTypeLimit}</span>
 				</shu-field>
 				<span class="quad-count">${visibleQuads.length} quads</span>`,
 		]);

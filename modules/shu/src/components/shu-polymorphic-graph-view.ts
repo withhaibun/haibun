@@ -24,8 +24,16 @@ import { viewHeadCss, viewActions, rotateControls, SETTINGS_GROUP_NAMES, type TS
 import { ONTOLOGY_CLASS, ONTOLOGY_PROPERTY } from "../graph/ontology-projection.js";
 import "@haibun/shu/graph/polymorphic/polymorphic-scene.js";
 
-import { type FGInstance, type GraphSceneModel, type GraphSceneConfig, type GraphSceneChangedDetail, type RescheduleUpdate } from "../graph/polymorphic/polymorphic-scene.js";
+import {
+	type FGInstance,
+	type GraphSceneModel,
+	type GraphSceneConfig,
+	type GraphSceneChangedDetail,
+	type RescheduleUpdate,
+	type TGraphState,
+} from "../graph/polymorphic/polymorphic-scene.js";
 import { GRAPH_SCENE_EVENT } from "../graph/polymorphic/polymorphic-graph-types.js";
+import type { TMeasureUnit, TPanDirection, TZoomDirection } from "../graph/polymorphic/polymorphic-camera.js";
 
 // A cursor move re-styles (depth re-place, positions pinned), fast, so it paints promptly. NOT the streamed-data
 // window (which would stack to ~1s); the base coalesces continuous scrubbing to this before it reaches onTimeCursorPaint.
@@ -87,7 +95,7 @@ const PolymorphicStateSchema = z.object({
  * Light DOM (createRenderRoot returns this): the scene resolves its A-Frame camera through document.querySelector, and
  * the child scene chrome is positioned against this host; a shadow root would hide both.
  */
-class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof PolymorphicStateSchema> {
+export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof PolymorphicStateSchema> {
 	/** Layout choices are remembered across reloads (ShuElement.persistFields; singleton key). */
 	static persistFields = ["viewType", "flatten", "grouped", "groupBy", "zBasis", "labelAsZ", "pins", "follow", "prune", "readAsDocument"] as const;
 
@@ -164,8 +172,9 @@ class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof PolymorphicSt
 	get fgCamera() {
 		return this.scene?.fgCamera;
 	}
-	inspect(): Record<string, unknown> {
-		return this.scene?.inspect() ?? {};
+	/** What the graph draws, as its scene states it, or null before the scene mounts. */
+	inspect(): TGraphState | null {
+		return this.scene?.inspect() ?? null;
 	}
 	/** The current graph as a self-contained SVG still: the report and still-image medium. */
 	still(): string {
@@ -195,13 +204,13 @@ class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof PolymorphicSt
 	fitGraphAround(nodeId: string): void {
 		this.scene?.fitGraphAround(nodeId);
 	}
-	zoomBy(amount: number, unit: "pixels" | "percent", dir: "in" | "out"): void {
+	zoomBy(amount: number, unit: TMeasureUnit, dir: TZoomDirection): void {
 		this.scene?.zoomBy(amount, unit, dir);
 	}
-	panBy(amount: number, unit: "pixels" | "percent", dir: "left" | "right" | "up" | "down"): void {
+	panBy(amount: number, unit: TMeasureUnit, dir: TPanDirection): void {
 		this.scene?.panBy(amount, unit, dir);
 	}
-	orbitBy(degrees: number, dir: "left" | "right" | "up" | "down"): void {
+	orbitBy(degrees: number, dir: TPanDirection): void {
 		this.scene?.orbitBy(degrees, dir);
 	}
 	rotateTo(aim: "xy" | "z"): void {

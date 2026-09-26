@@ -15,14 +15,16 @@ import { ref } from "lit/directives/ref.js";
 import type { ShuCopyButton } from "./shu-copy-button.js";
 import { SHU_ICON_BUTTON, shuRowSeparated } from "./styles.js";
 
-/** The settings groups a host can offer, in row order. Each is a disclosure: its icon opens its controls row. */
-export type TSettingsGroup = "layout" | "filters" | "scenes";
+/** The settings groups a host can offer, by name. */
+export const SETTINGS_GROUP = { layout: "layout", filters: "filters", scenes: "scenes" } as const;
+export type TSettingsGroup = (typeof SETTINGS_GROUP)[keyof typeof SETTINGS_GROUP];
+/** The settings groups in row order. Each is a disclosure: its icon opens its controls row. */
 export const SETTINGS_GROUPS: ReadonlyArray<{ group: TSettingsGroup; glyph: string; title: string }> = [
 	// How the graph is laid out is one choice made of several: which way it is faced, what it reads as, how it gathers,
 	// and what places depth. Split across three icons a reader set one and went looking for the next.
-	{ group: "layout", glyph: "∠", title: "layout: orientation, the view, grouping, depth" },
-	{ group: "filters", glyph: "∇", title: "filters: types, properties, limits" },
-	{ group: "scenes", glyph: "☆", title: "scenes: save this way of looking, return to one" },
+	{ group: SETTINGS_GROUP.layout, glyph: "∠", title: "layout: orientation, the view, grouping, depth" },
+	{ group: SETTINGS_GROUP.filters, glyph: "∇", title: "filters: types, properties, limits" },
+	{ group: SETTINGS_GROUP.scenes, glyph: "☆", title: "scenes: save this way of looking, return to one" },
 ];
 /** The group names alone, so a schema (or any other consumer) derives its values from this catalog rather than
  *  restating them. */

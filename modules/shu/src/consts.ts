@@ -153,6 +153,13 @@ export const SHU_TAG = {
 	ACTIVITY_HISTORY: "shu-activity-history",
 	WINDOW_SIZE: "shu-window-size",
 	SEARCH_SUMMARY: "shu-search-summary",
+	GRAPH_FILTER: "shu-graph-filter",
+	CHIP_GROUP: "shu-chip-group",
+	CLASS_BROWSER: "shu-class-browser",
+	GRAPH_SCENE: "shu-graph-scene",
+	SCROLLBAR: "shu-scrollbar",
+	ARTIFACT_FRAME: "shu-artifact-frame",
+	VIRTUAL_COLUMN: "shu-virtual-column",
 } as const;
 
 /** The index pane's identity: the column every other one is opened from, and the only one the app builds itself. */
