@@ -6,12 +6,12 @@
  */
 
 import { AStepper, IHasCycles, IHasOptions, StepperKinds, IStepperCycles } from "@haibun/core/lib/astepper.js";
+import { NameSchema } from "@haibun/core/lib/domains.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { OK, type TBlipEvent } from "@haibun/core/schema/protocol.js";
 import { THaibunEvent, EventFormatter } from "@haibun/core/monitor/index.js";
 import { stringOrError, getStepperOption } from "@haibun/core/lib/util/index.js";
 
-import { z } from "zod";
 import { trace, Tracer, Span, SpanStatusCode, context } from "@opentelemetry/api";
 import { NodeTracerProvider, SimpleSpanProcessor } from "@opentelemetry/sdk-trace-node";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
@@ -98,9 +98,7 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 
 	cycles: IStepperCycles = {
 		getConcerns: () => ({
-			domains: [
-				{ selectors: [DOMAIN_SPAN_NAME], schema: z.string().min(1, "a span's name cannot be empty"), description: "The name a span a feature starts and ends is known by" },
-			],
+			domains: [{ selectors: [DOMAIN_SPAN_NAME], schema: NameSchema, description: "The name a span a feature starts and ends is known by" }],
 		}),
 		startExecution: async () => {
 			// Initialize OTel provider at start of execution

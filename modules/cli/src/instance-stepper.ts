@@ -39,7 +39,7 @@ import { HAIBUN_HOST_ID_ENV } from "@haibun/core/lib/host-id.js";
 import { type TRunOutcome, emptyOutcome, accrueRunOutcome } from "./run-outcome.js";
 import { getConfigFromBase, processBaseEnvToOptionsAndErrors } from "./lib.js";
 import { outcomeAgainst, verificationOf, type TOutcome } from "./verified.js";
-import { DOMAIN_FILE_PATH, DOMAIN_NUMBER } from "@haibun/core/lib/domains.js";
+import { DOMAIN_FILE_PATH, DOMAIN_NUMBER, NameSchema } from "@haibun/core/lib/domains.js";
 
 /** The environment names of the things a process holds for itself, which core owns: whether it stays up, which host it
  *  is, and whether it skips a group that passed. Everything else per-process is declared by the option that owns it
@@ -234,7 +234,7 @@ export const featureFilterDomainDefinition: TDomainDefinition = {
 export const runDomainDefinitions: TDomainDefinition[] = [
 	{
 		selectors: [RUN_DOMAIN.name],
-		schema: z.string().min(1, "a run's name cannot be empty"),
+		schema: NameSchema,
 		description: "The name a started run is known by, which reading, waiting for and stopping it name",
 	},
 	featureFilterDomainDefinition,

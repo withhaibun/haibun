@@ -177,7 +177,7 @@ export const deriveNamingDomains = (domains: Record<string, TRegisteredDomain>) 
 	const types = new Set(getPersistedDomains(domains).map((domain) => domain.topology.persistedAs));
 	domains[DOMAIN_PERSISTED_TYPE] = toRegisteredDomain({
 		selectors: [DOMAIN_PERSISTED_TYPE],
-		schema: z.string().min(1),
+		schema: NameSchema,
 		names: (term) => types.has(term),
 		description: "The type a record persists as",
 	});
@@ -239,6 +239,9 @@ const normalizeEnumValues = (domainName: string, values: string[], requireMultip
 	}
 	return unique;
 };
+
+/** What a domain that holds a name takes: any text but empty. Every domain that holds a name declares this one schema. */
+export const NameSchema = z.string().min(1, "is empty");
 
 export const createEnumDomainDefinition = ({ name, values, description, ordered = false }: TEnumDomainInput): TDomainDefinition => {
 	const domainName = sanitizeToken(name);

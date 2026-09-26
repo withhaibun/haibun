@@ -52,13 +52,13 @@ import {
 	deriveNamingDomains,
 	mapDefinitionsToDomains,
 	recordIdInputSchema,
+	NameSchema,
 } from "./domains.js";
 import { findFeatureStepsFromStatement } from "../phases/Resolver.js";
 
 const numberSchema = z.coerce.number({ error: "invalid number" }).refine((value) => Number.isFinite(value), "invalid number");
 const stringSchema = z.coerce.string({ error: "value is required" });
 const statementSchema = z.string({ error: "statement label is required" }).min(1, "statement cannot be empty");
-const nameSchema = z.string().min(1, "a name cannot be empty");
 const dateSchema = z.coerce.date({ error: "invalid date" });
 /** A step's place read from its dot-joined sequence path, or from an id beginning with one. */
 const stepPathSchema = z.preprocess((value, ctx) => {
@@ -222,16 +222,16 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		schema: stringSchema,
 		description: "Free text a person writes: a note, a question, a reason or a passage quoted, read as written.",
 	},
-	{ selectors: [DOMAIN_VARIABLE_NAME], schema: nameSchema, written: true, description: "The name of a variable, as the line writes it." },
+	{ selectors: [DOMAIN_VARIABLE_NAME], schema: NameSchema, written: true, description: "The name of a variable, as the line writes it." },
 	{ selectors: [DOMAIN_IMAGE_REFERENCE], schema: ImageReferenceSchema, description: "An image: where the run keeps its bytes, and their media type." },
 	{ selectors: [DOMAIN_IMAGE_DATA], schema: ImageDataSchema, description: "An image's bytes, as a data: URL a page reads a file into." },
-	{ selectors: [DOMAIN_DOMAIN_NAME], schema: nameSchema, written: true, description: "The name a declaration gives a new domain, as the line writes it." },
-	{ selectors: [DOMAIN_GLOB], schema: nameSchema, description: "A pattern in which * stands for any run of characters." },
-	{ selectors: [DOMAIN_FILE_PATH], schema: nameSchema, description: "A file or directory's path, as a storage or the file system reads it." },
-	{ selectors: [DOMAIN_TITLE], schema: nameSchema, written: true, description: "The title a feature, scenario, activity or waypoint is given, as the line writes it." },
+	{ selectors: [DOMAIN_DOMAIN_NAME], schema: NameSchema, written: true, description: "The name a declaration gives a new domain, as the line writes it." },
+	{ selectors: [DOMAIN_GLOB], schema: NameSchema, description: "A pattern in which * stands for any run of characters." },
+	{ selectors: [DOMAIN_FILE_PATH], schema: NameSchema, description: "A file or directory's path, as a storage or the file system reads it." },
+	{ selectors: [DOMAIN_TITLE], schema: NameSchema, written: true, description: "The title a feature, scenario, activity or waypoint is given, as the line writes it." },
 	{
 		selectors: [DOMAIN_WAYPOINT_ARGUMENT],
-		schema: nameSchema,
+		schema: NameSchema,
 		// Any string is a member, so an unquoted argument that doesn't refer to a variable is its literal text, such as `Room 101`.
 		names: () => true,
 		description:
@@ -243,20 +243,20 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		written: true,
 		description: "The text of a line comment, after `;;`, as the feature writes it. The run doesn't act on it.",
 	},
-	{ selectors: [DOMAIN_ROUTE], schema: nameSchema, description: "The path a web server serves something at, such as /shu." },
+	{ selectors: [DOMAIN_ROUTE], schema: NameSchema, description: "The path a web server serves something at, such as /shu." },
 	{
 		selectors: [DOMAIN_BEARER_TOKEN],
-		schema: z.string().min(1, "a token cannot be empty"),
+		schema: NameSchema,
 		description: "A token whose holder is granted what it grants, sent as `Authorization: Bearer` (RFC 6750).",
 	},
-	{ selectors: [DOMAIN_USER_NAME], schema: nameSchema, description: "The name an account signs in with." },
-	{ selectors: [DOMAIN_PERSISTED_TYPES], schema: listedSchema(nameSchema, "type"), description: "Types records persist as, given as a list or as text separated by commas." },
+	{ selectors: [DOMAIN_USER_NAME], schema: NameSchema, description: "The name an account signs in with." },
+	{ selectors: [DOMAIN_PERSISTED_TYPES], schema: listedSchema(NameSchema, "type"), description: "Types records persist as, given as a list or as text separated by commas." },
 	{
 		selectors: [DOMAIN_BACKGROUND_NAMES],
 		schema: backgroundNamesSchema,
 		description: "The backgrounds a feature includes, by name, given as a list or as text separated by commas.",
 	},
-	{ selectors: [DOMAIN_PASSWORD], schema: z.string().min(1, "a password cannot be empty"), description: "The secret an account signs in with." },
+	{ selectors: [DOMAIN_PASSWORD], schema: NameSchema, description: "The secret an account signs in with." },
 	{
 		selectors: [DOMAIN_STEP_PATH],
 		schema: stepPathSchema,
@@ -268,8 +268,8 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		schema: z.string().regex(/^[A-Za-z0-9_]+-[A-Za-z0-9_]+$/, "names no step: a step is named by its stepper and step joined by a hyphen"),
 		description: "A step as a call names it, its stepper and step joined by a hyphen, such as Haibun-showSteps.",
 	},
-	{ selectors: [DOMAIN_LINK_REL], schema: nameSchema, description: "A link relation, by the name a predicate carries it under, such as cites." },
-	{ selectors: [DOMAIN_WALK_ID], schema: nameSchema, description: "The id of a walk begun toward a goal, which each advance of it names." },
+	{ selectors: [DOMAIN_LINK_REL], schema: NameSchema, description: "A link relation, by the name a predicate carries it under, such as cites." },
+	{ selectors: [DOMAIN_WALK_ID], schema: NameSchema, description: "The id of a walk begun toward a goal, which each advance of it names." },
 	{
 		selectors: [DOMAIN_VARIABLE_VALUE],
 		schema: z.unknown(),

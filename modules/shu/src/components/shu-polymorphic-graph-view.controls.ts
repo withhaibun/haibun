@@ -24,7 +24,7 @@ import type { TPaneOpen } from "../pane-state.js";
 import { z } from "zod";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps, type TFeatureStep } from "@haibun/core/lib/astepper.js";
 import { DOMAIN_PERSISTED_TYPE, type TDomainDefinition } from "@haibun/core/lib/resources.js";
-import { DOMAIN_NUMBER, DOMAIN_PERSISTED_TYPES, DOMAIN_TEXT, individualRefInputSchema, listedSchema } from "@haibun/core/lib/domains.js";
+import { DOMAIN_NUMBER, DOMAIN_PERSISTED_TYPES, DOMAIN_TEXT, individualRefInputSchema, listedSchema, NameSchema } from "@haibun/core/lib/domains.js";
 import { actionOK, actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
 import type { TActionResult } from "@haibun/core/schema/protocol.js";
 import { saveImageArtifact } from "@haibun/domain-storage/image-artifact.js";
@@ -145,7 +145,7 @@ const graphControlDomains: TDomainDefinition[] = [
 		schema: individualRefInputSchema,
 		description: "A node the graph draws: its object id (type:id), the id of the record it draws, or words of the name it shows",
 	},
-	{ selectors: [DOMAIN_GRAPH_PREDICATE], schema: z.string().min(1), description: "A predicate the graph's edges or its nodes' properties carry, by name" },
+	{ selectors: [DOMAIN_GRAPH_PREDICATE], schema: NameSchema, description: "A predicate the graph's edges or its nodes' properties carry, by name" },
 	{
 		selectors: [DOMAIN_GRAPH_PREDICATES],
 		schema: listedSchema(z.string().min(1), "predicate"),
@@ -153,7 +153,7 @@ const graphControlDomains: TDomainDefinition[] = [
 	},
 	{ selectors: [DOMAIN_GRAPH_DROP], schema: GraphDropSchema, description: "A node a drag pinned, and where it was dropped" },
 	{ selectors: [DOMAIN_GRAPH_SCENE], schema: GraphSceneSchema, description: "A scene a step saved, and how the view was set up when it was saved" },
-	{ selectors: [DOMAIN_SCENE_NAME], schema: z.string().min(1), description: "The name a scene is saved under, which is the id of its record" },
+	{ selectors: [DOMAIN_SCENE_NAME], schema: NameSchema, description: "The name a scene is saved under, which is the id of its record" },
 	{ selectors: [DOMAIN_GRAPH_ZOOM], schema: ZoomDirSchema, description: "Zoom direction: in or out" },
 	{ selectors: [DOMAIN_GRAPH_PAN], schema: PanDirSchema, description: "Pan/orbit direction: left, right, up, or down" },
 	{ selectors: [DOMAIN_GRAPH_UNIT], schema: UnitSchema, description: "Measure unit: pixels or percent" },

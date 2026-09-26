@@ -5,7 +5,7 @@
  *
  * Steps never lead with the article "the", haibun treats such lines as narrative prose, not matchable steps.
  */
-import { z } from "zod";
+import { NameSchema } from "@haibun/core/lib/domains.js";
 import type { Page } from "playwright";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionOK, actionNotOK } from "@haibun/core/lib/util/index.js";
@@ -27,9 +27,7 @@ export default class ShuColumnStripControls extends AStepper implements IHasCycl
 	description = "Column-browser (Miller columns) controls: click a column to activate it, assert which is active.";
 	cycles: IStepperCycles = {
 		getConcerns: () => ({
-			domains: [
-				{ selectors: [DOMAIN_COLUMN_MATCH], schema: z.string().min(1), description: "A column, by words of the key it is open under, such as e:Email: for an Email's column" },
-			],
+			domains: [{ selectors: [DOMAIN_COLUMN_MATCH], schema: NameSchema, description: "A column, by words of the key it is open under, such as e:Email: for an Email's column" }],
 		}),
 	};
 

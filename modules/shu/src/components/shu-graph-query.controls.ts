@@ -1,10 +1,9 @@
 // Control steps for the graph query view, co-located with shu-graph-query so its controls stay with the
 // component rather than accreting into a central stepper.
-import { z } from "zod";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { DOMAIN_PERSISTED_TYPE, type TDomainDefinition } from "@haibun/core/lib/resources.js";
 import { actionOK, actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
-import { DOMAIN_RECORD_ID } from "@haibun/core/lib/domains.js";
+import { DOMAIN_RECORD_ID, NameSchema } from "@haibun/core/lib/domains.js";
 import { ViewQueryControlSchema } from "./shu-graph-query.controls-schema.js";
 import type { Page } from "playwright";
 import { ROUND_TRIP_MS, controlledPage, findsAtLeast } from "./controls-util.js";
@@ -20,8 +19,8 @@ const DOMAIN_SORT_FIELD = "sort-field";
 
 const viewQueryDomains: TDomainDefinition[] = [
 	{ selectors: [VIEW_QUERY], schema: ViewQueryControlSchema, description: "A change to the graph query view, type, text search, or sort", ui: { component: SHU_TAG.GRAPH_QUERY } },
-	{ selectors: [DOMAIN_SEARCH_TEXT], schema: z.string().min(1), description: "Free-text search over the current type's indexed fields" },
-	{ selectors: [DOMAIN_SORT_FIELD], schema: z.string().min(1), description: "A sortable field of the current type" },
+	{ selectors: [DOMAIN_SEARCH_TEXT], schema: NameSchema, description: "Free-text search over the current type's indexed fields" },
+	{ selectors: [DOMAIN_SORT_FIELD], schema: NameSchema, description: "A sortable field of the current type" },
 ];
 
 /**

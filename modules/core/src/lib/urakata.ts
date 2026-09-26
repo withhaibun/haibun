@@ -21,6 +21,7 @@
  */
 
 import { z } from "zod";
+import { NameSchema } from "./domains.js";
 import { allocateSyntheticSeqPath } from "./host-id.js";
 import { runAuthorizedWith } from "./capability-context.js";
 import { errorDetail } from "./util/index.js";
@@ -55,7 +56,7 @@ export type TUrakata = z.infer<typeof UrakataSchema>;
 /** Runtime-valued domain, SPA pulls current ids via getSelectValues so step parameters get a dropdown. */
 export const urakataIdDomainDefinition: TDomainDefinition = {
 	selectors: [URAKATA_ID_DOMAIN],
-	schema: z.string().min(1),
+	schema: NameSchema,
 	description: "Active urakata id (registered ticker)",
 };
 

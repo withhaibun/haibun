@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { ENDPOINT_LABEL, HTTP_CLIENT_LABEL, HTTP_HOST_LABEL, HTTP_REQUEST_LABEL, LinkRelations, PersistedVertexSchema, TDomainDefinition } from "@haibun/core/lib/resources.js";
-import { asDomainKey, createEnumDomainDefinition } from "@haibun/core/lib/domains.js";
+import { asDomainKey, createEnumDomainDefinition, NameSchema } from "@haibun/core/lib/domains.js";
 import { ENDPOINT_CLASS } from "@haibun/core/lib/http-observations.js";
 import { DOMAIN_RELAY_ATTACHMENT, RelayAttachmentSchema } from "./relay/relay-wire.js";
 
@@ -109,7 +109,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 		description: "What a dialog a page opened says: its default value, its message or its type",
 	}),
 	createEnumDomainDefinition({ name: DOMAIN_BROWSER_TYPE, values: [...BROWSER_TYPES], description: "A browser a run drives" }),
-	{ selectors: [DOMAIN_URL_GLOB], schema: z.string().min(1), description: "A URL pattern as a page routes requests by it: * within a path segment, ** across segments" },
+	{ selectors: [DOMAIN_URL_GLOB], schema: NameSchema, description: "A URL pattern as a page routes requests by it: * within a path segment, ** across segments" },
 	{ selectors: [DOMAIN_PAGE_CONTENTS], schema: PageContentsSchema, description: "A page's markup, as the browser holds it" },
 	{ selectors: [DOMAIN_ACCESSIBILITY_SNAPSHOT], schema: AccessibilitySnapshotSchema, description: "A page as its accessibility tree reads, with the steps that act on it" },
 	{ selectors: [DOMAIN_JSON_RESPONSE_COUNT], schema: RestJsonCountSchema, description: "How many entries the last JSON response held" },
@@ -193,16 +193,16 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 		schema: locatorSchema,
 		description: "An element on a page, identified by a value of any locator domain; a literal is page text",
 	},
-	{ selectors: [DOMAIN_KEYBOARD_KEY], schema: z.string().min(1, "names no key"), description: "A key as Playwright names it, such as Enter or Control+A" },
-	{ selectors: [DOMAIN_COOKIE_NAME], schema: z.string().min(1, "names no cookie"), description: "The name of a cookie a page holds" },
+	{ selectors: [DOMAIN_KEYBOARD_KEY], schema: NameSchema, description: "A key as Playwright names it, such as Enter or Control+A" },
+	{ selectors: [DOMAIN_COOKIE_NAME], schema: NameSchema, description: "The name of a cookie a page holds" },
 	{
 		selectors: [DOMAIN_QUERY_PARAMETER],
-		schema: z.string().min(1, "names no parameter"),
+		schema: NameSchema,
 		written: true,
 		description: "The name of a parameter of a page's address query, as the line writes it",
 	},
 	{ selectors: [DOMAIN_MEDIA_TYPE], schema: z.string().regex(/^[\w.+-]+\/[\w.+*-]+/, "is no media type"), description: "A media type, such as application/json" },
-	{ selectors: [DOMAIN_JSON_PROPERTY], schema: z.string().min(1, "names no property"), description: "A property of a JSON response's members, by name" },
+	{ selectors: [DOMAIN_JSON_PROPERTY], schema: NameSchema, description: "A property of a JSON response's members, by name" },
 	{
 		selectors: [DOMAIN_PAGE_TEST_ID],
 		schema: locatorSchema,
