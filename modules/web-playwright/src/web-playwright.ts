@@ -22,7 +22,8 @@ import {
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
 import { saveImageArtifact } from "./artifact.js";
 import { VideoStartArtifact } from "@haibun/core/schema/protocol.js";
-import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
+import { EMediaTypes, MAPPED_MEDIA_TYPES } from "@haibun/domain-storage/media-types.js";
+import type { TImageReference } from "@haibun/core/lib/image-reference.js";
 import { DOMAIN_STRING, domainParts } from "@haibun/core/lib/domains.js";
 import {
 	DOMAIN_PAGE_LOCATOR,
@@ -49,6 +50,8 @@ import { WEB_PLAYWRIGHT_ACTIONS } from "./actions.js";
 import { TStepperSteps } from "@haibun/core/lib/astepper.js";
 
 export const WEB_PAGE = "webpage";
+/** The media type a screenshot is saved in. */
+const SCREENSHOT_FORMAT = MAPPED_MEDIA_TYPES.png;
 
 /**
  * This is the infrastructure for web-playwright.
@@ -377,12 +380,14 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		}
 	}
 
-	async captureScreenshotAndLog(event: string, details: { seq?: number; step?: TStepResult }) {
-		const { path } = await this.captureScreenshot(event, details);
-		this.getWorld().eventLogger.debug(`${event} screenshot to ${pathToFileURL(path)}`);
+	async captureScreenshotAndLog(event: string, details: { seq?: number; step?: TStepResult }): Promise<TImageReference> {
+		const image = await this.captureScreenshot(event, details);
+		this.getWorld().eventLogger.debug(`${event} screenshot to ${pathToFileURL(image.contentUrl)}`);
+		return image;
 	}
 
-	async captureScreenshot(event: string, details: { seq?: number; step?: TStepResult }) {
+	/** Screenshot the page into the run's storage, as an image artifact, and return where its bytes are kept. */
+	async captureScreenshot(event: string, details: { seq?: number; step?: TStepResult }): Promise<TImageReference> {
 		const filename = `event-${details.step?.seqPath.join(".")}.png`;
 		// Take screenshot to buffer first, then save
 		const buffer = (await this.withPage(async (page: Page) => await page.screenshot())) as Buffer;
@@ -392,8 +397,8 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			in: details.step.in,
 			action: {} as TStepAction,
 		};
-		const saved = await saveImageArtifact(this.getWorld(), this.storage, featureStep as unknown as Parameters<typeof saveImageArtifact>[2], filename, buffer, "image/png");
-		return { path: saved.absolutePath };
+		const saved = await saveImageArtifact(this.getWorld(), this.storage, featureStep as unknown as Parameters<typeof saveImageArtifact>[2], filename, buffer, SCREENSHOT_FORMAT);
+		return { contentUrl: saved.absolutePath, encodingFormat: SCREENSHOT_FORMAT };
 	}
 
 	async setExtraHTTPHeaders(headers: { [name: string]: string }) {

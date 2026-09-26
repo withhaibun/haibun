@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { DOMAIN_GRAPH_QUERY, GraphQuerySchema, DOMAIN_DENSITY_QUERY, DensityQuerySchema } from "./quad-types.js";
 import { fromJsonText } from "./json-text.js";
+import { DOMAIN_IMAGE_REFERENCE, ImageReferenceSchema } from "./image-reference.js";
 import { extractSeqPathPrefix, parseSeqPath } from "./seq-path.js";
 import { LintFindingSchema, LintSummarySchema } from "./domain-chain-lint.js";
 import { AStepper, TFeatureStep } from "./astepper.js";
@@ -221,6 +222,7 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		description: "Free text a person writes: a note, a question, a reason or a passage quoted, read as written.",
 	},
 	{ selectors: [DOMAIN_VARIABLE_NAME], schema: nameSchema, written: true, description: "The name of a variable, as the line writes it." },
+	{ selectors: [DOMAIN_IMAGE_REFERENCE], schema: ImageReferenceSchema, description: "An image: where the run keeps its bytes, and their media type." },
 	{ selectors: [DOMAIN_DOMAIN_NAME], schema: nameSchema, written: true, description: "The name a declaration gives a new domain, as the line writes it." },
 	{ selectors: [DOMAIN_GLOB], schema: nameSchema, description: "A pattern in which * stands for any run of characters." },
 	{ selectors: [DOMAIN_FILE_PATH], schema: nameSchema, description: "A file or directory's path, as a storage or the file system reads it." },

@@ -14,6 +14,7 @@ import {
 	DOMAIN_FILE_PATH,
 } from "@haibun/core/lib/domains.js";
 import { actionNotOK, actionOKWithProducts, errorDetail, sleep, jsonArtifact } from "@haibun/core/lib/util/index.js";
+import { DOMAIN_IMAGE_REFERENCE } from "@haibun/core/lib/image-reference.js";
 import {
 	DOMAIN_ACCESSIBILITY_SNAPSHOT,
 	DOMAIN_BROWSER_EXTENSION,
@@ -498,11 +499,12 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		takeScreenshot: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.read,
 			gwta: "take a screenshot",
+			description: "Screenshots the page into the run's storage, and returns where the image's bytes are kept and their media type.",
+			productsDomain: DOMAIN_IMAGE_REFERENCE,
 			action: async (_args, featureStep: TFeatureStep) => {
 				// Create a minimal step result for artifact tracking
-				const stepResult = featureStep ? { seqPath: featureStep.seqPath, path: featureStep.source.path, in: featureStep.in } : undefined;
-				await wp.captureScreenshotAndLog("action", { step: stepResult as unknown as TStepResult | undefined });
-				return OK;
+				const stepResult = featureStep ? { seqPath: featureStep.seqPath, path: featureStep.source?.path, in: featureStep.in } : undefined;
+				return actionOKWithProducts(await wp.captureScreenshotAndLog("action", { step: stepResult as unknown as TStepResult | undefined }));
 			},
 		},
 		getPageContents: {
