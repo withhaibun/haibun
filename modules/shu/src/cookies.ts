@@ -14,9 +14,13 @@ function getCookie(name: string): string {
 	return match ? decodeURIComponent(match[1]) : "";
 }
 
+/** A page another site frames keeps a cookie only as a partitioned one, which a frame may set and which stays with the
+ *  site that frames it, such as an extension's panel. A page shown on its own keeps a first-party cookie. */
+const framedAttributes = (): string => (window.top !== window ? "; SameSite=None; Secure; Partitioned" : "");
+
 function setCookie(name: string, value: string): void {
 	if (typeof document === "undefined") return;
-	document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${ONE_YEAR}`;
+	document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${ONE_YEAR}${framedAttributes()}`;
 }
 
 export function getJsonCookie<T>(name: string, fallback: T): T {
