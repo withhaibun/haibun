@@ -5,7 +5,7 @@ import type { TWorld } from "./world.js";
 import { TFeatureStep } from "./astepper.js";
 import { TStepValue, Origin } from "../schema/protocol.js";
 import { getDefaultWorld } from "./test/lib.js";
-import { DOMAIN_JSON, DOMAIN_STRING, registerDomains } from "./domains.js";
+import { DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_STRING, registerDomains } from "./domains.js";
 import { DOMAIN_PERSISTED_TYPE } from "./resources.js";
 
 describe("FeatureVariables", () => {
@@ -351,6 +351,19 @@ describe("FeatureVariables", () => {
 			expect(String(resolved.value)).toBe("7");
 		});
 	});
+	describe("text the line writes", () => {
+		it("is read by its parameter's domain, whether quoted, an environment variable's or a step's argument", async () => {
+			world.options.envVariables.PORT = "8080";
+			const argued = { ...mockFeatureStep, runtimeArgs: { port: "8080" } };
+			const read = await Promise.all([
+				variables.resolveVariable({ term: "8080", origin: Origin.quoted, domain: DOMAIN_NUMBER }, mockFeatureStep),
+				variables.resolveVariable({ term: "PORT", origin: Origin.env, domain: DOMAIN_NUMBER }, mockFeatureStep),
+				variables.resolveVariable({ term: "port", origin: Origin.defined, domain: DOMAIN_NUMBER }, argued),
+			]);
+			expect(read.map(({ value, domain }) => ({ value, domain }))).toEqual(Array(3).fill({ value: 8080, domain: DOMAIN_NUMBER }));
+		});
+	});
+
 	describe("a bare word", () => {
 		const WAY = "test-way";
 		const resolveBare = (term: string) => variables.resolveVariable({ term, origin: Origin.defined, domain: WAY }, mockFeatureStep);

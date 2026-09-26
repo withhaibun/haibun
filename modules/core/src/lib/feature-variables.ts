@@ -125,6 +125,8 @@ export class FeatureVariables {
 		options: { secure: boolean } = { secure: false },
 	): Promise<TStepValue> {
 		const resolved: Partial<TStepValue> = { term: input.term, value: undefined };
+		// Text the line writes, however it reaches the step, is read by its parameter's domain.
+		const writtenDomain = input.domain ?? DOMAIN_STRING;
 		let lookupTerm = input.term;
 		if (lookupTerm.startsWith("{") && lookupTerm.endsWith("}")) lookupTerm = lookupTerm.slice(1, -1);
 
@@ -133,7 +135,7 @@ export class FeatureVariables {
 			resolved.domain = input.domain;
 		} else if (input.origin === Origin.env) {
 			resolved.value = this.world.options.envVariables[lookupTerm];
-			resolved.domain = DOMAIN_STRING;
+			resolved.domain = writtenDomain;
 			resolved.origin = Origin.env;
 			resolved.secret = this.isSecret(lookupTerm);
 		} else if (input.origin === Origin.var) {
@@ -141,11 +143,11 @@ export class FeatureVariables {
 		} else if (input.origin === Origin.defined) {
 			if (featureStep?.runtimeArgs?.[lookupTerm] !== undefined) {
 				resolved.value = featureStep.runtimeArgs[lookupTerm];
-				resolved.domain = DOMAIN_STRING;
+				resolved.domain = writtenDomain;
 				resolved.origin = Origin.var;
 			} else if (this.world.options.envVariables[lookupTerm]) {
 				resolved.value = this.world.options.envVariables[lookupTerm];
-				resolved.domain = DOMAIN_STRING;
+				resolved.domain = writtenDomain;
 				resolved.origin = Origin.env;
 				resolved.secret = this.isSecret(lookupTerm);
 			} else {
@@ -154,7 +156,7 @@ export class FeatureVariables {
 					Object.assign(resolved, found);
 				} else if (isLiteralValue(input.term)) {
 					resolved.value = input.term;
-					resolved.domain = DOMAIN_STRING;
+					resolved.domain = writtenDomain;
 				} else if (input.domain && namesMember(this.world.domains[input.domain], input.term)) {
 					// A bare word naming a value of its parameter's own domain is that value, as `by placeholder` names a way to find.
 					resolved.value = input.term;
@@ -165,14 +167,14 @@ export class FeatureVariables {
 			if (input.term.startsWith("{") && input.term.endsWith("}") && !input.term.includes(":")) {
 				if (featureStep?.runtimeArgs?.[lookupTerm] !== undefined) {
 					resolved.value = featureStep.runtimeArgs[lookupTerm];
-					resolved.domain = DOMAIN_STRING;
+					resolved.domain = writtenDomain;
 					resolved.origin = Origin.var;
 				} else {
 					Object.assign(resolved, await this.lookupVariable(lookupTerm));
 				}
 			} else {
 				resolved.value = input.term.replace(/^"|"$/g, "");
-				resolved.domain = input.domain ?? DOMAIN_STRING;
+				resolved.domain = writtenDomain;
 			}
 		} else {
 			throw new Error(`Unsupported origin type: ${input.origin}`);

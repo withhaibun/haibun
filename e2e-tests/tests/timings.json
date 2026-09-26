@@ -23,8 +23,8 @@
 			},
 			"/features/agents-examples.feature": {
 				"seconds": 0.9,
-				"steps": 344,
-				"declaredStepTextHash": "5a2525db9159bc5b967b9c5adf5b8c61462bd5044e2da74987b9f20d21bfe8da"
+				"steps": 350,
+				"declaredStepTextHash": "efad7a2146b7e1765953b01f61cd9200bd78402b789c636069d0d5b8d6dda7e4"
 			},
 			"/features/auth-basic.feature": {
 				"seconds": 0.6,
@@ -127,7 +127,7 @@
 				"declaredStepTextHash": "e9678d64ba12e46fbc4caa36cf6e466eac5684c78c8952b82f9da96f79a0e073"
 			},
 			"/features/wikipedia.feature.ts": {
-				"seconds": 1,
+				"seconds": 0.9,
 				"steps": 137,
 				"declaredStepTextHash": "b162c447aa4626651d8e903bcce16dc77fdff6ddf5cdcb3dd48ed79db2d59972"
 			},
@@ -142,7 +142,7 @@
 				"declaredStepTextHash": "6955f2010a1bca21452d955a0c2558183d56d579763a342a595fe3631cafa921"
 			}
 		},
-		"steps": 1120,
-		"seconds": 17.7
+		"steps": 1126,
+		"seconds": 17.6
 	}
 }

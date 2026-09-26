@@ -64,9 +64,11 @@ Use variables for configuration, test data, and efficiency.
 1. **Quoted values** (`"value"`) are treated as **exact text**.
 2. **Environment variables** (`$NAME$`) resolve from the `HAIBUN_ENV` context.
 3. **Unquoted values** are resolved dynamically:
-   - First, from any existing **Environment Variable** 
+   - First, from any existing **Environment Variable**.
    - Second, from any existing **Defined Variable**.
-   - If neither exists, the step fails.
+   - Third, a word naming a member of its parameter's domain is that member, as a waypoint's argument is.
+   - A term that can't be a name, because it holds a character other than a letter, a digit, an underscore or a space, is its text.
+   - If none of these applies, the step fails.
 
 #### Examples
 
@@ -105,6 +107,13 @@ Environment variables cannot be overwritten.
 Referring to an undefined variable causes an error.
 
     not set missing setting to UndefinedVar
+
+**7. Text that can't be a name**
+
+A path holds a slash, which a name doesn't, so it is its own text.
+
+    set endpoint to /api/items
+    variable endpoint is "/api/items"
 
 #### Stepper variables
 
