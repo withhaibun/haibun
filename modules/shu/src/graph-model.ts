@@ -1,7 +1,7 @@
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 
-export type GraphNode = { id: string; type: string; isCluster?: boolean; omittedCount?: number; displayLabel?: string; properties?: Record<string, unknown> };
-export type GraphEdge = { from: string; to: string; predicate: string; graph: string };
+type GraphNode = { id: string; type: string; isCluster?: boolean; omittedCount?: number; displayLabel?: string; properties?: Record<string, unknown> };
+type GraphEdge = { from: string; to: string; predicate: string; graph: string };
 export type GraphModel = { nodes: GraphNode[]; edges: GraphEdge[] };
 
 /** Node property carrying the resolved HypermediaRole: the id of the party (a `prov:Agent`/Principal) the node is attributed to. Reduced from the node's role edges (see `roleRels`); the polymorphic view's role grouping axis reads it. */
@@ -30,9 +30,9 @@ const DEFAULT_OPTIONS: Required<Pick<BuildGraphModelOptions, "ignoreInternalPred
 	requireObjectType: true,
 };
 
-export const CLUSTER_PREDICATE = "clusterOf";
+const CLUSTER_PREDICATE = "clusterOf";
 
-export function clusterId(type: string): string {
+function clusterId(type: string): string {
 	return `cluster:${type}`;
 }
 

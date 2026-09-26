@@ -111,7 +111,7 @@ export type TAffordances = {
 	satisfiedFacts: Record<string, string[]>;
 };
 
-export interface TAffordancesInputs {
+interface TAffordancesInputs {
 	steppers: AStepper[];
 	domains: Record<string, TRegisteredDomain>;
 	facts: TQuad[];

@@ -6,13 +6,13 @@
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
-import { shuBaseStyles } from "./styles.js";
+import { shuBaseStyles, shuSegmentedStyles } from "./styles.js";
 import { SHU_TAG } from "../consts.js";
 import { WINDOW_SIZES, windowSizeSetting } from "../window-size-setting.js";
 
 const EmptySchema = z.object({});
 
-export class ShuWindowSize extends ShuElement<typeof EmptySchema> {
+class ShuWindowSize extends ShuElement<typeof EmptySchema> {
 	/** A control, not a view of data, contributes nothing to the Kihan's context. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
@@ -23,27 +23,9 @@ export class ShuWindowSize extends ShuElement<typeof EmptySchema> {
 
 	static styles = [
 		shuBaseStyles,
+		shuSegmentedStyles,
 		css`
 		:host { display: inline-flex; align-items: center; font-size: var(--shu-font-sm); user-select: none; }
-		.group {
-			display: inline-flex;
-			border: var(--shu-border-w) solid var(--shu-border);
-			border-radius: var(--shu-radius);
-			overflow: hidden;
-		}
-		.group > button {
-			padding: var(--shu-space-1) var(--shu-space-3);
-			background: transparent;
-			color: var(--shu-fg-muted);
-			border: none;
-			border-left: var(--shu-border-w) solid var(--shu-border);
-			cursor: pointer;
-			font: inherit; font-size: var(--shu-font-sm);
-			min-width: 24px;
-		}
-		.group > button:first-child { border-left: none; }
-		.group > button[aria-pressed="true"] { background: var(--shu-accent); color: var(--shu-accent-fg); }
-		.group > button:hover:not([aria-pressed="true"]) { background: var(--shu-bg-hover); color: var(--shu-fg); }
 	`,
 	];
 

@@ -186,7 +186,7 @@ function producedRow(record: Record<string, unknown>): TRunRow {
 }
 
 /** One record as the row it is, whichever type it is: the one place a record becomes a row. */
-export function rowOfRecord(label: string, record: Record<string, unknown>): TRunRow {
+function rowOfRecord(label: string, record: Record<string, unknown>): TRunRow {
 	if (label === LOG_MESSAGE_LABEL) return saidRow(record);
 	if (label === RUN_ARTIFACT_LABEL) return producedRow(record);
 	return stepRow(record);
@@ -259,7 +259,7 @@ async function toppedUp(
 /** The types a run's records are read from, each with the field that places one in time. What a reader is shown of a
  *  run, what the shape of a run is drawn from and what a device forgets when it forgets a run are the same records, so
  *  all of them read this. */
-export type TRunType = {
+type TRunType = {
 	label: string;
 	timeField: string;
 	/** Read whatever it reports at: the row of the step that produced it is what shows it, so the level a reader chose

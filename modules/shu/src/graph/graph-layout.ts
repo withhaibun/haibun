@@ -15,7 +15,7 @@ import { timeToGanttX, ganttAxisTicks, type GanttTick } from "./gantt-layout.js"
 import { GANTT_ROW_H, GANTT_WORLD_W } from "./gantt-layout.js";
 
 /** The slice of a node the layout needs: its identity + declared role. A NodeMark satisfies this. */
-export type LayoutItem = { id: string; role: LayoutRole };
+type LayoutItem = { id: string; role: LayoutRole };
 
 /** Where a node is placed. Undefined dims fall back to the view's default (force x/y, recorded-time z). `zExtent` is the
  *  mark's length along z (a calendar bar's duration in world units), consumed only by length-bearing marks (box). */
@@ -23,7 +23,7 @@ export type Placement = { x?: number; y?: number; z?: number; zExtent?: number }
 /** A backend-neutral view adornment (drawn once per layout, not per node). The calendar ruler: a baseline along z with
  *  calendar tick marks, just below the lowest lane. Null when the layout has no axis to draw. */
 export type Adornment = { kind: "calendar-axis"; baseY: number; zMin: number; zMax: number; ticks: GanttTick[] } | null;
-export type LayoutResult = { placements: Map<string, Placement>; scale?: { min: number; span: number }; adornment: Adornment };
+type LayoutResult = { placements: Map<string, Placement>; scale?: { min: number; span: number }; adornment: Adornment };
 
 const GEO_DEG_TO_WORLD = 2; // naive equirectangular scale until a real map projection lands
 

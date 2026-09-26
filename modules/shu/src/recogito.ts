@@ -19,7 +19,7 @@ export interface TextAnnotator<E> {
 	destroy(): void;
 }
 
-export interface TextAnnotatorOptions {
+interface TextAnnotatorOptions {
 	adapter?: unknown;
 	annotatingEnabled?: boolean;
 }

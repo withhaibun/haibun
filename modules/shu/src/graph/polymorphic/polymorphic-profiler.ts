@@ -8,7 +8,7 @@
  *              library builds a node object, synchronous within the set or deferred to a later digest
  * Always on (performance.now is fast); `profile` is the running total, surfaced through the view's inspect().
  */
-export type TRenderProfile = { nodes: number; repaints: number; computeMs: number; setMs: number; labelsMs: number };
+type TRenderProfile = { nodes: number; repaints: number; computeMs: number; setMs: number; labelsMs: number };
 
 export class PolymorphicProfiler {
 	private nodes = 0;

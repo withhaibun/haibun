@@ -24,7 +24,7 @@ export const FEATURE_EXECUTION_DOMAIN = "feature-execution";
 export const RUN_STATUS = { running: "running", passed: "passed", failed: "failed", stopped: "stopped", notStarted: "not started" } as const;
 export type TRunStatus = (typeof RUN_STATUS)[keyof typeof RUN_STATUS];
 
-export const FeatureExecutionSchema = z.object({
+const FeatureExecutionSchema = z.object({
 	id: z.string(),
 	/** The directory of features the run was started from, and the filter that chose which of them ran. */
 	where: z.string(),

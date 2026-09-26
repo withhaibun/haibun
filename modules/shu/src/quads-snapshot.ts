@@ -47,7 +47,7 @@ export function cachedGraphStore(): TCachedGraphStore {
 }
 
 /** The client-held graph snapshot IS the wire shape (quads + clusters + the responding site): one type, no drift. */
-export type TGraphSnapshot = TClusteredQuads;
+type TGraphSnapshot = TClusteredQuads;
 
 /**
  * Shared UI-state that travels alongside the data snapshot. Viewers consult this
@@ -55,7 +55,7 @@ export type TGraphSnapshot = TClusteredQuads;
  * view id (so it can lay itself out for off-screen sync) and the currently
  * selected subject (so it can zoom/highlight without waiting for the next event).
  */
-export type TViewContext = { activeViewId: string | null };
+type TViewContext = { activeViewId: string | null };
 
 /** Subscribers fired after the cached snapshot or shared view-context changes. */
 type SnapshotListener = (snapshot: TGraphSnapshot | null, context: TViewContext) => void;
@@ -275,7 +275,7 @@ export function pageRunGraph(): TRunGraph {
  * answers, the same count over the graph this page caches. The site counts over the whole run it holds; a page with no
  * site counts over what it has read, which is what a reader with no site has.
  */
-export function densityOf(query: TDensityQuery): Promise<TDensityResult> {
+function densityOf(query: TDensityQuery): Promise<TDensityResult> {
 	return askElseHeld(
 		() => conduit().follow<TDensityResult>(reads(requireStep("density"), { query }), `the shape of ${query.label}`),
 		async () => (getRels(query.label) ? await cachedGraphStore().density(query) : undefined),

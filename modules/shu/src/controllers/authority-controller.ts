@@ -9,7 +9,7 @@ import { pageAuthorityReady, pageHolds, pageMay } from "../page-key.js";
 export type TPrincipalRow = { id: string; publicKey?: string };
 
 /** A record a view opens: the type the deployment records it as, and its id. */
-export type TRecordRef = { persistedAs: string; id: string };
+type TRecordRef = { persistedAs: string; id: string };
 
 /** What holds here: the key this page signs as, what it may do, the delegation that granted each action it was
  *  delegated, and who the deployment knows. */

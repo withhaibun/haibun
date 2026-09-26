@@ -25,12 +25,12 @@ export type TOutcome = "passed" | "failed";
 /** A recorded run: against which state, how it went, how many features it ran, and the features it was narrowed to.
  *  Keyed by the run's own conditions. Nothing that varies between two runs of one state is kept, so a record changes
  *  only when what it records does. */
-export type TVerifiedRecord = Record<string, { state: string; outcome: TOutcome; features: number; filter: string }>;
+type TVerifiedRecord = Record<string, { state: string; outcome: TOutcome; features: number; filter: string }>;
 
 /** Everything that decides what a run of a group is: where its configuration is and what it says, the directory the
  *  run is made from, the features it is narrowed to, the options it is given, the policy it runs under and the
  *  steppers added beyond its configuration. Two runs alike in all of these would answer alike. */
-export type TRunConditions = {
+type TRunConditions = {
 	configPath: string;
 	specl: TSpecl;
 	bases: readonly string[];
@@ -67,7 +67,7 @@ export function runConditions(c: TRunConditions): string {
 	return createHash("sha256").update(stable(keyed)).digest("hex").slice(0, 16);
 }
 
-export type TVerification = {
+type TVerification = {
 	/** Where the record lives. */
 	file: string;
 	/** The key of this way of running the group. */

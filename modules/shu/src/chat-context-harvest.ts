@@ -47,11 +47,11 @@ export function harvested(summary: TLinkedData, holds = HARVEST_MEMBERS): TLinke
 	return { ...summary, items: items.slice(0, holds), [PAGE_TERMS.partOf]: collection.data["@id"], totalItems: totalItems ?? items.length };
 }
 
-export type TPaneManifestEntry = { name: string; component: string; active: boolean };
+type TPaneManifestEntry = { name: string; component: string; active: boolean };
 
 /** The manifest block appended to every harvest: one member per open column. The model reads this to know the
  *  workspace's shape beyond the active pane, and can pull another pane's subject through the graph steps. */
-export type TPaneManifest = TViewCollection & { items: TPaneManifestEntry[] };
+type TPaneManifest = TViewCollection & { items: TPaneManifestEntry[] };
 
 export function harvestChatViewLd(root: ParentNode = document): TLinkedData[] {
 	const strip = root.querySelector("shu-column-strip");

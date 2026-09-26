@@ -7,7 +7,7 @@ type TkirejiFeature = {
 	[key: string]: (TActionExecutor<string> | string)[];
 };
 
-export type TBddWithLineMap = {
+type TBddWithLineMap = {
 	content: string;
 	lineMap: Map<number, number>; // bddLineNumber (1-indexed) -> stepIndex (0-indexed in source array)
 };

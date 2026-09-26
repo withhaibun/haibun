@@ -19,7 +19,7 @@ import type { IEventLogger } from "./EventLogger.js";
 
 /** How a blip maps onto an OpenTelemetry signal: a discrete occurrence is a span event, a rate or distribution is a
  *  metric instrument. Traces give order and identity; metrics give frequency. */
-export type TBlipInstrument = "span-event" | "counter" | "histogram" | "gauge";
+type TBlipInstrument = "span-event" | "counter" | "histogram" | "gauge";
 
 /** What may be recorded under a name: its instrument, what it measures, and the shape of every attribute it carries. */
 export type TBlipDeclaration = {
@@ -41,7 +41,7 @@ export type TBlipDeclaration = {
 };
 
 /** A stored declaration, with `declaredAt` when `origin` was set. */
-export type THeldBlipDeclaration = TBlipDeclaration & { declaredAt?: string };
+type THeldBlipDeclaration = TBlipDeclaration & { declaredAt?: string };
 
 const declarations = new Map<string, THeldBlipDeclaration>();
 
@@ -174,7 +174,7 @@ function seriesOf(blip: TBlipEvent): { key: string; name: string; labels: Record
  * This is what an agent asked to watch something receives. It is bounded, so handing it to a model or a feature takes
  * a known amount however long the run goes on.
  */
-export class BlipWatch {
+class BlipWatch {
 	private ring: TBlipEvent[] = [];
 	private at = 0;
 	private named: readonly string[] = [];

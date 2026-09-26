@@ -11,7 +11,7 @@ export type TimeZScale = { base: number; range: number; zMax: number };
 
 /** A subject's time and the FIELD it came from: the one record every consumer (depth, hover label) reads, so the
  *  fallback decision can never be re-derived differently elsewhere. */
-export type TSubjectTime = { ms: number; field: string };
+type TSubjectTime = { ms: number; field: string };
 
 /**
  * Each subject's valid time, from the field its type declares (the hypermedia catalog's validTimeField, where the

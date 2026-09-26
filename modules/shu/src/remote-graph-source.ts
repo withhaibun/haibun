@@ -13,7 +13,7 @@ import { readAction } from "@haibun/core/lib/actions.js";
 import type { AccessLevel } from "@haibun/core/lib/resources.js";
 import type { TCluster, TClusteredQuads, TFederatedGraphSource, TQuad } from "@haibun/core/lib/quad-types.js";
 
-export type TRemoteGraphSourceConfig = { url: string; sign: TRequestSigner; fetchImpl?: typeof fetch };
+type TRemoteGraphSourceConfig = { url: string; sign: TRequestSigner; fetchImpl?: typeof fetch };
 
 export class RemoteGraphSource implements TFederatedGraphSource {
 	private rpc: RpcClient;

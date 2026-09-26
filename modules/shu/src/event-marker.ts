@@ -97,7 +97,7 @@ export function markFor(event: unknown): TEventMarkerStyle | undefined {
  * step ends) get markers; low-level start events and internal log noise
  * are dropped so the slider doesn't blur into a wall of dots.
  */
-export function shouldMarkEvent(event: unknown): boolean {
+function shouldMarkEvent(event: unknown): boolean {
 	const e = event as TPartialEvent & { in?: string };
 	if (e.kind === "log" && (e.level === "error" || e.level === "warn")) return true;
 	if (e.kind === "artifact") return true;

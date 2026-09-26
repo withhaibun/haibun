@@ -337,7 +337,7 @@ export function transcript(conversation: TConversationState, onTurn: string | un
 export const askDraft = new SharedSignal<string>("askDraft", "");
 
 /** The one instance, shared across every component and bundle. */
-export const conversationMachine = new SharedMachine<TConversationState, TConversationEvent>("conversation", CLOSED_CONVERSATION, transition);
+const conversationMachine = new SharedMachine<TConversationState, TConversationEvent>("conversation", CLOSED_CONVERSATION, transition);
 export const conversationState = conversationMachine.state;
 export const dispatchConversationEvent = (event: TConversationEvent): TConversationState => conversationMachine.dispatch(event);
 

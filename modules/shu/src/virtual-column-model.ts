@@ -27,7 +27,7 @@ export function convergeTarget(window: TWindow, count: number): number {
 }
 
 /** A row the cursor can sit on: its index in the column and the instant it records. */
-export type TTimedRow = { index: number; timestamp: number };
+type TTimedRow = { index: number; timestamp: number };
 
 /** The row that carries the time cursor: the last of `rows` (in index order) at or before it, or -1 for none (no
  *  cursor, or every row after it). The rows are what the column caches; one pass, no scan of the extent. */

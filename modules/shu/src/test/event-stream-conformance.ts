@@ -14,7 +14,7 @@ import type { EventStream, TEvent } from "../event-stream.js";
 
 /** A stream ready to subscribe to, with the operations that drive it. Each is awaited, so an implementation that
  *  reconnects on a timer advances that timer here rather than in a case. */
-export type TStreamUnderTest = {
+type TStreamUnderTest = {
 	stream: EventStream;
 	/** Deliver one event through the stream, as the server delivers one. */
 	deliver(event: TEvent): Promise<void> | void;

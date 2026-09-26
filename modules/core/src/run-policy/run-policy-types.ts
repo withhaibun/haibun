@@ -18,17 +18,14 @@ export const HAIBUN_RUN_POLICY = "HAIBUN_RUN_POLICY";
  *  and a call site reading the wrong one type-checked. */
 export const RUN_ACCESS_LEVELS = ["r", "a", "w"] as const;
 
-/** Feature filename prefixes corresponding to access levels */
-export const ACCESS_PREFIXES = ["r_", "a_", "w_"] as const;
-
 // ============================================================================
 // Zod Schemas, types are inferred, parsing via transforms
 // ============================================================================
 
 // Basic types
 const InputAccessLevelSchema = z.string();
-export const RunAccessSchema = z.enum(RUN_ACCESS_LEVELS);
-export type TRunAccess = z.infer<typeof RunAccessSchema>;
+const RunAccessSchema = z.enum(RUN_ACCESS_LEVELS);
+type TRunAccess = z.infer<typeof RunAccessSchema>;
 
 export type TDirFilter = {
 	dir: string;
@@ -42,7 +39,7 @@ export type TRunPolicyConfig = {
 };
 
 /** Parses "smoke:r" → { dir: "smoke", access: "r" } */
-export const DirFilterSchema = z
+const DirFilterSchema = z
 	.string()
 	.transform((val, ctx) => {
 		const parts = val.split(":");
@@ -59,7 +56,7 @@ export function parseDirFilters(input: string): TDirFilter[] {
 	return input.split(",").map((s) => DirFilterSchema.parse(s));
 }
 
-export const RunPolicyConfigSchema = z
+const RunPolicyConfigSchema = z
 	.object({
 		place: z.string().min(1),
 		dirAccessStr: z.string(),
@@ -104,7 +101,7 @@ export function parseRunPolicyEnv(envVar: string): TRunPolicyConfig {
 // ============================================================================
 
 /** Numeric rank for hierarchy comparison: r=0, a=1, w=2 */
-export function accessRank(level: string): number {
+function accessRank(level: string): number {
 	return RUN_ACCESS_LEVELS.indexOf(level as TRunAccess);
 }
 

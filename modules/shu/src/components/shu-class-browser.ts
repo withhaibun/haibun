@@ -66,7 +66,7 @@ const BROWSER_CSS = `
 	shu-class-browser .hidden { display: none; }
 `;
 
-export class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSchema> {
+class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSchema> {
 	/** The chosen view mode is remembered across reloads, like every persisted view option. */
 	static persistFields = ["viewMode"] as const;
 

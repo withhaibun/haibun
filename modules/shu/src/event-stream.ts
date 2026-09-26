@@ -21,7 +21,7 @@ import { deploymentMs } from "./rpc-registry.js";
 import { pageAuthorityReady, signedHeaders } from "./page-key.js";
 
 export type TEvent = Record<string, unknown>;
-export type TEventHandler = (event: TEvent) => void;
+type TEventHandler = (event: TEvent) => void;
 export type TEventFilter = (event: TEvent) => boolean;
 
 /** The single contract for subscribing to server-pushed events. Live and serialized implementations share this surface so components are unaware which is installed. */

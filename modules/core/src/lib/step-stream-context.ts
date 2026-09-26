@@ -14,15 +14,14 @@
  * the full text as products.
  *
  * AsyncLocalStorage isolates the context per async chain, so concurrent
- * requests never see each other's emit callback. This is the same
- * pattern haibun uses in node-http-events for per-step HTTP tracing.
+ * requests never see each other's emit callback.
  */
 
 import { AsyncLocalStorage } from "node:async_hooks";
 
 /** An individual a step recorded while it streams, named by the type it is persisted as and its id: what a reader of the
  *  stream needs to address the record without knowing how the step names it. */
-export type TRecordedIndividual = { persistedAs: string; id: string };
+type TRecordedIndividual = { persistedAs: string; id: string };
 
 /** A call a step made for its caller that what the step holds did not allow: the step it named, and the action that step
  *  requires, which the caller may hold and allow. */
@@ -33,7 +32,7 @@ export type TRefusedCall = { step: string; action: string };
  *  is serialized to NDJSON/SSE by the transport and consumed by the shu client. */
 export type TStreamChunk = { status?: string; text?: string; recorded?: TRecordedIndividual; refused?: TRefusedCall; message?: unknown; error?: string };
 
-export type TStreamCtx = {
+type TStreamCtx = {
 	emit: (chunk: TStreamChunk) => void;
 	signal: AbortSignal;
 	/** End the call from the server's side, telling its caller why: the stream's last chunk is the reason, as an error,

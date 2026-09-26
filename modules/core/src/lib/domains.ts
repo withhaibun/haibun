@@ -29,7 +29,7 @@ export const DOMAIN_ACTIONS = "actions";
 export const DOMAIN_PRINCIPAL_REF = refDomainKey(PRINCIPAL_DOMAIN);
 /** The id of a record of the type another of its step's parameters names (the step's `recordIds`). */
 export const DOMAIN_RECORD_ID = "record-id";
-export const BASE_TYPES = [DOMAIN_STRING, DOMAIN_TEXT, DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_DATE, DOMAIN_STATEMENT, DOMAIN_JSON];
+const BASE_TYPES = [DOMAIN_STRING, DOMAIN_TEXT, DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_DATE, DOMAIN_STATEMENT, DOMAIN_JSON];
 
 /** A registered domain's key. */
 export const DOMAIN_DOMAIN_KEY = "domain-key";
@@ -84,7 +84,7 @@ export const domainParts = (domainKey: string): string[] => domainKey.split(DOMA
 
 /** Primitive domains: a caller supplies their values, no step's product is one, and they aren't nodes of the typed
  *  step graph, since every step would connect through them. */
-export const PRIMITIVE_DOMAINS: ReadonlySet<string> = new Set<string>([
+const PRIMITIVE_DOMAINS: ReadonlySet<string> = new Set<string>([
 	...BASE_TYPES,
 	DOMAIN_DOMAIN_KEY,
 	DOMAIN_VARIABLE_NAME,
@@ -115,7 +115,7 @@ export const DOMAIN_AFFORDANCES = "affordances";
 export const DOMAIN_CHAIN_LINT = "domain-chain-lint";
 export const DOMAIN_CHAIN_WALK = "chain-walk";
 
-export type TEnumDomainInput = {
+type TEnumDomainInput = {
 	name: string;
 	values: string[];
 	description?: string;
@@ -263,17 +263,10 @@ function withLevelProperty(topology: TDomainTopology | undefined): TDomainTopolo
 }
 
 export const toRegisteredDomain = (definition: TDomainDefinition): TRegisteredDomain => ({
+	...definition,
 	selectors: [...definition.selectors],
-	schema: definition.schema,
 	coerce: definition.coerce ?? ((proto) => definition.schema.parse(proto.value)),
-	comparator: definition.comparator,
-	values: definition.values,
-	names: definition.names,
-	written: definition.written,
-	description: definition.description,
-	stepperName: definition.stepperName,
 	topology: withLevelProperty(definition.topology),
-	ui: definition.ui,
 });
 
 export const mapDefinitionsToDomains = (definitions: TDomainDefinition[]) => {

@@ -57,7 +57,7 @@ const STORE_METHODS = {
 	},
 } as const;
 
-export type TStoreMethod = keyof typeof STORE_METHODS;
+type TStoreMethod = keyof typeof STORE_METHODS;
 
 export function isStoreMethod(method: string): boolean {
 	return method.startsWith(STORE_METHOD_PREFIX) && method.slice(STORE_METHOD_PREFIX.length) in STORE_METHODS;

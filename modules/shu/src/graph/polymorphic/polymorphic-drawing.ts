@@ -8,7 +8,7 @@
  */
 
 /** What can be started and stopped: the renderer's own animation loop, and with it the scene's components. */
-export type TDrawingLoop = { start(): void; stop(): void };
+type TDrawingLoop = { start(): void; stop(): void };
 
 export class Drawing {
 	#drawing = true;

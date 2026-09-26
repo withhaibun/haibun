@@ -8,14 +8,14 @@ import { validateToolInput } from "./tool-validation.js";
 import { errorDetail } from "./util/index.js";
 import { CHAIN_INSTANCE_STATUS, getChainInstance, updateChainInstance, type TChainInstance } from "./chain-instance.js";
 
-export type TChainAdvanceResult =
+type TChainAdvanceResult =
 	| { kind: "advanced"; instance: TChainInstance; factIds: string[] }
 	| { kind: "completed"; instance: TChainInstance }
 	| { kind: "failed"; instance: TChainInstance; error: string };
 
 /** What walking a chain needs is what dispatching a step needs: the registry, the world, the steppers and the
  *  authority the walk runs under. */
-export type TChainWalkerContext = DispatchContext;
+type TChainWalkerContext = DispatchContext;
 
 /**
  * Run the chain instance's next pending step. The caller supplies

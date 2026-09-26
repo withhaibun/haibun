@@ -18,7 +18,7 @@ export type TPickObject = {
 };
 
 /** The node side: where the engine says the node is, and the size it rests at. */
-export type TPickNode = { x?: number; y?: number; z?: number; baseScale?: { x: number; y: number } };
+type TPickNode = { x?: number; y?: number; z?: number; baseScale?: { x: number; y: number } };
 
 /** A scale to put back after the raycast: the live magnify, replaced by the resting size while picking. */
 export type TScaleRestore = { x: number; y: number };

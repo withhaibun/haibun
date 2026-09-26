@@ -26,16 +26,16 @@ const quadKey = (q: TQuad): string =>
 	q.objectType !== undefined ? `${q.namedGraph}|${q.subject}|${q.predicate}|${String(q.object)}` : `${q.namedGraph}|${q.subject}|${q.predicate}`;
 
 /** Rels for a type, used by the shared display-label rule. Server: the registry's fields; client: getRels. */
-export type RelsProvider = (type: string) => Record<string, string> | undefined;
+type RelsProvider = (type: string) => Record<string, string> | undefined;
 
 /** The property or edge a type declares titles it (topology.displayLabel), or undefined where it declares none. Server:
  *  the registry's titledBy; client: getTitledBy from the rels cache. */
-export type TitledByProvider = (type: string) => TTitledBy | undefined;
+type TitledByProvider = (type: string) => TTitledBy | undefined;
 
 /** Body preview text for a body subject. Client: read from in-memory body quads (the default); server: SQL previews. */
-export type BodyContentProvider = (subject: string) => string | undefined;
+type BodyContentProvider = (subject: string) => string | undefined;
 
-export type MergeOptions = {
+type MergeOptions = {
 	/** Authoritative per-type total from the store (the store's own count). Without it, totalCount is the observed distinct-subject count. */
 	totalCounts?: Map<string, number>;
 	/** Where body preview text comes from for the display-label rule. Defaults to the model's own in-memory body quads. */

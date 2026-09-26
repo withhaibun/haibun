@@ -18,16 +18,16 @@ import { reportToRun } from "../client-log.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 
 export const CORNERS = ["settings", "playback", "access", "status"] as const;
-export type TCorner = (typeof CORNERS)[number];
+type TCorner = (typeof CORNERS)[number];
 
 /** How each corner's popover closes. A picker closes on a click away. Playback is a panel used beside the view (set the
  *  run playing, then open a node to see it at that moment), so only its own control closes it. A new corner states
  *  which it is. */
-export const CORNER_DISMISS: Record<TCorner, "click-away" | "panel"> = { settings: "click-away", access: "click-away", playback: "panel", status: "click-away" };
+const CORNER_DISMISS: Record<TCorner, "click-away" | "panel"> = { settings: "click-away", access: "click-away", playback: "panel", status: "click-away" };
 
 /** What an extension in the permissions area says awaits the reader's decision: how many, and the reference that leads
  *  to them. */
-export type TAwaiting = { count: number; ref: { kind: TRefKind; target: Record<string, unknown> } | null };
+type TAwaiting = { count: number; ref: { kind: TRefKind; target: Record<string, unknown> } | null };
 
 /** The awaiting mark an event's detail states, or null for a detail whose count is not a number, which states nothing.
  *  A count below zero is none, and a reference of a kind a ref cannot open is no reference. */
@@ -59,14 +59,14 @@ export function timeOffsetLabel(cursor: number | null, firstEventTime: number, l
 /** The time offset the strip shows for a cursor: `now` at the live edge, and how far along the run it sits otherwise.
  *  The run's span is read off the shared event log without registering a window, since the strip is mounted for the whole
  *  session and a window it held would page the entire run in and pin it there. */
-export function timeOffsetOf(cursor: number | null): string {
+function timeOffsetOf(cursor: number | null): string {
 	if (cursor === null || cursor <= 0) return "now";
 	const { first, last } = runSpan();
 	return timeOffsetLabel(cursor, first, last);
 }
 
 /** What the corners read from the page strip: its test-id prefix, and the read access level and how to change it. */
-export type TPageStripCornersDeps = {
+type TPageStripCornersDeps = {
 	testIdPrefix: () => string;
 	/** The top edge a popover opens above: the strip's, or an open docked pane's above it, whose input line it keeps clear. */
 	anchorTop: () => number;

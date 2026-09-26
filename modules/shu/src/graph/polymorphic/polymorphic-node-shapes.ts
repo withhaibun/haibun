@@ -70,7 +70,7 @@ export function chipShape(mark: NodeMark, d: NodeShapeDeps): Obj3D {
 }
 
 /** The merged ontology's Class token: a solid SQUARE chip (sharp corners + bold), set apart from the rounded instances. */
-export function squareShape(mark: NodeMark, d: NodeShapeDeps): Obj3D {
+function squareShape(mark: NodeMark, d: NodeShapeDeps): Obj3D {
 	return labelChip(mark, d, 0, true);
 }
 
@@ -106,7 +106,7 @@ export function boxShape(mark: NodeMark, d: NodeShapeDeps): Obj3D {
 /** The merged ontology's Property (predicate) as an elongated diamond / lozenge: a solid token, the name centred, the
  *  ends drawn to points: a relation reads as a distinct SHAPE, not a chip. A canvas-textured billboard (always faces the
  *  camera, sized so the name matches a chip's text height); off-GPU (headless) it falls back to a chip. */
-export function lozengeShape(mark: NodeMark, d: NodeShapeDeps): Obj3D {
+function lozengeShape(mark: NodeMark, d: NodeShapeDeps): Obj3D {
 	const T = d.three as unknown as
 		| (ShapeThree & { Sprite: new (m: unknown) => SpriteObj; SpriteMaterial: new (p: Record<string, unknown>) => unknown; CanvasTexture: new (c: unknown) => unknown })
 		| undefined;

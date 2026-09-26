@@ -20,12 +20,12 @@ export { TIMINGS_FILE };
  *  the SHA-256 of the text of the steps it declares. */
 const FeatureTimingSchema = z.object({ seconds: z.number(), steps: z.number().int(), declaredStepTextHash: z.string() });
 const TimingsSchema = z.object({ features: z.record(z.string(), FeatureTimingSchema), steps: z.number().int(), seconds: z.number() });
-export type TFeatureTiming = z.infer<typeof FeatureTimingSchema>;
+type TFeatureTiming = z.infer<typeof FeatureTimingSchema>;
 export type TTimings = z.infer<typeof TimingsSchema>;
 
 /** The file holds one set of timings per machine class: a run on other hardware takes other times, and comparing
  *  across machines reports a difference that no change caused. */
-export type TTimingsFile = Record<string, unknown>;
+type TTimingsFile = Record<string, unknown>;
 
 /** The class of machine a run was measured on: its processor model, how many cores it has, its architecture and its
  *  platform. It describes the hardware and names neither the host nor the user. */
@@ -66,7 +66,7 @@ const CHANGED_FRACTION = 0.2;
 const CHANGED_SECONDS = 1;
 
 /** One feature whose duration differs from the recorded run, with whether its declared steps changed since. */
-export type TVariance = { feature: string; seconds: number; was: number; steps: number; wasSteps: number; declaredStepsChanged: boolean };
+type TVariance = { feature: string; seconds: number; was: number; steps: number; wasSteps: number; declaredStepsChanged: boolean };
 
 /** The features whose durations differ from what was recorded, largest difference first. A feature absent from either
  *  run is left out: an added or removed feature is a change in what runs rather than in what a run takes. */

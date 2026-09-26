@@ -19,7 +19,7 @@ export function hashParams(hash: string): URLSearchParams {
 
 /** The endings of a `col=` or `open=` entry that state where its pane stands, after the pane's id. */
 export const PANE_ENDING = { dock: "~dock", min: "~min", max: "~max" } as const;
-export type TPaneEnding = keyof typeof PANE_ENDING;
+type TPaneEnding = keyof typeof PANE_ENDING;
 
 const endingOf = (entry: string): TPaneEnding | undefined => (Object.keys(PANE_ENDING) as TPaneEnding[]).find((name) => entry.endsWith(PANE_ENDING[name]));
 

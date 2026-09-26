@@ -82,7 +82,7 @@ export function renderRefBody(markdown: string, isType: (name: string) => boolea
 }
 
 /** A reference a rendered text makes: its kind, what it points at, and the words that name it. */
-export type TContentRef = { kind: TRefKind; target: Record<string, unknown>; text: string };
+type TContentRef = { kind: TRefKind; target: Record<string, unknown>; text: string };
 
 /** The references a rendered text makes, once each: every `<shu-ref>` its markdown became, and every `#Type` or `#Type:id`
  *  link an HTML text carries. A surface that shows the text where references don't work, the sandboxed body iframe,

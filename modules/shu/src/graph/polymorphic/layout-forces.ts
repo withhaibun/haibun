@@ -24,7 +24,7 @@ export const PINNED_STRENGTH = 0.35; // the positional-force strength a pinned v
 // World-unit gaps the layered (td/lr) solver leaves between ranks (flow axis) and between siblings (cross axis).
 export const LAYERED_RANK_GAP = 40;
 export const LAYERED_SIBLING_GAP = 16;
-export const COLLIDE_STRENGTH = 0.9;
+const COLLIDE_STRENGTH = 0.9;
 export const ALPHA_DECAY = 0.06;
 export const VELOCITY_DECAY = 0.5;
 /** Text and strokes on a node chip, dark on the light type-colour fill, shared with the SVG still so the two media cannot drift. */

@@ -19,8 +19,8 @@ import { addStepperConcerns } from "../phases/Executor.js";
 import type { TStepDescriptor } from "./step-discovery.js";
 import { TRACE_SEQ_PATH } from "../schema/protocol.js";
 
-export type SubprocessReadyMessage = { type: "ready"; steps: TStepDescriptor[] };
-export type SubprocessCallMessage = { type: "call"; method: string; params?: Record<string, unknown>; seqPath?: number[] };
+type SubprocessReadyMessage = { type: "ready"; steps: TStepDescriptor[] };
+type SubprocessCallMessage = { type: "call"; method: string; params?: Record<string, unknown>; seqPath?: number[] };
 export type SubprocessResultMessage = { type: "result"; ok: true; products: Record<string, unknown> } | { type: "result"; ok: false; error: string };
 
 export type SubprocessMessage = SubprocessReadyMessage | SubprocessCallMessage | SubprocessResultMessage;

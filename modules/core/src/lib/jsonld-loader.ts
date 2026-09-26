@@ -11,14 +11,14 @@
 // @ts-expect-error, jsonld ships partial type declarations
 import jsonld from "jsonld";
 
-export interface LoaderResult {
+interface LoaderResult {
 	contextUrl: null;
 	documentUrl: string;
 	document: unknown;
 }
 
 /** Resolves a URL not held in the local registries. Injected by a consumer that opts in to network resolution. */
-export type NetworkResolver = (url: string) => Promise<LoaderResult>;
+type NetworkResolver = (url: string) => Promise<LoaderResult>;
 
 const contexts = new Map<string, unknown>();
 const keyDocuments = new Map<string, unknown>();

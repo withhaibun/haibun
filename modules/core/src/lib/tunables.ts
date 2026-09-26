@@ -6,7 +6,7 @@ import type { TStepperOption } from "./astepper.js";
  * Declarative bound on a tunable option. The four kinds are deliberately
  * narrow: richer validation belongs in the option's own `parse`, not here.
  */
-export type TTunableRange =
+type TTunableRange =
 	| { kind: "number"; min?: number; max?: number }
 	| { kind: "duration"; minMs?: number; maxMs?: number }
 	| { kind: "boolean" }
@@ -16,7 +16,7 @@ export type TTunableRange =
  * How often a tunable may be changed. Enforced server-side at the
  * Development-write RPC boundary; a misbehaving client cannot bypass it.
  */
-export type TTunableRateLimit = {
+type TTunableRateLimit = {
 	maxChangesPerDay: number;
 	/** Optional minimum relative step size, e.g. 0.1 for "at least 10% change". */
 	minStepPct?: number;
@@ -37,17 +37,6 @@ export type TTunableOption = TStepperOption & {
 	rateLimit?: TTunableRateLimit;
 	requiresCapability?: string;
 };
-
-/**
- * Derive the default capability a caller must hold to change the
- * tunable `<stepperName>.<key>`. Consumers that haven't declared
- * `requiresCapability` explicitly fall back to this structural name.
- * Consumers that grant capabilities should construct matches against
- * this function, never via string literals.
- */
-export function requiredCapabilityFor(stepperName: string, key: string): string {
-	return `${stepperName}:tune:${key}`;
-}
 
 /**
  * Discovery contract: steppers that expose tunable options, options a

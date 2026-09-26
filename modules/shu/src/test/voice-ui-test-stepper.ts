@@ -27,7 +27,7 @@ class VoiceUITestComponent extends HTMLElement {
 customElements.define("voice-ui-test-component", VoiceUITestComponent);
 `;
 
-export const VOICE_UI_TEST_DOMAIN = "voice-ui-test";
+const VOICE_UI_TEST_DOMAIN = "voice-ui-test";
 
 export default class VoiceUITestStepper extends AStepper implements IHasCycles {
 	description = "Serves the voice interface test component.";

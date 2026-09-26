@@ -62,7 +62,7 @@ export const DesiredPaneSchema = z.discriminatedUnion("paneType", [
 ]);
 
 export type DesiredPane = z.infer<typeof DesiredPaneSchema>;
-export type DesiredPaneType = DesiredPane["paneType"];
+type DesiredPaneType = DesiredPane["paneType"];
 
 /** What a view in the other bundle asks the page to open with `SHU_EVENT.PANE_OPEN`: its PaneState isn't the page's. */
 export const PaneOpenSchema = z.object({ pane: DesiredPaneSchema, addToSelection: z.boolean() });
@@ -164,14 +164,14 @@ export function labelOf(d: DesiredPane): string {
  * `paneType: "component"` needs no hook (data flows via `data`). External component
  * loading also lives here so pane-state has no direct registry dependency.
  */
-export type PaneHooks = {
+type PaneHooks = {
 	ensureLoaded?(tag: string): Promise<void> | void;
 	afterAttach?: Partial<Record<DesiredPaneType, (d: DesiredPane, child: HTMLElement) => Promise<void> | void>>;
 };
 
 /** A pane the page always holds, as declared, and the attributes its view is given. The address names it only where it
  *  stands other than as declared. It doesn't close, and a page that closes it returns it to where the page declares it. */
-export type TPagePane = { pane: DesiredPane; attributes?: Record<string, string> };
+type TPagePane = { pane: DesiredPane; attributes?: Record<string, string> };
 
 class PaneStateImpl {
 	private desired = new Map<string, DesiredPane>();

@@ -12,7 +12,7 @@ import type { TRequestSigner } from "./authority-types.js";
  * seqPath rooted on its own hostId, matching the MCP dispatch path.
  */
 
-export type RpcClientConfig = {
+type RpcClientConfig = {
 	/** Base URL of the main host (e.g. "http://localhost:8223"). */
 	baseUrl: string;
 	/** Signs a call that invokes an action, with authority this process holds at the host. */
@@ -28,7 +28,7 @@ export type RpcClientConfig = {
 	fetchImpl?: typeof fetch;
 };
 
-export type RpcCallOptions = {
+type RpcCallOptions = {
 	/** Abort signal from the caller. Fires in addition to the per-call timeout. */
 	signal?: AbortSignal;
 	/** The action the call invokes at the host, which its signature names. A call that names none is not signed. */

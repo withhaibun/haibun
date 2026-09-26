@@ -8,7 +8,7 @@
 import { LinkRelations, edgeRel as coreEdgeRel, getRelRange } from "@haibun/core/lib/resources.js";
 import { STORED_TYPE_PROP } from "./consts.js";
 
-export type TPropKind = "name" | "identifier" | "edge" | "content" | "internal" | "scalar";
+type TPropKind = "name" | "identifier" | "edge" | "content" | "internal" | "scalar";
 
 /** Dependency-injected property classification, browser uses rels-cache, server uses world.domains. */
 export interface PropertyClassifier {
@@ -43,8 +43,6 @@ export type TGraphViewOpts = {
 	 */
 	displayLabel: (graph: string, subject: string) => string | undefined;
 };
-
-export const DEFAULT_MAX_PER_SUBGRAPH = 20;
 
 /** Properties that are opaque blobs or graph-store internals, excluded from graph rendering. */
 export const INTERNAL_PREDICATES = new Set(["signedDocument", "encodedList", "proofValue", "accessLevel", STORED_TYPE_PROP]);

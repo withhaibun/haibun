@@ -31,11 +31,11 @@ import { timeCursor } from "../signals.js";
 import { atLiveEdge, noteRunSpan, readingBy, runReadingAt, type RunSource, type TEventRecord, type TRunExtent } from "./run-source.js";
 
 /** How long a burst of changes is collected before the window is read again. */
-export const RE_READ_AFTER_MS = 250;
+const RE_READ_AFTER_MS = 250;
 
 /** How many places a rail has: what a mark sits at and what a press names. A rail is a few hundred pixels, so this is
  *  finer than a reader can point at, and the same however long the run is. */
-export const RAIL_PLACES = 1000;
+const RAIL_PLACES = 1000;
 
 /** What a step declared, where it declared one: a feature or a scenario is the step that named it, and a view titles it
  *  by the name that step carries rather than by a second announcement of the same thing. */
@@ -120,7 +120,7 @@ export function resetGraphRunSources(): void {
 	sources().clear();
 }
 
-export type TGraphRunSource = RunSource & { close(): void };
+type TGraphRunSource = RunSource & { close(): void };
 
 /** Stop reading a run nothing is showing, and forget it, so the next view to read at that level reads afresh. */
 function releaseSource(key: string): void {

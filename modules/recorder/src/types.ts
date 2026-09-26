@@ -1,9 +1,3 @@
-/**
- * Types for browser interaction recording
- */
-
-export type TInteractionType = "click" | "input" | "navigation" | "keypress";
-
 export interface TClickInteraction {
 	type: "click";
 	tagName: string;
@@ -26,12 +20,12 @@ export interface TInputInteraction {
 	id?: string;
 }
 
-export interface TNavigationInteraction {
+interface TNavigationInteraction {
 	type: "navigation";
 	url: string;
 }
 
-export interface TKeypressInteraction {
+interface TKeypressInteraction {
 	type: "keypress";
 	key: string;
 }

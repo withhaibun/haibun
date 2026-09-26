@@ -5,6 +5,6 @@
  */
 export type TSeqActor = { id: string; label: string };
 /** call: a forward message; return: a reply. */
-export type TSeqMessageKind = "call" | "return";
+type TSeqMessageKind = "call" | "return";
 export type TSeqMessage = { from: string; to: string; label: string; kind?: TSeqMessageKind };
 export type TSeqModel = { actors: TSeqActor[]; messages: TSeqMessage[] };

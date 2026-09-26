@@ -9,7 +9,7 @@ import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 
 // --- Combobox ---
 
-export const ComboboxOptionSchema = z.object({
+const ComboboxOptionSchema = z.object({
 	value: z.string(),
 	label: z.string(),
 	/**
@@ -46,7 +46,7 @@ export const UNVERIFIED_TURN = "the turn stated records it was not sent";
 export const ChatStatusSchema = z.enum(["asking", "running", "completed", "failed", "stopped", "unverified"]);
 export type TChatStatus = z.infer<typeof ChatStatusSchema>;
 /** The status of the page's turn: idle before the first question, else the status of the turn asked last. */
-export const TurnStatusSchema = z.enum(["idle", ...ChatStatusSchema.options]);
+const TurnStatusSchema = z.enum(["idle", ...ChatStatusSchema.options]);
 export type TTurnStatus = z.infer<typeof TurnStatusSchema>;
 
 export const ComboboxSchema = z.object({
@@ -246,7 +246,7 @@ export type TBundle = z.infer<typeof BundleSchema>;
  * told the run recorded, so a page addresses a turn, the turn it replies to and the session it is in without knowing
  * how a run names what it records.
  */
-export const SessionTurnSchema = z
+const SessionTurnSchema = z
 	.object({
 		prompt: z.string().describe("What the reader asked."),
 		response: z.string().describe("What the model answered; empty before it answered."),
@@ -324,6 +324,5 @@ export const ActionsBarSchema = z.object({
 export const DOMAIN_SHU_APPS = "shu-apps";
 /** Where an instance serves shu: the path of each app it mounted, which a reader opens under the instance's address. */
 export const ShuAppsSchema = z.object({ apps: z.array(z.string()).describe("The path of each app this instance serves shu at, under its address.") });
-export type TShuApps = z.infer<typeof ShuAppsSchema>;
 /** The step that states where an instance serves shu. */
 export const SHU_APPS_METHOD = stepMethodName("ShuStepper", "showShuApps");

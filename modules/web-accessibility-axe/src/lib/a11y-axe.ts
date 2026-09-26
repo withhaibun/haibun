@@ -1,8 +1,7 @@
 import { readFileSync } from "fs";
 import { createRequire } from "module";
 import { Page } from "playwright";
-import { Spec, ElementContext, RunOptions, AxeResults } from "axe-core";
-import { ConfigOptions } from "./axe-types.js";
+import { ElementContext, RunOptions, AxeResults } from "axe-core";
 
 const require = createRequire(import.meta.url);
 
@@ -33,19 +32,11 @@ export function evalSeverity(axeResults: AxeResults, acceptable: { serious: numb
 	};
 }
 
-export const injectAxe = async (page: Page): Promise<void> => {
+const injectAxe = async (page: Page): Promise<void> => {
 	await page.evaluate((axe: string) => window.eval(axe), axe);
 };
 
-export const configureAxe = async (page: Page, configurationOptions: ConfigOptions = {}): Promise<void> => {
-	await page.evaluate(
-		// biome-ignore lint/suspicious/noExplicitAny: window property
-		(configOptions: Spec) => (window as any).configure(configOptions),
-		configurationOptions as Spec,
-	);
-};
-
-export const getAxeResults = (page: Page, context?: ElementContext, options?: RunOptions): Promise<AxeResults> => {
+const getAxeResults = (page: Page, context?: ElementContext, options?: RunOptions): Promise<AxeResults> => {
 	return page.evaluate(
 		([context, options]) => (window as unknown as { axe: { run: (ctx: unknown, opts: unknown) => Promise<AxeResults> } }).axe.run(context || window.document, options),
 		[/*context,*/ options],

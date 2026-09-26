@@ -61,14 +61,14 @@ export function inlineScriptsForView(domains: Record<string, unknown>, finalView
 		.map((u) => u.jsContent);
 }
 
-export const DOMAIN_LOG_EVENT = "shu-log-event";
+const DOMAIN_LOG_EVENT = "shu-log-event";
 
 /**
  * The type a graph query named, read off the step that ran it. The match is the argument's DOMAIN, not the step's name:
  * a deployment answers graph queries with its own step, and every one of them takes an argument of this domain, so this
  * reads the type from whichever step answered. Undefined for every other event.
  */
-export function queriedLabelOf(event: THaibunEvent): string | undefined {
+function queriedLabelOf(event: THaibunEvent): string | undefined {
 	const values = (event as { stepValuesMap?: Record<string, { domain?: string; value?: unknown }> }).stepValuesMap ?? {};
 	for (const held of Object.values(values)) {
 		if (held?.domain !== DOMAIN_GRAPH_QUERY) continue;
@@ -79,7 +79,7 @@ export function queriedLabelOf(event: THaibunEvent): string | undefined {
 }
 
 /** Client-side log event forwarded from the SPA. Validated with Zod at the action boundary. */
-export const LogEventSchema = z.object({
+const LogEventSchema = z.object({
 	level: z.enum(["debug", "trace", "info", "warn", "error"]).default("info"),
 	message: z.string().min(1),
 	source: z.string().optional(),
@@ -87,18 +87,18 @@ export const LogEventSchema = z.object({
 });
 export type TLogEvent = z.infer<typeof LogEventSchema>;
 
-export const DOMAIN_CLIENT_BLIPS = "shu-client-blips";
+const DOMAIN_CLIENT_BLIPS = "shu-client-blips";
 /** The domain of a standalone shu report a step wrote: where it was written. */
 const DOMAIN_SHU_REPORT = "shu-report";
 
 /** A batch of fine-grained occurrences the SPA recorded and handed over together, since one request each is not
  *  sustainable at the rate they happen. `recorded` is everything the page has recorded, so a batch a full buffer
  *  truncated says so rather than reading as the whole. */
-export const ClientBlipsSchema = z.object({
+const ClientBlipsSchema = z.object({
 	blips: z.array(z.object({ name: z.string(), value: z.number().optional(), attributes: z.record(z.string(), z.unknown()).optional(), at: z.number() })),
 	recorded: z.number().optional(),
 });
-export type TClientBlips = z.infer<typeof ClientBlipsSchema>;
+type TClientBlips = z.infer<typeof ClientBlipsSchema>;
 
 /** The step an event happened in, as the path the run walks: what a run says or produces names itself for that step,
  *  and what is named for no step has none. */

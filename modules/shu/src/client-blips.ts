@@ -17,9 +17,9 @@ import { conduit, hasConduit, reads } from "./hypermedia.js";
 export const CLIENT_RING = 240;
 
 /** How long to wait before sending, so a burst of frames leaves as one batch rather than one request per frame. */
-export const FLUSH_DELAY_MS = 250;
+const FLUSH_DELAY_MS = 250;
 
-export type TClientBlip = { name: string; value?: number; attributes?: Record<string, unknown>; at: number };
+type TClientBlip = { name: string; value?: number; attributes?: Record<string, unknown>; at: number };
 
 let ring: TClientBlip[] = [];
 let at = 0;

@@ -93,7 +93,7 @@ export function actingFor(): TActingFor | undefined {
 }
 
 /** The step running: its seqPath, and how prominently what is said while it runs reports. */
-export type TStepInFlight = { seqPath: string; reportsAt: THaibunLogLevel | undefined };
+type TStepInFlight = { seqPath: string; reportsAt: THaibunLogLevel | undefined };
 
 const stepStore = new AsyncLocalStorage<TStepInFlight | undefined>();
 

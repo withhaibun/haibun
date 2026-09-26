@@ -2,7 +2,7 @@ import nodeFS from "fs";
 import path from "path";
 import { TFileSystem } from "./util/node/workspace-lib.js";
 
-export interface HaibunWorkspace {
+interface HaibunWorkspace {
 	/** Base path - parent of features/ folder */
 	base: string;
 	/** Path to config.json if it exists */
@@ -60,7 +60,7 @@ export function findHaibunWorkspace(featurePath: string, fs: TFileSystem = nodeF
 /**
  * Recursively find all .feature files in a directory
  */
-export async function findFeatureFiles(dir: string, fs: TFileSystem = nodeFS): Promise<string[]> {
+async function findFeatureFiles(dir: string, fs: TFileSystem = nodeFS): Promise<string[]> {
 	const results: string[] = [];
 	if (!fs.existsSync(dir)) return results;
 

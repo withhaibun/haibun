@@ -74,7 +74,7 @@ export class SharedSignal<T> {
 }
 
 /** One move of a machine: the event, and the state before and after it. */
-export type TMove<S, E> = { event: E; before: S; after: S };
+type TMove<S, E> = { event: E; before: S; after: S };
 
 /**
  * A page-level machine: one state, moved only by events through one pure transition. Its state is a shared cell every
@@ -122,10 +122,10 @@ export const pageContext = new SharedSignal<TPageContext | null>("pageContext", 
 
 /** A pane in the column strip: its key in `activePane`, the label a breadcrumb names, whether it is the query pane, and
  *  whether it is docked along the bottom of the app rather than laid out as a column. */
-export type TStripPane = { key: string; label: string; query: boolean; docked: boolean };
+type TStripPane = { key: string; label: string; query: boolean; docked: boolean };
 
 /** The pane docked along the bottom of the app: its key, and whether it is open. */
-export type TDockedPane = { key: string; open: boolean };
+type TDockedPane = { key: string; open: boolean };
 
 /** The pane docked along the bottom of the app, or null where none is. The docked pane is its only writer, and the page
  *  strip reads it to open and close the pane. */
@@ -133,7 +133,7 @@ export const dockedPane = new SharedSignal<TDockedPane | null>("dockedPane", nul
 
 /** The types the page searches: what each is called, and the one the search reads now. The actions bar's search is its
  *  only writer, and the page strip offers them beside what the search found. */
-export type TPageTypes = { options: ReadonlyArray<TComboboxOption>; selected: string };
+type TPageTypes = { options: ReadonlyArray<TComboboxOption>; selected: string };
 
 export const pageTypes = new SharedSignal<TPageTypes>("pageTypes", { options: [], selected: "" });
 
@@ -167,7 +167,7 @@ function settingSignal(storageKey: string): Signal.State<string | null> {
 	return signal;
 }
 
-export type PersistedSetting = { get(): string; set(value: string): void };
+type PersistedSetting = { get(): string; set(value: string): void };
 
 /** Define a persisted, cross-view reactive setting. `fallback` applies when nothing valid is stored; `isValid` rejects a
  *  stale/foreign stored value. get() reads reactively (auto-subscribes a lit render); set() persists then notifies all. */

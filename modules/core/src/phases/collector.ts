@@ -121,6 +121,6 @@ export function shouldProcess(file: string, type: undefined | string, featureFil
 	return true;
 }
 
-export function debase(abase: string, features: TFeature[]) {
+function debase(abase: string, features: TFeature[]) {
 	return features.map((f) => ({ ...f, path: f.path.replace(abase, "") }));
 }

@@ -19,7 +19,7 @@ export interface IGraphRenderer {
 }
 
 /** Where each node was placed, by node id: what "it did not redraw" compares. */
-export type TPlacement = Map<string, string>;
+type TPlacement = Map<string, string>;
 
 const placementOf = (nodes: FGNode[]): TPlacement => new Map(nodes.map((n) => [n.id, `${Math.round(n.x ?? 0)},${Math.round(n.y ?? 0)},${Math.round(n.z ?? 0)}`]));
 

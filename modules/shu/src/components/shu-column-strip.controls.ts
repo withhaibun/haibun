@@ -13,7 +13,7 @@ import { actionOK, actionNotOK } from "@haibun/core/lib/util/index.js";
 import { pollUntil, type EvalPage } from "./controls-util.js";
 
 /** A column, by words of the key it is open under, such as `e:Email:` for an Email's column. */
-export const DOMAIN_COLUMN_MATCH = "column-match";
+const DOMAIN_COLUMN_MATCH = "column-match";
 
 export default class ShuColumnStripControls extends AStepper implements IHasCycles {
 	description = "Column-browser (Miller columns) controls: click a column to activate it, assert which is active.";

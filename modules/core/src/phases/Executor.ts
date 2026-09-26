@@ -40,7 +40,7 @@ export function releasePayloads(featureResult: TFeatureResult): void {
 }
 
 /** Let go of what one finished step produced, unless it failed. */
-export function releasePayload(step: TStepResult): void {
+function releasePayload(step: TStepResult): void {
 	if (!step.ok) return;
 	step.products = undefined;
 	step.artifact = undefined;
@@ -258,7 +258,7 @@ export class Executor {
 }
 
 /** The SHA-256 of the text of a feature's declared steps, joined by newlines in the order they are declared. */
-export function hashDeclaredStepText(featureSteps: readonly TFeatureStep[]): string {
+function hashDeclaredStepText(featureSteps: readonly TFeatureStep[]): string {
 	return createHash("sha256")
 		.update(featureSteps.map((step) => step.in).join("\n"))
 		.digest("hex");

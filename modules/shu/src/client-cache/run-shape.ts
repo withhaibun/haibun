@@ -18,9 +18,9 @@ import { runExtent } from "./run-window.js";
 
 /** How many divisions a run is counted in, whatever its length. The count is what a rail of any run takes, so it is
  *  the same for a run of an hour and a run of a year. */
-export const RUN_DIVISIONS = 200;
+const RUN_DIVISIONS = 200;
 
-export type TRunShape = {
+type TRunShape = {
 	/** One mark per division that holds anything, as the counts stand. */
 	readonly marks: TRunMark[];
 	/** The instant a division begins, which is the moment a mark of it carries. */

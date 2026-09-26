@@ -24,20 +24,20 @@ import type { GanttTarget } from "./polymorphic-data-pipeline.js";
 import { VIEW, type ViewType, REFRAME, type ReframeMode, FRAME, type FrameMove } from "./polymorphic-views.js";
 
 /** Sentinel a render type's `controls()` returns when it adds nothing to the shared control bar (lit's no-render value). */
-export type ControlsFragment = TemplateResult | typeof nothing;
+type ControlsFragment = TemplateResult | typeof nothing;
 
 /** Context a render type's `controls()` reads to build its OWN control fragment. No view today adds controls of its own
  *  (a sequence is actors + messages: nothing to toggle), so this is empty; kept as the extension point. */
-export type RenderTypeControlsCtx = Record<string, never>;
+type RenderTypeControlsCtx = Record<string, never>;
 
 /** A node's pinned target: the {x,y} the groupX/groupY force pulls it to, plus the z it is placed on when the view sets
  *  one (the time axis). ONE source, so the force config and the data-assigned z can't drift. A gantt/sequence lane sets
  *  {y,z} (x falls to 0); the td/lr layered flow sets {x,y} (z stays the recorded-time depth). undefined = the free force. */
-export type LanePlacement = { x?: number; y: number; z?: number };
+type LanePlacement = { x?: number; y: number; z?: number };
 
 /** The calendar context a node's @type presenter needs to paint a duration mark (a gantt bar's span). undefined = the
  *  node has no time mark in this view (a point-in-time chip). */
-export type MarkTime = { start: number; end: number; zExtent: number };
+type MarkTime = { start: number; end: number; zExtent: number };
 
 /** Live caches the component exposes; every getter is read at CALL time so a per-repaint-refreshed map is current. */
 export type RenderTypeDeps = {
@@ -169,7 +169,7 @@ export class ForceRenderType extends BaseRenderType {
  *  pinned {x,y} the cohesion force holds it at, recomputed only when the visible-node array reference changes (a repaint
  *  hands a fresh array), the same caching the sequence uses, so per-node lanePlacement reads are fast. z stays the
  *  recorded-time depth, so the flow reads structurally in x/y while time reads in depth (the option can still flatten it). */
-export class LayeredRenderType extends BaseRenderType {
+class LayeredRenderType extends BaseRenderType {
 	constructor(
 		readonly viewType: "td" | "lr",
 		deps: RenderTypeDeps,

@@ -59,7 +59,7 @@ export function viewHeadCss(host: string): string {
  * Each host passes its own ids: both hosts can be on the page at once, and one shared id would make a query ambiguous.
  */
 /** One head toggle: what it is called, how it shows, and what pressing it means. */
-export type TViewToggle = { id: string; glyph: string; label?: string; title: string; on: boolean; onToggle: (on: boolean) => void };
+type TViewToggle = { id: string; glyph: string; label?: string; title: string; on: boolean; onToggle: (on: boolean) => void };
 
 /** THE pressed-state button of the head: one shape for a settings group and a view toggle alike. A glyph-only face is
  *  the shared icon button; a face with a word keeps the row's button look. */

@@ -37,6 +37,17 @@ import { DOMAIN_PERSISTED_TYPE } from "@haibun/core/lib/resources.js";
 const POLYMORPHIC_IDS = SHU_TEST_IDS.POLYMORPHIC_VIEW;
 /** The number of reads of the active node before the pointer step fails. A record arriving moves the node once. */
 const ACTIVE_PICK_TRIES = 30;
+
+/** Wait for the main graph to draw its group containers, which it draws a frame or two after the layout settles. */
+const groupsDrawn = (page: Page) =>
+	page.waitForFunction(
+		(): boolean => {
+			const el = document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { inspect(): { enclosures: unknown[] } } | null;
+			return !!el && el.inspect().enclosures.length > 0;
+		},
+		undefined,
+		{ timeout: 8000 },
+	);
 /** What each settings group holds, in row order: ONE table: the opener waits on the first control to attach, and the
  *  "every option is under its group" assertion checks the whole list. The filters group renders the shared filter
  *  element rather than controls of its own, so it names none. */
@@ -64,45 +75,45 @@ const SETTINGS_CONTROLS: Record<TSettingsGroup, string[]> = {
 	scenes: [POLYMORPHIC_IDS.SCENE_PICKER, POLYMORPHIC_IDS.SCENE_NAME, POLYMORPHIC_IDS.SCENE_SAVE],
 };
 
-export const DOMAIN_GRAPH_ZOOM = "graph-zoom-direction";
+const DOMAIN_GRAPH_ZOOM = "graph-zoom-direction";
 const ZoomDirSchema = z.enum(["in", "out"]);
-export const DOMAIN_GRAPH_PAN = "graph-pan-direction";
+const DOMAIN_GRAPH_PAN = "graph-pan-direction";
 const PanDirSchema = z.enum(["left", "right", "up", "down"]);
-export const DOMAIN_GRAPH_UNIT = "graph-measure-unit";
+const DOMAIN_GRAPH_UNIT = "graph-measure-unit";
 const UnitSchema = z.enum(["pixels", "percent"]);
-export const DOMAIN_GRAPH_ZOOM_CMP = "graph-zoom-comparison";
+const DOMAIN_GRAPH_ZOOM_CMP = "graph-zoom-comparison";
 const ZoomCmpSchema = z.enum(["closer", "farther"]);
-export const DOMAIN_GRAPH_CHANGE = "graph-change";
+const DOMAIN_GRAPH_CHANGE = "graph-change";
 const ChangeSchema = z.enum(["changed", "unchanged"]);
-export const DOMAIN_GRAPH_GROUPING = "graph-grouping";
+const DOMAIN_GRAPH_GROUPING = "graph-grouping";
 const GroupingSchema = z.enum(["group", "ungroup"]);
-export const DOMAIN_GRAPH_FLATTEN = "graph-flatten";
+const DOMAIN_GRAPH_FLATTEN = "graph-flatten";
 const FlattenSchema = z.enum(["flatten", "unflatten"]);
-export const DOMAIN_GRAPH_GROUP_AXIS = "graph-group-axis";
+const DOMAIN_GRAPH_GROUP_AXIS = "graph-group-axis";
 const GroupAxisSchema = z.enum(["role", "type"]);
-export const DOMAIN_GRAPH_VIEW = "graph-view-type";
+const DOMAIN_GRAPH_VIEW = "graph-view-type";
 const ViewTypeSchema = z.enum(["force", "lr", "td", "gantt", "sequence"]);
-export const DOMAIN_GRAPH_ZBASIS = "graph-z-basis";
+const DOMAIN_GRAPH_ZBASIS = "graph-z-basis";
 const ZBasisSchema = z.enum(["valid time", "indexed time", "connections"]);
 const ZBASIS_VALUE: Record<string, string> = { "valid time": "valid", "indexed time": "indexed", connections: "connections" };
 
 /** The domain of a graph still a step saved: where it is, and how many nodes it drew. */
 const DOMAIN_GRAPH_STILL = "graph-still";
 const GraphStillSchema = z.object({ path: z.string(), nodes: z.number() });
-export const DOMAIN_GRAPH_SNAPSHOT = "graph-snapshot";
+const DOMAIN_GRAPH_SNAPSHOT = "graph-snapshot";
 const PointSchema = z.object({ x: z.number(), y: z.number(), z: z.number() });
 // fov is not compared: it moves to hold worldPerPx, which is the zoom signal.
 const CameraSchema = PointSchema.extend({ target: PointSchema.nullable().optional() }).nullable();
 const ViewportSchema = z.object({ h: z.number(), w: z.number(), worldPerPx: z.number(), calibratedH: z.number() }).nullable();
 const GraphSnapshotSchema = z.object({ camera: CameraSchema, viewport: ViewportSchema, pos: z.record(z.string(), PointSchema) });
-export const DOMAIN_GRAPH_NODE = "graph-node";
-export const DOMAIN_GRAPH_PREDICATE = "graph-predicate";
-export const DOMAIN_GRAPH_PREDICATES = "graph-predicates";
-export const DOMAIN_GRAPH_DROP = "graph-drop";
+const DOMAIN_GRAPH_NODE = "graph-node";
+const DOMAIN_GRAPH_PREDICATE = "graph-predicate";
+const DOMAIN_GRAPH_PREDICATES = "graph-predicates";
+const DOMAIN_GRAPH_DROP = "graph-drop";
 const GraphDropSchema = z.object({ id: z.string(), x: z.number(), y: z.number() });
-export const DOMAIN_GRAPH_SCENE = "graph-scene";
+const DOMAIN_GRAPH_SCENE = "graph-scene";
 /** The name a scene is saved under, which is the id of its record. */
-export const DOMAIN_SCENE_NAME = "scene-name";
+const DOMAIN_SCENE_NAME = "scene-name";
 const GraphSceneSchema = z.object({ name: z.string(), setup: z.record(z.string(), z.record(z.string(), z.unknown())) });
 const graphControlDomains: TDomainDefinition[] = [
 	{ selectors: [DOMAIN_GRAPH_STILL], schema: GraphStillSchema, description: "A graph still a step saved, and how many nodes it drew" },
@@ -1003,19 +1014,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				);
 				if (!ok) return actionNotOK("no grouped toggle on the view");
 				await this.settle(page); // the toggle schedules the debounced relayout synchronously; settle waits for it
-				if (on) {
-					// Enclosure boxes are drawn a frame or two AFTER the layout settles (updateEnclosureGeometry on rest).
-					await page
-						.waitForFunction(
-							(): boolean => {
-								const el = document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { inspect(): { enclosures: unknown[] } } | null;
-								return !!el && el.inspect().enclosures.length > 0;
-							},
-							undefined,
-							{ timeout: 8000 },
-						)
-						.catch((): undefined => undefined);
-				}
+				if (on) await groupsDrawn(page);
 				return actionOK();
 			},
 		},
@@ -1047,17 +1046,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				);
 				if (!ok) return actionNotOK("no grouped / group-by controls on the view");
 				await this.settle(page); // the controls schedule the debounced relayout synchronously; settle waits for it
-				// Group containers are drawn a frame or two after the layout settles.
-				await page
-					.waitForFunction(
-						(): boolean => {
-							const el = document.querySelector("shu-polymorphic-graph-view:not([data-external])") as unknown as { inspect(): { enclosures: unknown[] } } | null;
-							return !!el && el.inspect().enclosures.length > 0;
-						},
-						undefined,
-						{ timeout: 8000 },
-					)
-					.catch((): undefined => undefined);
+				await groupsDrawn(page);
 				return actionOK();
 			},
 		},

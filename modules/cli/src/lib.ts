@@ -254,7 +254,7 @@ export async function usageThenExit(specl: TSpecl, message?: string) {
 	process.exit(message ? 1 : 0);
 }
 
-export async function getAllSteppers(specl: TSpecl) {
+async function getAllSteppers(specl: TSpecl) {
 	const steppers = await getCreateSteppers(specl.steppers);
 	return formattedSteppers(steppers);
 }
@@ -423,7 +423,7 @@ export function processArgs(args: string[]) {
 
 /** The configuration file a run reads: a base that names the file, else the one whose directory holds config.json,
  *  else the working directory's. */
-export function configFileFrom(bases: TBase, fs: TFileSystem = nodeFS): string {
+function configFileFrom(bases: TBase, fs: TFileSystem = nodeFS): string {
 	const found = bases?.filter((b) => (b.endsWith("json") && fs.existsSync(b)) || fs.existsSync(`${b}/config.json`));
 	const configCandidate = (found && found[0]) || ".";
 	return configCandidate.endsWith("json") ? configCandidate : `${configCandidate}/config.json`;

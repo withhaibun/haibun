@@ -17,7 +17,7 @@ export const DOMAIN_PAGE_ALT_TEXT = "page-alt-text";
 /** Text a page shows, found as it reads. */
 export const DOMAIN_PAGE_TEXT = "page-text";
 /** The ways a page is searched for a place in it, each a part of a page target. */
-export const PAGE_FINDERS = [
+const PAGE_FINDERS = [
 	DOMAIN_PAGE_ALT_TEXT,
 	DOMAIN_PAGE_LABEL,
 	DOMAIN_PAGE_LOCATOR,
@@ -41,14 +41,14 @@ export const DOMAIN_MEDIA_TYPE = "media-type";
 export const DOMAIN_JSON_PROPERTY = "json-property";
 
 const locatorSchema = z.string().min(1, "locator cannot be empty");
-export const PageContentsSchema = z.object({ html: z.string() });
-export const AccessibilitySnapshotSchema = z.object({
+const PageContentsSchema = z.object({ html: z.string() });
+const AccessibilitySnapshotSchema = z.object({
 	url: z.string(),
 	title: z.string(),
 	snapshot: z.string().describe("The page's aria snapshot, in YAML."),
 	_links: z.record(z.string(), z.object({ method: z.string() }).strict()),
 });
-export const RestJsonCountSchema = z.object({ summary: z.string(), details: z.object({ count: z.number() }) });
+const RestJsonCountSchema = z.object({ summary: z.string(), details: z.object({ count: z.number() }) });
 /** The domains of what reading a page and a JSON response answer with. */
 export const DOMAIN_PAGE_CONTENTS = "page-contents";
 export const DOMAIN_ACCESSIBILITY_SNAPSHOT = "accessibility-snapshot";
@@ -73,19 +73,19 @@ const visitedPageSchema = PersistedVertexSchema.extend({ id: z.string(), name: z
 
 /** The HTTP methods a request is made with: those that send a body, and those that send none. */
 export const HTTP_METHODS_WITH_BODY = ["POST", "PUT", "PATCH"] as const;
-export const HTTP_METHODS_WITHOUT_BODY = ["GET", "DELETE", "HEAD"] as const;
+const HTTP_METHODS_WITHOUT_BODY = ["GET", "DELETE", "HEAD"] as const;
 export const DOMAIN_HTTP_METHOD = "http-method";
 export const DOMAIN_HTTP_METHOD_WITH_BODY = "http-method-with-body";
 export const DOMAIN_HTTP_METHOD_WITHOUT_BODY = "http-method-without-body";
 /** The ways to find what a click presses, each a way the page is read by. */
-export const FIND_WAYS = ["alt text", "test id", "placeholder", "role", "label", "title", "text"] as const;
+const FIND_WAYS = ["alt text", "test id", "placeholder", "role", "label", "title", "text"] as const;
 export type TFindWay = (typeof FIND_WAYS)[number];
 export const DOMAIN_FIND_WAY = "page-find-way";
 /** What the requests a page makes to a URL are: refused, left without an answer, or answered. */
 export const REQUEST_STATE = { blocked: "blocked", unanswered: "unanswered", allowed: "allowed" } as const;
 export const DOMAIN_REQUEST_STATE = "request-state";
 /** What a dialog a page opened says, as the step that accepts it keeps it. */
-export const DIALOG_FIELDS = ["defaultValue", "message", "type"] as const;
+const DIALOG_FIELDS = ["defaultValue", "message", "type"] as const;
 export const DOMAIN_DIALOG_FIELD = "dialog-field";
 /** The browsers a run drives. */
 export const BROWSER_TYPES = ["firefox", "chromium", "webkit"] as const;

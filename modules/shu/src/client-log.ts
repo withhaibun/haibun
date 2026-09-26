@@ -12,7 +12,7 @@ import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { acts, conduit, isServerUnreachable } from "./hypermedia.js";
 
-export const CLIENT_LOG_METHOD = "MonitorStepper-logClient";
+const CLIENT_LOG_METHOD = "MonitorStepper-logClient";
 export type TClientLogLevel = "debug" | "info" | "warn" | "error";
 
 export function reportToRun(level: TClientLogLevel, source: string, message: string, attributes?: Record<string, unknown>): void {

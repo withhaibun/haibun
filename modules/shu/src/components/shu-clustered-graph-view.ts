@@ -56,7 +56,7 @@ export const clusteredGraphStateShape = {
 };
 
 const ClusteredGraphStateSchema = z.object(clusteredGraphStateShape);
-export type TClusteredGraphState = z.infer<typeof ClusteredGraphStateSchema>;
+type TClusteredGraphState = z.infer<typeof ClusteredGraphStateSchema>;
 
 export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuElement<T> {
 	protected knownClusters = new Map<string, TCluster>();

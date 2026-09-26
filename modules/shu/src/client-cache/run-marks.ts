@@ -22,7 +22,7 @@ export type TRunMark = TEventMarkerStyle & { at: number };
  *  groups turned out. A group's appearance is `eventMarkerStyle`'s to decide, so a division and a row can never
  *  disagree about a failure, and a reading that asks for the failures themselves asks these types for the values whose
  *  mark is a fault. */
-export const COUNTED = [
+const COUNTED = [
 	{
 		label: SEQ_PATH_LABEL,
 		timeField: SEQ_PATH_FIELD.generatedAtTime,

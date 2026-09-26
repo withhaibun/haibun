@@ -30,7 +30,7 @@ const DOC_LIVE_EDGE_PX = FOLLOW_EDGE_SLACK_PX;
 
 /** The ends of the monitor's scroll rail a seek goes to. */
 export const RAIL_END = { top: "top", bottom: "bottom" } as const;
-export const DOMAIN_RAIL_END = "rail-end";
+const DOMAIN_RAIL_END = "rail-end";
 
 export default class ShuMonitorColumnControls extends AStepper implements IHasCycles {
 	description = "shu-monitor-column inspection: count rendered log rows to assert the data window bounds the view.";

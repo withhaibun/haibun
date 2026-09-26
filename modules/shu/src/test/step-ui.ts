@@ -81,16 +81,6 @@ const stepResult = (method: string, callIndex: number) => `${normalizeStepKey(me
 const stepError = (method: string, callIndex: number) => `${normalizeStepKey(method)}-${callIndex}-step-error`;
 const stepInput = (method: string, callIndex: number, param: string) => `${normalizeStepKey(method)}-${callIndex}-step-input-${param}`;
 
-export function stepTestIds(method: string, callIndex: number, inputParams: string[]): string[] {
-	return [
-		stepRun(method, callIndex),
-		stepDone(method, callIndex),
-		stepResult(method, callIndex),
-		stepError(method, callIndex),
-		...inputParams.map((p) => stepInput(method, callIndex, p)),
-	];
-}
-
 /**
  * Encode a JS-literal composite sub-field value for the gwta form-input
  * argument. Always emits a literal, never a variable reference, because

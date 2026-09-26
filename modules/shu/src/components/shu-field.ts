@@ -12,7 +12,7 @@ import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 
-export class ShuField extends ShuElement<z.ZodType> {
+class ShuField extends ShuElement<z.ZodType> {
 	/** A control, not a view of data, contributes nothing to the Kihan's context. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;

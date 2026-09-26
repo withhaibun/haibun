@@ -38,7 +38,7 @@ import { AStepper, IHasCycles, IHasOptions, StepperKinds } from "@haibun/core/li
 
 import { cycles } from "./cycles.js";
 import { interactionSteps } from "./interactionSteps.js";
-import { restSteps, TCapturedResponse } from "./rest-playwright.js";
+import { restSteps, type TCapturedResponse, type TJsonResponse } from "./rest-playwright.js";
 import { TwinPage } from "./twin-page.js";
 import { WEBSERVER, type IWebServer } from "@haibun/web-server-hono/defs.js";
 import { BrowserRelay } from "./relay/cdpRelay.js";
@@ -57,7 +57,7 @@ export const WEB_PAGE = "webpage";
  * @see {@link restSteps} for rest steps
  */
 
-export const LAST_REST_RESPONSE = "LAST_REST_RESPONSE";
+const LAST_REST_RESPONSE = "LAST_REST_RESPONSE";
 
 type TRequestOptions = {
 	headers?: Record<string, string>;
@@ -66,7 +66,7 @@ type TRequestOptions = {
 };
 
 /** Callback function type for withPage - takes Page or Locator and returns TReturn */
-export type TWithPageCallback<TReturn> = (pageOrLocator: Page | Locator) => TReturn | Promise<TReturn>;
+type TWithPageCallback<TReturn> = (pageOrLocator: Page | Locator) => TReturn | Promise<TReturn>;
 
 export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	private static readonly DOM_READY_TIMEOUT_MS = 1900;
@@ -429,13 +429,21 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 						if (postDataForEval) fetchOptions.body = postDataForEval as BodyInit;
 
 						const response = await fetch(endpoint, fetchOptions);
+						// A body is read once, as its text, and read again as JSON where it is JSON.
+						const text = await response.text();
+						let json: TJsonResponse | undefined;
+						try {
+							json = JSON.parse(text) as TJsonResponse;
+						} catch {
+							// A body that isn't JSON is its text alone.
+						}
 						const capturedResponse: TCapturedResponse = {
 							status: response.status,
 							statusText: response.statusText,
 							headers: Object.fromEntries(response.headers.entries()),
 							url: response.url,
-							json: await response.json().catch((): null => null),
-							text: await response.text().catch((): null => null),
+							text,
+							...(json === undefined ? {} : { json }),
 						};
 
 						return capturedResponse;
@@ -529,7 +537,7 @@ export default WebPlaywright;
 
 /** An extension's id, as Chromium derives it from the public key its manifest pins: the first 32 hex digits of the key's
  *  SHA-256, each written as a letter from a to p. */
-export function extensionIdOf(key: string): string {
+function extensionIdOf(key: string): string {
 	const hex = createHash("sha256").update(Buffer.from(key, "base64")).digest("hex").slice(0, 32);
 	return [...hex].map((digit) => String.fromCharCode(97 + Number.parseInt(digit, 16))).join("");
 }

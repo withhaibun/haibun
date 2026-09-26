@@ -71,7 +71,7 @@ const SANITIZE_OPTS = {
 };
 
 /** One row of the document: an event of the run at its index, and the blocks it produced. */
-export type TDocRow = { index: number; event: TEventRecord; blocks: TDocBlock[] };
+type TDocRow = { index: number; event: TEventRecord; blocks: TDocBlock[] };
 /** The rows of one page of the run, with what they were built from: how many events of the page were cached, and the first
  *  and last of them, so a page that grew (the live edge) or changed (another run's, fetched again) is built again and an
  *  unchanged one never is, distinguished in constant time. */

@@ -3,7 +3,7 @@
  * view hand-rolling countdown fields. `every: 1` runs each frame (camera-coupled work like label orientation);
  * a larger cadence samples (watchdogs, bounds). One place to see, and test, everything the frame does.
  */
-export type TFrameJob = { name: string; every: number; run: () => void };
+type TFrameJob = { name: string; every: number; run: () => void };
 
 export class FrameScheduler {
 	private jobs: Array<TFrameJob & { countdown: number }> = [];

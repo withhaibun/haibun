@@ -40,7 +40,7 @@ import { SHOW_STEPS_ACTION, SHOW_STEPS_METHOD } from "@haibun/core/lib/step-disc
  * inferred at the far end, a page cannot read through a step whose answer the run would record, and cannot forget to
  * say which it wants: `asks` is required, so `reads` and `acts` are the only ways to make a link.
  */
-export type TAsks = "read" | "act";
+type TAsks = "read" | "act";
 
 export type TLink = { method: string; params?: Record<string, unknown>; summary?: string; asks: TAsks };
 
@@ -262,7 +262,7 @@ const responded = (): { at: number | undefined; unreachableUntil: number } => pa
  * duration and the page would use its time waiting rather than querying the device store. One timed-out request
  * stands for the rest over this interval, after which the next read issues a request again.
  */
-export const UNREACHABLE_RETRY_AFTER_MS = 2_000;
+const UNREACHABLE_RETRY_AFTER_MS = 2_000;
 
 /** Whether a request timed out within the retry interval, so another would only run to the timeout again. */
 const isUnreachable = (): boolean => Date.now() < responded().unreachableUntil;

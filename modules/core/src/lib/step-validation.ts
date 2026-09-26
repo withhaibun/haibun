@@ -7,7 +7,7 @@ import { mayCall, requiredAction } from "./actions.js";
 /**
  * Result of validating a step text against registered steppers.
  */
-export type StepValidationResult =
+type StepValidationResult =
 	| {
 			valid: true;
 			action: TStepAction;

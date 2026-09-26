@@ -303,10 +303,10 @@ const DEFAULT_CONFIG: GraphSceneConfig = {
 };
 
 /** The slice of the renderer this scene drives: its size, its pixel ratio, and whether it is presenting in VR. */
-export type TSceneRenderer = { setSize(w: number, h: number, updateStyle: boolean): void; getPixelRatio(): number; xr?: { isPresenting?: boolean } };
+type TSceneRenderer = { setSize(w: number, h: number, updateStyle: boolean): void; getPixelRatio(): number; xr?: { isPresenting?: boolean } };
 
 /** The slice of the camera this scene drives: its framing, where it sits, and what it looks at. */
-export type TSceneCamera = {
+type TSceneCamera = {
 	aspect: number;
 	fov?: number;
 	position?: { x: number; y: number; z: number };

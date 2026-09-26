@@ -20,7 +20,7 @@ import { setConduit, resetConduit, type Conduit, type TLink, type TRepresentatio
 // ─── The conduit a test installs ─────────────────────────────────────────────
 
 /** A test's answers, by `(method, params)`. Throwing inside it signals "no fixture for this call": `TestConduit` surfaces the throw so a test fails loudly, naming the method nothing answered. */
-export type TDispatch = (method: string, params: Record<string, unknown>) => unknown | Promise<unknown>;
+type TDispatch = (method: string, params: Record<string, unknown>) => unknown | Promise<unknown>;
 
 /** A `Conduit` answering from a function a test supplies, so nothing under test knows it is not talking to a server. */
 export class TestConduit implements Conduit {
@@ -59,7 +59,7 @@ import { SHOW_STEPS_METHOD, STEP_DETAIL, readShownSteps, stepDefinition, type TS
 import { requiredAction } from "@haibun/core/lib/actions.js";
 import { steppersOf } from "@haibun/core/lib/step-registry.js";
 
-export type TShuTestConfig = {
+type TShuTestConfig = {
 	/** Optional dispatch for in-test RPCs. Default throws on every call, naming the unconfigured method, tests opt in by supplying a function that returns wire results for the methods they exercise. */
 	dispatch?: TDispatch;
 };

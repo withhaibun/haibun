@@ -35,9 +35,6 @@ export const FRAME = {
 } as const;
 export type FrameMove = (typeof FRAME)[keyof typeof FRAME];
 
-/** Coerce an arbitrary persisted string to a known view type, defaulting to the force view. */
-export const asViewType = (v: string): ViewType => ((VIEW_TYPES as readonly string[]).includes(v) ? (v as ViewType) : VIEW.force);
-
 /** The shape a view paints its participant nodes as: the three groups whose node objects differ: chips (force/td/lr),
  *  gantt duration bars, and sequence activation bars (the same bars, an upright name capping each lifeline). */
 const nodeShapeClass = (v: ViewType): string => (v === VIEW.gantt ? "gantt-bar" : v === VIEW.sequence ? "sequence-bar" : "chip");

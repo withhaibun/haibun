@@ -65,7 +65,7 @@ const STDERR_TAIL_CHARS = 4_000;
 const RUN_TAIL_CHARS = 200_000;
 
 /** The run variable a launched instance reads to address its launcher: `use store at $LAUNCHED_FROM$ …`. */
-export const LAUNCHED_FROM = "LAUNCHED_FROM";
+const LAUNCHED_FROM = "LAUNCHED_FROM";
 
 /**
  * The capabilities a caller must hold to supervise a process, as ZCAP-LD `allowedAction` values.
@@ -206,7 +206,7 @@ const runStatus = (held: TRun): string => (held.ended === null ? "running" : "en
 const localOrigin = (port: number): string => `http://localhost:${port}`;
 
 /** The domain of the instances and runs this process started. */
-export const DOMAIN_INSTANCES = "haibun-instances";
+const DOMAIN_INSTANCES = "haibun-instances";
 /** The domain of what starting an instance answers with. */
 const DOMAIN_INSTANCE_STARTED = "instance-started";
 /** The domains of what starting, reading and stopping a run answer with, which a stand-in for this supervisor declares too. */

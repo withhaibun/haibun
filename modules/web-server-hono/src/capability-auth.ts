@@ -2,10 +2,10 @@ import type { TRuntime } from "@haibun/core/lib/world.js";
 import { getAuthority } from "@haibun/core/lib/session-authority.js";
 import type { TRestsOn } from "@haibun/core/lib/authority-types.js";
 
-export type TRequestHeaders = Record<string, string | undefined>;
+type TRequestHeaders = Record<string, string | undefined>;
 
 /** What a request says about itself: a signed presentation covers the method and the address as well as the headers. */
-export type TAuthorizedRequest = { method?: string; url?: string; headers?: TRequestHeaders; body?: string };
+type TAuthorizedRequest = { method?: string; url?: string; headers?: TRequestHeaders; body?: string };
 
 /** The header a caller presenting proven authority carries, rather than a secret to be looked up. */
 const PRESENTED_AUTHORITY_HEADER = "capability-invocation";
@@ -13,7 +13,7 @@ const PRESENTED_AUTHORITY_HEADER = "capability-invocation";
 /** What a request carries: what its caller may do, who they proved themselves to be where a proof said so, and what that
  *  proof rests on. A presented proof that fails, or that nothing here can check, is `refused`, and a refused request runs
  *  nothing. */
-export type TRequestAuthority = { granted: string[]; principal?: string; restsOn?: TRestsOn; refused?: string };
+type TRequestAuthority = { granted: string[]; principal?: string; restsOn?: TRestsOn; refused?: string };
 
 /**
  * What the caller of this request may do: the actions this deployment allows without a delegation, which are none
@@ -53,7 +53,7 @@ export function endWhenLapsed(runtime: TRuntime, { restsOn }: TRequestAuthority,
 }
 
 /** Whether a request presents proven authority, which its whole request is then verified for. */
-export function presentsAuthority(headers: TRequestHeaders | undefined): boolean {
+function presentsAuthority(headers: TRequestHeaders | undefined): boolean {
 	return getHeader(headers, PRESENTED_AUTHORITY_HEADER) !== undefined;
 }
 

@@ -24,8 +24,6 @@ import { LinkRelations, type TQuoteAnchor, type TRelRange } from "./resources.js
  * with these words, so a link, a pane, a statement and an ask name the same distinction the same way.
  */
 export const DENOTES = { individual: "individual", type: "type" } as const;
-export type TDenotes = (typeof DENOTES)[keyof typeof DENOTES];
-
 /**
  * The same distinction as it is written into rendered documents, where `<shu-ref kind>` carries it and the ref
  * navigation reads it back. Documents already hold these words, so they stay as written and are named here rather
@@ -34,15 +32,15 @@ export type TDenotes = (typeof DENOTES)[keyof typeof DENOTES];
 export const REF_DENOTES = { individual: "entity", type: "domain" } as const;
 
 /** An in-app reference: a type, or an individual (optionally a passage inside it). The shape the SPA's renderer takes. */
-export type TRefHref =
+type TRefHref =
 	| { kind: typeof REF_DENOTES.type; target: { domain: string } }
 	| { kind: typeof REF_DENOTES.individual; target: { persistedAs: string; id: string; selector?: TQuoteAnchor } };
 
 /** What a statement can be about: a typed individual, optionally a passage inside it. */
-export type TAddressableTarget = { kind: typeof DENOTES.individual; persistedAs: string; id: string; anchor?: TQuoteAnchor };
+type TAddressableTarget = { kind: typeof DENOTES.individual; persistedAs: string; id: string; anchor?: TQuoteAnchor };
 
 /** What a link's href denotes. A TYPE is a schema term, not an individual: a link to one navigates and states nothing. */
-export type TLinkTarget = TAddressableTarget | { kind: typeof DENOTES.type; persistedAs: string };
+type TLinkTarget = TAddressableTarget | { kind: typeof DENOTES.type; persistedAs: string };
 
 /**
  * One fact a link states, about the text that states it. `typed` marks a typed link. `linkText` is the link text

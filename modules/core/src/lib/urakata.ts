@@ -33,7 +33,7 @@ export const URAKATA_ID_DOMAIN = "urakata-id";
 /** Persisted label for a task's transition record. Individuals are upserted by id, so one row reflects the latest transition; history lives in the event stream. */
 export const URAKATA_LABEL = "Urakata";
 /** A persistently failing ticker persists its first error, then every Nth, errorCount stays exact in memory and is persisted exactly at stop. */
-export const URAKATA_ERROR_PERSIST_EVERY = 10;
+const URAKATA_ERROR_PERSIST_EVERY = 10;
 
 export const UrakataSchema = PersistedVertexSchema.extend({
 	id: z.string(),

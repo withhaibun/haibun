@@ -6,7 +6,7 @@ import { AccessLevelSchema } from "../lib/resources.js";
 // ============================================================================
 
 export const HAIBUN_LOG_LEVELS = ["debug", "trace", "log", "info", "warn", "error"] as const;
-export const HaibunLogLevel = z.enum(HAIBUN_LOG_LEVELS);
+const HaibunLogLevel = z.enum(HAIBUN_LOG_LEVELS);
 export type THaibunLogLevel = z.infer<typeof HaibunLogLevel>;
 
 /**
@@ -85,7 +85,7 @@ export type TDebugSignal = "fail" | "step" | "continue" | "retry" | "next";
  *  shows is infrastructure rather than something a reader asked for. */
 export const SUBSTEP_LEVEL: THaibunLogLevel = "trace";
 /** The level an ordinary step reports at. */
-export const STEP_LEVEL: THaibunLogLevel = "info";
+const STEP_LEVEL: THaibunLogLevel = "info";
 
 /** The level a step reports at. One derivation, so the record of a step, what it says and what it produces all agree. */
 export const stepLevel = (isSubStep: boolean): THaibunLogLevel => (isSubStep ? SUBSTEP_LEVEL : STEP_LEVEL);
@@ -107,7 +107,7 @@ export const declaredName = (text: string, of: keyof typeof DECLARES): string =>
 /** How a lifecycle ends or stands. `stopped` is a step its caller stopped: a reader's decision, not a fault, so it is
  *  neither a failure nor a pass. */
 export const LIFECYCLE_STATUS = { running: "running", completed: "completed", failed: "failed", stopped: "stopped", skipped: "skipped" } as const;
-export const LIFECYCLE_STATUS_SCHEMA = z.enum([LIFECYCLE_STATUS.running, LIFECYCLE_STATUS.completed, LIFECYCLE_STATUS.failed, LIFECYCLE_STATUS.stopped, LIFECYCLE_STATUS.skipped]);
+const LIFECYCLE_STATUS_SCHEMA = z.enum([LIFECYCLE_STATUS.running, LIFECYCLE_STATUS.completed, LIFECYCLE_STATUS.failed, LIFECYCLE_STATUS.stopped, LIFECYCLE_STATUS.skipped]);
 /** How a step ended. */
 export type TStepEnd = typeof LIFECYCLE_STATUS.completed | typeof LIFECYCLE_STATUS.failed | typeof LIFECYCLE_STATUS.stopped;
 
@@ -131,15 +131,6 @@ export const BASE_PREFIX = `${HAIBUN}_`;
 /** What begins a stepper's option in the environment and in a base's config: then the stepper's name and the option's. */
 export const MODULE_OPTION_PREFIX = `${BASE_PREFIX}O_`;
 export const CAPTURE = "capture";
-
-export const TEND_FEATURE_DEFAULTS = {
-	shouldClose: true,
-	isLast: true,
-	okSoFar: true,
-	continueAfterError: true,
-	stayOnFailure: true,
-	thisFeatureOK: true,
-};
 
 // ============================================================================
 // Utilities
@@ -374,20 +365,18 @@ export class EventFormatter {
  * nothing, so it has no outcome to take either way and never reaches here.
  */
 export const EXECUTION_MODES = ["authoritative", "speculative"] as const;
-export type TExecutionMode = (typeof EXECUTION_MODES)[number];
-
-export const ExecutionIntentSchema = z.object({
+const ExecutionIntentSchema = z.object({
 	mode: z.enum(EXECUTION_MODES).default("authoritative"),
 	usage: z.enum(["testing", "debugging", "background", "polling"]).optional(),
 	stepperOptions: z.record(z.string(), z.unknown()).optional(),
 });
 export type ExecutionIntent = z.infer<typeof ExecutionIntentSchema>;
 
-export const SystemMessageSchema = z.object({
+const SystemMessageSchema = z.object({
 	topic: z.string().optional(),
 	intent: ExecutionIntentSchema,
 });
-export type SystemMessage = z.infer<typeof SystemMessageSchema>;
+type SystemMessage = z.infer<typeof SystemMessageSchema>;
 
 /** Execution trace field on products. */
 export const TRACE_SEQ_PATH = "_seqPath";
@@ -467,7 +456,7 @@ export type TProvenanceIdentifier = {
 };
 
 // Result Types
-export type TTrace = {
+type TTrace = {
 	[name: string]: {
 		url: string;
 		since: number;
@@ -567,7 +556,7 @@ export type TPrompt = z.infer<typeof Prompt>;
 // Event Schema
 // ============================================================================
 
-export const BaseEvent = z.object({
+const BaseEvent = z.object({
 	id: z.string().describe("Unique identifier for the event, typically the seqPath"),
 	timestamp: z.number().int().describe("Absolute epoch timestamp in milliseconds"),
 	source: z.string().default("haibun").describe("Source of the event"),
@@ -579,7 +568,7 @@ export const BaseEvent = z.object({
 });
 
 // Lifecycle Events
-export const LifecycleEventCommon = BaseEvent.extend({
+const LifecycleEventCommon = BaseEvent.extend({
 	kind: z.literal("lifecycle"),
 	stage: z.enum(["start", "end"]),
 
@@ -596,19 +585,19 @@ export const LifecycleEventCommon = BaseEvent.extend({
 });
 
 // Specific Events
-export const FeatureEvent = LifecycleEventCommon.extend({
+const FeatureEvent = LifecycleEventCommon.extend({
 	type: z.literal("feature"),
 	featurePath: z.string().describe("Feature file path"),
 	featureName: z.string().describe("Feature display name"),
 });
 
-export const ScenarioEvent = LifecycleEventCommon.extend({
+const ScenarioEvent = LifecycleEventCommon.extend({
 	type: z.literal("scenario"),
 	scenarioName: z.string().describe("Scenario name"),
 	featurePath: z.string().optional(),
 });
 
-export const StepEvent = LifecycleEventCommon.extend({
+const StepEvent = LifecycleEventCommon.extend({
 	type: z.literal("step"),
 	in: z.string().describe("Step text"),
 	lineNumber: z.number().optional(),
@@ -622,7 +611,7 @@ export const StepEvent = LifecycleEventCommon.extend({
 });
 
 // For other types (activity, waypoint, ensure, execution)
-export const GenericLifecycleEvent = LifecycleEventCommon.extend({
+const GenericLifecycleEvent = LifecycleEventCommon.extend({
 	type: z.enum(["activity", "waypoint", "ensure", "execution"]),
 	in: z.string().optional(),
 	products: z.record(z.string(), z.unknown()).optional(),
@@ -692,7 +681,7 @@ export const JsonArtifact = BaseArtifact.extend({
 	mimetype: z.string().default("application/json"),
 });
 
-export const MermaidArtifact = BaseArtifact.extend({
+const MermaidArtifact = BaseArtifact.extend({
 	artifactType: z.literal("mermaid"),
 	source: z.string(),
 	mimetype: z.string().default("text/x-mermaid"),
@@ -714,7 +703,7 @@ export const HttpTraceArtifact = BaseArtifact.extend({
 	mimetype: z.string().default("application/json"),
 });
 
-export const RegisteredOutcomeEntry = z.object({
+const RegisteredOutcomeEntry = z.object({
 	proofStatements: z.array(z.string()).optional(),
 	proofPath: z.string().optional(),
 	isBackground: z.boolean().optional(),
@@ -731,7 +720,7 @@ export const ResolvedFeaturesArtifact = BaseArtifact.extend({
 });
 
 // Generic file artifact for other types
-export const FileArtifact = BaseArtifact.extend({
+const FileArtifact = BaseArtifact.extend({
 	artifactType: z.literal("file"),
 	path: z.string(),
 	mimetype: z.string(),
@@ -787,18 +776,12 @@ export const BlipEvent = BaseEvent.extend({
 // Union Type
 export const HaibunEvent = z.union([LifecycleEvent, LogEvent, ArtifactEvent, ControlEvent, BlipEvent]);
 
-export type TBaseEvent = z.infer<typeof BaseEvent>;
 export type TLifecycleEvent = z.infer<typeof LifecycleEvent>;
-export type TFeatureEvent = z.infer<typeof FeatureEvent>;
-export type TScenarioEvent = z.infer<typeof ScenarioEvent>;
 export type TStepEvent = z.infer<typeof StepEvent>;
-export type TGenericLifecycleEvent = z.infer<typeof GenericLifecycleEvent>;
-
 export type TLogEvent = z.infer<typeof LogEvent>;
 export type TArtifactEvent = z.infer<typeof ArtifactEvent>;
 export type TImageArtifact = z.infer<typeof ImageArtifact>;
 export type TVideoArtifact = z.infer<typeof VideoArtifact>;
-export type TVideoStartArtifact = z.infer<typeof VideoStartArtifact>;
 export type THtmlArtifact = z.infer<typeof HtmlArtifact>;
 export type TSpeechArtifact = z.infer<typeof SpeechArtifact>;
 export type TJsonArtifact = z.infer<typeof JsonArtifact>;
@@ -806,7 +789,6 @@ export type TMermaidArtifact = z.infer<typeof MermaidArtifact>;
 export type THttpTraceArtifact = z.infer<typeof HttpTraceArtifact>;
 export type TResolvedFeaturesArtifact = z.infer<typeof ResolvedFeaturesArtifact>;
 export type TFileArtifact = z.infer<typeof FileArtifact>;
-export type TControlEvent = z.infer<typeof ControlEvent>;
 export type TBlipEvent = z.infer<typeof BlipEvent>;
 export type THaibunEvent = z.infer<typeof HaibunEvent>;
 export type TEventKind = THaibunEvent["kind"];

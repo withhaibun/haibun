@@ -20,7 +20,7 @@ export type DomainOption = {
 };
 
 /** Section headings for the type selector, partitioning on a concern's `declared` flag. */
-export const DOMAIN_GROUP = { declared: "Declared", builtIn: "Built-in" } as const;
+const DOMAIN_GROUP = { declared: "Declared", builtIn: "Built-in" } as const;
 
 type TStepList = Pick<TStepDefinitions, "steps" | "domains" | "concerns">;
 
@@ -52,16 +52,6 @@ export async function getAvailableSteps(): Promise<TStepDefinition[]> {
 
 export async function getAvailableDomains(): Promise<Record<string, TDomainDiscoveryInfo>> {
 	return (await getStepList()).domains;
-}
-
-/** Get the stepper name for a persisted type label. */
-export function getStepperForType(persistedAs: string): string | undefined {
-	const domains = registry().domains;
-	if (!domains) return undefined;
-	for (const info of Object.values(domains)) {
-		if (info.persistedAs === persistedAs) return info.stepperName;
-	}
-	return undefined;
 }
 
 /**
@@ -116,7 +106,7 @@ async function readSteps(r: TRegistry): Promise<TStepList> {
 }
 
 /** What a record of a run carries in its own page: the run, what its views showed, and the address it opens at. */
-export interface ShuHydration {
+interface ShuHydration {
 	/** What a view showed, by the step that produces it. A view whose products cannot be read from the run is given
 	 *  what it showed when the record was written, rather than asking a server that is not there. */
 	viewProducts?: Record<string, unknown>;
@@ -237,7 +227,7 @@ export function hydratedCache(): TCachePayload | undefined {
 
 /** Where the registry the page runs on came from: the server, or the device's copy of it (when the server did not respond),
  *  and when that copy was cached. Pinned to the page like the registry itself; null until the registry is known. */
-export type TRegistryOrigin = { from: "server" | "device"; savedAt?: number };
+type TRegistryOrigin = { from: "server" | "device"; savedAt?: number };
 const ORIGIN_KEY = "__SHU_STEP_REGISTRY_ORIGIN__";
 const origin = (): { value: TRegistryOrigin | null } => pagePinned(ORIGIN_KEY, () => ({ value: null }));
 export function registryOrigin(): TRegistryOrigin | null {

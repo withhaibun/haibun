@@ -16,7 +16,7 @@ export const PAGE_LONG_FRAME_BLIP = "haibun.shu.page.long_frame";
 /** The script a frame is attributed to where no script ran in it: the browser's own rendering held it. */
 export const RENDERING_ONLY = "(rendering)";
 
-export const PAGE_BLIPS: TBlipDeclaration[] = [
+const PAGE_BLIPS: TBlipDeclaration[] = [
 	{
 		name: PAGE_LONG_FRAME_BLIP,
 		instrument: "histogram",

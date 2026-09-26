@@ -11,7 +11,7 @@
 import { FlowLayout, flow } from "@lit-labs/virtualizer/layouts/flow.js";
 
 /** The size of a row known without rendering it (0 for a row that renders nothing), or undefined to measure and estimate. */
-export type TRowSize = (index: number) => number | undefined;
+type TRowSize = (index: number) => number | undefined;
 
 type TSizes = { [key: number]: { width: number; height: number } };
 type TBounds = { pos: number; size: number };

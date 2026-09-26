@@ -8,8 +8,8 @@ import { layeredLayout, type LayeredMetrics } from "../layered-layout.js";
 import type { TGraph } from "../types.js";
 import { collideRadius, chipTextHeight, LAYERED_RANK_GAP, LAYERED_SIBLING_GAP } from "./layout-forces.js";
 
-export type LayeredNode = { id: string; label: string };
-export type LayeredEdge = { from: string; to: string };
+type LayeredNode = { id: string; label: string };
+type LayeredEdge = { from: string; to: string };
 /** "TB" = top-down (layers advance down y), "LR" = left-right (layers advance along x). */
 export type LayeredDirection = "TB" | "LR";
 

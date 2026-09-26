@@ -7,7 +7,7 @@ import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TStepEvent, TLifecy
 import { HAIBUN_LOG_LEVELS } from "../schema/protocol.js";
 import { parseRecordName } from "./seq-path.js";
 
-export type TArtifactIndex = { artifactsByStep: Map<string, TArtifactEvent[]>; allArtifactIds: Set<string> };
+type TArtifactIndex = { artifactsByStep: Map<string, TArtifactEvent[]>; allArtifactIds: Set<string> };
 
 const normalizeId = (id: string) => id.replace(/^\[|\]$/g, "");
 
@@ -70,7 +70,7 @@ export function esc(s: string): string {
 	return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-export const DOC_HEADING_TEST_ID = "doc-heading-";
+const DOC_HEADING_TEST_ID = "doc-heading-";
 
 export function headingAnchor(title: string): string {
 	return title

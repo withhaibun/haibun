@@ -370,7 +370,7 @@ export class DataPipeline {
 }
 
 /** What a person's filter choices and the prune option leave of the graph, as the scene shows it. */
-export type TVisibleModelInput = {
+type TVisibleModelInput = {
 	/** The time-visible slice of the snapshot: the cursor has already hidden what is not yet current. */
 	quads: TQuad[];
 	clusters: TCluster[];

@@ -4,9 +4,6 @@ import { TMediaType, MEDIA_TYPES, MAPPED_MEDIA_TYPES } from "./media-types.js";
 import { AStepper, IHasOptions } from "@haibun/core/lib/astepper.js";
 import { TTag } from "@haibun/core/lib/ttag.js";
 
-export const STORAGE_LOCATION = "STORAGE_LOCATION";
-export const STORAGE_ITEM = "STORAGE_ITEM";
-
 export interface IFile {
 	name: string;
 	isDirectory: boolean;

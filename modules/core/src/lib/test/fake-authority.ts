@@ -34,7 +34,7 @@ export class FakeInvoker implements IAuthorityInvoker {
 		});
 }
 
-export class FakeVerifier implements IAuthorityVerifier {
+class FakeVerifier implements IAuthorityVerifier {
 	constructor(private readonly grants: Map<string, string[]>) {}
 
 	verify(evidence: TAuthorityEvidence): Promise<TVerdict> {

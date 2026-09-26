@@ -14,8 +14,8 @@ import { resolveAnnotationsLive, resolveAnnotationsOffline, type AnnotationView 
 export type TEntityResult = { vertex: Record<string, unknown>; edges: unknown[]; incomingCount: number };
 
 /** Where a served copy came from: a live fetch, the in-memory session cache, or the persisted browser store (offline). */
-export type TProvenance = "live" | "cache" | "offline";
-export type TEntityStatus = "loading" | "ready" | "error";
+type TProvenance = "live" | "cache" | "offline";
+type TEntityStatus = "loading" | "ready" | "error";
 
 /** The whole client-side view of one individual: its entity, the annotations anchored in it, and how it resolved. One
  *  shape for every consumer: the entity fetch, the offline fallback, and every SSE refresh land here, so a view holds

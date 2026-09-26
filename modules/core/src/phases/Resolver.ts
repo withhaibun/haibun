@@ -252,7 +252,7 @@ export class Resolver {
 	}
 }
 
-export function getActionableStatement(steppers: AStepper[], statement: string, path: string, seqPath: number[], lineNumber?: number) {
+function getActionableStatement(steppers: AStepper[], statement: string, path: string, seqPath: number[], lineNumber?: number) {
 	const resolver = new Resolver(steppers);
 	const action = resolver.findSingleStepAction(statement);
 	const step = action.step;

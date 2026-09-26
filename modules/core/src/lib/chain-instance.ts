@@ -26,7 +26,7 @@ import { actingAs } from "./capability-context.js";
 export const CHAIN_INSTANCE_GRAPH = "chain/instance";
 
 /** Predicates used inside the chain-instance named graph. */
-export const CHAIN_INSTANCE_PREDICATE = {
+const CHAIN_INSTANCE_PREDICATE = {
 	GOAL: "goal",
 	MICHI: "michi",
 	STEP_INDEX: "stepIndex",
@@ -50,7 +50,7 @@ export const CHAIN_INSTANCE_STATUS = {
 	FAILED: "failed",
 } as const;
 
-export type TChainInstanceStatus = (typeof CHAIN_INSTANCE_STATUS)[keyof typeof CHAIN_INSTANCE_STATUS];
+type TChainInstanceStatus = (typeof CHAIN_INSTANCE_STATUS)[keyof typeof CHAIN_INSTANCE_STATUS];
 
 /**
  * In-memory shape of a chain instance, assembled from the quads under one
@@ -73,21 +73,12 @@ export type TChainInstance = {
 	owner?: string;
 };
 
-/**
- * Allocate a numeric seqPath for a chain step dispatch. Reuses the existing
- * synthetic-seqPath machinery (see `allocateSyntheticSeqPath`) so chain steps
- * carry a unique, traceable numeric path that the dispatcher already knows
- * how to handle. The returned path is recorded in the chain instance's
- * `stepFactIds[i]` so the SPA can link back to the produced facts.
- */
-export type TWorldForSeqPath = { tag: { hostId: number }; runtime: { adHocSeq?: number } };
-
 function nowMs(): number {
 	return Date.now();
 }
 
 /** Generate a chain-instance id. Stable enough for one runtime; not a UUID. */
-export function newChainInstanceId(): string {
+function newChainInstanceId(): string {
 	return `ci_${nowMs().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 

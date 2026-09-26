@@ -39,8 +39,6 @@ export const DEFAULT_CONFIG_TAG = "_default";
 /** A connected browser as a run names it: the one at its endpoint, or the one attached through the relay. */
 const cdpName = (cdp: string | (() => ConnectOverCDPTransport)): string => (typeof cdp === "string" ? `the browser at ${cdp}` : "the attached browser");
 
-export type PageInstance = Page & { _guid: string };
-
 /**
  * Obtains the run's browser, its contexts and its pages, by launching a browser or by connecting to a running one.
  * The run closes, traces, binds errors to and answers dialogs on only what it opened: a connected browser's own

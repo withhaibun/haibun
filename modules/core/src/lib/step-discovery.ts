@@ -141,7 +141,7 @@ const StepDefinitionsSchema = z
 export const StepDiscoverySchema = z.discriminatedUnion("detail", [StepSummariesSchema, StepDefinitionsSchema]);
 export type TStepSummaries = z.infer<typeof StepSummariesSchema>;
 export type TStepDefinitions = z.infer<typeof StepDefinitionsSchema>;
-export type TStepDiscovery = z.infer<typeof StepDiscoverySchema>;
+type TStepDiscovery = z.infer<typeof StepDiscoverySchema>;
 
 /** The read of the summaries of a stepper's steps, by the stepper's name and the hyphen that separates a method's
  *  stepper from its step. */

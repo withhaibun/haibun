@@ -36,7 +36,7 @@ const shown = (value: number) => Number(value.toFixed(1));
 
 /** One series as a line: its name and dimension values, how many, and for measured occurrences their total and the
  *  largest, in the declared unit. */
-export function renderSeries(series: TBlipSeries): string {
+function renderSeries(series: TBlipSeries): string {
 	const labels = Object.entries(series.labels).map(([dimension, value]) => ` ${dimension}=${value}`);
 	const unit = blipDeclared(series.name)?.unit;
 	const inUnit = (value: number) => `${shown(value)}${unit ? ` ${unit}` : ""}`;

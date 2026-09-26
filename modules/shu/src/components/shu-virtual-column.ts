@@ -44,7 +44,7 @@ const MAX_CONVERGE = 40;
 
 /** Paint one row: the absolute `index` and its data (`undefined` when the source has not fetched it yet, return a
  *  skeleton). */
-export type TVirtualRow = (index: number, row: unknown) => TemplateResult;
+type TVirtualRow = (index: number, row: unknown) => TemplateResult;
 
 /** Layout the element needs, for the HOST column to include in its own `static styles`: the element renders in light DOM
  *  (so it has no shadow styles of its own), and its subtree lives in the host's shadow where these rules and the host's
@@ -62,7 +62,7 @@ export const virtualColumnCss: CSSResultGroup = css`
 /** Fired (bubbling, composed) when the visible window over the source moves: its first row, how many are visible, and the
  *  source's count. A host that pages its data listens for this to widen what it caches as the reader nears the top. */
 export const WINDOW_CHANGED = "shu-window-changed";
-export type WindowChangedDetail = { first: number; visible: number; total: number };
+type WindowChangedDetail = { first: number; visible: number; total: number };
 
 export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 	constructor() {

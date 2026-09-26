@@ -64,7 +64,7 @@ export const patternRef = (pattern: TContextPattern): TemplateResult =>
 /**
  * Convenience wrappers: each panel typically calls just one or two of these.
  */
-export const refSeqPath = (seqPath: number[], text?: string): string => renderRef("seqPath", { seqPath }, text ?? seqPath.join("."));
+const refSeqPath = (seqPath: number[], text?: string): string => renderRef("seqPath", { seqPath }, text ?? seqPath.join("."));
 
 export const refDomain = (domain: string, text?: string): string => renderRef("domain", { domain }, text ?? domain);
 

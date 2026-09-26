@@ -17,9 +17,9 @@ import { BREATH_MS } from "./polymorphic-highlight.js";
 
 export const REGULATION_KINDS = ["decorativeOverLimit", "decorativeWithinLimit"] as const;
 
-export type TRegulationKind = (typeof REGULATION_KINDS)[number];
+type TRegulationKind = (typeof REGULATION_KINDS)[number];
 
-export type TRegulationSignal = { kind: TRegulationKind; frameTimeMs: number; share: number };
+type TRegulationSignal = { kind: TRegulationKind; frameTimeMs: number; share: number };
 
 export type TRegulationThresholds = {
 	/** Frame times kept; the median of these is the time compared with the limit. Fewer than this compares nothing. */
@@ -39,7 +39,7 @@ export const DEFAULT_REGULATION_THRESHOLDS: TRegulationThresholds = {
 	cooldownMs: 10_000,
 };
 
-export type TRegulationState = { frameTimes: number[]; resting: boolean; lastFiredAt?: number };
+type TRegulationState = { frameTimes: number[]; resting: boolean; lastFiredAt?: number };
 
 /** A scene's regulation before it has measured a frame: decoration rests until a measurement shows it may run. */
 export function newRegulationState(): TRegulationState {
@@ -59,7 +59,7 @@ export function medianOf(samples: readonly number[]): number {
 }
 
 /** The breath's share of wall time at a frame time: time per beat times beats per second, over one second. */
-export function breathShare(frameTimeMs: number, thresholds: TRegulationThresholds): number {
+function breathShare(frameTimeMs: number, thresholds: TRegulationThresholds): number {
 	return (frameTimeMs * thresholds.beatsPerSecond) / 1000;
 }
 

@@ -32,7 +32,7 @@ const PolicyFileSchema = z.looseObject({
 export type TRunPolicy = z.infer<typeof PolicyFileSchema>;
 
 /** Load and parse a policy file */
-export function loadRunPolicy(schemaPath: string): TRunPolicy {
+function loadRunPolicy(schemaPath: string): TRunPolicy {
 	let raw: string;
 	try {
 		raw = readFileSync(schemaPath, "utf-8");
@@ -184,7 +184,7 @@ function evaluateBranch(conditionObj: Record<string, unknown>, config: Record<st
  * Validate a runtime config against a loaded policy.
  * Builds a strict Zod schema dynamically from the policy definition.
  */
-export function buildConfigValidator(policy: TRunPolicy) {
+function buildConfigValidator(policy: TRunPolicy) {
 	const validPlaces =
 		(policy.properties as Record<string, unknown>)?.place &&
 		(((policy.properties as Record<string, unknown>).place as Record<string, unknown>).enum as [string, ...string[]] | undefined);

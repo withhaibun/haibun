@@ -526,67 +526,21 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 					}
 				}
 
-				// 1. Check Proof (Speculative)
-				if (normalizedProofSteps.length > 0) {
-					const proof = await this.runner.runStatements(normalizedProofSteps, {
-						args: robustArgs,
-						intent: { mode: "speculative" },
-						parentStep: featureStep,
-					});
-
-					if (proof.ok) {
-						return OK;
-					}
+				const run = (steps: TStepInput[], intent: TFeatureStep["intent"]) => this.runner.runStatements(steps, { args: robustArgs, intent, parentStep: featureStep });
+				// An outcome whose proof already holds is reached.
+				if (normalizedProofSteps.length > 0 && (await run(normalizedProofSteps, { mode: "speculative" })).ok) return OK;
+				const ensuring = featureStep.intent?.stepperOptions?.isEnsure === true;
+				if (normalizedActivitySteps.length === 0) {
+					if (ensuring) return actionNotOK(`ActivitiesStepper: no activity body for outcome "${outcome}"`);
+					return proofStatements.length > 0 ? actionNotOK(`ActivitiesStepper: proof failed for outcome "${outcome}"`) : OK;
 				}
-
-				// 2. Proof Failed or not present
-				if (!featureStep.intent?.stepperOptions?.isEnsure) {
-					if (normalizedActivitySteps && normalizedActivitySteps.length > 0) {
-						const mode = featureStep.intent?.mode ?? "authoritative";
-						const act = await this.runner.runStatements(normalizedActivitySteps, {
-							args: robustArgs,
-							intent: { mode, usage: featureStep.intent?.usage },
-							parentStep: featureStep,
-						});
-						if (!act.ok) {
-							return actionNotOK(`ActivitiesStepper: activity body failed for outcome "${outcome}": ${act.errorMessage}`);
-						}
-						return OK;
-					}
-
-					if (proofStatements.length > 0) {
-						return actionNotOK(`ActivitiesStepper: proof failed for outcome "${outcome}"`);
-					}
-					return OK;
-				}
-
-				// 3. Ensure Mode: Run Activity Body
-				if (normalizedActivitySteps && normalizedActivitySteps.length > 0) {
-					const mode = featureStep.intent?.mode ?? "authoritative";
-					const act = await this.runner.runStatements(normalizedActivitySteps, {
-						args: robustArgs,
-						intent: { mode, usage: featureStep.intent?.usage },
-						parentStep: featureStep,
-					});
-					if (!act.ok) {
-						return actionNotOK(`ActivitiesStepper: activity body failed for outcome "${outcome}": ${act.errorMessage}`);
-					}
-
-					// 4. Verify Proof After Activity
-					if (normalizedProofSteps.length > 0) {
-						const verify = await this.runner.runStatements(normalizedProofSteps, {
-							args: robustArgs,
-							intent: { mode, usage: featureStep.intent?.usage },
-							parentStep: featureStep,
-						});
-						if (!verify.ok) {
-							return actionNotOK(`ActivitiesStepper: proof verification failed after activity body for outcome "${outcome}": ${verify.errorMessage}`);
-						}
-					}
-					return OK;
-				}
-
-				return actionNotOK(`ActivitiesStepper: no activity body for outcome "${outcome}"`);
+				const intent = { mode: featureStep.intent?.mode ?? "authoritative", usage: featureStep.intent?.usage };
+				const act = await run(normalizedActivitySteps, intent);
+				if (!act.ok) return actionNotOK(`ActivitiesStepper: activity body failed for outcome "${outcome}": ${act.errorMessage}`);
+				// `ensure` verifies the proof after the activity body runs.
+				if (!ensuring || normalizedProofSteps.length === 0) return OK;
+				const verify = await run(normalizedProofSteps, intent);
+				return verify.ok ? OK : actionNotOK(`ActivitiesStepper: proof verification failed after activity body for outcome "${outcome}": ${verify.errorMessage}`);
 			},
 		};
 

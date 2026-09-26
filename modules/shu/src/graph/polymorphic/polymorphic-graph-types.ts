@@ -19,7 +19,7 @@ export type Obj3D = {
 	remove?(child: unknown): void;
 };
 /** A quaternion as read for billboard orientation. */
-export type QLike = { x: number; y: number; z: number; w: number };
+type QLike = { x: number; y: number; z: number; w: number };
 
 /**
  * A node's render object behind ONE uniform handle, so pick, billboard, focus dimming and the opacity readback never

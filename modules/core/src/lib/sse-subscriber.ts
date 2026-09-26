@@ -42,7 +42,7 @@ type EventHandler = (event: THaibunEvent) => void;
 type EventFilter = (event: THaibunEvent) => boolean;
 
 /** Default cap for the per-subscriber replay buffer. Overrideable via SseSubscriberConfig. */
-export const REPLAY_BUFFER_LIMIT_DEFAULT = 5000;
+const REPLAY_BUFFER_LIMIT_DEFAULT = 5000;
 
 /**
  * Fixed-size FIFO of recently dispatched events. A `subscribe()` call
@@ -54,7 +54,7 @@ export const REPLAY_BUFFER_LIMIT_DEFAULT = 5000;
  * `replay` to a handler, or read `size` / `limit`. The buffer never
  * filters: that's a per-subscriber decision in `replay()`.
  */
-export class ReplayBuffer {
+class ReplayBuffer {
 	private readonly events: THaibunEvent[] = [];
 	private _totalRecorded = 0;
 	constructor(readonly limit: number) {
@@ -100,7 +100,7 @@ export class ReplayBuffer {
 	}
 }
 
-export type SseSubscriberConfig = {
+type SseSubscriberConfig = {
 	/** Full URL of the SSE endpoint, absolute for remote hosts, relative for same-origin. */
 	url: string;
 	/** Reconnect delay on error, in ms. Default 2000. */

@@ -26,7 +26,7 @@ export const RpcRequestSchema = z.object({
 	 *  asks the run to act, which is what a caller that knows nothing of this can only be doing. */
 	asks: z.enum(["read", "act"]).optional(),
 });
-export type TRpcRequest = z.infer<typeof RpcRequestSchema>;
+type TRpcRequest = z.infer<typeof RpcRequestSchema>;
 
 /** Marks an answer to a request whose presented authority failed verification, which a transport states as unauthenticated. */
 export const RPC_REFUSED = "refused";
@@ -44,8 +44,6 @@ export const RpcResponseSchema = z.object({
 	result: z.unknown().optional(),
 	error: z.string().optional(),
 });
-export type TRpcResponse = z.infer<typeof RpcResponseSchema>;
-
 /** Outgoing JSON-RPC 2.0 stream chunk to client. */
 export const RpcStreamSchema = z.object({
 	jsonrpc: z.literal("2.0"),
@@ -53,13 +51,11 @@ export const RpcStreamSchema = z.object({
 	stream: z.literal(true),
 	data: z.unknown(),
 });
-export type TRpcStream = z.infer<typeof RpcStreamSchema>;
-
 /** What a host answers a call it did not serve with. */
 const RpcRefusalSchema = z.object({ error: z.string().min(1) });
 
 /** A host's answer to a call: what it answered, or why it did not. */
-export type TRpcAnswer = { kind: "answered"; body: unknown } | { kind: "refused"; error: string };
+type TRpcAnswer = { kind: "answered"; body: unknown } | { kind: "refused"; error: string };
 
 /**
  * Read a host's answer to a call by the media type the answer states. A host answers every call it serves as JSON, and
@@ -95,7 +91,7 @@ export type TProveRequest = (request: { url: string; method: string; headers: Re
 export type TRpcEnvelope = Parameters<typeof rpcEnvelope>[0];
 
 /** A call as it is sent: its address, and the POST carrying its envelope under the headers made over it. */
-export type TRpcCall = { url: string; init: { method: "POST"; headers: Record<string, string>; body: string } };
+type TRpcCall = { url: string; init: { method: "POST"; headers: Record<string, string>; body: string } };
 
 /** Proving nothing: a call that invokes no action is sent with its headers as they are. */
 export const provesNothing: TProveRequest = (request) => Promise.resolve(request.headers);

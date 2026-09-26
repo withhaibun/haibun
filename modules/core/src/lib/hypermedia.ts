@@ -128,7 +128,7 @@ export function facetFields(topology: THypermediaTopology): string[] {
 /** How a reader reaches a property: a filter compares it, or a search reads its text. A property reached no way is
  *  held and shown, and answers no question a reader can ask. */
 export const REACHED_BY = { filter: "filter", search: "search" } as const;
-export type TReachedBy = (typeof REACHED_BY)[keyof typeof REACHED_BY];
+type TReachedBy = (typeof REACHED_BY)[keyof typeof REACHED_BY];
 
 /**
  * What a type offers a reader: per property, the primitive that reaches it, and per relation its records point through,
@@ -633,15 +633,11 @@ const DISPLAY_LABEL_SHARED: ReadonlyArray<{ rel: string; bare: boolean }> = [
 	{ rel: LinkRelations.NAME.rel, bare: true },
 	{ rel: LinkRelations.CONTENT.rel, bare: true },
 ];
-const DISPLAY_LABEL_HEADLINE: ReadonlyArray<{ rel: string; bare: boolean }> = [...DISPLAY_LABEL_EXPLICIT, ...DISPLAY_LABEL_SHARED];
 const DISPLAY_LABEL_WEAK: ReadonlyArray<{ rel: string; bare: boolean }> = [
 	{ rel: LinkRelations.SEQ_PATH.rel, bare: false },
 	{ rel: LinkRelations.SCHEMA_OBJECT.rel, bare: false },
 	{ rel: LinkRelations.CONTEXT.rel, bare: false },
 ];
-/** Full priority (headline then weak): the legacy single-list resolution order. */
-export const DISPLAY_LABEL_REL_PRIORITY: ReadonlyArray<{ rel: string; bare: boolean }> = [...DISPLAY_LABEL_HEADLINE, ...DISPLAY_LABEL_WEAK];
-
 /**
  * Whether a declared label resolves THROUGH the property, to the label of the individual it points at, rather than
  * reading the property's own value. The rel's declared range decides, so a type states only WHICH property titles it,
@@ -655,7 +651,7 @@ export type TTitledBy = { key: string; through: boolean };
 export type TDeclaredTitle = TTitledBy & { linkedLabel?: string };
 
 /** A value as a title: text or a number as it is, a list as its members. */
-export function titleOfValue(value: unknown): string | undefined {
+function titleOfValue(value: unknown): string | undefined {
 	if (typeof value === "string") return value.trim() || undefined;
 	if (typeof value === "number" || typeof value === "boolean") return String(value);
 	if (Array.isArray(value))
@@ -691,18 +687,8 @@ function resolveFromCandidates(
 	return undefined;
 }
 
-/**
- * Resolve a display label for an individual by walking `DISPLAY_LABEL_REL_PRIORITY`
- * against `getProperty(field)`. Returns the first non-empty value or undefined.
- * Server-side callers pass a closure over the individual row; client-side callers
- * pass a closure over the property quads.
- */
-export function resolveDisplayLabel(rels: Record<string, string> | undefined, getProperty: (field: string) => unknown): string | undefined {
-	return resolveFromCandidates(rels, getProperty, DISPLAY_LABEL_REL_PRIORITY);
-}
-
 /** Clamp a label to MAX_DISPLAY_LABEL_LEN: the one `ellipsize` every producer shares, after trimming. */
-export function clampDisplayLabel(s: string): string {
+function clampDisplayLabel(s: string): string {
 	return ellipsize(s.trim(), MAX_DISPLAY_LABEL_LEN);
 }
 
@@ -761,7 +747,7 @@ function resolveDeclaredLabel(args: { getProperty: (field: string) => unknown; d
  * content via `contentOfBody`. Feeds `composeDisplayLabel` where the preview must come
  * from quads rather than a server-side index.
  */
-export function linkedBodyContents(
+function linkedBodyContents(
 	subjectQuads: ReadonlyArray<{ object: unknown; objectType?: string }>,
 	contentOfBody: (bodySubject: string) => string | undefined,
 	bodyLabel: string = BODY_LABEL,

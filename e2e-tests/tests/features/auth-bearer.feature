@@ -69,6 +69,7 @@ Feature: Auth-bearer Authentication
         HTTP status is OK
         make an HTTP GET to Resources API
         HTTP status is Unauthorized
+        HTTP text response is "Must use application/json, not */*"
 
     Scenario: filter list of resources
         request OAuth 2.0 access token from Authorization Server

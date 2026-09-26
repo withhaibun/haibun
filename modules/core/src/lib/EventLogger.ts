@@ -9,11 +9,11 @@ import { accessBound, stepInFlight } from "./capability-context.js";
 import { writtenAt } from "./actions.js";
 import { Access } from "./resources.js";
 
-export type TIsSecretFn = (name: string) => boolean;
+type TIsSecretFn = (name: string) => boolean;
 
-export type TEventSubscriber = (event: THaibunEvent) => void;
+type TEventSubscriber = (event: THaibunEvent) => void;
 
-export type TSubscribeOptions = {
+type TSubscribeOptions = {
 	kinds?: readonly TEventKind[];
 	/** Delivers only blips whose declared name matches an entry, exactly or as a dotted prefix (`haibun.http` matches
 	 *  `haibun.http.request`). Requires `kinds` to include `"blip"`: it filters within the blip audience. */

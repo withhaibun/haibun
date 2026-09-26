@@ -8,10 +8,8 @@ import { MODULE_OPTION_PREFIX } from "../schema/protocol.js";
 // Specl (runtime config file)
 // ============================================================================
 
-export const RemoteStepperSchema = zr.object({ remote: zr.string() });
-export type TRemoteStepper = z.infer<typeof RemoteStepperSchema>;
-
-export const StepperEntrySchema = zr.union([zr.string(), RemoteStepperSchema]);
+const RemoteStepperSchema = zr.object({ remote: zr.string() });
+const StepperEntrySchema = zr.union([zr.string(), RemoteStepperSchema]);
 export type TStepperEntry = z.infer<typeof StepperEntrySchema>;
 
 export const SpeclSchema = zr.looseObject({
@@ -39,7 +37,7 @@ export type TSpecl = z.infer<typeof SpeclSchema>;
 // Feature content (the .feature file shape)
 // ============================================================================
 
-export type TFeatureMeta = {
+type TFeatureMeta = {
 	base: string;
 	name: string;
 	path: string;

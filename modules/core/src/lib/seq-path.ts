@@ -15,7 +15,7 @@ import { z } from "zod";
 import { EXECUTION_MODES, HAIBUN_LOG_LEVELS } from "../schema/protocol.js";
 import { LinkRelations, PersistedVertexSchema, PRINCIPAL_LABEL, SEQ_PATH_LABEL, SEQ_PATH_STATUS, type TDomainDefinition } from "./resources.js";
 
-export const SEQ_PATH_DOMAIN = "seq-path";
+const SEQ_PATH_DOMAIN = "seq-path";
 
 /** Format a hierarchical seqPath number array as the canonical string id (e.g. [0,1,2,5] → "0.1.2.5"). */
 export function formatSeqPath(seqPath: number[]): string {
@@ -40,7 +40,7 @@ export function calledParts(called: string): { stepperName: string; actionName: 
 }
 
 /** What separates a fact's seqPath from the field it names, where a step's product has a domain for each field. */
-export const FACT_FIELD_MARK = "#";
+const FACT_FIELD_MARK = "#";
 
 /** A fact's id: the seqPath of the step that produced it, and the field of the product it is, where it is one. */
 export function factIdOf(seqPathKey: string, field?: string): string {

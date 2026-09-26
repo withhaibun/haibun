@@ -20,7 +20,7 @@ const ProductSchema = z.looseObject({
 const ProductWithViewSchema = ProductSchema.extend({ [PRODUCT_KEY.VIEW]: z.string() });
 
 /** Envelope subtype for payloads that carry products containing a concrete view. */
-export const HasProductsWithViewSchema = z.looseObject({ [PRODUCT_KEY.PRODUCTS]: z.unknown() }).transform((value, ctx) => {
+const HasProductsWithViewSchema = z.looseObject({ [PRODUCT_KEY.PRODUCTS]: z.unknown() }).transform((value, ctx) => {
 	const rec = findAffordanceRecord(value[PRODUCT_KEY.PRODUCTS]);
 	const parsed = ProductWithViewSchema.safeParse(rec);
 	if (!parsed.success) {
@@ -32,7 +32,7 @@ export const HasProductsWithViewSchema = z.looseObject({ [PRODUCT_KEY.PRODUCTS]:
 
 export type TAffordanceView = { id: string; description: string; component: string };
 
-export type TAffordanceProductAction =
+type TAffordanceProductAction =
 	| { kind: "none" }
 	| { kind: "open-component"; view: string; component: string; label: string; products: Record<string, unknown> }
 	| { kind: "show-views"; views: TAffordanceView[]; label: string };

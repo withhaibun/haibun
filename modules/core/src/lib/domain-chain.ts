@@ -18,7 +18,7 @@ import { stepParamDomains } from "./step-registry.js";
 /** Sentinel source domain for terminal producers (steps that need no inputs). */
 export const SOURCE_DOMAIN = "∅";
 
-export type TDomainChainNode = {
+type TDomainChainNode = {
 	key: string;
 	description?: string;
 	hasTopology: boolean;
@@ -35,7 +35,7 @@ export type TDomainChainStep = {
 	capability: string;
 };
 
-export type TDomainChainEdge = {
+type TDomainChainEdge = {
 	from: string;
 	to: string;
 	stepperName: string;

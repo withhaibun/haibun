@@ -76,7 +76,7 @@ const GraphLayoutSchema = z.object({
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-export function loadBundle(): string {
+function loadBundle(): string {
 	const bundlePath = join(__dirname, "..", "build", "shu-bundle.js");
 	try {
 		return readFileSync(bundlePath, "utf-8");
@@ -177,10 +177,10 @@ function createSpaHandler(basePath: string, settings: () => TDeploymentSettings)
 // The graph view's bundled IIFE, under build/assets/ so tsc's per-file ESM emit cannot clobber it. Anchored at the
 // package root so one path resolves whether this runs from `src/` or `build/`, and cached by mtime so a rebuilt
 // bundle is served on the next request.
-export const POLYMORPHIC_VIEW_JS = "/assets/shu-polymorphic-graph-view.js";
+const POLYMORPHIC_VIEW_JS = "/assets/shu-polymorphic-graph-view.js";
 /** Where the served page's source map is read from. The bundle is inlined in the page, so the map is addressed
  *  absolutely rather than beside a file that is never fetched; only a reader with developer tools open asks for it. */
-export const SPA_SOURCE_MAP = "/assets/shu-bundle.js.map";
+const SPA_SOURCE_MAP = "/assets/shu-bundle.js.map";
 const POLYMORPHIC_BUNDLE_PATH = join(__dirname, "..", "build", "assets", "shu-polymorphic-graph-view.js");
 let polymorphicBundleCache: { mtimeMs: number; content: string } | undefined;
 const loadPolymorphicBundle = (): { content: string; etag: string } => {

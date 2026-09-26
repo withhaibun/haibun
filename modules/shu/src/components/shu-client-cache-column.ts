@@ -49,7 +49,7 @@ const EmptySchema = z.object({});
 const IDS = SHU_TEST_IDS.CLIENT_CACHE;
 /** How soon after a change the device is read again: the stream can change many times a second, the device once in this.
  *  Short enough that what the device caches is reported as it happens, long enough that a burst is one read. */
-export const DEVICE_READ_DELAY_MS = 150;
+const DEVICE_READ_DELAY_MS = 150;
 
 const at = (t: number | undefined): string => (t === undefined || !Number.isFinite(t) ? "" : new Date(t).toISOString().slice(11, 23));
 /** The feature the run being read declared, from the first rows of it a view has read. A run declares its feature at

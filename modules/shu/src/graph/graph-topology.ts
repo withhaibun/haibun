@@ -14,7 +14,7 @@ import { isReplyEdge } from "@haibun/core/lib/resources.js";
 import { type PropertyClassifier, type TGraphViewOpts, isUri } from "../graph-classifier.js";
 import { EDGE_KIND, NODE_KIND, type TGraph, type TGraphNode, type TGraphEdge, type TGraphGroup, type TGraphStyle } from "./types.js";
 
-export type GraphTopology = { graph: TGraph; nodeMap: Map<string, { graph: string; subject: string }> };
+type GraphTopology = { graph: TGraph; nodeMap: Map<string, { graph: string; subject: string }> };
 
 const TEMPORAL_RELS = new Set<string>([LinkRelations.GENERATED_AT_TIME.rel, LinkRelations.PUBLISHED.rel, LinkRelations.UPDATED.rel, LinkRelations.VALID_FROM.rel]);
 const SUPPRESSED_PROP_RELS = new Set<string>([LinkRelations.MEDIA_TYPE.rel]);
@@ -26,8 +26,6 @@ const REF_PREFIX = `ref${NODE_DELIM}`;
 
 const isOpaqueId = (s: string): boolean => /^urn:uuid:/.test(s) || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-/i.test(s);
 export const isSummaryId = (id: string): boolean => id.endsWith(SUMMARY_SUFFIX);
-export const summaryGraphOf = (id: string): string => id.slice(0, -SUMMARY_SUFFIX.length);
-
 /** Edge kind by reply/context/attachment role, mapped to the SVG paint's edge styles (reply bold, context dashed). */
 function edgeKind(predicate: string, rel: string | undefined): TGraphEdge["kind"] {
 	if (rel === LinkRelations.IN_REPLY_TO.rel || isReplyEdge(predicate)) return EDGE_KIND.reply;

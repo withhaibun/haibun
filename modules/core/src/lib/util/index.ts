@@ -236,12 +236,6 @@ export function getStepperOption(stepper: AStepper, name: string, moduleOptions:
 	return moduleOptions[key];
 }
 
-/**
- * Find a stepper by option value from a list of steppers
- */
-export function maybeFindStepperFromOption<Type>(steppers: AStepper[], stepper: AStepper, moduleOptions: TModuleOptions, ...optionNames: string[]): Type {
-	return doFindStepperFromOption(steppers, stepper, moduleOptions, true, ...optionNames);
-}
 export function findStepperFromOption<Type>(steppers: AStepper[], stepper: AStepper, moduleOptions: TModuleOptions, ...optionNames: string[]): Type {
 	return doFindStepperFromOption(steppers, stepper, moduleOptions, false, ...optionNames);
 }

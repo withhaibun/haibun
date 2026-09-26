@@ -11,7 +11,7 @@
  */
 
 /** 24-colour palette, broad enough that a typical schema (under ~20 node types) gets distinct colours, with collision-resistant spacing across the wheel. */
-export const TYPE_PALETTE: ReadonlyArray<string> = [
+const TYPE_PALETTE: ReadonlyArray<string> = [
 	"#8ecae6", // pale blue
 	"#ffb703", // amber
 	"#90be6d", // green

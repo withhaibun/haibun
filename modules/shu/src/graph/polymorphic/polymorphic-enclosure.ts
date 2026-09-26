@@ -57,7 +57,7 @@ export type Enclosure = { box: Obj3D; boxMat: EnclMaterial; edges: Obj3D; edgeMa
 
 /** Live refs + queries the component exposes; every getter is read at CALL time so a per-repaint nodeMap or a
  *  theme-recoloured colour is always current, never copied. */
-export type EnclosureDeps = {
+type EnclosureDeps = {
 	three: () => EnclosureThree | undefined; // the scene's OWN bundled THREE (AFRAME.THREE), null until the scene loads
 	nodeMap: () => Map<string, FGNode>;
 	groupBy: () => GroupKeyMode;

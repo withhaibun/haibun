@@ -19,10 +19,10 @@ import { describe, it, expect, beforeEach } from "vitest";
 import type { IQuadStore, TQuad, TSearchCondition } from "../quad-types.js";
 
 /** The two types a store under test registers: the cases keep facts apart by naming two of them. */
-export type TConformanceGraphs = { first: string; second: string };
+type TConformanceGraphs = { first: string; second: string };
 
 /** What a store says of itself, where stores differ by design rather than by defect. */
-export type TStoreNature = {
+type TStoreNature = {
 	/** False for an authoritative store that keeps what it holds: asking it to discard is not something it does. */
 	discards?: boolean;
 };

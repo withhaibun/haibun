@@ -31,8 +31,8 @@ type TForwardEdge = Omit<TForwardAffordance, "method">;
 /** Minimal goal-resolver path shape the projection consumes. The full TMichi
  * carries bindings (composite / fact / argument trees) too; the chain projection
  * only needs the step list to tag schema edges. */
-export type TPathStepRef = { stepperName: string; stepName: string };
-export type TGoalPathRef = { steps: TPathStepRef[] };
+type TPathStepRef = { stepperName: string; stepName: string };
+type TGoalPathRef = { steps: TPathStepRef[] };
 
 export type TAffordancesSnapshot = {
 	forward: TForwardEdge[];

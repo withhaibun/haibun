@@ -12,7 +12,7 @@ import type { TRequestSigner } from "./authority-types.js";
 import type { AccessLevel } from "./resources.js";
 import type { IQuadStore, TClusteredQuads, TClusteredQuadsOpts, TDensityQuery, TDensityResult, TQuad, TQuadPattern } from "./quad-types.js";
 
-export type TRemoteQuadStoreConfig = { url: string; sign: TRequestSigner; graphs: string[]; fetchImpl?: typeof fetch };
+type TRemoteQuadStoreConfig = { url: string; sign: TRequestSigner; graphs: string[]; fetchImpl?: typeof fetch };
 
 export class RemoteQuadStore implements IQuadStore {
 	readonly isRemote = true;

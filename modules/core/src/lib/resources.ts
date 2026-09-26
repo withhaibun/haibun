@@ -36,15 +36,13 @@ export const ResourceSchema = z.object({
 	id: z.string(),
 	type: z.string(),
 });
-export type TResource = z.infer<typeof ResourceSchema>;
-
 /** Root node label: any resource. Use as edge range when the target is polymorphic. */
 export const RESOURCE_LABEL = "Resource";
 
 /** haibun's canonical vocabulary namespace: the fallback base when no serving host is known, and the stem a consumer
  *  publishes a sub-vocabulary beneath. A served @context binds `hbn` under the request host instead. */
 export const HAIBUN_NS = "https://withhaibun.github.io/ns/";
-export const HAIBUN_NS_PATH = "/ns/";
+const HAIBUN_NS_PATH = "/ns/";
 /** The @context prefix bound to the haibun namespace. Any other prefix names a separate vocabulary, not haibun's. */
 export const HAIBUN_PREFIXES = ["hbn"] as const;
 
@@ -53,13 +51,6 @@ export const HAIBUN_PREFIXES = ["hbn"] as const;
 export function haibunNsForHost(baseOrigin?: string): string {
 	return baseOrigin ? `${baseOrigin.replace(/\/+$/, "")}${HAIBUN_NS_PATH}` : HAIBUN_NS;
 }
-
-/**
- * A projected JSON-LD individual carries two keywords: `@id` (its IRI) and `@type` (its label).
- * `jsonLdIndividualOf` stamps them onto a domain schema for a single `@type` and rejects unexpected
- * fields, so a stepper's query/entity products are validated as strict JSON-LD nodes of a known type.
- */
-export const jsonLdIndividualOf = (type: string, fields: z.ZodObject<z.ZodRawShape>) => fields.extend({ "@id": z.string(), "@type": z.literal(type) }).strict();
 
 // ============================================================================
 // Access levels
@@ -99,8 +90,6 @@ export const AccessQuery = AccessQueryLevelSchema.enum;
 export const PersistedVertexSchema = z.object({
 	accessLevel: AccessLevelSchema.optional().describe("How widely the record is shared. A record stating no level is classified by its type at write time."),
 });
-export type TPersistedVertex = z.infer<typeof PersistedVertexSchema>;
-
 /** How much of the graph each level lets a reader see, so two of them can be compared: a reader at a level sees the
  *  records at that level and at each level narrower than it, so private sees every record and public the public ones. */
 const ACCESS_BREADTH: Record<AccessLevel, number> = { public: 0, opened: 1, private: 2 };
@@ -173,13 +162,9 @@ export const MEDIA_TYPE = {
 	html: "text/html",
 	json: "application/json",
 } as const;
-export const BODY_DOMAIN = "body";
+const BODY_DOMAIN = "body";
 /** Edge from any resource to a Body sub-resource. */
 export const HAS_BODY_EDGE = "hasBody";
-
-/** Document: a markdown text held as a record, identified by the path it was registered from. Its links are facts (see `deriveTypedLinks`). */
-export const DOCUMENT_LABEL = "Document";
-export const DOCUMENT_DOMAIN = "document";
 
 /**
  * Reading: one reading of a text, asserting what its links state (`prov:Activity`). One per source. It names the
@@ -187,7 +172,7 @@ export const DOCUMENT_DOMAIN = "document";
  * retracts exactly what the previous reading asserted and nothing a person asserted by hand.
  */
 export const READING_LABEL = "Reading";
-export const READING_DOMAIN = "reading";
+const READING_DOMAIN = "reading";
 
 /**
  * SeqPath: the hierarchical step identifier reified as a graph node.
@@ -246,7 +231,7 @@ export type TRelRange = "iri" | "literal" | "container";
  *                  mixed into content fields.
  * Rels with no presentation default to the regular field table.
  */
-export type TRelPresentation = "summary" | "body" | "governance";
+type TRelPresentation = "summary" | "body" | "governance";
 
 /**
  * Optional per-rel metadata. RDFS-aligned:
@@ -474,7 +459,7 @@ export const EdgePredicates = {
 	wasGeneratedBy: { rel: LinkRelations.WAS_GENERATED_BY.rel },
 } as const;
 
-export type TEdgePredicate = keyof typeof EdgePredicates;
+type TEdgePredicate = keyof typeof EdgePredicates;
 
 /** Edge predicate name strings, use `EDGE.from` instead of `"from"`. */
 export const EDGE: { [K in TEdgePredicate]: K } = Object.fromEntries(Object.keys(EdgePredicates).map((k) => [k, k])) as {
@@ -582,7 +567,7 @@ export function toActorRels(): ReadonlySet<string> {
  * `kind` distinguishes multiple bodies of the same media type on one parent
  * (e.g. a Proposal carrying both rationale and proposedAction in markdown).
  */
-export type TContentPropertyDef = { rel: "content"; mediaType: string; kind?: string };
+type TContentPropertyDef = { rel: "content"; mediaType: string; kind?: string };
 
 /**
  * A property whose genuine vocabulary IRI is not its rel's default. The rel still drives behaviour (sort, facet,
@@ -637,7 +622,7 @@ export type TEdgeDef = {
  * with their declared domain. A field with no ranges entry is treated as
  * primitive by the resolver (resolves to an `argument` binding).
  */
-export type TDomainRanges = Record<string, string>;
+type TDomainRanges = Record<string, string>;
 
 /**
  * Hypermedia topology, fully describes a persisted domain. Required together:
@@ -719,7 +704,7 @@ export type THypermediaTopology = {
  * step *input* composite shapes). Carries only `ranges`; the hypermedia
  * builder skips it; only the resolver reads it.
  */
-export type TRangesTopology = {
+type TRangesTopology = {
 	ranges: TDomainRanges;
 };
 
@@ -753,14 +738,14 @@ export const DOMAIN_PERSISTED_TYPE = "persisted-type";
 // ============================================================================
 
 /** Coercion function: parse a step value (or other proto) into the domain's native representation. */
-export type TDomainCoercer = (
+type TDomainCoercer = (
 	proto: import("../schema/protocol.js").TStepValue,
 	featureStep?: import("./astepper.js").TFeatureStep,
 	steppers?: import("./astepper.js").AStepper[],
 ) => import("../schema/protocol.js").TStepValueValue;
 
 /** Comparator between two coerced domain values. */
-export type TDomainComparator = (value: import("../schema/protocol.js").TStepValueValue, baseline: import("../schema/protocol.js").TStepValueValue) => number;
+type TDomainComparator = (value: import("../schema/protocol.js").TStepValueValue, baseline: import("../schema/protocol.js").TStepValueValue) => number;
 
 export type TDomainDefinition = {
 	selectors: string[];
@@ -782,22 +767,8 @@ export type TDomainDefinition = {
 	ui?: Record<string, unknown>;
 };
 
-export type TRegisteredDomain = {
-	selectors: string[];
-	schema: z.ZodType;
-	coerce: TDomainCoercer;
-	comparator?: TDomainComparator;
-	values?: string[];
-	/** Whether a word names a member, for a domain whose members are what is registered: too many to list where a step is
-	 *  described, so a bare word is read by this rather than by `values`. */
-	names?: (term: string) => boolean;
-	/** Whether its value is the term its line writes, never a variable or an environment value the term names. */
-	written?: boolean;
-	description: string;
-	stepperName?: string;
-	topology?: TDomainTopology;
-	ui?: Record<string, unknown>;
-};
+/** A domain as registration holds it: its definition, with the coercer that its schema gives where it states none. */
+export type TRegisteredDomain = TDomainDefinition & { coerce: TDomainCoercer };
 
 // ============================================================================
 // Comment schema + domain definition
@@ -925,7 +896,7 @@ export const commentDomainDefinition: TDomainDefinition = {
  * Only PUBLIC material persists: there is no private-key field, by design.
  */
 
-export const PrincipalSchema = PersistedVertexSchema.extend({
+const PrincipalSchema = PersistedVertexSchema.extend({
 	id: z.string(),
 	/** as:name: an optional human name for this Principal (a DID has none intrinsically). Lets a party be titled by a readable name instead of its DID; resolves as the display headline (rdfs:label → as:name priority). Named `name`, not `label`, so it is a queryable column: `label` is a reserved column name in a graph store. */
 	name: z.string().optional(),
@@ -1084,7 +1055,7 @@ export const bodyDomainDefinition: TDomainDefinition = {
  * (oa:suffix). Content-anchored: the anchor survives re-import and re-rendering
  * of the source, which byte offsets would not.
  */
-export const TEXT_QUOTE_SELECTOR_DOMAIN = "text-quote-selector";
+const TEXT_QUOTE_SELECTOR_DOMAIN = "text-quote-selector";
 
 /**
  * A passage located by quoting it (a Web Annotation TextQuoteSelector's fields), optionally disambiguated by the text
@@ -1103,8 +1074,6 @@ export const TextQuoteSelectorSchema = QuoteAnchorSchema.extend({
 	id: z.string(),
 	generatedAtTime: z.string(),
 });
-export type TTextQuoteSelector = z.infer<typeof TextQuoteSelectorSchema>;
-
 export const textQuoteSelectorDomainDefinition: TDomainDefinition = {
 	selectors: [TEXT_QUOTE_SELECTOR_DOMAIN],
 	schema: TextQuoteSelectorSchema,
@@ -1139,7 +1108,7 @@ export const textQuoteSelectorDomainDefinition: TDomainDefinition = {
  * is titled through oa:hasSelector by the passage its selector locates, see `displayLabel` below. It takes no name of
  * its own: the model gives oa:SpecificResource none.
  */
-export const SPECIFIC_RESOURCE_DOMAIN = "specific-resource";
+const SPECIFIC_RESOURCE_DOMAIN = "specific-resource";
 
 export const SpecificResourceSchema = PersistedVertexSchema.extend({
 	id: z.string(),
@@ -1149,8 +1118,6 @@ export const SpecificResourceSchema = PersistedVertexSchema.extend({
 	 *  nothing about what it was cited for. RDFS's labelling property is the standard place for the words that do. */
 	label: z.string().optional(),
 });
-export type TSpecificResource = z.infer<typeof SpecificResourceSchema>;
-
 export const specificResourceDomainDefinition: TDomainDefinition = {
 	selectors: [SPECIFIC_RESOURCE_DOMAIN],
 	schema: SpecificResourceSchema,
@@ -1178,7 +1145,7 @@ export const specificResourceDomainDefinition: TDomainDefinition = {
 // ============================================================================
 
 /** One reading: what it read, when, in which step, and the statements it made. */
-export const ReadingSchema = PersistedVertexSchema.extend({
+const ReadingSchema = PersistedVertexSchema.extend({
 	id: z.string(),
 	generatedAtTime: z.string(),
 	seqPath: z.string().optional(),
@@ -1221,9 +1188,9 @@ export const readingDomainDefinition: TDomainDefinition = {
  * to the scene that shows it.
  */
 export const SCENE_LABEL = "Scene";
-export const SCENE_DOMAIN = "scene";
+const SCENE_DOMAIN = "scene";
 
-export const SceneSchema = PersistedVertexSchema.extend({
+const SceneSchema = PersistedVertexSchema.extend({
 	id: z.string().describe("The scene's name: what a reader picks it by, and what a link to it names."),
 	generatedAtTime: z.string(),
 	/** The views' options as JSON, keyed by element tag: `{"shu-polymorphic-graph-view": {…}}`. Opaque to the graph; each view validates its own on apply. */
@@ -1252,7 +1219,7 @@ export const sceneDomainDefinition: TDomainDefinition = {
 /** Which side of an annotated quote its context sits on: "preceded by" makes the context the TextQuoteSelector prefix,
  *  "followed by" the suffix, so a short or repeated quote resolves to the intended occurrence. */
 export const ANNOTATION_PLACEMENT_DOMAIN = "annotation-placement";
-export const AnnotationPlacementSchema = z.enum(["preceded by", "followed by"]);
+const AnnotationPlacementSchema = z.enum(["preceded by", "followed by"]);
 export type TAnnotationPlacement = z.infer<typeof AnnotationPlacementSchema>;
 export const annotationPlacementDomainDefinition: TDomainDefinition = {
 	selectors: [ANNOTATION_PLACEMENT_DOMAIN],
@@ -1262,7 +1229,7 @@ export const annotationPlacementDomainDefinition: TDomainDefinition = {
 
 export const ANNOTATION_NOTE_DOMAIN = "annotation-note";
 
-export const AnnotationNoteSchema = z
+const AnnotationNoteSchema = z
 	.object({
 		label: z.string().describe("The persisted type of the annotated individual."),
 		id: z.string().describe("The annotated individual's id."),
@@ -1312,7 +1279,7 @@ export type TDiscourseStore = {
 
 /** A Comment's display name: its note text on one line, truncated so a graph view titles by what it says, not its id. */
 const COMMENT_NAME_MAX = 60;
-export function commentName(text: string): string {
+function commentName(text: string): string {
 	const oneLine = text.replace(/\s+/g, " ").trim();
 	return oneLine.length > COMMENT_NAME_MAX ? `${oneLine.slice(0, COMMENT_NAME_MAX - 1)}…` : oneLine;
 }
@@ -1364,7 +1331,7 @@ export async function createComment(
  *  making a short or repeated quote resolve reliably) plus a SpecificResource naming the source and the selector. Returns
  *  both ids it wrote. The SpecificResource is what a Comment's oa:hasTarget (anchor) or oa:hasBody linksTo (cross-reference)
  *  points at; the selector id lets a caller that owns the anchor retract the pair. */
-export async function anchorPassage(
+async function anchorPassage(
 	store: TDiscourseStore,
 	sourceLabel: string,
 	sourceId: string,
@@ -1559,7 +1526,7 @@ export async function readTypedLinks(
  * ancestry without bundling the const itself. One source of truth, one
  * projection, no graph-stored copy that could diverge.
  */
-export type TPropertyDefinition = {
+type TPropertyDefinition = {
 	id: string;
 	iri: string;
 	range: TRelRange;

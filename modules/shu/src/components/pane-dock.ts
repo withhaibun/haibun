@@ -13,7 +13,7 @@ import { startPointerDrag } from "./pointer-drag.js";
 import type { TControllerHost } from "./controller-host.js";
 
 /** What the dock reads from its pane and how it changes it. */
-export type TPaneDockDeps = {
+type TPaneDockDeps = {
 	/** The pane's key, stated as the docked pane. */
 	key: () => string;
 	docked: () => boolean;

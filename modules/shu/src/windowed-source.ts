@@ -34,7 +34,7 @@ export interface WindowedSource<T> {
  * among them, what marks the whole set puts on it, and what a press on a place asks the set for. The renderer draws
  * places and knows nothing of what they mean.
  */
-export type TSourceRail = {
+type TSourceRail = {
 	/** How many places the rail has. A place is what a mark sits at and what a press names. */
 	readonly places: number;
 	/** Where the row at `index` sits among those places. */
@@ -71,7 +71,7 @@ export function arrayWindowedSource<T>(
 }
 
 /** Fetch the rows for `[start, end)`. May return fewer than requested at the end of the data. */
-export type TPageFetcher<T> = (start: number, end: number) => Promise<readonly T[]>;
+type TPageFetcher<T> = (start: number, end: number) => Promise<readonly T[]>;
 
 /** A paged source for data too large to cache cached (up to millions): rows are fetched a page at a time on
  *  ensureRange, cached in a bounded window (pages far from the last request are evicted so memory stays flat regardless
@@ -87,7 +87,7 @@ export function lazyWindowedSource<T>(opts: {
 }
 
 /** A source that fetches its rows, with what a caller that fetches them itself needs of it. */
-export type TPagedSource<T> = WindowedSource<T> & {
+type TPagedSource<T> = WindowedSource<T> & {
 	/** Re-probe the tail and notify: call after `count()` grows (a live append) or a previously-capped fetch can now
 	 *  return more, so a partial last page is re-fetched and the view re-renders. */
 	notifyCountChanged(): void;

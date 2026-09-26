@@ -17,7 +17,7 @@ export const StepperKinds = {
 	TAIWA: "TAIWA",
 } as const;
 
-export type TStepperKind = keyof typeof StepperKinds;
+type TStepperKind = keyof typeof StepperKinds;
 
 export abstract class AStepper {
 	/** What the stepper's steps do, as a caller discovering the run reads it beside the stepper's name. */
@@ -115,7 +115,7 @@ export type TStepAction = {
 	stepValuesMap?: TStepValuesMap;
 };
 
-export type TStepValuesMap = Record<string, TStepValue>;
+type TStepValuesMap = Record<string, TStepValue>;
 
 // ============================================================================
 // Stepper step shape

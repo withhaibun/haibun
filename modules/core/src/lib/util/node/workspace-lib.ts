@@ -41,9 +41,6 @@ export function getPackageLocation(meta: TImportMeta) {
 	return dirname(fileURLToPath(meta.url));
 }
 
-export const getFilename = (meta: TImportMeta) => fileURLToPath(meta.url);
-export const getDirname = (meta: TImportMeta) => fileURLToPath(new URL(".", meta.url));
-
 function getWorkspaceRoot() {
 	let currentDir = path.resolve(process.cwd());
 
@@ -105,7 +102,7 @@ export function getModuleLocation(name: string) {
 	return path.resolve(workspaceRoot, name);
 }
 
-export async function getStepper(s: string) {
+async function getStepper(s: string) {
 	try {
 		const loc = getModuleLocation(s);
 		const S: CStepper = await use(loc);

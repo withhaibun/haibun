@@ -1,4 +1,4 @@
-import { z } from "zod";
+
 import { ViewQuerySchema } from "../view-query.js";
 
 /**
@@ -8,4 +8,3 @@ import { ViewQuerySchema } from "../view-query.js";
  * @haibun/core (via the stepper) into the bundle.
  */
 export const ViewQueryControlSchema = ViewQuerySchema.partial();
-export type TViewQueryControl = z.infer<typeof ViewQueryControlSchema>;

@@ -27,7 +27,7 @@ import { SSETransport, TRANSPORT, type ITransport } from "./sse-transport.js";
 import type { IStepTransport } from "./step-transport.js";
 
 /** What holding authority over this instance's web server means: ending the process that serves it. */
-export const WEB_SERVER_CAPABILITIES = { stop: "WebServer:stop" } as const;
+const WEB_SERVER_CAPABILITIES = { stop: "WebServer:stop" } as const;
 /** The domain of the ports this process listens on, each with why it listens. */
 const DOMAIN_LISTENING_PORTS = "listening-ports";
 const ListeningPortsSchema = z.object({ ports: z.record(z.string(), z.string()) });
@@ -335,7 +335,3 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 
 export default WebServerStepper;
 
-export interface IWebServerStepper {
-	webserver: IWebServer;
-	close: () => void;
-}

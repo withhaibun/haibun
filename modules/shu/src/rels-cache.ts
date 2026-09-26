@@ -16,7 +16,7 @@ import type { TQuad } from "@haibun/core/lib/quad-types.js";
  *   subPropertyOf: parent rel (rdfs:subPropertyOf) for ancestry walks.
  *   presentation: rendering bucket: "summary" | "body" | "governance".
  */
-export interface PropertyDefinition {
+interface PropertyDefinition {
 	iri: string;
 	range: "iri" | "literal" | "container";
 	label?: string;
@@ -140,7 +140,7 @@ export function getEdgeTargetLabels(edgeType: string, sourceLabel?: string): str
 
 /** The one type an edge points at, where it points at one. Where it may point at several, the record at its end states
  *  its own type. */
-export function getEdgeTargetLabel(edgeType: string, sourceLabel?: string): string | undefined {
+function getEdgeTargetLabel(edgeType: string, sourceLabel?: string): string | undefined {
 	const labels = getEdgeTargetLabels(edgeType, sourceLabel);
 	return labels?.length === 1 ? labels[0] : undefined;
 }
@@ -152,7 +152,7 @@ export function edgeRecordType(label: string, field: string): string | undefined
 }
 
 /** Get cached properties for a label. */
-export function getProperties(label: string): string[] | undefined {
+function getProperties(label: string): string[] | undefined {
 	return metadata?.properties[label];
 }
 

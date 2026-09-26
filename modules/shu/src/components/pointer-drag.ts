@@ -7,7 +7,7 @@
  * driving it, and the drag is keyed to the pointer that started it, so a second finger cannot take one over.
  */
 
-export type TPointerDrag = {
+type TPointerDrag = {
 	/** Where the pointer is now. Called for every move of the pointer that started the drag. */
 	onMove: (e: PointerEvent) => void;
 	/** The drag is over: released or cancelled. Not called when the drag is stopped by its own holder. */

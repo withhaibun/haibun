@@ -23,12 +23,12 @@ export const GRAPH_REGULATION_BLIP = "haibun.shu.graph.regulation";
 /** What wakes a scene for a discrete change: the visible model changed, the camera moved, the arrangement changed, the
  *  container or canvas resized, the theme changed, the active node's breath, a focus to apply, the pointer moved over
  *  the canvas, a label's text was laid out, or particles travel a fresh link. */
-export const WAKE_CAUSES = ["data", "camera", "arrange", "resize", "theme", "breath", "focus", "pointer", "label", "particles"] as const;
+const WAKE_CAUSES = ["data", "camera", "arrange", "resize", "theme", "breath", "focus", "pointer", "label", "particles"] as const;
 export type TWakeCause = (typeof WAKE_CAUSES)[number];
 
 /** Why a scene draws: nothing (it rests), a motion in progress (a drag, a tween, the engine settling, a magnify
  *  easing), or a discrete change within its grace, named by what caused it. Bounded, so it is a dimension. */
-export const DRAWING_REASONS = ["rest", "drag", "tween", "settle", "magnify", ...WAKE_CAUSES] as const;
+const DRAWING_REASONS = ["rest", "drag", "tween", "settle", "magnify", ...WAKE_CAUSES] as const;
 export type TDrawingReason = (typeof DRAWING_REASONS)[number];
 
 /** A scene's reason to draw changed: `reason` is why it draws from now, `was` why it drew before, and `value` how long it
@@ -37,7 +37,7 @@ export type TDrawingReason = (typeof DRAWING_REASONS)[number];
  *  many short changes. */
 export const GRAPH_DRAWING_BLIP = "haibun.shu.graph.drawing";
 
-export const GRAPH_BLIPS: TBlipDeclaration[] = [
+const GRAPH_BLIPS: TBlipDeclaration[] = [
 	{
 		name: GRAPH_DRAWING_BLIP,
 		instrument: "span-event",

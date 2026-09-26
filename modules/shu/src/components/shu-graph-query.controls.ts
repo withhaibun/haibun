@@ -14,8 +14,8 @@ const VIEW_QUERY = "view-query";
 // How many reads a witness gives a record to reach the table, at pollUntil's interval: a live record crosses the server,
 // the event stream and a trailing pause before the view asks again.
 const LISTED_TRIES = 50;
-export const DOMAIN_SEARCH_TEXT = "search-text";
-export const DOMAIN_SORT_FIELD = "sort-field";
+const DOMAIN_SEARCH_TEXT = "search-text";
+const DOMAIN_SORT_FIELD = "sort-field";
 
 const viewQueryDomains: TDomainDefinition[] = [
 	{ selectors: [VIEW_QUERY], schema: ViewQueryControlSchema, description: "A change to the graph query view, type, text search, or sort", ui: { component: "shu-graph-query" } },

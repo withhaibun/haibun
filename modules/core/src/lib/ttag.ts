@@ -1,7 +1,7 @@
 import { Timer } from "../schema/protocol.js";
 import { DEFAULT_HOST_ID } from "./host-id.js";
 
-export type TTagValue = number;
+type TTagValue = number;
 export type TTag = {
 	key: string;
 	/**

@@ -13,7 +13,7 @@ import { capabilityAllows, FOLLOWS_THE_RUN, readAction } from "@haibun/core/lib/
 import { Access, AccessLevelSchema, type AccessLevel } from "@haibun/core/lib/resources.js";
 import { endWhenLapsed, grantedCapabilityForRequest } from "./capability-auth.js";
 
-export type TTransportRequestInfo = {
+type TTransportRequestInfo = {
 	headers?: Record<string, string | undefined>;
 	/** What the request asks, and of what: a presentation signed over the request covers both. */
 	method?: string;

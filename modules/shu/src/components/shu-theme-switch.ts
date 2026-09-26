@@ -7,7 +7,7 @@
  */
 import { html, css, type TemplateResult } from "lit";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
-import { shuBaseStyles } from "./styles.js";
+import { shuBaseStyles, shuSegmentedStyles } from "./styles.js";
 import { ThemeSwitchSchema } from "../schemas.js";
 import { persistedSetting } from "../signals.js";
 import "./shu-window-size.js";
@@ -47,13 +47,16 @@ function readScale(): string {
 	return scaleSetting.get();
 }
 
+/** Set the page's theme. `auto` sets none, so the page follows the OS preference. */
+function applyTheme(theme: Theme): void {
+	if (theme === "auto") document.documentElement.removeAttribute("data-theme");
+	else document.documentElement.setAttribute("data-theme", theme);
+}
+
 /** Apply persisted theme + scale at boot, before any component mounts. Call from app.ts after installShuTokens(). */
 export function applyShuPreferences(): void {
-	const root = document.documentElement;
-	const theme = readTheme();
-	if (theme === "auto") root.removeAttribute("data-theme");
-	else root.setAttribute("data-theme", theme);
-	root.style.setProperty("--shu-scale", readScale());
+	applyTheme(readTheme());
+	document.documentElement.style.setProperty("--shu-scale", readScale());
 }
 
 export class ShuThemeSwitch extends ShuElement<typeof ThemeSwitchSchema> {
@@ -64,6 +67,7 @@ export class ShuThemeSwitch extends ShuElement<typeof ThemeSwitchSchema> {
 
 	static styles = [
 		shuBaseStyles,
+		shuSegmentedStyles,
 		css`
 		:host {
 			display: inline-flex; align-items: center; gap: var(--shu-space-2);
@@ -72,29 +76,7 @@ export class ShuThemeSwitch extends ShuElement<typeof ThemeSwitchSchema> {
 			font: inherit; font-size: var(--shu-font-sm);
 			user-select: none;
 		}
-		.group {
-			display: inline-flex;
-			border: var(--shu-border-w) solid var(--shu-border);
-			border-radius: var(--shu-radius);
-			overflow: hidden;
-		}
 		.group + .group { margin-left: var(--shu-space-3); }
-		.group > button {
-			padding: var(--shu-space-1) var(--shu-space-3);
-			background: transparent;
-			color: var(--shu-fg-muted);
-			border: none;
-			border-left: var(--shu-border-w) solid var(--shu-border);
-			cursor: pointer;
-			font: inherit; font-size: var(--shu-font-sm);
-			min-width: 24px;
-		}
-		.group > button:first-child { border-left: none; }
-		.group > button[aria-pressed="true"] {
-			background: var(--shu-accent);
-			color: var(--shu-accent-fg);
-		}
-		.group > button:hover:not([aria-pressed="true"]) { background: var(--shu-bg-hover); color: var(--shu-fg); }
 		.label { color: var(--shu-fg-muted); padding: 0 var(--shu-space-2); }
 	`,
 	];
@@ -106,9 +88,7 @@ export class ShuThemeSwitch extends ShuElement<typeof ThemeSwitchSchema> {
 	private setTheme = (theme: Theme): void => {
 		this.setState({ ...this.state, theme });
 		themeSetting.set(theme);
-		const root = document.documentElement;
-		if (theme === "auto") root.removeAttribute("data-theme");
-		else root.setAttribute("data-theme", theme);
+		applyTheme(theme);
 	};
 
 	private setScale = (scale: string): void => {

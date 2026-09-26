@@ -37,7 +37,7 @@ type TStepGraphBaseline = {
 };
 
 /** The chain lint's findings about `owned`, set up beside `alongside` as a run sets its steppers up, each as a line, sorted. */
-export async function stepGraphFindings({ owned, alongside = [], moduleOptions = {} }: Omit<TStepGraphBaseline, "baselineFile" | "sourceDir" | "unloaded">): Promise<string[]> {
+async function stepGraphFindings({ owned, alongside = [], moduleOptions = {} }: Omit<TStepGraphBaseline, "baselineFile" | "sourceDir" | "unloaded">): Promise<string[]> {
 	const world = getTestWorldWithOptions({ ...DEF_PROTO_OPTIONS, moduleOptions });
 	const steppers = createSteppers([...alongside, ...owned]);
 	await setStepperWorldsAndDomains(steppers, world);

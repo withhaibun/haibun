@@ -26,7 +26,7 @@ export type TPageAuthority = {
 };
 
 /** The page's key as it signs: its did:key, its verification method, and a signature over bytes. */
-export type TSigningKey = { controller: string; keyId: string; sign(options: { data: Uint8Array }): Promise<Uint8Array> };
+type TSigningKey = { controller: string; keyId: string; sign(options: { data: Uint8Array }): Promise<Uint8Array> };
 
 // A reader is one reader across every bundle of its page, so what it holds is the page's, and so is the reading of it: a
 // bundle that signs a request waits on the reading the app started rather than starting one of its own.

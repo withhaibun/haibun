@@ -176,7 +176,7 @@ function emitField(field: TFieldBinding, parentDomain: string, parentPath: strin
 	ctx.edges.add({ from: fieldId, to: parentNodeId, kind: EDGE_KIND.ready, paths: [ctx.pid], label: field.fieldName });
 }
 
-export type TGoalPathsInput = {
+type TGoalPathsInput = {
 	goal: string;
 	finding: string;
 	michi: TMichi[];

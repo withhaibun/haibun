@@ -10,7 +10,7 @@ import type { TStepAction, TFeatureStep } from "@haibun/core/lib/astepper.js";
 import type { TStepValue } from "@haibun/core/schema/protocol.js";
 
 export const TOKEN_TYPES = ["keyword", "function", "parameter", "string", "number", "comment"] as const;
-export type TTokenType = (typeof TOKEN_TYPES)[number];
+type TTokenType = (typeof TOKEN_TYPES)[number];
 
 /** One painted span: the line it is on, where it starts, how long it is, and what it is. */
 export type TToken = { line: number; char: number; length: number; type: TTokenType };
@@ -18,7 +18,7 @@ export type TToken = { line: number; char: number; length: number; type: TTokenT
 /** A step the document cache resolved for a line, with where on the line it was written. */
 export type TPlacedStep = { step: TFeatureStep; startOffset?: number; length?: number };
 
-export type TClassifyInput = {
+type TClassifyInput = {
 	/** The document's lines, in order. */
 	lines: string[];
 	/** Resolved steps by 1-indexed line number, as the document cache holds them. */

@@ -471,7 +471,7 @@ async function individualsMatching(store: IQuadStore, label: string, filters: re
 
 /** The individuals a set of quads describes, each from its own quads, in the order their subjects first appear: one
  *  pass over the quads, whatever their number. What every store that holds its records as quads reads a type by. */
-export function individualsFrom(quads: readonly TQuad[]): Record<string, unknown>[] {
+function individualsFrom(quads: readonly TQuad[]): Record<string, unknown>[] {
 	const bySubject = new Map<string, Record<string, unknown>>();
 	for (const q of quads) {
 		let record = bySubject.get(q.subject);
@@ -629,7 +629,7 @@ async function targetOf(store: IQuadStore, label: string, id: string): Promise<R
 
 /** How many edges pointing at one individual are read as records at a time. A hub has more edges than a reader reads,
  *  and each edge read is a read of the record it names, so a reading takes a page of them and says how many there are. */
-export const INCOMING_EDGE_PAGE = 100;
+const INCOMING_EDGE_PAGE = 100;
 
 /** The edges pointing at an individual, over any store: how many there are, and the page of them asked for, each read
  *  as the record it names. A quad pointing at the individual carries the type of the record it comes from, which is how

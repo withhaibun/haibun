@@ -43,7 +43,7 @@ type TLintKind = TLintFinding["kind"];
 
 export const LintSummarySchema = z.object(Object.fromEntries(Object.values(LINT_FINDING).map((kind) => [kind, z.number()])) as Record<TLintKind, z.ZodNumber>).strict();
 
-export type TDomainChainLintReport = {
+type TDomainChainLintReport = {
 	findings: TLintFinding[];
 	/** Counts per kind for quick inspection. */
 	summary: Record<TLintKind, number>;

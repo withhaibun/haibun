@@ -8,7 +8,7 @@
 
 /** The visual marks a node can be drawn as. EVERY paint must handle each kind it's given, or throw, never skip silently. */
 export const MARK_KINDS = ["chip", "square", "lozenge", "box", "image", "mesh", "marker"] as const;
-export type MarkKind = (typeof MARK_KINDS)[number];
+type MarkKind = (typeof MARK_KINDS)[number];
 
 /** Where a node sits, declared by its type's presenter. A backend-neutral layout pass resolves roles to coordinates
  *  (shared scales across all nodes of a role) so both paints place marks identically. `free` leaves x/y to the force

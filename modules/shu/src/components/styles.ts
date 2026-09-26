@@ -13,58 +13,31 @@
 
 import { css, unsafeCSS, type CSSResult } from "lit";
 
-/** Design tokens. Apply at `:host` on every shu component (and at `:root` on the page for context). Override via:
- *  - `<html data-theme="dark">` / `<shu-app data-theme="dark">` for explicit choice
- *  - `prefers-color-scheme: dark` for OS preference (falls through when no explicit choice)
- *  - `<html style="--shu-scale: 1.25">` for a user-set zoom multiplier (every size derives from `--shu-scale`).
+/**
+ * The foreground set. Each token is a rank of emphasis, and each rank is legible: every one of these clears 4.5:1
+ * against --shu-bg in BOTH themes, so choosing by MEANING can never choose an unreadable colour. Pick by what the text
+ * IS, never by how light you want it to look:
+ *   --shu-fg          the content itself
+ *   --shu-fg-muted    supporting text read alongside the content (metadata, counts, captions)
+ *   --shu-fg-faded    text that is structure rather than content (field names, separators, placeholders)
+ * Anything below 4.5:1 belongs to a BORDER token (--shu-border, --shu-border-strong), which draws lines, not text. A
+ * divider drawn in a text colour and a label drawn in a border colour are the same mistake. `--shu-invert` is 1 in a dark
+ * theme, where a locally rendered, black-on-white embedded document is colour-inverted to match.
  */
-export const SHU_TOKENS = `
-	:host, :root {
-		--shu-scale: 1;
-		--shu-space-1: calc(2px * var(--shu-scale));
-		--shu-space-2: calc(4px * var(--shu-scale));
-		--shu-space-3: calc(6px * var(--shu-scale));
-		--shu-space-4: calc(8px * var(--shu-scale));
-		--shu-space-5: calc(12px * var(--shu-scale));
-		--shu-space-6: calc(16px * var(--shu-scale));
-		--shu-font-xs: calc(10px * var(--shu-scale));
-		--shu-font-sm: calc(11px * var(--shu-scale));
-		--shu-font-md: calc(13px * var(--shu-scale));
-		--shu-font-lg: calc(14px * var(--shu-scale));
-		--shu-radius: 3px;
-		--shu-border-w: 1px;
-		--shu-icon-btn: calc(20px * var(--shu-scale));
-		--shu-row-h: calc(24px * var(--shu-scale));
-		--shu-input-h: calc(22px * var(--shu-scale));
-		--shu-resize-w: 10px;
-		--shu-scrollbar-w: 32px;
-		/* A collapsed column that shows a spine view, which needs more than the rotated label's sliver. */
-		--shu-spine-w: calc(44px * var(--shu-scale));
-		/* The band DRAWN as a scroll rail's track. The control's own width is the press target, and is wider. */
-		--shu-rail-track-w: calc(14px * var(--shu-scale));
 
-		/* Light theme defaults */
+/** The light theme's colours, which the page takes by default and where `data-theme="light"` chooses them. */
+const LIGHT_PALETTE = `
+		color-scheme: light;
+		--shu-invert: 0;
 		--shu-bg: #ffffff;
 		--shu-bg-soft: #fafafa;
 		--shu-bg-elevated: #f4f4f4;
 		--shu-bg-input: #f0f0f0;
 		--shu-bg-input-focus: #e8e8e8;
 		--shu-bg-hover: rgba(0, 0, 0, 0.06);
-		/* THE foreground set. Each token is a rank of emphasis, and each rank is legible: every one of these clears
-		   4.5:1 against --shu-bg in BOTH themes, so choosing by MEANING can never choose an unreadable colour. Pick by
-		   what the text IS, never by how light you want it to look:
-		     --shu-fg          the content itself
-		     --shu-fg-muted    supporting text read alongside the content (metadata, counts, captions)
-		     --shu-fg-faded    text that is structure rather than content (field names, separators, placeholders)
-		   Anything below 4.5:1 belongs to a BORDER token (--shu-border, --shu-border-strong), which draws lines, not
-		   text. A divider drawn in a text colour and a label drawn in a border colour are the same mistake. */
 		--shu-fg: #111111;
 		--shu-fg-muted: #555555;
 		--shu-fg-faded: #767676;
-		/* Text sitting ON a type-colour swatch/chip (graph node chips, filter type labels). The palette is always light
-		   pastels, so this stays dark in BOTH themes, declared only here; the dark blocks intentionally don't override it.
-		   ONLY for text whose own background is a swatch: on any themed background it is dark-on-dark in the dark theme. */
-		--shu-fg-on-swatch: #1a1a1a;
 		--shu-border: #d0d0d0;
 		--shu-border-strong: #888888;
 		--shu-accent: #1a6b3c;
@@ -86,57 +59,10 @@ export const SHU_TOKENS = `
 		--shu-bg-info-card: #f4f7fc;
 		--shu-border-info: #c8d0e0;
 		--shu-private: #a01a1a;
-		--shu-shadow: rgba(0, 0, 0, 0.18);
-		/* 1 in dark themes: locally-rendered (black-on-white) embedded documents are colour-inverted to match. */
-		--shu-invert: 0;
+		--shu-shadow: rgba(0, 0, 0, 0.18);`;
 
-		--shu-font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-
-		/* What the browser paints its own parts in: a scrollbar, a spinner, a date picker, a form control's focus ring.
-		   Declared beside the tokens rather than restyled, so the parts follow the theme the way the browser renders
-		   them. Without it a dark page keeps light scrollbars, which is what a white bar down a dark panel is. */
-		color-scheme: light;
-	}
-
-	@media (prefers-color-scheme: dark) {
-		:host, :root {
-			color-scheme: dark;
-			--shu-invert: 1;
-			--shu-bg: #161616;
-			--shu-bg-soft: #1d1d1d;
-			--shu-bg-elevated: #232323;
-			--shu-bg-input: #2a2a2a;
-			--shu-bg-input-focus: #333333;
-			--shu-bg-hover: rgba(255, 255, 255, 0.08);
-			--shu-fg: #e6e6e6;
-			--shu-fg-muted: #b0b0b0;
-			--shu-fg-faded: #8a8a8a;
-			--shu-border: #383838;
-			--shu-border-strong: #5a5a5a;
-			--shu-accent: #3aa367;
-			--shu-accent-fg: #0e1a13;
-			--shu-accent-soft: #1f3a28;
-			--shu-link: #6ab7ff;
-			--shu-pred: #b88ed4;
-			--shu-pred-soft: #2a1f3a;
-			--shu-error: #ff6868;
-			--shu-bg-error-soft: #3a1f1f;
-			--shu-success: #5cd28c;
-			--shu-bg-success-soft: #1f3a28;
-			--shu-warn: #e6b13a;
-			--shu-bg-warn-soft: #3a2f1a;
-			--shu-border-warn: #6a521a;
-			--shu-info: #6ab7ff;
-			--shu-info-fg: #0e1a2a;
-			--shu-bg-info-soft: #1f2a3a;
-			--shu-bg-info-card: #1a2030;
-			--shu-border-info: #3a4a6a;
-			--shu-private: #ff5c5c;
-			--shu-shadow: rgba(0, 0, 0, 0.5);
-		}
-	}
-
-	:host([data-theme="dark"]), :root[data-theme="dark"] {
+/** The dark theme's colours, which the page takes where the OS prefers dark and where `data-theme="dark"` chooses them. */
+const DARK_PALETTE = `
 		color-scheme: dark;
 		--shu-invert: 1;
 		--shu-bg: #161616;
@@ -169,43 +95,59 @@ export const SHU_TOKENS = `
 		--shu-bg-info-card: #1a2030;
 		--shu-border-info: #3a4a6a;
 		--shu-private: #ff5c5c;
-		--shu-shadow: rgba(0, 0, 0, 0.5);
+		--shu-shadow: rgba(0, 0, 0, 0.5);`;
+
+/** Design tokens. Apply at `:host` on every shu component (and at `:root` on the page for context). Override via:
+ *  - `<html data-theme="dark">` / `<shu-app data-theme="dark">` for explicit choice
+ *  - `prefers-color-scheme: dark` for OS preference (falls through when no explicit choice)
+ *  - `<html style="--shu-scale: 1.25">` for a user-set zoom multiplier (every size derives from `--shu-scale`).
+ */
+export const SHU_TOKENS = `
+	:host, :root {
+		--shu-scale: 1;
+		--shu-space-1: calc(2px * var(--shu-scale));
+		--shu-space-2: calc(4px * var(--shu-scale));
+		--shu-space-3: calc(6px * var(--shu-scale));
+		--shu-space-4: calc(8px * var(--shu-scale));
+		--shu-space-5: calc(12px * var(--shu-scale));
+		--shu-space-6: calc(16px * var(--shu-scale));
+		--shu-font-xs: calc(10px * var(--shu-scale));
+		--shu-font-sm: calc(11px * var(--shu-scale));
+		--shu-font-md: calc(13px * var(--shu-scale));
+		--shu-font-lg: calc(14px * var(--shu-scale));
+		--shu-radius: 3px;
+		--shu-border-w: 1px;
+		--shu-icon-btn: calc(20px * var(--shu-scale));
+		--shu-row-h: calc(24px * var(--shu-scale));
+		--shu-input-h: calc(22px * var(--shu-scale));
+		--shu-resize-w: 10px;
+		--shu-scrollbar-w: 32px;
+		/* A collapsed column that shows a spine view, which needs more than the rotated label's sliver. */
+		--shu-spine-w: calc(44px * var(--shu-scale));
+		/* The band DRAWN as a scroll rail's track. The control's own width is the press target, and is wider. */
+		--shu-rail-track-w: calc(14px * var(--shu-scale));
+
+		/* Text sitting ON a type-colour swatch/chip (graph node chips, filter type labels). The palette is always light
+		   pastels, so this stays dark in BOTH themes. It is declared only here, and the dark palette doesn't set it.
+		   ONLY for text whose own background is a swatch: on any themed background it is dark-on-dark in the dark theme. */
+		--shu-fg-on-swatch: #1a1a1a;
+		--shu-font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+		/* What the browser paints its own parts in: a scrollbar, a spinner, a date picker, a form control's focus ring.
+		   Declared beside the tokens rather than restyled, so the parts follow the theme the way the browser renders
+		   them. Without it a dark page keeps light scrollbars, which is what a white bar down a dark panel is. */
+${LIGHT_PALETTE}
 	}
 
-	:host([data-theme="light"]), :root[data-theme="light"] {
-		color-scheme: light;
-		--shu-invert: 0;
-		--shu-bg: #ffffff;
-		--shu-bg-soft: #fafafa;
-		--shu-bg-elevated: #f4f4f4;
-		--shu-bg-input: #f0f0f0;
-		--shu-bg-input-focus: #e8e8e8;
-		--shu-bg-hover: rgba(0, 0, 0, 0.06);
-		--shu-fg: #111111;
-		--shu-fg-muted: #555555;
-		--shu-fg-faded: #767676;
-		--shu-border: #d0d0d0;
-		--shu-border-strong: #888888;
-		--shu-accent: #1a6b3c;
-		--shu-accent-fg: #ffffff;
-		--shu-accent-soft: #e8f5e9;
-		--shu-link: #1a73e8;
-		--shu-pred: #7b5ea7;
-		--shu-pred-soft: #f4f0fa;
-		--shu-error: #c00000;
-		--shu-bg-error-soft: #fdecec;
-		--shu-success: #0a8a3a;
-		--shu-bg-success-soft: #d8edd8;
-		--shu-warn: #b58105;
-		--shu-bg-warn-soft: #fdf6e3;
-		--shu-border-warn: #f0e0a0;
-		--shu-info: #2848a8;
-		--shu-info-fg: #ffffff;
-		--shu-bg-info-soft: #d8e1f0;
-		--shu-bg-info-card: #f4f7fc;
-		--shu-border-info: #c8d0e0;
-		--shu-private: #a01a1a;
-		--shu-shadow: rgba(0, 0, 0, 0.18);
+	@media (prefers-color-scheme: dark) {
+		:host, :root {${DARK_PALETTE}
+		}
+	}
+
+	:host([data-theme="dark"]), :root[data-theme="dark"] {${DARK_PALETTE}
+	}
+
+	:host([data-theme="light"]), :root[data-theme="light"] {${LIGHT_PALETTE}
 	}
 
 	@media (max-width: 600px), (orientation: portrait) {
@@ -383,6 +325,30 @@ export const SHU_ICON_BUTTON = `
 	button.pane-icon[aria-expanded="true"]:hover { filter: brightness(1.1); }
 `;
 export const shuIconButtonStyles: CSSResult = css`${unsafeCSS(SHU_ICON_BUTTON)}`;
+
+/** A row of buttons of which one is pressed, as the theme and window size switches show it. */
+export const shuSegmentedStyles: CSSResult = css`
+	.group {
+		display: inline-flex;
+		border: var(--shu-border-w) solid var(--shu-border);
+		border-radius: var(--shu-radius);
+		overflow: hidden;
+	}
+	.group > button {
+		padding: var(--shu-space-1) var(--shu-space-3);
+		background: transparent;
+		color: var(--shu-fg-muted);
+		border: none;
+		border-left: var(--shu-border-w) solid var(--shu-border);
+		cursor: pointer;
+		font: inherit;
+		font-size: var(--shu-font-sm);
+		min-width: 24px;
+	}
+	.group > button:first-child { border-left: none; }
+	.group > button[aria-pressed="true"] { background: var(--shu-accent); color: var(--shu-accent-fg); }
+	.group > button:hover:not([aria-pressed="true"]) { background: var(--shu-bg-hover); color: var(--shu-fg); }
+`;
 
 /** A row whose children are each a distinct control: a rule between them, so the row reads as separate settings rather
  *  than a run of words. Takes the row's selector, since a light-DOM host scopes its rules by tag and a shadow-DOM

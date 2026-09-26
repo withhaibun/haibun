@@ -25,12 +25,12 @@ import "@haibun/shu/components/shu-field.js";
 const IDS = SHU_TEST_IDS.POLYMORPHIC_VIEW;
 
 /** The options a reader sets: the scene's own config, which is what every one of them ends up setting. */
-export type TPolymorphicOptions = GraphSceneConfig;
+type TPolymorphicOptions = GraphSceneConfig;
 
 /** Reported when a control changes: the one option the reader touched, for the host to merge into its own state. */
 export type TPolymorphicOptionChange = Partial<TPolymorphicOptions>;
 
-export class ShuPolymorphicSettings extends ShuElement<z.ZodType> {
+class ShuPolymorphicSettings extends ShuElement<z.ZodType> {
 	/** A control, not a view of data, contributes nothing to the Kihan's context. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;

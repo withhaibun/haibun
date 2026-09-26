@@ -9,7 +9,7 @@ import type { TQuad } from "@haibun/core/lib/quad-types.js";
 /** A schedulable node: an id + label, a start/end on the calendar (epoch ms), optional effort (work, in the same unit
  *  as the elapsed span), and the ids it waits on. Consumed by the 3D gantt layout (positions + duration widths). */
 export type TGanttTask = { id: string; label: string; start: number; end: number; effort?: number; dependsOn?: string[] };
-export type TGanttModel = { tasks: TGanttTask[] };
+type TGanttModel = { tasks: TGanttTask[] };
 
 const G_START = LinkRelations.GANTT_START.rel;
 const G_END = LinkRelations.GANTT_END.rel;
@@ -31,7 +31,7 @@ const parseNum = (v: unknown): number | undefined => {
 	return Number.isFinite(n) ? n : undefined;
 };
 
-export type GanttModelOpts = { displayLabel?: (graph: string, subject: string) => string | undefined; relOf?: RelOf };
+type GanttModelOpts = { displayLabel?: (graph: string, subject: string) => string | undefined; relOf?: RelOf };
 
 /** Build the Gantt model from quads. Subjects without a `ganttStart` (and an end or duration) are not tasks. */
 export function quadsToGanttModel(quads: TQuad[], opts: GanttModelOpts = {}): TGanttModel {

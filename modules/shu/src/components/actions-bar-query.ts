@@ -30,7 +30,7 @@ export const SEARCH_DEBOUNCE_MS = 300;
 
 /** What a view says about the context it offers the bar: its total, the label the query surface can use, and the
  *  conditions it was opened with. */
-export type TQueryContextExtra = TContextExtra & { textQuery?: string; conditions?: TSearchCondition[] };
+type TQueryContextExtra = TContextExtra & { textQuery?: string; conditions?: TSearchCondition[] };
 
 /** The conditions a search runs: each select filter with a value, then each filter row that names a field. A row with no
  *  field chosen names nothing to match, so it stays in the bar being edited and out of the query. */
@@ -43,7 +43,7 @@ export function searchConditions(selectFilters: Record<string, string>, rows: re
 
 /** What the query reads from the bar: its test-id prefix, the history searches are recorded in, the status it reports
  *  on, and the breadcrumb it asks to read the trail label again. */
-export type TActionsBarQueryDeps = {
+type TActionsBarQueryDeps = {
 	testIdPrefix: () => string;
 	history: ShuActivityHistory;
 	setStatus: (message: string) => void;

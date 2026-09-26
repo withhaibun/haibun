@@ -8,8 +8,8 @@
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { getUiByComponent } from "./rels-cache.js";
 
-export type TExternalComponentPhase = "lookup" | "fetch" | "register" | "missing-ui" | "missing-script" | "fetch-failed" | "register-failed" | "mounted";
-export type TExternalComponentReporter = (level: "debug" | "error", phase: TExternalComponentPhase, component: string, extra?: Record<string, unknown>) => void;
+type TExternalComponentPhase = "lookup" | "fetch" | "register" | "missing-ui" | "missing-script" | "fetch-failed" | "register-failed" | "mounted";
+type TExternalComponentReporter = (level: "debug" | "error", phase: TExternalComponentPhase, component: string, extra?: Record<string, unknown>) => void;
 
 const silent: TExternalComponentReporter = () => undefined;
 

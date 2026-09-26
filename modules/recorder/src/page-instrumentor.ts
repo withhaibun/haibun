@@ -5,7 +5,7 @@
 import { Page, BrowserContext } from "playwright";
 import { TInteraction } from "./types.js";
 
-export type TInteractionCallback = (interaction: TInteraction) => void;
+type TInteractionCallback = (interaction: TInteraction) => void;
 
 /**
  * The script that runs inside the browser page to capture interactions.

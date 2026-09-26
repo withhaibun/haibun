@@ -18,7 +18,7 @@ import { parseAffordanceProduct } from "./affordance-products.js";
 import type { TAffordanceView } from "./affordance-products.js";
 import type { TEvent } from "./event-stream.js";
 
-export type TPaneOp = { op: "component"; tag: string; label: string; data: Record<string, unknown> } | { op: "views-picker"; views: TAffordanceView[]; label: string };
+type TPaneOp = { op: "component"; tag: string; label: string; data: Record<string, unknown> } | { op: "views-picker"; views: TAffordanceView[]; label: string };
 
 export function paneOpsFor(events: TEvent[]): Map<string, TPaneOp> {
 	const ops = new Map<string, TPaneOp>();

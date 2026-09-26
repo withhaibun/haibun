@@ -2,10 +2,10 @@ import { TStepperStep, TStepAction } from "./astepper.js";
 import { TStepValue, TOrigin, Origin } from "../schema/protocol.js";
 import { DOMAIN_STRING } from "./domains.js";
 
-export const TYPE_QUOTED = "q_";
-export const TYPE_ENV = "e_";
-export const TYPE_VAR = "b_";
-export const TYPE_ENV_OR_VAR_OR_LITERAL = "t_";
+const TYPE_QUOTED = "q_";
+const TYPE_ENV = "e_";
+const TYPE_VAR = "b_";
+const TYPE_ENV_OR_VAR_OR_LITERAL = "t_";
 
 export const namedInterpolation = (inp: string): { regexPattern: string; stepValuesMap?: Record<string, TStepValue> } => {
 	if (!inp.includes("{")) {

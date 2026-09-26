@@ -4,7 +4,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { haibunNsForHost } from "./resources.js";
 
-export type TRequestContext = { baseIri?: string };
+type TRequestContext = { baseIri?: string };
 
 const requestContext = new AsyncLocalStorage<TRequestContext>();
 

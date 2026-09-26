@@ -20,7 +20,7 @@ import { getCompositeFields, zodTypeLabel, type TCompositeField } from "./compos
 import type { TRegisteredDomain } from "./resources.js";
 import { mayCall } from "./actions.js";
 
-export type TPlanStep = {
+type TPlanStep = {
 	stepperName: string;
 	stepName: string;
 	gwta?: string;
@@ -70,7 +70,7 @@ export type TMichi = {
 };
 
 /** Per-field filter over a fact's `object` value. Bare values are shorthand for `{ eq }`. */
-export type TShibari =
+type TShibari =
 	| { eq: unknown }
 	| { ne: unknown }
 	| { in: unknown[] }
@@ -82,13 +82,6 @@ export type TShibari =
 	| { all: TShibari[] }
 	| { any: TShibari[] };
 
-/** Resolver query: target goal domain, optional per-field filters over the matching fact's object. */
-export type TGoalQuery = {
-	goal: string;
-	/** Dot-paths into the fact's object → filter to test that path's value against. A bare value is `{eq: value}`. */
-	where?: Record<string, TShibari | unknown>;
-};
-
 export const GOAL_FINDING = {
 	SATISFIED: "satisfied",
 	MICHI: "michi",
@@ -96,13 +89,11 @@ export const GOAL_FINDING = {
 	REFUSED: "refused",
 } as const;
 
-export type TGoalFinding = (typeof GOAL_FINDING)[keyof typeof GOAL_FINDING];
-
 export const REFUSAL_REASON = {
 	CAPABILITY_CONTEXT_REQUIRED: "capability-context-required",
 } as const;
 
-export type TRefusalReason = (typeof REFUSAL_REASON)[keyof typeof REFUSAL_REASON];
+type TRefusalReason = (typeof REFUSAL_REASON)[keyof typeof REFUSAL_REASON];
 
 export type TGoalResolution =
 	| { finding: typeof GOAL_FINDING.SATISFIED; goal: string; factIds: string[]; michi: TMichi[]; truncated: boolean }
@@ -451,7 +442,7 @@ function* cartesian<T>(arrays: T[][], limit: number): Generator<T[]> {
 }
 
 /** True when the fact's `object` matches every path/filter in `where`. Empty/undefined where always matches. */
-export function factMatchesWhere(fact: TQuad, where: Record<string, TShibari | unknown> | undefined): boolean {
+function factMatchesWhere(fact: TQuad, where: Record<string, TShibari | unknown> | undefined): boolean {
 	if (!where) return true;
 	const obj = fact.object;
 	for (const [path, raw] of Object.entries(where)) {

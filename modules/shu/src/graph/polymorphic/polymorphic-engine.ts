@@ -6,7 +6,7 @@
  * frame), freeze at rest. "Who controls the engine" has one answer, and the mode is observable.
  */
 
-export type TEngineMode = "idle" | "settling" | "holding" | "frozen";
+type TEngineMode = "idle" | "settling" | "holding" | "frozen";
 
 export type TPacedGraph = {
 	cooldownTicks(n: number): unknown;

@@ -37,7 +37,7 @@ function expandIncluded(feature: TFeature, backgrounds: TFeatures) {
 	return lines;
 }
 
-export function asFeatureLine(line: string, lineNumber: number | undefined, feature: TFeature): TExpandedLine {
+function asFeatureLine(line: string, lineNumber: number | undefined, feature: TFeature): TExpandedLine {
 	return { line, lineNumber, feature };
 }
 
@@ -87,7 +87,7 @@ export function findFeatures(name: string, backgrounds: TFeatures, type = "featu
 	return ftype.filter((f) => f.path.endsWith(`/${name}.${fileTypeToExt(type)}`) || f.path.endsWith(`/${name}.feature.ts`));
 }
 
-export function findFeaturesOfType(backgrounds: TFeatures, type = "feature"): TFeatures {
+function findFeaturesOfType(backgrounds: TFeatures, type = "feature"): TFeatures {
 	// Match both .feature and .feature.ts files
 	return backgrounds.filter((f) => f.path.endsWith(`.${fileTypeToExt(type)}`) || f.path.endsWith(".feature.ts"));
 }

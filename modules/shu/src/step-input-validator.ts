@@ -35,7 +35,7 @@ const DATE_TIME_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
  * accumulated errors, each tagged with a `field` path so the form can
  * render the message next to the right input.
  */
-export function validateAgainstSchema(value: unknown, schema: TJsonSchema, fieldPath = ""): TFieldError[] {
+function validateAgainstSchema(value: unknown, schema: TJsonSchema, fieldPath = ""): TFieldError[] {
 	const errors: TFieldError[] = [];
 	if (value === undefined || value === null || value === "") {
 		// Required-checking lives at the parent level (whether this node is

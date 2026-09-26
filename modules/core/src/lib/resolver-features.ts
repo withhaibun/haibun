@@ -4,7 +4,7 @@ import { TEST_BASE } from "../schema/protocol.js";
 import { TAnyFixme } from "./fixme.js";
 import { featureSplit, withNameType } from "./features.js";
 
-export type TProtoFeature = { base?: string; path: string; content: string }[];
+type TProtoFeature = { base?: string; path: string; content: string }[];
 
 export const asFeatures = (w: TProtoFeature) => w.map((i) => withNameType(i.base || TEST_BASE, i.path, i.content));
 

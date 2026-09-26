@@ -56,7 +56,7 @@ export function stepOptions(steps: readonly TStepDefinition[], forTheType: reado
 }
 
 /** What the steps read from the bar: its test-id prefix, the selected type, and the history callers open in. */
-export type TActionsBarStepsDeps = {
+type TActionsBarStepsDeps = {
 	testIdPrefix: () => string;
 	selectedLabel: () => string;
 	history: ShuActivityHistory;

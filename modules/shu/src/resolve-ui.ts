@@ -1,7 +1,7 @@
 import { getUiByType, getRecordComponent } from "./rels-cache.js";
 
 /** The component + placement to render a product with, resolved from its type with shape-based defaults. */
-export type ResolvedUi = {
+type ResolvedUi = {
 	/** Custom-element tag to instantiate. */
 	component: string;
 	/** Named slot to render into, if the type's UI declares one. */

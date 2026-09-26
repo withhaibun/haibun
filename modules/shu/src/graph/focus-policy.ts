@@ -13,7 +13,7 @@ export type TGraphPreview = { type: string } | { subjects: ReadonlySet<string> }
 export const previewLights = (preview: TGraphPreview, node: { id: string; type: string }): boolean =>
 	"type" in preview ? node.type === preview.type : preview.subjects.has(node.id);
 
-export interface FocusPolicyInput {
+interface FocusPolicyInput {
 	focusActive: boolean; // a node is focused (selectedSubject ?? hoverSubject != null)
 	isInFocus: boolean; // this element is the focus node / an incident edge / the focused type's group
 	previewActive: boolean; // a preview is active

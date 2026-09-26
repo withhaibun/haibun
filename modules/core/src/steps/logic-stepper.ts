@@ -4,7 +4,7 @@ import { OK, TActionResult, Origin } from "../schema/protocol.js";
 import { actionNotOK, actionOKWithProducts, sleep } from "../lib/util/index.js";
 import { z } from "zod";
 import { FlowRunner } from "../lib/core/flow-runner.js";
-import { DOMAIN_STATEMENT } from "../lib/domains.js";
+import { DOMAIN_NUMBER, DOMAIN_STATEMENT, DOMAIN_STRING } from "../lib/domains.js";
 import { OBSERVATION_GRAPH, queryFacts } from "../lib/working-memory.js";
 
 // Built-in observation sources read step-execution counts from the quad store under
@@ -76,6 +76,17 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 
 	private getSource(name: string): IObservationSource | undefined {
 		return this.sources.find((s) => s.name.toLowerCase() === name.toLowerCase());
+	}
+
+	/** Bind a quantifier's variable to one item, and each of the item's metrics under the variable's name
+	 *  (`request/status`), so a metric term never carries an item's dots or slashes. */
+	private async bindItem(what: string, item: string, metrics: Record<string, unknown> | undefined, featureStep: TFeatureStep): Promise<void> {
+		const at = { in: featureStep.in, seq: featureStep.seqPath };
+		await this.getWorld().shared.set({ term: what, value: String(item), domain: DOMAIN_STRING, origin: Origin.var }, { ...at, when: "quantifier" });
+		for (const [metric, value] of Object.entries(metrics ?? {})) {
+			const domain = typeof value === "number" ? DOMAIN_NUMBER : DOMAIN_STRING;
+			await this.getWorld().shared.set({ term: `${what}/${metric}`, value: String(value), domain, origin: Origin.var }, { ...at, when: "observation" });
+		}
 	}
 
 	private stripQuotes(text: string): string {
@@ -235,23 +246,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 				let found = false;
 
 				for (const val of values) {
-					await this.getWorld().shared.set(
-						{ term: what, value: String(val), domain: "string", origin: Origin.var },
-						{ in: featureStep.in, seq: featureStep.seqPath, when: "quantifier" },
-					);
-
-					// An observation source's metrics for this item, keyed by the BINDER name (`request/status`, not the item
-					// value): a binder is an identifier, so a metric term never carries an item's dots or slashes. Rebound
-					// each iteration exactly like the item variable.
-					if (metrics?.[val]) {
-						for (const [metricKey, metricValue] of Object.entries(metrics[val])) {
-							const domain = typeof metricValue === "number" ? "number" : "string";
-							await this.getWorld().shared.set(
-								{ term: `${what}/${metricKey}`, value: String(metricValue), domain, origin: Origin.var },
-								{ in: featureStep.in, seq: featureStep.seqPath, when: "observation" },
-							);
-						}
-					}
+					await this.bindItem(what, val, metrics?.[val], featureStep);
 
 					const res = await this.runner.runStatements([statementStr], { intent: { mode }, parentStep: featureStep });
 					if (res.ok) {
@@ -284,23 +279,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 				const mode = featureStep.intent?.mode ?? "authoritative";
 
 				for (const val of values) {
-					await this.getWorld().shared.set(
-						{ term: what, value: String(val), domain: "string", origin: Origin.var },
-						{ in: featureStep.in, seq: featureStep.seqPath, when: "quantifier" },
-					);
-
-					// An observation source's metrics for this item, keyed by the BINDER name (`request/status`, not the item
-					// value): a binder is an identifier, so a metric term never carries an item's dots or slashes. Rebound
-					// each iteration exactly like the item variable.
-					if (metrics?.[val]) {
-						for (const [metricKey, metricValue] of Object.entries(metrics[val])) {
-							const domain = typeof metricValue === "number" ? "number" : "string";
-							await this.getWorld().shared.set(
-								{ term: `${what}/${metricKey}`, value: String(metricValue), domain, origin: Origin.var },
-								{ in: featureStep.in, seq: featureStep.seqPath, when: "observation" },
-							);
-						}
-					}
+					await this.bindItem(what, val, metrics?.[val], featureStep);
 
 					const res = await this.runner.runStatements([statementStr], { intent: { mode }, parentStep: featureStep });
 					if (!res.ok) {

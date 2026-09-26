@@ -30,7 +30,7 @@ export type SeqEdge = { from: string; to: string; predicate: string };
 /** Options the host injects: the display label for a participant id (defaults to the id), lets the live view resolve a
  *  DID → "Coastal Fisheries Authority". A message is labelled by its mediating artifact's @type, never an edge predicate,
  *  so no predicate resolver is needed here. */
-export type SeqMapOptions = {
+type SeqMapOptions = {
 	labelOf?: (participantId: string) => string;
 };
 
@@ -140,7 +140,7 @@ export function mapGraphToSeq(nodes: ReadonlyArray<SeqNode>, edges: ReadonlyArra
 /** y spacing between participant lifelines (lanes). Wide enough that arrows between adjacent lifelines read clearly. */
 export const SEQ_LANE_SPACING = 70;
 /** z length of the time axis when nothing places on it (no messages). */
-export const SEQ_TIME_LEN = 240;
+const SEQ_TIME_LEN = 240;
 /** z between consecutive message rows. A sequence diagram is ORDINAL: one row per message, evenly spaced in time
  *  order: wall-clock gaps carry no length, so a burst within one second reads as its rows, not as a pile. */
 export const SEQ_ROW_GAP = 12;
@@ -148,12 +148,12 @@ export const SEQ_ROW_GAP = 12;
 const SEQ_LANE_GAP = 24;
 
 /** A node's 3D placement in the sequence: its y (the lifeline it stands on, or the margin lane) and z (its row). */
-export type SeqPlacement = { y: number; z: number };
+type SeqPlacement = { y: number; z: number };
 /** A message arrow: the source/destination lifeline ys and the time-z it is drawn at, plus its label. */
-export type SeqArrow = { from: string; to: string; label: string; fromY: number; toY: number; z: number };
+type SeqArrow = { from: string; to: string; label: string; fromY: number; toY: number; z: number };
 /** A participant's lifeline extent along the time axis: the z of its first (z0) and last (z1) involvement. The lifeline
  *  is a gantt duration bar spanning [z0,z1]: the actor renders as a box mark of that length, centred at (z0+z1)/2. */
-export type SeqSpan = { z0: number; z1: number };
+type SeqSpan = { z0: number; z1: number };
 /** The full 3D sequence layout: the ordered participant actors, each actor's lane y (the lifeline source), each placed
  *  node's position (agents centre on their active-window lifeline; artifacts ride their arrow), each actor's lifeline
  *  span, the message arrows, and the framing extents. */

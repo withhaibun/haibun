@@ -11,7 +11,7 @@
 import { z } from "zod";
 import { AStepper, StepperKinds } from "./astepper.js";
 
-export const AskOptionsSchema = z.object({
+const AskOptionsSchema = z.object({
 	kihan: z.string().optional(),
 	system: z.string().optional(),
 	limit: z.number().optional(),

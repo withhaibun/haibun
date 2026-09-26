@@ -14,12 +14,12 @@ import {
 	HTTP_METHODS_WITH_BODY,
 } from "./domains.js";
 
-export const AUTHORIZATION = "Authorization";
+const AUTHORIZATION = "Authorization";
 export const ACCESS_TOKEN = "access_token";
 
 const HTTP = "HTTP";
 
-export const base64Encode = ({ username, password }: { username: string; password: string }) => Buffer.from(`${username}:${password}`).toString("base64");
+const base64Encode = ({ username, password }: { username: string; password: string }) => Buffer.from(`${username}:${password}`).toString("base64");
 
 export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 	({
@@ -52,7 +52,8 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 			gwta: `request OAuth 2.0 access token from {endpoint: ${DOMAIN_LINK}}`,
 			action: async ({ endpoint }: { endpoint: string }, featureStep) => {
 				const serialized = await webPlaywright.withPageFetch(endpoint);
-				const accessToken = !Array.isArray(serialized.json) ? (serialized.json as TJsonRecord)[ACCESS_TOKEN] : undefined;
+				const accessToken = serialized.json && !Array.isArray(serialized.json) ? serialized.json[ACCESS_TOKEN] : undefined;
+				if (typeof accessToken !== "string") return actionNotOK(`${endpoint} answered ${serialized.status} without an ${ACCESS_TOKEN}: ${serialized.text}`);
 				await webPlaywright.setExtraHTTPHeaders({ [AUTHORIZATION]: `Bearer ${accessToken}` });
 				await webPlaywright.setLastResponse(serialized, featureStep);
 				return OK;
@@ -212,7 +213,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 	}) as const satisfies TStepperSteps;
 
 /** Record with string keys for JSON objects */
-export type TJsonRecord = Record<string, unknown>;
+type TJsonRecord = Record<string, unknown>;
 
 /** JSON response can be an array of records or a single record */
 export type TJsonResponse = TJsonRecord | TJsonRecord[];
@@ -222,7 +223,8 @@ export type TCapturedResponse = {
 	statusText: string;
 	headers: Record<string, string>;
 	url: string;
-	json: TJsonResponse;
+	/** The body read as JSON, absent where it isn't JSON. */
+	json?: TJsonResponse;
 	text: string;
 	filtered?: TJsonRecord[];
 };

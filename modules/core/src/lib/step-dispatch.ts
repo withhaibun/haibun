@@ -216,7 +216,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	return lastStepResult;
 }
 
-export function stepResultFromActionResult(actionResult: TActionResult, action: TStepAction, start: number, end: number, featureStep: TFeatureStep, ok: boolean): TStepResult {
+function stepResultFromActionResult(actionResult: TActionResult, action: TStepAction, start: number, end: number, featureStep: TFeatureStep, ok: boolean): TStepResult {
 	return {
 		...actionResult,
 		ok,

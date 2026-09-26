@@ -10,7 +10,7 @@ import type { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js
 type Vec3 = { x: number; y: number; z: number; set(x: number, y: number, z: number): void };
 
 /** The three.js camera slice the view drives (structural: this module keeps depending on no three .d.ts). */
-export type RcCamera = {
+type RcCamera = {
 	aspect: number;
 	fov?: number;
 	position?: { x: number; y: number; z: number };
@@ -18,11 +18,11 @@ export type RcCamera = {
 	getWorldDirection?(target: Vec3): Vec3;
 	matrixWorld?: { elements: number[] };
 };
-export type RcRenderer = { setSize(w: number, h: number, updateStyle: boolean): void; getPixelRatio(): number; xr?: { isPresenting?: boolean } };
-export type RcSceneEl = HTMLElement & { emit(name: string, detail?: unknown, bubbles?: boolean): void };
+type RcRenderer = { setSize(w: number, h: number, updateStyle: boolean): void; getPixelRatio(): number; xr?: { isPresenting?: boolean } };
+type RcSceneEl = HTMLElement & { emit(name: string, detail?: unknown, bubbles?: boolean): void };
 
 /** Accessors the component supplies; every getter is read at CALL time (late-set scene refs / per-repaint maps stay current). */
-export type RenderContextDeps<TNode, TLink> = {
+type RenderContextDeps<TNode, TLink> = {
 	camera: () => RcCamera | undefined;
 	controls: () => OrbitControls | undefined;
 	container: () => HTMLElement | undefined;

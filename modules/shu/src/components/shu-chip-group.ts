@@ -15,7 +15,7 @@ import { shuBaseStyles } from "./styles.js";
 /** One chip: its identity, what it shows, whether it is on, and (optionally) how many it stands for and its swatch. */
 export type TChip = { id: string; label: string; checked: boolean; count?: number; color?: string };
 
-export class ShuChipGroup extends ShuElement<z.ZodType> {
+class ShuChipGroup extends ShuElement<z.ZodType> {
 	/** A control, not a view of data, contributes nothing to the Kihan's context. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;

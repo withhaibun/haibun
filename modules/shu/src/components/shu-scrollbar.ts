@@ -30,7 +30,7 @@ export const SCROLL_TO_INDEX = "scroll-to-index";
 export type TSeekBy = "press" | "wheel";
 /** A press on one of the rail's position glyphs: the top one asks for the START of the run, the bottom one for its live
  *  END: beyond what the rail's rows hold, which a host that pages its data answers by loading to that edge. */
-export type TSeekEdge = "start" | "end";
+type TSeekEdge = "start" | "end";
 
 export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 	constructor() {

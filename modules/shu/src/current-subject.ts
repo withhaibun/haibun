@@ -26,7 +26,7 @@ export type TEntry = { record: TRecord | null; turn?: string; bundle: TBundle };
 /** The scopes this page activates records in. */
 export const SCOPE = { page: "page", actionsBar: "actions-bar" } as const;
 
-export type TScopeState = { entry: TEntry; stamp: number };
+type TScopeState = { entry: TEntry; stamp: number };
 
 export type TSubjectState = {
 	scopes: Record<string, TScopeState>;
@@ -42,7 +42,7 @@ export type TSubjectEvent =
 	| { type: "clear"; scope: string }
 	| { type: "open"; scope: string }
 	| { type: "close"; scope: string };
-export type TSubjectEventType = TSubjectEvent["type"];
+type TSubjectEventType = TSubjectEvent["type"];
 export const SUBJECT_EVENTS = ["activate", "update", "clear", "open", "close"] as const satisfies readonly TSubjectEventType[];
 
 export const INITIAL_SUBJECT: TSubjectState = { scopes: {}, open: [SCOPE.page], clock: 1 };

@@ -9,7 +9,7 @@ import { isGanttable } from "./gantt-model.js";
 import { getRelSync, getEdgeRelMap } from "../rels-cache.js";
 import { edgeRel as coreEdgeRel } from "@haibun/core/lib/resources.js";
 
-export type TPaintView = { id: string; label: string };
+type TPaintView = { id: string; label: string };
 
 /** Resolve a stored predicate to its link relation: site metadata → edge map → core edge rel → the predicate itself. */
 export const browserRelOf = (predicate: string, graph: string): string => getRelSync(graph, predicate) ?? getEdgeRelMap()[predicate] ?? coreEdgeRel(predicate) ?? predicate;

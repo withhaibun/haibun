@@ -17,7 +17,7 @@ import { LIFECYCLE_STATUS, isHandedOutEvent, isSpeculativeEvent } from "@haibun/
  * forked is watched by reading its output; `SseSubscriber` is for a run this process did not fork and can only reach
  * over its endpoint. One set of events, two ways in, no second vocabulary.
  */
-export type TRunEvent = {
+type TRunEvent = {
 	id?: string;
 	kind?: string;
 	stage?: string;
@@ -53,10 +53,10 @@ export function runEvents(output: string): TRunEvent[] {
 }
 
 /** A step the run reported as failed: where it was, what it was, and what it said. */
-export type TRunFailure = { seqPath: string; step: string; message: string };
+type TRunFailure = { seqPath: string; step: string; message: string };
 
 /** One feature of a run: what it was, and what became of it. A run's story is its features, not its total. */
-export type TRunFeature = { id: string; name: string; path: string; steps: number; failed: number };
+type TRunFeature = { id: string; name: string; path: string; steps: number; failed: number };
 
 /**
  * What a run says about itself: how it ended, what failed, and where it wrote its report. All of it comes from the

@@ -12,7 +12,7 @@ import { presenterForType, type PresentContext, type SceneNode } from "./node-pr
 import { getRecordComponent } from "../rels-cache.js";
 import type { NodeMark } from "./graph-scene.js";
 
-export type TypePresentation = {
+type TypePresentation = {
 	/** The node's backend-neutral mark (appearance + layout role): the appearance both graph paints render. */
 	mark(node: SceneNode, ctx: PresentContext): NodeMark;
 	/** The custom column component for this @type, or undefined → the generic entity column. */

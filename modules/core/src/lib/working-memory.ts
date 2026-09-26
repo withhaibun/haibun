@@ -61,11 +61,3 @@ export function getFact(world: TWorld, domain: string, identity: string, namedGr
 	return store.get(identity, domain, namedGraph);
 }
 
-/**
- * Remove every fact matching a domain (and optionally identity) from a named graph.
- * Used for runtime resets between features.
- */
-export async function retractFacts(world: TWorld, domain: string, namedGraph: string, identity?: string): Promise<void> {
-	const store: IQuadStore = world.shared.getStore();
-	await store.remove({ subject: identity, predicate: domain, namedGraph });
-}

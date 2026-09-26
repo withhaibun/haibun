@@ -1,7 +1,7 @@
 const copyRegistry: string[] = [];
 
 /** Register text for copy and return an index. */
-export function registerCopyText(text: string): number {
+function registerCopyText(text: string): number {
 	const idx = copyRegistry.length;
 	copyRegistry.push(text);
 	return idx;

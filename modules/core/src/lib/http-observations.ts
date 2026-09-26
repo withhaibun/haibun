@@ -1,9 +1,8 @@
 /**
  * Shared HTTP observation types and helpers.
  *
- * Used by any stepper that tracks HTTP activity, including:
- * - NodeHttpEvents (Node.js fetch/undici requests)
- * - PlaywrightEvents (browser requests via Playwright)
+ * Used by any stepper that tracks HTTP activity: PlaywrightEvents for a page's requests, and `trackOutboundRequest` for a
+ * request the instance itself makes.
  */
 
 import { z } from "zod";
@@ -19,7 +18,7 @@ export const ENDPOINT_CLASS = { route: "route", service: "service", external: "e
 /** Every observed request, as a fine-grained occurrence: the persisted record is what the graph and the sequence read,
  *  while this is what a trace shows in order, under the step that caused it. Recorded on every response, so it leaves
  *  to the blip channel the job of doing nothing when nothing is listening. */
-export const HTTP_REQUEST_BLIP = "haibun.http.request";
+const HTTP_REQUEST_BLIP = "haibun.http.request";
 declareBlips({
 	name: HTTP_REQUEST_BLIP,
 	instrument: "span-event",
@@ -35,9 +34,9 @@ const SITE_NAME = "This site";
 
 /** Who made an observed request: the `client` (browser / user agent) for requests the site RECEIVES, or the `site`
  *  itself for requests it MAKES outbound. Fixes the sequence message's source lifeline so it reads with true direction. */
-export type THttpOrigin = "client" | "site";
+type THttpOrigin = "client" | "site";
 
-export const SERVICE_PATH_PREFIXES = ["/sse", "/rpc/"] as const;
+const SERVICE_PATH_PREFIXES = ["/sse", "/rpc/"] as const;
 
 /** Whether a path is the app's own service plumbing (/rpc, /sse) rather than a page route. */
 export const isServicePath = (path: string): boolean => SERVICE_PATH_PREFIXES.some((p) => path === p || path.startsWith(p));
@@ -59,7 +58,7 @@ function pathMatchesParameterized(route: string, path: string): boolean {
 }
 
 /** Observation data for a single HTTP request. `durationMs` is unknown for some observers (node fetches). */
-export type THttpRequestObservation = {
+type THttpRequestObservation = {
 	url: string;
 	status: number;
 	durationMs?: number;
@@ -79,7 +78,7 @@ const trackCache = new WeakMap<object, { ensured: Set<string>; counts: Map<strin
  * client → request → endpoint → site, or client/site → request → host.
  */
 /** An outbound request the instance itself makes: no route table, origin "site". The one call shape for every
- *  outbound observer (the undici channels, a subprocess transport), so the convention is stated once. */
+ *  outbound observer, so the convention is stated once. */
 export function trackOutboundRequest(world: TWorld, observation: THttpRequestObservation): Promise<void> {
 	return trackHttpRequest(world, observation, NO_ROUTES, "site");
 }

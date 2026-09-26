@@ -37,7 +37,7 @@ export type ChipThree = GlowThree & {
 	MeshBasicMaterial: new (params: Record<string, unknown>) => { opacity: number; transparent: boolean };
 };
 
-export type ChipDeps = {
+type ChipDeps = {
 	fontSize: number; // world height of the glyphs
 	renderOrder: number;
 	textColor: string; // dark, on the light type-colour background (as the three-spritetext chip)
@@ -71,7 +71,7 @@ export const avatarLeadX = (initialsWidth: number, fontSize: number): number => 
 /** A chip's quads, in the group's own space where the node's point is the origin. Sizes and positions are just numbers,
  *  so the layout is unit-tested without a GPU. `leadX` is 0 for a chip with no avatar; the badge spans the chip's left
  *  edge up to the gap before the label. */
-export type ChipGeometry = { w: number; h: number; cx: number; cy: number; badge?: { w: number; cx: number }; border: { w: number; h: number }; glow: { w: number; h: number } };
+type ChipGeometry = { w: number; h: number; cx: number; cy: number; badge?: { w: number; cx: number }; border: { w: number; h: number }; glow: { w: number; h: number } };
 
 export function chipGeometry(textBounds: readonly [number, number, number, number], leadX: number, fontSize: number): ChipGeometry {
 	const [minX, minY, maxX, maxY] = textBounds; // anchorX left, anchorY top → minX ≈ 0, maxY ≈ 0 (the text's own origin)

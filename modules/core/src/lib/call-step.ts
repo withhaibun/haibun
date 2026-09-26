@@ -15,7 +15,7 @@ import { allocateSyntheticSeqPath } from "./host-id.js";
 import type { TSeqPath, TStepResult } from "../schema/protocol.js";
 
 /** What a call by name answers: the step is not registered here, or it ran and this is what it produced. */
-export type TStepCall = { registered: false } | { registered: true; seqPath: TSeqPath; result: TStepResult };
+type TStepCall = { registered: false } | { registered: true; seqPath: TSeqPath; result: TStepResult };
 
 export async function callStepByName(ctx: DispatchContext, method: string, input: Record<string, unknown> = {}): Promise<TStepCall> {
 	const tool = ctx.registry.get(method);

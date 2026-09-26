@@ -11,7 +11,7 @@ import { HAIBUN_LOG_LEVELS } from "../schema/protocol.js";
 import { EXECUTION_FIELD, RECORDED_AT_TIME_FIELD } from "./seq-path.js";
 import { LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "./resources.js";
 
-export const RUN_ARTIFACT_DOMAIN = "run-artifact";
+const RUN_ARTIFACT_DOMAIN = "run-artifact";
 export const RUN_ARTIFACT_LABEL = "Artifact";
 
 /** Artifact field names, shared by the schema, the topology and whatever writes one. */
@@ -41,7 +41,7 @@ export const RUN_ARTIFACT_EDGE = {
 } as const;
 
 // Non-strict for the same reason as SeqPath: `isPartOf` is declared as an edge and written in the same upsert.
-export const RunArtifactSchema = PersistedVertexSchema.extend({
+const RunArtifactSchema = PersistedVertexSchema.extend({
 	[RUN_ARTIFACT_FIELD.id]: z.string(),
 	[RUN_ARTIFACT_FIELD.artifactType]: z.string(),
 	[RUN_ARTIFACT_FIELD.path]: z.string().optional(),
@@ -52,8 +52,6 @@ export const RunArtifactSchema = PersistedVertexSchema.extend({
 	[RUN_ARTIFACT_FIELD.execution]: z.string().optional(),
 	[RUN_ARTIFACT_FIELD.recordedAtTime]: z.string().optional(),
 });
-export type TRunArtifact = z.infer<typeof RunArtifactSchema>;
-
 export const runArtifactDomainDefinition: TDomainDefinition = {
 	selectors: [RUN_ARTIFACT_DOMAIN],
 	schema: RunArtifactSchema,

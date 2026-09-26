@@ -14,7 +14,7 @@ import { linkEndId, type FGNode } from "./polymorphic-graph-types.js";
 import { graphSummary, type IGraphRenderer, type TDrawn } from "./polymorphic-renderer.js";
 
 /** What the medium needs from its host, read at draw time. */
-export type TSvgRendererDeps = {
+type TSvgRendererDeps = {
 	/** Time reads left to right in the lane views (gantt, sequence), where z is the calendar axis; x carries it elsewhere. */
 	timeIsHorizontal(): boolean;
 };

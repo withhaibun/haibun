@@ -19,7 +19,7 @@ export const VIEW_SCROLL_BLIP = "haibun.shu.view.scroll";
 
 /** What moved the view: the reader (wheel, touch, a rail seek), or the system (a follow, an estimate correction, a
  *  scroll-to). Bounded, which is what makes it a dimension; telling the two apart is the whole diagnosis. */
-export const SCROLL_REASONS = ["reader", "system"] as const;
+const SCROLL_REASONS = ["reader", "system"] as const;
 
 /** How long after wheel, touch or a rail seek a scroll still counts as the reader's. Past it, a move is the system's. */
 export const READER_INPUT_WINDOW_MS = 150;
@@ -33,7 +33,7 @@ export const viewAttributes = z.object({ view: z.string(), at: z.number().option
  *  was short in rows or only in pixels, and whether it still believed it was at the edge. */
 export const VIEW_WINDOW_BLIP = "haibun.shu.view.window";
 
-export const VIEW_BLIPS: TBlipDeclaration[] = [
+const VIEW_BLIPS: TBlipDeclaration[] = [
 	{
 		name: VIEW_WINDOW_BLIP,
 		instrument: "span-event",
