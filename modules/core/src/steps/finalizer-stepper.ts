@@ -4,7 +4,6 @@ import { FlowRunner } from "../lib/core/flow-runner.js";
 import { featureSyntheticSeqPath } from "../phases/Executor.js";
 import { OK } from "../schema/protocol.js";
 import { DOMAIN_STATEMENT } from "../lib/domains.js";
-import { actionNotOK } from "../lib/util/index.js";
 
 export default class FinalizerStepper extends AStepper implements IHasCycles {
 	description = "Runs registered finalizer statements at end of execution";
@@ -59,14 +58,10 @@ export default class FinalizerStepper extends AStepper implements IHasCycles {
 	steps: TStepperSteps = {
 		registerFinalizer: {
 			gwta: `finalizer {statement:${DOMAIN_STATEMENT}}`,
-			action: (_: unknown, featureStep: TFeatureStep) => {
-				const statement = featureStep.action?.stepValuesMap?.statement?.term?.trim();
-				if (!statement) {
-					return actionNotOK("finalizer statement is required");
-				}
+			action: ({ statement }: { statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				const featurePath = this.getWorld().runtime.currentFeaturePath || featureStep.source?.path;
 				const statements = this.registeredStatementsByFeature.get(featurePath) || [];
-				statements.push(statement);
+				statements.push(...statement.map((step) => step.in));
 				this.registeredStatementsByFeature.set(featurePath, statements);
 				return OK;
 			},

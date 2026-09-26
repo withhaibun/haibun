@@ -7,7 +7,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { TFeatureStep, CycleWhen, TStepAction } from "@haibun/core/lib/astepper.js";
-import { OK, TStepResult, Origin } from "@haibun/core/schema/protocol.js";
+import { OK, TStepResult, Origin, type TStepValue } from "@haibun/core/schema/protocol.js";
 import { BrowserFactory, TTaggedBrowserFactoryOptions, TBrowserTypes, BROWSERS } from "./BrowserFactory.js";
 import {
 	actionNotOK,
@@ -23,7 +23,7 @@ import { AStorage } from "@haibun/domain-storage/AStorage.js";
 import { saveImageArtifact } from "./artifact.js";
 import { VideoStartArtifact } from "@haibun/core/schema/protocol.js";
 import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
-import { DOMAIN_STRING } from "@haibun/core/lib/domains.js";
+import { DOMAIN_STRING, domainParts } from "@haibun/core/lib/domains.js";
 import {
 	DOMAIN_PAGE_LOCATOR,
 	DOMAIN_PAGE_TEST_ID,
@@ -491,15 +491,10 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	async setLastResponse(serialized: TCapturedResponse, featureStep: TFeatureStep) {
 		await this.getWorld().shared.setJSON(LAST_REST_RESPONSE, serialized, Origin.var, featureStep);
 	}
-	async locateByDomain(page: Page, featureStep: TFeatureStep, where: string) {
-		const { value, domain } = await this.getWorld().shared.resolveVariable(featureStep.action.stepValuesMap[where], featureStep);
-		const strValue = <string>value;
-
-		// For union domains like "page-locator | string", extract the individual parts
-		const domainParts = domain?.split(" | ").map((d) => d.trim()) ?? [];
-		const effectiveDomain = domainParts.length === 1 ? domainParts[0] : pickLocatorDomain(domainParts);
-
-		switch (effectiveDomain) {
+	/** Where a page target is found: the way of searching a page that the value's domain names. */
+	locateByDomain(page: Page, target: TStepValue): Locator {
+		const strValue = String(target.value);
+		switch (finderOf(target)) {
 			case DOMAIN_STRING:
 			case DOMAIN_PAGE_TEXT:
 				return page.getByText(strValue, { exact: true });
@@ -521,6 +516,12 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		}
 	}
 }
+
+/** The way a page is searched for a target: the finder its value holds, or the text a page shows for a line's own words. */
+export const finderOf = (target: TStepValue): string => {
+	const parts = domainParts(target.domain);
+	return parts.length === 1 ? parts[0] : pickLocatorDomain(parts);
+};
 
 /** How a value of a union of page finders is found: a line's own words are the text a page shows, the most common case. */
 export function pickLocatorDomain(parts: string[]): string {

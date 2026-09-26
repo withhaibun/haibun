@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { z } from "zod";
 import { RemoteStepperProxy } from "./remote-stepper-proxy.js";
-import { openRunRegistry, StepRegistry } from "./step-registry.js";
+import { buildFeatureStepForTransport, openRunRegistry, StepRegistry } from "./step-registry.js";
 import Haibun from "../steps/haibun.js";
 import { AStepper } from "./astepper.js";
 import { actionOKWithProducts, errorDetail } from "./util/index.js";
@@ -13,20 +13,28 @@ import { AUTHORITY_KEY, SessionAuthority } from "./session-authority.js";
 import { RUN_AUTHORITY, runAuthorizedWith } from "./capability-context.js";
 import type { TWorld } from "./world.js";
 import { SITE_DID_PREFIX } from "./host-id.js";
-import { DOMAIN_STRING } from "./domains.js";
-import { OK, Origin } from "../schema/protocol.js";
+import { DOMAIN_STRING, asDomainKey } from "./domains.js";
+import { OK, Origin, type TStepValue } from "../schema/protocol.js";
 import { ANSWERED_WITHOUT_PRODUCTS } from "./rpc-wire.js";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import type { Server } from "http";
 
 const ECHOED_LABEL = "test-echoed-label";
+/** Two ways to name a thing, and a parameter that takes either. */
+const PICKS = ["test-pick-by-name", "test-pick-by-id"];
+const DOMAIN_PICK = asDomainKey(PICKS);
 
 class EchoStepper extends AStepper {
 	description = "Steps that echo a message and answer a protected ping, served by a remote host.";
 	cycles = {
 		getConcerns: () => ({
-			domains: [...testDomainDefinitions, { selectors: [ECHOED_LABEL], schema: z.object({ label: z.string().nullable() }), description: "A label a step echoed" }],
+			domains: [
+				...testDomainDefinitions,
+				{ selectors: [ECHOED_LABEL], schema: z.object({ label: z.string().nullable() }), description: "A label a step echoed" },
+				...PICKS.map((pick) => ({ selectors: [pick], schema: z.string(), description: `A thing named ${pick}` })),
+				{ selectors: PICKS, schema: z.string(), description: "A thing named either way" },
+			],
 		}),
 	};
 	steps = {
@@ -44,6 +52,11 @@ class EchoStepper extends AStepper {
 		acts: {
 			gwta: "act",
 			action: async () => OK,
+		},
+		echoPick: {
+			gwta: `echo the pick {pick: ${DOMAIN_PICK}}`,
+			productsDomain: TEST_DOMAIN.echoed,
+			action: async ({ pick }: { pick: TStepValue }) => actionOKWithProducts({ echoed: String(pick.value) }),
 		},
 		echoLabel: {
 			gwta: "echo the label of {query: json}",
@@ -178,6 +191,20 @@ describe("RemoteStepperProxy", () => {
 		featureStep.action.stepValuesMap = { message: { term: "greeting", domain: DOMAIN_STRING, origin: Origin.defined } };
 		const result = await tool.handler(featureStep, world);
 		expect(result.products).toMatchObject({ echoed: "hello from the caller" });
+	});
+
+	it("sends a parameter that takes either of two domains as its value, which the host reads by its own parameter", async () => {
+		const proxy = new RemoteStepperProxy(`http://localhost:${port}`);
+		await proxy.setWorld(world, []);
+		const registry = new StepRegistry([], world);
+		proxy.injectInto(registry);
+		const tool = registry.get("host7_EchoStepper-echoPick");
+		if (!tool) throw new Error("the proxy doesn't hold the pick step");
+		const featureStep = buildFeatureStepForTransport(tool, {}, [0, 1]);
+		featureStep.action.stepValuesMap = { pick: { term: "alpha", domain: DOMAIN_PICK, origin: Origin.quoted } };
+		const result = await tool.handler(featureStep, world);
+		expect(result.ok, result.errorMessage).toBe(true);
+		expect(result.products).toMatchObject({ echoed: "alpha" });
 	});
 
 	it("preserves capability metadata from remote", async () => {

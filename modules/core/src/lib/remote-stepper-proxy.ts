@@ -15,7 +15,7 @@ import type { TWorld } from "./world.js";
 import type { TActionResult } from "../schema/protocol.js";
 import { actionNotOK } from "./util/index.js";
 import { type StepTool, type StepRegistry, hostScopedMethodName } from "./step-registry.js";
-import { populateActionArgs } from "./populateActionArgs.js";
+import { callInput } from "./populateActionArgs.js";
 import { EVERY_DEFINITION, SHOW_STEPS_ACTION, SHOW_STEPS_METHOD, readShownSteps, type TStepDescriptor } from "./step-discovery.js";
 import { RpcClient, discoverInstance, type RpcError } from "./rpc-client.js";
 import { requestSigner } from "./session-authority.js";
@@ -84,7 +84,7 @@ export class RemoteStepperProxy extends AStepper {
 				// Dispatch over RPC using the un-prefixed method name: the prefix is
 				// a local registry-naming concern, not part of the wire call.
 				// A statement's values are read where it was written, as a local step's are, so the far side is sent values.
-				handler: async (featureStep, world) => this.call(descriptor, await populateActionArgs(featureStep, world, world.runtime.steppers), featureStep.seqPath),
+				handler: async (featureStep, world) => this.call(descriptor, await callInput(featureStep, world, world.runtime.steppers), featureStep.seqPath),
 			}),
 		);
 		registry.inject(tools);

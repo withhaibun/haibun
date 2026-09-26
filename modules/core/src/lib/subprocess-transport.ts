@@ -18,7 +18,7 @@ import type { TWorld } from "./world.js";
 import type { TActionResult } from "../schema/protocol.js";
 import { actionNotOK } from "./util/index.js";
 import { type StepTool, type StepRegistry } from "./step-registry.js";
-import { populateActionArgs } from "./populateActionArgs.js";
+import { callInput } from "./populateActionArgs.js";
 import type { TStepDescriptor } from "./step-discovery.js";
 import type { SubprocessMessage, SubprocessResultMessage } from "./subprocess-runner.js";
 
@@ -75,7 +75,7 @@ export class SubprocessTransport {
 				isAsync: true,
 				transport: "subprocess",
 				// A statement's values are read where it was written, as a local step's are, so the far side is sent values.
-				handler: async (featureStep, world) => this.call(descriptor.method, await populateActionArgs(featureStep, world, world.runtime.steppers), featureStep.seqPath),
+				handler: async (featureStep, world) => this.call(descriptor.method, await callInput(featureStep, world, world.runtime.steppers), featureStep.seqPath),
 			}),
 		);
 		registry.inject(tools);
