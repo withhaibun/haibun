@@ -178,17 +178,17 @@ describe("a step's place and a length of time", () => {
 });
 
 describe("what a variable step writes", () => {
-	it("reads a set's quoted members, or else its words, and refuses a set naming none", () => {
+	it("reads a set's quoted members, or else its words, and refuses an empty set", () => {
 		const { schema } = getDefaultWorld().domains[DOMAIN_SET_VALUES];
 		expect(schema.parse('"red wine", "gin"')).toEqual(["red wine", "gin"]);
 		expect(schema.parse("red, green blue")).toEqual(["red", "green", "blue"]);
-		expect(schema.safeParse(" , ").error?.issues[0]?.message).toMatch(/names no member/);
+		expect(schema.safeParse(" , ").error?.issues[0]?.message).toMatch(/the set is empty/);
 	});
 
-	it("reads a hypermedia declaration trimmed, and refuses one declaring nothing", () => {
+	it("reads a hypermedia declaration trimmed, and refuses an empty one", () => {
 		const { schema } = getDefaultWorld().domains[DOMAIN_HYPERMEDIA_DECLARATION];
 		expect(schema.parse("  id, with name ")).toBe("id, with name");
-		expect(schema.safeParse("   ").error?.issues[0]?.message).toMatch(/declares nothing/);
+		expect(schema.safeParse("   ").error?.issues[0]?.message).toMatch(/the declaration is empty/);
 	});
 
 	it("compares a variable with a value of any domain, which the variable's domain reads", async () => {

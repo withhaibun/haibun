@@ -179,14 +179,10 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			this.failFast(`ShuActionsBar initialization failed: ${errorDetail(err)}`);
 		});
 
-		try {
-			this._unsubscribeSync = eventStream().subscribe(
-				(event: TEvent) => this.dispatchEvent(new CustomEvent(SHU_EVENT.SYNC_AVAILABLE, { detail: event, bubbles: true, composed: true })),
-				(event: TEvent) => event.kind === "imap-sync",
-			);
-		} catch {
-			// No EventStream installed (early-mount in tests); skip live sync wiring.
-		}
+		this._unsubscribeSync = eventStream().subscribe(
+			(event: TEvent) => this.dispatchEvent(new CustomEvent(SHU_EVENT.SYNC_AVAILABLE, { detail: event, bubbles: true, composed: true })),
+			(event: TEvent) => event.kind === "imap-sync",
+		);
 
 		// Live filter values: a batch carrying a change in the selected type's named graph may add a distinct value (a new
 		// folder, a status), read out of the batch, so the menus stay current without a reload or a request.

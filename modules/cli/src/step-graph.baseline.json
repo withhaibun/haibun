@@ -1,15 +1,1 @@
-[
-	"orphan-step InstanceStepper.readRun produces run-read",
-	"orphan-step InstanceStepper.restartInstance produces instance-started",
-	"orphan-step InstanceStepper.showInstances produces haibun-instances",
-	"orphan-step InstanceStepper.startInstance produces instance-started",
-	"orphan-step InstanceStepper.startRun produces run-started",
-	"orphan-step InstanceStepper.stopRun produces run-stopped",
-	"orphan-step InstanceStepper.waitRun produces run-read",
-	"orphan-step TestRunnerStepper.askTestRun produces test-run-answer",
-	"orphan-step TestRunnerStepper.awaitTestRun produces test-run-read",
-	"orphan-step TestRunnerStepper.examineTestRun produces test-run-examined",
-	"orphan-step TestRunnerStepper.readTestRun produces test-run-read",
-	"orphan-step TestRunnerStepper.runAllTests produces feature-execution",
-	"orphan-step TestRunnerStepper.runTest produces feature-execution"
-]
+[]

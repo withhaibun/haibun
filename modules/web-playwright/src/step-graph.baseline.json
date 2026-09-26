@@ -1,16 +1,1 @@
-[
-	"orphan-step WebPlaywright.getPageContents produces page-contents",
-	"orphan-step WebPlaywright.loadBrowserExtension produces browser-extension",
-	"orphan-step WebPlaywright.showBrowserRelay produces relay-attachment",
-	"orphan-step WebPlaywright.showResponseLength produces json-response-count",
-	"orphan-step WebPlaywright.takeAccessibilitySnapshot produces accessibility-snapshot",
-	"unreachable-domain HttpClient",
-	"unreachable-domain HttpHost",
-	"unreachable-domain HttpRequest",
-	"unreachable-domain VisitedPage",
-	"unreachable-domain page-alt-text",
-	"unreachable-domain page-label",
-	"unreachable-domain page-placeholder",
-	"unreachable-domain page-role",
-	"unreachable-domain page-title"
-]
+[]

@@ -141,23 +141,19 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		// Every step end emits an `affordances.<seqPath>` artifact via the goal-resolution
 		// stepper's afterStep cycle. Subscribing keeps the panel current; the snapshot/restore
 		// helper preserves scroll, focus, and details-open state across re-renders.
-		try {
-			// afterStep emits a lean `affordances.<seqPath>` change signal (no payload), re-fetch the current snapshot.
-			// Batched (rAF), so the connect-time history replay (one event per past step) collapses to ONE re-fetch per
-			// frame rather than one RPC per replayed event: the spurious-RPC flood. Same batching primitive as the
-			// timeline, the graph, and the app's pane router.
-			this.autoTeardown(
-				this.subscribeBatched({
-					onBatch: () => this.scheduleRefresh(),
-					filter: (event: TEvent) => typeof event.id === "string" && (event.id as string).startsWith(AFFORDANCE_EVENT_PREFIX),
-				}),
-			);
-			this.autoTeardown(() => {
-				if (this._refreshTimer !== undefined) clearTimeout(this._refreshTimer);
-			});
-		} catch {
-			// No EventStream installed (test env without setupShuTest, standalone). Skip live updates.
-		}
+		// afterStep emits a lean `affordances.<seqPath>` change signal without a payload, so the panel reads the snapshot again.
+		// Batched (rAF), so the connect-time history replay (one event per past step) collapses to ONE re-fetch per
+		// frame rather than one RPC per replayed event: the spurious-RPC flood. Same batching primitive as the
+		// timeline, the graph, and the app's pane router.
+		this.autoTeardown(
+			this.subscribeBatched({
+				onBatch: () => this.scheduleRefresh(),
+				filter: (event: TEvent) => typeof event.id === "string" && (event.id as string).startsWith(AFFORDANCE_EVENT_PREFIX),
+			}),
+		);
+		this.autoTeardown(() => {
+			if (this._refreshTimer !== undefined) clearTimeout(this._refreshTimer);
+		});
 		// Back/forward navigation should re-sync the open goal / waypoint from the URL so the
 		// panel reflects the address bar. Storing in history rather than state means
 		// a copy-pasted URL also opens the right entry on first load.

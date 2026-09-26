@@ -7,13 +7,13 @@
 				"declaredStepTextHash": "d0e346f5b51691342208998de80debbe0bb83a441ce981f4e2651feecb2e7069"
 			},
 			"/features/federate.feature.ts": {
-				"seconds": 0.6,
+				"seconds": 0.7,
 				"steps": 6,
 				"declaredStepTextHash": "ab37731cb50813b783e0aa872bb80a9b995c504e308a5603c48f254263f91584"
 			},
 			"/features/monitor.feature.ts": {
-				"seconds": 9.3,
-				"steps": 548,
+				"seconds": 9.4,
+				"steps": 549,
 				"declaredStepTextHash": "e792cbc5c86e8c45f4af142b43abe587638c708b1555506ba1620dc4fc368ba2"
 			},
 			"/features/remote-store.feature.ts": {
@@ -27,7 +27,7 @@
 				"declaredStepTextHash": "cb952f265cabaf610ead36d8abfa2dfb94e14acacd1a87c6d5d8c8f38d951fad"
 			}
 		},
-		"steps": 961,
-		"seconds": 12.9
+		"steps": 962,
+		"seconds": 13.1
 	}
 }

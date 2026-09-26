@@ -1,10 +1,9 @@
-import { z } from "zod";
 import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TStepperStep, CycleWhen } from "../lib/astepper.js";
 import type { TFeatures, TStepInput } from "../lib/execution.js";
 import type { TWorld } from "../lib/world.js";
 import { TStepArgs, TRegisteredOutcomeEntry, OK } from "../schema/protocol.js";
 import { formatSeqPath } from "../lib/seq-path.js";
-import { actionOK, actionNotOK, actionOKWithProducts, getActionable, errorDetail } from "../lib/util/index.js";
+import { actionOK, actionNotOK, getActionable, errorDetail } from "../lib/util/index.js";
 import { DOMAIN_STATEMENT, DOMAIN_TITLE } from "../lib/domains.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { ControlEvent, LifecycleEvent } from "../schema/protocol.js";
@@ -15,10 +14,6 @@ import { runRegistry, stepMethodName } from "../lib/step-registry.js";
 import { WAYPOINT_KIND, type TWaypointEntry, type TWaypointKind } from "../lib/affordances.js";
 import { namedInterpolation } from "../lib/namedVars.js";
 import { authorizedWith } from "../lib/capability-context.js";
-
-const ActivityOutcomeSchema = z.object({ proofStatements: z.array(z.string()) });
-/** The domain of what an outcome a feature registered answers with: the statements that prove it. */
-const DOMAIN_ACTIVITY_OUTCOME = "activity-outcome";
 
 // need this type because some steps are dynamically generated (e.g. waypoints)
 type TActivitiesFixedSteps = {
@@ -55,9 +50,6 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	private inActivityBlock = false;
 
 	cycles: IStepperCycles = {
-		getConcerns: () => ({
-			domains: [{ selectors: [DOMAIN_ACTIVITY_OUTCOME], schema: ActivityOutcomeSchema, description: "The statements that prove an outcome a feature registered" }],
-		}),
 		startExecution: () => {
 			this.sendGraphLinkMessages();
 		},
@@ -311,20 +303,6 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 					return actionNotOK(`ensure: waypoint "${outcomeKey}" has no proof. ensure can only be used with waypoints that have a proof.`);
 				}
 
-				const activityArgs: Record<string, string> = {};
-				for (const step of outcome) {
-					if (step.action.stepValuesMap) {
-						for (const [key, val] of Object.entries(step.action.stepValuesMap)) {
-							const value = val.value !== undefined ? String(val.value) : val.term;
-							if (value !== undefined) {
-								activityArgs[key] = value;
-							}
-						}
-					}
-				}
-
-				let proofStatements: string[] | undefined;
-
 				try {
 					const flowResult = await this.runner.runSteps(outcome, {
 						intent: { mode: "authoritative", usage: featureStep.intent?.usage, stepperOptions: { isEnsure: true } },
@@ -335,20 +313,13 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 						this.emitEnsureEnd(featureStep, outcomeKey, false, flowResult.errorMessage);
 						return actionNotOK(`ensure: waypoint "${outcomeKey}" proof failed: ${flowResult.errorMessage}`);
 					}
-
-					proofStatements = (flowResult.products as Record<string, unknown>)?.proofStatements as string[] | undefined;
-
-					if (!proofStatements) {
-						this.emitEnsureEnd(featureStep, outcomeKey, false, "no proofStatements returned");
-						return actionNotOK(`ensure: waypoint "${outcomeKey}" succeeded but returned no proofStatements`);
-					}
 				} catch (err) {
 					const msg = errorDetail(err);
 					this.emitEnsureEnd(featureStep, outcomeKey, false, msg);
 					return actionNotOK(`ensure: waypoint "${outcomeKey}" proof execution error: ${msg}`);
 				}
 
-				this.ensuredInstances.set(outcomeKey, { proof: proofStatements, valid: true });
+				this.ensuredInstances.set(outcomeKey, { proof: metadata.proofStatements, valid: true });
 				this.ensureAttempts.delete(attemptKey);
 
 				this.emitEnsureEnd(featureStep, outcomeKey, true);
@@ -545,7 +516,6 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				path: actualSourcePath || proofPath,
 			},
 			description: `Outcome: ${outcome}. Proof: ${proofStatements.join("; ")}`,
-			productsDomain: DOMAIN_ACTIVITY_OUTCOME,
 			action: async (args: TStepArgs, featureStep: TFeatureStep) => {
 				const robustArgs: Record<string, string> = { ...(args as Record<string, string>) };
 				if (featureStep.action.stepValuesMap) {
@@ -565,7 +535,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 					});
 
 					if (proof.ok) {
-						return actionOKWithProducts({ proofStatements });
+						return OK;
 					}
 				}
 
@@ -581,13 +551,13 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 						if (!act.ok) {
 							return actionNotOK(`ActivitiesStepper: activity body failed for outcome "${outcome}": ${act.errorMessage}`);
 						}
-						return actionOKWithProducts({ proofStatements });
+						return OK;
 					}
 
 					if (proofStatements.length > 0) {
 						return actionNotOK(`ActivitiesStepper: proof failed for outcome "${outcome}"`);
 					}
-					return actionOKWithProducts({ proofStatements });
+					return OK;
 				}
 
 				// 3. Ensure Mode: Run Activity Body
@@ -613,7 +583,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 							return actionNotOK(`ActivitiesStepper: proof verification failed after activity body for outcome "${outcome}": ${verify.errorMessage}`);
 						}
 					}
-					return actionOKWithProducts({ proofStatements });
+					return OK;
 				}
 
 				return actionNotOK(`ActivitiesStepper: no activity body for outcome "${outcome}"`);

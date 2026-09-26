@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ShuAffordancesPanel } from "./shu-affordances-panel.js";
 import { setConduit, resetConduit } from "../hypermedia.js";
-import { TestConduit } from "../test-setup.js";
+import { TestConduit, setupShuTest } from "../test-setup.js";
 import { setEventStream, resetEventStream, SerializedEventStream, type TEvent } from "../event-stream.js";
 import * as ViewHash from "../view-hash.js";
 import { AFFORDANCE_PARAM } from "../consts.js";
@@ -32,6 +32,7 @@ const applied = async (panel: { updateComplete: Promise<unknown> }): Promise<voi
 describe("shu-affordances-panel", () => {
 	beforeEach(() => {
 		document.body.innerHTML = "";
+		setupShuTest();
 		if (!HTMLElement.prototype.scrollIntoView) HTMLElement.prototype.scrollIntoView = (): void => undefined;
 		// The deep link lives in the view hash, which is module state: clear it the way the app does, or one test's
 		// open goal is the next one's starting point.

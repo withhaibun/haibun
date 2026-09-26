@@ -94,16 +94,12 @@ export function linkHtml(href: string | undefined, text: string, attrs = "", lin
 /** The text a reference shows when its caller names none: the identifier itself, read out of the target. */
 export function defaultLabel(kind: string | null, targetJson: string | null): string {
 	if (!kind || !targetJson) return "";
-	try {
-		const target = JSON.parse(targetJson) as Record<string, unknown>;
-		if (kind === "seqPath" && Array.isArray(target.seqPath)) return (target.seqPath as number[]).join(".");
-		if (kind === REF_DENOTES.individual && typeof target.id === "string") return target.id;
-		if (kind === REF_DENOTES.type && typeof target.domain === "string") return target.domain;
-		if (kind === "step" && typeof target.method === "string") return target.method;
-		if (kind === "action" && typeof target.action === "string") return target.action;
-	} catch {
-		// fallthrough
-	}
+	const target = JSON.parse(targetJson) as Record<string, unknown>;
+	if (kind === "seqPath" && Array.isArray(target.seqPath)) return (target.seqPath as number[]).join(".");
+	if (kind === REF_DENOTES.individual && typeof target.id === "string") return target.id;
+	if (kind === REF_DENOTES.type && typeof target.domain === "string") return target.domain;
+	if (kind === "step" && typeof target.method === "string") return target.method;
+	if (kind === "action" && typeof target.action === "string") return target.action;
 	return "";
 }
 

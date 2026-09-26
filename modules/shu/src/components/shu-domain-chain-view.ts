@@ -89,17 +89,13 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 		if (this.affordances === null) void this.fetchInitial();
 		// Batch the subscription: on reload the stream replays the whole `affordances.` history at once (thousands of
 		// events), and a re-fetch per event pins the page. subscribeBatched collapses the replay to one re-fetch per frame.
-		try {
-			this.autoTeardown(
-				this.subscribeBatched({
-					// afterStep emits a lean change signal (no payload), quietly re-fetch the current snapshot, once per batch.
-					onBatch: () => void this.fetchInitial(true),
-					filter: (event: TEvent) => typeof event.id === "string" && (event.id as string).startsWith(AFFORDANCE_EVENT_PREFIX),
-				}),
-			);
-		} catch {
-			// No EventStream installed (early jsdom test, standalone). Ignore.
-		}
+		this.autoTeardown(
+			this.subscribeBatched({
+				// afterStep emits a lean change signal without a payload, so the view reads the snapshot again quietly, once per batch.
+				onBatch: () => void this.fetchInitial(true),
+				filter: (event: TEvent) => typeof event.id === "string" && (event.id as string).startsWith(AFFORDANCE_EVENT_PREFIX),
+			}),
+		);
 		this.autoListen(this, SHU_EVENT.GRAPH_NODE_CLICK, (e) => this.onNodeClick(e));
 		// The address names the goal or waypoint the reader is on, which the graph marks as its active node.
 		this.autoTeardown(ViewHash.onHashChanged(() => presenterIn(this, CHAIN_GRAPH.slot)?.selectNode(this.addressedNode())));
@@ -137,8 +133,6 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 	private findingTpl(f: TLintFinding): TemplateResult {
 		const step = (stepperName: string, stepName: string) => stepRef(stepMethodName(stepperName, stepName));
 		switch (f.kind) {
-			case LINT_FINDING.ORPHAN_STEP:
-				return html`${step(f.stepperName, f.stepName)} returns ${domainRef(f.outputDomain)}, which no step takes`;
 			case LINT_FINDING.UNSUPPLIED_STEP:
 				return html`${step(f.stepperName, f.stepName)} takes ${domainRef(f.inputDomain)}, which no step returns and a caller doesn't write`;
 			case LINT_FINDING.UNREACHABLE_DOMAIN:

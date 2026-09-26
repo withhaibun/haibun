@@ -14,6 +14,8 @@ import { getUiExtensionTags } from "../rels-cache.js";
 import { PERMISSIONS_SUMMARY, summaryOf, type TPermissionsSummary } from "./shu-permissions.js";
 import { isRefKind, type TRefKind } from "./ref-navigation.js";
 import type { TControllerHost } from "./controller-host.js";
+import { reportToRun } from "../client-log.js";
+import { errorDetail } from "@haibun/core/lib/util/index.js";
 
 export const CORNERS = ["settings", "playback", "access", "status"] as const;
 export type TCorner = (typeof CORNERS)[number];
@@ -101,7 +103,7 @@ export class PageStripCorners implements ReactiveController {
 		void this.#authority
 			.read()
 			.then((held) => this.#setSummary(summaryOf(held)))
-			.catch(() => undefined);
+			.catch((err: unknown) => reportToRun("error", SHU_TAG.PAGE_STRIP, `what this page holds was not read: ${errorDetail(err)}`));
 	}
 
 	hostDisconnected(): void {

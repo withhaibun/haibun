@@ -50,12 +50,8 @@ function getWorkspaceRoot() {
 	while (true) {
 		const packageJsonPath = path.resolve(currentDir, "package.json");
 		if (nodeFS.existsSync(packageJsonPath)) {
-			try {
-				const pkg = JSON.parse(nodeFS.readFileSync(packageJsonPath, "utf-8"));
-				if (pkg.name === "haibun" || pkg.workspaces) return currentDir;
-			} catch {
-				// Ignore JSON parse errors and continue searching
-			}
+			const pkg = JSON.parse(nodeFS.readFileSync(packageJsonPath, "utf-8"));
+			if (pkg.name === "haibun" || pkg.workspaces) return currentDir;
 		}
 		const parentDir = dirname(currentDir);
 		if (parentDir === currentDir) break;

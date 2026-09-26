@@ -14,7 +14,6 @@ import { getDefaultWorld } from "./test/lib.js";
 const PERSON = "person";
 const EMAIL = "email";
 const ARCHIVED = "archived-email";
-const ORPHAN_OUTPUT = "orphan-output";
 
 const GREETING = "greeting";
 
@@ -31,8 +30,7 @@ const domains = () =>
 		thing(PERSON, "person"),
 		thing(EMAIL, "email"),
 		thing(ARCHIVED, "archived email"),
-		thing(ORPHAN_OUTPUT, "orphan output"),
-		thing("dead-registered", "registered but no producer or consumer"),
+		{ selectors: ["dead-registered"], schema: z.string(), description: "registered, and a step doesn't produce or consume it" },
 		{ selectors: [GREETING], schema: z.enum(["hello", "goodbye"]), description: "a value its caller writes" },
 	]);
 
@@ -56,16 +54,6 @@ class ArchiveEmail extends AStepper {
 	};
 }
 
-class UnsuppliedConsumer extends AStepper {
-	steps: TStepperSteps = {
-		consume: {
-			gwta: `consume {who: ${PERSON}}`,
-			productsDomain: ORPHAN_OUTPUT,
-			action: () => actionOKWithProducts({}),
-		},
-	};
-}
-
 class LooselyTyped extends AStepper {
 	steps: TStepperSteps = {
 		named: { gwta: "name {who}", action: () => OK },
@@ -82,24 +70,6 @@ class StubStepper extends AStepper {
 }
 
 describe("lintDomainChain", () => {
-	it("reports orphan-step for a step whose output domain no other step consumes", () => {
-		const graph = buildDomainChain([new EmailFromPerson(), new UnsuppliedConsumer()], domains());
-		// EmailFromPerson.issueEmail produces EMAIL, consumed by no step here.
-		// UnsuppliedConsumer.consume produces ORPHAN_OUTPUT, consumed by no step.
-		const report = lintDomainChain(graph, domains());
-		const orphans = report.findings.filter((f) => f.kind === "orphan-step");
-		const orphanOutputs = orphans.map((o) => (o.kind === "orphan-step" ? o.outputDomain : ""));
-		expect(orphanOutputs).toContain(EMAIL);
-		expect(orphanOutputs).toContain(ORPHAN_OUTPUT);
-	});
-
-	it("does not report orphan-step when a consumer exists", () => {
-		const graph = buildDomainChain([new EmailFromPerson(), new ArchiveEmail()], domains());
-		const report = lintDomainChain(graph, domains());
-		const orphans = report.findings.filter((f) => f.kind === "orphan-step" && f.outputDomain === EMAIL);
-		expect(orphans).toHaveLength(0);
-	});
-
 	it("reports unsupplied-step for a step whose input domain no other step produces", () => {
 		// Only EmailFromPerson is loaded. It consumes PERSON but nothing produces PERSON.
 		const graph = buildDomainChain([new EmailFromPerson()], domains());
@@ -134,8 +104,43 @@ describe("lintDomainChain", () => {
 		expect(unsupplied([new RemovesEmail()], "remove"), "no step produces an email").toHaveLength(1);
 		expect(unsupplied([new RemovesEmail(), new EmailFromPerson()], "remove"), "a step issuing an email supplies a reference to one").toEqual([]);
 		expect(unsupplied([new ArchiveEmail(), new FindsEmail()], "archive"), "a step answering with a reference supplies the email it refers to").toEqual([]);
-		const orphaned = findings([new EmailFromPerson(), new RemovesEmail()]).filter((f) => f.kind === LINT_FINDING.ORPHAN_STEP && f.outputDomain === EMAIL);
-		expect(orphaned, "a step taking a reference to an email takes an email").toEqual([]);
+		expect(findings([new RemovesEmail()]).map(lintFindingLine), "a step taking a reference to an email takes an email").toContain(`unproduced-domain ${EMAIL}`);
+	});
+
+	it("reads a step that takes a union as taking each part, so it doesn't report a part unreachable", () => {
+		const [LABEL, ROLE] = ["page-label", "page-role"];
+		const parts = mapDefinitionsToDomains([LABEL, ROLE].map((selector) => ({ selectors: [selector], schema: z.string(), description: selector })));
+		class FindsEither extends AStepper {
+			steps: TStepperSteps = { find: { gwta: `find {target: ${LABEL} | ${ROLE}}`, action: () => OK } };
+		}
+		const unreachable = (steppers: AStepper[]) =>
+			lintDomainChain(buildDomainChain(steppers, parts), parts)
+				.findings.filter((f) => f.kind === LINT_FINDING.UNREACHABLE_DOMAIN)
+				.map(lintFindingLine);
+		expect(unreachable([]), "while a step doesn't take them").toEqual([`unreachable-domain ${LABEL}`, `unreachable-domain ${ROLE}`]);
+		expect(unreachable([new FindsEither()])).toEqual([]);
+	});
+
+	it("takes a composite a step takes as written by its caller, and what its fields name as taken", () => {
+		const REQUEST = "email-request";
+		const withRequest = mapDefinitionsToDomains([
+			thing(PERSON, "person"),
+			{ selectors: [REQUEST], schema: z.object({ from: z.string() }), description: "what an email is asked with", topology: { ranges: { from: PERSON } } },
+		]);
+		class SendsEmail extends AStepper {
+			steps: TStepperSteps = { send: { gwta: `send {request: ${REQUEST}}`, action: () => OK } };
+		}
+		const lines = lintDomainChain(buildDomainChain([new SendsEmail()], withRequest), withRequest).findings.map(lintFindingLine);
+		expect(lines, "the request doesn't need a producer, and the person it names does").toEqual([`unproduced-domain ${PERSON}`]);
+	});
+
+	it("doesn't report a record type or a presented view unreachable, since the store and the page reach them", () => {
+		const beyondSteps = mapDefinitionsToDomains([
+			thing("observed-request", "a record an observer writes"),
+			{ selectors: ["a-view"], schema: z.object({}), description: "a view the page presents", ui: { component: "a-view" } },
+		]);
+		const report = lintDomainChain(buildDomainChain([], beyondSteps), beyondSteps);
+		expect(report.findings.filter((f) => f.kind === LINT_FINDING.UNREACHABLE_DOMAIN)).toEqual([]);
 	});
 
 	it("reports unreachable-domain for a registered domain neither consumed nor produced", () => {
@@ -160,10 +165,10 @@ describe("lintDomainChain", () => {
 		expect(report.summary).toEqual(calculated);
 	});
 
-	it("empty stepper set produces no orphan/unsupplied findings", () => {
+	it("doesn't report a step without inputs or products", () => {
 		const graph = buildDomainChain([new StubStepper()], domains());
 		const report = lintDomainChain(graph, domains());
-		const stepKinds = report.findings.filter((f) => f.kind === "orphan-step" || f.kind === "unsupplied-step");
+		const stepKinds = report.findings.filter((f) => f.kind === LINT_FINDING.UNSUPPLIED_STEP);
 		expect(stepKinds).toHaveLength(0);
 	});
 

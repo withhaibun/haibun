@@ -453,7 +453,7 @@ const main = async (): Promise<void> => {
 		PaneState.init(
 			strip0,
 			{
-				ensureLoaded: (tag) => ensureUiComponentLoaded(tag).catch(() => undefined),
+				ensureLoaded: (tag) => ensureUiComponentLoaded(tag),
 				afterAttach: {
 					entity: (d, child) => {
 						if (d.paneType !== "entity") return;

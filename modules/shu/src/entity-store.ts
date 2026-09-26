@@ -74,10 +74,11 @@ function entryOf(s: Store, label: string, id: string): Entry {
 
 function notify(s: Store, subject: string): void {
 	for (const fn of s.listeners) {
+		// One listener failing doesn't stop the rest, and is reported.
 		try {
 			fn(subject);
-		} catch {
-			// one listener failing must not stop the rest
+		} catch (err) {
+			reportToRun("error", "entity-store", `a listener of ${subject} failed: ${errorDetail(err)}`);
 		}
 	}
 }

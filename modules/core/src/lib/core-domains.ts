@@ -258,7 +258,7 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 	{ selectors: [DOMAIN_TEMPLATE], schema: z.string(), written: true, description: "Text whose #{name} places a composition fills from variables, as the line writes it." },
 	{
 		selectors: [DOMAIN_HYPERMEDIA_DECLARATION],
-		schema: z.string().trim().min(1, "declares nothing"),
+		schema: z.string().trim().min(1, "the declaration is empty"),
 		written: true,
 		description: "A declared type's hypermedia declaration, as the line writes it: its JSON-LD @context, or prose naming its fields.",
 	},

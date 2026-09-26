@@ -16,6 +16,7 @@ import { DOMAIN_STRING } from "@haibun/core/lib/domains.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { readingExecution, resetExecutions } from "../client-cache/executions.js";
 import { declareFakeGraphPresenter, mountedPresenter } from "../graph-presenter.test-fake.js";
+import { setupShuTest } from "../test-setup.js";
 import { NODE_KIND, type TGraphNode } from "../graph/types.js";
 
 /** The run a snapshot says its facts are of. */
@@ -44,6 +45,7 @@ const chainNode = (node: Partial<TGraphNode> & { id: string }): TGraphNode => ({
 describe("shu-domain-chain-view", () => {
 	beforeEach(() => {
 		document.body.innerHTML = "";
+		setupShuTest();
 		// Clear the deep link left over from previous tests so each one starts clean: it lives in the view hash, which
 		// is module state rather than the document's.
 		clearDeepLink();

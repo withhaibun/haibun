@@ -11,6 +11,7 @@ import { PageStripCorners, CORNERS, awaitingOf, timeOffsetLabel } from "./page-s
 import { aControllerHost, type ControllerHostFake } from "./controller-host.test-fake.js";
 import { PERMISSIONS_SUMMARY } from "./shu-permissions.js";
 import { REF_KIND } from "./ref-navigation.js";
+import { pageHolding } from "../controllers/authority-controller.test-fake.js";
 
 /** A kind of reference a ref opens. */
 const OPENABLE = REF_KIND[1];
@@ -22,6 +23,7 @@ const PANEL = "playback";
 type TCornersPage = { host: ControllerHostFake; corners: PageStripCorners; popover: HTMLElement & { shown: boolean } };
 
 function aCornersPage(): TCornersPage {
+	pageHolding();
 	const host = aControllerHost();
 	const popover = Object.assign(document.createElement("div"), { className: "corner-popover", shown: false });
 	host.append(popover);

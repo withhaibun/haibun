@@ -240,13 +240,7 @@ export default class LspStepper extends AStepper {
 		if (path.startsWith("file://")) {
 			path = path.replace("file://", "");
 		}
-		// minimal decoding for header specific encoding
-		try {
-			path = decodeURIComponent(path);
-		} catch (_e) {
-			// ignore
-		}
-		return path;
+		return decodeURIComponent(path);
 	}
 
 	private async updateBackgrounds(doc: TextDocument, uri: string): Promise<boolean> {

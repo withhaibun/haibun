@@ -1,30 +1,29 @@
 /**
  * Domain-chain lint, boot-time consistency checks over the typed step graph.
  *
- * Reports four kinds of finding so callers can decide whether to warn or error:
+ * Reports each way the graph is incomplete, so callers can decide whether to warn or refuse. The lint doesn't report a step
+ * whose products another step doesn't take. Its products answer whoever asked: the page, a feature that captures them,
+ * or a model. The graph shows such a step as a leaf.
  *
- *   - orphan-step: a step that produces an output domain no other step consumes.
- *     Often legitimate (terminal producers, reporting steps) but can also signal
- *     a dangling integration.
- *   - unsupplied-step: a step that consumes a thing no other step produces: a persisted type, or a reference to one. A
- *     value its caller writes in the line, a primitive or a value domain with no topology, needs no producer.
- *   - unreachable-domain: a registered domain that no step consumes AND no step
- *     produces. Dead domain.
- *   - unproduced-domain: a thing consumed as an input that no step declares as an output. Strict subset of
- *     unsupplied-step at the domain level.
+ *   - unsupplied-step: a step that consumes a thing another step doesn't produce. A thing is a persisted type or a
+ *     reference to one. A value its caller writes in the line doesn't need a producer (`isWrittenByCaller`).
+ *   - unreachable-domain: a registered value domain that a step doesn't consume or produce. The domain is dead. The
+ *     store reads and writes each record type by type, whoever writes it, and the page reaches a view by presenting its
+ *     component, so the lint doesn't judge either by the steps alone.
+ *   - unproduced-domain: a thing a step consumes and another step doesn't declare as an output. It is the domain-level
+ *     form of unsupplied-step.
  *
  * Pure projection over the domain-chain graph plus the domain registry. No I/O.
  * Drift detection: callers persist a snapshot of findings and diff against a new
  * snapshot to detect graph-shape regressions across boots.
  */
 import { z } from "zod";
-import type { TRegisteredDomain } from "./resources.js";
+import { isPersisted, type TRegisteredDomain } from "./resources.js";
 import { SOURCE_DOMAIN, type TDomainChainGraph } from "./domain-chain.js";
-import { DOMAIN_STRING, domainParts, isPrimitiveDomain, isWrittenByCaller, refTargetOf } from "./domains.js";
+import { DOMAIN_STRING, domainParts, fieldRangesOf, isPrimitiveDomain, isWrittenByCaller, refTargetOf } from "./domains.js";
 
 /** The kinds of finding, each a way the typed step graph is incomplete. */
 export const LINT_FINDING = {
-	ORPHAN_STEP: "orphan-step",
 	UNSUPPLIED_STEP: "unsupplied-step",
 	UNREACHABLE_DOMAIN: "unreachable-domain",
 	UNPRODUCED_DOMAIN: "unproduced-domain",
@@ -34,7 +33,6 @@ export const LINT_FINDING = {
 
 const stepFinding = { stepperName: z.string(), stepName: z.string() };
 export const LintFindingSchema = z.discriminatedUnion("kind", [
-	z.object({ kind: z.literal(LINT_FINDING.ORPHAN_STEP), ...stepFinding, outputDomain: z.string() }).strict(),
 	z.object({ kind: z.literal(LINT_FINDING.UNSUPPLIED_STEP), ...stepFinding, inputDomain: z.string() }).strict(),
 	z.object({ kind: z.literal(LINT_FINDING.UNREACHABLE_DOMAIN), domain: z.string() }).strict(),
 	z.object({ kind: z.literal(LINT_FINDING.UNPRODUCED_DOMAIN), domain: z.string() }).strict(),
@@ -54,8 +52,6 @@ export type TDomainChainLintReport = {
 /** A finding as one line: its kind, then the step or domain it is about. */
 export function lintFindingLine(finding: TLintFinding): string {
 	switch (finding.kind) {
-		case LINT_FINDING.ORPHAN_STEP:
-			return `${finding.kind} ${finding.stepperName}.${finding.stepName} produces ${finding.outputDomain}`;
 		case LINT_FINDING.UNSUPPLIED_STEP:
 			return `${finding.kind} ${finding.stepperName}.${finding.stepName} consumes ${finding.inputDomain}`;
 		case LINT_FINDING.STRING_PARAM:
@@ -75,6 +71,9 @@ export function lintDomainChain(graph: TDomainChainGraph, domains: Record<string
 		for (const d of step.outputDomains) producedDomains.add(d);
 		for (const d of step.inputDomains) consumedDomains.add(d);
 	}
+	// A step taking a union takes each of its parts, and one taking a composite takes what the composite's fields name.
+	for (const key of [...consumedDomains]) for (const part of domainParts(key)) consumedDomains.add(part);
+	for (const key of [...consumedDomains]) for (const named of fieldRangesOf(domains[key], domains)) consumedDomains.add(named);
 	// A reference to a record is supplied wherever a record of its type is produced, as the goal resolver chains it, and a
 	// step answering with a reference supplies the record it refers to. A step taking the reference takes that record.
 	for (const [key, domain] of Object.entries(domains)) {
@@ -85,12 +84,9 @@ export function lintDomainChain(graph: TDomainChainGraph, domains: Record<string
 		if (consumedDomains.has(key)) consumedDomains.add(target);
 	}
 
-	// Per-step findings: orphans, unsupplied inputs, untyped parameters and unnamed products.
+	// Per-step findings: unsupplied inputs and untyped parameters.
 	for (const step of graph.steps) {
 		const { stepperName, stepName } = step;
-		for (const out of step.outputDomains) {
-			if (!consumedDomains.has(out)) findings.push({ kind: LINT_FINDING.ORPHAN_STEP, stepperName, stepName, outputDomain: out });
-		}
 		for (const inp of step.inputDomains) {
 			if (inp === SOURCE_DOMAIN) continue;
 			if (!producedDomains.has(inp) && !isWrittenByCaller(inp, domains)) findings.push({ kind: LINT_FINDING.UNSUPPLIED_STEP, stepperName, stepName, inputDomain: inp });
@@ -100,10 +96,11 @@ export function lintDomainChain(graph: TDomainChainGraph, domains: Record<string
 		}
 	}
 
-	// Domain-level findings: registered domains that are neither consumed nor produced. A primitive domain is supplied by
-	// a caller and is no node of the graph, so it is neither.
-	for (const key of Object.keys(domains).filter((k) => !isPrimitiveDomain(k))) {
-		if (!consumedDomains.has(key) && !producedDomains.has(key)) findings.push({ kind: LINT_FINDING.UNREACHABLE_DOMAIN, domain: key });
+	// Domain-level findings. A caller supplies a primitive domain, and it isn't a node of the graph. The store and the page
+	// reach a record type and a view beyond the steps (see unreachable-domain above).
+	for (const [key, domain] of Object.entries(domains).filter(([k]) => !isPrimitiveDomain(k))) {
+		const reachedBeyondSteps = isPersisted(domain.topology) || typeof domain.ui?.component === "string";
+		if (!reachedBeyondSteps && !consumedDomains.has(key) && !producedDomains.has(key)) findings.push({ kind: LINT_FINDING.UNREACHABLE_DOMAIN, domain: key });
 		if (consumedDomains.has(key) && !producedDomains.has(key) && !isWrittenByCaller(key, domains)) findings.push({ kind: LINT_FINDING.UNPRODUCED_DOMAIN, domain: key });
 	}
 

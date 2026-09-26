@@ -16,7 +16,7 @@ import {
 	Timer,
 	STAY_ALWAYS,
 } from "../schema/protocol.js";
-import { LifecycleEvent } from "../schema/protocol.js";
+import { LifecycleEvent, ResolvedFeaturesArtifact } from "../schema/protocol.js";
 import { AStepper } from "../lib/astepper.js";
 import { sleep, setStepperWorldsAndDomains, constructorName } from "../lib/util/index.js";
 import { dispatchStep } from "../lib/step-dispatch.js";
@@ -144,11 +144,10 @@ export class Executor {
 		};
 		world.eventLogger.subscribe(onEventHandler);
 
-		try {
-			const { ResolvedFeaturesArtifact } = await import("../schema/protocol.js");
-			const outcomeResults = await doStepperCycle(steppers, "getRegisteredOutcomes", undefined);
-			const registeredOutcomes = outcomeResults.find(Boolean);
-			const resolvedFeaturesEvent = ResolvedFeaturesArtifact.parse({
+		const outcomeResults = await doStepperCycle(steppers, "getRegisteredOutcomes", undefined);
+		const registeredOutcomes = outcomeResults.find(Boolean);
+		world.eventLogger.emit(
+			ResolvedFeaturesArtifact.parse({
 				id: `artifact.resolvedFeatures`,
 				timestamp: Date.now(),
 				kind: "artifact",
@@ -156,11 +155,8 @@ export class Executor {
 				resolvedFeatures: features.map(featureAsData),
 				...(registeredOutcomes ? { registeredOutcomes } : {}),
 				mimetype: "application/json",
-			});
-			world.eventLogger.emit(resolvedFeaturesEvent);
-		} catch {
-			// Silently continue if artifact emission fails
-		}
+			}),
+		);
 
 		await doStepperCycle(steppers, "startExecution", features);
 		let okSoFar = true;

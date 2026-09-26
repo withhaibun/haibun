@@ -102,10 +102,13 @@ export const globSource = (glob: string): string => `^${glob.replace(/[.+?^${}()
 /** Whether a domain key is primitive: a primitive, or a union with one, which a caller can always supply as it. */
 export const isPrimitiveDomain = (domainKey: string): boolean => domainParts(domainKey).some((part) => PRIMITIVE_DOMAINS.has(part));
 
-/** Whether a caller writes a value of the domain in a step's line, so no step needs to produce it: a primitive, or a value
- *  domain naming no thing, which has no topology. A persisted type, or a reference to one, is a thing a step produces. */
+/** Whether a caller writes a value of the domain in a step's line, so a step doesn't need to produce it. A caller writes a
+ *  primitive and a value domain that doesn't name a thing. A persisted type, or a reference to one, is a thing a step
+ *  produces. A caller writes a composite whose fields name things, and a step that takes it takes what its fields name
+ *  (`fieldRangesOf`). */
 export const isWrittenByCaller = (domainKey: string, domains: Record<string, TRegisteredDomain>): boolean =>
-	isPrimitiveDomain(domainKey) || domainParts(domainKey).every((part) => domains[part] !== undefined && domains[part].topology === undefined);
+	isPrimitiveDomain(domainKey) ||
+	domainParts(domainKey).every((part) => domains[part] !== undefined && !isPersisted(domains[part].topology) && refTargetOf(domains[part], domains) === undefined);
 export const DOMAIN_GOAL_RESOLUTION = "goal-resolution";
 export const DOMAIN_MICHI = "michi";
 export const DOMAIN_AFFORDANCES = "affordances";
@@ -140,6 +143,13 @@ export function refTargetOf(domain: TRegisteredDomain, domains: Record<string, T
 	return target !== undefined && isPersisted(domains[target]?.topology) ? target : undefined;
 }
 
+/** The domains that the fields of a caller's composite name, as its `topology.ranges` declares them. A persisted type and
+ *  a reference don't name domains this way. */
+export function fieldRangesOf(domain: TRegisteredDomain | undefined, domains: Record<string, TRegisteredDomain>): string[] {
+	if (!domain?.topology || isPersisted(domain.topology) || refTargetOf(domain, domains) !== undefined) return [];
+	return Object.values(domain.topology.ranges ?? {});
+}
+
 /** The key of the domain whose value is a reference to a record of the type a domain key names. */
 export function refDomainKey(domainKey: string): string {
 	return `${domainKey}-ref`;
@@ -168,7 +178,7 @@ export const deriveNamingDomains = (domains: Record<string, TRegisteredDomain>) 
 	const registered = (key: string) => key !== DOMAIN_DOMAIN_KEY && domains[key] !== undefined;
 	domains[DOMAIN_DOMAIN_KEY] = toRegisteredDomain({
 		selectors: [DOMAIN_DOMAIN_KEY],
-		schema: z.string().refine(registered, "names no registered domain; `show domains` lists them"),
+		schema: z.string().refine(registered, "doesn't name a registered domain; `show domains` lists them"),
 		names: registered,
 		description: "A registered domain's key; `show domains` lists them",
 	});
@@ -187,7 +197,8 @@ export const registerStepperNames = (world: TWorld, names: string[]) => {
 
 export const asDomainKey = (domains: string[]) => domains?.sort().join(DOMAIN_UNION);
 
-/** The domain key a step parameter takes: the domain its phrase names, `string` where it names none, a union's parts in order. */
+/** The domain key a step parameter takes: the domain its phrase names, or `string` where it doesn't name one. A union's
+ *  parts are in order. */
 export const paramDomainKey = (declared: string | undefined): string => normalizeDomainKey(asDomainKey(domainParts(declared || DOMAIN_STRING)));
 
 export const normalizeDomainKey = (domain: string) => {
@@ -295,15 +306,15 @@ export const individualRefInputSchema = z.preprocess((value, ctx) => {
 	return given;
 }, individualRefSchema);
 
-/** A list as a caller gives it: an array, its JSON text, or text separated by commas, each member read by `member`. A list
- *  naming no `what` is refused. */
+/** A list as a caller gives it: an array, its JSON text, or text separated by commas, each member read by `member`. An
+ *  empty list is refused. */
 export const listedSchema = (member: z.ZodType<string>, what: string) =>
 	z.preprocess(
 		(value, ctx) => {
 			if (typeof value !== "string") return value;
 			return value.trimStart().startsWith("[") ? parseJsonText(value, ctx) : actionList(value);
 		},
-		z.array(member).min(1, `names no ${what}`),
+		z.array(member).min(1, `the list of ${what}s is empty`),
 	);
 
 const QUOTED_MEMBER = /"([^"]+)"/g;
@@ -319,7 +330,7 @@ export const parseQuotedOrWordList = (value: string): string[] => {
 };
 
 /** The members a bracketed list writes, as a set's values read them. */
-export const setValuesSchema = z.preprocess((value) => (typeof value === "string" ? parseQuotedOrWordList(value) : value), z.array(z.string()).min(1, "names no member"));
+export const setValuesSchema = z.preprocess((value) => (typeof value === "string" ? parseQuotedOrWordList(value) : value), z.array(z.string()).min(1, "the set is empty"));
 
 /** The backgrounds a `Backgrounds:` line includes, as its domain reads them. */
 export const backgroundNamesSchema = listedSchema(z.string().min(1), "background");

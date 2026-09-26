@@ -3,10 +3,11 @@
  * What a reader is told about their own authority: the key their page signs as, the actions delegated to it, where each
  * was recorded, and who this deployment knows.
  */
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { ShuPermissions, type TPermissionsSummary } from "./shu-permissions.js";
 import { ShuPageKey } from "./shu-page-key.js";
-import { AuthorityController, type TAuthority } from "../controllers/index.js";
+import type { TAuthority } from "../controllers/index.js";
+import { pageAuthorityFails, pageHolding } from "../controllers/authority-controller.test-fake.js";
 
 if (!customElements.get("shu-permissions")) customElements.define("shu-permissions", ShuPermissions);
 if (!customElements.get("shu-page-key")) customElements.define("shu-page-key", ShuPageKey);
@@ -24,7 +25,7 @@ const refTexts = (el: ShuPermissions, kind?: string): string[] =>
 	Array.from(el.shadowRoot?.querySelectorAll(kind ? `shu-ref[kind="${kind}"]` : "shu-ref") ?? []).map((r) => r.getAttribute("text") ?? "");
 
 async function mounted(authority = held) {
-	vi.spyOn(AuthorityController.prototype, "read").mockResolvedValue(authority);
+	pageHolding(authority);
 	const el = new ShuPermissions();
 	document.body.append(el);
 	await el.updateComplete;
@@ -83,7 +84,7 @@ describe("what a reader may do here", () => {
 	});
 
 	it("a failure is text a reader can take away, and says so with a control", async () => {
-		vi.spyOn(AuthorityController.prototype, "read").mockRejectedValue(new Error("graphQuery: step not registered"));
+		pageAuthorityFails(new Error("graphQuery: step not registered"));
 		const el = new ShuPermissions();
 		document.body.append(el);
 		await el.updateComplete;
