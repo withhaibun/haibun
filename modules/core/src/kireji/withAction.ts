@@ -1,26 +1,10 @@
 import { AStepper, TStepperSteps } from "../lib/astepper.js";
-import { namedInterpolation } from "../lib/namedVars.js";
+import { namedInterpolation, renderStepLine } from "../lib/namedVars.js";
 
 type TStepWithGwta = TStepperSteps[keyof TStepperSteps] & { gwta: string };
 
 const isStepWithGwta = (step: unknown): step is TStepWithGwta => {
 	return typeof (step as Partial<TStepWithGwta>).gwta === "string";
-};
-
-const interpolateGwta = (gwta: string, args: { [key: string]: string }): string => {
-	let interpolated = gwta;
-
-	// First, remove optional regex patterns like '( empty)?' from the gwta
-	// These are used for matching but shouldn't appear in the final output
-	interpolated = interpolated.replace(/\([^)]*\)\?/g, "");
-
-	for (const key in args) {
-		const placeholder = `{${key}}`;
-		const placeholderWithDomain = new RegExp(`\\{${key}:[^}]+\\}`, "g");
-		interpolated = interpolated.replace(placeholderWithDomain, args[key]);
-		interpolated = interpolated.replace(placeholder, args[key]);
-	}
-	return interpolated;
 };
 
 // Type-level gwta placeholder extraction
@@ -138,7 +122,7 @@ export const withAction = <T extends AStepper>(stepper: T): TActionsFromStepper<
 				return () => ({
 					actionName,
 					args: normalizedArgs,
-					gwta: interpolateGwta(step.gwta, normalizedArgs),
+					gwta: renderStepLine(step.gwta, normalizedArgs),
 				});
 			};
 		}

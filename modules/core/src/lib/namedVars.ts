@@ -1,6 +1,6 @@
 import { TStepperStep, TStepAction } from "./astepper.js";
 import { TStepValue, TOrigin, Origin } from "../schema/protocol.js";
-import { DOMAIN_STRING } from "./domains.js";
+import { DOMAIN_STATEMENT, DOMAIN_STRING } from "./domains.js";
 
 const TYPE_QUOTED = "q_";
 const TYPE_ENV = "e_";
@@ -172,6 +172,23 @@ const inferOrigin = (char: string): TOrigin => {
 			return Origin.defined;
 	}
 };
+
+/** A step's line with each placeholder given its term, as a feature line states it: the step's optional wording is left
+ *  out, and a character its pattern escapes is stated as itself. The one renderer of a step's line, for a feature written
+ *  in code and for a call a transport carries. */
+export function renderStepLine(gwta: string, terms: Record<string, string>): string {
+	let line = gwta.replace(/\([^)]*\)\?/g, "").replace(/\\(.)/g, "$1");
+	for (const [name, term] of Object.entries(terms)) line = line.replace(new RegExp(`\\{${name}(?::[^}]+)?\\}`, "g"), () => term);
+	return line;
+}
+
+/** A value as a line states it literally for a parameter of `domain`: a statement as its line, a number or a boolean as
+ *  written, a composite as JSON, and text quoted, with its line breaks escaped as a feature line states them. */
+export function literalTerm(value: unknown, domain: string | undefined): string {
+	if (domain === DOMAIN_STATEMENT || typeof value === "number" || typeof value === "boolean") return String(value);
+	if (typeof value === "object" && value !== null) return JSON.stringify(value);
+	return `"${String(value).replace(/\n/g, "\\n")}"`;
+}
 
 export function mapInputToStepValues(input: Record<string, unknown>, gwta: string) {
 	const { stepValuesMap } = namedInterpolation(gwta || "");

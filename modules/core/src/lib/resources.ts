@@ -313,6 +313,8 @@ export const LinkRelations = {
 	// schema.org: action outcomes
 	SCHEMA_OBJECT: { rel: "schemaObject", uri: "schema:object", range: "literal" },
 	SCHEMA_RESULT: { rel: "schemaResult", uri: "schema:result", range: "literal" },
+	// schema.org: why an action failed, where it failed.
+	ERROR: { rel: "error", uri: "schema:error", range: "literal" },
 	REPLACEE: { rel: "replacee", uri: "schema:replacee", range: "literal" },
 	REPLACEMENT: { rel: "replacement", uri: "schema:replacement", range: "literal" },
 	ACTION_STATUS: { rel: "actionStatus", uri: "schema:actionStatus", range: "literal" },

@@ -4,7 +4,7 @@ import { AStepper, type TStepperStep, type TFeatureStep } from "./astepper.js";
 import type { TWorld } from "./world.js";
 import { buildConcernCatalog } from "./hypermedia.js";
 import { ControlEvent, STEPS_CHANGED, type TActionResult, type TSeqPath } from "../schema/protocol.js";
-import { namedInterpolation, mapInputToStepValues } from "./namedVars.js";
+import { namedInterpolation, mapInputToStepValues, literalTerm, renderStepLine } from "./namedVars.js";
 import { constructorName, actionNotOK } from "./util/index.js";
 import { populateActionArgs } from "./populateActionArgs.js";
 import { DOMAIN_DOMAIN_KEY, DOMAIN_RECORD_ID, DOMAIN_STATEMENT, paramDomainKey } from "./domains.js";
@@ -285,7 +285,8 @@ export function buildFeatureStepForTransport(tool: StepTool, input: Record<strin
 	const targetHostId = hostOfMethodName(descriptor.method);
 	return {
 		...(targetHostId === undefined ? {} : { targetHostId }),
-		in: descriptor.pattern,
+		// The line a feature would state for this call, so the record of a call from outside the run is a line that runs.
+		in: renderStepLine(descriptor.pattern, Object.fromEntries(Object.entries(input).map(([name, value]) => [name, literalTerm(value, descriptor.paramDomains[name])]))),
 		action: {
 			stepperName: descriptor.stepperName,
 			actionName: descriptor.stepName,

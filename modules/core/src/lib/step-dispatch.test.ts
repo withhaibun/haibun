@@ -301,10 +301,15 @@ describe("step-dispatch", () => {
 		// that name when it is dispatched.
 		const synth = (step: { stepperName: string; stepName: string; description: string }, input: Record<string, unknown>, seqPath: number[] = [0]) =>
 			buildFeatureStepForTransport(
-				{ descriptor: { method: stepMethodName(step.stepperName, step.stepName), stepperName: step.stepperName, stepName: step.stepName, pattern: step.description } } as StepTool,
+				{ descriptor: { method: stepMethodName(step.stepperName, step.stepName), stepperName: step.stepperName, stepName: step.stepName, pattern: step.description, paramDomains: {} } } as StepTool,
 				input,
 				seqPath,
 			);
+
+		it("states a call a transport carries as the line a feature would state for it", () => {
+			const descriptor = { method: "S-click", stepperName: "S", stepName: "click", pattern: "click( invisible)? {target: page-target}", paramDomains: { target: "page-target" } };
+			expect(buildFeatureStepForTransport({ descriptor } as StepTool, { target: "Knock" }, [0]).in).toBe('click "Knock"');
+		});
 
 		it("returns ok with products exactly as the action returned them, framework metadata (_seqPath etc.) is injected by dispatchStep, not the handler", async () => {
 			const stepper = new ProductStepper();

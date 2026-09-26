@@ -297,6 +297,8 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		},
 
 		resolveWhere: {
+			// `resolve {goal}` matches this line too, taking the constraint into the goal.
+			precludes: [`${GoalResolutionStepper.name}.resolve`],
 			gwta: `resolve {goal: ${DOMAIN_DOMAIN_KEY}} where {constraint: ${DOMAIN_JSON}}`,
 			productsDomain: DOMAIN_GOAL_RESOLUTION,
 			action: async ({ goal }: { goal: string; constraint: unknown }) => {
