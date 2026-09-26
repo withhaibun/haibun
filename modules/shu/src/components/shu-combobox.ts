@@ -59,6 +59,13 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 		this.state = { ...this.state, shown: text };
 		if (!this.state.open) this.#showHeld();
 	}
+	/** Enters `text` in the input, as the reader typing it does, which filters the options. */
+	enter(text: string): void {
+		if (!this._input) throw new Error("the combobox doesn't render its input");
+		this._input.value = text;
+		this._input.dispatchEvent(new Event("input"));
+	}
+
 	get shown(): string {
 		return this.state.shown;
 	}

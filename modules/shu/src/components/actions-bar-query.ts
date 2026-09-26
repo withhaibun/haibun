@@ -24,6 +24,7 @@ import { contextLabel, isEntitySelection, type TContextExtra } from "./actions-b
 import type { TControllerHost } from "./controller-host.js";
 import type { ShuActivityHistory } from "./shu-activity-history.js";
 import { ShuSearchSummary } from "./shu-search-summary.js";
+import { readSlashCommand } from "../slash-command.js";
 
 /** How long typing rests before the search text is committed. */
 export const SEARCH_DEBOUNCE_MS = 300;
@@ -330,17 +331,28 @@ export class ActionsBarQuery implements ReactiveController {
 	};
 
 	#onTextInput = (e: Event): void => {
-		const value = (e.target as HTMLInputElement).value;
+		const text = searchText((e.target as HTMLInputElement).value);
 		this.#cancelPendingSearch();
-		this.#searchDebounce = setTimeout(() => this.#commitSearch(value), SEARCH_DEBOUNCE_MS);
+		if (text !== undefined) this.#searchDebounce = setTimeout(() => this.#commitSearch(text), SEARCH_DEBOUNCE_MS);
 	};
 
 	/** Leaving the search box commits exactly what was typed and records it. */
 	#onTextBlur = (e: Event): void => {
+		const text = searchText((e.target as HTMLInputElement).value);
 		this.#cancelPendingSearch();
-		this.#commitSearch((e.target as HTMLInputElement).value);
+		if (text === undefined) return;
+		this.#commitSearch(text);
 		this.#recordSearch();
 	};
+
+	/** Searches for `text`, as the reader typing it and leaving the search box does. */
+	enter(text: string): void {
+		const box = this.#searchBox();
+		if (box) box.value = text;
+		this.#cancelPendingSearch();
+		this.#commitSearch(text);
+		this.#recordSearch();
+	}
 
 	#onSearchGo = (): void => {
 		this.#cancelPendingSearch();
@@ -373,4 +385,12 @@ export class ActionsBarQuery implements ReactiveController {
 	#onConditionValue(index: number, field: "value" | "value2", e: Event): void {
 		this.#conditions[index][field] = (e.target as HTMLInputElement).value;
 	}
+}
+
+/** The text a search box's value searches for. A value opening with a slash command is a command until Enter runs it, and
+ *  isn't searched for; a value opening with a double slash searches for its text with one slash. */
+function searchText(value: string): string | undefined {
+	const command = readSlashCommand(value);
+	if (!command) return value;
+	return command.kind === "literal" ? command.text : undefined;
 }

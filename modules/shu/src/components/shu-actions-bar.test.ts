@@ -31,9 +31,13 @@ const { ShuActionsBar } = await import("./shu-actions-bar.js");
 const { SHU_ATTR, SHU_EVENT, SHU_TAG } = await import("../consts.js");
 if (!customElements.get(SHU_TAG.ACTIONS_BAR)) customElements.define(SHU_TAG.ACTIONS_BAR, ShuActionsBar);
 const { ShuColumnPane } = await import("./shu-column-pane.js");
+// The app registers the ask pane, which the bar renders in Ask mode.
+await import("./shu-kihan-chat.js");
 if (!customElements.get(SHU_TAG.COLUMN_PANE)) customElements.define(SHU_TAG.COLUMN_PANE, ShuColumnPane);
 const { INITIAL_SUBJECT, SCOPE, currentSubjectState } = await import("../current-subject.js");
-const { pageContext, pageTrail } = await import("../signals.js");
+const { pageContext, pageStatus, pageTrail } = await import("../signals.js");
+const { STOPPED_BY_THE_READER, conversationState, dispatchConversationEvent } = await import("../conversation.js");
+const { commandList } = await import("../slash-command.js");
 const { aType } = await import("../schemas.js");
 const { setupShuTest } = await import("../test-setup.js");
 
@@ -78,6 +82,59 @@ describe("the actions bar reads the page's state", () => {
 	afterEach(() => {
 		document.body.innerHTML = "";
 		teardown();
+	});
+
+	/** Types `text` in an input line and presses Enter in it, as the reader does. */
+	const pressEnterWith = (line: HTMLInputElement | HTMLTextAreaElement, text: string): void => {
+		line.value = text;
+		line.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, composed: true, cancelable: true }));
+	};
+	const openBar = async (): Promise<TBar> => {
+		const { pane, bar } = await mountDockedBar();
+		pane.open();
+		await settle();
+		await bar.updateComplete;
+		return bar;
+	};
+	const searchLine = (bar: TBar) => bar.shadowRoot?.querySelector<HTMLInputElement>(".text-search") as HTMLInputElement;
+
+	it("selects the mode a slash command names, and the mode control follows", async () => {
+		const bar = await openBar();
+		pressEnterWith(searchLine(bar), "/ask");
+		await settle();
+		await bar.updateComplete;
+		expect(bar.state.mode).toBe("ask");
+		expect(bar.shadowRoot?.querySelector<HTMLSelectElement>(".mode-select")?.value, "the mode control shows the mode").toBe("ask");
+	});
+
+	it("enters the rest of a command's line in the input line of the mode it names", async () => {
+		const bar = await openBar();
+		bar.setState({ mode: "ask" });
+		await settle();
+		await bar.updateComplete;
+		const ask = bar.shadowRoot?.querySelector(SHU_TAG.KIHAN_CHAT) as HTMLElement & { updateComplete: Promise<unknown> };
+		await ask.updateComplete;
+		pressEnterWith(ask.shadowRoot?.querySelector(".chat-input") as HTMLTextAreaElement, "/search the dough");
+		await settle();
+		await bar.updateComplete;
+		expect(bar.state.mode).toBe("search");
+		expect(searchLine(bar).value, "the search line holds the rest of the line").toBe("the dough");
+	});
+
+	it("stops the running turn with /stop, as the ask pane's Stop control does", async () => {
+		const bar = await openBar();
+		dispatchConversationEvent({ type: "ask", prompt: "what is this?", patterns: [], delegated: [] });
+		pressEnterWith(searchLine(bar), "/stop");
+		expect(conversationState.get().asked?.stoppedBy).toBe(STOPPED_BY_THE_READER);
+	});
+
+	it("refuses an unknown command on the page strip, listing the commands, and leaves a double slash's line with one slash", async () => {
+		const bar = await openBar();
+		pressEnterWith(searchLine(bar), "/nope");
+		expect(pageStatus.get()).toBe(`/nope isn't a command. The commands are ${commandList()}.`);
+		pressEnterWith(searchLine(bar), "//etc");
+		expect(searchLine(bar).value).toBe("/etc");
+		expect(bar.state.mode, "the mode stays").toBe("search");
 	});
 
 	it("describes to the page strip the context a view stated before the bar connected, and settles its type once the types are read", async () => {

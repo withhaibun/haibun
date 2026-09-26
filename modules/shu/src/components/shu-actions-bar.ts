@@ -6,7 +6,6 @@
  * UI extensions consumers declare for its slots, and the sync notice. The page strip holds the page's status, breadcrumb
  * and corner controls.
  */
-import { z } from "zod";
 import { html, nothing, type TemplateResult } from "lit-html";
 import { classMap } from "lit-html/directives/class-map.js";
 import { unsafeHTML } from "lit-html/directives/unsafe-html.js";
@@ -19,7 +18,8 @@ import { ACTIONS_BAR_STYLES } from "./actions-bar-styles.js";
 import { SHU_EVENT, ACTION_BAR_ASK_SLOT, ACTION_BAR_CHAT_SLOT, SHU_TAG, CONVERSATION_PARAM } from "../consts.js";
 import { SCOPE, dispatchSubjectEvent } from "../current-subject.js";
 import type { ShuColumnPane } from "./shu-column-pane.js";
-import { ActionsBarSchema, QuestionRestateSchema, StepChoiceSchema, TypeChoiceSchema, type TQuestionRestate } from "../schemas.js";
+import { ActionsBarSchema, BAR_MODES, QuestionRestateSchema, StepChoiceSchema, TypeChoiceSchema, type TQuestionRestate } from "../schemas.js";
+import { commandList, readSlashCommand, type TBarMode, type TInputLine, type TSlashCommand } from "../slash-command.js";
 import type { ShuKihanChat } from "./shu-kihan-chat.js";
 // Constructed with `new` (not createElement + type-cast): the value use keeps the registering module in the
 // bundle: esbuild strips a TS import whose bindings only appear in type positions, silently dropping the
@@ -29,14 +29,12 @@ import { SignalController } from "../controllers/signal-controller.js";
 import { pageContext, pageStatus, pageTrail } from "../signals.js";
 import { loadSlotExtensions } from "./slot-extensions.js";
 import { isServerUnreachable } from "../hypermedia.js";
-import { closeConversation, conversationState, openConversation } from "../conversation.js";
+import { closeConversation, conversationState, dispatchConversationEvent, openConversation, STOPPED_BY_THE_READER } from "../conversation.js";
 import { hashParam, onHashChanged } from "../view-hash.js";
 import { eventStream, type TEvent } from "../event-stream.js";
 import { isOffline } from "../rpc-registry.js";
 import { getActionBarChatExtensionTags } from "../rels-cache.js";
 import { reportToRun } from "../client-log.js";
-
-type TMode = z.infer<typeof ActionsBarSchema>["mode"];
 
 export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	/** A control, not a view of data, contributes nothing to the Kihan's context. */
@@ -161,6 +159,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			const { method, args, auto } = StepChoiceSchema.parse((e as CustomEvent).detail);
 			void this.chooseStep(method, args, auto);
 		});
+		// A slash command in any mode's input line is read before the line's own Enter reads it.
+		this.autoListen(this.renderRoot, "keydown", this.onInputLineKeydown as EventListener, { capture: true });
 		// A question in the history is asked again from the bar the history sits in, in any mode.
 		this.autoListen(this, SHU_EVENT.QUESTION_RESTATE, (e: Event) => void this.restateQuestion(QuestionRestateSchema.parse((e as CustomEvent).detail)));
 		// The page strip offers the types beside what the search found, and states the one a reader chooses on the document.
@@ -236,9 +236,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			data-testid=${`${this.testIdPrefix}mode-select`}
 			@change=${this.onModeChange}
 		>
-			<option value="search" ?selected=${this.state.mode === "search"}>Search</option>
-			${hasAsk ? html`<option value="ask" ?selected=${this.state.mode === "ask"}>Ask</option>` : nothing}
-			<option value="step" ?selected=${this.state.mode === "step"}>Step</option>
+			${BAR_MODES.filter((mode) => mode !== "ask" || hasAsk).map((mode) => html`<option value=${mode} ?selected=${this.state.mode === mode}>${mode[0].toUpperCase()}${mode.slice(1)}</option>`)}
 		</select>`;
 	}
 
@@ -259,7 +257,45 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	}
 
 	private onModeChange = (e: Event): void => {
-		const mode = (e.target as HTMLSelectElement).value as TMode;
+		const mode = (e.target as HTMLSelectElement).value as TBarMode;
 		this.setState({ mode });
 	};
+
+	/** Enter in an input line whose text opens with a slash runs the command, and the line's own Enter doesn't read it. A
+	 *  double slash leaves the line's text with one slash for its own Enter. */
+	private onInputLineKeydown = (e: KeyboardEvent): void => {
+		if (e.key !== "Enter" || e.shiftKey) return;
+		const line = e.composedPath()[0];
+		if (!(line instanceof HTMLInputElement || line instanceof HTMLTextAreaElement)) return;
+		const command = readSlashCommand(line.value);
+		if (!command) return;
+		if (command.kind === "literal") {
+			line.value = command.text;
+			return;
+		}
+		e.preventDefault();
+		e.stopPropagation();
+		line.value = "";
+		void this.runSlashCommand(command);
+	};
+
+	/** Selects the mode a command names and enters the rest of the line in its input line, stops the running turn, or
+	 *  refuses an unknown command with the list of commands. */
+	private async runSlashCommand(command: Exclude<TSlashCommand, { kind: "literal" }>): Promise<void> {
+		if (command.kind === "unknown") return this.setStatus(`/${command.name} isn't a command. The commands are ${commandList()}.`);
+		if (command.kind === "stop") return void dispatchConversationEvent({ type: "stop", reason: STOPPED_BY_THE_READER });
+		if (command.mode === "ask" && !this.#steps.offersAsk) return this.setStatus("this run doesn't offer asking");
+		this.setState({ mode: command.mode });
+		await this.updateComplete;
+		if (command.rest) await this.#inputLine(command.mode).enter(command.rest);
+	}
+
+	/** The input line of a mode. */
+	#inputLine(mode: TBarMode): TInputLine {
+		if (mode === "search") return this.#query;
+		if (mode === "step") return this.#steps;
+		const pane = this.renderRoot.querySelector<ShuKihanChat>(SHU_TAG.KIHAN_CHAT);
+		if (!pane) this.failFast("a question can be asked only where the run offers asking");
+		return pane;
+	}
 }

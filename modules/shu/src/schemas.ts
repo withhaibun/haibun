@@ -314,11 +314,10 @@ export const aType = (persistedAs: string, conditions: readonly TSearchCondition
 
 // --- Actions bar ---
 
-export const ActionsBarSchema = z.object({
-	// search: browse/filter the graph (the default). step: run a haibun step. ask: LLM chat, present only when an
-	// ask-capable step is registered (the extension system), so the mode-select offers it conditionally.
-	mode: z.enum(["search", "ask", "step"]).default("search"),
-});
+/** The actions bar's modes. search browses and filters the graph, and is the default. step runs a haibun step. ask chats
+ *  with a model, and the mode control offers it only where the run registers an ask-capable step. */
+export const BAR_MODES = ["search", "ask", "step"] as const;
+export const ActionsBarSchema = z.object({ mode: z.enum(BAR_MODES).default("search") });
 
 /** The domain of where an instance serves shu. */
 export const DOMAIN_SHU_APPS = "shu-apps";

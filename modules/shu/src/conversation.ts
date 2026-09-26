@@ -339,6 +339,9 @@ export const askDraft = new SharedSignal<string>("askDraft", "");
 /** The one instance, shared across every component and bundle. */
 const conversationMachine = new SharedMachine<TConversationState, TConversationEvent>("conversation", CLOSED_CONVERSATION, transition);
 export const conversationState = conversationMachine.state;
+/** Why a turn the reader stopped ended. */
+export const STOPPED_BY_THE_READER = "you stopped it";
+
 export const dispatchConversationEvent = (event: TConversationEvent): TConversationState => conversationMachine.dispatch(event);
 
 /**

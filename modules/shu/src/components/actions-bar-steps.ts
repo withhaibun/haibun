@@ -14,6 +14,7 @@ import type { TComboboxOption } from "../schemas.js";
 import { prettifyGwta } from "../util.js";
 import type { TControllerHost } from "./controller-host.js";
 import type { ShuActivityHistory } from "./shu-activity-history.js";
+import type { ShuCombobox } from "./shu-combobox.js";
 
 /** What marks a step offered for the selected type. */
 const FOR_THE_TYPE = "● ";
@@ -146,6 +147,13 @@ export class ActionsBarSteps implements ReactiveController {
 				${modeToggle}
 				${selector}
 			</div>`;
+	}
+
+	/** Filters the steps by `text`, as the reader typing it in the step selector does. */
+	enter(text: string): void {
+		const selector = this.#host.renderRoot.querySelector<ShuCombobox>(".step-combo");
+		if (!selector) throw new Error("step mode doesn't show a step selector until the run offers steps");
+		selector.enter(text);
 	}
 
 	#onComboChange = (e: CustomEvent): void => {

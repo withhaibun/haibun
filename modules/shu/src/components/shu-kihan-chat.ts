@@ -26,6 +26,7 @@ import {
 	closeConversation,
 	conversationState,
 	dispatchConversationEvent,
+	STOPPED_BY_THE_READER,
 	followReportedTurns,
 	gainedSince,
 	sessionsRead,
@@ -556,6 +557,16 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		});
 	}
 
+	/** Asks `text`, as the reader typing it and pressing Send does. */
+	async enter(text: string): Promise<void> {
+		await this.updateComplete;
+		const input = this.shadowRoot?.querySelector<HTMLTextAreaElement>(".chat-input");
+		if (!input) throw new Error("the ask pane doesn't render its input line");
+		input.value = text;
+		askDraft.set(text);
+		await this.submitChat();
+	}
+
 	/**
 	 * Ask a question from the history again, replying where it replied, as a branch there: at once as it was, or put in
 	 * the input to edit, sent with the records it was about when the reader sends it. A question sent at once is started,
@@ -582,7 +593,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	};
 
 	private onStop = (): void => {
-		dispatchConversationEvent({ type: "stop", reason: "you stopped it" });
+		dispatchConversationEvent({ type: "stop", reason: STOPPED_BY_THE_READER });
 	};
 }
 
