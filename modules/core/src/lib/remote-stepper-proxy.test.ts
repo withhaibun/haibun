@@ -13,7 +13,7 @@ import { AUTHORITY_KEY, SessionAuthority } from "./session-authority.js";
 import { RUN_AUTHORITY, runAuthorizedWith } from "./capability-context.js";
 import type { TWorld } from "./world.js";
 import { SITE_DID_PREFIX } from "./host-id.js";
-import { DOMAIN_STRING, asDomainKey } from "./domains.js";
+import { DOMAIN_STRING, asDomainKey, DOMAIN_TEXT } from "./domains.js";
 import { OK, Origin, type TStepValue } from "../schema/protocol.js";
 import { ANSWERED_WITHOUT_PRODUCTS } from "./rpc-wire.js";
 import { serve } from "@hono/node-server";
@@ -39,7 +39,7 @@ class EchoStepper extends AStepper {
 	};
 	steps = {
 		echo: {
-			gwta: "echo {message: string}",
+			gwta: `echo {message: ${DOMAIN_TEXT}}`,
 			productsDomain: TEST_DOMAIN.echoed,
 			action: async ({ message }: { message: string }) => actionOKWithProducts({ echoed: message }),
 		},
@@ -140,9 +140,9 @@ describe("RemoteStepperProxy", () => {
 			method: "host7_EchoStepper-echo",
 			stepperName: "EchoStepper",
 			stepperDescription: "Steps that echo a message and answer a protected ping, served by a remote host.",
-			pattern: "echo {message: string}",
+			pattern: `echo {message: ${DOMAIN_TEXT}}`,
 			remoteOrigin: `http://localhost:${port}`,
-			paramDomains: { message: "string" },
+			paramDomains: { message: DOMAIN_TEXT },
 			read: false,
 			fallback: false,
 		});

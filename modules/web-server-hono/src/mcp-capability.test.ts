@@ -8,10 +8,11 @@ import { OK } from "@haibun/core/schema/protocol.js";
 import { readingAt } from "@haibun/core/lib/capability-context.js";
 import { refusal } from "@haibun/core/lib/step-registry.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
-import FakeAuthorityStepper, { FakeInvoker } from "@haibun/core/lib/test/fake-authority.js";
+import FakeAuthorityStepper, { DOMAIN_FAKE_HOLDER, FakeInvoker } from "@haibun/core/lib/test/fake-authority.js";
 
 import McpStepper from "./mcp-stepper.js";
 import WebServerStepper from "./web-server-stepper.js";
+import { DOMAIN_NUMBER } from "@haibun/core/lib/domains.js";
 
 class ProtectedStepper extends AStepper {
 	description = "Steps gated by a protected and an admin capability, for tests of MCP authorization.";
@@ -34,7 +35,7 @@ class ProtectedStepper extends AStepper {
 			action: async () => actionOKWithProducts({ at: readingAt() ?? "unbounded" }),
 		},
 		verifyMcpReadLevel: {
-			gwta: "verify mcp read signed by {holder} for {action} on port {port} reads at {level}",
+			gwta: `verify mcp read signed by {holder: ${DOMAIN_FAKE_HOLDER}} for {action: ${TEST_DOMAIN.action}} on port {port: ${DOMAIN_NUMBER}} reads at {level: ${TEST_DOMAIN.accessLevel}}`,
 			action: async ({ holder, action, port, level }: { holder: string; action: string; port: string; level: string }) => {
 				const toolResult = getToolResult(await callTool(String(port), "ProtectedStepper-readsAt", { holder, action }));
 				const text = toolResult.content?.[0]?.text ?? "";
@@ -43,7 +44,7 @@ class ProtectedStepper extends AStepper {
 			},
 		},
 		verifyProtectedMcpDenied: {
-			gwta: "verify protected mcp tool on port {port} is denied",
+			gwta: `verify protected mcp tool on port {port: ${DOMAIN_NUMBER}} is denied`,
 			action: async ({ port }: { port: string }) => {
 				// A client presenting nothing is listed no tools, and refused alike a tool that exists and one that doesn't.
 				const listed = (await rpc(`http://localhost:${port}/mcp`, 2, "tools/list", {})).result as { tools?: unknown[] } | undefined;
@@ -57,7 +58,7 @@ class ProtectedStepper extends AStepper {
 			},
 		},
 		verifySignedProtectedMcpAllowed: {
-			gwta: "verify protected mcp tool signed by {holder} on port {port} succeeds",
+			gwta: `verify protected mcp tool signed by {holder: ${DOMAIN_FAKE_HOLDER}} on port {port: ${DOMAIN_NUMBER}} succeeds`,
 			action: async ({ holder, port }: { holder: string; port: string }) => {
 				const result = await callTool(String(port), "ProtectedStepper-protectedAction", { holder, action: "ProtectedStepper:invoke" });
 				const toolResult = getToolResult(result);
@@ -66,7 +67,7 @@ class ProtectedStepper extends AStepper {
 			},
 		},
 		verifySignedMcpTamperedRefused: {
-			gwta: "verify protected mcp tool signed by {holder} on port {port} is refused when its body is not the one signed",
+			gwta: `verify protected mcp tool signed by {holder: ${DOMAIN_FAKE_HOLDER}} on port {port: ${DOMAIN_NUMBER}} is refused when its body is not the one signed`,
 			action: async ({ holder, port }: { holder: string; port: string }) => {
 				const url = `http://localhost:${port}/mcp`;
 				await rpc(url, 1, "initialize", { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "capability-client", version: "1.0" } });
@@ -80,7 +81,7 @@ class ProtectedStepper extends AStepper {
 			},
 		},
 		verifyAdminMcpDenied: {
-			gwta: "verify admin mcp tool signed by {holder} for {action} on port {port} is denied",
+			gwta: `verify admin mcp tool signed by {holder: ${DOMAIN_FAKE_HOLDER}} for {action: ${TEST_DOMAIN.action}} on port {port: ${DOMAIN_NUMBER}} is denied`,
 			action: async ({ holder, action, port }: { holder: string; action: string; port: string }) => {
 				const result = await callTool(String(port), "ProtectedStepper-adminAction", { holder, action });
 				const toolResult = getToolResult(result);

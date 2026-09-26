@@ -11,6 +11,7 @@ import { OK } from "../schema/protocol.js";
 import { dispatchStep } from "../lib/step-dispatch.js";
 import { buildFeatureStepForTransport, StepRegistry } from "../lib/step-registry.js";
 import { addStepperConcerns } from "../phases/Executor.js";
+import { DOMAIN_TEXT } from "../lib/domains.js";
 
 class TestPrompter implements IPrompter {
 	prompt = (_p: TPrompt) => Promise.resolve("continue");
@@ -225,7 +226,7 @@ describe("DebuggerStepper RPC dispatch", () => {
 		const echo = new (class extends AStepper {
 			steps = {
 				echo: {
-					gwta: "echo {what: string}",
+					gwta: `echo {what: ${DOMAIN_TEXT}}`,
 					action: async () => OK,
 				},
 			};

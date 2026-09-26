@@ -7,6 +7,7 @@ import { AStepper } from "@haibun/core/lib/astepper.js";
 import { OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
 import { getStepperOptionName, actionNotOK } from "@haibun/core/lib/util/index.js";
 import WebServerStepper from "./web-server-stepper.js";
+import { DOMAIN_LINK, DOMAIN_TEXT } from "@haibun/core/lib/domains.js";
 
 // WebServerStepper expects a 'files' directory in cwd
 const FILES_DIR = path.join(process.cwd(), "files");
@@ -29,7 +30,7 @@ afterAll(() => {
 class VerifyStepper extends AStepper {
 	steps = {
 		fetchFrom: {
-			gwta: "fetch from {url} includes {text}",
+			gwta: `fetch from {url: ${DOMAIN_LINK}} includes {text: ${DOMAIN_TEXT}}`,
 			action: async ({ url, text }: TStepArgs) => {
 				try {
 					const res = await fetch(String(url));

@@ -17,6 +17,7 @@ import AuthorityStepper from "./authority-stepper.js";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "../lib/astepper.js";
 import { actionOK, actionOKWithProducts } from "../lib/util/index.js";
 import { z } from "zod";
+import { DOMAIN_USER_NAME } from "../lib/domains.js";
 
 // Domain key registered for the test by the `getConcerns` block below.
 const DOMAIN_AUTH_SESSION = "domain-auth-session";
@@ -46,7 +47,7 @@ class AuthStepper extends AStepper implements IHasCycles {
 
 	steps: TStepperSteps = {
 		signIn: {
-			gwta: "sign in as {subject: string}",
+			gwta: `sign in as {subject: ${DOMAIN_USER_NAME}}`,
 			productsDomain: DOMAIN_AUTH_SESSION,
 			action: ({ subject }: { subject: string }) =>
 				Promise.resolve(
@@ -148,7 +149,7 @@ ensure Logged in`,
 			};
 			steps: TStepperSteps = {
 				signIn: {
-					gwta: "sign in as {subject: string}",
+					gwta: `sign in as {subject: ${DOMAIN_USER_NAME}}`,
 					productsDomain: DOMAIN_AUTH_SESSION,
 					capability: "auth:signin",
 					action: ({ subject }: { subject: string }) => Promise.resolve(actionOKWithProducts({ id: `s:${subject}`, subject, issuedAt: new Date() })),

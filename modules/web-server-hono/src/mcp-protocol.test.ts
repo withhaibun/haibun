@@ -5,6 +5,7 @@ import WebServerStepper from "./web-server-stepper.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { OK } from "@haibun/core/schema/protocol.js";
 import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
+import { DOMAIN_NUMBER, DOMAIN_TEXT } from "@haibun/core/lib/domains.js";
 
 interface _ListToolsResult {
 	tools: { name: string; description?: string }[];
@@ -23,14 +24,14 @@ class TestStepper extends AStepper {
 			},
 		},
 		testStepWithSpaces: {
-			gwta: "test mcp action with { arg }",
+			gwta: `test mcp action with { arg: ${DOMAIN_TEXT} }`,
 			action: ({ arg }: { arg: string }) => {
 				if (arg !== "spaced") throw Error(`expected spaced, got ${arg}`);
 				return OK;
 			},
 		},
 		verifyProtocol: {
-			gwta: "verify mcp protocol on port {port}",
+			gwta: `verify mcp protocol on port {port: ${DOMAIN_NUMBER}}`,
 			action: async ({ port }: { port: string }) => {
 				const mcpUrl = `http://localhost:${port}/mcp`;
 				// Manual JSON-RPC handshake to bypass SDK transport issues in test environment

@@ -7,6 +7,7 @@ import type { TFeatureResult, TStepResult } from "../lib/defs.js";
 import { passWithDefaults, failWithDefaults } from "../lib/test/lib.js";
 import { AStepper } from "../lib/astepper.js";
 import { actionNotOK, actionOK } from "../lib/util/index.js";
+import { DOMAIN_TEXT } from "../lib/domains.js";
 
 describe("syntheticSeqPathDirection", () => {
 	it("uses positive direction for authoritative branches", () => {
@@ -188,7 +189,7 @@ describe("createExecutionFailure", () => {
 describe("the hash of a feature's declared step text", () => {
 	class NotingStepper extends AStepper {
 		steps = {
-			note: { gwta: "note {what}", action: () => Promise.resolve(actionOK()) },
+			note: { gwta: `note {what: ${DOMAIN_TEXT}}`, action: () => Promise.resolve(actionOK()) },
 			refuse: { gwta: "refuse here", action: () => Promise.resolve(actionNotOK("refused")) },
 		};
 	}

@@ -10,6 +10,7 @@ import LogicStepper from "./logic-stepper.js";
 import { GoalResolutionStepper } from "./goal-resolution-stepper.js";
 import { executionOf } from "../lib/seq-path.js";
 import { ActivitiesStepper } from "./activities-stepper.js";
+import { DOMAIN_USER_NAME } from "../lib/domains.js";
 
 const DOMAIN_AUTH_SESSION = "domain-auth-session-test";
 /** A domain this test registers and no step produces, so `resolve` has something registered but unreachable to answer about. */
@@ -39,7 +40,7 @@ class AuthStepper extends AStepper implements IHasCycles {
 
 	steps: TStepperSteps = {
 		signIn: {
-			gwta: "sign in as {subject: string}",
+			gwta: `sign in as {subject: ${DOMAIN_USER_NAME}}`,
 			productsDomain: DOMAIN_AUTH_SESSION,
 			action: ({ subject }: { subject: string }) => Promise.resolve(actionOKWithProducts({ id: `s:${subject}`, subject })),
 		},

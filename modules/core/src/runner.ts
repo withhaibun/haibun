@@ -7,6 +7,7 @@ import { TFeaturesBackgrounds } from "./phases/collector.js";
 import { Executor, addStepperConcerns } from "./phases/Executor.js";
 import { Resolver } from "./phases/Resolver.js";
 import { PhaseBailError, PhaseRunner } from "./lib/PhaseRunner.js";
+import { DOMAIN_CHAIN_LINT_ARTIFACT, lintRunStepGraph } from "./lib/domain-chain-lint.js";
 
 export class Runner {
 	steppers: AStepper[];
@@ -23,6 +24,21 @@ export class Runner {
 
 			// Collect domain concerns before Expand so domains are available during resolution
 			await phaseRunner.tryPhase("Concerns", () => addStepperConcerns(this.world, this.steppers));
+
+			// A run refuses to start with a blocking finding in its step graph, and reports the rest.
+			await phaseRunner.tryPhase("StepGraph", () => {
+				const report = lintRunStepGraph(this.steppers, this.world.domains);
+				this.world.eventLogger.emit({
+					id: DOMAIN_CHAIN_LINT_ARTIFACT,
+					timestamp: Date.now(),
+					source: "haibun",
+					kind: "artifact",
+					artifactType: "json",
+					mimetype: "application/json",
+					level: "debug",
+					json: { domainChainLint: report },
+				});
+			});
 
 			// A monitor formats the console for a person, so the raw event stream is suppressed for it. A run asked for
 			// NDJSON is being read by another process, which has nothing else to read, so that request outranks it.

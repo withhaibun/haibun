@@ -13,7 +13,7 @@ import { actionNotOK, errorDetail, getStepperOptionName } from "@haibun/core/lib
 import { DEFAULT_DEST, OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
-import FakeAuthorityStepper, { FakeInvoker, fakeGrant } from "@haibun/core/lib/test/fake-authority.js";
+import FakeAuthorityStepper, { FakeInvoker, fakeGrant, DOMAIN_FAKE_HOLDER } from "@haibun/core/lib/test/fake-authority.js";
 import StorageMem from "@haibun/storage-mem/storage-mem.js";
 import WebServerStepper from "@haibun/web-server-hono/web-server-stepper.js";
 import WebPlaywright from "../web-playwright.js";
@@ -23,6 +23,7 @@ import { ChromeOverCdp } from "../relay-client/chrome.test-fake.js";
 import { RelayConnection } from "../relay-client/relayConnection.js";
 import { openRelayChannel } from "../relay-client/relay-channel.js";
 import type { TProveRequest } from "@haibun/core/lib/rpc-wire.js";
+import { DOMAIN_LINK, DOMAIN_TEXT } from "@haibun/core/lib/domains.js";
 
 const PAGE = `<title>attached</title><button onclick="this.textContent='pressed'">press me</button><input aria-label="note" oninput="document.getElementById('echo').textContent=this.value"><p id="echo"></p>`;
 
@@ -43,7 +44,7 @@ class PersonsExtension extends AStepper {
 	private ended?: Promise<string>;
 	steps = {
 		attaches: {
-			gwta: "person's extension attaches their tab at {base}, signed by {holder}",
+			gwta: `person's extension attaches their tab at {base: ${DOMAIN_LINK}}, signed by {holder: ${DOMAIN_FAKE_HOLDER}}`,
 			action: async ({ base, holder }: TStepArgs) => {
 				const channel = await openRelayChannel({ base: String(base), sign: signedAs(String(holder)) });
 				this.connection = new RelayConnection(channel, chrome, () => undefined);
@@ -56,7 +57,7 @@ class PersonsExtension extends AStepper {
 			},
 		},
 		refused: {
-			gwta: "extension attaching at {base}, signed by {holder}, is refused for {why}",
+			gwta: `extension attaching at {base: ${DOMAIN_LINK}}, signed by {holder: ${DOMAIN_FAKE_HOLDER}}, is refused for {why: ${DOMAIN_TEXT}}`,
 			action: async ({ base, holder, why }: TStepArgs) => {
 				try {
 					await openRelayChannel({ base: String(base), sign: signedAs(String(holder)) });
@@ -74,7 +75,7 @@ class PersonsExtension extends AStepper {
 			},
 		},
 		toldEnded: {
-			gwta: "person's extension is told its attachment ended because {why}",
+			gwta: `person's extension is told its attachment ended because {why: ${DOMAIN_TEXT}}`,
 			action: async ({ why }: TStepArgs) => {
 				if (!this.ended) return actionNotOK("the extension attached nothing");
 				const reason = await this.ended;

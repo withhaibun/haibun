@@ -11,6 +11,7 @@ import Haibun from "@haibun/core/steps/haibun.js";
 import { SHOW_STEPS_METHOD, STEP_DETAIL, readShownSteps } from "@haibun/core/lib/step-discovery.js";
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
 import { ToolListChangedNotificationSchema } from "@modelcontextprotocol/sdk/types.js";
+import { DOMAIN_NUMBER } from "@haibun/core/lib/domains.js";
 
 class TestStepper extends AStepper {
 	description = "Steps that check the MCP tools a run lists.";
@@ -20,7 +21,7 @@ class TestStepper extends AStepper {
 			action: async () => OK,
 		},
 		verifyTools: {
-			gwta: "verify mcp tools on port {port}",
+			gwta: `verify mcp tools on port {port: ${DOMAIN_NUMBER}}`,
 			action: async ({ port }: { port: string }) => {
 				const mcpUrl = `http://localhost:${port}/mcp`;
 				const client = new Client({ name: "client", version: "1.0" }, { capabilities: {} });

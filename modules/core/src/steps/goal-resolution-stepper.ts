@@ -90,26 +90,11 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 
 	cycles: IStepperCycles = {
 		startExecution: async () => {
-			// Emit a one-time domain-chain lint report at startup so monitors and the
-			// shu UI can surface orphan/unsupplied/unreachable findings before any step runs.
+			// Resolves each declared smoke goal and emits its verdict, which a later run's verdict is compared with.
 			const world = this.getWorld();
-			const graph = buildDomainChain(this.steppers, world.domains);
-			const lint = lintDomainChain(graph, world.domains);
-			world.eventLogger.emit({
-				id: "domain-chain.lint.startup",
-				timestamp: Date.now(),
-				source: "haibun",
-				kind: "artifact",
-				artifactType: "json",
-				mimetype: "application/json",
-				level: "debug",
-				json: { domainChainLint: lint } as Record<string, unknown>,
-			});
-
-			// Smoke-goals drift detector: resolve each declared smoke goal and emit
-			// the verdict for comparison against a prior snapshot to detect graph-shape regressions.
 			const smokeRaw = getStepperOption(this, SMOKE_GOALS, world.moduleOptions);
 			if (smokeRaw) {
+				const graph = buildDomainChain(this.steppers, world.domains);
 				const goals = smokeRaw
 					.split(",")
 					.map((s: string) => s.trim())

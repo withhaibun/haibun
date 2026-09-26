@@ -1,7 +1,8 @@
 /**
  * Domain-chain lint, boot-time consistency checks over the typed step graph.
  *
- * Reports each way the graph is incomplete, so callers can decide whether to warn or refuse. The lint doesn't report a step
+ * Reports each way the graph is incomplete. A run refuses to start with a blocking finding (`BLOCKING_FINDINGS`), and
+ * reports the rest. The lint doesn't report a step
  * whose products another step doesn't take. Its products answer whoever asked: the page, a feature that captures them,
  * or a model. The graph shows such a step as a leaf.
  *
@@ -19,7 +20,8 @@
  */
 import { z } from "zod";
 import { isPersisted, type TRegisteredDomain } from "./resources.js";
-import { SOURCE_DOMAIN, type TDomainChainGraph } from "./domain-chain.js";
+import { SOURCE_DOMAIN, buildDomainChain, type TDomainChainGraph } from "./domain-chain.js";
+import type { AStepper } from "./astepper.js";
 import { DOMAIN_STRING, domainParts, fieldRangesOf, isPrimitiveDomain, isWrittenByCaller, refTargetOf } from "./domains.js";
 
 /** The kinds of finding, each a way the typed step graph is incomplete. */
@@ -48,6 +50,12 @@ type TDomainChainLintReport = {
 	/** Counts per kind for quick inspection. */
 	summary: Record<TLintKind, number>;
 };
+
+/** The kinds of finding a run refuses to start with: a parameter whose domain doesn't state what its value is. A step's
+ *  declaration decides it, whatever else the run loads. An unsupplied step and an unproduced domain depend on the
+ *  steppers a run loads and on records written outside steps, such as the site's Principal, so a run reports them, and
+ *  each module's step graph test holds them to its baseline with every stepper the module declares. */
+export const BLOCKING_FINDINGS: readonly TLintKind[] = [LINT_FINDING.STRING_PARAM];
 
 /** A finding as one line: its kind, then the step or domain it is about. */
 export function lintFindingLine(finding: TLintFinding): string {
@@ -108,4 +116,15 @@ export function lintDomainChain(graph: TDomainChainGraph, domains: Record<string
 	for (const f of findings) summary[f.kind]++;
 
 	return { findings, summary };
+}
+
+/** The id of the artifact that reports a run's step graph lint at boot. */
+export const DOMAIN_CHAIN_LINT_ARTIFACT = "domain-chain.lint.startup";
+
+/** Lints the step graph of a run's steppers, and refuses the run where a finding blocks it, naming each such finding. */
+export function lintRunStepGraph(steppers: AStepper[], domains: Record<string, TRegisteredDomain>): TDomainChainLintReport {
+	const report = lintDomainChain(buildDomainChain(steppers, domains), domains);
+	const blocking = report.findings.filter((finding) => BLOCKING_FINDINGS.includes(finding.kind));
+	if (blocking.length > 0) throw new Error(`the step graph is incomplete: ${blocking.map(lintFindingLine).join("; ")}`);
+	return report;
 }

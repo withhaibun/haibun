@@ -9,7 +9,8 @@ import { OK } from "../schema/protocol.js";
 import { buildDomainChain } from "./domain-chain.js";
 import { LINT_FINDING, lintDomainChain, lintFindingLine } from "./domain-chain-lint.js";
 import { getCoreDomains } from "./core-domains.js";
-import { getDefaultWorld } from "./test/lib.js";
+import { failWithDefaults, getDefaultWorld, passWithDefaults } from "./test/lib.js";
+import { DOMAIN_TEXT } from "./domains.js";
 
 const PERSON = "person";
 const EMAIL = "email";
@@ -189,5 +190,24 @@ describe("lintDomainChain", () => {
 		const unreachable = report.findings.filter((f) => f.kind === LINT_FINDING.UNREACHABLE_DOMAIN).map(lintFindingLine);
 		expect(unreachable).not.toContain("unreachable-domain string");
 		expect(unreachable).toContain("unreachable-domain dead-registered");
+	});
+});
+
+describe("a run's step graph", () => {
+	const feature = { path: "/features/f.feature", content: 'take "a note"' };
+	class Untyped extends AStepper {
+		steps: TStepperSteps = { take: { gwta: "take {what: string}", action: () => OK } };
+	}
+	class Typed extends AStepper {
+		steps: TStepperSteps = { take: { gwta: `take {what: ${DOMAIN_TEXT}}`, action: () => OK } };
+	}
+
+	it("refuses to start a run whose step takes a string parameter, naming the step and the parameter", async () => {
+		const refused = await failWithDefaults([feature], [Untyped]);
+		expect(refused.failure?.error.message).toMatch(/the step graph is incomplete: string-param .*take \{what: string\}/);
+	});
+
+	it("starts a run whose steps name the domain of each parameter", async () => {
+		expect((await passWithDefaults([feature], [Typed])).ok).toBe(true);
 	});
 });

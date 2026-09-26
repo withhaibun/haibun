@@ -1,7 +1,7 @@
 import { rmSync, writeFileSync, readFileSync } from "fs";
 import { setCookie } from "@haibun/web-server-hono/cookie.js";
 import { actionNotOK, actionOK, actionOKWithProducts, getFromRuntime, sleep } from "@haibun/core/lib/util/index.js";
-import { DOMAIN_BEARER_TOKEN, DOMAIN_STRING } from "@haibun/core/lib/domains.js";
+import { createEnumDomainDefinition, DOMAIN_BEARER_TOKEN, DOMAIN_STRING, DOMAIN_LINK, DOMAIN_TEXT, DOMAIN_STEP_METHOD, DOMAIN_ROUTE } from "@haibun/core/lib/domains.js";
 import { SHOW_STEPS_ACTION, SHOW_STEPS_METHOD, STEP_DETAIL, readShownSteps } from "@haibun/core/lib/step-discovery.js";
 import { refusal } from "@haibun/core/lib/step-registry.js";
 import { OK, Origin } from "@haibun/core/schema/protocol.js";
@@ -9,7 +9,7 @@ import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 import { restRoutes } from "./rest.js";
 import { createDynamicAuthMiddleware, authSchemes } from "./authSchemes.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
-import { FakeInvoker } from "@haibun/core/lib/test/fake-authority.js";
+import { FakeInvoker, DOMAIN_FAKE_HOLDER } from "@haibun/core/lib/test/fake-authority.js";
 import { TEST_DOMAIN, testDomainDefinitions } from "@haibun/core/lib/test/test-domains.js";
 const TALLY = "tally";
 const setTally = (value) => ({
@@ -59,8 +59,19 @@ const mcpText = (response) => {
 const deniedFor = (status, error, capability) => status === 422 && typeof error === "string" && error.includes(`capability ${capability} required`)
     ? actionOK()
     : actionNotOK(`Expected a denial for ${capability}, got ${status} ${String(error)}`);
+/** An authentication scheme the test server applies to its protected routes. */
+const DOMAIN_AUTH_SCHEME = "test-auth-scheme";
 const cycles = (ts) => ({
-    getConcerns: () => ({ domains: testDomainDefinitions }),
+    getConcerns: () => ({
+        domains: [
+            ...testDomainDefinitions,
+            createEnumDomainDefinition({
+                name: DOMAIN_AUTH_SCHEME,
+                values: Object.keys(authSchemes),
+                description: "An authentication scheme the test server applies to its protected routes",
+            }),
+        ],
+    }),
     startFeature: () => {
         const p = { when: `${TestServer.name}.cycles.startFeature`, seq: [0] };
         ts.getWorld().shared.set(setTally(0), p);
@@ -201,7 +212,7 @@ class TestServer extends AStepper {
             action: async () => actionOKWithProducts({ pong: true }),
         },
         mcpShownStepsInclude: {
-            gwta: "mcp steps shown at {url} to {holder} matching {text} include {toolName}",
+            gwta: `mcp steps shown at {url: ${DOMAIN_LINK}} to {holder: ${DOMAIN_FAKE_HOLDER}} matching {text: ${DOMAIN_TEXT}} include {toolName: ${DOMAIN_STEP_METHOD}}`,
             action: async ({ url, holder, text, toolName }) => {
                 await mcpListTools(String(url));
                 const shown = await mcpShownSteps(String(url), String(text), String(holder));
@@ -209,7 +220,7 @@ class TestServer extends AStepper {
             },
         },
         mcpRefused: {
-            gwta: "mcp call to {url} with tool {toolName} presenting nothing is refused",
+            gwta: `mcp call to {url: ${DOMAIN_LINK}} with tool {toolName: ${DOMAIN_STEP_METHOD}} presenting nothing is refused`,
             action: async ({ url, toolName }) => {
                 const response = await mcpCallTool(String(url), String(toolName));
                 const expected = refusal(String(toolName), undefined, undefined);
@@ -217,14 +228,14 @@ class TestServer extends AStepper {
             },
         },
         mcpDeniedSigned: {
-            gwta: "mcp call to {url} with tool {toolName} is denied for capability {capability} when signed by {holder} for {action}",
+            gwta: `mcp call to {url: ${DOMAIN_LINK}} with tool {toolName: ${DOMAIN_STEP_METHOD}} is denied for capability {capability: ${TEST_DOMAIN.action}} when signed by {holder: ${DOMAIN_FAKE_HOLDER}} for {action: ${TEST_DOMAIN.action}}`,
             action: async ({ url, toolName, capability, holder, action }) => {
                 const response = await mcpCallTool(String(url), String(toolName), { holder: String(holder), action: String(action) });
                 return mcpToolResult(response).isError ? deniedFor(422, mcpText(response), String(capability)) : actionNotOK(`Expected MCP denial, got ${JSON.stringify(response)}`);
             },
         },
         mcpAllowedSigned: {
-            gwta: "mcp call to {url} with tool {toolName} succeeds when signed by {holder} for {action}",
+            gwta: `mcp call to {url: ${DOMAIN_LINK}} with tool {toolName: ${DOMAIN_STEP_METHOD}} succeeds when signed by {holder: ${DOMAIN_FAKE_HOLDER}} for {action: ${TEST_DOMAIN.action}}`,
             action: async ({ url, toolName, holder, action }) => {
                 const response = await mcpCallTool(String(url), String(toolName), { holder: String(holder), action: String(action) });
                 if (mcpToolResult(response).isError)
@@ -234,7 +245,7 @@ class TestServer extends AStepper {
             },
         },
         rpcRefused: {
-            gwta: "rpc call to {url} with method {method} presenting nothing is refused",
+            gwta: `rpc call to {url: ${DOMAIN_LINK}} with method {method: ${DOMAIN_STEP_METHOD}} presenting nothing is refused`,
             action: async ({ url, method }) => {
                 const response = await post(String(url), { id: "rpc-refused", method: String(method), params: {} }, undefined);
                 const error = (await response.json()).error;
@@ -243,7 +254,7 @@ class TestServer extends AStepper {
             },
         },
         rpcAllowedSigned: {
-            gwta: "rpc call to {url} with method {method} succeeds when signed by {holder} for {action}",
+            gwta: `rpc call to {url: ${DOMAIN_LINK}} with method {method: ${DOMAIN_STEP_METHOD}} succeeds when signed by {holder: ${DOMAIN_FAKE_HOLDER}} for {action: ${TEST_DOMAIN.action}}`,
             action: async ({ url, method, holder, action }) => {
                 const response = await post(String(url), { id: "rpc-allowed", method: String(method), params: {} }, { holder: String(holder), action: String(action) });
                 if (!response.ok)
@@ -253,14 +264,14 @@ class TestServer extends AStepper {
             },
         },
         rpcDeniedSigned: {
-            gwta: "rpc call to {url} with method {method} is denied for capability {capability} when signed by {holder} for {action}",
+            gwta: `rpc call to {url: ${DOMAIN_LINK}} with method {method: ${DOMAIN_STEP_METHOD}} is denied for capability {capability: ${TEST_DOMAIN.action}} when signed by {holder: ${DOMAIN_FAKE_HOLDER}} for {action: ${TEST_DOMAIN.action}}`,
             action: async ({ url, method, capability, holder, action }) => {
                 const response = await post(String(url), { id: "rpc-denied", method: String(method), params: {} }, { holder: String(holder), action: String(action) });
                 return deniedFor(response.status, (await response.json()).error, String(capability));
             },
         },
         rpcRefusedSigned: {
-            gwta: "rpc call to {url} with method {method} is refused when signed by {holder} for {action}",
+            gwta: `rpc call to {url: ${DOMAIN_LINK}} with method {method: ${DOMAIN_STEP_METHOD}} is refused when signed by {holder: ${DOMAIN_FAKE_HOLDER}} for {action: ${TEST_DOMAIN.action}}`,
             action: async ({ url, method, holder, action }) => {
                 const response = await post(String(url), { id: "rpc-refused", method: String(method), params: {} }, { holder: String(holder), action: String(action) });
                 const data = (await response.json());
@@ -268,11 +279,11 @@ class TestServer extends AStepper {
             },
         },
         addTallyRoute: {
-            gwta: "start tally route at {loc}",
+            gwta: `start tally route at {loc: ${DOMAIN_ROUTE}}`,
             action: this.addRoute(this.tally),
         },
         addUploadRoute: {
-            gwta: "start upload route at {loc}",
+            gwta: `start upload route at {loc: ${DOMAIN_ROUTE}}`,
             action: (args, vstep) => {
                 const { loc } = args;
                 try {
@@ -288,11 +299,11 @@ class TestServer extends AStepper {
             },
         },
         addDownloadRoute: {
-            gwta: "start download route at {loc}",
+            gwta: `start download route at {loc: ${DOMAIN_ROUTE}}`,
             action: this.addRoute(this.download),
         },
         addCreateAuthTokenRoute: {
-            gwta: "start create auth token route at {loc}",
+            gwta: `start create auth token route at {loc: ${DOMAIN_ROUTE}}`,
             action: this.addRoute(restRoutes(this).createAuthToken),
         },
         changeServerAuthToken: {
@@ -305,31 +316,31 @@ class TestServer extends AStepper {
         },
         // Protected routes - use dynamic auth middleware
         addCheckAuthTokenRoute: {
-            gwta: "start check auth route at {loc}",
+            gwta: `start check auth route at {loc: ${DOMAIN_ROUTE}}`,
             action: this.addAuthRoute(restRoutes(this).checkAuth),
         },
         addLogin: {
-            gwta: "start auth login route at {loc}",
+            gwta: `start auth login route at {loc: ${DOMAIN_ROUTE}}`,
             action: this.addRoute(restRoutes(this).logIn, "post"),
         },
         addLogoutRoute: {
-            gwta: "start logout auth route at {loc}",
+            gwta: `start logout auth route at {loc: ${DOMAIN_ROUTE}}`,
             action: this.addRoute(restRoutes(this).logOut),
         },
         addResources: {
-            gwta: "start auth resources get route at {loc}",
+            gwta: `start auth resources get route at {loc: ${DOMAIN_ROUTE}}`,
             action: this.addAuthRoute(restRoutes(this).resources),
         },
         addResourceGet: {
-            gwta: "start auth resource get route at {loc}",
+            gwta: `start auth resource get route at {loc: ${DOMAIN_ROUTE}}`,
             action: this.addAuthRoute(restRoutes(this).resourceGet),
         },
         addResourceDelete: {
-            gwta: "start auth resource delete route at {loc}",
+            gwta: `start auth resource delete route at {loc: ${DOMAIN_ROUTE}}`,
             action: this.addAuthRoute(restRoutes(this).resourceDelete, "delete"),
         },
         setAuthScheme: {
-            gwta: "make auth scheme {scheme}",
+            gwta: `make auth scheme {scheme: ${DOMAIN_AUTH_SCHEME}}`,
             action: (args, _vstep) => {
                 const { scheme } = args;
                 // Set the current scheme - this is checked at request time by dynamic middleware

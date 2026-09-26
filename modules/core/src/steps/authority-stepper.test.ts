@@ -15,6 +15,7 @@ import AuthorityStepper from "./authority-stepper.js";
 import LogicStepper from "./logic-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
 import { addStepperConcerns } from "../phases/Executor.js";
+import { DOMAIN_TEXT } from "../lib/domains.js";
 
 class PingStepper extends AStepper {
 	description = "A step that takes Ping:protected, for tests of narrowing what a statement holds.";
@@ -29,7 +30,7 @@ class PingStepper extends AStepper {
 			action: () => Promise.resolve(readingAt() === "public" ? OK : actionNotOK(`reads at ${readingAt() ?? "no ceiling"}`)),
 		},
 		repeats: {
-			gwta: "repeats {said}",
+			gwta: `repeats {said: ${DOMAIN_TEXT}}`,
 			action: ({ said }: { said: string }) => Promise.resolve(said === KEPT ? OK : actionNotOK(`was given ${said}`)),
 		},
 		holdsACall: {

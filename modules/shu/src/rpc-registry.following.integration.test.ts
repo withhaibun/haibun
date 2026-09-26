@@ -16,6 +16,7 @@ import ShuStepper from "./shu-stepper.js";
 import { LiveConduit, setConduit } from "./hypermedia.js";
 import { LiveEventStream, eventStream, setEventStream } from "./event-stream.js";
 import { getAvailableSteps, onStepsChanged, resetStepRegistry } from "./rpc-registry.js";
+import { DOMAIN_LINK } from "@haibun/core/lib/domains.js";
 
 /** The step another host would add, named as this run names that host's steps. */
 const ADDED = hostScopedMethodName(9, "Haibun-validateStep");
@@ -27,7 +28,7 @@ class StepsPage extends AStepper {
 	description = "Opens a page on the run that follows the run's steps, adds a step as a transport does, and checks what the page holds.";
 	steps = {
 		opens: {
-			gwta: "page at {base} reads the run's steps",
+			gwta: `page at {base: ${DOMAIN_LINK}} reads the run's steps`,
 			action: async ({ base }: { base: string }) => {
 				resetStepRegistry();
 				setConduit(new LiveConduit(base));
