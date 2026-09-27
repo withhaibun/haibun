@@ -59,7 +59,7 @@ export class BrowserFactory {
 	/** The options a tag's browser is made with, which `getBrowserFactory` records. */
 	private static configFor(tag: string): TTaggedBrowserFactoryOptions {
 		const config = BrowserFactory.configs[tag];
-		if (!config) throw new Error(`no browser options are recorded for tag "${tag}"`);
+		if (!config) throw new Error(`browser options for tag "${tag}" aren't recorded`);
 		return config;
 	}
 

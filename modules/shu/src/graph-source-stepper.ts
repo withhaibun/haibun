@@ -83,7 +83,11 @@ const GRAPH_SOURCE_DOMAINS: TDomainDefinition[] = [
  *  each type, at most 10,000, the types, the query level, and whether a federated read asks for the peer's own data
  *  rather than its view of the world (see TClusteredQuadsOpts). */
 const ClusteredQuadsAskSchema = z.object({
-	perTypeLimit: z.coerce.number().int().default(100).transform((limit) => Math.max(1, Math.min(10000, limit))),
+	perTypeLimit: z.coerce
+		.number()
+		.int()
+		.default(100)
+		.transform((limit) => Math.max(1, Math.min(10000, limit))),
 	types: fromJsonText(z.array(z.string())).optional(),
 	accessLevel: AccessQueryLevelSchema,
 	scope: z.enum(["own", "federated"]).optional(),
@@ -115,7 +119,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			// read by what a reader may see declares its own step, and the page reads through that one instead.
 			action: async ({ label, id }: { label: string; id: string }) => {
 				const held = await individualWithEdges(this.getWorld().shared.getStore(), label, id);
-				return held === undefined ? actionNotOK(`nothing of ${label} ${id} is held here`) : actionOKWithProducts(held);
+				return held === undefined ? actionNotOK(`${label} ${id} isn't held here`) : actionOKWithProducts(held);
 			},
 		},
 		getSelectValues: {
@@ -125,7 +129,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			action: async ({ label }: { label: string }) => {
 				const store = this.getWorld().shared.getStore();
 				const domain = hypermediaDomainMap(this.getWorld().domains).get(label);
-				if (!domain?.topology?.properties) return actionNotOK(`No filter topology registered for ${label}`);
+				if (!domain?.topology?.properties) return actionNotOK(`a filter topology isn't registered for ${label}`);
 				// Every field read at once: a type with several filtered fields is one round of reads rather than one per field.
 				const filtered = Object.entries(domain.topology.properties).filter(([, definition]) => relOf(definition) === LinkRelations.CONTEXT.rel);
 				const read = await Promise.all(filtered.map(async ([property]) => [property, await store.distinctPropertyValues(label, property)] as const));

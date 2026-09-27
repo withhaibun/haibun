@@ -261,7 +261,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		// The server rejects a query naming neither a type nor text, or a type the run doesn't hold; asking anyway fails
 		// identically on every retrigger (each SSE batch fires one), flooding the server and the run log. Say why once
 		// instead. An address outlives the run it was made in, so it keeps the type it names.
-		if (!label && !textQuery?.trim()) return this.#refuse("no record type or search text to query");
+		if (!label && !textQuery?.trim()) return this.#refuse("a query needs a record type or search text");
 		if (label && !this.labels.includes(label)) return this.#refuse(typeNotHeld(label));
 		const sortBy = this.qSort;
 		const sortOrder = this.qOrder;

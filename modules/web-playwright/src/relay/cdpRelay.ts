@@ -84,11 +84,11 @@ export class BrowserRelay {
 	/** What the attached extension sends: the answer to each command it was sent, and the chrome events of its tabs. */
 	receive(messages: readonly TRelayMessage[]): void {
 		const extension = this.extension;
-		if (!extension) throw new Error("no browser is attached to answer the relay");
+		if (!extension) throw new Error("a browser isn't attached to answer the relay");
 		for (const message of messages) {
 			if (message.id !== undefined) {
 				const pending = extension.pending.get(message.id);
-				if (!pending) throw new Error(`the relay sent no command ${message.id} for the extension to answer`);
+				if (!pending) throw new Error(`the relay didn't send command ${message.id} for the extension to answer`);
 				extension.pending.delete(message.id);
 				if (message.error) {
 					pending.error.message = message.error;
@@ -101,7 +101,7 @@ export class BrowserRelay {
 	/** Playwright's side: the transport `connectOverCDP` drives the attached browser through. */
 	transport(): ConnectOverCDPTransport {
 		const extension = this.extension;
-		if (!extension) throw new Error("no browser is attached: the relay holds no extension, so there is no browser to drive");
+		if (!extension) throw new Error("a browser isn't attached: the relay doesn't hold an extension, so it doesn't have a browser to drive");
 		if (this.cdpClient) throw new Error("the attached browser is already driven: the relay takes one CDP client");
 		// Playwright's client closing ends the attachment, as upstream closes the extension's connection with it: the
 		// extension is told, and takes the debugger off its tabs.

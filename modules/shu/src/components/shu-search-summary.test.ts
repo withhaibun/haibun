@@ -43,11 +43,11 @@ describe("shu-search-summary restore", () => {
 		expect(restored).toEqual(snapshot);
 	});
 
-	it("restoring an entry with no snapshot throws: a recorder must set .query before appending", async () => {
+	it("restoring an entry without a snapshot throws: a recorder must set .query before appending", async () => {
 		const el = document.createElement("shu-search-summary") as ShuSearchSummary;
 		document.body.appendChild(el);
 		await el.updateComplete;
-		expect(() => el.restore()).toThrow(/no query snapshot/);
+		expect(() => el.restore()).toThrow(/doesn't have a query snapshot/);
 	});
 
 	it("the x removes the entry without restoring it: the same affordance a step result carries", async () => {

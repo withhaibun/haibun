@@ -416,7 +416,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			action: async ({ file }: { file: string }) => {
 				try {
 					const download = await wp.expectedDownload;
-					if (!download) return actionNotOK("receiving a download follows `expect a download`, and none is expected");
+					if (!download) return actionNotOK("receiving a download follows `expect a download`, and a download isn't expected");
 					await download.saveAs(file);
 					wp.downloaded.push(file);
 					return OK;

@@ -190,7 +190,7 @@ export class IndexedDbQuadStore implements IQuadStore {
 export function individualAsQuads(label: string, individual: Record<string, unknown>): [string, TQuad[]] {
 	const id = individual["@id"] ?? individual.id;
 	if (typeof id !== "string")
-		throw new Error(`IndexedDbQuadStore: this individual states no identity, so there is nothing to hold it by (got ${JSON.stringify(individual["@id"] ?? individual.id)}).`);
+		throw new Error(`IndexedDbQuadStore: this individual doesn't state an identity to hold it by (got ${JSON.stringify(individual["@id"] ?? individual.id)}).`);
 	const quads = Object.entries(individual)
 		.filter(([predicate]) => predicate !== "@id")
 		.map(([predicate, object]) => ({ subject: id, predicate, object, namedGraph: label, timestamp: Date.now() }));

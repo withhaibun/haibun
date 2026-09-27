@@ -128,7 +128,7 @@ async function closeAfterFeature(wp: WebPlaywright) {
 		if (wp.captureVideo) {
 			const page = await wp.getPage();
 			const video = page.video();
-			if (!video) throw new Error("a run that captures video records each page, and this page has no recording");
+			if (!video) throw new Error("a run that captures video records each page, and this page doesn't have a recording");
 			const videoPath = await video.path();
 			const world = wp.getWorld();
 			// Compute path relative to feature capture dir for serialized HTML

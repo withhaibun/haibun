@@ -1682,7 +1682,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			const frameTimeMs = frameTime.poll();
 			if (frameTimeMs !== undefined) {
 				const drew = sceneEl.renderer?.info?.render;
-				if (!drew) throw new Error("a frame was measured with no renderer to report what it drew");
+				if (!drew) throw new Error("a frame was measured without a renderer to report what it drew");
 				this.regulate(frameTimeMs, now, drew);
 			}
 			// The active node's breath, on wall time like the geometry poll rather than as a frame job: a job's countdown
@@ -2075,7 +2075,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	private beginLayoutTween(from: Map<string, XYZ>, nodes: FGNode[]): void {
 		// Placement runs before this, so every node has a position; one without is a defect, not a timing.
 		const unplaced = nodes.find((n) => n.x === undefined);
-		if (unplaced) throw new Error(`beginLayoutTween: node ${unplaced.id} has no position, place() must run first`);
+		if (unplaced) throw new Error(`beginLayoutTween: node ${unplaced.id} doesn't have a position: place() must run first`);
 		const to = new Map<string, XYZ>();
 		for (const n of nodes) to.set(n.id, { x: n.x ?? 0, y: n.y ?? 0, z: n.z ?? 0 });
 		// Anchor the last-selected node: translate the WHOLE solved layout so that node lands exactly where the user

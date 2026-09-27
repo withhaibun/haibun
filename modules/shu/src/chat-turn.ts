@@ -103,7 +103,7 @@ export async function startTurn({ prompt, envelope, target }: TTurnRequest): Pro
 		unsubscribe();
 	}
 	const ended = conversationState.get().asked;
-	if (!ended) throw new Error("the conversation holds no turn this page asked: it was cleared while the turn ran");
+	if (!ended) throw new Error("the conversation doesn't hold the turn this page asked: it was cleared while the turn ran");
 	if (ended.status === "failed" || ended.status === "stopped") reportToRun("error", "chat-turn", `chat turn ${ended.status}: ${ended.error}`);
 	return ended;
 }

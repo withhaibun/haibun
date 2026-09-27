@@ -531,7 +531,7 @@ class PaneStateImpl {
 		// "child.open is not a function", which names neither the pane nor the tag. Say it here, where both are known.
 		const definition = customElements.get(tag);
 		if (definition && !(child instanceof definition))
-			throw new Error(`pane ${id}: <${tag}> is defined but this element did not upgrade to it, so the ${d.paneType} pane has none of its own methods`);
+			throw new Error(`pane ${id}: <${tag}> is defined but this element did not upgrade to it, so the ${d.paneType} pane doesn't have its own methods`);
 		await this.held.hooks.afterAttach?.[d.paneType]?.(d, child);
 	}
 

@@ -80,7 +80,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 
 	/** The run's registry, which the run attaches this transport to before any feature starts. */
 	private registry(): StepRegistry {
-		if (!this.currentRegistry) throw new Error("McpStepper: no step registry is attached");
+		if (!this.currentRegistry) throw new Error("McpStepper: a step registry isn't attached");
 		return this.currentRegistry;
 	}
 
@@ -102,7 +102,8 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 	public async executeTool(name: string, args: Record<string, unknown>, grantedCapability?: string | string[], principal?: string): Promise<CallToolResult> {
 		const tool = this.registry().get(name);
 		// A call is refused before its input is read, and alike whether its step exists, as it is over RPC.
-		if (!tool || !mayCall(grantedCapability, tool.descriptor)) return { isError: true, content: [{ type: "text", text: refusal(name, tool && lackedAction(grantedCapability, tool.descriptor), principal) }] };
+		if (!tool || !mayCall(grantedCapability, tool.descriptor))
+			return { isError: true, content: [{ type: "text", text: refusal(name, tool && lackedAction(grantedCapability, tool.descriptor), principal) }] };
 		try {
 			const world = this.getWorld();
 			// MCP callers have no haibun seqPath; the server synthesises one.
@@ -123,7 +124,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 		if (this.mcpServer) return;
 
 		const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER) as IWebServer;
-		if (!webserver) throw new Error("McpStepper: No webserver found in runtime.");
+		if (!webserver) throw new Error("McpStepper: the runtime doesn't hold a webserver.");
 
 		// A host places a server's instructions in its model's context. They are set before any caller connects, so they name
 		// no stepper: a caller finds the steps it holds in the tool list and by discovery.

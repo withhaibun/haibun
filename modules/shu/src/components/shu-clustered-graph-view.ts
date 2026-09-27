@@ -214,7 +214,7 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 			const nextLimit = Math.min(MAX_PER_TYPE_LIMIT, Math.max(this.cgState.perTypeLimit * 2, this.cgState.perTypeLimit + 100));
 			if (nextLimit === this.cgState.perTypeLimit) return;
 			const filter = this.filterEl;
-			if (!filter) throw new Error(`${this.localName} holds no graph filter to raise the sample limit on`);
+			if (!filter) throw new Error(`${this.localName} doesn't hold a graph filter whose sample limit it raises`);
 			filter.raiseLimitTo(nextLimit);
 		}) as EventListener);
 

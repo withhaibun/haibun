@@ -106,7 +106,7 @@ export class A11yRenderer implements IGraphRenderer {
 	draw({ nodes, links }: TDrawn): void {
 		this.lastDrawn = { nodes, links };
 		const region = this.deps.region();
-		if (!region) throw new Error("A11yRenderer: no region to draw into");
+		if (!region) throw new Error("A11yRenderer: it doesn't have a region to draw into");
 		const { status, content } = this.frame(region);
 		const doc = region.ownerDocument;
 

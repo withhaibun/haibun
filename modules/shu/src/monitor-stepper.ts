@@ -309,7 +309,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		// The run's declarations ride in the cache as the registry, where a page with no server reads them, read as every
 		// caller reads them: the steps the report's writer holds, which for the run's own report is every step.
 		const world = this.getWorld();
-		if (!world.runtime.steppers) throw new Error("a report reads the run's steppers, and the run holds none");
+		if (!world.runtime.steppers) throw new Error("a report reads the run's steppers, and the run doesn't hold them");
 		const registry = discoverSteps(world, runRegistry(world), EVERY_DEFINITION, shownTo());
 		// 3. End-of-run snapshots for the affordances panel. Earlier RPC calls cached
 		// the early empty-graph state; the panel's offline render uses the cache, so the

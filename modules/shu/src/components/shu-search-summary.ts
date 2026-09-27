@@ -52,7 +52,7 @@ export class ShuSearchSummary extends ShuElement<typeof EmptySchema> {
 
 	/** Dispatch the restore of this entry's exact snapshot. Fail-fast: an entry without a snapshot is a recorder bug. */
 	restore(): void {
-		if (!this.query) throw new Error("shu-search-summary: restore with no query snapshot: the recorder must set .query before appending");
+		if (!this.query) throw new Error("shu-search-summary: a restore doesn't have a query snapshot: the recorder must set .query before appending");
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.SEARCH_RESTORE, { detail: { query: this.query }, bubbles: true, composed: true }));
 	}
 

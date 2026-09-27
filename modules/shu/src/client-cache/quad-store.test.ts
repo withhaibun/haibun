@@ -89,8 +89,8 @@ describe("an individual in the page's cache", () => {
 		expect(await store.query({ subject: "c1" }), "a changed fact replaces what was held").toMatchObject([{ object: { text: "changed" }, timestamp: 3 }]);
 	});
 
-	it("refuses a record that states no identity, rather than holding something no view can ask for again", async () => {
-		await expect(new IndexedDbQuadStore().upsertIndividual("Comment", { content: "no id" })).rejects.toThrow(/states no identity/);
+	it("refuses a record that doesn't state an identity, since a view can't ask for it again", async () => {
+		await expect(new IndexedDbQuadStore().upsertIndividual("Comment", { content: "no id" })).rejects.toThrow(/doesn't state an identity/);
 	});
 
 	it("holds a record by the identity it states, whether that is its @id or the id it records", async () => {

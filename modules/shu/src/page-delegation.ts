@@ -29,7 +29,7 @@ export async function delegateFromPage(to: TDelegationTo): Promise<Record<string
 	const signer = pageSigner();
 	if (!authority || !signer) throw new Error("a page delegates once it has read what it holds, and this one hasn't");
 	const narrowed = narrowing(authority.delegations, to);
-	if (!narrowed) throw new Error(`this page holds no delegation that allows everything the delegation it gives needs: ${to.wanted.join(", ")}`);
+	if (!narrowed) throw new Error(`this page doesn't hold a delegation that allows everything the delegation it gives needs: ${to.wanted.join(", ")}`);
 	const { parent, allowedAction, expires } = narrowed;
 	const document = {
 		"@context": zcapConstants.ZCAP_CONTEXT_URL,

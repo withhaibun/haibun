@@ -14,7 +14,7 @@ beforeEach(() => {
 
 describe("eventStream accessor", () => {
 	it("throws with a precise message when no EventStream has been installed", () => {
-		expect(() => eventStream()).toThrow(/no EventStream installed/);
+		expect(() => eventStream()).toThrow(/an EventStream isn't installed/);
 	});
 
 	it("returns the installed instance after setEventStream", () => {
@@ -26,6 +26,6 @@ describe("eventStream accessor", () => {
 	it("a page that has ended has no event stream installed", () => {
 		setEventStream(new SerializedEventStream());
 		endPage();
-		expect(() => eventStream()).toThrow(/no EventStream installed/);
+		expect(() => eventStream()).toThrow(/an EventStream isn't installed/);
 	});
 });

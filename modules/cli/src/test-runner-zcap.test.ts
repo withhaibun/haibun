@@ -3,7 +3,7 @@
  *
  * These are the steps that fork a process on this machine, so the interesting cases are the refusals. The steppers
  * here are the real ones. The run is refused before anything is started, and where a call is expected to pass the
- * gate it is aimed at a directory holding no config, so what proves authorization is the supervisor's own complaint
+ * gate it is aimed at a directory without a config, so what proves authorization is the supervisor's own complaint
  * about the directory rather than a capability error.
  */
 import { describe, expect, it, beforeEach } from "vitest";
@@ -63,7 +63,7 @@ describe("what a caller must hold to run a test", () => {
 		expect(called.registered).toBe(true);
 		if (!called.registered) return;
 		expect(called.result.ok, "nothing is there to run").toBe(false);
-		expect(called.result.errorMessage, "the supervisor was reached, which is what authorization means here").toMatch(/no config.json/);
+		expect(called.result.errorMessage, "the supervisor was reached, which is what authorization means here").toMatch(/doesn't hold a config.json/);
 	});
 
 	it("holds one power at a time: reading a run is not starting one", async () => {
@@ -99,6 +99,6 @@ describe("what a caller must hold to run a test", () => {
 		// The agent's tool is authorized by an explicit capability, as an RPC or MCP caller reaches it. Its inner call to the
 		// supervisor must run under that same authority.
 		const called = await h.call("TestRunnerStepper-runTest", { where: NOWHERE, filter: "any" }, undefined, SUPERVISOR_CAPABILITIES.run);
-		expect(called.registered && called.result.errorMessage, "the inner call was authorized by what authorized the outer one").toMatch(/no config.json/);
+		expect(called.registered && called.result.errorMessage, "the inner call was authorized by what authorized the outer one").toMatch(/doesn't hold a config.json/);
 	});
 });

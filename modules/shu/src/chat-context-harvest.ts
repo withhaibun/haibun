@@ -70,7 +70,7 @@ export function harvestChatViewLd(root: ParentNode = document): TLinkedData[] {
 	// model that nothing is selected while a view is plainly on screen.
 	if (!active)
 		throw new Error(
-			`harvestChatViewLd: activePane is ${JSON.stringify(activeKey)}, which is none of the ${panes.length} open pane(s): [${panes.map((p) => JSON.stringify(paneKeyOf(p))).join(", ")}]. The pane router is the only writer of activePane.`,
+			`harvestChatViewLd: activePane is ${JSON.stringify(activeKey)}, which isn't one of the ${panes.length} open pane(s): [${panes.map((p) => JSON.stringify(paneKeyOf(p))).join(", ")}]. The pane router is the only writer of activePane.`,
 		);
 	const blocks: TLinkedData[] = [];
 	for (const el of topSummarizers(active)) {

@@ -327,7 +327,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 	/** A dragged pixel width as a share of the strip it was dragged in. */
 	#asShare(px: number): number {
 		const strip = this.#stripWidth();
-		if (!strip) throw new Error("shu-column-pane: resized in a strip with no width");
+		if (!strip) throw new Error("shu-column-pane: resized in a strip without a width");
 		return px / strip;
 	}
 

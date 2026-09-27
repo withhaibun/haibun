@@ -381,12 +381,14 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			action: async ({ method, params }: { method: string; params: string }) => {
 				const tracked = this.inFlight ?? [...this.standing.values()].at(-1) ?? this.runsThisAsk.at(-1) ?? this.lastRun;
 				if (!tracked)
-					return actionNotOK("no test run has been started here, so there is nothing to ask; start one first, with TestRunnerStepper-runTest or TestRunnerStepper-runAllTests");
+					return actionNotOK(
+						"a test run hasn't been started here, so this step doesn't have a run to ask; start one first, with TestRunnerStepper-runTest or TestRunnerStepper-runAllTests",
+					);
 				// A run that is gone still has a record here, and that is what an operator asking about it after the fact
 				// is answered from; saying nothing was started, or leaving a model to guess where the run went, is false.
 				if (!tracked.host || (!this.inFlight && !this.standing.has(tracked.id)))
 					return actionNotOK(
-						`the run "${tracked.filter}" in "${tracked.where}" is no longer up, so it answers nothing now; what is left of it is its record here, which TestRunnerStepper-examineTestRun and a list of "${FEATURE_EXECUTION_LABEL}" report`,
+						`the run "${tracked.filter}" in "${tracked.where}" is no longer up, so it doesn't answer now; what is left of it is its record here, which TestRunnerStepper-examineTestRun and a list of "${FEATURE_EXECUTION_LABEL}" report`,
 					);
 				const atRun = this.stepsAtRun(tracked.host);
 				const target = stepAtRun(atRun, tracked.host, unquote(method));
@@ -439,7 +441,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 				// A run whose features are over may still be standing, holding its port for anything that wants to ask
 				// it something. Stopping is what ends that, so it is not limited to a run still in flight.
 				const tracked = this.inFlight ?? [...this.standing.values()].at(-1);
-				if (!tracked) return actionNotOK("no run is in flight or standing, so there is nothing to stop");
+				if (!tracked) return actionNotOK("a run isn't in flight or standing, so this step doesn't have a run to stop");
 				const stopped = await this.callSupervisor(z.object({ run: z.string() }), SUPERVISOR.stop, { run: tracked.id });
 				if (stopped.ok === false) return actionNotOK(stopped.why);
 				this.standing.delete(tracked.id);

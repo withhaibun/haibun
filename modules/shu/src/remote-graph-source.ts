@@ -31,7 +31,7 @@ export class RemoteGraphSource implements TFederatedGraphSource {
 	}
 
 	get site(): string {
-		if (!this.remoteSite) throw new Error("RemoteGraphSource: connect() has not completed: no site principal");
+		if (!this.remoteSite) throw new Error("RemoteGraphSource: connect() has not completed, so the source doesn't hold the site's principal");
 		return this.remoteSite;
 	}
 
@@ -42,7 +42,7 @@ export class RemoteGraphSource implements TFederatedGraphSource {
 		if (typeof (result as { error?: unknown }).error === "string")
 			throw new Error(`RemoteGraphSource: naming failed at ${this.config.url}: ${(result as { error: string }).error}`);
 		const site = (result as { site?: string }).site;
-		if (typeof site !== "string" || site.length === 0) throw new Error(`RemoteGraphSource: naming at ${this.config.url} returned no site`);
+		if (typeof site !== "string" || site.length === 0) throw new Error(`RemoteGraphSource: naming at ${this.config.url} didn't return a site`);
 		return site;
 	}
 

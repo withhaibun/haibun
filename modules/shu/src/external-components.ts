@@ -22,12 +22,12 @@ export async function ensureUiComponentLoaded(childTag: string, report: TExterna
 	const ui = getUiByComponent(childTag);
 	if (!ui) {
 		report("error", "missing-ui", childTag);
-		throw new Error(`[shu] no concern declares ui.component "${childTag}", register a domain with ui:{component,js}`);
+		throw new Error(`[shu] the concerns don't declare ui.component "${childTag}": register a domain with ui:{component,js}`);
 	}
 	const js = typeof ui.js === "string" ? ui.js : "";
 	if (!js) {
 		report("error", "missing-script", childTag);
-		throw new Error(`[shu] concern for ${childTag} has no ui.js script URL`);
+		throw new Error(`[shu] concern for ${childTag} doesn't have a ui.js script URL`);
 	}
 	const src = js.startsWith("/") ? js : `/${js}`;
 	report("debug", "fetch", childTag, { "haibun.shu.external-component.url": src });

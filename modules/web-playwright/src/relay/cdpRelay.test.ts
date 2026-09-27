@@ -1,7 +1,7 @@
 /**
  * The relay between Playwright and a person's extension: Playwright's CDP is answered from the relay's tab model where
  * it can be, and carried to the extension as chrome.* calls otherwise; the extension's answers and events come back.
- * One extension and one CDP client at a time, and nothing to drive while no browser is attached.
+ * One extension and one CDP client at a time, and a browser to drive only while one is attached.
  */
 import { describe, it, expect } from "vitest";
 import { BrowserRelay } from "./cdpRelay.js";
@@ -44,10 +44,10 @@ function driven(relay: BrowserRelay) {
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe("the browser relay", () => {
-	it("has nothing to drive while no browser is attached, and holds one extension at a time", async () => {
+	it("doesn't drive a browser while one isn't attached, and holds one extension at a time", async () => {
 		const reported: unknown[] = [];
 		const relay = new BrowserRelay((e) => void reported.push(e));
-		expect(() => relay.transport()).toThrow(/no browser is attached/);
+		expect(() => relay.transport()).toThrow(/a browser isn't attached/);
 		const first = attached(relay);
 		await expect(
 			relay.attach(
@@ -61,7 +61,7 @@ describe("the browser relay", () => {
 		expect(() => relay.transport(), "and one CDP client").toThrow(/already driven/);
 		first.end();
 		await first.held;
-		expect(() => relay.transport(), "the attachment ended").toThrow(/no browser is attached/);
+		expect(() => relay.transport(), "the attachment ended").toThrow(/a browser isn't attached/);
 		expect(reported.map(String), "ended before its handshake, which is reported").toEqual([
 			"Error: Extension disconnected before initialization: the extension ended its attachment",
 		]);
@@ -134,11 +134,11 @@ describe("the browser relay", () => {
 		playwright.send(1, "Storage.getCookies");
 		await settle();
 		expect(playwright.received[0], "a browser command with no tab attached is refused").toMatchObject({ id: 1, error: { message: expect.stringMatching(/No attached tab/) } });
-		expect(() => relay.receive([{ id: 99, result: {} }]), "an answer to a command never sent").toThrow(/sent no command 99/);
+		expect(() => relay.receive([{ id: 99, result: {} }]), "an answer to a command never sent").toThrow(/didn't send command 99/);
 		extension.end();
 		await extension.held;
 		expect(playwright.closed(), "Playwright is told the extension went").toMatch(/Extension disconnected/);
-		expect(() => relay.receive([{ method: "extension.initialized", params: [] }]), "and nothing is attached to answer").toThrow(/no browser is attached/);
+		expect(() => relay.receive([{ method: "extension.initialized", params: [] }]), "and a browser isn't attached to answer").toThrow(/a browser isn't attached/);
 	});
 
 	it("ends a holder's attachment when that holder attaches again, and refuses a caller that proved no key", async () => {
@@ -169,6 +169,6 @@ describe("the browser relay", () => {
 		playwright.close();
 		await extension.held;
 		expect(playwright.closed(), "Playwright's side is told it closed").toBe("Playwright's client closed");
-		expect(() => relay.transport(), "and no browser is attached").toThrow(/no browser is attached/);
+		expect(() => relay.transport(), "and a browser isn't attached").toThrow(/a browser isn't attached/);
 	});
 });

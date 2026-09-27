@@ -148,6 +148,6 @@ describe("the browser relay", () => {
 		const result = await failWithDefaults([{ path: "/features/relay-detached.feature", content: feature }], steppers, options(port));
 		const failed = result.featureResults?.[0]?.stepResults?.find((step) => !step.ok) as { in?: string; errorMessage?: string } | undefined;
 		expect(failed?.in).toBe(`go to the "${siteUrl}" webpage`);
-		expect(failed?.errorMessage).toMatch(/no browser is attached/);
+		expect(failed?.errorMessage).toMatch(/a browser isn't attached/);
 	});
 });

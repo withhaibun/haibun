@@ -192,7 +192,7 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 		const node = (e as CustomEvent<{ node: TSchemaNode | null }>).detail.node;
 		if (!node) return;
 		const pane = paneAddressedBy(node.link?.href ?? "");
-		if (!pane) throw new Error(`schema node ${node.id} addresses no view`);
+		if (!pane) throw new Error(`schema node ${node.id} doesn't address a view`);
 		PaneState.requestFrom(e, pane);
 	};
 

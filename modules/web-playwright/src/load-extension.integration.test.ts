@@ -1,6 +1,6 @@
 /**
  * An unpacked extension loaded into the browser a run launches: its page opens at the origin the step derives from the
- * key its manifest pins, which is the id Chromium gives it. An extension that pins no key, and one named after a page is
+ * key its manifest pins, which is the id Chromium gives it. An extension that doesn't pin a key, and one named after a page is
  * open, are refused, saying why.
  */
 import { afterAll, describe, expect, it } from "vitest";
@@ -48,12 +48,12 @@ describe("load the browser extension at {where}", () => {
 		expect(result.ok, JSON.stringify(result.featureResults?.[0]?.stepResults?.filter((step) => !step.ok))).toBe(true);
 	});
 
-	it("refuses an extension that pins no key, and one named after a page is open", { timeout: 60_000 }, async () => {
+	it("refuses an extension that doesn't pin a key, and one named after a page is open", { timeout: 60_000 }, async () => {
 		const refusedFor = async (lines: string[]) => {
 			const result = await failWithDefaults([{ path: "/features/refused.feature", content: lines.join("\n") }], steppers, options);
 			return (result.featureResults?.[0]?.stepResults?.find((step) => !step.ok) as { errorMessage?: string } | undefined)?.errorMessage;
 		};
-		expect(await refusedFor([`load the browser extension at "${unpinned}"`])).toMatch(/pins no key in its manifest/);
+		expect(await refusedFor([`load the browser extension at "${unpinned}"`])).toMatch(/doesn't pin a key in its manifest/);
 		expect(await refusedFor([`go to the "file://${EXTENSION}/page.html" webpage`, `load the browser extension at "${EXTENSION}"`])).toMatch(/before any step opens a page/);
 	});
 });

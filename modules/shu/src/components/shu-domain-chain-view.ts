@@ -215,7 +215,7 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 	private onNodeClick(e: Event): void {
 		const { nodeId } = (e as CustomEvent<TPresenterNodeClick>).detail;
 		const node = this.graph?.nodes.find((n) => n.id === nodeId);
-		if (!node) throw new Error(`chain graph node "${nodeId}" is no node of the chain`);
+		if (!node) throw new Error(`chain graph node "${nodeId}" isn't a node of the chain`);
 		this.routeNodeClick(node);
 	}
 
@@ -224,13 +224,13 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 		// A fact-instance node opens the step that produced the fact.
 		if (node.kind === NODE_KIND.factInstance && node.wasGeneratedBy?.factId) {
 			const seqPath = factSeqPath(node.wasGeneratedBy.factId);
-			if (!seqPath) throw new Error(`fact "${node.wasGeneratedBy.factId}" names no step: a fact's id is the seqPath of the step that produced it`);
+			if (!seqPath) throw new Error(`fact "${node.wasGeneratedBy.factId}" doesn't name a step: a fact's id is the seqPath of the step that produced it`);
 			openRef(this, "seqPath", { seqPath });
 			return;
 		}
 		// Every other node of the chain projection deep-links into the affordances panel.
 		const href = node.link?.href;
-		if (typeof href !== "string" || !href.startsWith(DEEP_LINK_PREFIX)) throw new Error(`chain node ${node.id} has no deep link to open`);
+		if (typeof href !== "string" || !href.startsWith(DEEP_LINK_PREFIX)) throw new Error(`chain node ${node.id} doesn't have a deep link to open`);
 		ViewHash.mergeHashParams(Object.fromEntries(ViewHash.hashParams(href)));
 		PaneState.requestFrom(this, { paneType: "component", tag: SHU_TAG.AFFORDANCES_PANEL, label: "Affordances" });
 	}

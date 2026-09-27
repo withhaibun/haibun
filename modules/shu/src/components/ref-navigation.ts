@@ -81,7 +81,7 @@ export function followPaneLink(e: MouseEvent): void {
 /** Open what a reference points at from a view that isn't a link. */
 export function openRef(source: Element | Event, kind: TRefKind, linkTarget: Record<string, unknown>, addToSelection = false): void {
 	const desired = desiredPaneFor(kind, linkTarget);
-	if (!desired) throw new Error(`a ${kind} reference to ${JSON.stringify(linkTarget)} addresses no pane`);
+	if (!desired) throw new Error(`a ${kind} reference to ${JSON.stringify(linkTarget)} doesn't address a pane`);
 	PaneState.requestFrom(source, desired, addToSelection);
 }
 

@@ -152,6 +152,6 @@ test("mouse-pick bounds refresh after the canvas MOVES without resizing (strip s
 
 test("the view boots and runs without page errors", () => {
 	// The stub page installs no EventStream, so the live-update subscription fails fast by design; the real app installs one at boot.
-	const unexpected = pageErrors.filter((e) => !e.includes("no EventStream installed"));
+	const unexpected = pageErrors.filter((e) => !e.includes("an EventStream isn't installed"));
 	expect(unexpected).toEqual([]);
 });

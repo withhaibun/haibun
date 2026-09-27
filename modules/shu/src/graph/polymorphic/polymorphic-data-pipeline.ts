@@ -150,7 +150,7 @@ export class DataPipeline {
 			tasks.map((t) => {
 				const p = placements.get(t.id);
 				// Fail-fast: every time task must get a placement; a gap is a layout bug, not something to render around.
-				if (!p || p.y === undefined || p.z === undefined || p.zExtent === undefined) throw new Error(`gantt: computeLayout produced no placement for task ${t.id}`);
+				if (!p || p.y === undefined || p.z === undefined || p.zExtent === undefined) throw new Error(`gantt: computeLayout didn't place task ${t.id}`);
 				return [t.id, { y: p.y, z: p.z, zLen: p.zExtent, start: t.start, end: t.end }];
 			}),
 		);

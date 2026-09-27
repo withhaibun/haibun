@@ -23,7 +23,7 @@ describe("setupShuTest", () => {
 
 	it("default dispatch throws with the missing method name when no `dispatch` is configured", async () => {
 		setupShuTest();
-		await expect(conduit().follow(acts("Nothing-configured"), "test")).rejects.toThrow(/no dispatch configured for "Nothing-configured"/);
+		await expect(conduit().follow(acts("Nothing-configured"), "test")).rejects.toThrow(/a dispatch for "Nothing-configured" isn't configured/);
 	});
 
 	it("custom dispatch returns wire results to follow()", async () => {
@@ -44,8 +44,8 @@ describe("setupShuTest", () => {
 	it("teardown un-installs both services, subsequent accessor calls throw", () => {
 		const h = setupShuTest();
 		h.teardown();
-		expect(() => conduit()).toThrow(/no Conduit installed/);
-		expect(() => eventStream()).toThrow(/no EventStream installed/);
+		expect(() => conduit()).toThrow(/a Conduit isn't installed/);
+		expect(() => eventStream()).toThrow(/an EventStream isn't installed/);
 	});
 
 	it("a second setupShuTest replaces the prior instances cleanly", () => {

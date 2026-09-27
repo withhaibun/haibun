@@ -199,7 +199,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		const { nodeId } = (e as CustomEvent<TPresenterNodeClick>).detail;
 		const slot = (e.target as Element).slot;
 		const node = this.goalGraphs.get(slot)?.nodes.find((n) => n.id === nodeId);
-		if (!node) throw new Error(`goal graph node "${nodeId}" is no node of the graph in slot "${slot}"`);
+		if (!node) throw new Error(`goal graph node "${nodeId}" isn't a node of the graph in slot "${slot}"`);
 		const invokes = node.invokes;
 		if (invokes?.stepperName && invokes?.stepName) {
 			this.chooseStep(stepMethodName(invokes.stepperName, invokes.stepName));
@@ -208,7 +208,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		const factId = node.wasGeneratedBy?.factId;
 		if (typeof factId !== "string") return;
 		const seqPath = factSeqPath(factId);
-		if (!seqPath) throw new Error(`fact "${factId}" names no step: a fact's id is the seqPath of the step that produced it`);
+		if (!seqPath) throw new Error(`fact "${factId}" doesn't name a step: a fact's id is the seqPath of the step that produced it`);
 		openRef(e, "seqPath", { seqPath });
 	}
 
@@ -225,8 +225,8 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	}
 
 	private async fetchInitial(quiet = false): Promise<void> {
-		// With no Conduit installed (standalone HTML pre-boot) there is no server to fetch
-		// from. Stay on the actionable empty state rather than the spinner: the "invoke show
+		// Where a Conduit isn't installed (standalone HTML pre-boot), the panel doesn't have a server
+		// to fetch from. Stay on the actionable empty state rather than the spinner: the "invoke show
 		// affordances" prompt shows, and the panel becomes useful once a snapshot arrives.
 		// `quiet` (a live re-fetch on a change signal) skips the loadState transitions so the panel never flashes.
 		try {
@@ -318,7 +318,8 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	private renderResolutionTpl(g: TGoalAffordance, goalIdx: number): TemplateResult {
 		const r = g.resolution;
 		if (r.finding === GOAL_FINDING.SATISFIED) {
-			if (!Array.isArray(r.factIds)) throw new Error(`shu-affordances-panel: satisfied resolution for ${g.domain} has no factIds[]. Got: ${JSON.stringify(r).slice(0, 200)}.`);
+			if (!Array.isArray(r.factIds))
+				throw new Error(`shu-affordances-panel: satisfied resolution for ${g.domain} doesn't have factIds[]. Got: ${JSON.stringify(r).slice(0, 200)}.`);
 			// Build the static prefix as one string so lit-html doesn't insert a `<!--?lit-->` part marker between "as" and "fact(s)", readers (and tests) match the natural sentence "asserted as facts <id list>".
 			const prefix = `already asserted as ${r.factIds.length === 1 ? "fact" : "facts"} `;
 			const factsTpl = html`<div class="resolution-detail">${prefix}${r.factIds.map((id, i) => html`${i > 0 ? ", " : ""}${unsafeHTML(factIdRef(id))}`)}</div>`;
@@ -327,11 +328,12 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 			return factsTpl;
 		}
 		if (r.finding === GOAL_FINDING.MICHI) {
-			if (!Array.isArray(r.michi)) throw new Error(`shu-affordances-panel: michi resolution for ${g.domain} has no michi[]. Got: ${JSON.stringify(r).slice(0, 200)}.`);
+			if (!Array.isArray(r.michi)) throw new Error(`shu-affordances-panel: michi resolution for ${g.domain} doesn't have michi[]. Got: ${JSON.stringify(r).slice(0, 200)}.`);
 			return this.renderMichiSectionTpl(r.michi, r.truncated, goalIdx, false);
 		}
 		if (r.finding === GOAL_FINDING.UNREACHABLE) {
-			if (!Array.isArray(r.missing)) throw new Error(`shu-affordances-panel: unreachable resolution for ${g.domain} has no missing[]. Got: ${JSON.stringify(r).slice(0, 200)}.`);
+			if (!Array.isArray(r.missing))
+				throw new Error(`shu-affordances-panel: unreachable resolution for ${g.domain} doesn't have missing[]. Got: ${JSON.stringify(r).slice(0, 200)}.`);
 			return html`<span class="resolution-detail">no producer chain. Missing leaves: ${r.missing.map((m, i) => html`${i > 0 ? ", " : ""}${domainRef(m)}`)}</span>`;
 		}
 		if (r.finding === GOAL_FINDING.REFUSED) {
@@ -360,13 +362,14 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	 *  as other goals come and go. */
 	private goalDomainAt(goalIdx: number): string {
 		const domain = this.affordances?.goals[goalIdx]?.domain;
-		if (domain === undefined) throw new Error(`shu-affordances-panel: no goal at ${goalIdx}`);
+		if (domain === undefined) throw new Error(`shu-affordances-panel: goal ${goalIdx} doesn't exist`);
 		return domain;
 	}
 
 	private renderPathCardTpl(path: TMichi, goalIdx: number, pathIdx: number): TemplateResult {
-		if (!Array.isArray(path.steps)) throw new Error(`shu-affordances-panel: path[${pathIdx}] for goal ${goalIdx} has no steps[]. Got: ${JSON.stringify(path).slice(0, 200)}`);
-		if (!Array.isArray(path.bindings)) throw new Error(`shu-affordances-panel: path[${pathIdx}] for goal ${goalIdx} has no bindings[]. Got: ${JSON.stringify(path).slice(0, 200)}`);
+		if (!Array.isArray(path.steps)) throw new Error(`shu-affordances-panel: path[${pathIdx}] for goal ${goalIdx} doesn't have steps[]. Got: ${JSON.stringify(path).slice(0, 200)}`);
+		if (!Array.isArray(path.bindings))
+			throw new Error(`shu-affordances-panel: path[${pathIdx}] for goal ${goalIdx} doesn't have bindings[]. Got: ${JSON.stringify(path).slice(0, 200)}`);
 		for (const [i, s] of path.steps.entries()) {
 			if (typeof s.stepperName !== "string" || typeof s.stepName !== "string") {
 				throw new Error(`shu-affordances-panel: path step[${i}] is missing stepperName or stepName. Got: ${JSON.stringify(s)}`);
@@ -385,10 +388,10 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 
 	private renderBindingsTpl(bindings: TBinding[]): TemplateResult {
 		return html`<div class="bindings">inputs: ${bindings.map((b, i) => {
-			if (typeof b.domain !== "string") throw new Error(`shu-affordances-panel: binding[${i}] has no domain. Got: ${JSON.stringify(b)}`);
+			if (typeof b.domain !== "string") throw new Error(`shu-affordances-panel: binding[${i}] doesn't have a domain. Got: ${JSON.stringify(b)}`);
 			const sep = i > 0 ? html`, ` : "";
 			if (b.kind === "fact") {
-				if (typeof b.factId !== "string") throw new Error(`shu-affordances-panel: fact-binding[${i}] (domain ${b.domain}) has no factId. Got: ${JSON.stringify(b)}`);
+				if (typeof b.factId !== "string") throw new Error(`shu-affordances-panel: fact-binding[${i}] (domain ${b.domain}) doesn't have a factId. Got: ${JSON.stringify(b)}`);
 				return html`${sep}<span class="binding-fact">${domainRef(b.domain)}#${unsafeHTML(factIdRef(b.factId))}</span>`;
 			}
 			if (b.kind === "composite") return html`${sep}${this.renderCompositeBindingTpl(b.domain, b.fields)}`;

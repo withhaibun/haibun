@@ -20,7 +20,7 @@ export async function openRelayChannel({ base, sign }: { base: string; sign: TPr
 	};
 	const ending = new AbortController();
 	const attached = await call("attach", {}, { signal: ending.signal });
-	if (!attached.body) throw new Error("relay.attach answered with no stream to carry the relay's commands");
+	if (!attached.body) throw new Error("relay.attach returned a response without a stream to carry the relay's commands");
 	const chunks = readNdjson<TStreamChunk>(attached.body);
 	const first = await chunks.next();
 	const opening = first.done ? undefined : first.value;

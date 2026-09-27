@@ -41,7 +41,7 @@ let browser: Browser;
 let page: Page;
 const pageErrors: string[] = [];
 /** The pick geometry needs no event stream; mounting the raw bundle without the app boot reports exactly this once. */
-const unexpectedErrors = () => pageErrors.filter((m) => !m.includes("no EventStream installed"));
+const unexpectedErrors = () => pageErrors.filter((m) => !m.includes("an EventStream isn't installed"));
 
 /** In-page: ask the view where it draws each node, then probe the production pick at that pixel. Both sides are the
  * production pair: a copy of the projection here could only ever agree with itself, never catch the two drifting.

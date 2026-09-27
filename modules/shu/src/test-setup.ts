@@ -9,10 +9,10 @@
  * fixture configured", and the throw surfaces verbatim through `conduit()`
  * call sites. Tests `emit` events to drive lifecycle/log subscribers.
  *
- * Every test sets up the same way, with no setup-by-side-effect; forgetting
+ * Every test sets up the same way, without setup by side effect; forgetting
  * the call makes the first `conduit()` or `eventStream()` throw a precise
- * "no Conduit installed" / "no EventStream installed" error naming what
- * was missed.
+ * "a Conduit isn't installed" / "an EventStream isn't installed" error naming
+ * what was missed.
  */
 
 import { setConduit, type Conduit, type TLink, type TRepresentation, type TStreamChunk } from "./hypermedia.js";
@@ -166,7 +166,7 @@ export function setupShuTest(config: TShuTestConfig = {}): TShuTestHandle {
 		config.dispatch ??
 		((method) => {
 			throw new Error(
-				`setupShuTest: no dispatch configured for "${method}". Pass setupShuTest({ dispatch: (method, params) => ... }) and return a wire result for the methods this test exercises.`,
+				`setupShuTest: a dispatch for "${method}" isn't configured. Pass setupShuTest({ dispatch: (method, params) => ... }) and return a wire result for the methods this test exercises.`,
 			);
 		});
 	const conduit = new TestConduit(dispatch);

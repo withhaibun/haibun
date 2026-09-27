@@ -66,7 +66,7 @@ export const requiring =
 export function endWhenLapsed(runtime: TRuntime, { restsOn }: TRequestAuthority, signal: AbortSignal, end: (reason: string) => void): void {
 	if (!restsOn) return;
 	const authority = getAuthority(runtime);
-	if (!authority) throw new Error("a call rests on verified authority, and this process holds no authority to watch it");
+	if (!authority) throw new Error("a call rests on verified authority, and this process doesn't hold an authority to watch it");
 	const held = authority.holdWhile(restsOn);
 	signal.addEventListener("abort", held.release, { once: true });
 	if (held.signal.aborted) end(String(held.signal.reason));

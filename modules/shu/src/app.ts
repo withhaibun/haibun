@@ -415,7 +415,7 @@ const main = async (): Promise<void> => {
 		SHU_EVENT.SEARCH_RESTORE,
 		((e: CustomEvent) => {
 			const query = getQuery();
-			if (!query) throw new Error("search-restore: no shu-graph-query in the app to restore into");
+			if (!query) throw new Error("search-restore: the app doesn't hold a shu-graph-query to restore into");
 			query.products = e.detail.query;
 		}) as EventListener,
 		{ signal },
@@ -519,7 +519,7 @@ const main = async (): Promise<void> => {
 		// arrangement of their own keeps the index as they left it.
 		if (shown.length > 0) {
 			const index = getIndexPane();
-			if (!index) throw new Error("no index pane to minimize when the page started on the run's views: the app builds one at boot and nothing removes it");
+			if (!index) throw new Error("the page started on the run's views without an index pane to minimize: the app builds one at boot and doesn't remove it");
 			index.setMinimized(true);
 		}
 	}

@@ -97,7 +97,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 			action: async ({ property, match }: { property: string; match: string }, featureStep) => {
 				const lastResponse = await webPlaywright.getLastResponse();
 				if (!lastResponse?.json || !Array.isArray(lastResponse.json)) {
-					return actionNotOK(`No JSON or array from ${JSON.stringify(lastResponse)}`);
+					return actionNotOK(`${JSON.stringify(lastResponse)} isn't JSON or an array`);
 				}
 				const filtered = lastResponse.json.filter((item: TJsonRecord) => (item[property] as string)?.match?.(match));
 				await webPlaywright.setLastResponse({ ...lastResponse, filtered }, featureStep);
@@ -123,7 +123,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 				const lastResponse = await webPlaywright.getLastResponse();
 				if (!lastResponse?.json || typeof lastResponse.json.length !== "number") {
 					console.debug(lastResponse);
-					return actionNotOK(`No last response to count`);
+					return actionNotOK(`a response to count hasn't been received`);
 				}
 				webPlaywright.getWorld().eventLogger.info(`lastResponse JSON count is ${lastResponse.json.length}`);
 				return actionOKWithProducts({
@@ -150,7 +150,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 				const lastResponse = await webPlaywright.getLastResponse();
 				const filtered = lastResponse?.filtered;
 				if (!filtered) {
-					return actionNotOK(`No filtered response in ${lastResponse}`);
+					return actionNotOK(`${lastResponse} doesn't hold a filtered response`);
 				}
 				if (!filtered.every((item: TJsonRecord) => item[property] !== undefined)) {
 					return actionNotOK(`Property ${property} not found in all items`);
@@ -184,7 +184,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 				if (lastResponse && lastResponse.status === status) {
 					return OK;
 				}
-				return actionNotOK(`Expected status ${status}, got ${lastResponse?.status || "no response"}`);
+				return actionNotOK(lastResponse ? `Expected status ${status}, got ${lastResponse.status}` : `Expected status ${status}, and a response wasn't received`);
 			},
 		},
 		restResponsePropertyIs: {

@@ -113,7 +113,7 @@ export function didKeyOf(jwk: JsonWebKey): { controller: string; keyId: string }
 
 /** A P-256 public key as its compressed point: the parity of y, then x. */
 function compressedPoint(jwk: JsonWebKey): Uint8Array {
-	if (!jwk.x || !jwk.y) throw new Error("the page's public key has no coordinates to name it by");
+	if (!jwk.x || !jwk.y) throw new Error("the page's public key doesn't have the coordinates to name it by");
 	const bytes = (b64url: string) => Uint8Array.from(atob(b64url.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
 	const y = bytes(jwk.y);
 	return new Uint8Array([y[y.length - 1] & 1 ? 0x03 : 0x02, ...bytes(jwk.x)]);

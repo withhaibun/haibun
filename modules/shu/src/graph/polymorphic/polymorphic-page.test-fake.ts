@@ -140,7 +140,7 @@ export async function mountPolymorphicPage({ external = false }: { external?: bo
 
 	return {
 		page,
-		errors: () => pageErrors.filter((m) => !m.includes("no EventStream installed")),
+		errors: () => pageErrors.filter((m) => !m.includes("an EventStream isn't installed")),
 		async atRest() {
 			await settle();
 			await page.waitForFunction(

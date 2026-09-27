@@ -165,9 +165,9 @@ describe("watching a run", () => {
 
 	it("refuses to read or stop a run it never started, rather than answering for nothing", async () => {
 		const s = stepper();
-		expect((await read(s, "no-such-run", 0)).errorMessage).toMatch(/started no run "no-such-run"/);
+		expect((await read(s, "no-such-run", 0)).errorMessage).toMatch(/didn't start a run "no-such-run"/);
 		const stop = (await (s.steps.stopRun.action as (a: { run: string }) => Promise<TResult>)({ run: "no-such-run" })) as TResult;
-		expect(stop.errorMessage).toMatch(/started no run "no-such-run"/);
+		expect(stop.errorMessage).toMatch(/didn't start a run "no-such-run"/);
 	});
 });
 
@@ -175,17 +175,17 @@ describe("restarting an instance", () => {
 	it("refuses a port this run launched nothing on, rather than starting something unasked", async () => {
 		const result = (await (stepper().steps.restartInstance.action as (a: { port: number }) => Promise<TResult>)({ port: 8299 })) as TResult;
 		expect(result.ok).toBe(false);
-		expect(result.errorMessage).toMatch(/launched no instance on port 8299/);
+		expect(result.errorMessage).toMatch(/didn't launch an instance on port 8299/);
 	});
 
-	it("refuses to start from a directory with no config, naming the directory", async () => {
+	it("refuses to start from a directory without a config, naming the directory", async () => {
 		const result = (await (stepper().steps.startInstance.action as (a: { where: string; port: number; hostId: number }) => Promise<TResult>)({
 			where: "/nonexistent-instance-dir",
 			port: 8298,
 			hostId: 9,
 		})) as TResult;
 		expect(result.ok).toBe(false);
-		expect(result.errorMessage).toMatch(/no config\.json in .*nonexistent-instance-dir/);
+		expect(result.errorMessage).toMatch(/nonexistent-instance-dir doesn't hold a config\.json/);
 	});
 });
 
@@ -287,7 +287,7 @@ describe("waiting for a run", () => {
 			seconds: 1,
 			cursor: 0,
 		})) as TResult;
-		expect(result.errorMessage).toMatch(/started no run "no-such"/);
+		expect(result.errorMessage).toMatch(/didn't start a run "no-such"/);
 	});
 });
 

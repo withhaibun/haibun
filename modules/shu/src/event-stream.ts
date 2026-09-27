@@ -179,7 +179,7 @@ export function hasEventStream(): boolean {
 export function eventStream(): EventStream {
 	const active = installedStream().stream;
 	if (!active) {
-		throw new Error("eventStream: no EventStream installed. Call setEventStream() in app boot or setupShuTest() in tests before using eventStream().");
+		throw new Error("eventStream: an EventStream isn't installed. Call setEventStream() in app boot or setupShuTest() in tests before using eventStream().");
 	}
 	return active;
 }

@@ -186,7 +186,7 @@ export class LiveConduit implements Conduit {
 		const res = await this.post(link.method, { method: link.method, params: link.params ?? {}, seqPath, stream: true, asks: link.asks }, opts.signal);
 		// A stream the run refused answers with its refusal, as any call does.
 		if (!res.ok) await answerOf(link.method, res);
-		if (!res.body) throw new Error(`${link.method}: stream RPC returned no body`);
+		if (!res.body) throw new Error(`${link.method}: stream RPC didn't return a body`);
 		for await (const chunk of readNdjson<TStreamChunk>(res.body)) {
 			if (chunk.error) throw new Error(chunk.error);
 			onChunk(chunk);
@@ -284,7 +284,7 @@ export function setConduit(c: Conduit): void {
 export function conduit(): Conduit {
 	const active = installedConduit().conduit;
 	if (!active) {
-		throw new Error("conduit: no Conduit installed. Call setConduit() in app boot or setupShuTest() in tests before using conduit().");
+		throw new Error("conduit: a Conduit isn't installed. Call setConduit() in app boot or setupShuTest() in tests before using conduit().");
 	}
 	return active;
 }

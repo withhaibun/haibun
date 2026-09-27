@@ -110,7 +110,7 @@ describe("getLink", () => {
 
 describe("conduit accessor", () => {
 	it("throws with a precise message when no Conduit has been installed", () => {
-		expect(() => conduit()).toThrow(/no Conduit installed/);
+		expect(() => conduit()).toThrow(/a Conduit isn't installed/);
 	});
 
 	it("returns the installed instance after setConduit", () => {
@@ -122,7 +122,7 @@ describe("conduit accessor", () => {
 	it("a page that has ended has no conduit installed", () => {
 		setConduit(new TestConduit(() => ({})));
 		endPage();
-		expect(() => conduit()).toThrow(/no Conduit installed/);
+		expect(() => conduit()).toThrow(/a Conduit isn't installed/);
 	});
 });
 

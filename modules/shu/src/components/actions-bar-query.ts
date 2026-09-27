@@ -150,7 +150,7 @@ export class ActionsBarQuery implements ReactiveController {
 	async readTypes(): Promise<void> {
 		await getAvailableSteps(); // the concern catalog the domains are read from arrives with the steps
 		this.#domainOptions = buildDomainOptions(await getAvailableDomains());
-		if (this.#domainOptions.length === 0) throw new Error("No domain options were produced from concern catalog");
+		if (this.#domainOptions.length === 0) throw new Error("the concern catalog didn't produce a domain option");
 		this.#typesRead = true;
 		this.#typeOptions = this.#domainOptions.map((o) => ({ value: o.key, label: o.queryLabel || o.key, group: o.group }));
 		this.#syncSelectedDomainKey();
@@ -245,7 +245,7 @@ export class ActionsBarQuery implements ReactiveController {
 			return;
 		}
 		const first = this.#domainOptions[0];
-		if (!first) throw new Error("No selectable domain options discovered from concerns");
+		if (!first) throw new Error("the concerns don't offer a selectable domain option");
 		this.#selectedDomainKey = first.key;
 		this.#selectedLabel = first.queryLabel ?? "";
 		this.#statePageTypes();

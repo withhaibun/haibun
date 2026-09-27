@@ -105,7 +105,7 @@ describe("shu-domain-chain-view", () => {
 		window.addEventListener("error", onError);
 		presenter.openNode("nowhere");
 		window.removeEventListener("error", onError);
-		expect(reported.join(), "a node the chain does not hold is refused").toMatch(/is no node of the chain/);
+		expect(reported.join(), "a node the chain does not hold is refused").toMatch(/isn't a node of the chain/);
 		heard();
 		opened.mockRestore();
 	});
@@ -123,7 +123,7 @@ describe("shu-domain-chain-view", () => {
 		expect(deepLink(AFFORDANCE_PARAM.GOAL)).toBe("vc");
 		expect(stepChosen).toBeUndefined();
 		// No link.href and not fact-instance is a projection bug, refused rather than dispatching a step.
-		expect(() => view.routeNodeClick(chainNode({ id: "vc" }))).toThrow("chain node vc has no deep link to open");
+		expect(() => view.routeNodeClick(chainNode({ id: "vc" }))).toThrow("chain node vc doesn't have a deep link to open");
 		expect(stepChosen).toBeUndefined();
 		document.removeEventListener("step-choose", onChoose);
 		opened.mockRestore();
@@ -185,7 +185,9 @@ describe("shu-domain-chain-view", () => {
 			{ paneType: "step-detail", seqPath: [0, 1, 4] },
 		]);
 		expect(deepLink(AFFORDANCE_PARAM.GOAL)).toBe(initialAffGoal);
-		expect(() => view.routeNodeClick(chainNode({ id: "f", kind: NODE_KIND.factInstance, wasGeneratedBy: { factId: "issuer-1", domain: "issuer" } }))).toThrow(/names no step/);
+		expect(() => view.routeNodeClick(chainNode({ id: "f", kind: NODE_KIND.factInstance, wasGeneratedBy: { factId: "issuer-1", domain: "issuer" } }))).toThrow(
+			/doesn't name a step/,
+		);
 		opened.mockRestore();
 	});
 });

@@ -127,14 +127,14 @@ describe("harvestChatViewLd: an active pane the signal cannot resolve", () => {
 		document.body.appendChild(strip);
 	}
 
-	it("names the signal's value and every open pane's key when it matches none of them", () => {
+	it("names the signal's value and every open pane's key when it doesn't match one of them", () => {
 		const a = pane("first", view("shu-entity-column", { "@id": "e1" }));
 		const b = pane("second", view("shu-document-column", { "@id": "d1" }));
 		// A pane that was closed, or a key from a previous strip: it matches nothing now.
 		activePane.set("a-pane-that-closed");
 		mount(a, b);
 		// Detail enough to find the writer that set it: what it holds, and what was open.
-		expect(() => harvestChatViewLd()).toThrow(/"a-pane-that-closed".*none of the 2 open pane\(s\).*"first", "second"/s);
+		expect(() => harvestChatViewLd()).toThrow(/"a-pane-that-closed".*isn't one of the 2 open pane\(s\).*"first", "second"/s);
 	});
 
 	it("throws when the signal was never set, rather than telling a model nothing is selected", () => {

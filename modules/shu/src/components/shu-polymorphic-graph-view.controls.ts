@@ -470,7 +470,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	 *  lands on that node. `nudgeX` offsets the aim along x to clear a neighbour's chip. */
 	private async projectNode(page: Page, id: string, nudgeX = 12): Promise<{ x: number; y: number }> {
 		const at = await this.view(page).evaluate((view: ShuPolymorphicGraphView, nid) => view.projectNodeToScreen(nid), id);
-		if (!at) throw new Error(`node ${id} has no projection, absent from the graph, or the scene has no camera yet`);
+		if (!at) throw new Error(`node ${id} doesn't project: the graph doesn't hold it, or the scene doesn't have a camera yet`);
 		return { x: at.x + nudgeX, y: at.y };
 	}
 
@@ -912,7 +912,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			action: async () => {
 				const page = await this.page();
 				const { target, diag } = await this.pressFirstDraggable(page);
-				if (!target) return actionNotOK(`no draggable node, ${diag}`);
+				if (!target) return actionNotOK(`the graph doesn't draw a draggable node, ${diag}`);
 				const before = await this.state(page); // after the press (which doesn't move a node), so "others hold still" measures only the drag
 				await page.mouse.move(target.x + 120, target.y + 60, { steps: 8 }); // well past the drag threshold (pointer already down on the node)
 				await page.mouse.up();
@@ -1010,7 +1010,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				await this.settle(page);
 				const chips = await this.chipStates(page);
 				const left = actorTypes.filter((t) => chips.find((c) => c.label.startsWith(t))?.checked !== true);
-				return left.length === 0 ? actionOK() : actionNotOK(`the sequence left ${left.join(", ")} hidden, so its bars have nobody to draw`);
+				return left.length === 0 ? actionOK() : actionNotOK(`the sequence left ${left.join(", ")} hidden, so its bars don't have a party to draw`);
 			},
 		},
 		settingsHoldEveryOption: {
@@ -1426,7 +1426,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			action: async () => {
 				const page = await this.page();
 				const { target, diag } = await this.pressFirstDraggable(page);
-				if (!target) return actionNotOK(`no draggable node to aim at, ${diag}`);
+				if (!target) return actionNotOK(`the graph doesn't draw a draggable node to aim at, ${diag}`);
 				await page.mouse.up(); // release the plain press; re-press with ctrl held
 				const before = await this.state(page);
 				await page.keyboard.down(CAMERA_MODIFIER);

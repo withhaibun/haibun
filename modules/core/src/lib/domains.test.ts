@@ -166,14 +166,14 @@ describe("a step's place and a length of time", () => {
 		const { schema } = getDefaultWorld().domains[DOMAIN_STEP_PATH];
 		expect(schema.parse("0.1.-5.3")).toEqual([0, 1, -5, 3]);
 		expect(schema.parse("0.1.5.3.artifact.0"), "an event's id").toEqual([0, 1, 5, 3]);
-		expect(schema.safeParse("artifact.0").error?.issues[0]?.message).toMatch(/names no step/);
+		expect(schema.safeParse("artifact.0").error?.issues[0]?.message).toMatch(/doesn't name a step/);
 	});
 
 	it("reads seconds and milliseconds as milliseconds, and refuses a length given in no unit", () => {
 		const { schema } = getDefaultWorld().domains[DOMAIN_DURATION];
 		expect(schema.parse("2s")).toBe(2000);
 		expect(schema.parse("30 ms")).toBe(30);
-		expect(schema.safeParse("2 minutes").error?.issues[0]?.message).toMatch(/is no length of time/);
+		expect(schema.safeParse("2 minutes").error?.issues[0]?.message).toMatch(/isn't a length of time/);
 	});
 });
 

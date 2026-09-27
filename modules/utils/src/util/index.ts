@@ -2,7 +2,7 @@ import { spawn } from "child_process";
 
 export function spawnCommand(command: string[], module = ".", opts?: { show?: boolean; env?: { [key: string]: string } }): Promise<string> {
 	const [cmd, ...args] = command;
-	if (cmd === undefined) return Promise.reject(new Error("spawnCommand runs a command, and none is named"));
+	if (cmd === undefined) return Promise.reject(new Error("spawnCommand runs a command, and a command isn't named"));
 	return new Promise((resolve, reject) => {
 		const place = module === "." ? "<root>" : module;
 		console.group(`${place}$ ${command.join(" ")}`);

@@ -55,7 +55,7 @@ describe("the values a filter offers", () => {
 		const result = await stepper.steps.getSelectValues.action({ label: "Missing" });
 		expect(result.ok).toBe(false);
 		if (result.ok) throw new Error("expected missing filter topology to fail");
-		expect(result.errorMessage).toContain("No filter topology registered for Missing");
+		expect(result.errorMessage).toContain("a filter topology isn't registered for Missing");
 	});
 
 	it("keeps context-rel select discovery in shu", async () => {

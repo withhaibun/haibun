@@ -353,9 +353,9 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		if (this.factoryOptions.cdp !== undefined) return actionNotOK("an extension loads into a browser the run launches, and this run connects to one");
 		const dir = path.resolve(where);
 		const manifest = path.join(dir, "manifest.json");
-		if (!existsSync(manifest)) return actionNotOK(`no extension at ${dir}: it has no manifest.json`);
+		if (!existsSync(manifest)) return actionNotOK(`${dir} doesn't hold an extension: it doesn't have a manifest.json`);
 		const { key, background, side_panel } = JSON.parse(readFileSync(manifest, "utf-8")) as { key?: unknown; background?: { service_worker?: string }; side_panel?: unknown };
-		if (typeof key !== "string") return actionNotOK(`the extension at ${dir} pins no key in its manifest, so its id isn't known before it loads`);
+		if (typeof key !== "string") return actionNotOK(`the extension at ${dir} doesn't pin a key in its manifest, so its id isn't known before it loads`);
 		this.factoryOptions.persistentDirectory ??= "";
 		const args = (this.factoryOptions.launchOptions.args ?? []).filter(Boolean);
 		this.factoryOptions.launchOptions = {
@@ -388,7 +388,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	 *  run opens. With no browser attached, a step that needs the browser is refused, saying so. */
 	serveRelay() {
 		const webserver = this.getWorld().runtime[WEBSERVER] as IWebServer | undefined;
-		if (!webserver) return actionNotOK("the browser relay is served by the web server, and none is running: start one before serving the relay");
+		if (!webserver) return actionNotOK("the browser relay is served by the web server, and a web server isn't running: start one before serving the relay");
 		const relay = new BrowserRelay((error) => this.getWorld().eventLogger.error(`browser relay: ${errorDetail(error)}`));
 		this.relay = relay;
 		webserver.addRpcMethods(
@@ -422,7 +422,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	 *  where it was saved. */
 	async captureScreenshot(event: string, details: { seq?: number; step?: TStepResult }): Promise<{ image: TImageReference; savedTo: string }> {
 		const { step } = details;
-		if (!step) throw new Error(`a ${event} screenshot is saved with the step it shows, and none is named`);
+		if (!step) throw new Error(`a ${event} screenshot is saved with the step it shows, and a step isn't named`);
 		const filename = `event-${step.seqPath.join(".")}.png`;
 		const buffer = await this.withPage(async (page) => await page.screenshot());
 		const saved = await saveImageArtifact(this.getWorld(), this.storage, { seqPath: step.seqPath, in: step.in, source: { path: step.path } }, filename, buffer, SCREENSHOT_FORMAT);

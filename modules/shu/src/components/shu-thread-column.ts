@@ -113,7 +113,7 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 		this.autoListen(this, SHU_EVENT.GRAPH_NODE_CLICK, (e) => {
 			const { nodeId } = (e as CustomEvent<TPresenterNodeClick>).detail;
 			const vertex = this.thread.find((v) => idOf(v) === nodeId);
-			if (!vertex) throw new Error(`thread graph node "${nodeId}" is no record of the thread`);
+			if (!vertex) throw new Error(`thread graph node "${nodeId}" isn't a record of the thread`);
 			openRef(e, REF_DENOTES.individual, { persistedAs: persistedTypeOf(vertex) || this.state.label, id: nodeId });
 		});
 	}

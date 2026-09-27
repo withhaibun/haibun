@@ -158,7 +158,7 @@ export class TwinPage {
 				if (!existingElement) {
 					currentParent.insertAdjacentHTML("beforeend", data.outerHTML);
 					const inserted = currentParent.lastElementChild;
-					if (!inserted) throw new Error(`the twin drew ${finalSelector} and holds no element after it`);
+					if (!inserted) throw new Error(`the twin drew ${finalSelector} and doesn't hold an element after it`);
 					elementToDrawOn = inserted;
 				} else {
 					elementToDrawOn = existingElement;

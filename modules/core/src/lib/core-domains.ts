@@ -65,14 +65,14 @@ const stepPathSchema = z.preprocess((value, ctx) => {
 	if (typeof value !== "string") return value;
 	const prefix = extractSeqPathPrefix(value);
 	const path = prefix === null ? null : parseSeqPath(prefix);
-	if (path === null) ctx.addIssue({ code: "custom", message: `${JSON.stringify(value)} names no step: a step's place is dot-joined integers, such as 0.1.5.3` });
+	if (path === null) ctx.addIssue({ code: "custom", message: `${JSON.stringify(value)} doesn't name a step: a step's place is dot-joined integers, such as 0.1.5.3` });
 	return path ?? value;
 }, z.array(z.number().int()).min(1));
 /** A length of time in milliseconds, read from seconds or milliseconds such as `2s` or `30 ms`, or a number of milliseconds. */
 const durationSchema = z.preprocess((value, ctx) => {
 	if (typeof value !== "string") return value;
 	const match = /^(\d+(?:\.\d+)?)\s*(ms|s)$/.exec(value.trim());
-	if (!match) ctx.addIssue({ code: "custom", message: `${JSON.stringify(value)} is no length of time: give seconds or milliseconds, such as 2s or 30 ms` });
+	if (!match) ctx.addIssue({ code: "custom", message: `${JSON.stringify(value)} isn't a length of time: give seconds or milliseconds, such as 2s or 30 ms` });
 	return match ? Number(match[1]) * (match[2] === "s" ? 1000 : 1) : value;
 }, z.number().nonnegative());
 
