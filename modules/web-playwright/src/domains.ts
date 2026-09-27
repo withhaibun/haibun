@@ -56,6 +56,13 @@ export const DOMAIN_JSON_RESPONSE_COUNT = "json-response-count";
 /** The domain of an extension loaded into the browser the run launches: its id and the origin its pages are at. */
 export const DOMAIN_BROWSER_EXTENSION = "browser-extension";
 const BrowserExtensionSchema = z.object({ id: z.string(), origin: z.string() });
+/** The domain of an extension the browser runs: its worker, where it declares one, and the side panel its toolbar button
+ *  opens, where it declares one. */
+export const DOMAIN_RUNNING_BROWSER_EXTENSION = "running-browser-extension";
+const RunningBrowserExtensionSchema = BrowserExtensionSchema.extend({
+	worker: z.string().optional(),
+	sidePanel: z.object({ path: z.string(), opensOnAction: z.boolean() }).optional(),
+});
 
 const HTTP_NS = { http: "http://www.w3.org/2011/http#" };
 const httpRequestSchema = PersistedVertexSchema.extend({
@@ -114,6 +121,11 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 	{ selectors: [DOMAIN_ACCESSIBILITY_SNAPSHOT], schema: AccessibilitySnapshotSchema, description: "A page as its accessibility tree reads, with the steps that act on it" },
 	{ selectors: [DOMAIN_JSON_RESPONSE_COUNT], schema: RestJsonCountSchema, description: "How many entries the last JSON response held" },
 	{ selectors: [DOMAIN_BROWSER_EXTENSION], schema: BrowserExtensionSchema, description: "An extension loaded into the browser the run launches, and the origin its pages are at" },
+	{
+		selectors: [DOMAIN_RUNNING_BROWSER_EXTENSION],
+		schema: RunningBrowserExtensionSchema,
+		description: "An extension the browser runs: its worker, and the side panel its toolbar button opens",
+	},
 	{ selectors: [DOMAIN_RELAY_ATTACHMENT], schema: RelayAttachmentSchema, description: "What the browser relay holds: a person's attached browser, its holder and its tabs" },
 	{
 		selectors: [HTTP_REQUEST_LABEL],

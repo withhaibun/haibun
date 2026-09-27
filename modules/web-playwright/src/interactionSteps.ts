@@ -18,6 +18,7 @@ import { DOMAIN_IMAGE_REFERENCE } from "@haibun/core/lib/image-reference.js";
 import {
 	DOMAIN_ACCESSIBILITY_SNAPSHOT,
 	DOMAIN_BROWSER_EXTENSION,
+	DOMAIN_RUNNING_BROWSER_EXTENSION,
 	DOMAIN_FIND_WAY,
 	DOMAIN_PAGE_CONTENTS,
 	DOMAIN_PAGE_LOCATOR,
@@ -360,6 +361,15 @@ export const interactionSteps = (wp: WebPlaywright) =>
 				"Loads the unpacked extension in the directory `where` into the browser the run launches, from the next page it opens, and answers the extension's id and origin, derived from the key its manifest pins, so a step can open its pages.",
 			productsDomain: DOMAIN_BROWSER_EXTENSION,
 			action: ({ where }: { where: string }) => wp.loadExtension(where),
+		},
+		showBrowserExtension: {
+			read: true,
+			capability: WEB_PLAYWRIGHT_ACTIONS.read,
+			gwta: "show the browser extension",
+			description:
+				"Returns the extension the browser runs: its worker, once it has started, and the side panel its toolbar button opens, as the worker reads it. A worker that doesn't start fails the step.",
+			productsDomain: DOMAIN_RUNNING_BROWSER_EXTENSION,
+			action: () => wp.runningExtension(),
 		},
 		showBrowserRelay: {
 			// Who attached a browser, and which of their tabs, is theirs, and private.

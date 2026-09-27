@@ -5,6 +5,7 @@
  */
 import type { TWorld } from "./world.js";
 import { actingAs } from "./capability-context.js";
+import { activeSitePrincipal } from "./host-id.js";
 
 const PRINCIPAL = "principal";
 
@@ -15,6 +16,11 @@ export function currentPrincipal(world: TWorld): string | undefined {
 	if (proven) return proven;
 	const p = world.runtime.keys?.[PRINCIPAL];
 	return typeof p === "string" && p.length > 0 ? p : undefined;
+}
+
+/** Whoever is acting, and otherwise the site this instance acts as: the party a record written now is attributed to. */
+export function actingPrincipal(world: TWorld): string {
+	return currentPrincipal(world) ?? activeSitePrincipal(world);
 }
 
 /** The active principal, or throw: an authored action requires an acting principal. */

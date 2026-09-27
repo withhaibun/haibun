@@ -1,4 +1,4 @@
-import { Page, Download, Locator, type ConnectOverCDPTransport } from "playwright";
+import { Page, Download, Locator, type ConnectOverCDPTransport, type Worker } from "playwright";
 import { pathToFileURL } from "url";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
@@ -154,6 +154,8 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	tab = 0;
 	/** The relay a person's browser attaches through, where the run serves one. */
 	relay?: BrowserRelay;
+	/** The extension the browser the run launches loads, and what its manifest declares it runs. */
+	extension?: TLoadedExtension;
 	downloaded: string[] = [];
 	captureVideo: boolean;
 	closers: Array<() => void> = [];
@@ -340,7 +342,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		const dir = path.resolve(where);
 		const manifest = path.join(dir, "manifest.json");
 		if (!existsSync(manifest)) return actionNotOK(`no extension at ${dir}: it has no manifest.json`);
-		const { key } = JSON.parse(readFileSync(manifest, "utf-8")) as { key?: unknown };
+		const { key, background, side_panel } = JSON.parse(readFileSync(manifest, "utf-8")) as { key?: unknown; background?: { service_worker?: string }; side_panel?: unknown };
 		if (typeof key !== "string") return actionNotOK(`the extension at ${dir} pins no key in its manifest, so its id isn't known before it loads`);
 		this.factoryOptions.persistentDirectory ??= "";
 		const args = (this.factoryOptions.launchOptions.args ?? []).filter(Boolean);
@@ -350,7 +352,24 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			args: [...args, `--disable-extensions-except=${dir}`, `--load-extension=${dir}`],
 		};
 		const id = extensionIdOf(key);
-		return actionOKWithProducts({ id, origin: `chrome-extension://${id}` });
+		const loaded = { id, origin: `chrome-extension://${id}` };
+		this.extension = { ...loaded, worker: !!background?.service_worker, sidePanel: side_panel !== undefined };
+		return actionOKWithProducts(loaded);
+	}
+
+	/** The extension the browser runs: its worker, once it has started, and the side panel its toolbar button opens, as the
+	 *  worker reads it. A worker that doesn't start within the step's timeout fails the step, so an extension whose worker
+	 *  fails to load fails it. */
+	async runningExtension() {
+		const { extension } = this;
+		if (!extension) return actionNotOK("the run hasn't loaded a browser extension: `load the browser extension at` loads one");
+		const { id, origin } = extension;
+		if (!extension.worker) return actionOKWithProducts({ id, origin });
+		const context = (await this.getPage()).context();
+		const ours = (worker: Worker) => worker.url().startsWith(origin);
+		const worker = context.serviceWorkers().find(ours) ?? (await context.waitForEvent("serviceworker", { predicate: ours }));
+		const sidePanel = extension.sidePanel ? await worker.evaluate(readSidePanel) : undefined;
+		return actionOKWithProducts({ id, origin, worker: worker.url(), ...(sidePanel ? { sidePanel } : {}) });
 	}
 
 	/** Serve the relay an extension attaches a person's browser through, and drive that browser from the next page the
@@ -544,6 +563,17 @@ export function pickLocatorDomain(parts: string[]): string {
 }
 
 export default WebPlaywright;
+
+type TLoadedExtension = { id: string; origin: string; worker: boolean; sidePanel: boolean };
+
+/** The side panel an extension's toolbar button opens, read in the extension's worker, the one context its side panel API
+ *  is read in. Evaluated there, so it names only what the worker holds. */
+async function readSidePanel(): Promise<{ path: string; opensOnAction: boolean }> {
+	type TSidePanel = { getOptions(of: object): Promise<{ path?: string }>; getPanelBehavior(): Promise<{ openPanelOnActionClick?: boolean }> };
+	const { sidePanel } = (globalThis as unknown as { chrome: { sidePanel: TSidePanel } }).chrome;
+	const [options, behavior] = await Promise.all([sidePanel.getOptions({}), sidePanel.getPanelBehavior()]);
+	return { path: options.path ?? "", opensOnAction: behavior.openPanelOnActionClick === true };
+}
 
 /** An extension's id, as Chromium derives it from the public key its manifest pins: the first 32 hex digits of the key's
  *  SHA-256, each written as a letter from a to p. */

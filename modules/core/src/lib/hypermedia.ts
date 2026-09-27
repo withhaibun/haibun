@@ -872,6 +872,7 @@ const STANDARD_NAMESPACES: Record<string, string> = {
 	sosa: "http://www.w3.org/ns/sosa/",
 	schema: "https://schema.org/",
 	oa: "http://www.w3.org/ns/oa#",
+	skos: "http://www.w3.org/2004/02/skos/core#",
 	cito: "http://purl.org/spar/cito/",
 	earl: "http://www.w3.org/ns/earl#",
 	otel: "https://opentelemetry.io/schemas/",
