@@ -29,7 +29,6 @@ export {
 	atLiveEdge,
 	readRunAt,
 	runReadingAt,
-	resetRunSources,
 	type RunSource,
 	type TRunExtent,
 	type TEventRecord,
@@ -41,7 +40,6 @@ export {
 	setDeviceStore,
 	subscribeDeviceWrites,
 	CACHE_SHAPE,
-	resetDeviceStoreIdb,
 	type DeviceStore,
 	type TStoredRegistry,
 } from "./device-store.js";
@@ -55,7 +53,6 @@ export {
 	noteExecution,
 	readExecution,
 	subscribeExecutionSwitch,
-	resetExecutions,
 	EXECUTIONS_READ,
 	type THeldExecution,
 } from "./executions.js";

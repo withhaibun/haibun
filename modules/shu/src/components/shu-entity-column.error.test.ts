@@ -2,17 +2,17 @@
 /** Regression: a failing open() RPC must flip loading off and render the error banner. */
 import { describe, it, expect, beforeEach } from "vitest";
 import { ShuEntityColumn } from "./shu-entity-column.js";
-import { setConduit, LiveConduit, resetConduit } from "../hypermedia.js";
-import { setEventStream, SerializedEventStream, resetEventStream } from "../event-stream.js";
+import { setConduit, LiveConduit } from "../hypermedia.js";
+import { setEventStream, SerializedEventStream } from "../event-stream.js";
 import { rpcAnswer } from "@haibun/core/lib/test/rpc-answer.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { ENTITY_STEP_LIST } from "../test-setup.js";
+import { endPage } from "../page-pinned.js";
 
 describe("shu-entity-column error surfacing", () => {
 	beforeEach(() => {
+		endPage();
 		document.body.innerHTML = "";
-		resetConduit();
-		resetEventStream();
 		// LiveConduit honours the stubbed `fetch` below; SerializedEventStream replaces the run's stream, which this case doesn't follow.
 		setConduit(new LiveConduit(""));
 		setEventStream(new SerializedEventStream());

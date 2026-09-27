@@ -5,13 +5,11 @@ import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach } from "vitest";
 import type { AccessLevel } from "@haibun/core/lib/resources.js";
 import { IndexedDbQuadStore } from "./quad-store.js";
-import { resetDeviceStoreIdb } from "./device-store.js";
 
 describe("the questions the site answers, asked of the graph this page caches", () => {
 	const access = { perTypeLimit: 10, accessLevel: "private" as AccessLevel };
 	let store: IndexedDbQuadStore;
 	beforeEach(async () => {
-		resetDeviceStoreIdb();
 		store = new IndexedDbQuadStore();
 		await store.clear();
 		await store.upsertIndividual("Email", { "@id": "a", folder: "INBOX", subject: "one" });
@@ -68,7 +66,6 @@ describe("an individual in the page's cache", () => {
 	// The page caches a record under the `@id` it was dereferenced by: that is the identity a view holds and asks again
 	// with. The authoritative store instead requires the identity field the type declares, and validates the record.
 	beforeEach(async () => {
-		resetDeviceStoreIdb();
 		await new IndexedDbQuadStore().clear();
 	});
 

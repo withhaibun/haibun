@@ -16,7 +16,6 @@ import {
 	getLink,
 	conduit,
 	setConduit,
-	resetConduit,
 	type TRepresentation,
 	LiveConduit,
 	ServerUnreachable,
@@ -27,7 +26,7 @@ import { TestConduit } from "./test-setup.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 
 beforeEach(() => {
-	resetConduit();
+	endPage();
 });
 
 /** The page's own hydration, as a deployment serves it. */
@@ -42,6 +41,7 @@ function setHydration(payload: unknown): void {
 
 import { hydrateFromDom } from "./rpc-registry.js";
 import { rpcAnswer } from "@haibun/core/lib/test/rpc-answer.js";
+import { endPage, pagePinned } from "./page-pinned.js";
 
 describe("what a link asks of a run", () => {
 	// A page cannot read a run through a step whose answer the run would record, and cannot forget to say which it
@@ -119,9 +119,9 @@ describe("conduit accessor", () => {
 		expect(conduit()).toBe(c);
 	});
 
-	it("resetConduit returns to the not-installed state", () => {
+	it("a page that has ended has no conduit installed", () => {
 		setConduit(new TestConduit(() => ({})));
-		resetConduit();
+		endPage();
 		expect(() => conduit()).toThrow(/no Conduit installed/);
 	});
 });
@@ -130,7 +130,7 @@ describe("a server that does not respond", () => {
 	// Whether the site has answered, and whether it was found silent, is what a page holds about it: each case states
 	// the situation it is about, from a page that holds neither.
 	beforeEach(() => {
-		delete (globalThis as unknown as Record<string, unknown>)["__SHU_SERVER_RESPONDED__"];
+		endPage();
 		document.head.innerHTML = "";
 	});
 
@@ -170,14 +170,14 @@ describe("a server that does not respond", () => {
 
 	it("records when the server last responded, and records nothing when it never did", async () => {
 		const fetchWas = globalThis.fetch;
-		delete (globalThis as unknown as Record<string, unknown>)["__SHU_SERVER_RESPONDED__"];
+		endPage();
 		globalThis.fetch = () => Promise.reject(new TypeError("Failed to fetch"));
 		try {
 			await new LiveConduit("").follow(acts(SHOW_STEPS_METHOD), "test").catch(() => undefined);
 			expect(serverLastRespondedAt(), "a page that has reached no server holds no such time").toBeUndefined();
 			// A page that has just found the site silent reads what it holds instead of calling again, and this is about
 			// the call after that span rather than within it.
-			delete (globalThis as unknown as Record<string, unknown>)["__SHU_SERVER_RESPONDED__"];
+			endPage();
 			// An error the server returns is still the server responding: what a reader is told is that it was reached.
 			globalThis.fetch = () => Promise.resolve(rpcAnswer({ error: "no such step" }, 422));
 			const before = Date.now();
@@ -185,7 +185,7 @@ describe("a server that does not respond", () => {
 			expect(serverLastRespondedAt() ?? 0).toBeGreaterThanOrEqual(before);
 		} finally {
 			globalThis.fetch = fetchWas;
-			delete (globalThis as unknown as Record<string, unknown>)["__SHU_SERVER_RESPONDED__"];
+			endPage();
 		}
 	});
 
@@ -231,7 +231,7 @@ describe("a server that does not respond", () => {
 			expect(bounds.at(-1), "a read the page waits on carries a bound").toBe(true);
 			// The call that opens an action is a call like any other, so this is about a page that has not just found the
 			// site silent.
-			delete (globalThis as unknown as Record<string, unknown>)["__SHU_SERVER_RESPONDED__"];
+			endPage();
 			const streaming = new LiveConduit("").followStream(acts(SHOW_STEPS_METHOD), () => undefined, { why: "the run's own stream" }).catch(() => undefined);
 			await new Promise((r) => setTimeout(r, 60));
 			expect(bounds.at(-1), "and a stream carries none, so it is not closed under a run still writing to it").toBe(false);
@@ -244,9 +244,9 @@ describe("a server that does not respond", () => {
 
 	it("issues one request per retry interval, not one per read, so concurrent reads fall back instead of each timing out", async () => {
 		const fetchWas = globalThis.fetch;
+		endPage();
 		setHydration({ settings: { responseTimeoutMs: 60 } });
 		hydrateFromDom();
-		delete (globalThis as unknown as Record<string, unknown>)["__SHU_SERVER_RESPONDED__"];
 		let made = 0;
 		globalThis.fetch = ((_url: string, init?: { signal?: AbortSignal }) => {
 			made += 1;
@@ -262,14 +262,14 @@ describe("a server that does not respond", () => {
 			expect(Date.now() - began, "so none of them waited the bound out again").toBeLessThan(60);
 		} finally {
 			globalThis.fetch = fetchWas;
-			delete (globalThis as unknown as Record<string, unknown>)["__SHU_SERVER_RESPONDED__"];
+			endPage();
 			document.head.innerHTML = "";
 		}
 	});
 
 	it("issues a request again after the retry interval, so a server that recovers is detected", async () => {
 		const fetchWas = globalThis.fetch;
-		delete (globalThis as unknown as Record<string, unknown>)["__SHU_SERVER_RESPONDED__"];
+		endPage();
 		setHydration({ settings: { responseTimeoutMs: 40 } });
 		hydrateFromDom();
 		let made = 0;
@@ -284,12 +284,12 @@ describe("a server that does not respond", () => {
 			expect(made).toBe(1);
 			await conduit.follow(reads(SHOW_STEPS_METHOD), "a read within the span").catch(() => undefined);
 			expect(made, "within the span, the answer the first call got stands").toBe(1);
-			(globalThis as unknown as Record<string, { unreachableUntil: number }>)["__SHU_SERVER_RESPONDED__"].unreachableUntil = Date.now() - 1;
+			pagePinned<{ unreachableUntil: number }>("__SHU_SERVER_RESPONDED__", () => ({ unreachableUntil: 0 })).unreachableUntil = Date.now() - 1;
 			await conduit.follow(reads(SHOW_STEPS_METHOD), "a read after it").catch(() => undefined);
 			expect(made, "and after it the site is called again").toBe(2);
 		} finally {
 			globalThis.fetch = fetchWas;
-			delete (globalThis as unknown as Record<string, unknown>)["__SHU_SERVER_RESPONDED__"];
+			endPage();
 			document.head.innerHTML = "";
 		}
 	});
@@ -298,9 +298,9 @@ describe("a server that does not respond", () => {
 		// The failure this bounds: a question typed into the ask pane went nowhere because a view's read had timed out a
 		// moment earlier, so the page refused to carry what the reader asked for.
 		const fetchWas = globalThis.fetch;
+		endPage();
 		setHydration({ settings: { responseTimeoutMs: 40 } });
 		hydrateFromDom();
-		delete (globalThis as unknown as Record<string, unknown>)["__SHU_SERVER_RESPONDED__"];
 		const asked: string[] = [];
 		globalThis.fetch = ((url: string, init?: { signal?: AbortSignal }) => {
 			asked.push(new URL(String(url)).pathname);
@@ -316,7 +316,7 @@ describe("a server that does not respond", () => {
 			expect(asked.slice(afterRead), "and then the act itself").toContain("/rpc/chatWithContext");
 		} finally {
 			globalThis.fetch = fetchWas;
-			delete (globalThis as unknown as Record<string, unknown>)["__SHU_SERVER_RESPONDED__"];
+			endPage();
 			document.head.innerHTML = "";
 		}
 	});
@@ -335,7 +335,7 @@ describe("a server that does not respond", () => {
 			expect(made, "each read asked, since the answer came back at once").toBeGreaterThan(1);
 		} finally {
 			globalThis.fetch = fetchWas;
-			delete (globalThis as unknown as Record<string, unknown>)["__SHU_SERVER_RESPONDED__"];
+			endPage();
 		}
 	});
 

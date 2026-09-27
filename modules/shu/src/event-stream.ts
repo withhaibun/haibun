@@ -19,6 +19,7 @@ import { SseSubscriber } from "@haibun/core/lib/sse-subscriber.js";
 import { FOLLOWS_THE_RUN } from "@haibun/core/lib/actions.js";
 import { deploymentMs } from "./rpc-registry.js";
 import { readingHeaders } from "./page-key.js";
+import { pagePinned } from "./page-pinned.js";
 
 export type TEvent = Record<string, unknown>;
 type TEventHandler = (event: TEvent) => void;
@@ -184,34 +185,28 @@ export class SerializedEventStream implements EventStream {
 
 // ─── Accessor ────────────────────────────────────────────────────────────────
 
-/** The active EventStream lives on `globalThis` under a globally-registered Symbol so independently-bundled components (e.g. esbuild emits per-slot-extension bundles) share one installation instead of each carrying its own module-level cell. Without this, `setEventStream` in the SPA bundle wouldn't be visible to a slot-extension component bundle, and its `eventStream()` would throw at first use. */
-const EVENT_STREAM_SLOT = Symbol.for("@haibun/shu/active-event-stream");
-type EventStreamGlobal = { [EVENT_STREAM_SLOT]?: EventStream | null };
-const eventStreamGlobal = globalThis as EventStreamGlobal;
+/** The active EventStream is the page's, so independently-bundled components (e.g. esbuild emits per-slot-extension bundles) share one installation instead of each carrying its own module-level cell. Without this, `setEventStream` in the SPA bundle wouldn't be visible to a slot-extension component bundle, and its `eventStream()` would throw at first use. */
+const EVENT_STREAM_KEY = "__SHU_EVENT_STREAM__";
+const installedStream = (): { stream?: EventStream } => pagePinned(EVENT_STREAM_KEY, () => ({}));
 
 /** SPA boot installs one EventStream (live or serialized); every component and infrastructure module reads via `eventStream()`. */
 export function setEventStream(s: EventStream): void {
-	eventStreamGlobal[EVENT_STREAM_SLOT] = s;
+	installedStream().stream = s;
 }
 
 /** Whether a live EventStream is installed. A static context (offline report bundle, a unit test that doesn't drive
  *  live events) legitimately has none: a component checks this before subscribing rather than forcing a stream. */
 export function hasEventStream(): boolean {
-	return eventStreamGlobal[EVENT_STREAM_SLOT] != null;
+	return installedStream().stream !== undefined;
 }
 
 /** Returns the active EventStream. Throws if boot didn't install one: the only way this happens in production is a programming error in `app.ts`; in tests every `beforeEach` calls `setupShuTest`, so a forgotten setup throws with a precise message. */
 export function eventStream(): EventStream {
-	const active = eventStreamGlobal[EVENT_STREAM_SLOT];
+	const active = installedStream().stream;
 	if (!active) {
 		throw new Error("eventStream: no EventStream installed. Call setEventStream() in app boot or setupShuTest() in tests before using eventStream().");
 	}
 	return active;
-}
-
-/** Test-only: clear the active EventStream so subsequent setEventStream calls are clean. Used by test setup. */
-export function resetEventStream(): void {
-	eventStreamGlobal[EVENT_STREAM_SLOT] = null;
 }
 
 /** Subscribe to the stream, coalescing every event arriving between paints into one `onBatch` call inside an animation

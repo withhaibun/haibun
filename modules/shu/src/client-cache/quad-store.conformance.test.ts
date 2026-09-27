@@ -8,9 +8,8 @@ import "fake-indexeddb/auto";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { describeQuadStore } from "@haibun/core/lib/test/quad-store-conformance.js";
 import { IndexedDbQuadStore } from "./quad-store.js";
-import { resetDeviceStoreIdb } from "./device-store.js";
 
 const graphs = { first: "Comment", second: "Issue" };
 
 describeQuadStore("in memory", () => new QuadStore(), graphs);
-describeQuadStore("IndexedDB", () => new IndexedDbQuadStore(), graphs, { prepare: () => resetDeviceStoreIdb(), done: () => resetDeviceStoreIdb() });
+describeQuadStore("IndexedDB", () => new IndexedDbQuadStore(), graphs);

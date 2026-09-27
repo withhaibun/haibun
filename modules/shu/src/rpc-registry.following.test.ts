@@ -2,9 +2,10 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { STEPS_CHANGED } from "@haibun/core/schema/protocol.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
-import { findStep, getAvailableSteps, onStepsChanged, resetStepRegistry } from "./rpc-registry.js";
+import { findStep, getAvailableSteps, onStepsChanged } from "./rpc-registry.js";
 import { setupShuTest, stepsShown, type TShuTestHandle } from "./test-setup.js";
 import { setDeviceStore, MemoryDeviceStore } from "./client-cache/index.js";
+import { endPage } from "./page-pinned.js";
 
 const aStep = (stepName: string) => ({ method: `RunSteps-${stepName}`, stepperName: "RunSteps", stepName, pattern: stepName });
 const methodsOf = async () => (await getAvailableSteps()).map((step) => step.method);
@@ -22,12 +23,11 @@ const heldOnceItHolds = (method: string) =>
 describe("the steps a page holds", () => {
 	let handle: TShuTestHandle;
 	beforeEach(() => {
-		resetStepRegistry();
+		endPage();
 		setDeviceStore(new MemoryDeviceStore());
 	});
 	afterEach(() => {
 		handle?.teardown();
-		resetStepRegistry();
 	});
 
 	it("are read again when the run signals its steps changed, and a view is told once they are read", async () => {

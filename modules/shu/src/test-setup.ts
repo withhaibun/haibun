@@ -15,7 +15,7 @@
  * was missed.
  */
 
-import { setConduit, resetConduit, type Conduit, type TLink, type TRepresentation, type TStreamChunk } from "./hypermedia.js";
+import { setConduit, type Conduit, type TLink, type TRepresentation, type TStreamChunk } from "./hypermedia.js";
 
 // ─── The conduit a test installs ─────────────────────────────────────────────
 
@@ -53,8 +53,9 @@ export class TestConduit implements Conduit {
 	}
 }
 
-import { setEventStream, resetEventStream, SerializedEventStream, type TEvent } from "./event-stream.js";
-import { resetRunSources, setDeviceStore, MemoryDeviceStore } from "./client-cache/index.js";
+import { setEventStream, SerializedEventStream, type TEvent } from "./event-stream.js";
+import { endPage } from "./page-pinned.js";
+import { setDeviceStore, MemoryDeviceStore } from "./client-cache/index.js";
 import { SHOW_STEPS_METHOD, STEP_DETAIL, readShownSteps, stepDefinition, type TStepDefinitions } from "@haibun/core/lib/step-discovery.js";
 import { requiredAction } from "@haibun/core/lib/actions.js";
 import { steppersOf } from "@haibun/core/lib/step-registry.js";
@@ -173,18 +174,14 @@ export function setupShuTest(config: TShuTestConfig = {}): TShuTestHandle {
 	const stopServingArtifacts = servingArtifacts(config.artifact ?? (() => new Response(new Blob([], { type: "image/png" }))));
 	setConduit(conduit);
 	setEventStream(eventStream);
-	// The run sources are page-wide singletons (one per level, pinned on globalThis): each test starts them afresh over a
-	// memory store, so a source grown by one test's live events is not the next test's.
-	resetRunSources();
 	setDeviceStore(new MemoryDeviceStore());
 	return {
 		emit: (event) => eventStream.emit(event),
+		// A test stands in for a page: tearing it down ends the page, so what the page held is made afresh by the next.
 		teardown: () => {
 			stopServingArtifacts();
-			resetRunSources();
-			resetConduit();
-			resetEventStream();
 			eventStream.close();
+			endPage();
 		},
 		conduit,
 		eventStream,

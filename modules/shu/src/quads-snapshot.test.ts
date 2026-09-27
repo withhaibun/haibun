@@ -33,6 +33,7 @@ import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { setSiteMetadata, type SiteMetadata } from "./rels-cache.js";
 import { setConduit, LiveConduit } from "./hypermedia.js";
+import { endPage, pagePinned } from "./page-pinned.js";
 
 const STORE_KEY = "__SHU_QUADS_SNAPSHOT_STORE__";
 
@@ -45,13 +46,12 @@ function feedSubject(type: string, subject: string, props: number): void {
 
 describe("quads-snapshot store singleton", () => {
 	beforeEach(() => {
-		delete (globalThis as unknown as Record<string, unknown>)[STORE_KEY];
+		endPage();
 	});
 
-	it("registers the store under a globalThis key on first use", () => {
+	it("holds the store on the page, where another bundle's copy of this module finds it", () => {
 		setActiveViewId("seed");
-		const stored = (globalThis as unknown as Record<string, unknown>)[STORE_KEY];
-		expect(stored).toBeDefined();
+		expect(pagePinned<{ viewContext: { activeViewId: string | null } }>(STORE_KEY, () => ({ viewContext: { activeViewId: null } })).viewContext.activeViewId).toBe("seed");
 	});
 
 	it("subscribers see active-view updates from any caller (cross-bundle simulation)", () => {
@@ -94,7 +94,7 @@ describe("quads-snapshot store singleton", () => {
 
 describe("mergeQuadsIntoSnapshot is bounded by the limit (the OOM fix)", () => {
 	beforeEach(() => {
-		delete (globalThis as unknown as Record<string, unknown>)[STORE_KEY];
+		endPage();
 	});
 
 	it("caps retained quads at the per-type limit no matter how many subjects stream in", () => {
@@ -160,7 +160,7 @@ describe("mergeQuadsIntoSnapshot is bounded by the limit (the OOM fix)", () => {
 
 describe("per-scope snapshots, independent data sources over one store", () => {
 	beforeEach(() => {
-		delete (globalThis as unknown as Record<string, unknown>)[STORE_KEY];
+		endPage();
 	});
 
 	it("a merge extends every scope that holds a cache, each notified with ITS OWN snapshot", () => {
@@ -194,7 +194,7 @@ describe("the graph a page caches, with no server to ask", () => {
 	// A page that carries its graph clusters it for itself: the sample, its totals and its `+N more` nodes are what the
 	// site's own answer would have been, rather than a captured copy of that answer riding in the page.
 	beforeEach(() => {
-		delete (globalThis as unknown as Record<string, unknown>)[STORE_KEY];
+		endPage();
 		setConduit(new LiveConduit(""));
 		globalThis.fetch = () => Promise.reject(new TypeError("this page has no server"));
 	});
@@ -203,7 +203,7 @@ describe("the graph a page caches, with no server to ask", () => {
 		const store = new QuadStore();
 		setGraphStore(store);
 		// A second bundle has its own copy of this module's bindings and reaches the store through the page, as here.
-		expect((globalThis as unknown as Record<string, { store: unknown }>)["__SHU_CACHED_GRAPH_STORE__"].store).toBe(store);
+		expect(pagePinned<{ store: unknown }>("__SHU_CACHED_GRAPH_STORE__", () => ({ store: undefined })).store).toBe(store);
 		expect(cachedGraphStore()).toBe(store);
 	});
 
@@ -229,7 +229,7 @@ describe("the dropdown values a reader is offered, with no server to ask", () =>
 	// The site derives them from the fields a type declares as context; a page with no server derives them the same way
 	// over the graph it caches, so the reader is offered the same fields narrowed to the values there.
 	beforeEach(() => {
-		delete (globalThis as unknown as Record<string, unknown>)[STORE_KEY];
+		endPage();
 		setConduit(new LiveConduit(""));
 		globalThis.fetch = () => Promise.reject(new TypeError("this page has no server"));
 		setSiteMetadata({ types: ["Email"], rels: { Email: { folder: LinkRelations.CONTEXT.rel, subject: "name" } }, edgeRanges: {} } as unknown as SiteMetadata);
@@ -257,7 +257,7 @@ describe("the dropdown values a reader is offered, with no server to ask", () =>
 describe("the rows a graph query names, with no server to ask", () => {
 	// The page answers with the same function the site's own inherent query uses, over the graph it caches.
 	beforeEach(() => {
-		delete (globalThis as unknown as Record<string, unknown>)[STORE_KEY];
+		endPage();
 		setConduit(new LiveConduit(""));
 		globalThis.fetch = () => Promise.reject(new TypeError("this page has no server"));
 		setSiteMetadata({ types: ["Email"], rels: { Email: { folder: LinkRelations.CONTEXT.rel } }, edgeRanges: {} } as unknown as SiteMetadata);

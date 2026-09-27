@@ -229,9 +229,9 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		return dir;
 	}
 
-	async getBrowserFactory(): Promise<BrowserFactory> {
+	getBrowserFactory(): Promise<BrowserFactory> {
 		this.bf ??= BrowserFactory.getBrowserFactory(this.getWorld(), this.factoryOptions);
-		return this.bf;
+		return Promise.resolve(this.bf);
 	}
 
 	async getExistingBrowserContext(tag = this.getWorld().tag) {

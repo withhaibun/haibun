@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { z } from "zod";
-import { declareBlips, resetBlips, blipWatch, WATCH_WINDOW } from "../lib/blips.js";
+import { declareBlips, blipWatch, WATCH_WINDOW } from "../lib/blips.js";
 import { recordBlip } from "../lib/record-blip.js";
 import { EventLogger } from "../lib/EventLogger.js";
 import BlipsStepper, { renderWatch } from "./blips-stepper.js";
@@ -30,7 +30,6 @@ const make = () => {
 describe("a watch: which occurrences, in what order", () => {
 	beforeEach(() => {
 		blipWatch.stop();
-		resetBlips();
 	});
 
 	it("holds only the watched names, in the order they happened", () => {
@@ -148,7 +147,6 @@ const STEPPERS = [Haibun, BlipsStepper, LogicStepper, VariablesStepper, Emitter]
 describe("the run-facing path: ask to watch, do the work, read what arrived", () => {
 	beforeEach(() => {
 		blipWatch.stop();
-		resetBlips();
 	});
 
 	it("watches a name, then reports the occurrences in order with the step each happened under", async () => {

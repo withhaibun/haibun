@@ -42,7 +42,11 @@ type TRegistry = {
 	listeners: Set<() => Promise<void> | void>;
 };
 const registry = (): TRegistry =>
-	pagePinned(REGISTRY_KEY, () => ({ steps: null, byName: null, domains: null, pending: null, unfollow: null, rereadQueued: false, listeners: new Set() }));
+	pagePinned(
+		REGISTRY_KEY,
+		(): TRegistry => ({ steps: null, byName: null, domains: null, pending: null, unfollow: null, rereadQueued: false, listeners: new Set() }),
+		(r) => r.unfollow?.(),
+	);
 
 // Both go through the step list even when the page already has it, because the response is only half of what asking for
 // it does: the other half is this bundle reading what the server declares, which is what its views draw by.
@@ -290,21 +294,8 @@ function readAgain(r: TRegistry): void {
 			await (r.pending ?? readSteps(r));
 			await Promise.all([...r.listeners].map(async (listener) => listener()));
 		})
-		.catch((err) => failFastOrLog("[rpc-registry] the run's steps were not read again:", err));
-}
-
-/** Test-only: forget the registry, where it came from and the stream it followed, so the next request discovers again. */
-export function resetStepRegistry(): void {
-	const r = registry();
-	r.steps = null;
-	r.byName = null;
-	r.domains = null;
-	r.pending = null;
-	r.unfollow?.();
-	r.unfollow = null;
-	r.rereadQueued = false;
-	r.listeners.clear();
-	origin().value = null;
+		// A server that doesn't answer leaves the page on the steps it holds, as every read does; any other failure is a fault.
+		.catch((err) => (isServerUnreachable(err) ? undefined : failFastOrLog("[rpc-registry] the run's steps were not read again:", err)));
 }
 
 /** Ask the server what it offers this page. Its response is cached on the device; when the server does not respond, the

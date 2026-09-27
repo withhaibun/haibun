@@ -91,19 +91,14 @@ export function declareBlips(...decls: TBlipDeclaration[]): void {
 	}
 }
 
-/** Every declaration, for an exporter building its instruments and for a reader discovering what a run can record. */
 /** The declaration a name was declared with, or undefined where it was not declared. */
 export function blipDeclared(name: string): THeldBlipDeclaration | undefined {
 	return declarations.get(name);
 }
 
+/** Every declaration, for an exporter building its instruments and for a reader discovering what a run can record. */
 export function blipDeclarations(): readonly THeldBlipDeclaration[] {
 	return [...declarations.values()];
-}
-
-/** Drop every declaration. For a test. */
-export function resetBlips(): void {
-	declarations.clear();
 }
 
 /**

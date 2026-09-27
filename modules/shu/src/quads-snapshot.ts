@@ -78,7 +78,7 @@ type ScopeState = {
 };
 
 /** Underlying store: the per-scope caches, global view context, and listener set live here so a single instance is
- *  reachable from every bundle that imports this module via `globalThis.__SHU_QUADS_SNAPSHOT_STORE__`, see getStore(). */
+ *  reachable from every bundle that imports this module, as the page's, see getStore(). */
 type Store = {
 	scopes: Map<string, ScopeState>;
 	viewContext: TViewContext;
@@ -89,7 +89,7 @@ type Store = {
  * The shu app and external clustered viewers ship as separate IIFE
  * bundles. Each bundle has its own copy of this module's variable bindings, so
  * a Set / object held inside a closure here is duplicated per bundle. Hoisting
- * the live state onto a globalThis-keyed singleton means every importer
+ * the live state onto the page means every importer
  * resolves to the same cache + listener set + view context.
  *
  * One global property changes; the effect is one HTTP fetch and one in-memory
@@ -99,16 +99,7 @@ type Store = {
 const STORE_KEY = "__SHU_QUADS_SNAPSHOT_STORE__";
 
 function getStore(): Store {
-	const g = globalThis as unknown as Record<string, Store | undefined>;
-	const existing = g[STORE_KEY];
-	if (existing) return existing;
-	const fresh: Store = {
-		scopes: new Map(),
-		viewContext: { activeViewId: null },
-		listeners: new Set(),
-	};
-	g[STORE_KEY] = fresh;
-	return fresh;
+	return pagePinned(STORE_KEY, (): Store => ({ scopes: new Map(), viewContext: { activeViewId: null }, listeners: new Set() }));
 }
 
 export function getViewContext(): TViewContext {

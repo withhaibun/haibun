@@ -8,7 +8,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { CACHE_SHAPE, deviceStore } from "./device-store.js";
 import { hydrateClientCache, type TCachePayload } from "./hydrate.js";
-import { currentExecution, resetExecutions } from "./executions.js";
+import { currentExecution } from "./executions.js";
 import { runWindow } from "./run-window.js";
 import { cachedGraphStore, pageRunGraph } from "../quads-snapshot.js";
 import { setSiteMetadata, type SiteMetadata } from "../rels-cache.js";
@@ -47,7 +47,6 @@ describe("a run carried in a page", () => {
 	});
 	afterEach(() => {
 		handle.teardown();
-		resetExecutions();
 	});
 
 	it("is read as any run is read: the window over the records the run wrote", async () => {

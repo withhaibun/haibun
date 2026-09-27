@@ -52,16 +52,6 @@ export function clientBlipsSent(): number {
 	return sent;
 }
 
-/** Drop what is held and forget the counts. For a test, and for a page that is starting over. */
-export function resetClientBlips(): void {
-	if (timer) clearTimeout(timer);
-	timer = undefined;
-	ring = [];
-	at = 0;
-	recorded = 0;
-	sent = 0;
-}
-
 function scheduleFlush(): void {
 	// A page that has no run for its batches (offline, or mounted without a conduit) holds what it records and sends nothing.
 	if (timer || isOffline() || !hasConduit()) return;

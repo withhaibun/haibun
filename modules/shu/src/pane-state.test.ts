@@ -10,9 +10,10 @@ import { PaneState, parseColEntry, DesiredPaneSchema, paneIdOf, tagOf, labelOf }
 import { ShuElement } from "./components/shu-element.js";
 import { setSiteMetadata, type SiteMetadata } from "./rels-cache.js";
 import * as ViewHash from "./view-hash.js";
-import { setConduit, resetConduit, LiveConduit } from "./hypermedia.js";
+import { setConduit, LiveConduit } from "./hypermedia.js";
 import { TestConduit } from "./test-setup.js";
 import { activePane } from "./signals.js";
+import { endPage } from "./page-pinned.js";
 
 /** Offline is which Conduit is installed: a serialized one has no location to mutate, a live one does. */
 const offline = () =>
@@ -123,10 +124,16 @@ describe("parseColEntry", () => {
 });
 
 describe("PaneState", () => {
+	/** A page loaded again: it holds none of the last page's panes, and boot installs its conduit. */
+	const newPage = () => {
+		endPage();
+		offline();
+		activePane.set(null);
+	};
 	beforeEach(() => {
-		PaneState.__resetForTests();
+		endPage();
+		activePane.set(null);
 		document.body.innerHTML = "";
-		resetConduit();
 		offline();
 		ShuElement.pushHash("#?");
 		if (!customElements.get("shu-column-pane"))
@@ -302,7 +309,7 @@ describe("PaneState", () => {
 	// be deterministic regardless of that interleave: every col= entry in the reloaded hash mounts, none is dropped.
 	const liveIds = () => Array.from(document.querySelectorAll("shu-column-pane")).map((p) => (p as HTMLElement).dataset.columnKey);
 	const reloadInto = (hash: string): HTMLElement => {
-		PaneState.__resetForTests();
+		newPage();
 		document.body.innerHTML = "";
 		const strip = document.createElement("shu-column-strip") as HTMLElement;
 		document.body.appendChild(strip);
@@ -440,7 +447,7 @@ describe("PaneState", () => {
 	/** A page with the affordances panel as its pane, docked as declared and labelled Actions. */
 	const withPagePane = () => {
 		const strip = document.querySelector("shu-column-strip");
-		PaneState.__resetForTests();
+		newPage();
 		// biome-ignore lint/suspicious/noExplicitAny: test-only, strip facade is narrower than real ShuColumnStrip.
 		PaneState.init(strip as any, {}, [{ pane: { paneType: "component", tag: "shu-affordances-panel", label: "Actions", docked: true } }]);
 	};
@@ -473,7 +480,7 @@ describe("PaneState", () => {
 
 	it("holds a page pane as declared where the address doesn't name it, and names it in the address only where it stands otherwise", async () => {
 		const strip = document.querySelector("shu-column-strip");
-		PaneState.__resetForTests();
+		newPage();
 		// biome-ignore lint/suspicious/noExplicitAny: test-only, strip facade is narrower than real ShuColumnStrip.
 		PaneState.init(strip as any, {}, [{ pane: { paneType: "component", tag: "shu-affordances-panel", label: "Actions", docked: true }, attributes: { "testid-prefix": "app-" } }]);
 		PaneState.fromHash();
@@ -544,7 +551,7 @@ describe("PaneState", () => {
 	it("an open= link adds its pane to the live state instead of replacing it (a document's view link)", async () => {
 		// Online: the arrival path is a real location change, canonicalized by view-hash's ingress listener
 		// (registered at import, so it runs before PaneState's) before any consumer reads the hash.
-		resetConduit();
+		endPage();
 		setConduit(new LiveConduit(""));
 		ShuElement.pushHash("#?label=File&sort=dateModified&col=shu-monitor-column&active=shu-monitor-column");
 		PaneState.fromHash();
@@ -562,7 +569,7 @@ describe("PaneState", () => {
 		expect(params.getAll("col").sort()).toEqual(["shu-monitor-column", "shu-polymorphic-graph-view"]);
 		expect(params.get("active")).toBe("shu-polymorphic-graph-view"); // the linked view is what the reader asked for
 		expect(params.get("open")).toBeNull(); // canonicalized away
-		resetConduit();
+		endPage();
 		offline();
 	});
 });

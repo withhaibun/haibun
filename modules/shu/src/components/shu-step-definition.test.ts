@@ -9,11 +9,12 @@ import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { ShuStepDefinition } from "./shu-step-definition.js";
 import { ShuRef } from "./shu-ref-element.js";
-import { resetStepRegistry } from "../rpc-registry.js";
+
 import { setupShuTest, stepsShown, type TShuTestHandle } from "../test-setup.js";
 import { setDeviceStore, MemoryDeviceStore } from "../client-cache/index.js";
 import { SHU_EVENT, SHU_TAG } from "../consts.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
+import { endPage } from "../page-pinned.js";
 
 const IDS = SHU_TEST_IDS.STEP_DEFINITION;
 const [CREDENTIAL, CREDENTIAL_TYPE, CHECK] = ["credential", "VerifiableCredential", "verification"];
@@ -47,7 +48,7 @@ const HOLDING = {
 describe("a step's view", () => {
 	let handle: TShuTestHandle;
 	beforeEach(() => {
-		resetStepRegistry();
+		endPage();
 		setDeviceStore(new MemoryDeviceStore());
 		handle = setupShuTest({
 			dispatch: (method) => (method === SHOW_STEPS_METHOD ? stepsShown([VERIFY, HOLDING, READ], { [CREDENTIAL]: { persistedAs: CREDENTIAL_TYPE }, [CHECK]: {} }) : undefined),
@@ -60,7 +61,6 @@ describe("a step's view", () => {
 	});
 	afterEach(() => {
 		handle.teardown();
-		resetStepRegistry();
 		document.body.innerHTML = "";
 	});
 

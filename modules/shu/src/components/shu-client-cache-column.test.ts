@@ -12,9 +12,10 @@ import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
 import { timeCursor } from "../signals.js";
 import { setGraphStore } from "../quads-snapshot.js";
 import { setSiteMetadata, type SiteMetadata } from "../rels-cache.js";
-import { currentExecution, graphRunSource, resetExecutions } from "../client-cache/index.js";
-import { resetGraphRunSources } from "../client-cache/graph-run-source.js";
+import { currentExecution, graphRunSource } from "../client-cache/index.js";
+
 import { SHU_TAG } from "../consts.js";
+import { endPage } from "../page-pinned.js";
 
 const IDS = SHU_TEST_IDS.CLIENT_CACHE;
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 30));
@@ -39,10 +40,9 @@ describe("the client cache view", () => {
 	let handle: TShuTestHandle;
 	const STEPS = 70;
 	beforeEach(async () => {
+		endPage();
 		if (!customElements.get(SHU_TAG.CLIENT_CACHE_COLUMN)) customElements.define(SHU_TAG.CLIENT_CACHE_COLUMN, ShuClientCacheColumn);
 		if (!customElements.get(SHU_TAG.MONITOR_COLUMN)) customElements.define(SHU_TAG.MONITOR_COLUMN, ShuMonitorColumn);
-		resetGraphRunSources();
-		resetExecutions();
 		handle = setupShuTest({
 			dispatch: () => {
 				throw new Error("the views read the run's records");
@@ -58,8 +58,6 @@ describe("the client cache view", () => {
 	});
 	afterEach(() => {
 		handle.teardown();
-		resetGraphRunSources();
-		resetExecutions();
 		timeCursor.set(null);
 		document.body.innerHTML = "";
 	});

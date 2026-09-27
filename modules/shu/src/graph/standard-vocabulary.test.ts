@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { registerContext, clearKeyDocuments, setNetworkResolver } from "@haibun/core/lib/jsonld-loader.js";
 import { LinkRelations, type TRegisteredDomain } from "@haibun/core/lib/resources.js";
 import type { TQuad, TClusteredQuads } from "@haibun/core/lib/quad-types.js";
-import { enumerateStandardVocab, resetStandardVocabCache } from "./standard-vocabulary.js";
+import { enumerateStandardVocab } from "./standard-vocabulary.js";
 import { withOntologySchema, ONTOLOGY_PRED, ONTOLOGY_PROPERTY, ONTOLOGY_CLASS } from "./ontology-projection.js";
 
 const CTX_URL = "urn:test:widget-context";
@@ -29,7 +29,6 @@ const withInstance = (type: string): { response: TClusteredQuads; evidence: TQua
 
 describe("standard-vocabulary: the type's declared standard context resolved via jsonld, one source", () => {
 	beforeEach(() => {
-		resetStandardVocabCache();
 		clearKeyDocuments();
 		setNetworkResolver(undefined);
 		registerContext(CTX_URL, CTX_DOC);
@@ -46,7 +45,6 @@ describe("standard-vocabulary: the type's declared standard context resolved via
 	});
 
 	it("does not fabricate terms from a non-object (string) type-scoped context, jsonld yields nothing, no character-walk", async () => {
-		resetStandardVocabCache();
 		registerContext("urn:test:string-scoped", { "@context": { Widget: { "@context": "urn:test:unresolvable-inner" } } });
 		expect((await enumerateStandardVocab({ w: domain("Widget", ["urn:test:string-scoped"]) })).size).toBe(0);
 	});

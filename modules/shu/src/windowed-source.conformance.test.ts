@@ -11,7 +11,8 @@ import { describeWindowedSource, CONFORMANCE_ROWS } from "./test/windowed-source
 import { setGraphStore } from "./quads-snapshot.js";
 import { setSiteMetadata, type SiteMetadata } from "./rels-cache.js";
 import { setupShuTest } from "./test-setup.js";
-import { graphRunSource, resetGraphRunSources } from "./client-cache/graph-run-source.js";
+import { graphRunSource } from "./client-cache/graph-run-source.js";
+import { endPage } from "./page-pinned.js";
 
 type TRow = { name: string };
 const named = (row: TRow): string => row.name;
@@ -42,12 +43,10 @@ describeWindowedSource(
 );
 
 const RUN = "1700000000000-1";
-const STORE_KEY = "__SHU_QUADS_SNAPSHOT_STORE__";
 const iso = (n: number): string => new Date(n).toISOString();
 
 describeWindowedSource("the window of a run", async () => {
-	delete (globalThis as unknown as Record<string, unknown>)[STORE_KEY];
-	resetGraphRunSources();
+	endPage();
 	const handle = setupShuTest({
 		dispatch: () => {
 			throw new Error("this specification reads the records, not a server");
@@ -76,4 +75,4 @@ describeWindowedSource("the window of a run", async () => {
 	return { source, named: (row: Record<string, unknown>): string => String(row.in), shouldName, done: () => handle.teardown() };
 });
 
-beforeEach(() => resetGraphRunSources());
+beforeEach(endPage);

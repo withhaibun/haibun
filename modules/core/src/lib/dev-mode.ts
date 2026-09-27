@@ -15,34 +15,16 @@
  * Detection
  *   - Node: `process.env.NODE_ENV !== "production"`.
  *   - Browser: defaults to DEV. A bundler can pin the page to PROD by setting
- *     `globalThis.__HAIBUN_PROD__ = true` at build time, or callers can pin
- *     the value at startup via `setDevMode()`.
+ *     `globalThis.__HAIBUN_PROD__ = true` at build time.
  */
 
 declare global {
 	var __HAIBUN_PROD__: boolean | undefined;
 }
 
-let cached: boolean | null = null;
-
 export function isDev(): boolean {
-	if (cached !== null) return cached;
-	if (typeof process !== "undefined" && process.env && typeof process.env.NODE_ENV === "string") {
-		cached = process.env.NODE_ENV !== "production";
-		return cached;
-	}
-	cached = globalThis.__HAIBUN_PROD__ !== true;
-	return cached;
-}
-
-/** Pin the DEV/PROD flag. Useful for tests or for an app that wants explicit control. */
-export function setDevMode(value: boolean): void {
-	cached = value;
-}
-
-/** Drop the cached determination so the next `isDev()` re-evaluates. */
-export function resetDevModeCache(): void {
-	cached = null;
+	if (typeof process !== "undefined" && process.env && typeof process.env.NODE_ENV === "string") return process.env.NODE_ENV !== "production";
+	return globalThis.__HAIBUN_PROD__ !== true;
 }
 
 /**

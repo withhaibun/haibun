@@ -361,20 +361,13 @@ describe("stringOrError", () => {
 });
 
 describe("jsonArtifact", () => {
-	it("produces deterministic IDs after reset", () => {
-		util.resetArtifactCounter();
-		const a1 = util.jsonArtifact({ foo: "bar" });
-		const a2 = util.jsonArtifact({ baz: 1 });
-		expect(a1.id).toBe("json-1");
-		expect(a2.id).toBe("json-2");
-
-		util.resetArtifactCounter();
-		const a3 = util.jsonArtifact({ foo: "bar" });
-		expect(a3.id).toBe("json-1");
+	it("gives each artifact an id of its own", () => {
+		const ids = [util.jsonArtifact({ foo: "bar" }), util.jsonArtifact({ foo: "bar" })].map((a) => a.id);
+		expect(ids.every((id) => /^json-\d+$/.test(id))).toBe(true);
+		expect(new Set(ids).size).toBe(ids.length);
 	});
 
 	it("produces valid artifact shape", () => {
-		util.resetArtifactCounter();
 		const artifact = util.jsonArtifact({ key: "value" });
 		expect(artifact.kind).toBe("artifact");
 		expect(artifact.artifactType).toBe("json");

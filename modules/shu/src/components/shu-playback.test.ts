@@ -13,10 +13,11 @@ import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { graphRunSource } from "../client-cache/index.js";
-import { resetGraphRunSources } from "../client-cache/graph-run-source.js";
+
 import { setGraphStore } from "../quads-snapshot.js";
 import { setSiteMetadata, type SiteMetadata } from "../rels-cache.js";
 import { SHU_EVENT } from "../consts.js";
+import { endPage } from "../page-pinned.js";
 
 const FIRST = 1_000_000;
 const LAST = 1_000_500;
@@ -92,9 +93,9 @@ const click = async (el: ShuPlayback, testid: string) => {
 
 describe("playing through a run", () => {
 	beforeEach(async () => {
+		endPage();
 		shu?.teardown();
 		// The sources are one per page, so a run read by the last test is still being read by the next unless forgotten.
-		resetGraphRunSources();
 		shu = setupShuTest({
 			dispatch: () => {
 				throw new Error("the run is read from its records");
@@ -160,8 +161,8 @@ describe("going back to now", () => {
 	// A press on a rail is meant to stay where it was put, so nothing takes a reader off a chosen moment by itself. This
 	// is what does: the cursor is released, and any view that tails is asked to return to the live edge and follow again.
 	beforeEach(async () => {
+		endPage();
 		shu?.teardown();
-		resetGraphRunSources();
 		shu = setupShuTest({
 			dispatch: () => {
 				throw new Error("the run is read from its records");

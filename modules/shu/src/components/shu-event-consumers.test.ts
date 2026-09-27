@@ -20,10 +20,11 @@ import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
 import { setGraphStore } from "../quads-snapshot.js";
 import { setSiteMetadata, type SiteMetadata } from "../rels-cache.js";
-import { resetGraphRunSources } from "../client-cache/graph-run-source.js";
+
 import { forgetElementPrefs } from "../element-prefs.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { ICON_LOG_INFO, ICON_LOG_WARN, ICON_STEP_COMPLETED } from "@haibun/core/schema/protocol.js";
+import { endPage } from "../page-pinned.js";
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 30));
 const iso = (n: number): string => new Date(n).toISOString();
@@ -71,12 +72,11 @@ async function aRun(records: Array<Record<string, unknown>>, said: Array<Record<
 describe("the views of a run, over the records it wrote", () => {
 	let handle: TShuTestHandle;
 	beforeEach(async () => {
+		endPage();
 		if (!customElements.get(SHU_TAG.MONITOR_COLUMN)) customElements.define(SHU_TAG.MONITOR_COLUMN, ShuMonitorColumn);
 		if (!customElements.get(SHU_TAG.DOCUMENT_COLUMN)) customElements.define(SHU_TAG.DOCUMENT_COLUMN, ShuDocumentColumn);
-		delete (globalThis as unknown as Record<string, unknown>)["__SHU_QUADS_SNAPSHOT_STORE__"];
 		// What a reader chose of a view is remembered across reloads, so each case starts from a view nobody has set.
 		forgetElementPrefs(SHU_TAG.MONITOR_COLUMN, "");
-		resetGraphRunSources();
 		handle = setupShuTest({
 			dispatch: () => {
 				throw new Error("the views read the run's records, not a server");
@@ -95,7 +95,6 @@ describe("the views of a run, over the records it wrote", () => {
 	};
 
 	it("shows what a step produced on that step's own row, rather than as a row of its own", async () => {
-		resetGraphRunSources();
 		// The shot was taken by a step of the machinery, under the step a reader is reading. A record names its run, which
 		// is how a row knows its own place in it.
 		const RUN = "1700000000000-1";
@@ -117,7 +116,6 @@ describe("the views of a run, over the records it wrote", () => {
 	});
 
 	it("shows the steps run to carry other steps out when a reader asks for them, each naming the step that established it", async () => {
-		resetGraphRunSources();
 		const RUN = "1700000000000-1";
 		await aRun([stepRecord(1, { id: `${RUN}.0.1` }), stepRecord(2, { id: `${RUN}.0.1.-1`, isPartOf: `${RUN}.0.1`, stepText: "take a screenshot", level: "trace" })]);
 		const mon = await open<ShuMonitorColumn>(SHU_TAG.MONITOR_COLUMN);
@@ -140,7 +138,6 @@ describe("the views of a run, over the records it wrote", () => {
 	});
 
 	it("carries one glyph per row: how a step went, and the level a message reports at", async () => {
-		resetGraphRunSources();
 		await aRun(
 			[stepRecord(1), stepRecord(2, { actionStatus: "failed" })],
 			[{ id: "0.1@0", isPartOf: "0.1", message: "something to note", level: "warn", generatedAtTime: iso(1) }],
@@ -167,14 +164,12 @@ describe("the views of a run, over the records it wrote", () => {
 	});
 
 	it("shows what a step said as its own row, under the step it was said during", async () => {
-		resetGraphRunSources();
 		await aRun([stepRecord(1)], [{ id: "0.1@said", message: "it said this", level: "warn", generatedAtTime: iso(1), isPartOf: "0.1" }]);
 		const mon = await open<ShuMonitorColumn>(SHU_TAG.MONITOR_COLUMN);
 		expect(mon.rows.map((r) => r.message)).toContain("it said this");
 	});
 
 	it("does not show a reader the traffic of whoever is reading the run", async () => {
-		resetGraphRunSources();
 		await aRun([stepRecord(1), stepRecord(2, { stepText: "graph query", called: "MonitorStepper.graphQuery", level: "trace" })]);
 		const mon = await open<ShuMonitorColumn>(SHU_TAG.MONITOR_COLUMN);
 		expect(
@@ -218,7 +213,6 @@ describe("the views of a run, over the records it wrote", () => {
 	});
 
 	it("titles a feature and a scenario by the step that declared them", async () => {
-		resetGraphRunSources();
 		await aRun([
 			stepRecord(1, { id: "0.1", stepText: "Feature: A run to read", called: "Haibun.feature" }),
 			stepRecord(2, { id: "0.2", stepText: "Scenario: Something happens", called: "Haibun.scenario" }),
@@ -231,7 +225,6 @@ describe("the views of a run, over the records it wrote", () => {
 	});
 
 	it("records the step that showed a view, and opens no copy of that view in the manual", async () => {
-		resetGraphRunSources();
 		await aRun([stepRecord(1), stepRecord(2, { stepText: "show the graph", called: "TestStepper.showGraph", showed: "test-view" })]);
 		setSiteMetadata({
 			types: [SEQ_PATH_LABEL],
@@ -251,7 +244,6 @@ describe("the views of a run, over the records it wrote", () => {
 		const was = windowSizeSetting.get();
 		windowSizeSetting.set(String(PAGE));
 		onTestFinished(() => windowSizeSetting.set(was));
-		resetGraphRunSources();
 		const RUN = "1700000000000-1";
 		const shooter = `${RUN}.0.${PAGE}`;
 		const steps = Array.from({ length: PAGE }, (_, i) => stepRecord(i + 1, { id: `${RUN}.0.${i + 1}` }));
@@ -274,7 +266,6 @@ describe("the views of a run, over the records it wrote", () => {
 	});
 
 	it("shows no rows when the run has recorded nothing, rather than a false one", async () => {
-		resetGraphRunSources();
 		await aRun([]);
 		const doc = await open<ShuDocumentColumn>(SHU_TAG.DOCUMENT_COLUMN);
 		expect(doc.shadowRoot?.querySelectorAll(".doc-row").length ?? 0).toBe(0);

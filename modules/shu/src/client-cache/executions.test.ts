@@ -7,7 +7,8 @@ import { SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { individualAsQuads } from "./quad-store.js";
 import { setGraphStore } from "../quads-snapshot.js";
-import { executionsHeld, forgetExecution, holdOnDevice, noteExecution, readExecution, readingExecution, resetExecutions, subscribeExecutionSwitch } from "./executions.js";
+import { executionsHeld, forgetExecution, holdOnDevice, noteExecution, readExecution, readingExecution, subscribeExecutionSwitch } from "./executions.js";
+import { endPage } from "../page-pinned.js";
 
 const OLDER = "1700000000000-1";
 const NEWER = "1700000009000-2";
@@ -46,7 +47,7 @@ const heldOf = async (store: QuadStore, execution: string): Promise<number> => {
 };
 
 describe("what a device holds of the runs it has read", () => {
-	beforeEach(() => resetExecutions());
+	beforeEach(endPage);
 	afterEach(() => vi.restoreAllMocks());
 
 	it("names the runs it holds, newest first, by the features each ran", async () => {

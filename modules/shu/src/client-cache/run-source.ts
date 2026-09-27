@@ -138,13 +138,3 @@ export function atLiveEdge(instant: number): boolean {
 	const { last } = runSpan();
 	return last > 0 && instant >= last;
 }
-
-/** Test-only: forget the span and who is reading, so a test starts on a page that has read nothing. */
-export function resetRunSources(): void {
-	reading().clear();
-	made().clear();
-	readingAt().at = undefined;
-	const held = span();
-	held.first = undefined;
-	held.last = undefined;
-}

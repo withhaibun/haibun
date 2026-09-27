@@ -103,9 +103,3 @@ export async function enumerateStandardVocab(domains: Record<string, TRegistered
 	}
 	return byType;
 }
-
-/** Test-only: clear the memoized context resolutions. */
-export function resetStandardVocabCache(): void {
-	baseCache.clear();
-	scopedCache.clear();
-}

@@ -25,6 +25,7 @@ import { presentationForType } from "./graph/type-presentation.js";
 import { activePane } from "./signals.js";
 import type { ShuColumnPane } from "./components/shu-column-pane.js";
 import type { ShuColumnStrip } from "./components/shu-column-strip.js";
+import { pagePinned } from "./page-pinned.js";
 
 const FlagSchema = z.enum(["min", "max"]).optional();
 /** Where a pane stands and how: minimized or maximized, and docked along the bottom of the app rather than a column. */
@@ -173,12 +174,44 @@ type PaneHooks = {
  *  stands other than as declared. It doesn't close, and a page that closes it returns it to where the page declares it. */
 type TPagePane = { pane: DesiredPane; attributes?: Record<string, string> };
 
-class PaneStateImpl {
-	private desired = new Map<string, DesiredPane>();
-	private strip: ShuColumnStrip | null = null;
-	private hooks: PaneHooks = {};
+/** What the page holds of its panes. */
+type TPanesHeld = {
+	desired: Map<string, DesiredPane>;
+	strip: ShuColumnStrip | null;
+	hooks: PaneHooks;
 	/** The panes the page always holds, by pane id. */
-	private pagePanes = new Map<string, TPagePane>();
+	pagePanes: Map<string, TPagePane>;
+	/** The last hash this pushed. The resulting `hashchange` echoes back into fromHash, which rebuilds `desired` from the
+	 *  hash: but a self-write's hash already matches `desired`, and re-reading it mid-mutation (e.g. an activation that
+	 *  fires while a column is opening) clobbers the in-flight pane. So fromHash ignores its own writes and reacts only
+	 *  to EXTERNAL hash changes (back/forward, a shared link). */
+	lastWrittenHash: string | null;
+	/** PaneState must READ the hash (fromHash) before it WRITES it. At boot the app activates the query column (app.ts)
+	 *  before the first fromHash; the resulting setActivePane would writeHash a still-empty `desired` and delete the col=
+	 *  entries the reloaded URL carries, dropping every restored component-pane view. This flag, set once fromHash has
+	 *  parsed the hash, gates writes until that read has happened. */
+	hydrated: boolean;
+	reconcileInFlight: boolean;
+	reconcileRequested: boolean;
+};
+const PANES_KEY = "__SHU_PANES__";
+
+class PaneStateImpl {
+	private get held(): TPanesHeld {
+		return pagePinned(
+			PANES_KEY,
+			(): TPanesHeld => ({
+				desired: new Map(),
+				strip: null,
+				hooks: {},
+				pagePanes: new Map(),
+				lastWrittenHash: null,
+				hydrated: false,
+				reconcileInFlight: false,
+				reconcileRequested: false,
+			}),
+		);
+	}
 	// The active pane is the global `activePane` signal: the one source of truth every reader (strip styling, harvest,
 	// isActiveView, dimming) derives from. PaneState is its writer on restore/open/dismiss; the strip subscribes and
 	// paints the DOM `active` state, so activation is never a side effect of appending a pane.
@@ -188,21 +221,11 @@ class PaneStateImpl {
 	private set activePaneId(id: string | null) {
 		activePane.set(id);
 	}
-	// The last hash this pushed. The resulting `hashchange` echoes back into fromHash, which rebuilds `desired` from the
-	// hash: but a self-write's hash already matches `desired`, and re-reading it mid-mutation (e.g. an activation that
-	// fires while a column is opening) clobbers the in-flight pane. So fromHash ignores its own writes and reacts only
-	// to EXTERNAL hash changes (back/forward, a shared link).
-	private lastWrittenHash: string | null = null;
-	// PaneState must READ the hash (fromHash) before it WRITES it. At boot the app activates the query column
-	// (app.ts) before the first fromHash; the resulting setActivePane would writeHash a still-empty `desired` and
-	// delete the col= entries the reloaded URL carries, dropping every restored component-pane view. This flag, set
-	// once fromHash has parsed the hash, gates writes until that read has happened.
-	private hydrated = false;
 
 	init(strip: ShuColumnStrip, hooks: PaneHooks = {}, pagePanes: TPagePane[] = []): void {
-		this.strip = strip;
-		this.hooks = hooks;
-		this.pagePanes = new Map(pagePanes.map((page) => [paneIdOf(page.pane), { ...page, pane: DesiredPaneSchema.parse(page.pane) }]));
+		this.held.strip = strip;
+		this.held.hooks = hooks;
+		this.held.pagePanes = new Map(pagePanes.map((page) => [paneIdOf(page.pane), { ...page, pane: DesiredPaneSchema.parse(page.pane) }]));
 		window.addEventListener("hashchange", () => this.fromHash());
 		// Per-pane control toggles (minimize / maximize / expand) update the canonical
 		// `desired.flag` so later reconciles preserve it and the URL hash stays in sync.
@@ -238,28 +261,28 @@ class PaneStateImpl {
 	 * (e.g. the query pane, which lives outside PaneState's tracked set). Writes the
 	 * URL hash so the flag survives a reload. */
 	private setFlag(paneId: string, flag: DesiredPane["flag"]): void {
-		const d = this.desired.get(paneId);
+		const d = this.held.desired.get(paneId);
 		if (!d) return;
 		if (d.flag === flag) return;
-		this.desired.set(paneId, { ...d, flag } as DesiredPane);
+		this.held.desired.set(paneId, { ...d, flag } as DesiredPane);
 		this.writeHash();
 	}
 
 	/** Dock a pane along the bottom of the app, or return it to the strip. One pane is docked at a time, so docking a pane
 	 *  returns the pane docked before it to the strip. */
 	private setDocked(paneId: string, docked: boolean): void {
-		if (!this.desired.has(paneId)) return;
-		for (const [id, d] of this.desired) {
+		if (!this.held.desired.has(paneId)) return;
+		for (const [id, d] of this.held.desired) {
 			const wanted = id === paneId ? docked : docked ? false : Boolean(d.docked);
-			if (Boolean(d.docked) !== wanted) this.desired.set(id, { ...d, docked: wanted || undefined } as DesiredPane);
+			if (Boolean(d.docked) !== wanted) this.held.desired.set(id, { ...d, docked: wanted || undefined } as DesiredPane);
 		}
 		this.scheduleReconcile();
 	}
 
 	/** Parse the URL hash into desired panes and reconcile. */
 	fromHash(): void {
-		if (ViewHash.getHash() === this.lastWrittenHash) return; // its own echo, desired already matches; don't rebuild (would clobber an in-flight open)
-		this.hydrated = true; // the hash has now been read at least once, writes are safe (see `hydrated`)
+		if (ViewHash.getHash() === this.held.lastWrittenHash) return; // its own echo, desired already matches; don't rebuild (would clobber an in-flight open)
+		this.held.hydrated = true; // the hash has now been read at least once, writes are safe (see `hydrated`)
 		// `open=` arrivals never reach here: view-hash canonicalizes them into col= entries at its ingress.
 		const params = ViewHash.hashParams(ViewHash.getHash());
 		const active = params.get("active");
@@ -282,11 +305,11 @@ class PaneStateImpl {
 		if (named) this.activePaneId = named;
 		// A page pane the address doesn't name stands as the page declares it. A page pane the address names stands where
 		// the address places it. Both are added after the active pane is chosen, since a page pane doesn't take activation.
-		for (const [id, page] of this.pagePanes) {
+		for (const [id, page] of this.held.pagePanes) {
 			const named = next.get(id);
 			next.set(id, named ? ({ ...page.pane, flag: named.flag, docked: named.docked } as DesiredPane) : withPersistedFlag(page.pane));
 		}
-		this.desired = next;
+		this.held.desired = next;
 		this.scheduleReconcile();
 	}
 
@@ -294,7 +317,7 @@ class PaneStateImpl {
 	request(input: DesiredPane): void {
 		const parsed = DesiredPaneSchema.parse(input);
 		const id = paneIdOf(parsed);
-		const existing = this.desired.get(id);
+		const existing = this.held.desired.get(id);
 		// A re-request without an explicit flag keeps the live pane's flag (a click on an already-open,
 		// minimized column must not silently expand it); a brand-new pane defaults from its persisted state.
 		const flagged = parsed.flag ? parsed : existing?.flag ? ({ ...parsed, flag: existing.flag } as DesiredPane) : withPersistedFlag(parsed);
@@ -311,7 +334,7 @@ class PaneStateImpl {
 			const live = this.findLiveChild(id) as (HTMLElement & { revealPassage?: (s: TQuoteAnchor) => void }) | undefined;
 			live?.revealPassage?.(d.selector);
 		}
-		this.desired.set(id, d);
+		this.held.desired.set(id, d);
 		this.activePaneId = id;
 		this.scheduleReconcile();
 	}
@@ -323,20 +346,20 @@ class PaneStateImpl {
 	setActivePane(paneId: string): void {
 		if (this.activePaneId === paneId) return;
 		this.activePaneId = paneId;
-		if (!this.hydrated) return; // a boot activation fires before the first fromHash; writing now would strip the restored col= entries (see `hydrated`). fromHash sets the active pane from the hash.
+		if (!this.held.hydrated) return; // a boot activation fires before the first fromHash; writing now would strip the restored col= entries (see `hydrated`). fromHash sets the active pane from the hash.
 		this.writeHash();
 	}
 
 	/** Miller-column open. `source` is the originating element or the in-flight event; the source pane is identified via element.closest or event.composedPath. When `addToSelection` is true the prune is skipped. Every view that opens a column MUST route through this method instead of calling `request` directly. */
 	requestFrom(source: Element | Event, input: DesiredPane, addToSelection = false): void {
-		if (!this.strip) {
+		if (!this.held.strip) {
 			this.request(input);
 			return;
 		}
 		const sourcePane = this.findSourcePane(source);
-		const sourceIdx = sourcePane ? this.strip.panes.indexOf(sourcePane as ShuColumnPane) : -1;
+		const sourceIdx = sourcePane ? this.held.strip.panes.indexOf(sourcePane as ShuColumnPane) : -1;
 		if (!addToSelection && sourceIdx >= 0) {
-			const panes = this.strip.panes;
+			const panes = this.held.strip.panes;
 			for (let i = panes.length - 1; i > sourceIdx; i--) {
 				const pane = panes[i];
 				// A prune leaves a pinned pane and a docked pane, which isn't in the column order. A page pane it closes returns
@@ -372,74 +395,59 @@ class PaneStateImpl {
 
 	/** Close a pane. A page pane returns to where the page declares it, since the page holds it either way. */
 	dismiss(paneId: string): void {
-		const page = this.pagePanes.get(paneId);
+		const page = this.held.pagePanes.get(paneId);
 		if (page) return this.returnToPage(paneId, page.pane);
-		if (!this.desired.delete(paneId)) return;
-		if (this.activePaneId === paneId) this.activePaneId = firstKeyOf(new Map([...this.desired].filter(([id]) => !this.pagePanes.has(id))));
+		if (!this.held.desired.delete(paneId)) return;
+		if (this.activePaneId === paneId) this.activePaneId = firstKeyOf(new Map([...this.held.desired].filter(([id]) => !this.held.pagePanes.has(id))));
 		this.scheduleReconcile();
 	}
 
 	/** Return a page pane to where the page declares it, unpinned, as a closed column forgets its pin. Where it docks, it
 	 *  closes to its strip, and the pane docked there before it returns to the strip. */
 	private returnToPage(paneId: string, declared: DesiredPane): void {
-		if (!this.desired.has(paneId)) return;
-		const live = this.strip?.panes.find((pane) => pane.dataset.columnKey === paneId);
+		if (!this.held.desired.has(paneId)) return;
+		const live = this.held.strip?.panes.find((pane) => pane.dataset.columnKey === paneId);
 		live?.setPinned(false);
 		live?.close();
-		this.desired.set(paneId, declared);
+		this.held.desired.set(paneId, declared);
 		if (declared.docked) this.setDocked(paneId, true);
 		else this.scheduleReconcile();
 	}
 
 	snapshot(): DesiredPane[] {
-		return [...this.desired.values()];
+		return [...this.held.desired.values()];
 	}
 
 	has(paneId: string): boolean {
-		return this.desired.has(paneId);
+		return this.held.desired.has(paneId);
 	}
-
-	__resetForTests(): void {
-		this.desired.clear();
-		this.activePaneId = null;
-		this.strip = null;
-		this.hooks = {};
-		this.pagePanes.clear();
-		this.reconcileInFlight = false;
-		this.reconcileRequested = false;
-		this.lastWrittenHash = null;
-		this.hydrated = false;
-	}
-
-	private reconcileInFlight = false;
-	private reconcileRequested = false;
 
 	private scheduleReconcile(): void {
-		this.reconcileRequested = true;
-		if (this.reconcileInFlight) return;
-		this.reconcileInFlight = true;
+		this.held.reconcileRequested = true;
+		if (this.held.reconcileInFlight) return;
+		this.held.reconcileInFlight = true;
 		queueMicrotask(async () => {
-			while (this.reconcileRequested) {
-				this.reconcileRequested = false;
+			while (this.held.reconcileRequested) {
+				this.held.reconcileRequested = false;
 				await this.reconcile();
 			}
-			this.reconcileInFlight = false;
+			this.held.reconcileInFlight = false;
 		});
 	}
 
 	private async reconcile(): Promise<void> {
-		if (!this.strip) return;
+		if (!this.held.strip) return;
 		const live = new Map<string, ShuColumnPane>();
-		for (const p of this.strip.panes) {
+		for (const p of this.held.strip.panes) {
 			const id = p.dataset.columnKey ?? p.getAttribute(SHU_ATTR.COLUMN_TYPE);
 			if (id && id !== INDEX_PANE_KEY) live.set(id, p);
 		}
 		// Route removals through `removePane` so the strip publishes its panes for each dismissal. A bare `pane.remove()`
 		// mutates the DOM, and a reader of `stripPanes`, the actions bar's breadcrumb among them, doesn't see it.
 		for (const [id, pane] of live) {
-			if (this.desired.has(id)) continue;
-			const idx = this.strip.panes.indexOf(pane);
-			if (idx >= 0) this.strip.removePane(idx);
+			if (this.held.desired.has(id)) continue;
+			const idx = this.held.strip.panes.indexOf(pane);
+			if (idx >= 0) this.held.strip.removePane(idx);
 			else pane.remove();
 		}
 		// The address IS the view state, so it is written from the desired set BEFORE the panes catch up to it. Opening
@@ -450,7 +458,7 @@ class PaneStateImpl {
 		// that await can `dismiss`+`request` the same key (a prune-then-reopen), which a live iterator would re-yield:
 		// reopening a pane still being opened. The snapshot is this pass's target; the request scheduled its own reconcile.
 		let placementChanged = false;
-		for (const d of [...this.desired.values()]) {
+		for (const d of [...this.held.desired.values()]) {
 			const id = paneIdOf(d);
 			const existing = live.get(id);
 			if (existing) {
@@ -465,33 +473,33 @@ class PaneStateImpl {
 			await this.openPane(d, id);
 		}
 		// A pane docked or returned changes which panes share the strip's width.
-		if (placementChanged) this.strip.layoutColumns();
+		if (placementChanged) this.held.strip.layoutColumns();
 		// A maximize describes the FINISHED set, not the moment one pane attaches: applied per arrival, the next pane of
 		// the same restore counts as a column being opened and ends the maximize the restore just applied.
 		this.applyMaximizeFlag();
-		this.strip.updateAccordion(); // flag changes on existing panes shift the layout limit
-		this.strip.applyActive(); // re-assert active styling now the panes match `desired` (the target pane may have just opened)
+		this.held.strip.updateAccordion(); // flag changes on existing panes shift the layout limit
+		this.held.strip.applyActive(); // re-assert active styling now the panes match `desired` (the target pane may have just opened)
 	}
 
 	/** Exactly the pane the desired set flags `max` is maximized, once every pane the set names is attached. */
 	private applyMaximizeFlag(): void {
-		if (!this.strip) return;
-		const maxId = [...this.desired.values()].find((d) => d.flag === "max");
+		if (!this.held.strip) return;
+		const maxId = [...this.held.desired.values()].find((d) => d.flag === "max");
 		const wanted = maxId ? paneIdOf(maxId) : null;
-		for (const pane of this.strip.panes) {
+		for (const pane of this.held.strip.panes) {
 			const id = pane.dataset.columnKey ?? pane.getAttribute(SHU_ATTR.COLUMN_TYPE);
 			pane.setMaximized(!!wanted && id === wanted);
 		}
 	}
 
 	private async openPane(d: DesiredPane, id: string): Promise<void> {
-		if (!this.strip) return;
+		if (!this.held.strip) return;
 		const tag = tagOf(d);
-		await this.hooks.ensureLoaded?.(tag);
+		await this.held.hooks.ensureLoaded?.(tag);
 		// One pane per columnKey, always. The `ensureLoaded` await is a window in which another reconcile pass or a
 		// re-request can already have opened this key; creating a second here would leave two panes the reconciler can
 		// never tell apart (its live map collapses same-key panes) and `applyActive` would light both. Never duplicate.
-		if (this.strip.panes.some((p) => p.dataset.columnKey === id)) return;
+		if (this.held.strip.panes.some((p) => p.dataset.columnKey === id)) return;
 		const pane = document.createElement("shu-column-pane") as ShuColumnPane;
 		pane.setAttribute("label", labelOf(d));
 		pane.setAttribute(SHU_ATTR.COLUMN_TYPE, columnTypeFor(d));
@@ -499,14 +507,14 @@ class PaneStateImpl {
 		// The columnKey is also the pane's persistence identity: its remembered width/minimize
 		// restore when it attaches (ShuElement.persistFields), so no width plumbing here.
 		pane.dataset.columnKey = id;
-		const page = this.pagePanes.get(id);
+		const page = this.held.pagePanes.get(id);
 		// A pane the page always holds doesn't offer a close, since it has nowhere to close to. Its dock control moves it.
 		if (page) pane.setAttribute(SHU_ATTR.CLOSABLE, "false");
 		// Docked before it attaches, so the strip never lays it out as a column.
 		if (d.docked) pane.setDocked(true);
 		// Pre-mark a minimized arrival so addPane neither activates nor scrolls to it.
 		if (d.flag === "min") pane.setMinimized(true);
-		this.strip.addPane(pane);
+		this.held.strip.addPane(pane);
 		const child = document.createElement(tag);
 		for (const [name, value] of Object.entries(page?.attributes ?? {})) child.setAttribute(name, value);
 		if (readShowControlsCookie(tag)) child.setAttribute(SHU_ATTR.SHOW_CONTROLS, "");
@@ -524,7 +532,7 @@ class PaneStateImpl {
 		const definition = customElements.get(tag);
 		if (definition && !(child instanceof definition))
 			throw new Error(`pane ${id}: <${tag}> is defined but this element did not upgrade to it, so the ${d.paneType} pane has none of its own methods`);
-		await this.hooks.afterAttach?.[d.paneType]?.(d, child);
+		await this.held.hooks.afterAttach?.[d.paneType]?.(d, child);
 	}
 
 	private writeHash(): void {
@@ -532,13 +540,13 @@ class PaneStateImpl {
 		// early request, e.g. a step's products re-opening a pane at boot, which can land before fromHash under load
 		// would otherwise overwrite the reloaded hash with the partial desired set, dropping the col= views still waiting
 		// to be restored. This generalises the setActivePane guard to every writer (the boot-strip regression).
-		if (!this.hydrated) return;
+		if (!this.held.hydrated) return;
 		const base = ViewHash.getHash();
 		const params = ViewHash.hashParams(base);
 		params.delete(ViewHash.COLUMN_PARAM);
-		for (const d of this.desired.values()) {
+		for (const d of this.held.desired.values()) {
 			const id = paneIdOf(d);
-			const page = this.pagePanes.get(id)?.pane;
+			const page = this.held.pagePanes.get(id)?.pane;
 			if (page && Boolean(page.docked) === Boolean(d.docked) && page.flag === d.flag) continue;
 			const suffix = `${d.docked ? ViewHash.PANE_ENDING.dock : ""}${d.flag ? ViewHash.PANE_ENDING[d.flag] : ""}`;
 			params.append(ViewHash.COLUMN_PARAM, `${id}${suffix}`);
@@ -546,12 +554,12 @@ class PaneStateImpl {
 		if (this.activePaneId) params.set("active", this.activePaneId);
 		else params.delete("active");
 		const next = `#?${params.toString()}`;
-		this.lastWrittenHash = next; // mark as this instance's so the echoed hashchange doesn't re-enter fromHash and clobber desired
+		this.held.lastWrittenHash = next; // mark as this instance's so the echoed hashchange doesn't re-enter fromHash and clobber desired
 		if (next !== base) ViewHash.pushHash(next);
 	}
 
 	private findLiveChild(paneId: string): HTMLElement | undefined {
-		const pane = this.strip?.panes.find((p) => p.dataset.columnKey === paneId);
+		const pane = this.held.strip?.panes.find((p) => p.dataset.columnKey === paneId);
 		return pane?.children[0] as HTMLElement | undefined;
 	}
 }

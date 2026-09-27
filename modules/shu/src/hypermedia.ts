@@ -271,19 +271,18 @@ export function serverLastRespondedAt(): number | undefined {
 	return responded().at;
 }
 
-/** The active Conduit lives on `globalThis` keyed by a globally-registered Symbol so bundles that are built separately (e.g. esbuild emits per-component bundles for slot extensions) share one installation instead of each carrying its own module-level cell. Without this, `setConduit` in the SPA bundle wouldn't be visible to a slot-extension component bundle, and its `conduit()` would throw at first use. */
-const CONDUIT_SLOT = Symbol.for("@haibun/shu/active-conduit");
-type ConduitGlobal = { [CONDUIT_SLOT]?: Conduit | null };
-const conduitGlobal = globalThis as ConduitGlobal;
+/** The active Conduit is the page's, so bundles that are built separately (e.g. esbuild emits per-component bundles for slot extensions) share one installation instead of each carrying its own module-level cell. Without this, `setConduit` in the SPA bundle wouldn't be visible to a slot-extension component bundle, and its `conduit()` would throw at first use. */
+const CONDUIT_KEY = "__SHU_CONDUIT__";
+const installedConduit = (): { conduit?: Conduit } => pagePinned(CONDUIT_KEY, () => ({}));
 
 /** Boot installs one Conduit; every component, infrastructure module, and test reads via `conduit()`. */
 export function setConduit(c: Conduit): void {
-	conduitGlobal[CONDUIT_SLOT] = c;
+	installedConduit().conduit = c;
 }
 
 /** Returns the active Conduit. Throws if boot didn't install one: the only way this happens in production is a programming error in `app.ts`; in tests every `beforeEach` calls `setupShuTest({...})`, so a forgotten setup throws with a precise message naming the missing instance. */
 export function conduit(): Conduit {
-	const active = conduitGlobal[CONDUIT_SLOT];
+	const active = installedConduit().conduit;
 	if (!active) {
 		throw new Error("conduit: no Conduit installed. Call setConduit() in app boot or setupShuTest() in tests before using conduit().");
 	}
@@ -293,10 +292,5 @@ export function conduit(): Conduit {
 /** Whether boot has installed a Conduit. A page mounted without one (a bundle under test, a still) has no run for its
  *  batches, and a channel that checks first never throws. */
 export function hasConduit(): boolean {
-	return Boolean(conduitGlobal[CONDUIT_SLOT]);
-}
-
-/** Test-only: clear the active conduit so subsequent setConduit calls are clean. */
-export function resetConduit(): void {
-	conduitGlobal[CONDUIT_SLOT] = null;
+	return installedConduit().conduit !== undefined;
 }

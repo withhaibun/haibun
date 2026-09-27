@@ -112,13 +112,14 @@ function stepRecord(row: TRunRow, seqPath: number[] | undefined): TEventRecord {
 /** The sources a page reads by, one per level: every view at a level reads the same window, so a level is read once
  *  however many views show it, and a view of what this page holds lists one source per level rather than one per view. */
 const SOURCES_KEY = "__SHU_GRAPH_RUN_SOURCES__";
-const sources = (): Map<string, TGraphRunSource> => pagePinned(SOURCES_KEY, () => new Map<string, TGraphRunSource>());
-
-/** Test-only: forget the sources, so the next read makes them afresh. */
-export function resetGraphRunSources(): void {
-	for (const source of sources().values()) source.close();
-	sources().clear();
-}
+const sources = (): Map<string, TGraphRunSource> =>
+	pagePinned(
+		SOURCES_KEY,
+		() => new Map<string, TGraphRunSource>(),
+		(held) => {
+			for (const source of held.values()) source.close();
+		},
+	);
 
 type TGraphRunSource = RunSource & { close(): void };
 

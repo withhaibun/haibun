@@ -3,16 +3,17 @@
  *  the server cannot be reached, the persisted browser store says so; a freshly fetched one carries no such claim. */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ShuEntityColumn } from "./shu-entity-column.js";
-import { resetEntityStore } from "../entity-store.js";
+
 import { setupShuTest, makeEntityDispatch, type TShuTestHandle } from "../test-setup.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
+import { endPage } from "../page-pinned.js";
 
 const badge = (el: ShuEntityColumn): string | undefined => el.shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.FROM_STORE}"]`)?.textContent ?? undefined;
 
 describe("shu-entity-column stored-copy indication", () => {
 	let handle: TShuTestHandle;
 	beforeEach(() => {
-		resetEntityStore();
+		endPage();
 		if (!customElements.get("shu-entity-column")) customElements.define("shu-entity-column", ShuEntityColumn);
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});
 		handle = setupShuTest({ dispatch: makeEntityDispatch({ entity: () => ({ vertex: { "@id": "t1", title: "a task" }, edges: [], incomingCount: 0 }) }) });

@@ -5,8 +5,9 @@
 // this exercises only the column's subscribe-and-rerender wiring.
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ShuEntityColumn } from "./shu-entity-column.js";
-import { resetEntityStore } from "../entity-store.js";
+
 import { setupShuTest, makeEntityDispatch, type TShuTestHandle } from "../test-setup.js";
+import { endPage } from "../page-pinned.js";
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 20));
 const observation = (subject: string, predicate: string, object: string): Record<string, unknown> => ({
@@ -22,7 +23,7 @@ describe("shu-entity-column live refresh", () => {
 		handle = setupShuTest({ dispatch: makeEntityDispatch({ entity: () => ({ vertex: { "@id": "t1", title: "before", note: "x" }, edges: [], incomingCount: 0 }) }) });
 	});
 	afterEach(() => {
-		resetEntityStore();
+		endPage();
 		handle.teardown();
 	});
 

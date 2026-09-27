@@ -9,11 +9,12 @@ import { readAction } from "@haibun/core/lib/actions.js";
 import { Access } from "@haibun/core/lib/resources.js";
 import { ShuActionColumn } from "./shu-action-column.js";
 import { ShuRef } from "./shu-ref-element.js";
-import { resetStepRegistry } from "../rpc-registry.js";
+
 import { setupShuTest, stepsShown, type TShuTestHandle } from "../test-setup.js";
 import { setDeviceStore, MemoryDeviceStore } from "../client-cache/index.js";
 import { SHU_TAG } from "../consts.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
+import { endPage } from "../page-pinned.js";
 
 const IDS = SHU_TEST_IDS.ACTION_COLUMN;
 const DELEGATE = "Authority:delegate";
@@ -27,7 +28,7 @@ const [PUBLIC_READ, PRIVATE_READ, DELEGATES, REVOKES] = [
 describe("an action's view", () => {
 	let handle: TShuTestHandle;
 	beforeEach(() => {
-		resetStepRegistry();
+		endPage();
 		setDeviceStore(new MemoryDeviceStore());
 		handle = setupShuTest({ dispatch: (method) => (method === SHOW_STEPS_METHOD ? stepsShown([PUBLIC_READ, PRIVATE_READ, DELEGATES, REVOKES]) : undefined) });
 		for (const [tag, element] of [
@@ -38,7 +39,6 @@ describe("an action's view", () => {
 	});
 	afterEach(() => {
 		handle.teardown();
-		resetStepRegistry();
 		document.body.innerHTML = "";
 	});
 

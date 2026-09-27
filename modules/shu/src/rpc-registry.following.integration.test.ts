@@ -15,8 +15,9 @@ import MonitorStepper from "./monitor-stepper.js";
 import ShuStepper from "./shu-stepper.js";
 import { LiveConduit, setConduit } from "./hypermedia.js";
 import { LiveEventStream, eventStream, setEventStream } from "./event-stream.js";
-import { getAvailableSteps, onStepsChanged, resetStepRegistry } from "./rpc-registry.js";
+import { getAvailableSteps, onStepsChanged } from "./rpc-registry.js";
 import { DOMAIN_LINK } from "@haibun/core/lib/domains.js";
+import { endPage } from "./page-pinned.js";
 
 /** The step another host would add, named as this run names that host's steps. */
 const ADDED = hostScopedMethodName(9, "Haibun-validateStep");
@@ -30,7 +31,7 @@ class StepsPage extends AStepper {
 		opens: {
 			gwta: `page at {base: ${DOMAIN_LINK}} reads the run's steps`,
 			action: async ({ base }: { base: string }) => {
-				resetStepRegistry();
+				endPage();
 				setConduit(new LiveConduit(base));
 				setEventStream(new LiveEventStream(`${base}/sse`));
 				// The stream is open before the page reads, so the page reads its steps once and then once for the change.
@@ -66,8 +67,8 @@ class StepsPage extends AStepper {
 			action: async () => {
 				if (!holdsAdded) throw new Error("a page doesn't follow the run's steps: a scenario opens one with `page at {base} reads the run's steps` first");
 				await holdsAdded;
-				resetStepRegistry();
 				eventStream().close();
+				endPage();
 				return actionOK();
 			},
 		},

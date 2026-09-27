@@ -5,10 +5,11 @@
  * (`event-stream.conformance.test.ts`).
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import { eventStream, setEventStream, resetEventStream, SerializedEventStream } from "./event-stream.js";
+import { eventStream, setEventStream, SerializedEventStream } from "./event-stream.js";
+import { endPage } from "./page-pinned.js";
 
 beforeEach(() => {
-	resetEventStream();
+	endPage();
 });
 
 describe("eventStream accessor", () => {
@@ -22,9 +23,9 @@ describe("eventStream accessor", () => {
 		expect(eventStream()).toBe(s);
 	});
 
-	it("resetEventStream returns to the not-installed state", () => {
+	it("a page that has ended has no event stream installed", () => {
 		setEventStream(new SerializedEventStream());
-		resetEventStream();
+		endPage();
 		expect(() => eventStream()).toThrow(/no EventStream installed/);
 	});
 });

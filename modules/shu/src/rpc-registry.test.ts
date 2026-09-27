@@ -18,7 +18,6 @@ import {
 	isOffline,
 	registryOrigin,
 	requireStep,
-	resetStepRegistry,
 	responseTimeoutMs,
 	stepsJoining,
 } from "./rpc-registry.js";
@@ -27,6 +26,7 @@ import { setupShuTest, stepsShown, type TShuTestHandle } from "./test-setup.js";
 import { ServerUnreachable } from "./hypermedia.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { deviceStore, setDeviceStore, MemoryDeviceStore } from "./client-cache/index.js";
+import { endPage } from "./page-pinned.js";
 
 function setHydration(payload: unknown): void {
 	document.head.innerHTML = "";
@@ -145,13 +145,12 @@ describe("the step a name answers to", () => {
 	let handle: TShuTestHandle;
 	const listing = (steps: Parameters<typeof stepsShown>[0]) => setupShuTest({ dispatch: (method) => (method === SHOW_STEPS_METHOD ? stepsShown(steps) : undefined) });
 	beforeEach(() => {
+		endPage();
 		setHydration({});
-		resetStepRegistry();
 		setDeviceStore(new MemoryDeviceStore());
 	});
 	afterEach(() => {
 		handle?.teardown();
-		resetStepRegistry();
 	});
 
 	it("takes the step that is not a fallback, whichever the site listed first", async () => {
@@ -159,7 +158,6 @@ describe("the step a name answers to", () => {
 		await getAvailableSteps();
 		expect(requireStep("graphQuery")).toBe("GraphStepper-graphQuery");
 		handle.teardown();
-		resetStepRegistry();
 		setDeviceStore(new MemoryDeviceStore());
 		handle = listing([aStep("GraphStepper", "graphQuery", false), aStep("GraphSourceStepper", "graphQuery", true)]);
 		await getAvailableSteps();
@@ -183,14 +181,16 @@ describe("the registry cached on the device", () => {
 	// The site's response to the show steps step is cached on the device; a page whose site does not respond runs on that copy and reports
 	// so; with neither, the request fails as it did.
 	const ANSWER = stepsShown([]);
+	const unreachable = () => {
+		throw new ServerUnreachable(`/rpc/${SHOW_STEPS_METHOD}`, new Error("offline"));
+	};
 	let handle: TShuTestHandle;
 	beforeEach(() => {
+		endPage();
 		setHydration({});
-		resetStepRegistry();
 	});
 	afterEach(() => {
 		handle?.teardown();
-		resetStepRegistry();
 	});
 
 	it("caches the server's response on the device and runs on it when the server does not respond; with neither, fails", async () => {
@@ -202,19 +202,14 @@ describe("the registry cached on the device", () => {
 		expect((await store.registry())?.response, "the response as validated, cached on the device").toMatchObject(ANSWER);
 		// The same device, a server that does not respond: the page runs on the device's copy.
 		handle.teardown();
-		resetStepRegistry();
-		handle = setupShuTest({
-			dispatch: () => {
-				throw new ServerUnreachable(`/rpc/${SHOW_STEPS_METHOD}`, new Error("offline"));
-			},
-		});
+		handle = setupShuTest({ dispatch: unreachable });
 		setDeviceStore(store);
 		await getAvailableSteps();
 		expect(registryOrigin()?.from).toBe("device");
 		expect(typeof registryOrigin()?.savedAt).toBe("number");
 		// A device with nothing cached and a server that does not respond: the failure is the server's.
-		resetStepRegistry();
-		setDeviceStore(new MemoryDeviceStore());
+		handle.teardown();
+		handle = setupShuTest({ dispatch: unreachable });
 		await expect(getAvailableSteps()).rejects.toThrow("offline");
 	});
 
@@ -224,7 +219,6 @@ describe("the registry cached on the device", () => {
 		const store = deviceStore() as MemoryDeviceStore;
 		await new Promise((r) => setTimeout(r, 0));
 		handle.teardown();
-		resetStepRegistry();
 		handle = setupShuTest({
 			dispatch: () => {
 				throw new Error(`${SHOW_STEPS_METHOD}: capability Read:public required`);
@@ -240,7 +234,6 @@ describe("the steps a domain joins", () => {
 	let handle: TShuTestHandle;
 	afterEach(() => {
 		handle?.teardown();
-		resetStepRegistry();
 	});
 
 	it("are the steps that return it and the steps that take it, named by its key or by the type it persists as, a union's parts included", async () => {
@@ -251,8 +244,6 @@ describe("the steps a domain joins", () => {
 			{ ...aStep("VerifierStepper", "either", false), paramDomains: { what: asDomainKey([CREDENTIAL, CHECK]) } },
 		];
 		setHydration({});
-		resetStepRegistry();
-		setDeviceStore(new MemoryDeviceStore());
 		handle = setupShuTest({
 			dispatch: (method) => (method === SHOW_STEPS_METHOD ? stepsShown([issue, verify, either], { [CREDENTIAL]: { persistedAs: CREDENTIAL_TYPE }, [CHECK]: {} }) : undefined),
 		});

@@ -65,14 +65,6 @@ export function subscribeExecutionSwitch(fn: () => void): () => void {
 	return () => held.switched.delete(fn);
 }
 
-/** Test-only: read the recorded execution again, and forget who was listening. */
-export function resetExecutions(): void {
-	const held = reading();
-	held.chosen = undefined;
-	held.observed = undefined;
-	held.switched.clear();
-}
-
 /** How many feature declarations the listing reads: what names the executions a reader is offered. */
 export const EXECUTIONS_READ = 500;
 

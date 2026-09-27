@@ -8,10 +8,11 @@
  * That branch is exercised by the e2e suites against a real browser, as with the rest of the IndexedDB surface.
  */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { openEntity, refreshAnnotations, getEntityView, subscribeEntities, resetEntityStore } from "./entity-store.js";
+import { openEntity, refreshAnnotations, getEntityView, subscribeEntities } from "./entity-store.js";
 import { setupShuTest, makeEntityDispatch, type TShuTestHandle } from "./test-setup.js";
 import { LinkRelations, SPECIFIC_RESOURCE_LABEL } from "@haibun/core/lib/resources.js";
 import type { TEvent } from "./event-stream.js";
+import { endPage } from "./page-pinned.js";
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 20));
 
@@ -47,7 +48,7 @@ function stubDispatch(over: { entity?: () => unknown; annotations?: () => unknow
 describe("entity-store resolution", () => {
 	let handle: TShuTestHandle;
 	afterEach(() => handle.teardown());
-	beforeEach(() => resetEntityStore());
+	beforeEach(endPage);
 
 	it("is a loading stub until an individual is opened", () => {
 		handle = setupShuTest(stubDispatch());
@@ -110,7 +111,7 @@ describe("entity-store resolution", () => {
 describe("entity-store annotations", () => {
 	let handle: TShuTestHandle;
 	afterEach(() => handle.teardown());
-	beforeEach(() => resetEntityStore());
+	beforeEach(endPage);
 
 	it("re-resolves a held individual's annotations when a note is anchored on it from anywhere", async () => {
 		let round = 0;
@@ -151,7 +152,7 @@ describe("entity-store annotations", () => {
 describe("entity-store freshness", () => {
 	let handle: TShuTestHandle;
 	afterEach(() => handle.teardown());
-	beforeEach(() => resetEntityStore());
+	beforeEach(endPage);
 
 	it("applies a live property change in place, and notifies: no refetch", async () => {
 		const { dispatch, calls } = stubDispatch();

@@ -4,14 +4,16 @@ import { dispatchAffordanceFromResponse } from "./affordance-dispatch.js";
 import { PaneState } from "./pane-state.js";
 import { HYPERMEDIA } from "@haibun/core/schema/protocol.js";
 import { ShuElement } from "./components/shu-element.js";
-import { setConduit, resetConduit } from "./hypermedia.js";
+import { setConduit } from "./hypermedia.js";
 import { TestConduit } from "./test-setup.js";
+import { endPage } from "./page-pinned.js";
+import { activePane } from "./signals.js";
 
 describe("dispatchAffordanceFromResponse", () => {
 	beforeEach(() => {
-		PaneState.__resetForTests();
+		endPage();
+		activePane.set(null);
 		document.body.innerHTML = "";
-		resetConduit();
 		setConduit(
 			new TestConduit(() => {
 				throw new Error("affordance-dispatch test: no dispatch expected");

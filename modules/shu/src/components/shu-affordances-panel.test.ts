@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ShuAffordancesPanel } from "./shu-affordances-panel.js";
-import { setConduit, resetConduit } from "../hypermedia.js";
-import { TestConduit, setupShuTest } from "../test-setup.js";
-import { setEventStream, resetEventStream, SerializedEventStream, type TEvent } from "../event-stream.js";
+import { setConduit } from "../hypermedia.js";
+import { TestConduit, setupShuTest, type TShuTestHandle } from "../test-setup.js";
+import { setEventStream, SerializedEventStream, type TEvent } from "../event-stream.js";
 import * as ViewHash from "../view-hash.js";
 import { AFFORDANCE_PARAM } from "../consts.js";
 import { RPC_METHOD } from "../consts.js";
-import { readingExecution, resetExecutions } from "../client-cache/executions.js";
+import { readingExecution } from "../client-cache/executions.js";
 import { declareFakeGraphPresenter, mountedPresenter } from "../graph-presenter.test-fake.js";
 import { presenterIn } from "../graph-presenter.js";
 
@@ -30,9 +30,10 @@ const applied = async (panel: { updateComplete: Promise<unknown> }): Promise<voi
  */
 
 describe("shu-affordances-panel", () => {
+	let handle: TShuTestHandle;
 	beforeEach(() => {
 		document.body.innerHTML = "";
-		setupShuTest();
+		handle = setupShuTest();
 		if (!HTMLElement.prototype.scrollIntoView) HTMLElement.prototype.scrollIntoView = (): void => undefined;
 		// The deep link lives in the view hash, which is module state: clear it the way the app does, or one test's
 		// open goal is the next one's starting point.
@@ -49,10 +50,7 @@ describe("shu-affordances-panel", () => {
 		declareFakeGraphPresenter();
 	});
 
-	afterEach(() => {
-		resetConduit();
-		resetEventStream();
-	});
+	afterEach(() => handle.teardown());
 
 	it("renders the goals section when products are assigned", async () => {
 		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel & { products: Record<string, unknown> };
@@ -359,7 +357,6 @@ describe("shu-affordances-panel", () => {
 	});
 
 	it("takes the run its snapshot names as the run the page reads, where a fact's step opens, and refuses one naming no run", () => {
-		resetExecutions();
 		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel & { products: Record<string, unknown> };
 		document.body.appendChild(panel);
 		panel.products = { execution: EXECUTION, forward: [], goals: [] };

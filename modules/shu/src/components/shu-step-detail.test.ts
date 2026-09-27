@@ -9,21 +9,20 @@ import "./shu-step-detail.js"; // side-effect import so the module runs (registr
 import { ShuStepDetail, stepRecordId } from "./shu-step-detail.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
-import { setConduit, LiveConduit, resetConduit } from "../hypermedia.js";
-import { setEventStream, SerializedEventStream, resetEventStream } from "../event-stream.js";
+import { setConduit, LiveConduit } from "../hypermedia.js";
+import { setEventStream, SerializedEventStream } from "../event-stream.js";
 import { setGraphStore } from "../quads-snapshot.js";
 import { setSiteMetadata, type SiteMetadata } from "../rels-cache.js";
-import { noteExecution, resetExecutions } from "../client-cache/index.js";
+import { noteExecution } from "../client-cache/index.js";
 import { rpcAnswer } from "@haibun/core/lib/test/rpc-answer.js";
+import { endPage } from "../page-pinned.js";
 
 const EXECUTION = "1700000000000-1";
 
 describe("shu-step-detail", () => {
 	beforeEach(async () => {
+		endPage();
 		document.body.innerHTML = "";
-		resetConduit();
-		resetEventStream();
-		resetExecutions();
 		setConduit(new LiveConduit(""));
 		setEventStream(new SerializedEventStream());
 		if (!customElements.get("shu-step-detail")) customElements.define("shu-step-detail", ShuStepDetail);

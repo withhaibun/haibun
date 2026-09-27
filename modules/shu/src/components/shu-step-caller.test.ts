@@ -14,15 +14,15 @@ import { StepCaller } from "./shu-step-caller.js";
  *      rejection (the original crash this test was added for).
  */
 
-import { setConduit, LiveConduit, resetConduit } from "../hypermedia.js";
-import { setEventStream, SerializedEventStream, resetEventStream } from "../event-stream.js";
+import { setConduit, LiveConduit } from "../hypermedia.js";
+import { setEventStream, SerializedEventStream } from "../event-stream.js";
 import { rpcAnswer } from "@haibun/core/lib/test/rpc-answer.js";
+import { endPage } from "../page-pinned.js";
 
 describe("shu-step-caller", () => {
 	beforeEach(() => {
+		endPage();
 		document.body.innerHTML = "";
-		resetConduit();
-		resetEventStream();
 		// LiveConduit goes through the stubbed `fetch` set in each test; SerializedEventStream stands in for the SSE source.
 		setConduit(new LiveConduit(""));
 		setEventStream(new SerializedEventStream());

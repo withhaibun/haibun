@@ -47,9 +47,6 @@ export function actionOKWithProducts(products: Record<string, unknown>, w?: { ar
 }
 
 let artifactCounter = 0;
-export function resetArtifactCounter(): void {
-	artifactCounter = 0;
-}
 export function jsonArtifact(json: Record<string, unknown>): TJsonArtifact {
 	return {
 		kind: "artifact",

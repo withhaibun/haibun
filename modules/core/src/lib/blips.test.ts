@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { z } from "zod";
-import { declareBlips, blipDeclarations, resetBlips, BlipRollup } from "./blips.js";
+import { declareBlips, blipDeclarations, BlipRollup } from "./blips.js";
 import { recordBlip } from "./record-blip.js";
 import { EventLogger } from "./EventLogger.js";
 import type { THaibunEvent } from "../schema/protocol.js";
@@ -22,8 +22,6 @@ const SCROLL = {
 };
 
 describe("blips: fine-grained occurrences, never retained", () => {
-	beforeEach(resetBlips);
-
 	it("does nothing when nothing is subscribed to the kind: a hot path can record unconditionally", () => {
 		declareBlips(SCROLL);
 		const { world, eventLogger } = make();
@@ -165,8 +163,6 @@ describe("blips: fine-grained occurrences, never retained", () => {
 
 describe("blip rollup: the aggregating listener", () => {
 	const HTTP = { name: "haibun.test.http.request", instrument: "span-event" as const, description: "An observed request completed." };
-
-	beforeEach(resetBlips);
 
 	it("counts occurrences per name while attached, in observation-source shape", () => {
 		declareBlips(SCROLL, HTTP);

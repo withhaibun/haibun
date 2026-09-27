@@ -207,8 +207,3 @@ export function deviceStore(): DeviceStore {
 export function setDeviceStore(store: DeviceStore): void {
 	slot().store = store;
 }
-
-/** Test-only: open the database again on the next read. */
-export function resetDeviceStoreIdb(): void {
-	dbPromise = null;
-}

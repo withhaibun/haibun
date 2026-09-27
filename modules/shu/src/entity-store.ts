@@ -6,6 +6,7 @@ import { subscribeBatchedEvents, hasEventStream } from "./event-stream.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { reportToRun } from "./client-log.js";
 import { callStep } from "./pane-fetch.js";
+import { pagePinned } from "./page-pinned.js";
 import { appAccessLevel } from "./util.js";
 import { readIndividual } from "./quads-snapshot.js";
 import { resolveAnnotationsLive, resolveAnnotationsOffline, type AnnotationView } from "./annotation-resolver.js";
@@ -47,12 +48,11 @@ type Store = {
 const STORE_KEY = "__SHU_ENTITY_STORE__";
 
 function getStore(): Store {
-	const g = globalThis as unknown as Record<string, Store | undefined>;
-	const existing = g[STORE_KEY];
-	if (existing) return existing;
-	const fresh: Store = { entries: new Map(), listeners: new Set(), unsubscribe: null };
-	g[STORE_KEY] = fresh;
-	return fresh;
+	return pagePinned(
+		STORE_KEY,
+		(): Store => ({ entries: new Map(), listeners: new Set(), unsubscribe: null }),
+		(store) => store.unsubscribe?.(),
+	);
 }
 
 // NUL can't occur in a label or id, so it never collides two keys (a label may contain a space; a separator that can
@@ -200,13 +200,4 @@ export function subscribeEntities(listener: EntityListener): () => void {
 	const s = getStore();
 	s.listeners.add(listener);
 	return () => s.listeners.delete(listener);
-}
-
-/** Test-only teardown. */
-export function resetEntityStore(): void {
-	const s = getStore();
-	s.unsubscribe?.();
-	s.entries.clear();
-	s.listeners.clear();
-	s.unsubscribe = null;
 }

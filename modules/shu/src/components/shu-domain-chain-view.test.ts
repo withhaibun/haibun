@@ -5,7 +5,7 @@
  * Must reach a terminal display state: the chain drawn by the site's graph presenter when products are supplied, or an
  * actionable empty-state message. A spinner that never disappears is a bug.
  */
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { ShuDomainChainView } from "./shu-domain-chain-view.js";
 import * as ViewHash from "../view-hash.js";
 import { AFFORDANCE_PARAM } from "../consts.js";
@@ -14,9 +14,9 @@ import { SHU_TEST_IDS } from "../test-ids.js";
 import { LINT_FINDING } from "@haibun/core/lib/domain-chain-lint.js";
 import { DOMAIN_STRING } from "@haibun/core/lib/domains.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
-import { readingExecution, resetExecutions } from "../client-cache/executions.js";
+import { readingExecution } from "../client-cache/executions.js";
 import { declareFakeGraphPresenter, mountedPresenter } from "../graph-presenter.test-fake.js";
-import { setupShuTest } from "../test-setup.js";
+import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
 import { NODE_KIND, type TGraphNode } from "../graph/types.js";
 
 /** The run a snapshot says its facts are of. */
@@ -43,9 +43,11 @@ const mount = (): ShuDomainChainView => {
 const chainNode = (node: Partial<TGraphNode> & { id: string }): TGraphNode => ({ label: node.id, ...node });
 
 describe("shu-domain-chain-view", () => {
+	let handle: TShuTestHandle;
+	afterEach(() => handle.teardown());
 	beforeEach(() => {
 		document.body.innerHTML = "";
-		setupShuTest();
+		handle = setupShuTest();
 		// Clear the deep link left over from previous tests so each one starts clean: it lives in the view hash, which
 		// is module state rather than the document's.
 		clearDeepLink();
@@ -128,7 +130,6 @@ describe("shu-domain-chain-view", () => {
 	});
 
 	it("takes the run it names as the run the page reads, where a fact's step opens, and refuses one naming no run", () => {
-		resetExecutions();
 		const view = mount();
 		view.products = mkSnap(1);
 		expect(readingExecution()).toBe(EXECUTION);
