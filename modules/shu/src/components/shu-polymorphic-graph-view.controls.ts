@@ -166,6 +166,9 @@ const GraphSnapshotSchema = FramingSchema.extend({
 	connectedInFront: z.boolean(),
 	/** Whether a focus lights some edges and dims others. */
 	focusDimsEdges: z.boolean(),
+	/** The types with a node drawn lit, and the types with a node drawn below lit, as a type preview or a focus leaves them. */
+	litTypes: z.array(z.string()),
+	dimTypes: z.array(z.string()),
 	/** Whether a layered view's ranks advance along its flow axis in disjoint bands that span more than the depth time adds; null in another view. */
 	rankedFlow: z.boolean().nullable(),
 	/** In a lane view, the nodes it doesn't draw on its plane where it placed them; null in another view. */
@@ -307,6 +310,8 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			timeDepth: range(sample.filter((n) => n.t != null).map((n) => placed(n).z)),
 			connectedInFront: connectedInFront(sample),
 			focusDimsEdges: edgeOpacities.some(isLit) && edgeOpacities.some(isDim),
+			litTypes: [...new Set(sample.filter((n) => isLit(n.opacity)).map((n) => n.type))],
+			dimTypes: [...new Set(sample.filter((n) => !isLit(n.opacity)).map((n) => n.type))],
 			rankedFlow: layered ? readsAsRankedFlow(layered) : null,
 			offLanePlane: offLanePlane(state),
 			facesLanePlane: !!camera && Math.abs(camera.x) > Math.abs(camera.z),
@@ -609,19 +614,6 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				return actionOK();
 			},
 		},
-		toggleGraphFollow: {
-			// The head's follow toggle, pressed as a person presses it. While on, the camera keeps the active (selected)
-			// node centred and readable through selection changes and re-layouts.
-			gwta: "toggle graph follow",
-			action: async () => {
-				const button = (await this.page()).getByTestId(POLYMORPHIC_IDS.FOLLOW);
-				const was = (await button.getAttribute(ARIA_PRESSED)) === PRESSED;
-				await button.click();
-				const now = (await button.getAttribute(ARIA_PRESSED)) === PRESSED;
-				if (now === was) return actionNotOK(`the follow toggle did not change state (aria-pressed stays ${now})`);
-				return actionOK();
-			},
-		},
 		untickGraphProperties: {
 			// Un-tick predicate chips in the filter's properties group: those edges leave the model, so every medium
 			// (the 3D view, the sequence, the still, the accessible document) draws the same reduced edge set.
@@ -631,16 +623,6 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		tickGraphProperties: {
 			gwta: `tick graph properties {predicates: ${DOMAIN_GRAPH_PREDICATES}}`,
 			action: ({ predicates }: { predicates: string[] }) => this.setFilterChips(CHIP_FACET.predicates, predicates, true),
-		},
-		toggleGraphPrune: {
-			// The head's prune toggle: nodes without a visible edge leave the model, in every medium.
-			gwta: "toggle graph prune",
-			action: async () => {
-				const page = await this.page();
-				await page.getByTestId(POLYMORPHIC_IDS.PRUNE).click();
-				await this.settle(page);
-				return actionOK();
-			},
 		},
 		graphCentresActive: {
 			// Follow's observable contract: the named node is the active node, and it projects inside the central half of the canvas.
@@ -1275,15 +1257,6 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				return actionOKWithProducts({ path: saved.baseRelativePath, nodes });
 			},
 		},
-		toggleGraphReading: {
-			// The head's reading toggle: it holds the accessible document open for everyone, not only for a keyboard
-			// reader who tabs into it.
-			gwta: "toggle graph reading",
-			action: async () => {
-				await (await this.page()).getByTestId(POLYMORPHIC_IDS.READ).click();
-				return actionOK();
-			},
-		},
 		graphReadingShown: {
 			// Shown means SHOWN, not merely present: the region is clipped to a pixel until it is opened, so this reads
 			// its rendered size rather than its markup. It reads the painted background too: the guide lies over the
@@ -1442,18 +1415,6 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			gwta: "clear the graph type preview",
 			action: async () => {
 				await this.dispatchPreview(await this.page(), null);
-				return actionOK();
-			},
-		},
-		graphShowsOnlyTypeFull: {
-			// The previewed type is full-opacity and every other type is dim: the preview overriding any focus dimming.
-			gwta: `only graph type {type: ${DOMAIN_PERSISTED_TYPE}} is shown full`,
-			action: async ({ type }: { type: string }) => {
-				const { sample } = await this.state(await this.page());
-				const dimOfType = sample.filter((n) => n.type === type && !isLit(n.opacity)).length;
-				const litOffType = sample.filter((n) => n.type !== type && isLit(n.opacity)).length;
-				if (dimOfType) return actionNotOK(`${dimOfType} ${type} node(s) are dim: the preview did not light its own type`);
-				if (litOffType) return actionNotOK(`${litOffType} non-${type} node(s) are still full: the preview did not dim the rest`);
 				return actionOK();
 			},
 		},
