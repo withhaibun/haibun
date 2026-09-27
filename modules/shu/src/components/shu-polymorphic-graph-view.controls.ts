@@ -30,7 +30,7 @@ import type { TActionResult } from "@haibun/core/schema/protocol.js";
 import { saveImageArtifact } from "@haibun/domain-storage/image-artifact.js";
 import type { Locator, Page } from "playwright";
 import { objectId } from "../object-id.js";
-import { VIEW, VIEW_TYPES } from "../graph/polymorphic/polymorphic-views.js";
+import { VIEW, VIEW_TYPES, isLaneView } from "../graph/polymorphic/polymorphic-views.js";
 import { MEASURE_UNIT, PAN_DIRECTION, ZOOM_DIRECTION, type TMeasureUnit, type TPanDirection, type TZoomDirection } from "../graph/polymorphic/polymorphic-camera.js";
 import type { ShuGraphScene, TGraphState } from "../graph/polymorphic/polymorphic-scene.js";
 import { SETTINGS_GROUP, type TSettingsGroup } from "./view-head.js";
@@ -160,6 +160,23 @@ const GraphSnapshotSchema = FramingSchema.extend({
 	packing: z.number().nullable(),
 	/** The lesser of the ranges the placed nodes span on x and on y. */
 	extent: z.number(),
+	/** The range of depth the nodes with a time span. */
+	timeDepth: z.number(),
+	/** Whether the most connected node is drawn in front of the least connected one. */
+	connectedInFront: z.boolean(),
+	/** Whether a focus lights some edges and dims others. */
+	focusDimsEdges: z.boolean(),
+	/** Whether a layered view's ranks advance along its flow axis in disjoint bands that span more than the depth time adds; null in another view. */
+	rankedFlow: z.boolean().nullable(),
+	/** In a lane view, the nodes it doesn't draw on its plane where it placed them; null in another view. */
+	offLanePlane: z.array(z.string()).nullable(),
+	/** Whether the camera aims along x, where a lane view's time reads across the view. */
+	facesLanePlane: z.boolean(),
+	/** How many tasks the gantt calendar places, 0 in another view. */
+	ganttTasks: z.number(),
+	/** The sequence's actors by label, and its messages, each as "from → to: label"; empty in another view. */
+	actors: z.array(z.string()),
+	messages: z.array(z.string()),
 });
 const DOMAIN_GRAPH_NODE = "graph-node";
 const DOMAIN_GRAPH_PREDICATES = "graph-predicates";
@@ -268,11 +285,12 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	/** The graph as `snapshot the graph` records it: its framing and what it draws. */
 	private async snapshot(page: Page): Promise<Snapshot> {
 		const state = await this.state(page);
-		const { focus, highlighted, follow, onScreen, sample, edges, enclosures } = state;
+		const { focus, highlighted, follow, onScreen, sample, edges, enclosures, layered, camera, gantt, sequence } = state;
 		const drawn = await this.view(page).evaluate((view: ShuPolymorphicGraphView) => [...(view.nodeMap?.keys() ?? [])]);
 		const linked = new Set(edges.flatMap((e) => [e.s, e.t]));
 		const lit = sample.filter((n) => isLit(n.opacity)).length;
 		const dim = sample.filter((n) => isDim(n.opacity)).length;
+		const edgeOpacities = edges.flatMap((e) => (e.lineOpacity == null ? [] : [e.lineOpacity]));
 		return {
 			...framingOf(state),
 			active: focus.selected,
@@ -286,6 +304,15 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			overlapping: overlappingPairs(enclosures),
 			packing: enclosures.length < 2 ? null : packingOf(enclosures),
 			extent: Math.min(range(sample.map((n) => placed(n).x)), range(sample.map((n) => placed(n).y))),
+			timeDepth: range(sample.filter((n) => n.t != null).map((n) => placed(n).z)),
+			connectedInFront: connectedInFront(sample),
+			focusDimsEdges: edgeOpacities.some(isLit) && edgeOpacities.some(isDim),
+			rankedFlow: layered ? readsAsRankedFlow(layered) : null,
+			offLanePlane: offLanePlane(state),
+			facesLanePlane: !!camera && Math.abs(camera.x) > Math.abs(camera.z),
+			ganttTasks: gantt?.count ?? 0,
+			actors: (sequence?.actors ?? []).map((a) => a.label),
+			messages: (sequence?.messages ?? []).map((m) => `${m.from} → ${m.to}: ${m.label}`),
 		};
 	}
 
@@ -995,66 +1022,6 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				return actionOK();
 			},
 		},
-		graphPlacesGanttTasks: {
-			// The gantt calendar places one task per subject carrying a start-kind time (an interval when it also carries an
-			// end, a point milestone otherwise). Asserted from inspect().gantt: the same cached scale/targets the ruler and
-			// bar placement read, so a passing count means the calendar laid out.
-			gwta: `graph places at least {count: ${DOMAIN_NUMBER}} gantt tasks`,
-			action: async ({ count }: { count: number }) => {
-				const page = await this.page();
-				await this.settle(page);
-				const gantt = (await this.state(page)).gantt;
-				if (!gantt) return actionNotOK("the calendar didn't lay out a gantt task");
-				if (gantt.count < count) return actionNotOK(`only ${gantt.count} gantt task(s) placed (${gantt.from} → ${gantt.to}), expected at least ${count}`);
-				return actionOK();
-			},
-		},
-		graphCameraFacesLanePlane: {
-			// The lane views aim the camera along +x so time lies horizontal, asserted from the camera position itself:
-			// the x offset dominates depth. A gantt that "switched" without re-aiming leaves the camera on the force frame.
-			gwta: "graph camera faces the lane plane",
-			action: async () => {
-				const page = await this.page();
-				await this.settle(page);
-				// The lane reframe applies on the settle that has the placed bars; wait for the x-dominant aim rather than
-				// reading once, so a settle observed a beat before the reframe applies does not read the prior framing.
-				const aimed = await this.comesToHold(
-					page,
-					({ el }) => {
-						const c = el.inspect()?.camera;
-						return !!c && Math.abs(c.x) > Math.abs(c.z);
-					},
-					null,
-					STATE_MS,
-				);
-				if (aimed) return actionOK();
-				const cam = (await this.state(page)).camera;
-				return actionNotOK(`camera is not on the lane-plane aim (x ${Math.round(cam?.x ?? 0)}, z ${Math.round(cam?.z ?? 0)})`);
-			},
-		},
-		graphPlacesOnLanePlane: {
-			// A lane view (gantt, sequence) draws on ONE plane and the camera faces it, so every node it shows must sit on
-			// that plane: a node left off it is scattered by perspective: the same lane and time, a different place on
-			// screen. Reads the drawn positions, since the pin is what the layout applied.
-			gwta: "graph places every node on the lane plane",
-			action: async () => {
-				const page = await this.page();
-				await this.settle(page);
-				const { sample, sequence } = await this.state(page);
-				const drawn = new Map(sample.map((n) => [n.id, n]));
-				const wrong: string[] = [];
-				for (const n of sample) if (Math.abs(placed(n).x) > 1) wrong.push(`${n.id} off the plane at x=${placed(n).x.toFixed(0)}`);
-				// The placement the view computed IS where the node must be drawn; a gap means the layout never applied it.
-				for (const p of sequence?.nodes ?? []) {
-					const d = drawn.get(p.id);
-					if (!d) continue;
-					const at = placed(d);
-					if (Math.abs(at.y - p.y) > 1 || Math.abs(at.z - p.z) > 1)
-						wrong.push(`${p.id} drawn at (${at.y.toFixed(0)},${at.z.toFixed(0)}) but placed at (${p.y.toFixed(0)},${p.z.toFixed(0)})`);
-				}
-				return wrong.length === 0 ? actionOK() : actionNotOK(`${wrong.length} node(s) are not where the view placed them: ${wrong.slice(0, 5).join("; ")}`);
-			},
-		},
 		graphRevealsActors: {
 			// Choosing the sequence shows the types its bars are drawn from: a hidden actor type would leave the exchange
 			// with nobody in it. Hides whatever types the actors belong to, leaves the view and comes back, and asks the
@@ -1076,19 +1043,6 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const chips = await this.chipStates(page);
 				const left = actorTypes.filter((t) => chips.find((c) => c.label.startsWith(t))?.checked !== true);
 				return left.length === 0 ? actionOK() : actionNotOK(`the sequence left ${left.join(", ")} hidden, so its bars have nobody to draw`);
-			},
-		},
-		graphFormsSequenceActors: {
-			// The 3D sequence view derives one ACTOR per distinct participant (the merged role) from the graph: no hand-
-			// applied labels. Assert at least {count} actors formed in inspect().sequence, the ground truth the lifelines
-			// are drawn from (the lifeline pillars themselves are a 3D overlay, asserted via the lane placement below).
-			gwta: `graph shows at least {count: ${DOMAIN_NUMBER}} sequence actors`,
-			action: async ({ count }: { count: number }) => {
-				const page = await this.page();
-				await this.settle(page);
-				const actors = (await this.state(page)).sequence?.actors ?? [];
-				if (actors.length < count) return actionNotOK(`only ${actors.length} sequence actor(s) formed [${actors.map((a) => a.label).join(", ")}], expected at least ${count}`);
-				return actionOK();
 			},
 		},
 		settingsHoldEveryOption: {
@@ -1216,19 +1170,6 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				);
 			},
 		},
-		sequenceHasMessages: {
-			// The sequence's messages are the cross-participant edges, time-ordered. Assert at least {count} messages
-			// formed in inspect().sequence: the ground truth the message arrows between lifelines are drawn from.
-			gwta: `graph shows at least {count: ${DOMAIN_NUMBER}} sequence messages`,
-			action: async ({ count }: { count: number }) => {
-				const page = await this.page();
-				await this.settle(page);
-				const messages = (await this.state(page)).sequence?.messages ?? [];
-				if (messages.length < count)
-					return actionNotOK(`only ${messages.length} sequence message(s) formed [${messages.map((m) => `${m.from}→${m.to}:${m.label}`).join("; ")}], expected at least ${count}`);
-				return actionOK();
-			},
-		},
 		saveGraphScene: {
 			// Save the way the graph is currently set up under a name, through the production control (the settings' name
 			// field + save button), the same path a reader takes, so the write goes through the app's own step RPC.
@@ -1328,47 +1269,6 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				return actionOK();
 			},
 		},
-		graphReadsAsLayeredFlow: {
-			// The td/lr layered ground truth: bucket nodes by their pinned target rank (the flow-axis target) and assert the
-			// flow reads cleanly, successive ranks ADVANCE along the flow axis (td: down y, lr: along x), their bands are
-			// DISJOINT (no rank overlaps the next), and the rank axis is not DWARFED by the recorded-time depth (else each
-			// rank smears front-to-back into a 3D cloud rather than reading as a hierarchy).
-			gwta: "graph reads as a clear layered flow",
-			action: async () => {
-				const page = await this.page();
-				await this.settle(page);
-				const L = (await this.state(page)).layered;
-				if (!L) return actionNotOK("the view is not a layered (td/lr) view");
-				const flowT = (n: { tx: number; ty: number }): number => (L.flowAxis === "y" ? n.ty : n.tx);
-				const flowR = (n: { x: number; y: number }): number => (L.flowAxis === "y" ? n.y : n.x);
-				const layers = new Map<number, number[]>();
-				for (const n of L.nodes) {
-					const k = Math.round(flowT(n));
-					const b = layers.get(k);
-					if (b) b.push(flowR(n));
-					else layers.set(k, [flowR(n)]);
-				}
-				const bands = [...layers.entries()]
-					.sort((a, b) => a[0] - b[0])
-					.map(([k, vs]) => ({ k, mean: vs.reduce((s, v) => s + v, 0) / vs.length, min: Math.min(...vs), max: Math.max(...vs) }));
-				if (bands.length < 2) return actionNotOK(`only ${bands.length} rank(s): the DAG did not stratify into a flow (nodes=${L.nodes.length})`);
-				for (let j = 1; j < bands.length; j++) {
-					if (bands[j].mean <= bands[j - 1].mean) return actionNotOK(`ranks not ordered along ${L.flowAxis}: means [${bands.map((b) => b.mean.toFixed(0)).join(", ")}]`);
-					if (bands[j].min <= bands[j - 1].max)
-						return actionNotOK(
-							`ranks ${j - 1},${j} overlap on ${L.flowAxis}: the flow is blurred, not banded: [..${bands[j - 1].max.toFixed(0)}] vs [${bands[j].min.toFixed(0)}..]`,
-						);
-				}
-				const span = (sel: (n: { x: number; y: number; z: number }) => number): number => range(L.nodes.map(sel));
-				const flowExt = span(flowR);
-				const zExt = span((n) => n.z);
-				if (flowExt < zExt)
-					return actionNotOK(
-						`the rank axis spans only ${flowExt.toFixed(0)} but the time-depth spans ${zExt.toFixed(0)}: the hierarchy is dwarfed by depth and won't read as a flow`,
-					);
-				return actionOK();
-			},
-		},
 		saveGraphStill: {
 			// The graph as a self-contained SVG, saved as an artifact the way a screenshot is: it rides the artifact
 			// stream into the run's report, and stands alone as an image. The markup comes from the view's still():
@@ -1453,16 +1353,6 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				return actionOK();
 			},
 		},
-		graphDepthEncodesTime: {
-			gwta: "graph depth encodes time",
-			action: async () => {
-				// z is the time axis: older nodes sit at a different depth, so across a time-spread fixture z must vary.
-				const timed = (await this.state(await this.page())).sample.filter((n) => n.t != null);
-				if (timed.length < 2) return actionNotOK("not enough timed nodes to judge the depth axis");
-				const zRange = range(timed.map((n) => placed(n).z));
-				return zRange > 1 ? actionOK() : actionNotOK(`node depth (z) does not vary with time (z range ${zRange.toFixed(2)})`);
-			},
-		},
 		placeGraphDepthBy: {
 			// Switch what the depth (z) axis encodes via the production select (the view-settings z basis), then wait for
 			// the relayout. One step for every basis so a feature can flip time ↔ connections and prove the depth re-places.
@@ -1503,33 +1393,6 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const stuck = Object.keys(named).filter((id) => back[id] !== named[id]);
 				if (stuck.length > 0) return actionNotOK(`${stuck.length} chip(s) did not go back to their name (e.g. "${back[stuck[0]]}" for "${named[stuck[0]]}")`);
 				return actionOK();
-			},
-		},
-		graphDepthEncodesConnections: {
-			gwta: "graph depth encodes connections",
-			action: async () => {
-				// Under the connections basis, a node's depth is its degree: a MORE-connected node sits toward the front
-				// (smaller z), a less-connected one recedes. Across a fixture with varied degree the front/back order must hold.
-				const byDegree = (await this.state(await this.page())).sample
-					.flatMap((n) => (n.degree == null ? [] : [{ degree: n.degree, z: placed(n).z }]))
-					.sort((a, b) => a.degree - b.degree);
-				if (byDegree.length < 2) return actionNotOK("not enough nodes with a degree to judge the depth axis");
-				const low = byDegree[0];
-				const high = byDegree[byDegree.length - 1];
-				if (high.degree === low.degree) return actionNotOK("every node has the same degree: the fixture can't exercise connection depth");
-				return high.z < low.z
-					? actionOK()
-					: actionNotOK(`more connections should sit shallower: degree ${high.degree} at z=${high.z.toFixed(1)} vs degree ${low.degree} at z=${low.z.toFixed(1)}`);
-			},
-		},
-		focusedEdgesBright: {
-			gwta: "focused edges are brighter than the rest",
-			action: async () => {
-				const opacities = (await this.state(await this.page())).edges.flatMap((e) => (e.lineOpacity == null ? [] : [e.lineOpacity]));
-				if (opacities.length < 2) return actionNotOK("not enough edges to compare");
-				const bright = opacities.filter(isLit).length;
-				const dim = opacities.filter(isDim).length;
-				return bright > 0 && dim > 0 ? actionOK() : actionNotOK(`edges not split into bright/dim under focus (bright ${bright}, dim ${dim}, of ${opacities.length})`);
 			},
 		},
 		graphNodePinned: {
@@ -1904,6 +1767,41 @@ function packingOf(boxes: TEnclosure[]): number {
 	const width = Math.max(...boxes.map((b) => b.x + b.sx / 2)) - Math.min(...boxes.map((b) => b.x - b.sx / 2));
 	const height = Math.max(...boxes.map((b) => b.y + b.sy / 2)) - Math.min(...boxes.map((b) => b.y - b.sy / 2));
 	return (width * height) / boxes.reduce((sum, b) => sum + b.sx * b.sy, 0);
+}
+
+/** Whether the most connected node is drawn in front of (at a smaller depth than) the least connected one. */
+function connectedInFront(sample: TSampled[]): boolean {
+	const byDegree = sample.flatMap((n) => (n.degree == null ? [] : [{ degree: n.degree, z: placed(n).z }])).sort((a, b) => a.degree - b.degree);
+	const least = byDegree[0];
+	const most = byDegree[byDegree.length - 1];
+	return !!least && most.degree > least.degree && most.z < least.z;
+}
+
+/** Whether a layered view reads as a flow: two or more ranks, each band's mean and its least value past the band before
+ *  along the flow axis, and the flow spanning at least the depth that time adds. */
+function readsAsRankedFlow({ flowAxis, nodes }: NonNullable<TGraphState["layered"]>): boolean {
+	const target = (n: { tx: number; ty: number }): number => Math.round(flowAxis === "y" ? n.ty : n.tx);
+	const along = (n: { x: number; y: number }): number => (flowAxis === "y" ? n.y : n.x);
+	const ranks = new Map<number, number[]>();
+	for (const n of nodes) ranks.set(target(n), [...(ranks.get(target(n)) ?? []), along(n)]);
+	const bands = [...ranks.entries()]
+		.sort((a, b) => a[0] - b[0])
+		.map(([, at]) => ({ mean: at.reduce((sum, v) => sum + v, 0) / at.length, least: Math.min(...at), most: Math.max(...at) }));
+	const advances = bands.every((band, j) => j === 0 || (band.mean > bands[j - 1].mean && band.least > bands[j - 1].most));
+	return bands.length >= 2 && advances && range(nodes.map(along)) >= range(nodes.map((n) => n.z));
+}
+
+/** In a lane view, the nodes not drawn on its plane (x = 0) or not drawn where the view placed them; null in another view. */
+function offLanePlane({ viewType, sample, sequence }: TGraphState): string[] | null {
+	if (!isLaneView(viewType)) return null;
+	const placement = new Map((sequence?.nodes ?? []).map((p) => [p.id, p]));
+	return sample
+		.filter((n) => {
+			const at = placed(n);
+			const p = placement.get(n.id);
+			return Math.abs(at.x) > 1 || (!!p && (Math.abs(at.y - p.y) > 1 || Math.abs(at.z - p.z) > 1));
+		})
+		.map((n) => n.id);
 }
 
 /** The graph's framing and where it placed each node, read from what it draws. */

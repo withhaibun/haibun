@@ -13,6 +13,10 @@ export const VIEW = {
 export const VIEW_TYPES = [VIEW.force, VIEW.td, VIEW.lr, VIEW.gantt, VIEW.sequence] as const;
 export type ViewType = (typeof VIEW_TYPES)[number];
 
+/** The views that draw every node on one lane plane with time along it: gantt and sequence. */
+const LANE_VIEWS: readonly ViewType[] = [VIEW.gantt, VIEW.sequence];
+export const isLaneView = (v: ViewType): boolean => LANE_VIEWS.includes(v);
+
 /** Display label per view type: the view tabs render the whole catalog from this, so every view is always offered. */
 export const VIEW_LABELS: Record<ViewType, string> = { force: "force 3D", td: "top-down", lr: "left-right", gantt: "gantt", sequence: "sequence" };
 

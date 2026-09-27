@@ -26,7 +26,7 @@ const NEWCOMER_SEED_SPREAD = 40; // a streamed node spawns within this radius of
 const TIME_DEPTH_MAX = 700; // depth range in world units, full span of the visible dates fills this. The auto-fit frames the 3D bounds, so more depth mostly backs the camera off (it reads as separation only up to ~the x/y layout spread) and pushes the deepest nodes small enough that the focus magnifier pops them harder: a moderate range. The sqrt scale (time-axis) does the real work of making long gaps read deeper than short ones.
 
 import type { ViewType } from "./polymorphic-views.js";
-import { VIEW } from "./polymorphic-views.js";
+import { VIEW, isLaneView } from "./polymorphic-views.js";
 import { LAYERED_Z_FACTOR } from "./layered-solver.js";
 import { truncateLabel } from "./layout-forces.js";
 import { gridSlot } from "./group-grid.js";
@@ -287,7 +287,7 @@ export class DataPipeline {
 			if (isSchemaType(n.type))
 				fgNode.z = 0; // schema is timeless: pinned to the front z=0 plane, off the sqrt-age axis (its t=0 would otherwise sink it to zMax)
 			else if (flatten) fgNode.z = 0;
-			else if (viewType === VIEW.gantt || viewType === VIEW.sequence) fgNode.z = this.deps.laneZ(n.id) ?? 0;
+			else if (isLaneView(viewType)) fgNode.z = this.deps.laneZ(n.id) ?? 0;
 			else if (viewType === VIEW.td || viewType === VIEW.lr) fgNode.z = depthZ * LAYERED_Z_FACTOR;
 			else fgNode.z = depthZ;
 			nextMap.set(n.id, fgNode);
