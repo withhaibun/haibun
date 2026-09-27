@@ -1,6 +1,6 @@
 import type { TExpandedFeature, TExpandedLine, TFeatures, TFeature } from "../lib/execution.js";
 import type { TWorld } from "../lib/world.js";
-import { TStepValue, FEATURE_START, SCENARIO_START } from "../schema/protocol.js";
+import { TStepValue, FEATURE_START, SCENARIO_START, UNRESOLVED } from "../schema/protocol.js";
 import { AStepper, TStepAction, TResolvedFeature, TStepperStep, TFeatureStep } from "../lib/astepper.js";
 import { matchGwtaToAction, getMatch } from "../lib/namedVars.js";
 import { getActionable, dePolite, constructorName, actionNotOK } from "../lib/util/index.js";
@@ -299,8 +299,7 @@ export function findFeatureStepsFromStatement(statement: string, steppers: AStep
 				in: x.line,
 				seqPath,
 				action: {
-					actionName: "error",
-					stepperName: "Resolver",
+					...UNRESOLVED,
 					step: {
 						action: async () => actionNotOK(e.message),
 					},

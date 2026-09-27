@@ -1,7 +1,7 @@
 import { AStepper, type TStepperStep, type TFeatureStep, type TStepAction, type TBeforeStep, type TAfterStep, type TAfterStepResult } from "./astepper.js";
 import type { TWorld } from "./world.js";
 import type { TActionResult, TStepResult } from "../schema/protocol.js";
-import { TRACE_SEQ_PATH, Timer, FEATURE_START, SCENARIO_START, stepLevel, SUBSTEP_LEVEL, LIFECYCLE_STATUS, type TStepEnd } from "../schema/protocol.js";
+import { TRACE_SEQ_PATH, Timer, FEATURE_START, SCENARIO_START, UNRESOLVED, stepLevel, SUBSTEP_LEVEL, LIFECYCLE_STATUS, type TStepEnd } from "../schema/protocol.js";
 import { streamContext } from "./step-stream-context.js";
 import type { TFeatureSteps } from "../schema/protocol.js";
 import { actionNotOK } from "./util/index.js";
@@ -108,6 +108,11 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 		await emitSeqPathStart(world, featureStep, {}, { ranVia: "local" });
 		await emitSeqPathEnd(world, featureStep, SEQ_PATH_STATUS.passed);
 		return stepResultFromActionResult({ ok: true }, action, start, Timer.since(), featureStep, true);
+	}
+
+	// A line that didn't resolve to a step fails with why, wherever it was to run, since a registry doesn't hold a step for it.
+	if (action.stepperName === UNRESOLVED.stepperName && action.actionName === UNRESOLVED.actionName) {
+		return pushAndReturn(stepResultFromActionResult(await action.step.action({}, featureStep), action, start, Timer.since(), featureStep, false));
 	}
 
 	const bareMethod = stepMethodName(action.stepperName, action.actionName);

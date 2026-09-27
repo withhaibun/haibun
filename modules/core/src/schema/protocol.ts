@@ -92,6 +92,8 @@ export const stepLevel = (isSubStep: boolean): THaibunLogLevel => (isSubStep ? S
 
 export const SCENARIO_START = "scenario";
 export const FEATURE_START = "feature";
+/** The step a line that doesn't resolve to a step stands as: running it fails with why the line didn't resolve. */
+export const UNRESOLVED = { stepperName: "Resolver", actionName: "error" } as const;
 
 /** How a run's own prose declares a feature and a scenario, which is how a reader of it reads their names back. */
 export const DECLARES = { feature: "Feature:", scenario: "Scenario:" } as const;

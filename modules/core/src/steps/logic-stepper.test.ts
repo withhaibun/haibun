@@ -315,3 +315,11 @@ some step observed in step usage is variable step/count is more than 0`,
 		expect(result.ok).toBe(false);
 	});
 });
+
+describe("a statement that doesn't resolve to a step", () => {
+	it("fails with why it didn't resolve, where it runs", async () => {
+		const content = ['set "outcome" from maybe this line resolves to no step', 'variable "outcome.outcome.ok" is "false"', 'matches outcome.outcome.errorMessage with "no step found for *"'].join("\n");
+		const result = await passWithDefaults([{ path: "/features/test.feature", content }], [LogicStepper, VariablesSteppers, Haibun]);
+		expect(result.ok).toBe(true);
+	});
+});
