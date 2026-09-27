@@ -3,8 +3,8 @@ import type { TWorld } from "../lib/world.js";
 import { TActionResult, OK, TDebugSignal } from "../schema/protocol.js";
 import { makePrompt } from "../lib/prompter.js";
 import { formatSeqPath } from "../lib/seq-path.js";
-import { actionOK, getStepperOption, stringOrError, constructorName, errorDetail } from "../lib/util/index.js";
-import { FlowRunner, heldRunner } from "../lib/core/flow-runner.js";
+import { actionOK, getStepperOption, stringOrError, errorDetail } from "../lib/util/index.js";
+import { FlowRunner } from "../lib/core/flow-runner.js";
 import { DOMAIN_STEPPER_NAME } from "../lib/domains.js";
 import { advanceSyntheticSeqPath, syntheticBranchSeqPath, syntheticSeqPathDirection } from "../phases/Executor.js";
 
@@ -58,7 +58,7 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 	debugSteppers: string[] = [];
 	private held?: FlowRunner;
 	get runner(): FlowRunner {
-		return heldRunner(this.held, constructorName(this));
+		return this.madeWithWorld(this.held, "flow runner");
 	}
 	pendingDebugResult: TAfterStepResult | undefined;
 

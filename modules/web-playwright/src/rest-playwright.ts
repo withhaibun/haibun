@@ -148,7 +148,7 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 			gwta: `for each filtered {property: ${DOMAIN_JSON_PROPERTY}}, make REST {method: ${DOMAIN_HTTP_METHOD_WITHOUT_BODY}} to {endpoint: ${DOMAIN_LINK}} yielding status {status: ${DOMAIN_NUMBER}}`,
 			action: async ({ property, method, endpoint, status }: { property: string; method: string; endpoint: string; status: number }) => {
 				const lastResponse = await webPlaywright.getLastResponse();
-				const { filtered } = lastResponse;
+				const filtered = lastResponse?.filtered;
 				if (!filtered) {
 					return actionNotOK(`No filtered response in ${lastResponse}`);
 				}

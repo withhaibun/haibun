@@ -8,12 +8,6 @@ import { nextSeqPath, syntheticSeqPathDirection } from "../../phases/Executor.js
 import { dispatchStep } from "../step-dispatch.js";
 import { runRegistry, type StepRegistry } from "../step-registry.js";
 
-/** The runner a stepper makes when its world is set, which a statement it runs before then doesn't have. */
-export function heldRunner(runner: FlowRunner | undefined, stepper: string): FlowRunner {
-	if (!runner) throw new Error(`${stepper} runs a statement once its world is set, and it isn't set`);
-	return runner;
-}
-
 export class FlowRunner {
 	private resolver: Resolver;
 

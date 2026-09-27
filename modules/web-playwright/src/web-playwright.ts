@@ -42,6 +42,7 @@ import { cycles } from "./cycles.js";
 import { interactionSteps } from "./interactionSteps.js";
 import { CapturedResponseSchema, restSteps, type TCapturedResponse, type TJsonResponse } from "./rest-playwright.js";
 import { fromJsonText } from "@haibun/core/lib/json-text.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { TwinPage } from "./twin-page.js";
 import { WEBSERVER, type IWebServer } from "@haibun/web-server-hono/defs.js";
 import { BrowserRelay } from "./relay/cdpRelay.js";
@@ -71,7 +72,9 @@ type TRequestOptions = {
 };
 
 /** Callback function type for withPage - takes Page or Locator and returns TReturn */
-type TWithPageCallback<TReturn> = (pageOrLocator: Page | Locator) => TReturn | Promise<TReturn>;
+/** Where a step finds elements: within the container `in {container}, {what}` names, or on the page. */
+export type TPageScope = Page | Locator;
+type TWithPageCallback<TReturn> = (page: Page) => TReturn | Promise<TReturn>;
 
 export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	private static readonly DOM_READY_TIMEOUT_MS = 1900;
@@ -148,17 +151,22 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			parse: (input: string) => stringOrError(input),
 		},
 	};
-	hasFactory = false;
 	bf?: BrowserFactory;
-	storage?: AStorage;
-	factoryOptions?: TTaggedBrowserFactoryOptions;
+	#storage?: AStorage;
+	#factoryOptions?: TTaggedBrowserFactoryOptions;
+	get storage(): AStorage {
+		return this.madeWithWorld(this.#storage, "storage");
+	}
+	get factoryOptions(): TTaggedBrowserFactoryOptions {
+		return this.madeWithWorld(this.#factoryOptions, "browser options");
+	}
 	tab = 0;
 	/** The relay a person's browser attaches through, where the run serves one. */
 	relay?: BrowserRelay;
 	/** The extension the browser the run launches loads, and what its manifest declares it runs. */
 	extension?: TLoadedExtension;
 	downloaded: string[] = [];
-	captureVideo: boolean;
+	captureVideo = false;
 	closers: Array<() => void> = [];
 	/** Uncaught browser exceptions (page `pageerror`) seen since the current feature started. The afterStep
 	 *  cycle fails the step one occurred during, so a browser-side throw surfaces as a real failure instead of
@@ -172,20 +180,20 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	/** The last action queued on each page. */
 	#queues = new WeakMap<Page, Promise<unknown>>();
 
-	twin: boolean;
+	twin = false;
 	twinPage?: TwinPage;
-	apiUserAgent: string;
+	apiUserAgent?: string;
 	extraHTTPHeaders: { [name: string]: string } = {};
-	expectedDownload: Promise<Download>;
-	headless: boolean;
-	inContainer: Locator;
+	expectedDownload?: Promise<Download>;
+	headless = true;
+	inContainer?: Locator;
 	private videoStartEmitted = false;
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
 
 		const args = [...(getStepperOption(this, "ARGS", world.moduleOptions)?.split(";") || "")]; //'--disable-gpu'
-		this.storage = findStepperFromOptionOrKind(steppers, this, world.moduleOptions, StepperKinds.STORAGE);
+		this.#storage = findStepperFromOptionOrKind(steppers, this, world.moduleOptions, StepperKinds.STORAGE);
 		this.headless = !!process.env.CI || getStepperOption(this, "HEADLESS", world.moduleOptions) !== "false";
 		const devtools = getStepperOption(this, "DEVTOOLS", world.moduleOptions) === "true";
 		if (devtools) {
@@ -193,7 +201,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		}
 		this.twin = getStepperOption(this, "TWIN", world.moduleOptions) === "true";
 		const persistentDirectory = getStepperOption(this, WebPlaywright.PERSISTENT_DIRECTORY, world.moduleOptions);
-		const defaultTimeout = parseInt(getStepperOption(this, "TIMEOUT", world.moduleOptions)) || 30000;
+		const defaultTimeout = parseInt(getStepperOption(this, "TIMEOUT", world.moduleOptions) ?? "", 10) || 30000;
 		this.captureVideo = getStepperOption(this, "CAPTURE_VIDEO", world.moduleOptions) === "true";
 		let recordVideo;
 		if (this.captureVideo) {
@@ -207,7 +215,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			args,
 			devtools,
 		};
-		this.factoryOptions = {
+		this.#factoryOptions = {
 			options: { recordVideo },
 			browserType: BROWSERS.chromium,
 			launchOptions,
@@ -216,16 +224,13 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		};
 	}
 	async getCaptureDir(type = "") {
-		const loc = { ...this.world, mediaType: EMediaTypes.video };
+		const loc = { ...this.getWorld(), mediaType: EMediaTypes.video };
 		const dir = await this.storage.ensureCaptureLocation(loc, type);
 		return dir;
 	}
 
 	async getBrowserFactory(): Promise<BrowserFactory> {
-		if (!this.hasFactory) {
-			this.bf = await BrowserFactory.getBrowserFactory(this.getWorld(), this.factoryOptions);
-			this.hasFactory = true;
-		}
+		this.bf ??= BrowserFactory.getBrowserFactory(this.getWorld(), this.factoryOptions);
 		return this.bf;
 	}
 
@@ -238,7 +243,8 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		const world = this.getWorld();
 		const { tag } = world;
 		const isFirstPage = !this.bf?.hasPage(tag, this.tab);
-		const page = await (await this.getBrowserFactory()).getBrowserContextPage(tag, this.tab);
+		const bf = await this.getBrowserFactory();
+		const page = await bf.getBrowserContextPage(tag, this.tab);
 
 		// Emit VideoStartArtifact when video capture starts (first page creation)
 		if (this.captureVideo && isFirstPage && !this.videoStartEmitted) {
@@ -265,17 +271,17 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			page.on("popup", async (popup: Page) => {
 				await popup.waitForLoadState();
 				this.newTab();
-				this.bf.registerPopup(tag, this.tab, popup);
+				bf.registerPopup(tag, this.tab, popup);
 			});
 			// An adopted page's errors are its owner's browsing, not the run's.
-			if (!this.bf.isAdopted(page)) page.on("pageerror", (err: Error) => this.browserErrors.push(err?.message ?? String(err)));
+			if (!bf.isAdopted(page)) page.on("pageerror", (err: Error) => this.browserErrors.push(err?.message ?? String(err)));
 		}
 		return page;
 	}
 
 	/** Runs one action on the page, after any action another caller is running on it: every caller of a running
 	 *  instance shares its page. An action nested in another, such as the steps `in {container}, {what}` runs, holds
-	 *  the page already and runs at once. */
+	 *  the page already and runs at once. Within a container, the page is the container's page. */
 	async withPage<TReturn>(f: TWithPageCallback<TReturn>): Promise<TReturn> {
 		const page = this.inContainer ? this.inContainer.page() : await this.getPage();
 		const held = this.#holding.getStore();
@@ -288,9 +294,14 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		return await turn;
 	}
 
+	/** Runs one action where a step finds elements, as `withPage` runs one on the page. */
+	async withScope<TReturn>(f: (scope: TPageScope) => TReturn | Promise<TReturn>): Promise<TReturn> {
+		return await this.withPage((page) => f(this.inContainer ?? page));
+	}
+
 	async #act<TReturn>(page: Page, f: TWithPageCallback<TReturn>): Promise<TReturn> {
 		if (!this.inContainer && this.twinPage) await this.twinPage.patchPage(page);
-		return await f(this.inContainer || page);
+		return await f(page);
 	}
 
 	async sees(text: string, selector: string) {
@@ -315,7 +326,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		...interactionSteps(this),
 	};
 	setBrowser(browser: TBrowserTypes) {
-		this.factoryOptions.type = browser;
+		this.factoryOptions.browserType = BROWSERS[browser];
 		return OK;
 	}
 	/** Drives a running browser from the next page the run opens, instead of launching one: the one at a CDP endpoint, or
@@ -410,23 +421,17 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	/** Screenshot the page into the run's storage, as an image artifact, and return the address the run serves it at and
 	 *  where it was saved. */
 	async captureScreenshot(event: string, details: { seq?: number; step?: TStepResult }): Promise<{ image: TImageReference; savedTo: string }> {
-		const filename = `event-${details.step?.seqPath.join(".")}.png`;
-		// Take screenshot to buffer first, then save
-		const buffer = (await this.withPage(async (page: Page) => await page.screenshot())) as Buffer;
-		const featureStep = {
-			seqPath: details.step.seqPath,
-			source: { path: details.step.path },
-			in: details.step.in,
-			action: {} as TStepAction,
-		};
-		const saved = await saveImageArtifact(this.getWorld(), this.storage, featureStep as unknown as Parameters<typeof saveImageArtifact>[2], filename, buffer, SCREENSHOT_FORMAT);
+		const { step } = details;
+		if (!step) throw new Error(`a ${event} screenshot is saved with the step it shows, and none is named`);
+		const filename = `event-${step.seqPath.join(".")}.png`;
+		const buffer = await this.withPage(async (page) => await page.screenshot());
+		const saved = await saveImageArtifact(this.getWorld(), this.storage, { seqPath: step.seqPath, in: step.in, source: { path: step.path } }, filename, buffer, SCREENSHOT_FORMAT);
 		return { image: { contentUrl: artifactAddress(saved.baseRelativePath), encodingFormat: SCREENSHOT_FORMAT }, savedTo: saved.absolutePath };
 	}
 
 	async setExtraHTTPHeaders(headers: { [name: string]: string }) {
-		await this.withPage(async () => {
-			const browserContext = await this.getExistingBrowserContext();
-			await browserContext.setExtraHTTPHeaders(headers);
+		await this.withPage(async (page) => {
+			await page.context().setExtraHTTPHeaders(headers);
 			this.extraHTTPHeaders = headers;
 		});
 	}
@@ -436,11 +441,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		const ua = userAgent || this.apiUserAgent;
 		const page = await this.getPage();
 		// FIXME Part I this could suffer from race conditions
-		if (ua) {
-			const browserContext = await this.getExistingBrowserContext();
-			const headers = { ...(this.extraHTTPHeaders || {}), ...{ "User-Agent": ua } };
-			await browserContext.setExtraHTTPHeaders(headers);
-		}
+		if (ua) await page.context().setExtraHTTPHeaders({ ...this.extraHTTPHeaders, "User-Agent": ua });
 		try {
 			const pageConsoleMessages: { type: string; text: string }[] = [];
 			try {
@@ -491,10 +492,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			throw new Error(`Evaluate fetch error: ${JSON.stringify({ endpoint, method, headers, ua })} : ${msg}`);
 		} finally {
 			// FIXME Part II this could suffer from race conditions
-			if (ua) {
-				const browserContext = await this.getExistingBrowserContext();
-				await browserContext.setExtraHTTPHeaders(this.extraHTTPHeaders);
-			}
+			if (ua) await page.context().setExtraHTTPHeaders(this.extraHTTPHeaders);
 		}
 	}
 	async callClosers() {
@@ -506,8 +504,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		}
 	}
 	async createTwin() {
-		this.twinPage = new TwinPage(this, this.storage, this.headless);
-		await this.twinPage.initTwin();
+		this.twinPage = await TwinPage.create(this, this.storage, this.headless);
 	}
 
 	/** The response a step captured last, where one did. */
@@ -519,7 +516,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		await this.getWorld().shared.setJSON(LAST_REST_RESPONSE, serialized, Origin.var, featureStep);
 	}
 	/** Returns the Playwright locator for a page target, from the `getBy` method its locator domain selects. */
-	locateByDomain(page: Page, target: TStepValue): Locator {
+	locateByDomain(page: TPageScope, target: TStepValue): Locator {
 		const strValue = String(target.value);
 		switch (locatorDomainOf(target)) {
 			case DOMAIN_STRING:
@@ -548,7 +545,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
  *  whose domain is the whole page-target union. */
 export const locatorDomainOf = (target: TStepValue): string => {
 	const parts = domainParts(target.domain);
-	return parts.length === 1 ? parts[0] : pickLocatorDomain(parts);
+	return parts.length === 1 ? itemAt(parts, 0) : pickLocatorDomain(parts);
 };
 
 /** Selects the locator domain for a value whose domain is a union of locator domains: page text where the union contains
@@ -560,7 +557,7 @@ export function pickLocatorDomain(parts: string[]): string {
 	for (const d of locatorDomains) {
 		if (parts.includes(d)) return d;
 	}
-	return parts[0];
+	return itemAt(parts, 0);
 }
 
 export default WebPlaywright;

@@ -3,7 +3,7 @@ import type { TFeatures } from "../lib/execution.js";
 import type { TWorld } from "../lib/world.js";
 import { OK } from "../schema/protocol.js";
 import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TEndFeature, CycleWhen } from "../lib/astepper.js";
-import { actionNotOK, actionOK, actionOKWithProducts, sleep, constructorName } from "../lib/util/index.js";
+import { actionNotOK, actionOK, actionOKWithProducts, sleep } from "../lib/util/index.js";
 import { findFeatureStepsFromStatement } from "../phases/Resolver.js";
 import {
 	DOMAIN_BACKGROUND_NAMES,
@@ -19,7 +19,7 @@ import {
 	createEnumDomainDefinition,
 } from "../lib/domains.js";
 import { findFeatures } from "../lib/features.js";
-import { FlowRunner, heldRunner } from "../lib/core/flow-runner.js";
+import { FlowRunner } from "../lib/core/flow-runner.js";
 import { QuadStore } from "../lib/quad-store.js";
 import { RemoteQuadStore } from "../lib/remote-quad-store.js";
 import { requestSigner } from "../lib/session-authority.js";
@@ -49,7 +49,7 @@ class Haibun extends AStepper implements IHasCycles {
 	steppers: AStepper[] = [];
 	private held?: FlowRunner;
 	private get runner(): FlowRunner {
-		return heldRunner(this.held, constructorName(this));
+		return this.madeWithWorld(this.held, "flow runner");
 	}
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {

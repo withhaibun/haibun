@@ -37,7 +37,7 @@ import {
 } from "./domains.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { locatorDomainOf } from "./web-playwright.js";
-import { WEB_PAGE, WebPlaywright } from "./web-playwright.js";
+import { WEB_PAGE, WebPlaywright, type TPageScope } from "./web-playwright.js";
 import { PAGE_READ, WEB_PLAYWRIGHT_ACTIONS } from "./actions.js";
 import { DOMAIN_RELAY_ATTACHMENT } from "./relay/relay-wire.js";
 import { readAction } from "@haibun/core/lib/actions.js";
@@ -75,8 +75,8 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: `enter {what: ${DOMAIN_TEXT}} into {field: ${DOMAIN_PAGE_TARGET}}`,
 			action: async ({ what, field }: { what: string; field: TStepValue }) => {
-				await wp.withPage(async (page: Page) => {
-					const locator = wp.locateByDomain(page, field);
+				await wp.withScope(async (scope) => {
+					const locator = wp.locateByDomain(scope, field);
 					const tag = await locator.evaluate((el) => el.tagName.toLowerCase());
 					if (tag === "select") {
 						await locator.selectOption({ value: what }).catch(async () => {
@@ -93,7 +93,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: `select {option: ${DOMAIN_PAGE_TEXT}} for {field: ${DOMAIN_PAGE_TARGET}}`,
 			action: async ({ option, field }: { option: string; field: TStepValue }) => {
-				await wp.withPage(async (page: Page) => await wp.locateByDomain(page, field).selectOption({ label: option }));
+				await wp.withScope(async (scope) => await wp.locateByDomain(scope, field).selectOption({ label: option }));
 				return OK;
 			},
 		},
@@ -150,7 +150,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 					// A test id waits until the first matching element is attached to the DOM. Every other locator domain waits until
 					// the first matching element is visible.
 					const state = locatorDomainOf(target) === DOMAIN_PAGE_TEST_ID ? "attached" : "visible";
-					await wp.withPage(async (scope: Page) => await wp.locateByDomain(scope, target).first().waitFor({ state }));
+					await wp.withScope(async (scope) => await wp.locateByDomain(scope, target).first().waitFor({ state }));
 					return OK;
 				} catch (e) {
 					return actionNotOK(`Did not find ${target.value}: ${errorDetail(e)}`);
@@ -248,7 +248,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			gwta: `click( invisible)? {target: ${DOMAIN_PAGE_TARGET}}( with force)?`,
 			action: async ({ target }: { target: TStepValue }, featureStep) => {
 				const forced = featureStep.in.match(/ with force$/) || featureStep.in.match(/^click invisible/) ? { force: true } : {};
-				await wp.withPage(async (page: Page) => await wp.locateByDomain(page, target).click(forced));
+				await wp.withScope(async (scope) => await wp.locateByDomain(scope, target).click(forced));
 				return OK;
 			},
 		},
@@ -257,9 +257,9 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			gwta: `in {container: ${DOMAIN_PAGE_LOCATOR}}, {what: ${DOMAIN_STATEMENT}}`,
 			description: "Runs the statement within the element the locator finds, or within the document it shows where it is an iframe.",
 			action: async ({ container, what }: { container: string; what: TFeatureStep[] }, featureStep: TFeatureStep) => {
-				return await wp.withPage(async (page: Page) => {
-					// For shadow DOM elements, use page.locator directly to ensure CSS selector is used
-					const located = page.locator(container);
+				return await wp.withScope(async (scope) => {
+					// For shadow DOM elements, use a CSS locator directly; a container nested in another is found within it.
+					const located = scope.locator(container);
 					wp.inContainer = (await located.evaluate((element) => element.tagName)) === "IFRAME" ? located.contentFrame().locator(":root") : located;
 					try {
 						const flowResult = await new FlowRunner(wp.getWorld(), [wp]).runSteps(what, { parentStep: featureStep });
@@ -276,16 +276,16 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			gwta: `click {target: ${DOMAIN_PAGE_TARGET}} by {method: ${DOMAIN_FIND_WAY}}`,
 			action: async ({ target: { value }, method }: { target: TStepValue; method: TFindWay }) => {
 				const target = String(value);
-				const bys: Record<TFindWay, (page: Page) => Locator> = {
-					"alt text": (page) => page.getByAltText(target),
-					"test id": (page) => page.getByTestId(target),
-					placeholder: (page) => page.getByPlaceholder(target),
-					role: (page) => page.getByRole(target as Parameters<Page["getByRole"]>[0]),
-					label: (page) => page.getByLabel(target),
-					title: (page) => page.getByTitle(target),
-					text: (page) => page.getByText(target),
+				const bys: Record<TFindWay, (scope: TPageScope) => Locator> = {
+					"alt text": (scope) => scope.getByAltText(target),
+					"test id": (scope) => scope.getByTestId(target),
+					placeholder: (scope) => scope.getByPlaceholder(target),
+					role: (scope) => scope.getByRole(target as Parameters<Page["getByRole"]>[0]),
+					label: (scope) => scope.getByLabel(target),
+					title: (scope) => scope.getByTitle(target),
+					text: (scope) => scope.getByText(target),
 				};
-				await wp.withPage(async (page: Page) => await bys[method](page).click());
+				await wp.withScope(async (scope) => await bys[method](scope).click());
 				return OK;
 			},
 		},
@@ -339,7 +339,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: `blur {what: ${DOMAIN_PAGE_TARGET}}`,
 			action: async ({ what }: { what: TStepValue }) => {
-				await wp.withPage(async (page: Page) => await wp.locateByDomain(page, what).evaluate((e) => e.blur()));
+				await wp.withScope(async (scope) => await wp.locateByDomain(scope, what).evaluate((e) => e.blur()));
 				return OK;
 			},
 		},
@@ -392,7 +392,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: `upload file {file: ${DOMAIN_FILE_PATH}} using {selector: ${DOMAIN_PAGE_TARGET}}`,
 			action: async ({ file, selector }: { file: string; selector: TStepValue }) => {
-				await wp.withPage(async (page: Page) => await wp.locateByDomain(page, selector).setInputFiles(file));
+				await wp.withScope(async (scope) => await wp.locateByDomain(scope, selector).setInputFiles(file));
 				return OK;
 			},
 		},
@@ -406,7 +406,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 					wp.expectedDownload = wp.getPage().then((page) => page.waitForEvent("download"));
 					return OK;
 				} catch (e) {
-					return actionNotOK(e);
+					return actionNotOK(errorDetail(e));
 				}
 			},
 		},
@@ -416,11 +416,12 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			action: async ({ file }: { file: string }) => {
 				try {
 					const download = await wp.expectedDownload;
+					if (!download) return actionNotOK("receiving a download follows `expect a download`, and none is expected");
 					await download.saveAs(file);
 					wp.downloaded.push(file);
 					return OK;
 				} catch (e) {
-					return actionNotOK(e);
+					return actionNotOK(errorDetail(e));
 				}
 			},
 		},
@@ -434,7 +435,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 					wp.downloaded.push(file);
 					return OK;
 				} catch (e) {
-					return actionNotOK(e);
+					return actionNotOK(errorDetail(e));
 				}
 			},
 		},
@@ -492,8 +493,8 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			gwta: `take a screenshot of {what: ${DOMAIN_PAGE_TARGET}} to {where: ${DOMAIN_FILE_PATH}}`,
 			action: async ({ what, where }: { what: TStepValue; where: string }) => {
 				try {
-					await wp.withPage(async (page: Page) => {
-						const locator = wp.locateByDomain(page, what);
+					await wp.withScope(async (scope) => {
+						const locator = wp.locateByDomain(scope, what);
 						if ((await locator.count()) !== 1) {
 							throw Error(`no single ${what.value} from ${locator} `);
 						}
@@ -502,7 +503,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 					});
 					return OK;
 				} catch (e) {
-					return actionNotOK(e);
+					return actionNotOK(errorDetail(e));
 				}
 			},
 		},
@@ -536,7 +537,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			read: true,
 			productsDomain: DOMAIN_ACCESSIBILITY_SNAPSHOT,
 			action: async () => {
-				const read = await wp.withPage(async (target) => {
+				const read = await wp.withScope(async (target) => {
 					const page = "page" in target ? target.page() : target;
 					return { url: page.url(), title: await page.title(), snapshot: await target.ariaSnapshot() };
 				});

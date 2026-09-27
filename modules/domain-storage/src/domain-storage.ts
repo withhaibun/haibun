@@ -1,6 +1,6 @@
 import type { TModuleOptions, TBaseOptions } from "@haibun/core/lib/world.js";
 import { stringOrError } from "@haibun/core/lib/util/index.js";
-import { TMediaType, MEDIA_TYPES, MAPPED_MEDIA_TYPES } from "./media-types.js";
+import { TMediaType, MEDIA_TYPES, MAPPED_MEDIA_TYPES, isMappedExtension } from "./media-types.js";
 import { AStepper, IHasOptions } from "@haibun/core/lib/astepper.js";
 import { TTag } from "@haibun/core/lib/ttag.js";
 
@@ -48,7 +48,7 @@ export function guessMediaExt(file: string) {
  */
 export function guessMediaType(file: string) {
 	const ext = getExtension(file);
-	const mediaType = MAPPED_MEDIA_TYPES[ext] || "application/octet-stream";
+	const mediaType = isMappedExtension(ext) ? MAPPED_MEDIA_TYPES[ext] : "application/octet-stream";
 	return <TMediaType>mediaType;
 }
 

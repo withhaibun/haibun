@@ -1,4 +1,4 @@
-export const MAPPED_MEDIA_TYPES: Record<string, string> = {
+export const MAPPED_MEDIA_TYPES = {
 	js: "text/javascript",
 	javascript: "text/javascript",
 	css: "text/css",
@@ -23,7 +23,10 @@ export const MAPPED_MEDIA_TYPES: Record<string, string> = {
 	otf: "font/otf",
 	xml: "text/xml",
 	"": "inode/directory",
-};
+} as const satisfies Record<string, string>;
+
+/** Whether a file extension is one the run maps to a media type. */
+export const isMappedExtension = (ext: string): ext is keyof typeof MAPPED_MEDIA_TYPES => Object.hasOwn(MAPPED_MEDIA_TYPES, ext);
 
 export const EMediaTypes = {
 	html: "html",

@@ -3,11 +3,11 @@ import type { TFeatures, TStepInput } from "../lib/execution.js";
 import { runSteppers, type TWorld } from "../lib/world.js";
 import { TStepArgs, TRegisteredOutcomeEntry, OK } from "../schema/protocol.js";
 import { formatSeqPath } from "../lib/seq-path.js";
-import { actionOK, actionNotOK, getActionable, errorDetail, constructorName } from "../lib/util/index.js";
+import { actionOK, actionNotOK, getActionable, errorDetail } from "../lib/util/index.js";
 import { itemAt } from "../lib/util/item-at.js";
 import { DOMAIN_STATEMENT, DOMAIN_STATEMENT_LINES, DOMAIN_TITLE, DOMAIN_WAYPOINT_ARGUMENT } from "../lib/domains.js";
 import { Resolver } from "../phases/Resolver.js";
-import { FlowRunner, heldRunner } from "../lib/core/flow-runner.js";
+import { FlowRunner } from "../lib/core/flow-runner.js";
 import { ControlEvent, LifecycleEvent } from "../schema/protocol.js";
 import { buildDomainChain } from "../lib/domain-chain.js";
 import { GOAL_FINDING, resolveGoal } from "../lib/goal-resolver.js";
@@ -40,7 +40,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 
 	private held?: FlowRunner;
 	private get runner(): FlowRunner {
-		return heldRunner(this.held, constructorName(this));
+		return this.madeWithWorld(this.held, "flow runner");
 	}
 	private backgroundOutcomePatterns: Set<string> = new Set();
 	private featureOutcomePatterns: Set<string> = new Set();

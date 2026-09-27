@@ -318,14 +318,15 @@ export class RelayConnection {
 // Resolves chrome.<api>.<member>, shared by command invocation and event
 // listener installation.
 function resolveChromeMember(chrome: TChromeApi, fullMethod: string): { obj: Record<string, unknown>; name: string } {
-	const parts = fullMethod.split(".");
-	if (parts[0] !== "chrome" || parts.length < 3) throw new Error(`Invalid chrome method: ${fullMethod}`);
+	const [root, ...path] = fullMethod.split(".");
+	const name = path.pop();
+	if (root !== "chrome" || name === undefined || path.length < 1) throw new Error(`Invalid chrome method: ${fullMethod}`);
 	let obj: unknown = chrome;
-	for (let i = 1; i < parts.length - 1; i++) {
-		obj = (obj as Record<string, unknown> | undefined)?.[parts[i]];
-		if (obj === undefined) throw new Error(`Unknown chrome path: ${parts.slice(0, i + 1).join(".")}, calling ${fullMethod}`);
+	for (const [i, part] of path.entries()) {
+		obj = (obj as Record<string, unknown> | undefined)?.[part];
+		if (obj === undefined) throw new Error(`Unknown chrome path: ${[root, ...path.slice(0, i + 1)].join(".")}, calling ${fullMethod}`);
 	}
-	return { obj: obj as Record<string, unknown>, name: parts[parts.length - 1] };
+	return { obj: obj as Record<string, unknown>, name };
 }
 
 async function invokeChromeMethod(chrome: TChromeApi, fullMethod: string, args: unknown[]): Promise<unknown> {

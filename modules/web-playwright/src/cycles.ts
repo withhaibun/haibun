@@ -56,7 +56,7 @@ const httpTraceSources: IObservationSource[] = [
 			const ordered = [...quads].sort((a, b) => a.timestamp - b.timestamp);
 			const items = ordered.map((q) => q.object as string);
 			const metrics: Record<string, Record<string, unknown>> = {};
-			for (let i = 0; i < items.length; i++) metrics[items[i]] = { index: i };
+			for (const [index, item] of items.entries()) metrics[item] = { index };
 			return { items, metrics };
 		},
 	},
@@ -97,9 +97,6 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 		wp.extraHTTPHeaders = {};
 		wp.apiUserAgent = undefined;
 
-		if (wp.twinPage) {
-			wp.twinPage.updateWorld(wp.getWorld());
-		}
 		await writeFeaturesArtifact(wp, `feature-${index}`, [resolvedFeature]);
 	},
 	async endFeature({ shouldClose = true }: TEndFeature) {
@@ -107,9 +104,7 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 		if (shouldClose) {
 			await closeAfterFeature(wp);
 		}
-		if (wp.twin) {
-			await wp.twinPage.writePage();
-		}
+		if (wp.twinPage) await wp.twinPage.writePage();
 	},
 	async endExecution() {
 		// empty
@@ -128,10 +123,13 @@ async function closeAfterFeature(wp: WebPlaywright) {
 		rmSync(file);
 		wp.downloaded = [];
 	}
-	if (wp.hasFactory) {
+	const { bf } = wp;
+	if (bf) {
 		if (wp.captureVideo) {
 			const page = await wp.getPage();
-			const videoPath = await page.video().path();
+			const video = page.video();
+			if (!video) throw new Error("a run that captures video records each page, and this page has no recording");
+			const videoPath = await video.path();
 			const world = wp.getWorld();
 			// Compute path relative to feature capture dir for serialized HTML
 			const basePath = wp.storage.getArtifactBasePath();
@@ -161,11 +159,8 @@ async function closeAfterFeature(wp: WebPlaywright) {
 			world.eventLogger.artifact(featureStep, videoEvent);
 		}
 		// close the context, which closes any pages
-		if (wp.hasFactory) {
-			await wp.bf?.closeContext(wp.getWorld().tag);
-		}
-		await wp.bf?.close();
+		await bf.closeContext(wp.getWorld().tag);
+		await bf.close();
 		wp.bf = undefined;
-		wp.hasFactory = false;
 	}
 }

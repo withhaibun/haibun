@@ -6,12 +6,8 @@ import { Timer } from "@haibun/core/schema/protocol.js";
 import { TTag } from "@haibun/core/lib/ttag.js";
 import type { BROWSER_TYPES } from "./domains.js";
 
-export const BROWSERS: { [name: string]: BrowserType } = {
-	firefox,
-	chromium,
-	webkit,
-};
 export type TBrowserTypes = (typeof BROWSER_TYPES)[number];
+export const BROWSERS: Record<TBrowserTypes, BrowserType> = { firefox, chromium, webkit };
 
 export type TTaggedBrowserFactoryOptions = {
 	options: BrowserContextOptions;
@@ -27,7 +23,6 @@ export type TTaggedBrowserFactoryOptions = {
 		channel?: string;
 	};
 	defaultTimeout?: number;
-	type?: TBrowserTypes;
 	device?: string;
 	/** A running browser the factory connects to instead of launching one: its CDP endpoint, or the transport Playwright
 	 *  drives it through in this process, made at the moment of connecting. */
@@ -61,26 +56,34 @@ export class BrowserFactory {
 		return new BrowserFactory(world);
 	}
 
-	public async getBrowser(type: string, tag = DEFAULT_CONFIG_TAG): Promise<Browser> {
+	/** The options a tag's browser is made with, which `getBrowserFactory` records. */
+	private static configFor(tag: string): TTaggedBrowserFactoryOptions {
 		const config = BrowserFactory.configs[tag];
-		const key = config.cdp === undefined ? type : cdpName(config.cdp);
-		if (!BrowserFactory.browsers[key]) {
-			const browserOptions: LaunchOptions = { ...config.options, ...config.launchOptions };
-			const browser =
-				config.cdp === undefined
-					? await config.browserType.launch(browserOptions)
-					: typeof config.cdp === "string"
-						? await chromium.connectOverCDP(config.cdp)
-						: await chromium.connectOverCDP(config.cdp());
-			browser.on("disconnected", () => {
-				delete BrowserFactory.browsers[key];
-				this.browserContexts = {};
-				this.pages = {};
-				this.tracers = {};
-			});
-			BrowserFactory.browsers[key] = browser;
-		}
-		return BrowserFactory.browsers[key];
+		if (!config) throw new Error(`no browser options are recorded for tag "${tag}"`);
+		return config;
+	}
+
+	/** The tag's browser: the one it connects to, or the one it launches, by the browser's name. */
+	public async getBrowser(tag = DEFAULT_CONFIG_TAG): Promise<Browser> {
+		const config = BrowserFactory.configFor(tag);
+		const key = config.cdp === undefined ? config.browserType.name() : cdpName(config.cdp);
+		const held = BrowserFactory.browsers[key];
+		if (held) return held;
+		const browserOptions: LaunchOptions = { ...config.options, ...config.launchOptions };
+		const browser =
+			config.cdp === undefined
+				? await config.browserType.launch(browserOptions)
+				: typeof config.cdp === "string"
+					? await chromium.connectOverCDP(config.cdp)
+					: await chromium.connectOverCDP(config.cdp());
+		browser.on("disconnected", () => {
+			delete BrowserFactory.browsers[key];
+			this.browserContexts = {};
+			this.pages = {};
+			this.tracers = {};
+		});
+		BrowserFactory.browsers[key] = browser;
+		return browser;
 	}
 
 	public getExistingBrowserContextWithTag({ featureNum }: { featureNum: number }) {
@@ -126,9 +129,9 @@ export class BrowserFactory {
 	}
 
 	static async closeBrowsers() {
-		for (const b in BrowserFactory.browsers) {
-			await BrowserFactory.browsers[b].close();
-			delete BrowserFactory.browsers[b];
+		for (const [name, browser] of Object.entries(BrowserFactory.browsers)) {
+			await browser.close();
+			delete BrowserFactory.browsers[name];
 		}
 	}
 	async close() {
@@ -169,8 +172,8 @@ export class BrowserFactory {
 	/** Tab 0 of a connected browser is the one page its owner holds open in the context the run adopted. */
 	private adoptPage(context: BrowserContext): Page {
 		const pages = context.pages();
-		if (pages.length !== 1) throw Error(`tab 0 adopts the one page of the connected browser's context, which holds ${pages.length}`);
 		const [page] = pages;
+		if (!page || pages.length !== 1) throw Error(`tab 0 adopts the one page of the connected browser's context, which holds ${pages.length}`);
 		this.adoptedPages.add(page);
 		// Playwright dismisses a dialog only when nothing listens for it, so a listener that doesn't answer leaves it to the owner.
 		page.on("dialog", () => undefined);
@@ -182,37 +185,36 @@ export class BrowserFactory {
 	}
 
 	private async getBrowserContextWithFeatureNum(featureNum: number, tag = DEFAULT_CONFIG_TAG): Promise<BrowserContext> {
-		if (!this.browserContexts[featureNum]) {
-			let browserContext: BrowserContext;
-			const config = BrowserFactory.configs[tag];
-			const deviceContext = config.device
-				? { ...devices[config.device] }
-				: {
-						viewport: {
-							width: 1280,
-							height: 1024,
-						},
-					};
-			const launchConfig = { ...deviceContext, ...config.options, ...config.launchOptions };
-			if (config.cdp !== undefined) {
-				const [context] = (await this.getBrowser(config.type, tag)).contexts();
-				if (!context) throw Error(`${cdpName(config.cdp)} has no context to adopt`);
-				this.adoptedContexts.add(context);
-				browserContext = context;
-			} else if (config.persistentDirectory !== undefined) {
-				this.world.eventLogger.debug(`creating new persistent context ${featureNum} ${config.type}, ${config.persistentDirectory} with ${JSON.stringify(BrowserFactory.configs)}`);
-				browserContext = await BrowserFactory.configs[tag].browserType.launchPersistentContext(config.persistentDirectory, launchConfig);
-			} else {
-				this.world.eventLogger.debug(`creating new context ${featureNum} ${config.type}`);
-				const browser = await this.getBrowser(config.type);
-				browserContext = await browser.newContext(launchConfig);
-			}
-			this.browserContexts[featureNum] = browserContext;
-			this.contextStats[featureNum] = { start: Timer.since() };
-			if (config.defaultTimeout) {
-				this.browserContexts[featureNum].setDefaultTimeout(config.defaultTimeout);
-			}
+		const held = this.browserContexts[featureNum];
+		if (held) return held;
+		let browserContext: BrowserContext;
+		const config = BrowserFactory.configFor(tag);
+		const deviceContext = config.device
+			? { ...devices[config.device] }
+			: {
+					viewport: {
+						width: 1280,
+						height: 1024,
+					},
+				};
+		const launchConfig = { ...deviceContext, ...config.options, ...config.launchOptions };
+		if (config.cdp !== undefined) {
+			const [context] = (await this.getBrowser(tag)).contexts();
+			if (!context) throw Error(`${cdpName(config.cdp)} has no context to adopt`);
+			this.adoptedContexts.add(context);
+			browserContext = context;
+		} else if (config.persistentDirectory !== undefined) {
+			this.world.eventLogger.debug(
+				`creating new persistent context ${featureNum} ${config.browserType.name()}, ${config.persistentDirectory} with ${JSON.stringify(BrowserFactory.configs)}`,
+			);
+			browserContext = await config.browserType.launchPersistentContext(config.persistentDirectory, launchConfig);
+		} else {
+			this.world.eventLogger.debug(`creating new context ${featureNum} ${config.browserType.name()}`);
+			browserContext = await (await this.getBrowser(tag)).newContext(launchConfig);
 		}
-		return this.browserContexts[featureNum];
+		if (config.defaultTimeout) browserContext.setDefaultTimeout(config.defaultTimeout);
+		this.browserContexts[featureNum] = browserContext;
+		this.contextStats[featureNum] = { start: Timer.since() };
+		return browserContext;
 	}
 }

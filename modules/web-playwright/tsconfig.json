@@ -17,7 +17,8 @@
 	"compilerOptions": {
 		"outDir": "build",
 		"rootDir": "src",
-		"lib": ["ESNext", "DOM", "DOM.Iterable"]
+		"lib": ["ESNext", "DOM", "DOM.Iterable"],
+		"strict": true
 	},
 	"include": ["src"]
 }

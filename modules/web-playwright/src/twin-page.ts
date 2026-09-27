@@ -1,4 +1,4 @@
-import { chromium, Page } from "playwright";
+import { chromium, type Locator, type Page } from "playwright";
 
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
 import { WebPlaywright } from "./web-playwright.js";
@@ -14,26 +14,26 @@ type TElementData = {
 };
 
 export class TwinPage {
-	twinPage: Page;
-	currentURL: string;
+	currentURL?: string;
 	sequence = 0;
-	world: TWorld;
 	wroteElement = false;
 
-	constructor(
+	private constructor(
 		private wp: WebPlaywright,
 		private storage: AStorage,
-		private headless: boolean = true,
+		private twinPage: Page,
 	) {}
-	updateWorld(world: TWorld) {
-		this.world = world;
+
+	/** A twin of the run's pages, drawn in a browser of its own. */
+	static async create(wp: WebPlaywright, storage: AStorage, headless: boolean): Promise<TwinPage> {
+		const browser = await chromium.launch({ headless });
+		const twin = new TwinPage(wp, storage, await (await browser.newContext()).newPage());
+		await twin.setupNewTwinPage("about:blank");
+		return twin;
 	}
 
-	async initTwin() {
-		const browser = await chromium.launch({ headless: this.headless });
-		const context = await browser.newContext();
-		this.twinPage = await context.newPage();
-		await this.setupNewTwinPage("about:blank");
+	private get world(): TWorld {
+		return this.wp.getWorld();
 	}
 	async setupNewTwinPage(currentURL: string) {
 		this.wroteElement = false;
@@ -56,7 +56,7 @@ export class TwinPage {
 		const methodsToInstrument: (keyof Page)[] = ["locator", "getByRole", "getByText", "getByLabel", "getByPlaceholder", "getByAltText", "getByTitle", "getByTestId"];
 
 		const instrument = <T extends keyof Page>(method: T) => {
-			const originalMethod = page[method] as (...args: unknown[]) => unknown;
+			const originalMethod = page[method] as (...args: unknown[]) => Locator;
 			(page[method] as (...args: unknown[]) => unknown) = (...args: unknown[]) => {
 				const patched = originalMethod.apply(page, args);
 				this.duplicateTwinElement(patched).catch((error) => {
@@ -157,7 +157,9 @@ export class TwinPage {
 				const existingElement = currentParent.querySelector(`:scope > ${finalSelector}`);
 				if (!existingElement) {
 					currentParent.insertAdjacentHTML("beforeend", data.outerHTML);
-					elementToDrawOn = currentParent.lastElementChild;
+					const inserted = currentParent.lastElementChild;
+					if (!inserted) throw new Error(`the twin drew ${finalSelector} and holds no element after it`);
+					elementToDrawOn = inserted;
 				} else {
 					elementToDrawOn = existingElement;
 				}

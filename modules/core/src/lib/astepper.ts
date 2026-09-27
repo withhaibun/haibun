@@ -38,6 +38,13 @@ export abstract class AStepper {
 		return this.world;
 	}
 
+	/** A value this stepper makes when its world is set, such as a runner or the storage an option names. Reading it
+	 *  before then is a fault. */
+	madeWithWorld<T>(value: T | undefined, what: string): T {
+		if (value === undefined) throw new Error(`${constructorName(this)} reads its ${what} once its world is set, and it isn't set`);
+		return value;
+	}
+
 	/**
 	 * Called by Resolver before resolving each feature.
 	 * Steppers can override to clear feature-scoped steps that shouldn't leak between features.

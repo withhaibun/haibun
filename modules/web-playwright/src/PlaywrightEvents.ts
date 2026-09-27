@@ -52,7 +52,7 @@ export class PlaywrightEvents {
 		const etc = {
 			method: request.method(),
 			headers: request.headers(),
-			postData: request.postData(),
+			postData: request.postData() ?? undefined,
 		};
 
 		void this.log(`request ${etc.method}`, "request", frameURL, request.url(), etc);

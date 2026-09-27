@@ -78,9 +78,9 @@ describe("connect to the browser at {endpoint}", () => {
 
 	it("connects again when the connection ends outside the run, rather than keeping the ended one", { timeout: 30_000 }, async () => {
 		const factory = BrowserFactory.getBrowserFactory(getDefaultWorld(), { options: {}, browserType: chromium, launchOptions: {}, cdp: endpoint });
-		const ended = await factory.getBrowser("chromium");
+		const ended = await factory.getBrowser();
 		await ended.close();
-		const next = await factory.getBrowser("chromium");
+		const next = await factory.getBrowser();
 		expect(next).not.toBe(ended);
 		expect(next.isConnected()).toBe(true);
 		expect(ownersPage.isClosed(), "ending a connection doesn't close the owner's page").toBe(false);

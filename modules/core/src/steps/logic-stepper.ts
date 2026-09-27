@@ -1,10 +1,10 @@
 import { AStepper, TStepperSteps, IHasCycles, TFeatureStep, IObservationSource, IStepperCycles } from "../lib/astepper.js";
 import type { TWorld } from "../lib/world.js";
 import { OK, TActionResult, Origin } from "../schema/protocol.js";
-import { actionNotOK, actionOKWithProducts, sleep, constructorName } from "../lib/util/index.js";
+import { actionNotOK, actionOKWithProducts, sleep } from "../lib/util/index.js";
 import { itemAt } from "../lib/util/item-at.js";
 import { z } from "zod";
-import { FlowRunner, heldRunner } from "../lib/core/flow-runner.js";
+import { FlowRunner } from "../lib/core/flow-runner.js";
 import { DOMAIN_NUMBER, DOMAIN_STATEMENT, DOMAIN_STRING } from "../lib/domains.js";
 import { OBSERVATION_GRAPH, queryFacts } from "../lib/working-memory.js";
 
@@ -50,7 +50,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 	steppers: AStepper[] = [];
 	private held?: FlowRunner;
 	private get runner(): FlowRunner {
-		return heldRunner(this.held, constructorName(this));
+		return this.madeWithWorld(this.held, "flow runner");
 	}
 	private sources: IObservationSource[] = [...builtInSources];
 

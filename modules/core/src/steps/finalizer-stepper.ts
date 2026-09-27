@@ -1,7 +1,7 @@
-import { actionNotOK, constructorName } from "../lib/util/index.js";
+import { actionNotOK } from "../lib/util/index.js";
 import { AStepper, IHasCycles, TStepperSteps, IStepperCycles, TEndFeature, TFeatureStep } from "../lib/astepper.js";
 import type { TWorld } from "../lib/world.js";
-import { FlowRunner, heldRunner } from "../lib/core/flow-runner.js";
+import { FlowRunner } from "../lib/core/flow-runner.js";
 import { featureSyntheticSeqPath } from "../phases/Executor.js";
 import { OK } from "../schema/protocol.js";
 import { DOMAIN_STATEMENT } from "../lib/domains.js";
@@ -11,7 +11,7 @@ export default class FinalizerStepper extends AStepper implements IHasCycles {
 
 	private held?: FlowRunner;
 	get flowRunner(): FlowRunner {
-		return heldRunner(this.held, constructorName(this));
+		return this.madeWithWorld(this.held, "flow runner");
 	}
 	registeredStatementsByFeature: Map<string, string[]> = new Map();
 
