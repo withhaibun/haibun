@@ -56,7 +56,7 @@ export function registryDocumentLoader(url: string): Promise<LoaderResult> {
 	if (keyDoc !== undefined) return Promise.resolve({ contextUrl: null, documentUrl: url, document: keyDoc });
 	const ctx = contexts.get(url);
 	if (ctx !== undefined) return Promise.resolve({ contextUrl: null, documentUrl: url, document: ctx });
-	throw new Error(`No registered JSON-LD document for ${url}`);
+	throw new Error(`a JSON-LD document for ${url} isn't registered`);
 }
 
 /** JSON-LD document loader: what is held here, then the injected network resolver. With no resolver an unresolved URL
@@ -66,7 +66,7 @@ export async function documentLoader(url: string): Promise<LoaderResult> {
 		return await registryDocumentLoader(url);
 	} catch {
 		if (networkResolver) return await networkResolver(url);
-		throw new Error(`No registered JSON-LD document for ${url}, and no network resolver is enabled`);
+		throw new Error(`a JSON-LD document for ${url} isn't registered, and a network resolver isn't enabled`);
 	}
 }
 

@@ -157,11 +157,11 @@ describe("a walk belongs to whoever began it", () => {
 		await expect(advanceChainInstance(ctx, inst.id, { issuerId: "nobody" }), "and by a run acting as no one").rejects.toThrow(/begun by did:example:alice/);
 	});
 
-	it("a walk begun by no one is not advanced by someone", async () => {
+	it("a walk an unnamed caller began isn't advanced by a named one", async () => {
 		const ctx = buildContext(world, [new IssueStepper(), new VcStepper()]);
 		const inst = await createChainInstance(world, VC_DOMAIN, twoStepMichi);
 		expect(inst.owner).toBeUndefined();
-		await expect(runActingAs("did:example:mallory", () => advanceChainInstance(ctx, inst.id, {}))).rejects.toThrow(/begun by no one/);
+		await expect(runActingAs("did:example:mallory", () => advanceChainInstance(ctx, inst.id, {}))).rejects.toThrow(/begun by an unnamed caller/);
 	});
 });
 

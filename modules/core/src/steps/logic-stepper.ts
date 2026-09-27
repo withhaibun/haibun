@@ -190,7 +190,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 					if (res.ok) return OK;
 					this.getWorld().eventLogger.debug(`any of: statement "${statement}" failed: ${res.errorMessage}`);
 				}
-				return actionNotOK("No conditions in the list were satisfied");
+				return actionNotOK("every condition in the list failed");
 			},
 		},
 
@@ -244,7 +244,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 				const { values, metrics, error } = await this.getIterationValues(phrase);
 				if (error) return actionNotOK(error);
 
-				if (values.length === 0) return actionNotOK(`No members in "${sourceOrDomain}" to check`);
+				if (values.length === 0) return actionNotOK(`"${sourceOrDomain}" doesn't have members to check`);
 
 				const mode = "speculative";
 				let found = false;

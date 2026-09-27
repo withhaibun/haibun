@@ -31,7 +31,7 @@ export class RemoteQuadStore implements IQuadStore {
 	}
 
 	get site(): string {
-		if (!this.remoteSite) throw new Error("RemoteQuadStore: connect() has not completed: no site principal");
+		if (!this.remoteSite) throw new Error("RemoteQuadStore: connect() has not completed, so the store doesn't hold the site's principal");
 		return this.remoteSite;
 	}
 

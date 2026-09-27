@@ -302,7 +302,7 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 		const label = topology.persistedAs;
 
 		if (!topology.id) throw new Error(`persisted domain "${label}" (${domainKey}) is missing required "id" field`);
-		if (!topology.properties || Object.keys(topology.properties).length === 0) throw new Error(`persisted domain "${label}" (${domainKey}) has no properties`);
+		if (!topology.properties || Object.keys(topology.properties).length === 0) throw new Error(`persisted domain "${label}" (${domainKey}) doesn't have properties`);
 
 		const propertiesByRel = new Map<string, string[]>();
 		for (const [field, def] of Object.entries(topology.properties)) {
@@ -313,10 +313,10 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 		}
 
 		const identifierFields = propertiesByRel.get(LinkRelations.IDENTIFIER.rel) ?? [];
-		if (identifierFields.length === 0) throw new Error(`persisted domain "${label}" (${domainKey}) has no property with rel "${LinkRelations.IDENTIFIER.rel}"`);
+		if (identifierFields.length === 0) throw new Error(`persisted domain "${label}" (${domainKey}) doesn't have a property with rel "${LinkRelations.IDENTIFIER.rel}"`);
 
 		const generatedFields = propertiesByRel.get(LinkRelations.GENERATED_AT_TIME.rel) ?? [];
-		if (generatedFields.length === 0) throw new Error(`persisted domain "${label}" (${domainKey}) has no property with rel "${LinkRelations.GENERATED_AT_TIME.rel}"`);
+		if (generatedFields.length === 0) throw new Error(`persisted domain "${label}" (${domainKey}) doesn't have a property with rel "${LinkRelations.GENERATED_AT_TIME.rel}"`);
 		if (generatedFields.length > 1)
 			throw new Error(
 				`persisted domain "${label}" (${domainKey}) declares ${generatedFields.length} properties with rel "${LinkRelations.GENERATED_AT_TIME.rel}": ${generatedFields.join(", ")}; expected exactly one`,
@@ -325,7 +325,7 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 		const shape = unwrapToShape(domain.schema);
 		if (!shape) throw new Error(`persisted domain "${label}" (${domainKey}) has a schema that isn't an object: a persisted type's value is an object of its fields`);
 		const fieldSchema = shape[generatedField];
-		if (!fieldSchema) throw new Error(`persisted domain "${label}" (${domainKey}) maps generatedAtTime rel to "${generatedField}" but the schema has no such field`);
+		if (!fieldSchema) throw new Error(`persisted domain "${label}" (${domainKey}) maps generatedAtTime rel to "${generatedField}" but the schema doesn't have that field`);
 		const probe = fieldSchema.safeParse(undefined);
 		if (probe.success && probe.data === undefined)
 			throw new Error(`persisted domain "${label}" (${domainKey}) generatedAtTime field "${generatedField}" is .optional(), must be required or have a default`);
@@ -340,7 +340,7 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 		const edges: Record<string, TEdgeConcern> = {};
 		for (const [edgeField, edgeDef] of Object.entries(topology.edges ?? {})) {
 			const rel = edgeDef.rel ?? edgeRel(edgeField);
-			if (!rel) throw new Error(`persisted domain "${label}" edge "${edgeField}" has no rel, add to EdgePredicates or provide explicit rel`);
+			if (!rel) throw new Error(`persisted domain "${label}" edge "${edgeField}" doesn't have a rel: add it to EdgePredicates or give an explicit rel`);
 			if (!REL_CONTEXT[rel]) throw new Error(`persisted domain "${label}" edge "${edgeField}" has unknown rel "${rel}"`);
 			edges[edgeField] = {
 				term: edgeDef.iri ?? REL_CONTEXT[rel],
@@ -355,7 +355,7 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 		assertBoundPrefixes(label, domainKey, topology);
 
 		if (topology.displayLabel !== undefined && properties[topology.displayLabel] === undefined && edges[topology.displayLabel] === undefined)
-			throw new Error(`persisted domain "${label}" (${domainKey}) declares displayLabel "${topology.displayLabel}", which is none of its properties or edges`);
+			throw new Error(`persisted domain "${label}" (${domainKey}) declares displayLabel "${topology.displayLabel}", which isn't one of its properties or edges`);
 
 		// The domain's own description, carried onto its served schema: a type describes itself ONCE, and every surface:
 		// the type's view, a product's `_description`, a step's tool schema, reads that one text. A `.describe()` on the
@@ -609,7 +609,7 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 		},
 		createdField: (type) => {
 			const f = fieldByRel(type, LinkRelations.GENERATED_AT_TIME.rel);
-			if (!f) throw new Error(`Persisted type "${type}" has no property mapped to ${LinkRelations.GENERATED_AT_TIME.rel}`);
+			if (!f) throw new Error(`Persisted type "${type}" doesn't have a property mapped to ${LinkRelations.GENERATED_AT_TIME.rel}`);
 			return f;
 		},
 		nameField: (type) => fieldByRel(type, LinkRelations.NAME.rel),

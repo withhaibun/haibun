@@ -44,7 +44,7 @@ describe("step tool input schemas", () => {
 	it("a domain declaring a type with no JSON Schema representation throws at registration, naming the domain and the type", () => {
 		const unrepresentable = z.object({ handle: z.bigint() });
 		expect(() => createStepTool(new RecordSteps(), "createRecord", stepDef, worldWith(unrepresentable))).toThrow(
-			/test-record" declares a "bigint" field, which has no JSON Schema form/,
+			/test-record" declares a "bigint" field, which doesn't have a JSON Schema form/,
 		);
 	});
 });

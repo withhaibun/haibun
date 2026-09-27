@@ -239,7 +239,7 @@ function buildGoalFrontier(
 		const description = def?.description ?? (typeof def?.schema?.description === "string" ? def.schema.description : "");
 		if (description.length === 0) {
 			throw new Error(
-				`buildGoalFrontier: domain "${domain}" is goal-producing but has no description. Either add \`.describe("…")\` to its Zod schema (preferred, travels with the schema) or set \`description\` on its TDomainDefinition in the stepper's getConcerns().domains entry. Descriptions render in the goal index where users pick which goal to expand.`,
+				`buildGoalFrontier: domain "${domain}" is goal-producing but doesn't have a description. Either add \`.describe("…")\` to its Zod schema (preferred, travels with the schema) or set \`description\` on its TDomainDefinition in the stepper's getConcerns().domains entry. Descriptions render in the goal index where users pick which goal to expand.`,
 			);
 		}
 		out.push({ domain, description, resolution });

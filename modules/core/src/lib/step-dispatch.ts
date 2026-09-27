@@ -192,7 +192,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 		),
 	);
 	if (!actionResult || !lastStepResult) {
-		throw new Error(`No action result recorded for ${action.stepperName}.${action.actionName}`);
+		throw new Error(`${action.stepperName}.${action.actionName} didn't record an action result`);
 	}
 	ok = ok && actionResult.ok;
 	lastStepResult.ok = ok;

@@ -147,7 +147,7 @@ export function copyPreRenderedAudio(dir: string, renderedAudio: TRenderedAudioM
 	const audioInfo = renderedAudio[hash];
 
 	if (!audioInfo) {
-		throw new Error(`No pre-rendered audio found for: "${transcript}" (hash: ${hash}). Available hashes: ${Object.keys(renderedAudio).join(", ")}`);
+		throw new Error(`the pre-rendered audio doesn't hold "${transcript}" (hash: ${hash}). Available hashes: ${Object.keys(renderedAudio).join(", ")}`);
 	}
 
 	const { cachedPath, durationS } = audioInfo;

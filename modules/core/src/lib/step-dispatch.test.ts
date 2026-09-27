@@ -429,7 +429,7 @@ describe("step-dispatch", () => {
 				steps = { names: { gwta: "name {n: number}", productsOf: "n", action: async () => OK } };
 			})();
 			expect(() => new StepRegistry([naming], world), "a step naming a parameter that takes no statement").toThrow(
-				/productsOf names \{n\}, which is no statement its phrase takes/,
+				/productsOf names \{n\}, which isn't a statement its phrase takes/,
 			);
 		});
 
@@ -468,10 +468,10 @@ describe("step-dispatch", () => {
 					world,
 				);
 			expect(() => declaring({ gwta: `read {label: ${DOMAIN_PERSISTED_TYPE}} {id: ${DOMAIN_RECORD_ID}}` }), "a record id paired with nothing").toThrow(
-				/\{id\} is a record-id its recordIds pairs with no type/,
+				/\{id\} is a record-id that its recordIds doesn't pair with a type/,
 			);
 			expect(() => declaring({ gwta: `read {label: string} {id: ${DOMAIN_RECORD_ID}}`, recordIds: { id: "label" } }), "paired with a parameter naming no type").toThrow(
-				/recordIds pairs \{id\} with \{label\}, which names no type/,
+				/recordIds pairs \{id\} with \{label\}, which doesn't name a type/,
 			);
 		});
 
@@ -766,7 +766,7 @@ describe("step-dispatch", () => {
 				steps = { unregisteredInput: new DomainEchoStepper().steps.unregisteredInput };
 			}
 			expect(() => buildStepRegistry([new JustUnregistered()], world)).toThrow(
-				'step JustUnregistered.unregisteredInput: {who} names the domain "no-such-domain", which no loaded stepper registers.',
+				`step JustUnregistered.unregisteredInput: {who} names the domain "no-such-domain", which the loaded steppers don't register.`,
 			);
 		});
 

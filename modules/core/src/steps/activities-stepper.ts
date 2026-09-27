@@ -263,7 +263,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				const metadata = this.registeredOutcomeMetadata.get(pattern);
 				if (!metadata) {
 					this.emitEnsureEnd(featureStep, outcomeKey, false, "no metadata for waypoint");
-					return actionNotOK(`ensure: waypoint "${outcomeKey}" has no metadata.`);
+					return actionNotOK(`ensure: waypoint "${outcomeKey}" doesn't have metadata.`);
 				}
 
 				if (metadata.resolvesDomain) {
@@ -318,7 +318,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 
 				if (metadata.proofStatements.length === 0) {
 					this.emitEnsureEnd(featureStep, outcomeKey, false, "no proof defined");
-					return actionNotOK(`ensure: waypoint "${outcomeKey}" has no proof. ensure can only be used with waypoints that have a proof.`);
+					return actionNotOK(`ensure: waypoint "${outcomeKey}" doesn't have a proof, and ensure takes only a waypoint with a proof.`);
 				}
 
 				try {
@@ -556,7 +556,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				if (normalizedProofSteps.length > 0 && (await run(normalizedProofSteps, { mode: "speculative" })).ok) return OK;
 				const ensuring = featureStep.intent?.stepperOptions?.isEnsure === true;
 				if (normalizedActivitySteps.length === 0) {
-					if (ensuring) return actionNotOK(`ActivitiesStepper: no activity body for outcome "${outcome}"`);
+					if (ensuring) return actionNotOK(`ActivitiesStepper: outcome "${outcome}" doesn't have an activity body to ensure it`);
 					return proofStatements.length > 0 ? actionNotOK(`ActivitiesStepper: proof failed for outcome "${outcome}"`) : OK;
 				}
 				const intent = { mode: featureStep.intent?.mode ?? "authoritative", usage: featureStep.intent?.usage };

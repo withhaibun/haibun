@@ -123,7 +123,7 @@ describe("SessionAuthority", () => {
 
 		it("refuses to sign when nothing is registered to, naming the action and where", () => {
 			expect(() => new SessionAuthority().signRequest(request, "Peer:act")).toThrow(
-				"nothing is registered to sign a request, so this process can't invoke Peer:act at http://peer.example/rpc/m",
+				"a signer isn't registered, so this process can't invoke Peer:act at http://peer.example/rpc/m",
 			);
 		});
 

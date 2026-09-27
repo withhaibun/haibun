@@ -110,7 +110,7 @@ export class RpcClient {
 	private proving(action: string | undefined): TProveRequest {
 		if (!action) return provesNothing;
 		const sign = this.sign;
-		if (!sign) throw new Error(`rpc ${this.baseUrl}: a call invoking ${action} is signed, and this client has nothing to sign it with`);
+		if (!sign) throw new Error(`rpc ${this.baseUrl}: a call invoking ${action} is signed, and this client doesn't hold a signer`);
 		return (request) => sign(request, action);
 	}
 

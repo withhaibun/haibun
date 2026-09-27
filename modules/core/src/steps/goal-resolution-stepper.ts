@@ -128,7 +128,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 			const step = after.featureStep.action.step;
 			if (step.read === true || PROJECTION_DOMAINS.has(step.productsDomain ?? "")) return Promise.resolve({ failed: false });
 			const seqPath = stepInFlight()?.seqPath;
-			if (!seqPath) throw new Error("GoalResolutionStepper.afterStep: no step is in flight. dispatchStep runs afterStep cycles inside the step.");
+			if (!seqPath) throw new Error("GoalResolutionStepper.afterStep: a step isn't in flight. dispatchStep runs afterStep cycles inside the step.");
 			this.getWorld().eventLogger.emit({
 				id: `${AFFORDANCE_EVENT_PREFIX}${seqPath}`,
 				timestamp: Date.now(),
@@ -174,7 +174,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 			const method = stepMethodName(step.stepperName, step.stepName);
 			const call = await callStepByName({ registry, world, steppers: this.steppers }, method);
 			if (!call.registered) return actionNotOK(`pursue ${goal}: step ${i} (${method}) not registered`);
-			if (!call.result.ok) return actionNotOK(`pursue ${goal}: step ${i} (${method}) failed: ${call.result.errorMessage ?? "(no message)"}`);
+			if (!call.result.ok) return actionNotOK(`pursue ${goal}: step ${i} (${method}) failed: ${call.result.errorMessage ?? "(it didn't give a message)"}`);
 			factIds.push(call.seqPath.join("."));
 		}
 		return actionOKWithProducts({ finding: "executed", goal, factIds });
@@ -246,7 +246,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 				}
 				// finding === MICHI, take the first path
 				const [michi] = resolution.michi;
-				if (!michi) return actionNotOK(`pursue ${goal}: no michi returned`);
+				if (!michi) return actionNotOK(`pursue ${goal}: the resolver didn't return a michi`);
 				const argBindings = collectArgumentBindings(michi.bindings);
 				if (argBindings.length > 0) {
 					return actionNotOK(
@@ -268,11 +268,11 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 			productsDomain: DOMAIN_CHAIN_WALK,
 			action: async ({ goal }: { goal: string }) => {
 				const resolution = await this.runResolution(goal);
-				if (resolution.finding === GOAL_FINDING.SATISFIED) return actionNotOK(`walk toward ${goal}: already satisfied, so there is no path to walk`);
+				if (resolution.finding === GOAL_FINDING.SATISFIED) return actionNotOK(`walk toward ${goal}: already satisfied, so it doesn't need a path`);
 				if (resolution.finding === GOAL_FINDING.UNREACHABLE) return actionNotOK(`walk toward ${goal}: unreachable (missing producers: ${resolution.missing.join(", ")})`);
 				if (resolution.finding === GOAL_FINDING.REFUSED) return actionNotOK(`walk toward ${goal}: refused (${resolution.refusalReason}: ${resolution.detail})`);
 				const [michi] = resolution.michi;
-				if (!michi) return actionNotOK(`walk toward ${goal}: no michi returned`);
+				if (!michi) return actionNotOK(`walk toward ${goal}: the resolver didn't return a michi`);
 				const world = this.getWorld();
 				const instance = await createChainInstance(world, goal, michi);
 				return actionOKWithProducts(walkProducts(instance, runRegistry(world)));

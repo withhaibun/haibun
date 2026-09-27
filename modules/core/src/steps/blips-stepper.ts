@@ -128,7 +128,10 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 				await Promise.resolve();
 				const declared = blipDeclarations().map((d) => d.name);
 				const unknown = watching.filter((n) => !declared.some((d) => d === n || d.startsWith(`${n}.`)));
-				if (unknown.length > 0) return actionNotOK(`watch blips: nothing declares ${unknown.join(", ")}; declared names are ${declared.join(", ") || "(none)"}`);
+				if (unknown.length > 0)
+					return actionNotOK(
+						`watch blips: ${unknown.join(", ")} isn't declared; ${declared.length > 0 ? `declared names are ${declared.join(", ")}` : "the run doesn't declare a name"}`,
+					);
 				blipWatch.start(this.getWorld().eventLogger, watching);
 				return actionOKWithProducts({ watching, window: WATCH_WINDOW });
 			},

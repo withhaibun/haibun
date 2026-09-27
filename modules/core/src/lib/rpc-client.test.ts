@@ -73,7 +73,7 @@ describe("RpcClient.call", () => {
 	it("refuses a call invoking an action when it has nothing to sign with, before sending anything", async () => {
 		const { fetchImpl, calls } = makeFakeFetch([{ ok: true, bodyText: "{}" }]);
 		const client = new RpcClient({ baseUrl: "http://host", fetchImpl });
-		await expect(client.call("m", {}, [0], { action: "Stepper:act" })).rejects.toThrow("a call invoking Stepper:act is signed, and this client has nothing to sign it with");
+		await expect(client.call("m", {}, [0], { action: "Stepper:act" })).rejects.toThrow("a call invoking Stepper:act is signed, and this client doesn't hold a signer");
 		expect(calls).toEqual([]);
 	});
 

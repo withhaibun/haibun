@@ -33,7 +33,7 @@ export async function advanceChainInstance(ctx: TChainWalkerContext, instanceId:
 	// A walk is one reader's. Whoever is acting must be who began it, so a handle to a walk is not authority over it:
 	// the arguments each step runs with are the walker's own, and another reader supplying them is another reader acting.
 	const acting = actingAs();
-	if (inst.owner !== acting) throw new Error(`chain instance ${instanceId} was begun by ${inst.owner ?? "no one"}, and ${acting ?? "no one"} is acting`);
+	if (inst.owner !== acting) throw new Error(`chain instance ${instanceId} was begun by ${inst.owner ?? "an unnamed caller"}, and ${acting ?? "an unnamed caller"} is acting`);
 
 	if (inst.stepIndex >= inst.michi.steps.length) {
 		if (inst.status !== CHAIN_INSTANCE_STATUS.COMPLETED) {

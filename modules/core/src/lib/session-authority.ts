@@ -50,7 +50,7 @@ export class SessionAuthority implements IAuthority {
 	}
 
 	signRequest(request: TOutgoingRequest, action: string): Promise<Record<string, string>> {
-		if (!this.invoker) throw new Error(`nothing is registered to sign a request, so this process can't invoke ${action} at ${request.url}`);
+		if (!this.invoker) throw new Error(`a signer isn't registered, so this process can't invoke ${action} at ${request.url}`);
 		return this.invoker.sign(request, action);
 	}
 
@@ -126,7 +126,7 @@ export function getAuthority(runtime: TRuntime): IAuthority | undefined {
 export function requestSigner(runtime: TRuntime): TRequestSigner {
 	return (request, action) => {
 		const authority = getAuthority(runtime);
-		if (!authority) throw new Error(`this process holds no authority, so it can't invoke ${action} at ${request.url}`);
+		if (!authority) throw new Error(`this process doesn't hold an authority, so it can't invoke ${action} at ${request.url}`);
 		return authority.signRequest(request, action);
 	};
 }

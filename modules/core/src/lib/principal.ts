@@ -26,7 +26,7 @@ export function actingPrincipal(world: TWorld): string {
 /** The active principal, or throw: an authored action requires an acting principal. */
 export function requirePrincipal(world: TWorld): string {
 	const p = currentPrincipal(world);
-	if (!p) throw new Error("no principal established: an authored action requires an acting principal");
+	if (!p) throw new Error("an acting principal isn't established, and an authored action requires one");
 	return p;
 }
 

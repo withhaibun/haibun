@@ -202,7 +202,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 					if (!selector) continue;
 					checked++;
 					const sourceLabel = (sourceQuad as { objectType?: string }).objectType;
-					if (!sourceLabel) throw new Error(`anchor ${anchor.id}: its hasSource edge names no type for "${String(sourceQuad.object)}"`);
+					if (!sourceLabel) throw new Error(`anchor ${anchor.id}: its hasSource edge doesn't name a type for "${String(sourceQuad.object)}"`);
 					const sourceId = String(sourceQuad.object);
 					const text = await markdownOf(store, sourceLabel, sourceId);
 					const said = describeAnchor(selector);

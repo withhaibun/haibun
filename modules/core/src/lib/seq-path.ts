@@ -36,7 +36,7 @@ export const calledOf = (stepperName: string, actionName: string): string => `${
 /** The stepper and the action a step's record says it called. */
 export function calledParts(called: string): { stepperName: string; actionName: string } {
 	const at = called.indexOf(".");
-	if (at < 1 || at === called.length - 1) throw new Error(`"${called}" names no stepper and action`);
+	if (at < 1 || at === called.length - 1) throw new Error(`"${called}" doesn't name a stepper and action`);
 	return { stepperName: called.slice(0, at), actionName: called.slice(at + 1) };
 }
 

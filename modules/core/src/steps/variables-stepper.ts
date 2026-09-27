@@ -536,7 +536,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		const domainKey = normalizeDomainKey(stored.domain);
 		const domainEntry = this.getWorld().domains[domainKey];
 		if (!domainEntry) {
-			throw new Error(`No domain coercer found for domain "${domainKey}"`);
+			throw new Error(`the domain "${domainKey}" doesn't have a coercer`);
 		}
 		const left = domainEntry.coerce({ ...stored, domain: domainKey }, featureStep, this.steppers);
 

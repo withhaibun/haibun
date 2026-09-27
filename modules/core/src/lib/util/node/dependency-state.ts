@@ -91,7 +91,7 @@ function sourcesOf(moduleDir: string): string {
 	const rootDir = declared.compilerOptions?.rootDir;
 	if (!rootDir) return moduleDir;
 	const sources = path.resolve(moduleDir, rootDir);
-	if (!nodeFS.existsSync(sources)) throw new Error(`${tsconfig} says the module is built from ${rootDir}, and there is nothing at ${sources}`);
+	if (!nodeFS.existsSync(sources)) throw new Error(`${tsconfig} says the module is built from ${rootDir}, and ${sources} doesn't exist`);
 	return nodeFS.realpathSync(sources);
 }
 
@@ -119,7 +119,7 @@ export function dependencyRoots(specl: TSpecl, bases: readonly string[], configD
 	}
 	for (const dep of specl.dependsOn ?? []) {
 		const at = path.resolve(configDir, dep);
-		if (!nodeFS.existsSync(at)) throw new Error(`dependsOn names ${dep}, and there is nothing at ${at}`);
+		if (!nodeFS.existsSync(at)) throw new Error(`dependsOn names ${dep}, and ${at} doesn't exist`);
 		roots.add(nodeFS.realpathSync(at));
 	}
 	return [...roots].sort();

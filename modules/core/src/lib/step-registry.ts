@@ -142,7 +142,7 @@ export function openRunRegistry(world: TWorld, steppers: AStepper[]): StepRegist
 /** The run's step registry, which holds every step the run declares and every step its transports injected. Every caller
  *  of the run dispatches and discovers against it. */
 export function runRegistry(world: TWorld): StepRegistry {
-	if (!world.runtime.stepRegistry) throw new Error("the run holds no step registry");
+	if (!world.runtime.stepRegistry) throw new Error("the run doesn't hold a step registry");
 	return world.runtime.stepRegistry;
 }
 
@@ -189,7 +189,7 @@ export function createStepTool(stepper: AStepper, stepName: string, stepDef: TSt
 	const stepperName = constructorName(stepper);
 	const { inputSchema, paramDomainKeys } = buildInputSchema(stepperName, stepName, stepDef, world);
 	if (stepDef.productsOf !== undefined && paramDomainKeys.get(stepDef.productsOf) !== DOMAIN_STATEMENT)
-		throw new Error(`step ${stepperName}.${stepName}: productsOf names {${stepDef.productsOf}}, which is no statement its phrase takes`);
+		throw new Error(`step ${stepperName}.${stepName}: productsOf names {${stepDef.productsOf}}, which isn't a statement its phrase takes`);
 	assertRecordIds(`step ${stepperName}.${stepName}`, stepDef, paramDomainKeys);
 	const resolvedOutputSchema = resolveOutputSchema(stepperName, stepName, stepDef, world);
 	const outputSchema = resolvedOutputSchema ? jsonSchemaFor(`step ${stepperName}.${stepName}: its products schema`, resolvedOutputSchema, "output") : undefined;
@@ -228,10 +228,11 @@ const TYPE_NAMING_DOMAINS: readonly string[] = [DOMAIN_PERSISTED_TYPE, DOMAIN_DO
 function assertRecordIds(step: string, stepDef: TStepperStep, paramDomainKeys: Map<string, string>): void {
 	for (const [id, type] of Object.entries(stepDef.recordIds ?? {})) {
 		if (paramDomainKeys.get(id) !== DOMAIN_RECORD_ID) throw new Error(`${step}: recordIds names {${id}}, which is no ${DOMAIN_RECORD_ID} its phrase takes`);
-		if (!TYPE_NAMING_DOMAINS.includes(paramDomainKeys.get(type) ?? "")) throw new Error(`${step}: recordIds pairs {${id}} with {${type}}, which names no type`);
+		if (!TYPE_NAMING_DOMAINS.includes(paramDomainKeys.get(type) ?? "")) throw new Error(`${step}: recordIds pairs {${id}} with {${type}}, which doesn't name a type`);
 	}
 	for (const [param, domain] of paramDomainKeys)
-		if (domain === DOMAIN_RECORD_ID && stepDef.recordIds?.[param] === undefined) throw new Error(`${step}: {${param}} is a ${DOMAIN_RECORD_ID} its recordIds pairs with no type`);
+		if (domain === DOMAIN_RECORD_ID && stepDef.recordIds?.[param] === undefined)
+			throw new Error(`${step}: {${param}} is a ${DOMAIN_RECORD_ID} that its recordIds doesn't pair with a type`);
 }
 
 /**
@@ -278,7 +279,7 @@ export function buildFeatureStepForTransport(tool: StepTool, input: Record<strin
 	// Proxy tools (RemoteStepperProxy, subprocess) dispatch out-of-process and have no
 	// local stepDef. Construct a carrier with just the description so the handler can run.
 	const { descriptor } = tool;
-	const step = tool.stepDef ?? ({ gwta: descriptor.pattern, action: () => actionNotOK(`no in-process stepDef for ${descriptor.method}`) } as TStepperStep);
+	const step = tool.stepDef ?? ({ gwta: descriptor.pattern, action: () => actionNotOK(`${descriptor.method} doesn't have an in-process stepDef`) } as TStepperStep);
 	// A tool of another host is registered under that host and named for it, while its stepper and step names are the
 	// ones that host knows. Dispatch resolves a step by those names, so without the host here a call by name of a
 	// remote tool finds the local step of the same name and answers from this process.
@@ -331,7 +332,7 @@ function jsonSchemaFor(subject: string, schema: z.ZodType, io: "input" | "output
 						return;
 					}
 					if (nodeType && UNREPRESENTABLE_ZOD_TYPES.has(nodeType)) {
-						throw new Error(`${subject} declares a "${nodeType}" field, which has no JSON Schema form; declare a representable type`);
+						throw new Error(`${subject} declares a "${nodeType}" field, which doesn't have a JSON Schema form; declare a representable type`);
 					}
 				},
 			}) as Record<string, unknown>,
@@ -357,7 +358,7 @@ function buildInputSchema(stepperName: string, stepName: string, stepDef: TStepp
 		const domain = world.domains?.[domainKey];
 		if (!domain) {
 			throw new Error(
-				`step ${stepperName}.${stepName}: {${term}} names the domain "${domainKey}", which no loaded stepper registers. A parameter's domain is one a stepper declares in getConcerns, or a union of them registered as one.`,
+				`step ${stepperName}.${stepName}: {${term}} names the domain "${domainKey}", which the loaded steppers don't register. A parameter's domain is one a stepper declares in getConcerns, or a union of them registered as one.`,
 			);
 		}
 		// The schema describes what a caller must supply, so defaulted fields are optional.

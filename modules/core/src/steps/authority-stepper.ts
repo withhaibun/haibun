@@ -111,7 +111,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 				"The signed delegations this instance recorded to the key that signs the call and hasn't revoked, as the documents a holder presents: how a key finds what it may do here. A key reads its own, and no other key's.",
 			action: async () => {
 				const controller = actingAs();
-				if (!controller) return actionNotOK("the delegation read answers the key that signs the call, and this call proves no key");
+				if (!controller) return actionNotOK("the delegation read answers the key that signs the call, and this call doesn't prove a key");
 				return actionOKWithProducts(await this.getAuthority().delegationsTo(controller));
 			},
 		},
@@ -161,7 +161,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 		// it: the framework holds no key and knows no specification.
 		const verified = await this.getAuthority().verifyEvidence({ kind: "document", document: capability as Record<string, unknown>, target });
 		if (!verified.ok) {
-			return actionNotOK(`holding capability: the evidence was refused, ${verified.error ?? "no reason given"}`);
+			return actionNotOK(`holding capability: the evidence was refused, ${verified.error ?? "without a reason"}`);
 		}
 		const runner = new FlowRunner(this.getWorld(), this.steppers);
 		const run = () => runner.runSteps(what, { parentStep: featureStep });

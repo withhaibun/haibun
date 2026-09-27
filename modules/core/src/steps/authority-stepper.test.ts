@@ -37,7 +37,7 @@ class PingStepper extends AStepper {
 			exact: "holds a call",
 			action: () => {
 				const authority = getAuthority(this.getWorld().runtime);
-				if (!authority) return Promise.resolve(actionNotOK("the run holds no authority"));
+				if (!authority) return Promise.resolve(actionNotOK("the run doesn't hold an authority"));
 				authority.holdWhile({ capabilities: [HELD_ON] });
 				return Promise.resolve(OK);
 			},
@@ -122,11 +122,11 @@ describe("delegations to the caller", () => {
 		expect((await readAs("did:key:zStranger")).products, "another key is answered its own").toEqual({ delegations: [], records });
 	});
 
-	it("refuses a call that proves no key, since there is no key to answer", async () => {
+	it("refuses a call that doesn't prove a key, since it doesn't hold a key to answer", async () => {
 		const { world, readAs } = await opened();
 		getAuthority(world.runtime)?.registerVerifier(verifier);
 		const refused = await readAs(undefined);
 		expect(refused.ok).toBe(false);
-		expect(refused.ok === false && refused.errorMessage).toBe("the delegation read answers the key that signs the call, and this call proves no key");
+		expect(refused.ok === false && refused.errorMessage).toBe("the delegation read answers the key that signs the call, and this call doesn't prove a key");
 	});
 });

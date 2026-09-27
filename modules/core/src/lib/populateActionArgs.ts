@@ -54,7 +54,7 @@ function readInDomain(inStep: string, takes: string, resolved: TStepValue, world
 	const parts = domainParts(takes);
 	if (holds === takes || parts.includes(holds) || parts.includes(DOMAIN_STRING) || parts.includes(DOMAIN_VARIABLE_VALUE)) return resolved.value;
 	const domain = world.domains[takes];
-	if (!domain) throw new Error(`${inStep} takes the domain "${takes}", which no loaded stepper registers`);
+	if (!domain) throw new Error(`${inStep} takes the domain "${takes}", which the loaded steppers don't register`);
 	if (!isPrimitiveDomain(holds) && domain.topology?.ranges?.id !== holds) throw new Error(`${inStep} takes ${takes}, and ${resolved.term} holds ${holds}`);
 	try {
 		return domain.coerce({ ...resolved, domain: takes }, featureStep, steppers);

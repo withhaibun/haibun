@@ -166,7 +166,7 @@ variable held.seen is "2"`,
 		expect(result.ok).toBe(true);
 	});
 
-	it("refuses to watch a name nothing declares, rather than reporting an empty window as an answer", async () => {
+	it("refuses to watch a name that isn't declared, rather than reporting an empty window as an answer", async () => {
 		const feature = { path: "/features/test.feature", content: `watch blips "haibun.test.nothing.declares.this"` };
 		const result = await failWithDefaults([feature], STEPPERS);
 		expect(result.ok).toBe(false);

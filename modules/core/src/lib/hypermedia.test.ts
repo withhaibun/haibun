@@ -106,7 +106,7 @@ describe("composeDisplayLabel priority: headline → body → weak → id", () =
 			displayLabel: "exact",
 		};
 		const domains = { thing: { selectors: ["thing"], description: "d", schema: z.object({ id: z.string(), generatedAtTime: z.string() }), topology } };
-		expect(() => buildConcernCatalog(domains)).toThrow(/displayLabel "exact", which is none of its properties or edges/);
+		expect(() => buildConcernCatalog(domains)).toThrow(/displayLabel "exact", which isn't one of its properties or edges/);
 	});
 
 	it("picks the shortest non-empty body: the concise summary, not a blob", () => {
