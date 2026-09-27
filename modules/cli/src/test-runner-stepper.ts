@@ -109,25 +109,26 @@ const LISTS_WHAT_IT_HOLDS = /\blists?\b/i;
  * or a list is accepted as its JSON text, as a feature line writes one.
  */
 export function askParams(params: string, takes: TInputSchema["properties"] = {}): Record<string, unknown> {
-	const names = Object.keys(takes);
+	const [first, ...others] = Object.keys(takes);
+	const only = others.length === 0 ? first : undefined;
 	const text = unquote(params);
 	if (text === "" || text === "{}") return {};
 	const written = (): Record<string, unknown> => {
 		if (text.startsWith("{")) {
 			const parsed = fromJsonText(JsonObjectSchema).parse(text);
-			return names.length === 1 && !(names[0] in parsed) ? { [names[0]]: parsed } : parsed;
+			return only !== undefined && !(only in parsed) ? { [only]: parsed } : parsed;
 		}
-		if (!text.includes("=") && names.length === 1) return { [names[0]]: text };
+		if (!text.includes("=") && only !== undefined) return { [only]: text };
 		const asValue = (value: string): unknown => {
 			if (value === "true" || value === "false") return value === "true";
 			return value !== "" && !Number.isNaN(Number(value)) ? Number(value) : value;
 		};
 		return Object.fromEntries(
-			text
-				.split(",")
-				.map((pair) => pair.split("="))
-				.filter(([name, value]) => name?.trim() && value !== undefined)
-				.map(([name, ...rest]) => [name.trim(), asValue(rest.join("=").trim())]),
+			text.split(",").flatMap((pair) => {
+				const at = pair.indexOf("=");
+				const name = pair.slice(0, at).trim();
+				return at < 0 || !name ? [] : [[name, asValue(pair.slice(at + 1).trim())]];
+			}),
 		);
 	};
 	const structured = (name: string, value: unknown): boolean => typeof value === "string" && ["object", "array"].includes(String(takes[name]?.type));

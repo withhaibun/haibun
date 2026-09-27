@@ -14,6 +14,9 @@ describe("apply ENV", () => {
 	it("prevents collision", () => {
 		const p = { a: "1" };
 		const res = BaseOptions.options.ENV.parse("a=1", p);
-		expect(res.error).toBeDefined();
+		expect(res.parseError).toBe("ENV a already defined");
+	});
+	it("refuses a variable without a value", () => {
+		expect(BaseOptions.options.ENV.parse("a", {}).parseError).toBe("ENV a has no value: write a=value");
 	});
 });

@@ -12,11 +12,16 @@ export type TFeaturesBackgrounds = {
 	backgrounds: TFeature[];
 };
 
-export async function getFeaturesAndBackgrounds(bases: TBase, featureFilter: string[], policyConfig?: TRunPolicyConfig, fs: TFileSystem = nodeFS): Promise<TFeaturesBackgrounds> {
+export async function getFeaturesAndBackgrounds(
+	bases: TBase,
+	featureFilter: string[] | undefined,
+	policyConfig?: TRunPolicyConfig,
+	fs: TFileSystem = nodeFS,
+): Promise<TFeaturesBackgrounds> {
 	const ret: TFeaturesBackgrounds = { features: [], backgrounds: [] };
 	for (const abase of bases) {
 		// Only filter features, not backgrounds - backgrounds should always be loaded
-		const ff: Record<string, string[]> = { feature: featureFilter, background: [] };
+		const ff: Record<string, string[] | undefined> = { feature: featureFilter, background: [] };
 
 		const rawFeaturesAndBackgrounds: TFeaturesBackgrounds = { features: [], backgrounds: [] };
 		for (const t of ["feature", "background"] as const) {

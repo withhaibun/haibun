@@ -511,7 +511,7 @@ export type TExecutorResult = {
 	ok: boolean;
 	tag: unknown;
 	shared: unknown;
-	featureResults?: TFeatureResult[];
+	featureResults: TFeatureResult[];
 	failure?: {
 		stage: string;
 		error: {

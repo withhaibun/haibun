@@ -39,6 +39,6 @@ export class PhaseRunner {
 			failure: { stage, error: { message: PhaseRunner.formatError(error), details: { stack: (error as Error)?.stack } } },
 			steppers: this.steppers,
 			featureResults: [],
-		} as unknown as TExecutorResult;
+		};
 	}
 }

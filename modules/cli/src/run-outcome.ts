@@ -136,7 +136,8 @@ export function accrueRunOutcome(outcome: TRunOutcome, output: string): TRunOutc
 	}
 	// A run whose report is only announced in its log, rather than emitted as an artifact, still says where it is.
 	const announced = output.match(/(file:\/\/\S+\.html)/g);
-	if (announced) outcome.report = announced[announced.length - 1];
+	const report = announced?.at(-1);
+	if (report) outcome.report = report;
 	return outcome;
 }
 

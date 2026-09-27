@@ -90,10 +90,11 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 
 		if (parsed.dryRun) return dryRunExit(featuresBackgrounds, policyConfig, featureFilter); // Exits process
 
+		const { moduleOptions } = world;
 		const csteppers = await pr.tryPhase("Steppers", async () => {
 			const s = await getSteppers([...specl.steppers, ...parsed.withSteppers]);
-			verifyRequiredOptions(s, world.moduleOptions);
-			verifyExtraOptions(world.moduleOptions, s);
+			verifyRequiredOptions(s, moduleOptions);
+			verifyExtraOptions(moduleOptions, s);
 			return s;
 		});
 
@@ -156,10 +157,12 @@ export function resolveRunPolicy(cliPolicyConfig: TRunPolicyConfig | undefined, 
 		if (!specl.runPolicy) {
 			throw new Error(`${OPTION_RUN_POLICY} requires "runPolicy" in config.json`);
 		}
-		if (specl.appParameters && specl.appParameters[policyConfig.place]) {
-			for (const [key, value] of Object.entries(specl.appParameters[policyConfig.place])) {
-				protoOptions.options.envVariables[key] = String(value);
-			}
+		const appParameters = specl.appParameters?.[policyConfig.place];
+		if (appParameters) {
+			protoOptions.options.envVariables = {
+				...protoOptions.options.envVariables,
+				...Object.fromEntries(Object.entries(appParameters).map(([key, value]) => [key, String(value)])),
+			};
 		}
 
 		loadAndValidateRunPolicy(policyConfig, specl.runPolicy);
@@ -240,15 +243,11 @@ function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 
 async function getSpeclOrExit(bases: TBase): Promise<TSpecl> {
 	const specl = getConfigFromBase(bases);
-	if (specl === null || bases?.length < 1) {
-		if (specl === null) {
-			await usageThenExit(specl ? specl : getDefaultOptions(), `missing or unusable config.json from ${bases} in ${process.cwd()}`);
-		}
-		await usageThenExit(specl ? specl : getDefaultOptions(), "no bases");
-	}
+	if (specl === null) return await usageThenExit(getDefaultOptions(), `missing or unusable config.json from ${bases} in ${process.cwd()}`);
+	if (bases.length < 1) return await usageThenExit(specl, "no bases");
 	return specl;
 }
-export async function usageThenExit(specl: TSpecl, message?: string) {
+export async function usageThenExit(specl: TSpecl, message?: string): Promise<never> {
 	const output = await usage(specl, message);
 	console[message ? "error" : "info"](output);
 	process.exit(message ? 1 : 0);
@@ -263,10 +262,10 @@ export async function usage(specl: TSpecl, message?: string) {
 	const steppers = await getCreateSteppers(specl.steppers);
 	let a: { [name: string]: { desc: string } } = {};
 	steppers.forEach((s) => {
-		const o = s as IHasOptions;
-		if (o.options) {
+		const { options } = s as IHasOptions;
+		if (options) {
 			const p = getPre(s);
-			a = { ...a, ...Object.keys(o.options).reduce((a, i) => ({ ...a, [`${p}${i}`]: o.options[i] }), {}) };
+			a = { ...a, ...Object.fromEntries(Object.entries(options).map(([name, option]) => [`${p}${name}`, option])) };
 		}
 	});
 
@@ -293,33 +292,31 @@ export function processBaseEnvToOptionsAndErrors(env: TEnv, specl: TSpecl) {
 	const errors: string[] = [];
 	let nenv = {};
 
-	const baseOptions = BaseOptions as IHasOptions;
-	baseOptions.options && Object.entries(baseOptions.options).forEach(([k, v]) => ((protoOptions.options as Record<string, unknown>)[k] = v.default));
+	const baseOptions = (BaseOptions as IHasOptions).options ?? {};
+	Object.entries(baseOptions).forEach(([k, v]) => ((protoOptions.options as Record<string, unknown>)[k] = v.default));
 
-	Object.entries(env)
-		.filter(([k]) => k.startsWith(BASE_PREFIX) && k !== HAIBUN_RUN_POLICY)
-		.map(([k]) => {
-			const value = env[k];
-			const opt = k.replace(BASE_PREFIX, "");
-			const baseOption = baseOptions.options[opt];
+	for (const [k, value] of Object.entries(env)) {
+		if (value === undefined || !k.startsWith(BASE_PREFIX) || k === HAIBUN_RUN_POLICY) continue;
+		const opt = k.replace(BASE_PREFIX, "");
+		const baseOption = baseOptions[opt];
 
-			if (baseOption) {
-				const res = baseOption.parse(value, nenv);
-				if (res.parseError) {
-					errors.push(res.parseError);
-				} else if (res.env) {
-					nenv = { ...nenv, ...res.env };
-				} else if (res.result === undefined) {
-					errors.push(`no option for ${opt} from ${JSON.stringify(value)}`);
-				} else {
-					(protoOptions.options as Record<string, unknown>)[opt] = res.result;
-				}
-			} else if (k.startsWith(MODULE_OPTION_PREFIX)) {
-				protoOptions.moduleOptions[k] = value;
+		if (baseOption) {
+			const res = baseOption.parse(value, nenv);
+			if (res.parseError) {
+				errors.push(res.parseError);
+			} else if (res.env) {
+				nenv = { ...nenv, ...res.env };
+			} else if (res.result === undefined) {
+				errors.push(`no option for ${opt} from ${JSON.stringify(value)}`);
 			} else {
-				errors.push(`no option for ${opt}`);
+				(protoOptions.options as Record<string, unknown>)[opt] = res.result;
 			}
-		});
+		} else if (k.startsWith(MODULE_OPTION_PREFIX)) {
+			protoOptions.moduleOptions[k] = value;
+		} else {
+			errors.push(`no option for ${opt}`);
+		}
+	}
 	protoOptions.options.envVariables = nenv;
 
 	if (errors.length > 0) {
@@ -383,7 +380,9 @@ export function processArgs(args: string[]) {
 		if (cur === OPTION_CONFIG || cur === "-c") {
 			configLoc = args.shift()?.replace(/\/config.json$/, "");
 		} else if (cur === "--cwd") {
-			process.chdir(args.shift());
+			const dir = args.shift();
+			if (!dir) throw new Error("--cwd requires a working directory");
+			process.chdir(dir);
 		} else if (cur === OPTION_HELP || cur === "-h") {
 			showHelp = true;
 		} else if (cur === OPTION_SHOW_STEPPERS) {
