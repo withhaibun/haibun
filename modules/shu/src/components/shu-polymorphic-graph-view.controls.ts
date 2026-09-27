@@ -24,7 +24,7 @@ import type { TPaneOpen } from "../pane-state.js";
 import { z } from "zod";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps, type TFeatureStep } from "@haibun/core/lib/astepper.js";
 import { DOMAIN_PERSISTED_TYPE, type TDomainDefinition } from "@haibun/core/lib/resources.js";
-import { DOMAIN_NUMBER, DOMAIN_PERSISTED_TYPES, DOMAIN_TEXT, individualRefInputSchema, listedSchema, NameSchema } from "@haibun/core/lib/domains.js";
+import { DOMAIN_NUMBER, DOMAIN_PERSISTED_TYPES, individualRefInputSchema, listedSchema, NameSchema } from "@haibun/core/lib/domains.js";
 import { actionOK, actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
 import type { TActionResult } from "@haibun/core/schema/protocol.js";
 import { saveImageArtifact } from "@haibun/domain-storage/image-artifact.js";
@@ -150,9 +150,18 @@ const GraphSnapshotSchema = FramingSchema.extend({
 	focusDims: z.boolean(),
 	/** The drawn nodes that a drawn edge doesn't touch. */
 	isolated: z.array(z.string()),
+	/** The predicates the drawn edges carry, each once. */
+	predicates: z.array(z.string()),
+	/** The titles of the boxes drawn around groups. */
+	containers: z.array(z.string()),
+	/** The pairs of group boxes that overlap on the x/y plane, each named by its two titles. */
+	overlapping: z.array(z.string()),
+	/** The area of the group boxes' bounding box over their summed area, while two or more boxes are drawn. */
+	packing: z.number().nullable(),
+	/** The lesser of the ranges the placed nodes span on x and on y. */
+	extent: z.number(),
 });
 const DOMAIN_GRAPH_NODE = "graph-node";
-const DOMAIN_GRAPH_PREDICATE = "graph-predicate";
 const DOMAIN_GRAPH_PREDICATES = "graph-predicates";
 const DOMAIN_GRAPH_DROP = "graph-drop";
 const GraphDropSchema = z.object({ id: z.string(), x: z.number(), y: z.number() });
@@ -168,7 +177,6 @@ const graphControlDomains: TDomainDefinition[] = [
 		schema: individualRefInputSchema,
 		description: "A node the graph draws: its object id (type:id), the id of the record it draws, or words of the name it shows",
 	},
-	{ selectors: [DOMAIN_GRAPH_PREDICATE], schema: NameSchema, description: "A predicate the graph's edges or its nodes' properties carry, by name" },
 	{
 		selectors: [DOMAIN_GRAPH_PREDICATES],
 		schema: listedSchema(z.string().min(1), "predicate"),
@@ -194,6 +202,7 @@ type Snapshot = z.infer<typeof GraphSnapshotSchema>;
 type TGraphNode = { id: string };
 type TGraphScene = z.infer<typeof GraphSceneSchema>;
 type TSampled = TGraphState["sample"][number];
+type TEnclosure = TGraphState["enclosures"][number];
 
 export default class ShuPolymorphicGraphViewControls extends AStepper implements IHasCycles {
 	description = "Drives the graph view in a page: finds, reveals, opens and drags nodes, filters by type, zooms, and checks what the graph shows.";
@@ -259,7 +268,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	/** The graph as `snapshot the graph` records it: its framing and what it draws. */
 	private async snapshot(page: Page): Promise<Snapshot> {
 		const state = await this.state(page);
-		const { focus, highlighted, follow, onScreen, sample, edges } = state;
+		const { focus, highlighted, follow, onScreen, sample, edges, enclosures } = state;
 		const drawn = await this.view(page).evaluate((view: ShuPolymorphicGraphView) => [...(view.nodeMap?.keys() ?? [])]);
 		const linked = new Set(edges.flatMap((e) => [e.s, e.t]));
 		const lit = sample.filter((n) => isLit(n.opacity)).length;
@@ -272,6 +281,11 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			framed: !!onScreen && onScreen.fraction >= FRAMED_ON_SCREEN && onScreen.span >= FRAMED_SPAN,
 			focusDims: (!!focus.hover || !!focus.selected) && dim > 0 && lit > 0 && lit < sample.length,
 			isolated: drawn.filter((id) => !linked.has(id)),
+			predicates: [...new Set(edges.map((e) => e.predicate))],
+			containers: enclosures.map((e) => e.title),
+			overlapping: overlappingPairs(enclosures),
+			packing: enclosures.length < 2 ? null : packingOf(enclosures),
+			extent: Math.min(range(sample.map((n) => placed(n).x)), range(sample.map((n) => placed(n).y))),
 		};
 	}
 
@@ -604,13 +618,6 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		tickGraphProperties: {
 			gwta: `tick graph properties {predicates: ${DOMAIN_GRAPH_PREDICATES}}`,
 			action: ({ predicates }: { predicates: string[] }) => this.setFilterChips(CHIP_FACET.predicates, predicates, true),
-		},
-		graphDrawsProperty: {
-			gwta: `graph draws a {predicate: ${DOMAIN_GRAPH_PREDICATE}} edge`,
-			action: async ({ predicate }: { predicate: string }) => {
-				const drawn = (await this.state(await this.page())).edges.map((e) => e.predicate);
-				return drawn.includes(predicate) ? actionOK() : actionNotOK(`the graph doesn't draw a "${predicate}" edge (it draws ${[...new Set(drawn)].join(", ")})`);
-			},
 		},
 		toggleGraphPrune: {
 			// The head's prune toggle: nodes without a visible edge leave the model, in every medium.
@@ -1296,15 +1303,6 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				return actionOK();
 			},
 		},
-		graphHasRoleContainer: {
-			// Assert a role container with the given TITLE exists: the trust-triangle container is named by its party
-			// (Issuer's name, Holder's name, the verifier's name, "Verifiable Data Registry"), never a cryptic id/DID.
-			gwta: `graph shows a {name: ${DOMAIN_TEXT}} container`,
-			action: async ({ name }: { name: string }) => {
-				const titles = (await this.state(await this.page())).enclosures.map((e) => e.title);
-				return titles.includes(name) ? actionOK() : actionNotOK(`no "${name}" container, containers present: [${titles.join(", ")}]`);
-			},
-		},
 		timeCursorHidesFuture: {
 			// Scrub the shared time cursor to a cutoff in the middle of the nodes' ages: nodes recorded after it vanish;
 			// clearing the cursor (null = live) restores them. The graph reacts to the same global cursor the timeline drives.
@@ -1328,15 +1326,6 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				if (!hid) return actionNotOK(`scrubbing the cursor did not hide newer nodes (${before} shown → ${hidden})`);
 				if (!restored) return actionNotOK(`clearing the cursor did not restore nodes (${before} → ${(await this.state(page)).nodes})`);
 				return actionOK();
-			},
-		},
-		graphShowsGroupBoxes: {
-			gwta: "graph shows a box around each group",
-			action: async () => {
-				const { enclosures, grouped, sample } = await this.state(await this.page());
-				return enclosures.length > 0
-					? actionOK()
-					: actionNotOK(`grouped mode didn't draw an enclosure box (grouped=${grouped}, types=[${[...new Set(sample.map((s) => s.type))].join(", ")}])`);
 			},
 		},
 		graphReadsAsLayeredFlow: {
@@ -1377,46 +1366,6 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 					return actionNotOK(
 						`the rank axis spans only ${flowExt.toFixed(0)} but the time-depth spans ${zExt.toFixed(0)}: the hierarchy is dwarfed by depth and won't read as a flow`,
 					);
-				return actionOK();
-			},
-		},
-		containersDoNotOverlap: {
-			// The group enclosure boxes must tile the plane without colliding, overlapping boxes are the "containers overlap
-			// badly" failure. Assert every pair of boxes is disjoint in the x/y plane (AABB), reporting the worst pair.
-			gwta: "group containers do not overlap",
-			action: async () => {
-				const page = await this.page();
-				await this.settle(page);
-				const boxes = (await this.state(page)).enclosures;
-				if (boxes.length < 2) return actionNotOK(`only ${boxes.length} container(s), need at least 2 to check overlap`);
-				const overlap1D = (c1: number, s1: number, c2: number, s2: number): number => Math.max(0, Math.min(c1 + s1 / 2, c2 + s2 / 2) - Math.max(c1 - s1 / 2, c2 - s2 / 2));
-				for (let i = 0; i < boxes.length; i++)
-					for (let j = i + 1; j < boxes.length; j++) {
-						const a = boxes[i];
-						const b = boxes[j];
-						const ox = overlap1D(a.x, a.sx, b.x, b.sx);
-						const oy = overlap1D(a.y, a.sy, b.y, b.sy);
-						if (ox > 0 && oy > 0) return actionNotOK(`containers "${a.title}" and "${b.title}" overlap by ${ox.toFixed(0)}×${oy.toFixed(0)} in x/y`);
-					}
-				return actionOK();
-			},
-		},
-		graphContainersCompact: {
-			// The enclosure boxes must pack TIGHT, not scatter across a huge canvas (the unusable spread): assert the union
-			// bounding box of all containers is within K× their summed box areas: the live mirror of the shelfPack unit
-			// ceiling. The old isotropic-disc layout flung containers across the viewport and would blow this ceiling open.
-			gwta: "group containers pack compactly",
-			action: async () => {
-				const page = await this.page();
-				await this.settle(page);
-				const boxes = (await this.state(page)).enclosures;
-				if (boxes.length < 2) return actionNotOK(`only ${boxes.length} container(s), need at least 2 to check compactness`);
-				const bboxArea =
-					(Math.max(...boxes.map((b) => b.x + b.sx / 2)) - Math.min(...boxes.map((b) => b.x - b.sx / 2))) *
-					(Math.max(...boxes.map((b) => b.y + b.sy / 2)) - Math.min(...boxes.map((b) => b.y - b.sy / 2)));
-				const sumArea = boxes.reduce((s, b) => s + b.sx * b.sy, 0);
-				const K = 8; // looser than the unit K=4: the live boxes carry pad + the cohesion spreads members within a cell
-				if (bboxArea > K * sumArea) return actionNotOK(`containers scattered: bounding-box area ${bboxArea.toFixed(0)} > ${K}× their summed area ${sumArea.toFixed(0)}`);
 				return actionOK();
 			},
 		},
@@ -1502,19 +1451,6 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				if (res.waysNowhere > 0) return actionNotOK(`${res.waysNowhere} of the document's edge lines offer a way to a node it doesn't list`);
 				if (!res.status.includes(`${nodes} nodes`)) return actionNotOK(`the status line does not announce the node count: "${res.status}"`);
 				return actionOK();
-			},
-		},
-		graphSpreads: {
-			gwta: "graph nodes spread on both axes",
-			action: async () => {
-				// Judge the RESTING layout: sampling mid-warmup reads positions the engine has not assigned yet
-				// (undefined → a NaN range), which is a race, not a verdict on the layout.
-				const page = await this.page();
-				await this.settle(page);
-				const { sample } = await this.state(page);
-				const rangeX = range(sample.map((n) => placed(n).x));
-				const rangeY = range(sample.map((n) => placed(n).y));
-				return rangeX > 10 && rangeY > 10 ? actionOK() : actionNotOK(`graph is not spread on both axes (x range ${rangeX.toFixed(1)}, y range ${rangeY.toFixed(1)})`);
 			},
 		},
 		graphDepthEncodesTime: {
@@ -1951,6 +1887,23 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 function placed(n: TSampled): { x: number; y: number; z: number } {
 	if (n.x === undefined || n.y === undefined || n.z === undefined) throw new Error(`graph node "${n.id}" isn't placed`);
 	return { x: n.x, y: n.y, z: n.z };
+}
+
+/** How far two centred spans overlap along one axis, 0 where they don't. */
+const overlap1D = (c1: number, s1: number, c2: number, s2: number): number => Math.max(0, Math.min(c1 + s1 / 2, c2 + s2 / 2) - Math.max(c1 - s1 / 2, c2 - s2 / 2));
+
+/** The pairs of group boxes that overlap on both x and y, each named by its two titles. */
+function overlappingPairs(boxes: TEnclosure[]): string[] {
+	return boxes.flatMap((a, i) =>
+		boxes.slice(i + 1).flatMap((b) => (overlap1D(a.x, a.sx, b.x, b.sx) > 0 && overlap1D(a.y, a.sy, b.y, b.sy) > 0 ? [`"${a.title}" and "${b.title}"`] : [])),
+	);
+}
+
+/** The area of the boxes' bounding box over their summed area: 1 where they tile it, and larger as they scatter. */
+function packingOf(boxes: TEnclosure[]): number {
+	const width = Math.max(...boxes.map((b) => b.x + b.sx / 2)) - Math.min(...boxes.map((b) => b.x - b.sx / 2));
+	const height = Math.max(...boxes.map((b) => b.y + b.sy / 2)) - Math.min(...boxes.map((b) => b.y - b.sy / 2));
+	return (width * height) / boxes.reduce((sum, b) => sum + b.sx * b.sy, 0);
 }
 
 /** The graph's framing and where it placed each node, read from what it draws. */
