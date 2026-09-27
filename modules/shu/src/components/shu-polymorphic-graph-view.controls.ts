@@ -67,6 +67,14 @@ type TChipFacet = (typeof CHIP_FACET)[keyof typeof CHIP_FACET];
 /** The number of reads of the active node before the pointer step fails. A record arriving moves the node once. */
 const ACTIVE_PICK_TRIES = 30;
 const SCOPED_REFETCH_BEGIN_MS = 350; // covers the scoped refetch's RPC dispatch + the view's 250ms repaint debounce
+/** A node or edge drawn above this opacity is lit, and one below `DIM_OPACITY` is dim. A node without an opacity is drawn full. */
+const LIT_OPACITY = 0.9;
+const DIM_OPACITY = 0.5;
+const isLit = (opacity: number | null): boolean => (opacity ?? 1) > LIT_OPACITY;
+const isDim = (opacity: number | null): boolean => (opacity ?? 1) < DIM_OPACITY;
+/** The camera frames the graph when this share of its nodes projects on screen and the graph spans this share of the view. */
+const FRAMED_ON_SCREEN = 0.9;
+const FRAMED_SPAN = 0.2;
 const HOVER_POP_MAX = 2.6; // a hover pop above this reads as "huge" (the regression): an independent ceiling, comfortably clear of the gentle magnify cap so a legit pop passes and a runaway one fails
 
 /** The alpha a browser reports for a painted colour, in either shape it writes one: `rgba(r, g, b, a)` and the
@@ -127,7 +135,22 @@ const PointSchema = z.object({ x: z.number(), y: z.number(), z: z.number() });
 // fov is not compared: it moves to hold worldPerPx, which is the zoom signal.
 const CameraSchema = PointSchema.extend({ target: PointSchema.nullable().optional() }).nullable();
 const ViewportSchema = z.object({ h: z.number(), w: z.number(), worldPerPx: z.number(), calibratedH: z.number() }).nullable();
-const GraphSnapshotSchema = z.object({ camera: CameraSchema, viewport: ViewportSchema, pos: z.record(z.string(), PointSchema) });
+const FramingSchema = z.object({ camera: CameraSchema, viewport: ViewportSchema, pos: z.record(z.string(), PointSchema) });
+/** The graph at rest: its framing, and what it draws, which a feature compares through the variables and logic steps. */
+const GraphSnapshotSchema = FramingSchema.extend({
+	/** The node whose column is open, while the graph shows it. */
+	active: z.string().nullable(),
+	/** How many nodes wear the active highlight. */
+	highlighted: z.number(),
+	/** Whether the camera follows the node a reader chooses. */
+	follow: z.boolean(),
+	/** Whether the camera frames the whole graph at a usable size. */
+	framed: z.boolean(),
+	/** Whether a focus lights its neighbourhood and dims the rest. */
+	focusDims: z.boolean(),
+	/** The drawn nodes that a drawn edge doesn't touch. */
+	isolated: z.array(z.string()),
+});
 const DOMAIN_GRAPH_NODE = "graph-node";
 const DOMAIN_GRAPH_PREDICATE = "graph-predicate";
 const DOMAIN_GRAPH_PREDICATES = "graph-predicates";
@@ -139,7 +162,7 @@ const DOMAIN_SCENE_NAME = "scene-name";
 const GraphSceneSchema = z.object({ name: z.string(), setup: z.record(z.string(), z.record(z.string(), z.unknown())) });
 const graphControlDomains: TDomainDefinition[] = [
 	{ selectors: [DOMAIN_GRAPH_STILL], schema: GraphStillSchema, description: "A graph still a step saved, and how many nodes it drew" },
-	{ selectors: [DOMAIN_GRAPH_SNAPSHOT], schema: GraphSnapshotSchema, description: "The graph's framing and where it placed each node, as a step read them" },
+	{ selectors: [DOMAIN_GRAPH_SNAPSHOT], schema: GraphSnapshotSchema, description: "The graph at rest: its framing, where it placed each node, and what it draws" },
 	{
 		selectors: [DOMAIN_GRAPH_NODE],
 		schema: individualRefInputSchema,
@@ -166,6 +189,7 @@ const graphControlDomains: TDomainDefinition[] = [
 	{ selectors: [DOMAIN_GRAPH_ZBASIS], schema: ZBasisSchema, description: "What the depth (z) axis encodes: valid time, indexed time, or connections" },
 ];
 
+type TFraming = z.infer<typeof FramingSchema>;
 type Snapshot = z.infer<typeof GraphSnapshotSchema>;
 type TGraphNode = { id: string };
 type TGraphScene = z.infer<typeof GraphSceneSchema>;
@@ -227,10 +251,45 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		return comesToHold(this.view(page), test, arg, timeout);
 	}
 
-	/** The graph's framing and where it placed each node: the product of `snapshot the graph`. */
+	/** The graph's framing and where it placed each node. */
+	private async framing(page: Page): Promise<TFraming> {
+		return framingOf(await this.state(page));
+	}
+
+	/** The graph as `snapshot the graph` records it: its framing and what it draws. */
 	private async snapshot(page: Page): Promise<Snapshot> {
-		const { camera, viewport, sample } = await this.state(page);
-		return { camera, viewport, pos: Object.fromEntries(sample.map((n) => [n.id, placed(n)])) };
+		const state = await this.state(page);
+		const { focus, highlighted, follow, onScreen, sample, edges } = state;
+		const drawn = await this.view(page).evaluate((view: ShuPolymorphicGraphView) => [...(view.nodeMap?.keys() ?? [])]);
+		const linked = new Set(edges.flatMap((e) => [e.s, e.t]));
+		const lit = sample.filter((n) => isLit(n.opacity)).length;
+		const dim = sample.filter((n) => isDim(n.opacity)).length;
+		return {
+			...framingOf(state),
+			active: focus.selected,
+			highlighted,
+			follow,
+			framed: !!onScreen && onScreen.fraction >= FRAMED_ON_SCREEN && onScreen.span >= FRAMED_SPAN,
+			focusDims: (!!focus.hover || !!focus.selected) && dim > 0 && lit > 0 && lit < sample.length,
+			isolated: drawn.filter((id) => !linked.has(id)),
+		};
+	}
+
+	/** Wait for the view at rest: the layout has stopped spreading, the camera is calibrated to the canvas, no newcomer
+	 *  wears its welcome glow, no chip's text is still to land, and the frames those changes schedule are drawn. */
+	private async atRest(page: Page): Promise<void> {
+		await this.waitForLayoutStable(page);
+		await this.waitForCalibratedViewport(page);
+		await this.untilGraph(
+			page,
+			({ el }) => {
+				const render = el.inspect()?.render;
+				return render?.welcoming === 0 && render.layingOut === 0;
+			},
+			null,
+			STATE_MS,
+		);
+		await this.frames(page);
 	}
 
 	/** Block until the graph holds at least `min` nodes. The scene mounts before its first data feed, so its test ids
@@ -349,12 +408,6 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	}
 
 	/** Every node the graph draws, and every edge. */
-	private async drawnLinks(page: Page): Promise<{ nodes: string[]; edges: TGraphState["edges"] }> {
-		await this.settle(page);
-		const nodes = await this.view(page).evaluate((view: ShuPolymorphicGraphView) => [...(view.nodeMap?.keys() ?? [])]);
-		return { nodes, edges: (await this.state(page)).edges };
-	}
-
 	/** Every chip the filter shows, across its groups, and whether each is ticked. */
 	private chipStates(page: Page): Promise<Array<{ label: string; checked: boolean }>> {
 		return this.filter(page)
@@ -373,9 +426,9 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		const dx = Math.abs(at.x - (rect.x + rect.width / 2));
 		const dy = Math.abs(at.y - (rect.y + rect.height / 2));
 		if (dx > rect.width / 4 || dy > rect.height / 4) {
-			const s = await this.snapshot(page);
+			const { camera } = await this.framing(page);
 			return actionNotOK(
-				`active node "${id}" projects (${dx.toFixed(0)},${dy.toFixed(0)}) from the canvas centre of ${rect.width}×${rect.height}; camera=${JSON.stringify(s.camera)}`,
+				`active node "${id}" projects (${dx.toFixed(0)},${dy.toFixed(0)}) from the canvas centre of ${rect.width}×${rect.height}; camera=${JSON.stringify(camera)}`,
 			);
 		}
 		return actionOK();
@@ -391,7 +444,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 
 	/** What changed between two graph snapshots (plus the hovered node's magnify k), empty = the graph is unchanged.
 	 *  Reports each moved signal so a "graph changed on hover/click" regression is diagnosable: scale, zoom, camera, layout. */
-	private graphMoved(before: Snapshot, after: Snapshot, k: number): string[] {
+	private graphMoved(before: TFraming, after: TFraming, k: number): string[] {
 		const problems: string[] = [];
 		if (k > 1.05) problems.push(`node magnified ${k.toFixed(2)}×`);
 		if (before.viewport && after.viewport) {
@@ -624,16 +677,6 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				return actionOK();
 			},
 		},
-		graphOnlyConnected: {
-			gwta: "graph shows only connected nodes",
-			action: async () => {
-				const { nodes, edges } = await this.drawnLinks(await this.page());
-				if (nodes.length === 0) return actionNotOK("the graph doesn't draw a node to judge");
-				const linked = new Set(edges.flatMap((e) => [e.s, e.t]));
-				const isolated = nodes.filter((id) => !linked.has(id));
-				return isolated.length === 0 ? actionOK() : actionNotOK(`isolated node(s) drawn under connected-only: ${isolated.join(", ")}`);
-			},
-		},
 		fitGraphAround: {
 			// Frame a node + its 1-hop neighbours so a doc/tour feature can jump straight to a node's local context.
 			gwta: `fit graph around {node: ${DOMAIN_GRAPH_NODE}}`,
@@ -734,13 +777,13 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const page = await this.page();
 				await this.waitForNodes(page, 1);
 				await this.waitForLayoutStable(page); // the load-time auto-fit follows the spreading layout; only once it rests is the camera fixed
-				const before = await this.snapshot(page);
+				const before = await this.framing(page);
 				const id = (await this.state(page)).sample[0]?.id;
 				if (!id) return actionNotOK(NO_NODE_TO_HOVER);
 				await this.hover(page, id);
 				const k = await this.steadyK(page, id);
 				if (k > HOVER_POP_MAX) return actionNotOK(`hover popped the node to ${k.toFixed(1)}×, far past a readable size; the pop must stay bounded`);
-				const moved = this.graphMoved(before, await this.snapshot(page), 1);
+				const moved = this.graphMoved(before, await this.framing(page), 1);
 				if (moved.length) return actionNotOK(`hover moved the view/layout: ${moved.join("; ")}: a hover must scale only the node`);
 				await this.hover(page, null);
 				const off = await this.steadyK(page, id);
@@ -763,7 +806,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const c = await this.projectNode(page, id);
 				await page.mouse.move(c.x - 20, c.y); // pointer onto the canvas → sets pointerOverCanvas via the canvas pointermove handler
 				const kBefore = await this.steadyK(page, id); // settle any residual magnify before the baseline
-				const before = await this.snapshot(page);
+				const before = await this.framing(page);
 				for (let i = 0; i < 16; i++) {
 					// jiggle a REAL pointer over the node for ~1.3s: the user's hover condition (no button)
 					await page.mouse.move(c.x + (i % 2 ? 5 : -5), c.y + (i % 3 ? 3 : -3));
@@ -772,7 +815,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const pop = 1 + Math.max(0, (await this.hoveredK(page, id)) - kBefore);
 				if (pop > HOVER_POP_MAX) return actionNotOK(`real pointer popped the node ${pop.toFixed(2)}×, past a readable size`);
 				// The node's own bounded hover-pop is intended; feed graphMoved k=1 so ONLY a camera/zoom/layout drift fails.
-				const problems = this.graphMoved(before, await this.snapshot(page), 1);
+				const problems = this.graphMoved(before, await this.framing(page), 1);
 				return problems.length === 0 ? actionOK() : actionNotOK(`real pointer over the graph moved it: ${problems.join("; ")}`);
 			},
 		},
@@ -781,8 +824,8 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			productsDomain: DOMAIN_GRAPH_SNAPSHOT,
 			action: async () => {
 				const page = await this.page();
-				await this.waitForLayoutStable(page); // baseline a SETTLED graph: the auto-fit follows the spreading layout, so a mid-spread baseline would read as a later "re-frame"
-				await this.waitForCalibratedViewport(page);
+				// A baseline of a SETTLED graph: the auto-fit follows the spreading layout, so a mid-spread baseline would read as a later "re-frame".
+				await this.atRest(page);
 				return actionOKWithProducts(await this.snapshot(page));
 			},
 		},
@@ -796,7 +839,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				if (!before.camera || !before.viewport) return actionNotOK("the graph snapshot doesn't hold a framing");
 				const page = await this.page();
 				await this.waitForCalibratedViewport(page);
-				const after = await this.snapshot(page);
+				const after = await this.framing(page);
 				if (!after.camera || !after.viewport) return actionNotOK("the graph doesn't have a live framing");
 				// The zoom LEVEL is worldPerPx, not fov: fov is ALLOWED to change to hold worldPerPx across a box-height
 				// change (the no-auto-zoom compensation). A re-frame is a camera-position move (pan/orbit/fit) or a real
@@ -815,7 +858,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			// "bananas" guard, distinct from framing: the camera can hold steady while nodes churn under rapid focus switches.
 			gwta: `graph layout is steady since {before: ${DOMAIN_GRAPH_SNAPSHOT}}`,
 			action: async ({ before }: { before: Snapshot }) => {
-				const after = await this.snapshot(await this.page());
+				const after = await this.framing(await this.page());
 				let maxDrift = 0;
 				let worst = "";
 				for (const id of Object.keys(before.pos)) {
@@ -837,7 +880,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			gwta: `graph zoom is {comparison: ${DOMAIN_GRAPH_ZOOM_CMP}} than {before: ${DOMAIN_GRAPH_SNAPSHOT}}`,
 			action: async ({ comparison, before }: { comparison: string; before: Snapshot }) => {
 				if (!before.viewport) return actionNotOK("the graph snapshot doesn't hold a viewport");
-				const after = await this.snapshot(await this.page());
+				const after = await this.framing(await this.page());
 				if (!after.viewport) return actionNotOK("the graph doesn't have a live viewport");
 				const ratio = after.viewport.worldPerPx / before.viewport.worldPerPx; // worldPerPx smaller = closer (more zoomed in)
 				if (comparison === ZoomCmpSchema.enum.closer) return ratio < 0.99 ? actionOK() : actionNotOK(`graph did not zoom in since the snapshot (worldPerPx ×${ratio.toFixed(3)})`);
@@ -853,22 +896,6 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const id = (await this.state(page)).sample[0]?.id;
 				if (!id) return actionNotOK("the graph doesn't draw a node to focus");
 				await this.hover(page, id);
-				return actionOK();
-			},
-		},
-		graphFitsView: {
-			// The whole graph is framed on screen: the "it rendered but nothing is visible" guard. Reads the share of
-			// nodes whose world position projects inside the canvas; a low share means the camera is not framing the
-			// settled graph (the unframed-after-async-solve failure).
-			gwta: "graph fits the view",
-			action: async () => {
-				const page = await this.page();
-				await this.waitForLayoutStable(page); // the auto-fit frames the graph as it spreads; assert only once that spread has finished
-				const m = (await this.state(page)).onScreen;
-				if (!m) return actionNotOK("the graph doesn't have a framing metric yet: the camera isn't ready");
-				if (m.fraction < 0.9) return actionNotOK(`graph not framed: ${m.onScreen}/${m.total} nodes on screen (${percent(m.fraction)}): the camera must frame the whole graph`);
-				// On screen but a tiny dot is still "nothing visible": require the graph to fill a meaningful share of the view.
-				if (m.span < 0.2) return actionNotOK(`graph too small: it spans only ${percent(m.span)} of the view: the camera must frame it at a usable size`);
 				return actionOK();
 			},
 		},
@@ -1165,18 +1192,18 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const scene = page.locator(CLASS_BROWSER_SCENE);
 				const highlighted = await comesToHold(
 					scene,
-					({ el, arg }: { el: ShuGraphScene; arg: string }) => {
-						if (!el.nodeMap.has(arg)) return false;
+					({ el, arg }: { el: ShuGraphScene; arg: { id: string; lit: number; dim: number } }) => {
+						if (!el.nodeMap.has(arg.id)) return false;
 						const i = el.inspect();
-						return i.focus.selected === arg && i.sample.some((n) => (n.opacity ?? 1) < 0.5) && i.sample.some((n) => (n.opacity ?? 1) > 0.9);
+						return i.focus.selected === arg.id && i.sample.some((n) => (n.opacity ?? 1) < arg.dim) && i.sample.some((n) => (n.opacity ?? 1) > arg.lit);
 					},
-					typeName,
+					{ id: typeName, lit: LIT_OPACITY, dim: DIM_OPACITY },
 					ROUND_TRIP_MS,
 				);
 				if (highlighted) return actionOK();
 				const i = await scene.evaluate((el: ShuGraphScene, t) => ({ has: el.nodeMap.has(t), nodes: el.nodeMap.size, state: el.inspect() }), typeName);
-				const dim = i.state.sample.filter((n) => (n.opacity ?? 1) < 0.5).length;
-				const lit = i.state.sample.filter((n) => (n.opacity ?? 1) > 0.9).length;
+				const dim = i.state.sample.filter((n) => isDim(n.opacity)).length;
+				const lit = i.state.sample.filter((n) => isLit(n.opacity)).length;
 				return actionNotOK(
 					`${typeName} is not highlighted within the schema (selected=${i.state.focus.selected}, dim=${dim}, lit=${lit}, has=${i.has}, nodes=${i.nodes}, sampled=${i.state.sample.length}, engineMode=${i.state.engineMode}, paused=${i.state.render.paused})`,
 				);
@@ -1559,24 +1586,13 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 					: actionNotOK(`more connections should sit shallower: degree ${high.degree} at z=${high.z.toFixed(1)} vs degree ${low.degree} at z=${low.z.toFixed(1)}`);
 			},
 		},
-		graphDimsExceptFocused: {
-			// After a focus (hover/open), the focused neighbourhood stays full-opacity and everything else dims.
-			gwta: "graph dims all but the focused node",
-			action: async () => {
-				const i = await this.state(await this.page());
-				if (!i.focus.hover && !i.focus.selected) return actionNotOK("the graph doesn't have a focused node");
-				const dim = i.sample.filter((n) => (n.opacity ?? 1) < 0.5).length;
-				const lit = i.sample.filter((n) => (n.opacity ?? 1) > 0.9).length;
-				return dim > 0 && lit > 0 && lit < i.sample.length ? actionOK() : actionNotOK(`focus did not dim the rest (lit ${lit}, dim ${dim}, of ${i.sample.length})`);
-			},
-		},
 		focusedEdgesBright: {
 			gwta: "focused edges are brighter than the rest",
 			action: async () => {
 				const opacities = (await this.state(await this.page())).edges.flatMap((e) => (e.lineOpacity == null ? [] : [e.lineOpacity]));
 				if (opacities.length < 2) return actionNotOK("not enough edges to compare");
-				const bright = opacities.filter((o) => o > 0.9).length;
-				const dim = opacities.filter((o) => o < 0.5).length;
+				const bright = opacities.filter(isLit).length;
+				const dim = opacities.filter(isDim).length;
 				return bright > 0 && dim > 0 ? actionOK() : actionNotOK(`edges not split into bright/dim under focus (bright ${bright}, dim ${dim}, of ${opacities.length})`);
 			},
 		},
@@ -1605,8 +1621,8 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			// it moves whenever the target moves in depth even though nothing zoomed; the distance is the reliable signal.)
 			gwta: `graph holds its distance to what it looks at since {before: ${DOMAIN_GRAPH_SNAPSHOT}}`,
 			action: async ({ before }: { before: Snapshot }) => {
-				const after = await this.snapshot(await this.page());
-				const span = (s: Snapshot): number | null =>
+				const after = await this.framing(await this.page());
+				const span = (s: TFraming): number | null =>
 					s.camera?.target ? Math.hypot(s.camera.x - s.camera.target.x, s.camera.y - s.camera.target.y, s.camera.z - s.camera.target.z) : null;
 				const was = span(before);
 				const now = span(after);
@@ -1615,39 +1631,6 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				return drift <= 0.01
 					? actionOK()
 					: actionNotOK(`the camera's distance to what it looks at moved ${percent(drift, 1)} since the snapshot: a label readable then is not readable now`);
-			},
-		},
-		graphFollowIsOff: {
-			// Follow's off state read where a person reads it: the head toggle's own pressed state.
-			gwta: "graph follow is off",
-			action: async () => {
-				const pressed = await (await this.page()).getByTestId(POLYMORPHIC_IDS.FOLLOW).getAttribute(ARIA_PRESSED);
-				return pressed === "false" ? actionOK() : actionNotOK(`the follow toggle still reads aria-pressed=${pressed}`);
-			},
-		},
-		graphHasNoActiveNode: {
-			// A selection naming a node this graph does not show (filtered out by type, dropped by prune, never fetched)
-			// leaves NO active node: nothing glows, and nothing is focused, so the graph doesn't dim itself against a
-			// focus that isn't on screen.
-			gwta: "graph has no active node",
-			action: async () => {
-				const page = await this.page();
-				await this.settle(page);
-				const { focus, highlighted } = await this.state(page);
-				if (focus.selected !== null) return actionNotOK(`the graph still calls "${focus.selected}" active though it is not shown`);
-				return highlighted === 0 ? actionOK() : actionNotOK(`${highlighted} node(s) still glow though the graph doesn't have an active node`);
-			},
-		},
-		graphHighlightsActive: {
-			// EXACTLY the active node wears the highlight: the one whose column is open, so what is being read is visible
-			// in the graph. Reads the scene's own inspect() highlighted count: a count above one means the highlight is
-			// marking something other than the active node.
-			gwta: "graph highlights the active node, and only it",
-			action: async () => {
-				const page = await this.page();
-				// The glow is added on the render after the selection lands, so wait for it rather than reading once.
-				if (await this.comesToHold(page, ({ el }) => el.inspect()?.highlighted === 1, null, STATE_MS)) return actionOK();
-				return actionNotOK(`${(await this.state(page)).highlighted} node(s) wear the active highlight, exactly the active node must`);
 			},
 		},
 		graphNodePlaced: {
@@ -1682,8 +1665,8 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			gwta: `only graph type {type: ${DOMAIN_PERSISTED_TYPE}} is shown full`,
 			action: async ({ type }: { type: string }) => {
 				const { sample } = await this.state(await this.page());
-				const dimOfType = sample.filter((n) => n.type === type && (n.opacity ?? 1) < 0.9).length;
-				const litOffType = sample.filter((n) => n.type !== type && (n.opacity ?? 1) > 0.9).length;
+				const dimOfType = sample.filter((n) => n.type === type && !isLit(n.opacity)).length;
+				const litOffType = sample.filter((n) => n.type !== type && isLit(n.opacity)).length;
 				if (dimOfType) return actionNotOK(`${dimOfType} ${type} node(s) are dim: the preview did not light its own type`);
 				if (litOffType) return actionNotOK(`${litOffType} non-${type} node(s) are still full: the preview did not dim the rest`);
 				return actionOK();
@@ -1968,6 +1951,11 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 function placed(n: TSampled): { x: number; y: number; z: number } {
 	if (n.x === undefined || n.y === undefined || n.z === undefined) throw new Error(`graph node "${n.id}" isn't placed`);
 	return { x: n.x, y: n.y, z: n.z };
+}
+
+/** The graph's framing and where it placed each node, read from what it draws. */
+function framingOf({ camera, viewport, sample }: TGraphState): TFraming {
+	return { camera, viewport, pos: Object.fromEntries(sample.map((n) => [n.id, placed(n)])) };
 }
 const range = (xs: number[]): number => (xs.length ? Math.max(...xs) - Math.min(...xs) : 0);
 /** How far a node moved between two samples, in the view's plane. */
