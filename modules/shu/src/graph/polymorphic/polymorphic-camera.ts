@@ -466,11 +466,4 @@ export class PolymorphicCamera {
 		const refs = this.orbitRefs();
 		return refs ? { x: refs.t.x, y: refs.t.y, z: refs.t.z } : null;
 	}
-
-	/** World-space half-diagonal of the laid-out graph: the camera-INDEPENDENT layout-spread signal, from the live node
-	 *  positions (NOT the lib's getGraphBbox, which lags/overshoots). A test waits for THIS to stop growing to know the
-	 *  layout (and so the auto-fit that follows it) has come to rest. */
-	bboxRadius(): number {
-		return this.boundsRadius(this.nodeBounds());
-	}
 }

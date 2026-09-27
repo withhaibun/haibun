@@ -781,11 +781,6 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			// The td/lr layered ground truth (null off those views): per-node pinned target + rendered position + flow axis,
 			// so a test asserts the flow reads monotonically by layer and the pins held.
 			layered: this.layeredInspect(),
-			// World-space half-diagonal of the laid-out graph: the layout-spread signal, camera-INDEPENDENT (unlike
-			// onScreen.span, which the auto-fit holds ~constant by following the spread). A from-scratch force layout
-			// spreads over several settles with a stable node count, so "wait for the engine frozen" returns mid-spread;
-			// a test asserting a settled camera must wait for THIS to stop growing (see the controls' waitForLayoutStable).
-			bboxRadius: this.camera.bboxRadius(),
 			// Camera framing, so a resize/click can be asserted not to zoom or re-frame (fov + position + aim target).
 			camera: this.fgCamera?.position
 				? { fov: this.fgCamera.fov ?? null, x: this.fgCamera.position.x, y: this.fgCamera.position.y, z: this.fgCamera.position.z, target: this.camera.targetPoint() }

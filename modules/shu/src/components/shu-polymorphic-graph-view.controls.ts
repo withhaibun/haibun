@@ -316,10 +316,11 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		};
 	}
 
-	/** Wait for the view at rest: the layout has stopped spreading, the camera is calibrated to the canvas, no newcomer
-	 *  wears its welcome glow, no chip's text is still to land, and the frames those changes schedule are drawn. */
+	/** Wait for the view at rest: the scene has settled, the camera is calibrated to the canvas, no newcomer wears its
+	 *  welcome glow, no chip's text is still to land, and the frames those changes schedule are drawn. The scene places a
+	 *  feed before it draws it, so a settled scene's layout is final. */
 	private async atRest(page: Page): Promise<void> {
-		await this.waitForLayoutStable(page);
+		await this.settle(page);
 		await this.waitForCalibratedViewport(page);
 		await this.untilGraph(
 			page,
@@ -415,21 +416,6 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			},
 			null,
 			STATE_MS,
-		);
-	}
-
-	/** Wait until the force layout STOPS spreading: the engine is frozen AND the world-space bbox radius has stopped
-	 *  growing across consecutive polls. A from-scratch layout settles to its full extent over several engine stops with a
-	 *  STABLE node count, so settle() (frozen) and waitForStableCount (count) both return mid-spread; the auto-fit follows
-	 *  the spread, so any assertion about a SETTLED camera (hover-doesn't-move, fits-the-view) must wait for this. */
-	private async waitForLayoutStable(page: Page): Promise<void> {
-		await this.pollUntilStable(
-			page,
-			250,
-			16,
-			async () => (await this.state(page)).bboxRadius,
-			(now, prev) => Math.abs(now - prev) < 0.5,
-			() => this.settle(page),
 		);
 	}
 
@@ -810,7 +796,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			action: async () => {
 				const page = await this.page();
 				await this.waitForNodes(page, 1);
-				await this.waitForLayoutStable(page); // the load-time auto-fit follows the spreading layout; only once it rests is the camera fixed
+				await this.settle(page); // the camera is fixed once the load-time auto-fit has run
 				const before = await this.framing(page);
 				const id = (await this.state(page)).sample[0]?.id;
 				if (!id) return actionNotOK(NO_NODE_TO_HOVER);
@@ -834,7 +820,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			action: async () => {
 				const page = await this.page();
 				await this.waitForNodes(page, 1);
-				await this.waitForLayoutStable(page); // the camera is only fixed once the load-time auto-fit has stopped following the spreading layout
+				await this.settle(page); // the camera is fixed once the load-time auto-fit has run
 				const id = (await this.state(page)).sample[0]?.id;
 				if (!id) return actionNotOK(NO_NODE_TO_HOVER);
 				const c = await this.projectNode(page, id);
