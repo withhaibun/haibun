@@ -17,7 +17,7 @@ export async function scaffoldHaibun(dest: string, opts?: { out?: typeof console
 	const out = outIn || console.info;
 
 	const refPackage = JSON.parse(readFileSync(path.join(refDir, "ref.package.json"), "utf-8"));
-	const what: { dirs: string[]; [name: string]: Tkv | string[] } = {
+	const what: { dirs: string[]; dependencies: Tkv; devDependencies: Tkv; scripts: Tkv } = {
 		dependencies: {
 			"@haibun/core": currentVersion,
 			"@haibun/cli": currentVersion,
@@ -39,7 +39,7 @@ export async function scaffoldHaibun(dest: string, opts?: { out?: typeof console
 		pName = localDest.name
 			.replace(/.*\//, "")
 			.replace(/[@]/, "_", "g")
-			.replace(/-./g, (x: string) => x[1].toUpperCase());
+			.replace(/-./g, (x: string) => x.charAt(1).toUpperCase());
 	} catch (_e) {
 		if (!noPrompt) {
 			pName = await readPackageName();
@@ -61,7 +61,7 @@ export async function scaffoldHaibun(dest: string, opts?: { out?: typeof console
 
 	localDest.type = "module";
 
-	for (const t of ["devDependencies", "dependencies", "scripts"]) {
+	for (const t of ["devDependencies", "dependencies", "scripts"] as const) {
 		if (!localDest[t]) {
 			localDest[t] = {};
 		}
@@ -90,7 +90,7 @@ export async function scaffoldHaibun(dest: string, opts?: { out?: typeof console
 		}
 	}
 
-	const cName = pName.replace(/-./g, (x: string) => x[1].toUpperCase());
+	const cName = pName.replace(/-./g, (x: string) => x.charAt(1).toUpperCase());
 	for (const f of ["stepper.ts", "stepper.test.ts"]) {
 		writeIfMissing(`src/${f}`, `src/${cName}-${f}`, "WTW", cName);
 	}

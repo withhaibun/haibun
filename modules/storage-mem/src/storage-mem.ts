@@ -2,7 +2,6 @@ import { Volume, IFs, DirectoryJSON } from "memfs";
 
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
 import { IFile } from "@haibun/domain-storage/domain-storage.js";
-import { TAnyFixme } from "@haibun/core/lib/fixme.js";
 
 export default class StorageMem extends AStorage {
 	static BASE_FS: DirectoryJSON = {};
@@ -15,7 +14,7 @@ export default class StorageMem extends AStorage {
 		this.exists = (dir) => this.volume.existsSync(dir);
 		this.mkdir = (dir) => this.volume.mkdirSync(dir);
 	}
-	readFile = (file: string, coding?: TAnyFixme) => this.volume.readFileSync(file, coding);
+	readFile = (file: string, coding?: BufferEncoding) => this.volume.readFileSync(file, coding);
 	writeFileBuffer = (fn: string, contents: Buffer) => {
 		this.volume.writeFileSync(fn, contents);
 	};

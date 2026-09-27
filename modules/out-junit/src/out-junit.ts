@@ -23,6 +23,9 @@ type TFailResult = {
 	type?: string;
 };
 
+/** The file the report is written to, where the OUTPUT_FILE option doesn't name one. */
+const JUNIT_OUTPUT_FILE = "junit.xml";
+
 export default class OutJUnit extends AStepper implements IHasOptions, IHasCycles {
 	description = "Generate JUnit XML reports from test results";
 
@@ -51,11 +54,11 @@ export default class OutJUnit extends AStepper implements IHasOptions, IHasCycle
 	name = "Haibun-Junit";
 	prettyPrint = true;
 	classname = "Haibun-Junit-Suite";
-	outputFile: string;
+	outputFile = JUNIT_OUTPUT_FILE;
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
-		this.outputFile = getStepperOption(this, "OUTPUT_FILE", world.moduleOptions) || "junit.xml";
+		this.outputFile = getStepperOption(this, "OUTPUT_FILE", world.moduleOptions) || JUNIT_OUTPUT_FILE;
 		this.storage = findStepperFromOptionOrKind(steppers, this, world.moduleOptions, StepperKinds.STORAGE);
 		await Promise.resolve();
 	}

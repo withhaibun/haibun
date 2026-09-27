@@ -2,9 +2,14 @@
 
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import { spawnCommand } from "./util/index.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { createVitest } from "vitest/node";
 
 const [, me, version, ...extra] = process.argv;
+if (!version) {
+	console.error(`usage: ${me}: <version> <extra modules> [--notest] [--tag=<tag>] [--nopublish]`);
+	process.exit(1);
+}
 
 class Versioner {
 	localAndExtraModules: { [name: string]: string } = {};
@@ -16,14 +21,10 @@ class Versioner {
 	haibunPackageVersions: { [dep: string]: string } = {};
 
 	constructor(private version: string) {
-		if (!version) {
-			console.error(`usage: ${me}: <version> <extra modules> [--notest] [--tag=<tag>] [--nopublish]`);
-			process.exit(1);
-		}
 		for (let i = extra.length - 1; i >= 0; i--) {
-			const e = extra[i];
+			const e = itemAt(extra, i);
 			if (e.startsWith("--tag=")) {
-				this.tag = e.split("=")[1];
+				this.tag = e.slice("--tag=".length);
 				extra.splice(i, 1);
 			} else if (e === "--notest") {
 				this.noTest = true;

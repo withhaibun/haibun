@@ -223,7 +223,7 @@ export class ServerHono implements IWebServer {
 	}
 
 	private registerRoute(type: TRouteTypes, path: string, handlers: TRequestHandler[]): void {
-		(this._app as unknown as Record<string, (...args: unknown[]) => unknown>)[type](path, ...handlers);
+		(this._app as unknown as Record<TRouteTypes, (...args: unknown[]) => unknown>)[type](path, ...handlers);
 	}
 
 	/** What is served is recorded as its Endpoint, so the graph holds every route the instance serves. */

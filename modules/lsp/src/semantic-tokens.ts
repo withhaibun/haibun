@@ -32,8 +32,7 @@ type TClassifyInput = {
 /** Every token a document paints, in line order. */
 export function classifyDocument({ lines, stepsByLine, prosePaintsAsComment, resolveStatement }: TClassifyInput): TToken[] {
 	const tokens: TToken[] = [];
-	for (let line = 0; line < lines.length; line++) {
-		const text = lines[line];
+	for (const [line, text] of lines.entries()) {
 		const trimmed = text.trim();
 		if (!trimmed) continue;
 		const placed = stepsByLine.get(line + 1); // the cache counts lines from one

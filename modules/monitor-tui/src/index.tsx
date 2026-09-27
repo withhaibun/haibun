@@ -12,7 +12,7 @@ import { IPrompter, TPrompt, TPromptResponse } from "@haibun/core/lib/prompter.j
 
 const EventLine = ({ line }: { line: string }) => <Text>{line}</Text>;
 
-const RunningPanel = ({ steps, finished, featurePath }: { steps: Map<string, string>; finished: boolean; featurePath: string }) => (
+const RunningPanel = ({ steps, finished, featurePath }: { steps: Map<string, string>; finished: boolean; featurePath?: string }) => (
 	<Box flexDirection="column" marginTop={1}>
 		<Text bold>Haibun Monitor: {featurePath}</Text>
 		<Text underline>Running Steps:</Text>
@@ -70,7 +70,7 @@ const MonitorApp = ({
 	lines: string[];
 	running: Map<string, string>;
 	finished: boolean;
-	featurePath: string;
+	featurePath?: string;
 	prompt?: TPrompt;
 	onResolve?: (val: string) => void;
 }) => (
@@ -94,7 +94,7 @@ export default class TuiMonitorStepper extends AStepper implements IHasCycles, I
 	private rerender: ((lines: string[], running: Map<string, string>, finished: boolean, prompt?: TPrompt) => void) | null = null;
 	private promptResolver: ((value: TPromptResponse) => void) | null = null;
 	private promptRejecter: ((reason?: unknown) => void) | null = null;
-	featurePath: string;
+	featurePath?: string;
 
 	/** Whether there is a terminal to draw on. Piped into a file, a screen redrawn per event is escape codes between
 	 *  the lines and a React render per step; the lines alone are what a file wants, printed as the console monitor

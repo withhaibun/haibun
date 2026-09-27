@@ -69,7 +69,7 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 			wss.webserver.clearMounted();
 		} else {
 			const filesBase = path.join(process.cwd(), "files");
-			wss.webserver = new ServerHono(wss.world.eventLogger, filesBase, () => wss.getWorld().shared.getStore(), wss.allowedWithoutDelegation);
+			wss.webserver = new ServerHono(wss.getWorld().eventLogger, filesBase, () => wss.getWorld().shared.getStore(), wss.allowedWithoutDelegation);
 		}
 		// The delegated store surface: a sibling instance keeping its records in this instance's store. Reached only once RPC
 		// is enabled, since only the RPC transport calls a family's methods.
@@ -79,7 +79,7 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 			storeMethods(() => wss.getWorld().shared.getStore()),
 		);
 		wss.getWorld().runtime[WEBSERVER] = wss.webserver;
-		wss.getWorld().runtime[TRANSPORT] = new SSETransport(wss.webserver, wss.world.eventLogger, wss.getWorld().runtime);
+		wss.getWorld().runtime[TRANSPORT] = new SSETransport(wss.webserver, wss.getWorld().eventLogger, wss.getWorld().runtime);
 		await Promise.resolve();
 	},
 	async endFeature(wtw: TEndFeature) {
@@ -334,4 +334,3 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 }
 
 export default WebServerStepper;
-

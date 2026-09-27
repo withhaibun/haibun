@@ -8,8 +8,7 @@
 	"inlineSources": true,
 	"compilerOptions": {
 		"outDir": "build",
-		"rootDir": "src",
-		"strict": true
+		"rootDir": "src"
 	},
 	"include": ["src"]
 }

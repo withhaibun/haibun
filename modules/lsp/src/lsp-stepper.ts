@@ -29,6 +29,7 @@ import { expand } from "@haibun/core/lib/features.js";
 import { TStepValue } from "@haibun/core/schema/protocol.js";
 import { findHaibunWorkspace, loadBackgroundsFromPath, countFeatures } from "@haibun/core/lib/workspace-discovery.js";
 import { constructorName, errorDetail } from "@haibun/core/lib/util/index.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 // Semantic token types - indices matter for the legend
 const tokenTypes = [...TOKEN_TYPES];
@@ -140,7 +141,7 @@ export default class LspStepper extends AStepper {
 			// For now, if multiple steps on line, picking first match for line is consistent with .feature behavior
 			// The column is checked for a better result.
 			const stepItem = cached.featureSteps.find((s) => {
-				if (s.step.source.lineNumber !== lineNum + 1) return false;
+				if (s.step.source?.lineNumber !== lineNum + 1) return false;
 				// Optimistic: if range info is present, check it
 				if (s.startOffset !== undefined && s.length !== undefined) {
 					const char = params.position.character;
@@ -179,7 +180,7 @@ export default class LspStepper extends AStepper {
 
 			const stepsByLine = new Map<number, LCachedStep[]>();
 			for (const item of cached?.featureSteps ?? []) {
-				const lineNumber = item.step.source.lineNumber;
+				const lineNumber = item.step.source?.lineNumber;
 				if (lineNumber) stepsByLine.set(lineNumber, [...(stepsByLine.get(lineNumber) ?? []), item]);
 			}
 
@@ -285,7 +286,7 @@ export default class LspStepper extends AStepper {
 			for (const bg of this.backgrounds) {
 				try {
 					const expanded = await expand({ features: [bg], backgrounds: [] });
-					await resolver.findFeatureStepsTolerant(expanded[0]);
+					await resolver.findFeatureStepsTolerant(itemAt(expanded, 0));
 				} catch (e) {
 					// Error logged to stderr (safe for LSP)
 					console.error(`[LspStepper] Failed to re-parse background ${bg.name}:`, e);
@@ -467,13 +468,10 @@ export default class LspStepper extends AStepper {
 
 			// Try to find the line with the Backgrounds: directive that caused the issue
 			const lines = content.split("\n");
-			let bgLineNum = 0;
-			for (let i = 0; i < lines.length; i++) {
-				if (lines[i].trim().startsWith("Backgrounds:")) {
-					bgLineNum = i;
-					break;
-				}
-			}
+			const bgLineNum = Math.max(
+				0,
+				lines.findIndex((line) => line.trim().startsWith("Backgrounds:")),
+			);
 
 			expansionErrors.push({
 				severity: DiagnosticSeverity.Warning,
@@ -505,7 +503,7 @@ export default class LspStepper extends AStepper {
 			}
 		}
 
-		const pseudoFeature = expandedFeatures[0];
+		const pseudoFeature = itemAt(expandedFeatures, 0);
 
 		this.ensureStepperContext(uri);
 
@@ -692,6 +690,7 @@ export default class LspStepper extends AStepper {
 
 		// Send diagnostics
 		this.connection?.sendDiagnostics({ uri: doc.uri, diagnostics });
+		return Promise.resolve();
 	}
 }
 

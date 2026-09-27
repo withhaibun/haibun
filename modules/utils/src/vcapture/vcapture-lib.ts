@@ -5,6 +5,7 @@ import { tmpdir } from "os";
 
 import { getPackageLocation, workspaceRoot } from "@haibun/core/lib/util/node/workspace-lib.js";
 import { HOST_PROJECT_DIR } from "@haibun/core/lib/util/node/actualURI.js";
+import { errorDetail } from "@haibun/core/lib/util/index.js";
 
 export type TCaptureOptions = {
 	recreate: boolean;
@@ -57,7 +58,8 @@ ${asYamlOptions(composeEnvironment)}
 			execSync(`rm -rf ${buildContextDir}`);
 		}
 	} catch (error) {
-		console.error("Error:", error.stderr?.toString() || error.message);
+		const stderr = error instanceof Error && "stderr" in error ? String(error.stderr ?? "") : "";
+		console.error("Error:", stderr || errorDetail(error));
 		process.exit(1);
 	}
 };
@@ -101,7 +103,7 @@ function asYamlOptions(options: string[]) {
 	return options.map((o) => `      - ${o}`).join("\n");
 }
 
-export function parseVCaptureArgs(args: string[], printHelp: (exitCode?: number) => void) {
+export function parseVCaptureArgs(args: string[], printHelp: (exitCode?: number) => never) {
 	const captureOptions: TCaptureOptions = {
 		recreate: false,
 		tts: false,
@@ -114,8 +116,7 @@ export function parseVCaptureArgs(args: string[], printHelp: (exitCode?: number)
 
 	// Collect all non-flag arguments in order
 	const positional: string[] = [];
-	for (let i = 0; i < args.length; i++) {
-		const arg = args[i];
+	for (const arg of args) {
 		if (arg.startsWith("--")) {
 			const [what, ...v] = arg.split("=");
 			const value = v.join("=");

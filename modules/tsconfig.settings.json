@@ -9,7 +9,7 @@
 		"forceConsistentCasingInFileNames": true,
 		"noFallthroughCasesInSwitch": true,
 		"noUncheckedIndexedAccess": true,
-		"strict": false,
+		"strict": true,
 		"noImplicitAny": true,
 		"esModuleInterop": true,
 		"allowSyntheticDefaultImports": true,

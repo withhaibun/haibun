@@ -6,7 +6,6 @@ import { captureLocator } from "@haibun/core/lib/capture-locator.js";
 import { IFile, TLocationOptions } from "./domain-storage.js";
 import { EMediaTypes, TMediaType } from "./media-types.js";
 import { AStepper, StepperKinds, type IHasCycles, type IStepperCycles } from "@haibun/core/lib/astepper.js";
-import { TAnyFixme } from "@haibun/core/lib/fixme.js";
 import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
 import { DOMAIN_NUMBER, DOMAIN_FILE_PATH, DOMAIN_TEXT } from "@haibun/core/lib/domains.js";
 
@@ -34,7 +33,7 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 
 	kind = StepperKinds.STORAGE;
 
-	abstract readFile(path: string, coding?: string): TAnyFixme;
+	abstract readFile(path: string, coding?: BufferEncoding): string | Buffer;
 	abstract rm(path: string): void;
 	abstract readdir(dir: string): Promise<string[]>;
 	abstract lstatToIFile(file: string): Promise<IFile>;
@@ -83,7 +82,7 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 	 * Used for HTTP servers that serve artifacts from all features.
 	 */
 	getArtifactBasePath(): string {
-		const { tag, options } = this.world;
+		const { tag, options } = this.getWorld();
 		return `./capture/${options.DEST || "default"}/${tag.key}`;
 	}
 
@@ -96,7 +95,7 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 	 * @param subpath - Optional subdirectory (e.g., 'image', 'video')
 	 */
 	async saveArtifact(filename: string, contents: string | Buffer, mediaType: TMediaType, subpath?: string): Promise<TSavedArtifact> {
-		const loc = { ...this.world, mediaType };
+		const loc = { ...this.getWorld(), mediaType };
 		const dir = await this.ensureCaptureLocation(loc, subpath);
 		const absolutePath = resolve(dir, filename);
 		await this.writeFile(absolutePath, contents, mediaType);
