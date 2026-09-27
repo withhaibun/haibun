@@ -314,6 +314,16 @@ describe("FeatureVariables", () => {
 	});
 
 	describe("dot-path resolution", () => {
+		it("reads a field in the domain of its JSON type: a number as a number, text as text, a list as JSON", async () => {
+			await variables.setJSON("read", { total: 42, name: "a", names: ["a", "b"] }, Origin.var, mockFeatureStep);
+			const [total, name, names] = await Promise.all(
+				["read.total", "read.name", "read.names"].map((term) => variables.resolveVariable({ term, origin: Origin.defined }, mockFeatureStep)),
+			);
+			expect([total?.domain, total?.value]).toEqual([DOMAIN_NUMBER, 42]);
+			expect([name?.domain, name?.value]).toEqual([DOMAIN_STRING, "a"]);
+			expect([names?.domain, names?.value]).toEqual([DOMAIN_JSON, ["a", "b"]]);
+		});
+
 		it("navigates into JSON-stored objects", async () => {
 			await variables.setJSON("result", { total: 42, vertices: [] }, Origin.var, mockFeatureStep);
 			const resolved = await variables.resolveVariable({ term: "result.total", origin: Origin.defined }, mockFeatureStep);

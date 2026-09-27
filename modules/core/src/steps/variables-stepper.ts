@@ -493,20 +493,29 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		matches: {
 			gwta: `matches {value: ${DOMAIN_VARIABLE_VALUE}} with {pattern: ${DOMAIN_GLOB}}`,
 			action: async ({ value, pattern }: { value: TStepValue; pattern: string }, featureStep: TFeatureStep) => {
-				// value/pattern are text being compared: an unresolved {X} is literal data (e.g. a captured reply echoing
-				// "{StepperName}"), not a variable reference, so interpolate leniently and leave unknown braces in place.
-				const interpolatedValue = await this.interpolateTemplate(String(value.value), featureStep, { lenient: true });
-				if ("error" in interpolatedValue) return actionNotOK(interpolatedValue.error);
-				const actualValue = String(interpolatedValue.value);
-
 				// Interpolate variables in pattern (e.g., "{counter URI}*" -> "http://localhost:8123/*")
 				const interpolated = await this.interpolateTemplate(pattern, featureStep, { lenient: true });
 				if ("error" in interpolated) return actionNotOK(interpolated.error);
 				const actualPattern = interpolated.value;
-
-				const isMatch = new RegExp(globSource(actualPattern), "s").test(actualValue);
-
-				return isMatch ? OK : actionNotOK(`"${actualValue}" does not match pattern "${actualPattern}"`);
+				const glob = new RegExp(globSource(actualPattern), "s");
+				// value/pattern are text being compared: an unresolved {X} is literal data (e.g. a captured reply echoing
+				// "{StepperName}"), not a variable reference, so interpolate leniently and leave unknown braces in place.
+				const textOf = async (item: unknown): Promise<string | { error: string }> => {
+					const read = await this.interpolateTemplate(typeof item === "string" ? item : JSON.stringify(item), featureStep, { lenient: true });
+					return "error" in read ? read : String(read.value);
+				};
+				// A list matches where one of its items does, each read as its own text.
+				if (Array.isArray(value.value)) {
+					for (const item of value.value) {
+						const text = await textOf(item);
+						if (typeof text !== "string") return actionNotOK(text.error);
+						if (glob.test(text)) return OK;
+					}
+					return actionNotOK(`the ${value.value.length} items of the list don't match pattern "${actualPattern}"`);
+				}
+				const actualValue = await textOf(value.value);
+				if (typeof actualValue !== "string") return actionNotOK(actualValue.error);
+				return glob.test(actualValue) ? OK : actionNotOK(`"${actualValue}" does not match pattern "${actualPattern}"`);
 			},
 		},
 	} satisfies TStepperSteps;

@@ -212,6 +212,22 @@ variable feature variable is "something else"
 	});
 });
 
+describe("a value a dot path reads from JSON", () => {
+	const HELD = `set read as json to ${JSON.stringify({ total: 3, names: ["alpha", "beta"] })}`;
+	const run = (lines: string[]) => ({ path: "/features/test.feature", content: [HELD, ...lines].join("\n") });
+	const steppers = [Haibun, VariablesStepper];
+
+	it("compares a number as a number", async () => {
+		expect((await passWithDefaults([run(["variable read.total is 3", "variable read.total is more than 2"])], steppers)).ok).toBe(true);
+	});
+	it("matches a list where one of its items matches, and doesn't equal one of its items", async () => {
+		expect((await passWithDefaults([run(['matches read.names with "beta"', 'matches read.names with "*lph*"'])], steppers)).ok).toBe(true);
+		expect((await failWithDefaults([run(['matches read.names with "gamma"'])], steppers)).ok).toBe(false);
+		expect((await failWithDefaults([run(['matches read.names with "*alpha,beta*"'])], steppers)).ok).toBe(false);
+		expect((await failWithDefaults([run(['variable read.names is "beta"'])], steppers)).ok).toBe(false);
+	});
+});
+
 describe("less than comparisons", () => {
 	it("compares numeric variables", async () => {
 		const content = `set counter as number to 5
