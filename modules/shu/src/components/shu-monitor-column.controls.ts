@@ -151,9 +151,11 @@ export default class ShuMonitorColumnControls extends AStepper implements IHasCy
 						{ column: SHU_TAG.VIRTUAL_COLUMN, virtualizer: VIRTUALIZER, frame: THUMB_FRAME },
 					);
 				// A tile is measured once it has been laid out: an image decodes before its frame is placed, so a read taken
-				// between the two reports a width the reader never sees. What is asserted below is what the poll waits for.
+				// between the two reports a width the reader never sees. A row grows when its images load, and the virtualizer
+				// moves the rows after it once it observes the new height, so a read between the two sees an overlap the reader
+				// never sees either. What is asserted below is what the poll waits for.
 				const tileSized = (f: { w: number }): boolean => f.w >= MIN_TILE_PX && f.w <= MAX_TILE_PX;
-				const v = await pollUntil(page, read, (s) => s.frames.length >= 3 && s.frames.every((f) => f.imgLoaded && tileSized(f)), 40, 250);
+				const v = await pollUntil(page, read, (s) => s.frames.length >= 3 && s.frames.every((f) => f.imgLoaded && tileSized(f)) && s.overlapping === 0, 40, 250);
 				const { frames } = v;
 				if (frames.length < 3) return actionNotOK(`only ${frames.length} real thumbnails rendered, expected the run's screenshots (the artifact placeholders were not filled)`);
 				const offRow = frames.filter((f) => !f.inRow).length;
