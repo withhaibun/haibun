@@ -15,7 +15,7 @@
  * `emit` between assertions, and `reconnect` to say the stream came back.
  */
 
-import { SseSubscriber } from "@haibun/core/lib/sse-subscriber.js";
+import { SseSubscriber, StreamListeners } from "@haibun/core/lib/sse-subscriber.js";
 import { FOLLOWS_THE_RUN } from "@haibun/core/lib/actions.js";
 import { deploymentMs } from "./rpc-registry.js";
 import { readingHeaders } from "./page-key.js";
@@ -88,7 +88,7 @@ export class LiveEventStream implements EventStream {
 	}
 
 	totalRecorded(): number {
-		return this.subscriber?.getReplayBuffer().totalRecorded ?? 0;
+		return this.subscriber?.totalRecorded() ?? 0;
 	}
 
 	close(): void {
@@ -110,76 +110,51 @@ export class LiveEventStream implements EventStream {
 
 /** `EventStream` backed by an in-memory event log. New subscribers first receive every event already emitted, then new ones, the contract the live subscriber has, so consumer code is unaware of the source. */
 export class SerializedEventStream implements EventStream {
-	private readonly history: TEvent[] = [];
-	private readonly subscribers = new Set<{ handler: TEventHandler; filter?: TEventFilter }>();
-	private readonly reconnectListeners = new Set<() => void>();
-	private readonly disconnectListeners = new Set<() => void>();
-	private readonly openListeners = new Set<() => void>();
-	private broken = false;
-	private recorded = 0;
+	/** A log keeps everything it was given, and is open from the start: it is all there is. */
+	private readonly followers = new StreamListeners<TEvent>("SerializedEventStream", Number.POSITIVE_INFINITY, true);
 
 	subscribe(handler: TEventHandler, filter?: TEventFilter): () => void {
-		const entry = { handler, filter };
-		this.subscribers.add(entry);
-		for (const event of this.history) {
-			if (!filter || filter(event)) handler(event);
-		}
-		return () => {
-			this.subscribers.delete(entry);
-		};
+		return this.followers.subscribe(handler, filter);
 	}
 
 	connect(): void {
-		// A log that is all there is open already.
+		// A log that is all there is is open already.
 	}
 
 	opened(fn: () => void): () => void {
-		this.openListeners.add(fn);
-		if (!this.broken) fn();
-		return () => this.openListeners.delete(fn);
+		return this.followers.opened(fn);
 	}
 
 	reconnected(fn: () => void): () => void {
-		this.reconnectListeners.add(fn);
-		return () => this.reconnectListeners.delete(fn);
+		return this.followers.reconnected(fn);
 	}
 
 	disconnected(fn: () => void): () => void {
-		this.disconnectListeners.add(fn);
-		if (this.broken) fn();
-		return () => this.disconnectListeners.delete(fn);
+		return this.followers.disconnected(fn);
 	}
 
 	/** Say the stream broke, so a scripted scenario drives a view's reading the way a break does. An offline reading
 	 *  never calls it: a log that is all there never breaks. */
 	disconnect(): void {
-		this.broken = true;
-		for (const fn of this.disconnectListeners) fn();
+		this.followers.broke();
 	}
 
-	/** Say the stream came back, so a scripted scenario drives a view's catch-up the way it drives arrivals. */
+	/** Say the stream came back after a break, so a scripted scenario drives a view's catch-up the way it drives arrivals. */
 	reconnect(): void {
-		this.broken = false;
-		for (const fn of this.openListeners) fn();
-		for (const fn of this.reconnectListeners) fn();
+		this.followers.becameOpen();
 	}
 
 	/** Append an event to the log and dispatch it to every matching subscriber. */
 	emit(event: TEvent): void {
-		this.history.push(event);
-		this.recorded += 1;
-		for (const { handler, filter } of this.subscribers) {
-			if (!filter || filter(event)) handler(event);
-		}
+		this.followers.dispatch(event);
 	}
 
 	totalRecorded(): number {
-		return this.recorded;
+		return this.followers.totalRecorded();
 	}
 
 	close(): void {
-		this.subscribers.clear();
-		this.openListeners.clear();
+		this.followers.clear();
 	}
 }
 

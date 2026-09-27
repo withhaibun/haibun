@@ -129,18 +129,21 @@ const DEFAULT_DEPTH_LIMIT = 8;
 const MAX_MICHI = 64;
 const COMPOSITE_DEFAULT_DEPTH = 4;
 
-/**
- * Resolve a goal. The contract: if the resolver cannot produce an accurate
- * answer (because the graph is incomplete or capabilities are unknown), it returns
- * `refused` rather than guessing.
- */
 /** Hard ceiling on enumerate() invocations per resolveGoal call. Even with depthLimit +
  * maxMichi, cartesian fanout across composite fields can push the recursion count into
  * the millions before truncating. This counter throws fast so a runaway resolve doesn't
  * hang the test (or the live RPC), typical resolves finish in well under 10k calls. */
 const ENUMERATE_LIMIT = 200_000;
-let enumerateCallCount = 0;
 
+/** What one resolution walks with: its inputs, the domains on the path it is walking, the domains it found no producer
+ *  for, its bounds, and how many times it has recursed. */
+type TWalk = { inputs: TResolverInputs; visited: Set<string>; missing: string[]; depthLimit: number; maxMichi: number; calls: number };
+
+/**
+ * Resolve a goal. The contract: if the resolver cannot produce an accurate
+ * answer (because the graph is incomplete or capabilities are unknown), it returns
+ * `refused` rather than guessing.
+ */
 export function resolveGoal(goal: string, inputs: TResolverInputs): TGoalResolution {
 	const refusal = checkResolverInvariants(inputs, goal);
 	if (refusal) return refusal;
@@ -150,16 +153,18 @@ export function resolveGoal(goal: string, inputs: TResolverInputs): TGoalResolut
 	// Enumerate producer paths even when satisfied, `satisfied` doesn't mean
 	// "cannot be run again", just that at least one fact already exists. The
 	// user may want to produce another instance.
-	const depthLimit = inputs.depthLimit ?? DEFAULT_DEPTH_LIMIT;
-	const maxMichi = inputs.maxMichi ?? MAX_MICHI;
-	const missing: string[] = [];
-	enumerateCallCount = 0;
+	const walk: TWalk = {
+		inputs: { ...inputs, facts: inputs.facts.filter((q) => q.predicate !== goal) },
+		visited: new Set<string>([keyForVisited(goal, "")]),
+		missing: [],
+		depthLimit: inputs.depthLimit ?? DEFAULT_DEPTH_LIMIT,
+		maxMichi: inputs.maxMichi ?? MAX_MICHI,
+		calls: 0,
+	};
 	const t0 = Date.now();
-	const enumeration = hasProducerEdge
-		? enumerate(goal, { ...inputs, facts: inputs.facts.filter((q) => q.predicate !== goal) }, new Set<string>([keyForVisited(goal, "")]), missing, depthLimit, 0, maxMichi, "")
-		: { michi: [], truncated: false };
+	const enumeration = hasProducerEdge ? enumerate(goal, walk, 0, "") : { michi: [], truncated: false };
 	const elapsed = Date.now() - t0;
-	if (elapsed > 500) console.warn(`[goal-resolver] resolveGoal(${goal}) took ${elapsed}ms, ${enumerateCallCount} enumerate calls, ${enumeration.michi.length} michi`);
+	if (elapsed > 500) console.warn(`[goal-resolver] resolveGoal(${goal}) took ${elapsed}ms, ${walk.calls} enumerate calls, ${enumeration.michi.length} michi`);
 
 	if (matchingFacts.length > 0) {
 		return { finding: GOAL_FINDING.SATISFIED, goal, factIds: matchingFacts.map((q) => q.subject), michi: enumeration.michi, truncated: enumeration.truncated };
@@ -173,7 +178,7 @@ export function resolveGoal(goal: string, inputs: TResolverInputs): TGoalResolut
 	if (enumeration.michi.length > 0) {
 		return { finding: GOAL_FINDING.MICHI, goal, michi: enumeration.michi, truncated: enumeration.truncated };
 	}
-	return { finding: GOAL_FINDING.UNREACHABLE, goal, missing: dedupe(missing.length > 0 ? missing : [goal]) };
+	return { finding: GOAL_FINDING.UNREACHABLE, goal, missing: dedupe(walk.missing.length > 0 ? walk.missing : [goal]) };
 }
 
 /**
@@ -207,17 +212,9 @@ function keyForVisited(domain: string, path: string): string {
  * `topology.ranges`, the resolver recurses per field and emits a `kind: "composite"`
  * binding rather than a flat argument.
  */
-function enumerate(
-	target: string,
-	inputs: TResolverInputs,
-	visited: Set<string>,
-	missing: string[],
-	depthLimit: number,
-	depth: number,
-	maxMichi: number,
-	path: string,
-): TEnumResult {
-	if (++enumerateCallCount > ENUMERATE_LIMIT) {
+function enumerate(target: string, walk: TWalk, depth: number, path: string): TEnumResult {
+	const { inputs, visited, missing, depthLimit, maxMichi } = walk;
+	if (++walk.calls > ENUMERATE_LIMIT) {
 		throw new Error(
 			`[goal-resolver] enumerate() limit of ${ENUMERATE_LIMIT} calls exceeded for target=${target} depth=${depth} path=${path}. Likely a cycle the visited-set doesn't catch (cartesian composite explosion, or recursive field-domain reference). visited=[${[...visited].slice(0, 10).join(", ")}${visited.size > 10 ? `, ...${visited.size} total` : ""}]`,
 		);
@@ -244,7 +241,7 @@ function enumerate(
 	// When composite-decomposition is on and the target's schema declares field ranges,
 	// decompose into a composite binding whose fields each resolve independently.
 	if (producers.length === 0 && factsOfTarget.length === 0) {
-		const composite = tryComposite(target, inputs, visited, missing, depthLimit, depth, maxMichi, path);
+		const composite = tryComposite(target, walk, depth, path);
 		if (composite) {
 			if (composite.truncated) truncated = true;
 			out.push(...composite.michi);
@@ -282,7 +279,7 @@ function enumerate(
 				break;
 			}
 			visited.add(visitKey);
-			const sub = enumerate(inputDomain, inputs, visited, missing, depthLimit, depth + 1, maxMichi, path);
+			const sub = enumerate(inputDomain, walk, depth + 1, path);
 			visited.delete(visitKey);
 			if (sub.truncated) truncated = true;
 			if (sub.michi.length === 0) {
@@ -320,16 +317,8 @@ function enumerate(
  * a `kind: "composite"` describing how each field is satisfied, or `null` when
  * the target isn't composite or decomposition is disabled.
  */
-function tryComposite(
-	target: string,
-	inputs: TResolverInputs,
-	visited: Set<string>,
-	missing: string[],
-	depthLimit: number,
-	depth: number,
-	maxMichi: number,
-	path: string,
-): TEnumResult | null {
+function tryComposite(target: string, walk: TWalk, depth: number, path: string): TEnumResult | null {
+	const { inputs, maxMichi } = walk;
 	if (!inputs.compositeDecomposition) return null;
 	if (!inputs.domains) return null;
 	const compositeMaxDepth = inputs.compositeMaxDepth ?? COMPOSITE_DEFAULT_DEPTH;
@@ -341,7 +330,7 @@ function tryComposite(
 	const perFieldOptions: TFieldOption[][] = [];
 	let truncated = false;
 	for (const field of fields) {
-		const options = resolveFieldOptions(field, inputs, visited, missing, depthLimit, depth, maxMichi, path);
+		const options = resolveFieldOptions(field, walk, depth, path);
 		if (options.truncated) truncated = true;
 		if (options.options.length === 0) {
 			// A required field with no resolution fails the composite as a whole.
@@ -372,16 +361,8 @@ function tryComposite(
 type TFieldOption = { field: TFieldBinding; steps: TPlanStep[] };
 type TFieldOptionsResult = { options: TFieldOption[]; truncated: boolean };
 
-function resolveFieldOptions(
-	field: TCompositeField,
-	inputs: TResolverInputs,
-	visited: Set<string>,
-	missing: string[],
-	depthLimit: number,
-	depth: number,
-	maxMichi: number,
-	path: string,
-): TFieldOptionsResult {
+function resolveFieldOptions(field: TCompositeField, walk: TWalk, depth: number, path: string): TFieldOptionsResult {
+	const { visited } = walk;
 	const nextPath = path ? `${path}.${field.fieldName}` : field.fieldName;
 	const fieldType = zodTypeLabel(field.zodType);
 	// A field with no registered range is a primitive argument.
@@ -391,7 +372,7 @@ function resolveFieldOptions(
 	const visitKey = keyForVisited(field.fieldDomain, nextPath);
 	if (visited.has(visitKey)) return { options: [], truncated: false };
 	visited.add(visitKey);
-	const sub = enumerate(field.fieldDomain, inputs, visited, missing, depthLimit, depth + 1, maxMichi, nextPath);
+	const sub = enumerate(field.fieldDomain, walk, depth + 1, nextPath);
 	visited.delete(visitKey);
 
 	const options: TFieldOption[] = [];

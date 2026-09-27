@@ -245,6 +245,7 @@ describe("the run a view reads, over the records it wrote", () => {
 			generatedAtTime: iso(1600),
 			recordedAtTime: iso(1600),
 		});
+		handle.eventStream.disconnect();
 		handle.eventStream.reconnect();
 		await new Promise((r) => setTimeout(r, 5));
 		expect(source.count(), "the run it held, and what happened while it was not being told").toBe(5);

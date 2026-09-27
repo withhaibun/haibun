@@ -61,6 +61,9 @@ import {
 	ENCLOSURE_RENDER_ORDER,
 	ENCLOSURE_LABEL_RENDER_ORDER,
 	ENCLOSURE_LABEL_HEIGHT,
+	type Disposable,
+	type Vec3,
+	type Obj3D,
 } from "./polymorphic-enclosure.js";
 import { presentationForType } from "../type-presentation.js";
 import type { NodeMark } from "../graph-scene.js";
@@ -190,32 +193,11 @@ const ORBIT_PAN = 2;
 // The slice of A-Frame's bundled THREE that the group enclosures + the gantt overlays drive. Constructed at runtime via the scene's OWN
 // THREE instance (AFRAME.THREE), never a separately imported `three`, which would be a second copy whose objects
 // the scene can't render. Typed structurally so this view keeps depending on no three .d.ts.
-type Disposable = { dispose(): void };
-type Vec3 = { x: number; y: number; z: number; set(x: number, y: number, z: number): void };
-type Obj3D = {
-	position: Vec3;
-	scale: Vec3;
-	renderOrder: number;
-	visible: boolean;
-	parent: Obj3D | null;
-	children: Obj3D[];
-	raycast: () => void;
-	add(o: Obj3D): void;
-	remove(o: Obj3D): void;
-};
-type EnclMaterial = Disposable & { color: { set(c: string): void }; opacity: number };
 type DragPlane = { setFromNormalAndCoplanarPoint(normal: Vec3, point: Vec3): unknown };
-interface ThreeNs {
-	Group: new () => Obj3D;
-	Mesh: new (geometry: unknown, material: unknown) => Obj3D;
-	LineSegments: new (geometry: unknown, material: unknown) => Obj3D;
-	BoxGeometry: new (w: number, h: number, d: number) => Disposable;
-	EdgesGeometry: new (geometry: unknown) => Disposable;
+/** The enclosures' slice of THREE, and what the gantt overlays and a node's drag add to it. */
+interface ThreeNs extends EnclosureThree {
 	BufferGeometry: new () => Disposable & { setAttribute(name: string, attr: unknown): void };
 	Float32BufferAttribute: new (array: number[], itemSize: number) => unknown;
-	MeshBasicMaterial: new (params: Record<string, unknown>) => EnclMaterial;
-	LineBasicMaterial: new (params: Record<string, unknown>) => EnclMaterial;
-	DoubleSide: number;
 	// Node-drag math: a ray from the pointer through the camera, picks the pressed sprite, then follows the
 	// camera-facing plane through it. `camera` must be set for Sprite.raycast (billboard math).
 	Raycaster: new () => {

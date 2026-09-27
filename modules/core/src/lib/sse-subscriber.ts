@@ -19,84 +19,166 @@
  * plain event payload. Payloads that don't parse as JSON are passed
  * through verbatim so callers can handle wire-format variants.
  *
- * --- Replay buffer (`ReplayBuffer`) ---
- * Every dispatched event is also recorded in a `ReplayBuffer` (a fixed-
- * size FIFO) so that a `subscribe()` call AFTER the connection opened
- * still sees what this page received before it subscribed.
+ * --- Who follows the stream (`StreamListeners`) ---
+ * The listeners, what the stream holds for a listener that starts late,
+ * and whether the stream is open are kept by `StreamListeners`, which a
+ * stream replayed from a log keeps too, so both answer a listener alike.
+ * Every dispatched event is recorded in a fixed-size replay buffer, so a
+ * `subscribe()` after the connection opened still sees what this page
+ * received before it subscribed.
  *
  * --- Reconnection ---
  * The server replays nothing on connect: what happened is in the graph.
  * A stream that breaks and re-opens announces the re-open through
  * `reconnected()`, which is how a consumer following the run knows to
  * read again for what happened while nothing was heard.
- *
- * The buffer is an explicit, exported class (not a hidden field) so
- * consumers can inspect it (`getReplayBuffer()`) and the contract is
- * legible from one read of the file.
  */
 
 import type { THaibunEvent } from "../schema/protocol.js";
 import { failFastOrLog } from "./dev-mode.js";
 
-type EventHandler = (event: THaibunEvent) => void;
-type EventFilter = (event: THaibunEvent) => boolean;
-
-/** Default cap for the per-subscriber replay buffer. Overrideable via SseSubscriberConfig. */
+/** Default cap for the replay buffer. Overrideable via SseSubscriberConfig. */
 const REPLAY_BUFFER_LIMIT_DEFAULT = 5000;
 
-/**
- * Fixed-size FIFO of recently dispatched events. A `subscribe()` call
- * synchronously walks the buffer and re-invokes the new handler with
- * each event, so consumers that mount AFTER the SSE connection opened
- * still see the run history the server replayed on connect.
- *
- * Public methods are intentionally narrow: callers `record` an event,
- * `replay` to a handler, or read `size` / `limit`. The buffer never
- * filters: that's a per-subscriber decision in `replay()`.
- */
-class ReplayBuffer {
-	private readonly events: THaibunEvent[] = [];
-	private _totalRecorded = 0;
+/** Fixed-size FIFO of recently dispatched events, replayed to a listener that subscribes after they arrived. */
+class ReplayBuffer<E> {
+	private readonly events: E[] = [];
+	private recorded = 0;
 	constructor(readonly limit: number) {
 		if (limit <= 0) throw new Error(`ReplayBuffer: limit must be positive, got ${limit}`);
 	}
 
 	/** Append an event, dropping the oldest when the cap is exceeded. */
-	record(event: THaibunEvent): void {
+	record(event: E): void {
 		this.events.push(event);
-		this._totalRecorded++;
+		this.recorded++;
 		if (this.events.length > this.limit) this.events.splice(0, this.events.length - this.limit);
 	}
 
-	/** Synchronously invoke `handler` for every buffered event that passes `filter` (or all when filter is undefined). */
-	replay(handler: EventHandler, filter?: EventFilter): void {
+	/** Invoke `handler` for every buffered event that passes `filter`, or every one when there is no filter. */
+	replay(handler: (event: E) => void, filter?: (event: E) => boolean): void {
 		for (const event of this.events) {
 			if (!filter || filter(event)) handler(event);
 		}
 	}
 
-	/** Current number of buffered events. */
-	get size(): number {
-		return this.events.length;
-	}
-
-	/**
-	 * Total events ever recorded, including ones the buffer has since dropped.
-	 * Exceeds `size` only after the buffer has wrapped: that difference is what
-	 * tells a UI it's looking at a truncated tail.
-	 */
+	/** Every event ever recorded, including ones the buffer has since dropped. */
 	get totalRecorded(): number {
-		return this._totalRecorded;
+		return this.recorded;
+	}
+}
+
+/**
+ * Who follows a stream, what the stream holds for one who starts following late, and whether it is open: what a stream
+ * read from a host and a stream replayed from a log both keep, so each tells a listener the same things at the same
+ * moments.
+ */
+export class StreamListeners<E> {
+	private readonly listeners: { handler: (event: E) => void; filter?: (event: E) => boolean }[] = [];
+	private readonly openListeners = new Set<() => void>();
+	private readonly reconnectListeners = new Set<() => void>();
+	private readonly disconnectListeners = new Set<() => void>();
+	/** The stream has dropped and not yet re-opened. What happened meanwhile reached no listener, so the re-open is
+	 *  announced to whoever follows the run: that is when they have something to read again for. */
+	private broken = false;
+	private readonly buffer: ReplayBuffer<E>;
+
+	/** `open` is whether the stream is open from the start, as a log that is all there is is. */
+	constructor(
+		private readonly name: string,
+		replayLimit: number,
+		private open = false,
+	) {
+		this.buffer = new ReplayBuffer<E>(replayLimit);
 	}
 
-	/** Snapshot of the buffer for inspection. Returns a copy to keep the internal array opaque. */
-	snapshot(): THaibunEvent[] {
-		return this.events.slice();
+	/** Register a listener, which receives every buffered event at once, then each live dispatch. Returns an unsubscribe. */
+	subscribe(handler: (event: E) => void, filter?: (event: E) => boolean): () => void {
+		const entry = { handler, filter };
+		this.listeners.push(entry);
+		this.buffer.replay(handler, filter);
+		return () => {
+			const idx = this.listeners.indexOf(entry);
+			if (idx >= 0) this.listeners.splice(idx, 1);
+		};
 	}
 
-	/** Drop every buffered event. Used by callers that want a fresh start. */
+	/** Be told the stream is open: at once for a stream open now, and each time it opens after. Returns an unsubscribe. */
+	opened(fn: () => void): () => void {
+		this.openListeners.add(fn);
+		if (this.open) fn();
+		return () => this.openListeners.delete(fn);
+	}
+
+	/** Be told the stream has re-opened after a break in it. What happened during the break arrives in no dispatch, so a
+	 *  consumer following the run reads again on this. Never fires on the first open, which has nothing behind it. */
+	reconnected(fn: () => void): () => void {
+		this.reconnectListeners.add(fn);
+		return () => this.reconnectListeners.delete(fn);
+	}
+
+	/** Be told the stream has broken: once per break, and at once for a stream already down, so a consumer that starts
+	 *  listening after the break is told what it would have heard. Returns an unsubscribe. */
+	disconnected(fn: () => void): () => void {
+		this.disconnectListeners.add(fn);
+		if (this.broken) fn();
+		return () => this.disconnectListeners.delete(fn);
+	}
+
+	/** The stream is open, and after a break, back. */
+	becameOpen(): void {
+		this.open = true;
+		this.notify(this.openListeners, "opening");
+		if (!this.broken) return;
+		this.broken = false;
+		this.notify(this.reconnectListeners, "reconnection");
+	}
+
+	/** The stream broke. The break is announced once, when it happens: a page that cannot hear the run cannot say its
+	 *  reading is current, and that is a fact of the reading rather than something to infer from the silence. */
+	broke(): void {
+		const wasOpen = !this.broken;
+		this.broken = true;
+		this.open = false;
+		if (wasOpen) this.notify(this.disconnectListeners, "disconnection");
+	}
+
+	/** Record an event and hand it to every listener whose filter takes it. A listener that throws is reported and its
+	 *  siblings are still told; a listener that can't take a replayed event (in `subscribe`) is a fault to surface. */
+	dispatch(event: E): void {
+		this.buffer.record(event);
+		for (const { handler, filter } of this.listeners) {
+			if (filter && !filter(event)) continue;
+			try {
+				handler(event);
+			} catch (err) {
+				failFastOrLog(`${this.name}: listener threw during dispatch`, err);
+			}
+		}
+	}
+
+	/** Every event ever dispatched, including ones the replay buffer has since dropped. */
+	totalRecorded(): number {
+		return this.buffer.totalRecorded;
+	}
+
+	/** Let every listener go: a stream that closes never opens again, so nothing it receives after reaches a listener. */
 	clear(): void {
-		this.events.length = 0;
+		this.listeners.length = 0;
+		this.openListeners.clear();
+		this.reconnectListeners.clear();
+		this.disconnectListeners.clear();
+	}
+
+	/** Tell each listener of a change to the stream; one that throws is reported and the others are still told. */
+	private notify(listeners: Set<() => void>, change: string): void {
+		for (const fn of listeners) {
+			try {
+				fn();
+			} catch (err) {
+				failFastOrLog(`${this.name}: listener threw on ${change}`, err);
+			}
+		}
 	}
 }
 
@@ -125,20 +207,10 @@ export class SseSubscriber {
 	/** Stops the connection being read, or null where none is open or opening. */
 	private reading: AbortController | null = null;
 	private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-	private readonly listeners: { handler: EventHandler; filter?: EventFilter }[] = [];
 	private closed = false;
-	/** The stream has dropped and not yet re-opened. What happened meanwhile reached no listener, so the re-open is
-	 *  announced to whoever follows the run: that is when they have something to read again for. */
-	private broken = false;
-	private readonly reconnectListeners = new Set<() => void>();
-	/** The stream is open now: what the run announces reaches the listeners. */
-	private open = false;
-	private readonly openListeners = new Set<() => void>();
-	private readonly disconnectListeners = new Set<() => void>();
 	private lastEventAt: number | null = null;
 	private connectedAt: number | null = null;
-	/** Replay buffer, see file header and the `ReplayBuffer` class. */
-	private readonly replayBuffer: ReplayBuffer;
+	private readonly followers: StreamListeners<THaibunEvent>;
 
 	constructor(config: SseSubscriberConfig) {
 		this.url = config.url;
@@ -146,7 +218,7 @@ export class SseSubscriber {
 		this.headers = config.headers;
 		this.fetchImpl = config.fetchImpl ?? ((input, init) => globalThis.fetch(input, init));
 		this.clientId = config.clientId ?? `sse-${Math.random().toString(36).slice(2, 8)}`;
-		this.replayBuffer = new ReplayBuffer(config.replayBufferLimit ?? REPLAY_BUFFER_LIMIT_DEFAULT);
+		this.followers = new StreamListeners<THaibunEvent>(`SseSubscriber[${this.clientId}]`, config.replayBufferLimit ?? REPLAY_BUFFER_LIMIT_DEFAULT);
 	}
 
 	/** Open the stream. Subsequent subscribe/close calls operate on this connection. Idempotent. */
@@ -170,21 +242,13 @@ export class SseSubscriber {
 				return;
 			}
 			if (!res.ok || !res.body) throw new Error(`the stream at ${this.url} answered ${res.status}`);
-			this.becameOpen();
+			this.followers.becameOpen();
 			for await (const data of sseData(res.body)) this.received(data);
 		} catch {
 			// What ended the connection is not what a listener acts on: it acts on the stream being down, which it is.
 		}
 		if (reading.signal.aborted) return;
 		this.broke();
-	}
-
-	private becameOpen(): void {
-		this.open = true;
-		this.notify(this.openListeners, "opening");
-		if (!this.broken) return;
-		this.broken = false;
-		this.notify(this.reconnectListeners, "reconnection");
 	}
 
 	private received(data: string): void {
@@ -201,12 +265,7 @@ export class SseSubscriber {
 	}
 
 	private broke(retry = true): void {
-		// The break is announced once, when it happens: a page that cannot hear the run cannot say its reading is
-		// current, and that is a fact of the reading rather than something to infer from the silence.
-		const wasOpen = !this.broken;
-		this.broken = true;
-		this.open = false;
-		if (wasOpen) this.notify(this.disconnectListeners, "disconnection");
+		this.followers.broke();
 		this.reading = null;
 		if (!retry || this.closed || this.reconnectTimer) return;
 		this.reconnectTimer = setTimeout(() => {
@@ -215,57 +274,20 @@ export class SseSubscriber {
 		}, this.reconnectDelayMs);
 	}
 
-	/** Tell each listener of a change to the stream; one that throws is reported and the others are still told. */
-	private notify(listeners: Set<() => void>, change: string): void {
-		for (const fn of listeners) {
-			try {
-				fn();
-			} catch (err) {
-				failFastOrLog(`SseSubscriber[${this.clientId}]: listener threw on ${change}`, err);
-			}
-		}
+	subscribe(handler: (event: THaibunEvent) => void, filter?: (event: THaibunEvent) => boolean): () => void {
+		return this.followers.subscribe(handler, filter);
 	}
 
-	/**
-	 * Register a listener. Returns an unsubscribe function. The new handler
-	 * synchronously receives every buffered event from the `ReplayBuffer`
-	 * before subscribe returns, then continues to receive live dispatches.
-	 */
-	subscribe(handler: EventHandler, filter?: EventFilter): () => void {
-		const entry = { handler, filter };
-		this.listeners.push(entry);
-		this.replayBuffer.replay(handler, filter);
-		return () => {
-			const idx = this.listeners.indexOf(entry);
-			if (idx >= 0) this.listeners.splice(idx, 1);
-		};
-	}
-
-	/** Be told the stream is open: at once for a stream open now, and each time it opens after. From then on, what the
-	 *  run announces reaches the listeners. Returns an unsubscribe. */
 	opened(fn: () => void): () => void {
-		this.openListeners.add(fn);
-		if (this.open) fn();
-		return () => this.openListeners.delete(fn);
+		return this.followers.opened(fn);
 	}
 
-	/**
-	 * Be told the stream has re-opened after a break in it. What happened during the break arrives in no dispatch, so a
-	 * consumer following the run reads again on this, as it reads again on an arrival. Never fires on the first open,
-	 * which has nothing behind it. Returns an unsubscribe.
-	 */
 	reconnected(fn: () => void): () => void {
-		this.reconnectListeners.add(fn);
-		return () => this.reconnectListeners.delete(fn);
+		return this.followers.reconnected(fn);
 	}
 
-	/** Be told the stream has broken. Until it re-opens, what the run does reaches no listener, so a consumer following
-	 *  the run cannot say its reading is current. Fires once per break, and at once for a stream already down, so a
-	 *  consumer that starts listening after the break is told what it would have heard. Returns an unsubscribe. */
 	disconnected(fn: () => void): () => void {
-		this.disconnectListeners.add(fn);
-		if (this.broken) fn();
-		return () => this.disconnectListeners.delete(fn);
+		return this.followers.disconnected(fn);
 	}
 
 	/** Tag for log correlation. */
@@ -273,9 +295,9 @@ export class SseSubscriber {
 		return this.clientId;
 	}
 
-	/** Inspect the replay buffer. Exposed so consumers can report buffer size or drain it for debugging. */
-	getReplayBuffer(): ReplayBuffer {
-		return this.replayBuffer;
+	/** Every event this stream has dispatched, including ones its replay buffer has since dropped. */
+	totalRecorded(): number {
+		return this.followers.totalRecorded();
 	}
 
 	/** Close the connection and stop reconnecting. */
@@ -289,10 +311,7 @@ export class SseSubscriber {
 		this.reading = null;
 		// A closed subscriber never opens again, so it holds no listener: a message arriving on the transport it has let
 		// go reaches a consumer that stopped listening otherwise.
-		this.listeners.length = 0;
-		this.openListeners.clear();
-		this.reconnectListeners.clear();
-		this.disconnectListeners.clear();
+		this.followers.clear();
 	}
 
 	/** Wall-clock time of the last successfully-dispatched event, or null if none yet. */
@@ -316,20 +335,7 @@ export class SseSubscriber {
 
 	private dispatch(event: THaibunEvent): void {
 		this.lastEventAt = Date.now();
-		this.replayBuffer.record(event);
-		for (const { handler, filter } of this.listeners) {
-			if (filter && !filter(event)) continue;
-			// Live-dispatch isolation across listeners: a thrown handler must not
-			// silence its siblings. `failFastOrLog` re-throws in DEV so the
-			// developer sees the failure immediately; in PROD it logs and the
-			// loop continues. Replay (in `subscribe`) stays fail-fast: a
-			// listener that can't process a buffered event is a bug to surface.
-			try {
-				handler(event);
-			} catch (err) {
-				failFastOrLog(`SseSubscriber[${this.clientId}]: listener threw during dispatch`, err);
-			}
-		}
+		this.followers.dispatch(event);
 	}
 }
 

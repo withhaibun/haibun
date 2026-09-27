@@ -28,9 +28,9 @@ export const ENCLOSURE_RENDER_ORDER = -1; // behind nodes/edges; depthWrite is o
 export const ENCLOSURE_LABEL_RENDER_ORDER = FOCUS_RENDER_ORDER - 0.5;
 export const ENCLOSURE_LABEL_HEIGHT = 5;
 
-type Disposable = { dispose(): void };
-type Vec3 = { x: number; y: number; z: number; set(x: number, y: number, z: number): void };
-type Obj3D = {
+export type Disposable = { dispose(): void };
+export type Vec3 = { x: number; y: number; z: number; set(x: number, y: number, z: number): void };
+export type Obj3D = {
 	position: Vec3;
 	scale: Vec3;
 	renderOrder: number;
@@ -41,7 +41,7 @@ type Obj3D = {
 	add(o: Obj3D): void;
 	remove(o: Obj3D): void;
 };
-type EnclMaterial = Disposable & { color: { set(c: string): void }; opacity: number };
+export type EnclMaterial = Disposable & { color: { set(c: string): void }; opacity: number };
 export interface EnclosureThree {
 	Group: new () => Obj3D;
 	Mesh: new (geometry: unknown, material: unknown) => Obj3D;
