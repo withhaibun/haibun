@@ -73,8 +73,8 @@ class Narrator extends AStepper implements IHasOptions, IHasCycles {
 
 	steps = {
 		prose: {
+			prose: true,
 			precludes: [`Haibun.prose`],
-			match: /.+[.!?]$/,
 			action: async (_args: TStepArgs, featureStep: TFeatureStep) => this.maybeSay(featureStep),
 		},
 		feature: {

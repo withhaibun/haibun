@@ -7,6 +7,13 @@ import { getActionable, dePolite, constructorName, actionNotOK, asError, errorDe
 import { itemAt } from "../lib/util/item-at.js";
 import { expandLine } from "../lib/features.js";
 
+/** A line written as a sentence: a capital first letter and a final `.`, `!`, `?`, `:` or `;`. */
+const SENTENCE = /^[A-Z].*[.!?:;]$/;
+/** A line that starts with a character other than a letter, such as a heading, a list item, a table row or a link. */
+const STARTS_WITH_NON_LETTER = /^[^a-zA-Z]/;
+/** Whether a step's pattern starts with a capital, as a heading's does. */
+const writtenCapitalized = (step: TStepperStep) => /^[A-Z]/.test(step.gwta ?? step.exact ?? "");
+
 export class Resolver {
 	public backgroundWarnings: { path: string; line: string; error: string }[] = [];
 
@@ -164,9 +171,23 @@ export class Resolver {
 		}
 		return { steps, errors };
 	}
+	/**
+	 * The one step a line resolves to. How a line is written decides whether it is prose: a sentence is prose, but for a
+	 * step whose pattern starts with a capital, such as a heading whose title ends with punctuation. A line that starts
+	 * with a character other than a letter is prose where no step's pattern matches it. A pattern reads a line after
+	 * `dePolite` removes its leading articles, so without this rule a sentence such as "A type is a view." would match
+	 * `type {text}`.
+	 */
 	findSingleStepAction(line: string): TStepAction {
-		let stepActions = this.findActionableSteps(line);
+		const sentence = SENTENCE.test(line);
+		const found = this.findActionableSteps(line).filter((a) => !sentence || writtenCapitalized(a.step));
+		if (found.length === 0 && (sentence || STARTS_WITH_NON_LETTER.test(line))) return this.selectStep(line, this.proseSteps());
+		return this.selectStep(line, found);
+	}
 
+	/** The one step of those a line matched: a unique step, then any but a fallback, then any a match doesn't preclude. */
+	private selectStep(line: string, candidates: TStepAction[]): TStepAction {
+		let stepActions = candidates;
 		if (stepActions.length > 1) {
 			const unique = stepActions.filter((a) => a.step.unique);
 			if (unique.length === 1) {
@@ -207,22 +228,23 @@ export class Resolver {
 		};
 	}
 
-	public findActionableSteps(actionable: string): TStepAction[] {
-		const found: TStepAction[] = [];
-
-		for (const stepper of this.steppers) {
+	/** Each step a caller is offered, with the stepper that declares it. */
+	private offeredSteps(): TStepAction[] {
+		return this.steppers.flatMap((stepper) => {
 			const stepperName = constructorName(stepper);
-			const { steps } = stepper;
-			for (const [actionName, step] of Object.entries(steps)) {
-				if (this.offers && !this.offers(stepperName, actionName, step)) continue;
-				const stepFound = this.stepApplies(step, actionable, actionName, stepperName);
+			return Object.entries(stepper.steps)
+				.filter(([actionName, step]) => !this.offers || this.offers(stepperName, actionName, step))
+				.map(([actionName, step]) => ({ actionName, stepperName, step }));
+		});
+	}
 
-				if (stepFound) {
-					found.push(stepFound);
-				}
-			}
-		}
-		return found;
+	private findActionableSteps(actionable: string): TStepAction[] {
+		return this.offeredSteps().flatMap(({ step, actionName, stepperName }) => this.stepApplies(step, actionable, actionName, stepperName) ?? []);
+	}
+
+	/** The steps a prose line resolves to, which declare `prose` in place of a pattern. */
+	private proseSteps(): TStepAction[] {
+		return this.offeredSteps().filter(({ step }) => step.prose);
 	}
 
 	private stepApplies(step: TStepperStep, actionable: string, actionName: string, stepperName: string) {

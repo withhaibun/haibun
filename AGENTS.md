@@ -28,6 +28,8 @@ The main focus is Web applications, however Haibun provides steppers for other e
 
 Stop (ignored) words can be used at the start of statements and include given, when, then, and, should, then, I'm, I, am, an, a.
 
+A line written as a sentence, which starts with a capital and ends with `.`, `!`, `?`, `:` or `;`, is prose, even where removing a stop word such as "A" leaves a step's words. A heading such as `Scenario:` whose title ends with punctuation is still its heading. A line that starts with a symbol runs the step whose pattern matches it, and is prose where none does.
+
 Steps can also be written as Typescript modules, analogous to kireji, identified with .feature.ts. They can be mixed with text form and are displayed in text form during execution. Kireji provides syntax checking and code-based navigation. See [examples in e2e-tests](e2e-tests/tests/features/).
 
 ### Comments

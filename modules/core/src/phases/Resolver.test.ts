@@ -2,11 +2,12 @@ import { describe, it, test, expect } from "vitest";
 
 import type { TExpandedFeature } from "../lib/execution.js";
 import { OK } from "../schema/protocol.js";
-import { AStepper, TResolvedFeature } from "../lib/astepper.js";
+import { AStepper, type CStepper, TResolvedFeature } from "../lib/astepper.js";
 import { asExpandedFeatures } from "../lib/resolver-features.js";
 import TestSteps from "../lib/test/TestSteps.js";
 import { createSteppers } from "../lib/util/index.js";
 import { Resolver } from "./Resolver.js";
+import Haibun from "../steps/haibun.js";
 
 describe("resolve steps", () => {
 	it("resolves steps", async () => {
@@ -140,5 +141,38 @@ describe("preclude stepper", () => {
 		expect(steps.length).toBe(1);
 		expect(steps[0].featureSteps.length).toBe(1);
 		expect(steps[0].featureSteps[0].action.stepperName).toBe("PrecluderStepper");
+	});
+});
+
+describe("prose", () => {
+	class LineStepper extends AStepper {
+		steps = {
+			type: { gwta: "type {text}", action: async () => Promise.resolve(OK) },
+			layout: { gwta: "{mode} the graph layout", action: async () => Promise.resolve(OK) },
+		};
+	}
+	class SpokenProse extends AStepper {
+		steps = { prose: { prose: true, precludes: ["Haibun.prose"], action: async () => Promise.resolve(OK) } };
+	}
+	const resolvedTo = (line: string, ...steppers: CStepper[]) => {
+		const { stepperName, actionName } = new Resolver(createSteppers([Haibun, ...steppers])).findSingleStepAction(line);
+		return `${stepperName}.${actionName}`;
+	};
+	const PROSE = "Haibun.prose";
+	const ARTICLE_SENTENCE = "A type that names a component to show itself is a view.";
+
+	it("resolves a sentence to prose, where dePolite's removal of its leading article leaves a step's words", () => {
+		expect(resolvedTo(ARTICLE_SENTENCE, LineStepper)).toBe(PROSE);
+		expect(resolvedTo("type that names a component", LineStepper)).toBe("LineStepper.type");
+	});
+	it("resolves a heading whose title ends with punctuation to the heading", () => {
+		expect(resolvedTo("Scenario: What can I make right now?")).toBe("Haibun.scenario");
+	});
+	it("resolves a line that starts with a character other than a letter to a step that matches it, and to prose where none does", () => {
+		expect(resolvedTo('"flatten" the graph layout', LineStepper)).toBe("LineStepper.layout");
+		expect(resolvedTo("- a list item", LineStepper)).toBe(PROSE);
+	});
+	it("resolves prose to the prose step that precludes another", () => {
+		expect(resolvedTo(ARTICLE_SENTENCE, SpokenProse)).toBe("SpokenProse.prose");
 	});
 });

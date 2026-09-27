@@ -51,9 +51,6 @@ import { runArtifactDomainDefinition } from "../lib/run-artifact.js";
 import { statementsWith, type TStatementRow } from "../lib/statements.js";
 import { typedLinkFacts } from "../lib/typed-links.js";
 
-/** The base prose step: a line of a feature that is not a step. Its text is the feature's own words, so it is where a feature states what it refers to. */
-const PROSE_ACTION = "Haibun.prose";
-
 /** An anchored passage as a reader would say it: the quote, and the words it sits between where they were recorded. */
 function describeAnchor(selector: TQuoteAnchor): string {
 	const between = [selector.prefix ? `after "${selector.prefix}"` : "", selector.suffix ? `before "${selector.suffix}"` : ""].filter(Boolean).join(" and ");
@@ -165,7 +162,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 	 * id is the step's position, so re-running restates rather than accumulates, and the step's status says how it ended.
 	 */
 	async readFeatureProse({ featureStep }: TBeforeStep): Promise<void> {
-		if (`${featureStep.action.stepperName}.${featureStep.action.actionName}` !== PROSE_ACTION) return;
+		if (!featureStep.action.step.prose) return;
 		const text = featureStep.in;
 		const vocab = this.linkVocabulary;
 		// Prose that states nothing changes nothing; the facts parsed here are the reading's, so the text parses once.

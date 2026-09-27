@@ -156,6 +156,9 @@ type TStepperStepBase = {
 	match?: RegExp;
 	gwta?: string;
 	exact?: string;
+	/** A prose line resolves to this step, which declares no pattern: a line written as a sentence, or a line that starts
+	 *  with a character other than a letter and that no step's pattern matches (Resolver.findSingleStepAction). */
+	prose?: boolean;
 	resolveFeatureLine?(line: string, path: string, stepper: AStepper, backgrounds: TFeatures, allLines?: string[], lineIndex?: number, actualSourcePath?: string): boolean | void;
 	/**
 	 * Single-product postcondition. The step's action must return products matching

@@ -249,7 +249,6 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 		set: {
 			gwta: `set( empty)? {what: ${DOMAIN_VARIABLE_NAME}} to {value: ${DOMAIN_VARIABLE_VALUE}}`,
-			precludes: ["Haibun.prose"],
 			action: async ({ what, value }: { what: string; value: TStepValue }, featureStep: TFeatureStep) => {
 				const interpolated = await this.interpolateTemplate(what, featureStep);
 				if ("error" in interpolated) return actionNotOK(interpolated.error);
@@ -440,12 +439,10 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		},
 		// Membership check: value is in domain (enum or member values)
 		// Handles quoted ("value"), braced ({var}), or bare (value) forms
-		// fallback: true lets quantifiers (every/some) win on the full line; precludes Haibun.prose
-		// so the inner membership statement still resolves to a real step, not the catch-all narrative.
+		// fallback: true lets quantifiers (every/some) win on the full line.
 		isIn: {
 			match: /^(.+) is in ([a-zA-Z][a-zA-Z0-9 ]*)$/,
 			fallback: true,
-			precludes: ["Haibun.prose"],
 			action: async (_: unknown, featureStep: TFeatureStep) => {
 				const matchResult = featureStep.in.match(/^(.+) is in ([a-zA-Z][a-zA-Z0-9 ]*)$/);
 				if (!matchResult) {

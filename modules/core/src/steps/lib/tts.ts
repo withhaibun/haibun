@@ -15,12 +15,12 @@ export type TRenderedAudioMap = { [hash: string]: TCachedAudio };
 
 const CACHE_DIR = nodePath.resolve("capture/.said");
 
-const SPOKEN_STEPS = ["prose", SCENARIO_START, FEATURE_START];
+const SPOKEN_HEADINGS = [SCENARIO_START, FEATURE_START];
 
 export async function preRenderFeatureProse(feature: TResolvedFeature): Promise<TRenderedAudioMap> {
 	const proseTexts = new Set<string>();
 	for (const step of feature.featureSteps) {
-		if (SPOKEN_STEPS.includes(step.action.actionName)) {
+		if (step.action.step.prose || SPOKEN_HEADINGS.includes(step.action.actionName)) {
 			const text = step.in;
 			proseTexts.add(text);
 		}

@@ -23,8 +23,8 @@
 			},
 			"/features/agents-examples.feature": {
 				"seconds": 0.9,
-				"steps": 350,
-				"declaredStepTextHash": "364b89529687b5459a40f4e703d9499202df8f43b0c71334932ac44255686e24"
+				"steps": 351,
+				"declaredStepTextHash": "fa5e1b7425eb0a02e80550b740553aa20f5e383969c730f4f91c0ce6fe9601d6"
 			},
 			"/features/auth-basic.feature": {
 				"seconds": 0.6,
@@ -47,7 +47,7 @@
 				"declaredStepTextHash": "2f70ffa43d3f1498ca7807f6a570b166e456aa1830c1890cdbeba09ddabc773d"
 			},
 			"/features/counter.feature.ts": {
-				"seconds": 1.9,
+				"seconds": 1.8,
 				"steps": 19,
 				"declaredStepTextHash": "2bacbd5da344c9602608a02dc1f56199b85a5c69b1c5117a0e2cadc3d54518d3"
 			},
@@ -92,12 +92,12 @@
 				"declaredStepTextHash": "c5dc084f8a55666333aef24f99ca452d4e5423e61b94a005bcb35696a756cd38"
 			},
 			"/features/popup.feature": {
-				"seconds": 0.5,
+				"seconds": 0.4,
 				"steps": 11,
 				"declaredStepTextHash": "61922798c574f99a0333aae78f23b42b09e6952b233534b41697af83e14287a5"
 			},
 			"/features/qrcode.feature": {
-				"seconds": 2.5,
+				"seconds": 2.4,
 				"steps": 18,
 				"declaredStepTextHash": "a027c3737b57ea7afadfa35619c47435fee5194b15576809f74720279f71096a"
 			},
@@ -127,22 +127,22 @@
 				"declaredStepTextHash": "e9678d64ba12e46fbc4caa36cf6e466eac5684c78c8952b82f9da96f79a0e073"
 			},
 			"/features/wikipedia.feature.ts": {
-				"seconds": 1,
+				"seconds": 0.9,
 				"steps": 140,
 				"declaredStepTextHash": "b162c447aa4626651d8e903bcce16dc77fdff6ddf5cdcb3dd48ed79db2d59972"
 			},
 			"/features/workflow.feature.ts": {
-				"seconds": 0.1,
+				"seconds": 0,
 				"steps": 64,
 				"declaredStepTextHash": "6ea7aa2bb7d5064406546879e2409d373447039b9425c3d5bc875b03800adf2e"
 			},
 			"/features/xss.feature": {
-				"seconds": 2.6,
+				"seconds": 2.5,
 				"steps": 12,
 				"declaredStepTextHash": "6955f2010a1bca21452d955a0c2558183d56d579763a342a595fe3631cafa921"
 			}
 		},
-		"steps": 1129,
-		"seconds": 17.5
+		"steps": 1130,
+		"seconds": 16.9
 	}
 }

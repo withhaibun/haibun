@@ -221,8 +221,7 @@ class Haibun extends AStepper implements IHasCycles {
 			action: () => OK,
 		},
 		prose: {
-			match: /^([A-Z].*[.!?:;]|[^a-zA-Z].*)$/,
-			fallback: true,
+			prose: true,
 			action: () => OK,
 		},
 
@@ -257,7 +256,6 @@ class Haibun extends AStepper implements IHasCycles {
 			action: () => OK,
 		},
 		afterEveryStepper: {
-			precludes: [`Haibun.prose`],
 			gwta: `after every {stepperName: ${DOMAIN_STEPPER_NAME}}, {statement: ${DOMAIN_STATEMENT}}`,
 			action: ({ stepperName, statement }: { stepperName: string; statement: TFeatureStep[] }) => {
 				this.afterEverySteps[stepperName] = statement;
