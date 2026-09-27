@@ -15,6 +15,13 @@ export const ROUTE_TYPES = RouteTypeSchema.options;
 export type TRouteMap = { [K in TRouteTypes]: { [path: string]: string } };
 export type TRequestHandler = (c: Context) => Response | Promise<Response>;
 
+/** A path parameter the route's pattern names, which every request the route matched holds. */
+export function pathParam(c: Context, name: string): string {
+	const value = c.req.param(name);
+	if (value === undefined) throw new Error(`the route that matched ${c.req.path} doesn't name a path parameter ${name}`);
+	return value;
+}
+
 /** Per-route purpose, required at mount time. Endpoints without a purpose cannot be mounted:
  *  this is what the endpoint-vertex graph and "show endpoints" UI render from. */
 export type TRoutePurpose = {

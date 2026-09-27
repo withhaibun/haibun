@@ -116,6 +116,12 @@ export function isLowerCase(str: string) {
 
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** The item at `index` of a list the caller reads within its bounds: an index outside them is a fault, so it throws. */
+export function itemAt<T>(list: ArrayLike<T>, index: number): T {
+	if (!Number.isInteger(index) || index < 0 || index >= list.length) throw new RangeError(`index ${index} is outside a list of ${list.length}`);
+	return list[index] as T;
+}
+
 /** Serialize an unknown thrown value to a full diagnostic string, including error code and cause chain. */
 export function errorDetail(err: unknown): string {
 	if (err instanceof z.ZodError) return err.issues.map((issue) => (issue.path.length ? `${issue.path.join(".")}: ${issue.message}` : issue.message)).join("; ");

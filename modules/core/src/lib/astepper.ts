@@ -193,7 +193,8 @@ type TStepperStepBase = {
 };
 
 export type TStepperStep = TStepperStepBase & {
-	action(args: TStepArgs, featureStep?: TFeatureStep): Promise<TActionResult> | TActionResult;
+	/** Dispatch calls every action with the step it runs as. */
+	action(args: TStepArgs, featureStep: TFeatureStep): Promise<TActionResult> | TActionResult;
 };
 
 export interface CStepper {
@@ -248,9 +249,10 @@ export interface IStepperCycles {
 	startFeature?(startFeature: TStartFeature): Promise<void> | void;
 	startScenario?(startScenario: TStartScenario): Promise<void>;
 	beforeStep?(beforeStep: TBeforeStep): Promise<void>;
-	afterStep?(afterStep: TAfterStep): Promise<TAfterStepResult>;
+	/** A stepper that doesn't change how the step ends returns undefined. */
+	afterStep?(afterStep: TAfterStep): Promise<TAfterStepResult | undefined>;
 	endScenario?(): Promise<void>;
-	endFeature?(endedWith?: TEndFeature): Promise<void>;
+	endFeature?(endedWith: TEndFeature): Promise<void>;
 	onFailure?(result: TFailureArgs): Promise<void>;
 	endExecution?(results: TExecutorResult): Promise<void>;
 	onEvent?(event: THaibunEvent): Promise<void> | void;

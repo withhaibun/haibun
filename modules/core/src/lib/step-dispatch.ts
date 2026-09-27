@@ -178,7 +178,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 						}
 						lastStepResult = stepResultFromActionResult(actionResult, action, start, Timer.since(), featureStep, ok && actionResult.ok);
 						keep(lastStepResult);
-						const instructions: TAfterStepResult[] = await doStepperCycle(steppers, "afterStep", <TAfterStep>{ featureStep, actionResult }, action.actionName);
+						const instructions: Array<TAfterStepResult | undefined> = await doStepperCycle(steppers, "afterStep", <TAfterStep>{ featureStep, actionResult }, action.actionName);
 						doAction = instructions.some((i) => i?.rerunStep);
 						if (instructions.some((i) => i?.failed)) {
 							ok = false;

@@ -571,7 +571,7 @@ export function toActorRels(): ReadonlySet<string> {
  * `kind` distinguishes multiple bodies of the same media type on one parent
  * (e.g. a Proposal carrying both rationale and proposedAction in markdown).
  */
-type TContentPropertyDef = { rel: "content"; mediaType: string; kind?: string };
+type TContentPropertyDef = { rel: "content"; mediaType: string; kind?: string; iri?: string };
 
 /**
  * A property whose genuine vocabulary IRI is not its rel's default. The rel still drives behaviour (sort, facet,
@@ -710,6 +710,8 @@ export type THypermediaTopology = {
  */
 type TRangesTopology = {
 	ranges: TDomainRanges;
+	/** A ranges-only topology doesn't declare `persistedAs`, and the absent key distinguishes it from a hypermedia topology. */
+	persistedAs?: never;
 };
 
 /**

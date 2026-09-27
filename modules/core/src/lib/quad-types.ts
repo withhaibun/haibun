@@ -5,6 +5,7 @@
  * aligning with a property-graph backing store's vertex properties for direct persistence.
  * All methods are async to support both in-memory and database-backed stores.
  */
+import type { IEventLogger } from "./EventLogger.js";
 import { z } from "zod";
 import type { AccessLevel } from "./resources.js";
 import type { TAccessBound } from "./actions.js";
@@ -164,7 +165,7 @@ export const OBSERVATION_VALUE_MAX = 512;
  *  bounded to OBSERVATION_VALUE_MAX and marked `preview: true` (the store holds the payload: a consumer that needs
  *  it dereferences deliberately, and a merge can prefer a full value over a preview). Untruncated quads pass by
  *  reference: no per-emission clone on the write path. */
-export function emitQuadObservation(logger: { emit: (e: Record<string, unknown>) => void }, id: string, quad: TQuad): void {
+export function emitQuadObservation(logger: Pick<IEventLogger, "emit">, id: string, quad: TQuad): void {
 	const bounded = typeof quad.object === "string" && quad.object.length > OBSERVATION_VALUE_MAX;
 	const observed = bounded ? { ...quad, object: ellipsize(quad.object as string, OBSERVATION_VALUE_MAX), properties: { ...quad.properties, preview: true } } : quad;
 	logger.emit({
