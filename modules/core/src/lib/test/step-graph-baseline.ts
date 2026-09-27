@@ -10,6 +10,7 @@ import path from "node:path";
 import type { CStepper } from "../astepper.js";
 import { DEF_PROTO_OPTIONS, getTestWorldWithOptions } from "./lib.js";
 import { createSteppers, setStepperWorldsAndDomains } from "../util/index.js";
+import { itemAt } from "../util/item-at.js";
 import { addStepperConcerns } from "../../phases/Executor.js";
 import { buildDomainChain } from "../domain-chain.js";
 import { LINT_FINDING, lintDomainChain, lintFindingLine, type TLintFinding } from "../domain-chain-lint.js";
@@ -92,7 +93,7 @@ function stepperClassesIn(dir: string): string[] {
 			continue;
 		}
 		if (!entry.endsWith(".ts") || entry.endsWith(".test.ts") || entry.includes("test-fake") || entry.endsWith(".d.ts")) continue;
-		for (const match of readFileSync(at, "utf-8").matchAll(/^(?:export (?:default )?)?class (\w+) extends (?:AStepper|AStorage)\b/gm)) classes.push(match[1]);
+		for (const match of readFileSync(at, "utf-8").matchAll(/^(?:export (?:default )?)?class (\w+) extends (?:AStepper|AStorage)\b/gm)) classes.push(itemAt(match, 1));
 	}
 	return classes.sort();
 }

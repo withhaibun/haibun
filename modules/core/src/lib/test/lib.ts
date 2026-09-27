@@ -93,13 +93,13 @@ export function getTestWorldWithOptions(protoOptions: TProtoOptions = DEF_PROTO_
 	return world;
 }
 
-export function getDefaultWorld(env = process.env): TWorld {
+export function getDefaultWorld(env: NodeJS.ProcessEnv = process.env): TWorld {
 	const world: Partial<TWorld> = {
 		timer: new Timer(),
 		tag: getRunTag(0),
 		prompter: new Prompter(),
 		runtime: { stepResults: [], steppers: [], feature: "test-feature", stepUsage: new Map(), keys: { principal: resolveSitePrincipal() } },
-		options: { DEST: DEFAULT_DEST, envVariables: env },
+		options: { DEST: DEFAULT_DEST, envVariables: Object.fromEntries(Object.entries(env).flatMap(([name, value]) => (value === undefined ? [] : [[name, value]]))) },
 		moduleOptions: {},
 		bases: ["/features/"],
 	};

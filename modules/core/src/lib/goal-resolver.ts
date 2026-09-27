@@ -14,6 +14,7 @@
  *   - Plans are advisory, never auto-executed: this module is pure search; a separate
  *     "run plan" step runs the chain.
  */
+import { itemAt } from "./util/item-at.js";
 import { SOURCE_DOMAIN, type TDomainChainGraph, type TDomainChainStep } from "./domain-chain.js";
 import type { TQuad } from "./quad-types.js";
 import { getCompositeFields, zodTypeLabel, type TCompositeField } from "./composite-domain.js";
@@ -428,12 +429,12 @@ function* cartesian<T>(arrays: T[][], limit: number): Generator<T[]> {
 	let emitted = 0;
 	while (true) {
 		if (emitted >= limit) return;
-		yield idx.map((i, k) => arrays[k][i]);
+		yield idx.map((i, k) => itemAt(itemAt(arrays, k), i));
 		emitted++;
 		let k = arrays.length - 1;
 		while (k >= 0) {
 			idx[k]++;
-			if (idx[k] < arrays[k].length) break;
+			if (idx[k] < itemAt(arrays, k).length) break;
 			idx[k] = 0;
 			k--;
 		}

@@ -19,6 +19,7 @@ import {
 import { LifecycleEvent, ResolvedFeaturesArtifact } from "../schema/protocol.js";
 import { AStepper } from "../lib/astepper.js";
 import { sleep, setStepperWorldsAndDomains, constructorName } from "../lib/util/index.js";
+import { itemAt } from "../lib/util/item-at.js";
 import { dispatchStep } from "../lib/step-dispatch.js";
 import { openRunRegistry, type StepRegistry } from "../lib/step-registry.js";
 import { featureAsData } from "../lib/features.js";
@@ -394,7 +395,7 @@ export function syntheticBranchSeqPath(parentSeqPath: TSeqPath, dir: 1 | -1 = 1)
 }
 
 export function advanceSyntheticSeqPath(seqPath: TSeqPath, dir: 1 | -1 = 1): TSeqPath {
-	return [...seqPath.slice(0, -1), seqPath[seqPath.length - 1] + dir];
+	return [...seqPath.slice(0, -1), itemAt(seqPath, seqPath.length - 1) + dir];
 }
 
 /**

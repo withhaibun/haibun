@@ -1,3 +1,4 @@
+import { itemAt } from "./util/item-at.js";
 import { z } from "zod";
 import {
 	DOMAIN_PERSISTED_TYPE,
@@ -323,7 +324,7 @@ const QUOTED_MEMBER = /"([^"]+)"/g;
 
 /** The members a bracketed list writes: its quoted members, or else its words, separated by spaces or commas. */
 export const parseQuotedOrWordList = (value: string): string[] => {
-	const quoted = [...value.matchAll(QUOTED_MEMBER)].map((match) => match[1].trim()).filter(Boolean);
+	const quoted = [...value.matchAll(QUOTED_MEMBER)].map((match) => itemAt(match, 1).trim()).filter(Boolean);
 	if (quoted.length) return quoted;
 	return value
 		.split(/[\s,]+/)

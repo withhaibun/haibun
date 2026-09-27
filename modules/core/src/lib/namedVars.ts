@@ -1,6 +1,7 @@
 import { TStepperStep, TStepAction } from "./astepper.js";
 import { TStepValue, TOrigin, Origin } from "../schema/protocol.js";
 import { DOMAIN_STATEMENT, DOMAIN_STRING } from "./domains.js";
+import { itemAt } from "./util/item-at.js";
 
 const TYPE_QUOTED = "q_";
 const TYPE_ENV = "e_";
@@ -95,10 +96,10 @@ export const matchGwtaToAction = (gwta: string, actionable: string, actionName: 
 
 // no-op
 
-function pairToVar(pair: string): { name: string; domain?: string } {
-	const [name, domainRaw] = pair.split(":").map((i) => i.trim());
-	const domain = domainRaw;
-	return { name, domain };
+/** A placeholder's name and domain. A placeholder that doesn't name a domain takes a string. */
+function pairToVar(pair: string): { name: string; domain: string } {
+	const parts = pair.split(":").map((i) => i.trim());
+	return { name: itemAt(parts, 0), domain: parts[1] || DOMAIN_STRING };
 }
 
 export function getNamedMatches(regexp: RegExp, what: string) {
@@ -124,10 +125,8 @@ export const getMatch = (actionable: string, r: RegExp, actionName: string, step
 			const b = groups[`${TYPE_VAR}${i}`];
 			const e = groups[`${TYPE_ENV}${i}`];
 			const t = groups[`${TYPE_ENV_OR_VAR_OR_LITERAL}${i}`];
-			const chosen = q ?? b ?? t;
-			// prefer the dedicated env group if present
-			const actuallyChosen = q ?? b ?? e ?? t;
-			if (actuallyChosen !== undefined) {
+			const chosen = q ?? b ?? e ?? t;
+			if (chosen !== undefined) {
 				ph.term = chosen;
 				// set origin according to which capture matched
 				if (q !== undefined) {
@@ -140,8 +139,7 @@ export const getMatch = (actionable: string, r: RegExp, actionName: string, step
 					// bare literal capture - detect env syntax $NAME$ or inline name:domain
 					const envMatch = /^\$([A-Za-z_][A-Za-z0-9_]*)\$$/.exec(t);
 					if (envMatch) {
-						ph.term = envMatch[1];
-						ph.origin = Origin.env;
+						ph.term = itemAt(envMatch, 1);
 						ph.origin = Origin.env;
 					} else {
 						const tTrim = String(t).trim();

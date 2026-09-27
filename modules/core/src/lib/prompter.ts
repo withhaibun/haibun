@@ -18,9 +18,9 @@ export class Prompter {
 	private subscribers: IPrompter[];
 	private readonly defaultPrompter: IPrompter;
 
-	constructor(subscribers: IPrompter[] = [new ReadlinePrompter()]) {
-		this.defaultPrompter = subscribers[0];
-		this.subscribers = subscribers;
+	constructor(defaultPrompter: IPrompter = new ReadlinePrompter()) {
+		this.defaultPrompter = defaultPrompter;
+		this.subscribers = [defaultPrompter];
 	}
 
 	subscribe(p: IPrompter) {

@@ -1,6 +1,7 @@
+import { actionNotOK, constructorName } from "../lib/util/index.js";
 import { AStepper, IHasCycles, TStepperSteps, IStepperCycles, TEndFeature, TFeatureStep } from "../lib/astepper.js";
 import type { TWorld } from "../lib/world.js";
-import { FlowRunner } from "../lib/core/flow-runner.js";
+import { FlowRunner, heldRunner } from "../lib/core/flow-runner.js";
 import { featureSyntheticSeqPath } from "../phases/Executor.js";
 import { OK } from "../schema/protocol.js";
 import { DOMAIN_STATEMENT } from "../lib/domains.js";
@@ -8,7 +9,10 @@ import { DOMAIN_STATEMENT } from "../lib/domains.js";
 export default class FinalizerStepper extends AStepper implements IHasCycles {
 	description = "Runs registered finalizer statements at end of execution";
 
-	flowRunner: FlowRunner;
+	private held?: FlowRunner;
+	get flowRunner(): FlowRunner {
+		return heldRunner(this.held, constructorName(this));
+	}
 	registeredStatementsByFeature: Map<string, string[]> = new Map();
 
 	private async runFinalizersForFeature(featurePath: string) {
@@ -52,7 +56,7 @@ export default class FinalizerStepper extends AStepper implements IHasCycles {
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
-		this.flowRunner = new FlowRunner(world, steppers);
+		this.held = new FlowRunner(world, steppers);
 	}
 
 	steps: TStepperSteps = {
@@ -60,6 +64,7 @@ export default class FinalizerStepper extends AStepper implements IHasCycles {
 			gwta: `finalizer {statement:${DOMAIN_STATEMENT}}`,
 			action: ({ statement }: { statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				const featurePath = this.getWorld().runtime.currentFeaturePath || featureStep.source?.path;
+				if (!featurePath) return actionNotOK("a finalizer runs when its feature ends, and this step doesn't run in a feature");
 				const statements = this.registeredStatementsByFeature.get(featurePath) || [];
 				statements.push(...statement.map((step) => step.in));
 				this.registeredStatementsByFeature.set(featurePath, statements);

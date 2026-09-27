@@ -16,6 +16,7 @@
  * This module is the grammar alone: it reads text and reports facts. Writing them is `readTypedLinks` (resources.ts),
  * which resolves each target against the store.
  */
+import { itemAt } from "./util/item-at.js";
 import MarkdownIt from "markdown-it";
 import { LinkRelations, type TQuoteAnchor, type TRelRange } from "./resources.js";
 
@@ -82,12 +83,13 @@ function decodeHref(href: string, context: string): string {
  */
 export function parseTextDirective(directive: string): TQuoteAnchor | undefined {
 	const parts = directive.split(",");
-	let prefix: string | undefined;
-	let suffix: string | undefined;
-	if (parts.length > 1 && parts[0].endsWith("-")) prefix = decodeURIComponent((parts.shift() ?? "").slice(0, -1));
-	if (parts.length > 1 && parts[parts.length - 1].startsWith("-")) suffix = decodeURIComponent((parts.pop() ?? "").slice(1));
-	if (parts.length !== 1 || !parts[0]) return undefined;
-	const exact = decodeURIComponent(parts[0]);
+	const prefix = parts.length > 1 && itemAt(parts, 0).endsWith("-") ? decodeURIComponent(itemAt(parts, 0).slice(0, -1)) : undefined;
+	if (prefix !== undefined) parts.shift();
+	const suffix = parts.length > 1 && itemAt(parts, parts.length - 1).startsWith("-") ? decodeURIComponent(itemAt(parts, parts.length - 1).slice(1)) : undefined;
+	if (suffix !== undefined) parts.pop();
+	const [quoted] = parts;
+	if (parts.length !== 1 || !quoted) return undefined;
+	const exact = decodeURIComponent(quoted);
 	return { exact, ...(prefix ? { prefix } : {}), ...(suffix ? { suffix } : {}) };
 }
 
@@ -152,7 +154,8 @@ export function classifyLinkText(text: string, vocab: TLinkVocabulary): { rel: s
 	const trimmed = text.trim();
 	const groups = TYPED_TEXT.exec(trimmed)?.groups;
 	if (!groups) return null;
-	const rel = groups.rel;
+	const { rel } = groups;
+	if (rel === undefined) throw new Error(`typed link "[${trimmed}]": the typed-link pattern names its rel`);
 	if (vocab.relRange(rel) === undefined) throw new Error(`typed link "[${trimmed}]": "${rel}" is not a declared rel`);
 	return { rel, ...(groups.linkText ? { linkText: groups.linkText } : {}) };
 }
@@ -168,12 +171,14 @@ function markdownLinks(markdown: string): Array<{ text: string; href: string }> 
 		if (block.type !== "inline" || !block.children) continue;
 		const children = block.children;
 		for (let i = 0; i < children.length; i++) {
-			if (children[i].type !== "link_open") continue;
-			const href = children[i].attrGet("href");
+			const opened = itemAt(children, i);
+			if (opened.type !== "link_open") continue;
+			const href = opened.attrGet("href");
 			let text = "";
 			let j = i + 1;
-			for (; j < children.length && children[j].type !== "link_close"; j++) {
-				if (children[j].type === "text" || children[j].type === "code_inline") text += children[j].content;
+			for (; j < children.length && itemAt(children, j).type !== "link_close"; j++) {
+				const child = itemAt(children, j);
+				if (child.type === "text" || child.type === "code_inline") text += child.content;
 			}
 			if (j < children.length && href) links.push({ text, href });
 			i = j;

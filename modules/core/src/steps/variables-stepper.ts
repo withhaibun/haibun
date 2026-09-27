@@ -1,10 +1,11 @@
 import { z } from "zod";
 
-import type { TWorld } from "../lib/world.js";
+import { runEnvVariables, type TWorld } from "../lib/world.js";
 import { OK, Origin, TProvenanceIdentifier, TOrigin, TActionResult, TStepValue } from "../schema/protocol.js";
 import { TAnyFixme } from "../lib/fixme.js";
 import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TStartScenario } from "../lib/astepper.js";
 import { actionOK, actionNotOK, actionOKWithProducts, getStepTerm, errorDetail } from "../lib/util/index.js";
+import { itemAt } from "../lib/util/item-at.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { FeatureVariables, OBSCURED_VALUE } from "../lib/feature-variables.js";
 import { sanitizeObjectSecrets } from "../lib/util/secret-utils.js";
@@ -105,7 +106,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 	description = "Set, get, and compare variables; define domains and check membership";
 
 	cycles = cycles(this);
-	steppers: AStepper[];
+	steppers: AStepper[] = [];
 	private runner!: FlowRunner;
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		this.world = world;
@@ -146,7 +147,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			precludes: [`${VariablesStepper.name}.compose`],
 			action: async ({ what, domain, template }: { what: string; domain: string; template: string }, featureStep: TFeatureStep) => {
 				const result = await this.interpolateTemplate(template, featureStep);
-				if (result.error) return actionNotOK(result.error);
+				if ("error" in result) return actionNotOK(result.error);
 
 				return trySetVariable(
 					this.getWorld().shared,
@@ -159,7 +160,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: `compose {what: ${DOMAIN_VARIABLE_NAME}} with {template: ${DOMAIN_TEMPLATE}}`,
 			action: async ({ what, template }: { what: string; template: string }, featureStep: TFeatureStep) => {
 				const result = await this.interpolateTemplate(template, featureStep);
-				if (result.error) return actionNotOK(result.error);
+				if ("error" in result) return actionNotOK(result.error);
 
 				return trySetVariable(
 					this.getWorld().shared,
@@ -182,8 +183,8 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: `increment {what: ${DOMAIN_VARIABLE_NAME}}`,
 			action: async ({ what }: { what: string }, featureStep: TFeatureStep) => {
 				const interpolated = await this.interpolateTemplate(what, featureStep);
-				if (interpolated.error) return actionNotOK(interpolated.error);
-				const term = interpolated?.value;
+				if ("error" in interpolated) return actionNotOK(interpolated.error);
+				const term = interpolated.value;
 				const resolved = await this.getWorld().shared.resolveVariable({ term, origin: Origin.var }, featureStep);
 				const presentVal = resolved.value;
 				const effectiveDomain = resolved.domain;
@@ -230,7 +231,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: "show env",
 			productsDomain: DOMAIN_ENV_SNAPSHOT,
 			action: () => {
-				const envVars = this.world.options.envVariables || {};
+				const envVars = runEnvVariables(this.getWorld());
 				const shared = this.getWorld().shared;
 				const safeEnv = sanitizeObjectSecrets(envVars, (key) => shared.isSecret(key));
 				return actionOKWithProducts({ env: safeEnv });
@@ -251,8 +252,8 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			precludes: ["Haibun.prose"],
 			action: async ({ what, value }: { what: string; value: TStepValue }, featureStep: TFeatureStep) => {
 				const interpolated = await this.interpolateTemplate(what, featureStep);
-				if (interpolated.error) return actionNotOK(interpolated.error);
-				const term = interpolated?.value;
+				if ("error" in interpolated) return actionNotOK(interpolated.error);
+				const term = interpolated.value;
 
 				const skip = await shouldSkipEmpty(featureStep, term, this.getWorld().shared);
 				if (skip) return skip;
@@ -274,7 +275,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				const readonly = !!featureStep.in.match(/ as read-only /);
 
 				const interpolated = await this.interpolateTemplate(what, featureStep);
-				if (interpolated.error) return actionNotOK(interpolated.error);
+				if ("error" in interpolated) return actionNotOK(interpolated.error);
 				const term = interpolated.value;
 
 				const skip = await shouldSkipEmpty(featureStep, term, this.getWorld().shared);
@@ -320,7 +321,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: `variable {what: ${DOMAIN_VARIABLE_NAME}} is {value: ${DOMAIN_VARIABLE_VALUE}}`,
 			action: async ({ what, value }: { what: string; value: TStepValue }, featureStep: TFeatureStep) => {
 				const interpolated = await this.interpolateTemplate(what, featureStep);
-				if (interpolated.error) return actionNotOK(interpolated.error);
+				if ("error" in interpolated) return actionNotOK(interpolated.error);
 				const term = interpolated.value;
 
 				const resolved = await this.getWorld().shared.resolveVariable({ term, origin: Origin.defined }, featureStep, undefined, {
@@ -331,11 +332,9 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				}
 
 				const domainKey = normalizeDomainKey(resolved.domain);
-				const compareVal = this.getWorld().domains[domainKey].coerce(
-					{ term: "_cmp", value: String(value.value), domain: domainKey, origin: Origin.quoted },
-					featureStep,
-					this.steppers,
-				);
+				const compared = this.getWorld().domains[domainKey];
+				if (!compared) throw new Error(`${term} holds a value of the domain ${domainKey}, which isn't registered`);
+				const compareVal = compared.coerce({ term: "_cmp", value: String(value.value), domain: domainKey, origin: Origin.quoted }, featureStep, this.steppers);
 
 				return JSON.stringify(resolved.value) === JSON.stringify(compareVal) ? OK : actionNotOK(`${term} is ${JSON.stringify(resolved.value)}, not ${JSON.stringify(compareVal)}`);
 			},
@@ -363,7 +362,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				// `bar` key is defined, contradicting the rest of the variables-stepper.
 				const resolved = await this.getWorld().shared.resolveVariable({ term, origin: Origin.var }, featureStep);
 				if (resolved.value !== undefined) return OK;
-				const envVars = this.getWorld().options.envVariables || {};
+				const envVars = runEnvVariables(this.getWorld());
 				return envVars[term] !== undefined ? OK : actionNotOK(`${term} not set`);
 			},
 		},
@@ -372,7 +371,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			productsDomain: DOMAIN_VAR_SNAPSHOT,
 			action: async ({ what }: { what: string }, featureStep: TFeatureStep) => {
 				const interpolated = await this.interpolateTemplate(what, featureStep);
-				if (interpolated.error) return actionNotOK(interpolated.error);
+				if ("error" in interpolated) return actionNotOK(interpolated.error);
 				const term = interpolated.value || "";
 
 				const shared = this.getWorld().shared;
@@ -453,7 +452,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 					return actionNotOK('Invalid "is in" syntax');
 				}
 
-				let valueTerm = matchResult[1].trim();
+				let valueTerm = itemAt(matchResult, 1).trim();
 				// Strip quotes if present
 				if ((valueTerm.startsWith('"') && valueTerm.endsWith('"')) || (valueTerm.startsWith("`") && valueTerm.endsWith("`"))) {
 					valueTerm = valueTerm.slice(1, -1);
@@ -466,7 +465,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				const resolvedValue = await this.getWorld().shared.get(valueTerm, true);
 				const actualValue = resolvedValue !== undefined ? String(resolvedValue) : valueTerm;
 
-				const domainName = matchResult[2].trim();
+				const domainName = itemAt(matchResult, 2).trim();
 				const domainKey = normalizeDomainKey(domainName);
 				const domainDef = this.getWorld().domains[domainKey];
 
@@ -500,12 +499,12 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				// value/pattern are text being compared: an unresolved {X} is literal data (e.g. a captured reply echoing
 				// "{StepperName}"), not a variable reference, so interpolate leniently and leave unknown braces in place.
 				const interpolatedValue = await this.interpolateTemplate(String(value.value), featureStep, { lenient: true });
-				if (interpolatedValue.error) return actionNotOK(interpolatedValue.error);
+				if ("error" in interpolatedValue) return actionNotOK(interpolatedValue.error);
 				const actualValue = String(interpolatedValue.value);
 
 				// Interpolate variables in pattern (e.g., "{counter URI}*" -> "http://localhost:8123/*")
 				const interpolated = await this.interpolateTemplate(pattern, featureStep, { lenient: true });
-				if (interpolated.error) return actionNotOK(interpolated.error);
+				if ("error" in interpolated) return actionNotOK(interpolated.error);
 				const actualPattern = interpolated.value;
 
 				const isMatch = new RegExp(globSource(actualPattern), "s").test(actualValue);
@@ -519,7 +518,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 
 	async compareValues(featureStep: TFeatureStep, rawTerm: string, value: TStepValue, operator: string) {
 		const interpolated = await this.interpolateTemplate(rawTerm, featureStep);
-		if (interpolated.error) return actionNotOK(interpolated.error);
+		if ("error" in interpolated) return actionNotOK(interpolated.error);
 		const term = interpolated.value;
 
 		const stored = await this.getWorld().shared.resolveVariable({ term, origin: Origin.var }, featureStep, this.steppers, {
@@ -553,7 +552,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		template: string | undefined,
 		featureStep?: TFeatureStep,
 		options?: { lenient?: boolean },
-	): Promise<{ value?: string; error?: string; secret?: boolean }> {
+	): Promise<{ value: string; secret: boolean } | { error: string }> {
 		if (template === undefined) return { error: "no variable name to resolve: the step received an empty term" };
 		const placeholderRegex = /\{([^}]+)\}/g;
 		let result = template;
@@ -561,7 +560,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		let secret = false;
 
 		while ((match = placeholderRegex.exec(template)) !== null) {
-			const varName = match[1];
+			const varName = itemAt(match, 1);
 			// Determine secrecy before secure resolution masks the value.
 			if (this.getWorld().shared.isSecret(varName)) {
 				secret = true;
@@ -602,21 +601,18 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				return registered;
 			});
 			const enumSources = superdomainDefs.filter((entry) => Array.isArray(entry.values) && entry.values.length);
-			const uniqueValues = Array.from(new Set(enumSources.flatMap((entry) => entry.values)));
+			const uniqueValues = Array.from(new Set(enumSources.flatMap((entry) => entry.values ?? [])));
 			const description = `Values inherited from ${uniqueNames.join(", ")}`;
 			if (enumSources.length === superdomainDefs.length && uniqueValues.length) {
 				const definition = createEnumDomainDefinition({ name: domainKey, values: uniqueValues, description });
 				registerDomains(this.getWorld(), [[definition]]);
 				return OK;
 			}
-			const schemaList = superdomainDefs.map((entry) => entry.schema);
-			if (!schemaList.length) {
+			const [firstSchema, ...moreSchemas] = superdomainDefs.map((entry) => entry.schema);
+			if (!firstSchema) {
 				throw new Error("Superdomains did not expose any schema to derive from");
 			}
-			let mergedSchema = schemaList[0];
-			for (let i = 1; i < schemaList.length; i++) {
-				mergedSchema = z.union([mergedSchema, schemaList[i]]);
-			}
+			const mergedSchema = moreSchemas.reduce<z.ZodType>((merged, schema) => z.union([merged, schema]), firstSchema);
 			const definition: TDomainDefinition = {
 				selectors: [domainKey],
 				schema: mergedSchema,
@@ -689,13 +685,15 @@ function parseHypermediaDeclProse(domain: string, spec: string): THypermediaCont
 		.split(",")
 		.map((c) => c.trim())
 		.filter(Boolean);
-	if (!clauses.length) throw new Error(`set of ${domain}: declaration needs an id field (e.g. "by id, with name")`);
-	const context: Record<string, unknown> = { [clauses[0]]: "@id" };
+	const [idField, ...fields] = clauses;
+	if (!idField) throw new Error(`set of ${domain}: declaration needs an id field (e.g. "by id, with name")`);
+	const context: Record<string, unknown> = { [idField]: "@id" };
 	const queryable: string[] = [];
-	for (const clause of clauses.slice(1)) {
+	for (const clause of fields) {
 		const withM = clause.match(/^with\s+(\S+)(?:\s+as\s+(\S+))?$/);
 		if (withM) {
-			const [, field, type] = withM;
+			const field = itemAt(withM, 1);
+			const type = withM[2];
 			const iri = REL_CONTEXT[field as TRel];
 			if (!iri) throw new Error(`set of ${domain}: field "${field}" is not a known relation, use the JSON-LD form with an explicit @id`);
 			const xsd = type ? XSD_FOR[type.toLowerCase()] : "";

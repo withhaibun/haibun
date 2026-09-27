@@ -68,14 +68,13 @@ function getEmitter(): string {
 	const stack = Error().stack?.split("\n");
 	if (!stack || stack.length < 5) return "unknown";
 	// Find the first non-EventLogger caller
-	for (let i = 3; i < Math.min(stack.length, 10); i++) {
-		const line = stack[i];
+	for (const line of stack.slice(3, 10)) {
 		if (line.includes("EventLogger") || line.includes("emitLog")) continue;
 		// Capture function, path, line, col
 		// Example: at Executor.doFeatureStep (/home/.../Executor.ts:287:11)
 		const match = line.match(/at\s+(?:(\S+)\s+)?\(?(.+?):(\d+):(\d+)\)?$/);
 		if (match) {
-			const [, func, path, row] = match;
+			const [, func, path = "", row] = match;
 			const shortFunc = func ? func.split(".").pop() : "at";
 			const file = path
 				.split("/")

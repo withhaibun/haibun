@@ -48,7 +48,7 @@ describe("getNamedWithVars", () => {
 			},
 		};
 	}
-	const world = getDefaultWorld(0);
+	const world = getDefaultWorld();
 	test("gets var", async () => {
 		const steppers = createSteppers([TestStepper]);
 		const resolver = new Resolver(steppers);

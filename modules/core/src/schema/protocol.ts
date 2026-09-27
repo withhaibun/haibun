@@ -88,7 +88,7 @@ export const SUBSTEP_LEVEL: THaibunLogLevel = "trace";
 const STEP_LEVEL: THaibunLogLevel = "info";
 
 /** The level a step reports at. One derivation, so the record of a step, what it says and what it produces all agree. */
-export const stepLevel = (isSubStep: boolean): THaibunLogLevel => (isSubStep ? SUBSTEP_LEVEL : STEP_LEVEL);
+export const stepLevel = (isSubStep?: boolean): THaibunLogLevel => (isSubStep ? SUBSTEP_LEVEL : STEP_LEVEL);
 
 export const SCENARIO_START = "scenario";
 export const FEATURE_START = "feature";
@@ -182,23 +182,9 @@ export class JITSerializer {
 		this.nextSchemaId = 1;
 
 		for (const event of events) {
-			const schemaId = this.getSchemaId(event);
-			const schemaFields = this.schemas.get(schemaId);
-
-			// If first use of this schema, emit definition
-			if (!lines.some((l) => l.includes(`"_meta":"schema","id":"${schemaId}"`))) {
-				lines.push(
-					JSON.stringify({
-						_meta: "schema",
-						id: schemaId,
-						fields: schemaFields,
-					}),
-				);
-			}
-
-			// Emit data
-			const validFields = schemaFields.map((f) => (event as Record<string, unknown>)[f]);
-			lines.push(JSON.stringify({ s: schemaId, d: validFields }));
+			const { id, fields, isNew } = this.schemaOf(event);
+			if (isNew) lines.push(JSON.stringify({ _meta: "schema", id, fields }));
+			lines.push(JSON.stringify({ s: id, d: fields.map((f) => (event as Record<string, unknown>)[f]) }));
 		}
 
 		return lines.join("\n");
@@ -231,19 +217,14 @@ export class JITSerializer {
 		return events;
 	}
 
-	private getSchemaId(event: THaibunEvent): string {
-		const keys = Object.keys(event).sort();
-		const signature = keys.join(",");
-
-		for (const [id, fields] of this.schemas.entries()) {
-			if (fields.join(",") === signature) {
-				return id;
-			}
-		}
-
-		const newId = `${event.kind}-${this.nextSchemaId++}`;
-		this.schemas.set(newId, keys);
-		return newId;
+	/** The schema of an event's fields, and whether this serialization defines it first. */
+	private schemaOf(event: THaibunEvent): { id: string; fields: string[]; isNew: boolean } {
+		const fields = Object.keys(event).sort();
+		const signature = fields.join(",");
+		for (const [id, known] of this.schemas) if (known.join(",") === signature) return { id, fields: known, isNew: false };
+		const id = `${event.kind}-${this.nextSchemaId++}`;
+		this.schemas.set(id, fields);
+		return { id, fields, isNew: true };
 	}
 }
 
@@ -473,7 +454,8 @@ export type TSeqPath = number[];
 export type TStepResult = TActionResult & {
 	name: string;
 	in: string;
-	path: string;
+	/** The feature file the step's line is in, which a step called over RPC or MCP doesn't have. */
+	path?: string;
 	lineNumber?: number;
 	seqPath: TSeqPath;
 	intent?: ExecutionIntent;

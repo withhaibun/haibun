@@ -13,6 +13,7 @@
  * are answered from an index.
  */
 
+import { itemAt } from "./util/item-at.js";
 import {
 	SHARED_GRAPH,
 	type IQuadStore,
@@ -207,7 +208,7 @@ export class QuadStore implements IQuadStore {
 		// Search local first
 		const seen = this.seen();
 		for (let i = this.quads.length - 1; i >= 0; i--) {
-			const q = this.quads[i];
+			const q = itemAt(this.quads, i);
 			if (q.subject === subject && q.predicate === predicate && (namedGraph === undefined || q.namedGraph === namedGraph) && seen(q)) return Promise.resolve(q.object);
 		}
 		// Then search backing stores if no namedGraph filter
@@ -514,7 +515,8 @@ export async function densityOverQuadStore(store: IQuadStore, query: TDensityQue
 		const bucket = bucketOf(at, from, to, query.buckets);
 		if (bucket < 0) continue;
 		const group = individual[query.groupBy] === undefined || individual[query.groupBy] === null ? "" : String(individual[query.groupBy]);
-		buckets[bucket][group] = (buckets[bucket][group] ?? 0) + 1;
+		const counts = itemAt(buckets, bucket);
+		counts[group] = (counts[group] ?? 0) + 1;
 	}
 	return { buckets };
 }

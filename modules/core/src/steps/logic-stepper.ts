@@ -1,9 +1,10 @@
 import { AStepper, TStepperSteps, IHasCycles, TFeatureStep, IObservationSource, IStepperCycles } from "../lib/astepper.js";
 import type { TWorld } from "../lib/world.js";
 import { OK, TActionResult, Origin } from "../schema/protocol.js";
-import { actionNotOK, actionOKWithProducts, sleep } from "../lib/util/index.js";
+import { actionNotOK, actionOKWithProducts, sleep, constructorName } from "../lib/util/index.js";
+import { itemAt } from "../lib/util/item-at.js";
 import { z } from "zod";
-import { FlowRunner } from "../lib/core/flow-runner.js";
+import { FlowRunner, heldRunner } from "../lib/core/flow-runner.js";
 import { DOMAIN_NUMBER, DOMAIN_STATEMENT, DOMAIN_STRING } from "../lib/domains.js";
 import { OBSERVATION_GRAPH, queryFacts } from "../lib/working-memory.js";
 
@@ -32,7 +33,7 @@ const builtInSources: IObservationSource[] = [
 			const quads = await queryFacts(world, "count", OBSERVATION_GRAPH.STEP_USAGE);
 			const stepperCounts = new Map<string, number>();
 			for (const q of quads) {
-				const stepperName = q.subject.split(".")[0];
+				const stepperName = itemAt(q.subject.split("."), 0);
 				stepperCounts.set(stepperName, (stepperCounts.get(stepperName) || 0) + (q.object as number));
 			}
 			const items = [...stepperCounts.keys()];
@@ -47,12 +48,15 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 	description = "Control flow with conditionals, loops, negation, and quantifiers";
 
 	steppers: AStepper[] = [];
-	private runner: FlowRunner;
+	private held?: FlowRunner;
+	private get runner(): FlowRunner {
+		return heldRunner(this.held, constructorName(this));
+	}
 	private sources: IObservationSource[] = [...builtInSources];
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
-		this.runner = new FlowRunner(world, steppers);
+		this.held = new FlowRunner(world, steppers);
 
 		// Collect observation sources from other steppers
 		for (const stepper of steppers) {
@@ -108,7 +112,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 		// Check for "observed in {source}" pattern
 		const observedMatch = phrase.match(/^observed in (.+)$/i);
 		if (observedMatch) {
-			const sourceName = observedMatch[1].trim();
+			const sourceName = itemAt(observedMatch, 1).trim();
 			const source = this.getSource(sourceName);
 			if (!source) return { values: [], error: `Unknown observation source: "${sourceName}"` };
 			const { items, metrics } = await source.observe(this.getWorld());
@@ -231,7 +235,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 			action: async (_: unknown, featureStep: TFeatureStep): Promise<TActionResult> => {
 				const match = featureStep.in.match(/^some (.*?) (in|observed in) (.*?) is (.*)/);
 				if (!match) return actionNotOK("some: invalid syntax");
-				const [, what, connector, sourceOrDomain, quotedStatement] = match;
+				const [what, connector, sourceOrDomain, quotedStatement] = [itemAt(match, 1), itemAt(match, 2), itemAt(match, 3), itemAt(match, 4)] as const;
 				// A quoted inner statement is the written form; without stripping, the quotes reach the resolver, no gwta
 				// matches, and it resolves as prose that always passes, so the quantifier asserts nothing.
 				const statementStr = this.stripQuotes(quotedStatement.trim());
@@ -267,7 +271,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 			action: async (_: unknown, featureStep: TFeatureStep): Promise<TActionResult> => {
 				const match = featureStep.in.match(/^every (.*?) (in|observed in) (.*?) is (.*)/);
 				if (!match) return actionNotOK("every: invalid syntax");
-				const [, what, connector, sourceOrDomain, quotedStatement] = match;
+				const [what, connector, sourceOrDomain, quotedStatement] = [itemAt(match, 1), itemAt(match, 2), itemAt(match, 3), itemAt(match, 4)] as const;
 				const statementStr = this.stripQuotes(quotedStatement.trim());
 
 				const phrase = connector === "observed in" ? `observed in ${sourceOrDomain}` : sourceOrDomain;

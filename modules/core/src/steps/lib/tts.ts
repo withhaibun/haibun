@@ -8,6 +8,7 @@ import { TResolvedFeature } from "../../lib/astepper.js";
 import { FEATURE_START } from "../../schema/protocol.js";
 import { SCENARIO_START } from "../../schema/protocol.js";
 import { TAnyFixme } from "../../lib/fixme.js";
+import { itemAt } from "../../lib/util/item-at.js";
 
 type TCachedAudio = { transcript: string; durationS: number; cachedPath: string };
 export type TRenderedAudioMap = { [hash: string]: TCachedAudio };
@@ -38,7 +39,7 @@ export async function preRenderFeatureProse(feature: TResolvedFeature): Promise<
 		const existing = existingAudioRenders.find((f) => f.startsWith(`${hash}-`));
 		if (existing) {
 			const parts = existing.replace(".wav", "").split("-");
-			const durationS = parseFloat(parts[1]);
+			const durationS = parseFloat(itemAt(parts, 1));
 			const cachedPath = nodePath.join(CACHE_DIR, existing);
 			renderedAudio[hash] = { transcript, durationS, cachedPath };
 		} else {

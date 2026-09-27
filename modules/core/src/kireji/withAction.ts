@@ -107,16 +107,11 @@ export const withAction = <T extends AStepper>(stepper: T): TActionsFromStepper<
 			const argNames = stepValuesMap ? Object.keys(stepValuesMap) : [];
 
 			actions[actionName] = (args: Record<string, TNestedArgValue>) => {
-				for (const name of argNames) {
-					if (args[name] === undefined) {
-						throw new Error(`Missing argument "${name}" for action "${actionName}"`);
-					}
-				}
-
 				const normalizedArgs: Record<string, string> = {};
-
 				for (const name of argNames) {
-					normalizedArgs[name] = resolveArgValue(args[name]);
+					const value = args[name];
+					if (value === undefined) throw new Error(`Missing argument "${name}" for action "${actionName}"`);
+					normalizedArgs[name] = resolveArgValue(value);
 				}
 
 				return () => ({

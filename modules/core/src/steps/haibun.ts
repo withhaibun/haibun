@@ -2,8 +2,8 @@ import { z } from "zod";
 import type { TFeatures } from "../lib/execution.js";
 import type { TWorld } from "../lib/world.js";
 import { OK } from "../schema/protocol.js";
-import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TResolvedFeature, TStartFeature, TEndFeature, CycleWhen } from "../lib/astepper.js";
-import { actionNotOK, actionOK, actionOKWithProducts, sleep } from "../lib/util/index.js";
+import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TEndFeature, CycleWhen } from "../lib/astepper.js";
+import { actionNotOK, actionOK, actionOKWithProducts, sleep, constructorName } from "../lib/util/index.js";
 import { findFeatureStepsFromStatement } from "../phases/Resolver.js";
 import {
 	DOMAIN_BACKGROUND_NAMES,
@@ -19,7 +19,7 @@ import {
 	createEnumDomainDefinition,
 } from "../lib/domains.js";
 import { findFeatures } from "../lib/features.js";
-import { FlowRunner } from "../lib/core/flow-runner.js";
+import { FlowRunner, heldRunner } from "../lib/core/flow-runner.js";
 import { QuadStore } from "../lib/quad-store.js";
 import { RemoteQuadStore } from "../lib/remote-quad-store.js";
 import { requestSigner } from "../lib/session-authority.js";
@@ -47,13 +47,15 @@ class Haibun extends AStepper implements IHasCycles {
 
 	afterEverySteps: { [stepperName: string]: TFeatureStep[] } = {};
 	steppers: AStepper[] = [];
-	resolvedFeature: TResolvedFeature;
-	private runner: FlowRunner;
+	private held?: FlowRunner;
+	private get runner(): FlowRunner {
+		return heldRunner(this.held, constructorName(this));
+	}
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
 		this.steppers = steppers;
-		this.runner = new FlowRunner(world, steppers);
+		this.held = new FlowRunner(world, steppers);
 	}
 	cycles: IStepperCycles = {
 		getConcerns: () => ({
@@ -65,8 +67,7 @@ class Haibun extends AStepper implements IHasCycles {
 				createEnumDomainDefinition({ name: DOMAIN_ENDING, values: Object.values(ENDING), description: "How ends with ends a feature: OK, or not OK" }),
 			],
 		}),
-		startFeature({ resolvedFeature, index }: TStartFeature) {
-			this.resolvedFeature = resolvedFeature;
+		startFeature: () => {
 			this.afterEverySteps = {};
 		},
 		endFeature: (endFeature?: TEndFeature) => {

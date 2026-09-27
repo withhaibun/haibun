@@ -170,8 +170,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		const world = this.getWorld();
 		const registry = runRegistry(world);
 		const factIds: string[] = [];
-		for (let i = 0; i < michi.steps.length; i++) {
-			const step = michi.steps[i];
+		for (const [i, step] of michi.steps.entries()) {
 			const method = stepMethodName(step.stepperName, step.stepName);
 			const call = await callStepByName({ registry, world, steppers: this.steppers }, method);
 			if (!call.registered) return actionNotOK(`pursue ${goal}: step ${i} (${method}) not registered`);
@@ -246,7 +245,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 					return actionNotOK(`pursue ${goal}: refused (${resolution.refusalReason}: ${resolution.detail})`);
 				}
 				// finding === MICHI, take the first path
-				const michi: TMichi = resolution.michi[0];
+				const [michi] = resolution.michi;
 				if (!michi) return actionNotOK(`pursue ${goal}: no michi returned`);
 				const argBindings = collectArgumentBindings(michi.bindings);
 				if (argBindings.length > 0) {
@@ -272,7 +271,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 				if (resolution.finding === GOAL_FINDING.SATISFIED) return actionNotOK(`walk toward ${goal}: already satisfied, so there is no path to walk`);
 				if (resolution.finding === GOAL_FINDING.UNREACHABLE) return actionNotOK(`walk toward ${goal}: unreachable (missing producers: ${resolution.missing.join(", ")})`);
 				if (resolution.finding === GOAL_FINDING.REFUSED) return actionNotOK(`walk toward ${goal}: refused (${resolution.refusalReason}: ${resolution.detail})`);
-				const michi: TMichi = resolution.michi[0];
+				const [michi] = resolution.michi;
 				if (!michi) return actionNotOK(`walk toward ${goal}: no michi returned`);
 				const world = this.getWorld();
 				const instance = await createChainInstance(world, goal, michi);

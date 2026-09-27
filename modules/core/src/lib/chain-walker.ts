@@ -6,6 +6,7 @@ import { formatSeqPath } from "./seq-path.js";
 import { actingAs } from "./capability-context.js";
 import { validateToolInput } from "./tool-validation.js";
 import { errorDetail } from "./util/index.js";
+import { itemAt } from "./util/item-at.js";
 import { CHAIN_INSTANCE_STATUS, getChainInstance, updateChainInstance, type TChainInstance } from "./chain-instance.js";
 
 type TChainAdvanceResult =
@@ -41,7 +42,7 @@ export async function advanceChainInstance(ctx: TChainWalkerContext, instanceId:
 		return { kind: "completed", instance: { ...inst, status: CHAIN_INSTANCE_STATUS.COMPLETED } };
 	}
 
-	const step = inst.michi.steps[inst.stepIndex];
+	const step = itemAt(inst.michi.steps, inst.stepIndex);
 	const method = stepMethodName(step.stepperName, step.stepName);
 	if (!registry.get(method)) {
 		const error = `chain step ${inst.stepIndex} (${method}) is not registered`;
@@ -81,5 +82,5 @@ export async function advanceChainInstance(ctx: TChainWalkerContext, instanceId:
 	await updateChainInstance(world, inst.id, { stepIndex: nextStepIndex, status: nextStatus, stepFactIds: nextFactIds, stepArgs: nextArgs });
 	const advanced: TChainInstance = { ...inst, stepIndex: nextStepIndex, status: nextStatus, stepFactIds: nextFactIds, stepArgs: nextArgs };
 	if (nextStatus === CHAIN_INSTANCE_STATUS.COMPLETED) return { kind: "completed", instance: advanced };
-	return { kind: "advanced", instance: advanced, factIds: nextFactIds[inst.stepIndex] };
+	return { kind: "advanced", instance: advanced, factIds: itemAt(nextFactIds, inst.stepIndex) };
 }

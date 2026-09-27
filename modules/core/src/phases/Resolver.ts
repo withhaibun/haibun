@@ -3,7 +3,8 @@ import type { TWorld } from "../lib/world.js";
 import { TStepValue, FEATURE_START, SCENARIO_START } from "../schema/protocol.js";
 import { AStepper, TStepAction, TResolvedFeature, TStepperStep, TFeatureStep } from "../lib/astepper.js";
 import { matchGwtaToAction, getMatch } from "../lib/namedVars.js";
-import { getActionable, dePolite, constructorName, actionNotOK } from "../lib/util/index.js";
+import { getActionable, dePolite, constructorName, actionNotOK, asError, errorDetail } from "../lib/util/index.js";
+import { itemAt } from "../lib/util/item-at.js";
 import { expandLine } from "../lib/features.js";
 
 export class Resolver {
@@ -21,8 +22,8 @@ export class Resolver {
 		for (const background of backgrounds) {
 			const lines = background.content.split("\n");
 			const actualSourcePath = background.base && background.path ? background.base + background.path : undefined;
-			for (let i = 0; i < lines.length; i++) {
-				const actionable = getActionable(lines[i]);
+			for (const [i, line] of lines.entries()) {
+				const actionable = getActionable(line);
 				if (!this.callResolveFeatureLine(actionable, background.path, lines, i, actualSourcePath)) {
 					if (!actionable) {
 						continue;
@@ -33,8 +34,8 @@ export class Resolver {
 						// Collect as a warning rather than throwing, for LSP tolerance
 						this.backgroundWarnings.push({
 							path: background.path,
-							line: lines[i],
-							error: e.message,
+							line,
+							error: errorDetail(e),
 						});
 					}
 				}
@@ -62,9 +63,8 @@ export class Resolver {
 			// Notify steppers to clear feature-scoped steps before resolving each feature
 			this.startFeatureResolution(feature.path);
 			const featureSteps = await this.findFeatureSteps(feature);
-			const e = { ...feature, ...{ featureSteps } };
-			delete e.expanded;
-			steps.push(e);
+			const { expanded: _expanded, ...resolved } = feature;
+			steps.push({ ...resolved, featureSteps });
 		}
 		return steps;
 	}
@@ -80,8 +80,8 @@ export class Resolver {
 
 	public async findFeatureSteps(feature: TExpandedFeature): Promise<TFeatureStep[]> {
 		const { steps, errors } = await this.findFeatureStepsTolerant(feature);
-		if (errors.length > 0) {
-			const firstError = errors[0];
+		const [firstError] = errors;
+		if (firstError) {
 			throw Error(`findFeatureStep for "${firstError.featureLine.line}": ${firstError.error.message} in ${feature.path}\nUse --show-steppers for more details`);
 		}
 		return steps.filter((s) => s.action.stepperName !== "Directive");
@@ -100,8 +100,7 @@ export class Resolver {
 		const allLines = feature.expanded.map((fl) => fl.line);
 		let seq = 0;
 		let inCodeBlock = false;
-		for (let i = 0; i < feature.expanded.length; i++) {
-			const featureLine = feature.expanded[i];
+		for (const [i, featureLine] of feature.expanded.entries()) {
 			const line = featureLine.line.trim();
 			if (line.startsWith("```")) {
 				inCodeBlock = !inCodeBlock;
@@ -152,7 +151,7 @@ export class Resolver {
 							this.callResolveFeatureLine(rawVal, feature.path);
 							this.findSingleStepAction(rawVal);
 						} catch (e) {
-							throw Error(`statement '${rawVal}' invalid: ${e.message}`);
+							throw Error(`statement '${rawVal}' invalid: ${errorDetail(e)}`);
 						}
 					}
 				}
@@ -160,7 +159,7 @@ export class Resolver {
 				const featureStep = this.getFeatureStep(featureLine, seq, stepAction);
 				steps.push(featureStep);
 			} catch (e) {
-				errors.push({ featureLine, error: e });
+				errors.push({ featureLine, error: asError(e) });
 			}
 		}
 		return { steps, errors };
@@ -171,7 +170,7 @@ export class Resolver {
 		if (stepActions.length > 1) {
 			const unique = stepActions.filter((a) => a.step.unique);
 			if (unique.length === 1) {
-				return unique[0];
+				return itemAt(unique, 0);
 			}
 			// Filter out fallback steps if there are non-fallback alternatives
 			const nonFallback = stepActions.filter((a) => !a.step.fallback);
@@ -180,10 +179,7 @@ export class Resolver {
 			}
 			// If still multiple matches, use precludes
 			if (stepActions.length > 1) {
-				const precludes = stepActions
-					.filter((a) => a.step.precludes)
-					.map((a) => a.step.precludes)
-					.reduce((acc, cur) => [...acc, ...cur], []);
+				const precludes = stepActions.flatMap((a) => a.step.precludes ?? []);
 				stepActions = stepActions.filter((a) => !precludes.includes(`${a.stepperName}.${a.actionName}`));
 			}
 			if (stepActions.length !== 1) {
@@ -192,7 +188,7 @@ export class Resolver {
 		} else if (stepActions.length < 1) {
 			throw Error(`no step found for "${line}"`);
 		}
-		return stepActions[0];
+		return itemAt(stepActions, 0);
 	}
 
 	getFeatureStep(featureLine: TExpandedLine, seq: number, action: TStepAction): TFeatureStep {
@@ -217,8 +213,7 @@ export class Resolver {
 		for (const stepper of this.steppers) {
 			const stepperName = constructorName(stepper);
 			const { steps } = stepper;
-			for (const actionName in steps) {
-				const step = steps[actionName];
+			for (const [actionName, step] of Object.entries(steps)) {
 				if (this.offers && !this.offers(stepperName, actionName, step)) continue;
 				const stepFound = this.stepApplies(step, actionable, actionName, stepperName);
 
@@ -270,7 +265,7 @@ function getActionableStatement(steppers: AStepper[], statement: string, path: s
 	return { featureStep, steppers };
 }
 
-export function findFeatureStepsFromStatement(statement: string, steppers: AStepper[], world: TWorld, base: string, seqStart: number[], inc = 1): TFeatureStep[] {
+export function findFeatureStepsFromStatement(statement: string, steppers: AStepper[], world: TWorld, base: string | undefined, seqStart: number[], inc = 1): TFeatureStep[] {
 	const featureSteps: TFeatureStep[] = [];
 	if (!world.runtime.backgrounds) {
 		throw new Error("runtime.backgrounds is undefined; cannot expand inline Backgrounds");
@@ -278,11 +273,12 @@ export function findFeatureStepsFromStatement(statement: string, steppers: AStep
 	// expandLine needs a feature context: a Backgrounds: directive ignores it and uses the actual
 	// background files, while a regular statement uses this feature's path. `base` is the full path,
 	// so it goes in feature.base with feature.path left empty.
-	const contextFeature: TFeature = { path: "", base, name: "statement-context", content: statement };
+	// A statement a step called over RPC or MCP states has no source file, so its lines have no base path.
+	const contextFeature: TFeature = { path: "", base: base ?? "", name: "statement-context", content: statement };
 	const expanded = expandLine(statement, undefined, world.runtime.backgrounds, contextFeature);
 	// Increment the last segment of seqStart by inc for each expanded step
 	const prefix = seqStart.slice(0, -1);
-	let latest = seqStart[seqStart.length - 1];
+	let latest = itemAt(seqStart, seqStart.length - 1);
 	for (const x of expanded) {
 		const seqPath = [...prefix, latest];
 		const fullPath = x.feature.base + x.feature.path;
@@ -291,6 +287,7 @@ export function findFeatureStepsFromStatement(statement: string, steppers: AStep
 			latest += inc;
 			featureSteps.push(featureStep);
 		} catch (e) {
+			const why = errorDetail(e);
 			featureSteps.push({
 				source: {
 					path: fullPath,
@@ -303,8 +300,8 @@ export function findFeatureStepsFromStatement(statement: string, steppers: AStep
 					actionName: "error",
 					stepperName: "Resolver",
 					step: {
-						description: e.message,
-						action: async () => actionNotOK(e.message),
+						description: why,
+						action: async () => actionNotOK(why),
 					},
 				},
 			});

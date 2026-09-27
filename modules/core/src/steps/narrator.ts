@@ -24,7 +24,8 @@ const cycles = (narrator: Narrator): IStepperCycles => ({
 			actualURI(CAPTURE_FILENAME);
 			await sleep(2000);
 			await doExec(narrator.captureStop, false);
-			const path = captureLocator(narrator.world.options, narrator.world.tag);
+			const world = narrator.getWorld();
+			const path = captureLocator(world.options, world.tag);
 			const artifact = VideoArtifact.parse({
 				id: `narrator.video`,
 				timestamp: Date.now(),
@@ -90,7 +91,8 @@ class Narrator extends AStepper implements IHasOptions, IHasCycles {
 
 	async maybeSay(featureStep: TFeatureStep) {
 		const transcript = featureStep.in;
-		const dir = captureLocator(this.world.options, this.world.tag);
+		const world = this.getWorld();
+		const dir = captureLocator(world.options, world.tag);
 		const { path, durationS } = copyPreRenderedAudio(dir, this.renderedAudio, transcript);
 		const runtimePath = resolve(dir);
 

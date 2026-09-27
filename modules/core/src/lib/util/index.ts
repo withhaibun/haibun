@@ -25,7 +25,7 @@ export function isLiteralValue(term: string): boolean {
 	return !/^[a-zA-Z_]/.test(term) || /[^a-zA-Z0-9_ ]/.test(term);
 }
 
-export const basesFrom = (s: string | undefined): string[] => s?.split(",").map((b: string) => b.trim());
+export const basesFrom = (s: string | undefined): string[] => (s === undefined ? [] : s.split(",").map((b) => b.trim()));
 
 export function actionNotOK(errorMessage: string, w?: { artifact?: TArtifactEvent; controlSignal?: TDebugSignal }): TActionResult {
 	const { artifact, controlSignal } = w || {};
@@ -116,12 +116,6 @@ export function isLowerCase(str: string) {
 
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** The item at `index` of a list the caller reads within its bounds: an index outside them is a fault, so it throws. */
-export function itemAt<T>(list: ArrayLike<T>, index: number): T {
-	if (!Number.isInteger(index) || index < 0 || index >= list.length) throw new RangeError(`index ${index} is outside a list of ${list.length}`);
-	return list[index] as T;
-}
-
 /** Serialize an unknown thrown value to a full diagnostic string, including error code and cause chain. */
 export function errorDetail(err: unknown): string {
 	if (err instanceof z.ZodError) return err.issues.map((issue) => (issue.path.length ? `${issue.path.join(".")}: ${issue.message}` : issue.message)).join("; ");
@@ -198,15 +192,9 @@ export function verifyRequiredOptions(steppers: CStepper[], options: TModuleOpti
 		const stepper = new Stepper();
 		const ao = stepper as IHasOptions;
 
-		for (const option in ao.options) {
+		for (const [option, { required, altSource }] of Object.entries(ao.options ?? {})) {
 			const optionName = getStepperOptionName(stepper, option);
-			if (ao.options[option].required && !options[optionName]) {
-				const { altSource } = ao.options[option];
-				const altName = getStepperOptionName(stepper, altSource);
-				if (!(altSource && options[altName])) {
-					requiredMissing.push(optionName);
-				}
-			}
+			if (required && !options[optionName] && !(altSource && options[getStepperOptionName(stepper, altSource)])) requiredMissing.push(optionName);
 		}
 	}
 	if (requiredMissing.length) {
@@ -243,17 +231,11 @@ export function getStepperOption(stepper: AStepper, name: string, moduleOptions:
 }
 
 export function findStepperFromOption<Type>(steppers: AStepper[], stepper: AStepper, moduleOptions: TModuleOptions, ...optionNames: string[]): Type {
-	return doFindStepperFromOption(steppers, stepper, moduleOptions, false, ...optionNames);
-}
-function doFindStepperFromOption<Type>(steppers: AStepper[], stepper: AStepper, moduleOptions: TModuleOptions, optional: boolean, ...optionNames: string[]): Type {
 	const val = optionNames.reduce<string | undefined>((v, n) => {
 		const r = getStepperOption(stepper, n, moduleOptions);
 		return v || r;
 	}, undefined);
 
-	if (!val && optional) {
-		return undefined;
-	}
 	if (!val) {
 		throw Error(stepperOptionNotFoundError(stepper, optionNames, moduleOptions));
 	}
@@ -270,7 +252,7 @@ function stepperOptionNotFoundError(stepper: AStepper, optionNames: string[], mo
  * Find a stepper by option value; absent an option, fall back to the single stepper whose kind matches the first optionName.
  * Throws if multiple steppers match that kind and no option is specified.
  */
-export function findStepperFromOptionOrKind<Type>(steppers: AStepper[], stepper: AStepper, moduleOptions: TModuleOptions, ...optionNames: string[]): Type {
+export function findStepperFromOptionOrKind<Type>(steppers: AStepper[], stepper: AStepper, moduleOptions: TModuleOptions, ...optionNames: [string, ...string[]]): Type {
 	const val = optionNames.reduce<string | undefined>((v, n) => {
 		const r = getStepperOption(stepper, n, moduleOptions);
 		return v || r;

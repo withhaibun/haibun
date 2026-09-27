@@ -42,13 +42,14 @@ export interface ITaiwa {
  */
 export function findTaiwa(steppers: AStepper[]): ITaiwa | undefined {
 	const matches = steppers.filter((s) => s.kind === StepperKinds.TAIWA);
-	if (matches.length === 0) return undefined;
-	if (matches.length > 1) {
+	const [match, ...others] = matches;
+	if (!match) return undefined;
+	if (others.length > 0) {
 		const names = matches.map((s) => s.constructor.name).join(", ");
 		throw new Error(`Multiple taiwa steppers loaded (${names}); deployments must pick one.`);
 	}
-	const candidate = matches[0] as unknown as Partial<ITaiwa>;
-	const name = matches[0].constructor.name;
+	const candidate = match as unknown as Partial<ITaiwa>;
+	const name = match.constructor.name;
 	if (typeof candidate.ask !== "function" || candidate.ask.length < 1) {
 		throw new Error(`${name} declares kind=${StepperKinds.TAIWA} but does not implement ask(prompt, opts?).`);
 	}

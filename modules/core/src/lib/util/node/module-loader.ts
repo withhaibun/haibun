@@ -4,6 +4,7 @@
  */
 import nodeFS from "fs";
 import path from "path";
+import { itemAt } from "../item-at.js";
 
 type TClass = { new <T>(...args: unknown[]): T };
 
@@ -47,7 +48,7 @@ function resolveModulePath(module: string): string {
 }
 
 export function checkModuleIsClass(re: object, module: string): void {
-	const type = re?.toString().replace(/^ /g, "").split("\n")[0].replace(/\s.*/, "");
+	const type = itemAt(re.toString().replace(/^ /g, "").split("\n"), 0).replace(/\s.*/, "");
 	if (type !== "class") {
 		throw Error(`"${module}" is ${type}, not a class`);
 	}

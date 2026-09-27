@@ -10,7 +10,7 @@ import { PhaseBailError, PhaseRunner } from "./lib/PhaseRunner.js";
 import { DOMAIN_CHAIN_LINT_ARTIFACT, lintRunStepGraph } from "./lib/domain-chain-lint.js";
 
 export class Runner {
-	steppers: AStepper[];
+	steppers: AStepper[] = [];
 	constructor(private world: TWorld) {}
 
 	async runFeaturesAndBackgrounds(csteppers: CStepper[], featuresBackgrounds: TFeaturesBackgrounds): Promise<TExecutorResult> {

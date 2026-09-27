@@ -1,12 +1,13 @@
 import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TStepperStep, CycleWhen } from "../lib/astepper.js";
 import type { TFeatures, TStepInput } from "../lib/execution.js";
-import type { TWorld } from "../lib/world.js";
+import { runSteppers, type TWorld } from "../lib/world.js";
 import { TStepArgs, TRegisteredOutcomeEntry, OK } from "../schema/protocol.js";
 import { formatSeqPath } from "../lib/seq-path.js";
-import { actionOK, actionNotOK, getActionable, errorDetail } from "../lib/util/index.js";
+import { actionOK, actionNotOK, getActionable, errorDetail, constructorName } from "../lib/util/index.js";
+import { itemAt } from "../lib/util/item-at.js";
 import { DOMAIN_STATEMENT, DOMAIN_STATEMENT_LINES, DOMAIN_TITLE, DOMAIN_WAYPOINT_ARGUMENT } from "../lib/domains.js";
 import { Resolver } from "../phases/Resolver.js";
-import { FlowRunner } from "../lib/core/flow-runner.js";
+import { FlowRunner, heldRunner } from "../lib/core/flow-runner.js";
 import { ControlEvent, LifecycleEvent } from "../schema/protocol.js";
 import { buildDomainChain } from "../lib/domain-chain.js";
 import { GOAL_FINDING, resolveGoal } from "../lib/goal-resolver.js";
@@ -37,7 +38,10 @@ const SAVED_WAYPOINT_SOURCE = "a saved waypoint";
 export class ActivitiesStepper extends AStepper implements IHasCycles {
 	description = "Define and reuse activities with waypoints and proofs";
 
-	private runner: FlowRunner;
+	private held?: FlowRunner;
+	private get runner(): FlowRunner {
+		return heldRunner(this.held, constructorName(this));
+	}
 	private backgroundOutcomePatterns: Set<string> = new Set();
 	private featureOutcomePatterns: Set<string> = new Set();
 	private outcomeToFeaturePath: Map<string, string> = new Map();
@@ -389,7 +393,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
-		this.runner = new FlowRunner(world, steppers);
+		this.held = new FlowRunner(world, steppers);
 	}
 
 	/**
@@ -398,7 +402,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	 */
 	saveWaypoint(outcome: string, lines: string[], source: string): void {
 		const world = this.getWorld();
-		const steppers = world.runtime.steppers as AStepper[];
+		const steppers = runSteppers(world);
 		if (this.steps[outcome]) throw new Error(`the outcome "${outcome}" is already registered`);
 		const resolver = new Resolver(steppers);
 		const unresolved = lines.flatMap((line) => {
@@ -421,11 +425,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	 */
 	private async checkDeclarativeGoal(domainKey: string): Promise<{ satisfied: boolean; refused?: string }> {
 		const world = this.getWorld();
-		if (!world.runtime.steppers) {
-			throw new Error("ActivitiesStepper: world.runtime.steppers is unset. Executor.executeFeatures must set it before cycles run.");
-		}
-		const steppers = world.runtime.steppers as AStepper[];
-		const graph = buildDomainChain(steppers, world.domains);
+		const graph = buildDomainChain(runSteppers(world), world.domains);
 		const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
 		const resolution = resolveGoal(domainKey, { graph, facts, held: authorizedWith() });
 		if (resolution.finding === GOAL_FINDING.SATISFIED) return { satisfied: true };
@@ -442,10 +442,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	 */
 	private async runDeclarativeEnsure(domainKey: string, featureStep: TFeatureStep): Promise<{ handled: boolean; ok: boolean; errorMessage?: string }> {
 		const world = this.getWorld();
-		if (!world.runtime.steppers) {
-			throw new Error("ActivitiesStepper: world.runtime.steppers is unset. Executor.executeFeatures must set it before cycles run.");
-		}
-		const steppers = world.runtime.steppers as AStepper[];
+		const steppers = runSteppers(world);
 		const graph = buildDomainChain(steppers, world.domains);
 		const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
 		const resolution = resolveGoal(domainKey, { graph, facts, held: authorizedWith() });
@@ -640,8 +637,8 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		// Declarative form: `waypoint Outcome resolves <domain-key>`
 		const resolvesMatch = line.match(/^waypoint\s+(.+?)\s+resolves\s+(\S+)\s*$/i);
 		if (resolvesMatch) {
-			outcome = resolvesMatch[1].trim();
-			resolvesDomain = resolvesMatch[2].trim();
+			outcome = itemAt(resolvesMatch, 1).trim();
+			resolvesDomain = itemAt(resolvesMatch, 2).trim();
 		} else if (requireProof) {
 			if (!line.match(/^waypoint\s+.+?\s+with\s+/i)) {
 				return false;
@@ -662,7 +659,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			}
 			const match = line.match(/^waypoint\s+(.+?)$/i);
 			if (!match) return false;
-			outcome = match[1].trim();
+			outcome = itemAt(match, 1).trim();
 		}
 
 		if (this.backgroundOutcomePatterns.has(outcome) || this.featureOutcomePatterns.has(outcome)) {
@@ -676,7 +673,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		if (allLines && lineIndex !== undefined) {
 			let activityStartLine = -1;
 			for (let i = lineIndex - 1; i >= 0; i--) {
-				const prevLine = getActionable(allLines[i]);
+				const prevLine = getActionable(itemAt(allLines, i));
 				if (prevLine.match(/^Activity:/i)) {
 					activityStartLine = i;
 					break;
@@ -689,7 +686,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			if (activityStartLine !== -1) {
 				const blockLines: TStepInput[] = [];
 				for (let i = activityStartLine + 1; i < lineIndex; i++) {
-					const stepLine = getActionable(allLines[i]);
+					const stepLine = getActionable(itemAt(allLines, i));
 					if (stepLine && !stepLine.match(/^waypoint\s+/i)) {
 						blockLines.push({
 							in: stepLine,

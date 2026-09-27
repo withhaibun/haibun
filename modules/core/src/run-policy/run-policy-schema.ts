@@ -65,7 +65,7 @@ function resolveRef(ref: string, rootDocs: unknown[]): unknown {
 function evaluateCondition(
 	conditionObj: Record<string, unknown> | undefined,
 	config: Record<string, unknown>,
-	ctx: z.RefinementCtx,
+	ctx: Pick<z.RefinementCtx, "addIssue">,
 	rootDocs: unknown[],
 	allowedKeys: Set<string>,
 ): boolean {
@@ -109,11 +109,12 @@ function evaluateCondition(
 	if (Array.isArray(conditionObj.oneOf)) {
 		const results = conditionObj.oneOf.map((rule) => evaluateBranch(rule as Record<string, unknown>, config, rootDocs));
 		const passing = results.filter((result) => result.ok);
-		if (passing.length !== 1) {
+		const [only, ...others] = passing;
+		if (!only || others.length > 0) {
 			ctx.addIssue({ code: z.ZodIssueCode.custom, message: "must match exactly one schema in oneOf", path: [] });
 			ok = false;
 		} else {
-			for (const key of passing[0].allowedKeys) {
+			for (const key of only.allowedKeys) {
 				allowedKeys.add(key);
 			}
 		}
@@ -170,34 +171,28 @@ function evaluateCondition(
 }
 
 function evaluateBranch(conditionObj: Record<string, unknown>, config: Record<string, unknown>, rootDocs: unknown[]) {
-	const issues: z.ZodIssue[] = [];
+	let issued = 0;
 	const branchAllowed = new Set<string>();
-	const ctx = {
-		addIssue: (issue: z.ZodIssue) => {
-			issues.push(issue);
-		},
-	} as z.RefinementCtx;
-	const ok = evaluateCondition(conditionObj, config, ctx, rootDocs, branchAllowed);
-	return { ok: ok && issues.length === 0, allowedKeys: branchAllowed, issues };
+	const ok = evaluateCondition(conditionObj, config, { addIssue: () => issued++ }, rootDocs, branchAllowed);
+	return { ok: ok && issued === 0, allowedKeys: branchAllowed };
 }
+
+/** A property's `enum`, where the policy states one. */
+const StatedEnumSchema = z.looseObject({ enum: z.tuple([z.string()], z.string()).optional() });
+/** The enumerations a policy's properties state for a config's place and for each directory filter's dir. */
+const PolicyEnumsSchema = z.looseObject({
+	place: StatedEnumSchema.optional(),
+	dirFilters: z.looseObject({ items: z.looseObject({ properties: z.looseObject({ dir: StatedEnumSchema.optional() }).optional() }).optional() }).optional(),
+});
 
 /**
  * Validate a runtime config against a loaded policy.
  * Builds a strict Zod schema dynamically from the policy definition.
  */
 function buildConfigValidator(policy: TRunPolicy) {
-	const validPlaces =
-		(policy.properties as Record<string, unknown>)?.place &&
-		(((policy.properties as Record<string, unknown>).place as Record<string, unknown>).enum as [string, ...string[]] | undefined);
-	const validDirs =
-		(policy.properties as Record<string, unknown>)?.dirFilters &&
-		((policy.properties as Record<string, unknown>).dirFilters as Record<string, unknown>).items &&
-		(((policy.properties as Record<string, unknown>).dirFilters as Record<string, unknown>).items as Record<string, unknown>).properties &&
-		((((policy.properties as Record<string, unknown>).dirFilters as Record<string, unknown>).items as Record<string, unknown>).properties as Record<string, unknown>).dir &&
-		((
-			((((policy.properties as Record<string, unknown>).dirFilters as Record<string, unknown>).items as Record<string, unknown>).properties as Record<string, unknown>)
-				.dir as Record<string, unknown>
-		).enum as [string, ...string[]] | undefined);
+	const properties = PolicyEnumsSchema.parse(policy.properties ?? {});
+	const validPlaces = properties.place?.enum;
+	const validDirs = properties.dirFilters?.items?.properties?.dir?.enum;
 
 	const baseSchema: Record<string, z.ZodType> = {};
 	if (validPlaces) {

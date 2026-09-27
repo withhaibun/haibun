@@ -11,6 +11,7 @@
  * SEQ_PATH_STATUS). This file owns the schema, domain selectors, and the
  * domain definition steppers register.
  */
+import { itemAt } from "./util/item-at.js";
 import { z } from "zod";
 import { EXECUTION_MODES, HAIBUN_LOG_LEVELS } from "../schema/protocol.js";
 import { LinkRelations, PersistedVertexSchema, PRINCIPAL_LABEL, SEQ_PATH_LABEL, SEQ_PATH_STATUS, type TDomainDefinition } from "./resources.js";
@@ -49,7 +50,7 @@ export function factIdOf(seqPathKey: string, field?: string): string {
 
 /** The seqPath of the step that produced a fact, read from the fact's id. */
 export function factSeqPath(factId: string): number[] | null {
-	return parseSeqPath(factId.split(FACT_FIELD_MARK)[0]);
+	return parseSeqPath(itemAt(factId.split(FACT_FIELD_MARK), 0));
 }
 
 /**
@@ -108,8 +109,9 @@ export function formatRecordName(name: TRecordName): string {
 
 /** The record a name names, or undefined where the id names no record of a run. */
 export function parseRecordName(id: string): TRecordName | undefined {
-	const [under, ordinal] = id.split("@");
-	const [execution, ...path] = under.split(".");
+	const parts = id.split("@");
+	const [execution, ...path] = itemAt(parts, 0).split(".");
+	const ordinal = parts[1];
 	const parsed = RecordNameSchema.safeParse({
 		execution,
 		path: path.map((p) => Number.parseInt(p, 10)),
@@ -126,7 +128,9 @@ export function parseRecordName(id: string): TRecordName | undefined {
 export function compareSeqPath(a: number[], b: number[]): number {
 	const n = Math.min(a.length, b.length);
 	for (let i = 0; i < n; i++) {
-		if (a[i] !== b[i]) return a[i] < b[i] ? -1 : 1;
+		const x = itemAt(a, i);
+		const y = itemAt(b, i);
+		if (x !== y) return x < y ? -1 : 1;
 	}
 	if (a.length !== b.length) return a.length < b.length ? -1 : 1;
 	return 0;

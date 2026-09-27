@@ -53,7 +53,7 @@ async function recurse(
 		const here = `${base}${dir}/${file}`;
 		if (fs.statSync(here).isDirectory()) {
 			all = all.concat(await recurse(base, `${dir}/${file}`, type, featureFilter, policyConfig, fs));
-		} else if (shouldProcess(here, type, featureFilter, dir, policyConfig?.dirFilters)) {
+		} else if (shouldProcess(here, type, featureFilter, policyConfig?.dirFilters ? { dir, dirFilters: policyConfig.dirFilters } : undefined)) {
 			if (here.endsWith(".feature.ts")) {
 				const module = await import(path.resolve(here));
 				type TKirejiContent = Parameters<typeof toBdd>[0];
@@ -95,7 +95,7 @@ async function recurse(
 	return all;
 }
 
-export function shouldProcess(file: string, type: undefined | string, featureFilter: string[] | undefined, dir?: string, dirFilters?: TDirFilter[]) {
+export function shouldProcess(file: string, type: undefined | string, featureFilter: string[] | undefined, filtered?: { dir: string; dirFilters: TDirFilter[] }) {
 	const iskireji = file.endsWith(".feature.ts");
 	// For kireji files, always process regardless of type
 	// For .feature files, check if type matches or is undefined
@@ -109,7 +109,8 @@ export function shouldProcess(file: string, type: undefined | string, featureFil
 	if (!isType || !matchesFilter) return false;
 
 	// When --run-policy is active, apply prefix-based access filtering (features only, not backgrounds)
-	if (dirFilters && type === "feature") {
+	if (filtered && type === "feature") {
+		const { dir, dirFilters } = filtered;
 		// Extract relative path from features root (e.g. "/features/smoke/r_health.feature" → "/smoke/r_health.feature")
 		const featuresIdx = dir.indexOf("/features");
 		const relativePath = featuresIdx >= 0 ? dir.substring(featuresIdx + "/features".length) : dir;

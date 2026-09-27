@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { itemAt } from "../lib/util/item-at.js";
 
 // ============================================================================
 // Constants
@@ -93,7 +94,7 @@ export function parseRunPolicyEnv(envVar: string): TRunPolicyConfig {
 	if (parts.length !== 2) {
 		throw new Error(`Invalid format. Expected "place dir:access"`);
 	}
-	return parseRunPolicyArgs(parts[0], parts[1]);
+	return parseRunPolicyArgs(itemAt(parts, 0), itemAt(parts, 1));
 }
 
 // ============================================================================
@@ -126,7 +127,7 @@ export function getFeatureAccessPrefix(filename: string): TRunAccess | undefined
  */
 export function featureMatchesFilter(featurePath: string, dirFilters: TDirFilter[]): boolean {
 	const parts = featurePath.replace(/^\//, "").split("/");
-	const filename = parts[parts.length - 1];
+	const filename = itemAt(parts, parts.length - 1);
 	const featureDir = parts.length > 1 ? parts[0] : undefined;
 
 	const requiredAccess = getFeatureAccessPrefix(filename);

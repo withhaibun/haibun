@@ -7,7 +7,8 @@ import { use } from "./module-loader.js";
 import { fileURLToPath } from "url";
 import { RemoteStepperProxy } from "../../remote-stepper-proxy.js";
 
-export type TFileSystem = Partial<typeof nodeFS>;
+/** The file-system calls feature collection and workspace discovery make, which a test gives in place of node's. */
+export type TFileSystem = Pick<typeof nodeFS, "existsSync" | "readdirSync" | "statSync" | "readFileSync">;
 export async function getSteppers(stepperEntries: TStepperEntry[]) {
 	const steppers: CStepper[] = [];
 	for (const entry of stepperEntries) {
@@ -76,17 +77,18 @@ export function getModuleLocation(name: string) {
 		const subpath = `./${parts.slice(2).join("/")}`;
 		const pkgJsonPath = path.join(pkgDir, "package.json");
 		if (!nodeFS.existsSync(pkgJsonPath)) throw new Error(`package ${pkgName} not found at ${pkgDir}`);
-		let pkg = pkgJsonCache.get(pkgJsonPath);
-		if (!pkg) {
-			pkg = JSON.parse(nodeFS.readFileSync(pkgJsonPath, "utf-8"));
-			pkgJsonCache.set(pkgJsonPath, pkg);
-		}
-		const exports = (pkg as Record<string, unknown>).exports as Record<string, string | Record<string, string>> | undefined;
+		const pkg: Record<string, unknown> = pkgJsonCache.get(pkgJsonPath) ?? JSON.parse(nodeFS.readFileSync(pkgJsonPath, "utf-8"));
+		pkgJsonCache.set(pkgJsonPath, pkg);
+		const exports = pkg.exports as Record<string, string | Record<string, string>> | undefined;
 		if (!exports) throw new Error(`package ${pkgName} has no exports map; subpath ${subpath} not resolvable`);
 		// A conditional export (e.g. "./*": { development: "./src/*", default: "./build/*" }) is an object, not a string.
 		// The Node-side stepper loader runs compiled output, so resolve to the `default` (build) branch, mirroring plain
 		// Node resolution where the custom `development` condition is inactive unless --conditions=development is passed.
-		const condTarget = (t: string | Record<string, string>): string => (typeof t === "string" ? t : (t.default ?? t.node ?? t.require ?? t.import ?? Object.values(t)[0]));
+		const condTarget = (t: string | Record<string, string>): string => {
+			const target = typeof t === "string" ? t : (t.default ?? t.node ?? t.require ?? t.import ?? Object.values(t)[0]);
+			if (target === undefined) throw new Error(`package ${pkgName} exports a condition map without a target for subpath ${subpath}`);
+			return target;
+		};
 		const exact = exports[subpath] || exports[`${subpath}.js`];
 		if (exact) return path.join(pkgDir, condTarget(exact));
 		for (const [pattern, target] of Object.entries(exports)) {

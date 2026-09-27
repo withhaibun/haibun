@@ -189,6 +189,7 @@ import { jsonSchemaOf } from "./json-schema-of.js";
 import { unwrap, unwrapToShape } from "./zod-unwrap.js";
 import { zodTypeLabel } from "./composite-domain.js";
 import { ellipsize } from "./util/index.js";
+import { itemAt } from "./util/item-at.js";
 
 /** A domain's JSON Schema for the catalog. The show steps step builds the catalog on every call, and the conversion is held
  *  for the process by `jsonSchemaOf`; a schema that cannot be converted has no shape to report, and says so once. */
@@ -320,7 +321,7 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 			throw new Error(
 				`persisted domain "${label}" (${domainKey}) declares ${generatedFields.length} properties with rel "${LinkRelations.GENERATED_AT_TIME.rel}": ${generatedFields.join(", ")}; expected exactly one`,
 			);
-		const generatedField = generatedFields[0];
+		const generatedField = itemAt(generatedFields, 0);
 		const shape = unwrapToShape(domain.schema);
 		if (!shape) throw new Error(`persisted domain "${label}" (${domainKey}) has a schema that isn't an object: a persisted type's value is an object of its fields`);
 		const fieldSchema = shape[generatedField];

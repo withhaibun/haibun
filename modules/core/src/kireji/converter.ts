@@ -1,3 +1,4 @@
+import { itemAt } from "../lib/util/item-at.js";
 import { AStepper } from "../lib/astepper.js";
 import { Resolver } from "../phases/Resolver.js";
 import { TActionExecutor, TCurriedAction, withAction } from "./withAction.js";
@@ -21,14 +22,11 @@ export const toBdd = (feature: TkirejiFeature): TBddWithLineMap => {
 	const lineMap = new Map<number, number>();
 	let currentLine = 1; // 1-indexed line number in output
 
-	for (const featureName in feature) {
+	for (const [featureName, steps] of Object.entries(feature)) {
 		bddString += `Feature: ${featureName}\n`;
 		currentLine++; // Feature line doesn't map to a step
 
-		const steps = feature[featureName];
-
-		for (let stepIdx = 0; stepIdx < steps.length; stepIdx++) {
-			const step = steps[stepIdx];
+		for (const [stepIdx, step] of steps.entries()) {
 			// Handle both function executors and plain prose strings
 			if (typeof step === "string") {
 				bddString += `  ${step}\n`;
@@ -50,7 +48,7 @@ export const toBdd = (feature: TkirejiFeature): TBddWithLineMap => {
  */
 export const fromBdd = (bdd: string, steppers: AStepper[]): Promise<TkirejiFeature> => {
 	const lines = bdd.split("\n");
-	const featureName = lines[0].replace("Feature: ", "").trim();
+	const featureName = itemAt(lines, 0).replace("Feature: ", "").trim();
 	const steps = lines
 		.slice(1)
 		.map((l) => l.trim())
@@ -64,8 +62,8 @@ export const fromBdd = (bdd: string, steppers: AStepper[]): Promise<TkirejiFeatu
 		const { actionName, stepValuesMap } = action;
 		const args: { [key: string]: string } = {};
 		if (stepValuesMap) {
-			for (const key in stepValuesMap) {
-				args[key] = stepValuesMap[key].term;
+			for (const [key, value] of Object.entries(stepValuesMap)) {
+				args[key] = value.term;
 			}
 		}
 

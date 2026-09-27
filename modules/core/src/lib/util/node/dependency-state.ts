@@ -18,6 +18,7 @@ import nodeFS from "node:fs";
 import path from "node:path";
 import type { TSpecl } from "../../execution.js";
 import { getModuleLocation } from "./workspace-lib.js";
+import { itemAt } from "../item-at.js";
 
 /** The file a group's runs are recorded in. It lives among the group's own files and is left out of the state, since
  *  a record of the state is not part of it. */
@@ -173,7 +174,7 @@ function repositoryFiles(dir: string): TRepositoryFile[] | undefined {
 				.trim()
 				.split("\n")
 		: [];
-	const out = plain.map((file, i) => ({ file, digest: digests[i] }));
+	const out = plain.map((file, i) => ({ file, digest: itemAt(digests, i) }));
 	for (const file of files.filter(unnameable))
 		out.push({
 			file,

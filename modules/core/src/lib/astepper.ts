@@ -272,7 +272,8 @@ export type TStartFeature = { resolvedFeature: TResolvedFeature; index: number }
 export type TStartScenario = { scopedVars: FeatureVariables };
 export type TBeforeStep = { featureStep: TFeatureStep };
 export type TAfterStep = { featureStep: TFeatureStep; actionResult: TActionResult };
-export type TFailureArgs = { featureResult: TFeatureResult; failedStep: TStepResult };
+/** A failed feature, and the step that failed where one did: a feature also fails on an error outside its steps. */
+export type TFailureArgs = { featureResult: TFeatureResult; failedStep?: TStepResult };
 export type TAfterStepResult = { rerunStep?: boolean; nextStep?: boolean; failed: boolean };
 
 export type StepperMethodArgs = {

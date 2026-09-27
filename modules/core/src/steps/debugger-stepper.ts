@@ -3,8 +3,8 @@ import type { TWorld } from "../lib/world.js";
 import { TActionResult, OK, TDebugSignal } from "../schema/protocol.js";
 import { makePrompt } from "../lib/prompter.js";
 import { formatSeqPath } from "../lib/seq-path.js";
-import { actionOK, getStepperOption, stringOrError } from "../lib/util/index.js";
-import { FlowRunner } from "../lib/core/flow-runner.js";
+import { actionOK, getStepperOption, stringOrError, constructorName, errorDetail } from "../lib/util/index.js";
+import { FlowRunner, heldRunner } from "../lib/core/flow-runner.js";
 import { DOMAIN_STEPPER_NAME } from "../lib/domains.js";
 import { advanceSyntheticSeqPath, syntheticBranchSeqPath, syntheticSeqPathDirection } from "../phases/Executor.js";
 
@@ -33,7 +33,7 @@ const cycles = (debuggerStepper: DebuggerStepper): IStepperCycles => ({
 			debuggerStepper.pendingDebugResult = await debuggerStepper.debugLoop(`${prompt}`, ["*", "step", "continue"], featureStep, -1);
 		}
 	},
-	async afterStep({ featureStep, actionResult }: TAfterStep): Promise<TAfterStepResult> {
+	async afterStep({ featureStep, actionResult }: TAfterStep): Promise<TAfterStepResult | undefined> {
 		if (featureStep.intent?.usage === "debugging") {
 			return;
 		}
@@ -54,9 +54,12 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 
 	debuggingType: TDebuggingType = TDebuggingType.Continue;
 	cycles: IStepperCycles = cycles(this);
-	steppers: AStepper[];
+	steppers: AStepper[] = [];
 	debugSteppers: string[] = [];
-	runner: FlowRunner;
+	private held?: FlowRunner;
+	get runner(): FlowRunner {
+		return heldRunner(this.held, constructorName(this));
+	}
 	pendingDebugResult: TAfterStepResult | undefined;
 
 	options = {
@@ -69,7 +72,7 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 	setWorld(world: TWorld, steppers: AStepper[]): Promise<void> {
 		this.steppers = steppers;
 		this.world = world;
-		this.runner = new FlowRunner(world, steppers);
+		this.held = new FlowRunner(world, steppers);
 		const debugSteppersStart = getStepperOption(this, "DEBUG_STEPPERS", world.moduleOptions) as string | undefined;
 		if (debugSteppersStart) {
 			for (const stepper of debugSteppersStart.split(",").map((name) => name.trim())) {
@@ -122,7 +125,7 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 				}
 			} catch (e) {
 				// Debug command failed - continue loop but show error
-				this.getWorld().eventLogger.error(`Debug command failed: ${e.message}`);
+				this.getWorld().eventLogger.error(`Debug command failed: ${errorDetail(e)}`);
 			}
 		}
 

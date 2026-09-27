@@ -3,7 +3,7 @@ import { AStepper, TFeatureStep } from "./astepper.js";
 import { fromJsonText } from "./json-text.js";
 import { isLiteralValue } from "./util/index.js";
 import { parseDotPath, navigateValue } from "./util/dot-path.js";
-import type { TWorld } from "./world.js";
+import { runEnvVariables, type TWorld } from "./world.js";
 import { Origin, TOrigin, TProvenanceIdentifier, TStepValue } from "../schema/protocol.js";
 import { DOMAIN_JSON, DOMAIN_STRING, DOMAIN_UNION, domainParts, namesMember, normalizeDomainKey } from "./domains.js";
 import { QuadStore } from "./quad-store.js";
@@ -74,7 +74,7 @@ export class FeatureVariables {
 
 	async set(sv: TStepValue, provenance: TProvenanceIdentifier, namedGraph?: string) {
 		if (sv.term.match(/.*\..*/)) throw Error("non-stepper variables cannot use dots");
-		if (this.world.options.envVariables[sv.term]) throw Error(`Cannot overwrite environment variable "${sv.term}"`);
+		if (runEnvVariables(this.world)[sv.term]) throw Error(`Cannot overwrite environment variable "${sv.term}"`);
 		const existing = await this.getStoredEntry(sv.term);
 		if (existing?.readonly) throw Error(`Cannot overwrite read-only variable "${sv.term}"`);
 		return await this._set(sv, provenance, namedGraph);
@@ -136,7 +136,7 @@ export class FeatureVariables {
 			resolved.value = input.term;
 			resolved.domain = input.domain;
 		} else if (input.origin === Origin.env) {
-			resolved.value = this.world.options.envVariables[lookupTerm];
+			resolved.value = runEnvVariables(this.world)[lookupTerm];
 			resolved.domain = writtenDomain;
 			resolved.origin = Origin.env;
 			resolved.secret = this.isSecret(lookupTerm);
@@ -147,8 +147,8 @@ export class FeatureVariables {
 				resolved.value = featureStep.runtimeArgs[lookupTerm];
 				resolved.domain = writtenDomain;
 				resolved.origin = Origin.var;
-			} else if (this.world.options.envVariables[lookupTerm]) {
-				resolved.value = this.world.options.envVariables[lookupTerm];
+			} else if (runEnvVariables(this.world)[lookupTerm]) {
+				resolved.value = runEnvVariables(this.world)[lookupTerm];
 				resolved.domain = writtenDomain;
 				resolved.origin = Origin.env;
 				resolved.secret = this.isSecret(lookupTerm);
@@ -257,7 +257,7 @@ export class FeatureVariables {
 
 	async getSecrets(): Promise<{ [name: string]: string }> {
 		const secrets: { [name: string]: string } = {};
-		for (const [key, value] of Object.entries(this.world.options.envVariables)) {
+		for (const [key, value] of Object.entries(runEnvVariables(this.world))) {
 			if (this.isSecret(key)) secrets[key] = String(value);
 		}
 		// Query raw quads to get unmasked values for secret detection

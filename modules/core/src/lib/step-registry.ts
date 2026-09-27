@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { jsonSchemaOf } from "./json-schema-of.js";
 import { AStepper, type TStepperStep, type TFeatureStep } from "./astepper.js";
-import type { TWorld } from "./world.js";
+import { runSteppers, type TWorld } from "./world.js";
 import { buildConcernCatalog } from "./hypermedia.js";
 import { ControlEvent, STEPS_CHANGED, type TActionResult, type TSeqPath } from "../schema/protocol.js";
 import { namedInterpolation, mapInputToStepValues, literalTerm, renderStepLine } from "./namedVars.js";
@@ -255,7 +255,7 @@ export function stepMethodName(stepperOrName: string | AStepper | { name: string
 export function createStepHandler(stepperName: string, stepName: string, stepDef: TStepperStep): (featureStep: TFeatureStep, world: TWorld) => Promise<TActionResult> {
 	return async (featureStep: TFeatureStep, world: TWorld): Promise<TActionResult> => {
 		try {
-			const args = await populateActionArgs(featureStep, world, world.runtime.steppers);
+			const args = await populateActionArgs(featureStep, world, runSteppers(world));
 			const result = await stepDef.action(args, featureStep);
 			// Checked where the arguments were resolved, since a statement the step ran names the domain of what it passes on.
 			const productsError = result.ok ? validateProducts(stepperName, stepName, stepDef, world, result.products, args) : undefined;

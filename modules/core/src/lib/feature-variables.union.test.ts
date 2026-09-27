@@ -10,7 +10,7 @@ describe("FeatureVariables - Union Domains", () => {
 	let variables: FeatureVariables;
 
 	beforeEach(() => {
-		world = getDefaultWorld(0);
+		world = getDefaultWorld();
 		variables = new FeatureVariables(world);
 	});
 

@@ -55,6 +55,17 @@ export type TRuntime = {
 	[name: string]: TAnyFixme;
 };
 
+/** The steppers the run executes with. The Executor sets them before a step runs. */
+export function runSteppers(world: TWorld): AStepper[] {
+	if (!world.runtime.steppers) throw new Error("world.runtime.steppers is unset: the Executor sets it before a step runs");
+	return world.runtime.steppers;
+}
+
+/** The environment variables the run declares. A run that declares none has none. */
+export function runEnvVariables(world: TWorld): TEnvVariables {
+	return world.options.envVariables ?? {};
+}
+
 export type TBaseOptions = {
 	DEST: string;
 	KEY?: string;

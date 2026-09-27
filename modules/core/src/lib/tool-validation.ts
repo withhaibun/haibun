@@ -26,6 +26,7 @@ export function validateToolInput(fromSeqPath: TSeqPath, tool: StepTool, input: 
 		const domainKey = tool.paramDomainKeys.get(key);
 		if (domainKey === undefined) continue;
 		const domain = world.domains[domainKey];
+		if (!domain) throw new Error(`${tool.descriptor.method}: parameter "${key}" takes "${domainKey}", which is not a registered domain`);
 		const result = domain.schema.safeParse(value);
 		if (!result.success) {
 			errors.push(`"${key}" (value: ${JSON.stringify(value)}): ${errorDetail(result.error)}`);

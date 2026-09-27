@@ -5,6 +5,7 @@ import { TRACE_SEQ_PATH, Timer, FEATURE_START, SCENARIO_START, stepLevel, SUBSTE
 import { streamContext } from "./step-stream-context.js";
 import type { TFeatureSteps } from "../schema/protocol.js";
 import { actionNotOK } from "./util/index.js";
+import { itemAt } from "./util/item-at.js";
 import { isWrittenByCaller, normalizeDomainKey } from "./domains.js";
 import { OBSERVATION_GRAPH, FACT_GRAPH, assertFact, getFact, queryFacts } from "./working-memory.js";
 import { doStepperCycle } from "./stepper-cycles.js";
@@ -145,9 +146,9 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	// What is said while this step runs reports no more prominently than the step does, so a call made into a running
 	// instance leaves the caller's own narration out of the run's history rather than among its steps.
 	const step = { seqPath: featureStep.seqPath.join("."), reportsAt: featureStep.isSubStep ? SUBSTEP_LEVEL : undefined };
-	let actionResult: TActionResult;
+	let actionResult: TActionResult | undefined;
 	let ok = true;
-	let lastStepResult: TStepResult;
+	let lastStepResult: TStepResult | undefined;
 	await runInStep(step, () =>
 		runAuthorizedWith(grantedCapability, () =>
 			runStatedAt(statedAt, () =>
@@ -320,7 +321,7 @@ async function emitSeqPathStart(world: TWorld, featureStep: TFeatureStep, author
 	if (featureStep.source?.path) record[SEQ_PATH_FIELD.path] = featureStep.source.path;
 	if (featureStep.seqPath.length > 1) {
 		record[LinkRelations.PART_OF.rel] = formatRecordName({ execution, path: featureStep.seqPath.slice(0, -1) });
-		const lastIndex = featureStep.seqPath[featureStep.seqPath.length - 1];
+		const lastIndex = itemAt(featureStep.seqPath, featureStep.seqPath.length - 1);
 		if (lastIndex > 0) {
 			record[LinkRelations.PRECEDED_BY.rel] = formatRecordName({ execution, path: [...featureStep.seqPath.slice(0, -1), lastIndex - 1] });
 		}

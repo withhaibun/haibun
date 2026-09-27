@@ -139,8 +139,9 @@ export function buildAffordances(inputs: TAffordancesInputs): TAffordances {
 	const satisfiedDomains = [...new Set(facts.map((q) => q.predicate))].sort();
 	const satisfiedFacts: Record<string, string[]> = {};
 	for (const q of facts) {
-		if (!satisfiedFacts[q.predicate]) satisfiedFacts[q.predicate] = [];
-		satisfiedFacts[q.predicate].push(q.subject);
+		const subjects = satisfiedFacts[q.predicate] ?? [];
+		subjects.push(q.subject);
+		satisfiedFacts[q.predicate] = subjects;
 	}
 	return {
 		forward: buildForwardFrontier(graph, facts, inputs.held),

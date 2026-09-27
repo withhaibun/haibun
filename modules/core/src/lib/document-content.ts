@@ -3,6 +3,7 @@
  * Used by @haibun/shu (vanilla web components) to render the run document.
  * Pure functions: no DOM imports.
  */
+import { itemAt } from "./util/item-at.js";
 import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TStepEvent, TLifecycleEvent, TLogEvent, TJsonArtifact } from "../schema/protocol.js";
 import { HAIBUN_LOG_LEVELS } from "../schema/protocol.js";
 import { parseRecordName } from "./seq-path.js";
@@ -14,7 +15,7 @@ const normalizeId = (id: string) => id.replace(/^\[|\]$/g, "");
 /** Returns the id of the step that produced an artifact. A run-artifact record's id is that step's id followed by `@n`. An
  *  artifact embedded in a step's event has an id that begins with that step's id. */
 export function artifactStepId(id: string): string {
-	return normalizeId(id).split("@")[0];
+	return itemAt(normalizeId(id).split("@"), 0);
 }
 
 /** Returns a step id followed by the id of each enclosing step, innermost first. A view attaches an artifact to the first
@@ -139,8 +140,7 @@ export function generateDocumentMarkdown(
 
 	const renderedHeaders = new Set<string>();
 
-	for (let i = 0; i < events.length; i++) {
-		const e = events[i];
+	for (const [i, e] of events.entries()) {
 		if (belowLevel(e)) continue;
 
 		if (e.kind === "artifact" && e.artifactType === "json") {
@@ -191,8 +191,7 @@ export function generateDocumentMarkdown(
 					if (lastType !== "technical" && md.length > 0) md += '\n<div class="h-1"></div>\n';
 
 					let isInstigator = false;
-					for (let j = i + 1; j < events.length; j++) {
-						const next = events[j];
+					for (const next of events.slice(i + 1)) {
 						if (next.id && le.id && next.id.startsWith(le.id + ".") && next.kind === "lifecycle") {
 							isInstigator = true;
 							break;

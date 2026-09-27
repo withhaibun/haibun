@@ -1,3 +1,4 @@
+import { itemAt } from "./util/item-at.js";
 import { TExpandedFeature, TExpandedLine, TFeature, TFeatures } from "./execution.js";
 import type { TResolvedFeature } from "./astepper.js";
 import { backgroundNamesSchema } from "./domains.js";
@@ -28,13 +29,7 @@ export async function expandFeatures(features: TFeature[], backgrounds: TFeature
 }
 
 function expandIncluded(feature: TFeature, backgrounds: TFeatures) {
-	const lines: TExpandedLine[] = [];
-	const split = featureSplit(feature.content);
-	for (let i = 0; i < split.length; i++) {
-		lines.push(...expandLine(split[i], i + 1, backgrounds, feature));
-	}
-
-	return lines;
+	return featureSplit(feature.content).flatMap((line, i) => expandLine(line, i + 1, backgrounds, feature));
 }
 
 function asFeatureLine(line: string, lineNumber: number | undefined, feature: TFeature): TExpandedLine {
@@ -57,13 +52,11 @@ function doIncludes(input: string, backgrounds: TFeatures) {
 	const includes = backgroundNamesSchema.parse(input);
 	const ret: TExpandedLine[] = [];
 	for (const l of includes) {
-		const bg = findFeatures(l, backgrounds);
-		if (bg.length !== 1) {
+		const [origin, ...others] = findFeatures(l, backgrounds);
+		if (!origin || others.length > 0) {
 			throw Error(`can't find single "${l}.feature" from ${backgrounds?.map((b) => b.path).join(", ")}`);
 		}
-		const origin = bg[0];
-		const bgLines = featureSplit(origin.content);
-		for (let i = 0; i < bgLines.length; i++) {
+		for (const [i, bgLine] of featureSplit(origin.content).entries()) {
 			const bddLineNumber = i + 1;
 			// For kireji files, translate BDD line number to step index (+1 for 1-indexed lines)
 			// This gives an approximate TypeScript line number
@@ -75,7 +68,7 @@ function doIncludes(input: string, backgrounds: TFeatures) {
 					lineNumber = stepIndex + 5; // Approximate offset for imports/exports in .feature.ts
 				}
 			}
-			ret.push(asFeatureLine(bgLines[i], lineNumber, origin));
+			ret.push(asFeatureLine(bgLine, lineNumber, origin));
 		}
 	}
 	return ret;
@@ -98,7 +91,7 @@ export const featureSplit = (content: string) => content.split("\n").map((a) => 
 
 export function withNameType(base: string, path: string, content: string, kirejiLineMap?: Map<number, number>, featureName?: string) {
 	const s = path.split(".");
-	const name = featureName ?? s[0];
-	const type = s.length === 3 ? s[1] : "feature";
+	const name = featureName ?? itemAt(s, 0);
+	const type = s.length === 3 ? itemAt(s, 1) : "feature";
 	return { path, base, name, type, content, kirejiLineMap };
 }

@@ -393,7 +393,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	resetVideoStartEmitted() {
 		this.videoStartEmitted = false;
 	}
-	async captureFailureScreenshot(event: string, step: TStepResult) {
+	async captureFailureScreenshot(event: string, step?: TStepResult) {
 		try {
 			return await this.captureScreenshotAndLog(event, { step });
 		} catch (e) {
