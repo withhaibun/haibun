@@ -9,9 +9,10 @@
  * The monitor records one run. This stepper answers reads of the graph, which every view draws on.
  */
 import { z } from "zod";
+import { fromJsonText } from "@haibun/core/lib/json-text.js";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { Access, AccessQueryLevelSchema, DOMAIN_PERSISTED_TYPE, LinkRelations, storeScopeFor, type TDomainDefinition } from "@haibun/core/lib/resources.js";
-import { actionNotOK, actionOKWithProducts, errorDetail } from "@haibun/core/lib/util/index.js";
+import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
 import {
 	DOMAIN_GRAPH_QUERY,
 	GraphQueryResultSchema,
@@ -78,6 +79,16 @@ const GRAPH_SOURCE_DOMAINS: TDomainDefinition[] = [
 	{ selectors: [DOMAIN_GRAPH_ROWS], schema: GraphQueryResultSchema, description: "The rows a graph query matched, and how many there are" },
 ];
 
+/** What a graph view asks `get clustered quads` for, over RPC, where a value may arrive as its text: how many records of
+ *  each type, at most 10,000, the types, the query level, and whether a federated read asks for the peer's own data
+ *  rather than its view of the world (see TClusteredQuadsOpts). */
+const ClusteredQuadsAskSchema = z.object({
+	perTypeLimit: z.coerce.number().int().default(100).transform((limit) => Math.max(1, Math.min(10000, limit))),
+	types: fromJsonText(z.array(z.string())).optional(),
+	accessLevel: AccessQueryLevelSchema,
+	scope: z.enum(["own", "federated"]).optional(),
+});
+
 export default class GraphSourceStepper extends AStepper implements IHasCycles {
 	description = "The graph a page reads: a query, a count over a span, the clustered sample a graph view draws, and the reads a federated peer answers.";
 	cycles: IStepperCycles = { getConcerns: () => ({ domains: GRAPH_SOURCE_DOMAINS }) };
@@ -127,29 +138,15 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			productsDomain: DOMAIN_CLUSTERED_QUADS,
 			// The sampled graph is the RPC response; keeping it on the event too holds a second copy of it per call.
 			retainProducts: false,
-			action: async (args: { perTypeLimit?: number | string; types?: string[] | string; accessLevel?: string; scope?: string } = {}) => {
+			action: async (asked: Record<string, unknown> = {}) => {
 				const store = this.getWorld().shared.getStore();
-				// RPC params arrive stringified through the synthetic-step plumbing; coerce both back to native shapes.
-				const limitNum = typeof args.perTypeLimit === "string" ? Number(args.perTypeLimit) : args.perTypeLimit;
-				const perTypeLimit = Math.max(1, Math.min(10000, Number.isFinite(limitNum) ? (limitNum as number) : 100));
+				const read = ClusteredQuadsAskSchema.safeParse(asked);
+				if (!read.success) return actionNotOK(`getClusteredQuads: ${z.prettifyError(read.error)}`);
+				const { perTypeLimit, types, scope } = read.data;
 				// Required, as the dereference and query paths require it: no default ceiling, so the cluster view applies the
 				// caller's access exactly. A caller states a QUERY level: `all` asks for everything it may see, and refusing it left
 				// the graph view with only the quads that happened to stream live.
-				const accessLevel = storeScopeFor(AccessQueryLevelSchema.parse(args.accessLevel));
-				// A federated read asks for "own", which is the peer's authoritative data rather than its view of the world (see TClusteredQuadsOpts).
-				if (args.scope !== undefined && args.scope !== "own" && args.scope !== "federated")
-					return actionNotOK(`getClusteredQuads: scope must be "own" or "federated", got "${args.scope}"`);
-				const scope = args.scope as "own" | "federated" | undefined;
-				let types: string[] | undefined;
-				if (Array.isArray(args.types)) types = args.types;
-				else if (typeof args.types === "string" && args.types.length > 0) {
-					try {
-						const parsed: unknown = JSON.parse(args.types);
-						if (Array.isArray(parsed)) types = parsed.map(String);
-					} catch (err) {
-						this.getWorld().eventLogger.warn(`getClusteredQuads: ignoring non-JSON 'types' param: ${errorDetail(err)}`);
-					}
-				}
+				const accessLevel = storeScopeFor(read.data.accessLevel);
 				if (!store.getClusteredQuads) {
 					return actionNotOK("QuadStore does not support getClusteredQuads");
 				}

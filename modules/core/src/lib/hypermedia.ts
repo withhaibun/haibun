@@ -403,8 +403,13 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 
 const IRI_TO_REL: Record<string, TRel> = Object.fromEntries(Object.entries(REL_CONTEXT).map(([rel, iri]) => [iri, rel as TRel]));
 
-type TContextEntry = string | { "@id": string; "@type"?: string; range?: string };
-export type THypermediaContext = { "@context": Record<string, TContextEntry>; "@queryable"?: string[] };
+/** A JSON-LD @context as a feature declares a type by one: each term's IRI, or its IRI with its type and range, and the
+ *  terms a reader filters by. */
+export const HypermediaContextSchema = z.object({
+	"@context": z.record(z.string(), z.union([z.string(), z.object({ "@id": z.string(), "@type": z.string().optional(), range: z.string().optional() })])),
+	"@queryable": z.array(z.string()).optional(),
+});
+export type THypermediaContext = z.infer<typeof HypermediaContextSchema>;
 
 /** A JSON-LD node object: an optional `@context`, an optional `@id`/`@type`, and any number of term→value entries. THE
  *  one shape every linked-data projection in the system produces: a served vertex, a view's `summarizeForKihan`, the

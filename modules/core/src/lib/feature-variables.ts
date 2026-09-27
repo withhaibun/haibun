@@ -1,4 +1,6 @@
+import { z } from "zod";
 import { AStepper, TFeatureStep } from "./astepper.js";
+import { fromJsonText } from "./json-text.js";
 import { isLiteralValue } from "./util/index.js";
 import { parseDotPath, navigateValue } from "./util/dot-path.js";
 import type { TWorld } from "./world.js";
@@ -220,12 +222,10 @@ export class FeatureVariables {
 		if (!baseEntry) return { value: undefined, found: false };
 		let baseValue = baseEntry.value;
 		if (typeof baseValue === "string") {
-			try {
-				baseValue = JSON.parse(baseValue);
-			} catch {
-				// A base that holds text rather than JSON doesn't have fields.
-				return { value: undefined, found: false };
-			}
+			// A base that holds text rather than JSON doesn't have fields.
+			const read = fromJsonText(z.json()).safeParse(baseValue);
+			if (!read.success) return { value: undefined, found: false };
+			baseValue = read.data;
 		}
 		return navigateValue(baseValue, pathSegments);
 	}

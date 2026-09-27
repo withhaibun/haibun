@@ -40,7 +40,8 @@ import { AStepper, IHasCycles, IHasOptions, StepperKinds } from "@haibun/core/li
 
 import { cycles } from "./cycles.js";
 import { interactionSteps } from "./interactionSteps.js";
-import { restSteps, type TCapturedResponse, type TJsonResponse } from "./rest-playwright.js";
+import { CapturedResponseSchema, restSteps, type TCapturedResponse, type TJsonResponse } from "./rest-playwright.js";
+import { fromJsonText } from "@haibun/core/lib/json-text.js";
 import { TwinPage } from "./twin-page.js";
 import { WEBSERVER, type IWebServer } from "@haibun/web-server-hono/defs.js";
 import { BrowserRelay } from "./relay/cdpRelay.js";
@@ -509,10 +510,10 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		await this.twinPage.initTwin();
 	}
 
-	async getLastResponse(): Promise<TCapturedResponse> {
+	/** The response a step captured last, where one did. */
+	async getLastResponse(): Promise<TCapturedResponse | undefined> {
 		const resolved = await this.getWorld().shared.resolveVariable({ term: LAST_REST_RESPONSE, origin: Origin.var }, undefined, undefined, { secure: true });
-		const val = resolved.value;
-		return (typeof val === "string" ? JSON.parse(val) : val) as TCapturedResponse;
+		return resolved.value === undefined ? undefined : fromJsonText(CapturedResponseSchema).parse(resolved.value);
 	}
 	async setLastResponse(serialized: TCapturedResponse, featureStep: TFeatureStep) {
 		await this.getWorld().shared.setJSON(LAST_REST_RESPONSE, serialized, Origin.var, featureStep);

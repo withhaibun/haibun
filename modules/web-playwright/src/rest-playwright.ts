@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
 import WebPlaywright from "./web-playwright.js";
 import { WEB_PLAYWRIGHT_ACTIONS } from "./actions.js";
@@ -212,19 +213,21 @@ export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
 		},
 	}) as const satisfies TStepperSteps;
 
-/** Record with string keys for JSON objects */
-type TJsonRecord = Record<string, unknown>;
+/** A JSON response's body: a record, or a list of records. */
+const JsonRecordSchema = z.record(z.string(), z.unknown());
+type TJsonRecord = z.infer<typeof JsonRecordSchema>;
+const JsonResponseSchema = z.union([JsonRecordSchema, z.array(JsonRecordSchema)]);
+export type TJsonResponse = z.infer<typeof JsonResponseSchema>;
 
-/** JSON response can be an array of records or a single record */
-export type TJsonResponse = TJsonRecord | TJsonRecord[];
-
-export type TCapturedResponse = {
-	status: number;
-	statusText: string;
-	headers: Record<string, string>;
-	url: string;
+/** A response as a step captured it, which the run keeps as JSON text in a variable. */
+export const CapturedResponseSchema = z.object({
+	status: z.number(),
+	statusText: z.string(),
+	headers: z.record(z.string(), z.string()),
+	url: z.string(),
 	/** The body read as JSON, absent where it isn't JSON. */
-	json?: TJsonResponse;
-	text: string;
-	filtered?: TJsonRecord[];
-};
+	json: JsonResponseSchema.optional(),
+	text: z.string(),
+	filtered: z.array(JsonRecordSchema).optional(),
+});
+export type TCapturedResponse = z.infer<typeof CapturedResponseSchema>;

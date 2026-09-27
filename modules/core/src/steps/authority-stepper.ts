@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { fromJsonText } from "../lib/json-text.js";
 import { persistPrincipalIndividual } from "../lib/principal-individual.js";
 import type { TWorld } from "../lib/world.js";
 import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature, type TFeatureStep } from "../lib/astepper.js";
@@ -150,8 +151,8 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 	 */
 	private async runUnderCapability(cap: unknown, target: string, what: TFeatureStep[], featureStep: TFeatureStep) {
 		// A variable keeps its own domain, so a document kept as JSON text, as a record keeps a signed document, arrives as
-		// the text: read as the document it spells, as the parameter's domain says.
-		const parsed = signedCapabilitySchema.safeParse(typeof cap === "string" ? JSON.parse(cap) : cap);
+		// the text: read as the document it spells.
+		const parsed = fromJsonText(signedCapabilitySchema).safeParse(cap);
 		if (!parsed.success) {
 			return actionNotOK(`holding capability: invalid signed capability, ${parsed.error.issues.map((i) => i.message).join("; ")}`);
 		}

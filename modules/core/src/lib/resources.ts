@@ -1437,7 +1437,13 @@ export async function writeAnnotation(
 // ============================================================================
 
 /** What a reading did, so a later reading of the same source can undo exactly that: a statement, or a record it wrote. */
-type TStatedRecord = { kind: "edge"; s: string; sLabel: string; rel: string; o: string; oLabel: string } | { kind: "individual"; label: string; id: string };
+/** What a reading stated, one record per statement, which undoing the reading, or finding which reading stated an edge,
+ *  reads back. */
+export const StatedRecordSchema = z.discriminatedUnion("kind", [
+	z.object({ kind: z.literal("edge"), s: z.string(), sLabel: z.string(), rel: z.string(), o: z.string(), oLabel: z.string() }),
+	z.object({ kind: z.literal("individual"), label: z.string(), id: z.string() }),
+]);
+type TStatedRecord = z.infer<typeof StatedRecordSchema>;
 
 /** One reading per source: a stable id, so reading again replaces the previous reading rather than accumulating one per run. */
 export function readingIdFor(sourceLabel: string, sourceId: string): string {
@@ -1452,7 +1458,7 @@ async function retractReading(store: TDiscourseStore, readingId: string): Promis
 	if (entries !== undefined && !Array.isArray(entries))
 		throw new Error(`${READING_LABEL} "${readingId}" records what it stated as ${typeof entries}, not a list, so the record cannot be undone`);
 	for (const entry of (entries ?? []) as string[]) {
-		const record = JSON.parse(String(entry)) as TStatedRecord;
+		const record = fromJsonText(StatedRecordSchema).parse(entry);
 		if (record.kind === "edge") await store.remove({ subject: record.s, predicate: record.rel, object: record.o, namedGraph: record.sLabel });
 		else await store.deleteIndividual(record.label, record.id);
 	}

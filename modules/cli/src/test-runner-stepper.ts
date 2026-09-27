@@ -23,6 +23,7 @@
 import type { TInputSchema, TStepDescriptor } from "@haibun/core/lib/step-discovery.js";
 import path from "node:path";
 import { z } from "zod";
+import { JsonObjectSchema, fromJsonText } from "@haibun/core/lib/json-text.js";
 import { AStepper, type IHasCycles, type IHasOptions, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { actionNotOK, actionOK, actionOKWithProducts, boolOrError, getStepperOption, intOrError } from "@haibun/core/lib/util/index.js";
 import { callStepFrom } from "@haibun/core/lib/call-step.js";
@@ -113,7 +114,7 @@ export function askParams(params: string, takes: TInputSchema["properties"] = {}
 	if (text === "" || text === "{}") return {};
 	const written = (): Record<string, unknown> => {
 		if (text.startsWith("{")) {
-			const parsed = JSON.parse(text) as Record<string, unknown>;
+			const parsed = fromJsonText(JsonObjectSchema).parse(text);
 			return names.length === 1 && !(names[0] in parsed) ? { [names[0]]: parsed } : parsed;
 		}
 		if (!text.includes("=") && names.length === 1) return { [names[0]]: text };
@@ -130,7 +131,7 @@ export function askParams(params: string, takes: TInputSchema["properties"] = {}
 		);
 	};
 	const structured = (name: string, value: unknown): boolean => typeof value === "string" && ["object", "array"].includes(String(takes[name]?.type));
-	return Object.fromEntries(Object.entries(written()).map(([name, value]) => [name, structured(name, value) ? JSON.parse(value as string) : value]));
+	return Object.fromEntries(Object.entries(written()).map(([name, value]) => [name, structured(name, value) ? fromJsonText(z.json()).parse(value) : value]));
 }
 
 /** What a parameter takes, as its schema states it: the values it is one of, else its type. A caller told only that a

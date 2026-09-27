@@ -10,7 +10,8 @@
  * (`rdf:Statement`, subject / predicate / object) plus provenance. A coverage table, which requirements a run
  * evidenced, and whether it passed, is this read with the citation predicate, not a report of its own.
  */
-import { READING_LABEL, LinkRelations, SEQ_PATH_LABEL, type TDiscourseStore } from "./resources.js";
+import { READING_LABEL, LinkRelations, SEQ_PATH_LABEL, StatedRecordSchema, type TDiscourseStore } from "./resources.js";
+import { fromJsonText } from "./json-text.js";
 import { SEQ_PATH_FIELD, SEQ_PATH_EDGE, type TSeqPath } from "./seq-path.js";
 
 /** A reference to an individual, as JSON-LD names one: what to open, and what kind of thing it is. */
@@ -40,7 +41,7 @@ async function readingsByStatement(store: TStatementStore): Promise<Map<string, 
 	const byStatement = new Map<string, string>();
 	for (const reading of await store.queryIndividuals<{ id: string; stated?: unknown }>(READING_LABEL)) {
 		for (const entry of Array.isArray(reading.stated) ? (reading.stated as string[]) : []) {
-			const record = JSON.parse(String(entry)) as { kind: string; s?: string; rel?: string; o?: string };
+			const record = fromJsonText(StatedRecordSchema).parse(entry);
 			if (record.kind === "edge") byStatement.set(`${record.s}\u0000${record.rel}\u0000${record.o}`, reading.id);
 		}
 	}

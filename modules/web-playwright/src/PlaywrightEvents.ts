@@ -1,3 +1,4 @@
+import { fromJsonText } from "@haibun/core/lib/json-text.js";
 import { Frame, Page, Request, Response } from "playwright";
 
 import { HttpTraceArtifact, Origin } from "@haibun/core/schema/protocol.js";
@@ -147,9 +148,5 @@ export class PlaywrightEvents {
  */
 export function asksToRead(method: string, postData: string | null | undefined): boolean {
 	if (method !== "POST" || !postData) return false;
-	try {
-		return RpcRequestSchema.safeParse(JSON.parse(postData)).data?.asks === "read";
-	} catch {
-		return false;
-	}
+	return fromJsonText(RpcRequestSchema).safeParse(postData).data?.asks === "read";
 }

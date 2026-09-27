@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { fromJsonText } from "../lib/json-text.js";
 import { readFileSync } from "fs";
 import { RUN_ACCESS_LEVELS, type TRunPolicyConfig } from "./run-policy-types.js";
 
@@ -39,7 +40,7 @@ function loadRunPolicy(schemaPath: string): TRunPolicy {
 	} catch (err) {
 		throw new Error(`Cannot read run policy "${schemaPath}": ${(err as Error).message}`);
 	}
-	return PolicyFileSchema.parse(JSON.parse(raw));
+	return fromJsonText(PolicyFileSchema).parse(raw);
 }
 
 function resolveRef(ref: string, rootDocs: unknown[]): unknown {

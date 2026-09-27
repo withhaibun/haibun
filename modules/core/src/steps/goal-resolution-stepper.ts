@@ -15,6 +15,7 @@
  *   advance the walk {walk: walk-id} with {args: json}  → DOMAIN_CHAIN_WALK (runs the next step with what it takes)
  */
 import { z } from "zod";
+import { JsonObjectSchema, fromJsonText } from "../lib/json-text.js";
 import {
 	AStepper,
 	type IHasCycles,
@@ -289,7 +290,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 			action: async ({ walk, args }: { walk: string; args: unknown }) => {
 				const world = this.getWorld();
 				const ctx = { registry: runRegistry(world), world, steppers: this.steppers };
-				const supplied = typeof args === "string" ? (JSON.parse(args) as Record<string, unknown>) : ((args ?? {}) as Record<string, unknown>);
+				const supplied = fromJsonText(JsonObjectSchema).parse(args);
 				const advanced = await advanceChainInstance(ctx, walk, supplied);
 				if (advanced.kind === "failed") return actionNotOK(`advance the walk ${walk}: ${advanced.error}`);
 				return actionOKWithProducts(walkProducts(advanced.instance, ctx.registry));

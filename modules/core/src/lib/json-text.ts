@@ -18,3 +18,7 @@ export function parseJsonText(text: string, ctx: z.RefinementCtx): unknown {
 export function fromJsonText<T extends z.ZodType>(schema: T) {
 	return z.preprocess((value, ctx) => (typeof value === "string" ? parseJsonText(value, ctx) : value), schema);
 }
+
+/** A JSON object read whole, as a record's JSON body or a signed document holds one. */
+export const JsonObjectSchema = z.record(z.string(), z.json());
+export type TJsonObject = z.infer<typeof JsonObjectSchema>;

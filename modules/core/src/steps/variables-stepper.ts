@@ -26,7 +26,7 @@ import {
 	registerDomains,
 } from "../lib/domains.js";
 import { fromJsonText } from "../lib/json-text.js";
-import { hypermediaDomainFromContext, type THypermediaContext } from "../lib/hypermedia.js";
+import { HypermediaContextSchema, hypermediaDomainFromContext, type THypermediaContext } from "../lib/hypermedia.js";
 import { edgeRanges, isPersisted, REL_CONTEXT, LinkRelations, type TRel, type TRegisteredDomain, type TDomainDefinition } from "../lib/resources.js";
 
 const clearVars = (vars: VariablesStepper) => async () => {
@@ -656,7 +656,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 
 	private registerHypermediaDomain(domain: string, spec: string) {
 		try {
-			const doc: THypermediaContext = spec.startsWith("{") ? JSON.parse(spec) : parseHypermediaDeclProse(domain, spec);
+			const doc: THypermediaContext = spec.startsWith("{") ? fromJsonText(HypermediaContextSchema).parse(spec) : parseHypermediaDeclProse(domain, spec);
 			const { topology, schema } = hypermediaDomainFromContext(domain, doc);
 			const selector = domain.toLowerCase();
 			const domainKey = normalizeDomainKey(selector);
