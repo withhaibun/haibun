@@ -1,6 +1,6 @@
 import type { TExpandedFeature, TExpandedLine, TFeatures, TFeature } from "../lib/execution.js";
 import type { TWorld } from "../lib/world.js";
-import { TStepValue, FEATURE_START, SCENARIO_START, UNRESOLVED } from "../schema/protocol.js";
+import { TStepValue, FEATURE_START, SCENARIO_START } from "../schema/protocol.js";
 import { AStepper, TStepAction, TResolvedFeature, TStepperStep, TFeatureStep } from "../lib/astepper.js";
 import { matchGwtaToAction, getMatch } from "../lib/namedVars.js";
 import { getActionable, dePolite, constructorName, actionNotOK } from "../lib/util/index.js";
@@ -298,9 +298,12 @@ export function findFeatureStepsFromStatement(statement: string, steppers: AStep
 				},
 				in: x.line,
 				seqPath,
+				// The line didn't resolve to a step, so it stands as a step a registry doesn't hold, and its miss states why.
 				action: {
-					...UNRESOLVED,
+					actionName: "error",
+					stepperName: "Resolver",
 					step: {
+						description: e.message,
 						action: async () => actionNotOK(e.message),
 					},
 				},

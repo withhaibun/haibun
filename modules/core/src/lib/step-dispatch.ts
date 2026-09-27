@@ -1,7 +1,7 @@
 import { AStepper, type TStepperStep, type TFeatureStep, type TStepAction, type TBeforeStep, type TAfterStep, type TAfterStepResult } from "./astepper.js";
 import type { TWorld } from "./world.js";
 import type { TActionResult, TStepResult } from "../schema/protocol.js";
-import { TRACE_SEQ_PATH, Timer, FEATURE_START, SCENARIO_START, UNRESOLVED, stepLevel, SUBSTEP_LEVEL, LIFECYCLE_STATUS, type TStepEnd } from "../schema/protocol.js";
+import { TRACE_SEQ_PATH, Timer, FEATURE_START, SCENARIO_START, stepLevel, SUBSTEP_LEVEL, LIFECYCLE_STATUS, type TStepEnd } from "../schema/protocol.js";
 import { streamContext } from "./step-stream-context.js";
 import type { TFeatureSteps } from "../schema/protocol.js";
 import { actionNotOK } from "./util/index.js";
@@ -110,16 +110,13 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 		return stepResultFromActionResult({ ok: true }, action, start, Timer.since(), featureStep, true);
 	}
 
-	// A line that didn't resolve to a step fails with why, wherever it was to run, since a registry doesn't hold a step for it.
-	if (action.stepperName === UNRESOLVED.stepperName && action.actionName === UNRESOLVED.actionName) {
-		return pushAndReturn(stepResultFromActionResult(await action.step.action({}, featureStep), action, start, Timer.since(), featureStep, false));
-	}
-
 	const bareMethod = stepMethodName(action.stepperName, action.actionName);
 	const method = featureStep.targetHostId !== undefined ? hostScopedMethodName(featureStep.targetHostId, bareMethod) : bareMethod;
 	const tool = registry.get(method);
 	if (!tool) {
-		return pushAndReturn(stepResultFromActionResult(actionNotOK(`Step not found in registry: ${method}`), action, start, Timer.since(), featureStep, false));
+		// A step the registry doesn't hold states what it is, as a line that didn't resolve to a step states why.
+		const described = action.step.description ? `: ${action.step.description}` : "";
+		return pushAndReturn(stepResultFromActionResult(actionNotOK(`Step not found in registry: ${method}${described}`), action, start, Timer.since(), featureStep, false));
 	}
 
 	// Where the statement was stated, which its arguments are read at, and which a step reading more than it is refused.
