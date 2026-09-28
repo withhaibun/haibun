@@ -3,47 +3,46 @@
  * The models the ask pane offers follow the run: a pane opened before the run had models says it doesn't have one, and offers
  * the ones the run records after, as discovery writes them.
  */
-import { describe, expect, it, vi } from "vitest";
-import type { TDriven } from "./chat-pane.test-fake.js";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { LinkRelations } from "@haibun/core/lib/resources.js";
+import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
+import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
+import { CHAT_STEP, chatDispatch, type TDriven } from "./chat-pane.test-fake.js";
+import { persistedTypeDefinition, setupShuTest, type TShuTestHandle } from "../test-setup.js";
+import "./shu-combobox.js";
+import { ShuKihanChat } from "./shu-kihan-chat.js";
+import { SHU_ATTR } from "../consts.js";
 
-vi.mock("../rpc-registry.js", async (actual) => ({ ...(await actual<Record<string, unknown>>()), ...(await import("./chat-pane.test-fake.js")).rpcRegistry }));
-vi.mock("../rels-cache.js", async (actual) => ({ ...(await actual<Record<string, unknown>>()), getActionBarChatExtensionTags: () => [] }));
-vi.mock("../chat-context-harvest.js", () => ({ harvestChatViewLd: () => [] }));
 /** The models the run holds, which a read of the catalog lists. */
 let models: Array<{ id: string; displayName: string }> = [];
-/** The type the run's models are grouped under, and the records of it discovery wrote. */
-const PROVIDER = "LlmProvider";
+/** The type the run's models are grouped under, the records of it discovery wrote, and the step that lists them. */
+const PROVIDER = "ModelProvider";
 let providers: Array<{ id: string; answered: boolean; models: number; why?: string }> = [];
-vi.mock("../hypermedia.js", async () => {
-	const { hypermedia } = await import("./chat-pane.test-fake.js");
-	return hypermedia(
-		(req) =>
-			req.method === "showKihans"
-				? { vertices: models, total: models.length }
-				: req.method === `show${PROVIDER}s`
-					? { vertices: providers, total: providers.length }
-					: req.method === "listChatSessions"
-						? { sessions: [] }
-						: {},
-		() => Promise.resolve(),
-	);
-});
-
-const { SerializedEventStream, setEventStream } = await import("../event-stream.js");
-const { setSiteMetadata } = await import("../rels-cache.js");
-const { LinkRelations } = await import("@haibun/core/lib/resources.js");
-await import("./shu-combobox.js");
-const { ShuKihanChat } = await import("./shu-kihan-chat.js");
-const { SHU_ATTR } = await import("../consts.js");
-
+const PROVIDERS_STEP = `show${PROVIDER}s`;
+/** The type the run's models are records of, each grouped under the provider it is called through. */
 const KIHAN = "Kihan";
+const GROUPED = LinkRelations.CONTEXT.rel;
+const MODELS_BY_PROVIDER = buildConcernCatalog(
+	mapDefinitionsToDomains([
+		persistedTypeDefinition(KIHAN, { properties: { provider: GROUPED }, edges: { provider: { range: PROVIDER, rel: GROUPED } } }),
+		persistedTypeDefinition(PROVIDER),
+	]),
+);
+
+let t: TShuTestHandle;
+beforeEach(() => {
+	const listing = (vertices: unknown[]) => ({ vertices, total: vertices.length });
+	const respond = (step: string) =>
+		step === CHAT_STEP.catalog ? listing(models) : step === PROVIDERS_STEP ? listing(providers) : step === CHAT_STEP.sessions ? { sessions: [] } : {};
+	t = setupShuTest({ dispatch: chatDispatch(respond, { steps: [...Object.values(CHAT_STEP), PROVIDERS_STEP], concerns: MODELS_BY_PROVIDER }) });
+});
+afterEach(() => t.teardown());
+
 const MODEL = { id: "openai:a-model", displayName: "a model" };
 const flush = () => new Promise((resolve) => setTimeout(resolve, 20));
 
 describe("the models the ask pane offers", () => {
 	it("don't include a model where the run doesn't have one, and are the ones the run records after the pane opened", async () => {
-		const stream = new SerializedEventStream();
-		setEventStream(stream);
 		const pane = new ShuKihanChat() as unknown as TDriven;
 		pane.setAttribute(SHU_ATTR.SHOW_CONTROLS, "");
 		document.body.appendChild(pane);
@@ -53,11 +52,11 @@ describe("the models the ask pane offers", () => {
 		expect(pane.shadowRoot?.querySelector(".model-select")).toBeNull();
 
 		models = [MODEL];
-		stream.emit({
+		t.emit({
 			kind: "artifact",
 			artifactType: "json",
 			json: { quadObservation: { subject: MODEL.id, predicate: "name", object: MODEL.displayName, namedGraph: KIHAN } },
-		} as never);
+		});
 		await flush();
 		await pane.updateComplete;
 		expect(pane.shadowRoot?.querySelector('[data-testid$="no-models"]')).toBeNull();
@@ -67,18 +66,6 @@ describe("the models the ask pane offers", () => {
 
 describe("the providers the ask pane lists", () => {
 	it("names each provider that doesn't have a model registered in the run, linked to its record, with why", async () => {
-		setSiteMetadata({
-			types: [KIHAN, PROVIDER],
-			idFields: { [KIHAN]: "id", [PROVIDER]: "id" },
-			rels: { [KIHAN]: { provider: LinkRelations.CONTEXT.rel }, [PROVIDER]: {} },
-			edgeRanges: { [KIHAN]: { provider: [PROVIDER] } },
-			properties: { [KIHAN]: ["id", "provider"], [PROVIDER]: ["id"] },
-			queryable: {},
-			validTimeFields: {},
-			summary: {},
-			ui: {},
-			propertyDefinitions: {},
-		});
 		models = [MODEL];
 		providers = [
 			{ id: "openai", answered: true, models: 1 },

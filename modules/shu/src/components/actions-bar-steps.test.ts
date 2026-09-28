@@ -4,33 +4,27 @@
  * caller opened in the history or the last one retargeted, the Ask mode offered only with the step an ask runs, and the
  * newest output kept in view as a step settles.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
+import { stepMethodName } from "@haibun/core/lib/step-registry.js";
+import { CHAT_STEP, CHAT_STEPPER } from "./chat-pane.test-fake.js";
+import { ActionsBarSteps, stepDetails, stepOptions, stepSecondary } from "./actions-bar-steps.js";
+import { aControllerHost } from "./controller-host.test-fake.js";
+import { SHU_EVENT, SHU_TAG } from "../consts.js";
+import { declaringSteps, setupShuTest, stepsChanged, stepsReadAgain, stepsShown, type TShuTestHandle } from "../test-setup.js";
 
-/** The steps the run offers, and those it offers for the selected type. */
+/** The steps the run offers. */
 const offered: TStepDefinition[] = [];
-const forTheType: TStepDefinition[] = [];
-/** What is told when the page has read the run's steps again. */
-const toldOfChanges = new Set<() => Promise<void> | void>();
-vi.mock("../rpc-registry.js", async (actual) => ({
-	...(await actual<Record<string, unknown>>()),
-	getAvailableSteps: () => Promise.resolve(offered),
-	onStepsChanged: (listener: () => Promise<void> | void) => {
-		toldOfChanges.add(listener);
-		return () => toldOfChanges.delete(listener);
-	},
-	stepsForContext: () => forTheType,
-}));
+/** A page on a run that offers the steps `offered` holds when the page reads them. */
+const aRun = () => setupShuTest({ dispatch: declaringSteps(() => stepsShown(offered)) });
 
-const { ActionsBarSteps, stepDetails, stepOptions, stepSecondary } = await import("./actions-bar-steps.js");
-const { aControllerHost } = await import("./controller-host.test-fake.js");
-const { SHU_EVENT, SHU_TAG } = await import("../consts.js");
-
-const step = (method: string, pattern: string, extra: Partial<TStepDefinition> = {}) =>
-	({ method, stepName: method.split("-")[1], pattern, paramDomains: {}, ...extra }) as TStepDefinition;
+const step = (method: string, pattern: string, extra: Partial<TStepDefinition> = {}) => {
+	const [stepperName, stepName] = method.split("-");
+	return { method, stepperName, stepName, pattern, paramDomains: {}, ...extra } as TStepDefinition;
+};
 const SHOW = step("GraphStepper-showGraph", "show graph {name}", { paramDomains: { name: "string" }, productsDomain: "graph" });
 const LIST = step("GraphStepper-listTypes", "list types");
-const ASK = step("LlmStepper-chatWithContext", "ask {prompt}");
+const ASK = step(stepMethodName(CHAT_STEPPER, CHAT_STEP.ask), "ask {prompt}");
 
 /** The history callers open in, as the steps address it. */
 type THistory = HTMLElement & { keepNewestInView: ReturnType<typeof vi.fn>; append: ReturnType<typeof vi.fn> };
@@ -57,21 +51,31 @@ const aCaller = (history: HTMLElement, method: string, executed: boolean) => {
 };
 
 describe("the actions bar's step mode", () => {
+	let t: TShuTestHandle;
 	beforeEach(() => {
 		offered.splice(0, offered.length, SHOW, LIST);
-		forTheType.length = 0;
+		t = aRun();
 	});
+	afterEach(() => t.teardown());
 
 	it("offers the steps the run holds once the page has read them again", async () => {
 		const { host, steps } = await aStepsPage();
 		expect(steps.offersAsk).toBe(false);
 		offered.push(ASK);
 		const asked = host.updatesAsked;
-		for (const told of toldOfChanges) await told();
+		const added = stepsReadAgain();
+		stepsChanged(t, 1);
+		await added;
 		expect(host.updatesAsked).toBeGreaterThan(asked);
 		expect(steps.offersAsk, "the step the run added is one the bar offers").toBe(true);
 		host.disconnect();
-		expect(toldOfChanges.size, "and a bar no longer shown is not told").toBe(0);
+		const shown = host.updatesAsked;
+		offered.pop();
+		const removed = stepsReadAgain();
+		stepsChanged(t, 2);
+		await removed;
+		expect(host.updatesAsked, "and a bar no longer shown is not told").toBe(shown);
+		expect(steps.offersAsk).toBe(true);
 	});
 
 	it("says what a step takes and gives, by domain", () => {
@@ -90,7 +94,9 @@ describe("the actions bar's step mode", () => {
 
 	it("offers the Ask mode only where the run offers the step an ask runs", async () => {
 		expect((await aStepsPage()).steps.offersAsk).toBe(false);
+		t.teardown();
 		offered.push(ASK);
+		t = aRun();
 		expect((await aStepsPage()).steps.offersAsk).toBe(true);
 	});
 

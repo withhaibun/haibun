@@ -7,33 +7,28 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { html, render } from "lit";
 import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
+import { QuadStore } from "@haibun/core/lib/quad-store.js";
+import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
+import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
+import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { pageTypes } from "../signals.js";
+import { ActionsBarQuery, SEARCH_DEBOUNCE_MS, searchConditions } from "./actions-bar-query.js";
+import { aControllerHost } from "./controller-host.test-fake.js";
+import { SHU_EVENT, SHU_TAG } from "../consts.js";
+import { getSelectValues } from "../rels-cache.js";
+import { setGraphStore } from "../quads-snapshot.js";
+import { typeNotHeld, viewQuery } from "../view-query.js";
+import { declaringSteps, persistedTypeDefinition, setupShuTest, stepsChanged, stepsReadAgain, stepsShown, type TShuTestHandle } from "../test-setup.js";
 
+/** The fields each type takes as filters: the folder a record is filed in, whose values the search offers, and its subject. */
+const FILED = { folder: LinkRelations.CONTEXT.rel, subject: LinkRelations.NAME.rel };
 /** The types the run declares, which a case adds to. */
 const declaredTypes = [
-	{ key: "email-domain", queryLabel: "Email", group: "declared" },
-	{ key: "file-domain", queryLabel: "File", group: "declared" },
+	persistedTypeDefinition("Email", { selector: "email-domain", properties: FILED, declared: true }),
+	persistedTypeDefinition("File", { selector: "file-domain", properties: FILED, declared: true }),
 ];
-/** What is told when the page has read the run's steps again. */
-const toldOfChanges = new Set<() => Promise<void> | void>();
-vi.mock("../rpc-registry.js", async (actual) => ({
-	...(await actual<Record<string, unknown>>()),
-	getAvailableSteps: () => Promise.resolve([]),
-	getAvailableDomains: () => Promise.resolve({}),
-	onStepsChanged: (listener: () => Promise<void> | void) => {
-		toldOfChanges.add(listener);
-		return () => toldOfChanges.delete(listener);
-	},
-	buildDomainOptions: () => [...declaredTypes],
-}));
-vi.mock("../rels-cache.js", async (actual) => ({ ...(await actual<Record<string, unknown>>()), getQueryableFields: () => ["folder", "subject"] }));
-vi.mock("../quads-snapshot.js", async (actual) => ({ ...(await actual<Record<string, unknown>>()), selectValuesFor: () => Promise.resolve({ folder: ["INBOX"] }) }));
-
-const { ActionsBarQuery, SEARCH_DEBOUNCE_MS, searchConditions } = await import("./actions-bar-query.js");
-const { aControllerHost } = await import("./controller-host.test-fake.js");
-const { SHU_EVENT, SHU_TAG } = await import("../consts.js");
-const { getSelectValues } = await import("../rels-cache.js");
-const { typeNotHeld, viewQuery } = await import("../view-query.js");
+/** The one email the page caches, filed in the one folder the search offers until a batch brings another. */
+const CACHED = [{ subject: "m0", predicate: "folder", object: "INBOX", namedGraph: "Email", timestamp: 1 }];
 /** A type the address names that the run doesn't hold. */
 const NOT_HELD = "Nothing";
 
@@ -64,10 +59,16 @@ const settled = () => new Promise((resolve) => setTimeout(resolve, 0));
 const recorded = (searches: HTMLElement) => searches.querySelectorAll(SHU_TAG.SEARCH_SUMMARY).length;
 
 describe("the actions bar's search mode", () => {
-	beforeEach(() => {
+	let t: TShuTestHandle;
+	beforeEach(async () => {
+		t = setupShuTest({ dispatch: declaringSteps(() => stepsShown([], {}, buildConcernCatalog(mapDefinitionsToDomains(declaredTypes)))) });
+		const cached = new QuadStore();
+		await cached.setMany(CACHED);
+		setGraphStore(cached);
 		viewQuery.set({ q: null });
 	});
 	afterEach(() => {
+		t.teardown();
 		vi.useRealTimers();
 	});
 
@@ -81,10 +82,12 @@ describe("the actions bar's search mode", () => {
 
 	it("states the types the run declares once the page has read the run's steps again, and doesn't announce a search", async () => {
 		const { host, changes } = await aQueryPage();
-		declaredTypes.push({ key: "note-domain", queryLabel: "Note", group: "declared" });
+		declaredTypes.push(persistedTypeDefinition("Note", { selector: "note-domain", declared: true }));
 		const asked = host.updatesAsked;
 		const announced = changes.length;
-		for (const told of toldOfChanges) await told();
+		const read = stepsReadAgain();
+		stepsChanged(t, 1);
+		await read;
 		expect(host.updatesAsked).toBeGreaterThan(asked);
 		expect(changes.length, "the search a reader chose is not announced again").toBe(announced);
 		// The page strip offers the types, so the search states them rather than rendering them itself.

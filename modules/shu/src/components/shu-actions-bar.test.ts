@@ -4,40 +4,34 @@
  * is not told them by the app through its place in the page. It is a pane's view, so it opens its pane for a chosen
  * step, and its scope of the active record follows its pane. What its search describes goes to the page strip.
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { Access } from "@haibun/core/lib/resources.js";
+import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
+import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
+import { provideLayout } from "../test/jsdom-layout.js";
+import { ShuActionsBar } from "./shu-actions-bar.js";
+import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../consts.js";
+import { ShuColumnPane } from "./shu-column-pane.js";
+// The app registers the ask pane, which the bar renders in Ask mode.
+import "./shu-kihan-chat.js";
+import { INITIAL_SUBJECT, SCOPE, currentSubjectState } from "../current-subject.js";
+import { pageContext, pageStatus, pageTrail } from "../signals.js";
+import { STOPPED_BY_THE_READER, conversationState, dispatchConversationEvent } from "../conversation.js";
+import { commandList } from "../slash-command.js";
+import { aType } from "../schemas.js";
+import { carryARun, persistedTypeDefinition, setupShuTest } from "../test-setup.js";
+import { CHAT_STEP, chatDispatch } from "./chat-pane.test-fake.js";
 
-// The registry answers without a server, with one type to search, and the bar doesn't have extensions to load.
-vi.mock("../rpc-registry.js", async (actual) => ({
-	...(await actual<Record<string, unknown>>()),
-	// The run offers the step an ask runs, so a chosen Ask mode renders.
-	getAvailableSteps: () =>
-		Promise.resolve([{ method: "LlmStepper-chatWithContext", stepperName: "LlmStepper", stepName: "chatWithContext", pattern: "ask {prompt}", description: "", paramDomains: {} }]),
-	getAvailableDomains: () => Promise.resolve({}),
-	buildDomainOptions: () => [{ key: "Email", queryLabel: "Email", description: "", stepperName: "", selectable: true, group: "declared" }],
-	isOffline: () => true,
-}));
-vi.mock("../quads-snapshot.js", async (actual) => ({ ...(await actual<Record<string, unknown>>()), selectValuesFor: () => Promise.resolve({}) }));
-vi.mock("../rels-cache.js", async (actual) => ({
-	...(await actual<Record<string, unknown>>()),
-	getActionBarChatExtensionTags: () => [],
-	whenSiteMetadataReady: () => Promise.resolve({ ui: {} }),
-}));
-
-const { provideLayout } = await import("../test/jsdom-layout.js");
 provideLayout();
 
-const { ShuActionsBar } = await import("./shu-actions-bar.js");
-const { SHU_ATTR, SHU_EVENT, SHU_TAG } = await import("../consts.js");
-const { ShuColumnPane } = await import("./shu-column-pane.js");
-// The app registers the ask pane, which the bar renders in Ask mode.
-await import("./shu-kihan-chat.js");
-const { INITIAL_SUBJECT, SCOPE, currentSubjectState } = await import("../current-subject.js");
-const { pageContext, pageStatus, pageTrail } = await import("../signals.js");
-const { STOPPED_BY_THE_READER, conversationState, dispatchConversationEvent } = await import("../conversation.js");
-const { commandList } = await import("../slash-command.js");
-const { aType } = await import("../schemas.js");
-const { setupShuTest } = await import("../test-setup.js");
+/** The run the bar reads: it offers the step an ask runs, so a chosen Ask mode renders, declares one type to search, and
+ *  doesn't declare an extension for the bar. */
+const AN_ASK_AND_A_TYPE = chatDispatch(
+	(step) => {
+		throw new Error(`unexpected ${step}`);
+	},
+	{ steps: [CHAT_STEP.ask], concerns: buildConcernCatalog(mapDefinitionsToDomains([persistedTypeDefinition("Email", { declared: true })])) },
+);
 
 type TBar = HTMLElement & { updateComplete: Promise<unknown>; state: { mode: string }; setState: (partial: { mode: string }) => void };
 type TPane = InstanceType<typeof ShuColumnPane>;
@@ -69,7 +63,9 @@ async function mountDockedBar(): Promise<{ pane: TPane; bar: TBar }> {
 describe("the actions bar reads the page's state", () => {
 	let teardown: () => void;
 	beforeEach(() => {
-		teardown = setupShuTest().teardown;
+		teardown = setupShuTest({ dispatch: AN_ASK_AND_A_TYPE }).teardown;
+		// The page is a record of the run, so what the bar reports doesn't go to a server.
+		carryARun();
 		document.body.innerHTML = "";
 		pageContext.set(null);
 		pageTrail.set("All");

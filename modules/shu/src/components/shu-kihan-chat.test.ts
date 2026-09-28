@@ -6,38 +6,38 @@
  * announced its seqPath, so a turn that didn't announce one left it missing. A control that appears and disappears is the
  * fault: the selector is always rendered, and its options fill in as sessions arrive.
  */
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { CHAT_STEP, chatDispatch } from "./chat-pane.test-fake.js";
+import { DrivenStream, setupShuTest, type TShuTestHandle } from "../test-setup.js";
+// The selector must be a real combobox, so define that one element rather than the whole registry.
+import "./shu-combobox.js";
+import { ShuKihanChat } from "./shu-kihan-chat.js";
+import { SHU_ATTR } from "../consts.js";
+import { CLOSED_CONVERSATION, conversationState } from "../conversation.js";
 
 const listed: Array<{ session: string; label: string; generatedAtTime: string; turns: number }> = [];
 let onStartSeqPath: number[] | null = null;
 /** What the server answers the session read with. A deployment that answers without the list is the failed-read case. */
 let sessionsAnswer: () => Record<string, unknown> = () => ({ sessions: [...listed] });
 
-// Partial: the registry's own reads are answered here, and everything else it exports stays itself, so a module that
-// reaches for one of them is not left with a rejected import.
-vi.mock("../rpc-registry.js", async (actual) => ({ ...(await actual<Record<string, unknown>>()), ...(await import("./chat-pane.test-fake.js")).rpcRegistry }));
-vi.mock("../rels-cache.js", async (actual) => ({ ...(await actual<Record<string, unknown>>()), getActionBarChatExtensionTags: () => [] }));
-vi.mock("../chat-context-harvest.js", () => ({ harvestChatViewLd: () => [] }));
-vi.mock("../hypermedia.js", async () => {
-	const { hypermedia } = await import("./chat-pane.test-fake.js");
-	return hypermedia(
-		(req) => (req.method === "listChatSessions" ? sessionsAnswer() : req.method === "showKihans" ? { vertices: [], total: 0 } : {}),
-		// A turn that streams text and completes. onStart is called only when the stream announces a seqPath.
-		(_req, onChunk, opts) => {
-			if (onStartSeqPath) opts.onStart?.(onStartSeqPath);
-			onChunk({ text: "an answer" });
-			// The turn is written server-side either way, so the session now exists.
-			listed.push({ session: "cmt-ask-0.1.2", label: "a session", generatedAtTime: new Date().toISOString(), turns: 1 });
-			return Promise.resolve();
-		},
-	);
-});
+/** A turn that streams text and completes, announcing the seqPath a case sets, where it sets one. */
+const aTurn = () =>
+	new DrivenStream(onStartSeqPath, (send) => {
+		send({ text: "an answer" });
+		// The turn is written server-side either way, so the session now exists.
+		listed.push({ session: "cmt-ask-0.1.2", label: "a session", generatedAtTime: new Date().toISOString(), turns: 1 });
+		return Promise.resolve();
+	});
 
-// The selector must be a real combobox, so define that one element rather than the whole registry.
-await import("./shu-combobox.js");
-const { ShuKihanChat } = await import("./shu-kihan-chat.js");
-const { SHU_ATTR } = await import("../consts.js");
-const { CLOSED_CONVERSATION, conversationState } = await import("../conversation.js");
+let t: TShuTestHandle;
+beforeEach(() => {
+	t = setupShuTest({
+		dispatch: chatDispatch((step) =>
+			step === CHAT_STEP.sessions ? sessionsAnswer() : step === CHAT_STEP.catalog ? { vertices: [], total: 0 } : step === CHAT_STEP.ask ? aTurn() : {},
+		),
+	});
+});
+afterEach(() => t.teardown());
 
 async function chat(): Promise<HTMLElement> {
 	document.body.innerHTML = "";

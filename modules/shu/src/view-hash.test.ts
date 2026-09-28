@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { canonicalizeArrival, hashParam, hashParams, mergeHashParams, onHashChanged, pageAddress, pushHash } from "./view-hash.js";
-import { hydrateFromDom } from "./rpc-registry.js";
+import { carryARun, carryNothing } from "./test-setup.js";
 
 describe("canonicalizeArrival", () => {
 	const base = "#?label=File&sort=dateModified&col=shu-monitor-column&active=shu-monitor-column";
@@ -46,22 +46,6 @@ describe("canonicalizeArrival", () => {
 		expect(p.get("open")).toBeNull();
 	});
 });
-
-/** Make this page a record of a run: it carries one, so it doesn't have a server behind it. */
-function carryARun(): void {
-	const carried = document.createElement("script");
-	carried.type = "application/json";
-	carried.id = "shu-hydration";
-	carried.textContent = JSON.stringify({ cache: { shape: "run-indexed-events/1", run: "r1", events: [], extents: {} } });
-	document.head.appendChild(carried);
-	hydrateFromDom();
-}
-
-/** Make it a served page again. */
-function carryNothing(): void {
-	document.head.innerHTML = "";
-	hydrateFromDom();
-}
 
 describe("pageAddress", () => {
 	it("is the page address without its fragment when a server serves it, and empty when the page carries its own run", () => {

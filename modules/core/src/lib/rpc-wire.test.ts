@@ -6,7 +6,7 @@
 import { describe, expect, it } from "vitest";
 import { buildRpcCall, provesNothing, type TProveRequest } from "./rpc-wire.js";
 
-const BASE = "http://site.test:8123/muskeg/";
+const BASE = "http://site.test:8123/instance/";
 const METHOD = "Stepper-act";
 
 describe("a call to a host's rpc", () => {
@@ -14,7 +14,7 @@ describe("a call to a host's rpc", () => {
 		const proven: Parameters<TProveRequest>[0][] = [];
 		const prove: TProveRequest = (request) => (proven.push(request), Promise.resolve({ ...request.headers, proof: "signed" }));
 		const call = await buildRpcCall(BASE, { id: "call-1", method: METHOD, params: { what: 1 }, seqPath: [0, 1] }, prove);
-		expect(call.url).toBe(`http://site.test:8123/muskeg/rpc/${METHOD}`);
+		expect(call.url).toBe(`${BASE}rpc/${METHOD}`);
 		expect(JSON.parse(call.init.body)).toEqual({ jsonrpc: "2.0", id: "call-1", method: METHOD, params: { what: 1 }, seqPath: [0, 1] });
 		expect(proven, "the proof covers the request as it is sent, its host included").toEqual([
 			{ url: call.url, method: "POST", headers: { "content-type": "application/json", host: "site.test:8123" }, body: call.init.body },

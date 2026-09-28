@@ -1,7 +1,7 @@
 /**
  * Per-request streaming side-channel for step-dispatch.
  *
- * Some step actions (LlmStepper.chatWithContext among them) want to emit
+ * Some step actions (a consumer's chat turn among them) want to emit
  * progress chunks while still going through `dispatchStep`, so that the
  * step's lifecycle events (start, end, error) stay bound to the caller's
  * seqPath, not delivered out-of-band.

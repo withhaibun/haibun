@@ -1,62 +1,56 @@
+// @vitest-environment jsdom
 /**
  * The open conversation follows the run: a turn any page asks in it reaches every page reading it, when the run reports
  * that turn's step starting and when it reports it ending.
  */
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import { question, readBack as aReadBack, rpcRegistry, hypermedia } from "./components/chat-pane.test-fake.js";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { CHAT_STEP, chatDispatch, question, readBack as aReadBack } from "./components/chat-pane.test-fake.js";
+import { carryARun, setupShuTest, type TShuTestHandle } from "./test-setup.js";
+import { ASK_STEP, conversationState, dispatchConversationEvent, followRunningTurns, gainedSince, openConversation } from "./conversation.js";
 import type { TSessionTurn } from "./schemas.js";
 
-/** The batches the run reports, raised by the case rather than by a stream. */
-const stream: { onBatch?: () => void; filter?: (event: unknown) => boolean } = {};
-vi.mock("./event-stream.js", async (actual) => ({
-	...(await actual<Record<string, unknown>>()),
-	hasEventStream: () => true,
-	subscribeBatchedEvents: (opts: { onBatch: () => void; filter?: (event: unknown) => boolean }) => {
-		stream.onBatch = opts.onBatch;
-		stream.filter = opts.filter;
-		return () => undefined;
-	},
-}));
-vi.mock("./rpc-registry.js", async (actual) => ({ ...(await actual<Record<string, unknown>>()), ...rpcRegistry, isOffline: () => true }));
+/** The turns the store reads back for the session, and how many times the page read it. */
 const read: { turns: TSessionTurn[]; reads: number } = { turns: [], reads: 0 };
-vi.mock("./hypermedia.js", () =>
-	hypermedia(
-		() => {
-			read.reads += 1;
-			return { turns: read.turns };
-		},
-		() => Promise.resolve(),
-	),
-);
-
-const { conversationState, dispatchConversationEvent, followRunningTurns, gainedSince, openConversation } = await import("./conversation.js");
 
 const SESSION = question("0.1.1");
 /** What the run reports for a turn's step, which is what this page hears of a turn another page asked. */
-const reportOf = (stage: "start" | "end") => ({ kind: "lifecycle", type: "step", stage, actionName: "chatWithContext" });
+const reportOf = (stage: "start" | "end") => ({ kind: "lifecycle", type: "step", stage, actionName: ASK_STEP });
+/** The stream delivers what it was given as a batch in the next frame, and what the batch starts settles before the task after it. */
+const batchSettled = async () => {
+	await new Promise((resolve) => requestAnimationFrame(resolve));
+	await new Promise((resolve) => setTimeout(resolve, 0));
+};
 
 describe("the open conversation follows the run's turns", () => {
+	let t: TShuTestHandle;
 	beforeEach(() => {
+		t = setupShuTest({
+			dispatch: chatDispatch((step) => {
+				if (step !== CHAT_STEP.session) throw new Error(`unexpected ${step}`);
+				read.reads += 1;
+				return { turns: read.turns };
+			}),
+		});
+		carryARun();
 		read.reads = 0;
 		read.turns = [aReadBack("0.1.1")];
 		dispatchConversationEvent({ type: "close" });
 		dispatchConversationEvent({ type: "open", session: SESSION });
 		dispatchConversationEvent({ type: "read", session: SESSION, turns: read.turns });
 	});
+	afterEach(() => t.teardown());
 
 	it("reads the session again when the run reports a turn starting, so a turn another page asks reaches this one", async () => {
 		followRunningTurns();
-		expect(stream.filter?.(reportOf("start")), "a turn's step starting is reported").toBe(true);
 		read.turns = [aReadBack("0.1.1"), aReadBack("0.1.2", SESSION)];
-		stream.onBatch?.();
+		t.emit(reportOf("start"));
 		await vi.waitFor(() => expect(conversationState.get().turns).toHaveLength(2));
 	});
 
 	it("reads it again when the run reports a turn ending", async () => {
 		followRunningTurns();
-		expect(stream.filter?.(reportOf("end"))).toBe(true);
 		read.turns = [aReadBack("0.1.1"), aReadBack("0.1.2", SESSION)];
-		stream.onBatch?.();
+		t.emit(reportOf("end"));
 		await vi.waitFor(() => expect(conversationState.get().turns).toHaveLength(2));
 	});
 
@@ -68,10 +62,11 @@ describe("the open conversation follows the run's turns", () => {
 		expect(gainedSince("cmt-ask-0.9.9", 5), "and what another page asked since is what it gained").toBe(3);
 	});
 
-	it("doesn't read a session where a conversation isn't open, so a report never opens one", () => {
+	it("doesn't read a session where a conversation isn't open, so a report never opens one", async () => {
 		dispatchConversationEvent({ type: "close" });
 		followRunningTurns();
-		stream.onBatch?.();
+		t.emit(reportOf("start"));
+		await batchSettled();
 		expect(read.reads).toBe(0);
 	});
 });

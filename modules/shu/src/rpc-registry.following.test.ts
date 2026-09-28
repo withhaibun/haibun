@@ -1,16 +1,13 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { STEPS_CHANGED } from "@haibun/core/schema/protocol.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { findStep, getAvailableSteps, onStepsChanged } from "./rpc-registry.js";
-import { setupShuTest, stepsShown, type TShuTestHandle } from "./test-setup.js";
+import { setupShuTest, stepsChanged, stepsShown, type TShuTestHandle } from "./test-setup.js";
 import { setDeviceStore, MemoryDeviceStore } from "./client-cache/index.js";
 import { endPage } from "./page-pinned.js";
 
 const aStep = (stepName: string) => ({ method: `RunSteps-${stepName}`, stepperName: "RunSteps", stepName, pattern: stepName });
 const methodsOf = async () => (await getAvailableSteps()).map((step) => step.method);
-const stepsChanged = (handle: TShuTestHandle, n: number) =>
-	handle.emit({ id: `${STEPS_CHANGED}-${n}`, timestamp: Date.now(), kind: "control", level: "debug", signal: STEPS_CHANGED });
 /** Resolves with the methods the page holds once it holds the method given. */
 const heldOnceItHolds = (method: string) =>
 	new Promise<string[]>((resolve) => {

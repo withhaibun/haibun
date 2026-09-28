@@ -1,51 +1,54 @@
+// @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-
-const follow = vi.fn((_request: unknown, _label?: string) => Promise.resolve({}));
-let offline = false;
-let conduitInstalled = true;
-vi.mock("./hypermedia.js", () => ({
-	conduit: () => ({ follow }),
-	hasConduit: () => conduitInstalled,
-	reads: (method: string, params?: Record<string, unknown>) => ({ method, params, asks: "read" }),
-	acts: (method: string, params?: Record<string, unknown>) => ({ method, params, asks: "act" }),
-}));
-vi.mock("./rpc-registry.js", () => ({ isOffline: () => offline }));
-
+import type { TLink } from "./hypermedia.js";
 import { CLIENT_RING, clientBlipsRecorded, clientBlipsSent, flushClientBlips, recordClientBlip } from "./client-blips.js";
 import { endPage } from "./page-pinned.js";
+import { carryARun, setupShuTest, type TShuTestHandle } from "./test-setup.js";
 
-type TSentCall = { params: { batch: { blips: { name: string; value?: number }[]; recorded: number } } };
-const sentBatch = () => {
-	const last = follow.mock.calls.at(-1);
+type TBatch = { blips: { name: string; value?: number }[]; recorded: number };
+/** Each batch the page handed the run, by the link it followed. */
+const sent: TLink[] = [];
+/** What the run answers a batch with, which a case makes a failure. */
+let delivered: () => unknown = () => ({});
+const sentBatch = (): TBatch => {
+	const last = sent.at(-1);
 	if (!last) throw new Error("nothing was sent");
-	return (last[0] as unknown as TSentCall).params.batch;
+	return last.params?.batch as TBatch;
 };
 
 describe("recording in the browser: hold it, hand it over in batches", () => {
-	// A page records from the moment it loads, so each case is a page of its own: the previous page ends first.
+	// A page records from the moment it loads, so each case is a page of its own, which ends with the case.
+	let t: TShuTestHandle;
 	beforeEach(() => {
 		vi.useFakeTimers();
-		follow.mockClear();
-		offline = false;
-		conduitInstalled = true;
-		endPage();
+		sent.length = 0;
+		delivered = () => ({});
+		t = setupShuTest({
+			dispatch: (_method, _params, link) => {
+				sent.push(link);
+				return delivered();
+			},
+		});
 	});
-	afterEach(() => vi.useRealTimers());
+	afterEach(() => {
+		t.teardown();
+		vi.useRealTimers();
+	});
 
 	it("does not send a request per occurrence, which is what makes a per-frame recording sustainable", async () => {
 		for (let i = 0; i < 60; i++) recordClientBlip("haibun.shu.view.thumb_resize", i, { view: "shu-virtual-column" });
-		expect(follow).not.toHaveBeenCalled();
+		expect(sent).toEqual([]);
 		await vi.runAllTimersAsync();
-		expect(follow).toHaveBeenCalledTimes(1);
+		expect(sent).toHaveLength(1);
 		expect(sentBatch().blips).toHaveLength(60);
 	});
 
 	it("hands a batch over as a read: the run doesn't retain a blip, so it doesn't record the batch either", async () => {
 		recordClientBlip("haibun.shu.view.scroll", 1, { view: "a" });
 		await vi.runAllTimersAsync();
-		const [link] = follow.mock.calls.at(-1) as unknown as [{ method: string; asks: string }];
-		expect(link.method).toBe("MonitorStepper-recordClientBlips");
-		expect(link.asks, "an act is recorded as a step whose events reach the page; a read is not").toBe("read");
+		const link = sent.at(-1);
+		expect(link?.method).toBe("MonitorStepper-recordClientBlips");
+		expect(link?.asks, "an act is recorded as a step whose events reach the page; a read is not").toBe("read");
 	});
 
 	it("hands them over in the order they happened", async () => {
@@ -57,7 +60,7 @@ describe("recording in the browser: hold it, hand it over in batches", () => {
 
 	it("doesn't send a batch when a blip isn't recorded, so a quiet page doesn't make a call", async () => {
 		await vi.runAllTimersAsync();
-		expect(follow).not.toHaveBeenCalled();
+		expect(sent).toEqual([]);
 	});
 
 	it("keeps the most recent occurrences when the buffer fills, and says how many it saw", async () => {
@@ -77,28 +80,31 @@ describe("recording in the browser: hold it, hand it over in batches", () => {
 		await vi.runAllTimersAsync();
 		recordClientBlip("haibun.shu.view.scroll", 2, { view: "a" });
 		await vi.runAllTimersAsync();
-		expect(follow).toHaveBeenCalledTimes(2);
+		expect(sent).toHaveLength(2);
 		expect(sentBatch().blips.map((b) => b.value)).toEqual([2]);
 	});
 
 	it("holds without sending when the page doesn't reach a run", async () => {
-		offline = true;
+		carryARun();
 		recordClientBlip("haibun.shu.view.scroll", 1, { view: "a" });
 		await vi.runAllTimersAsync();
-		expect(follow).not.toHaveBeenCalled();
+		expect(sent).toEqual([]);
 		expect(clientBlipsRecorded()).toBe(1);
 	});
 
 	it("holds without sending on a page mounted without a conduit, such as a bundle under test or a still", async () => {
-		conduitInstalled = false;
+		// The page ends, and the one after it doesn't install a conduit.
+		endPage();
 		recordClientBlip("haibun.shu.view.scroll", 1, { view: "a" });
 		await vi.runAllTimersAsync();
-		expect(follow).not.toHaveBeenCalled();
+		expect(sent).toEqual([]);
 		expect(clientBlipsRecorded()).toBe(1);
 	});
 
 	it("keeps the page working when a batch cannot be delivered", async () => {
-		follow.mockImplementationOnce(() => Promise.reject(new Error("no route")));
+		delivered = () => {
+			throw new Error("no route");
+		};
 		recordClientBlip("haibun.shu.view.scroll", 1, { view: "a" });
 		await expect(flushClientBlips()).resolves.toBeUndefined();
 	});

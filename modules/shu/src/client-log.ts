@@ -16,7 +16,7 @@ import { acts, conduit, isServerUnreachable } from "./hypermedia.js";
 
 /** The monitor's step a page reports a diagnostic through. */
 const CLIENT_LOG = { stepper: "MonitorStepper", step: "logClient" } as const;
-const CLIENT_LOG_METHOD = stepMethodName(CLIENT_LOG.stepper, CLIENT_LOG.step);
+export const CLIENT_LOG_METHOD = stepMethodName(CLIENT_LOG.stepper, CLIENT_LOG.step);
 /** What reporting a diagnostic to the run requires, which a page is delegated with what else it does. */
 export const CLIENT_LOG_ACTION = requiredAction(CLIENT_LOG.stepper, CLIENT_LOG.step, {});
 export type TClientLogLevel = "debug" | "info" | "warn" | "error";

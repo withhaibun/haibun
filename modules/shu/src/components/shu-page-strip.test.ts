@@ -5,26 +5,20 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { Access } from "@haibun/core/lib/resources.js";
+import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
+import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
+import { provideLayout } from "../test/jsdom-layout.js";
+import { ShuPageStrip } from "./shu-page-strip.js";
+import { ShuColumnPane } from "./shu-column-pane.js";
+import "./shu-breadcrumb.js";
+import "./shu-combobox.js";
+import { SHU_EVENT, SHU_TAG } from "../consts.js";
+import { SHU_TEST_IDS } from "../test-ids.js";
+import { activePane, dockedPane, pageContext, pageStatus, pageTrail, pageTypes, stripPanes } from "../signals.js";
+import { setConcernCatalog } from "../rels-cache.js";
+import { carryARun, setupShuTest } from "../test-setup.js";
 
-// The registry answers without a server, and the strip doesn't have extensions to load.
-vi.mock("../rpc-registry.js", async (actual) => ({ ...(await actual<Record<string, unknown>>()), isOffline: () => true }));
-vi.mock("../rels-cache.js", async (actual) => ({
-	...(await actual<Record<string, unknown>>()),
-	getUiExtensionTags: () => [],
-	whenSiteMetadataReady: () => Promise.resolve({ ui: {} }),
-}));
-
-const { provideLayout } = await import("../test/jsdom-layout.js");
 provideLayout();
-
-const { ShuPageStrip } = await import("./shu-page-strip.js");
-const { ShuColumnPane } = await import("./shu-column-pane.js");
-await import("./shu-breadcrumb.js");
-await import("./shu-combobox.js");
-const { SHU_EVENT, SHU_TAG } = await import("../consts.js");
-const { SHU_TEST_IDS } = await import("../test-ids.js");
-const { activePane, dockedPane, pageContext, pageStatus, pageTrail, pageTypes, stripPanes } = await import("../signals.js");
-const { setupShuTest } = await import("../test-setup.js");
 
 type TStrip = InstanceType<typeof ShuPageStrip>;
 type TPane = InstanceType<typeof ShuColumnPane>;
@@ -69,6 +63,9 @@ describe("the page strip", () => {
 	let teardown: () => void;
 	beforeEach(() => {
 		teardown = setupShuTest().teardown;
+		// The page is a record of the run, and the run doesn't declare an extension for the strip.
+		carryARun();
+		setConcernCatalog(buildConcernCatalog(mapDefinitionsToDomains([])));
 		document.body.innerHTML = "";
 		pageContext.set(null);
 		pageStatus.set("");

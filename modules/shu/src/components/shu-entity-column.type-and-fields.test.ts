@@ -1,33 +1,18 @@
 // @vitest-environment jsdom
 // A record's view names its type as a link to the type's own view, which holds the description, and lists the record's fields.
 import { describe, it, expect, beforeEach } from "vitest";
-import { z } from "zod";
 import { ShuEntityColumn, foldedTargets } from "./shu-entity-column.js";
 import { setConcernCatalog } from "../rels-cache.js";
 import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
-import { toRegisteredDomain } from "@haibun/core/lib/domains.js";
-import { fromJsonText } from "@haibun/core/lib/json-text.js";
+import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { refHref } from "./ref-navigation.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
+import { persistedTypeDefinition } from "../test-setup.js";
 
 /** The href of a link to a type's view, as the column's markup serializes it. */
 const typeHref = (domain: string) => `href="${refHref(REF_DENOTES.type, { domain })}"`;
-
-const typeDomain = (persistedAs: string, selector: string, description: string) => {
-	const schema = z.object({ id: z.string(), name: z.string(), note: z.string(), generatedAtTime: z.string() });
-	return toRegisteredDomain({
-		selectors: [selector],
-		schema: fromJsonText(schema),
-		description,
-		topology: {
-			persistedAs,
-			id: "id",
-			properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel, note: LinkRelations.CONTEXT.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel },
-		},
-	});
-};
 
 const render = async (type: string): Promise<string> => {
 	const el = document.createElement("shu-entity-column") as ShuEntityColumn;
@@ -40,7 +25,11 @@ const render = async (type: string): Promise<string> => {
 describe("shu-entity-column type and fields", () => {
 	beforeEach(() => {
 		document.body.innerHTML = "";
-		setConcernCatalog(buildConcernCatalog({ widget: typeDomain("Widget", "widget", "A widget.") }));
+		setConcernCatalog(
+			buildConcernCatalog(
+				mapDefinitionsToDomains([persistedTypeDefinition("Widget", { description: "A widget.", properties: { name: LinkRelations.NAME.rel, note: LinkRelations.CONTEXT.rel } })]),
+			),
+		);
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});
 	});
 

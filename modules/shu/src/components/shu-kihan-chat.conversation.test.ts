@@ -8,19 +8,39 @@
  * closes. A session is read back from the store, a new conversation leaves it, and the view hash addresses it. A turn of
  * the conversation activates the actions bar's scope with each comment it records.
  */
-import { beforeEach, describe, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import type { TChatMessage } from "./shu-chat-message.js";
 import { anIndividual } from "../schemas.js";
-import { answer, question, readBack, type TDriven as Driven } from "./chat-pane.test-fake.js";
+import { CHAT_STEP, answer, chatDispatch, question, readBack, type TDriven as Driven } from "./chat-pane.test-fake.js";
+import { DrivenStream, STREAM_ABORTED, setupShuTest, type TShuTestHandle } from "../test-setup.js";
+import "./shu-combobox.js";
+import { ShuActivityHistory } from "./shu-activity-history.js";
+import { ShuKihanChat, NEW_CONVERSATION } from "./shu-kihan-chat.js";
+import {
+	CLOSED_CONVERSATION,
+	CONVERSATION_OPENING,
+	STOPPED_BY_THE_READER,
+	TURN_IN_FLIGHT,
+	askDraft,
+	conversationState,
+	dispatchConversationEvent,
+	openConversation,
+} from "../conversation.js";
+import { CONVERSATION_PARAM, SHU_ATTR, SHU_TAG } from "../consts.js";
+import { SHU_TEST_IDS } from "../test-ids.js";
+import { forgetElementPrefs } from "../element-prefs.js";
+import { hashParam, mergeHashParams } from "../view-hash.js";
+import { INITIAL_SUBJECT, SCOPE, activeEntry, currentSubject, currentSubjectState, dispatchSubjectEvent, entryOf, scopeEntry } from "../current-subject.js";
+import { EMBEDDED_PAGE_TYPE, embeddedPageView } from "../embedder.js";
+import { activePane } from "../signals.js";
 
-// Partial: the registry's own reads are answered here, and everything else it exports stays itself, so a module that
-// reaches for one of them is not left with a rejected import.
-vi.mock("../rpc-registry.js", async (actual) => ({ ...(await actual<Record<string, unknown>>()), ...(await import("./chat-pane.test-fake.js")).rpcRegistry }));
-vi.mock("../rels-cache.js", async (actual) => ({ ...(await actual<Record<string, unknown>>()), getActionBarChatExtensionTags: () => [] }));
-/** What the pane's view data harvest returns, so a case reads whether a turn sent it. */
-const VIEW_DATA = [{ "@id": "view:the-active-pane" }];
-let viewData: unknown[] = VIEW_DATA;
-vi.mock("../chat-context-harvest.js", () => ({ harvestChatViewLd: () => viewData }));
+/** The pane the reader is on, the view it holds, and what a turn is sent of the page: that view's statement, then the
+ *  columns open in the workspace. */
+const ON_SCREEN_PANE = "the-active-pane";
+const VIEW = { "@id": `view:${ON_SCREEN_PANE}` };
+const VIEW_DATA = [VIEW, expect.objectContaining({ "@id": "view:panes" })];
+/** What the view the reader is on states, or null where the reader is on the bar alone, so a case reads whether a turn sent it. */
+let onScreen: Record<string, unknown> | null = VIEW;
 /** What the turn states about itself before it writes anything. */
 const stated: string[] = [];
 /** What the stream fails with after the run recorded the question, where it does; unset leaves it open. */
@@ -64,66 +84,48 @@ const RESTORED_RECORD = anIndividual("Email", "restored@bakery.test");
 let sessionTurns: unknown[] = [];
 const sessionReads: Array<(failure?: string) => void> = [];
 
-vi.mock("../hypermedia.js", async () => {
-	const { hypermedia } = await import("./chat-pane.test-fake.js");
-	return hypermedia(
-		(req) => {
-			// The registry as the server holds it: a model states who reads its context, which the pane shows on the default.
-			if (req.method === "showKihans") return catalog(req.params ?? {});
-			if (req.method === "keepImage") {
-				keptImages.push(String(req.params?.image));
-				return KEPT_IMAGE;
-			}
-			if (req.method === "listChatSessions") return { sessions: [{ session: RESTORED, label: "an earlier conversation", generatedAtTime: "2026-05-17T05:00:00.000Z", turns: 1 }] };
-			// A read held open, answered when a case says the store got back to the page.
-			if (req.method === "loadChatSession")
-				return new Promise((resolve, reject) => {
-					sessionReads.push((failure) => (failure ? reject(new Error(failure)) : resolve({ turns: sessionTurns })));
-				});
-			return {};
-		},
-		async (req, onChunk, opts) => {
-			// An aborted stream rejects, as the fetch that carries it does, at whatever point the run is.
-			const aborted = new Promise<never>((_, reject) => {
-				const fail = () => reject(new Error("the stream was aborted"));
-				if (opts.signal?.aborted) fail();
-				else opts.signal?.addEventListener("abort", fail, { once: true });
-			});
-			aborted.catch(() => undefined);
-			stream.signal = opts.signal;
-			const turn = (turnSeqPaths.shift() ?? [0, 1, 2]).join(".");
-			opts.onStart?.(turn.split(".").map(Number));
-			sent.push({ ...JSON.parse(String(req.params?.context ?? "{}")), target: String(req.params?.target), accessLevel: String(req.params?.accessLevel) });
-			if (refusedBeforeRecording) throw new Error(refusedBeforeRecording);
-			await Promise.race([recording, aborted]);
-			onChunk({ recorded: { persistedAs: "Comment", id: question(turn) } });
-			for (const status of stated) onChunk({ status });
-			if (streamFails) throw new Error(streamFails);
-			// A case finishes the stream with the reply text.
-			const finished = new Promise<void>((resolve) => {
-				stream.piece = (text) => onChunk({ text });
-				stream.finish = () => {
-					onChunk({ recorded: { persistedAs: "Comment", id: answer(turn) } });
-					onChunk({ text: "an answer" });
-					resolve();
-				};
-			});
-			return Promise.race([finished, aborted]);
-		},
-	);
-});
+/** A turn the run streams: it records the question once `recording` lets it, states what `stated` holds, and answers
+ *  when a case finishes it, each record named by the turn. */
+function aTurn(params: Record<string, unknown>): DrivenStream {
+	const seqPath = turnSeqPaths.shift() ?? [0, 1, 2];
+	const turn = seqPath.join(".");
+	sent.push({ ...JSON.parse(String(params.context ?? "{}")), target: String(params.target), accessLevel: String(params.accessLevel) });
+	return new DrivenStream(seqPath, async (send, signal) => {
+		stream.signal = signal;
+		if (refusedBeforeRecording) return send({ error: refusedBeforeRecording });
+		await recording;
+		send({ recorded: { persistedAs: "Comment", id: question(turn) } });
+		for (const status of stated) send({ status });
+		if (streamFails) return send({ error: streamFails });
+		// A case finishes the stream with the reply text.
+		await new Promise<void>((resolve) => {
+			stream.piece = (text) => send({ text });
+			stream.finish = () => {
+				send({ recorded: { persistedAs: "Comment", id: answer(turn) } });
+				send({ text: "an answer" });
+				resolve();
+			};
+		});
+	});
+}
 
-await import("./shu-combobox.js");
-const { ShuActivityHistory } = await import("./shu-activity-history.js");
-const { ShuKihanChat, NEW_CONVERSATION } = await import("./shu-kihan-chat.js");
-const { CLOSED_CONVERSATION, CONVERSATION_OPENING, TURN_IN_FLIGHT, askDraft, conversationState, dispatchConversationEvent, openConversation } = await import("../conversation.js");
-const { CONVERSATION_PARAM } = await import("../consts.js");
-const { SHU_ATTR, SHU_TAG } = await import("../consts.js");
-const { SHU_TEST_IDS } = await import("../test-ids.js");
-const { forgetElementPrefs } = await import("../element-prefs.js");
-const { hashParam, mergeHashParams } = await import("../view-hash.js");
-const { INITIAL_SUBJECT, SCOPE, activeEntry, currentSubject, currentSubjectState, dispatchSubjectEvent, entryOf, scopeEntry } = await import("../current-subject.js");
-const { EMBEDDED_PAGE_TYPE, embeddedPageView } = await import("../embedder.js");
+/** What the run answers each step the pane calls. */
+function respond(step: string, params: Record<string, unknown>): unknown {
+	// The registry as the server holds it: a model states who reads its context, which the pane shows on the default.
+	if (step === CHAT_STEP.catalog) return catalog(params);
+	if (step === CHAT_STEP.keepImage) {
+		keptImages.push(String(params.image));
+		return KEPT_IMAGE;
+	}
+	if (step === CHAT_STEP.sessions) return { sessions: [{ session: RESTORED, label: "an earlier conversation", generatedAtTime: "2026-05-17T05:00:00.000Z", turns: 1 }] };
+	// A read held open, answered when a case says the store got back to the page.
+	if (step === CHAT_STEP.session)
+		return new Promise((resolve, reject) => {
+			sessionReads.push((failure) => (failure ? reject(new Error(failure)) : resolve({ turns: sessionTurns })));
+		});
+	if (step === CHAT_STEP.ask) return aTurn(params);
+	return {};
+}
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 const EMAIL = entryOf([anIndividual("Email", "read-me@bakery.test")], "private");
@@ -131,7 +133,9 @@ const OTHER = entryOf([anIndividual("Email", "other@bakery.test")], "private");
 
 // The machines are module state shared by every case. Each case starts without a turn in flight, a conversation or an
 // active record, because a turn left running refuses the next case's question.
+let t: TShuTestHandle;
 beforeEach(async () => {
+	t = setupShuTest({ dispatch: chatDispatch(respond) });
 	dispatchConversationEvent({ type: "stop", reason: "the case ended" });
 	await settle();
 	conversationState.set(CLOSED_CONVERSATION);
@@ -140,7 +144,7 @@ beforeEach(async () => {
 	streamFails = undefined;
 	refusedBeforeRecording = undefined;
 	recording = undefined;
-	viewData = VIEW_DATA;
+	onScreen = VIEW;
 	catalog = () => A_CATALOG;
 	stream.signal = undefined;
 	stream.piece = undefined;
@@ -150,9 +154,22 @@ beforeEach(async () => {
 	mergeHashParams({ [CONVERSATION_PARAM]: "", access: "" });
 	document.body.innerHTML = "";
 });
+afterEach(() => t.teardown());
+
+/** The page's column strip as the view harvest reads it: the pane the reader is on, holding a view that states what it shows. */
+function aViewOnScreen(): void {
+	const strip = document.createElement(SHU_TAG.COLUMN_STRIP);
+	const pane = document.createElement(SHU_TAG.COLUMN_PANE);
+	pane.dataset.columnKey = ON_SCREEN_PANE;
+	pane.append(Object.assign(document.createElement("div"), { summarizeForKihan: () => onScreen }));
+	strip.append(pane);
+	document.body.append(strip);
+	activePane.set(ON_SCREEN_PANE);
+}
 
 /** The bar's history and its ask pane, as the bar renders them. */
 async function aPage(): Promise<{ pane: Driven; history: HTMLElement }> {
+	if (onScreen) aViewOnScreen();
 	const history = new ShuActivityHistory();
 	document.body.appendChild(history);
 	const pane = await aPane();
@@ -288,7 +305,7 @@ describe("a question not asked", () => {
 
 	it("because its view data cannot be stated, keeps the question and doesn't leave a turn in flight", async () => {
 		dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: EMAIL });
-		viewData = [{ "@id": "view:counts", count: 1n }];
+		onScreen = { "@id": "view:counts", count: 1n };
 		const { pane } = await aPage();
 		await submit(pane, "what does this say");
 		expect(sent).toHaveLength(0);
@@ -327,7 +344,7 @@ describe("a turn that ends before it answered", () => {
 		inside<HTMLButtonElement>(pane.shadowRoot, ".stop-btn").click();
 		await settle();
 		expect(stream.signal?.aborted).toBe(true);
-		expect(answers(history)[0].message.error).toBe("you stopped it: the stream was aborted");
+		expect(answers(history)[0].message.error).toBe(`${STOPPED_BY_THE_READER}: ${STREAM_ABORTED}`);
 		expect(conversationState.get().asked?.status).toBe("stopped");
 	});
 });
@@ -477,7 +494,7 @@ describe("the ask and the active record", () => {
 	});
 
 	it("sends the page an embedding page posted as the turn's view, with only the bar open", async () => {
-		viewData = [];
+		onScreen = null;
 		const page = { "@id": "https://example.com/bakery", "@type": EMBEDDED_PAGE_TYPE, name: "The bakery" } as const;
 		embeddedPageView.set(page);
 		const { pane } = await aPage();

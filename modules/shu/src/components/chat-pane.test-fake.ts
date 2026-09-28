@@ -1,30 +1,48 @@
 /**
  * The page a pane test drives the Ask pane on.
  *
- * Two test files drive the pane, and each needs the same page around it: a step registry answering without a server,
- * a page without extension tags or a view to harvest, and a conduit reached the way the pane and the conversation reach one. Only the
- * answers differ between cases, so only the answers are written per case, and a change to how the page reaches the
- * server is one edit rather than two.
+ * Several test files drive the pane and the conversation, and each needs the same run behind it: one that offers the
+ * steps the pane calls, lists them when the page reads its steps, and takes the page's reports. Only the answers differ
+ * between cases, so only the answers are written per case, and a change to what the pane calls is one edit rather than
+ * one per file.
  */
 
+import type { TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
+import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
+import { stepMethodName } from "@haibun/core/lib/step-registry.js";
+import { CLIENT_LOG_METHOD } from "../client-log.js";
+import { ASK_STEP, KEEP_IMAGE_STEP } from "../conversation.js";
 import type { TSessionTurn } from "../schemas.js";
+import { stepsShown, type TDispatch } from "../test-setup.js";
 
-export type TReq = { method: string; params?: Record<string, unknown> };
-/** What a read is answered with, which a case may answer with a promise of its own to hold the read open. */
-export type TFollow = (req: TReq) => unknown;
-export type TStream = (req: TReq, onChunk: (chunk: unknown) => void, opts: { onStart?: (seqPath: number[]) => void; signal?: AbortSignal }) => Promise<void>;
+/** The consumer's stepper that offers the steps the pane calls. */
+export const CHAT_STEPPER = "AskingStepper";
+/** The steps the pane and the conversation call, by name. */
+export const CHAT_STEP = { ask: ASK_STEP, keepImage: KEEP_IMAGE_STEP, sessions: "listChatSessions", session: "loadChatSession", catalog: "showKihans" } as const;
 
-/** The step registry as a page without a server holds it: every step is named by itself. */
-export const rpcRegistry = { getAvailableSteps: () => Promise.resolve(), findStep: (n: string) => n, requireStep: (n: string) => n };
-
-/** The hypermedia module, answering each read and each stream the way the case states. */
-export const hypermedia = (follow: TFollow, followStream: TStream) => ({
-	reads: (method: string, params?: Record<string, unknown>) => ({ method, params, asks: "read" }),
-	acts: (method: string, params?: Record<string, unknown>) => ({ method, params, asks: "act" }),
-	isOffline: () => false,
-	isServerUnreachable: () => false,
-	conduit: () => ({ follow: (req: TReq) => Promise.resolve(follow(req)), followStream }),
-});
+/**
+ * A dispatch answering the pane as a run that offers the steps named: the show steps step lists them with the types the
+ * catalog declares, a call to one of them is answered by `respond` under the step's name, the page's reports to the run are
+ * taken as the monitor takes them, and any other call throws.
+ */
+export function chatDispatch(
+	respond: (step: string, params: Record<string, unknown>) => unknown,
+	{ steps = Object.values(CHAT_STEP), concerns }: { steps?: string[]; concerns?: TConcernCatalog } = {},
+): TDispatch {
+	const byMethod = new Map(steps.map((step) => [stepMethodName(CHAT_STEPPER, step), step]));
+	const listed = stepsShown(
+		[...byMethod].map(([method, stepName]) => ({ method, stepperName: CHAT_STEPPER, stepName, pattern: stepName })),
+		{},
+		concerns,
+	);
+	return (method, params) => {
+		if (method === SHOW_STEPS_METHOD) return listed;
+		if (method === CLIENT_LOG_METHOD) return {};
+		const step = byMethod.get(method);
+		if (!step) throw new Error(`unexpected ${method}`);
+		return respond(step, params);
+	};
+}
 
 /** The question record of the turn a case names, which names the turn, and the answer record of that turn. */
 export const question = (turn: string): string => `cmt-ask-${turn}`;

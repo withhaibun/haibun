@@ -1,14 +1,17 @@
 // @vitest-environment jsdom
 import "fake-indexeddb/auto";
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { EMBED_MESSAGE, EMBEDDED_PAGE_TYPE, askEmbedderToDelegate, embeddedPageView, givenDelegation, receiveFromEmbedder } from "./embedder.js";
+import { openPageAuthority, pageMay } from "./page-key.js";
+import { reportingTo, setupShuTest, type TReportedToRun, type TShuTestHandle } from "./test-setup.js";
 
-const reported: Array<{ message: string; attributes?: Record<string, unknown> }> = [];
-vi.mock("./client-log.js", () => ({
-	reportToRun: (_level: string, _source: string, message: string, attributes?: Record<string, unknown>) => reported.push({ message, attributes }),
-}));
-
-const { EMBED_MESSAGE, EMBEDDED_PAGE_TYPE, askEmbedderToDelegate, embeddedPageView, givenDelegation, receiveFromEmbedder } = await import("./embedder.js");
-const { forgetPageAuthority, openPageAuthority, pageMay } = await import("./page-key.js");
+const reported: TReportedToRun[] = [];
+let t: TShuTestHandle;
+beforeEach(() => {
+	reported.length = 0;
+	t = setupShuTest({ dispatch: reportingTo(reported) });
+});
+afterEach(() => t.teardown());
 
 const EMBEDDER = "chrome-extension://abcdefghijklmnop";
 const PAGE = {
@@ -35,10 +38,7 @@ const aFrame = (parent: Window) => Object.assign(new EventTarget(), { parent }) 
 const post = (frame: Window, data: unknown, origin: string, source: Window) => frame.dispatchEvent(new MessageEvent("message", { data, origin, source }));
 
 describe("what the page embedding shu posts", () => {
-	beforeEach(() => {
-		reported.length = 0;
-		embeddedPageView.set(null);
-	});
+	beforeEach(() => embeddedPageView.set(null));
 
 	it("holds the page the embedding window posts from the origin the deployment names, and clears it when the reader leaves it", () => {
 		const frame = aFrame(window);
@@ -55,7 +55,9 @@ describe("what the page embedding shu posts", () => {
 		const stop = receiveFromEmbedder(EMBEDDER, frame);
 		post(frame, { kind: "page-view", view: PAGE }, "https://elsewhere.example", window);
 		expect(embeddedPageView.get()).toBeNull();
-		expect(reported).toEqual([{ message: "refused a message from an embedding page at another origin", attributes: { origin: "https://elsewhere.example" } }]);
+		expect(reported.map(({ message, attributes }) => ({ message, attributes }))).toEqual([
+			{ message: "refused a message from an embedding page at another origin", attributes: { origin: "https://elsewhere.example" } },
+		]);
 		stop();
 	});
 
@@ -75,11 +77,7 @@ describe("what the page embedding shu posts", () => {
 });
 
 describe("the delegation the page embedding shu gives its key", () => {
-	beforeEach(() => {
-		reported.length = 0;
-		givenDelegation.set(null);
-	});
-	afterEach(() => forgetPageAuthority());
+	beforeEach(() => givenDelegation.set(null));
 
 	it("is asked for by posting the key to the embedding page, which shu holds once it answers, in place of the one given before", async () => {
 		const { controller } = await openPageAuthority(undefined, []);
