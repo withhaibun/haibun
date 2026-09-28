@@ -48,7 +48,7 @@ describe("where a moment of a run sits on a rail", () => {
 		}
 	});
 
-	it("answers the first record for a run of one instant, since there is nowhere else to be", () => {
+	it("answers the first record for a run of one instant, since the run doesn't have another place to be", () => {
 		const span: TRunSpan = { first: 5, last: 5 };
 		const focus: TRunFocus = { at: 5, from: 5, to: 5 };
 		expect(railAt(5, span, focus)).toBe(0);

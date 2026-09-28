@@ -1,6 +1,6 @@
 /**
  * A waypoint saved during a run: registered as a step the run offers at once, whose activity is the lines it was saved
- * with, and refused where a line resolves to no step or the outcome is already registered.
+ * with, and refused where a line doesn't resolve to a step or the outcome is already registered.
  */
 import { describe, it, expect } from "vitest";
 import { failWithDefaults, passWithDefaults } from "../lib/test/lib.js";
@@ -28,7 +28,10 @@ class SavedWaypointProbe extends AStepper {
 				const registry = runRegistry(world);
 				const tool = registry.get(stepMethodName(ActivitiesStepper.name, OUTCOME));
 				seen.offered = tool !== undefined;
-				if (tool) seen.ran = (await dispatchStep({ registry, world, steppers: world.runtime.steppers as AStepper[] }, buildFeatureStepForTransport(tool, {}, [...featureStep.seqPath, 1]))).ok;
+				if (tool)
+					seen.ran = (
+						await dispatchStep({ registry, world, steppers: world.runtime.steppers as AStepper[] }, buildFeatureStepForTransport(tool, {}, [...featureStep.seqPath, 1]))
+					).ok;
 				return actionOK();
 			},
 		},
@@ -43,7 +46,7 @@ describe("a waypoint saved during a run", () => {
 		expect(seen.ran).toBe(true);
 	});
 
-	it("is refused where a line resolves to no step, and where the outcome is already registered", async () => {
+	it("is refused where a line doesn't resolve to a step, and where the outcome is already registered", async () => {
 		const unresolved = await failWithDefaults(`save waypoint "Knock never" doing ["knock on nothing at all"]\n`, STEPPERS);
 		expect(JSON.stringify(unresolved.featureResults?.[0]?.stepResults)).toContain("each line of a saved waypoint resolves to one step");
 		const twice = await failWithDefaults(`${SAVE}\n${SAVE}\n`, STEPPERS);

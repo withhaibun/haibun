@@ -204,7 +204,7 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 		presenter.selectNode(this.addressedNode());
 	}
 
-	/** The node the address names: its goal, else its waypoint; null for neither. */
+	/** The node the address names: its goal, else its waypoint; null where the address doesn't name either. */
 	private addressedNode(): string | null {
 		const goal = ViewHash.hashParam(AFFORDANCE_PARAM.GOAL);
 		const waypoint = ViewHash.hashParam(AFFORDANCE_PARAM.WAYPOINT);

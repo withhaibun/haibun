@@ -62,7 +62,7 @@ describe("workspace-discovery", () => {
 			expect(result?.backgroundsPath).toBe(path.join(tmpDir, "project/backgrounds"));
 		});
 
-		it("returns null when no features/ parent found", () => {
+		it("returns null when a features/ parent isn't found", () => {
 			createFiles(["other/path/test.feature"]);
 			const featurePath = path.join(tmpDir, "other/path/test.feature");
 

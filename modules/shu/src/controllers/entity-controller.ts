@@ -65,7 +65,7 @@ export class EntityController implements ReactiveController {
 	}
 
 	/** Stop tracking the opened individual. A host that shows something else (arbitrary products rather than a resolved
-	 *  individual) takes no further updates for it, otherwise a live change to the individual it last opened would
+	 *  individual) doesn't take further updates for it, otherwise a live change to the individual it last opened would
 	 *  replace what the host is showing. */
 	release(): void {
 		this.label = "";

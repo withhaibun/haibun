@@ -11,8 +11,8 @@ export async function callStep<T>(step: string, params: Record<string, unknown> 
 	try {
 		await getAvailableSteps();
 		const method = requireStep(step);
-		// A page carrying a run holds what its views showed, which is the answer here: the step took no arguments, so
-		// what it produced then is what it produces now, and there is no server to ask.
+		// A page carrying a run holds what its views showed, which is the answer here: the step didn't take arguments, so
+		// what it produced then is what it produces now, and the page doesn't have a server to ask.
 		const carried = Object.keys(params).length === 0 ? carriedProducts(method) : undefined;
 		if (carried !== undefined) return { ok: true, value: carried as T };
 		const value = await conduit().follow<T>(linkTo(method, params), why ?? `pane-fetch: ${step}`);
@@ -23,7 +23,7 @@ export async function callStep<T>(step: string, params: Record<string, unknown> 
 }
 
 /** A bounded slice of a type's individuals, at the caller's app access level: the query a type view and the class
- *  browser both list from, through the one graph query, so with no server it lists what the page caches. Callers own
+ *  browser both list from, through the one graph query, so without a server it lists what the page caches. Callers own
  *  their loading/error UI. */
 export async function fetchIndividuals(label: string, why: string): Promise<FetchOutcome<{ vertices: Record<string, unknown>[] }>> {
 	try {

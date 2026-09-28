@@ -216,7 +216,7 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 	// APG annotation pass, tag every schema edge with the goal-resolver paths it
 	// participates in. The renderer reads `edge.paths` to style active edges
 	// (traversed by some goal-path) distinctly from potential edges (a runnable
-	// step with no current goal-path through it). One edge per step in the
+	// step without a current goal-path through it). One edge per step in the
 	// topology; metadata carries the path semantics.
 	const edgesByStep = new Map<string, TGraphEdge[]>();
 	for (const edge of edges) {

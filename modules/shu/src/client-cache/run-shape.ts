@@ -6,7 +6,7 @@
  *
  * A division is a fixed stretch of time rather than a share of the run's reach, which is what makes a held count still
  * true after the run grows: were divisions a share of the reach, every division would cover a different stretch after
- * every count and nothing could be held. The grid is as long as the run needs; when the run outgrows it the division
+ * every count and a count couldn't be held. The grid is as long as the run needs; when the run outgrows it the division
  * doubles and the counts either side of each new boundary are added together, so growth takes an addition rather than
  * a read. A mark carries the moment its division begins, so a rail places it by that moment whatever scale the rail
  * draws at, and the grid the counting uses is independent of the scale the marks are drawn on.
@@ -61,7 +61,7 @@ export function runShape(graph: TRunGraph, { divisions = RUN_DIVISIONS, minLevel
 			if (first === undefined) {
 				// The run's first record, read once: where a run begins does not change while it runs.
 				const reach = await runExtent(graph, minLevel);
-				if (reach.last === 0) return; // nothing recorded at this level, so there is nothing to count
+				if (reach.last === 0) return; // the run hasn't recorded at this level, so it doesn't have a record to count
 				first = reach.first;
 			}
 			if (to < first) return;

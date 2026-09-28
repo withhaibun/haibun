@@ -1,9 +1,9 @@
 /**
- * What an editor paints a feature line as: the classification alone, with no protocol around it.
+ * What an editor paints a feature line as: the classification alone, without a protocol around it.
  *
  * A resolved step paints as a call with its arguments picked out, recursively where an argument is itself a statement.
  * An unresolved line in a `.feature` paints as prose when it begins with a capital, which is what a feature's prose
- * looks like; anything else paints as nothing, since an unresolved lowercase line is an error the diagnostics report
+ * looks like; any other line isn't painted, since an unresolved lowercase line is an error the diagnostics report
  * rather than something to colour.
  */
 import type { TStepAction, TFeatureStep } from "@haibun/core/lib/astepper.js";

@@ -3,8 +3,8 @@
  *
  * A run is read three ways: the records of one type by time, how many fall in each division of a span, and whether the
  * graph carries a type at all. Every reading of a run states which graph it reads, so a page reads through its site and
- * its own copy, a report reads the copy it carries, and a test reads a store it made. Nothing has to be installed for a
- * run to be read.
+ * its own copy, a report reads the copy it carries, and a test reads a store it made. A reader doesn't install a
+ * store before reading a run.
  */
 import type { IQuadStore, TDensityQuery, TDensityResult, TGraphQuery, TGraphQueryResult } from "@haibun/core/lib/quad-types.js";
 import { queryQuadStore } from "@haibun/core/lib/quad-store.js";
@@ -15,7 +15,7 @@ export type TRunGraph = {
 	query(query: TGraphQuery): Promise<TGraphQueryResult>;
 	/** How many records of one type fall in each division of a span, by how each turned out. */
 	density(query: TDensityQuery): Promise<TDensityResult>;
-	/** Whether the graph carries this type. Asking for one it does not is asking a question with no answer. */
+	/** Whether the graph carries this type. Asking for one it does not carry is asking a question that doesn't have an answer. */
 	declares(label: string): boolean;
 };
 
@@ -33,7 +33,7 @@ export function runGraphOf(store: IQuadStore, declares: (label: string) => boole
  * run rather than whatever the store holds.
  *
  * A store holds the records of every run written to it, and a record states the run it belongs to, so this is a filter
- * rather than a second store. With no run named the graph is read as it is, which is what a page reads by before it
+ * rather than a second store. Where a run isn't named the graph is read as it is, which is what a page reads by before it
  * has read anything and learned which run it is looking at.
  */
 export function ofExecution(graph: TRunGraph, execution: string | undefined): TRunGraph {

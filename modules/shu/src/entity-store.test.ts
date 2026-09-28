@@ -4,7 +4,7 @@
  * `getIndividualWithEdges` and `annotations` steps, and emitted events drive the live-quad path.
  *
  * The `offline` provenance (a copy served from the persisted browser store when the fetch cannot reach the server) is
- * not reachable here: jsdom ships no IndexedDB, so the store reads as empty and resolution lands on `error` instead.
+ * not reachable here: jsdom doesn't ship IndexedDB, so the store reads as empty and resolution lands on `error` instead.
  * That branch is exercised by the e2e suites against a real browser, as with the rest of the IndexedDB surface.
  */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
@@ -76,7 +76,7 @@ describe("entity-store resolution", () => {
 		expect(getEntityView("Email", "e1").provenance).toBe("cache");
 	});
 
-	it("reports the server's error when the individual cannot be fetched and no stored copy answers", async () => {
+	it("reports the server's error when the individual cannot be fetched and a stored copy doesn't answer", async () => {
 		const { dispatch } = stubDispatch({
 			entity: () => {
 				throw new Error("Issuer not found: did:example:pookie");
@@ -125,7 +125,7 @@ describe("entity-store annotations", () => {
 		expect(getEntityView("Email", "e1").annotations.map((a) => a.body)).toEqual(["written elsewhere"]);
 	});
 
-	it("keeps the annotations it holds when a re-resolve cannot reach the server, rather than reporting none", async () => {
+	it("keeps the annotations it holds when a re-resolve cannot reach the server, rather than reporting an empty list", async () => {
 		let round = 0;
 		const { dispatch } = stubDispatch({
 			annotations: () => {
@@ -141,7 +141,7 @@ describe("entity-store annotations", () => {
 		expect(getEntityView("Email", "e1").annotations.map((a) => a.body)).toEqual(["first note"]);
 	});
 
-	it("does nothing for an individual that has not resolved: there is nothing to anchor against", async () => {
+	it("doesn't read annotations for an individual that has not resolved: the store doesn't hold a record to anchor against", async () => {
 		const { dispatch, calls } = stubDispatch();
 		handle = setupShuTest({ dispatch });
 		await refreshAnnotations("Email", "never-opened");
@@ -154,7 +154,7 @@ describe("entity-store freshness", () => {
 	afterEach(() => handle.teardown());
 	beforeEach(endPage);
 
-	it("applies a live property change in place, and notifies: no refetch", async () => {
+	it("applies a live property change in place, and notifies without a refetch", async () => {
 		const { dispatch, calls } = stubDispatch();
 		handle = setupShuTest({ dispatch });
 		await openEntity("Email", "e1", "private");

@@ -8,15 +8,15 @@
  * and live SSE quads (reading body previews from its own in-memory body quads). Same merge, same
  * relabel: the only differences are the injected providers, never the logic.
  *
- * No persistence lives here: the backing store (the site's graph store server-side, IndexedDB client-side) is the
+ * This module doesn't persist quads: the backing store (the site's graph store server-side, IndexedDB client-side) is the
  * `IQuadStore` behind the model. Consumer-specific identity (e.g. the `@id` IRI prefix) is also
- * never hardcoded here: it is injected, so core names no downstream.
+ * never hardcoded here: it is injected, so core doesn't name a downstream.
  */
 import type { TCluster, TClusteredQuads, TQuad } from "./quad-types.js";
 import { displayLabelForQuads, type TDeclaredTitle, type TTitledBy } from "./hypermedia.js";
 import { BODY_LABEL } from "./resources.js";
 
-// A scalar PROPERTY (no objectType) keys by subject+predicate, so a later value for the same fact REPLACES in place:
+// A scalar PROPERTY (without objectType) keys by subject+predicate, so a later value for the same fact REPLACES in place:
 // an updated `subject`, a rescheduled gantt `startedAtTime`, an `accessLevel` change. An EDGE quad (objectType set) keys
 // by object too: one subject can legitimately reference MANY objects under the same predicate: the federation case where
 // a shared node is `wasAttributedTo` several principals (issuer/holder/verifier) across a union, so every distinct edge
@@ -28,7 +28,7 @@ const quadKey = (q: TQuad): string =>
 /** Rels for a type, used by the shared display-label rule. Server: the registry's fields; client: getRels. */
 type RelsProvider = (type: string) => Record<string, string> | undefined;
 
-/** The property or edge a type declares titles it (topology.displayLabel), or undefined where it declares none. Server:
+/** The property or edge a type declares titles it (topology.displayLabel), or undefined where it doesn't declare one. Server:
  *  the registry's titledBy; client: getTitledBy from the rels cache. */
 type TitledByProvider = (type: string) => TTitledBy | undefined;
 
@@ -89,7 +89,7 @@ export class QuadGraphModel {
 	/**
 	 * Merge quads, bounded by the per-type limit: a quad for a present subject updates in place; a brand-new
 	 * subject is admitted only while its type is under its limit (or pinned), otherwise counted as omitted and its
-	 * quad dropped. The dedup index is maintained per quad (no rescan). Returns the subjects touched.
+	 * quad dropped. The dedup index is maintained per quad (without a rescan). Returns the subjects touched.
 	 */
 	merge(quads: TQuad[], opts: MergeOptions = {}): Set<string> {
 		const touched = new Set<string>();
@@ -161,7 +161,7 @@ export class QuadGraphModel {
 	 *  when that target wasn't itself touched this merge.
 	 *
 	 *  A subject a seeded snapshot already titled keeps that title: the seed reads the record itself, its body included,
-	 *  while a merge sees only the quads in hand: a request narrowed to some types carries no body quads, and titling from
+	 *  while a merge sees only the quads in hand: a request narrowed to some types doesn't carry body quads, and titling from
 	 *  what remains would replace a record's own words with a weak pointer like its seqPath. Only an untitled subject, or
 	 *  one carrying the bare-id fallback, is titled here. */
 	private relabel(touched: Set<string>, bodyContentFor?: BodyContentProvider): void {
@@ -198,7 +198,7 @@ export class QuadGraphModel {
 	}
 
 	/**
-	 * The type's declared title (topology.displayLabel) resolved for this node, or undefined when it declares none: its
+	 * The type's declared title (topology.displayLabel) resolved for this node, or undefined when it doesn't declare one: its
 	 * property, read from the node's quads by composeDisplayLabel, or the title of the record its edge points at, from
 	 * the same quads, as the server's batchLinkedLabels resolves it. A record titled by another titled by a third takes
 	 * the third's title; a record met again ends the chain, so a cycle can't spin.

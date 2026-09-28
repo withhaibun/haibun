@@ -3,7 +3,7 @@
  * what mark, what colour/label, where it sits) and the paints (3D, SVG) that draw it in their own medium. One
  * vocabulary so the two renders cannot drift, so a new type is a new presenter (one method) and a new backend is a new
  * paint (one translator). Pure + fail-fast validated: a malformed mark/role throws at this boundary rather than letting
- * a paint render garbage. No THREE, no DOM, unit-tested headlessly.
+ * a paint render garbage. It doesn't use THREE or the DOM, and is unit-tested headlessly.
  */
 
 /** The visual marks a node can be drawn as. EVERY paint must handle each kind it's given, or throw, never skip silently. */

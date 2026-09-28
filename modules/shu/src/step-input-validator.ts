@@ -3,7 +3,7 @@
  * the server exposes through `findStep().inputSchema`. Single source of
  * truth is the server's Zod schema (run through `z.toJSONSchema()`); the
  * browser receives the same schema in the step descriptor and validates
- * locally before submit. No duplicate logic: the browser just walks
+ * locally before submit. The logic isn't duplicated: the browser just walks
  * the same shape the server already emits.
  *
  * Covers the JSON-Schema features step inputs use: `type`,

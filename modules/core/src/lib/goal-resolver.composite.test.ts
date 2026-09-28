@@ -43,7 +43,7 @@ function makeDomains(): Record<string, TRegisteredDomain> {
 
 function graphIssuingCredential(): TDomainChainGraph {
 	// One step that produces verifiable-credential from vc.
-	// vc has no producer: it's a composite leaf the resolver should decompose.
+	// vc doesn't have a producer: it's a composite leaf the resolver should decompose.
 	return {
 		domains: [
 			{ key: "vc", hasTopology: true },
@@ -123,7 +123,7 @@ describe("resolveGoal, composite decomposition", () => {
 		expect(result.finding === GOAL_FINDING.MICHI || result.finding === GOAL_FINDING.UNREACHABLE).toBe(true);
 	});
 
-	it("emits exactly one michi for a step whose multiple inputs share the same domain (no per-edge duplication)", () => {
+	it("emits exactly one michi for a step whose multiple inputs share the same domain (without per-edge duplication)", () => {
 		// `verify credential {id: string} as {verifierId: string}`: both inputs land at
 		// the products domain via two graph edges. The resolver must enumerate the step
 		// once, not once per edge, and the resulting michi must carry both bindings.

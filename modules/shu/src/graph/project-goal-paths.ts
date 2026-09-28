@@ -28,10 +28,10 @@
  *     array unions every participating path id; the renderer draws one arrow
  *     and the consumer's `highlightedPath` option dims the others.
  *
- * Primitive argument fields (no `fieldDomain`, or one identical to the field
+ * Primitive argument fields (without a `fieldDomain`, or with one identical to the field
  * name) render as `argument`-kind nodes so the path's entry points stand out
  * from intermediate composite slots. A typed-composite argument whose domain
- * has no producer chain still emits a separate `argument`-kind node carrying
+ * doesn't have a producer chain still emits a separate `argument`-kind node carrying
  * the domain name: the field slot itself stays a structural `field` node
  * because the typed value, not the slot, is supplied as an argument.
  *
@@ -135,7 +135,7 @@ function emitField(field: TFieldBinding, parentDomain: string, parentPath: strin
 	const fieldPath = parentPath ? `${parentPath}.${field.fieldName}` : field.fieldName;
 	const fieldId = fieldNodeId(parentDomain, fieldPath);
 	const fieldLabel = field.fieldDomain ? `${field.fieldName} : ${field.fieldDomain}` : field.fieldName;
-	// Primitive arguments (no typed domain) render as yellow `argument` nodes
+	// Primitive arguments (without a typed domain) render as yellow `argument` nodes
 	// so the chain's entry points are visible. Typed slots and intermediate
 	// composite fields stay purple: the incoming edge from the producer step
 	// or typed-argument node tells the reader where the value comes from.
@@ -183,7 +183,7 @@ type TGoalPathsInput = {
 	/**
 	 * Fact ids that already satisfy the goal (only meaningful when
 	 * `finding === "satisfied"`). Rendered as fact nodes pointing at the
-	 * goal so the diagram shows *what* satisfies it even when there are no
+	 * goal so the diagram shows *what* satisfies it even when the goal doesn't have
 	 * run-again paths. Without this, a satisfied goal with empty `michi`
 	 * would project to a single isolated goal node.
 	 */
@@ -250,7 +250,7 @@ export function projectGoalPaths(input: TGoalPathsInput): TGraph {
 			edges.add({ from: sourceId, to: lastStepId, kind: EDGE_KIND.ready, paths: [pid], label: sourceDomain });
 		}
 
-		// A bindings-less michi (e.g. a step that takes no graph-typed input)
+		// A bindings-less michi (e.g. a step that doesn't take a graph-typed input)
 		// still needs a visible connection from its first step to the goal.
 		edges.add({ from: lastStepId, to: goalId, kind: EDGE_KIND.ready, paths: [pid], label: input.goal });
 	});

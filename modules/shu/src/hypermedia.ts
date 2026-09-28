@@ -3,7 +3,7 @@
  * types, link helpers, the `Conduit` interface, both
  * implementations, and the module accessor. Components and infrastructure
  * import from this one path; tests use `setupShuTest` to install a
- * `LiveConduit`. Nothing else talks to `/rpc/*`, and nothing else owns
+ * `LiveConduit`. Other code doesn't call `/rpc/*` or own
  * the active conduit reference.
  *
  * A Resource (linked-data sense: an Email node, a Comment, any consumer
@@ -34,7 +34,7 @@ import { SHOW_STEPS_ACTION, SHOW_STEPS_METHOD } from "@haibun/core/lib/step-disc
 /**
  * What a call asks of a run: to be answered, or to act.
  *
- * A run answers a read and records nothing of it, since reading a run is not an act of the run. A run asked to act
+ * A run answers a read and doesn't record it, since reading a run is not an act of the run. A run asked to act
  * records what it did. A link states which it asks for, and the run holds that statement to the step's own
  * declaration, refusing to answer as a read a step that does not declare itself one. Stated on the link rather than
  * inferred at the far end, a page cannot read through a step whose answer the run would record, and cannot forget to
@@ -44,7 +44,7 @@ type TAsks = "read" | "act";
 
 export type TLink = { method: string; params?: Record<string, unknown>; summary?: string; asks: TAsks };
 
-/** A link to read a run through. The run answers it and records nothing of the reading. */
+/** A link to read a run through. The run answers it and doesn't record the reading. */
 export const reads = (method: string, params?: Record<string, unknown>, summary?: string): TLink => ({ method, params, summary, asks: "read" });
 
 /** A link that asks a run to act. What it does is the run's own activity, and is recorded as such. */
@@ -99,7 +99,7 @@ export interface Conduit {
 		opts: { why: string; signal?: AbortSignal; onStart?: (seqPath: number[]) => void },
 	): Promise<{ seqPath: number[] }>;
 
-	/** Group a set of follows into one tracked action. Every `follow` made via the `g` passed to `fn` is a child of one parent seqPath; siblings of each other in the trace. Concurrent `group` invocations are independent because each receives its own `g`: there is no module-level scope to share accidentally. */
+	/** Group a set of follows into one tracked action. Every `follow` made via the `g` passed to `fn` is a child of one parent seqPath; siblings of each other in the trace. Concurrent `group` invocations are independent because each receives its own `g`: the conduit doesn't keep a module-level scope that could be shared accidentally. */
 	group<T>(why: string, fn: (g: Conduit) => Promise<T>): Promise<T>;
 }
 
@@ -126,7 +126,7 @@ async function answerOf(method: string, res: Response): Promise<unknown> {
 /**
  * How a call from this page to `method` is proven. A call to a step is signed with the key this reader controls, over
  * the request, under a delegation that allows the action the step requires. The delegation read proves the key alone,
- * since it is how the page learns what else it holds. A call the page holds no delegation for carries nothing, which
+ * since it is how the page learns what else it holds. A call for which the page doesn't hold a delegation doesn't carry one, which
  * the deployment may allow without a delegation.
  */
 function provingFor(method: string): TProveRequest {
@@ -141,8 +141,8 @@ function provingFor(method: string): TProveRequest {
 	};
 }
 
-/** `Conduit` implementation against a running haibun service. Sole owner of the SPA's RPC fetch path, wire envelope (jsonrpc + seqPath), `action.begin` allocation, NDJSON streaming reader, and error formatting all live here. Action scope is explicit via the `scope` constructor argument: a top-level instance has none and allocates one per `follow`; a `group`-issued child has a bound scope and appends sub-sequences to it. Concurrent groups can't accidentally share scope because nothing is module-level. */
-/** The server could not be reached: the request never got a response, so nothing is known about what it asked. A
+/** `Conduit` implementation against a running haibun service. Sole owner of the SPA's RPC fetch path, wire envelope (jsonrpc + seqPath), `action.begin` allocation, NDJSON streaming reader, and error formatting all live here. Action scope is explicit via the `scope` constructor argument: a top-level instance doesn't have one and allocates one per `follow`; a `group`-issued child has a bound scope and appends sub-sequences to it. Concurrent groups can't accidentally share scope because the scope isn't module-level. */
+/** The server could not be reached: the request never got a response, so the outcome of what it asked is unknown. A
  *  deployment state a view reports (the reader is offline, the server is stopped), not a fault to fail on; every other
  *  failure, including an error the server itself returns, stays a fault. */
 export class ServerUnreachable extends Error {
@@ -168,7 +168,7 @@ export class LiveConduit implements Conduit {
 	) {}
 
 	async follow<T = TRepresentation>(link: TLink, why: string): Promise<T> {
-		// Reading a run does not begin an action of it: a read carries no place in the run's own sequence, and asking for
+		// Reading a run does not begin an action of it: a read doesn't carry a place in the run's own sequence, and asking for
 		// one is a call of its own, made per read, by every page following the run. Acting does begin one, since what the
 		// run then does belongs in the sequence at that place.
 		const seqPath = link.asks === "read" ? undefined : await this.allocateSeqPath(why);
@@ -209,17 +209,17 @@ export class LiveConduit implements Conduit {
 
 	// The one wire write: envelope, headers (signed where the step requires authority), POST. Every request above rides it.
 	private async post(method: string, envelope: Omit<TRpcEnvelope, "id">, signal?: AbortSignal): Promise<Response> {
-		// What is signed is the address the request is made to: a proof over a relative path proves nothing about where
+		// What is signed is the address the request is made to: a proof over a relative path doesn't prove where
 		// it was sent, and the boundary checks the absolute one it received.
 		const base = new URL(`${this.basePath}/`, location.origin).href;
 		// A request the server accepts without responding to is indistinguishable from an unreachable server, so a
 		// request the page awaits carries a timeout. A caller that supplied a signal governs its own request, and a
-		// stream stays open for as long as the run writes to it, so neither is one this timeout applies to.
+		// stream stays open for as long as the run writes to it, so this timeout doesn't apply to either.
 		const awaited = signal === undefined && envelope.stream !== true;
-		// Within the retry interval of a timed-out read, no further read is issued: the previous timeout is the result,
+		// Within the retry interval of a timed-out read, a further read isn't issued: the previous timeout is the result,
 		// since a page with several views open would otherwise run each read to the timeout separately. An act is issued
 		// whatever a read did, because a reader asked for it: a question typed into the page is not answered by a read
-		// that timed out a moment ago. The timeout is allocated after this, so a request that is not issued allocates no
+		// that timed out a moment ago. The timeout is allocated after this, so a request that is not issued doesn't allocate a
 		// timer.
 		if (awaited && envelope.asks !== "act" && isUnreachable()) throw new ServerUnreachable(base, new Error("a read of this server timed out within the last interval"));
 		const call = await buildRpcCall(base, { id: nextRpcId(), ...envelope }, provingFor(method));
@@ -232,8 +232,8 @@ export class LiveConduit implements Conduit {
 			return res;
 		} catch (err) {
 			if (signal?.aborted) throw err; // the caller stopped this request; the server's reachability is not in question
-			// Only a timeout withholds later requests. A request the network refuses fails immediately, so the next read
-			// does nothing by issuing one, and a server that recovers is detected on that read.
+			// Only a timeout withholds later requests. A request the network refuses fails immediately, so issuing the next read
+			// doesn't delay the page, and a server that recovers is detected on that read.
 			if (bounded?.aborted) responded().unreachableUntil = Date.now() + UNREACHABLE_RETRY_AFTER_MS;
 			throw new ServerUnreachable(call.url, err);
 		}
@@ -249,7 +249,7 @@ export class LiveConduit implements Conduit {
 // ─── Accessor ────────────────────────────────────────────────────────────────
 
 /** When the server last responded to this page, whatever it answered. A reader looking at what the page holds can tell
- *  whether it is current; a page that has never reached a server has nothing here. Held by the page, since a request
+ *  whether it is current; a page that has never reached a server doesn't have a value here. Held by the page, since a request
  *  from any bundle is this page reaching the server. */
 const RESPONDED_KEY = "__SHU_SERVER_RESPONDED__";
 const responded = (): { at: number | undefined; unreachableUntil: number } => pagePinned(RESPONDED_KEY, () => ({ at: undefined, unreachableUntil: 0 }));
@@ -289,7 +289,7 @@ export function conduit(): Conduit {
 	return active;
 }
 
-/** Whether boot has installed a Conduit. A page mounted without one (a bundle under test, a still) has no run for its
+/** Whether boot has installed a Conduit. A page mounted without one (a bundle under test, a still) doesn't have a run for its
  *  batches, and a channel that checks first never throws. */
 export function hasConduit(): boolean {
 	return installedConduit().conduit !== undefined;

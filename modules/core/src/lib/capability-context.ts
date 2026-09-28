@@ -61,7 +61,7 @@ export function runAsking<T>(askId: string | undefined, within: () => Promise<T>
 	return askStore.run(askId, within);
 }
 
-/** The ask this step is answering, or undefined when nothing asked for it. */
+/** The ask this step is answering, or undefined when a caller didn't ask for it. */
 export function askedIn(): string | undefined {
 	return askStore.getStore();
 }
@@ -79,13 +79,13 @@ export function runActingAs<T>(principal: string | undefined, within: () => Prom
 	return actingStore.run(principal, within);
 }
 
-/** Who proved themselves at the boundary this call came through, or undefined where nothing did. */
+/** Who proved themselves at the boundary this call came through, or undefined where a caller didn't. */
 export function actingAs(): string | undefined {
 	return actingStore.getStore();
 }
 
 /** Who an act of the authority is done for: the root, where the call holds every action, as the run's own features and
- *  its owner do; else the key the caller proved, which acts only within what it was delegated; else no one. */
+ *  its owner do; else the key the caller proved, which acts only within what it was delegated; else undefined. */
 export function actingFor(): TActingFor | undefined {
 	if (capabilityAllows(authorizedWith(), EVERY_ACTION)) return { root: true };
 	const controller = actingAs();
@@ -132,7 +132,7 @@ export function runReadingAt<T>(ceiling: AccessLevel | undefined, within: () => 
 	return readCeilingStore.run(narrowerCeiling(readCeilingStore.getStore(), ceiling), within);
 }
 
-/** The ceiling in force, or undefined where nothing bounded the caller (a feature line in its own run). */
+/** The ceiling in force, or undefined where a ceiling didn't bound the caller (a feature line in its own run). */
 export function readingAt(): AccessLevel | undefined {
 	return readCeilingStore.getStore();
 }

@@ -1,6 +1,6 @@
 /**
  * The site's graph presenter, which a view embeds to draw a graph of its own: the component the site declares as
- * presenting "graph" (`ui.presents`), so an embedding view names no particular one. Mounted with `data-external`, it
+ * presenting "graph" (`ui.presents`), so an embedding view doesn't name a particular one. Mounted with `data-external`, it
  * draws only what its host gives it, the quads of the host's graph and the node the host selects, and keeps its
  * settings under the host's scope rather than the main graph's.
  */
@@ -16,7 +16,7 @@ export type TPresenterNodeClick = { nodeId: string };
 /** What a host asks of the presenter it embeds. */
 export type TGraphPresenter = HTMLElement & {
 	setQuads(quads: TQuad[], clusters?: TCluster[]): void;
-	/** The node the host is on, which the graph marks as active; null for none. */
+	/** The node the host is on, which the graph marks as active; null where the host isn't on a node. */
 	selectNode(id: string | null): void;
 	/** Light these nodes and dim the rest of the graph; null ends the preview. */
 	previewNodes(ids: string[] | null): void;
@@ -24,7 +24,7 @@ export type TGraphPresenter = HTMLElement & {
 	summarizeForKihan(): TLinkedData | null;
 };
 
-/** The component the site declares as its graph, or undefined where a deployment declares none. */
+/** The component the site declares as its graph, or undefined where a deployment doesn't declare one. */
 export function graphPresenterTag(): string | undefined {
 	const component = getUiPresenting("graph")?.ui.component;
 	return typeof component === "string" ? component : undefined;
@@ -38,7 +38,7 @@ export function presenterIn(host: HTMLElement, slot: string): TGraphPresenter | 
 /**
  * Mount the site's graph presenter as a light-DOM child of `host`, shown where the host's template places
  * `<slot name=${slot}>`: its scene finds its camera through the document, which a shadow root hides. Its settings are
- * kept under `scope`. Resolves undefined where the site declares no presenter, or where the slot already holds one.
+ * kept under `scope`. Resolves undefined where the site doesn't declare a presenter, or where the slot already holds one.
  */
 export async function mountGraphPresenter(host: HTMLElement, slot: string, scope: string): Promise<TGraphPresenter | undefined> {
 	const tag = graphPresenterTag();

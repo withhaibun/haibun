@@ -2,9 +2,9 @@
 /**
  * Rendering a body inline blocks the thread, markdown, sanitizing, and anchoring all run synchronously, and lit paints
  * only once they return. A large body therefore renders behind a "preparing" indicator painted a frame earlier, in place
- * of the blank view a reader would otherwise sit in front of; a small body renders inline with no indicator to flash.
+ * of the blank view a reader would otherwise sit in front of; a small body renders inline without an indicator to flash.
  *
- * jsdom does no layout, so this covers the lifecycle (what is shown, what is deferred, what is cancelled), not the
+ * jsdom doesn't do layout, so this covers the lifecycle (what is shown, what is deferred, what is cancelled), not the
  * placement of highlights or cards: those need a real browser and are covered by the e2e suites.
  */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
@@ -38,7 +38,7 @@ describe("shu-annotated-body preparing indicator", () => {
 		el = undefined;
 	});
 
-	it("renders a small body inline at once, with no indicator to flash", async () => {
+	it("renders a small body inline at once, without an indicator to flash", async () => {
 		el = mount("Anyone up for hiking this weekend?");
 		await el.updateComplete;
 		expect(preparing(el)).toBe(false);

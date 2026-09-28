@@ -79,14 +79,14 @@ describe("extractSeqPathPrefix", () => {
 });
 
 describe("the mode a step ran under", () => {
-	// A speculative step's failure is expected and a prose step runs nothing, so a reader looking for what went
+	// A speculative step's failure is expected and a prose step doesn't run an action, so a reader looking for what went
 	// wrong wants the authoritative ones. That is a distinction they can draw only if the mode is on the record, and
 	// only offered as a choice beside the type if it is declared as something the type is grouped by.
 	it("is offered as a sub-filter, which is what grouped-as declares", () => {
 		expect(seqPathDomainDefinition.topology?.properties?.[SEQ_PATH_FIELD.mode]).toBe(LinkRelations.CONTEXT.rel);
 	});
 
-	it("accepts every mode a run can be, and nothing else", () => {
+	it("accepts every mode a run can be, and doesn't accept another", () => {
 		for (const mode of EXECUTION_MODES) {
 			expect(SeqPathSchema.safeParse({ id: "0.1", stepText: "a step", actionStatus: "passed", generatedAtTime: "now", mode }).success, mode).toBe(true);
 		}
@@ -114,8 +114,8 @@ describe("what names a record of a run", () => {
 			expect(parseRecordName(formatRecordName(name))).toEqual(name);
 	});
 
-	it("names no record where the id is not one, rather than reading it as something else", () => {
-		expect(parseRecordName("0.1.2"), "a step path on its own names no execution").toBeUndefined();
+	it("doesn't name a record where the id is not one, rather than reading it as something else", () => {
+		expect(parseRecordName("0.1.2"), "a step path on its own doesn't name an execution").toBeUndefined();
 		expect(parseRecordName("log.1700000000000")).toBeUndefined();
 		expect(parseRecordName("")).toBeUndefined();
 	});

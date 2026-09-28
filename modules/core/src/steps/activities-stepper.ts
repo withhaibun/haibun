@@ -306,7 +306,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 						this.emitEnsureEnd(featureStep, outcomeKey, false, `goal ${metadata.resolvesDomain} not asserted after activity`);
 						return actionNotOK(`ensure: waypoint "${outcomeKey}", activity ran but goal "${metadata.resolvesDomain}" was not asserted as a fact.`);
 					} else {
-						// No imperative activity body. Try running the resolver's plan as a
+						// The waypoint doesn't have an imperative activity body. Try running the resolver's plan as a
 						// fallback (with the limitations on parameter binding noted in the
 						// resolver: this works for parameterless producers).
 						const planOutcome = await this.runDeclarativeEnsure(metadata.resolvesDomain, featureStep);
@@ -349,7 +349,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	/** Contribute the registered waypoints to the affordances snapshot (the ProvidesWaypoints capability).
 	 *  A declarative waypoint is ensured when its goal domain is satisfied; an imperative one re-verifies its proof
 	 *  speculatively only after it has been ensured: a speculative re-run for waypoints that never executed
-	 *  has no variable bindings in scope and produces cryptic "<term> is not set" errors. */
+	 *  doesn't have variable bindings in scope and produces cryptic "<term> is not set" errors. */
 	async waypointEntries(featureStep: TFeatureStep, satisfiedDomains: Set<string>): Promise<TWaypointEntry[]> {
 		const waypoints: TWaypointEntry[] = [];
 		for (const [outcome, metadata] of this.registeredOutcomeMetadata.entries()) {
@@ -435,9 +435,9 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 
 	/**
 	 * Run a declarative-ensure via the goal resolver: invoke the resolver, and if it
-	 * returns a plan, dispatch each plan step. Used only when no imperative activity
-	 * body exists for the waypoint. Limited utility, plan steps run with empty
-	 * stepValuesMap (no parameter binding from facts to step args). Useful for
+	 * returns a plan, dispatch each plan step. Used only when an imperative activity
+	 * body doesn't exist for the waypoint. Limited utility, plan steps run with empty
+	 * stepValuesMap (without parameter binding from facts to step args). Useful for
 	 * parameterless producers; for parameterized ones, declare an imperative activity.
 	 */
 	private async runDeclarativeEnsure(domainKey: string, featureStep: TFeatureStep): Promise<{ handled: boolean; ok: boolean; errorMessage?: string }> {
@@ -454,7 +454,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		}
 
 		// The resolver returns multiple michi (paths). The declarative waypoint always runs the first, and runs it
-		// straight through, so it reaches only a path whose steps need nothing supplied. A path that needs something
+		// straight through, so it reaches only a path whose steps don't need a supplied value. A path that needs something
 		// from a person gets walked instead, through `walk toward` and `advance the walk`.
 		const registry = runRegistry(world);
 		const firstMichi = resolution.michi[0];

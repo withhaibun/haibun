@@ -1,6 +1,6 @@
 /**
  * The pure geometry of a grouped container's footprint: the RECTANGLE cell a group reserves, and the slot each member
- * is pinned to inside it. Kept pure (no DOM, no force) and shared by the enclosure (which sizes + shelf-packs the cells)
+ * is pinned to inside it. Kept pure (without the DOM or a force) and shared by the enclosure (which sizes + shelf-packs the cells)
  * and the data pipeline (which pins members to the slots), so the box-fits-cell + no-overlap invariants are unit-proven
  * on the SAME functions the renderer runs, not a re-derivation that can drift.
  */

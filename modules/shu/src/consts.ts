@@ -5,7 +5,7 @@ import { ChatRoleSchema, ChatStatusSchema } from "./schemas.js";
  * Per-row property name that the consumer's graph store stamps with the stored
  * vertex-label handle, then `project()` converts to `@type`. The value is the
  * store's literal label handle and must not change, existing rows are filtered by it.
- * Shared across the consumer → @haibun/shu boundary so neither side spells it inline.
+ * Shared across the consumer → @haibun/shu boundary so the two sides don't spell it inline.
  */
 export const STORED_TYPE_PROP = "vertexLabel";
 
@@ -14,7 +14,7 @@ export const STORED_TYPE_PROP = "vertexLabel";
 export const AFFORDANCE_PARAM = { GOAL: "aff-goal", WAYPOINT: "aff-waypoint" } as const;
 
 /** The custom property a docked pane sets on its positioning host to the height of its closed strip, which the host
- *  reserves so no content sits behind the closed pane. */
+ *  reserves so content doesn't sit behind the closed pane. */
 export const DOCK_FOOTPRINT = "--shu-dock-h";
 
 /** The custom property the page strip sets on its positioning host to its height, which a docked pane stands above. */
@@ -89,7 +89,7 @@ export const ACTION_BAR_CHAT_SLOT = "action-bar-chat";
 export const CHAT_VIEW_PARAM = "ask-at";
 
 /** The ask's own extension slot: mounted in the bar's input line under ask mode alone. For anything about the ask
- *  itself, what a question would carry among them, which says nothing to a reader searching or running a step. */
+ *  itself, what a question would carry among them, which doesn't concern a reader searching or running a step. */
 export const ACTION_BAR_ASK_SLOT = "action-bar-ask";
 
 /** The permissions area's extension slot: a concern whose ui declares this slot (with a js asset) is mounted inside
@@ -113,7 +113,7 @@ export const isMarkerType = (component: string): boolean => (Object.values(SHU_T
 /** The column container every view sits in. Named once: a view asks for its hosting column by this. */
 /** Every built-in shu element, by its tag: what the registry defines, a step opens (`productsDomain`), a domain
  *  declares (`ui.component`), a component looks for in its tree and a test looks for on the page. One name each, here,
- *  so no file spells a tag again; a component that is also a domain exposes its own as `static domainSelector`. */
+ *  so a file doesn't spell a tag again; a component that is also a domain exposes its own as `static domainSelector`. */
 export const SHU_TAG = {
 	PERMISSIONS: "shu-permissions",
 	PAGE_KEY: "shu-page-key",

@@ -61,7 +61,7 @@ describe("a step as a tool", () => {
 			inputSchema: step.inputSchema,
 		});
 		expect(toolDefinition(describedAs("gwtaStep")).description, "a read requires a public read").toBe("set {name} to {value}\n\nSets a value.\n\nRequires capability Read:public.");
-		expect(describedAs("matchStep").capability, "and a step that declares nothing requires its own name").toBe("DescribedSteps:matchStep");
+		expect(describedAs("matchStep").capability, "and a step that doesn't declare an action requires its own name").toBe("DescribedSteps:matchStep");
 		expect(
 			toolDefinition({ ...describedAs("gwtaStep"), remoteOrigin: "http://localhost:8331" }).description,
 			"and the instance it runs at, for a step another instance declares",

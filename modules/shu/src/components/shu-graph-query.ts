@@ -113,9 +113,9 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 
 	protected override onConnected(): void {
 		viewQuery.hydrate(); // store ← URL hash (fail-fast); defaults when empty
-		if (!this.hasHash()) this.seedFromAttributes(); // alternate input when the URL carries no query
+		if (!this.hasHash()) this.seedFromAttributes(); // alternate input when the URL doesn't carry a query
 		this.autoListen(window, "hashchange", () => {
-			if (viewQuery.wroteHash(ShuElement.getHash())) return; // the component's own writes use replaceState (no event); this catches back/forward
+			if (viewQuery.wroteHash(ShuElement.getHash())) return; // the component's own writes use replaceState (which doesn't fire an event); this catches back/forward
 			viewQuery.hydrate();
 			void this.executeQuery();
 		});
@@ -135,7 +135,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 
 		// Re-query when the text search changes in the store. The actions-bar search box writes viewQuery
 		// directly (not through this component's lifecycle), so a store write is the single, lifecycle-proof
-		// trigger: no debounce-cleared-on-disconnect or setContext-reset fragility. Subscribes to `q` only,
+		// trigger, without debounce-cleared-on-disconnect or setContext-reset fragility. Subscribes to `q` only,
 		// so the server-default-sort reflection (which writes `sort`) can't re-trigger it.
 		let firstSearch = true;
 		this.updateEffect(() => {
@@ -199,7 +199,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	}
 
 	private dispatchContextChange(): void {
-		// Selected rows are records of the label this query ran under, so each is named by that pair; with none selected
+		// Selected rows are records of the label this query ran under, so each is named by that pair; where a row isn't selected,
 		// the ask is about the queried type itself, narrowed by whatever the filter rows carry.
 		const conditions = this.qConditions.filter((c) => c.predicate && c.value);
 		const patterns: TContextPattern[] = this.paneSubject() ?? [];
@@ -226,7 +226,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		return h.length > 1 && h.startsWith("#?");
 	}
 
-	/** Alternate input: when the URL carries no query, seed the store from the element's attributes. */
+	/** Alternate input: when the URL doesn't carry a query, seed the store from the element's attributes. */
 	private seedFromAttributes(): void {
 		const patch: Partial<TViewQuery> = {};
 		const label = this.getAttribute("label");
@@ -258,7 +258,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		await this.#metadata;
 		const label = this.qLabel;
 		const textQuery = this.qText;
-		// The server rejects a query naming neither a type nor text, or a type the run doesn't hold; asking anyway fails
+		// The server rejects a query that doesn't name a type or text, or a type the run doesn't hold; asking anyway fails
 		// identically on every retrigger (each SSE batch fires one), flooding the server and the run log. Say why once
 		// instead. An address outlives the run it was made in, so it keeps the type it names.
 		if (!label && !textQuery?.trim()) return this.#refuse("a query needs a record type or search text");
@@ -391,7 +391,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	}
 
 	/** The rows of the current query, read a page at a time by the same graphQuery the first read used, with that page
-	 *  already in hand so the first paint needs no second read. */
+	 *  already in hand so the first paint doesn't need a second read. */
 	#buildSource(payload: Record<string, unknown>, page0: readonly VertexRow[], startRow: number): void {
 		this.#source = readWindowedSource<VertexRow>({
 			total: () => this.total,
@@ -468,7 +468,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		return this.resultTable;
 	}
 
-	/** Show why nothing was asked for, and no rows. */
+	/** Show why the query wasn't sent, and clear the rows. */
 	#refuse(why: string): void {
 		this.error = why;
 		this.results = [];

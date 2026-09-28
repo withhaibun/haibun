@@ -59,7 +59,7 @@ function getStore(): Store {
 // occur in either part would key `label "A B" + id "C"` and `label "A" + id "B C"` the same).
 const keyOf = (label: string, id: string): string => `${label}\0${id}`;
 
-/** A fresh loading view. A new object per call, so no consumer shares (or can mutate) another's. */
+/** A fresh loading view. A new object per call, so a consumer can't share or mutate another's. */
 const loadingView = (): TEntityView => ({ status: "loading", annotations: [], bodies: {} });
 
 function entryOf(s: Store, label: string, id: string): Entry {
@@ -83,7 +83,7 @@ function notify(s: Store, subject: string): void {
 	}
 }
 
-/** Apply observed quads: a scalar change updates the cached copy in place (e.g. a rescheduled time: no refetch); an
+/** Apply observed quads: a scalar change updates the cached copy in place (e.g. a rescheduled time, without a refetch); an
  *  `oa:hasSource` anchor landing on a held individual re-resolves that individual's annotations (a note written here or
  *  anywhere). Edge (structure) quads are left to a full reopen. */
 function onQuads(quads: TQuad[]): void {
@@ -113,7 +113,7 @@ function ensureFreshness(s: Store): void {
 /** Resolve the annotations for a held individual by the path its entity took: a copy served from the persisted browser
  *  store walks that same snapshot, a live copy resolves live. A live resolve that cannot reach the server keeps the
  *  annotations already held: the snapshot is not the live graph, so answering from it would report a transient failure
- *  as "no annotations". Only the newest resolve for an entry writes, so a slower earlier one cannot land a stale set
+ *  as an empty set of annotations. Only the newest resolve for an entry writes, so a slower earlier one cannot land a stale set
  *  over it (an authored note re-resolves while the open's own resolve may still be in flight). */
 async function loadAnnotationsInto(entry: Entry): Promise<void> {
 	const seq = ++entry.annotationSeq;
@@ -136,7 +136,7 @@ export async function openEntity(label: string, id: string, accessLevel: string)
 	} else {
 		entry.view = loadingView();
 		notify(s, id);
-		// The one read of an individual: the site's answer, or the individual as this page holds it when nothing answers.
+		// The one read of an individual: the site's answer, or the individual as this page holds it when the site doesn't answer.
 		// Which of the two it was is what the reader is told, so a record read from the page is never presented as live.
 		const read = await readIndividual(label, id, accessLevel).catch((err: unknown) => errorDetail(err));
 		if (typeof read === "string") {
@@ -151,7 +151,7 @@ export async function openEntity(label: string, id: string, accessLevel: string)
 }
 
 /** Read one body's text into a held individual's view: the intentional call a reader's open of that body makes. A
- *  record names its bodies but never carries their text, so nothing streams a document until this asks for it. Already
+ *  record names its bodies but never carries their text, so a document doesn't stream until this asks for it. Already
  *  read (or not a held individual) is a no-op, so re-rendering never refetches. */
 export async function requestBody(label: string, id: string, bodyId: string): Promise<void> {
 	const s = getStore();

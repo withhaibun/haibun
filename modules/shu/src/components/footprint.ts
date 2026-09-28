@@ -1,14 +1,14 @@
 /**
  * FootprintController sets the height an element takes along the bottom of its positioning host, as a custom property on
  * that host, so the host keeps its content clear of the element. The element measures that height. The controller
- * removes the property where the element measures none, and where the element leaves the page.
+ * removes the property where the element doesn't measure a height, and where the element leaves the page.
  */
 import type { ReactiveController, ReactiveControllerHost } from "lit";
 
 export class FootprintController implements ReactiveController {
 	readonly #host: ReactiveControllerHost & HTMLElement;
 	readonly #property: string;
-	/** The height to reserve, or null where the element reserves none. */
+	/** The height to reserve, or null where the element doesn't reserve a height. */
 	readonly #measure: () => number | null;
 	#footprintHost: HTMLElement | null = null;
 	#footprint = -1;
@@ -37,7 +37,7 @@ export class FootprintController implements ReactiveController {
 		this.#withdraw();
 	}
 
-	/** Set the measured height on the positioning host, once per change, or withdraw it where there is none. */
+	/** Set the measured height on the positioning host, once per change, or withdraw it where the measure returns null. */
 	publish(): void {
 		const height = this.#measure();
 		if (height === null) return this.#withdraw();

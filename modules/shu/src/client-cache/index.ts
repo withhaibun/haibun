@@ -13,7 +13,7 @@
  *   caches, grown by live events; one per level, shared by every view at that level. The run's span and the live-edge rule
  *   every view places the cursor by come from here.
  * - the device's store (device-store.ts): where the sources persist lean events by their index at each level and each
- *   run's extent, and where the server's registry is cached, so a reload or a page with no server serves from the device and
+ *   run's extent, and where the server's registry is cached, so a reload or a page without a server serves from the device and
  *   still knows the server's declarations (rpc-registry reads it when the server does not respond).
  * - the graph this page caches (quad-store.ts): the client's `IQuadStore`, in the same database as the events.
  * - a run carried in a page (hydrate.ts): what a standalone report embeds, read through the same sources.

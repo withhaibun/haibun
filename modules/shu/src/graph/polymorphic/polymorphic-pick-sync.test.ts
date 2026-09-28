@@ -3,7 +3,7 @@
  * and the fields it is derived from are written by the layout a frame earlier. A node whose position field already
  * equals the engine's is the dangerous case, not the safe one: its matrix is the stale one, and skipping the update
  * there is the "N nodes, none pickable at centre" failure: every sprite visible, sitting at the node's own
- * coordinates, and picking nothing.
+ * coordinates, and a pick doesn't hit one.
  */
 import { describe, it, expect } from "vitest";
 import { syncPickTarget, restorePickTarget, type TPickObject } from "./polymorphic-pick-sync.js";
@@ -43,7 +43,7 @@ function fakeObject(
 describe("polymorphic pick target sync", () => {
 	it("re-derives the matrix even when the target already sits at the node: the stale-matrix case that misses", () => {
 		const o = fakeObject({ x: 10, y: -44, z: 532 });
-		syncPickTarget(o, { x: 10, y: -44, z: 532, baseScale: RESTING }); // nothing to write: fields already match
+		syncPickTarget(o, { x: 10, y: -44, z: 532, baseScale: RESTING }); // the fields already match, so it doesn't write them
 		expect(o.matrixUpdates).toBe(1); // ...and the matrix is still re-derived, because that is what the raycast reads
 	});
 
@@ -70,7 +70,7 @@ describe("polymorphic pick target sync", () => {
 		expect(o.matrixUpdates).toBe(2); // once to pick at rest, once to put the pop back
 	});
 
-	it("reports nothing to restore for a node already at its resting size", () => {
+	it("doesn't report a size to restore for a node already at its resting size", () => {
 		const o = fakeObject({ x: 0, y: 0, z: 0 }, RESTING);
 		expect(syncPickTarget(o, { x: 0, y: 0, z: 0, baseScale: RESTING })).toBeNull();
 	});

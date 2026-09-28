@@ -66,7 +66,7 @@ class TestStepper extends AStepper {
 }
 
 describe("McpStepper tools", () => {
-	it("says in its instructions how to find a step and names no stepper, lists the caller's steps as tools, show steps among them, tells a client when the list changes, and calls one", async () => {
+	it("says in its instructions how to find a step without naming a stepper, lists the caller's steps as tools, show steps among them, tells a client when the list changes, and calls one", async () => {
 		const port = 8130;
 		const feature = {
 			path: "/features/tools.feature",
@@ -76,7 +76,7 @@ verify mcp tools on port ${port}
 `,
 		};
 
-		// Nothing here verifies a delegation, so the deployment allows every action without one, as a haibun-only run does.
+		// The run can't verify a delegation, so the deployment allows every action without one, as a haibun-only run does.
 		const moduleOptions = {
 			[getStepperOptionName(WebServerStepper, "PORT")]: String(port),
 			[getStepperOptionName(McpStepper, "PORT")]: String(port),

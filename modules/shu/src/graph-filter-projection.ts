@@ -5,7 +5,7 @@
  * The filter chips show one entry per node type with a count. Two regimes
  * matter:
  *
- *   - No time cursor: the server snapshot's `TCluster` records are
+ *   - Without a time cursor: the server snapshot's `TCluster` records are
  *     authoritative: each carries `totalCount`, `sampledCount`, and
  *     `omittedCount` so the legend can show `(sampled/total)` when the server
  *     truncated. Any namedGraph that appears only in live (post-snapshot)
@@ -15,7 +15,7 @@
  *   - Time cursor pinned: the snapshot counts diverge from what the view
  *     shows. Derive clusters directly from `visibleQuads` (already filtered
  *     by `ShuElement.filterByTime`): one cluster per `namedGraph`, count =
- *     unique subjects seen at or before the cursor. Types with no visible
+ *     unique subjects seen at or before the cursor. Types without visible
  *     subjects at T drop from the legend, so `Kihan (7)` becomes `Kihan (3)`
  *     at one point in the timeline and disappears entirely before the first
  *     Kihan node arrives.
@@ -72,8 +72,8 @@ export function projectFilterClusters(opts: { knownClusters: Map<string, TCluste
  * named graph without a type (observation/*, facts, variables, `isInstrumentationGraph`).
  * `overrides[type]`: true = shown, false = hidden, absent = the predicate decides. The ONE place the default and the
  * overrides combine, shared by the filter (chip state), the host views (which graphs render), and the offline-report
- * serialization: so the rule is identical everywhere AND stable for types that arrive only via the live stream: there is
- * no per-cluster flag to lose, just the stable predicate over the type name. The persisted overrides hold only the user's
+ * serialization: so the rule is identical everywhere AND stable for types that arrive only via the live stream: the rule doesn't
+ * keep a per-cluster flag to lose, just the stable predicate over the type name. The persisted overrides hold only the user's
  * deliberate choices, never a fixed default, so a change to what counts as instrumentation re-applies on the next load.
  *
  * A domain type is never default-hidden for being hard to title: a type declares the property type that labels it
@@ -85,7 +85,7 @@ export function effectiveHiddenTypes(types: Iterable<string>, overrides: Record<
 		const choice = overrides[type];
 		if (choice === undefined ? isInstrumentationGraph(type) || isInstrumentationType(type) || isSchemaType(type) : !choice) hidden.add(type);
 	}
-	// An explicit hide applies even before its type appears in the set (e.g. a control-product hide of a type with no
+	// An explicit hide applies even before its type appears in the set (e.g. a control-product hide of a type without
 	// data yet); an explicit show of an unknown type is a no-op until it arrives (it then follows the show).
 	for (const type of explicitlyHidden(overrides)) hidden.add(type);
 	return [...hidden];
@@ -93,7 +93,7 @@ export function effectiveHiddenTypes(types: Iterable<string>, overrides: Record<
 
 /** The edge predicates in `quads`, with the number of edges each draws, counted by the graph model's OWN rule
  *  (`isEdgeQuad`), so the property chips offer exactly the predicates the graph draws and never a predicate whose
- *  unticking would change nothing. */
+ *  unticking wouldn't change the graph. */
 export function derivePredicates(quads: Iterable<TQuad>): Array<{ predicate: string; count: number }> {
 	const counts = new Map<string, number>();
 	for (const q of quads) {
@@ -104,7 +104,7 @@ export function derivePredicates(quads: Iterable<TQuad>): Array<{ predicate: str
 }
 
 /** The facets a reader explicitly turned OFF: the entries whose override says "hidden". The counterpart of
- *  `effectiveHiddenTypes` for facets with no declared default: a predicate is shown unless it was unticked. */
+ *  `effectiveHiddenTypes` for facets without a declared default: a predicate is shown unless it was unticked. */
 export function explicitlyHidden(overrides: Record<string, boolean>): string[] {
 	return Object.entries(overrides)
 		.filter(([, shown]) => !shown)

@@ -45,7 +45,7 @@ export type TRuntime = {
 	exhaustionError?: string;
 	/**
 	 * Monotonic counter for synthetic seqPaths produced by external-protocol
-	 * entry points (MCP) that have no caller seqPath to thread. See
+	 * entry points (MCP) that don't have a caller seqPath to thread. See
 	 * `syntheticSeqPath(hostId, adHocSeq)` in host-id.ts, synthetic paths
 	 * are [hostId, SYNTHETIC_FEATURE_NUM, adHocSeq] so they sort distinctly
 	 * from any feature path. Internal dispatches (RPC, subprocess) now
@@ -61,7 +61,7 @@ export function runSteppers(world: TWorld): AStepper[] {
 	return world.runtime.steppers;
 }
 
-/** The environment variables the run declares. A run that declares none has none. */
+/** The environment variables the run declares. A run that doesn't declare one doesn't have one. */
 export function runEnvVariables(world: TWorld): TEnvVariables {
 	return world.options.envVariables ?? {};
 }

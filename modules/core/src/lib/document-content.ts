@@ -1,7 +1,7 @@
 /**
  * Shared document content generation for academic-paper-style rendering.
  * Used by @haibun/shu (vanilla web components) to render the run document.
- * Pure functions: no DOM imports.
+ * Pure functions: it doesn't import the DOM.
  */
 import { itemAt } from "./util/item-at.js";
 import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TStepEvent, TLifecycleEvent, TLogEvent, TJsonArtifact } from "../schema/protocol.js";
@@ -130,7 +130,7 @@ export function generateDocumentMarkdown(
 	};
 
 	// Claiming and emitting the holder are ONE act: whatever an event claims must get a holder the renderer fills, or an
-	// artifact whose event arrives after its claimer is claimed and then rendered nowhere (the standalone branch skips
+	// artifact whose event arrives after its claimer is claimed and then isn't rendered (the standalone branch skips
 	// claimed ids), making artifact visibility depend on event order. Every claiming branch calls this, never claimArtifacts
 	// alone. Returns { ids, holder } so a branch can also stamp the ids on its own row (the technical log-row does).
 	const claimWithHolder = (id: string, nid: string) => {

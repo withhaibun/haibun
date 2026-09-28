@@ -29,8 +29,8 @@ const CORNER_DISMISS: Record<TCorner, "click-away" | "panel"> = { settings: "cli
  *  to them. */
 type TAwaiting = { count: number; ref: { kind: TRefKind; target: Record<string, unknown> } | null };
 
-/** The awaiting mark an event's detail states, or null for a detail whose count is not a number, which states nothing.
- *  A count below zero is none, and a reference of a kind a ref cannot open is no reference. */
+/** The awaiting mark an event's detail states, or null for a detail whose count is not a number, which doesn't state a mark.
+ *  A count below zero is zero, and a reference of a kind a ref cannot open isn't a reference. */
 export function awaitingOf(detail: { count?: unknown; kind?: string; target?: Record<string, unknown> } | undefined): TAwaiting | null {
 	const count = Number(detail?.count ?? 0);
 	if (!Number.isFinite(count)) return null;
@@ -45,8 +45,8 @@ const spanLabel = (ms: number): { n: number; unit: "s" | "m" } => {
 
 /**
  * How far along a run the time cursor sits: the moment it is at, out of how long the run is, "11/40s". A bare "11s"
- * says nothing about whether that is near the beginning or the end, which is the thing a reader wants from a readout
- * this small. "now" at the latest moment seen, since there is no upper bound to be a fraction of.
+ * doesn't say whether that is near the beginning or the end, which is the thing a reader wants from a readout
+ * this small. "now" at the latest moment seen, since the run doesn't have an upper bound for the fraction.
  */
 export function timeOffsetLabel(cursor: number | null, firstEventTime: number, latestEventTime: number): string {
 	if (cursor == null || cursor <= 0 || cursor >= latestEventTime) return "now";

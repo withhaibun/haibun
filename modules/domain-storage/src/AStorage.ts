@@ -115,7 +115,7 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 		this.ensureDirExists(dir);
 		return fn ? `${dir}/${fn}` : dir;
 	}
-	/** Synchronous, because `exists` and `mkdirp` are: a promise here was one for callers to await and nothing to wait for. */
+	/** Synchronous, because `exists` and `mkdirp` are: a promise here made callers await work that was already done. */
 	ensureDirExists(dir: string): void {
 		if (this.exists(dir)) return;
 		try {

@@ -123,7 +123,7 @@ describe("does not include backgrounds that are not referenced", () => {
 });
 
 describe("a resolved feature as data", () => {
-	it("names each step's stepper and step, and holds no step's definition", () => {
+	it("names each step's stepper and step, and doesn't hold a step's definition", () => {
 		const feature = {
 			path: "/features/f.feature",
 			base: "/",

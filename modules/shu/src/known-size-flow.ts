@@ -2,15 +2,15 @@
  * A flow layout for lit-virtualizer that knows the size of some rows without measuring them.
  *
  * The flow layout positions the rows it has not measured by the average of the ones it has. A column whose rows
- * include many that render nothing (the run document: an event that produced no block at its level) measures ever more
+ * include many that are empty (the run document: an event that didn't produce a block at its level) measures ever more
  * empty rows as it goes, the average caches falling, every position above the viewport is estimated again on each row,
  * and the reader sees the document jitter and its scroll range never settle. Here the source reports which rows are known
- * empty (`rowSize` responds 0): they take no room without being measured, the average is over rows with content only,
+ * empty (`rowSize` responds 0): they take zero room without being measured, the average is over rows with content only,
  * and an unknown stretch is estimated at that average times the share of rows seen to have content.
  */
 import { FlowLayout, flow } from "@lit-labs/virtualizer/layouts/flow.js";
 
-/** The size of a row known without rendering it (0 for a row that renders nothing), or undefined to measure and estimate. */
+/** The size of a row known without rendering it (0 for an empty row), or undefined to measure and estimate. */
 type TRowSize = (index: number) => number | undefined;
 
 type TSizes = { [key: number]: { width: number; height: number } };
@@ -47,7 +47,7 @@ export class KnownSizeFlowLayout extends FlowLayout {
 		return this.#measured.size > 0 ? this.#sum / this.#measured.size : super._getAverageSize();
 	}
 
-	/** What one row of a stretch not seen counts as: a row with content at the average, a known-empty one nothing, in the
+	/** What one row of a stretch not seen counts as: a row with content at the average, a known-empty one zero, in the
 	 *  proportion seen so far. */
 	expectedRowSize(): number {
 		const seen = this.#measured.size + this.#known.size;
@@ -70,7 +70,7 @@ export class KnownSizeFlowLayout extends FlowLayout {
 	}
 }
 
-/** The layout for a virtual column whose source can say which rows render nothing: the flow layout's own defaults, with
+/** The layout for a virtual column whose source can say which rows are empty: the flow layout's own defaults, with
  *  this class and the source's response in place. */
 export function knownSizeFlow(rowSize: TRowSize): ReturnType<typeof flow> {
 	return { ...flow(), type: KnownSizeFlowLayout, rowSize } as unknown as ReturnType<typeof flow>;

@@ -224,7 +224,7 @@ describe("generateDocumentMarkdown", () => {
 
 	it("emits a fillable holder for a technical step's artifacts regardless of event order", () => {
 		// The step claims its artifacts; without a holder div an artifact event that arrives AFTER the step's end would be
-		// claimed and then rendered nowhere (the standalone branch skips claimed ids), visibility must not depend on order.
+		// claimed and then not rendered (the standalone branch skips claimed ids), visibility must not depend on order.
 		const step = (stage: string, ts: number) =>
 			({ id: "0.1.2", timestamp: ts, source: "h", level: "log", kind: "lifecycle", stage, type: "step", status: "passed", in: "take a screenshot" }) as unknown as THaibunEvent;
 		const image = (ts: number) =>

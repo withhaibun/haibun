@@ -1,5 +1,5 @@
 /**
- * `holding only {actions}, {what}`: a statement runs with the listed actions its caller holds and nothing else, as the
+ * `holding only {actions}, {what}`: a statement runs with the listed actions its caller holds and without another action, as the
  * same caller. It narrows and never widens, so a feature states a caller holding some actions and not others.
  */
 import { describe, expect, it } from "vitest";
@@ -114,9 +114,9 @@ describe("delegations to the caller", () => {
 		expect(buildStepRegistry([stepper], world).get(DELEGATIONS_READ_METHOD)?.descriptor.capability).toBe(DELEGATIONS_READ_ACTION);
 	});
 
-	it("answers the key the call proved, from the registered verifier, and with none where nothing verifies a delegation", async () => {
+	it("answers the key the call proved, from the registered verifier, and with an empty list where a verifier isn't registered", async () => {
 		const { world, readAs } = await opened();
-		expect((await readAs(delegation.controller)).products, "nothing registered, nothing delegated").toEqual({ delegations: [] });
+		expect((await readAs(delegation.controller)).products, "without a registered verifier, a delegation isn't returned").toEqual({ delegations: [] });
 		getAuthority(world.runtime)?.registerVerifier(verifier);
 		expect((await readAs(delegation.controller)).products).toEqual({ delegations: [delegation], records });
 		expect((await readAs("did:key:zStranger")).products, "another key is answered its own").toEqual({ delegations: [], records });

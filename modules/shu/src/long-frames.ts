@@ -7,7 +7,7 @@ import { pagePinned } from "./page-pinned.js";
 import { PAGE_LONG_FRAME_BLIP, scriptOf, type TLongFrame } from "./page-blips.js";
 
 /** Record every long animation frame this page has, from the ones before the call on. Once per page, whatever bundles
- *  load this module. A browser that reports no such frames has nothing to record. */
+ *  load this module. A browser that doesn't report such frames doesn't have a frame to record. */
 export function observeLongFrames(): void {
 	if (!globalThis.PerformanceObserver?.supportedEntryTypes?.includes("long-animation-frame")) return;
 	pagePinned("__SHU_LONG_FRAMES__", () => {

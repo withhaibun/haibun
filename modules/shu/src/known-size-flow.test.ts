@@ -1,4 +1,4 @@
-// The size-aware flow layout: rows the source knows render nothing take no room and never count toward the average, so a
+// The size-aware flow layout: rows the source knows render empty don't take room and never count toward the average, so a
 // column with many empty rows caches a steady estimate of what it has not measured.
 import { describe, it, expect } from "vitest";
 import { KnownSizeFlowLayout } from "./known-size-flow.js";

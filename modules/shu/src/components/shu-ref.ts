@@ -17,7 +17,7 @@ import { stepMethodName } from "@haibun/core/lib/step-registry.js";
  * The lit form of the same reference, for a view that renders a template rather than a string of markup: one place
  * decides what a reference is made of, so a panel writing `<shu-ref>` by hand cannot drift from what `renderRef`
  * writes. The display text is also child text, as in the string form, so a surface where the element is undefined
- * shows the text rather than nothing.
+ * shows the text rather than an empty element.
  */
 export const refTpl = (kind: TRefKind, linkTarget: Record<string, unknown>, text?: string, testId?: string): TemplateResult => {
 	const targetJson = JSON.stringify(linkTarget);
@@ -36,8 +36,8 @@ export const fieldRef = (label: string, field: string, value: string, testId?: s
 	return persistedAs ? recordRef(persistedAs, value, value, testId) : value;
 };
 
-/** An instance's origin as a link to it: an address the browser opens, not a record a pane shows, so nothing under the
- *  link takes the click. */
+/** An instance's origin as a link to it: an address the browser opens, not a record a pane shows, so the elements under
+ *  the link don't take the click. */
 export const originLink = (origin: string): TemplateResult => html`<a href=${origin} target="_blank" rel="noopener" @click=${(e: Event) => e.stopPropagation()}>${origin}</a>`;
 
 /** A domain, by its key, as a link to its view: the view of the type it persists as, or of the domain itself. */

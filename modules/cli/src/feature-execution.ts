@@ -1,7 +1,7 @@
 /**
  * A FEATURE EXECUTION as an individual: which features ran, where from, how it ended, and where to look.
  *
- * A finding is about something. Without a record for the run there is nothing for a Comment to point at, so a report
+ * A finding is about something. A Comment doesn't have a target without a record for the run, so a report
  * would have to name the run in its text and a reader would have to match strings. With a record, a finding's
  * `hasTarget` names the run, the sequence view shows the finding beside it, and a later run of the same features is a
  * second individual rather than an overwrite, which is what makes "did the change fix it" answerable from the graph.
@@ -11,7 +11,7 @@
  * of one agent.
  *
  * The endpoint is how a run is probed once its features have finished: a run given a port is left standing, so that
- * port answers until it is stopped. It is a fact about the run, not a side channel. A run given no port has no
+ * port answers until it is stopped. It is a fact about the run, not a side channel. A run not given a port doesn't have an
  * endpoint; it ran its features on the ports they declare and ended when they did.
  */
 import { z } from "zod";
@@ -32,7 +32,7 @@ const FeatureExecutionSchema = z.object({
 	status: z.enum([RUN_STATUS.running, RUN_STATUS.passed, RUN_STATUS.failed, RUN_STATUS.stopped, RUN_STATUS.notStarted]),
 	/** Why the run did not start, where it didn't. */
 	why: z.string().optional(),
-	/** Where the run answers while it stands, so probing it needs nothing but the run. Absent for a run left to its
+	/** Where the run answers while it stands, so probing it needs only the run. Absent for a run left to its
 	 *  own ports, which ends rather than standing. */
 	endpoint: z.string().optional(),
 	startedAt: z.string(),
@@ -43,7 +43,7 @@ const FeatureExecutionSchema = z.object({
 	features: z.number().optional(),
 	steps: z.number().optional(),
 	failed: z.number().optional(),
-	/** The first step that failed, as the seqPath it failed at and what it said. Absent when nothing failed. */
+	/** The first step that failed, as the seqPath it failed at and what it said. Absent when the run's steps didn't fail. */
 	firstFailure: z.string().optional(),
 	/** The principal that started the run, which is the controller of the capability it ran under. */
 	attributedTo: z.string().optional(),
@@ -89,7 +89,7 @@ export const featureExecutionDomainDefinition: TDomainDefinition = {
 		// and when it started.
 		sortColumns: { filter: "TEXT", status: "TEXT", startedAt: "TEXT", endedAt: "TEXT", where: "TEXT", endpoint: "TEXT", report: "TEXT" },
 		// Who started it and what asked for it are EDGES, with the types they range over, as every other attributed
-		// record declares them. Declared as plain properties they name a principal that nothing can be followed to, so
+		// record declares them. Declared as plain properties they name a principal without an edge to follow, so
 		// the run never stands on the lifeline of whoever started it and is missing from any reading built from actors.
 		edges: {
 			attributedTo: { rel: LinkRelations.ATTRIBUTED_TO.rel, range: PRINCIPAL_LABEL },
@@ -98,5 +98,5 @@ export const featureExecutionDomainDefinition: TDomainDefinition = {
 	},
 };
 
-/** What a run's exit code says about it. No code yet means it is still going. */
+/** What a run's exit code says about it. A null code means it is still running. */
 export const statusOfExit = (exitCode: number | null): TRunStatus => (exitCode === null ? RUN_STATUS.running : exitCode === 0 ? RUN_STATUS.passed : RUN_STATUS.failed);

@@ -53,8 +53,8 @@ export class QuadStore implements IQuadStore {
 	 */
 	private federated: Set<TFederatedGraphSource>;
 
-	/** What classifies what this store writes and bounds what it reads, for the call in progress. A store given none holds
-	 *  a copy of what a site served, which was bounded where it was served, and classifies nothing. */
+	/** What classifies what this store writes and bounds what it reads, for the call in progress. A store that isn't given one holds
+	 *  a copy of what a site served, which was bounded where it was served, and doesn't classify a record. */
 	private levels: TStoreLevels | undefined;
 
 	constructor(routing?: Map<string, IQuadStore>, federated?: Set<TFederatedGraphSource>, levels?: TStoreLevels) {
@@ -211,7 +211,7 @@ export class QuadStore implements IQuadStore {
 			const q = itemAt(this.quads, i);
 			if (q.subject === subject && q.predicate === predicate && (namedGraph === undefined || q.namedGraph === namedGraph) && seen(q)) return Promise.resolve(q.object);
 		}
-		// Then search backing stores if no namedGraph filter
+		// Then search backing stores if the query doesn't filter by namedGraph
 		if (namedGraph === undefined) {
 			return this.getFromBackingStores(subject, predicate);
 		}
@@ -247,7 +247,7 @@ export class QuadStore implements IQuadStore {
 
 	/**
 	 * An edge to something that may not be here yet. A backing store that keeps edges strictly holds an id-only
-	 * placeholder until the target arrives; without such a backing this is an ordinary edge, since a quad needs no
+	 * placeholder until the target arrives; without such a backing this is an ordinary edge, since a quad doesn't need the
 	 * target to exist. Routed like `createEdge`, so a caller writing a forward reference never needs to know which
 	 * backing holds the source.
 	 */
@@ -263,7 +263,7 @@ export class QuadStore implements IQuadStore {
 			if (backing) return backing.query(pattern);
 			return this.localQuery(pattern);
 		}
-		// No namedGraph filter, merge local + all backing stores
+		// The query doesn't filter by namedGraph: merge local + all backing stores
 		const local = this.localQuery(pattern);
 		const backingResults = await Promise.all(this.allStores.map((s) => s.query(pattern)));
 		return [...local, ...backingResults.flat()].sort((a, b) => a.timestamp - b.timestamp);
@@ -306,7 +306,7 @@ export class QuadStore implements IQuadStore {
 	/**
 	 * Type-bounded snapshot. Every backing store owns its bounded clustered query
 	 * (queried directly: the efficient SQL/Cypher path). Local quads held by this
-	 * store are sampled per type in memory. No `all()`-then-slice fallback exists:
+	 * store are sampled per type in memory. An `all()`-then-slice fallback doesn't exist:
 	 * a store that can't sample at the source is a bug, not a degraded mode.
 	 */
 	async getClusteredQuads(opts: TClusteredQuadsOpts): Promise<TClusteredQuads> {
@@ -379,7 +379,7 @@ export class QuadStore implements IQuadStore {
 		const stated = validated.accessLevel === undefined ? undefined : AccessLevelSchema.parse(validated.accessLevel);
 		const accessLevel = this.levels ? writtenAt(stated, declared ?? Access.private, this.levels.bound()) : stated;
 		if (declared) validated.accessLevel = accessLevel;
-		// Atomic replace: no await between the remove and the adds, so a concurrent upsert (fire-and-forget writers), a
+		// Atomic replace: the code doesn't await between the remove and the adds, so a concurrent upsert (fire-and-forget writers), a
 		// scenario-boundary carry, or a mid-flight backing registration never observes a half-written individual.
 		this.quads = this.quads.filter((q) => !(q.subject === id && q.namedGraph === label));
 		const timestamp = Date.now();
@@ -446,7 +446,7 @@ export async function queryQuadStore(store: IQuadStore, query: TGraphQuery): Pro
 	if (query.references) throw new Error("a graph query over quads matches a type and equality filters; the records referencing a record need a store with a query engine");
 	const vertices = await individualsMatching(store, label, query.filters);
 	// The order a query asks for, applied before the window: a page of the newest is the newest of what matched, not the
-	// first the store happened to return. A query naming no order takes the store's own.
+	// first the store happened to return. A query that doesn't name an order takes the store's own.
 	if (query.sortBy) {
 		const by = query.sortBy;
 		const direction = query.sortOrder === "asc" ? 1 : -1;
@@ -461,7 +461,7 @@ export async function queryQuadStore(store: IQuadStore, query: TGraphQuery): Pro
  *
  * The store matches equality itself; the comparisons are made here over the values it returned, which a store of quads
  * holds in full. Reading a range of time is a comparison, so answering only equality would have meant either a wrong
- * answer or no reading by time. Every read of such a store narrows this way, so it narrows in one place.
+ * answer or not reading by time. Every read of such a store narrows this way, so it narrows in one place.
  */
 async function individualsMatching(store: IQuadStore, label: string, filters: readonly TSearchCondition[]): Promise<Record<string, unknown>[]> {
 	const equality = Object.fromEntries(filters.filter((f) => f.operator === "eq").map((f) => [f.predicate, f.value]));
@@ -489,7 +489,7 @@ function individualsFrom(quads: readonly TQuad[]): Record<string, unknown>[] {
  * Which bucket an instant falls in, over a span divided into a fixed number.
  *
  * The division is by the span rather than by a rounded width, so a span that does not divide evenly still answers with
- * exactly the buckets asked for; the last bucket includes the end, which nothing after it would otherwise hold.
+ * exactly the buckets asked for; the last bucket includes the end, since a bucket after it doesn't exist to hold it.
  */
 export function bucketOf(at: number, from: number, to: number, buckets: number): number {
 	if (at < from || at > to) return -1;
@@ -532,7 +532,7 @@ function compare(a: unknown, b: unknown): number {
 }
 
 /** Whether a held value satisfies one condition. Numbers compare as numbers where both sides are numbers, and anything
- *  else compares as text, which orders an ISO instant by time. A value the record does not hold satisfies nothing. */
+ *  else compares as text, which orders an ISO instant by time. A value the record does not hold doesn't satisfy a condition. */
 function satisfies(held: unknown, condition: TSearchCondition): boolean {
 	if (held === undefined || held === null) return false;
 	const order = (against: string): number => {
@@ -578,7 +578,7 @@ export function sliceQuadsPerType(quads: TQuad[], perTypeLimit: number, existing
 	}
 	// Index local quads by subject, plus each Body's content, so labels compose the
 	// same way every producer does (shortest linked-body preview, else id). The
-	// in-memory path has no rels registry, so name/content resolution is unavailable
+	// in-memory path doesn't have a rels registry, so name/content resolution is unavailable
 	// here; body-backed and id labels still come out identical to other producers.
 	const quadsBySubject = new Map<string, TQuad[]>();
 	const bodyContentBySubject = new Map<string, string>();
@@ -647,7 +647,7 @@ export async function incomingEdgesOf(store: IQuadStore, id: string, page: { off
 /**
  * One individual with its edges, over any store: its own fields, the edges its quads name in both directions, and how
  * many edges point at it. An edge quad carries the type of the record it names. That type is how a target resolves to a
- * record rather than to a bare id. Undefined where the store holds nothing of the individual.
+ * record rather than to a bare id. Undefined where the store doesn't hold the individual.
  *
  * One reading, so a page reading what it holds and a site answering for its own store give a reader the same shape.
  */

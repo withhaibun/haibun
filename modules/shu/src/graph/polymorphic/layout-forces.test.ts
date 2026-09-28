@@ -1,5 +1,5 @@
 /**
- * Headless layout-stability proof (pure d3-force-3d, no browser, ~ms). Reproduces the real jump: three-forcegraph
+ * Headless layout-stability proof (pure d3-force-3d, without a browser, ~ms). Reproduces the real jump: three-forcegraph
  * reheats the simulation (alpha→1) on every graphData feed, so an unpinned existing node re-settles when new data
  * arrives: that's the racy "graph jumps when I select / when data streams." And it proves the fix: pinning the
  * existing nodes across the feed holds them put while only the newcomer settles in. Uses the SAME forces the view does.
@@ -55,7 +55,7 @@ const maxDrift = (nodes: N[], before: Map<string, { x: number; y: number }>, ski
 	return m;
 };
 
-describe("polymorphic layout stability (headless d3-force-3d, no browser)", () => {
+describe("polymorphic layout stability (headless d3-force-3d, without a browser)", () => {
 	it("REPRODUCES the jump: feeding a new node with a reheat moves the EXISTING (unpinned) nodes", () => {
 		const nodes = baseNodes();
 		const sim = settledSim(nodes, [...baseLinks]);
@@ -83,7 +83,7 @@ describe("label sizing: a long id can't inflate the chip or the footprint", () =
 		expect(collideRadius({ name: "x".repeat(10) })).toBeCloseTo(3 * 0.6 + 10 * 3 * 0.28, 9);
 	});
 
-	it("collideRadius is BOUNDED at MAX_LABEL_CHARS, past the cap a longer id adds nothing", () => {
+	it("collideRadius is BOUNDED at MAX_LABEL_CHARS, past the cap a longer id doesn't add radius", () => {
 		const capped = collideRadius({ name: "x".repeat(MAX_LABEL_CHARS) });
 		expect(collideRadius({ name: "x".repeat(200) })).toBe(capped);
 		expect(capped).toBeCloseTo(3 * 0.6 + MAX_LABEL_CHARS * 3 * 0.28, 9);

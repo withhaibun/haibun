@@ -48,8 +48,12 @@ export const shownOrReported = (url: string, source: string): Promise<string | u
 		return undefined;
 	});
 
-/** An artifact's address as a view binds it, once the page has read it: nothing until then, or where it couldn't be read. */
-export const artifactAt = (url: string, source: string) => until(shownOrReported(url, source).then((at) => at ?? nothing), nothing);
+/** An artifact's address as a view binds it, once the page has read it: lit's `nothing` until then, or where it couldn't be read. */
+export const artifactAt = (url: string, source: string) =>
+	until(
+		shownOrReported(url, source).then((at) => at ?? nothing),
+		nothing,
+	);
 
 async function readArtifact(url: string): Promise<string> {
 	const response = await fetch(url, { headers: await readingHeaders(url, READS_THE_RUNS_ARTIFACTS) });

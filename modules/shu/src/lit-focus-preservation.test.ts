@@ -82,7 +82,7 @@ describe("lit-html focus preservation", () => {
 	it("does NOT clobber user typed-ahead text when re-rendering with an unchanged binding", () => {
 		// Documents the safe contract: if a render fires for reasons unrelated to the
 		// input (incoming SSE event, sibling status change), and the input's bound value
-		// hasn't changed in the parent state, lit's diff sees no change for the
+		// hasn't changed in the parent state, lit's diff doesn't see a change for the
 		// `.value` binding and leaves the live `<input>` untouched. The user's typed-ahead
 		// text and cursor survive.
 		renderWithStatus("idle", "hello");

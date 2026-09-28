@@ -1,7 +1,7 @@
 /**
  * An individual must be addressable.
  *
- * upsertIndividual keyed on `String(validated[idField])`, so a record with no value in its identity field was written
+ * upsertIndividual keyed on `String(validated[idField])`, so a record without a value in its identity field was written
  * under the literal subject "undefined": unreachable by getIndividual, and silently overwritten by the next such
  * record. The guard below it never fired, because "undefined" is a truthy string.
  */
@@ -10,7 +10,7 @@ import { z } from "zod";
 import { QuadStore } from "./quad-store.js";
 
 describe("upsertIndividual identity", () => {
-	it('refuses a record with no value in its identity field, rather than writing it under "undefined"', async () => {
+	it('refuses a record without a value in its identity field, rather than writing it under "undefined"', async () => {
 		const store = new QuadStore();
 		await expect(store.upsertIndividual("Thing", { path: "src/a.ts", name: "a" })).rejects.toThrow(/Missing identity field/);
 		expect(await store.query({ namedGraph: "Thing" })).toHaveLength(0);

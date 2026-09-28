@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { Access } from "@haibun/core/lib/resources.js";
 
-// The registry answers without a server, and the strip has no extensions to load.
+// The registry answers without a server, and the strip doesn't have extensions to load.
 vi.mock("../rpc-registry.js", async (actual) => ({ ...(await actual<Record<string, unknown>>()), isOffline: () => true }));
 vi.mock("../rels-cache.js", async (actual) => ({
 	...(await actual<Record<string, unknown>>()),
@@ -135,9 +135,9 @@ describe("the page strip", () => {
 		expect(control(strip, `${PREFIX}status`).textContent).toBe("3 results");
 	});
 
-	it("opens and closes the docked pane, and holds its controls disabled where no pane is docked", async () => {
+	it("opens and closes the docked pane, and holds its controls disabled where a pane isn't docked", async () => {
 		const strip = await mountStrip();
-		expect(control(strip, SHU_TEST_IDS.APP.DOCK_TOGGLE).disabled, "nothing docked").toBe(true);
+		expect(control(strip, SHU_TEST_IDS.APP.DOCK_TOGGLE).disabled, "a pane isn't docked").toBe(true);
 		const pane = await mountDockedPane();
 		await settled(pane, strip);
 		expect(control(strip, SHU_TEST_IDS.APP.DOCK_TOGGLE).disabled).toBe(false);
@@ -153,7 +153,7 @@ describe("the page strip", () => {
 		pageContext.set({ patterns: [], accessLevel: Access.private });
 		const strip = await mountStrip();
 		const popover = strip.shadowRoot?.querySelector<HTMLElement>(".corner-popover") as HTMLElement;
-		// jsdom has no top layer, so the popover's show states nothing.
+		// jsdom doesn't have a top layer, so the popover's show doesn't change its state.
 		popover.showPopover = () => undefined;
 		const asked = vi.fn();
 		document.addEventListener(SHU_EVENT.FILTER_CHANGE, (e) => asked((e as CustomEvent).detail), { once: true });

@@ -98,7 +98,7 @@ describe("the delegation the page embedding shu gives its key", () => {
 		stop();
 	});
 
-	it("refuses a delegation to another key and reports it, and goes on with what it holds when none is given in time", async () => {
+	it("refuses a delegation to another key and reports it, and goes on with what it holds when a delegation isn't given in time", async () => {
 		const { controller } = await openPageAuthority(undefined, []);
 		const parent = { postMessage: () => undefined } as unknown as Window;
 		const frame = aFrame(parent);

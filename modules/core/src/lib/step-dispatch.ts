@@ -16,7 +16,7 @@ import { SEQ_PATH_FIELD, calledOf, executionOf, factIdOf, formatRecordName } fro
 import { StepRegistry, stepMethodName, hostScopedMethodName, authorizeToolCapability } from "./step-registry.js";
 import { augmentViewHypermedia, isViewOnlyDomain } from "./step-hypermedia.js";
 
-/** The products kept on a step's lifecycle event: all by default, none for `false`, else the subset the filter returns. */
+/** The products kept on a step's lifecycle event: all by default, undefined for `false`, else the subset the filter returns. */
 export function retainedProducts(
 	products: Record<string, unknown> | undefined,
 	retain: boolean | ((p: Record<string, unknown>) => Record<string, unknown> | undefined) | undefined,
@@ -41,7 +41,7 @@ export type DispatchContext = {
  * cycles (beforeStep/afterStep), event logging, and result tracking uniformly.
  */
 /** How many of a feature's finished steps a reader can still read in full: the most recent it ran. What every step
- *  came to is answered by the reduction, which holds no step to answer it. */
+ *  came to is returned by the reduction, which doesn't hold a step to return it. */
 export const RESULTS_READ_IN_FULL = 1000;
 
 /** Add one finished step to what its feature's steps have come to. */
@@ -60,7 +60,7 @@ const ownFailure = (result: TStepResult): boolean => result.intent?.mode !== "sp
 export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureStep): Promise<TStepResult> {
 	const { registry, world, steppers } = ctx;
 	// A caller that states a capability decides; failing that, the capability the calling step was authorized with, so a
-	// step dispatched from inside another is neither refused nor allowed for the route taken to it. A statement that
+	// step dispatched from inside another isn't refused or allowed for the route taken to it. A statement that
 	// narrows authority, such as `holding only`, states it the same way, for its own statements only.
 	const grantedCapability = ctx.grantedCapability ?? authorizedWith();
 	const { action } = featureStep;
@@ -80,7 +80,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	const recorded = !(action.step.read === true && featureStep.programmatic === true);
 	// What the run holds of the steps a feature has finished. What a reader asks of them is how many ran, when they
 	// began and ended, and which one failed, so each is answered as the feature runs. Beyond that, the most recent are
-	// held in full, since a reader of the result reads what those produced; a step further back has no reader left, and
+	// held in full, since a reader of the result reads what those produced; a step further back doesn't have a reader left, and
 	// holding it holds every graph slice, response body and rendered document the run has produced. A feature that
 	// services requests for weeks would otherwise hold every step it ever ran.
 	const keep = (result: TStepResult): void => {
@@ -132,8 +132,8 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 			: {}),
 		controller: actingAs(),
 	};
-	// What the step may read is what its caller holds a read for: a caller holding none reads at public inside the step
-	// it may run, so no step reads a record for a caller who could not have read it.
+	// What the step may read is what its caller holds a read for: a caller that doesn't hold one reads at public inside the step
+	// it may run, so a step doesn't read a record for a caller who could not have read it.
 	const ceiling = readCeilingOf(grantedCapability) ?? Access.public;
 
 	if (recorded) {
@@ -171,7 +171,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 						if (actionResult.ok) {
 							if (actionResult.products) actionResult = { ...actionResult, products: { ...actionResult.products, [TRACE_SEQ_PATH]: featureStep.seqPath } };
 							actionResult = augmentViewHypermedia(world, action.step, actionResult, steppers);
-							// A fact is a record of the run, so a read the run did not ask for asserts none, as it records no step.
+							// A fact is a record of the run, so a read the run did not ask for doesn't assert one, as it doesn't record a step.
 							if (recorded) await autoAssertProducts(world, step.seqPath, action.step, actionResult);
 						}
 						if (!actionResult.ok && actionResult.errorMessage && featureStep.intent?.mode !== "speculative") {
@@ -197,7 +197,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	ok = ok && actionResult.ok;
 	lastStepResult.ok = ok;
 	if (!recorded) return lastStepResult;
-	// A step that did not pass while its caller's stream was stopped was stopped: the caller decided it, and nothing failed.
+	// A step that did not pass while its caller's stream was stopped was stopped: the caller decided it, and the step didn't fail.
 	const ended: TStepEnd = ok ? LIFECYCLE_STATUS.completed : streamContext.getStore()?.signal.aborted ? LIFECYCLE_STATUS.stopped : LIFECYCLE_STATUS.failed;
 	world.eventLogger.stepEnd(
 		featureStep,
@@ -236,7 +236,7 @@ function stepResultFromActionResult(actionResult: TActionResult, action: TStepAc
 
 /**
  * Verify each input domain a step's phrase names that stands for something a step produces has a value given for it or
- * at least one matching fact. A value a caller writes has no fact to stand for it, and its domain judges it, an empty
+ * at least one matching fact. A value a caller writes doesn't have a fact to stand for it, and its domain judges it, an empty
  * value included. Returns an error message when a precondition is unsatisfiable; undefined when all pass.
  */
 async function checkInputPreconditions(world: TWorld, paramDomainKeys: ReadonlyMap<string, string>, featureStep: TFeatureStep): Promise<string | undefined> {
@@ -285,7 +285,7 @@ async function autoAssertProducts(world: TWorld, seqPathKey: string, step: TStep
  * updated by `emitSeqPathEnd` after the action completes.
  */
 /** What a step required and what allowed it, for the step's own record. A step the run takes as itself holds
- *  everything, so its record gains nothing; a caller's says what it required, what it held and who proved it. */
+ *  every action, so its record doesn't gain a field; a caller's says what it required, what it held and who proved it. */
 type TStepAuthorization = { required?: string; held?: string; controller?: string };
 
 async function emitSeqPathStart(world: TWorld, featureStep: TFeatureStep, authorization: TStepAuthorization, ran: { ranVia: string; ranOn?: string }): Promise<void> {

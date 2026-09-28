@@ -4,7 +4,7 @@
  * <shu-virtual-column>, so a result set of millions renders only the rows in view (with the custom glyph scrollbar for
  * position and jump), never a full DOM table. The parent owns the RPC and the source; this element owns the header,
  * sort indicators, row selection, group headers, and time dimming, all derived declaratively from the source and state
- * (no imperative DOM mutation, so a re-render never accumulates listeners or drops classes).
+ * (without imperative DOM mutation, so a re-render never accumulates listeners or drops classes).
  *
  * Callers give it data one of two ways: `setResults(rows)` for an already-resident set (a text search's match page), or
  * `setSource(source)` for a paged/lazy set fetched a window at a time. Both drive the same render.
@@ -124,7 +124,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 		this.setState(partial);
 	}
 
-	/** Set the server-advertised sortable surface for the current label. Only headers whose field is in this set render as clickable sort triggers, others render as plain text. Empty set means no sorting offered (a text search across mixed types where no single label's sort applies). */
+	/** Set the server-advertised sortable surface for the current label. Only headers whose field is in this set render as clickable sort triggers, others render as plain text. An empty set means the server doesn't offer sorting (a text search across mixed types where a single label's sort doesn't apply). */
 	setSortableFields(fields: ReadonlyArray<string>): void {
 		this.sortableFields = new Set(fields);
 	}
@@ -222,7 +222,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 		const props = this.getVisibleProperties(displayMode, fixedProperty);
 		this.#props = props;
 		const total = this.#source.count();
-		// A readable floor per column; more columns than fit make the table scroll rather than shrink each to nothing.
+		// A readable floor per column; more columns than fit make the table scroll rather than shrink each to zero width.
 		const cols = props.length > 0 ? `repeat(${props.length}, minmax(${MIN_COLUMN}, 1fr))` : "1fr";
 		return html`
 			<div class="results-wrapper" data-testid="query-results">
@@ -263,7 +263,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 				const testId = j === 0 ? (index === 0 ? "query-row-first" : "query-row") : "";
 				// A cell that NAMES another individual is a reference, not text: it opens that individual, as every other
 				// reference in the app does. A row whose cells are references (a statement and where it came from) is
-				// therefore clickable cell by cell, with no table of its own.
+				// therefore clickable cell by cell, without a table of its own.
 				const reference = referenceOf(v[p]);
 				if (reference)
 					return html`<span class="td" title=${reference["@id"]} data-testid=${testId}>${unsafeHTML(renderRef("entity", { persistedAs: reference["@type"], id: reference["@id"] }))}</span>`;

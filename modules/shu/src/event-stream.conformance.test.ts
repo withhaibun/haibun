@@ -31,7 +31,7 @@ describeEventStream("a live connection", async () => {
 			const connection = { body: undefined as unknown as ReadableStreamDefaultController<Uint8Array>, read: true };
 			const body = new ReadableStream<Uint8Array>({ start: (controller) => void (connection.body = controller) });
 			bodies.push(connection);
-			// A page that stops reading, as a closed stream does, reads nothing more of this connection.
+			// A page that stops reading, as a closed stream does, doesn't read more of this connection.
 			init?.signal?.addEventListener("abort", () => void (connection.read = false));
 			return new Response(body, { status: 200 });
 		};

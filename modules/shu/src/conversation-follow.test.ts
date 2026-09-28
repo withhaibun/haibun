@@ -60,15 +60,15 @@ describe("the open conversation follows the run's turns", () => {
 		await vi.waitFor(() => expect(conversationState.get().turns).toHaveLength(2));
 	});
 
-	it("names what a session gained since this page read it, and nothing once the reader opens it", async () => {
-		expect(gainedSince("cmt-ask-0.9.9", 4), "a page that never opened a session has read none of it").toBe(4);
+	it("names what a session gained since this page read it, and names zero once the reader opens it", async () => {
+		expect(gainedSince("cmt-ask-0.9.9", 4), "a page that never opened a session hasn't read a turn of it").toBe(4);
 		read.turns = [aReadBack("0.9.9"), aReadBack("0.9.10", "cmt-ask-0.9.9")];
 		await openConversation("cmt-ask-0.9.9", "activate");
-		expect(gainedSince("cmt-ask-0.9.9", 2), "a session the reader read holds nothing new").toBe(0);
+		expect(gainedSince("cmt-ask-0.9.9", 2), "a session the reader read doesn't hold a new turn").toBe(0);
 		expect(gainedSince("cmt-ask-0.9.9", 5), "and what another page asked since is what it gained").toBe(3);
 	});
 
-	it("reads nothing where no conversation is open, so a report never opens one", () => {
+	it("doesn't read a session where a conversation isn't open, so a report never opens one", () => {
 		dispatchConversationEvent({ type: "close" });
 		followRunningTurns();
 		stream.onBatch?.();

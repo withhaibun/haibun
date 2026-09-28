@@ -8,11 +8,14 @@ export const DOMAIN_IMAGE_REFERENCE = "image-reference";
 
 export const ImageReferenceSchema = z.object({
 	contentUrl: z.string().min(1).describe("Where the run keeps the image's bytes."),
-	encodingFormat: z.string().regex(/^image\//).describe("The image's media type."),
+	encodingFormat: z
+		.string()
+		.regex(/^image\//)
+		.describe("The image's media type."),
 });
 export type TImageReference = z.infer<typeof ImageReferenceSchema>;
 
-/** The raster formats an image a person adds is kept in. A vector image can carry script, so none is kept. */
+/** The raster formats an image a person adds is kept in. A vector image can carry script, so one isn't kept. */
 export const KEPT_IMAGE_FORMATS = ["image/png", "image/jpeg", "image/gif", "image/webp"] as const;
 
 export const DOMAIN_IMAGE_DATA = "image-data";

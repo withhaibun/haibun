@@ -1,6 +1,6 @@
 /**
  * A stable hash of the visible graph model: the "unchanged-model skip" that lets a data merge avoid reheating the
- * layout when it brought nothing new. Node identity + name + link endpoints. In gantt view the time z (the model's
+ * layout when it didn't bring a new node or link. Node identity + name + link endpoints. In gantt view the time z (the model's
  * calendar position, a faithful function of each task's scheduled time) is mixed in too, so a reschedule, which leaves
  * the node/link set untouched but moves bars along the time axis, registers as a genuine model change and repaints.
  * `extra` mixes in a non-model scalar that nonetheless reshapes the rendering: the scrub time cursor, which re-places
@@ -32,7 +32,7 @@ export function hashModel(nodes: HashNode[], links: HashLink[], mixZ = false, ex
 		if (mixZ) mix(String(Math.round(n.z ?? 0))); // gantt: the calendar position is part of the model
 	}
 	for (const l of links) mix(linkKey(l));
-	if (extra != null) mix(String(extra)); // the scrub cursor (live/null mixes nothing, so live streaming is unaffected)
+	if (extra != null) mix(String(extra)); // the scrub cursor (live/null doesn't mix a value, so live streaming is unaffected)
 	h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
 	h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
 	return 4294967296 * (2097151 & h2) + (h1 >>> 0);

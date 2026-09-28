@@ -2,7 +2,7 @@
  * A person's browser, attached through their extension and driven by a run's steps. The extension's side is the relay
  * client running against a real Chromium through the chrome.* fake, calling the relay over the instance's `/rpc` and
  * signing as a key that holds what attaching a browser requires. The run clicks and enters text in the person's tab;
- * a caller that may not attach, a second extension, and a step with no browser attached are each refused, saying why.
+ * a caller that may not attach, a second extension, and a step without a browser attached are each refused, saying why.
  * The person attaches again after ending an attachment, and withdrawing what the extension holds ends its attachment.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -31,7 +31,7 @@ let chrome: ChromeOverCdp;
 let site: Server;
 let siteUrl: string;
 
-/** Sign each relay call as `holder`, invoking what attaching a browser requires; `nobody` signs nothing. */
+/** Sign each relay call as `holder`, invoking what attaching a browser requires; `nobody` doesn't sign a request. */
 const signedAs =
 	(holder: string): TProveRequest =>
 	(request) =>
@@ -142,7 +142,7 @@ describe("the browser relay", () => {
 		expect(result.ok, JSON.stringify(result.featureResults?.[0]?.stepResults?.filter((s) => !s.ok))).toBe(true);
 	});
 
-	it("refuses a step that needs the browser while none is attached, saying so", { timeout: 60_000 }, async () => {
+	it("refuses a step that needs the browser while a browser isn't attached, saying so", { timeout: 60_000 }, async () => {
 		const port = await freePort();
 		const feature = ["enable rpc", 'webserver is listening for "relay-detached"', "serve the browser relay", `go to the "${siteUrl}" webpage`].join("\n");
 		const result = await failWithDefaults([{ path: "/features/relay-detached.feature", content: feature }], steppers, options(port));

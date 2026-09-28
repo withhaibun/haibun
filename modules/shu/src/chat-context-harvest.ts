@@ -13,13 +13,13 @@ import { PAGE_TERMS, ViewCollectionSchema, viewCollection, type TLinkedData, typ
 
 type TSummarizes = Element & { summarizeForKihan(): TLinkedData | null };
 
-/** A pane's key in the `activePane` signal: its columnKey, or its column-type for the query pane (which has none). */
+/** A pane's key in the `activePane` signal: its columnKey, or its column-type for the query pane (which doesn't have one). */
 const paneKeyOf = (pane: Element): string => (pane as HTMLElement).dataset.columnKey ?? pane.getAttribute("column-type") ?? "";
 
 const summarizes = (el: Element): el is TSummarizes => typeof (el as Partial<TSummarizes>).summarizeForKihan === "function";
 
 /**
- * How many members of a view's collection a page carries, and nothing more: a bound on the payload, not on what fits.
+ * The most members of a view's collection a page carries: a bound on the payload, not on what fits.
  * A view of a graph of twenty thousand statements serialized megabytes into one step argument to deliver kilobytes of
  * it. What a model's window then holds of what arrives is decided by the turn against its own window: it states the
  * members the window held out and the call that reads them, so the page's bound is a safeguard, and the count the view
@@ -31,10 +31,10 @@ export const HARVEST_MEMBERS = 200;
  * A view's summary with its members kept to what a page carries.
  *
  * A view states its members under `items`, and a block stating them is held to the view's collection. Where the view
- * states a count, it stands, so a reader is told how many the view holds rather than how many arrived; where it states
- * none, the members held are the count the page states. `partOf` names the view the members came from, since the page
- * carrying them has no address of its own. A view stating no members is carried as it stated itself, and a page bounds
- * nothing of it: a view of that shape holds what it projects, as `shu-graph` holds the nodes and edges of one domain
+ * states a count, it stands, so a reader is told how many the view holds rather than how many arrived; where it doesn't
+ * state one, the members held are the count the page states. `partOf` names the view the members came from, since the page
+ * carrying them doesn't have an address of its own. A view that doesn't state members is carried as it stated itself, and a
+ * page doesn't bound it: a view of that shape holds what it projects, as `shu-graph` holds the nodes and edges of one domain
  * chain.
  */
 export function harvested(summary: TLinkedData, holds = HARVEST_MEMBERS): TLinkedData {
@@ -66,8 +66,8 @@ export function harvestChatViewLd(root: ParentNode = document): TLinkedData[] {
 	// on screen, so harvest what it shows.
 	const active = allPanes.find((p) => paneKeyOf(p) === activeKey);
 	// With panes open, one of them is the pane you are on: the router sets activePane and is its only writer. A key that
-	// matches none of them means the signal and the strip have gone out of step, and harvesting anyway would tell a
-	// model that nothing is selected while a view is plainly on screen.
+	// doesn't match one of them means the signal and the strip have gone out of step, and harvesting anyway would tell a
+	// model that the reader hasn't selected a view while a view is plainly on screen.
 	if (!active)
 		throw new Error(
 			`harvestChatViewLd: activePane is ${JSON.stringify(activeKey)}, which isn't one of the ${panes.length} open pane(s): [${panes.map((p) => JSON.stringify(paneKeyOf(p))).join(", ")}]. The pane router is the only writer of activePane.`,
@@ -80,7 +80,7 @@ export function harvestChatViewLd(root: ParentNode = document): TLinkedData[] {
 			blocks.push(harvested(summary));
 		} catch (err) {
 			// A summary the collection refuses is a fault in the view stating it: name the view, so the refusal is
-			// actionable rather than a page that says nothing is selected.
+			// actionable rather than a page that says the reader hasn't selected a view.
 			throw new Error(`${el.tagName.toLowerCase()}: ${err instanceof Error ? err.message : String(err)}`);
 		}
 	}

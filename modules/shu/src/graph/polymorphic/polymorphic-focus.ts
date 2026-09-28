@@ -1,7 +1,7 @@
 // The polymorphic's focus subsystem: the whole purely-visual dim/highlight + the focus-chip MAGNIFY pop. It decides what is
 // focused (the open column's node, else the hovered node), dims every node/edge/label except the focus neighbourhood,
 // re-pools the lib's per-link colours so a line's rgba carries its focus-state opacity, and animates the focus node's
-// chip up to a readable on-screen size with the cartoon easeOutBack overshoot. Nothing here moves the layout: at rest
+// chip up to a readable on-screen size with the cartoon easeOutBack overshoot. This module doesn't move the layout: at rest
 // it pins still-free nodes first (via the injected pin sink) so the lib's colour re-pool tick cannot jump an
 // under-converged force layout: the engine-settle guard. SELECT/hover-only focus, never a viewType branch.
 //
@@ -27,7 +27,7 @@ const MAX_MAGNIFY = 1.4; // the focus pop never enlarges a chip beyond this, kep
 const MAGNIFY_MS = 500;
 export const NODE_FONT_SIZE = 96;
 const MAX_FONT_SIZE = 384;
-const PULSE_AMP = 0.1; // already readable → no resize, just an acknowledgement pop up and back
+const PULSE_AMP = 0.1; // already readable → it doesn't resize, just an acknowledgement pop up and back
 
 /** easeOutBack with a gentle overshoot: the chip eases past its target and settles. */
 const easeOutBack = (t: number): number => {
@@ -156,7 +156,7 @@ export class PolymorphicFocus {
 	 * Dim every node/edge/label except the focus node and its immediate neighbours, which stay lit. Sizing is scoped
 	 * tightly: ONLY the focus node's chip pops, to a readable on-screen size, with an attention-getting overshoot:
 	 * while neighbour chips and every edge label keep their natural size. So pointing at a hub dims the rest but never
-	 * rescales the neighbourhood. With no focus, everything returns to full opacity and unit scale.
+	 * rescales the neighbourhood. Everything returns to full opacity and unit scale without a focus.
 	 */
 	applyFocus(): void {
 		const focus = this.deps.focusId();
@@ -167,7 +167,7 @@ export class PolymorphicFocus {
 		// only ~half the time, when the random layout didn't settle in limit) JUMPS on that one tick: "the graph
 		// rescales/moves on hover". So at REST, pin every still-free node where it sits first: the reheat then moves
 		// the COLOUR only, never the positions. These pins ride the data-feed pin set, so the same engine-stop that ends
-		// the reheat releases them (no permanent freeze); already-pinned nodes (the selection) are left as they are. Only
+		// the reheat releases them (so they don't freeze permanently); already-pinned nodes (the selection) are left as they are. Only
 		// at rest, during a genuine settle the engine owns the layout (and the hover is guarded then anyway).
 		if (this.deps.engineFrozen()) {
 			for (const n of nodeMap.values()) {
@@ -179,7 +179,7 @@ export class PolymorphicFocus {
 			}
 		}
 		// Lines: re-assert the colour accessor so the lib re-pools every edge to its focus-state rgba. The lib owns
-		// line opacity (global × colour alpha); there is no mesh to write and nothing to retry. The direction arrows
+		// line opacity (global × colour alpha); the code doesn't write a mesh or retry a write. The direction arrows
 		// ride the same rgba so they dim/brighten with their edge.
 		const graph = this.deps.graph();
 		graph?.linkColor((l) => this.lineRgbaFor(l));
@@ -248,7 +248,7 @@ export class PolymorphicFocus {
 	 * distance at `pos` (via the camera's worldPerPxAt). Never below natural size, so an already-readable chip stays put. */
 	private readableK(pos: { x?: number; y?: number; z?: number }, baseTextHeight: number, targetPx: number): number {
 		const worldPerPx = this.deps.worldPerPxAt(pos);
-		if (worldPerPx === null) return 1; // camera not ready: no pop (never a blind enlargement)
+		if (worldPerPx === null) return 1; // camera not ready: it doesn't pop (never a blind enlargement)
 		return Math.min(Math.max((targetPx * worldPerPx) / baseTextHeight, 1), MAX_MAGNIFY);
 	}
 
@@ -288,7 +288,7 @@ export class PolymorphicFocus {
 
 	/** Breathe every worn glow each beat: the active node's for as long as it is active, each newcomer's until its
 	 *  first moments end, one rhythm, one colour, one write per glowing node. Returns whether a frame is needed, so the
-	 *  render loop draws it (a paused scene would freeze the breath mid-cycle, and an expiry nobody draws never
+	 *  render loop draws it (a paused scene would freeze the breath mid-cycle, and an expiry the loop doesn't draw never
 	 *  ends). With `pulsing` false the breath rests: each glow is drawn once at its fullest and held, and a frame is
 	 *  needed only on the beat the set of worn glows changes. The scene's regulator selects which, from what a frame takes. */
 	updateHighlight(pulsing = true): boolean {

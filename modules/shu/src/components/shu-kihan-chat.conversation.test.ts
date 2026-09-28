@@ -30,7 +30,16 @@ let refusedBeforeRecording: string | undefined;
 /** What the run waits on between starting the turn's step and recording its question, where a case holds it there. */
 let recording: Promise<void> | undefined;
 /** The context envelope each turn was sent with, so a case reads what the pane asked for. */
-const sent: Array<{ contextReadBy?: string; patterns?: unknown[]; inReplyTo?: string; viewLd?: unknown[]; session?: string; target?: string; accessLevel?: string; images?: unknown[] }> = [];
+const sent: Array<{
+	contextReadBy?: string;
+	patterns?: unknown[];
+	inReplyTo?: string;
+	viewLd?: unknown[];
+	session?: string;
+	target?: string;
+	accessLevel?: string;
+	images?: unknown[];
+}> = [];
 /** The image the run keeps for a question, and each image the pane asked it to keep. */
 const KEPT_IMAGE = { contentUrl: "/artifacts/featn-1/image/question-1.png", encodingFormat: "image/png" };
 const keptImages: string[] = [];
@@ -121,7 +130,7 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 const EMAIL = entryOf([anIndividual("Email", "read-me@bakery.test")], "private");
 const OTHER = entryOf([anIndividual("Email", "other@bakery.test")], "private");
 
-// The machines are module state shared by every case. Each case starts with no turn in flight, no conversation and no
+// The machines are module state shared by every case. Each case starts without a turn in flight, a conversation or an
 // active record, because a turn left running refuses the next case's question.
 beforeEach(async () => {
 	dispatchConversationEvent({ type: "stop", reason: "the case ended" });
@@ -214,7 +223,7 @@ describe("a question refused", () => {
 		expect(hidden(pane, ".stop-btn")).toBe(false);
 	});
 
-	it("while the conversation opens, says so beside the input and sends nothing", async () => {
+	it("while the conversation opens, says so beside the input and doesn't send a question", async () => {
 		const { pane } = await aPage();
 		pickSession(pane, RESTORED);
 		await submit(pane, "and what came of it");
@@ -265,7 +274,7 @@ describe("a question not asked", () => {
 		answerCatalog();
 		await settle();
 		await pane.updateComplete;
-		expect(sent, "nothing is sent while the conversation opens").toHaveLength(0);
+		expect(sent, "a question isn't sent while the conversation opens").toHaveLength(0);
 		expect(refusalOn(pane)).toBe(CONVERSATION_OPENING);
 	});
 
@@ -278,7 +287,7 @@ describe("a question not asked", () => {
 		expect(refusalOn(pane)).toContain("the store is unreachable");
 	});
 
-	it("because its view data cannot be stated, keeps the question and leaves no turn in flight", async () => {
+	it("because its view data cannot be stated, keeps the question and doesn't leave a turn in flight", async () => {
 		dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: EMAIL });
 		viewData = [{ "@id": "view:counts", count: 1n }];
 		const { pane } = await aPage();
@@ -298,12 +307,12 @@ describe("a question not asked", () => {
 		await settle();
 		pickSession(pane, RESTORED);
 		await pane.updateComplete;
-		expect(refusalOn(pane), "no question was submitted while it opens").toBeNull();
+		expect(refusalOn(pane), "a question wasn't submitted while it opens").toBeNull();
 	});
 });
 
 describe("a turn that ends before it answered", () => {
-	it("says what went wrong on its answer, and nothing is left spinning", async () => {
+	it("says what went wrong on its answer, and doesn't leave a spinner running", async () => {
 		streamFails = "the model did not answer: connection reset";
 		const { pane, history } = await aPage();
 		await submit(pane, "what do these have in common");
@@ -388,7 +397,7 @@ describe("the model a question is sent to", () => {
 });
 
 describe("who reads the context", () => {
-	it("stands at the model's default, named by what the model states, and the turn carries nothing about it", async () => {
+	it("stands at the model's default, named by what the model states, and the turn doesn't carry contextReadBy", async () => {
 		const { pane } = await aPage();
 		await submit(pane, "what do these have in common");
 		expect(reading(pane).value).toBe("");
@@ -425,7 +434,7 @@ describe("who reads the context", () => {
 		expect(reading(pane).value, "the setting returns to what the model states").toBe("");
 		await submit(pane, "what is this");
 		expect(sent.at(-1)?.target).toBe("openai:nothink");
-		expect(sent.at(-1)?.contextReadBy, "and the turn carries nothing the reader has not stated").toBeUndefined();
+		expect(sent.at(-1)?.contextReadBy, "and the turn doesn't carry a value the reader has not stated").toBeUndefined();
 	});
 });
 
@@ -447,7 +456,7 @@ describe("what a turn states about itself", () => {
 		});
 		stream.piece?.("crumb ");
 		stream.piece?.("and dough, ");
-		expect(moves, "no move before the frame is drawn").toEqual([]);
+		expect(moves, "the view doesn't move before the frame is drawn").toEqual([]);
 		await new Promise((resolve) => requestAnimationFrame(resolve));
 		stream.piece?.("then ");
 		stream.finish?.();
@@ -459,7 +468,7 @@ describe("what a turn states about itself", () => {
 });
 
 describe("the ask and the active record", () => {
-	it("sends the bundle of the record the page activated, with the pane's view data, and replies to nothing yet", async () => {
+	it("sends the bundle of the record the page activated, with the pane's view data, and doesn't reply to a turn yet", async () => {
 		dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: EMAIL });
 		const { pane } = await aPage();
 		await submit(pane, "what does this say");
@@ -593,7 +602,7 @@ describe("a conversation", () => {
 		expect(sent.at(-1)).toMatchObject({ inReplyTo: RESTORED, session: RESTORED, patterns: EMAIL.bundle.patterns });
 	});
 
-	it("picked while a turn of another session runs, leaves that turn running, and the comments it records activate nothing", async () => {
+	it("picked while a turn of another session runs, leaves that turn running, and the comments it records don't activate a record", async () => {
 		dispatchSubjectEvent({ type: "open", scope: SCOPE.actionsBar });
 		const { pane, history } = await aPage();
 		await submit(pane, "what do these have in common");
@@ -606,7 +615,7 @@ describe("a conversation", () => {
 		expect(turnsShown(history), "and its transcript is the picked session's").toEqual([RESTORED]);
 	});
 
-	it("is named by no session on a first turn the run refused before it recorded anything, whose question returns to the input", async () => {
+	it("isn't named by a session on a first turn the run refused before it recorded anything, whose question returns to the input", async () => {
 		refusedBeforeRecording = 'no Kihan registered for target "openai:gone"';
 		const { pane } = await aPage();
 		await submit(pane, "what do these have in common");
@@ -650,7 +659,7 @@ describe("a conversation", () => {
 		await answerTheSessionRead("the store is unreachable");
 		await submit(pane, "a new question");
 		expect(sent.at(-1)?.session).toBeUndefined();
-		expect(sent.at(-1)?.inReplyTo, "and replies to no turn of the session that did not open").toBeUndefined();
+		expect(sent.at(-1)?.inReplyTo, "and doesn't reply to a turn of the session that did not open").toBeUndefined();
 	});
 
 	it("that fails to read back is closed, so the next question starts a session", async () => {

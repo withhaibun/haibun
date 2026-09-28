@@ -1,6 +1,6 @@
 /**
  * What IndexedDB caches for this origin, as reported to a reader: each database, each of its object stores and
- * how many records are in it. Read-only, and nothing where there is no IndexedDB (a test, a context without it).
+ * how many records are in it. Read-only, and empty where IndexedDB doesn't exist (a test, a context without it).
  */
 export type TIdbStoreSummary = { name: string; count: number };
 export type TIdbDatabaseSummary = { name: string; version: number; stores: TIdbStoreSummary[] };

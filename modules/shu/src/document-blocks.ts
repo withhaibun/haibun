@@ -65,7 +65,7 @@ export function finalizeBlocks(blocks: TDocBlock[], resolveArtifact: TArtifactRe
 				const ids = (holder.getAttribute("data-ids") || holder.getAttribute("data-id") || "").split(",").filter(Boolean);
 				holder.innerHTML = ids.map((id) => resolveArtifact(id)).join("");
 			}
-			// An artifact block whose every artifact renders "" (a dispatch trace, an unresolvable id) is NOTHING: emitting it
+			// An artifact block whose every artifact renders "" (a dispatch trace, an unresolvable id) is empty: emitting it
 			// would waste a virtualized row and, worse, split a run of screenshots so they stack instead of flowing as tiles.
 			if (el.matches(ARTIFACT_HOLDER_SELECTOR) && el.childElementCount === 0 && !el.textContent?.trim()) return null;
 			// The reader classes the old post-process added: every content block is a clickable doc-row; log rows carry their
@@ -120,7 +120,7 @@ export function withHeadingAnchors(md: { renderer: { rules: Record<string, unkno
 	};
 }
 
-/** Which block carries the heading a link names, or -1 when this document has none. The heading's own name is stamped
+/** Which block carries the heading a link names, or -1 when this document doesn't have one. The heading's own name is stamped
  *  on its block when the document is built (headingAnchor), which is the only handle a feature author has: the block
  *  ids beside it are assigned while the run happens. */
 export function blockIndexForHeading(blocks: readonly TDocBlock[], anchor: string): number {
@@ -130,7 +130,7 @@ export function blockIndexForHeading(blocks: readonly TDocBlock[], anchor: strin
 
 /** Give the blocks generated for a run of events to the event each came from, in order: a block carrying an id belongs
  *  to the next event from the last one matched whose id it is (a step's start, never its end, which shares the id and
- *  comes later), and a block carrying none (a spacer, a strip of thumbnails) stays with the event before it. The
+ *  comes later), and a block that doesn't carry one (a spacer, a strip of thumbnails) stays with the event before it. The
  *  document renders one row per event of the run, so each event must own exactly the blocks it produced. */
 export function blocksByEvent(events: readonly { id?: unknown }[], blocks: readonly TDocBlock[]): TDocBlock[][] {
 	const out: TDocBlock[][] = events.map(() => []);

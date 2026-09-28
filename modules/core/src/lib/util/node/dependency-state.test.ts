@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { TIMINGS_FILE, VERIFIED_FILE, dependencyRoots, dependencyState, moduleRootOf } from "./dependency-state.js";
 
-/** A repository holding the files given, with nothing committed: the state is read from the working tree. */
+/** A repository holding the files given, without a commit: the state is read from the working tree. */
 function aRepository(files: Record<string, string>): string {
 	const dir = nodeFS.mkdtempSync(path.join(os.tmpdir(), "haibun-state-"));
 	execFileSync("git", ["init", "-q"], { cwd: dir });
@@ -58,7 +58,7 @@ describe("the state of what a run depends on", () => {
 		expect(dependencyState([repo], ["imap", "llm"]), "in whatever order they are named").toBe(dependencyState([repo], ["llm", "imap"]));
 	});
 
-	it("is unknown for a directory in no repository, rather than the state of nothing", () => {
+	it("is unknown for a directory that isn't in a repository, rather than the empty state", () => {
 		const dir = nodeFS.mkdtempSync(path.join(os.tmpdir(), "haibun-norepo-"));
 		nodeFS.writeFileSync(path.join(dir, "a.feature"), "Feature: a\n");
 		expect(dependencyState([dir])).toBeUndefined();
@@ -80,7 +80,7 @@ describe("the state of what a run depends on", () => {
 		expect(dependencyState([repo]), "the link points elsewhere, which is a change").not.toBe(before);
 	});
 
-	it("says so when git cannot be asked, rather than treating the failure as no repository", () => {
+	it("says so when git cannot be asked, rather than treating the failure as a missing repository", () => {
 		const repo = aRepository({ "a.feature": "Feature: a\n" });
 		const gone = path.join(repo, "gone");
 		expect(() => dependencyState([gone])).toThrow(/could not ask git about/);
@@ -144,7 +144,7 @@ describe("what a run depends on", () => {
 		expect(() => dependencyRoots({ steppers: ["../build/x-stepper"] }, [configDir], configDir, configDir)).toThrow(/tsconfig\.json could not be read/);
 	});
 
-	it("refuses a dependsOn path that is not there, rather than verifying against nothing without a word", () => {
+	it("refuses a dependsOn path that is not there, rather than verifying against an absent path without reporting it", () => {
 		const repo = aRepository({ "tests/config.json": "{}" });
 		const configDir = path.join(repo, "tests");
 		expect(() => dependencyRoots({ steppers: [], dependsOn: ["../fixtures"] }, [configDir], configDir, configDir)).toThrow(/dependsOn names \.\.\/fixtures/);

@@ -2,7 +2,7 @@
  * EventStream: shu's single contract for inbound server-pushed events
  * (lifecycle, log, time-sync). One file holds the interface, both
  * implementations, and the accessor. Components and infrastructure subscribe
- * via `eventStream()`; nothing else touches `SseSubscriber`.
+ * via `eventStream()`; other code doesn't touch `SseSubscriber`.
  *
  * `LiveEventStream` wraps the shared `SseSubscriber` connection, which the
  * page asks for signed, since following the run takes a private read.
@@ -31,7 +31,7 @@ export interface EventStream {
 	subscribe(handler: TEventHandler, filter?: TEventFilter): () => void;
 
 	/** Open the stream now, before any view subscribes. The server announces from the moment a page connects and
-	 *  replays nothing, so a page that connects only when its first view is ready loses what happened while it booted;
+	 *  doesn't replay what it sent before, so a page that connects only when its first view is ready loses what happened while it booted;
 	 *  what arrives before a view subscribes is held for it. */
 	connect(): void;
 
@@ -39,7 +39,7 @@ export interface EventStream {
 	 *  announces reaches the handlers. Returns an unsubscribe. */
 	opened(fn: () => void): () => void;
 
-	/** Be told the stream has come back after a break in it. What happened during the break reaches no handler, so a
+	/** Be told the stream has come back after a break in it. What happened during the break doesn't reach a handler, so a
 	 *  view following the run reads again on this through the path it already reads on. Returns an unsubscribe. */
 	reconnected(fn: () => void): () => void;
 
@@ -170,7 +170,7 @@ export function setEventStream(s: EventStream): void {
 }
 
 /** Whether a live EventStream is installed. A static context (offline report bundle, a unit test that doesn't drive
- *  live events) legitimately has none: a component checks this before subscribing rather than forcing a stream. */
+ *  live events) legitimately doesn't have one: a component checks this before subscribing rather than forcing a stream. */
 export function hasEventStream(): boolean {
 	return installedStream().stream !== undefined;
 }
@@ -186,7 +186,7 @@ export function eventStream(): EventStream {
 
 /** Subscribe to the stream, coalescing every event arriving between paints into one `onBatch` call inside an animation
  *  frame. Returns an unsubscribe. The `this`-free form shared by `ShuElement.subscribeBatched` and the data controllers;
- *  no caller constructs an `SseSubscriber` directly. `onReconnect` fires when the stream comes back after a
+ *  a caller doesn't construct an `SseSubscriber` directly. `onReconnect` fires when the stream comes back after a
  *  break: the same reason to read again as an arrival, on the same path. */
 export function subscribeBatchedEvents(opts: { onBatch: (events: TEvent[]) => void; filter?: TEventFilter; onReconnect?: () => void; onDisconnect?: () => void }): () => void {
 	let pending: TEvent[] = [];

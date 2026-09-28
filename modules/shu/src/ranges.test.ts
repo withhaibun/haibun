@@ -25,7 +25,7 @@ describe("subtractRanges", () => {
 	it("removes a fully-contained range → empty", () => {
 		expect(subtractRanges([r(3, 7)], [r(1, 10)])).toEqual([]);
 	});
-	it("returns the held range when nothing is subtracted (an orphan)", () => {
+	it("returns the held range when the subtracted list is empty (an orphan)", () => {
 		expect(subtractRanges([r(1, 10)], [])).toEqual([r(1, 10)]);
 	});
 	it("handles the open live edge", () => {

@@ -570,7 +570,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 				const text = await wp.withPage<string>(async (page: Page) => {
 					const locator = wp.locateByDomain(page, element);
 					const content = await locator.textContent();
-					// Empty `<div>` returns "" (not null); falling through to `inputValue()` on a non-form node throws. Trust `textContent` for any non-null return and only reach for `inputValue` when the element exposes no text node at all (rare, implies the locator hit a void element or shadow-rooted custom element with no light-DOM text).
+					// Empty `<div>` returns "" (not null); falling through to `inputValue()` on a non-form node throws. Trust `textContent` for any non-null return and only reach for `inputValue` when the element doesn't expose a text node (rare, implies the locator hit a void element or shadow-rooted custom element without light-DOM text).
 					if (content !== null) return content.trim();
 					return await locator.inputValue();
 				});
@@ -605,10 +605,10 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			gwta: `requests matching {pattern: ${DOMAIN_URL_GLOB}} are {state: ${DOMAIN_REQUEST_STATE}}`,
 			description: `Block or allow the requests this page makes, by URL glob, for the rest of the feature: what a view does when the server it reads from is unreachable, and what it does when the server responds again. ${Object.values(REQUEST_STATE).join(" or ")}.`,
 			action: async ({ pattern, state }: { pattern: string; state: string }) => {
-				// On the page, so the state applies to this page's requests and to no other page of the context.
+				// On the page, so the state applies to this page's requests and not to other pages of the context.
 				await wp.withPage(async (page: Page) => {
 					if (state === REQUEST_STATE.blocked) await page.route(pattern, (route) => route.abort());
-					// Neither answered nor refused: the request is taken and left, which is what a page reading a site that
+					// The request isn't answered or refused: it is taken and left, which is what a page reading a site that
 					// has stopped answering is given.
 					else if (state === REQUEST_STATE.unanswered) await page.route(pattern, () => undefined);
 					else await page.unroute(pattern);

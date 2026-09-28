@@ -52,7 +52,7 @@ export interface IHasTunables {
 
 /**
  * Enumerate every tunable declared by any stepper in the list. Steppers
- * with no `tunables` property are skipped silently.
+ * without a `tunables` property are skipped silently.
  */
 export function getTunableOptions(steppers: AStepper[]): Array<{ stepperName: string; key: string; meta: TTunableOption }> {
 	const out: Array<{ stepperName: string; key: string; meta: TTunableOption }> = [];

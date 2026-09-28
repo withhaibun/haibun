@@ -31,7 +31,7 @@ Feature: Auth-bearer Authentication
     make auth scheme "bearer"
     API user agent is "curl/8.5.0"
 
-    Scenario: Fail authentication with no auth header
+    Scenario: Fail authentication without an auth header
         go to the REST Home webpage
         make an HTTP GET to Profile API
         # RFC 6750: missing Authorization header -> 401 Unauthorized

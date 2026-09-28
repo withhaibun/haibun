@@ -17,7 +17,7 @@ const CLIENT_ID = "client";
 export const ENDPOINT_CLASS = { route: "route", service: "service", external: "external" } as const;
 /** Every observed request, as a fine-grained occurrence: the persisted record is what the graph and the sequence read,
  *  while this is what a trace shows in order, under the step that caused it. Recorded on every response, so it leaves
- *  to the blip channel the job of doing nothing when nothing is listening. */
+ *  to the blip channel the job of returning early when a subscriber isn't listening. */
 const HTTP_REQUEST_BLIP = "haibun.http.request";
 declareBlips({
 	name: HTTP_REQUEST_BLIP,
@@ -77,7 +77,7 @@ const trackCache = new WeakMap<object, { ensured: Set<string>; counts: Map<strin
  * HttpHost. Every endpoint links `isPartOf` to the site's host node, so the graph connects the whole exchange:
  * client → request → endpoint → site, or client/site → request → host.
  */
-/** An outbound request the instance itself makes: no route table, origin "site". The one call shape for every
+/** An outbound request the instance itself makes, without a route table, origin "site". The one call shape for every
  *  outbound observer, so the convention is stated once. */
 export function trackOutboundRequest(world: TWorld, observation: THttpRequestObservation): Promise<void> {
 	return trackHttpRequest(world, observation, NO_ROUTES, "site");

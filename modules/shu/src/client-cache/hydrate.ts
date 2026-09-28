@@ -1,7 +1,7 @@
 /**
  * A run carried in a page rather than read from a site: the standalone report embeds the graph of the run it reports,
  * and this fills a memory-backed store with it at boot. Every view then reads the run through the same window it reads
- * a live one by; nothing about a report is a second read path.
+ * a live one by; a report doesn't add a second read path.
  *
  * Memory, not IndexedDB: a report is opened from a file, where every report shares one origin, so a report that
  * persisted would mix its run with the next report's.
@@ -33,6 +33,6 @@ export async function hydrateClientCache(cache: TCachePayload): Promise<void> {
 	const graph = new QuadStore();
 	if (cache.quads?.length) await graph.setMany(cache.quads);
 	setGraphStore(graph);
-	// The run this page carries is the run it reads: there is no site recording another one.
+	// The run this page carries is the run it reads: a site doesn't record another one.
 	readExecution(cache.execution);
 }

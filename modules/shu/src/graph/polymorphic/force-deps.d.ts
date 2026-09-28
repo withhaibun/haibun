@@ -1,4 +1,4 @@
-// d3-force-3d ships no .d.ts; declare the minimal surface these layout modules drive.
+// d3-force-3d doesn't ship a .d.ts; declare the minimal surface these layout modules drive.
 declare module "d3-force-3d" {
 	type CollideForce = { radius(r: (node: unknown) => number): CollideForce; strength(s: number): CollideForce };
 	export function forceCollide(radius?: number): CollideForce;

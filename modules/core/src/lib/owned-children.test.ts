@@ -38,7 +38,7 @@ describe("children owned for the life of the process", () => {
 		superviseChild(living);
 		superviseChild(ended);
 		terminateOwnedChildren();
-		expect(living.kills, "one SIGTERM, with no waiting an ending owner cannot do").toEqual(["SIGTERM"]);
+		expect(living.kills, "one SIGTERM, without the waiting an ending owner cannot do").toEqual(["SIGTERM"]);
 		expect(ended.kills, "a child already over is not signalled").toEqual([]);
 		expect(supervisedCount()).toBe(0);
 	});
@@ -56,7 +56,7 @@ describe("children owned for the life of the process", () => {
 		superviseChild(fakeChild());
 		superviseChild(fakeChild());
 		expect(process.listeners("SIGTERM").length, "one handler answers for every child").toBeLessThanOrEqual(sigterm + 1);
-		expect(vi.isMockFunction(process.exit), "and nothing here replaced process.exit").toBe(false);
+		expect(vi.isMockFunction(process.exit), "and this code didn't replace process.exit").toBe(false);
 		terminateOwnedChildren();
 	});
 });

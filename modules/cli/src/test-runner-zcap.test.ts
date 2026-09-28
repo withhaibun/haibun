@@ -40,7 +40,7 @@ function harness() {
 	// The run's registry, as the executor opens it, which a step calls another step through.
 	const registry = openRunRegistry(world, steppers);
 	/** Call a step the way anything calls a step: as a caller holding the actions named, as a statement narrowed to them
-	 *  runs, with no capability asserted by the caller. */
+	 *  runs, without a capability asserted by the caller. */
 	const call = async (method: string, input: Record<string, unknown> = {}, held?: string[], grantedCapability?: string) => {
 		const dispatch = () => callStepByName({ registry, world, steppers, grantedCapability }, method, input);
 		return held ? await runAuthorizedWith(held, dispatch) : await dispatch();
@@ -54,7 +54,7 @@ describe("what a caller must hold to run a test", () => {
 		h = harness();
 	});
 
-	it("refuses to start a run with no capability at all", async () => {
+	it("refuses to start a run without a capability", async () => {
 		await expect(h.call("TestRunnerStepper-runTest", { where: NOWHERE, filter: "any" })).rejects.toThrow(new RegExp(`capability ${SUPERVISOR_CAPABILITIES.run} required`));
 	});
 
@@ -62,7 +62,7 @@ describe("what a caller must hold to run a test", () => {
 		const called = await h.call("TestRunnerStepper-runTest", { where: NOWHERE, filter: "any" }, [SUPERVISOR_CAPABILITIES.run]);
 		expect(called.registered).toBe(true);
 		if (!called.registered) return;
-		expect(called.result.ok, "nothing is there to run").toBe(false);
+		expect(called.result.ok, "the base doesn't exist").toBe(false);
 		expect(called.result.errorMessage, "the supervisor was reached, which is what authorization means here").toMatch(/doesn't hold a config.json/);
 	});
 
@@ -70,7 +70,7 @@ describe("what a caller must hold to run a test", () => {
 		const reader = [SUPERVISOR_CAPABILITIES.read];
 		await expect(h.call("TestRunnerStepper-runTest", { where: NOWHERE, filter: "any" }, reader)).rejects.toThrow(new RegExp(`capability ${SUPERVISOR_CAPABILITIES.run} required`));
 		const read = await h.call("TestRunnerStepper-readTestRun", {}, reader);
-		expect(read.registered && read.result.errorMessage, "the read passed the gate and found nothing to read").toMatch(/nothing to read/);
+		expect(read.registered && read.result.errorMessage, "the read passed the gate and didn't find a run to read").toMatch(/nothing to read/);
 	});
 
 	it("is not reachable through the agent by a capability the agent named for itself: the power gated is the power exercised", async () => {
@@ -79,7 +79,7 @@ describe("what a caller must hold to run a test", () => {
 		);
 	});
 
-	it("gates the supervisor's own steps the same way, so calling it directly is no way around the agent's limits", async () => {
+	it("gates the supervisor's own steps the same way, so calling it directly doesn't bypass the agent's limits", async () => {
 		await expect(h.call("InstanceStepper-startRun", { where: NOWHERE, filter: "any", port: 0, run: "r" })).rejects.toThrow(
 			new RegExp(`capability ${SUPERVISOR_CAPABILITIES.run} required`),
 		);
@@ -95,7 +95,7 @@ describe("what a caller must hold to run a test", () => {
 		);
 	});
 
-	it("carries the caller's authority into the step the tool calls through to, so a wrapper neither gains nor loses it", async () => {
+	it("carries the caller's authority into the step the tool calls through to, so a wrapper doesn't gain or lose it", async () => {
 		// The agent's tool is authorized by an explicit capability, as an RPC or MCP caller reaches it. Its inner call to the
 		// supervisor must run under that same authority.
 		const called = await h.call("TestRunnerStepper-runTest", { where: NOWHERE, filter: "any" }, undefined, SUPERVISOR_CAPABILITIES.run);

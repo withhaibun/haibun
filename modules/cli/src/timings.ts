@@ -24,11 +24,11 @@ type TFeatureTiming = z.infer<typeof FeatureTimingSchema>;
 export type TTimings = z.infer<typeof TimingsSchema>;
 
 /** The file holds one set of timings per machine class: a run on other hardware takes other times, and comparing
- *  across machines reports a difference that no change caused. */
+ *  across machines reports a difference that a change didn't cause. */
 type TTimingsFile = Record<string, unknown>;
 
 /** The class of machine a run was measured on: its processor model, how many cores it has, its architecture and its
- *  platform. It describes the hardware and names neither the host nor the user. */
+ *  platform. It describes the hardware and doesn't name the host or the user. */
 export function machineKey(): string {
 	const cpus = os.cpus();
 	const model = (cpus[0]?.model ?? "unknown")
@@ -121,7 +121,7 @@ export function recordTimings(configDir: string, result: TExecutorResult, filter
 	const variances = variancesBetween(recorded, now);
 	const written = filtered && recorded ? withTotals({ ...recorded.features, ...now.features }) : now;
 	// Only this machine's entry is replaced: what another machine measured stays as that machine measured it. The
-	// machines are written in a stable order, so a file changes when a measurement changes and at no other time.
+	// machines are written in a stable order, so a file changes only when a measurement changes.
 	const merged: TTimingsFile = { ...held, [machine]: written };
 	const ordered = Object.fromEntries(
 		Object.keys(merged)

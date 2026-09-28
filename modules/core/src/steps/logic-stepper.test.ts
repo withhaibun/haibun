@@ -272,8 +272,8 @@ every stepper observed in stepper usage is variable stepper/count is more than 0
 	});
 
 	it("asserts a quoted inner statement rather than passing it through as prose", async () => {
-		// The written form quotes the inner statement. Unstripped quotes match no gwta and resolve as prose, which
-		// always passes, so a false claim written that way asserted nothing.
+		// The written form quotes the inner statement. Unstripped quotes don't match a gwta and resolve as prose, which
+		// always passes, so a false claim written that way wasn't checked.
 		const feature = {
 			path: "/features/test.feature",
 			content: `passes

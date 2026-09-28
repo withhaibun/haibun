@@ -15,7 +15,7 @@ const ViewsPickerSchema = z.object({});
 type TView = { id: string; description: string; component: string };
 
 export class ShuViewsPicker extends ShuElement<typeof ViewsPickerSchema> {
-	/** A control, not a view of data, contributes nothing to the Kihan's context. */
+	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}

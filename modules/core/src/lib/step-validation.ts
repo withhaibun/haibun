@@ -19,7 +19,7 @@ type StepValidationResult =
 
 /**
  * Validate a step text against the steps of the registered steppers that a caller holding `held` may call, so a line
- * that names a step the caller doesn't hold is answered as one naming no step. Returns the matched action if valid, or
+ * that names a step the caller doesn't hold is treated as one that doesn't name a step. Returns the matched action if valid, or
  * an error message if not.
  */
 export function validateStep(text: string, steppers: AStepper[], held: string | string[] | undefined, backgrounds?: TFeatures): StepValidationResult {

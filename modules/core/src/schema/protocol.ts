@@ -29,13 +29,13 @@ export const CHECK_YES = "✅";
 export const CHECK_NO = "❌";
 export const CHECK_YIELD = "🔀";
 
-// Tried, not concluded: `some ... is ...` runs until one matches, `maybe` expects either answer. Neither outcome is a
-// fault, so neither uses a verdict mark. Quieter than a verdict on purpose.
+// Tried, not concluded: `some ... is ...` runs until one matches, `maybe` expects either answer. Either outcome isn't a
+// fault, so these marks aren't verdict marks. Quieter than a verdict on purpose.
 export const MAYBE_CHECK_YES = "◆";
 export const MAYBE_CHECK_NO = "◇";
 
 // Handed out and answered: a tool call a model made, an RPC. A failure here is returned to its caller to act on, and
-// is not the run failing, so it is neither a verdict nor silent.
+// is not the run failing, so it isn't a verdict or silent.
 export const RETURNED_TO_CALLER = "↩️";
 
 // BDD Structure (Geometric Containers)
@@ -104,8 +104,8 @@ export const declaresScenario = (called: string | undefined): boolean => called?
 export const declaredName = (text: string, of: keyof typeof DECLARES): string => text.replace(new RegExp(`^${DECLARES[of]}\\s*`), "").trim();
 
 /** How a lifecycle event says a step, feature or execution ended. */
-/** How a lifecycle ends or stands. `stopped` is a step its caller stopped: a reader's decision, not a fault, so it is
- *  neither a failure nor a pass. */
+/** How a lifecycle ends or stands. `stopped` is a step its caller stopped: a reader's decision, not a fault, so it
+ *  isn't a failure or a pass. */
 export const LIFECYCLE_STATUS = { running: "running", completed: "completed", failed: "failed", stopped: "stopped", skipped: "skipped" } as const;
 const LIFECYCLE_STATUS_SCHEMA = z.enum([LIFECYCLE_STATUS.running, LIFECYCLE_STATUS.completed, LIFECYCLE_STATUS.failed, LIFECYCLE_STATUS.stopped, LIFECYCLE_STATUS.skipped]);
 /** How a step ended. */
@@ -342,8 +342,8 @@ export class EventFormatter {
  * therefore not the run failing. One axis with two ends, which is why every reader of it asks only which of the two.
  *
  * Whether a line is prose at all is a different question, about what the line IS rather than how its outcome counts,
- * and it is answered where that belongs (document-content classifies a line as prose or technical). A prose line runs
- * nothing, so it has no outcome to take either way and never reaches here.
+ * and it is answered where that belongs (document-content classifies a line as prose or technical). A prose line doesn't run
+ * a step, so it doesn't have an outcome to take either way and never reaches here.
  */
 export const EXECUTION_MODES = ["authoritative", "speculative"] as const;
 const ExecutionIntentSchema = z.object({
@@ -368,7 +368,7 @@ export const HYPERMEDIA = {
 	TYPE: "_type",
 	/** Human-readable one-liner for CLI output and document view captions */
 	SUMMARY: "_summary",
-	/** Inline description from the registered domain schema's `.describe()`. Travels with the data so a consumer (human, LLM, agent) can interpret a product without round-tripping to the show steps step. Unset when the producing step's domain has no description. */
+	/** Inline description from the registered domain schema's `.describe()`. Travels with the data so a consumer (human, LLM, agent) can interpret a product without round-tripping to the show steps step. Unset when the producing step's domain doesn't have a description. */
 	DESCRIPTION: "_description",
 	/** Web component tag that renders this product (e.g. "shu-monitor-column") */
 	COMPONENT: "_component",
@@ -480,7 +480,7 @@ export type TFeatureSteps = {
 	/**
 	 * The step the run reports as having failed. A synthetic dispatch (a negative seqPath segment: a model's tool call,
 	 * an RPC) can fail and be recovered from inside the step that made it, and a speculative statement's failure is
-	 * expected, so a feature step that failed is reported ahead of either. With nothing else, the first failure is what
+	 * expected, so a feature step that failed is reported ahead of either. Without either, the first failure is what
 	 * there is to report.
 	 */
 	failed?: TStepResult;
@@ -746,7 +746,7 @@ export const ControlEvent = BaseEvent.extend({
 
 // Blip Events: one fine-grained occurrence, recorded where it happens and never retained by the run. A blip shares the
 // event transport but not the audience: it is delivered only to a subscriber that asked for its kind, and it is never
-// narrated (no console line, no bare subscriber). Declarations live in lib/blips.ts.
+// narrated (it doesn't write a console line or reach a bare subscriber). Declarations live in lib/blips.ts.
 export const BlipEvent = BaseEvent.extend({
 	kind: z.literal("blip"),
 	name: z.string().describe("Declared blip name, dotted and namespaced, e.g. haibun.http.request"),

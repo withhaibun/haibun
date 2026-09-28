@@ -75,7 +75,7 @@ function squareShape(mark: NodeMark, d: NodeShapeDeps): Obj3D {
 }
 
 /** A type-coloured 3D duration box spanning z by mark.zExtent, with a plain text label at its start face. Falls back to
- *  the chip when no THREE is available (headless). */
+ *  the chip when THREE isn't available (headless). */
 export function boxShape(mark: NodeMark, d: NodeShapeDeps): Obj3D {
 	if (!d.three) return chipShape(mark, d);
 	const zLen = Math.max(mark.zExtent ?? 0, GANTT_MIN_BAR_W);
@@ -152,7 +152,7 @@ function lozengeShape(mark: NodeMark, d: NodeShapeDeps): Obj3D {
 }
 
 /** Translate a backend-neutral NodeMark into a polymorphic three.js object: one builder per kind. Unimplemented kinds
- *  throw (fail-fast) rather than rendering nothing; the SVG paint mirrors this dispatch for the same marks. */
+ *  throw (fail-fast) rather than rendering an empty object; the SVG paint mirrors this dispatch for the same marks. */
 export function paintMarkScene(mark: NodeMark, d: NodeShapeDeps): Obj3D {
 	switch (mark.kind) {
 		case "chip":

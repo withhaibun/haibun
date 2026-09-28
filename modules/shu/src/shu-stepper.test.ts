@@ -79,7 +79,7 @@ describe("the page a deployment serves", () => {
 		expect(page).toContain(JSON.stringify({ settings: { streamReconnectAfterMs: 500 } }));
 	});
 
-	it("carries no timing where the deployment set none", () => {
+	it("doesn't carry a timing where the deployment didn't set one", () => {
 		expect(buildSpaHtml("/spa", "/* bundle */")).toContain(JSON.stringify({ settings: {} }));
 	});
 });

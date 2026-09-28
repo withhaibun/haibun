@@ -54,7 +54,7 @@ describe("SseSubscriber delivery", () => {
 });
 
 describe("SseSubscriber catching up after a break", () => {
-	it("the first open announces nothing, and a re-open after the stream drops announces once", async () => {
+	it("the first open doesn't announce, and a re-open after the stream drops announces once", async () => {
 		const { host, fetchImpl } = hostStreams();
 		const sub = new SseSubscriber({ url: "/sse", reconnectDelayMs: 0, fetchImpl });
 		let caughtUp = 0;
@@ -99,7 +99,7 @@ describe("SseSubscriber catching up after a break", () => {
 		sub.disconnected(() => down++);
 		sub.connect();
 		await vi.waitFor(() => expect(down).toBe(1));
-		// One turn of the event loop, in which a retry with no delay would have asked again.
+		// One turn of the event loop, in which a retry without a delay would have asked again.
 		await new Promise((resolve) => setTimeout(resolve, 0));
 		expect(asked, "asked once").toBe(1);
 		sub.close();

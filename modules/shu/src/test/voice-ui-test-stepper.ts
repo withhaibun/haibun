@@ -1,5 +1,5 @@
 /**
- * Test stepper that registers a UI-extension domain (no persistedAs: it is not
+ * Test stepper that registers a UI-extension domain (without a persistedAs: it is not
  * serialized in the graph DB) with a `ui` extension declaring a custom-element
  * component to slot into the actions bar's chat row.
  *

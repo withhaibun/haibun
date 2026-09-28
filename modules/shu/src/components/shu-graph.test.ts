@@ -6,7 +6,7 @@
  *  - accept a TGraph via `products.graph` and render through its injected renderer,
  *  - re-render on subsequent `products` assignments (so chain-walker advances repaint),
  *  - re-dispatch `graph-node-click` events composed across the shadow boundary,
- *  - reject products without a TGraph (no silent failure).
+ *  - reject products without a TGraph (it doesn't fail silently).
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import { ShuGraph } from "./shu-graph.js";
@@ -131,7 +131,7 @@ describe("shu-graph", () => {
 		expect(renderer.calls.length).toBe(before);
 	});
 
-	it("throws when products lacks a TGraph (no silent failure)", () => {
+	it("throws when products lacks a TGraph (it doesn't fail silently)", () => {
 		const el = document.createElement("shu-graph") as ShuGraph;
 		document.body.appendChild(el);
 		expect(() => {

@@ -46,7 +46,7 @@ describe("recording in the browser: hold it, hand it over in batches", () => {
 		expect(sentBatch().blips).toHaveLength(60);
 	});
 
-	it("hands a batch over as a read: the run retains nothing of a blip, so it records nothing of the batch either", async () => {
+	it("hands a batch over as a read: the run doesn't retain a blip, so it doesn't record the batch either", async () => {
 		recordClientBlip("haibun.shu.view.scroll", 1, { view: "a" });
 		await vi.runAllTimersAsync();
 		const [link] = follow.mock.calls.at(-1) as unknown as [{ method: string; asks: string }];
@@ -61,7 +61,7 @@ describe("recording in the browser: hold it, hand it over in batches", () => {
 		expect(sentBatch().blips.map((b) => b.value)).toEqual([1, 2]);
 	});
 
-	it("sends nothing when nothing happened, so a quiet page does nothing", async () => {
+	it("doesn't send a batch when a blip isn't recorded, so a quiet page doesn't make a call", async () => {
 		await vi.runAllTimersAsync();
 		expect(follow).not.toHaveBeenCalled();
 	});
@@ -87,7 +87,7 @@ describe("recording in the browser: hold it, hand it over in batches", () => {
 		expect(sentBatch().blips.map((b) => b.value)).toEqual([2]);
 	});
 
-	it("holds without sending when there is no run to send to", async () => {
+	it("holds without sending when the page doesn't reach a run", async () => {
 		offline = true;
 		recordClientBlip("haibun.shu.view.scroll", 1, { view: "a" });
 		await vi.runAllTimersAsync();

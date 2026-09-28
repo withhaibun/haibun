@@ -27,7 +27,7 @@ export type GlowThree = {
 /** How far the glow reaches past the mark, as a fraction of the mark's own size. */
 export const GLOW_SPREAD = 1.0;
 const TEXTURE_PX = 128;
-/** Alpha at the centre; it falls to nothing at the edge, so the glow has no boundary of its own. */
+/** Alpha at the centre; it falls to zero at the edge, so the glow doesn't have a boundary of its own. */
 const GLOW_ALPHA = 0.85;
 
 /** The breath: one glow cycle, and how far it dips and swells over it. A steady blob reads as part of the drawing;
@@ -50,7 +50,7 @@ export const RESTING_INTENSITY = 1;
  *  busy stream does not read as a field of alarms. After this, only the active node glows. */
 export const NEWCOMER_GLOW_MS = 2000;
 
-/** The breath's intensity (PULSE_MIN..1) at time `nowMs`: a sine, so it has no corners to catch the eye. */
+/** The breath's intensity (PULSE_MIN..1) at time `nowMs`: a sine, so it doesn't have visible corners. */
 export const pulseAt = (nowMs: number): number => PULSE_MIN + (1 - PULSE_MIN) * (0.5 + 0.5 * Math.sin((nowMs / PULSE_MS) * Math.PI * 2));
 
 /** How much the glow's size swells at a given intensity: full breath is `PULSE_SWELL` larger than the dimmest. */
@@ -61,7 +61,7 @@ export const swellAt = (intensity: number): number => 1 + PULSE_SWELL * intensit
  * (a pressed control, a healthy state) and reads as a status rather than as light; a flame does not.
  *
  * One ramp per theme, because a glow is light on a surface: on the dark theme it runs from white through gold to
- * orange, the way something hot looks; on the light theme it starts at gold, since white on white is nothing to see.
+ * orange, the way something hot looks; on the light theme it starts at gold, since white on white isn't visible.
  * The ramp is walked to its end and back over one breath, so the colour turns with the size and never cuts from the
  * last stop back to the first.
  */
@@ -158,7 +158,7 @@ export class MarkGlow {
 		const intensity = burn?.intensity ?? 1;
 		glow.material.opacity = intensity;
 		// The ramp holds a few dozen colours, so most frames ask for the colour already set; a CSS-colour parse per
-		// frame for no change is the one avoidable frame in the breath.
+		// frame where the colour didn't change is the one avoidable frame in the breath.
 		if (burn?.color && burn.color !== this.lastColor) {
 			glow.material.color?.set(burn.color);
 			this.lastColor = burn.color;

@@ -3,7 +3,7 @@
  *
  * "It did not redraw after changing the view" was a question only a browser could answer: drive a page, switch a view,
  * compare pixels, wait for the layout to settle. A renderer that records what it was given answers it here: a view
- * change places the nodes differently, a repaint that changes nothing places them identically, and a shape rebuild has
+ * change places the nodes differently, a repaint that doesn't change the graph places them identically, and a shape rebuild has
  * its place in the order.
  */
 import { describe, expect, it } from "vitest";
@@ -35,7 +35,7 @@ describe("what a renderer was given", () => {
 		expect(r.placements).toHaveLength(2);
 	});
 
-	it("says a repaint that changed nothing placed the nodes identically, so a repaint that should be skipped is visible as one", () => {
+	it("says a repaint that didn't change the graph placed the nodes identically, so a repaint that should be skipped is visible as one", () => {
 		const r = new RecordingRenderer();
 		const same = () => ({ nodes: nodes([["a", 5, 5, 5]]), links: links([]) });
 		r.draw(same());
@@ -90,7 +90,7 @@ describe("what a renderer was given", () => {
 		expect(given[1](nodes([["a", 0, 0, 0]])[0])).toBe("a"); // and it still calls the scene's own factory
 	});
 
-	it("takes the size the scene gives it, which is how a medium with no window is still drawn to a size", () => {
+	it("takes the size the scene gives it, which is how a medium without a window is still drawn to a size", () => {
 		const r = new RecordingRenderer();
 		r.size(800, 600);
 		expect(r.sized).toEqual({ width: 800, height: 600 });

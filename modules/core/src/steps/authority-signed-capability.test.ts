@@ -86,12 +86,12 @@ holding capability cap at "urn:res:1", comment on "${TEST_NODE_LABEL}" node-1 wi
 		expect(comments.length).toBe(1);
 		expect(comments[0].author).toBe(SUBKEY_DID);
 
-		expect(verifierState.lastEvidence?.action, "the verifier checks the document for everything it allows, since no one action is asked").toBeUndefined();
+		expect(verifierState.lastEvidence?.action, "the verifier checks the document for everything it allows, since a single action isn't asked").toBeUndefined();
 		expect(verifierState.lastEvidence?.target, "and what it was asked of").toBe("urn:res:1");
 		expect(verifierState.lastEvidence?.document.id, "and is handed the document itself to read").toBe("urn:zcap:alice-comment");
 	});
 
-	it("fails the step (and writes nothing) when the registered verifier rejects the signed capability", async () => {
+	it("fails the step (and doesn't write a record) when the registered verifier rejects the signed capability", async () => {
 		verifierState.ok = false;
 		verifierState.error = "invalid proof";
 		const world = getDefaultWorld({ HAIBUN_LOG_LEVEL: "none" });

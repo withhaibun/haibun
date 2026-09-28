@@ -5,8 +5,8 @@
  * and inspect dispatch params, and runs cleanup on teardown.
  *
  * Tests pass a `dispatch` function that returns wire results per
- * `(method, params)`; throwing inside it is the loud-failure signal for "no
- * fixture configured", and the throw surfaces verbatim through `conduit()`
+ * `(method, params)`; throwing inside it is the loud-failure signal for an unconfigured
+ * fixture, and the throw surfaces verbatim through `conduit()`
  * call sites. Tests `emit` events to drive lifecycle/log subscribers.
  *
  * Every test sets up the same way, without setup by side effect; forgetting
@@ -19,10 +19,10 @@ import { setConduit, type Conduit, type TLink, type TRepresentation, type TStrea
 
 // ─── The conduit a test installs ─────────────────────────────────────────────
 
-/** A test's answers, by `(method, params)`. Throwing inside it signals "no fixture for this call": `TestConduit` surfaces the throw so a test fails loudly, naming the method nothing answered. */
+/** A test's answers, by `(method, params)`. Throwing inside it signals that a fixture for this call doesn't exist: `TestConduit` surfaces the throw so a test fails loudly, naming the method a fixture didn't answer. */
 type TDispatch = (method: string, params: Record<string, unknown>) => unknown | Promise<unknown>;
 
-/** A `Conduit` answering from a function a test supplies, so nothing under test knows it is not talking to a server. */
+/** A `Conduit` answering from a function a test supplies, so the code under test doesn't detect that it isn't calling a server. */
 export class TestConduit implements Conduit {
 	constructor(private readonly dispatch: TDispatch) {}
 
@@ -131,7 +131,7 @@ export const ENTITY_STEP_LIST = stepsShown([
 ]);
 
 /** A dispatch over the entity surface: the show steps step answers with {@link ENTITY_STEP_LIST}, the two entity steps route
- *  to the given answerers (annotations defaults to none), and anything else throws: the loud-failure signal. */
+ *  to the given answerers (annotations defaults to an empty list), and anything else throws: the loud-failure signal. */
 export function makeEntityDispatch(over: { entity: () => unknown; annotations?: () => unknown }): TDispatch {
 	return (method) => {
 		if (method === SHOW_STEPS_METHOD) return ENTITY_STEP_LIST;
@@ -141,10 +141,10 @@ export function makeEntityDispatch(over: { entity: () => unknown; annotations?: 
 	};
 }
 
-/** jsdom implements no media queries, so a component that asks the viewport a question (the strip asks whether it is
- *  narrow or portrait before it lays panes out) throws there and nowhere else. Install the query API the browser always
- *  has, answering "no match": a jsdom window has no orientation and no width to match on. `setupShuTest` calls this;
- *  a DOM test that installs no services calls it directly. */
+/** jsdom doesn't implement media queries, so a component that asks the viewport a question (the strip asks whether it
+ *  is narrow or portrait before it lays panes out) throws only there. Install the query API the browser always has,
+ *  answering "no match": a jsdom window doesn't have an orientation or a width to match on. `setupShuTest` calls this;
+ *  a DOM test that doesn't install services calls it directly. */
 export function installTestMediaQueries(): void {
 	const w = globalThis as { matchMedia?: (q: string) => unknown };
 	if (w.matchMedia) return;

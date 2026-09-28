@@ -124,7 +124,7 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 		this.setState({ label, individualId: "", loading: false });
 	}
 
-	/** Render a collection product: its `items` become thread vertices (links merged into edges), no RPC fetch. */
+	/** Render a collection product: its `items` become thread vertices (links merged into edges), without an RPC fetch. */
 	openProducts(products: Record<string, unknown>): void {
 		const items = Array.isArray(products.items) ? (products.items as Record<string, unknown>[]) : [];
 		this.openItems(items.map(normalizeItem), String(products._type || "Result"));

@@ -60,7 +60,7 @@ describe("lazyWindowedSource", () => {
 });
 
 describe("lazyWindowedSource, hardening (adversarial review)", () => {
-	it("recovers from a rejected fetch: pages are re-fetchable, not bricked, and no unhandled rejection (B1)", async () => {
+	it("recovers from a rejected fetch: pages are re-fetchable, not bricked, and without an unhandled rejection (B1)", async () => {
 		let n = 0;
 		const fetch = vi.fn((s: number, e: number) => (++n === 1 ? Promise.reject(new Error("net")) : Promise.resolve(Array.from({ length: e - s }, (_, k) => s + k))));
 		const src = lazyWindowedSource({ count: () => 1000, fetch, pageSize: 5 });
@@ -88,7 +88,7 @@ describe("lazyWindowedSource, hardening (adversarial review)", () => {
 		expect(src.rowAt(949)).toBe(949);
 		expect(src.rowAt(950)).toBeUndefined();
 		const before = fetch.mock.calls.length;
-		await src.ensureRange(800, 1000); // page 4 is now cached-to-data-end, no re-fetch
+		await src.ensureRange(800, 1000); // page 4 is now cached-to-data-end, so it isn't re-fetched
 		expect(fetch.mock.calls.length).toBe(before);
 	});
 
@@ -99,7 +99,7 @@ describe("lazyWindowedSource, hardening (adversarial review)", () => {
 		);
 		const src = lazyWindowedSource({ count: () => count, fetch, pageSize: 200 });
 		count = 50;
-		await src.ensureRange(700, 720); // page 3 (600..800) is beyond count 50 → no fetch, no crash
+		await src.ensureRange(700, 720); // page 3 (600..800) is beyond count 50 → it doesn't fetch or crash
 		expect(src.rowAt(700)).toBeUndefined();
 	});
 
@@ -155,7 +155,7 @@ describe("lazyWindowedSource, hardening (adversarial review)", () => {
 			const { fetch } = counted();
 			const src = lazyWindowedSource<number>({ count: () => total, fetch, pageSize: 5 });
 			total = 13;
-			src.append(12, 12); // page 2 caches nothing before it: not placed
+			src.append(12, 12); // page 2 doesn't cache a row before it: not placed
 			expect(src.rowAt(12)).toBeUndefined();
 			await src.ensureRange(10, 13);
 			expect(src.rowAt(12), "fetched with its page").toBe(12);
@@ -163,7 +163,7 @@ describe("lazyWindowedSource, hardening (adversarial review)", () => {
 	});
 
 	describe("prime", () => {
-		it("places no row at an index it is not at when the seed begins inside a page", async () => {
+		it("doesn't place a row at an index it is not at when the seed begins inside a page", async () => {
 			const { fetch } = counted();
 			const src = lazyWindowedSource({ count: () => 100, fetch, pageSize: 10 });
 			src.prime(5, [5, 6, 7]);
@@ -186,7 +186,7 @@ describe("lazyWindowedSource, hardening (adversarial review)", () => {
 			expect(src.rowAt(5)).toBeUndefined();
 		});
 
-		it("seeds a full first page so ensureRange over it fetches nothing", async () => {
+		it("seeds a full first page so ensureRange over it doesn't fetch", async () => {
 			const { fetch } = counted();
 			const src = lazyWindowedSource({ count: () => 10_000, fetch, pageSize: 50 });
 			src.prime(
@@ -211,7 +211,7 @@ describe("lazyWindowedSource, hardening (adversarial review)", () => {
 			expect(src.rowAt(75)).toBe(75);
 		});
 
-		it("a short seed that reaches the total counts as cached (no re-fetch of the last page)", async () => {
+		it("a short seed that reaches the total counts as cached (without a re-fetch of the last page)", async () => {
 			const { fetch } = counted();
 			const src = lazyWindowedSource({ count: () => 30, fetch, pageSize: 50 });
 			src.prime(
@@ -272,7 +272,7 @@ describe("lazyWindowedSource: the live edge under a stream", () => {
 		return { fetch, response, pending };
 	}
 
-	it("a live row arriving while its page is being fetched is placed when the fetch lands, and the page is whole: no second fetch", async () => {
+	it("a live row arriving while its page is being fetched is placed when the fetch lands, and the page is whole: it isn't fetched a second time", async () => {
 		let total = 3;
 		const { fetch, response } = deferred();
 		const src = lazyWindowedSource<number>({ count: () => total, fetch, pageSize: 5 });
@@ -287,7 +287,7 @@ describe("lazyWindowedSource: the live edge under a stream", () => {
 			"the fetched rows, then the live one",
 		).toEqual([0, 1, 2, 3]);
 		await src.ensureRange(0, 4);
-		expect(fetch, "the page is whole for the count: nothing to fetch again").toHaveBeenCalledTimes(1);
+		expect(fetch, "the page is whole for the count: it isn't fetched again").toHaveBeenCalledTimes(1);
 	});
 
 	it("a live row the fetch already delivered is the same row once, not twice", async () => {

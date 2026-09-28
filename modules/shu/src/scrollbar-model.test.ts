@@ -163,14 +163,14 @@ describe("hardening (adversarial review)", () => {
 		expect(thumbHeightPx(10 / 100, 0)).toBe(0); // zero-height rail
 		expect(thumbTopPx(100, { first: 0, visible: 10 }, 0, 0)).toBe(0);
 		expect(firstAtPointer(0, 0, 200, RAIL, THUMB)).toBe(0);
-		expect(markerTopPx(5, 1, RAIL)).toBeLessThanOrEqual(RAIL); // single-row column: no crash, stays on the rail
+		expect(markerTopPx(5, 1, RAIL)).toBeLessThanOrEqual(RAIL); // single-row column: it doesn't crash, and stays on the rail
 	});
 });
 
 describe("what a press on the rail means", () => {
 	// Every answer is a ROW, on the scale the marks are drawn at, so a press means the same row whether or not a mark
 	// happens to sit there, and so that every row can be pointed at. The rail's other scale spans the WINDOWS there
-	// are, whose last `visible` rows begin none, and that is what made the bottom of a strip unpickable.
+	// are, whose last `visible` rows don't begin a window, and that is what made the bottom of a strip unpickable.
 	const RAIL = 200;
 	const THUMB = 20;
 	const at = (index: number) => markerTopPx(index, 100, RAIL);
@@ -179,11 +179,11 @@ describe("what a press on the rail means", () => {
 		expect(pressTarget(at(40), [{ index: 40, topPx: at(40) }], 100, RAIL)).toBe(40);
 	});
 
-	it("means the row at that height when no mark is there, on the same scale the mark would have been", () => {
+	it("means the row at that height when a mark isn't there, on the same scale the mark would have been", () => {
 		expect(pressTarget(at(40), [], 100, RAIL), "a mark there or not, the press means the same row").toBe(40);
 	});
 
-	it("reaches the last row, which no window begins and the scrolling scale therefore cannot point at", () => {
+	it("reaches the last row, which doesn't begin a window and the scrolling scale therefore cannot point at", () => {
 		expect(pressTarget(at(99), [], 100, RAIL)).toBe(99);
 		expect(firstAtPointer(100, 41, at(99), RAIL, THUMB), "where scrolling stops, 41 rows short").toBe(59);
 	});
@@ -216,7 +216,7 @@ describe("what a press on the rail means", () => {
 
 	it("gives the head and foot of the rail to the start and end of the run, whatever is drawn there", () => {
 		// A mark sits at each end of the rail now. If it took these presses, the first and last rows could be reached
-		// only when nothing happened to be marked near them: the ends going missing again, by another route.
+		// only when a mark didn't happen to sit near them: the ends going missing again, by another route.
 		const marks = [
 			{ index: 7, topPx: markerTopPx(7, 100, RAIL) },
 			{ index: 92, topPx: markerTopPx(92, 100, RAIL) },

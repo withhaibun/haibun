@@ -46,14 +46,14 @@ describe("the glow a newcomer wears", () => {
 		expect(visual.burns).toBeGreaterThan(0);
 	});
 
-	it("ends with the welcome: after its first moments the glow is taken off in one drawn frame, then nothing keeps drawing for it", () => {
+	it("ends with the welcome: after its first moments the glow is taken off in one drawn frame, then the scene doesn't keep drawing for it", () => {
 		const { focus, n, visual } = harness();
 		focus.seedNewcomerPop(n);
 		focus.updateHighlight();
 		vi.advanceTimersByTime(NEWCOMER_GLOW_MS + 100);
 		expect(focus.updateHighlight(), "the beat that ends the welcome draws the glow off").toBe(true);
 		expect(visual.hasHighlight).toBe(false);
-		expect(focus.updateHighlight(), "an expired welcome breathes nothing").toBe(false);
+		expect(focus.updateHighlight(), "an expired welcome doesn't breathe").toBe(false);
 	});
 
 	it("hands the glow to the selection where the reader chose the newcomer: expiry never strips the active node", () => {
@@ -74,11 +74,11 @@ describe("a newcomer's grow-in", () => {
 		expect(focus.magnifying).toBe(true);
 	});
 
-	it("rests with the breath: the newcomer lands at its natural size, wearing its glow, and nothing is left to draw", () => {
+	it("rests with the breath: the newcomer lands at its natural size, wearing its glow, and a frame isn't left to draw", () => {
 		const { focus, n, visual } = harness(null, false);
 		focus.seedNewcomerPop(n);
-		expect(n.__k, "no shrink to grow from").toBeUndefined();
-		expect(focus.magnifying, "no easing keeps the scene drawing").toBe(false);
+		expect(n.__k, "the node doesn't start shrunk").toBeUndefined();
+		expect(focus.magnifying, "an easing doesn't keep the scene drawing").toBe(false);
 		expect(focus.updateHighlight(false), "the glow is drawn once").toBe(true);
 		expect(visual.hasHighlight).toBe(true);
 	});
@@ -109,7 +109,7 @@ describe("the focus magnify", () => {
 		expect(n.__k, "not there yet").toBe(1);
 	});
 
-	it("gives the focused chip its readable size at once where decoration rests, leaving nothing to draw after", () => {
+	it("gives the focused chip its readable size at once where decoration rests, without a frame to draw after", () => {
 		const { focus, n, scaled } = focused(false);
 		focus.retargetMagnify();
 		expect(focus.magnifying).toBe(false);
@@ -129,13 +129,13 @@ describe("the breath at rest", () => {
 		return h;
 	}
 
-	it("draws the active node's glow once, held at its fullest, and asks for no further frames", () => {
+	it("draws the active node's glow once, held at its fullest, and doesn't ask for further frames", () => {
 		const { focus, visual } = active();
 		expect(focus.updateHighlight(false), "the beat that holds the glow draws it").toBe(true);
 		expect(visual.burns).toBe(1);
 		for (let beat = 0; beat < 20; beat++) {
 			vi.advanceTimersByTime(100);
-			expect(focus.updateHighlight(false), "a held glow takes no frame").toBe(false);
+			expect(focus.updateHighlight(false), "a held glow doesn't take a frame").toBe(false);
 		}
 		expect(visual.burns, "written once").toBe(1);
 	});
@@ -150,7 +150,7 @@ describe("the breath at rest", () => {
 		expect(focus.updateHighlight(false)).toBe(false);
 	});
 
-	it("at rest, a newcomer's glow is drawn when it arrives and drawn off when its welcome ends, and nothing between", () => {
+	it("at rest, a newcomer's glow is drawn when it arrives and drawn off when its welcome ends, and isn't drawn between", () => {
 		const { focus, n, visual } = harness();
 		focus.seedNewcomerPop(n);
 		expect(focus.updateHighlight(false), "the arrival draws the glow").toBe(true);

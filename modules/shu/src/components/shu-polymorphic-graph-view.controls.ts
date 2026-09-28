@@ -78,7 +78,7 @@ const FRAMED_SPAN = 0.2;
 const HOVER_POP_MAX = 2.6; // a hover pop above this reads as "huge" (the regression): an independent ceiling, comfortably clear of the gentle magnify cap so a legit pop passes and a runaway one fails
 
 /** The alpha a browser reports for a painted colour, in either shape it writes one: `rgba(r, g, b, a)` and the
- *  `color(srgb r g b / a)` a mixed colour comes back as. No alpha stated is opaque. */
+ *  `color(srgb r g b / a)` a mixed colour comes back as. A colour that doesn't state an alpha is opaque. */
 export function paintedAlpha(background: string): number {
 	const sliced = background.match(/\/\s*([\d.]+%?)\s*\)\s*$/)?.[1];
 	if (sliced) return sliced.endsWith("%") ? Number.parseFloat(sliced) / 100 : Number.parseFloat(sliced);
@@ -321,8 +321,8 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		};
 	}
 
-	/** Wait for the view at rest: the scene has settled, the camera is calibrated to the canvas, no newcomer wears its
-	 *  welcome glow, no chip's text is still to land, and the frames those changes schedule are drawn. The scene places a
+	/** Wait for the view at rest: the scene has settled, the camera is calibrated to the canvas, the newcomers don't wear their
+	 *  welcome glow, the chips don't have text still to land, and the frames those changes schedule are drawn. The scene places a
 	 *  feed before it draws it, so a settled scene's layout is final. */
 	private async atRest(page: Page): Promise<void> {
 		await this.settle(page);
@@ -652,7 +652,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		graphActiveInClear: {
 			// Following with something over the view: the chosen node lands ON the canvas and OUT from under whatever
 			// covers it, the reading guide and any panel that declares it covers the views. Centred under one of them, or
-			// pushed past the edge by a column-open resize, the reader was shown nothing.
+			// pushed past the edge by a column-open resize, the reader wasn't shown the node.
 			gwta: `graph shows the active node {node: ${DOMAIN_GRAPH_NODE}} clear of what covers it`,
 			action: async ({ node }: { node: TGraphNode }) => {
 				const page = await this.page();
@@ -727,8 +727,8 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		},
 		pickActiveGraphNode: {
 			// Click the active node with the real pointer on the canvas. The click event reaches the whole page, so an
-			// actions bar that closes on a click elsewhere closes. `open graph node` calls the view directly and dispatches
-			// no click. The follow keeps the active node in clear view, and the step reads its id from the view, because
+			// actions bar that closes on a click elsewhere closes. `open graph node` calls the view directly and doesn't dispatch
+			// a click. The follow keeps the active node in clear view, and the step reads its id from the view, because
 			// the run assigns the id of a conversation's comment. The step reads the active node again until its projection
 			// is still and a pixel picks it, because a record arriving can move it. The phrase avoids "click", which
 			// web-playwright's "click {target}" matches.
@@ -810,7 +810,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const kBefore = await this.steadyK(page, id); // settle any residual magnify before the baseline
 				const before = await this.framing(page);
 				for (let i = 0; i < 16; i++) {
-					// jiggle a REAL pointer over the node for ~1.3s: the user's hover condition (no button)
+					// jiggle a REAL pointer over the node for ~1.3s: the user's hover condition (without a button pressed)
 					await page.mouse.move(c.x + (i % 2 ? 5 : -5), c.y + (i % 3 ? 3 : -3));
 					await page.waitForTimeout(80);
 				}
@@ -978,7 +978,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		switchGraphView: {
 			// Switch the graph's render type via the production control (the view tabs), exactly as a person clicking
 			// one does, then wait for the relayout tween + camera re-aim to settle. One step for every render type so a
-			// feature can step force → sequence → gantt → force and prove the switching is clean (no stuck state).
+			// feature can step force → sequence → gantt → force and prove the switching is clean (without a stuck state).
 			gwta: `show the graph as a {view: ${DOMAIN_GRAPH_VIEW}} graph`,
 			action: async ({ view }: { view: string }) => {
 				const page = await this.page();
@@ -992,8 +992,8 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		},
 		graphRevealsActors: {
 			// Choosing the sequence shows the types its bars are drawn from: a hidden actor type would leave the exchange
-			// with nobody in it. Hides whatever types the actors belong to, leaves the view and comes back, and asks the
-			// filter: the production path a reader takes, with no type named here.
+			// without actors. Hides whatever types the actors belong to, leaves the view and comes back, and asks the
+			// filter: the production path a reader takes, without a type named here.
 			gwta: "switching to the sequence reveals its actor types",
 			action: async () => {
 				const page = await this.page();
@@ -1016,7 +1016,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		settingsHoldEveryOption: {
 			// Every option lives under its settings group and the ACTIONS do not: fit and copy stay directly on the head.
 			// The groups are exclusive: opening one closes the last. Asserted in a real browser: a group's controls render
-			// only while its row is open, which no jsdom test can tell apart from missing.
+			// only while its row is open, which a jsdom test can't tell apart from missing.
 			gwta: "polymorphic settings hold every option, and fit stays out of them",
 			action: async () => {
 				const page = await this.page();
@@ -1048,7 +1048,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		sequenceSuppressesGroupingControls: {
 			// The sequence is a 3D lane view (participants are lifelines, time is the z axis): its lifelines ARE the
 			// grouping, so the generic group/group-by controls are hidden while the 3D scene stays shown. Assert the live
-			// DOM: the grouping controls are gone and the scene container is present. (jsdom does no layout/shadow CSS, so
+			// DOM: the grouping controls are gone and the scene container is present. (jsdom doesn't do layout/shadow CSS, so
 			// this must run in a real browser via the controls stepper.)
 			gwta: "sequence hides the grouping controls and shows the 3D scene",
 			action: async () => {
@@ -1068,7 +1068,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		},
 		classBrowserShowsSchema: {
 			// The type column embeds the site's class browser (ui.presents "schema"): the schema as a live graph whose
-			// legend offers exactly the Class + Property toggles: no instance types, no per-type limit or solo tool.
+			// legend offers exactly the Class + Property toggles: it doesn't offer instance types, a per-type limit or the solo tool.
 			gwta: "class browser in the type column shows only the schema",
 			action: async () => {
 				const page = await this.page();
@@ -1260,7 +1260,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		graphReadingShown: {
 			// Shown means SHOWN, not merely present: the region is clipped to a pixel until it is opened, so this reads
 			// its rendered size rather than its markup. It reads the painted background too: the guide lies over the
-			// graph, so it is translucent, which no jsdom test can tell from opaque.
+			// graph, so it is translucent, which a jsdom test can't tell from opaque.
 			gwta: "graph reading is on screen",
 			action: async () => {
 				const region = (await this.page()).getByTestId(POLYMORPHIC_IDS.A11Y);
@@ -1300,7 +1300,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const res = await region.evaluate((el, attr) => {
 					const entryIds = [...el.querySelectorAll(`ol > li > [${attr}]`)].map((b) => b.getAttribute(attr));
 					// An edge line's target is a way to that node, so every one of them must name a node that was drawn:
-					// a reading that offers a way to something not there leads a reader who cannot see the picture nowhere.
+					// a reading that offers a way to something not there doesn't lead a reader who cannot see the picture to a node.
 					const drawn = new Set(entryIds);
 					const waysNowhere = [...el.querySelectorAll(`ol > li ul [${attr}]`)].filter((b) => !drawn.has(b.getAttribute(attr))).length;
 					return { entries: entryIds.length, waysNowhere, status: el.querySelector('[role="status"]')?.textContent ?? "" };
@@ -1329,8 +1329,8 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		},
 		graphChipsShowDepth: {
 			// Turning "label as depth" on re-labels every chip with the value that places its depth, and turning it off
-			// puts the names back: each taking effect on its own, with no other change to force a redraw. Reads what the
-			// chips say and compares the three states, so it needs no knowledge of this fixture's names.
+			// puts the names back: each taking effect on its own, without another change to force a redraw. Reads what the
+			// chips say and compares the three states, so it doesn't need to know this fixture's names.
 			gwta: "graph chips re-label by depth and back",
 			action: async () => {
 				const page = await this.page();
@@ -1356,7 +1356,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		},
 		graphNodePinned: {
 			// A node the user dragged holds the place they dropped it in, through a live data repaint: a streamed arrival
-			// must neither unpin it nor put it back where the layout would have had it.
+			// must not unpin it or put it back where the layout would have had it.
 			gwta: `graph node {dropped: ${DOMAIN_GRAPH_DROP}} stays pinned`,
 			action: async ({ dropped }: { dropped: z.infer<typeof GraphDropSchema> }) => {
 				const page = await this.page();
@@ -1376,7 +1376,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			// Following moves what the camera LOOKS AT, never how close it is. The apparent size of what it looks at, so
 			// whether that node's label is readable, is set by the camera's distance to its target, which must therefore
 			// be the same after following to another node as before. (inspect's worldPerPx is measured at the ORIGIN, so
-			// it moves whenever the target moves in depth even though nothing zoomed; the distance is the reliable signal.)
+			// it moves whenever the target moves in depth even though the camera didn't zoom; the distance is the reliable signal.)
 			gwta: `graph holds its distance to what it looks at since {before: ${DOMAIN_GRAPH_SNAPSHOT}}`,
 			action: async ({ before }: { before: Snapshot }) => {
 				const after = await this.framing(await this.page());
@@ -1448,7 +1448,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		magnifyNoWiden: {
 			// A focused chip pops to ~6× on screen, but the press-pick must read its RESTING footprint, else a magnified node
 			// captures every orbit press around it. Probe pickAt() at fixed offsets with the node at rest vs magnified: the
-			// hittable offsets must not grow. pickAt() has no pointer side effects, so the magnify stays put while the probe runs.
+			// hittable offsets must not grow. pickAt() doesn't have pointer side effects, so the magnify stays put while the probe runs.
 			gwta: `magnifying the {node: ${DOMAIN_GRAPH_NODE}} node does not widen where it can be grabbed`,
 			action: async ({ node }: { node: TGraphNode }) => {
 				const page = await this.page();
@@ -1485,7 +1485,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			// Set the per-type limit through the production slider (both directions), let the refetch + layout settle, and
 			// read the render-stage split the view accumulated (inspect().profile): compute (toGraphData), force warmup (the
 			// graphData set), and label textures (per-node canvas raster + GPU upload). Reports whatever scale the connected
-			// store holds. A limit that does not change the visible set re-renders nothing (0 repaints), profile a limit
+			// store holds. A limit that does not change the visible set doesn't re-render (0 repaints), profile a limit
 			// below the node count to force truncation, then above it to force expansion.
 			gwta: `profile graph render at {perTypeLimit: ${DOMAIN_NUMBER}} nodes per type`,
 			action: async ({ perTypeLimit: limit }: { perTypeLimit: number }) => {
@@ -1509,7 +1509,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		},
 	};
 
-	/** Move the real pointer onto a pixel that picks node `id` AND that a real pointer reaches, or null where there is none.
+	/** Move the real pointer onto a pixel that picks node `id` AND that a real pointer reaches, or null where such a pixel doesn't exist.
 	 * Probes with the side-effect-free pickAt: a real press on a MISS would orbit the camera and walk the node off-screen,
 	 * defeating the next probe. The chip sits right of and a little below its anchor, and an overlay (the actions bar) can
 	 * cover part of it, so accept only a pixel the view picks AND whose elementFromPoint is inside the view. */
@@ -1686,7 +1686,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		await this.settle(page); // the focus/dim repaint is debounced
 	}
 
-	/** Which node a press at these client pixels would pick, through the view's pickAt(), with no pointer side effects. */
+	/** Which node a press at these client pixels would pick, through the view's pickAt(), without pointer side effects. */
 	private pickAt(page: Page, x: number, y: number): Promise<string | null> {
 		return this.view(page).evaluate((view: ShuPolymorphicGraphView, at) => view.pickAt(at.x, at.y), { x, y });
 	}

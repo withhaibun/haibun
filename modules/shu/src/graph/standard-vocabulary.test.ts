@@ -40,11 +40,11 @@ describe("standard-vocabulary: the type's declared standard context resolved via
 		expect(await enumerateStandardVocab({ w: domain("Widget") })).toEqual(new Map());
 	});
 
-	it("yields no terms when no resolver can resolve the declared context (fails safe, never throws or fabricates)", async () => {
+	it("doesn't yield a term when the resolvers can't resolve the declared context (fails safe, never throws or fabricates)", async () => {
 		expect((await enumerateStandardVocab({ w: domain("Widget", ["urn:test:unresolvable"]) })).size).toBe(0);
 	});
 
-	it("does not fabricate terms from a non-object (string) type-scoped context, jsonld yields nothing, no character-walk", async () => {
+	it("does not fabricate terms from a non-object (string) type-scoped context, jsonld doesn't yield a term, and it doesn't walk characters", async () => {
 		registerContext("urn:test:string-scoped", { "@context": { Widget: { "@context": "urn:test:unresolvable-inner" } } });
 		expect((await enumerateStandardVocab({ w: domain("Widget", ["urn:test:string-scoped"]) })).size).toBe(0);
 	});

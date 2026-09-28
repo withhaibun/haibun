@@ -98,7 +98,7 @@ export class EnclosureController {
 	/** Each group's enclosure is placed by a RECTANGLE shelf-pack over its real {w,h} footprint, so the boxes can't
 	 * overlap AND one wide chip can't shove the others away (the old √Σradius² disc squared a wide member into a giant
 	 * square in both axes). The footprint is a √count grid of the members' ACTUAL collide size, bounded by
-	 * MAX_LABEL_CHARS, so one long id can't inflate it, so the FIRST packing is the final one: no correction round. */
+	 * MAX_LABEL_CHARS, so one long id can't inflate it, so the FIRST packing is the final one, without a correction round. */
 	recomputeGroupAnchors(nodes: FGNode[]): void {
 		const groupBy = this.deps.groupBy();
 		const byGroup = new Map<string, FGNode[]>();
@@ -145,7 +145,7 @@ export class EnclosureController {
 		const edgeMat = new T.LineBasicMaterial({ color, transparent: true, opacity: ENCLOSURE_EDGE_OPACITY, depthWrite: false });
 		const edges = new T.LineSegments(this.unitEdgesGeo, edgeMat);
 		// The group title is distinct from node chips by typography alone: larger BOLD text in the theme's label
-		// colour, no fill or border: an area heading, quiet enough not to compete with the nodes.
+		// colour, without a fill or border: an area heading, quiet enough not to compete with the nodes.
 		const label = new SpriteText(labelText, ENCLOSURE_LABEL_HEIGHT, this.deps.edgeLabelColor()) as unknown as TSprite & { fontWeight: string };
 		label.fontWeight = "bold";
 		// Box + border sit behind the graph; the title reads above the box but under node chips, and never depth-hides.
@@ -185,7 +185,7 @@ export class EnclosureController {
 		const groupBy = this.deps.groupBy();
 		const byKey = new Map<string, FGNode[]>();
 		const labelById = new Map<string, string>(); // id → display label, so a role container reads the party's name not its DID
-		const typeById = new Map<string, string>(); // id → vertex type, the fallback designation when a party has no role rel
+		const typeById = new Map<string, string>(); // id → vertex type, the fallback designation when a party doesn't have a role rel
 		const roleRelById = new Map<string, unknown>(); // id → the role rel a party plays, so its container reads that role not its type
 		for (const n of this.deps.nodeMap().values()) {
 			const arr = byKey.get(groupKeyOf(n, groupBy));
@@ -206,7 +206,7 @@ export class EnclosureController {
 		};
 		for (const [key, members] of byKey) {
 			// Chips are centred on the node (sprite.center = (0.5, 0.5)), so the footprint is symmetric (± rx about node.x)
-			// groupBounds' own ± rx computation covers it directly, no per-member x shift needed.
+			// groupBounds' own ± rx computation covers it directly, without a per-member x shift.
 			const b = groupBounds(members, ENCLOSURE_PAD, (m) => {
 				const n = m as FGNode;
 				return { rx: collideRadius(n), ry: chipTextHeight(n) };

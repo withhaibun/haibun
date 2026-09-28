@@ -27,7 +27,7 @@ describe("parseTextDirective", () => {
 	it("reads prefix and suffix markers", () => {
 		expect(parseTextDirective("before-,exact%2C%20quote,-after")).toEqual({ exact: "exact, quote", prefix: "before", suffix: "after" });
 	});
-	it("yields nothing for a range form, which quotes no single passage", () => {
+	it("yields undefined for a range form, which doesn't quote a single passage", () => {
 		expect(parseTextDirective("start,end")).toBeUndefined();
 	});
 	it("reads back the directive written for a quote, whose dashes and commas are text, not markers", () => {
@@ -52,7 +52,7 @@ describe("resolveLinkTarget", () => {
 			anchor: { exact: "holder binding" },
 		});
 	});
-	it("names nothing for a path, an address on the web, an in-page anchor, an unknown type, or an empty href", () => {
+	it("doesn't name a target for a path, an address on the web, an in-page anchor, an unknown type, or an empty href", () => {
 		expect(resolveLinkTarget("./architecture.md", isType)).toBeNull();
 		expect(resolveLinkTarget("https://www.w3.org/TR/annotation-model/", isType)).toBeNull();
 		expect(resolveLinkTarget("#introduction", isType)).toBeNull();
@@ -92,10 +92,10 @@ describe("classifyLinkText", () => {
 	it("states a consumer's own property type, so a consumer vocabulary is writable in prose", () => {
 		expect(classifyLinkText("the person it is about:credentialSubject", vocab)).toEqual({ rel: "credentialSubject", linkText: "the person it is about" });
 	});
-	it("reads a leading colon as a property type with no words of its own", () => {
+	it("reads a leading colon as a property type without words of its own", () => {
 		expect(classifyLinkText(":cites", vocab)).toEqual({ rel: "cites" });
 	});
-	it("states nothing for ordinary prose, including a word that happens to be a term", () => {
+	it("doesn't state a rel for ordinary prose, including a word that happens to be a term", () => {
 		expect(classifyLinkText("the design document", vocab)).toBeNull();
 		expect(classifyLinkText("Section 3: Overview", vocab)).toBeNull();
 		expect(classifyLinkText("cites", vocab)).toBeNull();
@@ -125,16 +125,16 @@ describe("typedLinkFacts", () => {
 			},
 		]);
 	});
-	it("states nothing for a link inside a code fence or inline code", () => {
+	it("doesn't state a fact for a link inside a code fence or inline code", () => {
 		expect(typedLinkFacts("```\n[cites](./a.md)\n```\n\n`[cites](./b.md)`\n", vocab)).toEqual([]);
 	});
-	it("states nothing for an untyped link that names nothing addressable", () => {
+	it("doesn't state a fact for an untyped link that doesn't name an addressable target", () => {
 		expect(typedLinkFacts("See [the introduction](#introduction).", vocab)).toEqual([]);
 	});
-	it("fails when a typed link names no record here", () => {
+	it("fails when a typed link doesn't name a record here", () => {
 		expect(() => typedLinkFacts("[that section:cites](#introduction)", vocab)).toThrow(/a record here, named #Type:id/);
 	});
-	it("states nothing when a word that happens to be a term points at a page anchor", () => {
+	it("doesn't state a fact when a word that happens to be a term points at a page anchor", () => {
 		expect(typedLinkFacts("as [verified](#dfn-verify) defines it", vocab)).toEqual([]);
 	});
 	it("fails when a link's rel holds a container", () => {
@@ -147,7 +147,7 @@ describe("typedLinkFacts", () => {
 		expect(facts[1]).toEqual({ rel: "mentions", typed: true, linkText: "the plan", target: { kind: "individual", persistedAs: "Document", id: "docs/b.md" } });
 	});
 
-	it("states nothing for a path or a web address; a typed link to one fails", () => {
+	it("doesn't state a fact for a path or a web address; a typed link to one fails", () => {
 		expect(typedLinkFacts("as [the W3C model](https://www.w3.org/TR/annotation-model/) puts it", vocab)).toEqual([]);
 		expect(typedLinkFacts("see [the design](./architecture.md) beside it", vocab)).toEqual([]);
 		expect(() => typedLinkFacts("[the W3C model:cites](https://www.w3.org/TR/annotation-model/)", vocab)).toThrow(/a record here, named #Type:id/);

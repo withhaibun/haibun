@@ -4,7 +4,7 @@
  * Parent-side subprocess transport. Forks a child process running runSubprocess(),
  * reads its step list via IPC, and injects proxy StepTools into the parent's StepRegistry.
  *
- * Uses Node.js fork() IPC (structured-clone messages): no framing, no seq IDs, no readline.
+ * Uses Node.js fork() IPC (structured-clone messages), without framing, seq IDs or readline.
  * The child signals readiness with { type: "ready", steps }, then serves
  * { type: "call", method, params, seqPath } → { type: "result", ok, products|error }.
  *
@@ -84,7 +84,7 @@ export class SubprocessTransport {
 	/**
 	 * seqPath is required. Every call must thread the caller's seqPath so
 	 * observations produced in the subprocess link back to the caller's
-	 * execution context. A caller with no meaningful seqPath should not be
+	 * execution context. A caller without a meaningful seqPath should not be
 	 * invoking a subprocess transport.
 	 */
 	call(method: string, params: Record<string, unknown>, seqPath: number[]): Promise<TActionResult> {

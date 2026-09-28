@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { buildBodyIframeDoc } from "./shu-entity-column.js";
 
 describe("buildBodyIframeDoc network policy", () => {
-	it("markdown bodies render network-free: strict CSP, no remote images/fonts/scripts/fetches", () => {
+	it("markdown bodies render network-free: strict CSP, without remote images/fonts/scripts/fetches", () => {
 		const doc = buildBodyIframeDoc("<p>hi</p>", "text/markdown");
 		expect(doc).toContain("Content-Security-Policy");
 		expect(doc).toContain("default-src 'none'");
@@ -13,14 +13,14 @@ describe("buildBodyIframeDoc network policy", () => {
 		expect(buildBodyIframeDoc("<pre>x</pre>", "text/plain")).toContain("Content-Security-Policy");
 	});
 
-	it("html bodies (the original message) allow network: no CSP restricting remote assets", () => {
+	it("html bodies (the original message) allow network: a CSP doesn't restrict remote assets", () => {
 		const doc = buildBodyIframeDoc("<p>hi</p>", "text/html");
 		expect(doc).not.toContain("Content-Security-Policy");
 	});
 
 	// A body's `#` links (a view: `#?col=...`; a record: `#Type:id`) must reach the app, not the sandboxed data:
 	// document they render in. The base re-roots them against the app's address and targets the top frame, and the
-	// CSP's base-uri admits exactly that origin, so the base is honoured while no other base could be injected.
+	// CSP's base-uri admits exactly that origin, so the base is honoured while another base couldn't be injected.
 	it("with a page URL, links re-root against the app and open in the top frame", () => {
 		const doc = buildBodyIframeDoc("<p>hi</p>", "text/markdown", "http://localhost:8235/credentials?x=1");
 		expect(doc).toContain('<base href="http://localhost:8235/credentials?x=1" target="_top">');
@@ -28,7 +28,7 @@ describe("buildBodyIframeDoc network policy", () => {
 		expect(doc).not.toContain("base-uri 'none'");
 	});
 
-	it("without a page URL there is no base and base-uri stays 'none'", () => {
+	it("without a page URL the document doesn't have a base and base-uri stays 'none'", () => {
 		const doc = buildBodyIframeDoc("<p>hi</p>", "text/markdown");
 		expect(doc).not.toContain("<base");
 		expect(doc).toContain("base-uri 'none'");

@@ -9,7 +9,7 @@ import { markFor, MARK_COLOUR } from "../event-marker.js";
 const row = (over: Partial<TLogRow> = {}): TLogRow => ({ time: "0.0s", timestamp: 0, level: "info", step: "a-step", message: "", icon: "", ...over });
 
 describe("what a log marks on its rail", () => {
-	it("marks the rows whose events have a mark, and no others", () => {
+	it("marks the rows whose events have a mark, and doesn't mark the others", () => {
 		const marks = railMarkers([row(), row({ mark: { icon: "✅", color: MARK_COLOUR.ok } }), row()]);
 		expect(
 			marks.map((m) => m.index),
@@ -34,7 +34,7 @@ describe("what a log marks on its rail", () => {
 		]);
 		expect(marks[0].label).toBe("check the total it went wrong");
 		expect(marks[1].label, "every feature boundary would read the same without the step").toBe("a-feature ▸ feature");
-		expect(marks[2].label, "a row with no step is labelled by what it says").toBe("saved");
+		expect(marks[2].label, "a row without a step is labelled by what it says").toBe("saved");
 	});
 
 	it("places a mark at the row's index in the RUN when the rows are the resident part of a longer run", () => {
@@ -44,7 +44,7 @@ describe("what a log marks on its rail", () => {
 		expect(marks.map((m) => m.index)).toEqual([4001]);
 	});
 
-	it("marks nothing for a log with nothing to mark", () => {
+	it("doesn't mark a row of a log whose events don't have a mark", () => {
 		expect(railMarkers([row(), row()])).toEqual([]);
 	});
 });
@@ -66,7 +66,7 @@ describe("the rail marks what the timeline marks", () => {
 		expect(railMarkers([row({ mark: markFor(failure) })])[0].color).toBe(MARK_COLOUR.fault);
 	});
 
-	it("carries nothing for the noise neither surface marks", () => {
+	it("doesn't carry a mark for the noise that the two surfaces don't mark", () => {
 		expect(markFor(debugLog)).toBeUndefined();
 		expect(railMarkers([row({ mark: markFor(debugLog) })])).toEqual([]);
 	});
@@ -74,8 +74,8 @@ describe("the rail marks what the timeline marks", () => {
 
 describe("what pressing a row of the log opens", () => {
 	// Every row is a record of the run, so every row answers a press with the record it is. Pressed only where a row
-	// carried a step, a reader met rows that did nothing, what a run said over a connection among them, with nothing
-	// on the row to tell which would answer.
+	// carried a step, a reader met rows that didn't open a record, what a run said over a connection among them, and the
+	// row didn't show which would answer.
 	it("opens a step at its own place in the run", () => {
 		expect(opens(row({ seqPath: [0, 1, 2], record: { persistedAs: "SeqPath", id: "a-step" } }))).toEqual({ paneType: "step-detail", seqPath: [0, 1, 2] });
 	});
@@ -92,7 +92,7 @@ describe("what pressing a row of the log opens", () => {
 		expect(opens(row({ record: { persistedAs: "RunArtifact", id: "0.1.2#0" } }))).toEqual({ paneType: "entity", persistedAs: "RunArtifact", id: "0.1.2#0" });
 	});
 
-	it("opens nothing for a row naming no record, which is a row of what the run never wrote down", () => {
+	it("doesn't open a record for a row that doesn't name one, which is a row of what the run never wrote down", () => {
 		expect(opens(row())).toBeUndefined();
 	});
 });

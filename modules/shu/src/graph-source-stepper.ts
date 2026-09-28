@@ -115,7 +115,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			fallback: true,
 			productsDomain: DOMAIN_INDIVIDUAL_WITH_EDGES,
 			// A page reads an individual with its edges the same way whatever answers the read. This answers from the store
-			// this instance holds, which is what a site with no graph engine of its own has; a deployment that gates a
+			// this instance holds, which is what a site without a graph engine of its own has; a deployment that gates a
 			// read by what a reader may see declares its own step, and the page reads through that one instead.
 			action: async ({ label, id }: { label: string; id: string }) => {
 				const held = await individualWithEdges(this.getWorld().shared.getStore(), label, id);
@@ -147,7 +147,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 				const read = ClusteredQuadsAskSchema.safeParse(asked);
 				if (!read.success) return actionNotOK(`getClusteredQuads: ${z.prettifyError(read.error)}`);
 				const { perTypeLimit, types, scope } = read.data;
-				// Required, as the dereference and query paths require it: no default ceiling, so the cluster view applies the
+				// Required, as the dereference and query paths require it, without a default ceiling, so the cluster view applies the
 				// caller's access exactly. A caller states a QUERY level: `all` asks for everything it may see, and refusing it left
 				// the graph view with only the quads that happened to stream live.
 				const accessLevel = storeScopeFor(read.data.accessLevel);
@@ -176,7 +176,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 				}));
 				// The same response carries the schema (Class, Property and rdf:type edges), pruned to the terms the data
 				// uses. Its evidence is the response's own quads, which is what the store holds: a fact announced is a
-				// fact written, so there is nothing a second buffer would add. The offline report assembles it the same
+				// fact written, so a second buffer wouldn't add a fact. The offline report assembles it the same
 				// way (buildGraphSource).
 				const standardVocab = await enumerateStandardVocab(this.getWorld().domains);
 				const withSchema = withOntologySchema({ quads, clusters: model.snapshot.clusters }, quads, this.getWorld().domains, standardVocab);

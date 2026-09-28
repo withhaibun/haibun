@@ -48,7 +48,7 @@ const MODE_LABELS: Record<ViewMode, string> = { type: "type only", connected: "c
 type VertexData = Record<string, unknown>;
 
 /** The browser's fixed layout: the schema is a small, timeless graph: one force layout, grouped by @type so the
- *  vocabulary reads as its two containers. No persisted layout choices; the only persisted state is the chip scope. */
+ *  vocabulary reads as its two containers. It doesn't persist layout choices; the only persisted state is the chip scope. */
 const BROWSER_CONFIG = { viewType: VIEW.force, flatten: false, grouped: true, groupBy: "type", zBasis: "valid", labelAsZ: false } as const;
 
 const FILTER_SCOPE = "class-browser";
@@ -180,7 +180,7 @@ class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSchema> {
 						</select>
 					</label>
 					${
-						// The browser's layout is fixed (BROWSER_CONFIG), so it has no options to settle behind the ⚙, only the
+						// The browser's layout is fixed (BROWSER_CONFIG), so it doesn't have options to settle behind the ⚙, only the
 						// two actions every graph host offers, and only while a graph is on screen to act on.
 						graphHidden
 							? html``
@@ -275,7 +275,7 @@ class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSchema> {
 	}
 
 	/** Each type view highlights ITS OWN focus type: its Class, with its properties and superclass lit through the focus
-	 *  policy, pinned so a selection made elsewhere cannot move it. Only a scope with no focus follows the shared selection. */
+	 *  policy, pinned so a selection made elsewhere cannot move it. Only a scope without a focus follows the shared selection. */
 	protected override onGraphSelection(subject: string | null): void {
 		this.scene?.setSelectedSubject(this.focusType || subject);
 	}

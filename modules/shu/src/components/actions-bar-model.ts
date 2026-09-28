@@ -16,7 +16,7 @@ export function isEntitySelection(patterns: TContextPattern[]): patterns is TCon
 
 /**
  * What to call the current context: one selected record by its own name, several by their count, and a type by what
- * the view behind it holds, and `NOTHING_SELECTED_LABEL` when nothing is selected.
+ * the view behind it holds, and `NOTHING_SELECTED_LABEL` when a record or type isn't selected.
  */
 export function contextLabel(patterns: TContextPattern[], extra?: TContextExtra): string {
 	if (patterns.length === 0) return NOTHING_SELECTED_LABEL;

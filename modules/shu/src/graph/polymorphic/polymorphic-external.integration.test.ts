@@ -1,6 +1,6 @@
 /**
  * A graph a view embeds to draw its own data (`data-external`), in a real browser: it draws what its host gives it and
- * reads nothing from the store, not even when the reader hides a type; it marks the node its host selects and lights
+ * doesn't read from the store, not even when the reader hides a type; it marks the node its host selects and lights
  * the nodes its host previews; and a node the reader opens is reported to the host, which knows what its nodes name,
  * rather than opened as a record.
  */

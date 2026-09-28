@@ -400,7 +400,7 @@ describe("FeatureVariables", () => {
 			expect(await variables.resolveVariable({ term: "role", origin: Origin.defined, domain: NOTE }, mockFeatureStep)).toMatchObject({ value: "role", domain: NOTE });
 		});
 
-		it("is no value where it names none of its domain's, and a variable of that name where one is set", async () => {
+		it("isn't a value where it doesn't name one of its domain's, and a variable of that name where one is set", async () => {
 			expect((await resolveBare("nowhere")).value).toBeUndefined();
 			await variables.set({ term: "role", value: "placeholder", domain: WAY, origin: Origin.var }, { in: "test", seq: [0], when: "test" });
 			expect((await resolveBare("role")).value, "a variable is read as a variable").toBe("placeholder");

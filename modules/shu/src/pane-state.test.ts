@@ -15,7 +15,7 @@ import { TestConduit } from "./test-setup.js";
 import { activePane } from "./signals.js";
 import { endPage } from "./page-pinned.js";
 
-/** Offline is which Conduit is installed: a serialized one has no location to mutate, a live one does. */
+/** Offline is which Conduit is installed: a serialized one doesn't have a location to mutate, a live one does. */
 const offline = () =>
 	setConduit(
 		new TestConduit(() => {
@@ -65,8 +65,8 @@ describe("derived helpers", () => {
 	it("an entity opens its @type's declared column component, defaulting to the generic entity column", () => {
 		setSiteMetadata(emptyMeta({ Task: { component: "shu-task-column" } }));
 		expect(tagOf({ paneType: "entity", id: "t1", persistedAs: "Task" })).toBe("shu-task-column"); // @type declares its own column
-		expect(tagOf({ paneType: "entity", id: "e1", persistedAs: "Email" })).toBe("shu-entity-column"); // none declared → generic
-		setSiteMetadata(emptyMeta()); // reset so other tests see no per-type ui
+		expect(tagOf({ paneType: "entity", id: "e1", persistedAs: "Email" })).toBe("shu-entity-column"); // a column isn't declared → generic
+		setSiteMetadata(emptyMeta()); // reset so other tests don't see a per-type ui
 	});
 
 	it("labelOf derives a display label per variant", () => {
@@ -124,7 +124,7 @@ describe("parseColEntry", () => {
 });
 
 describe("PaneState", () => {
-	/** A page loaded again: it holds none of the last page's panes, and boot installs its conduit. */
+	/** A page loaded again: it doesn't hold the last page's panes, and boot installs its conduit. */
 	const newPage = () => {
 		endPage();
 		offline();
@@ -306,7 +306,7 @@ describe("PaneState", () => {
 
 	// Reload restore (the shu-self-test 13.3 affordances flake): on reload an early view request (a step's products arriving before the hash is read) and
 	// re-`request()`s the open view-panes (app.ts) BEFORE the boot `fromHash` reads the reloaded URL. The restore must
-	// be deterministic regardless of that interleave: every col= entry in the reloaded hash mounts, none is dropped.
+	// be deterministic regardless of that interleave: every col= entry in the reloaded hash mounts, and the restore doesn't drop one.
 	const liveIds = () => Array.from(document.querySelectorAll("shu-column-pane")).map((p) => (p as HTMLElement).dataset.columnKey);
 	const reloadInto = (hash: string): HTMLElement => {
 		newPage();
@@ -333,7 +333,7 @@ describe("PaneState", () => {
 		expect(liveIds()).toContain("shu-affordances-panel");
 	});
 
-	it("reload boot order: an early view request re-requests view-panes BEFORE the boot fromHash: all hash panes still mount, no drop", async () => {
+	it("reload boot order: an early view request re-requests view-panes BEFORE the boot fromHash: all hash panes still mount without a drop", async () => {
 		const reloadedHash = "#?col=shu-monitor-column&col=shu-polymorphic-graph-view&col=shu-affordances-panel&col=shu-domain-chain-view";
 		reloadInto(reloadedHash);
 		// the early request fires first, re-opening the same view-panes (app.ts eventStream handler) while hydrated is still false
@@ -346,10 +346,10 @@ describe("PaneState", () => {
 		await flush();
 		const ids = liveIds().sort();
 		expect(ids).toEqual(["shu-affordances-panel", "shu-domain-chain-view", "shu-monitor-column", "shu-polymorphic-graph-view"]);
-		expect(liveIds().filter((i) => i === "shu-affordances-panel")).toHaveLength(1); // exactly one, no dup
+		expect(liveIds().filter((i) => i === "shu-affordances-panel")).toHaveLength(1); // exactly one, without a dup
 	});
 
-	it("reload re-feed: an event re-requesting an already-restored pane after fromHash keeps it (no remove/dup)", async () => {
+	it("reload re-feed: an event re-requesting an already-restored pane after fromHash keeps it (without a remove/dup)", async () => {
 		const reloadedHash = "#?col=shu-monitor-column&col=shu-affordances-panel";
 		reloadInto(reloadedHash);
 		PaneState.fromHash(); // boot restores from the hash first

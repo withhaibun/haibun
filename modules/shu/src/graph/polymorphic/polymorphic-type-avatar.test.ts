@@ -24,7 +24,7 @@ describe("typeAvatar", () => {
 		expect(typeAvatar("AVeryLongTypeNameIndeed").length).toBe(AVATAR_MAX_CHARS);
 	});
 
-	it("has no avatar for a type name with no words", () => {
+	it("doesn't have an avatar for a type name without words", () => {
 		expect(typeAvatar("")).toBe("");
 		expect(typeAvatar("///")).toBe("");
 	});

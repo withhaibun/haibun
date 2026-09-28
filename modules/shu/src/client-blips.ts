@@ -3,13 +3,13 @@ import { isOffline } from "./rpc-registry.js";
  * The browser side of the blip channel.
  *
  * A component records where the thing happens, at whatever rate it happens, including every frame. Recording holds the
- * occurrence in a fixed ring and returns: no request, no allocation beyond the occurrence itself, and constant memory
- * however long the page stays open. What the ring drops is counted, so a batch never presents a truncation as the whole.
+ * occurrence in a fixed ring and returns. It doesn't send a request or allocate beyond the occurrence itself, and holds
+ * constant memory however long the page stays open. What the ring drops is counted, so a batch never presents a truncation as the whole.
  *
  * Occurrences leave in batches over the one bridge that exists, `MonitorStepper`, rather than one request each, which
  * is the only way a per-frame recording is sustainable. A batch is sent only when there is something to send, so a page
- * where nothing happens does nothing. On the run's side each occurrence lands in the same channel a server-side
- * recording does, where it is one check when nothing is watching.
+ * without occurrences doesn't send a batch. On the run's side each occurrence lands in the same channel a server-side
+ * recording does, where it is one check while the channel doesn't have a subscriber.
  */
 import { conduit, hasConduit, reads } from "./hypermedia.js";
 
@@ -53,7 +53,7 @@ export function clientBlipsSent(): number {
 }
 
 function scheduleFlush(): void {
-	// A page that has no run for its batches (offline, or mounted without a conduit) holds what it records and sends nothing.
+	// A page that doesn't have a run for its batches (offline, or mounted without a conduit) holds what it records and doesn't send a batch.
 	if (timer || isOffline() || !hasConduit()) return;
 	timer = setTimeout(() => {
 		timer = undefined;
@@ -68,7 +68,7 @@ export async function flushClientBlips(): Promise<void> {
 	sent += batch.length;
 	// A dropped batch is a lost observation, never a broken page: the run keeps its own count of what it received, and
 	// the occurrence was by definition one the run does not retain.
-	// A read, not an act: the run retains nothing of a blip, so a batch's arrival is not recorded as a step. A recorded
+	// A read, not an act: the run doesn't retain a blip, so a batch's arrival is not recorded as a step. A recorded
 	// batch would be a step whose events reach the page and repaint a scene that then records what it drew.
 	await conduit()
 		.follow(reads("MonitorStepper-recordClientBlips", { batch: { blips: batch, recorded } }), `blips: ${batch.length} occurrence(s)`)

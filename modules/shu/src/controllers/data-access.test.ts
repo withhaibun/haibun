@@ -28,7 +28,7 @@ const PENDING_MIGRATION = new Set([
 const { files, reachesRpc } = scanComponents(fileURLToPath(new URL("../components/", import.meta.url)));
 
 describe("component data-access discipline", () => {
-	it("no component reaches the RPC/store directly, data access goes through a controller in src/controllers", () => {
+	it("the components don't reach the RPC/store directly, data access goes through a controller in src/controllers", () => {
 		const offenders = files.filter((f) => reachesRpc(f) && !PENDING_MIGRATION.has(f));
 		expect(
 			offenders,
@@ -36,7 +36,7 @@ describe("component data-access discipline", () => {
 		).toEqual([]);
 	});
 
-	it("PENDING_MIGRATION has no stale entries: a migrated component must be removed from the allowlist", () => {
+	it("PENDING_MIGRATION doesn't hold a stale entry: a migrated component must be removed from the allowlist", () => {
 		const stale = [...PENDING_MIGRATION].filter((f) => !files.includes(f) || !reachesRpc(f));
 		expect(stale, `${stale.join(", ")} no longer reach the RPC directly; remove them from PENDING_MIGRATION.`).toEqual([]);
 	});

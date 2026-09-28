@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { Access } from "@haibun/core/lib/resources.js";
 
-// The registry answers without a server, with one type to search, and the bar has no extensions to load.
+// The registry answers without a server, with one type to search, and the bar doesn't have extensions to load.
 vi.mock("../rpc-registry.js", async (actual) => ({
 	...(await actual<Record<string, unknown>>()),
 	// The run offers the step an ask runs, so a chosen Ask mode renders.
@@ -77,8 +77,8 @@ describe("the actions bar reads the page's state", () => {
 		pageTrail.set("All");
 		currentSubjectState.set(INITIAL_SUBJECT);
 	});
-	// A pane updates while it is in the page, and the page it leaves updates nothing: every case ends with the panes it
-	// mounted removed, so none of them renders while the test environment closes.
+	// A pane updates while it is in the page, and a pane doesn't update after it leaves the page: every case ends with the panes it
+	// mounted removed, so they don't render while the test environment closes.
 	afterEach(() => {
 		document.body.innerHTML = "";
 		teardown();

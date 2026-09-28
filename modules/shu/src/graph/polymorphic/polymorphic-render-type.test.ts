@@ -41,7 +41,7 @@ describe("the axis legend names what the axes mean, and only gantt's do", () => 
 		expect(gantt?.axisLegend()).toEqual({ from: "2026-01-05", to: "2026-01-08", count: 4 });
 	});
 
-	it("a gantt with nothing placed has no legend, since there is no span to name", () => {
+	it("a gantt without placed tasks doesn't have a legend, since it doesn't have a span to name", () => {
 		expect(
 			registry({ ganttPlacement: () => ({ scale, count: 0 }) })
 				.get(VIEW.gantt)
@@ -67,7 +67,7 @@ describe("a layered view says which way its ranks read", () => {
 		expect(r.get(VIEW.lr)?.layeredFlow()).toEqual({ direction: "lr", flowAxis: "x" });
 	});
 
-	it("a view that is not a layered flow has none", () => {
+	it("a view that is not a layered flow doesn't have one", () => {
 		const r = registry();
 		for (const v of [VIEW.force, VIEW.gantt, VIEW.sequence]) expect(r.get(v)?.layeredFlow()).toBeNull();
 	});
@@ -85,7 +85,7 @@ describe("a gantt bar's placement and its span come from the one target", () => 
 		expect(r.get(VIEW.gantt)?.markTime("task-1")).toEqual({ start, end: start + 2 * DAY, zExtent: 2 * DAY });
 	});
 
-	it("a node with no target is a point in time, not a bar", () => {
+	it("a node without a target is a point in time, not a bar", () => {
 		expect(r.get(VIEW.gantt)?.lanePlacement("task-2")).toBeUndefined();
 		expect(r.get(VIEW.gantt)?.markTime("task-2")).toBeUndefined();
 	});

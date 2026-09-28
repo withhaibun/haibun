@@ -100,7 +100,7 @@ Example: [e2e-tests/policy-test/schemas/app-params.json](../e2e-tests/policy-tes
 
 Haibun provides a hierarchy for access control:
 *   `r` (Read): Lowest access. Feature files must start with `r_`.
-*   `a` (Auth): Typically auth but no writes. Includes `r`. Feature files must start with `a_`.
+*   `a` (Auth): Typically auth but doesn't write. Includes `r`. Feature files must start with `a_`.
 *   `w` (Write): Full access. Includes `r` and `a`. Feature files must start with `w_`.
 
 The `runPolicy` schema specifies which directories are allowed for each access level in a given `place`.

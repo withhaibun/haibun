@@ -11,7 +11,7 @@ describe("requestBaseIri", () => {
 	it("takes the first value of a comma-joined forwarding chain", () => {
 		expect(requestBaseIri({ "x-forwarded-proto": "https, http", "x-forwarded-host": "front.example, back.internal" })).toBe("https://front.example");
 	});
-	it("is undefined when no host is present", () => {
+	it("is undefined when a host isn't present", () => {
 		expect(requestBaseIri({})).toBeUndefined();
 		expect(requestBaseIri()).toBeUndefined();
 	});

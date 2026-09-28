@@ -22,7 +22,7 @@ export function requestHaibunNs(): string {
 }
 
 /** The absolute origin (scheme://host[:port]) a request arrived on, from its host / forwarding headers (honoring a
- *  reverse proxy). Undefined when no host header is present. */
+ *  reverse proxy). Undefined when a host header isn't present. */
 export function requestBaseIri(headers?: Record<string, string | undefined>): string | undefined {
 	if (!headers) return undefined;
 	const first = (v?: string): string | undefined => v?.split(",")[0]?.trim() || undefined;

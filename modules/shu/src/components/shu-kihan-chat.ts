@@ -2,7 +2,7 @@
  * The ask: its settings, the transcript, and the input line with the question, Send and Stop. The settings hold the
  * session, the model, the tool limit and who reads the context, and the pane's settings control shows them, above the
  * transcript, which scrolls under them. The conversation and the page's turn are page-level machines, and the bar's
- * activity history renders the transcript from them into this element's transcript slot. This element holds neither, so
+ * activity history renders the transcript from them into this element's transcript slot. This element doesn't hold either, so
  * the bar removes it when it closes and the conversation continues.
  */
 import { errorDetail } from "@haibun/core/lib/util/index.js";
@@ -48,7 +48,7 @@ import { reportToRun } from "../client-log.js";
 import { embeddedPageView, embeddedViewLd } from "../embedder.js";
 
 /** What a reader says a turn sends. The values are the words the registry and a profile state it in; what each of them
- *  sends is how a reader reads them, and "" is the reader saying nothing, which leaves it to the model. */
+ *  sends is how a reader reads them, and "" means the reader doesn't state a value, which leaves it to the model. */
 const AS_MODEL_STATES = "";
 const SENDS: Record<z.infer<typeof ContextReadBySchema>, string> = { run: "context", model: "tool cues" };
 const ContextReadChoiceSchema = z.enum([AS_MODEL_STATES, ...ContextReadBySchema.options]);
@@ -70,7 +70,7 @@ const KihanVertexSchema = z.looseObject({
 	options: z.looseObject({ contextReadBy: ContextReadBySchema.optional() }).optional(),
 });
 type TKihanVertex = z.infer<typeof KihanVertexSchema>;
-/** A page of the model catalog, and how many models the run offers; an answer with no list is a failed read. */
+/** A page of the model catalog, and how many models the run offers; an answer without a list is a failed read. */
 const CatalogPageSchema = GraphQueryResultSchema.extend({ vertices: z.array(KihanVertexSchema) });
 /** The type the run's models are records of, and the read that lists them. */
 const KIHAN = "Kihan";
@@ -131,7 +131,7 @@ function restoreQuestion(input: HTMLTextAreaElement, prompt: string): void {
 }
 
 export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
-	/** A control, not a view of data, contributes nothing to the Kihan's context. */
+	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
@@ -188,9 +188,9 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	static persistFields = ["model", "toolLimit", "contextReadBy"] as const;
 
 	private _models: TKihanVertex[] = [];
-	/** The providers the run registered no model of, and why, as their records state it. */
+	/** The providers whose models the run didn't register, and why, as their records state it. */
 	#providersWithout: { type: string; providers: TProvider[] } | undefined;
-	/** Whether the model catalog was read, so a run that offers no model is said to, rather than showing nothing. */
+	/** Whether the model catalog was read, so the view states that a run doesn't offer a model, rather than showing an empty list. */
 	#modelsRead = false;
 	/** The read of the model catalog in flight, so a question asked while it reads waits on that read rather than making
 	 *  another. A read that fails is left for the next question to make again. */
@@ -260,7 +260,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	private async listSessions(): Promise<TChatSession[]> {
 		await getAvailableSteps();
 		if (!findStep("listChatSessions")) return [];
-		// An answer carrying no list is a failed read, not an empty one: the schema states what came back instead.
+		// An answer that doesn't carry a list is a failed read, not an empty one: the schema states what came back instead.
 		return SessionListSchema.parse(await conduit().follow(reads(requireStep("listChatSessions")), "kihan-chat: list chat sessions")).sessions;
 	}
 
@@ -332,7 +332,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		this.requestUpdate();
 	}
 
-	/** The providers the run registered no model of, read from the records of the type its models are grouped under. */
+	/** The providers whose models the run didn't register, read from the records of the type its models are grouped under. */
 	private async readProvidersWithout(): Promise<{ type: string; providers: TProvider[] } | undefined> {
 		const type = providerType();
 		const listing = `show${type}s`;
@@ -341,7 +341,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		return { type, providers: page.vertices.filter((provider) => provider.models === 0) };
 	}
 
-	/** The providers the run registered no model of, each linked to its record, with why. */
+	/** The providers whose models the run didn't register, each linked to its record, with why. */
 	private providersWithoutTemplate(): TemplateResult | typeof nothing {
 		const without = this.#providersWithout;
 		if (!without || without.providers.length === 0) return nothing;
@@ -351,9 +351,9 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	}
 
 	/** The model a question is sent to, which is one the run offers. A remembered model the run no longer offers, as one
-	 *  stored under a provider since renamed, is replaced by the run's standing default. Where the run states none, it is
+	 *  stored under a provider since renamed, is replaced by the run's standing default. Where the run doesn't state a default, it is
 	 *  replaced by a model that states it does not think, since a thinking model's answer can spend the turn's token budget
-	 *  on reasoning and carry no text back. With no catalog, the remembered one stands. */
+	 *  on reasoning and return without text. Without a catalog, the remembered one stands. */
 	private offeredModel(): string {
 		if (this._models.length > 0 && !this._models.some((m) => m.id === this.state.model))
 			this.setState({ model: (this._models.find((m) => m.standing) ?? this._models.find((m) => m.capabilities?.thinking === false) ?? this._models[0]).id });
@@ -506,7 +506,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	 * The default named by what the chosen model sends, so a reader sees what leaving it alone does.
 	 *
 	 * A profile states it outright. Otherwise it follows what the endpoint reports the model can do: a model that takes
-	 * tool calls reads the records itself, and one that does not is sent them. A model the registry says nothing about is
+	 * tool calls reads the records itself, and one that does not is sent them. A model the registry doesn't describe is
 	 * named as the default alone.
 	 */
 	private modelDefaultLabel(): string {

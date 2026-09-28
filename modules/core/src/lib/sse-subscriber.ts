@@ -28,10 +28,10 @@
  * received before it subscribed.
  *
  * --- Reconnection ---
- * The server replays nothing on connect: what happened is in the graph.
+ * The server doesn't replay events on connect: what happened is in the graph.
  * A stream that breaks and re-opens announces the re-open through
  * `reconnected()`, which is how a consumer following the run knows to
- * read again for what happened while nothing was heard.
+ * read again for what happened while the stream didn't deliver an event.
  */
 
 import type { THaibunEvent } from "../schema/protocol.js";
@@ -55,7 +55,7 @@ class ReplayBuffer<E> {
 		if (this.events.length > this.limit) this.events.splice(0, this.events.length - this.limit);
 	}
 
-	/** Invoke `handler` for every buffered event that passes `filter`, or every one when there is no filter. */
+	/** Invoke `handler` for every buffered event that passes `filter`, or every one when a filter isn't given. */
 	replay(handler: (event: E) => void, filter?: (event: E) => boolean): void {
 		for (const event of this.events) {
 			if (!filter || filter(event)) handler(event);
@@ -78,7 +78,7 @@ export class StreamListeners<E> {
 	private readonly openListeners = new Set<() => void>();
 	private readonly reconnectListeners = new Set<() => void>();
 	private readonly disconnectListeners = new Set<() => void>();
-	/** The stream has dropped and not yet re-opened. What happened meanwhile reached no listener, so the re-open is
+	/** The stream has dropped and not yet re-opened. What happened meanwhile didn't reach a listener, so the re-open is
 	 *  announced to whoever follows the run: that is when they have something to read again for. */
 	private broken = false;
 	private readonly buffer: ReplayBuffer<E>;
@@ -110,8 +110,8 @@ export class StreamListeners<E> {
 		return () => this.openListeners.delete(fn);
 	}
 
-	/** Be told the stream has re-opened after a break in it. What happened during the break arrives in no dispatch, so a
-	 *  consumer following the run reads again on this. Never fires on the first open, which has nothing behind it. */
+	/** Be told the stream has re-opened after a break in it. What happened during the break doesn't arrive in a dispatch, so a
+	 *  consumer following the run reads again on this. Never fires on the first open, which doesn't follow a break. */
 	reconnected(fn: () => void): () => void {
 		this.reconnectListeners.add(fn);
 		return () => this.reconnectListeners.delete(fn);
@@ -162,7 +162,7 @@ export class StreamListeners<E> {
 		return this.buffer.totalRecorded;
 	}
 
-	/** Let every listener go: a stream that closes never opens again, so nothing it receives after reaches a listener. */
+	/** Let every listener go: a stream that closes never opens again, so a message it receives after doesn't reach a listener. */
 	clear(): void {
 		this.listeners.length = 0;
 		this.openListeners.clear();
@@ -188,7 +188,7 @@ type SseSubscriberConfig = {
 	/** Reconnect delay on error, in ms. Default 2000. */
 	reconnectDelayMs?: number;
 	/** The headers each connection is asked for with, made anew for each, since a proof covers the one request it is sent
-	 *  with. Absent, the stream is asked for with none. */
+	 *  with. Absent, the stream is requested without headers. */
 	headers?: (url: string) => Promise<Record<string, string>>;
 	/** The fetch the stream is read with. Defaults to globalThis.fetch. */
 	fetchImpl?: typeof fetch;
@@ -204,7 +204,7 @@ export class SseSubscriber {
 	private readonly headers?: (url: string) => Promise<Record<string, string>>;
 	private readonly fetchImpl: typeof fetch;
 	private readonly clientId: string;
-	/** Stops the connection being read, or null where none is open or opening. */
+	/** Stops the connection being read, or null where a connection isn't open or opening. */
 	private reading: AbortController | null = null;
 	private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 	private closed = false;
@@ -309,12 +309,12 @@ export class SseSubscriber {
 		}
 		this.reading?.abort();
 		this.reading = null;
-		// A closed subscriber never opens again, so it holds no listener: a message arriving on the transport it has let
+		// A closed subscriber never opens again, so it doesn't hold a listener: a message arriving on the transport it has let
 		// go reaches a consumer that stopped listening otherwise.
 		this.followers.clear();
 	}
 
-	/** Wall-clock time of the last successfully-dispatched event, or null if none yet. */
+	/** Wall-clock time of the last successfully-dispatched event, or null if an event hasn't been dispatched yet. */
 	getLastEventAt(): number | null {
 		return this.lastEventAt;
 	}

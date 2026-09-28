@@ -1,6 +1,6 @@
 /**
  * What a delegation names to let another party use the browser: one action for reading the page, one for acting on it,
- * and one for running `fetch` inside it, so a party given one of them can do nothing the others cover.
+ * and one for running `fetch` inside it, so a party given one of them can't do what the others cover.
  */
 import { describe, expect, it } from "vitest";
 import { mayCall, readAction, requiredAction } from "@haibun/core/lib/actions.js";
@@ -14,13 +14,12 @@ const step = (name: string) => ({ capability: requiredAction(WEB_PLAYWRIGHT, nam
 describe("what a delegation names to use the browser", () => {
 	it("groups reading the page, acting on it and fetching from it, each under one action", () => {
 		expect(wp.constructor.name, "the name its steps' methods begin with").toBe(WEB_PLAYWRIGHT);
-		for (const name of [READS_THE_PAGE, "takeScreenshot", "saveTextFrom", "seeText", "getPageContents"])
-			expect(step(name).capability, name).toBe(WEB_PLAYWRIGHT_ACTIONS.read);
+		for (const name of [READS_THE_PAGE, "takeScreenshot", "saveTextFrom", "seeText", "getPageContents"]) expect(step(name).capability, name).toBe(WEB_PLAYWRIGHT_ACTIONS.read);
 		for (const name of ["click", "gotoPage", "setValue", "onNewTab"]) expect(step(name).capability, name).toBe(WEB_PLAYWRIGHT_ACTIONS.act);
 		for (const name of ["restEndpointRequest", "addAuthBearerToken", "restResponseIs"]) expect(step(name).capability, name).toBe(WEB_PLAYWRIGHT_ACTIONS.fetch);
 	});
 
-	it("lets a party that may read the page do nothing else with it, and no read of records reach it", () => {
+	it("lets a party that may read the page do only that with it, and doesn't let a read of records reach it", () => {
 		expect(mayCall([WEB_PLAYWRIGHT_ACTIONS.read], step("click"))).toBe(false);
 		expect(mayCall([WEB_PLAYWRIGHT_ACTIONS.act], step("restEndpointRequest"))).toBe(false);
 		expect(mayCall(["Read:private"], step(READS_THE_PAGE)), "a snapshot of the page is the page's, not a record").toBe(false);

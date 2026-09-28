@@ -1,6 +1,6 @@
 // What a run says becomes a record under the step that said it, so a reader who was not there to hear it asks for it
 // the way they ask for anything else. The record is the durable copy of a statement the reader was already told over
-// the stream, which is why writing it announces nothing.
+// the stream, which is why writing it isn't announced.
 import { describe, it, expect, beforeEach } from "vitest";
 import { executionOf, formatRecordName } from "@haibun/core/lib/seq-path.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
@@ -59,7 +59,7 @@ describe("what a run said, as a record", () => {
 		expect(records.map((r) => r[LOG_MESSAGE_FIELD.message]).sort()).toEqual(["first", "second"]);
 	});
 
-	it("records nothing for an event that is not something the run said", async () => {
+	it("doesn't record an event that is not something the run said", async () => {
 		const monitor = monitorOver(store);
 		monitor.onEvent({ id: "0.1", timestamp: 1700, kind: "lifecycle", level: "info", stage: "end" } as unknown as THaibunEvent);
 		await monitor.ended();
@@ -101,7 +101,7 @@ describe("what a run said, as a record", () => {
 		expect((await store.queryIndividuals(LOG_MESSAGE_LABEL)).length, "the record the feature waited for").toBe(1);
 	});
 
-	it("declares that writing it announces nothing, since the run saying it was the announcement", () => {
+	it("declares that writing it isn't announced, since the run saying it was the announcement", () => {
 		expect(logMessageDomainDefinition.topology).toMatchObject({ announceWrites: false });
 	});
 });
@@ -145,7 +145,7 @@ describe("what a run produced, as a record", () => {
 		expect((await store.queryIndividuals(RUN_ARTIFACT_LABEL)).length).toBe(2);
 	});
 
-	it("records nothing for what says where nothing is: a quad a store announces, or a trace of the run's own machinery", async () => {
+	it("doesn't record an artifact that doesn't name a file: a quad a store announces, or a trace of the run's own machinery", async () => {
 		const monitor = monitorOver(store);
 		monitor.onEvent({ id: "0.1", timestamp: 1700, kind: "artifact", level: "debug", artifactType: "json", json: {} } as unknown as THaibunEvent);
 		monitor.onEvent({ id: "http-trace-1", timestamp: 1700, kind: "artifact", level: "debug", artifactType: "http-trace", trace: {} } as unknown as THaibunEvent);
@@ -155,7 +155,7 @@ describe("what a run produced, as a record", () => {
 });
 
 describe("what the bridge carries", () => {
-	it("receives a blip batch as a read, so the run records nothing of what it never retains", () => {
+	it("receives a blip batch as a read, so the run doesn't record what it never retains", () => {
 		const steps = (new MonitorStepper() as unknown as { steps: Record<string, { read?: boolean }> }).steps;
 		expect(steps.recordClientBlips.read, "a recorded batch is a step whose events reach the page and repaint a scene that then records what it drew").toBe(true);
 	});

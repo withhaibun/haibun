@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // The client cache view is THE reading of what the page holds of a run: each source's extent, the rows it holds and the
 // cursor's row in it, the live stream by level, and the executions this device holds; every value under its own test
-// id, so a feature reads what the page holds from here with the generic steps. It makes no source of its own.
+// id, so a feature reads what the page holds from here with the generic steps. It doesn't make a source of its own.
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
@@ -82,17 +82,17 @@ describe("the client cache view", () => {
 		const view = document.createElement(SHU_TAG.CLIENT_CACHE_COLUMN) as ShuClientCacheColumn;
 		document.body.appendChild(view);
 		await view.updateComplete; // before what the device holds has been read once
-		expect(text(view), "what this device holds has not been read yet, so nothing is claimed about it").toContain("Waiting");
+		expect(text(view), "what this device holds has not been read yet, so the view doesn't make a claim about it").toContain("Waiting");
 		expect(text(view)).not.toContain("No execution is held on this device");
 		await settle();
 		expect(text(view), "read, and now empty").toContain("No execution is held on this device");
 	});
 
-	it("lists no source until a view has read the run, and makes none itself", async () => {
+	it("doesn't list a source until a view has read the run, and doesn't make one itself", async () => {
 		const view = await open();
 		expect(text(view)).toContain("No view has read the run yet");
 		expect(value(view, IDS.CURSOR)).toBe("live edge");
-		expect(value(view, IDS.REGISTRY), "no step list has been requested in this page").toBe("not known yet");
+		expect(value(view, IDS.REGISTRY), "a step list hasn't been requested in this page").toBe("not known yet");
 	});
 
 	it("reads a source's extent, the rows it holds and its state, each under its id", async () => {
@@ -102,7 +102,7 @@ describe("the client cache view", () => {
 		expect(value(view, `${IDS.SOURCE}info-events`), "the run's extent at info").toBe(String(STEPS));
 		expect(value(view, `${IDS.SOURCE}info-cached`), "the window a reader is looking at").toBe(`0..${STEPS - 1}`);
 		expect(value(view, `${IDS.SOURCE}info-cached-rows`)).toBe(String(STEPS));
-		expect(value(view, `${IDS.SOURCE}info-cursor`), "no cursor: the live edge, no row").toBe("");
+		expect(value(view, `${IDS.SOURCE}info-cursor`), "the source doesn't have a cursor: it reads the live edge rather than a row").toBe("");
 		expect(value(view, `${IDS.SOURCE}info-loaded`), "what the source is doing is its own id, so a reader waits for the state rather than for a cell about to change").toBe(
 			"loaded",
 		);
@@ -124,7 +124,7 @@ describe("the client cache view", () => {
 		handle.emit({ id: "0.2", timestamp: 2000, kind: "log", level: "debug", message: "below every open view's level" });
 		await flush();
 		expect(value(view, `${IDS.LIVE}info`), "the live stream by level: one at info").toBe("1");
-		expect(value(view, `${IDS.LIVE}debug`), "and one at debug, which no open view shows").toBe("1");
+		expect(value(view, `${IDS.LIVE}debug`), "and one at debug, which the open views don't show").toBe("1");
 	});
 
 	it("lists the executions this device holds and reads the one a reader chooses", async () => {

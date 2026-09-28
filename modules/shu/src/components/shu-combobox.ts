@@ -5,7 +5,7 @@ import { ComboboxSchema, type TComboboxOption } from "../schemas.js";
 import { shuBaseStyles } from "./styles.js";
 
 export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
-	/** A control, not a view of data, contributes nothing to the Kihan's context. */
+	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
@@ -351,7 +351,7 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 		if (!input) return;
 
 		// A press offers the options, as taking focus does. The control holds focus after a pick, so a focus never comes
-		// again, and a press alone would show the reader nothing. Both paths run only on a closed list, so a press that
+		// again, and a press alone wouldn't show the reader the options. Both paths run only on a closed list, so a press that
 		// also takes focus offers the options once.
 		for (const raised of ["focus", "pointerdown"]) {
 			input.addEventListener(raised, () => {

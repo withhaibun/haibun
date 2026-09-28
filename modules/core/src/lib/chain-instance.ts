@@ -68,7 +68,7 @@ export type TChainInstance = {
 	stepFactIds: string[][];
 	createdAt: number;
 	updatedAt: number;
-	/** Who began the walk, where anyone was acting. A run with no principal begins a walk owned by no one, which is
+	/** Who began the walk, where anyone was acting. A run without a principal begins a walk that doesn't have an owner, which is
 	 *  what a feature walking toward a goal is. */
 	owner?: string;
 };

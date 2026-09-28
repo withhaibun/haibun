@@ -98,10 +98,10 @@ describe("trackHttpRequest: one connected network-interaction record per request
 		expect(propOf(req, id, "performedBy")?.object).toBe(activeSitePrincipal(world)); // the site made this call…
 		expect(propOf(req, id, "performedBy")?.objectType).toBe(HTTP_HOST_LABEL); // …as its host node…
 		expect(propOf(req, id, "target")?.object).toBe("api.example.com"); // …to an external host
-		expect(propOf(req, id, "durationMs")).toBeUndefined(); // no duration field when unknown
+		expect(propOf(req, id, "durationMs")).toBeUndefined(); // the record doesn't have a duration field when unknown
 	});
 
-	it("a host's requestCount rolls up from the requests that reached it: no separate host tracking", async () => {
+	it("a host's requestCount rolls up from the requests that reached it: it doesn't track hosts separately", async () => {
 		const { world, store } = mockWorld();
 		await trackHttpRequest(world, { url: "http://fonts.google.com/a", status: 200, durationMs: 1, method: "GET" }, PATHS);
 		await trackHttpRequest(world, { url: "http://fonts.google.com/b", status: 200, durationMs: 1, method: "GET" }, PATHS);

@@ -7,7 +7,7 @@ import { clamp } from "../util.js";
 /** Height of an open docked pane as a share of the app: dragged, remembered, and bounded. */
 export const PROPORTION = { min: 0.12, max: 0.9, default: 0.38 } as const;
 
-/** A drag that leaves a docked pane shorter than this is a drag to nothing: the pane keeps a usable strip. */
+/** A drag doesn't leave a docked pane shorter than this, so the pane keeps a usable strip. */
 export const MIN_PANEL_PX = 50;
 
 /** The height to open at. It is the remembered height, where a reader can still work in it, and the default otherwise. */

@@ -3,7 +3,7 @@
  *
  * A step writes itself as a SeqPath individual; what it said while it ran is written here, under the same seqPath it
  * happened during. So one query over these and the SeqPath individuals is the run, ordered by time and filtered by
- * level, and there is no second record of it to keep in step.
+ * level, and a second record of it doesn't exist to keep in step.
  *
  * The level is declared as context, which is what makes it one of the filters offered beside the type rather than a
  * condition a reader has to write.

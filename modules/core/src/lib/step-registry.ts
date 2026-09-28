@@ -113,7 +113,7 @@ export class StepRegistry {
 	}
 
 	/** The steps a caller holding `held` is shown: those it holds what they require for. Every listing of a run's steps to
-	 *  a caller reads this, so a caller learns what it may call and nothing it may not. */
+	 *  a caller reads this, so a caller learns what it may call and doesn't learn a step it may not. */
 	heldBy(held: string | string[] | undefined): TStepDescriptor[] {
 		return this.descriptors().filter((step) => mayCall(held, step));
 	}
@@ -163,7 +163,7 @@ export function bareMethodName(name: string): string {
  * Registry key for a step routed at a specific hostId: `host{hostId}_{method}`.
  *
  * The key is also the name a caller uses, and a model's tool name may hold only letters, digits, underscores and
- * hyphens, so it is written with none of the punctuation a prefix would otherwise reach for. `host` in front keeps it
+ * hyphens, so it is written without the punctuation a prefix would otherwise use. `host` in front keeps it
  * a name rather than something beginning with a digit.
  */
 export function hostScopedMethodName(hostId: number, bareMethod: string): string {
@@ -276,7 +276,7 @@ export function createStepHandler(stepperName: string, stepName: string, stepDef
  * autoAssert, preconditions) sees the identical shape both paths produce.
  */
 export function buildFeatureStepForTransport(tool: StepTool, input: Record<string, unknown>, seqPath: TSeqPath): TFeatureStep {
-	// Proxy tools (RemoteStepperProxy, subprocess) dispatch out-of-process and have no
+	// Proxy tools (RemoteStepperProxy, subprocess) dispatch out-of-process and don't have a
 	// local stepDef. Construct a carrier with just the description so the handler can run.
 	const { descriptor } = tool;
 	const step = tool.stepDef ?? ({ gwta: descriptor.pattern, action: () => actionNotOK(`${descriptor.method} doesn't have an in-process stepDef`) } as TStepperStep);
@@ -300,8 +300,8 @@ export function buildFeatureStepForTransport(tool: StepTool, input: Record<strin
 }
 
 /**
- * The domain of each parameter a step's phrase names, by parameter: `{name: domain}`, or `string` where the phrase names
- * none. The one reading of a step's input domains, which its schemas, the typed step graph and dispatch all take.
+ * The domain of each parameter a step's phrase names, by parameter: `{name: domain}`, or `string` where the phrase doesn't
+ * name one. The one reading of a step's input domains, which its schemas, the typed step graph and dispatch all take.
  */
 export function stepParamDomains(stepDef: TStepperStep): Map<string, string> {
 	const domains = new Map<string, string>();
@@ -314,7 +314,7 @@ export function stepParamDomains(stepDef: TStepperStep): Map<string, string> {
 
 /**
  * A schema as JSON Schema, for discovery, MCP and forms: what a caller supplies, or what a step answers. A date is an ISO
- * date-time string, and a type with no JSON Schema form is refused at registration, naming `subject`, what declares it.
+ * date-time string, and a type without a JSON Schema form is refused at registration, naming `subject`, what declares it.
  */
 function jsonSchemaFor(subject: string, schema: z.ZodType, io: "input" | "output"): Record<string, unknown> {
 	return jsonSchemaOf(
@@ -339,8 +339,8 @@ function jsonSchemaFor(subject: string, schema: z.ZodType, io: "input" | "output
 	);
 }
 
-/** Zod types with no JSON Schema representation (dates excepted: they surface as string/date-time). A domain
- * declaring one of these has no form and no client-side validation surface, so registration throws. */
+/** Zod types without a JSON Schema representation (dates excepted: they surface as string/date-time). A domain
+ * declaring one of these doesn't have a form or a client-side validation surface, so registration throws. */
 const UNREPRESENTABLE_ZOD_TYPES = new Set(["bigint", "symbol", "undefined", "void", "never", "function", "map", "set", "promise", "custom", "file"]);
 
 /**
@@ -383,8 +383,8 @@ const namedRefusal = (method: string, required: string): string => `${method}: c
 
 /**
  * What a caller from outside the run is told when its call is refused. A caller that proved a key is told the action the
- * step requires, or that no such step exists, since it can ask a holder for what it lacks. A caller that proved none is
- * told only that it may not make the call, alike whether the step exists or not, so no refusal maps the run for it.
+ * step requires, or that such a step doesn't exist, since it can ask a holder for what it lacks. A caller that didn't prove one is
+ * told only that it may not make the call, alike whether the step exists or not, so a refusal doesn't map the run for it.
  */
 export function refusal(method: string, required: string | undefined, principal: string | undefined): string {
 	if (!principal) return `${method}: not a call this caller may make`;
@@ -412,7 +412,7 @@ export function steppersOf(steps: TStepDescriptor[]): TStepperSummary[] {
  * description, so a stepper's name and a hyphen read that stepper's steps; a domain's texts are its name and its
  * description.
  *
- * A step is shown only to a caller holding what it requires, so a caller learns what it may call and nothing it may not.
+ * A step is shown only to a caller holding what it requires, so a caller learns what it may call and doesn't learn a step it may not.
  * Every domain is shown, since a record can't be read without the declaration of its type. The registry is the run's,
  * which holds the steps a transport injected.
  */

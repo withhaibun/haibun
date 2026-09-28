@@ -34,7 +34,7 @@ describe("entity body content renders for every type and view that should show i
 		expect(html).toContain("text/plain");
 	});
 
-	it("file with a single markdown body: shows the iframe (no switcher needed for one type)", async () => {
+	it("file with a single markdown body: shows the iframe (one type doesn't need a switcher)", async () => {
 		const html = await render("File", { id: "f1", name: "notes.md" }, [{ id: "fb", content: "# Notes", mediaType: "text/markdown" }]);
 		expect(html).toContain('data-testid="email-body-iframe"');
 		expect(html).not.toContain('class="content-switcher"');
@@ -58,7 +58,7 @@ describe("entity body content renders for every type and view that should show i
 		expect(html).not.toContain('data-testid="entity-stub"');
 	});
 
-	it("skips bodies with no content or no mediaType (renders nothing rather than an empty iframe)", async () => {
+	it("skips bodies without content or mediaType (doesn't render an empty iframe)", async () => {
 		const html = await render("File", { id: "f2", name: "x" }, [{ id: "empty", content: "", mediaType: "text/markdown" }]);
 		expect(html).not.toContain('data-testid="email-body-iframe"');
 	});
@@ -71,9 +71,9 @@ describe("entity body content renders for every type and view that should show i
 	});
 });
 
-// A graph read names a record's bodies by id and media type and carries none of their text, which is read on request.
+// A graph read names a record's bodies by id and media type and doesn't carry their text, which is read on request.
 // The reading shown is chosen from that listing, whatever order the store lists the bodies in.
-describe("the reading a record shows, chosen from a listing that carries no text", () => {
+describe("the reading a record shows, chosen from a listing that doesn't carry text", () => {
 	beforeEach(() => {
 		if (!customElements.get("shu-entity-column")) customElements.define("shu-entity-column", ShuEntityColumn);
 	});
@@ -150,7 +150,7 @@ describe("annotate toggle button", () => {
 
 	const button = (el: ShuEntityColumn): HTMLElement | null => el.shadowRoot?.querySelector('[data-testid="annotate-enter"]') ?? null;
 
-	it("is a pane-icon toggle, greyscale (no has-annotations) and not pressed when the document has no notes", async () => {
+	it("is a pane-icon toggle, greyscale (without has-annotations) and not pressed when the document doesn't have notes", async () => {
 		const btn = button(await openWithAnnotatableBody([]));
 		expect(btn).not.toBeNull();
 		expect(btn?.classList.contains("pane-icon")).toBe(true);

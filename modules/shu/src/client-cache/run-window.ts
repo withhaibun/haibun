@@ -41,7 +41,7 @@ export type TRunRow = {
 	 *  produced thing under the step that made it, and that step can be part of the machinery a reader is not reading. */
 	produced?: TRunRow[];
 	/** The step whose row carries this produced thing, where one in the window claims it. A view showing rows of steps
-	 *  draws it there and gives this row no room; a view reading the run's own document places it by its own reading. */
+	 *  draws it there and doesn't give this row room; a view reading the run's own document places it by its own reading. */
 	carriedBy?: string;
 	/** The step this one was run to carry out, on a substep: the step that established it, as its path within the
 	 *  execution. A reader shown a substep is shown which step ran it, and reads that step from here. */
@@ -65,7 +65,7 @@ export type TRunRow = {
 	featureRelativePath?: string;
 	mediaType?: string;
 	/** This record's own name, as written and as read: a step's is the step; what it said or produced is named under it.
-	 *  Read once here, so nothing that orders, groups or shows a row parses the same id again. */
+	 *  Read once here, so the code that orders, groups or shows a row doesn't parse the same id again. */
 	id: string;
 	name?: TRecordName;
 	/** The record this row is of, and the type it is one of: what a page holds when it holds what it has read. */
@@ -205,7 +205,7 @@ function oneEach(rows: TRunRow[]): TRunRow[] {
  * shot is claimed by the nearest step among the rows of the window, and that step's row says it carries it. The row
  * itself stays in the window, because a window is one reading that every view reads: a view of the run's steps draws
  * the shot on the step's row, and the run's document places it where its own reading puts it. A produced thing whose
- * step is not among the rows is claimed by nothing and is read as the row it is.
+ * step is not among the rows is unclaimed and is read as the row it is.
  */
 export function producedUnderSteps(rows: TRunRow[]): TRunRow[] {
 	const byPath = new Map<string, TRunRow>();
@@ -301,7 +301,7 @@ async function side(
 	substeps = false,
 ): Promise<Record<string, unknown>[]> {
 	const { label, timeField } = type;
-	// A graph that does not carry a type holds none of it, so asking for it would be asking a question with no answer.
+	// A graph that does not carry a type doesn't hold a record of it, so asking for it would be asking a question that doesn't have an answer.
 	if (!graph.declares(label)) return [];
 	const when = at === undefined ? [] : [{ predicate: timeField, operator: direction === "before" ? "lt" : "gte", value: new Date(at).toISOString() }];
 	// The levels this type is read at, which the type states: every read of it comes through here, so the window, the
@@ -321,14 +321,14 @@ async function side(
  * few minutes a reader happens to be looking at. Two records are read per type, each the first or last of its own
  * order, so the time does not grow with the run.
  *
- * Both zero for a run that has written nothing, which is a run with no span rather than a failure.
+ * Both zero for a run that hasn't written a record, which is a run without a span rather than a failure.
  */
 export async function runExtent(graph: TRunGraph, minLevel: THaibunLogLevel = "info"): Promise<{ first: number; last: number }> {
 	const levels = atOrAbove(minLevel);
 	const ends = await Promise.all(
 		RUN_TYPES.map(async (type) => {
-			// No moment named is the whole of it: the oldest record read forward, the newest read back. Neither read
-			// waits on the other.
+			// The whole of it is read where a moment isn't named: the oldest record read forward, the newest read back.
+			// The two reads don't wait on each other.
 			const [first, last] = await Promise.all([instantAt(graph, type, undefined, "after", levels), instantAt(graph, type, undefined, "before", levels)]);
 			return { first, last };
 		}),
@@ -338,8 +338,8 @@ export async function runExtent(graph: TRunGraph, minLevel: THaibunLogLevel = "i
 	return firsts.length && lasts.length ? { first: Math.min(...firsts), last: Math.max(...lasts) } : { first: 0, last: 0 };
 }
 
-/** The instant of one record on one side of a moment, or undefined where the side holds none. With no moment named,
- *  the whole of the type is the side. */
+/** The instant of one record on one side of a moment, or undefined where the side doesn't hold one. Where a moment isn't
+ *  named the whole of the type is the side. */
 async function instantAt(graph: TRunGraph, type: TRunType, at: number | undefined, direction: "before" | "after", levels: readonly THaibunLogLevel[]): Promise<number | undefined> {
 	const [record] = await side(graph, type, at, direction, 1, levels);
 	if (!record) return undefined;
@@ -348,7 +348,7 @@ async function instantAt(graph: TRunGraph, type: TRunType, at: number | undefine
 }
 
 /**
- * The window around a moment, or the newest records where no moment is given, or, with `since`, what was recorded
+ * The window around a moment, or the newest records where a moment isn't given, or, with `since`, what was recorded
  * since that instant. `size` is how many records the reader is shown; a level narrows what counts as a record, since a
  * reader asking for warnings is not shown everything under them.
  */
@@ -366,7 +366,7 @@ export async function runWindow(
 	const shown = atOrAbove(minLevel);
 	// A window is of one execution. Records are read by time, and a device holds the records of more than one run, so
 	// what makes a window one run is the execution its ids name: the one asked for, else the one the newest record read
-	// belongs to, which is the run a reader following the newest is following. A row that names no execution is a row of
+	// belongs to, which is the run a reader following the newest is following. A row that doesn't name an execution is a row of
 	// whatever run is being read: it is kept, and it never decides which run that is.
 	let ofOne = execution;
 	const boundToOne = (rows: TRunRow[]): TRunRow[] => {
@@ -377,7 +377,7 @@ export async function runWindow(
 	const read = async (direction: "before" | "after", limit: number, from: number | undefined = at): Promise<TRunRow[]> => {
 		if (limit <= 0) return [];
 		const perType = await Promise.all(RUN_TYPES.map((type) => side(graph, type, from, direction, limit, shown, substeps)));
-		// The store answered at the levels asked for, so what is left to drop is a record with no time to place it by.
+		// The store answered at the levels asked for, so what is left to drop is a record without a time to place it by.
 		const rows = perType.flatMap((records, i) => records.map((record) => rowOfRecord(RUN_TYPES[i].label, record))).filter((r) => !Number.isNaN(r.at));
 		rows.sort(inRunOrder);
 		return direction === "before" ? rows.slice(-limit) : rows.slice(0, limit);
@@ -392,7 +392,7 @@ export async function runWindow(
 		const rows = perType.flatMap((records, i) => records.map((record) => rowOfRecord(RUN_TYPES[i].label, record))).filter((r) => !Number.isNaN(r.at));
 		return windowOf(boundToOne(oneEach(rows)));
 	}
-	// No moment named is the live edge, which is the newest records and nothing after them.
+	// Where a moment isn't named the window is the live edge, which is the newest records and doesn't extend past them.
 	if (at === undefined) return windowOf(boundToOne(await read("before", size)));
 	const half = Math.floor(size / 2);
 	const [before, after] = await Promise.all([read("before", half), read("after", size - half)]);

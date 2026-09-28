@@ -37,7 +37,7 @@ import { getActionBarChatExtensionTags } from "../rels-cache.js";
 import { reportToRun } from "../client-log.js";
 
 export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
-	/** A control, not a view of data, contributes nothing to the Kihan's context. */
+	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
@@ -138,7 +138,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	}
 
 	/** Open the conversation the address names, with the bar expanded in Ask mode, or leave the conversation when the
-	 *  address names none. An address the conversation already follows changes nothing. */
+	 *  address doesn't name one. An address the conversation already follows doesn't change the conversation. */
 	private followConversationAddress = (): void => {
 		const session = hashParam(CONVERSATION_PARAM);
 		if (session === (conversationState.get().session ?? "")) return;
@@ -211,7 +211,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		const expanded = this.isOpen;
 		// Every mode shares ONE output region (this._history, the same node every render) with the mode's input line
 		// beneath: switching modes changes only the input line. Ask renders only when an ask-capable step exists, so a
-		// chosen Ask mode renders search until the steps load, and on a deployment with no ask-capable step.
+		// chosen Ask mode renders search until the steps load, and on a deployment without an ask-capable step.
 		const mode = this.state.mode === "ask" && !hasAsk ? "search" : this.state.mode;
 		// The input line's own extensions (dictation among them) serve every mode, and the ask pane renders them where it
 		// owns that line; the bar renders them for every other mode. What is about the ask itself rides the ask's slot,

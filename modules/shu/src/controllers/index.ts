@@ -3,9 +3,9 @@
  *
  * Every ShuElement that reads data does it through a ReactiveController it HOLDS as a field, never by calling
  * `conduit()` / `requireStep()` / `findStep()` / `getStore()` itself. One resolution path per capability, composed
- * freely per view (hold as many controllers as the view needs), fully typed, no inheritance/mixin gymnastics:
+ * freely per view (hold as many controllers as the view needs), fully typed, without inheritance or mixins:
  *
- *   class ShuFooColumn extends ShuElement<typeof FooSchema> {   // ← stays a plain ShuElement: typed this.state with no further code
+ *   class ShuFooColumn extends ShuElement<typeof FooSchema> {   // ← stays a plain ShuElement: typed this.state without further code
  *     #query  = new QueryController(this);    // run graph queries (the `graphQuery` step; a graph store overrides the default)
  *     #entity = new EntityController(this, v => this.apply(v));  // one individual: entity + its annotations + provenance, kept fresh
  *     // render from this.#query.run(...) / this.#events.all: the view never touches the RPC layer

@@ -24,7 +24,7 @@ describe("ontologyToQuads: the schema rendered as a graph", () => {
 		const { quads, clusters } = ontologyToQuads();
 		expect(edge(quads, ONTOLOGY_PRED.subPropertyOf, "performedBy", "fromActor")).toBe(true);
 		expect(edge(quads, ONTOLOGY_PRED.subPropertyOf, "fromActor", "inRoleOf")).toBe(true);
-		// toActor has no concrete CORE rel, consumers declare theirs against it; the upper pointer itself is projected
+		// toActor doesn't have a concrete CORE rel, consumers declare theirs against it; the upper pointer itself is projected
 		expect(edge(quads, ONTOLOGY_PRED.subPropertyOf, "toActor", "inRoleOf")).toBe(true);
 		// the abstract super-properties are nodes in the Property cluster (the interesting structure)
 		const props = clusters.find((c) => c.type === ONTOLOGY_PROPERTY);
@@ -48,20 +48,20 @@ describe("ontologyToQuads: the schema rendered as a graph", () => {
 		expect(edge(quads, ONTOLOGY_PRED.subClassOf, "Principal", "prov:Agent")).toBe(true);
 	});
 
-	it("renders the property hierarchy even with no domains (LinkRelations alone)", () => {
+	it("renders the property hierarchy even without domains (LinkRelations alone)", () => {
 		const { clusters } = ontologyToQuads();
 		expect(clusters.find((c) => c.type === ONTOLOGY_PROPERTY)?.sampledCount).toBeGreaterThan(10);
 		expect(clusters.find((c) => c.type === ONTOLOGY_CLASS)?.sampledCount).toBe(0);
 	});
 
-	it("carries a domain (rdfs:domain) on a property a type declares: the instances-drill routing (and none for an abstract super-property)", () => {
+	it("carries a domain (rdfs:domain) on a property a type declares: the instances-drill routing (and doesn't carry one for an abstract super-property)", () => {
 		const domains = { p: principalDomainDefinition as unknown as TRegisteredDomain };
 		// service is an edge Principal declares, so its rdfs:domain includes Principal.
 		expect(typesDeclaringRel(domains, LinkRelations.SERVICE.rel)).toContain("Principal");
 		const { quads } = ontologyToQuads(domains);
 		const domainOf = (rel: string): unknown => quads.find((q) => q.subject === rel && q.predicate === ONTOLOGY_PRED.domain)?.object;
 		expect(domainOf(LinkRelations.SERVICE.rel)).toBe("Principal");
-		// an abstract super-property no type declares has no instances to drill to → no domain.
+		// an abstract super-property that the types don't declare doesn't have instances to drill to → it doesn't carry a domain.
 		expect(domainOf(LinkRelations.IN_ROLE_OF.rel)).toBeUndefined();
 		expect(typesDeclaringRel(domains, LinkRelations.IN_ROLE_OF.rel)).toEqual([]);
 	});
@@ -142,7 +142,7 @@ describe("withOntologySchema: the schema travels with the response (live and off
 		expect(out.clusters.some((c) => c.type === ONTOLOGY_PROPERTY)).toBe(true);
 	});
 
-	it("adds exactly one rdf:type edge per subject, and none for a type with no Class node", () => {
+	it("adds exactly one rdf:type edge per subject, and doesn't add one for a type without a Class node", () => {
 		const twoOfAType: TQuad[] = [instance, { subject: "did:x", predicate: "name", object: "X", namedGraph: "Principal", timestamp: 5 }];
 		const out = withOntologySchema({ quads: twoOfAType, clusters: response.clusters }, twoOfAType, domains);
 		expect(out.quads.filter((q) => q.predicate === "a" && q.subject === "did:x")).toHaveLength(1);
@@ -191,7 +191,7 @@ describe("propertyVocabulary: a property's provenance from its IRI", () => {
 		expect(propertyVocabulary(`${HAIBUN_NS}seqPath`)).toEqual({ source: "haibun", prefix: "haibun" });
 		expect(isHaibunTerm("hbn:accessLevel")).toBe(true);
 	});
-	it("classifies every other vocabulary by its own prefix, standards and consumer vocabularies alike, no closed set", () => {
+	it("classifies every other vocabulary by its own prefix, standards and consumer vocabularies alike, without a closed set", () => {
 		expect(propertyVocabulary("cred:issuer")).toEqual({ source: "standard", prefix: "cred" });
 		expect(propertyVocabulary("prov:generatedAtTime")).toEqual({ source: "standard", prefix: "prov" });
 		expect(propertyVocabulary("as:name").source).toBe("standard");

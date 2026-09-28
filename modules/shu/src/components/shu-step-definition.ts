@@ -54,7 +54,7 @@ export class ShuStepDefinition extends ShuElement<typeof StateSchema> {
 		super(StateSchema, { method: "" });
 	}
 
-	/** The step the run declares under this pane's method. A method no step answers to is refused, with the method named. */
+	/** The step the run declares under this pane's method. A method that the steps don't declare is refused, with the method named. */
 	#load = new Task(this, {
 		args: () => [this.state.method] as const,
 		task: async ([method]): Promise<TStepDefinition | undefined> => {

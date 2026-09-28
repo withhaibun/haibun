@@ -37,7 +37,7 @@ describe("the graph as a still", () => {
 		expect(markup).toContain(">narrate</text>");
 	});
 
-	it("throws on a link naming a node that was not drawn, rather than drawing a line to nowhere", () => {
+	it("throws on a link naming a node that was not drawn, rather than drawing a line to a missing node", () => {
 		expect(() => still([node("a", 0, 0)], [{ source: "a", target: "missing", predicate: "narrate" }])).toThrow();
 	});
 
@@ -57,7 +57,7 @@ describe("the graph as a still", () => {
 		const markup = still([node("a", -50, 0), node("b", 200, 90)]);
 		expect(markup).toMatch(/^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg"[^>]*viewBox="/);
 		expect(markup).toContain("</svg>");
-		expect(markup).not.toContain("var(--"); // no CSS variables: a still leaves the app
+		expect(markup).not.toContain("var(--"); // without CSS variables: a still leaves the app
 	});
 
 	it("carries its own text alternative: a title and a per-type description, readable without the picture", () => {

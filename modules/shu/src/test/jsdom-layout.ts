@@ -1,18 +1,18 @@
 /**
- * jsdom does no layout, and ships none of the layout interfaces a component or a library it mounts calls: ResizeObserver
+ * jsdom doesn't lay out, and doesn't ship the layout interfaces a component or a library it mounts calls: ResizeObserver
  * (the text annotator observes its container) and a Range's client rects (the annotator paints highlights from them).
- * Nothing is laid out in jsdom, so these observe nothing and measure no geometry. What depends on real layout is covered
+ * jsdom doesn't lay out an element, so these don't observe a change or measure geometry. What depends on real layout is covered
  * in a browser.
  */
 class StubResizeObserver {
 	observe(): void {
-		/* nothing resizes in jsdom */
+		/* an element doesn't resize in jsdom */
 	}
 	unobserve(): void {
-		/* nothing resizes in jsdom */
+		/* an element doesn't resize in jsdom */
 	}
 	disconnect(): void {
-		/* nothing resizes in jsdom */
+		/* an element doesn't resize in jsdom */
 	}
 }
 

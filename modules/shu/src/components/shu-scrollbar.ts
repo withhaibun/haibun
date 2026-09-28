@@ -6,7 +6,7 @@
  * immersive WebXR (native scrollbars are not composited there) and can show position inside a fetched set of millions,
  * which a native scrollbar cannot. Geometry is the pure, tested scrollbar-model; this element is the DOM wiring.
  *
- * It drives nothing itself: it emits `scroll-to-index` and the column (which owns the virtualizer) scrolls. Input is
+ * It doesn't scroll the column itself: it emits `scroll-to-index` and the column (which owns the virtualizer) scrolls. Input is
  * unified through Pointer Events so mouse, touch, and pen behave identically on every device.
  */
 import { html, css, nothing, type TemplateResult } from "lit";
@@ -37,7 +37,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 		super(EmptySchema, {});
 	}
 
-	/** A control, not a view of data, contributes nothing to the Kihan's context. */
+	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
@@ -51,7 +51,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 	 *  where the numbers would read as raw pixels, sets this false and keeps only the marks and the thumb. */
 	@property({ type: Boolean }) accessor showPosition = true;
 
-	/** Where the shared time cursor sits, as an absolute index, or -1 for no cursor at all. The thumb says what is on
+	/** Where the shared time cursor sits, as an absolute index, or -1 where a cursor isn't set. The thumb says what is on
 	 *  screen; this says which moment every view is showing. They are different things and are drawn differently: the
 	 *  thumb fills the track, the cursor is a mark down its left edge. */
 	@property({ attribute: false }) accessor cursor = -1;
@@ -63,7 +63,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 			.pos { font-size: var(--shu-font-sm); color: var(--shu-fg-muted); padding: var(--shu-space-1) 0; line-height: 1; font-weight: 500; font-variant-numeric: tabular-nums; cursor: pointer; min-height: 1em; }
 			.pos-bottom { margin-top: auto; }
 			/* The rail takes the WHOLE width of the control, because that is the target a reader aims at: a 14px track asks
-			   for a precision nobody should need, least of all in a collapsed column where this is the only control there
+			   for a precision a reader shouldn't need, least of all in a collapsed column where this is the only control there
 			   is. What is drawn stays narrow, the track below is the visible band, while every pixel across is live. */
 			.rail { position: relative; flex: 1; width: 100%; cursor: pointer; }
 			.track {
@@ -83,7 +83,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 			.thumb:active { cursor: grabbing; }
 			/* A LINE ACROSS the rail, not a block on it. Everything else here is a block: the thumb is a bar down the
 			   track, every event is a chip on it, so a cursor drawn as one more block reads as one more of them however
-			   it is coloured. Crossing the rail is a shape nothing else uses, which is what makes it findable at a glance
+			   it is coloured. Crossing the rail is a shape the other marks don't use, which is what makes it findable at a glance
 			   down a dense rail, and it sits above the marks so a chip can never hide it. The caret at the left end gives
 			   the line a definite anchor, and the shadow keeps both readable where they cross a bright chip. */
 			.cursor {
@@ -105,7 +105,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 	#ro: ResizeObserver | null = null;
 
 	protected override onConnected(): void {
-		if (typeof ResizeObserver === "undefined") return; // a non-DOM host (a unit-test env) has no resize; the rail still works, just without resize-driven repaint
+		if (typeof ResizeObserver === "undefined") return; // a non-DOM host (a unit-test env) doesn't resize; the rail still works, just without resize-driven repaint
 		// Rail height drives every position; re-render when it changes (split pane resize, orientation) instead of reading
 		// layout during render.
 		this.#ro = new ResizeObserver(() => {
@@ -135,7 +135,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 		return this.shadowRoot?.querySelector(".rail") ?? null;
 	}
 
-	/** An empty column has nothing to scroll, so its thumb fills the rail rather than shrinking to the minimum. */
+	/** An empty column doesn't have rows to scroll, so its thumb fills the rail rather than shrinking to the minimum. */
 	#fraction(): number {
 		return this.viewportFraction ?? (this.total > 0 ? this.window.visible / this.total : 1);
 	}
@@ -155,8 +155,8 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 			<div class="rail" data-testid=${SHU_TEST_IDS.SCROLLBAR.RAIL} @pointerdown=${this.#onRailDown} @wheel=${this.#onWheel}>
 				<div class="track"></div>
 				${
-					// A thumb says how much of the column is on screen. In a collapsed column nothing is, and before the first
-					// window is reported nothing is known, in both cases a thumb would be a claim nobody has made, and in a
+					// A thumb says how much of the column is on screen. A collapsed column doesn't show rows, and before the first
+					// window is reported the size isn't known; in both cases a thumb would state a size the column hasn't reported, and in a
 					// strip a large one sits over the marks a reader is trying to point at. It appears when there is a
 					// viewport for it to be the size of.
 					this.window.visible > 0 && !this.columnCollapsed
@@ -180,7 +180,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 		`;
 	}
 
-	/** Say which row the reader picked. A ROW, not a window start: the last `visible` rows begin no window, and clamping
+	/** Say which row the reader picked. A ROW, not a window start: the last `visible` rows don't begin a window, and clamping
 	 *  here would make them unpickable, which is a scroller's limit, not a reader's. What to show is the scroller's to
 	 *  work out from this. */
 	#emit(index: number, by: TSeekBy, edge?: TSeekEdge): void {
@@ -190,7 +190,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 
 	/**
 	 * The row a pointer at `clientY` means. `snapToMarks` is what separates the two ways of pointing: a press on the
-	 * rail may mean the mark it landed on, while a thumb drag is a position and nothing else: a drag that snapped to
+	 * rail may mean the mark it landed on, while a thumb drag is only a position: a drag that snapped to
 	 * marks would stick to them as it passed.
 	 */
 	#pointerToIndex(clientY: number, snapToMarks = false): number {
@@ -232,7 +232,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 		e.stopPropagation();
 		this.#dragId = e.pointerId;
 		// A press that never moves is a click, and a click on the rail goes to where it landed: the same as pressing the
-		// track beside the thumb. Without this, a press the pointer never carries anywhere does nothing at all, which is
+		// track beside the thumb. Without this, a press that the pointer never moves doesn't scroll the column, which is
 		// what a tap is on a touch screen and what a click is on anything the thumb happens to be covering.
 		const pressedAt = e.clientY;
 		let carried = false;

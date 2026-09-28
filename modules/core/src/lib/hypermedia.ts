@@ -43,7 +43,7 @@ export function boundedPrimitiveKind(field: z.ZodType): TBoundedPrimitiveKind | 
 	return def?.type !== undefined && (BOUNDED_PRIMITIVE_KINDS as Set<string>).has(def.type) ? (def.type as TBoundedPrimitiveKind) : undefined;
 }
 
-/** A persisted type's fields as its schema declares them, none where it declares no schema. */
+/** A persisted type's fields as its schema declares them, and empty where it doesn't declare a schema. */
 function schemaShape(schema: z.ZodType | undefined): Record<string, z.ZodType> {
 	return (schema && unwrapToShape(schema)) || {};
 }
@@ -70,13 +70,13 @@ export function queryableFields(domain: { schema: z.ZodType | undefined; topolog
  *
  * An allowlist rather than a list of exceptions: a rel added later states a new kind of value, and a search reading
  * every rel it doesn't yet exclude would read that one. Times, a level, a place in a run and a media type each name
- * something about a record rather than its subject, and `tag` names a value that is nothing but a value, so a search
+ * something about a record rather than its subject, and `tag` names a value that is only a value, so a search
  * reading any of them answers every record carrying the value named.
  *
  * `identifier` is absent. A type's identifier holds a handle a reader knows a record by, such as an address, and holds a
  * handle the system generated, such as a record's own sequence id. A search reading it answers an ordinary question
  * with the records of whatever asked it, since every record of a type carries ordinary words in its generated handle.
- * Separating the two needs a type to state which kind its identifier holds, which no topology states.
+ * Separating the two needs a type to state which kind its identifier holds, which a topology doesn't state.
  */
 const SEARCHED_RELS: ReadonlySet<string> = new Set([
 	LinkRelations.NAME.rel,
@@ -125,8 +125,8 @@ export function facetFields(topology: THypermediaTopology): string[] {
 		.sort();
 }
 
-/** How a reader reaches a property: a filter compares it, or a search reads its text. A property reached no way is
- *  held and shown, and answers no question a reader can ask. */
+/** How a reader reaches a property: a filter compares it, or a search reads its text. A property that isn't reached either way is
+ *  held and shown, and a reader can't query it. */
 export const REACHED_BY = { filter: "filter", search: "search" } as const;
 type TReachedBy = (typeof REACHED_BY)[keyof typeof REACHED_BY];
 
@@ -175,7 +175,7 @@ export function querySurface(domain: { schema: z.ZodType | undefined; topology: 
 }
 
 /** A rel's declared `rdfs:subPropertyOf` parent(s) (the canonical LinkRelations declaration), mapped to their term
- *  strings; undefined when the rel declares none. Mirrors the `subClassOf` lookup the type node emits, so a served
+ *  strings; undefined when the rel doesn't declare one. Mirrors the `subClassOf` lookup the type node emits, so a served
  *  JSON-LD context carries the genuine rel hierarchy (e.g. `schema:author rdfs:subPropertyOf hbn:inRoleOf`). */
 function subPropertyOfRel(rel: string): string | string[] | undefined {
 	for (const entry of Object.values(LinkRelations)) {
@@ -192,7 +192,7 @@ import { ellipsize } from "./util/index.js";
 import { itemAt } from "./util/item-at.js";
 
 /** A domain's JSON Schema for the catalog. The show steps step builds the catalog on every call, and the conversion is held
- *  for the process by `jsonSchemaOf`; a schema that cannot be converted has no shape to report, and says so once. */
+ *  for the process by `jsonSchemaOf`; a schema that cannot be converted doesn't have a shape to report, and says so once. */
 function toJsonSchemaCached(schema: z.ZodType): Record<string, unknown> {
 	return jsonSchemaOf(schema, "concern", () => {
 		try {
@@ -290,7 +290,7 @@ export type TConcernCatalog = z.infer<typeof ConcernCatalogSchema>;
 
 /**
  * Build a ConcernCatalog from world.domains after getConcerns has run.
- * Non-persisted domains (no topology.persistedAs) are skipped.
+ * Non-persisted domains (without topology.persistedAs) are skipped.
  * Persisted domains are validated: id, properties, and valid rels are required.
  */
 export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>): TConcernCatalog {
@@ -426,7 +426,7 @@ export type TLinkedData = {
 /**
  * The members a view holds, as the block a page carries states them.
  *
- * A view describes what a reader is looking at while they look at it. Nothing persists it, so it carries no vocabulary
+ * A view describes what a reader is looking at while they look at it. A store doesn't persist it, so it doesn't carry a vocabulary
  * type: a type states what a persisted resource is. It keeps its `@id`, since a reader of the block reads statements
  * about that subject, and every projection this system makes stays JSON-LD compatible. Members go under `items`, in the
  * order the view wants them read, and `totalItems` states how many the view holds.
@@ -457,7 +457,7 @@ export type TCallLink = z.infer<typeof CallLinkSchema>;
  *
  * Counting every record of a type is work that grows with the records, so a read counts to a ceiling and stops. A total
  * that stopped there is a floor, and a total that reached the end is exact. Stating both apart lets a reader say "more
- * than this" and ask again another way, where a bare number reads as a count nothing made.
+ * than this" and ask again another way, where a bare number reads as a count without a source.
  */
 export const CountedFields = { total: z.number().int().nonnegative(), saturated: z.boolean() };
 export const CountedSchema = z.object(CountedFields);
@@ -585,7 +585,7 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 		}
 		// Universal rdfs:label: every persisted type may carry a `label` that titles it (the explicit, type-agnostic
 		// display label: the affordance for naming a name-less instance, e.g. a Principal/DID). Injected only when the
-		// type neither declares a `label` field nor already maps another field to rdfs:label; inert until a vertex sets it.
+		// type doesn't declare a `label` field and doesn't already map another field to rdfs:label; inert until a vertex sets it.
 		if (rels.label === undefined && !Object.values(rels).includes(LinkRelations.LABEL.rel)) rels.label = LinkRelations.LABEL.rel;
 		relMaps.set(type, rels);
 	}
@@ -632,14 +632,14 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
  * it applies where the AS `name` doesn't (a Principal/DID, a cross-vocab node) and an
  * explicit label deliberately overrides the entity's name. WEAK rels (seqPath, schemaObject,
  * context) are provenance pointers, returned prefixed (`field: value`) since the value alone
- * isn't self-describing: they only label a node that has nothing better. `composeDisplayLabel`
+ * isn't self-describing: they only label a node that doesn't have a better title. `composeDisplayLabel`
  * slots the linked-body preview BETWEEN them: a body-backed node (e.g. a Comment with a
  * seqPath) is titled by its body, never by its seqPath. Shared by every cluster producer so
  * priorities can't drift.
  */
 /** rdfs:label alone: the reader's explicit display label, which outranks even the type's own declared labeling property. */
 const DISPLAY_LABEL_EXPLICIT: ReadonlyArray<{ rel: string; bare: boolean }> = [{ rel: LinkRelations.LABEL.rel, bare: true }];
-/** The cross-domain title rels every domain shares, resolved when a type designates no labeling property of its own. */
+/** The cross-domain title rels every domain shares, resolved when a type doesn't designate a labeling property of its own. */
 const DISPLAY_LABEL_SHARED: ReadonlyArray<{ rel: string; bare: boolean }> = [
 	{ rel: LinkRelations.NAME.rel, bare: true },
 	{ rel: LinkRelations.CONTENT.rel, bare: true },
@@ -726,7 +726,7 @@ function shortestBody(values: ReadonlyArray<string | null | undefined>): string 
  * `displayLabel` is the type's declaration resolved for THIS node: `linkedLabel` for an
  * iri-ranged rel (the label of the individual it points at, which the caller reads: a
  * proxy is titled by what it stands for), otherwise the rel's own value off this node.
- * A type that declares none is unaffected; nothing here knows any type by name.
+ * A type that doesn't declare one is unaffected; this code doesn't name a type.
  */
 export function composeDisplayLabel(args: {
 	rels: Record<string, string> | undefined;
@@ -778,7 +778,7 @@ type LabelQuad = { predicate: string; object: unknown; objectType?: string };
  * Display label for a subject from quads alone: the one quad-based label builder shared by every
  * quad-holding producer (the in-memory store and the live-snapshot merge), so they can't drift.
  * `bodyContentOf` resolves a linked Body subject to its content; `rels` is the field→rel map (absent
- * where no concern catalog is loaded, then only the body preview and id apply).
+ * where a concern catalog isn't loaded, then only the body preview and id apply).
  */
 export function displayLabelForQuads(
 	type: string,
@@ -828,7 +828,7 @@ function linkRelFromSemantic(rel: string): "item" | "filter" | "select" {
 	return "filter";
 }
 
-/** The CURIE prefix a term names, or "" for a bare local name or an absolute IRI (neither of which binds a vocabulary). */
+/** The CURIE prefix a term names, or "" for a bare local name or an absolute IRI (these don't bind a vocabulary). */
 function curiePrefix(term: string): string {
 	if (term.startsWith("http://") || term.startsWith("https://")) return "";
 	const colon = term.indexOf(":");
@@ -840,8 +840,8 @@ function curiePrefix(term: string): string {
  * classes it says it is a kind of (`subClassOf`), and the genuine IRIs its properties/edges declare, must resolve
  * through a prefix core binds (STANDARD_NAMESPACES + hbn) or one the type declares itself (`topology.namespaces`).
  *
- * Unbound, the prefix still serves: `getJsonLdContext` emits the term and the reader's JSON-LD resolves it to nothing:
- * a claim about a standard that no processor can follow, and nothing says so. The rel checks beside this one already
+ * Unbound, the prefix still serves: `getJsonLdContext` emits the term and the reader's JSON-LD doesn't resolve it to an IRI:
+ * a claim about a standard that a processor can't follow, and the served context doesn't report it. The rel checks beside this one already
  * hold a type to its own vocabulary; this holds it to the standards it names.
  */
 function assertBoundPrefixes(label: string, domainKey: string, topology: THypermediaTopology): void {
@@ -932,7 +932,7 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>, hai
 		if (!isPersisted(domain.topology)) continue;
 		const topology = domain.topology;
 		// A type's own vocabulary prefixes (CURIEs its @types/rels use beyond the standards + haibun's own), merged into the
-		// served context. First declaration wins; core declares none of these itself.
+		// served context. First declaration wins; core doesn't declare one of these itself.
 		for (const [prefix, iri] of Object.entries(topology.namespaces ?? {})) context[prefix] ??= iri;
 		const scoped: Record<string, unknown> = {};
 		const put = (key: string, node: Record<string, string>): void => {
@@ -962,7 +962,7 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>, hai
 		// The bare type label maps to its vocabulary IRI PLUS the type-scoped @context above (so `@type: "Person"` resolves to
 		// e.g. `foaf:Person` and activates Person's term scope). A type conforming to published standard context(s) references
 		// them as a JSON-LD 1.1 array with the standard URLs LAST, so the official term mappings stay authoritative (a later
-		// context wins): this type's own ADDITIONAL field terms come first and survive only where the standard defines nothing,
+		// context wins): this type's own ADDITIONAL field terms come first and survive only where the standard doesn't define the term,
 		// never overriding a term the standard's own context defines. Absent, the scoped object stands alone.
 		const typeContext = topology.standardContexts?.length ? [scoped, ...topology.standardContexts] : scoped;
 		const typeIri = topology.type ?? `hbn:${topology.persistedAs}`;

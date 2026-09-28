@@ -57,7 +57,7 @@ function answeringStep(stepperName: string, actionName: string, stepDef: TSteppe
 /**
  * Validate a step's products against the domain they are in: the one the step names, or, for a step answering with what
  * a statement it ran answered, the one that statement's step names. A step answering with what another such step
- * answered was checked by that step. A step naming no domain answers with no products.
+ * answered was checked by that step. A step that doesn't name a domain doesn't return products.
  */
 export function validateProducts(stepperName: string, actionName: string, stepDef: TStepperStep, world: TWorld, products: unknown, args: TStepArgs): string | undefined {
 	const answering = answeringStep(stepperName, actionName, stepDef, args);
@@ -67,7 +67,7 @@ export function validateProducts(stepperName: string, actionName: string, stepDe
 	const schema = resolveOutputSchema(answering.stepperName, answering.actionName, answering.step, world);
 	if (!schema) return products === undefined || products === null ? undefined : `${named} returned products and names no domain they are`;
 	if (products === undefined || products === null) return `${named} declared an output schema but action returned no products`;
-	// What a statement's step answered carries the markers its dispatch added, which are no part of its domain.
+	// What a statement's step answered carries the markers its dispatch added, which aren't part of its domain.
 	const result = schema.safeParse(answering.passedOn ? productData(products as Record<string, unknown>) : products);
 	if (result.success) return undefined;
 	return `${named} products failed schema validation: ${result.error.issues.map((i) => `${i.path.join(".") || "(root)"} ${i.message}`).join("; ")}`;
@@ -76,8 +76,8 @@ export function validateProducts(stepperName: string, actionName: string, stepDe
 /**
  * Resolve a step's output schema from the domains it names. At most one of `productsDomain`, `productsDomains` and
  * `productsOf` may be set: `productsDomain` uses a registered domain's schema, `productsDomains` builds an object schema
- * keyed by field from each, and `productsOf` has none of its own, since each line's statement names it. A step naming
- * none returns no products.
+ * keyed by field from each, and `productsOf` doesn't have one of its own, since each line's statement names it. A step that doesn't name
+ * one doesn't return products.
  */
 export function resolveOutputSchema(stepperName: string, stepName: string, stepDef: TStepperStep, world: TWorld): z.ZodType | undefined {
 	const declared = [stepDef.productsDomain, stepDef.productsDomains, stepDef.productsOf].filter((d) => d !== undefined);

@@ -1,5 +1,5 @@
 /**
- * What already answers on a port, in words an operator can act on, or nothing, when the port is free to take.
+ * What already answers on a port, in words an operator can act on, or undefined, when the port is free to take.
  *
  * Raw fetch rather than the RPC client: a refused connection means the port is free, while ANY answer: the handshake
  * every remote surface begins with, or something that cannot even speak JSON, means it is held, and the client's
@@ -21,7 +21,7 @@ export async function describePortOccupant(port: number, timeoutMs = PROBE_TIMEO
 			signal: AbortSignal.timeout(timeoutMs),
 		});
 	} catch {
-		return undefined; // nothing connected: the port is free to take
+		return undefined; // the connection didn't open: the port is free to take
 	}
 	const body = (await res.json().catch((): undefined => undefined)) as { hostId?: number } | undefined;
 	if (res.ok && body) return `a haibun host${body.hostId !== undefined ? ` (id ${body.hostId})` : ""} answers there, likely a run or serve left standing from an earlier session`;

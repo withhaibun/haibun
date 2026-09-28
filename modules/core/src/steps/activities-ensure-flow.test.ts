@@ -129,6 +129,6 @@ ensure Knows about Wikipedia
 
 		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
-		expect(result.world.runtime.exhaustionError).toBeUndefined(); // No exhaustion hit
+		expect(result.world.runtime.exhaustionError).toBeUndefined(); // Exhaustion wasn't hit
 	});
 });

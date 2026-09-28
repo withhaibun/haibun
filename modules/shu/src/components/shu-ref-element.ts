@@ -34,7 +34,7 @@ export class ShuRef extends HTMLElement {
 		const kind = this.getAttribute("kind") ?? "";
 		const text = this.getAttribute("text") ?? defaultLabel(kind, this.getAttribute("linkTarget"));
 		// A real href: the address of the thing itself, which the browser can open in a tab, copy and preview. A kind
-		// with no pane is text, not a link that goes nowhere.
+		// without a pane is text, not a link that doesn't lead to a pane.
 		const href = this.hrefForRef();
 		const code = `<code>${esc(text)}</code>`;
 		this.shadowRoot.innerHTML = `<style>
@@ -45,7 +45,7 @@ export class ShuRef extends HTMLElement {
 		</style>${href ? `<a href="${esc(href)}">${code}</a>` : code}`;
 	}
 
-	/** The address of this reference's target, or undefined for a kind with no pane. */
+	/** The address of this reference's target, or undefined for a kind without a pane. */
 	private hrefForRef(): string | undefined {
 		const kind = this.getAttribute("kind") ?? "";
 		if (!isRefKind(kind)) return undefined;

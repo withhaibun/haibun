@@ -1,6 +1,6 @@
 /**
  * What a page allows the turns it asks: kept in the page's own store beside its key, so a reload reads it back, each
- * action stated once, and nothing the reader withdrew.
+ * action stated once, and without an action the reader withdrew.
  */
 import "fake-indexeddb/auto";
 import { describe, it, expect } from "vitest";
@@ -9,7 +9,7 @@ import { TURN_ALLOWANCE_KEPT_AS, allowForTurns, readTurnAllowance, turnAllowance
 
 describe("what a page allows its turns", () => {
 	it("is kept in the page's own store, states an action once, and loses what the reader withdraws", async () => {
-		expect(await readTurnAllowance(), "nothing until the reader allows something").toEqual([]);
+		expect(await readTurnAllowance(), "empty until the reader allows an action").toEqual([]);
 		await allowForTurns("Example:act");
 		await allowForTurns("Example:act");
 		await allowForTurns("Example:read");

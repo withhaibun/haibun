@@ -3,7 +3,7 @@
  *
  * Everything the value holds is shown, and opened, with one exception a reader can undo in a press: the `@context` a
  * record is written in starts closed, since a reader reads what a record says before asking what its terms mean. It is
- * there in full either way. Nothing else is closed, and nothing is left out.
+ * there in full either way. Every other disclosure starts open, and every part of the value is shown.
  *
  * What this adds over printing the JSON is structure: each object and array is named, says what it holds, and indents
  * under what it belongs to, so a reader can follow it and can collapse the parts they are done with. The disclosure is
@@ -57,7 +57,7 @@ export function jsonDisclosure(value: unknown, name = ""): string {
  *
  * A run says things like `RPC: {"jsonrpc":"2.0",…}`: a few words naming what happened, then the thing itself. Shown as
  * one string it is a line a reader scrolls past; shown this way the words stay readable and what they carry is opened.
- * A literal carrying no JSON is returned as it reads.
+ * A literal that doesn't carry JSON is returned as it reads.
  */
 export function literalWithJson(text: string): string {
 	const at = text.search(/[[{]/);

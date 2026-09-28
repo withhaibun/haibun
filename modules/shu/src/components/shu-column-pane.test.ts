@@ -30,24 +30,24 @@ function resetPanePrefs(): void {
 }
 
 beforeAll(() => {
-	installTestMediaQueries(); // the strip asks the viewport whether it is narrow or portrait; jsdom answers no such question
+	installTestMediaQueries(); // the strip asks the viewport whether it is narrow or portrait; jsdom doesn't answer such a question
 	provideLayout(); // a pane observes its own size for the footprint it reserves when docked
-	// jsdom has no scrollIntoView; stub it so the strip's post-add scroll doesn't raise uncaught errors that bury real failures.
+	// jsdom doesn't have scrollIntoView; stub it so the strip's post-add scroll doesn't raise uncaught errors that bury real failures.
 	if (!Element.prototype.scrollIntoView)
 		Element.prototype.scrollIntoView = () => {
-			/* jsdom has no layout to scroll */
+			/* jsdom doesn't have a layout to scroll */
 		};
 	if (!customElements.get("shu-column-pane")) customElements.define("shu-column-pane", ShuColumnPane);
 	if (!customElements.get("shu-column-strip")) customElements.define("shu-column-strip", ShuColumnStrip);
 });
 
-// A pane updates while it is in the page, and the page it leaves updates nothing: every case ends with the panes it
-// mounted removed, so none of them renders while the test environment closes.
+// A pane updates while it is in the page, and a pane doesn't update after it leaves the page: every case ends with the panes it
+// mounted removed, so they don't render while the test environment closes.
 afterEach(() => {
 	document.body.innerHTML = "";
 });
 
-/** jsdom lays nothing out, so a strip's width is stated: the pane converts between its share and pixels against it. */
+/** jsdom doesn't lay out elements, so a strip's width is stated: the pane converts between its share and pixels against it. */
 function stripWidth(el: HTMLElement, px: number): void {
 	Object.defineProperty(el, "clientWidth", { value: px, configurable: true });
 }
@@ -127,7 +127,7 @@ describe("shu-column-pane buttons", () => {
 		expect(btn.getAttribute("aria-pressed")).toBe("false");
 	});
 
-	it("close button dispatches column-close (no DOM removal on its own, PaneState owns that)", async () => {
+	it("close button dispatches column-close (it doesn't remove the DOM node on its own, PaneState owns that)", async () => {
 		let closed = false;
 		pane.addEventListener(SHU_EVENT.COLUMN_CLOSE, () => {
 			closed = true;
@@ -177,7 +177,7 @@ describe("shu-column-pane buttons", () => {
 
 	it("being rightmost is not what makes a pane grow, since the rightmost pane can be collapsed", () => {
 		// The two were once one attribute, which is how a collapsed rightmost column left the strip's remaining width
-		// belonging to nobody. `is-last` drops the resize handle and the right border; `grows` takes the leftover width.
+		// without a column to take it. `is-last` drops the resize handle and the right border; `grows` takes the leftover width.
 		stripWidth(pane.parentElement as HTMLElement, 1000);
 		pane.setWidth(0.32);
 		pane.toggleAttribute(SHU_ATTR.IS_LAST, true);
@@ -229,7 +229,7 @@ describe("shu-column-pane buttons", () => {
 
 	it("resizing a maximized pane takes it out of maximize and applies the width, rather than discarding the drag", () => {
 		// A maximized pane renders flex:1, so a drag that only set a width was silently dropped: the handle was there, the
-		// cursor said col-resize, and nothing moved.
+		// cursor said col-resize, and the pane didn't resize.
 		stripWidth(pane.parentElement as HTMLElement, 1000);
 		let maximizeEvent: { maximized: boolean } | null = null;
 		pane.addEventListener(SHU_EVENT.COLUMN_MAXIMIZE, (e) => {
@@ -294,7 +294,7 @@ describe("shu-column-strip maximize + is-last", () => {
 	it("opening a column while another is maximized ends the maximize, so both are visible", async () => {
 		// A maximized column is the only one visible: the panes present at the moment of maximize are hidden. A column
 		// opened afterwards, a second col= in the hash, a column opened from a view, was left on screen beside the
-		// maximized one, which is neither state. It was opened to be read, so the maximize ends.
+		// maximized one, which isn't either state. It was opened to be read, so the maximize ends.
 		const a = await addPane("A");
 		a.setMaximized(true);
 		await nextFrame(strip);
@@ -476,8 +476,8 @@ describe("a column whose spine is a narrow form of itself", () => {
 	});
 });
 
-describe("a column that declares no spine view", () => {
-	it("collapses to its rotated label alone, with no spine to render", async () => {
+describe("a column that doesn't declare a spine view", () => {
+	it("collapses to its rotated label alone, without a spine to render", async () => {
 		resetPanePrefs();
 		document.body.innerHTML = "";
 		const pane = makePane("Bare");
@@ -486,9 +486,9 @@ describe("a column that declares no spine view", () => {
 		await nextFrame(pane);
 		pane.setMinimized(true);
 		await nextFrame(pane);
-		expect(pane.hasAttribute(SHU_ATTR.HAS_SPINE), "nothing is assigned to the spine slot").toBe(false);
+		expect(pane.hasAttribute(SHU_ATTR.HAS_SPINE), "a node isn't assigned to the spine slot").toBe(false);
 		const assigned = (pane.shadowRoot?.querySelector(`slot[name="${SPINE_SLOT}"]`) as HTMLSlotElement | null)?.assignedNodes() ?? [];
-		expect(assigned.length, "so the strip shows the label and nothing else").toBe(0);
+		expect(assigned.length, "so the strip shows only the label").toBe(0);
 	});
 });
 

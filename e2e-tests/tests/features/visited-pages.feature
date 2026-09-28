@@ -20,7 +20,7 @@ Scenario: All visited pages start with allowed prefix
     
     every page observed in visited pages is some pattern in Allowed patterns is matches {page} with {pattern}
     
-    We also verify that no external domains were accessed.
+    The feature also verifies that the browser didn't access an external domain.
     
     set of External patterns as [string]
     set external as External patterns to "https://external.com/*"

@@ -10,16 +10,16 @@ import type { SiteMetadata } from "../rels-cache.js";
  * (`#query = new QueryController(this)`) and calls `this.#query.run(payload)`; it never assembles `requireStep` +
  * `conduit` itself. `run()` asks for the `graphQuery` step: a graph store registers a rich `graphQuery` (sort / text /
  * cypher) that overrides the inherent one (`queryQuadStore` over the world's store), so the column browser works in
- * plain haibun with no parallel store. See ./index.ts for the pattern; data-access.test.ts enforces it.
+ * plain haibun without a parallel store. See ./index.ts for the pattern; data-access.test.ts enforces it.
  */
 export class QueryController implements ReactiveController {
 	constructor(host: ReactiveControllerHost) {
 		host.addController(this);
 	}
 
-	hostConnected(): void {} // queries are on-demand; nothing to do at connect
+	hostConnected(): void {} // queries are on-demand; connecting doesn't start one
 
-	/** Run the `graphQuery` step: a graph store's rich query where present, else the inherent one, and with no server
+	/** Run the `graphQuery` step: a graph store's rich query where present, else the inherent one, and without a server
 	 *  the same query over the graph the page caches. */
 	run(query: Record<string, unknown>): Promise<TGraphQueryResult> {
 		return queryGraph(query);

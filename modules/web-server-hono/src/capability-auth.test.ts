@@ -1,8 +1,8 @@
 /**
  * What a request is allowed to do here, and who it proved itself to be. The proof itself is a specification's
  * business and a consumer registers what reads it; what is checked here is what the boundary does with the answer:
- * that a failed or unverifiable proof refuses the request, that a proof says who acted, and that a request presenting
- * nothing holds what the deployment allows without a delegation, which is nothing unless it says otherwise.
+ * that a failed or unverifiable proof refuses the request, that a proof says who acted, and that a request not presenting
+ * authority holds what the deployment allows without a delegation, which is empty unless it says otherwise.
  */
 import { describe, it, expect } from "vitest";
 import { Hono } from "hono";
@@ -28,7 +28,7 @@ class StubVerifier implements IAuthorityVerifier {
 	}
 }
 
-/** What a deployment allows without a delegation when it states nothing, and when anyone may read it. */
+/** What a deployment allows without a delegation when it doesn't state an action, and when anyone may read it. */
 const NOBODY: string[] = [];
 const PUBLIC_SITE = ["Read:public"];
 
@@ -55,25 +55,25 @@ describe("what a request carries to a boundary", () => {
 		expect((await grantedCapabilityForRequest(signedRequest(ACTION), runtimeWith(authority), PUBLIC_SITE)).granted).toEqual(["Read:public", ACTION, "comment.deny"]);
 	});
 
-	it("refuses a request whose proof fails, granting nothing and naming no one", async () => {
+	it("refuses a request whose proof fails, without granting an action or naming a principal", async () => {
 		const authority = new SessionAuthority();
 		authority.registerVerifier(new StubVerifier());
 		const carried = await grantedCapabilityForRequest(signedRequest("comment.revoke"), runtimeWith(authority), PUBLIC_SITE);
 		expect(carried.refused, "the request is refused, with the verifier's reason").toBe("the presented authority failed verification: not this one");
-		expect(carried.granted, "a refused proof allows nothing, not even what needs no delegation").toEqual([]);
-		expect(carried.principal, "and a refusal is nobody acting").toBeUndefined();
+		expect(carried.granted, "a refused proof doesn't allow an action, even one that doesn't need a delegation").toEqual([]);
+		expect(carried.principal, "and a refusal doesn't name an acting principal").toBeUndefined();
 	});
 
-	it("refuses a request presenting a proof that nothing here verifies", async () => {
+	it("refuses a request presenting a proof that the runtime can't verify", async () => {
 		const carried = await grantedCapabilityForRequest(signedRequest(ACTION), runtimeWith(new SessionAuthority()), NOBODY);
 		expect(carried.refused).toBe("the request presents authority, and nothing here verifies it");
 	});
 
-	it("holds what needs no delegation and names no one for a request presenting nothing, whatever else it carries", async () => {
+	it("holds what doesn't need a delegation and doesn't name a principal for a request that doesn't present authority, whatever else it carries", async () => {
 		const authority = new SessionAuthority();
 		authority.registerVerifier(new StubVerifier());
 		const presentingNothing = { method: "POST", url: "http://site.test:8123/rpc/x", headers: { authorization: "Bearer tkn" } };
-		expect(await grantedCapabilityForRequest(presentingNothing, runtimeWith(authority), NOBODY), "a secret it carries is no authority").toEqual({ granted: [] });
+		expect(await grantedCapabilityForRequest(presentingNothing, runtimeWith(authority), NOBODY), "a secret it carries isn't authority").toEqual({ granted: [] });
 		expect(await grantedCapabilityForRequest(presentingNothing, runtimeWith(authority), PUBLIC_SITE), "and anyone may read a public site").toEqual({ granted: PUBLIC_SITE });
 	});
 });
@@ -84,16 +84,20 @@ describe("a route that requires an action", () => {
 		const authority = new SessionAuthority();
 		authority.registerVerifier(new StubVerifier());
 		const app = new Hono();
-		app.get("/held/*", requiring(ACTION, runtimeWith(authority), () => allowed), (c) => c.text("held"));
+		app.get(
+			"/held/*",
+			requiring(ACTION, runtimeWith(authority), () => allowed),
+			(c) => c.text("held"),
+		);
 		return (headers: Record<string, string> = {}) => app.request("http://site.test:8123/held/one", { headers });
 	};
 
-	it("answers a request whose proof allows the action, or a request presenting nothing where the deployment allows it", async () => {
+	it("answers a request whose proof allows the action, or a request that doesn't present authority where the deployment allows it", async () => {
 		expect(await (await held(NOBODY)(signedRequest(ACTION).headers)).text()).toBe("held");
 		expect((await held([ACTION])()).status).toBe(200);
 	});
 
-	it("refuses a request presenting nothing 403, and one whose proof fails 401, naming why", async () => {
+	it("refuses a request that doesn't present authority 403, and one whose proof fails 401, naming why", async () => {
 		const unproven = await held(NOBODY)();
 		expect(unproven.status).toBe(403);
 		expect(await unproven.json()).toEqual({ error: "/held/one: not a call this caller may make" });
@@ -113,7 +117,7 @@ describe("who is acting", () => {
 		});
 	});
 
-	it("is whoever the run acts as where nothing proved anything, and does not outlast the call that proved it", async () => {
+	it("is whoever the run acts as where the call didn't present a proof, and does not outlast the call that proved it", async () => {
 		const ownWorld = { runtime: { keys: { principal: "did:site:0" } } } as unknown as TWorld;
 		await runActingAs(READER, () => {
 			expect(currentPrincipal(ownWorld), "a proof about this call speaks for it").toBe(READER);

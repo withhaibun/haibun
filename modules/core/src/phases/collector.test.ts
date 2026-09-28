@@ -26,7 +26,7 @@ class MockFS {
 const nfs = (files: object) => <TFileSystem>(new MockFS(files) as unknown);
 
 describe("getFeaturesAndBackgrounds", () => {
-	// A base must offer features. Every refusal below is the same claim: no features under any given base is an error,
+	// A base must offer features. Every refusal below is the same claim: given bases that don't hold a feature are an error,
 	// whether the directory is missing, empty, or holds backgrounds alone.
 	const feature = (base: string, dir: "features" | "backgrounds", name: string) => ({
 		base,
@@ -38,12 +38,12 @@ describe("getFeaturesAndBackgrounds", () => {
 
 	it.each([
 		["the directory does not exist", ["/"], { existsSync: () => false }],
-		["it holds neither features nor backgrounds", ["/"], { existsSync: () => true, readdirSync: () => [] }],
-		["it holds backgrounds and no features", ["/0"], nfs({ "/0/backgrounds": { "a.feature": "#" } })],
-		["no base holds anything", ["/,x"], { existsSync: () => true, readdirSync: () => [] }],
-		["no base holds a feature", basesFrom("/0,/1"), nfs({ "/0/backgrounds": { "a.feature": "#" }, "/1/backgrounds": { "a.feature": "#" } })],
-		["the first base holds nothing", basesFrom("/0,/1"), nfs({ "/1/backgrounds": { "a.feature": "#" } })],
-		["the second base holds nothing", basesFrom("/0,/1"), nfs({ "/0/backgrounds": { "a.feature": "#" } })],
+		["it doesn't hold features or backgrounds", ["/"], { existsSync: () => true, readdirSync: () => [] }],
+		["it holds backgrounds and doesn't hold features", ["/0"], nfs({ "/0/backgrounds": { "a.feature": "#" } })],
+		["the bases don't hold a file", ["/,x"], { existsSync: () => true, readdirSync: () => [] }],
+		["the bases don't hold a feature", basesFrom("/0,/1"), nfs({ "/0/backgrounds": { "a.feature": "#" }, "/1/backgrounds": { "a.feature": "#" } })],
+		["the first base doesn't hold a file", basesFrom("/0,/1"), nfs({ "/1/backgrounds": { "a.feature": "#" } })],
+		["the second base doesn't hold a file", basesFrom("/0,/1"), nfs({ "/0/backgrounds": { "a.feature": "#" } })],
 	])("refuses when %s", async (_, bases, fs) => {
 		await expect(getFeaturesAndBackgrounds(bases as string[], [], undefined, fs as TFileSystem)).rejects.toThrow();
 	});
@@ -75,7 +75,7 @@ describe("getFeaturesAndBackgrounds", () => {
 
 describe("shouldProcess", () => {
 	it.each([
-		["no type and no filter takes everything", "hi.feature", undefined, undefined, true],
+		["a call without a type or a filter takes everything", "hi.feature", undefined, undefined, true],
 		["a filter matching the name takes it", "hi.feature", undefined, ["hi"], true],
 		["a filter matching the file, not a directory above it, takes it", "/root/root.feature", undefined, ["root"], true],
 		["a type the file is not is refused", "hi.feature", "wrong", undefined, false],

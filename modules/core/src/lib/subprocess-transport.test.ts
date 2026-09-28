@@ -34,7 +34,7 @@ describe("SubprocessTransport", () => {
 		const world = getDefaultWorld();
 		transport = await SubprocessTransport.spawn(FIXTURE_PATH, world);
 
-		// Registry starts empty (no local steppers)
+		// Registry starts empty (without local steppers)
 		const registry = new StepRegistry([], world);
 		transport.injectInto(registry);
 

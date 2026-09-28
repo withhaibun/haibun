@@ -42,10 +42,10 @@ const MonitorColumnSchema = z.object({
  *
  * Every row of the log is a record of the run: a step, something the run said, or something it produced. A step has a
  * view of its own; every other record is opened the way any record of the graph is. Opened only where a row carried a
- * step, a reader learned that some rows answer a press and others do nothing, with nothing on the row to tell them
+ * step, a reader learned that some rows answer a press and others don't, and the row didn't show
  * which: what a run said over a connection is as much a record as the step it was said during.
  *
- * A row naming no record opens nothing, which is a row of something the run never wrote down.
+ * A row that doesn't name a record doesn't open a view: it is a row of something the run never wrote down.
  */
 export function opens(row: TLogRow): DesiredPane | undefined {
 	if (row.seqPath) return { paneType: "step-detail", seqPath: row.seqPath };
@@ -85,7 +85,7 @@ export type TLogRow = {
 
 /** What a produced thing is called: what kind it is and where it is, as the run recorded it. */
 /** Whether the row of the step that produced this carries it, which is where a reader is shown it. Such a row is read
- *  by the run's document, which places it by its own reading, and is given no room here. */
+ *  by the run's document, which places it by its own reading, and doesn't take room here. */
 const carried = (e: Record<string, unknown> | undefined): boolean => e?.carriedBy !== undefined;
 
 /** What a produced thing is called: what kind it is and where it is, as the run recorded it. */
@@ -116,7 +116,7 @@ export function railMarkers(rows: readonly TLogRow[], indices?: readonly number[
 		// A mark sits at the row's index in the RUN (`indices`, when the rows are the cached part of a longer run), so it
 		// is placed on the rail where the run has it, not where the cached list does. Both halves of what the row reports:
 		// what it is about and what happened to it. Either alone leaves marks a reader cannot tell apart: every feature
-		// boundary reads "▸ feature" without the first, and a log line names no step without the second.
+		// boundary reads "▸ feature" without the first, and a log line doesn't name a step without the second.
 		const index = indices?.[i] ?? i;
 		if (row.mark) markers.push({ ...row.mark, index, id: `${row.step}-${index}`, label: [row.step, row.message].filter(Boolean).join(" ") });
 	});
@@ -124,9 +124,9 @@ export function railMarkers(rows: readonly TLogRow[], indices?: readonly number[
 }
 
 export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
-	/** Collapsed, the log's rows have nowhere to go, but its scroll rail does: the rail is already a narrow vertical
+	/** Collapsed, the strip doesn't have room for the log's rows, but it has room for the scroll rail: the rail is already a narrow vertical
 	 *  strip carrying a mark per significant event and driving the log's position, so the strip IS the rail, left where
-	 *  it is. Nothing is copied into a second control, so there is nothing to keep in step. */
+	 *  it is. The view doesn't copy the rail into a second control, so a copy doesn't need to be kept in step. */
 	static override rendersOwnSpine = true;
 
 	/** Set by the pane while this column is serving as its own strip. A plain reactive property, so the attribute the
@@ -149,7 +149,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	// index. Rows are derived from those records as they are painted. One source per level, shared across views,
 	// swapped when the level changes.
 	/** The reading this view reads, made when it connects: a view constructed and never connected would otherwise
-	 *  leave a reading of the run that nothing reads. */
+	 *  leave a reading of the run that a view doesn't read. */
 	#run!: RunSource;
 	#unsubscribeRun?: () => void;
 	#rowCache = new WeakMap<object, TLogRow>();
@@ -251,7 +251,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			ensureRange: (a, b) => run.ensureRange(a, b),
 			subscribe: (cb) => run.subscribe(cb),
 			markers: () => this.#marks,
-			// A shot drawn on the row of the step that took it is not a row of its own here, so it takes no room.
+			// A shot drawn on the row of the step that took it is not a row of its own here, so it doesn't take room.
 			rowSize: (i) => (carried(run.rowAt(i) as Record<string, unknown> | undefined) ? 0 : undefined),
 		};
 	}
@@ -263,15 +263,15 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		const ts = (e.timestamp as number) || 0;
 		const first = this.#run.extent().first ?? ts;
 		const level = String(e.level || "info");
-		// The step's own words. What was said during a step, or produced by one, has none: the path beside it says which
-		// step it belongs to, and a raw id in its place says nothing a reader can read.
+		// The step's own words. What was said during a step, or produced by one, doesn't have its own words: the path beside it says which
+		// step it belongs to, and a raw id in its place isn't readable to a reader.
 		const step = String(e.in ?? "");
 		// What a row says beside the step it names: what was said, what was produced, or how the step it names turned out.
 		const isOf = producedName(e);
 		const said = e.kind === "artifact" ? isOf : String(e.called || e.type || "");
 		const message = e.kind === "log" ? String((e as { message?: string }).message || "") : said;
 		// One glyph per row, and the one that says something: how a step went, and the level a message reports at. Every
-		// step of a run reports at the same level, so a level glyph on a step row separates nothing.
+		// step of a run reports at the same level, so a level glyph on a step row doesn't separate the rows.
 		const icon = e.kind === "log" ? (LEVEL_ICONS[level] ?? ICON_DEFAULT) : eventMarkerStyle(e).icon;
 		let seqPath = Array.isArray(e.seqPath) ? (e.seqPath as number[]) : undefined;
 		if (!seqPath && typeof e.id === "string") seqPath = parseSeqPath(e.id as string) ?? undefined;
@@ -377,7 +377,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	render(): TemplateResult {
 		const { level } = this.state;
 		const total = this.#source.count();
-		// In the strip there is room for the rail and nothing else: no toolbar, no rows. It is the SAME virtual column in
+		// In the strip there is room for the rail alone: the strip doesn't show the toolbar or the rows. It is the SAME virtual column in
 		// both, in the same place in this template, so the element survives collapsing rather than being torn down and
 		// built again, and with it the window it is showing, which is where the reader was.
 		const spine = this.spine;
@@ -405,7 +405,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	private renderLogRow = (index: number, row: unknown): TemplateResult => {
 		const r = row as TLogRow | undefined;
 		if (!r) return html`<div class="log-row" data-testid="monitor-log-row"></div>`; // its page has not landed yet: a skeleton row
-		// Drawn on the row of the step that produced it, so this row renders nothing. It is still an element, because the
+		// Drawn on the row of the step that produced it, so this row doesn't render content. It is still an element, because the
 		// virtualizer positions and scrolls to one element per row.
 		if (carried(this.#run.rowAt(index) as Record<string, unknown> | undefined)) return html`<div class="carried"></div>`;
 		const testId = index === 0 ? SHU_TEST_IDS.MONITOR.FIRST_ROW : "monitor-log-row";
@@ -415,8 +415,8 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			if (index === this.#currentIdx) cls += ` ${TIME_SYNC_CLASS.CURRENT}`;
 		}
 		// Where the step ran, how long it took, and what it had to hold to run: its own record says all of it, so a row
-		// states it rather than being paired with a separate account of the same act. A step requiring nothing states
-		// nothing, so the rows mentioning a capability are exactly the acts that needed one.
+		// states it rather than being paired with a separate account of the same act. A step that doesn't require a capability
+		// doesn't state one, so the rows mentioning a capability are exactly the acts that needed one.
 		const dispatchText = r.ranVia ? html`${r.ranVia}${r.ranOn ? html` ${originLink(r.ranOn)}` : ""}${r.durationMs === undefined ? "" : ` ${r.durationMs}ms`}` : "";
 		const capabilityRefused = r.capabilityAction !== undefined && r.allowedAction === undefined;
 		const capability = r.capabilityAction

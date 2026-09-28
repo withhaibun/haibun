@@ -28,7 +28,7 @@ The main focus is Web applications, however Haibun provides steppers for other e
 
 Stop (ignored) words can be used at the start of statements and include given, when, then, and, should, then, I'm, I, am, an, a.
 
-A line written as a sentence, which starts with a capital and ends with `.`, `!`, `?`, `:` or `;`, is prose, even where removing a stop word such as "A" leaves a step's words. A heading such as `Scenario:` whose title ends with punctuation is still its heading. A line that starts with a symbol runs the step whose pattern matches it, and is prose where none does.
+A line written as a sentence, which starts with a capital and ends with `.`, `!`, `?`, `:` or `;`, is prose, even where removing a stop word such as "A" leaves a step's words. A heading such as `Scenario:` whose title ends with punctuation is still its heading. A line that starts with a symbol runs the step whose pattern matches it, and is prose where the step patterns don't match it.
 
 Steps can also be written as Typescript modules, analogous to kireji, identified with .feature.ts. They can be mixed with text form and are displayed in text form during execution. Kireji provides syntax checking and code-based navigation. See [examples in e2e-tests](e2e-tests/tests/features/).
 
@@ -44,7 +44,7 @@ Variables enable parameterization and reusable test configurations between envir
 
 ### Scoping
 
-Variables and domains have Feature scope. They are maintained between activities and scenarios, and cleared between features. NB currently there is no mitigation for variable collisions and side effects. Use meaningful and specific variable names.
+Variables and domains have Feature scope. They are maintained between activities and scenarios, and cleared between features. NB haibun doesn't mitigate variable collisions and side effects currently. Use meaningful and specific variable names.
 
     set v to 1
 
@@ -70,7 +70,7 @@ Use variables for configuration, test data, and efficiency.
    - Second, from any existing **Defined Variable**.
    - Third, a value equal to a member of the parameter's domain is that member. A waypoint argument accepts any text as a member.
    - A value that starts with a character other than a letter or an underscore, or contains a character other than a letter, a digit, an underscore or a space, is a literal.
-   - If none of these applies, the step fails.
+   - If these rules don't apply, the step fails.
 
 #### Examples
 
@@ -286,7 +286,7 @@ Available observation sources:
 
 | Source | Items | Used for |
 |--------|-------|----------|
-| `visited pages` | URLs navigated during browser session | Verifying no unexpected domains accessed |
+| `visited pages` | URLs navigated during browser session | Verifying the session didn't access unexpected domains |
 | `http-trace hosts` | Hostnames from all HTTP requests | Allowlist/blocklist verification |
 | `http-trace` | Individual HTTP request IDs | Checking status codes, timing |
 | `step usage` | Step names | Coverage reporting |

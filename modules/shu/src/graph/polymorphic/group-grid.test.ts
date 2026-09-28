@@ -5,7 +5,7 @@ import { collideRadius, chipTextHeight } from "./layout-forces.js";
 
 // The end-to-end geometry the live grouped view must satisfy: size each group's cell (groupCellSize), shelf-pack the
 // cells (shelfPack), pin members to their slots (gridSlot), draw each box (groupBounds with the SAME rx/ry the renderer
-// uses): then assert NO two boxes overlap. This runs the exact functions the renderer runs, so a green test means the
+// uses): then assert that the boxes don't overlap. This runs the exact functions the renderer runs, so a green test means the
 // live view cannot overlap by construction; if the live view DOES overlap, the bundle being served is stale.
 const member = (id: string, label: string) => ({ id, name: label, x: 0, y: 0, z: 0, isCluster: false });
 // The extent of a member as the renderer measures it: its collision half-width and its chip height.
@@ -31,7 +31,7 @@ const overlapArea = (a: ReturnType<typeof boxesFor>[number], b: ReturnType<typeo
 	return ox > 0 && oy > 0 ? ox * oy : 0;
 };
 
-describe("grouped layout: enclosure boxes are mutually exclusive (no overlap)", () => {
+describe("grouped layout: enclosure boxes are mutually exclusive (they don't overlap)", () => {
 	// The credentials/role case: a few small party containers + one big "(unattributed)" catch-all, plus an over-long id.
 	const roleLike = new Map<string, ReturnType<typeof member>[]>([
 		["Issuer", [member("i1", "Coastal Fisheries Authority")]],
@@ -41,7 +41,7 @@ describe("grouped layout: enclosure boxes are mutually exclusive (no overlap)", 
 		["unattributed", Array.from({ length: 9 }, (_, k) => member(`a${k}`, k === 0 ? `did:key:${"z".repeat(120)}` : `Artifact ${k}`))],
 	]);
 
-	it("no two role-grouped boxes overlap", () => {
+	it("role-grouped boxes don't overlap", () => {
 		const boxes = boxesFor(roleLike);
 		for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) expect(overlapArea(boxes[i], boxes[j]), `${boxes[i].k} ∩ ${boxes[j].k}`).toBe(0);
 	});
@@ -61,7 +61,7 @@ describe("grouped layout: enclosure boxes are mutually exclusive (no overlap)", 
 		]),
 	);
 
-	it("no two type-grouped boxes overlap", () => {
+	it("type-grouped boxes don't overlap", () => {
 		const boxes = boxesFor(typeLike);
 		for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) expect(overlapArea(boxes[i], boxes[j]), `${boxes[i].k} ∩ ${boxes[j].k}`).toBe(0);
 	});

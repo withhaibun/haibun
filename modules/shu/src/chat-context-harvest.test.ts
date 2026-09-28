@@ -44,7 +44,7 @@ describe("harvestChatViewLd: the active pane's linked data plus the pane manifes
 		const blocks = harvestChatViewLd();
 		expect(blocks[0]).toEqual({ "@id": "d1" });
 		const manifest = blocks.at(-1) as { "@type"?: string; name: string; totalItems: number; items: Array<{ name: string; component: string; active: boolean }> };
-		expect(manifest["@type"], "a block a page carries claims no type, since nothing persists what it describes").toBeUndefined();
+		expect(manifest["@type"], "a block a page carries doesn't claim a type, since what it describes isn't persisted").toBeUndefined();
 		expect(manifest.name).toContain("every open column in the workspace");
 		expect(manifest.totalItems).toBe(2);
 		expect(manifest.items).toEqual([
@@ -68,7 +68,7 @@ describe("harvestChatViewLd: the active pane's linked data plus the pane manifes
 		expect(blocks.filter((b) => (b as { "@id"?: string })["@id"] === "scene")).toHaveLength(0);
 	});
 
-	it("a null summary contributes nothing; the manifest still lists the pane", () => {
+	it("a null summary doesn't contribute a block; the manifest still lists the pane", () => {
 		const p = pane("controls", view("shu-views-picker", null));
 		activePane.set("controls");
 		mount(p);
@@ -100,17 +100,17 @@ describe("harvestChatViewLd: the active pane's linked data plus the pane manifes
 		expect(manifest.totalItems).toBe(1);
 	});
 
-	it("returns empty with no strip mounted", () => {
+	it("returns empty when a strip isn't mounted", () => {
 		expect(harvestChatViewLd()).toEqual([]);
 	});
 });
 
 /**
- * Reported: the Ask pane says nothing is selected while a column view is plainly selected on screen.
+ * Reported: the Ask pane says a pane isn't selected while a column view is plainly selected on screen.
  *
  * The harvester resolves the active pane by matching `activePane` against each pane's key. When the signal holds a key
- * no open pane has, never set for this strip, or naming a pane that has since closed, nothing matches. Harvesting
- * anyway produced a manifest with every pane inactive and no content, which is what the model reported. With panes
+ * that the open panes don't have, never set for this strip, or naming a pane that has since closed, the panes don't match it.
+ * Harvesting anyway produced a manifest with every pane inactive and without content, which is what the model reported. With panes
  * open one of them is the pane you are on, so this is a fault in the signal and it says so, naming what it holds and
  * what was open.
  */
@@ -130,14 +130,14 @@ describe("harvestChatViewLd: an active pane the signal cannot resolve", () => {
 	it("names the signal's value and every open pane's key when it doesn't match one of them", () => {
 		const a = pane("first", view("shu-entity-column", { "@id": "e1" }));
 		const b = pane("second", view("shu-document-column", { "@id": "d1" }));
-		// A pane that was closed, or a key from a previous strip: it matches nothing now.
+		// A pane that was closed, or a key from a previous strip: it doesn't match a pane now.
 		activePane.set("a-pane-that-closed");
 		mount(a, b);
 		// Detail enough to find the writer that set it: what it holds, and what was open.
 		expect(() => harvestChatViewLd()).toThrow(/"a-pane-that-closed".*isn't one of the 2 open pane\(s\).*"first", "second"/s);
 	});
 
-	it("throws when the signal was never set, rather than telling a model nothing is selected", () => {
+	it("throws when the signal was never set, rather than telling a model that a pane isn't selected", () => {
 		mount(pane("first", view("shu-entity-column", { "@id": "e1" })));
 		expect(() => harvestChatViewLd()).toThrow(/activePane is null/);
 	});

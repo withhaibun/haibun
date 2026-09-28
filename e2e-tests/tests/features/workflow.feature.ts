@@ -25,7 +25,7 @@ export const features: TKirejiExport = {
 		"After promoting from concept -> plan -> dev two effort increments are expected.",
 		is({ what: effort, value: '"2"' }),
 
-		`Check a previous phase, which should result in no new effort.`,
+		`Check a previous phase, which shouldn't add effort.`,
 		scenario({ scenario: "Went through plan using Do work" }),
 		ensure({ outcome: `${Release_at} "plan"` }),
 		`After checking plan the work effort is unchanged.`,

@@ -1,7 +1,7 @@
 /**
  * What a step requires, and what an action a caller holds allows. One reading, shared by the boundary that checks a
- * call, the statement that narrows one and a page choosing which of its delegations to sign a call with, so none of
- * them can allow what another refuses. Free of node imports, since a page reads it too.
+ * call, the statement that narrows one and a page choosing which of its delegations to sign a call with, so one of
+ * them can't allow what another refuses. Free of node imports, since a page reads it too.
  */
 import { ACCESS_BROADEST_FIRST, Access, AccessLevelSchema, narrowerAccess, type AccessLevel } from "./resources.js";
 
@@ -28,7 +28,7 @@ function readLevelOf(action: string): AccessLevel | undefined {
 
 /**
  * The action a step requires: the one it declares; `Read:public` for a step that declares itself a read, since reading at
- * any level allows a public read; and for any other, the step's own name, so a step nobody declared anything for is
+ * any level allows a public read; and for any other, the step's own name, so a step that doesn't declare a requirement is
  * refused to every caller not given it by name.
  */
 export function requiredAction(stepperName: string, stepName: string, step: { capability?: string; read?: boolean }): string {
@@ -39,14 +39,14 @@ export function requiredAction(stepperName: string, stepName: string, step: { ca
 type TCalled = { capability: string; readsAt?: AccessLevel };
 
 /** The action a caller holding `held` lacks to call `step`: the one the step requires, or else a read at the level the
- *  step reads at. Undefined where it lacks neither. */
+ *  step reads at. Undefined where it doesn't lack either. */
 export function lackedAction(held: string | string[] | undefined, step: TCalled): string | undefined {
 	if (!capabilityAllows(held, step.capability)) return step.capability;
 	if (step.readsAt && !capabilityAllows(held, readAction(step.readsAt))) return readAction(step.readsAt);
 	return undefined;
 }
 
-/** Whether a caller holding `held` may call `step`: it lacks no action the step requires. Every gate on a call and every
+/** Whether a caller holding `held` may call `step`: it doesn't lack an action the step requires. Every gate on a call and every
  *  listing of steps for a caller reads this. */
 export function mayCall(held: string | string[] | undefined, step: TCalled): boolean {
 	return lackedAction(held, step) === undefined;
@@ -67,7 +67,7 @@ export function capabilityAllows(granted: string | string[] | undefined, require
 	});
 }
 
-/** The broadest level what a caller holds lets it read at, or undefined where it holds no read. */
+/** The broadest level what a caller holds lets it read at, or undefined where it doesn't hold a read. */
 export function readCeilingOf(granted: string | string[] | undefined): AccessLevel | undefined {
 	return ACCESS_BROADEST_FIRST.find((level) => capabilityAllows(granted, readAction(level)));
 }
@@ -84,7 +84,7 @@ export const READS_THE_RUNS_ARTIFACTS = readAction(Access.private);
  *  what it read where more readers see it. Held exactly, or through `*`. */
 export const writeAction = (level: AccessLevel): string => `${WRITE_PREFIX}${level}`;
 
-/** What bounds a caller: the most it may read, absent where nothing bounds it, and the actions it holds. */
+/** What bounds a caller: the most it may read, absent where a ceiling doesn't bound it, and the actions it holds. */
 export type TAccessBound = { ceiling: AccessLevel | undefined; held: string | string[] | undefined };
 
 /** The level a read asking for `asked` sees: what it asked for, never more than its caller's ceiling. Every store bounds
@@ -97,7 +97,7 @@ export function seenAt(asked: AccessLevel, ceiling: AccessLevel | undefined): Ac
  * The level a record is written at, which every store writes by: the level the record states, or else the narrower of the
  * level its type declares and the writer's ceiling, so a writer reads back what it wrote. What a writer read reaches what
  * it writes, so a level more public than its ceiling requires `writeAction` of that level: a stated level is refused
- * without it, and a declared one gives way to the ceiling. A write bounded by nothing is the run's own and takes the
+ * without it, and a declared one gives way to the ceiling. A write that a ceiling doesn't bound is the run's own and takes the
  * level stated or declared.
  */
 export function writtenAt(stated: AccessLevel | undefined, declared: AccessLevel, bound: TAccessBound): AccessLevel {
@@ -109,7 +109,7 @@ export function writtenAt(stated: AccessLevel | undefined, declared: AccessLevel
 	return ceiling;
 }
 
-/** Whether `writtenAt` refuses a caller nothing: nothing bounds it, or it holds the write of every level more public than
+/** Whether `writtenAt` doesn't refuse a caller a level: a ceiling doesn't bound it, or it holds the write of every level more public than
  *  its ceiling. A store asks this before reading the level of a record a write goes into. */
 export function writesAtEveryLevel(bound: TAccessBound): boolean {
 	return ACCESS_BROADEST_FIRST.every((level) => mayWriteAt(level, bound));
@@ -122,18 +122,18 @@ function mayWriteAt(level: AccessLevel, { ceiling, held }: TAccessBound): boolea
 /** A delegation as its holder presents it: what it lets the holder do, over what, and until when. */
 export type TDelegation = Record<string, unknown> & { allowedAction?: unknown; invocationTarget?: unknown; expires?: unknown };
 
-/** Every action: what the run holds, and what a delegation that restricts no action allows. */
+/** Every action: what the run holds, and what a delegation that doesn't restrict an action allows. */
 export const EVERY_ACTION = "*";
 
-/** The actions a delegation allows: those it lists, or every action where it lists none, which is how zcap-LD writes a
- *  delegation that restricts no action. */
+/** The actions a delegation allows: those it lists, or every action where it doesn't list one, which is how zcap-LD writes a
+ *  delegation that doesn't restrict an action. */
 export function delegatedActions(delegation: { allowedAction?: unknown }): string[] {
 	const listed = delegation.allowedAction;
 	if (listed === undefined) return [EVERY_ACTION];
 	return (Array.isArray(listed) ? listed : [listed]).filter((action): action is string => typeof action === "string");
 }
 
-/** What a delegation of `actions` lists: nothing where they allow every action, since zcap-LD narrows a delegation by the
+/** What a delegation of `actions` lists: undefined where they allow every action, since zcap-LD narrows a delegation by the
  *  exact actions its parent lists and reads a listed `*` as an action's name. */
 export function allowedActionFor(actions: string[]): string[] | undefined {
 	return actions.includes(EVERY_ACTION) ? undefined : actions;
@@ -148,7 +148,7 @@ export function actionUnder(delegation: TDelegation, required: string, target: s
 	const over = typeof delegation.invocationTarget === "string" ? delegation.invocationTarget : undefined;
 	const expires = typeof delegation.expires === "string" ? Date.parse(delegation.expires) : Number.NaN;
 	if (!over || !(target === over || target.startsWith(over.endsWith("/") ? over : `${over}/`)) || !(expires > now)) return undefined;
-	// A delegation that restricts no action is invoked for the action required itself.
+	// A delegation that doesn't restrict an action is invoked for the action required itself.
 	if (delegation.allowedAction === undefined) return required;
 	return delegatedActions(delegation).find((action) => capabilityAllows(action, required));
 }
@@ -160,7 +160,7 @@ export type TNarrowing = { parent: TDelegation; allowedAction: string[] | undefi
 /**
  * How a holder narrows what it holds for another key: from the first delegation it holds that allows every action wanted
  * at the target, listing for each the action that delegation lists that allows it, since zcap-LD narrows a delegation by
- * the exact actions its parent lists, and ending no later than that delegation does. Undefined where none allows them all.
+ * the exact actions its parent lists, and ending no later than that delegation does. Undefined where every delegation lacks one of them.
  */
 export function narrowing(held: TDelegation[], to: { wanted: string[]; expires: string; target: string }): TNarrowing | undefined {
 	for (const parent of held) {

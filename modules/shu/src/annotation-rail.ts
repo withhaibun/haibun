@@ -15,7 +15,7 @@ export function railTotalAndWindow(scrollEl: HTMLElement): { total: number; wind
 }
 
 /** One rail mark per located annotation, at its pixel offset down the scroll content. Pure over the located set the
- *  component computes (an annotation absent from the current text has no offset and is left off the rail). */
+ *  component computes (an annotation absent from the current text doesn't have an offset and is left off the rail). */
 export function railMarks(located: ReadonlyArray<{ commentId: string; offset: number; label: string }>, color: string): TScrollMarker[] {
 	return located.map((a) => ({ index: Math.round(a.offset), id: a.commentId, icon: ANNOTATION_GLYPH, color, label: a.label }));
 }

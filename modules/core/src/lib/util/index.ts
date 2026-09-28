@@ -76,7 +76,7 @@ export function createSteppers(steppers: CStepper[]): AStepper[] {
 }
 
 /** A gwta/exact starting with a dePolite stopword can never match: the resolver dePolites the feature line but the step
- *  pattern keeps its prefix, so the step is silently dead ("no step found" at resolve, with no hint why). Fail at stepper
+ *  pattern keeps its prefix, so the step is silently dead ("no step found" at resolve, without a hint why). Fail at stepper
  *  creation instead, naming the step and the prefix to drop. */
 export function checkNoPoliteStepPrefixes(stepper: AStepper): void {
 	for (const [name, def] of Object.entries(stepper.steps)) {
@@ -247,7 +247,7 @@ function stepperOptionNotFoundError(stepper: AStepper, optionNames: string[], mo
 
 /**
  * Find a stepper by option value; absent an option, fall back to the single stepper whose kind matches the first optionName.
- * Throws if multiple steppers match that kind and no option is specified.
+ * Throws if multiple steppers match that kind and an option isn't specified.
  */
 export function findStepperFromOptionOrKind<Type>(steppers: AStepper[], stepper: AStepper, moduleOptions: TModuleOptions, ...optionNames: [string, ...string[]]): Type {
 	const val = optionNames.reduce<string | undefined>((v, n) => {

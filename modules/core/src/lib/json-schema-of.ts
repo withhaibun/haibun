@@ -7,7 +7,7 @@
  * once per process and read back after.
  *
  * A caller names its conversion, since one schema converts differently for what a caller must supply than for what a
- * step answers with. A conversion that throws holds nothing, so the next caller is told the same thing.
+ * step answers with. A conversion that throws isn't held, so the next caller is told the same thing.
  */
 import type { z } from "zod";
 

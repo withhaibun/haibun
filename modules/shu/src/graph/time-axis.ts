@@ -16,8 +16,8 @@ type TSubjectTime = { ms: number; field: string };
 /**
  * Each subject's valid time, from the field its type declares (the hypermedia catalog's validTimeField, where the
  * term is defined). A subject whose declared field is absent from its quads falls back to its generatedAtTime
- * (indexed-time) quad, so an individual always places by its own time and only by indexing time when it carries
- * nothing else. The field lookup is memoized per type, so the resolver runs O(types), not O(quads).
+ * (indexed-time) quad, so an individual always places by its own time and only by indexing time when it doesn't carry
+ * another time. The field lookup is memoized per type, so the resolver runs O(types), not O(quads).
  */
 export function subjectValidTimes(quads: TQuad[], validTimeFieldFor: (type: string) => string, indexedTimeField: string): TSubjectTimes {
 	const fieldByType = new Map<string, string>();
@@ -31,7 +31,7 @@ export function subjectValidTimes(quads: TQuad[], validTimeFieldFor: (type: stri
 			fieldByType.set(q.namedGraph, field);
 		}
 		// Two independent questions, not one routing: a quad can be a subject's valid time AND its written-down time:
-		// most types declare no valid field of their own, so generatedAtTime is both. Routed to one map only, every
+		// most types don't declare a valid field of their own, so generatedAtTime is both. Routed to one map only, every
 		// such type came out of `indexed` empty, and a reading ordered by creation fell back to name order.
 		if (q.predicate !== field && q.predicate !== indexedTimeField) continue;
 		const t = Date.parse(q.object);

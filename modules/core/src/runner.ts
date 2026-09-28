@@ -41,7 +41,7 @@ export class Runner {
 			});
 
 			// A monitor formats the console for a person, so the raw event stream is suppressed for it. A run asked for
-			// NDJSON is being read by another process, which has nothing else to read, so that request outranks it.
+			// NDJSON is being read by another process, which doesn't have another stream to read, so that request outranks it.
 			await phaseRunner.tryPhase("Options", () => {
 				if (this.steppers.some((s) => s.kind === StepperKinds.MONITOR) && this.world.eventLogger && !this.world.eventLogger.ndjsonForced) {
 					this.world.eventLogger.suppressConsole = true;

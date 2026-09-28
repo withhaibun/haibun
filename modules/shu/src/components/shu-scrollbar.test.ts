@@ -25,7 +25,7 @@ const pointerdown = (target: Element, clientY = 0): void => {
 	target.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, composed: true, pointerId: 1, clientY }));
 };
 
-/** jsdom lays nothing out, so a rail measures 0 and every press maps to row 0. State its box, and the press path, which
+/** jsdom doesn't lay out elements, so a rail measures 0 and every press maps to row 0. State its box, and the press path, which
  *  is all geometry, can be driven here rather than only in a browser. */
 function railBox(el: ShuScrollbar, top: number, height: number): void {
 	const rail = el.shadowRoot?.querySelector('[data-testid="scrollbar-rail"]');
@@ -39,13 +39,13 @@ describe("shu-scrollbar interaction", () => {
 		if (!customElements.get("shu-scrollbar")) customElements.define("shu-scrollbar", ShuScrollbar);
 	});
 
-	it("a press on a marker past the last window says that row, which no window begins", async () => {
+	it("a press on a marker past the last window says that row, which doesn't begin a window", async () => {
 		const RAIL = 200;
 		const { el, seeks } = await mount(1000, { first: 990, visible: 20 }, [{ index: 999, id: "z", icon: "📝", color: "#000" }]);
 		railBox(el, 0, RAIL);
 		expect(el.shadowRoot?.querySelector("[data-testid=scrollbar-marker]"), "the mark is drawn").toBeTruthy();
 		// Pressed where that mark sits on a rail of this height. The mark does not take the press itself: the rail does,
-		// and says which ROW was picked. Row 999 begins no window (the last starts at 980), and saying 980 instead would
+		// and says which ROW was picked. Row 999 doesn't begin a window (the last starts at 980), and saying 980 instead would
 		// mean the last twenty rows could never be pointed at.
 		const at = markerTopPx(999, 1000, RAIL);
 		pointerdown(el.shadowRoot?.querySelector("[data-testid=scrollbar-rail]") as Element, at);
@@ -105,7 +105,7 @@ describe("showing which moment is being shown", () => {
 	// it is sitting on rather than being a few pixels off it.
 	const cursorEl = (el: ShuScrollbar) => el.shadowRoot?.querySelector('[data-testid="scrollbar-cursor"]') as HTMLElement | null;
 
-	it("shows nothing when no moment is pinned, since every view is then showing now", async () => {
+	it("doesn't show a cursor when a moment isn't pinned, since every view is then showing now", async () => {
 		const { el } = await mount(100, { first: 0, visible: 10 });
 		expect(cursorEl(el)).toBeNull();
 	});
@@ -123,21 +123,21 @@ describe("showing which moment is being shown", () => {
 		await el.updateComplete;
 		el.cursor = -1;
 		await el.updateComplete;
-		expect(cursorEl(el), "back to showing now, so there is no moment to mark").toBeNull();
+		expect(cursorEl(el), "back to showing now, so the rail doesn't have a moment to mark").toBeNull();
 	});
 
-	// WHERE it lands needs a laid-out rail, which this environment has none of: every position would read 0 and the
+	// WHERE it lands needs a laid-out rail, which this environment doesn't have: every position would read 0 and the
 	// assertion would pass whatever the code did. It is drawn by markerTopPx, the same call and the same arguments the
 	// event marks use, so it is on their scale by construction, see scrollbar-model's own tests for that geometry.
 });
 
 describe("before anything has reported what is on screen", () => {
-	// A thumb needs a viewport to be about. With none reported yet the height clamps to its minimum and sits at the top,
+	// A thumb needs a viewport to be about. Before a viewport is reported the height clamps to its minimum and sits at the top,
 	// which reads as "you are at the start, looking at very little": a claim about the reader made before anything knows
 	// it, and the grey box that used to appear on load until the first window arrived.
 	const thumb = (el: ShuScrollbar) => el.shadowRoot?.querySelector('[data-testid="scrollbar-thumb"]');
 
-	it("draws no thumb", async () => {
+	it("doesn't draw a thumb", async () => {
 		const { el } = await mount(500, { first: 0, visible: 0 });
 		expect(thumb(el)).toBeNull();
 	});
@@ -157,7 +157,7 @@ describe("before anything has reported what is on screen", () => {
 });
 
 describe("aiming at the rail", () => {
-	// The whole width of the control is the target: a 14px track asks for a precision nobody should need, least of all
+	// The whole width of the control is the target: a 14px track asks for a precision that a reader shouldn't need, least of all
 	// in a collapsed column where the rail is the only control there is. The widths themselves are CSS, which this
 	// environment does not apply to a shadow root, so they are checked in the browser; what is structural is that the
 	// drawn band is its OWN element, so the target can be widened without widening what is drawn.
@@ -181,7 +181,7 @@ describe("aiming at the rail", () => {
 describe("a press on the thumb that never moves", () => {
 	// A press the pointer never carries anywhere is a click, and a click goes to where it landed. That is a tap on a
 	// touch screen, and it is what a click on anything the thumb happens to be covering has to do: the thumb sits above
-	// the marks, so without this a click on a covered mark does nothing at all.
+	// the marks, so without this a click on a covered mark doesn't seek.
 	const press = (el: ShuScrollbar) => {
 		const thumb = el.shadowRoot?.querySelector('[data-testid="scrollbar-thumb"]');
 		if (!thumb) throw new Error("no thumb rendered to press");
@@ -192,7 +192,7 @@ describe("a press on the thumb that never moves", () => {
 	it("seeks to where it landed", async () => {
 		const { el, seeks } = await mount(100, { first: 0, visible: 10 });
 		press(el);
-		expect(seeks, "nothing yet: a press alone might still become a drag").toEqual([]);
+		expect(seeks, "the thumb doesn't seek yet: a press alone might still become a drag").toEqual([]);
 		release();
 		expect(seeks.length, "released without moving, so it was a click").toBe(1);
 	});
@@ -204,7 +204,7 @@ describe("a press on the thumb that never moves", () => {
 		const during = seeks.length;
 		expect(during, "the move seeks").toBeGreaterThan(0);
 		release();
-		expect(seeks.length, "and the release adds nothing on top of it").toBe(during);
+		expect(seeks.length, "and the release doesn't add a seek on top of it").toBe(during);
 	});
 });
 

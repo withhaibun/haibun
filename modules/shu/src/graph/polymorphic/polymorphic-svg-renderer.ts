@@ -1,9 +1,9 @@
 /**
  * The graph as markup: an IGraphRenderer whose medium is SVG, for a report or a still image. It is given the same
  * placed nodes and links every renderer is given, so a still shows exactly what the WebGL view shows, same positions,
- * same type colours, with nothing computed twice.
+ * same type colours, without computing a position twice.
  *
- * The markup is self-contained (concrete colours, no CSS variables), since a still leaves the app: it is embedded in a
+ * The markup is self-contained (concrete colours without CSS variables), since a still leaves the app: it is embedded in a
  * report, printed, or opened on its own.
  */
 import { colorForType } from "../../type-colors.js";
@@ -38,7 +38,7 @@ export class SvgRenderer implements IGraphRenderer {
 	}
 
 	rebuildNodes(): void {
-		// markup rebuilds whole at every draw, so a shape change needs no separate signal
+		// markup rebuilds whole at every draw, so a shape change doesn't need a separate signal
 	}
 
 	draw({ nodes, links }: TDrawn): void {

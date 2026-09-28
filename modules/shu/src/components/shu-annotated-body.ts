@@ -3,7 +3,7 @@
  *
  * A web annotation is a note bound to a specific passage: the note is shown IN CONTEXT with the
  * passage it concerns, not collected in a list. So an annotatable body (markdown / plain text) renders inline,
- * sanitized to the same privacy stance as the body iframe (no network loads; only `data:` images survive); the
+ * sanitized to the same privacy stance as the body iframe (it doesn't load from the network; only `data:` images survive); the
  * Recogito text annotator anchors each stored TextQuoteSelector and highlights it; and each note is shown in a
  * MARGIN RAIL beside the text, its card vertically aligned to its highlight. Hovering or clicking a highlight
  * selects its card and vice-versa. A linking annotation's card carries a "go to" that scrolls to the section it
@@ -14,7 +14,7 @@
  * `<style>` live in one scope, so highlights are styled wherever the component is mounted (including nested in a
  * host shadow root, where the annotator's document-level style injection would not reach).
  *
- * The `.annotated-content` node carries NO lit bindings, so lit creates it once and never re-diffs it, leaving the
+ * The `.annotated-content` node does NOT carry lit bindings, so lit creates it once and never re-diffs it, leaving the
  * innerHTML this component sets and the layer the annotator injects intact across re-renders (see lit render pitfalls).
  */
 import { html, type TemplateResult, type PropertyValues } from "lit";
@@ -49,7 +49,7 @@ type DraftSelection = { exact: string; prefix: string; suffix: string; top: numb
 const RAIL_WIDTH = 240;
 const CARD_GAP = 8;
 /** Above this body size the inline render (markdown + sanitize + annotator) blocks the thread long enough to warrant
- *  painting a "preparing" indicator first, then rendering a frame later. A smaller body mounts inline with no flash. */
+ *  painting a "preparing" indicator first, then rendering a frame later. A smaller body mounts inline without a flash. */
 const HEAVY_CONTENT_CHARS = 20000;
 
 /** This component is light DOM (createRenderRoot → this), so lit `static styles` do not apply: all styling ships in a
@@ -57,7 +57,7 @@ const HEAVY_CONTENT_CHARS = 20000;
  *  positioning rules are sourced from `@recogito/text-annotator`'s spans renderer; the rest is this view's own layout. */
 const ANNOTATED_BODY_STYLE = `
 	.r6o-annotatable { position: relative; -webkit-tap-highlight-color: transparent; }
-	/* The annotator makes the content focusable for keyboard nav; suppress the focus outline so the reading area shows no border. */
+	/* The annotator makes the content focusable for keyboard nav; suppress the focus outline so the reading area doesn't show a border. */
 	.r6o-annotatable:focus, .r6o-annotatable:focus-visible { outline: none; }
 	.r6o-span-highlight-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; mix-blend-mode: multiply; pointer-events: none; overflow: hidden; user-select: none; -webkit-user-select: none; z-index: 1; }
 	.r6o-span-highlight-layer.hidden { display: none; }
@@ -141,7 +141,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 	@property({ attribute: false }) accessor annotations: AnnotationView[] = [];
 	@property({ type: Boolean }) accessor show = true;
 	/** How this view asks for a note to be written: the host owns the individual, so it owns the write and the re-resolve
-	 *  that follows. Null leaves the body read-only (nothing to author against), which is what a host that does not offer
+	 *  that follows. Null leaves the body read-only (the view doesn't write notes), which is what a host that does not offer
 	 *  annotating passes. */
 	@property({ attribute: false }) accessor annotate: ((draft: TAnnotationDraft) => Promise<{ ok: true } | { ok: false; error: string }>) | null = null;
 	/** A passage to scroll to and flash once the body is mounted, set by a Text Fragment reference into this document.
@@ -151,7 +151,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 	@state() private accessor placedCards: PlacedCard[] = [];
 	@state() private accessor selectedCommentId = "";
 	/** False only while a LARGE body is being rendered inline and anchored: that render blocks the thread for seconds, so
-	 *  a "preparing" indicator is painted first in place of a blank view. A small body mounts inline with no indicator
+	 *  a "preparing" indicator is painted first in place of a blank view. A small body mounts inline without an indicator
 	 *  (stays true throughout), so an ordinary annotated note never flashes it. */
 	@state() private accessor ready = true;
 	/** The scheduled deferred mount's frame handle: set while one is pending, so a re-render in that window does not
@@ -212,7 +212,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 		this.#scrollEl.addEventListener("scroll", this.#onScroll, { passive: true });
 		this.autoTeardown(() => this.#scrollEl?.removeEventListener("scroll", this.#onScroll));
 		this.#syncRailWindow();
-		this.placeCards(); // recompute marks now the scroll element is known (an earlier placeCards ran with none)
+		this.placeCards(); // recompute marks now the scroll element is known (an earlier placeCards ran without one)
 	}
 
 	/** Update the rail's total + window from the scroll container (a fast read on every scroll). */
@@ -263,7 +263,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 	}
 
 	/** Drop `ready` before a LARGE body re-mounts, so the "preparing" indicator paints in place of a blank view while the
-	 *  deferred render runs. A small body keeps `ready` and mounts inline in `updated`: no flash. */
+	 *  deferred render runs. A small body keeps `ready` and mounts inline in `updated`, without a flash. */
 	protected override willUpdate(): void {
 		if (this.contentSignature() !== this.mountedSignature && this.content.length > HEAVY_CONTENT_CHARS) this.ready = false;
 	}
@@ -308,7 +308,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 		const container = this.contentEl();
 		const signature = this.contentSignature();
 		if (!container || signature === this.mountedSignature) {
-			// Nothing left to render (already mounted, or no content node to mount into): the indicator must not outlive it.
+			// A render isn't pending (the content is already mounted, or a content node to mount into doesn't exist): the indicator must not outlive it.
 			this.ready = true;
 			return;
 		}
@@ -363,10 +363,10 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 		this.placeCards();
 	}
 
-	/** Position each note card in the rail at its passage's vertical offset, then push overlapping cards down so none
-	 *  covers another (a top-sorted stack). The card top is measured from the passage's OWN DOM range, computed from the
+	/** Position each note card in the rail at its passage's vertical offset, then push overlapping cards down so the
+	 *  cards don't cover each other (a top-sorted stack). The card top is measured from the passage's OWN DOM range, computed from the
 	 *  quote, present at any document size, NOT from the annotator's highlight span, which its renderer paints only near
-	 *  the viewport (so a passage far down a large document has no span until scrolled to). requestAnimationFrame is
+	 *  the viewport (so a passage far down a large document doesn't have a span until scrolled into view). requestAnimationFrame is
 	 *  unavailable in a non-browser (unit) context; there the rail stays empty and the DOM-render assertions do not apply. */
 	private placeCards(): void {
 		if (typeof requestAnimationFrame !== "function") return;
@@ -383,7 +383,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 			const scrollScroll = this.#scrollEl?.scrollTop ?? 0;
 			for (const a of [...this.annotations, ...this.pending]) {
 				const off = locateQuoteOffsets(containerText, a.exact, a.prefix, a.suffix);
-				if (!off) continue; // quote absent from this rendering → no card (the note stays in the graph)
+				if (!off) continue; // quote absent from this rendering → the rail doesn't show a card (the note stays in the graph)
 				const range = rangeForOffsets(container, off.start, off.end);
 				if (!range) continue;
 				const rectTop = range.getBoundingClientRect().top;
@@ -512,7 +512,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 
 	render(): TemplateResult {
 		const cards = this.show ? this.placedCards : [];
-		// The rail (gutter) is reserved whenever the gutter is shown, notes or none: the text column's width, and so its
+		// The rail (gutter) is reserved whenever the gutter is shown, with or without notes: the text column's width, and so its
 		// wrapping, stay put as notes come and go. The authoring affordance is NOT in the rail: it floats over the content
 		// at the selection (see renderAuthoring), so it appears in the same place whether or not the document has annotations.
 		return html`

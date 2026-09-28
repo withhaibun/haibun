@@ -62,7 +62,7 @@ describe("RpcClient.call", () => {
 		expect(calls[0].init?.headers).toEqual({ "content-type": "application/json", host: "host", "capability-invocation": 'signed action="Stepper:act"' });
 	});
 
-	it("sends a call that invokes no action unsigned", async () => {
+	it("sends a call that doesn't invoke an action unsigned", async () => {
 		const { fetchImpl, calls } = makeFakeFetch([{ ok: true, bodyText: "{}" }]);
 		const sign: TRequestSigner = () => Promise.reject(new Error("a call invoking nothing is not signed"));
 		const client = new RpcClient({ baseUrl: "http://host", sign, fetchImpl });
@@ -70,7 +70,7 @@ describe("RpcClient.call", () => {
 		expect(calls[0].init?.headers).toEqual({ "content-type": "application/json", host: "host" });
 	});
 
-	it("refuses a call invoking an action when it has nothing to sign with, before sending anything", async () => {
+	it("refuses a call invoking an action when it doesn't hold a signer, before sending a request", async () => {
 		const { fetchImpl, calls } = makeFakeFetch([{ ok: true, bodyText: "{}" }]);
 		const client = new RpcClient({ baseUrl: "http://host", fetchImpl });
 		await expect(client.call("m", {}, [0], { action: "Stepper:act" })).rejects.toThrow("a call invoking Stepper:act is signed, and this client doesn't hold a signer");
@@ -186,7 +186,7 @@ describe("RpcClient.stream", () => {
 	});
 
 	// Every line on this wire is written by JSON.stringify, so a line that will not parse is something else writing into
-	// the response. Skipping it silently drops a chunk of an answer with nothing said; the stream stops instead.
+	// the response. Skipping it silently drops a chunk of an answer without an error; the stream stops instead.
 	it("throws on a malformed line, naming what it read", async () => {
 		const { fetchImpl } = makeFakeFetch([{ ok: true, bodyStream: ['{"ok":1}\n', "not-json\n", '{"ok":2}\n'] }]);
 		const client = new RpcClient({ baseUrl: "http://host", fetchImpl });

@@ -30,7 +30,7 @@ const EmptySchema = z.object({});
 
 export class ShuActivityHistory extends ShuElement<typeof EmptySchema> {
 	/** The actions-bar output region, not a column pane: the harvest reads only column panes, so this is never the
-	 *  active pane, and its entries (searches, steps, chat turns) are represented by their own views. Contributes nothing. */
+	 *  active pane, and its entries (searches, steps, chat turns) are represented by their own views. It doesn't contribute to the Kihan's context. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
@@ -47,14 +47,14 @@ export class ShuActivityHistory extends ShuElement<typeof EmptySchema> {
 		view: this.#view,
 		arrivedAfter: () => this.#turnsAfterThePlace,
 		// The reader's place is the newest turn they have been shown, so a turn asked after they stopped following is one
-		// they haven't read. The page's cursor is null while the run is live, which would hold no place at all.
+		// they haven't read. The page's cursor is null while the run is live, which wouldn't hold a place.
 		placeNow: () => this.#newestShown,
 	});
 	/** When the newest turn this view shows was asked. */
 	#newestShown: number | null = null;
 	/** The turns asked after the place this reader holds, which is what the history offers to take them to. */
 	#turnsAfterThePlace = 0;
-	/** What the control last stated, so a render that changes nothing leaves its text as it is. */
+	/** What the control last stated, so a render that doesn't change the arrived count leaves its text as it is. */
 	#stated = -1;
 	/** The press a reader who scrolled away takes back to the end, which states what arrived meanwhile. */
 	#arrived = this.#arrivedControl();
@@ -111,7 +111,7 @@ export class ShuActivityHistory extends ShuElement<typeof EmptySchema> {
 		return control;
 	}
 
-	/** State what arrived after the reader's place, or nothing while the view follows the end. */
+	/** State what arrived after the reader's place, and hide the statement while the view follows the end. */
 	private statePlace(): void {
 		const arrived = this.#follow.arrived;
 		if (arrived === this.#stated) return;

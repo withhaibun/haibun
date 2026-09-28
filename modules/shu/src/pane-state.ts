@@ -11,7 +11,7 @@
  *
  * Each `DesiredPane` carries only the variant's identifying data; the reconciler
  * derives the dedup id, the child tag, and the display label from the variant
- * via `paneIdOf` / `tagOf` / `labelOf`. No redundant fields, no drift.
+ * via `paneIdOf` / `tagOf` / `labelOf`. It doesn't hold redundant fields, so the fields don't drift.
  */
 import { QuoteAnchorSchema, type TQuoteAnchor } from "@haibun/core/lib/resources.js";
 import { TEXT_DIRECTIVE, splitTextDirective, textDirectiveFor } from "@haibun/core/lib/typed-links.js";
@@ -160,10 +160,10 @@ export function labelOf(d: DesiredPane): string {
 /**
  * Per-paneType post-attach hook. Each parametric pane (entity, filter, ...) needs
  * to call `.open(...)` on its freshly-created child. Keyed by `paneType` so a new
- * variant means one schema entry + one hook: no central switch.
+ * variant means one schema entry + one hook, without a central switch.
  *
- * `paneType: "component"` needs no hook (data flows via `data`). External component
- * loading also lives here so pane-state has no direct registry dependency.
+ * `paneType: "component"` doesn't need a hook (data flows via `data`). External component
+ * loading also lives here so pane-state doesn't have a direct registry dependency.
  */
 type PaneHooks = {
 	ensureLoaded?(tag: string): Promise<void> | void;
@@ -298,9 +298,9 @@ class PaneStateImpl {
 			const d = parseColEntry(raw);
 			if (d) next.set(paneIdOf(d), withPersistedFlag(d));
 		}
-		// Only name an active pane when the hash describes one. A hash with no col= entries describes no panes, and
+		// Only name an active pane when the hash describes one. A hash without col= entries doesn't describe a pane, and
 		// writing its empty answer here unset the activation of a pane that is on screen but not in the hash: the boot
-		// query column, leaving panes open with nothing active.
+		// query column, leaving panes open without an active one.
 		const named = active && next.has(active) ? active : firstKeyOf(next);
 		if (named) this.activePaneId = named;
 		// A page pane the address doesn't name stands as the page declares it. A page pane the address names stands where
@@ -321,7 +321,7 @@ class PaneStateImpl {
 		// A re-request without an explicit flag keeps the live pane's flag (a click on an already-open,
 		// minimized column must not silently expand it); a brand-new pane defaults from its persisted state.
 		const flagged = parsed.flag ? parsed : existing?.flag ? ({ ...parsed, flag: existing.flag } as DesiredPane) : withPersistedFlag(parsed);
-		// A re-request states nothing of where the pane stands, so a docked pane stays docked.
+		// A re-request doesn't state where the pane stands, so a docked pane stays docked.
 		const d = parsed.docked === undefined && existing?.docked ? ({ ...flagged, docked: true } as DesiredPane) : flagged;
 		// Re-request with fresh component data: hand it to the live child directly.
 		if (existing && d.paneType === "component" && d.data) {
@@ -505,14 +505,14 @@ class PaneStateImpl {
 		pane.setAttribute(SHU_ATTR.COLUMN_TYPE, columnTypeFor(d));
 		// Default unpinned: only explicitly pinned panes survive a Miller-column prune.
 		// The columnKey is also the pane's persistence identity: its remembered width/minimize
-		// restore when it attaches (ShuElement.persistFields), so no width plumbing here.
+		// restore when it attaches (ShuElement.persistFields), so this doesn't handle widths.
 		pane.dataset.columnKey = id;
 		const page = this.held.pagePanes.get(id);
-		// A pane the page always holds doesn't offer a close, since it has nowhere to close to. Its dock control moves it.
+		// A pane the page always holds doesn't offer a close, since it doesn't have a place to close to. Its dock control moves it.
 		if (page) pane.setAttribute(SHU_ATTR.CLOSABLE, "false");
 		// Docked before it attaches, so the strip never lays it out as a column.
 		if (d.docked) pane.setDocked(true);
-		// Pre-mark a minimized arrival so addPane neither activates nor scrolls to it.
+		// Pre-mark a minimized arrival so addPane doesn't activate it or scroll to it.
 		if (d.flag === "min") pane.setMinimized(true);
 		this.held.strip.addPane(pane);
 		const child = document.createElement(tag);
@@ -528,7 +528,7 @@ class PaneStateImpl {
 		await customElements.whenDefined(tag);
 		customElements.upgrade(child);
 		// The hook is about to call the child's own methods. If the upgrade did not take, it fails inside the hook as
-		// "child.open is not a function", which names neither the pane nor the tag. Say it here, where both are known.
+		// "child.open is not a function", which doesn't name the pane or the tag. Say it here, where both are known.
 		const definition = customElements.get(tag);
 		if (definition && !(child instanceof definition))
 			throw new Error(`pane ${id}: <${tag}> is defined but this element did not upgrade to it, so the ${d.paneType} pane doesn't have its own methods`);
@@ -623,7 +623,7 @@ export function parseColEntry(raw: string): DesiredPane | null {
 		if (!split) return null;
 		return safe({ paneType: "filter-incoming", persistedAs: split[0], subject: split[1], ...placement });
 	}
-	if (body.startsWith("type:")) return safe({ paneType: "type", persistedAs: body.slice(5), ...placement }); // before `t:`: a type ref has no second colon
+	if (body.startsWith("type:")) return safe({ paneType: "type", persistedAs: body.slice(5), ...placement }); // before `t:`: a type ref doesn't have a second colon
 	if (body.startsWith("t:")) {
 		const split = colon(body.slice(2));
 		if (!split) return null;

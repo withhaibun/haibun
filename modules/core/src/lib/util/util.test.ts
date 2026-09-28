@@ -109,7 +109,7 @@ describe("findStepperFromOptionOrKind", () => {
 		};
 	};
 
-	it("finds single stepper by kind when no option specified", async () => {
+	it("finds single stepper by kind when an option isn't specified", async () => {
 		const consumer = new ConsumerStepper();
 		const steppers = await getCreateSteppers([], [StorageStepper, ConsumerStepper]);
 		const moduleOptions = {};
@@ -133,7 +133,7 @@ describe("findStepperFromOptionOrKind", () => {
 		expect(constructorName(<AStepper>found)).toBe("AlternativeStorageStepper");
 	});
 
-	it("throws when multiple steppers of kind exist and no option specified", async () => {
+	it("throws when multiple steppers of kind exist and an option isn't specified", async () => {
 		const consumer = new ConsumerStepper();
 		const steppers = await getCreateSteppers([], [StorageStepper, AlternativeStorageStepper, ConsumerStepper]);
 		const moduleOptions = {};
@@ -141,9 +141,9 @@ describe("findStepperFromOptionOrKind", () => {
 		expect(() => util.findStepperFromOptionOrKind(steppers, consumer, moduleOptions, StepperKinds.STORAGE)).toThrow(/Multiple steppers of kind STORAGE found/);
 	});
 
-	it("throws when no stepper of kind exists", async () => {
+	it("throws when a stepper of kind doesn't exist", async () => {
 		const consumer = new ConsumerStepper();
-		const steppers = await getCreateSteppers([], [ConsumerStepper]); // No storage stepper
+		const steppers = await getCreateSteppers([], [ConsumerStepper]); // Doesn't include a storage stepper
 		const moduleOptions = {};
 
 		expect(() => util.findStepperFromOptionOrKind(steppers, consumer, moduleOptions, StepperKinds.STORAGE)).toThrow(/no stepper of kind STORAGE found/);
@@ -204,7 +204,7 @@ describe("getType", () => {
 	it("finds a type", () => {
 		expect(withNameType(TEST_BASE, "file.type.feature", "").type).toBe("type");
 	});
-	it("finds no type", () => {
+	it("doesn't find a type", () => {
 		expect(withNameType(TEST_BASE, "file.feature", "").type).toBe("feature");
 	});
 });
@@ -327,7 +327,7 @@ describe("checkNoPoliteStepPrefixes", () => {
 });
 
 describe("optionOrError", () => {
-	it("rejects no option", () => {
+	it("rejects an option that isn't listed", () => {
 		expect(util.optionOrError("a", ["b"]).parseError).toBeDefined();
 	});
 	it("rejects undefined option", () => {

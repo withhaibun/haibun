@@ -48,7 +48,7 @@ describe("the window of a run a reader is looking at", () => {
 		expect(window.rows[1]).toMatchObject({ kind: "said", step: `${RUN}.0.0`, level: "info" });
 	});
 
-	it("with no moment named, holds the newest records and nothing before them", async () => {
+	it("holds the newest records when a moment isn't named, and doesn't hold a record before them", async () => {
 		const graph = runGraphOf(await aRunOf(20));
 		const window = await runWindow(graph, { size: 4 });
 		expect(window.rows.map((r) => r.text)).toEqual(["step 18", "said 18", "step 19", "said 19"]);
@@ -65,13 +65,13 @@ describe("the window of a run a reader is looking at", () => {
 	it("makes a short side up from the other, so a window is the size asked for", async () => {
 		const graph = runGraphOf(await aRunOf(20));
 		const atTheStart = await runWindow(graph, { at: 1000, size: 6 });
-		expect(atTheStart.rows, "nothing before the first record, so six after it").toHaveLength(6);
+		expect(atTheStart.rows, "the window doesn't hold a row before the first record, so six after it").toHaveLength(6);
 		expect(atTheStart.rows[0].at).toBe(1000);
 		const atTheEnd = await runWindow(graph, { at: 1039, size: 6 });
 		expect(atTheEnd.rows, "one record at the end, so five before it").toHaveLength(6);
 	});
 
-	it("holds no more than the run does", async () => {
+	it("doesn't hold more than the run does", async () => {
 		const graph = runGraphOf(await aRunOf(2));
 		expect((await runWindow(graph, { size: 100 })).rows).toHaveLength(4);
 		expect((await runWindow(graph, { at: 1002, size: 100 })).rows).toHaveLength(4);
@@ -88,7 +88,7 @@ describe("the window of a run a reader is looking at", () => {
 		).toEqual(["step 0", "step 1", "step 2"]);
 	});
 
-	it("is empty when the run has written nothing, rather than failing", async () => {
+	it("is empty when the run hasn't written a record, rather than failing", async () => {
 		const graph = runGraphOf(new QuadStore());
 		expect(await runWindow(graph, { size: 10 })).toEqual({ rows: [] });
 	});
@@ -112,7 +112,7 @@ describe("the order a run put its records in", () => {
 });
 
 describe("what a run says outside every step", () => {
-	// A step that fails is reported after it ends, so what the run says about it belongs to no step. Such a statement
+	// A step that fails is reported after it ends, so what the run says about it doesn't belong to a step. Such a statement
 	// must not decide which run a window is of, or a reader watching a step fail loses the run they were reading.
 	it("keeps the run it is read with, rather than emptying the window", async () => {
 		const store = new QuadStore();
@@ -133,7 +133,7 @@ describe("what a run says outside every step", () => {
 		).toEqual(["step 1", "step 2", "step 3", 'create: "ee" is not a declared type']);
 	});
 
-	it("is read even when it names no execution at all", async () => {
+	it("is read even when it doesn't name an execution", async () => {
 		const store = new QuadStore();
 		await store.upsertIndividual(SEQ_PATH_LABEL, { id: "1700000000000-1.0.1", stepText: "a step", actionStatus: "passed", level: "info", generatedAtTime: iso(1000) });
 		await store.upsertIndividual(LOG_MESSAGE_LABEL, { id: "log.1700000009999", message: "said by nothing in particular", level: "warn", generatedAtTime: iso(1010) });
@@ -158,7 +158,7 @@ describe("following a run that is still happening", () => {
 		});
 	const newestRecording = (rows: TRunRow[]) => Math.max(...rows.map((r) => r.recordedAt ?? 0));
 
-	it("reads what was recorded since the last read, and nothing recorded before it", async () => {
+	it("reads what was recorded since the last read, and doesn't read a record from before it", async () => {
 		const store = new QuadStore();
 		for (const i of [1, 2, 3]) await step(store, i, 1000 + i, 1000 + i);
 		const graph = runGraphOf(store);
@@ -264,10 +264,10 @@ describe("following a run that is still happening", () => {
 			"and a reader asking how it was done",
 		).toEqual(["a step of the feature", "take a screenshot"]);
 		expect(shown.rows[1].partOf, "the substep names the step it was run to carry out").toEqual([0, 1]);
-		expect(shown.rows[0].partOf, "a step of the feature was run to carry out no step, so it names none").toBeUndefined();
+		expect(shown.rows[0].partOf, "a step of the feature wasn't run to carry out a step, so it doesn't name one").toBeUndefined();
 	});
 
-	it("says nothing has happened when nothing was recorded", async () => {
+	it("doesn't return a new record when a record wasn't added since the last read", async () => {
 		const store = new QuadStore();
 		await step(store, 1, 1000, 1000, { stepText: "a step" });
 		const graph = runGraphOf(store);

@@ -1,12 +1,12 @@
 /**
- * Real-browser pick/projection agreement for shu-polymorphic-graph-view (jsdom proves nothing about THREE picking).
+ * Real-browser pick/projection agreement for shu-polymorphic-graph-view (jsdom doesn't prove THREE picking).
  *
  * The invariant: pickAt(projectedCentre(node)) === node: the pick and the projection must agree AT ANY INSTANT,
  * including between an engine tick and the next render frame. The camera side of this held after pointerRay began
  * forcing a fresh camera matrix; this test pins the OBJECT side: when the engine's node coordinates have moved and
- * no frame has rendered yet, every sprite's transform is one frame stale, and a pick raycast against those stale
+ * a frame hasn't rendered yet, every sprite's transform is one frame stale, and a pick raycast against those stale
  * transforms misses at the freshly-projected centre: the e2e drag flake's exact "N nodes, none pickable at centre"
- * signature. The moved-coordinates state is created and picked inside ONE page.evaluate, so no render frame can
+ * signature. The moved-coordinates state is created and picked inside ONE page.evaluate, so a render frame can't
  * re-sync the sprites in between: the intermittent between-frames window, made deterministic.
  */
 import { readFileSync } from "node:fs";
@@ -40,12 +40,12 @@ let server: Server;
 let browser: Browser;
 let page: Page;
 const pageErrors: string[] = [];
-/** The pick geometry needs no event stream; mounting the raw bundle without the app boot reports exactly this once. */
+/** The pick geometry doesn't need an event stream; mounting the raw bundle without the app boot reports exactly this once. */
 const unexpectedErrors = () => pageErrors.filter((m) => !m.includes("an EventStream isn't installed"));
 
 /** In-page: ask the view where it draws each node, then probe the production pick at that pixel. Both sides are the
  * production pair: a copy of the projection here could only ever agree with itself, never catch the two drifting.
- * Runs synchronously, so no frame can re-sync the sprites between the projection and the pick. */
+ * Runs synchronously, so a frame can't re-sync the sprites between the projection and the pick. */
 const PICK_ALL = `(() => {
 	const el = document.querySelector("shu-polymorphic-graph-view");
 	return [...el.nodeMap.values()].map((n) => {

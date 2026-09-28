@@ -15,7 +15,7 @@ import { LIFECYCLE_STATUS, isHandedOutEvent, isSpeculativeEvent } from "@haibun/
  * A supervised run writes its events as one JSON object per line, which is the same stream a serving instance offers
  * over SSE, carrying seqPaths, outcomes and artifact paths, which console prose does not. So a run this process
  * forked is watched by reading its output; `SseSubscriber` is for a run this process did not fork and can only reach
- * over its endpoint. One set of events, two ways in, no second vocabulary.
+ * over its endpoint. One set of events and one vocabulary, read two ways.
  */
 type TRunEvent = {
 	id?: string;
@@ -31,7 +31,7 @@ type TRunEvent = {
 	[k: string]: unknown;
 };
 
-/** One line of a run's output as an event, or nothing when the line is the run's console prose. */
+/** One line of a run's output as an event, or undefined when the line is the run's console prose. */
 function eventOf(line: string): TRunEvent | undefined {
 	const start = line.indexOf("{");
 	if (start < 0 || !line.trimEnd().endsWith("}")) return undefined;
@@ -111,7 +111,7 @@ export function accrueRunOutcome(outcome: TRunOutcome, output: string): TRunOutc
 		if (event.kind !== "lifecycle") continue;
 		// A feature is reported when it starts, and the same start is printed once as an event and once by whatever
 		// formats the console, so features are held by their identity rather than by their lines. What follows a start
-		// belongs to that feature, since a feature reports no end.
+		// belongs to that feature, since a feature doesn't report an end.
 		if (event.type === "feature") {
 			const id = String(event.id ?? event.featurePath ?? outcome.features.size);
 			outcome.current = id;
@@ -129,7 +129,7 @@ export function accrueRunOutcome(outcome: TRunOutcome, output: string): TRunOutc
 		const feature = outcome.current ? outcome.features.get(outcome.current) : undefined;
 		if (feature) feature.steps += 1;
 		// A step the run did not expect to pass is not a failure of the run: a speculative step is asked in case it
-		// applies, and a handed-out call fails back to whoever made it. The run's own summary counts neither.
+		// applies, and a handed-out call fails back to whoever made it. The run's own summary doesn't count either.
 		if (event.status === LIFECYCLE_STATUS.completed || isSpeculativeEvent(event) || isHandedOutEvent(event)) continue;
 		if (feature) feature.failed += 1;
 		outcome.failures.push({ seqPath: formatSeqPath(event.seqPath ?? []), step: String(event.in ?? ""), message: String(event.message ?? event.error ?? "") });
@@ -144,7 +144,7 @@ export function accrueRunOutcome(outcome: TRunOutcome, output: string): TRunOutc
 /** The whole of a run's output, read at once: what an examine of a finished run reads. */
 export function examineRun(output: string): { failures: TRunFailure[]; report: string; steps: number; features: TRunFeature[]; summary: string } {
 	// A whole output ends where the run ended, so the last line is complete: accruing it with a trailing newline
-	// leaves nothing pending.
+	// doesn't leave a partial line pending.
 	const { features, steps, failures, report, summary } = accrueRunOutcome(emptyOutcome(), `${output}\n`);
 	return { failures, report, steps, features: [...features.values()], summary };
 }

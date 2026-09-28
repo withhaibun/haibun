@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
  * The page strip's corners, held apart from the strip: one popover open at a time, how each corner's popover closes, what
- * the access indicator says a reader holds and what awaits them, and the status on the strip. jsdom has no top layer, so
+ * the access indicator says a reader holds and what awaits them, and the status on the strip. jsdom doesn't have a top layer, so
  * the popover's show and hide are stated by each case.
  */
 import { describe, expect, it, vi } from "vitest";
@@ -77,7 +77,7 @@ describe("the page strip's corners", () => {
 		expect(page.popover.hidePopover).toHaveBeenCalledTimes(1);
 	});
 
-	it("close a picker on a click elsewhere, leave the playback panel open, and close nothing on a click inside the strip", async () => {
+	it("close a picker on a click elsewhere, leave the playback panel open, and don't close a popover on a click inside the strip", async () => {
 		const page = aCornersPage();
 		renderControls(page);
 		for (const corner of CORNERS) {
@@ -91,9 +91,9 @@ describe("the page strip's corners", () => {
 		}
 	});
 
-	it("mark what awaits the reader from the detail an extension reports, and ignore a detail with no count", () => {
+	it("mark what awaits the reader from the detail an extension reports, and ignore a detail without a count", () => {
 		expect(awaitingOf({ count: 2, kind: OPENABLE, target: { id: "a" } })).toEqual({ count: 2, ref: { kind: OPENABLE, target: { id: "a" } } });
-		expect(awaitingOf({ count: -1, kind: "elsewhere", target: { id: "a" } }), "no count below zero, and no reference of a kind a ref cannot open").toEqual({ count: 0, ref: null });
+		expect(awaitingOf({ count: -1, kind: "elsewhere", target: { id: "a" } }), "the count doesn't go below zero, and other kinds don't get a ref").toEqual({ count: 0, ref: null });
 		expect(awaitingOf({ count: "several" })).toBeNull();
 		const page = aCornersPage();
 		document.dispatchEvent(new CustomEvent(AWAITING_DECISION, { detail: { count: 3, kind: OPENABLE, target: { id: "a" } } }));
@@ -125,7 +125,7 @@ describe("how far along a run the cursor sits", () => {
 	const latest = first + 600_000;
 
 	it("says the moment out of the whole run, so a reader can tell near-the-start from near-the-end", () => {
-		// A ten minute run: two minutes in reads as two of ten. On its own, "2m" says nothing about where in the run that
+		// A ten minute run: two minutes in reads as two of ten. On its own, "2m" doesn't say where in the run that
 		// is, which is the one thing that matters from a readout this small.
 		expect(timeOffsetLabel(first + 120_000, first, latest)).toBe("2/10m");
 		expect(timeOffsetLabel(first + 540_000, first, latest)).toBe("9/10m");
@@ -136,7 +136,7 @@ describe("how far along a run the cursor sits", () => {
 		expect(timeOffsetLabel(first + 11_000, first, short)).toBe("11/40s");
 	});
 
-	it("reads now at the latest moment and beyond it, and with no cursor at all", () => {
+	it("reads now at the latest moment and beyond it, and without a cursor", () => {
 		expect(timeOffsetLabel(latest, first, latest)).toBe("now");
 		expect(timeOffsetLabel(latest + 1, first, latest)).toBe("now");
 		expect(timeOffsetLabel(null, first, latest)).toBe("now");

@@ -3,7 +3,7 @@
  *
  * A conversation is a session: the turns grouped under a first turn, each turn named by its question's record. It is
  * closed, opening while the store reads a session back, or open on a session. A conversation opened by a first question
- * is open on no session until the run records that question, which then names it.
+ * isn't open on a session until the run records that question, which then names it.
  *
  * The turn this page asks is asked, starts when the run names its step, streams its text, its status lines and the
  * comments it records, and ends as completed, failed or stopped. One is in flight at a time, whatever conversation is
@@ -40,7 +40,7 @@ export const OPEN_TURN_STEP = "openTurn";
 export const KEEP_IMAGE_STEP = "keepImage";
 
 /** A turn: as the store reads it back, or as this page asks it, with what it stated while it ran. Its question's record
- *  names it, and a turn this page asks is named by none until the run records that question. */
+ *  names it, and a turn this page asks isn't named until the run records that question. */
 export type TTurn = Omit<TSessionTurn, "askId" | "error"> & { askId: string | null; error: string; activity: string[] };
 
 /** The turn this page asks: the turn, the session it was asked in, the reason a reader gave to stop it, the actions the
@@ -103,7 +103,7 @@ export const SENDING = "Sending...";
 /** The key of a turn whose question the run has not recorded. A question replaces such a turn, so one key serves. */
 const PENDING = "pending";
 
-/** Whether a turn with the status was asked and has not ended. No status is not in flight. */
+/** Whether a turn with the status was asked and has not ended. A turn without a status isn't in flight. */
 export function inFlight(status: TChatStatus | undefined): boolean {
 	return status === "asking" || status === "running";
 }
@@ -131,7 +131,7 @@ export function turnOf({ session: _session, stoppedBy: _stoppedBy, delegated: _d
 }
 
 /** The conversation with the page's turn written into its turns in its place, where it is one of them. Its place is its
- *  question's, or the turn no question names yet, which only the page's turn is, since a question replaces one. */
+ *  question's, or the turn a question doesn't name yet, which only the page's turn is, since a question replaces one. */
 function withAsked(conversation: TConversationState): TConversationState {
 	const { asked } = conversation;
 	if (!asked || !asksIn(conversation)) return conversation;
@@ -170,10 +170,10 @@ function movedAsked(asked: TAskedTurn, event: TRequestEvent): TAskedTurn {
 /**
  * The next state, for any state and any event.
  *
- * `read` applies only to the session being opened or open, so a read that returns after the reader moved on changes
- * nothing, and a turn it reads keeps what the page stated of it while it ran, which the store does not hold. `failed`
+ * `read` applies only to the session being opened or open, so a read that returns after the reader moved on doesn't
+ * change the conversation, and a turn it reads keeps what the page stated of it while it ran, which the store does not hold. `failed`
  * applies only to the session being opened. `ask` is refused while a turn is in flight or the conversation opens, and
- * replaces a turn the run never recorded; asked in a closed conversation, it opens one on no session. The page's turn
+ * replaces a turn the run never recorded; asked in a closed conversation, it opens one that isn't on a session. The page's turn
  * moves on its request's events whatever conversation is open, and the first record of a first turn names the
  * conversation it opened.
  */
@@ -238,7 +238,7 @@ const START = "";
  * The turns on the branch the transcript shows, its first turn, and the other branch that leaves each place on it. The
  * branch runs from the session's start to `onTurn`, then along the newest reply below it to a leaf. Unset or unknown,
  * `onTurn` is the newest turn. Where a turn on the branch has replies off it, the newest other branch is offered by its
- * latest answer, or by its question where the turn ended with no answer recorded. The other branch that leaves the
+ * latest answer, or by its question where the turn ended without an answer recorded. The other branch that leaves the
  * start is keyed by `START`.
  */
 function branch(
@@ -372,11 +372,11 @@ async function readSession(session: string): Promise<TSessionTurn[]> {
 }
 
 /**
- * Open the conversation on a session and read its turns back. While the session is read, the actions bar's scope holds
- * no turn. Its latest turn then raises `answer` on the scope, with its answer where it has one: `update` for a page
+ * Open the conversation on a session and read its turns back. While the session is read, the actions bar's scope doesn't
+ * hold a turn. Its latest turn then raises `answer` on the scope, with its answer where it has one: `update` for a page
  * coming back to the conversation its address names, `activate` for a reader who picked the session. Only the read that
- * opened the conversation does: a read that returns after the reader moved on, or after another read opened it, moves
- * nothing on the scope, so it does not replace what the reader selected since. A read that fails closes the conversation
+ * opened the conversation does: a read that returns after the reader moved on, or after another read opened it, doesn't
+ * change the scope, so it does not replace what the reader selected since. A read that fails closes the conversation
  * and is reported to the run.
  */
 export async function openConversation(session: string, answer: "activate" | "update"): Promise<void> {
@@ -396,7 +396,7 @@ export async function openConversation(session: string, answer: "activate" | "up
 	}
 }
 
-/** Leave the conversation, so the next question starts a session. The actions bar's scope holds no turn after it. */
+/** Leave the conversation, so the next question starts a session. The actions bar's scope doesn't hold a turn after it. */
 export function closeConversation(): void {
 	dispatchConversationEvent({ type: "close" });
 	dispatchSubjectEvent({ type: "clear", scope: SCOPE.actionsBar });
@@ -406,7 +406,7 @@ export function closeConversation(): void {
 const reportsATurn = (event: TEvent): boolean => event.kind === "lifecycle" && event.type === "step" && event.actionName === ASK_STEP;
 
 /** Follow the run's turn reports, whichever page asks them: what a session gained reaches a page that didn't ask a turn. A
- *  page with no stream installed hears none, and follows nothing. Returns what ends the following. */
+ *  page without a stream installed doesn't receive a report, and doesn't follow the turns. Returns what ends the following. */
 export function followReportedTurns(onReport: () => void): () => void {
 	if (!hasEventStream()) return () => undefined;
 	return subscribeBatchedEvents({ filter: reportsATurn, onBatch: onReport, onReconnect: onReport });
@@ -416,7 +416,7 @@ export function followReportedTurns(onReport: () => void): () => void {
  * Follow the run's stream for the turns of the open conversation, whichever page asks them. A turn another page asks
  * starts and ends on that page's request, so this page doesn't request it. The session is read again
  * when the stream reports a turn's step starting or ending, and when the stream comes back after a break, since what
- * happened during it reached no page. A read raises `read` only while the conversation is still open on the session, so
+ * happened during it didn't reach a page. A read raises `read` only while the conversation is still open on the session, so
  * it never opens one. A read that fails is reported, and the turn stays as it was read.
  * Returns what ends the following.
  */

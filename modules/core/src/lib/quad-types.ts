@@ -39,14 +39,14 @@ export const GraphQuerySchema = z
 		label: z.string().optional(),
 		filters: z.array(SearchConditionSchema).default([]),
 		textQuery: z.string().optional(),
-		/** The types a text query with no label reads. A query that names none reads every type the store searches, as a
-		 *  query with no label names no one type. */
+		/** The types a text query without a label reads. A query that doesn't name one reads every type the store searches, as a
+		 *  query without a label doesn't name one type. */
 		types: z.array(z.string()).optional(),
 		sortBy: z.string().optional(),
 		sortOrder: z.enum(["asc", "desc"]).default("desc"),
 		limit: z.number().int().positive().default(50),
 		offset: z.number().int().nonnegative().default(0),
-		// No default: what an unstated level means belongs to the read that answers it: a graph query reads every
+		// It doesn't take a default: what an unstated level means belongs to the read that answers it: a graph query reads every
 		// level it may see, a shape query samples public. A default here decided it for both, and decided it wrong.
 		accessLevel: z.enum(["private", "public", "opened", "all"]).optional(),
 		fields: z.array(z.string()).optional(),
@@ -80,7 +80,7 @@ export const DensityQuerySchema = z
 		to: z.string().min(1),
 		/** How many divisions the span has. The answer is this many, whatever the span. */
 		buckets: z.number().int().positive(),
-		/** The field a bucket's counts are grouped by: how a record turned out. A record stating nothing for it counts
+		/** The field a bucket's counts are grouped by: how a record turned out. A record that doesn't state it counts
 		 *  under the empty group, so a bucket's counts always add up to what it holds. */
 		groupBy: z.string().min(1),
 		filters: z.array(SearchConditionSchema).default([]),
@@ -89,7 +89,7 @@ export const DensityQuerySchema = z
 	.strict();
 export type TDensityQuery = z.infer<typeof DensityQuerySchema>;
 
-/** One entry per bucket, oldest first, each counting its records by group. A bucket holding none is an empty entry, so
+/** One entry per bucket, oldest first, each counting its records by group. A bucket that doesn't hold a record is an empty entry, so
  *  the answer's length is the bucket count asked for and a reader can draw the gaps. A bucket's own span is the span
  *  divided by the count, which every reader derives the same way rather than being told it per bucket. */
 export const DensityResultSchema = z.object({
@@ -132,7 +132,7 @@ export interface TQuad {
 }
 
 /** What a store classifies its own writes and bounds its reads by: what bounds the call in progress, and the level each
- *  type declares its records at, undefined for a name that is no persisted type. A store given none holds a copy of what
+ *  type declares its records at, undefined for a name that isn't a persisted type. A store that isn't given one holds a copy of what
  *  a site served, which was bounded where it was served. */
 export type TStoreLevels = { bound: () => TAccessBound; declared: (label: string) => AccessLevel | undefined };
 
@@ -164,7 +164,7 @@ export const OBSERVATION_VALUE_MAX = 512;
 /** Emit a quadObservation event via an event logger. Canonical envelope for all quad emissions; string values are
  *  bounded to OBSERVATION_VALUE_MAX and marked `preview: true` (the store holds the payload: a consumer that needs
  *  it dereferences deliberately, and a merge can prefer a full value over a preview). Untruncated quads pass by
- *  reference: no per-emission clone on the write path. */
+ *  reference: the write path doesn't clone per emission. */
 export function emitQuadObservation(logger: Pick<IEventLogger, "emit">, id: string, quad: TQuad): void {
 	const bounded = typeof quad.object === "string" && quad.object.length > OBSERVATION_VALUE_MAX;
 	const observed = bounded ? { ...quad, object: ellipsize(quad.object as string, OBSERVATION_VALUE_MAX), properties: { ...quad.properties, preview: true } } : quad;
@@ -205,7 +205,7 @@ export function extractQuadsFromEvents(events: Record<string, unknown>[]): TQuad
 /**
  * Whether a batch of events carries a data change relevant to a view scoped to `label`: the single relevance test a
  * live view applies before re-deriving itself from the graph. True when the batch yields at least one quad and, if a
- * `label` is given, at least one quad in that named graph; with no `label` any quad is relevant (an unscoped view).
+ * `label` is given, at least one quad in that named graph; without a `label` any quad is relevant (an unscoped view).
  * A caller that only refreshes when scoped (e.g. label-specific filter values) guards the no-label case itself.
  */
 export function eventsAffectLabel(events: Record<string, unknown>[], label?: string): boolean {
@@ -256,7 +256,7 @@ export interface IQuadStore {
 	 * (or every known type if `types` is omitted), returns up to `perTypeLimit`
 	 * individual's quads plus a sidecar cluster summary so the view can render an
 	 * `+N more` cluster node when sampling truncates. Required: every quad store
-	 * owns its bounded clustered query: there is no unbounded `all()`-then-slice
+	 * owns its bounded clustered query: a store doesn't have an unbounded `all()`-then-slice
 	 * fallback. At scale this must sample at the source, not load every row.
 	 * `accessLevel` is the visibility ceiling, identical to every other read path:
 	 * the sample, its edges, body-preview labels and the `+N more` totals are all
@@ -317,8 +317,8 @@ export interface TClusteredQuads {
 
 /**
  * A federated peer's clustered read surface: the reads-first federation contract. A peer serves its
- * bounded, accessLevel-gated clustered snapshot; it is NOT a routed backing store (no raw pattern
- * queries, no writes: those arrive with capability-gated federation). `site` is the peer's unique
+ * bounded, accessLevel-gated clustered snapshot; it is NOT a routed backing store (it doesn't serve raw pattern
+ * queries or writes: those arrive with capability-gated federation). `site` is the peer's unique
  * site principal, the per-subject stamp for everything it serves.
  */
 export interface TFederatedGraphSource {

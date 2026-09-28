@@ -74,10 +74,10 @@ describe("shu-step-detail", () => {
 		await el.open([0, 1]);
 		await el.updateComplete;
 		expect(text(el)).toContain("myVar");
-		await el.open([0, 2]); // the page holds no record of this step, and there is no site to ask
+		await el.open([0, 2]); // the page doesn't hold a record of this step, and it doesn't have a site to ask
 		await el.updateComplete;
 		const t = text(el);
-		expect(t, "a step the page cannot read reports that, rather than claiming there is no such step").toContain("Failed to load step [0.2]");
+		expect(t, "a step the page cannot read reports that, rather than claiming that the step doesn't exist").toContain("Failed to load step [0.2]");
 		expect(t).not.toContain("myVar");
 	});
 
@@ -99,7 +99,7 @@ describe("the record that is a step", () => {
 	it("is the step's path under the execution being read", () => {
 		expect(stepRecordId([0, 1], EXECUTION)).toBe(`${EXECUTION}.0.1`);
 	});
-	it("is nothing before an execution has been read, or with no step named", () => {
+	it("is undefined before an execution has been read, or when a step isn't named", () => {
 		expect(stepRecordId([0, 1], undefined)).toBeUndefined();
 		expect(stepRecordId([], EXECUTION)).toBeUndefined();
 	});

@@ -2,7 +2,7 @@
  * Where a moment of a run sits on a rail that carries the whole run.
  *
  * A rail is a few hundred pixels and a run is however long it ran, so one scale cannot serve both: a year spread evenly
- * over a rail gives a reader a day per pixel, and nothing they are reading can be picked out of it. The scale is
+ * over a rail gives a reader a day per pixel, and a record they are reading can't be picked out of it. The scale is
  * focused instead. The window a page holds around where a reader is takes the middle share of the rail and maps
  * linearly, so a press near the focus picks the moment it points at. What the run did before that window and after it
  * compresses into the ends, by the logarithm of how far away it is, so a failure a year back still has a place on the
@@ -10,8 +10,8 @@
  *
  * A run whose whole reach the window covers maps linearly end to end: a short run is not distorted to look long.
  *
- * Pure: the reading that counts a run and the element that draws a rail both read these, and neither states a scale of
- * its own.
+ * Pure: the reading that counts a run and the element that draws a rail both read these, and the two don't state a scale of
+ * their own.
  */
 import { clamp } from "./util.js";
 
@@ -27,8 +27,8 @@ export const FOCUS_SHARE = 0.6;
 /** A fraction of the rail, which is what a place on it is. */
 const onRail = (n: number): number => clamp(n, 0, 1);
 
-/** How the shares outside the window divide between the two ends: by the logarithm of what each holds, so an end with
- *  nothing beyond it takes nothing and the other takes it all. */
+/** How the shares outside the window divide between the two ends: by the logarithm of what each holds, so an end without
+ *  records beyond it takes zero and the other takes it all. */
 function ends(span: TRunSpan, focus: TRunFocus): { before: number; after: number; beforeLen: number; afterLen: number } {
 	const beforeLen = Math.max(0, focus.from - span.first);
 	const afterLen = Math.max(0, span.last - focus.to);

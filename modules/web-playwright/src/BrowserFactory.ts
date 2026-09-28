@@ -175,7 +175,7 @@ export class BrowserFactory {
 		const [page] = pages;
 		if (!page || pages.length !== 1) throw Error(`tab 0 adopts the one page of the connected browser's context, which holds ${pages.length}`);
 		this.adoptedPages.add(page);
-		// Playwright dismisses a dialog only when nothing listens for it, so a listener that doesn't answer leaves it to the owner.
+		// Playwright dismisses a dialog only when the page doesn't have a dialog listener, so a listener that doesn't answer leaves it to the owner.
 		page.on("dialog", () => undefined);
 		return page;
 	}

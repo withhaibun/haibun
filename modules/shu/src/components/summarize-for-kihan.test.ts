@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
  * summarizeForKihan projections for the enriched content views: the linked data the chat harvest pulls from the
- * active pane. Seeds each view through its public API and calls the method directly (no render), so this covers the
+ * active pane. Seeds each view through its public API and calls the method directly (without a render), so this covers the
  * projection shape and the empty→null contract, not layout.
  */
 import { describe, it, expect, beforeAll } from "vitest";
@@ -36,7 +36,7 @@ describe("summarizeForKihan, enriched view projections", () => {
 
 	it("annotated-body: an as:Document carrying its content and each annotation's quote, note, and links", () => {
 		const el = document.createElement("shu-annotated-body") as ShuAnnotatedBody;
-		expect(el.summarizeForKihan()).toBeNull(); // no content
+		expect(el.summarizeForKihan()).toBeNull(); // without content
 		el.content = "the body text";
 		el.mediaType = "text/markdown";
 		el.sourceId = "file:1";
@@ -51,7 +51,7 @@ describe("summarizeForKihan, enriched view projections", () => {
 
 	it("product-view: delegates to the mounted child, so the wrapper never blanks its subtree", () => {
 		const el = document.createElement("shu-product-view") as ShuProductView;
-		expect(el.summarizeForKihan()).toBeNull(); // no child mounted
+		expect(el.summarizeForKihan()).toBeNull(); // a child isn't mounted
 		const child = document.createElement("div") as HTMLElement & { summarizeForKihan?: () => unknown };
 		child.summarizeForKihan = () => ({ "@id": "view:result-table", "@type": "as:Collection" });
 		el.appendChild(child);

@@ -3,7 +3,7 @@
  * Moving the shared time cursor on its own.
  *
  * Where the cursor IS is the log's scroll rail; this is the part a rail cannot do. What matters here is what it
- * publishes: a concrete time while it is playing through the past, and null at the end, "now, no upper bound", so a
+ * publishes: a concrete time while it is playing through the past, and null at the end, "now, without an upper bound", so a
  * record written after the newest event this page has seen is not read as future before its own event arrives.
  */
 import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
@@ -126,7 +126,7 @@ describe("playing through a run", () => {
 		await click(el, "playback-play");
 		await frames.run(1); // one frame long enough to cover the whole run
 		await el.updateComplete;
-		expect(timeCursor.get(), "the end of a run is 'now', with no upper bound, not the last event's time").toBeNull();
+		expect(timeCursor.get(), "the end of a run is 'now', without an upper bound, not the last event's time").toBeNull();
 	});
 
 	it("plays on from wherever the cursor was put, since the rail is what moves it", async () => {
@@ -143,10 +143,10 @@ describe("playing through a run", () => {
 		await click(el, "playback-restart");
 		await click(el, "playback-play");
 		await frames.run(1);
-		expect(frames.pending(), "nothing left to draw").toBe(0);
+		expect(frames.pending(), "a frame isn't left to draw").toBe(0);
 	});
 
-	it("does nothing when nothing has happened yet, rather than playing an empty run", async () => {
+	it("doesn't set a cursor when an event hasn't happened yet, rather than playing an empty run", async () => {
 		document.body.innerHTML = "";
 		timeCursor.set(null);
 		const el = document.createElement("shu-playback") as ShuPlayback;
@@ -158,7 +158,7 @@ describe("playing through a run", () => {
 });
 
 describe("going back to now", () => {
-	// A press on a rail is meant to stay where it was put, so nothing takes a reader off a chosen moment by itself. This
+	// A press on a rail is meant to stay where it was put, so a view doesn't take a reader off a chosen moment by itself. This
 	// is what does: the cursor is released, and any view that tails is asked to return to the live edge and follow again.
 	beforeEach(async () => {
 		endPage();
@@ -180,7 +180,7 @@ describe("going back to now", () => {
 		timeCursor.set(FIRST + 100);
 		await el.updateComplete;
 		await click(el, "playback-live");
-		expect(timeCursor.get(), "no upper bound any more, which is what now means").toBeNull();
+		expect(timeCursor.get(), "the cursor doesn't have an upper bound any more, which is what now means").toBeNull();
 		expect(asked, "and the views that tail are told").toEqual(["go-live"]);
 	});
 });

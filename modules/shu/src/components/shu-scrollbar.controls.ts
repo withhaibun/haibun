@@ -101,8 +101,8 @@ export default class ShuScrollbarControls extends AStepper {
 		railThumbTakesAPress: {
 			// The thumb is what a reader grabs to drag, so a press aimed at its middle has to reach it. Every marked event
 			// is drawn on the same rail, and a mark over the thumb would take that press and jump to itself,
-			// leaving the thumb ungrabbable on exactly the runs with the most to look through. Nothing below a browser
-			// can see this: it is a question of what paints over what.
+			// leaving the thumb ungrabbable on exactly the runs with the most to look through. A test outside a browser
+			// can't detect this: it is a question of what paints over what.
 			gwta: `rail thumb in {host: ${DOMAIN_PAGE_LOCATOR}} takes a press`,
 			action: async ({ host }: { host: string }) => {
 				const at = await this.thumbPressReaches(host);

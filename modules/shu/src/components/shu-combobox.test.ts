@@ -54,7 +54,7 @@ describe("the combobox", () => {
 		expect(combo.value, "the option the reader picked").toBe("file-domain");
 		expect(offered(), "and the list is put away").toEqual([]);
 		input(combo).dispatchEvent(new Event("pointerdown"));
-		expect(offered(), "a press offers them again, where the control raises no focus").toEqual(["Email", "File"]);
+		expect(offered(), "a press offers them again, where the control doesn't raise focus").toEqual(["Email", "File"]);
 	});
 
 	it("shows the text its holder states for what it holds, and the chosen option's label where its holder doesn't state one", async () => {

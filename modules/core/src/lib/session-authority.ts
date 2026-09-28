@@ -1,7 +1,7 @@
 /**
  * SessionAuthority: the run's one capability authority. It holds what a consumer registers for the specification its
  * deployment uses: a verifier for evidence presented to this run, and an invoker for authority this run presents
- * elsewhere. haibun-core stays crypto-free, so it reads no proof and signs nothing itself.
+ * elsewhere. haibun-core stays crypto-free, so it doesn't read a proof or sign a request itself.
  */
 import type { TRuntime } from "./world.js";
 import { actingFor, runReadingAsTheInstance } from "./capability-context.js";
@@ -40,7 +40,7 @@ export class SessionAuthority implements IAuthority {
 	}
 
 	delegationsTo(controller: string): Promise<TDelegations> {
-		// Nothing registered to verify a delegation means nothing here was delegated through one.
+		// Where a verifier isn't registered to verify a delegation, this process didn't delegate through one.
 		const verifier = this.verifier;
 		return verifier ? runReadingAsTheInstance(() => verifier.delegationsTo(controller)) : Promise.resolve({ delegations: [] });
 	}

@@ -62,7 +62,7 @@ export function quadsToGanttModel(quads: TQuad[], opts: GanttModelOpts = {}): TG
 		const start = Math.min(...starts.filter((t) => !Number.isNaN(t)));
 		if (!Number.isFinite(start)) continue;
 		const endCandidates = ends.filter((t) => !Number.isNaN(t));
-		// No end-kind time and no duration: the subject is a dated instant (a milestone note, a generated record):
+		// The subject is a dated instant where it doesn't have an end-kind time or a duration (a milestone note, a generated record):
 		// a zero-length task placed at its moment, so every dated record shows in the calendar, point or bar.
 		const end = endCandidates.length > 0 ? Math.max(...endCandidates) : duration !== undefined ? start + duration : start;
 		tasks.push({ id: subject, label: opts.displayLabel?.(sq[0].namedGraph, subject) ?? subject, start, end, effort, dependsOn: dependsOn.length > 0 ? dependsOn : undefined });

@@ -28,7 +28,7 @@ function publish(from: string, detail: Record<string, unknown>): void {
 }
 
 beforeAll(() => {
-	installTestMediaQueries(); // the pane asks the viewport whether it is narrow; jsdom answers no such question
+	installTestMediaQueries(); // the pane asks the viewport whether it is narrow; jsdom doesn't answer such a question
 	provideLayout(); // the pane observes its size, to reserve its strip's height where it is docked
 	if (!customElements.get("shu-index-summary")) customElements.define("shu-index-summary", ShuIndexSummary);
 	if (!customElements.get("shu-column-pane")) customElements.define("shu-column-pane", ShuColumnPane);
@@ -39,13 +39,13 @@ describe("the index's spine summary", () => {
 
 	beforeEach(async () => {
 		document.body.innerHTML = "";
-		searching("#?"); // the shared query outlives one test, so each starts from no search
+		searching("#?"); // the shared query outlives one test, so each starts without a search
 		summary = document.createElement("shu-index-summary") as ShuIndexSummary;
 		document.body.appendChild(summary);
 		await summary.updateComplete;
 	});
 
-	// What a reader would see, and only that. jsdom has no adoptedStyleSheets, so lit puts the component's CSS in a
+	// What a reader would see, and only that. jsdom doesn't have adoptedStyleSheets, so lit puts the component's CSS in a
 	// <style> inside the shadow root, and lit's own bookkeeping sits there as comment markers; reading the root's text
 	// whole would read both, and every assertion below would be about the stylesheet.
 	const shown = () =>
@@ -91,7 +91,7 @@ describe("the index's spine summary", () => {
 
 describe("a spine view while its column is open", () => {
 	// Attached but unslotted is how a spine view keeps hearing what it needs, and it must not take what being shown
-	// takes: nothing it renders can be seen, so it renders nothing until the spine slot takes it.
+	// takes: a reader can't see what it renders, so it doesn't render until the spine slot takes it.
 	it("hears the index without rendering, and is current the moment the column collapses", async () => {
 		document.body.innerHTML = "";
 		const pane = document.createElement("shu-column-pane") as ShuColumnPane;
@@ -107,7 +107,7 @@ describe("a spine view while its column is open", () => {
 		searching("#?label=Person");
 		publish("shu-graph-query", { total: 42 });
 		await summary.updateComplete;
-		expect(summary.shadowRoot?.querySelector(".count"), "open, nothing shows the spine, so nothing is rendered for it").toBeNull();
+		expect(summary.shadowRoot?.querySelector(".count"), "open, the pane doesn't show the spine, so the view doesn't render a count for it").toBeNull();
 
 		pane.setMinimized(true);
 		await pane.updateComplete;

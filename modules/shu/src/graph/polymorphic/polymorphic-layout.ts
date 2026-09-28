@@ -22,7 +22,7 @@ export interface IGraphLayout {
 const DAMPED_VELOCITY_DECAY = 0.82;
 /** Total tick use for one placement, split by node count so a big graph cannot stall the main thread. */
 const PLACE_TICK_LIMIT = 40_000;
-/** A damped placement's tick count, newcomers only move a short way, so a long run gains nothing. */
+/** A damped placement's tick count, newcomers only move a short way, so a long run doesn't improve the placement. */
 const DAMPED_TICKS = 40;
 
 /** Ticks one placement runs: limit over size, clamped so a small graph settles fully and a big one stays responsive. */
@@ -43,7 +43,7 @@ export function forceLayout(ctx: ForceContext): IGraphLayout {
 		forceLink().id((n: never) => (n as FGNode).id),
 	);
 	sim.force("charge", forceManyBody());
-	// No centre force. d3-force-3d's forceCenter recentres z unconditionally, numDimensions(2) does not spare it:
+	// The simulation doesn't add a centre force. d3-force-3d's forceCenter recentres z unconditionally, numDimensions(2) does not spare it:
 	// and z is the time axis, data-owned: the first placement shifted every node's depth by the cloud's z-mean, the
 	// camera framed the shifted cloud, and the next merge's re-assigned data z snapped the whole graph out of frame.
 	// Bounding the layout is already configureForces' containment (groupX/groupY pull free nodes to the origin), and
@@ -66,7 +66,7 @@ export function forceLayout(ctx: ForceContext): IGraphLayout {
 				l.target = linkEndId(l.target);
 			}
 			link?.links(links);
-			// Every node pinned means nothing can move, the common streamed merge that only updates properties, so the
+			// Every node pinned means the nodes can't move, the common streamed merge that only updates properties, so the
 			// synchronous tick loop is skipped and the main thread does only the link resolution the drawn lines need.
 			if (nodes.every((n) => n.fx !== undefined)) return;
 			sim.alpha(1);

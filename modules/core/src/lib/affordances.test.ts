@@ -85,7 +85,7 @@ describe("buildAffordances", () => {
 		expect(newSession?.method).toBe("SessionTerminal-newSession");
 	});
 
-	it("marks steps with unsatisfied input domains as not readyToRun (input has a producer but no fact yet)", () => {
+	it("marks steps with unsatisfied input domains as not readyToRun (input has a producer but doesn't have a fact yet)", () => {
 		const result = buildAffordances({ steppers: [new EmailFromPerson(), new PersonSource()], domains: fixedDomains(), facts: [], held: RUN_AUTHORITY });
 		const issue = result.forward.find((f) => f.stepName === "issueEmail");
 		expect(issue?.readyToRun).toBe(false);
@@ -98,7 +98,7 @@ describe("buildAffordances", () => {
 		expect(issue?.readyToRun).toBe(true);
 	});
 
-	it("marks steps with no producer for an input as readyToRun: that input is supplied as an argument, not chained", () => {
+	it("marks steps without a producer for an input as readyToRun: that input is supplied as an argument, not chained", () => {
 		const result = buildAffordances({ steppers: [new EmailFromPerson()], domains: fixedDomains(), facts: [], held: RUN_AUTHORITY });
 		const issue = result.forward.find((f) => f.stepName === "issueEmail");
 		expect(issue?.readyToRun).toBe(true);
@@ -123,10 +123,10 @@ describe("buildAffordances", () => {
 		const goals = result.goals.map((g) => g.domain);
 		expect(goals).toContain(EMAIL);
 		expect(goals).not.toContain(refDomainKey(EMAIL));
-		expect(result.composites?.[refDomainKey(EMAIL)], "a reference is no composite to decompose").toBeUndefined();
+		expect(result.composites?.[refDomainKey(EMAIL)], "a reference isn't a composite to decompose").toBeUndefined();
 	});
 
-	it("offers no step to a caller holding nothing", () => {
+	it("doesn't offer a step to a caller that doesn't hold an action", () => {
 		const result = buildAffordances({ steppers: [new GatedSession(), new SessionTerminal()], domains: fixedDomains(), facts: [], held: [] });
 		expect(result.forward).toEqual([]);
 	});
@@ -138,17 +138,17 @@ describe("buildAffordances", () => {
 		expect(gated?.capability).toBe("auth:signin");
 	});
 
-	it("offers a step that declares no action to a caller holding its name", () => {
+	it("offers a step that doesn't declare an action to a caller holding its name", () => {
 		const result = buildAffordances({ steppers: [new SessionTerminal()], domains: fixedDomains(), facts: [], held: ["SessionTerminal:newSession"] });
 		expect(result.forward.find((f) => f.stepName === "newSession")?.capability).toBe("SessionTerminal:newSession");
 	});
 
-	it("excludes steps with no declared inputs or outputs from the forward frontier", () => {
+	it("excludes steps without declared inputs or outputs from the forward frontier", () => {
 		const result = buildAffordances({ steppers: [new Plain()], domains: fixedDomains(), facts: [], held: RUN_AUTHORITY });
 		expect(result.forward.find((f) => f.stepName === "ping")).toBeUndefined();
 	});
 
-	it("filters out trivial single-step goals: those duplicate the forward frontier and add no chaining context", () => {
+	it("filters out trivial single-step goals: those duplicate the forward frontier and don't add chaining context", () => {
 		const result = buildAffordances({ steppers: [new SessionTerminal(), new EmailFromPerson()], domains: fixedDomains(), facts: [], held: RUN_AUTHORITY });
 		expect(result.goals.find((g) => g.domain === SESSION)).toBeUndefined();
 		expect(result.goals.find((g) => g.domain === EMAIL)).toBeUndefined();
@@ -160,7 +160,7 @@ describe("buildAffordances", () => {
 		expect(emailGoal?.resolution.finding).toBe("michi");
 	});
 
-	it("filters out satisfied single-step goals: the asserted fact alone conveys the verdict, no chaining context to show", () => {
+	it("filters out satisfied single-step goals: the asserted fact alone conveys the verdict, and they don't have chaining context to show", () => {
 		const fact: TQuad = { subject: "s:1", predicate: SESSION, object: { id: "s1" }, namedGraph: "facts", timestamp: 1 };
 		const result = buildAffordances({ steppers: [new SessionTerminal()], domains: fixedDomains(), facts: [fact], held: RUN_AUTHORITY });
 		expect(result.goals.find((g) => g.domain === SESSION)).toBeUndefined();

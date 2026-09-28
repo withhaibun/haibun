@@ -22,7 +22,7 @@ A **variable** stands for any individual: `x`, `y`. In haibun a variable is a st
 
 The set of asserted facts is the **ABox** (assertion box, from Description Logic). In haibun it is the working memory stored in `FACT_GRAPH`.
 
-The declared vocabulary, domains, predicates, rules, is the **TBox** (terminological box) or *signature*. Haibun has no native term for the whole TBox; the closest published form is the `ConcernCatalog` the show steps step returns.
+The declared vocabulary, domains, predicates, rules, is the **TBox** (terminological box) or *signature*. Haibun doesn't have a native term for the whole TBox; the closest published form is the `ConcernCatalog` the show steps step returns.
 
 A **rule** has a head and a body. The body's facts together let the head be derived: `Ready(m) ← Cooked(m) ∧ Plated(m)`. In haibun, a rule is a `waypoint` with a goal-shaped proof inside an `Activity:` block.
 
@@ -127,7 +127,7 @@ The show steps step (`Haibun-showSteps`) returns the registered steps and a `Con
 
 `not {statement}` is negation as failure: if the statement fails to prove, the negation succeeds.
 
-`absent {statement}` is the closed-world counterpart: an authored assertion that the statement is known to be false. Used where "no proof exists" must be distinguished from "a proof of falsity".
+`absent {statement}` is the closed-world counterpart: an authored assertion that the statement is known to be false. Used where "a proof doesn't exist" must be distinguished from "a proof of falsity".
 
 `{a} is the same as {b}` declares equality between two individuals; the reasoner treats them as one. A DID alias whose two strings resolve to the same key is the common case.
 
@@ -172,7 +172,7 @@ A function declaration `function {name}({parts}) → D` registers a domain-typed
   signature.list                                       (returns domains + predicates + rules)
 ```
 
-Every line follows haibun's step format. No additional bracket convention or tooling is required.
+Every line follows haibun's step format. The format doesn't require an additional bracket convention or tooling.
 
 ## Phases
 
@@ -240,7 +240,7 @@ ensure dinner is "ready"
 fact dinner is "ready"
 ```
 
-`is(dinner, ready)` unifies with the waypoint head, binding `m ↦ dinner`. The sub-goal `is(dinner, cooked)` is in working memory. The sub-goal `is(dinner, plated)` is not, and no rule head matches; the activity body runs and asserts it. Re-check passes.
+`is(dinner, ready)` unifies with the waypoint head, binding `m ↦ dinner`. The sub-goal `is(dinner, cooked)` is in working memory. The sub-goal `is(dinner, plated)` is not, and the rule heads don't match it; the activity body runs and asserts it. Re-check passes.
 
 ```
 is(dinner, ready)
@@ -303,7 +303,7 @@ The system targets multi-step plans, capability checks, declarative validation, 
 
 ## Open questions
 
-How a predicate's per-subject key is derived from a `productsDomain` payload, fall back to `seqPath` when no `idField` is declared.
+How a predicate's per-subject key is derived from a `productsDomain` payload, fall back to `seqPath` when an `idField` isn't declared.
 
 How higher-arity predicates store in a quad store, reify into anonymous individuals carrying the tuple, with the relation as type.
 

@@ -37,7 +37,7 @@ export interface RunSource extends WindowedSource<TEventRecord> {
 	readonly behind: boolean;
 	/** Learn the extent if not yet known: the first thing a view awaits. */
 	ready(): Promise<void>;
-	/** Read the run around a moment, or follow its newest records where none is named. */
+	/** Read the run around a moment, or follow its newest records where a moment isn't named. */
 	readAt(at?: number): Promise<void>;
 }
 
@@ -47,7 +47,7 @@ const reading = (): Set<RunSource> => pagePinned(READING_KEY, () => new Set<RunS
 const MADE_KEY = "__SHU_RUN_SOURCES_MADE__";
 const made = (): Set<(source: RunSource) => void> => pagePinned(MADE_KEY, () => new Set<(source: RunSource) => void>());
 
-/** The run sources being read, in level order: what a view of the page's own caches reads, making none. */
+/** The run sources being read, in level order: what a view of the page's own caches reads, without making one. */
 export function runSources(): RunSource[] {
 	return [...reading()].sort((a, b) => HAIBUN_LOG_LEVELS.indexOf(a.level) - HAIBUN_LOG_LEVELS.indexOf(b.level));
 }
@@ -65,7 +65,7 @@ export function runReadingAt(): number | undefined {
 
 /** Whether a source's window already holds a moment, so reading it there would read the records it holds. Following
  *  the newest records is holding them: a window whose newest row is the newest the page has seen of the run is already
- *  where a reader returning to the live edge is going. A source that has read nothing holds nothing. */
+ *  where a reader returning to the live edge is going. A source that hasn't read a record doesn't hold one. */
 function alreadyHolds(source: RunSource, moment: number | undefined): boolean {
 	const { first, last } = source.extent();
 	if (first === undefined || last === undefined) return false;
@@ -74,9 +74,9 @@ function alreadyHolds(source: RunSource, moment: number | undefined): boolean {
 
 /** Read the run around a moment, on every source a view is reading by; `null` follows the newest records again.
  *
- * What a reader is looking at is what is read. A window holds a few thousand records, so a moment far from the newest
- * is a moment no window holds, and a reader moving there with nothing read would be shown the records they had left
- * rather than the ones they asked for. A source whose window already holds the moment reads nothing, which is what
+ * What a reader is looking at is what is read. A window holds a few thousand records, so the window doesn't hold a moment far from the
+ * newest, and a reader moving there without a new read would be shown the records they had left
+ * rather than the ones they asked for. A source whose window already holds the moment doesn't read again, which is what
  * bounds this: playback moves the cursor every frame, and a run is read again only when the cursor leaves the window. */
 export async function readRunAt(at: number | null): Promise<void> {
 	const moment = at ?? undefined;
@@ -104,8 +104,8 @@ export function subscribeRunSources(fn: (source: RunSource) => void): () => void
 }
 
 /** What the run spans, as whatever has read it has seen. Held by the page, since a run's extent is the run's rather
- *  than one reader's, and the live edge is read from it. The span only widens: a window over part of a run says
- *  nothing about the rest, so a narrower reading never contradicts a wider one. */
+ *  than one reader's, and the live edge is read from it. The span only widens: a window over part of a run doesn't
+ *  describe the rest, so a narrower reading never contradicts a wider one. */
 const SPAN_KEY = "__SHU_RUN_SPAN__";
 const span = (): { first?: number; last?: number } => pagePinned(SPAN_KEY, () => ({}));
 
@@ -116,8 +116,8 @@ export function noteRunSpan(first?: number, last?: number): void {
 	if (last !== undefined && (held.last === undefined || last > held.last)) held.last = last;
 }
 
-/** When the run the page reads starts and ends, over every level read: the earliest start and the newest row. Asks for
- *  nothing and holds nothing, so a control that only places the cursor (playback, the actions bar) reads it without
+/** When the run the page reads starts and ends, over every level read: the earliest start and the newest row. It doesn't
+ *  send a request or hold a record, so a control that only places the cursor (playback, the actions bar) reads it without
  *  reading the run in. Both 0 before any view has read the run. */
 export function runSpan(): { first: number; last: number } {
 	const held = span();

@@ -4,7 +4,7 @@ import { assertNodeMark } from "./graph-scene.js";
 import { ONTOLOGY_PROPERTY } from "./ontology-projection.js";
 
 describe("node presenters (per-@type, capability-driven default)", () => {
-	it("default presenter renders a free chip when there's no time placement", () => {
+	it("default presenter renders a free chip when it doesn't have a time placement", () => {
 		const m = DEFAULT_PRESENTER.present({ id: "a", name: "Alice", type: "Person" }, {});
 		expect(m).toMatchObject({ kind: "chip", label: "Alice", role: { kind: "free" } });
 		expect(m.color).toBeTruthy(); // a stable per-type colour (shared colorForType)

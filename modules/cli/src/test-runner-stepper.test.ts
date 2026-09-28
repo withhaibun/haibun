@@ -1,6 +1,6 @@
 /**
  * What the test-runner agent will NOT do. The limits are the part that has to hold by construction rather than by
- * the model behaving: one run in flight, no run of features that have passed against their present state, and a
+ * the model behaving: one run in flight, a refusal to run features that have passed against their present state, and a
  * limit that reports being reached.
  *
  * The store is in memory; what is asserted here is the agent's own bookkeeping and the record it writes for a run,
@@ -119,7 +119,7 @@ function harness({ supervised = true, standing = false }: { supervised?: boolean
 			[getStepperOptionName(stepper, "RUN_PORT")]: "8331",
 		};
 	world.shared.getStore = () => store;
-	// The Principal write declines a world with no domain registry, and a step's products domain resolves its schema
+	// The Principal write declines a world without a domain registry, and a step's products domain resolves its schema
 	// through the same registry, so the harness registers Principal, whose stepper it doesn't load, and what its steppers
 	// declare, as a run does.
 	world.domains = { ...world.domains, ...mapDefinitionsToDomains([principalDomainDefinition]) };
@@ -149,7 +149,7 @@ describe("the test-runner agent's limits", () => {
 		const first = await h.run("tests", "polymorphic");
 		expect(first.ok).toBe(true);
 		const second = await h.run("tests", "graph-frontend");
-		expect(second.ok, "a second run would leave two runs and no way to say which failed").toBe(false);
+		expect(second.ok, "a second run would leave two runs without a way to say which failed").toBe(false);
 		expect(second.errorMessage).toMatch(/already in flight: "polymorphic"/);
 		expect(h.stepper.usage().runs).toBe(1);
 	});
@@ -158,7 +158,7 @@ describe("the test-runner agent's limits", () => {
 		const dir = nodeFS.mkdtempSync(path.join(os.tmpdir(), "haibun-noted-"));
 		nodeFS.writeFileSync(path.join(dir, VERIFIED_FILE), "{}\n");
 		h.stepper.noteApplied("", dir);
-		expect(nodeFS.existsSync(path.join(dir, VERIFIED_FILE)), "the record is gone, so the supervisor has nothing to refuse a run on").toBe(false);
+		expect(nodeFS.existsSync(path.join(dir, VERIFIED_FILE)), "the record is gone, so the supervisor doesn't have a reason to refuse a run").toBe(false);
 	});
 
 	it("stops at its run limit with a reason, rather than running on", async () => {
@@ -193,7 +193,7 @@ describe("what a run leaves behind", () => {
 		const record = h.written.find((w) => w.label === FEATURE_EXECUTION_LABEL);
 		expect(record?.data.filter).toBe("polymorphic");
 		expect(record?.data.status).toBe(RUN_STATUS.running);
-		expect(record?.data.endpoint, "a run given no port has no endpoint, rather than an empty one").toBeUndefined();
+		expect(record?.data.endpoint, "a run not given a port doesn't have an endpoint, rather than an empty one").toBeUndefined();
 		expect(record?.data.attributedTo, "the run names who started it, so the graph answers who ran what").toBe(TEST_RUNNER_AUTHOR);
 		expect(
 			h.written.some((w) => w.data.id === TEST_RUNNER_AUTHOR),
@@ -228,7 +228,7 @@ describe("watching a run", () => {
 			port: RUNNER_DEFAULTS.port,
 		});
 		expect(RUNNER_DEFAULTS.port, "by default a run keeps the ports its own features declare").toBe(0);
-		expect(started.products?.endpoint, "and a run that was given no port answers nowhere afterwards, which its record states by carrying no endpoint").toBeUndefined();
+		expect(started.products?.endpoint, "and a run that wasn't given a port doesn't serve at an endpoint afterwards, which its record states by not carrying one").toBeUndefined();
 	});
 
 	it("fails when the run failed, so a suite that never collected a feature is never reported as passing", async () => {
@@ -280,7 +280,7 @@ describe("watching a run", () => {
 		expect(h.stepper.usage().inFlight).toBeUndefined();
 	});
 
-	it("records a run it stopped as stopped, since no exit code answers for it", async () => {
+	it("records a run it stopped as stopped, since its exit code doesn't state how it went", async () => {
 		await h.run("tests", "polymorphic");
 		expect((await h.stop()).ok).toBe(true);
 		expect(h.supervisor.calls.some((c) => c.step === "stopRun")).toBe(true);
@@ -331,13 +331,13 @@ describe("what a run reported", () => {
 		expect(examineRun('{"kind":"lifecycle","stage":"end","status":"completed","type":"execution"}').summary).toBe("the run completed");
 	});
 
-	it("says so when a run reported no outcome at all", () => {
+	it("says so when a run didn't report an outcome", () => {
 		expect(examineRun("       i █ 1.2:step-dispatch ｜ ✅ [0.1.1.1] set answer to ready\n").summary).toBe("the run reported no outcome");
 	});
 
 	it("takes the report from the artifact that wrote it, and falls back to what the run announced", () => {
 		expect(examineRun('{"kind":"artifact","artifactType":"html","path":"file:///tmp/capture/one/shu.html"}').report).toBe("file:///tmp/capture/one/shu.html");
-		expect(examineRun(OUTPUT).report, "announced in a log line when no artifact event carries it").toBe("file:///tmp/capture/featn-1/shu.html");
+		expect(examineRun(OUTPUT).report, "announced in a log line when the artifact events don't carry it").toBe("file:///tmp/capture/featn-1/shu.html");
 	});
 });
 
@@ -401,7 +401,7 @@ describe("what a finished run's record says about it", () => {
 			expect(askParams('{"domain": "comment"}'), "JSON from a caller that can write it").toEqual({ domain: "comment" });
 			expect(askParams("comment", { domain: text }), "and a bare value where only one thing is taken").toEqual({ domain: "comment" });
 			expect(askParams("comment", { domain: text, sort: text }), "but not where the step takes more than one").toEqual({});
-			expect(askParams(""), "nothing said is nothing given").toEqual({});
+			expect(askParams(""), "an empty question gives empty parameters").toEqual({});
 		});
 
 		it("reads an object a step takes, written bare or as its JSON text", () => {
@@ -460,7 +460,7 @@ describe("what a finished run's record says about it", () => {
 			expect(asked.text, "counted, and what it says about itself first").toBe('{"total":1,"vertices":"1 entries; ask the run for one to see it"}');
 			expect(asked.answer, "the entries are there for a caller that wants them").toBe('{"total":1,"vertices":[{"id":"cmt-1"}]}');
 			const shown = answerOfRun({ detail: "summary", steps: [{ method: "GraphStepper-listTyped" }] });
-			expect(shown.text, "and an answer that states no count, as a listing of steps, is its entries").toBe('{"detail":"summary","steps":[{"method":"GraphStepper-listTyped"}]}');
+			expect(shown.text, "and an answer without a count, as a listing of steps, is its entries").toBe('{"detail":"summary","steps":[{"method":"GraphStepper-listTyped"}]}');
 			const long = answerOfRun({ total: 40, vertices: Array.from({ length: 500 }, (_, at) => ({ id: `cmt-${at}`, body: "x".repeat(40) })) });
 			expect(long.answer, "and a listing longer than a window says how much was left").toMatch(/characters in all\)$/);
 		});

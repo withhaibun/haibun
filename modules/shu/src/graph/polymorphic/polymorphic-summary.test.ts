@@ -18,7 +18,7 @@ describe("the order a graph states itself in", () => {
 		expect(statedAboutFirst(drawn, on)).toEqual([drawn[1], drawn[2], drawn[0]]);
 	});
 
-	it("keeps the order the view drew, for a reader on nothing, and every statement either way", () => {
+	it("keeps the order the view drew, for a reader who isn't on a node, and every statement either way", () => {
 		const drawn = drew(50);
 		expect(statedAboutFirst(drawn, null)).toEqual(drawn);
 		expect(statedAboutFirst(drawn, "read-me@bakery.test"), "a node the graph does not state leaves the order as it was").toEqual(drawn);

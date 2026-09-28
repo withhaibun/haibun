@@ -62,13 +62,13 @@ const VIEW = `document.querySelector("shu-polymorphic-graph-view")`;
 
 export type TMountedPage = {
 	page: Page;
-	/** Page errors other than the one the raw bundle reports for having no app around it. */
+	/** Page errors other than the one the raw bundle reports for running without an app around it. */
 	errors(): string[];
 	/** Feed a model as the view does, and wait for every node of it to be laid out and the engine to rest. */
 	feed(quads: TQuadFed[]): Promise<void>;
-	/** Wait for the layout and the camera to rest: nothing running, nothing owed, and following has checked the view. */
+	/** Wait for the layout and the camera to rest: the simulation isn't running, a change isn't pending, and following has checked the view. */
 	settle(): Promise<void>;
-	/** Wait until the scene is at rest: its layout settled, its render loop paused, and no change scheduled. */
+	/** Wait until the scene is at rest: its layout settled, its render loop paused, and a change isn't scheduled. */
 	atRest(): Promise<void>;
 	/** How many frames the renderer has drawn since the page loaded. */
 	framesDrawn(): Promise<number>;
@@ -76,7 +76,7 @@ export type TMountedPage = {
 	framesOver(ticks: number): Promise<number>;
 	/** Select a node the way the app relays a selection, and wait for its glow. */
 	select(id: string): Promise<void>;
-	/** Run against the scene itself. The function is serialised into the page, so it sees no closure: what it needs
+	/** Run against the scene itself. The function is serialised into the page, so it doesn't see a closure: what it needs
 	 *  travels as `arg`. */
 	scene<T, A = undefined>(fn: (scene: TSceneApi, arg: A) => T, arg?: A): Promise<T>;
 	inspect(): Promise<TInspected>;
@@ -86,12 +86,12 @@ export type TMountedPage = {
 	projection(id: string): Promise<{ x: number; y: number }>;
 	/** The camera's distance to what it looks at: the zoom, as the reader set it. */
 	distance(): Promise<number>;
-	/** Click the real pointer at a pixel, and return the id of the node the scene opened, or null when it opened none.
+	/** Click the real pointer at a pixel, and return the id of the node the scene opened, or null when it didn't open one.
 	 *  The scene opens a node in the click's own task, so the id is set when the click dispatch returns. */
 	click(at: { x: number; y: number }): Promise<string | null>;
 	/** The active-record machine's state in the page, as the bundle holds it. */
 	subjectState(): Promise<TSubjectState>;
-	/** A pixel inside the view where no node is picked, for a click on empty space. */
+	/** A pixel inside the view where a node isn't picked, for a click on empty space. */
 	emptyPixel(): Promise<{ x: number; y: number }>;
 	box(): Promise<{ x: number; y: number; w: number; h: number }>;
 	close(): Promise<void>;

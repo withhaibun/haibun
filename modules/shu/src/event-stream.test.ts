@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * The accessor every view reads the stream through: what it does with no stream installed, and what it answers with
+ * The accessor every view reads the stream through: what it does without a stream installed, and what it answers with
  * one. What a stream tells a subscriber is one specification both implementations run against
  * (`event-stream.conformance.test.ts`).
  */
@@ -13,7 +13,7 @@ beforeEach(() => {
 });
 
 describe("eventStream accessor", () => {
-	it("throws with a precise message when no EventStream has been installed", () => {
+	it("throws with a precise message when an EventStream hasn't been installed", () => {
 		expect(() => eventStream()).toThrow(/an EventStream isn't installed/);
 	});
 
@@ -23,7 +23,7 @@ describe("eventStream accessor", () => {
 		expect(eventStream()).toBe(s);
 	});
 
-	it("a page that has ended has no event stream installed", () => {
+	it("a page that has ended doesn't have an event stream installed", () => {
 		setEventStream(new SerializedEventStream());
 		endPage();
 		expect(() => eventStream()).toThrow(/an EventStream isn't installed/);

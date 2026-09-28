@@ -45,14 +45,14 @@ describe("what a saved scene is stored at", () => {
 		expect(storedAccessLevel("public")).toBe("public");
 	});
 
-	it("stores at no level at all when the reader is looking at everything, which nothing can be stored at", () => {
-		// `all` relaxes the READ ceiling; saving under it wrote a record no schema accepts, and the save silently did nothing.
+	it("doesn't store at a level when the reader is looking at everything, which a record can't be stored at", () => {
+		// `all` relaxes the READ ceiling; saving under it wrote a record that the schemas don't accept, and the save silently didn't store it.
 		expect(storedAccessLevel("all")).toBeUndefined();
 	});
 });
 
 describe("scenes", () => {
-	it("captures exactly the options a view remembers, and nothing it does not", () => {
+	it("captures exactly the options a view remembers, and doesn't capture an option it does not", () => {
 		const view = mount();
 		view.set({ overrides: { Email: false }, limit: 25, hovered: "Person" });
 		expect(captureScene([view])).toEqual({ "test-scene-view": { overrides: { Email: false }, limit: 25 } });
@@ -86,7 +86,7 @@ describe("scenes", () => {
 
 describe("the scene every deployment has", () => {
 	/** A site that declares just enough: a request naming who performed it, a step naming what allowed it, and the
-	 *  types those point at. Nothing here is a list of scene members; the scene reads the declarations. */
+	 *  types those point at. The site doesn't list scene members; the scene reads the declarations. */
 	const site = {
 		types: ["HttpRequest", "Endpoint", "SeqPath", "Principal", "Comment", "Email", "Body"],
 		idFields: {},
@@ -133,8 +133,8 @@ describe("the scene every deployment has", () => {
 		});
 	});
 
-	it("says nothing where a site declares nothing of the kind", () => {
+	it("doesn't offer a scene where a site doesn't declare an exchange", () => {
 		setSiteMetadata({ ...site, types: ["Email"], rels: { Email: { subject: "name" } }, edgeRanges: {} } as unknown as SiteMetadata);
-		expect(builtInScenes(), "a deployment with no exchange to show is offered no scene of one").toEqual([]);
+		expect(builtInScenes(), "a deployment without an exchange to show isn't offered a scene of one").toEqual([]);
 	});
 });

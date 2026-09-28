@@ -47,7 +47,7 @@ function readScale(): string {
 	return scaleSetting.get();
 }
 
-/** Set the page's theme. `auto` sets none, so the page follows the OS preference. */
+/** Set the page's theme. `auto` doesn't set a theme, so the page follows the OS preference. */
 function applyTheme(theme: Theme): void {
 	if (theme === "auto") document.documentElement.removeAttribute("data-theme");
 	else document.documentElement.setAttribute("data-theme", theme);
@@ -60,7 +60,7 @@ export function applyShuPreferences(): void {
 }
 
 export class ShuThemeSwitch extends ShuElement<typeof ThemeSwitchSchema> {
-	/** A control, not a view of data, contributes nothing to the Kihan's context. */
+	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}

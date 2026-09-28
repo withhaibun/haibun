@@ -3,7 +3,7 @@
  *
  * Consumed by view-specific projection functions (chain-lint, affordance paths,
  * monitor traces, quad-store visualisations) and rendered by an `IGraphRenderer`
- * implementation. The shape carries no layout information, laying out is the
+ * implementation. The shape doesn't carry layout information, laying out is the
  * renderer's job.
  *
  * Each node belongs to at most one group. Groups can nest via `groups[g].parent`.

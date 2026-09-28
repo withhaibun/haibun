@@ -23,7 +23,7 @@ type TChainWalkerContext = DispatchContext;
  * `stepArgs` for the step about to run; the walker merges those into the
  * instance's `stepArgs` slot before dispatching. Returns either
  *   - the updated instance + the fact ids produced (advanced),
- *   - the instance with status `completed` (no more steps), or
+ *   - the instance with status `completed` (without remaining steps), or
  *   - the instance with status `failed` and an error string.
  */
 export async function advanceChainInstance(ctx: TChainWalkerContext, instanceId: string, stepArgs: Record<string, unknown>): Promise<TChainAdvanceResult> {

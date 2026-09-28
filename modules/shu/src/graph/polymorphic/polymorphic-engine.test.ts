@@ -34,7 +34,7 @@ describe("what each intent does to the engine", () => {
 		const [, ticks] = calls.at(-1) ?? [];
 		expect(typeof ticks).toBe("number");
 		expect(ticks).toBeGreaterThan(0);
-		expect(ticks).toBeLessThan(1000); // brief: sprites reach placed positions, nothing simulates
+		expect(ticks).toBeLessThan(1000); // brief: sprites reach placed positions, the simulation doesn't run
 		g.engineStopped();
 		expect(g.mode).toBe("frozen");
 		expect(calls.at(-1)).toEqual(["cooldownTicks", 0]); // rest pins the cooldown so a visual repool cannot tick past it
@@ -47,12 +47,12 @@ describe("what each intent does to the engine", () => {
 		g.settle();
 		expect(g.engineStopped(), "the settle came to rest").toBe(true);
 		// A visual repool at rest restarts the lib's countdown, which is 0, so the lib reports a stop on its next tick.
-		expect(g.engineStopped(), "a stop at rest ended nothing").toBe(false);
+		expect(g.engineStopped(), "a stop at rest didn't end motion").toBe(false);
 		g.hold();
 		expect(g.engineStopped(), "the hold came to rest").toBe(true);
 		g.hold();
 		g.freeze();
-		expect(g.engineStopped(), "frozen before the stop: it ended nothing").toBe(false);
+		expect(g.engineStopped(), "frozen before the stop: it didn't end motion").toBe(false);
 	});
 
 	it("holds for a tween or drag until frozen", () => {

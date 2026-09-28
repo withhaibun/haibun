@@ -234,15 +234,15 @@ describe("the answer a store of quads gives a graph query", () => {
 
 describe("which division of a span an instant falls in", () => {
 	it("divides by the span, so a span that does not divide evenly still answers with the buckets asked for", () => {
-		// 10 units over 3 buckets: no bucket width is a whole number, and every instant still lands in one of the three.
+		// 10 units over 3 buckets: a bucket width isn't a whole number, and every instant still lands in one of the three.
 		expect([0, 1, 3, 4, 6, 7, 9].map((at) => bucketOf(at, 0, 10, 3))).toEqual([0, 0, 0, 1, 1, 2, 2]);
 	});
 
-	it("puts the end of the span in the last bucket, which nothing after it would otherwise hold", () => {
+	it("puts the end of the span in the last bucket, since a bucket after it doesn't exist to hold it", () => {
 		expect(bucketOf(10, 0, 10, 3)).toBe(2);
 	});
 
-	it("says an instant outside the span is in none", () => {
+	it("says an instant outside the span isn't in a bucket", () => {
 		expect(bucketOf(-1, 0, 10, 3)).toBe(-1);
 		expect(bucketOf(11, 0, 10, 3)).toBe(-1);
 	});
@@ -263,14 +263,14 @@ describe("the level each quad a run holds is written and read at", () => {
 		store = new QuadStore(undefined, undefined, levels);
 	});
 
-	it("returns the run's own facts to no public reader", async () => {
+	it("doesn't return the run's own facts to a public reader", async () => {
 		await store.set("fact-1", "says", "kept", FACTS);
 		expect(await as(publicReader, () => store.query({ namedGraph: FACTS }))).toEqual([]);
 		expect((await store.getClusteredQuads({ perTypeLimit: 10, accessLevel: Access.public })).quads, "nor to a read asking for public").toEqual([]);
 		expect(await as(reader, () => store.get("fact-1", "says", FACTS)), "and to a private reader").toBe("kept");
 	});
 
-	it("writes a record a private reader states no level for at private, where its type is public, and the run's at public", async () => {
+	it("writes at private a record whose level a private reader doesn't state, where its type is public, and the run's at public", async () => {
 		await as(reader, () => store.upsertIndividual(NOTICE, { id: "notice-1", text: "read privately" }));
 		await store.upsertIndividual(NOTICE, { id: "notice-2", text: "the run's" });
 		const read = await as(publicReader, () => store.queryIndividuals<{ id: string; accessLevel: string }>(NOTICE));

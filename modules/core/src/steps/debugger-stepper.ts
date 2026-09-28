@@ -106,7 +106,7 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 		while (continueLoop) {
 			const response = await this.getWorld().prompter.prompt(makePrompt(`${formatSeqPath(featureStep.seqPath)}-${prompt}`, undefined, prompts));
 
-			// If response is undefined (no prompter available), default to 'continue'
+			// If response is undefined (a prompter isn't available), default to 'continue'
 			const responseStr = response === undefined ? "continue" : response.toString();
 
 			try {

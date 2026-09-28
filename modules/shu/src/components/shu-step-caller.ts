@@ -272,7 +272,7 @@ export class StepCaller extends HTMLElement {
 						const requiredMark = required.has(subName) ? "" : "?";
 						// `format` (e.g. "uri", "email", "date-time") wins over the base
 						// `type` so a `z.url()` field shows "uri" rather than "string".
-						// A field with neither is a schema bug: the JSON Schema producer
+						// A field that doesn't have either is a schema bug: the JSON Schema producer
 						// must declare one or the other.
 						const format = (subProp as { format?: string }).format;
 						const typeLabel = format ?? subProp.type;
@@ -469,7 +469,7 @@ export class StepCaller extends HTMLElement {
 		}
 	}
 
-	/** Pick the most readable identifier field for an individual (name > title > label). Returns undefined if no candidate exists. */
+	/** Pick the most readable identifier field for an individual (name > title > label). Returns undefined if a candidate doesn't exist. */
 	private pickNameField(vertexConcern: { properties?: Record<string, unknown> } | undefined): string | undefined {
 		if (!vertexConcern?.properties) return undefined;
 		for (const candidate of ["name", "title", "label", "subject"]) {

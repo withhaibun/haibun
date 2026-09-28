@@ -55,15 +55,15 @@ describe("a step the run is trying, not claiming", () => {
 	it("is what the trying says, not what each step under it remembered to say", async () => {
 		const steps = await ranSteps("tries the refusal");
 		const ran = steps.find((s) => s.in === "runs the refusal");
-		expect(ran?.intent?.mode, "a step that says nothing about intent takes its parent's").toBe("speculative");
+		expect(ran?.intent?.mode, "a step that doesn't state an intent takes its parent's").toBe("speculative");
 	});
 });
 
 describe("a step the run is claiming", () => {
-	it("is marked as claimed when nothing above it was trying anything, so a parent that propagates its failure fails the run", async () => {
+	it("is marked as claimed when the steps above it weren't trying it, so a parent that propagates its failure fails the run", async () => {
 		const steps = await ranSteps("runs the refusal");
 		const refusal = steps.find((s) => s.in === "refuses");
 		expect(refusal?.ok, "the refusal happened here too").toBe(false);
-		expect(refusal?.intent?.mode, "and is the run's own claim, since nothing was trying it out").toBe("authoritative");
+		expect(refusal?.intent?.mode, "and is the run's own claim, since a step wasn't trying it out").toBe("authoritative");
 	});
 });

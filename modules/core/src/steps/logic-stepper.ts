@@ -12,7 +12,7 @@ import { OBSERVATION_GRAPH, queryFacts } from "../lib/working-memory.js";
 // the observation/step-usage named graph. Step names are sanitized (dots → underscores)
 // to avoid variable name conflicts with the "observed in {source}" quantifier output.
 
-/** What a statement run as a maybe ended with, which fails nothing whether or not it passed. */
+/** What a statement run as a maybe ended with, which doesn't fail a step whether or not it passed. */
 const MaybeOutcomeSchema = z.object({ outcome: z.looseObject({ ok: z.boolean() }) });
 const DOMAIN_MAYBE_OUTCOME = "maybe-outcome";
 
@@ -236,8 +236,8 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 				const match = featureStep.in.match(/^some (.*?) (in|observed in) (.*?) is (.*)/);
 				if (!match) return actionNotOK("some: invalid syntax");
 				const [what, connector, sourceOrDomain, quotedStatement] = [itemAt(match, 1), itemAt(match, 2), itemAt(match, 3), itemAt(match, 4)] as const;
-				// A quoted inner statement is the written form; without stripping, the quotes reach the resolver, no gwta
-				// matches, and it resolves as prose that always passes, so the quantifier asserts nothing.
+				// A quoted inner statement is the written form; without stripping, the quotes reach the resolver, a gwta
+				// doesn't match, and it resolves as prose that always passes, so the quantifier doesn't check the statement.
 				const statementStr = this.stripQuotes(quotedStatement.trim());
 
 				const phrase = connector === "observed in" ? `observed in ${sourceOrDomain}` : sourceOrDomain;

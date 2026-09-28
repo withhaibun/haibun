@@ -1,7 +1,7 @@
 // @vitest-environment node
 // What a report carries, driven through the real writer and read back out of the compressed payload it embeds.
 // A report is the page with the run it reports held inside it: the run in the client cache, the site's declarations
-// beside it, and the component bundles of the views that were open. It carries no answers a live page happened to
+// beside it, and the component bundles of the views that were open. It doesn't carry the answers a live page happened to
 // receive, since every read a view makes is answered from what the page holds.
 import { describe, it, expect } from "vitest";
 import type { IStepperCycles } from "@haibun/core/lib/astepper.js";
@@ -98,20 +98,20 @@ describe("serialized report bundles an external component's JS iff its view is u
 		expect((viewScript ?? "").length).toBeGreaterThan(100_000); // the actual bundle, not a stray reference
 	});
 
-	it("OMITS the graph view's bundle when no polymorphic view is shown", async () => {
+	it("OMITS the graph view's bundle when a polymorphic view isn't shown", async () => {
 		const scripts = reportScripts(await generateReport(undefined));
 		expect(scripts.some((s) => s.includes(GRAPH_VIEW))).toBe(false);
 	});
 });
 
-describe("a report carries the run and the site's declarations, and no captured answer", () => {
+describe("a report carries the run and the site's declarations, and doesn't carry a captured answer", () => {
 	it("carries the run's declarations, as a page reads them, and still does when the same run writes a second report", async () => {
 		const declared = (html: string) => (reportHydration(html).cache.registry as { steps: Array<{ method: string }> }).steps.map((step) => step.method);
 		expect(declared(await generateReport(undefined)), "the first report").toContain("MonitorStepper-savesShuTo");
 		expect(declared(await generateReport(undefined, 2)), "and the one written when the run ends").toContain("MonitorStepper-savesShuTo");
 	});
 
-	it("carries what its views showed, and no answer a live page received", async () => {
+	it("carries what its views showed, and doesn't carry an answer a live page received", async () => {
 		const carried = Object.keys(reportHydration(await generateReport(undefined)).viewProducts);
 		expect(
 			carried.filter((k) => k.includes("graphQuery")),
@@ -135,7 +135,7 @@ describe("a report opens on the type the reader was looking at", () => {
 		expect(viewHash(await generateReport(undefined, 1, [queryEvent("GraphStepper", "Email"), queryEvent("GraphStepper", "Person")]))).toContain("label=Person");
 	});
 
-	it("names no type when the run never queried one", async () => {
+	it("doesn't name a type when the run never queried one", async () => {
 		expect(viewHash(await generateReport(undefined))).not.toContain("label=");
 	});
 });

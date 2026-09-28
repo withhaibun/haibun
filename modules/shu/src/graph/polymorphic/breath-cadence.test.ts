@@ -37,7 +37,7 @@ describe("the breath the loop samples", () => {
 		expect(drawn, "one drawn frame per sample, not sixty").toBe(10);
 	});
 
-	it("has no corners for an eye to catch, and returns to where it began", () => {
+	it("doesn't have corners for an eye to catch, and returns to where it began", () => {
 		expect(pulseAt(0)).toBeCloseTo(pulseAt(PULSE_MS), 6);
 		expect(pulseAt(PULSE_MS / 4) - pulseAt(0), "it swells from the start of a cycle").toBeGreaterThan(0);
 	});

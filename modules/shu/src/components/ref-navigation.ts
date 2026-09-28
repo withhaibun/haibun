@@ -67,7 +67,7 @@ export function refHref(kind: TRefKind, linkTarget: Record<string, unknown>): st
 }
 
 /** Follow a click on a link to a pane, in the capture phase at the page's root: the pane opens beside the one the link
- *  was clicked in, and nothing under the link takes the click. A link to anything else is left to the browser. */
+ *  was clicked in, and the elements under the link don't take the click. A link to anything else is left to the browser. */
 export function followPaneLink(e: MouseEvent): void {
 	if (e.button !== 0) return;
 	const link = e.composedPath().find((target): target is HTMLAnchorElement => target instanceof HTMLAnchorElement);
@@ -86,12 +86,12 @@ export function openRef(source: Element | Event, kind: TRefKind, linkTarget: Rec
 }
 
 /** The inline markup for a link to a pane, for a view that renders a string of markup: an anchor whose href is the
- *  pane's address. With no address, the text alone. */
+ *  pane's address. Without an address, the text alone. */
 export function linkHtml(href: string | undefined, text: string, attrs = "", linkClass = "col-link"): string {
 	return href ? `<a class="${linkClass}" href="${escAttr(href)}"${attrs}>${esc(text)}</a>` : esc(text);
 }
 
-/** The text a reference shows when its caller names none: the identifier itself, read out of the target. */
+/** The text a reference shows when its caller doesn't name one: the identifier itself, read out of the target. */
 export function defaultLabel(kind: string | null, targetJson: string | null): string {
 	if (!kind || !targetJson) return "";
 	const target = JSON.parse(targetJson) as Record<string, unknown>;
@@ -112,6 +112,6 @@ export function renderRef(kind: TRefKind, linkTarget: Record<string, unknown>, t
 	const targetJson = JSON.stringify(linkTarget);
 	const display = text ?? defaultLabel(kind, targetJson);
 	// The display text is also child text: a surface where the element is not defined (the sandboxed body iframe)
-	// then shows the text instead of nothing. The defined element's shadow root has no slot, so it never doubles.
+	// then shows the text instead of an empty element. The defined element's shadow root doesn't have a slot, so it never doubles.
 	return `<shu-ref kind="${escAttr(kind)}" linkTarget="${escAttr(targetJson)}" text="${escAttr(display)}">${esc(display)}</shu-ref>`;
 }

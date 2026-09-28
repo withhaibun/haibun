@@ -35,7 +35,7 @@ describe("buildClassifier sorts predicates by their declared rel, never by value
 	it("treats a URL-ranged rel as an edge (URI strings are navigable)", () => {
 		expect(classifier.classify("G", "link")).toBe("edge");
 	});
-	it("defaults to scalar for a predicate with no recognised rel", () => {
+	it("defaults to scalar for a predicate without a recognised rel", () => {
 		expect(classifier.classify("G", "mystery")).toBe("scalar");
 	});
 });

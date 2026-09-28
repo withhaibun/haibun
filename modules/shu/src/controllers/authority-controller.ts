@@ -20,19 +20,19 @@ export type TAuthority = { controller?: string; holds: string[]; grantedBy: Reco
  * calls `read()`; it never assembles the RPC itself.
  *
  * What this page holds is read once, when the page boots, from what was delegated to its key, so a reader is told what
- * they may do even where nothing may be read. The principals are read only by a page that may read.
+ * they may do even where the page may not read. The principals are read only by a page that may read.
  */
 export class AuthorityController implements ReactiveController {
 	constructor(host: ReactiveControllerHost) {
 		host.addController(this);
 	}
 
-	hostConnected(): void {} // read on demand, so a view that never opens its permissions asks nothing
+	hostConnected(): void {} // read on demand, so a view that never opens its permissions doesn't ask
 
 	async read(): Promise<TAuthority> {
 		await getAvailableSteps();
 		const authority = await pageAuthorityReady();
-		// Each action leads to the first delegation that lists it whose record this page may read, so no action offers a
+		// Each action leads to the first delegation that lists it whose record this page may read, so an action doesn't offer a
 		// way to a record the page would be refused.
 		const grantedBy: Record<string, TRecordRef> = {};
 		for (const delegation of authority?.delegations ?? []) {

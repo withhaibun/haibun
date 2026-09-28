@@ -2,8 +2,8 @@
  * Valid time through the polymorphic view's own data path: extractTimes is fed snapshot-shaped quads (one property quad per
  * field, exactly what getClusteredQuads delivers) and its output is what toGraphData maps to depth. These assert the
  * user-visible rule: an object places by its OWN time (an email's received time, a file's date) under the valid
- * basis, by generatedAtTime under the indexed basis, and by generatedAtTime as the fallback when a type declares
- * nothing else, and that the depth ordering the renderer derives from those times flips between the bases.
+ * basis, by generatedAtTime under the indexed basis, and by generatedAtTime as the fallback when a type doesn't declare
+ * another field, and that the depth ordering the renderer derives from those times flips between the bases.
  */
 import { describe, expect, it } from "vitest";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
@@ -52,7 +52,7 @@ describe("polymorphic valid-time placement from snapshot quads", () => {
 
 	it("says when EVERY subject was written down, including one whose valid field is generatedAtTime itself", () => {
 		// The guide reads in creation order from this map. A comment's one time quad answers both questions: its valid
-		// time and its written-down time, and dropping it from `indexed` left the reading with no order but the names.
+		// time and its written-down time, and dropping it from `indexed` left the reading ordered only by the names.
 		const { indexed } = pipelineWith("valid").extractTimes();
 		expect(indexed.get("c1"), "the comment is in the creation order").toEqual({ ms: Date.parse(TODAY), field: GENERATED });
 		expect(indexed.get("e1"), "alongside the types with a valid field of their own").toEqual({ ms: Date.parse(TODAY), field: GENERATED });
@@ -83,7 +83,7 @@ describe("polymorphic valid-time placement from snapshot quads", () => {
 	});
 });
 
-/** The deps toGraphData reads, with one node and no layout of its own; each case states the pins under test. */
+/** The deps toGraphData reads, with one node and without a layout of its own; each case states the pins under test. */
 const placementDeps = (over: Partial<DataPipelineDeps>): DataPipelineDeps =>
 	({
 		viewType: () => "force",
@@ -139,7 +139,7 @@ describe("the depth a graph arriving in pieces places its nodes at", () => {
 		arrive(twoEmails().slice(0, 2), ["e1"]);
 		expect(
 			pipeline.toGraphData().nodes.map((n) => n.z),
-			"one node, one age: nothing to spread",
+			"one node, one age: z isn't spread",
 		).toEqual([0]);
 		arrive(twoEmails(), ["e1", "e2"]);
 		const z = pipeline.toGraphData().nodes.map((n) => n.z as number);

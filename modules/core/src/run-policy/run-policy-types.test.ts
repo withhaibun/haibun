@@ -46,7 +46,7 @@ describe("parseRunPolicyEnv", () => {
 });
 
 describe("accessLevelIncludes", () => {
-	// read ⊂ act ⊂ write: a level includes itself and everything below it, and nothing above.
+	// read ⊂ act ⊂ write: a level includes itself and everything below it, and doesn't include a level above.
 	it.each([
 		["r", "r", true],
 		["a", "r", true],
@@ -83,7 +83,7 @@ describe("featureMatchesFilter", () => {
 	];
 
 	// A file runs when its directory is listed AND the prefix it declares is within the access that directory grants.
-	// Anything else is skipped: an unprefixed file declares nothing, and an unlisted directory grants nothing.
+	// Anything else is skipped: an unprefixed file doesn't declare a prefix, and an unlisted directory doesn't grant access.
 	it.each([
 		["/smoke/r_health.feature", true],
 		["/api/r_list.feature", true],

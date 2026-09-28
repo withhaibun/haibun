@@ -2,13 +2,13 @@
  * The record of how a group of features last ran against the state of what it depends on, and the decision whether
  * to run it again.
  *
- * A run is evidence about that state. A group whose dependencies changed has no run against the state it has now,
+ * A run is evidence about that state. A group whose dependencies changed doesn't have a run against the state it has now,
  * and runs. What a reader of the record does with a run against the present state is the reader's: a person retrying
  * a group skips one that passed and runs one that failed, since a failure is what one retries; an agent is refused
  * either, since a second run over unchanged features is a loop. The record is kept beside the group's configuration
  * and is about the working tree it was written in, so it is that tree's alone and not committed.
  *
- * A run of statements, or a rehearsal, verifies the group against nothing, and neither reads the record nor writes
+ * A run of statements, or a rehearsal, doesn't verify the group against a state, and doesn't read the record or write
  * it. A run narrowed to some of the features, run under a policy, or given steppers beyond its configuration is
  * recorded under those conditions, as a run of its own.
  */
@@ -23,7 +23,7 @@ import { VERIFIED_FILE, dependencyRoots, dependencyState } from "@haibun/core/li
 export type TOutcome = "passed" | "failed";
 
 /** A recorded run: against which state, how it went, how many features it ran, and the features it was narrowed to.
- *  Keyed by the run's own conditions. Nothing that varies between two runs of one state is kept, so a record changes
+ *  Keyed by the run's own conditions. A value that varies between two runs of one state isn't kept, so a record changes
  *  only when what it records does. */
 type TVerifiedRecord = Record<string, { state: string; outcome: TOutcome; features: number; filter: string }>;
 
@@ -42,7 +42,7 @@ type TRunConditions = {
 	withSteppers?: readonly string[];
 };
 
-/** Options that vary per run without changing what runs or what it shows, so they are no part of what a run is
+/** Options that vary per run without changing what runs or what it shows, so they aren't part of what a run is
  *  recorded against: the run's key, its description, and whether it stays up afterwards. */
 const PER_RUN_OPTIONS = new Set(["KEY", "DESCRIPTION", "STAY"]);
 
@@ -81,7 +81,7 @@ type TVerification = {
 };
 
 /** The state a group would be verified against now: its dependencies and their content, keyed by this run's conditions.
- *  Undefined where the state cannot be read, so such a run is a run like any other, recorded against nothing. */
+ *  Undefined where the state cannot be read, so such a run is a run like any other, and isn't recorded against a state. */
 export function verificationOf(c: TRunConditions): TVerification | undefined {
 	const configDir = path.dirname(path.resolve(c.configPath));
 	const roots = dependencyRoots(c.specl, c.bases, configDir, c.cwd);
@@ -98,7 +98,7 @@ function readRecord(file: string): TVerifiedRecord {
 const writeRecord = (file: string, record: TVerifiedRecord): void => nodeFS.writeFileSync(file, `${JSON.stringify(record, null, "\t")}\n`);
 
 /** How this group last ran against its present state under these conditions, if it has run against it. A record that
- *  does not say how the run went is no record of a run. */
+ *  does not say how the run went isn't a record of a run. */
 export function outcomeAgainst(v: TVerification): { outcome: TOutcome; features: number } | undefined {
 	const held = readRecord(v.file)[v.conditions];
 	if (!held || held.state !== v.state || (held.outcome !== "passed" && held.outcome !== "failed")) return undefined;
@@ -112,7 +112,7 @@ export function recordOutcome(v: TVerification, outcome: TOutcome, features: num
 	writeRecord(v.file, record);
 }
 
-/** Forget any run under these conditions: a run that did not get as far as its features says nothing about the state. */
+/** Forget any run under these conditions: a run that did not get as far as its features isn't evidence about the state. */
 export function forgetOutcome(v: TVerification): void {
 	const record = readRecord(v.file);
 	if (!(v.conditions in record)) return;

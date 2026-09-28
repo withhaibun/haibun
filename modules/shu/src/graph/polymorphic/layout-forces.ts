@@ -8,7 +8,7 @@ import { ellipsize } from "@haibun/core/lib/util/index.js";
 
 export const CHARGE = -90;
 export const GROUPED_CHARGE = -45;
-// Ungrouped, a gentle pull toward the origin so the layout can't grow without bound: disconnected nodes (no links, no
+// Ungrouped, a gentle pull toward the origin so the layout can't grow without bound: disconnected nodes (without links or
 // group cohesion) would otherwise repel each other off-frame forever. Weak enough not to distort connected structure,
 // strong enough to keep the whole graph within a fixed camera, so the view never has to chase it by zooming.
 export const CONTAIN_STRENGTH = 0.05;

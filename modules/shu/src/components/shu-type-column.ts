@@ -21,7 +21,7 @@ import { renderRefProse } from "../markdown-refs.js";
 import { arrayWindowedSource, readWindowedSource, type WindowedSource } from "../windowed-source.js";
 
 /** How many of a type's individuals one read answers. The column lists every individual the type has, a page at a time
- *  as a reader reaches it, rather than the first page with nothing to say the rest are there. */
+ *  as a reader reaches it, rather than the first page without a statement that the rest are there. */
 const INSTANCES_PAGE = 100;
 
 /** A `#Type` link resolves against the site's own declared types: the same test every ref surface uses. */
@@ -142,11 +142,11 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 	async open(persistedAs: string): Promise<void> {
 		// Surface the subject: in the ontology projection a Class node's id IS the persistedAs, so a graph view drawing
 		// the schema can find this type by it. It is not published on the selection axis, which names a record the store
-		// holds: a Class is a projection of the registry and no record, and naming one there asks every reader of that
+		// holds: a Class is a projection of the registry and isn't a record, and naming one there asks every reader of that
 		// axis for a record of a type that does not exist.
 		this.setState({ persistedAs, loading: true, error: undefined });
-		// An ask from here is about the type: its members. This column holds a type and no id, so `aType` is the
-		// only thing it can say, and no query-surface label is offered, since a schema view has none to give.
+		// An ask from here is about the type: its members. This column holds a type without an id, so `aType` is the
+		// only thing it can say, and it doesn't offer a query-surface label, since a schema view doesn't have one to give.
 		this.dispatchEvent(
 			new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, {
 				detail: { patterns: [aType(persistedAs)], accessLevel: appAccessLevel() },
@@ -154,8 +154,8 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 				composed: true,
 			}),
 		);
-		// No individuals to list: a referenced-but-undefined class (e.g. prov:Agent, reachable via subClassOf but with no
-		// registered topology) has none and would fail a graphQuery with "Unknown label"; and a registered schema presenter
+		// The column doesn't list individuals: a referenced-but-undefined class (e.g. prov:Agent, reachable via subClassOf but without a
+		// registered topology) doesn't have any and would fail a graphQuery with "Unknown label"; and a registered schema presenter
 		// lists individuals in its own tab, so the column shows only the schema position (description + scoped schema graph).
 		if (!getTypes().includes(persistedAs) || ShuTypeColumn.schemaPresenter() !== undefined) {
 			this.#instances = arrayWindowedSource<VertexData>([]);
@@ -187,7 +187,7 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 		this.autoListen(this, SHU_EVENT.GRAPH_NODE_CLICK, this.onSchemaNodeClick);
 	}
 
-	/** A schema node opens the view its link addresses; a press on the graph's background opens nothing. */
+	/** A schema node opens the view its link addresses; a press on the graph's background doesn't open a view. */
 	private onSchemaNodeClick = (e: Event): void => {
 		const node = (e as CustomEvent<{ node: TSchemaNode | null }>).detail.node;
 		if (!node) return;
@@ -254,7 +254,7 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 		const desc = getTypeDescription(type) ?? domain?.description;
 		// The site's declared schema presenter (scoped by focusType), projected from light DOM through the slot;
 		// standalone falls back to the static SVG, rebuilt per render: a light pure projection of the metadata cache,
-		// so no stored copy to fall stale.
+		// so it doesn't keep a stored copy that could fall stale.
 		const hasPresenter = ShuTypeColumn.schemaPresenter() !== undefined;
 		const persisted = getTypes().includes(type);
 		const graphView = hasPresenter

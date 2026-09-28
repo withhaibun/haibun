@@ -19,17 +19,17 @@ describe("groupKeyOf", () => {
 		expect(groupKeyOf({ type: "Email", properties: { [HYPERMEDIA_ROLE_KEY]: "did:web:x" } })).toBe("Email");
 	});
 
-	it("keys by the agent at ANY actor predicate: the axis string IS the predicate, nothing enumerates it", () => {
+	it("keys by the agent at ANY actor predicate: the axis string IS the predicate, and the code doesn't enumerate it", () => {
 		const vc = { type: "Record", properties: { maker: "did:web:maker", keeper: "did:web:keeper" } };
 		expect(groupKeyOf(vc, "maker")).toBe("did:web:maker"); // group by a SPECIFIC actor, not the winner
 		expect(groupKeyOf(vc, "keeper")).toBe("did:web:keeper");
 	});
 
-	it("keys by the serving site (the federation stamp) with no code branch for it", () => {
+	it("keys by the serving site (the federation stamp) without a code branch for it", () => {
 		expect(groupKeyOf({ type: "Email", properties: { [SITE_KEY]: "did:site:imap.1" } }, SITE_KEY)).toBe("did:site:imap.1");
 	});
 
-	it("buckets a node with no value at the chosen axis as unattributed", () => {
+	it("buckets a node without a value at the chosen axis as unattributed", () => {
 		expect(groupKeyOf({ type: "Email", properties: {} }, SITE_KEY)).toBe(UNATTRIBUTED_ROLE);
 	});
 });
@@ -41,17 +41,17 @@ describe("containerLabelOf", () => {
 	it("resolves the party's display label under the role axis", () => {
 		expect(containerLabelOf("did:web:maker", "role", new Map([["did:web:maker", "Coastal Fisheries Authority"]]))).toBe("Coastal Fisheries Authority");
 	});
-	it("falls back to the key when no label is known", () => {
+	it("falls back to the key when a label isn't known", () => {
 		expect(containerLabelOf("did:web:x", "role", new Map())).toBe("did:web:x");
 	});
 });
 
 describe("ringAnchors", () => {
-	it("returns an empty map for no groups", () => {
+	it("returns an empty map for an empty group list", () => {
 		expect(ringAnchors([], 50).size).toBe(0);
 	});
 
-	it("places a single group at the origin (nothing to separate)", () => {
+	it("places a single group at the origin (a single group doesn't need separation)", () => {
 		expect(ringAnchors(["A"], 50).get("A")).toEqual({ x: 0, y: 0 });
 	});
 
@@ -68,7 +68,7 @@ describe("ringAnchors", () => {
 	});
 });
 
-describe("shelfPack, compact rectangle packing on real {w,h} (no isotropic blow-up)", () => {
+describe("shelfPack, compact rectangle packing on real {w,h} (without isotropic blow-up)", () => {
 	const GAP = 80;
 	// A mix of tall-thin, square, tiny, and C: one VERY WIDE, SHORT container (the long-base64-id case).
 	const sizes = new Map([
@@ -89,7 +89,7 @@ describe("shelfPack, compact rectangle packing on real {w,h} (no isotropic blow-
 	const boxes = () => keys.map((k) => box(k));
 	const span = (sel: (b: ReturnType<typeof box>) => number, lo: boolean) => (lo ? Math.min(...boxes().map(sel)) : Math.max(...boxes().map(sel)));
 
-	it("an empty map packs to nothing; a single container sits at the origin", () => {
+	it("an empty map packs to an empty map; a single container sits at the origin", () => {
 		expect(shelfPack(new Map(), GAP).size).toBe(0);
 		expect(shelfPack(new Map([["only", { w: 100, h: 20 }]]), GAP).get("only")).toEqual({ x: 0, y: 0 });
 	});

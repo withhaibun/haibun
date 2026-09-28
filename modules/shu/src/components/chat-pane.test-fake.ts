@@ -2,7 +2,7 @@
  * The page a pane test drives the Ask pane on.
  *
  * Two test files drive the pane, and each needs the same page around it: a step registry answering without a server,
- * no extension tags, no view to harvest, and a conduit reached the way the pane and the conversation reach one. Only the
+ * a page without extension tags or a view to harvest, and a conduit reached the way the pane and the conversation reach one. Only the
  * answers differ between cases, so only the answers are written per case, and a change to how the page reaches the
  * server is one edit rather than two.
  */
@@ -14,7 +14,7 @@ export type TReq = { method: string; params?: Record<string, unknown> };
 export type TFollow = (req: TReq) => unknown;
 export type TStream = (req: TReq, onChunk: (chunk: unknown) => void, opts: { onStart?: (seqPath: number[]) => void; signal?: AbortSignal }) => Promise<void>;
 
-/** The step registry as a page with no server holds it: every step is named by itself. */
+/** The step registry as a page without a server holds it: every step is named by itself. */
 export const rpcRegistry = { getAvailableSteps: () => Promise.resolve(), findStep: (n: string) => n, requireStep: (n: string) => n };
 
 /** The hypermedia module, answering each read and each stream the way the case states. */

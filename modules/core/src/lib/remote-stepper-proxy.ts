@@ -57,7 +57,7 @@ export class RemoteStepperProxy extends AStepper {
 	}
 
 	/** Read every step the remote host offers this process, through the step every caller reads a run's declarations by:
-	 *  signed like any other call, so the host shows the steps this process holds there and no others. */
+	 *  signed like any other call, so the host shows the steps this process holds there and doesn't show others. */
 	private async fetchStepDescriptors(): Promise<void> {
 		const result = await this.rpc.call<Record<string, unknown>>(SHOW_STEPS_METHOD, EVERY_DEFINITION, [], { action: SHOW_STEPS_ACTION });
 		if ("error" in result) {
@@ -90,8 +90,8 @@ export class RemoteStepperProxy extends AStepper {
 		registry.inject(tools);
 	}
 
-	/** Call a step on the remote host via shared RpcClient, invoking the capability it declares. A step that declares no
-	 *  products answers with none, whatever the answer carries in their place. */
+	/** Call a step on the remote host via shared RpcClient, invoking the capability it declares. A step that doesn't declare
+	 *  products doesn't return them, whatever the answer carries in their place. */
 	private async call(descriptor: TStepDescriptor, params: Record<string, unknown>, seqPath: number[]): Promise<TActionResult> {
 		const { method, capability } = descriptor;
 		const result = await this.rpc.call<Record<string, unknown>>(method, params, seqPath, { action: capability });
@@ -102,12 +102,12 @@ export class RemoteStepperProxy extends AStepper {
 		return answersWithProducts ? { ok: true, products: result as Record<string, unknown> } : { ok: true };
 	}
 
-	/** IStepTransport.attach: duck-typed, no import needed from web-server-hono. */
+	/** IStepTransport.attach: duck-typed, so it doesn't need an import from web-server-hono. */
 	attach(registry: StepRegistry, _webserver: unknown): void {
 		this.injectInto(registry);
 	}
 
-	/** IStepTransport.detach: nothing to clean up for HTTP transport. */
+	/** IStepTransport.detach: HTTP transport doesn't hold a resource that needs cleanup. */
 	detach(): void {
 		/* no-op */
 	}

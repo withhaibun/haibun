@@ -8,7 +8,7 @@ import { stepInFlight } from "./capability-context.js";
 import { blipDeclared } from "./blips.js";
 
 /**
- * Record an occurrence onto the event bus. With nothing subscribed to this name this is one check and a return:
+ * Record an occurrence onto the event bus. Where a subscriber doesn't watch this name, this is one check and a return:
  * the reason a hot path can record unconditionally. With a matching subscriber, the name must be declared and the
  * attributes must match the declared shape.
  */

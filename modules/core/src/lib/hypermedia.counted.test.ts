@@ -3,7 +3,7 @@
  *
  * Counting every record of a type is work that grows with the records, so a read counts to a ceiling and stops. A
  * reader told only the number cannot tell a total that reached the end from one that stopped, and states a number
- * nothing counted. These state the two apart.
+ * that wasn't counted. These state the two apart.
  */
 import { describe, it, expect } from "vitest";
 import { CountedSchema, counted, countedTo } from "./hypermedia.js";
@@ -29,6 +29,6 @@ describe("a count a read answers with", () => {
 
 	it("refuses a count that says how many without saying whether it reached the end", () => {
 		expect(() => CountedSchema.parse({ total: 12 })).toThrow();
-		expect(() => CountedSchema.parse({ total: -1, saturated: false }), "a count of fewer than none is no count").toThrow();
+		expect(() => CountedSchema.parse({ total: -1, saturated: false }), "a count below zero isn't a count").toThrow();
 	});
 });

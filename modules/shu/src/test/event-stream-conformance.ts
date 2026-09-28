@@ -28,7 +28,7 @@ type TStreamUnderTest = {
 const event = (n: number): TEvent => ({ level: n % 2 === 0 ? "info" : "debug", message: `event ${n}` });
 const messages = (got: TEvent[]): string[] => got.map((e) => String(e.message));
 
-/** Run the specification against one stream. `make` returns a connected stream with nothing delivered yet. */
+/** Run the specification against one stream. `make` returns a connected stream that hasn't delivered an event yet. */
 export function describeEventStream(name: string, make: () => TStreamUnderTest | Promise<TStreamUnderTest>): void {
 	describe(`the event stream (${name})`, () => {
 		let held: TStreamUnderTest;
@@ -71,7 +71,7 @@ export function describeEventStream(name: string, make: () => TStreamUnderTest |
 			expect(messages(got)).toEqual(["event 2", "event 4"]);
 		});
 
-		it("tells a handler nothing after it unsubscribes, and keeps telling the others", async () => {
+		it("doesn't tell a handler after it unsubscribes, and keeps telling the others", async () => {
 			const first: TEvent[] = [];
 			const second: TEvent[] = [];
 			const stop = stream.subscribe((e) => first.push(e));
@@ -97,7 +97,7 @@ export function describeEventStream(name: string, make: () => TStreamUnderTest |
 			expect(told).toBe(1);
 		});
 
-		it("tells a listener that starts after the break that the stream is down, so no view believes it is current", async () => {
+		it("tells a listener that starts after the break that the stream is down, so a view doesn't present itself as current", async () => {
 			await held.breakStream();
 			let told = 0;
 			stream.disconnected(() => told++);
@@ -123,7 +123,7 @@ export function describeEventStream(name: string, make: () => TStreamUnderTest |
 			expect(told).toBe(2);
 		});
 
-		it("tells a listener that starts while the stream is down nothing until it opens", async () => {
+		it("tells a listener that starts while the stream is down only once it opens", async () => {
 			await held.breakStream();
 			let told = 0;
 			stream.opened(() => told++);
@@ -132,7 +132,7 @@ export function describeEventStream(name: string, make: () => TStreamUnderTest |
 			expect(told).toBe(1);
 		});
 
-		it("tells a listener nothing about the connection after it unsubscribes", async () => {
+		it("doesn't tell a listener about the connection after it unsubscribes", async () => {
 			let broke = 0;
 			let returned = 0;
 			stream.disconnected(() => broke++)();
@@ -144,7 +144,7 @@ export function describeEventStream(name: string, make: () => TStreamUnderTest |
 			expect([broke, returned, opened]).toEqual([0, 0, 1]);
 		});
 
-		it("tells nothing to any subscriber once it is closed", async () => {
+		it("doesn't tell a subscriber an event once it is closed", async () => {
 			const got: TEvent[] = [];
 			stream.subscribe((e) => got.push(e));
 			stream.close();

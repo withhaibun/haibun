@@ -115,7 +115,7 @@ describe("shu-graph-filter host modes", () => {
 		expect(box.checked, "the soloed property stays shown").toBe(true);
 	});
 
-	it("a schema-only host offers ONLY the Class + Property chips and no instance-data controls", async () => {
+	it("a schema-only host offers ONLY the Class + Property chips and doesn't offer instance-data controls", async () => {
 		const el = await mount(true);
 		expect(chipsOf(el).sort()).toEqual([ONTOLOGY_CLASS, ONTOLOGY_PROPERTY]);
 		expect(el.shadowRoot?.querySelector(`[data-testid='${SHU_TEST_IDS.GRAPH_FILTER.LIMIT_VALUE}']`)).toBeNull();

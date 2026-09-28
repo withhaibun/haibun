@@ -2,8 +2,8 @@
  * What a page may record about itself, declared once for both sides of the bridge, as the view vocabulary is.
  *
  * A page's main thread runs its scripts, its rendering and its input, one after another. A frame that holds it long
- * delays every keystroke and click behind it, and a profile of a slow page is mostly the browser's own work, which no
- * script's timing shows. The browser reports each such frame as a long animation frame, with how long it blocked input,
+ * delays every keystroke and click behind it, and a profile of a slow page is mostly the browser's own work, which a
+ * script's timing doesn't show. The browser reports each such frame as a long animation frame, with how long it blocked input,
  * how much of it went to rendering, and the scripts that ran in it. The page records each one here, attributed to its
  * longest script, so a run reads what held a page and where, without a profiler attached. `long-frames.ts` records them.
  */
@@ -13,7 +13,7 @@ import { declareBlips, type TBlipDeclaration } from "@haibun/core/lib/blips.js";
 /** A frame held the page's main thread past the browser's long-frame threshold: `value` is the frame's duration. */
 export const PAGE_LONG_FRAME_BLIP = "haibun.shu.page.long_frame";
 
-/** The script a frame is attributed to where no script ran in it: the browser's own rendering held it. */
+/** The script a frame is attributed to where a script didn't run in it: the browser's own rendering held it. */
 export const RENDERING_ONLY = "(rendering)";
 
 const PAGE_BLIPS: TBlipDeclaration[] = [

@@ -1,15 +1,15 @@
 /**
- * What a capability covers: the calls a step makes, and nothing that outlives it.
+ * What a capability covers: the calls a step makes. It doesn't cover work that outlives it.
  *
  * The async context carries the capability down a call chain, which is what makes a step dispatched from inside
  * another run under the same authority. The same mechanism would carry it into work started during a step and left
- * running, so anything that ticks on its own runs with none.
+ * running, so work that ticks on its own runs without one.
  */
 import { describe, expect, it } from "vitest";
 import { authorizedWith, readingAt, runAuthorizedWith, runReadingAt, runShowing, shownTo } from "./capability-context.js";
 
 describe("the capability a step runs under", () => {
-	it("is nothing outside a dispatch", () => {
+	it("is undefined outside a dispatch", () => {
 		expect(authorizedWith()).toBeUndefined();
 	});
 
@@ -28,7 +28,7 @@ describe("the capability a step runs under", () => {
 
 	it("is not carried by work started during a step and left to run", async () => {
 		let ticked: string | string[] | undefined = "unset";
-		// What a ticker does: schedule work that outlives the step, and run it with no capability of its own.
+		// What a ticker does: schedule work that outlives the step, and run it without a capability of its own.
 		await runAuthorizedWith("Instance:run", () => {
 			setTimeout(() => void runAuthorizedWith(undefined, () => Promise.resolve(void (ticked = authorizedWith()))), 1);
 			return Promise.resolve();
@@ -46,7 +46,7 @@ describe("the capability a step runs under", () => {
 });
 
 describe("the steps a listing shows", () => {
-	it("are those the caller holds, where it acts for no one else", async () => {
+	it("are those the caller holds, where it doesn't act for another caller", async () => {
 		expect(await runAuthorizedWith("Read:public", () => Promise.resolve(shownTo()))).toBe("Read:public");
 	});
 
@@ -59,9 +59,9 @@ describe("the steps a listing shows", () => {
 });
 
 describe("the ceiling a read runs under", () => {
-	it("is what the boundary set, and nothing outside one is bounded", async () => {
-		expect(readingAt(), "a feature line in its own run is bounded by nothing of its own").toBeUndefined();
-		// biome-ignore lint/suspicious/useAwait: runReadingAt takes a () => Promise<T>, and the scope has nothing to wait on
+	it("is what the boundary set, and a read outside one isn't bounded", async () => {
+		expect(readingAt(), "a feature line in its own run isn't bounded by a ceiling of its own").toBeUndefined();
+		// biome-ignore lint/suspicious/useAwait: runReadingAt takes a () => Promise<T>, and the scope doesn't await a promise
 		await runReadingAt("public", async () => {
 			expect(readingAt()).toBe("public");
 		});
@@ -72,17 +72,17 @@ describe("the ceiling a read runs under", () => {
 		// A model turn runs its tool calls under the level its context resolved at, inside the ceiling the web boundary set
 		// for the caller. The turn's level may be wider than the caller's, and a read inside the turn stays within both.
 		await runReadingAt("opened", async () => {
-			// biome-ignore lint/suspicious/useAwait: runReadingAt takes a () => Promise<T>, and the scope has nothing to wait on
+			// biome-ignore lint/suspicious/useAwait: runReadingAt takes a () => Promise<T>, and the scope doesn't await a promise
 			await runReadingAt("private", async () => {
 				expect(readingAt(), "asking for more than the ceiling reads at the ceiling").toBe("opened");
 			});
-			// biome-ignore lint/suspicious/useAwait: runReadingAt takes a () => Promise<T>, and the scope has nothing to wait on
+			// biome-ignore lint/suspicious/useAwait: runReadingAt takes a () => Promise<T>, and the scope doesn't await a promise
 			await runReadingAt("public", async () => {
 				expect(readingAt(), "asking for less reads at less").toBe("public");
 			});
-			// biome-ignore lint/suspicious/useAwait: runReadingAt takes a () => Promise<T>, and the scope has nothing to wait on
+			// biome-ignore lint/suspicious/useAwait: runReadingAt takes a () => Promise<T>, and the scope doesn't await a promise
 			await runReadingAt(undefined, async () => {
-				expect(readingAt(), "stating nothing keeps the ceiling in force").toBe("opened");
+				expect(readingAt(), "not stating a level keeps the ceiling in force").toBe("opened");
 			});
 		});
 	});

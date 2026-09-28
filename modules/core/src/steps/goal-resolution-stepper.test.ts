@@ -13,7 +13,7 @@ import { ActivitiesStepper } from "./activities-stepper.js";
 import { DOMAIN_USER_NAME } from "../lib/domains.js";
 
 const DOMAIN_AUTH_SESSION = "domain-auth-session-test";
-/** A domain this test registers and no step produces, so `resolve` has something registered but unreachable to answer about. */
+/** A domain this test registers and the steps don't produce, so `resolve` has something registered but unreachable to answer about. */
 const DOMAIN_UNPRODUCED = "unproduced-test";
 const DOMAIN_COMPOSITE_GOAL = "composite-goal-test";
 const DOMAIN_COMPOSITE_INPUT = "composite-input-test";
@@ -89,8 +89,8 @@ class CompositeStepper extends AStepper implements IHasCycles {
 describe("GoalResolutionStepper, integration via passWithDefaults", () => {
 	const steppers = [VariablesStepper, GoalResolutionStepper, AuthStepper, LogicStepper];
 
-	it("resolve returns unreachable for a goal no producer can derive", async () => {
-		// A domain key this test registers (see DOMAIN_UNPRODUCED above) that no loaded step produces.
+	it("resolve returns unreachable for a goal that a producer can't derive", async () => {
+		// A domain key this test registers (see DOMAIN_UNPRODUCED above) that the loaded steps don't produce.
 		const feature = {
 			path: "/features/howto-unreachable.feature",
 			content: `set goalResolution from resolve "unproduced-test"
@@ -131,7 +131,7 @@ variable affordances exists`,
 		expect(result.ok).toBe(true);
 	});
 
-	it("affordances on offer answers what show affordances shows, and is a read: asked of a running instance it shows nothing and is not recorded", async () => {
+	it("affordances on offer answers what show affordances shows, and is a read: asked of a running instance it isn't shown and isn't recorded", async () => {
 		const stepper = new GoalResolutionStepper();
 		expect(stepper.steps.affordancesOnOffer.read).toBe(true);
 		expect(stepper.steps.affordancesOnOfferAsOf.read).toBe(true);
@@ -155,7 +155,7 @@ variable affordances exists`,
 		expect(named).toEqual([firstFeature, firstFeature]);
 	});
 
-	it("announces a change after an act and none after a read, since a read changes nothing and the panel's own re-fetch is one", async () => {
+	it("announces a change after an act and doesn't announce one after a read, since a read doesn't change a record and the panel's own re-fetch is one", async () => {
 		const stepper = new GoalResolutionStepper();
 		const world = getDefaultWorld();
 		await stepper.setWorld(world, [stepper]);
@@ -165,7 +165,7 @@ variable affordances exists`,
 			runInStep({ seqPath: "0.1", reportsAt: undefined }, () => stepper.cycles.afterStep?.({ featureStep: { action: { step } }, actionResult: { ok: true } } as never));
 		await after(stepper.steps.affordancesOnOffer);
 		await after(stepper.steps.affordancesOnOfferAsOf);
-		expect(announced, "a read announces nothing, or the panel reading would announce a change to read again for, without bound").toEqual([]);
+		expect(announced, "a read doesn't announce a change, or the panel reading would announce a change to read again for, without bound").toEqual([]);
 		await after({ gwta: "an act", action: () => Promise.resolve(actionOKWithProducts({})) });
 		expect(announced).toEqual(["affordances.0.1"]);
 	});
@@ -186,7 +186,7 @@ variable affordances.waypoints.0.outcome is "Logged in"`,
 	});
 
 	describe("pursue {goal}, A1 idempotent goal-driven execution", () => {
-		it("pursue on a satisfied goal is a no-op: returns finding=satisfied, no execution side-effect", async () => {
+		it("pursue on a satisfied goal is a no-op: returns finding=satisfied, without an execution side-effect", async () => {
 			const feature = {
 				path: "/features/pursue-satisfied.feature",
 				content: `sign in as "alice"
@@ -200,7 +200,7 @@ variable second.finding is "satisfied"`,
 		});
 
 		it("pursue refuses when the michi has argument bindings the caller hasn't supplied, naming what's needed", async () => {
-			// AuthSession's producer (`sign in as {subject}`) takes a string argument with no fact backing, so a fresh world has finding=michi and pursue must refuse rather than guess.
+			// AuthSession's producer (`sign in as {subject}`) takes a string argument without a fact backing it, so a fresh world has finding=michi and pursue must refuse rather than guess.
 			const feature = {
 				path: "/features/pursue-needs-arg.feature",
 				content: `not pursue "${DOMAIN_AUTH_SESSION}"`,
@@ -210,7 +210,7 @@ variable second.finding is "satisfied"`,
 		});
 
 		it("a walk runs the very path pursue refuses, one step at a time, with what that step needs", async () => {
-			// The auth session's producer takes an argument no fact supplies, which is why pursue refuses it. A walk is how
+			// The auth session's producer takes an argument that a fact doesn't supply, which is why pursue refuses it. A walk is how
 			// such a path is run: it is begun, it says what it still needs, and it is advanced with that.
 			const feature = {
 				path: "/features/walk-with-an-argument.feature",

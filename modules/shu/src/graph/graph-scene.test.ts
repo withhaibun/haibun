@@ -18,7 +18,7 @@ describe("graph-scene vocabulary (backend-neutral, fail-fast)", () => {
 	});
 
 	it("requires box marks to carry a finite, non-negative zExtent", () => {
-		expect(() => assertNodeMark(mark({ kind: "box" }))).toThrow(/box requires/); // no zExtent
+		expect(() => assertNodeMark(mark({ kind: "box" }))).toThrow(/box requires/); // without zExtent
 		expect(() => assertNodeMark(mark({ kind: "box", zExtent: -1, role: { kind: "time", start: 0, end: 1 } }))).toThrow(/box requires/);
 	});
 

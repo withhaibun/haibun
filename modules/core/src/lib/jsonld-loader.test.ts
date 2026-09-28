@@ -15,7 +15,7 @@ describe("jsonld-loader, local registry with opt-in network", () => {
 		expect((await documentLoader("urn:doc")).document).toEqual({ from: "context" });
 	});
 
-	it("uses the injected network resolver only for URLs absent from the registry, and throws when none is set", async () => {
+	it("uses the injected network resolver only for URLs absent from the registry, and throws when one isn't set", async () => {
 		registerContext("urn:local", { local: true });
 		await expect(documentLoader("urn:remote")).rejects.toThrow(/a network resolver isn't enabled/i);
 		setNetworkResolver(async (url) => ({ contextUrl: null, documentUrl: url, document: { remote: true } }));

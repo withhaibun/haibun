@@ -42,7 +42,7 @@ export const SHU_TEST_IDS = {
 		STEP_SELECT: "app-step-select",
 		MODE_SELECT: "app-mode-select",
 		MODEL_SELECT: "app-model-select",
-		/** In the chat's settings where the run offers no model: that it offers none. */
+		/** In the chat's settings where the run doesn't offer a model: that it doesn't offer one. */
 		NO_MODELS: "app-no-models",
 		TYPE_SELECT: "app-type-select",
 		FOLDER_SELECT: "app-folder-select",
@@ -213,7 +213,7 @@ export const SHU_TEST_IDS = {
 		/** One source's row: this prefix and its level, then `-events`, `-first`, `-newest`, `-page`, `-cached`,
 		 *  `-cached-rows`, `-cursor`, or what it is doing: `-loading` before its first read, `-disconnected` while the
 		 *  stream is down, `-behind` from an announcement until a read begun after it has finished, `-loaded` when it has
-		 *  read and nothing announced is unread, `-ended`, `-unavailable`. A feature waits for the state, never for a
+		 *  read and every announcement is read, `-ended`, `-unavailable`. A feature waits for the state, never for a
 		 *  length of time. */
 		SOURCE: "client-cache-source-",
 		/** One held execution's row: this prefix and its id, then `-features`, `-reading`, `-began`, `-newest`, `-read`, or

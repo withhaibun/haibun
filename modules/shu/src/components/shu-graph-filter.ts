@@ -47,7 +47,7 @@ const StateSchema = z.object({
 });
 
 export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
-	/** A control, not a view of data, contributes nothing to the Kihan's context. */
+	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
@@ -81,7 +81,7 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		return this.dataset.persistScope ?? "";
 	}
 
-	/** Hosts read this before their first fetch so the persisted overrides apply on initial load (no double round-trip).
+	/** Hosts read this before their first fetch so the persisted overrides apply on initial load (without a second round-trip).
 	 * Reads the same persistFields store the instance restores from (per `scope`, matching `data-persist-scope`). Hosts
 	 * combine these overrides with the instrumentation-default predicate via `effectiveHiddenTypes`: the default is
 	 * never persisted here. */
@@ -258,8 +258,8 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 			...(c.totalCount > 0 ? { count: c.totalCount } : {}),
 		});
 		// A schema-scoped host (`data-schema-only`, the class browser) filters the vocabulary itself: the legend carries
-		// only the Class + Property chips. The instance-data controls are absent: they have no subject when no instance
-		// type is offered.
+		// only the Class + Property chips. The instance-data controls are absent: they don't have a subject when the host doesn't offer an
+		// instance type.
 		if (this.dataset.schemaOnly !== undefined)
 			return this.rows([
 				html`<shu-chip-group name="schema" .chips=${clusters.filter((c) => isSchemaType(c.type)).map(typeChip)} .onToggle=${this.onChipToggle} .onPreview=${this.onChipPreview}></shu-chip-group>`,

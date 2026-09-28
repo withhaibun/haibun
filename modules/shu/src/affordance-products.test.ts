@@ -59,7 +59,7 @@ describe("parseAffordanceProduct", () => {
 		expect(parseAffordanceProduct(product)).toEqual({ kind: "none" });
 	});
 
-	it("rejects a component product that has neither `id` nor `view`", () => {
+	it("rejects a component product that doesn't have `id` or `view`", () => {
 		const product = { [HYPERMEDIA.TYPE]: "view", _component: "shu-polymorphic-graph-view" };
 		expect(() => parseAffordanceProduct(product)).toThrow(/requires string id or view/);
 	});

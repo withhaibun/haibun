@@ -1,11 +1,11 @@
 /**
- * The part of the ZCAP-LD HTTP binding a reader's page uses, declared because the package publishes no types and only
+ * The part of the ZCAP-LD HTTP binding a reader's page uses, declared because the package doesn't publish types, and only
  * as far as this module calls it. The consumer's own declaration (its zcap.d.ts) states the library's fuller surface.
  */
 declare module "@digitalbazaar/http-signature-zcap-invoke" {
 	/** Signs the request's own headers, so the proof covers what is asked and of what rather than a document beside it.
 	 *  `body` is the request body exactly as it will be sent, so the digest the signature covers is over those bytes; a
-	 *  request with no body, such as a GET, carries no digest. */
+	 *  request without a body, such as a GET, doesn't carry a digest. */
 	export function signCapabilityInvocation(options: {
 		url: string;
 		method: string;

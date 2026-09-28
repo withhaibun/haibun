@@ -1,7 +1,7 @@
 /**
- * Real-browser fit verification for shu-polymorphic-graph-view (jsdom proves nothing about WebGL/layout).
+ * Real-browser fit verification for shu-polymorphic-graph-view (jsdom doesn't prove WebGL/layout behaviour).
  * Serves the BUILT bundle from a stub server and asserts the invariants that define "fitted":
- *   1. the canvas displays exactly at its container box (no overflow / scrollbars),
+ *   1. the canvas displays exactly at its container box (without overflow / scrollbars),
  *   2. the drawing buffer is rect × devicePixelRatio (anything else = blur),
  *   3. the camera aspect matches the rect aspect (anything else = stretch),
  * at mount AND after a container resize. RPC/SSE against the stub 404s; the geometry doesn't need data.
@@ -151,7 +151,7 @@ test("mouse-pick bounds refresh after the canvas MOVES without resizing (strip s
 });
 
 test("the view boots and runs without page errors", () => {
-	// The stub page installs no EventStream, so the live-update subscription fails fast by design; the real app installs one at boot.
+	// The stub page doesn't install an EventStream, so the live-update subscription fails fast by design; the real app installs one at boot.
 	const unexpected = pageErrors.filter((e) => !e.includes("an EventStream isn't installed"));
 	expect(unexpected).toEqual([]);
 });

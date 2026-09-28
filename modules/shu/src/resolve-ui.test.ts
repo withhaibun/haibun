@@ -40,7 +40,7 @@ describe("resolveUi", () => {
 	});
 
 	// A slotted panel is about the type, not about one record of it: the petitions panel sits in the permissions area
-	// for every proposal there is. Rendering a record with it mounts a panel that has none of a record view's methods.
+	// for every proposal there is. Rendering a record with it mounts a panel that doesn't have a record view's methods.
 	it("does not render a record with the panel its type mounts in a slot", () => {
 		expect(resolveUi({ _type: "Slotted" }).component).toBe(ENTITY_COMPONENT);
 		expect(resolveUi({ _type: "Slotted", items: [{}] }).component).toBe(COLLECTION_COMPONENT);

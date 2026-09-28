@@ -7,7 +7,7 @@ import type { TRequestSigner } from "./authority-types.js";
  * rpc-client: client for a haibun host's RPC transport (modules/web-server-hono/sse-transport.ts).
  *
  * Centralises signed invocation, seqPath threading, timeout, retry with backoff, and streaming-NDJSON parsing. A call
- * that invokes an action is signed over the request it sends; a call that invokes none is sent as it is. Callers that
+ * that invokes an action is signed over the request it sends; a call that doesn't invoke one is sent as it is. Callers that
  * already have a seqPath (feature-step context) pass it; external callers may pass `[]` and the server synthesises a
  * seqPath rooted on its own hostId, matching the MCP dispatch path.
  */
@@ -31,7 +31,7 @@ type RpcClientConfig = {
 type RpcCallOptions = {
 	/** Abort signal from the caller. Fires in addition to the per-call timeout. */
 	signal?: AbortSignal;
-	/** The action the call invokes at the host, which its signature names. A call that names none is not signed. */
+	/** The action the call invokes at the host, which its signature names. A call that doesn't name one is not signed. */
 	action?: string;
 };
 
@@ -39,7 +39,7 @@ export type RpcError = { error: string; [k: string]: unknown };
 
 /**
  * Every RPC call must thread the caller's seqPath so observations on
- * the target host link back to the invoking context (no synthetic
+ * the target host link back to the invoking context (without synthetic
  * `[0, N]` roots). Callers supply either their current feature-step's
  * seqPath or the seqPath of the observation they are acting on.
  */
@@ -100,12 +100,12 @@ export class RpcClient {
 		} finally {
 			clearTimeout(timeoutHandle);
 			// If the consumer didn't already abort, do so now to ensure
-			// no dangling connection: this is a no-op if already closed.
+			// the connection doesn't dangle: this is a no-op if already closed.
 			controller.abort();
 		}
 	}
 
-	/** How a call invoking `action` is proven. A client with nothing to sign with refuses such a call, since the host
+	/** How a call invoking `action` is proven. A client without a signer refuses such a call, since the host
 	 *  would refuse it unsigned. */
 	private proving(action: string | undefined): TProveRequest {
 		if (!action) return provesNothing;

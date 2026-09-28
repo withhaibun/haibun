@@ -4,7 +4,7 @@
  * A reader asking about a graph is asking about the node they are on and what it connects to. The scene is the only
  * thing that knows which that is, so it states those statements first and the rest in the order it drew them. How many
  * of them travel is the harvest's to say, and how many reach a model is the window's; both keep what arrives first,
- * which is why this decides the order and neither of them has to know what a graph is.
+ * which is why this decides the order and the harvest and the window don't depend on what a graph is.
  */
 import { RPC_METHOD } from "../../consts.js";
 import { reads, type TLink } from "../../hypermedia.js";

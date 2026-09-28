@@ -2,7 +2,7 @@
  * <shu-client-cache-column>: what this page caches of the run, as it stands: each run source (one per level read) with
  * its extent, the index spans it caches and the row the shared cursor sits on in it; what the live stream has
  * delivered since the view opened, by level; what the device's event store caches of the last run, by level; and every
- * IndexedDB database of the origin with its stores and their counts. It requests nothing of the server: a source is
+ * IndexedDB database of the origin with its stores and their counts. It doesn't request data from the server: a source is
  * listed once a view has read its level, and the store is read as it is. A reader makes one change here, which is to
  * forget a run this device holds. It watches everything that moves:
  * each source as it is made and as it changes, every live batch, the cursor, and shows the change at once; the device
@@ -72,7 +72,7 @@ const FEATURE_WITHIN_ROWS = 20;
 /** What a source is doing, as the one word a reader reads it by. It is the cell's own id as well, so what a reader
  *  waits for is the state itself rather than a cell that may still be about to change. */
 /** What a source is doing, one word a reader waits for: not yet read, cut off from the run, behind what the run has
- *  announced, or read and current. Each is a fact of the reading, so none is inferred from what happens to arrive. */
+ *  announced, or read and current. Each is a fact of the reading, so a state isn't inferred from what happens to arrive. */
 const stateOf = (source: RunSource): string =>
 	source.unavailable ? "unavailable" : source.ended ? "ended" : !source.loaded ? "loading" : source.disconnected ? "disconnected" : source.behind ? "behind" : "loaded";
 const spans = (ranges: Range[]): string => ranges.map((r) => `${r.from}..${r.to - 1}`).join(", ") || "none";
@@ -181,7 +181,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 		this.autoTeardown(subscribeExecutionSwitch(() => this.#changed()));
 		// The sources persist what they read after they report it, so what the device caches is read again when it is written.
 		this.autoTeardown(subscribeDeviceWrites(() => this.#changed()));
-		// Every live batch: counted by level and shown, whether or not any source takes it (a page with no event view open takes none).
+		// Every live batch: counted by level and shown, whether or not any source takes it (a page without an open event view doesn't take a batch).
 		this.autoTeardown(
 			subscribeBatchedEvents({
 				onBatch: (events) => {
@@ -255,8 +255,8 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 		}
 	}
 
-	/** Forget one run this device holds, and report what went. The run being read has no control for it: a reader reads
-	 *  another run first, so nothing is deleted under a view drawing it. The executions are read again here rather than on
+	/** Forget one run this device holds, and report what went. The run being read doesn't have a control for it: a reader reads
+	 *  another run first, so a run isn't deleted under a view drawing it. The executions are read again here rather than on
 	 *  the ordinary cadence, so the list a reader sees after the deletion is the list the device holds. */
 	async #forget(execution: string): Promise<void> {
 		const records = await forgetExecution(execution);
@@ -266,7 +266,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 		this.requestUpdate();
 	}
 
-	/** The row the cursor sits on in a source, among the rows it caches: -1 for none (the live edge, or before the first cached). */
+	/** The row the cursor sits on in a source, among the rows it caches: -1 where the cursor isn't on a cached row (the live edge, or before the first cached). */
 	#cursorRowIn(src: RunSource): number {
 		const cursor = this.timeCursor;
 		if (cursor === null) return -1;

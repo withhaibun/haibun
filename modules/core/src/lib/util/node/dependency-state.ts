@@ -30,7 +30,7 @@ export const TIMINGS_FILE = "timings.json";
 const WRITTEN_BY_A_RUN = new Set([VERIFIED_FILE, TIMINGS_FILE]);
 
 /** The directory of the module a path belongs to: the nearest ancestor holding a package.json. Undefined for a path
- *  that belongs to no module. */
+ *  that isn't inside a module. */
 export function moduleRootOf(location: string): string | undefined {
 	let dir = nodeFS.existsSync(location) && nodeFS.statSync(location).isDirectory() ? location : path.dirname(location);
 	for (;;) {
@@ -78,7 +78,7 @@ function dependedModules(moduleDir: string): string[] {
 
 /** What a module is built from, where its own build configuration says: a change to the module reaches its sources,
  *  and its tests, its documents and the groups of features it holds are not what a stepper of it runs. A module that
- *  declares no such directory is depended on whole. */
+ *  doesn't declare such a directory is depended on whole. */
 function sourcesOf(moduleDir: string): string {
 	const tsconfig = path.join(moduleDir, "tsconfig.json");
 	if (!nodeFS.existsSync(tsconfig)) return moduleDir;
@@ -129,7 +129,7 @@ export function dependencyRoots(specl: TSpecl, bases: readonly string[], configD
 const git = (dir: string, args: string[], input?: string): string =>
 	execFileSync("git", args, { cwd: dir, encoding: "utf-8", maxBuffer: 64 * 1024 * 1024, stdio: ["pipe", "pipe", "pipe"], ...(input === undefined ? {} : { input }) });
 
-/** The top of the repository a directory is in, or undefined where it is in none. Any other failure to ask is a
+/** The top of the repository a directory is in, or undefined where it isn't in one. Any other failure to ask is a
  *  failure and is said: a state read with git absent or refused would run every group unverified without a word. */
 function repositoryTop(dir: string): string | undefined {
 	try {
@@ -149,7 +149,7 @@ const unnameable = (file: string): boolean => file.includes("\n") || file.starts
 
 /** The files under a directory that its repository tracks or would track, each with the digest of its content as it
  *  is in the working tree; a link by what it points at. A directory listed is a nested repository or a submodule, whose
- *  content is its own to verify. Undefined where the directory is in no repository. */
+ *  content is its own to verify. Undefined where the directory isn't in a repository. */
 function repositoryFiles(dir: string): TRepositoryFile[] | undefined {
 	const top = repositoryTop(dir);
 	if (top === undefined) return undefined;
@@ -189,8 +189,8 @@ function repositoryFiles(dir: string): TRepositoryFile[] | undefined {
  * One digest of the state of every dependency: the content of every file under every root, and the environments
  * declared. The same state gives the same digest wherever it is computed.
  *
- * Undefined where the state cannot be read, which is a state of nothing known rather than a state of nothing: a root
- * in no repository, or one whose files the repository ignores, as a module installed rather than linked is. A group
+ * Undefined where the state cannot be read, which is an unknown state rather than an empty state: a root
+ * that isn't in a repository, or one whose files the repository ignores, as a module installed rather than linked is. A group
  * depending on such a root runs every time rather than never.
  */
 export function dependencyState(roots: readonly string[], environments: readonly string[] = []): string | undefined {

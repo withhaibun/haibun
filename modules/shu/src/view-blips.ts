@@ -4,7 +4,7 @@
  *
  * These are per-frame occurrences. They exist because the alternative is what happened: a rail thumb that
  * resized while a reader scrolled was diagnosed four times from descriptions, and every guess made it worse, because
- * nothing recorded what the view did between one frame and the next.
+ * the page didn't record what the view did between one frame and the next.
  */
 import { z } from "zod";
 import { declareBlips, type TBlipDeclaration } from "@haibun/core/lib/blips.js";

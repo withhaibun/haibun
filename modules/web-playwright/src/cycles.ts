@@ -79,7 +79,7 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 		const newErrors = wp.browserErrors.slice(wp.errorMark);
 		if (newErrors.length === 0) return Promise.resolve({ failed: false });
 		// A browser-side uncaught exception during this step is a real failure, surface it loudly instead of
-		// letting a later wait time out with no explanation.
+		// letting a later wait time out without an explanation.
 		wp.getWorld().eventLogger.log(featureStep, "error", `uncaught browser error during step: ${newErrors.join(" | ")}`);
 		return Promise.resolve({ failed: true });
 	},

@@ -44,7 +44,7 @@ describe("ScrollFollowController: the follow decision, wired to a host jump-to-e
 		expect(jumps()).toBe(1); // follows again
 	});
 
-	it("stick() does nothing while scrubbed into the past (not the live edge)", () => {
+	it("stick() doesn't jump while scrubbed into the past (not the live edge)", () => {
 		const { c, jumps } = mount();
 		timeCursor.set(PAST);
 		c.stick();
@@ -57,25 +57,25 @@ describe("ScrollFollowController: the follow decision, wired to a host jump-to-e
 		c.setAtBottom(true); // back at the end...
 		timeCursor.set(PAST);
 		c.stick();
-		expect(jumps()).toBe(0); // ...but still scrubbed (not live), so no auto-scroll
+		expect(jumps()).toBe(0); // ...but still scrubbed (not live), so it doesn't auto-scroll
 	});
 
-	it("states what its host holds after the reader's place while they read where they are, and nothing at the end", () => {
+	it("states what its host holds after the reader's place while they read where they are, and doesn't state a count at the end", () => {
 		let after = 0;
 		const { c } = mount(() => after);
 		after = 3;
-		expect(c.arrived, "a view at the end holds nothing to return to").toBe(0);
+		expect(c.arrived, "a view at the end doesn't hold a record to return to").toBe(0);
 		c.setAtBottom(false);
 		expect(c.arrived, "what the host holds after the place they hold").toBe(3);
 		after = 2;
-		expect(c.arrived, "read rather than counted, so a record removed leaves nothing behind").toBe(2);
+		expect(c.arrived, "read rather than counted, so a removed record isn't counted").toBe(2);
 		c.setAtBottom(true);
-		expect(c.arrived, "and nothing once they are back at the end").toBe(0);
+		expect(c.arrived, "and doesn't state a count once they are back at the end").toBe(0);
 	});
 
-	it("holds the place its host states, so a view leaving the live edge holds an instant rather than nothing", () => {
+	it("holds the place its host states, so a view leaving the live edge holds an instant rather than null", () => {
 		const { c } = mount(undefined, () => PAST);
-		expect(timeCursor.get(), "the page is at the live edge, where its cursor states no instant").toBe(null);
+		expect(timeCursor.get(), "the page is at the live edge, where its cursor doesn't state an instant").toBe(null);
 		c.setAtBottom(false);
 		expect(c.view.cursor, "the view holds where the host says the reader is").toBe(PAST);
 		expect(c.view.tracking).toBe(false);

@@ -70,7 +70,7 @@ function zoomHarness(startZ: number) {
 	return { cam: new PolymorphicCamera(deps), distance: () => position.z };
 }
 
-describe("PolymorphicCamera.zoomBy: no limit on how near or far the camera goes", () => {
+describe("PolymorphicCamera.zoomBy doesn't limit how near or far the camera goes", () => {
 	it("keeps closing in past any fixed distance, so zooming in never stops working", () => {
 		const { cam, distance } = zoomHarness(100);
 		for (let i = 0; i < 40; i++) cam.zoomBy(50, "percent", "in");
@@ -111,8 +111,8 @@ describe("PolymorphicCamera.frame(fit), time-deep framing", () => {
 		expect(distance, "must be far tighter than the z-inflated sphere fit (~331) so the graph fills the view").toBeLessThan(300);
 	});
 
-	it("a flat, XY-spread graph frames on its XY extent (no spurious z push)", () => {
-		// No z depth (halfD = 0): the distance is just the XY reach + breathing room + floor: the graph fills the view.
+	it("a flat, XY-spread graph frames on its XY extent (without a spurious z push)", () => {
+		// Without z depth (halfD = 0): the distance is just the XY reach + breathing room + floor: the graph fills the view.
 		const { cam, getCameraZ } = harness([
 			{ x: -100, y: -100, z: 0 },
 			{ x: 100, y: -100, z: 0 },
@@ -120,7 +120,7 @@ describe("PolymorphicCamera.frame(fit), time-deep framing", () => {
 		]);
 		cam.frame(FRAME.fit);
 		const distance = getCameraZ() - 0;
-		// XY reach = 100/tan(40°) ≈ 119; distance = 119*1.1 + 20 ≈ 151. No z term inflates it.
+		// XY reach = 100/tan(40°) ≈ 119; distance = 119*1.1 + 20 ≈ 151. A z term doesn't inflate it.
 		expect(distance).toBeGreaterThan(120);
 		expect(distance).toBeLessThan(200);
 	});
@@ -191,7 +191,7 @@ describe("PolymorphicCamera.frame, fit keeps the user's orbit, the view aims res
 		const { cam, target, position, up } = orbitedHarness(nodes, { x: 300, y: 120, z: -40 });
 		cam.frame(FRAME.front);
 		expect(target).toMatchObject({ x: 0, y: 0, z: 200 });
-		expect(position.x, "front aim: no lateral offset").toBeCloseTo(0, 6);
+		expect(position.x, "front aim: without a lateral offset").toBeCloseTo(0, 6);
 		expect(position.y).toBeCloseTo(0, 6);
 		expect(position.z, "the camera backs off down +z").toBeGreaterThan(200);
 		expect(up).toMatchObject({ x: 0, y: 1, z: 0 });
@@ -239,11 +239,11 @@ describe("clearStripOffset, where a framing aims when an overlay covers the canv
 	});
 
 	it("leaves the aim alone when the overlay leaves the centre clear, or does not touch the canvas at all", () => {
-		expect(clearStripOffset(canvas, { left: 0, top: 0, right: 300, bottom: 200 }), "a corner overlay occludes no centred node").toBeNull();
+		expect(clearStripOffset(canvas, { left: 0, top: 0, right: 300, bottom: 200 }), "a corner overlay doesn't occlude a centred node").toBeNull();
 		expect(clearStripOffset(canvas, { left: 1200, top: 0, right: 1400, bottom: 600 }), "an overlay elsewhere on the page").toBeNull();
 	});
 
-	it("gives up when the overlay covers the whole canvas, nowhere clearer exists", () => {
+	it("gives up when the overlay covers the whole canvas, since a clearer place doesn't exist", () => {
 		expect(clearStripOffset(canvas, { left: -10, top: -10, right: 1010, bottom: 610 })).toBeNull();
 	});
 });
@@ -310,10 +310,10 @@ describe("coveredTogether, what several overlays cover at once", () => {
 	it("ignores an overlay that never reaches the canvas", () => {
 		const elsewhere = { left: 1200, top: 0, right: 1400, bottom: 600 };
 		expect(coveredTogether(canvas, [guide, elsewhere])).toEqual(guide);
-		expect(coveredTogether(canvas, [elsewhere]), "nothing on the canvas is covered by nothing").toBeNull();
+		expect(coveredTogether(canvas, [elsewhere]), "an overlay off the canvas doesn't cover it").toBeNull();
 	});
 
-	it("covers nothing when nothing is open, which leaves a framing aiming at the centre", () => {
+	it("doesn't cover the canvas when an overlay isn't open, which leaves a framing aiming at the centre", () => {
 		expect(coveredTogether(canvas, [])).toBeNull();
 	});
 });
@@ -322,7 +322,7 @@ describe("clearStripOffset, an overlay along the bottom of the canvas", () => {
 	const canvas = { left: 0, top: 0, right: 1000, bottom: 600 };
 
 	it("aims above a bar opened past the centre, the only place left to show anything", () => {
-		// The actions bar expanded over half the height: nothing is right of it or below it, and a node left centred
+		// The actions bar expanded over half the height: the canvas doesn't have clear space right of it or below it, and a node left centred
 		// would be under it.
 		expect(clearStripOffset(canvas, { left: 0, top: 200, right: 1000, bottom: 600 })).toEqual({ dxPx: 0, dyPx: 300 - (0 + 200) / 2 });
 	});

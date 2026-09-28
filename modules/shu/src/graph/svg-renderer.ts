@@ -53,7 +53,7 @@ function borderPoint(box: NodeBox, toward: { x: number; y: number }): { x: numbe
 
 const groupHue = (i: number): string => `hsl(${(i * 67) % 360} 45% 50%)`;
 
-/** Pure SVG markup for a graph (no DOM). Group boxes (outermost first), then edges, then nodes on top. */
+/** Pure SVG markup for a graph (without the DOM). Group boxes (outermost first), then edges, then nodes on top. */
 export function graphToSvg(graph: TGraph, options?: TGraphRenderOptions): string {
 	const layout = layeredLayout(graph);
 	const w = layout.width + MARGIN * 2;

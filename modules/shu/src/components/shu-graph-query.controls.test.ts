@@ -1,8 +1,8 @@
 /**
  * The view-query control steps are tested through the haibun step machinery: the registry builds the tool
  * from the gwta + getConcerns domains, validateToolInput enforces the typed params, the handler runs the
- * action, and checks the product against the view-query productsDomain. No browser, no
- * component mount: the step's behaviour is verified end-to-end at the step layer, which is where it lives.
+ * action, and checks the product against the view-query productsDomain. The test doesn't use a browser or
+ * mount a component: the step's behaviour is verified end-to-end at the step layer, which is where it lives.
  */
 import { beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";

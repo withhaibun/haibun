@@ -101,7 +101,7 @@ describe("dispatchAffordanceFromResponse", () => {
 		expect(pane?.dataset.columnKey).toBe("shu-monitor-column");
 	});
 
-	it("returns kind:none for an empty product (no markers) and opens no pane", async () => {
+	it("returns kind:none for an empty product (without markers) and doesn't open a pane", async () => {
 		const action = dispatchAffordanceFromResponse({});
 		expect(action.kind).toBe("none");
 		await flush();

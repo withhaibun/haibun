@@ -46,7 +46,7 @@ describe("what a run keeps of the steps it has finished", () => {
 			[ProducingStepper],
 		);
 		const feature = result.featureResults?.[0];
-		expect(feature?.steps.count, "what the feature ran is answered by the reduction, which holds no step to answer it").toBe(ran);
+		expect(feature?.steps.count, "what the feature ran is returned by the reduction, which doesn't hold a step to return it").toBe(ran);
 		expect(feature?.steps.firstStart, "as is when it began").toBeDefined();
 		expect(feature?.steps.lastEnd, "and when it ended").toBeDefined();
 		expect(feature?.stepResults.length, "and the steps a reader can still read are the most recent, and no more").toBe(RESULTS_READ_IN_FULL);

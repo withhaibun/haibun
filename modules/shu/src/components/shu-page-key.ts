@@ -2,7 +2,7 @@
  * <shu-page-key>: the key this page signs with, as the did:key a holder delegates to, and a way to take it away.
  *
  * A page holds only what was delegated to its key here, so the key is what a reader hands to whoever may delegate to
- * it: shown alone while the page holds no read, and in the permissions panel after.
+ * it: shown alone while the page doesn't hold a read, and in the permissions panel after.
  */
 import { html, css, type TemplateResult } from "lit";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
@@ -19,7 +19,7 @@ export class ShuPageKey extends ShuElement<typeof PageKeySchema> {
 		super(PageKeySchema, { controller: "" });
 	}
 
-	/** A key names who the page is, not what it shows, so it adds nothing to what a Kihan is looking at. */
+	/** A key names who the page is, not what it shows, so it doesn't add to the Kihan's context. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}

@@ -93,7 +93,7 @@ describe("the path allocated under a parent step", () => {
 });
 
 describe("calculateShouldClose", () => {
-	// Default test values - feature OK, not last, no special flags
+	// Default test values - feature OK, not last, without special flags
 	const defaults = {
 		thisFeatureOK: true,
 		isLast: false,
@@ -114,7 +114,7 @@ describe("calculateShouldClose", () => {
 		});
 	});
 
-	describe("effectively last feature (no more features will run)", () => {
+	describe("effectively last feature (another feature won't run)", () => {
 		it("closes after successful last feature by default", () => {
 			const result = calculateShouldClose({ ...defaults, thisFeatureOK: true, isLast: true });
 			expect(result).toBe(true); // close
@@ -174,13 +174,13 @@ describe("createExecutionFailure", () => {
 
 	it("names the feature step that failed, not a synthetic dispatch the step recovered from", () => {
 		// A model's tool call and an RPC dispatch carry a negative seqPath segment; either can fail and be handled
-		// inside the step that made it, so neither is what failed the run.
+		// inside the step that made it, so they don't fail the run.
 		const failure = Executor.createExecutionFailure(feature([step([0, -1, 1], false, "tool call failed"), step([0, 2, 4], false, "the real failure")]));
 		expect(failure?.error.message).toBe("the real failure");
 		expect(failure?.error.details.seqPath).toEqual([0, 2, 4]);
 	});
 
-	it("falls back to a synthetic dispatch when nothing else failed, rather than reporting no failure at all", () => {
+	it("falls back to a synthetic dispatch when another step didn't fail, rather than not reporting a failure", () => {
 		const failure = Executor.createExecutionFailure(feature([step([0, -1, 1], false, "only this failed")]));
 		expect(failure?.error.message).toBe("only this failed");
 	});

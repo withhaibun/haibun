@@ -23,7 +23,7 @@ const context = (nodes: FGNode[], over: Partial<ForceContext> = {}): ForceContex
 const gap = (a: FGNode, b: FGNode): number => Math.hypot((a.x ?? 0) - (b.x ?? 0), (a.y ?? 0) - (b.y ?? 0));
 
 describe("where a layout puts the nodes", () => {
-	it("gives every node an x/y position, no two the same, and writes no node's z at all", () => {
+	it("gives every node a distinct x/y position, and doesn't write a node's z", () => {
 		const nodes = ["a", "b", "c", "d"].map((id, i) => node(id, { x: 0, y: 0, z: i * 10 }));
 		forceLayout(context(nodes)).place(nodes, []);
 		for (const n of nodes) expect([n.x, n.y].every((v) => typeof v === "number" && Number.isFinite(v))).toBe(true);
@@ -68,12 +68,12 @@ describe("where a layout puts the nodes", () => {
 		expect(links[0].target).toBe(nodes[1]);
 	});
 
-	it("throws on a link naming a node that is not in the set, rather than drawing a line to nowhere", () => {
+	it("throws on a link naming a node that is not in the set, rather than drawing a line to a missing node", () => {
 		const nodes = [node("a")];
 		expect(() => forceLayout(context(nodes)).place(nodes, [{ source: "a", target: "missing", predicate: "narrate" }])).toThrow();
 	});
 
-	it("places the same graph the same way twice, so a repaint that changed nothing moves nothing", () => {
+	it("places the same graph the same way twice, so a repaint that didn't change the graph doesn't move a node", () => {
 		const place = (): string => {
 			const nodes = ["a", "b", "c"].map((id) => node(id, { x: 0, y: 0, z: 0 }));
 			forceLayout(context(nodes)).place(nodes, [{ source: "a", target: "b", predicate: "narrate" }]);

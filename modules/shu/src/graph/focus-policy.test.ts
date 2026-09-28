@@ -5,12 +5,12 @@ describe("focusStateFor: the one focus/dim decision", () => {
 	// Exhaustive truth table over the 4 booleans. previewActive wins; then focus; then resting.
 	const cases: Array<[boolean, boolean, boolean, boolean, FocusState]> = [
 		// previewActive=false
-		[false, false, false, false, "resting"], // nothing active
+		[false, false, false, false, "resting"], // focus and preview aren't active
 		[false, true, false, false, "resting"], // isInFocus alone is meaningless without focus
 		[true, false, false, false, "dimmed"], // focus active, not in focus → dimmed
 		[true, true, false, false, "full"], // focus active, in focus → full
 		// previewActive=true overrides focus entirely
-		[false, false, true, false, "dimmed"], // preview, no match → dimmed
+		[false, false, true, false, "dimmed"], // preview without a match → dimmed
 		[false, false, true, true, "full"], // preview, match → full
 		[true, true, true, false, "dimmed"], // preview beats an otherwise-full focus when type doesn't match
 		[true, false, true, true, "full"], // preview match wins even when focus would dim

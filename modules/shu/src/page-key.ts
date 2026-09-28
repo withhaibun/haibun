@@ -4,8 +4,8 @@
  * The page makes its key pair once and keeps it in the browser's key store, where the private half is never readable
  * material, so the key outlives a reload and a delegation to it goes on holding. It names the key as a did:key, derived
  * from the key itself, which is what a holder delegates to. It reads what was delegated to that did:key here, proving
- * the key and nothing else, and signs each call with a delegation that allows what the call requires. No secret is sent or kept, and a delegation taken from
- * the page is of no use to whoever took it: they cannot sign with a key they don't hold.
+ * only the key, and signs each call with a delegation that allows what the call requires. The page doesn't send or keep a secret, and a delegation taken
+ * from the page isn't useful to whoever took it: they cannot sign with a key they don't hold.
  */
 import { signCapabilityInvocation } from "@digitalbazaar/http-signature-zcap-invoke";
 import { encode } from "base58-universal";
@@ -46,7 +46,7 @@ const P256_PUBLIC = [0x80, 0x24];
  */
 async function pageKey(): Promise<TSigningKey> {
 	// A browser gives a page its key store only in a secure context: over https, or from localhost. Served otherwise
-	// there is no key for a reader to control and nothing it could prove, which is a fact about how the deployment is
+	// the page doesn't have a key for a reader to control or a proof it could make, which is a fact about how the deployment is
 	// reached rather than a fault in the page, so it is said as that.
 	if (!globalThis.crypto?.subtle) {
 		throw new Error(
@@ -121,8 +121,8 @@ function compressedPoint(jwk: JsonWebKey): Uint8Array {
 
 /**
  * Read what this page holds here: its key, and what `read` answers was delegated to it. `read` is the call to the
- * deployment's delegation read, which the page signs with `keyHeaders`, or undefined where the deployment verifies no
- * delegation, which leaves the page what needs none.
+ * deployment's delegation read, which the page signs with `keyHeaders`, or undefined where the deployment doesn't verify a
+ * delegation, which leaves the page what doesn't need one.
  */
 export function openPageAuthority(read: (() => Promise<TDelegations>) | undefined, withoutDelegation: string[]): Promise<TPageAuthority> {
 	const opening = (async () => {
@@ -138,9 +138,9 @@ export function openPageAuthority(read: (() => Promise<TDelegations>) | undefine
 }
 
 /**
- * What this page holds, once the reading the page started is done. A page that never started one has nothing to wait
- * for, and a reading that failed fails here, at the call that needed it, rather than as a reader silently able to do
- * nothing.
+ * What this page holds, once the reading the page started is done. A page that never started one doesn't wait
+ * for a reading, and a reading that failed fails here, at the call that needed it, rather than as a reader silently
+ * unable to act.
  */
 export async function pageAuthorityReady(): Promise<TPageAuthority | undefined> {
 	return await pinned().opening;
@@ -156,7 +156,7 @@ export function pageSigner(): TSigningKey | undefined {
 	return pinned().held?.key;
 }
 
-/** Every action this page holds: what needs no delegation here, and what its delegations list. */
+/** Every action this page holds: what doesn't need a delegation here, and what its delegations list. */
 export function pageHolds(authority = pageAuthority()): string[] {
 	if (!authority) return [];
 	return [...new Set([...authority.withoutDelegation, ...authority.delegations.flatMap(delegatedActions)])];
@@ -192,11 +192,11 @@ export function forgetPageAuthority(): void {
 /**
  * The headers that prove this page may ask this, of this: signed with its key under a delegation that allows `action`
  * at the address asked, over the address, the method and the body where it has one, so what is proven is the request
- * rather than possession of anything. Undefined where no delegation allows it, and the call is sent as it is, which the
+ * rather than possession of anything. Undefined where a delegation doesn't allow it, and the call is sent as it is, which the
  * deployment may allow without a delegation.
  */
 /**
- * The headers that prove this page holds its key, and nothing more: an invocation of the key's own root, which the
+ * The headers that prove only that this page holds its key: an invocation of the key's own root, which the
  * deployment resolves as controlled by whoever signs it and which allows only the delegation read. It is how the page
  * learns what else it holds, so it is signed before the page holds anything.
  */
@@ -207,7 +207,7 @@ export async function keyHeaders(request: { url: string; method: string; headers
 }
 
 /** The headers a page asks for `url` with by GET: signed under a delegation that allows `action`, where it holds one, and
- *  none otherwise, which the deployment may allow without a delegation. */
+ *  empty otherwise, which the deployment may allow without a delegation. */
 export async function readingHeaders(url: string, action: string): Promise<Record<string, string>> {
 	await pageAuthorityReady();
 	const asked = new URL(url, location.href);

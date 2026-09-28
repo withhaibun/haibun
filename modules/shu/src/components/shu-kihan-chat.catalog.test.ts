@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * The models the ask pane offers follow the run: a pane opened before the run had models says it has none, and offers
+ * The models the ask pane offers follow the run: a pane opened before the run had models says it doesn't have one, and offers
  * the ones the run records after, as discovery writes them.
  */
 import { describe, expect, it, vi } from "vitest";
@@ -42,7 +42,7 @@ const MODEL = { id: "openai:a-model", displayName: "a model" };
 const flush = () => new Promise((resolve) => setTimeout(resolve, 20));
 
 describe("the models the ask pane offers", () => {
-	it("are none where the run has none, and the ones the run records after the pane opened", async () => {
+	it("don't include a model where the run doesn't have one, and are the ones the run records after the pane opened", async () => {
 		const stream = new SerializedEventStream();
 		setEventStream(stream);
 		const pane = new ShuKihanChat() as unknown as TDriven;
@@ -67,7 +67,7 @@ describe("the models the ask pane offers", () => {
 });
 
 describe("the providers the ask pane lists", () => {
-	it("names each provider the run registered no model of, linked to its record, with why", async () => {
+	it("names each provider that doesn't have a model registered in the run, linked to its record, with why", async () => {
 		setSiteMetadata({
 			types: [KIHAN, PROVIDER],
 			idFields: { [KIHAN]: "id", [PROVIDER]: "id" },

@@ -4,7 +4,7 @@
  * spanning the whole run by index, paged in as the reader reaches for a region, bounded in what it caches, live events
  * taking their place at the edge. One row per event. An event's blocks (document-blocks) are generated a page at a time
  * from the cached events of that page and given to the events they came from, so only what is cached is rendered and an
- * arbitrarily long run stays reachable from its first heading to its live edge, with nothing requested twice. Time-cursor
+ * arbitrarily long run stays reachable from its first heading to its live edge, without requesting an event twice. Time-cursor
  * dimming, click-to-scrub, jump-to-row from another view, and failed-step glyphs on the rail all operate on the rows.
  * Product views are embedded inside their row (once per element, so the virtualizer recycling a row does not re-open it).
  */
@@ -89,7 +89,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	// run's extent, any region of it pages in on demand, the cached pages are bounded, and live events take their place
 	// as they arrive. One source per level, shared across views, swapped when the level changes.
 	/** The reading this view reads, made when it connects: a view constructed and never connected would otherwise
-	 *  leave a reading of the run that nothing reads. */
+	 *  leave a reading of the run that a view doesn't read. */
 	#run!: RunSource;
 	#unsubscribeRun?: () => void;
 	#source: WindowedSource<TDocRow> = this.#rowsOver(this.#run);
@@ -106,7 +106,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 			:host { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden; font-family: "Source Serif 4", Georgia, serif; font-size: 15px; line-height: 1.7; color: var(--shu-fg); }
 			/* Each block centres itself in a reading column (the old .document-body 80%-centred layout, per row now). */
 			.doc-block { max-width: 760px; margin: 0 auto; padding: 0 1.5rem; }
-			/* An event that rendered nothing at this level takes no room; a page not yet cached caches one line. */
+			/* An event that didn't render a block at this level doesn't take room; a page not yet cached caches one line. */
 			.doc-block.doc-empty { padding: 0; }
 			.doc-block.doc-skeleton { min-height: 1.7em; }
 			h1 { font-size: 1.75rem; font-weight: 700; margin: 1.5rem 0 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--shu-border); }
@@ -190,10 +190,10 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 			ensureRange: (a, b) => run.ensureRange(a, b),
 			subscribe: (cb) => run.subscribe(cb),
 			markers: () => this.#marks,
-			// A row of no height, taken from what the row renders rather than from the record behind it: a row with no
-			// blocks draws nothing, and every other row is measured when it renders. A virtualizer told which rows are
+			// A row of zero height, taken from what the row renders rather than from the record behind it: a row without
+			// blocks doesn't draw, and every other row is measured when it renders. A virtualizer told which rows are
 			// empty estimates the rest steadily, which is what keeps the rail thumb from resizing as a reader scrolls.
-			// A page that is not built answers nothing, so no page is built to answer a question about a row's height.
+			// A page that is not built doesn't return a height, so rowSize doesn't build a page to return a row's height.
 			rowSize: (i) => {
 				const size = this.#run.pageSize;
 				const p = Math.floor(i / size);
@@ -209,13 +209,13 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	}
 
 	/** The rows of page `p`, built from the events of it cached contiguously from its start, and cached until the page caches
-	 *  more (the live edge growing) or other events (a new run); nothing when none of it is cached. */
+	 *  more (the live edge growing) or other events (a new run); undefined when the page doesn't have a cached event. */
 	#pageRows(p: number): TPageRows | undefined {
 		const size = this.#run.pageSize;
 		const start = p * size;
 		const end = Math.min(start + size, this.#run.count());
 		const cached = this.#pages.get(p);
-		// Still the page that was built: the same first and last events are cached, and nothing more of the page is (three
+		// Still the page that was built: the same first and last events are cached, and the page doesn't cache more events (three
 		// reads, not a walk of the page, for every row the virtualizer requests).
 		if (
 			cached &&
@@ -302,7 +302,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 
 	protected willUpdate(): void {
 		// The window, its marks and the cursor's row, derived when the run changes rather than when the rail draws: the
-		// rail asks for its marks on every frame a reader scrolls, and a cursor at the live edge sits on no row at all.
+		// rail asks for its marks on every frame a reader scrolls, and a cursor at the live edge doesn't sit on a row.
 		this.#windowRows = this.#window();
 		this.#marks = this.#markers();
 		const cursor = this.timeCursor;
@@ -389,7 +389,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		let frames = this.#framesOf(p);
 		for (let hops = 0; (n < 0 || n >= frames.length) && hops < MAX_FRAME_HOPS; hops++) {
 			p += dir;
-			if (p < 0 || p * size >= this.#run.count()) return; // at the run's first/last thumbnail: nothing to move to
+			if (p < 0 || p * size >= this.#run.count()) return; // at the run's first/last thumbnail, so the view doesn't move
 			await this.#run.ensureRange(p * size, Math.min((p + 1) * size, this.#run.count()));
 			frames = this.#framesOf(p);
 			n = dir < 0 ? frames.length - 1 : 0;
@@ -418,7 +418,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		`;
 	}
 
-	/** One event's row: its blocks as rendered; a skeleton while its page is not cached; an event that produced nothing at
+	/** One event's row: its blocks as rendered; a skeleton while its page is not cached; an event that didn't produce a block at
 	 *  this level (a step's end, a trace) is an empty row, so the run's index space is the column's. */
 	#renderRow = (i: number, row: unknown): TemplateResult => {
 		const r = row as TDocRow | undefined;

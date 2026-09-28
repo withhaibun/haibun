@@ -2,7 +2,7 @@
 /**
  * Behaviour contract for shu-column-strip minimize handling:
  *   - a minimized column never stays active: activation shifts to the nearest expanded column to its
- *     right, falling back to the left when none remain on the right
+ *     right, falling back to the left when an expanded column doesn't remain on the right
  *   - minimize persists via the pane's own persistFields, so a re-added pane with the same column key
  *     restores minimized, without stealing activation
  *   - the strip's width is always fully used: the pane that grows into the leftover is the rightmost one that CAN
@@ -19,10 +19,10 @@ import { provideLayout } from "../test/jsdom-layout.js";
 
 beforeAll(() => {
 	provideLayout(); // a pane observes its own size for the footprint it reserves when docked
-	// jsdom has no scrollIntoView; stub it so the strip's post-add scroll doesn't raise uncaught errors that bury real failures.
+	// jsdom doesn't have scrollIntoView; stub it so the strip's post-add scroll doesn't raise uncaught errors that bury real failures.
 	if (!Element.prototype.scrollIntoView)
 		Element.prototype.scrollIntoView = () => {
-			/* jsdom has no layout to scroll */
+			/* jsdom doesn't have a layout to scroll */
 		};
 	if (!customElements.get("shu-column-pane")) customElements.define("shu-column-pane", ShuColumnPane);
 	if (!customElements.get("shu-column-strip")) customElements.define("shu-column-strip", ShuColumnStrip);
@@ -92,9 +92,9 @@ describe("shu-column-strip minimize", () => {
 /**
  * The invariant the harvest depends on: while panes are open, one of them is active.
  *
- * removePane already repairs activation when the active pane goes away. Nothing repaired it when a pane arrived while
- * the signal named nothing, so a strip could hold panes with `activePane` null, which is what made the Ask pane
- * report that nothing was selected while a column was plainly on screen.
+ * removePane already repairs activation when the active pane goes away. The strip didn't repair it when a pane arrived while
+ * the signal didn't name a pane, so a strip could hold panes with `activePane` null, which is what made the Ask pane
+ * report that a pane wasn't selected while a column was plainly on screen.
  */
 describe("shu-column-strip activation invariant", () => {
 	let strip: ShuColumnStrip;
@@ -109,7 +109,7 @@ describe("shu-column-strip activation invariant", () => {
 		await (strip as unknown as { updateComplete: Promise<unknown> }).updateComplete;
 	});
 
-	it("activates the first pane added when nothing is active", () => {
+	it("activates the first pane added when a pane isn't active", () => {
 		strip.addPane(makePane("A") as ShuColumnPane & HTMLElement);
 		expect(activePane.get()).toBe("A");
 	});
@@ -127,7 +127,7 @@ describe("shu-column-strip activation invariant", () => {
 		expect(activePane.get()).toBe("p:Scene:generatedAtTime");
 	});
 
-	it("activates a remaining pane when the only active one is removed, and clears when none remain", () => {
+	it("activates a remaining pane when the only active one is removed, and clears when a pane doesn't remain", () => {
 		strip.addPane(makePane("A") as ShuColumnPane & HTMLElement);
 		strip.addPane(makePane("B") as ShuColumnPane & HTMLElement);
 		strip.removePane(0);
@@ -186,7 +186,7 @@ describe("the panes a strip publishes", () => {
 		expect(activePane.get(), "a press in a pane whose view doesn't take activation leaves it where it was").toBe("A");
 	});
 
-	it("lays a docked pane out apart from the columns: it is neither last nor growing, and the query pane is alone beside it", () => {
+	it("lays a docked pane out apart from the columns: it isn't last or growing, and the query pane is alone beside it", () => {
 		const query = document.createElement("shu-column-pane") as ShuColumnPane;
 		query.setAttribute("column-type", "query");
 		strip.addPane(query as ShuColumnPane & HTMLElement);
@@ -236,7 +236,7 @@ describe("which pane grows into the strip's leftover width", () => {
 		expect(panes[2].hasAttribute(SHU_ATTR.IS_LAST), "which is also the rightmost").toBe(true);
 	});
 
-	it("moves to the pane before it when the rightmost is collapsed, so no width belongs to nobody", () => {
+	it("moves to the pane before it when the rightmost is collapsed, so the strip doesn't leave a width without a pane to take it", () => {
 		minimize(panes[2]);
 		expect(grower()).toBe("B");
 		expect(panes[2].hasAttribute(SHU_ATTR.IS_LAST), "the collapsed one is still the rightmost, it just cannot grow").toBe(true);

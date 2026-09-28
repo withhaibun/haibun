@@ -62,7 +62,7 @@ describe("shu-step-caller", () => {
 		const html = caller.shadowRoot?.innerHTML ?? "";
 		expect(html).toContain('name="issuer.did"');
 		expect(html).toContain('name="issuer.name"');
-		// And NO single JSON-blob input for the composite itself.
+		// And it doesn't render a single JSON-blob input for the composite itself.
 		expect(html).not.toMatch(/name="issuer"[^.]/);
 	});
 

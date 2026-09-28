@@ -17,11 +17,11 @@ describe("what the bar calls the current context", () => {
 		);
 	});
 
-	it("names a type by the type itself where the view offers nothing, which is what a schema view offers", () => {
+	it("names a type by the type itself where the view doesn't offer a summary; a schema view doesn't offer one", () => {
 		expect(contextLabel([aType("Email")])).toBe("Email:");
 	});
 
-	it("is All with nothing selected, since the bar then acts on everything", () => {
+	it("is All without a selection, since the bar then acts on everything", () => {
 		expect(contextLabel([])).toBe("All");
 	});
 

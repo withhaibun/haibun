@@ -106,10 +106,10 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 			return { isError: true, content: [{ type: "text", text: refusal(name, tool && lackedAction(grantedCapability, tool.descriptor), principal) }] };
 		try {
 			const world = this.getWorld();
-			// MCP callers have no haibun seqPath; the server synthesises one.
+			// MCP callers don't have a haibun seqPath; the server synthesises one.
 			const seqPath = allocateSyntheticSeqPath(world);
 			const featureStep = buildFeatureStepForTransport(tool, validateToolInput(seqPath, tool, args, world), seqPath);
-			// A caller holds what it presented and nothing else, not what the step that started this server held.
+			// A caller holds only what it presented, not what the step that started this server held.
 			const result = await runActingAs(principal, () =>
 				dispatchStep({ registry: this.registry(), world, steppers: this.steppers, grantedCapability: grantedCapability ?? [] }, featureStep),
 			);
@@ -126,15 +126,15 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 		const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER) as IWebServer;
 		if (!webserver) throw new Error("McpStepper: the runtime doesn't hold a webserver.");
 
-		// A host places a server's instructions in its model's context. They are set before any caller connects, so they name
-		// no stepper: a caller finds the steps it holds in the tool list and by discovery.
+		// A host places a server's instructions in its model's context. They are set before any caller connects, so they don't
+		// name a stepper: a caller finds the steps it holds in the tool list and by discovery.
 		const instructions = stepsInstructions([]);
 		this.mcpServer = new McpServer({ name: "haibun-mcp", version }, { capabilities: { tools: { listChanged: true }, resources: {} }, instructions });
 		this.transport = new StreamableHTTPTransport({ enableJsonResponse: true });
 
 		// --- HANDLER 1: LIST TOOLS ---
 		// Each step the caller holds is a tool. Which of them a model is given at once is its host's choice, as the MCP client
-		// best practices place it; a host with no search of its own finds steps with the show steps step, which is a tool too.
+		// best practices place it; a host without a search of its own finds steps with the show steps step, which is a tool too.
 		this.mcpServer.server.setRequestHandler(ListToolsRequestSchema, () => ({ tools: this.getTools() }));
 
 		// --- HANDLER 2: CALL TOOL ---
@@ -190,7 +190,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 		// 3. Check Environment variable
 		const envPort = process.env["HAIBUN_O_WEBSERVERSTEPPER_PORT"];
 
-		// Default to '8128' if nothing else is found.
+		// Default to '8128' if the other options aren't set.
 		const rawPort = myPortOpt || wsPortOpt || envPort || "8128";
 		const port = parseInt(String(rawPort), 10);
 
@@ -219,8 +219,8 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 			if (c.req.method === "OPTIONS") return c.body(null, 204);
 
 			// 2. Auth. What the request presents is verified over the whole request, the body its digest covers included, and
-			// every call it carries runs under that and what the deployment allows without a delegation, and nothing else: the
-			// server was started inside a step of the run, and what that step held is no caller's.
+			// every call it carries runs under that and what the deployment allows without a delegation, and only those: the
+			// server was started inside a step of the run, and a caller doesn't hold what that step held.
 			const body = c.req.method === "POST" ? await c.req.raw.clone().text() : undefined;
 			const { granted, principal, refused } = await grantedCapabilityForRequest(
 				{ method: c.req.method, url: c.req.url, headers: c.req.header(), body },

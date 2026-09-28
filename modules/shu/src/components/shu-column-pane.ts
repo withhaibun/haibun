@@ -1,13 +1,13 @@
 /**
  * <shu-column-pane>: Resizable column container. Uses <slot> for content
- * projection. Active state via attribute (no re-render). Resize drag handle
+ * projection. Active state via attribute (without a re-render). Resize drag handle
  * on right edge. Dispatches column-close, column-resize, column-minimize,
  * column-maximize, column-activate, column-expand events.
  *
  * Collapsed, the pane renders the `spine` slot in place of the default one. Only one of the two slots exists at a
  * time, so a column's main view is not rendered while it is collapsed, and a spine view is not rendered while it is
  * not: an unslotted child stays in the DOM, keeping its state and its data, without being rendered. A column that
- * declares no spine view collapses to the rotated label alone, as before.
+ * doesn't declare a spine view collapses to the rotated label alone, as before.
  *
  * A column can instead declare that its spine is a narrow form of ITSELF (`rendersOwnSpine`). Then the default slot is
  * what the strip renders and the column is marked as serving as the spine, so a part it already owns: the log's scroll
@@ -63,7 +63,7 @@ const TEST_ID = {
 const MIN_RESIZED_WIDTH = 120;
 
 export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
-	/** A control, not a view of data, contributes nothing to the Kihan's context. */
+	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
@@ -101,7 +101,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 			align-items: center;
 			/* The label runs from the top of the strip and the controls sit at the bottom of it. Without this they pack
 			   against the label, which leaves them wherever the label's text happens to end. A header sized to its
-			   content (one with a spine below it) has no free space, so this changes nothing there. */
+			   content (one with a spine below it) doesn't have free space, so this doesn't change its layout. */
 			justify-content: space-between;
 		}
 		/* A spine takes the height the rotated label does not, so the label stays readable at the top of the strip and
@@ -112,7 +112,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		}
 		:host([collapsed][has-spine]) .pane-header { flex: 0 0 auto; }
 		/* The spine box takes the height the header does not, but only once a column has a spine view to put in it. A
-		   column that declares none renders the slot (so one attached later is still noticed) with nothing assigned to
+		   column that doesn't declare one renders the slot (so one attached later is still noticed) without an element assigned to
 		   it, and an empty box claiming half the strip is what pushed that column's controls to the middle of it. */
 		.pane-spine { flex: 0 0 auto; min-height: 0; overflow: hidden; display: flex; justify-content: center; }
 		:host([has-spine]) .pane-spine { flex: 1; }
@@ -127,7 +127,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 			box-shadow: none;
 		}
 		/* Closed, the elements of a column's strip lie in one row: the header's label, the spine, then the header's
-		   controls. The header draws no box of its own, so its label and controls lie in that row. */
+		   controls. The header doesn't draw a box of its own, so its label and controls lie in that row. */
 		:host([docked][collapsed]), :host([docked][collapsed][has-spine]) {
 			min-width: 0; max-width: none; cursor: default;
 			flex-direction: row; align-items: center; gap: var(--shu-space-2);
@@ -310,7 +310,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		this.requestUpdate(); // the template renders either the default slot or the spine slot, so it follows this
 	}
 
-	/** Inline flex computed from full state: one writer, so no path strands a stale width. Maximized fills the
+	/** Inline flex computed from full state: one writer, so a path can't leave a stale width. Maximized fills the
 	 * strip; collapsed defers to the :host([collapsed]) CSS; the pane the strip marked as growing takes the remaining
 	 * width (its stored width stays put and reapplies when it stops growing); otherwise an explicit user width is
 	 * fixed; default shares the strip via :host { flex: 1 }. */
@@ -390,7 +390,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 	};
 
 	/** The one path that owns the maximize state: the button and a resize both land here, so the strip always hears
-	 *  the change and no caller can set the attribute without announcing it. Maximize lives in the URL hash, not the
+	 *  the change and a caller can't set the attribute without announcing it. Maximize lives in the URL hash, not the
 	 *  persisted prefs. */
 	setMaximized(maximized: boolean): void {
 		if (maximized === this.hasAttribute(SHU_ATTR.DATA_MAXIMIZED)) return;
@@ -470,7 +470,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 	};
 
 	private onSlotChange = (e: Event): void => {
-		// A spine view holds its render while nothing shows it (ShuElement.shouldUpdate). The spine slot taking it is
+		// A spine view holds its render while the page doesn't show it (ShuElement.shouldUpdate). The spine slot taking it is
 		// the moment it becomes visible, so it is asked to catch up on everything it heard and did not render.
 		const slot = e.target as HTMLSlotElement;
 		if (slot.name === SPINE_SLOT) for (const view of slot.assignedElements()) (view as Element & { requestUpdate?: () => void }).requestUpdate?.();
@@ -524,7 +524,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 	}
 
 	/** The column's own view: the first child that is not its spine view. `controls` and the Kihan summary both mean
-	 *  this one, so neither is answered by the spine view when a column declares one. */
+	 *  this one, so the spine view doesn't provide either when a column declares one. */
 	get columnView(): Element | undefined {
 		return Array.from(this.children).find((child) => child.getAttribute("slot") !== SPINE_SLOT);
 	}

@@ -22,8 +22,8 @@ type TSourceUnderTest<T> = {
 
 /** What a source says of itself, where sources differ by design rather than by defect. */
 type TSourceNature = {
-	/** True for a source that fetches rows as they are read. A source whose rows are all in memory delivers nothing,
-	 *  so it announces nothing. */
+	/** True for a source that fetches rows as they are read. A source whose rows are all in memory doesn't deliver rows later,
+	 *  so it doesn't announce a delivery. */
 	pages?: boolean;
 };
 
@@ -67,14 +67,14 @@ export function describeWindowedSource<T>(name: string, make: () => TSourceUnder
 			for (let i = MIDDLE; i < MIDDLE + WINDOW; i++) expect(nameAt(i)).toBe(held.shouldName(i));
 		});
 
-		it("answers nothing for an index outside the rows it has", async () => {
+		it("answers undefined for an index outside the rows it has", async () => {
 			await source.ensureRange(0, source.count());
 			expect(source.rowAt(-1)).toBeUndefined();
 			expect(source.rowAt(CONFORMANCE_ROWS)).toBeUndefined();
 			expect(source.rowAt(CONFORMANCE_ROWS + WINDOW)).toBeUndefined();
 		});
 
-		it("reads nothing for a range that asks for nothing", async () => {
+		it("doesn't read a row for an empty range", async () => {
 			await source.ensureRange(MIDDLE, MIDDLE);
 			expect(source.count()).toBe(CONFORMANCE_ROWS);
 		});
@@ -92,7 +92,7 @@ export function describeWindowedSource<T>(name: string, make: () => TSourceUnder
 			expect(source.rowAt(MIDDLE)).toBe(first);
 		});
 
-		it("marks rows it has, and none it does not", () => {
+		it("marks rows it has, and doesn't mark a row it does not have", () => {
 			for (const mark of source.markers()) {
 				expect(mark.index).toBeGreaterThanOrEqual(0);
 				expect(mark.index).toBeLessThan(source.count());
@@ -108,7 +108,7 @@ export function describeWindowedSource<T>(name: string, make: () => TSourceUnder
 		});
 
 		if (nature.pages === true) {
-			it("answers nothing for a row it has not read, so a column gives that row its place rather than a row it does not have", () => {
+			it("answers undefined for a row it has not read, so a column gives that row its place rather than a row it does not have", () => {
 				expect(source.rowAt(MIDDLE)).toBeUndefined();
 			});
 

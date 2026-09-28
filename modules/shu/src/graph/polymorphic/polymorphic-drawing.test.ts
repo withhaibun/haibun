@@ -1,4 +1,4 @@
-// A scene draws while something is moving and stops when nothing is. A-Frame's pause() stops the components and not
+// A scene draws while something is moving and stops when motion ends. A-Frame's pause() stops the components and not
 // the renderer's loop, so the gate stops the loop itself. These cases hold the loop to the motion.
 import { describe, it, expect } from "vitest";
 import { Drawing, aframeLoop } from "./polymorphic-drawing.js";
@@ -10,7 +10,7 @@ function counted(): { loop: { start(): void; stop(): void }; starts: number; sto
 }
 
 describe("drawing on demand", () => {
-	it("stops the loop on the frame motion ends, and does nothing on the frames after", () => {
+	it("stops the loop on the frame motion ends, and doesn't stop it again on the frames after", () => {
 		const held = counted();
 		const drawing = new Drawing(held.loop);
 		drawing.moving(false);
@@ -34,7 +34,7 @@ describe("drawing on demand", () => {
 		const held = counted();
 		const drawing = new Drawing(held.loop);
 		drawing.moving(true);
-		expect(held.starts, "already drawing: nothing to start").toBe(0);
+		expect(held.starts, "already drawing: it doesn't start again").toBe(0);
 	});
 
 	it("stops when the scene ends, and not again if it was already still", () => {
@@ -47,7 +47,7 @@ describe("drawing on demand", () => {
 		const stilled = new Drawing(still.loop);
 		stilled.moving(false);
 		stilled.end();
-		expect(still.stops, "stopped by motion ending; the end has nothing left to stop").toBe(1);
+		expect(still.stops, "stopped by motion ending; the end doesn't stop it again").toBe(1);
 	});
 });
 
@@ -66,7 +66,7 @@ describe("an A-Frame scene's loop", () => {
 		};
 	}
 
-	it("stopping pauses the components and takes the render away from the renderer, so nothing is drawn", () => {
+	it("stopping pauses the components and takes the render away from the renderer, so the scene doesn't draw", () => {
 		const s = scene();
 		aframeLoop(s.scene).stop();
 		expect(s.calls).toEqual(["pause", "loop:none"]);
@@ -100,7 +100,7 @@ describe("an A-Frame scene's loop", () => {
 	it("takes over A-Frame's own loop as soon as rendering starts, so the first frames are followed too", () => {
 		const { order, held, s } = following();
 		aframeLoop(s, () => void order.push("drew"));
-		expect(held.loop, "not yet rendering: nothing to replace").toBeNull();
+		expect(held.loop, "not yet rendering: the loop isn't replaced").toBeNull();
 		held.listeners.get("renderstart")?.();
 		held.loop?.(0, undefined);
 		expect(order).toEqual(["render", "drew"]);
@@ -113,14 +113,14 @@ describe("an A-Frame scene's loop", () => {
 		expect(order).toEqual(["render", "drew"]);
 	});
 
-	it("leaves A-Frame's loop alone when there is nothing to do after a draw", () => {
+	it("leaves A-Frame's loop alone when a callback after a draw isn't given", () => {
 		const { held, s } = following();
 		aframeLoop(s);
 		held.listeners.get("renderstart")?.();
 		expect(held.loop).toBeNull();
 	});
 
-	it("pauses and plays a scene that has no renderer yet", () => {
+	it("pauses and plays a scene that doesn't have a renderer yet", () => {
 		const calls: string[] = [];
 		const loop = aframeLoop({ play: () => void calls.push("play"), pause: () => void calls.push("pause") });
 		loop.stop();

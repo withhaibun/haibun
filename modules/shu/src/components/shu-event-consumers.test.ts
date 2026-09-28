@@ -55,7 +55,7 @@ const producedRecord = (i: number, over: Record<string, unknown> = {}): Record<s
 	...over,
 });
 
-/** The run in the graph, with nothing to ask a server for: the views read the records. */
+/** The run in the graph, without a server to ask: the views read the records. */
 async function aRun(records: Array<Record<string, unknown>>, said: Array<Record<string, unknown>> = [], produced: Array<Record<string, unknown>> = []): Promise<void> {
 	const store = new QuadStore();
 	for (const record of records) await store.upsertIndividual(SEQ_PATH_LABEL, record);
@@ -75,7 +75,7 @@ describe("the views of a run, over the records it wrote", () => {
 		endPage();
 		if (!customElements.get(SHU_TAG.MONITOR_COLUMN)) customElements.define(SHU_TAG.MONITOR_COLUMN, ShuMonitorColumn);
 		if (!customElements.get(SHU_TAG.DOCUMENT_COLUMN)) customElements.define(SHU_TAG.DOCUMENT_COLUMN, ShuDocumentColumn);
-		// What a reader chose of a view is remembered across reloads, so each case starts from a view nobody has set.
+		// What a reader chose of a view is remembered across reloads, so each case starts from a view that a reader hasn't set.
 		forgetElementPrefs(SHU_TAG.MONITOR_COLUMN, "");
 		handle = setupShuTest({
 			dispatch: () => {
@@ -106,7 +106,7 @@ describe("the views of a run, over the records it wrote", () => {
 		const mon = await open<ShuMonitorColumn>(SHU_TAG.MONITOR_COLUMN);
 		expect(
 			mon.rows.map((row) => row.step),
-			"the run's steps, and no row for what one of them produced",
+			"the run's steps, without a row for what one of them produced",
 		).toEqual(["step 1"]);
 		const shown = mon.rows[0].produced ?? [];
 		expect(
@@ -133,7 +133,7 @@ describe("the views of a run, over the records it wrote", () => {
 			"and a reader asking for it is",
 		).toEqual(["step 1", "take a screenshot"]);
 		expect(mon.rows[1].partOf, "the substep's row names the step it was run to carry out").toEqual([0, 1]);
-		expect(mon.rows[0].partOf, "a step of the feature names none").toBeUndefined();
+		expect(mon.rows[0].partOf, "a step of the feature doesn't name one").toBeUndefined();
 		expect(mon.shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.MONITOR.ESTABLISHED_BY}"]`), "which a reader reads that step from").toBeTruthy();
 	});
 
@@ -224,7 +224,7 @@ describe("the views of a run, over the records it wrote", () => {
 		expect(headings.some((h) => h.includes("Something happens"))).toBe(true);
 	});
 
-	it("records the step that showed a view, and opens no copy of that view in the manual", async () => {
+	it("records the step that showed a view, and doesn't open a copy of that view in the manual", async () => {
 		await aRun([stepRecord(1), stepRecord(2, { stepText: "show the graph", called: "TestStepper.showGraph", showed: "test-view" })]);
 		setSiteMetadata({
 			types: [SEQ_PATH_LABEL],
@@ -265,7 +265,7 @@ describe("the views of a run, over the records it wrote", () => {
 		expect(captions).toEqual(["take a screenshot", "take a screenshot"]);
 	});
 
-	it("shows no rows when the run has recorded nothing, rather than a false one", async () => {
+	it("doesn't show a row when the run hasn't recorded a step, rather than a false one", async () => {
 		await aRun([]);
 		const doc = await open<ShuDocumentColumn>(SHU_TAG.DOCUMENT_COLUMN);
 		expect(doc.shadowRoot?.querySelectorAll(".doc-row").length ?? 0).toBe(0);

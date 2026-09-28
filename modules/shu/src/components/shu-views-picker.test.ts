@@ -37,7 +37,7 @@ describe("the views a deployment offers", () => {
 		expect(rowsOf(picker).map((row) => row.dataset.testid)).toEqual([`${IDS.ROW}${SHU_TAG.MONITOR_COLUMN}`, `${IDS.ROW}${SHU_TAG.CLIENT_CACHE_COLUMN}`]);
 	});
 
-	it("asks for the view a pressed row names, so a press opens that view and no other", async () => {
+	it("asks for the view a pressed row names, so a press opens that view and doesn't open another", async () => {
 		const asked = vi.spyOn(PaneState, "request").mockImplementation(() => undefined);
 		const picker = await pickerOf();
 		rowsOf(picker)[1].click();

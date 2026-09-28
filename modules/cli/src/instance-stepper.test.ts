@@ -22,7 +22,7 @@ import type { ChildProcess } from "child_process";
 import { EventEmitter } from "node:events";
 import type { TSpecl } from "@haibun/core/lib/execution.js";
 
-/** The supervisor, with a way to hold a run that has no process behind it: what the reading and stopping steps
+/** The supervisor, with a way to hold a run without a process: what the reading and stopping steps
  *  answer does not depend on a child, and starting a real one belongs to the feature tests. */
 class SupervisorWithHeldRun extends InstanceStepper {
 	hold(run: string, said = "", ended: number | null = null) {
@@ -136,7 +136,7 @@ describe("watching a run", () => {
 
 	it("refuses a held port by naming what answers there, before a child is forked to fail on it", async () => {
 		// The situation an operator meets after a session ends without its children: something answers on the run's
-		// port, and "address in use" deep in a dead child's output names neither the occupant nor the recourse.
+		// port, and "address in use" deep in a dead child's output doesn't name the occupant or the recourse.
 		const { createServer } = await import("node:http");
 		const { mkdtempSync, writeFileSync } = await import("node:fs");
 		const { tmpdir } = await import("node:os");
@@ -163,7 +163,7 @@ describe("watching a run", () => {
 		expect(result.errorMessage, "what answers is named, so the refusal is actionable").toContain("not a haibun host");
 	});
 
-	it("refuses to read or stop a run it never started, rather than answering for nothing", async () => {
+	it("refuses to read or stop a run it never started, rather than answering for a run that doesn't exist", async () => {
 		const s = stepper();
 		expect((await read(s, "no-such-run", 0)).errorMessage).toMatch(/didn't start a run "no-such-run"/);
 		const stop = (await (s.steps.stopRun.action as (a: { run: string }) => Promise<TResult>)({ run: "no-such-run" })) as TResult;
@@ -172,7 +172,7 @@ describe("watching a run", () => {
 });
 
 describe("restarting an instance", () => {
-	it("refuses a port this run launched nothing on, rather than starting something unasked", async () => {
+	it("refuses a port where this run didn't launch an instance, rather than starting one unasked", async () => {
 		const result = (await (stepper().steps.restartInstance.action as (a: { port: number }) => Promise<TResult>)({ port: 8299 })) as TResult;
 		expect(result.ok).toBe(false);
 		expect(result.errorMessage).toMatch(/didn't launch an instance on port 8299/);
@@ -214,7 +214,7 @@ describe("whether a run would answer what an earlier run answered", () => {
 		expect(verifiedRun(config, dir, "", dir, env), "the same features, the same state, the same conditions").toBe("passed");
 		expect(verifiedRun(config, dir, "a", dir, env), "a run narrowed to some of them is another run").toBeUndefined();
 		nodeFS.writeFileSync(path.join(dir, "features/a.feature"), "Feature: a, changed\n");
-		expect(verifiedRun(config, dir, "", dir, env), "a change to what they depend on is a state no run has run against").toBeUndefined();
+		expect(verifiedRun(config, dir, "", dir, env), "a change to what they depend on is a state that hasn't been run against").toBeUndefined();
 	});
 
 	it("reads the .env of the directory the run is made from, as the run does, so a run given options there is told apart", () => {
@@ -299,12 +299,12 @@ describe("a run left standing", () => {
 		setTimeout(() => say('{"kind":"lifecycle","stage":"end","status":"completed","type":"execution"}\n'), 5);
 		const result = await waited;
 		expect(result.products?.finished, "the run said its features were over, and went on serving").toBe(true);
-		expect(result.products?.status, "nothing exited, so it is still running as a process").toBe("running");
+		expect(result.products?.status, "the process didn't exit, so it is still running").toBe("running");
 	});
 });
 
 describe("the features a run runs", () => {
-	it("are named by patterns of their paths, every feature by an empty filter, and a part that is no pattern is refused", () => {
+	it("are named by patterns of their paths, every feature by an empty filter, and a part that isn't a pattern is refused", () => {
 		const { schema } = featureFilterDomainDefinition;
 		expect(schema.safeParse("graph,a.*b").success).toBe(true);
 		expect(schema.safeParse("").success, "every feature").toBe(true);

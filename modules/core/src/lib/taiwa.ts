@@ -5,7 +5,7 @@
  *
  * One schema at the boundary: AskOptionsSchema, the per-call options a caller may state. What a selectable target
  * IS, and what a streamed chunk carries, are declared where they are persisted and streamed: a second copy here
- * described the same wire in fewer fields and nothing parsed through it.
+ * described the same wire in fewer fields and the code didn't parse with it.
  */
 
 import { z } from "zod";
@@ -34,7 +34,7 @@ export interface ITaiwa {
 }
 
 /**
- * Return the single taiwa-bridge among `steppers`, or undefined if none.
+ * Return the single taiwa-bridge among `steppers`, or undefined if one isn't loaded.
  * Throws when more than one taiwa stepper is loaded (ambiguity must be
  * resolved explicitly) or when the TAIWA-kinded stepper doesn't fully
  * implement the contract: every required method is verified up front so

@@ -119,7 +119,7 @@ describe("EventLogger", () => {
 	describe("what a step that did not fail says about errors", () => {
 		const step = { source: { path: "/test/feature.ts", lineNumber: 1 }, in: "set count to 1", seqPath: [1, 1, 1] } as unknown as TFeatureStep;
 
-		it("says nothing, so nothing downstream shows an error where there was none", () => {
+		it("doesn't state an error, so a reader downstream doesn't show one where it didn't occur", () => {
 			const emitted: unknown[] = [];
 			logger.subscribe((event) => emitted.push(event));
 
@@ -274,7 +274,7 @@ describe("EventLogger", () => {
 			expect(heard[0].level).toBe("debug");
 		});
 
-		it("reports a warning and a fault as themselves, since a quiet step is no reason to be quiet about a fault", () => {
+		it("reports a warning and a fault as themselves, since a quiet step isn't a reason to be quiet about a fault", () => {
 			const heard = said();
 			runInStep(DURING_A_TRACE_STEP, () => {
 				logger.warn("something is wrong");
@@ -317,7 +317,7 @@ describe("the level an event states", () => {
 		expect(levels).toEqual({ bounded: Access.public, "the run's own": Access.private, stated: Access.opened });
 	});
 
-	it("is refused where it is more public than what the call read, and the call holds no write at that level", async () => {
+	it("is refused where it is more public than what the call read, and the call doesn't hold a write at that level", async () => {
 		const logger = new EventLogger();
 		logger.suppressConsole = true;
 		const reader = [readAction(Access.private)];

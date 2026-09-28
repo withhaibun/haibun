@@ -6,8 +6,8 @@
  *
  * A blip is emitted on the same event bus as `kind: "blip"` and delivered only to subscribers that name that kind:
  * `subscribe(cb, { kinds: ["blip"] })`. `{ names }` narrows to declared names or dotted namespaces (`haibun.http`
- * matches `haibun.http.request`). A subscriber that names no kinds never receives one, and the console never prints
- * one. With nothing subscribed to the name, `recordBlip` returns after one check, so it is safe to call at any rate.
+ * matches `haibun.http.request`). A subscriber that doesn't name kinds never receives one, and the console never prints
+ * one. Where a subscriber doesn't watch the name, `recordBlip` returns after one check, so it is safe to call at any rate.
  *
  * Names are declared before use: an undeclared name throws. `dimensions` lists the attributes that may become metric
  * labels, bounding label cardinality. A blip carries the seqPath it was recorded under, so an exporter can attach it
@@ -28,7 +28,7 @@ export type TBlipDeclaration = {
 	instrument: TBlipInstrument;
 	/** What one recording means, for a reader of the declaration and of the exported signal. */
 	description: string;
-	/** UCUM unit for a measured value (`px`, `ms`, `1` for a count); omitted when a blip carries no value. */
+	/** UCUM unit for a measured value (`px`, `ms`, `1` for a count); omitted when a blip doesn't carry a value. */
 	unit?: string;
 	/** The attributes a recording carries. Validated on every record, so a stray key cannot reach an exporter. */
 	attributes?: z.ZodType;
@@ -197,7 +197,7 @@ class BlipWatch {
 		this.detachFn = undefined;
 	}
 
-	/** The names being watched, empty when nothing is. */
+	/** The names being watched, empty when a name isn't being watched. */
 	get names(): readonly string[] {
 		return this.named;
 	}

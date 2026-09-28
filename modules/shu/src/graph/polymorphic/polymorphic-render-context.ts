@@ -9,7 +9,7 @@ import type { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js
 
 type Vec3 = { x: number; y: number; z: number; set(x: number, y: number, z: number): void };
 
-/** The three.js camera slice the view drives (structural: this module keeps depending on no three .d.ts). */
+/** The three.js camera slice the view drives (structural: this module doesn't depend on a three .d.ts). */
 type RcCamera = {
 	aspect: number;
 	fov?: number;

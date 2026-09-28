@@ -3,7 +3,7 @@ import { layeredPositions, type LayeredDirection } from "../polymorphic/layered-
 import { collideRadius, chipTextHeight, truncateLabel, LAYERED_SIBLING_GAP } from "../polymorphic/layout-forces.js";
 
 // The layered (td/lr) analogue of group-grid.test.ts: run the REAL solver, attach each node's REAL chip footprint
-// (collideRadius half-width × chipTextHeight half-height), and assert the rendered layout is EXCLUSIVE (no two chips
+// (collideRadius half-width × chipTextHeight half-height), and assert the rendered layout is EXCLUSIVE (the chips don't
 // overlap) and COMPACT (siblings packed to the footprint, not over-spread). The chip is always
 // a horizontal billboard, so its half-extents are {x: collideRadius, y: chipTextHeight} whatever the flow direction.
 const half = (label: string) => ({ rx: collideRadius({ name: truncateLabel(label) }), ry: chipTextHeight({}) });
@@ -49,7 +49,7 @@ const fan = {
 
 for (const dir of ["TB", "LR"] as LayeredDirection[]) {
 	describe(`layered ${dir}: nodes are exclusive + compact`, () => {
-		it("no two node footprints overlap", () => {
+		it("node footprints don't overlap", () => {
 			const placed = place(fan.nodes, fan.edges, dir);
 			for (let i = 0; i < placed.length; i++) for (let j = i + 1; j < placed.length; j++) expect(overlapArea(placed[i], placed[j]), `${placed[i].id} ∩ ${placed[j].id}`).toBe(0);
 		});

@@ -54,7 +54,7 @@ describe("the references a record's body makes", () => {
 		expect(await refsBeside(`<p>See <a href="#${SURVEY}:s-1">the survey</a> and <a href="#intro">below</a>.</p>`, MEDIA_TYPE.html)).toEqual([survey]);
 	});
 
-	it("are nothing where the body makes none", async () => {
+	it("are empty where the body doesn't make a reference", async () => {
 		expect(await refsBeside("Plain words.", MEDIA_TYPE.markdown)).toEqual([]);
 	});
 });

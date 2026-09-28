@@ -110,7 +110,7 @@ export class ActionsBarSteps implements ReactiveController {
 
 	/**
 	 * Open a caller for the step at the end of the history. The last caller is removed first where it has not run and
-	 * nothing is fixed for the new one, so a reader trying steps keeps one caller. A caller carries the method it
+	 * the new one doesn't carry fixed arguments, so a reader trying steps keeps one caller. A caller carries the method it
 	 * dispatches, the step's pattern as its test-id prefix, and its number among the callers of that method. The newest
 	 * caller is kept in view.
 	 */

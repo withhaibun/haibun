@@ -128,7 +128,7 @@ describe("UrakataRegistry", () => {
 		expect(reported.every((m) => m.includes("exceeded 10ms"))).toBe(true);
 	});
 
-	it("stop aborts an in-flight tick, awaits its settlement, sets stoppedAt, and counts no error", async () => {
+	it("stop aborts an in-flight tick, awaits its settlement, sets stoppedAt, and doesn't count an error", async () => {
 		const reported: string[] = [];
 		const registry = makeRegistry((_id, _sp, err) => reported.push(err.message));
 		let settledAfterAbort = false;
@@ -185,7 +185,7 @@ describe("UrakataRegistry", () => {
 		await until(() => expect(ticks.mock.calls.length > 1).toBe(true));
 		await registry.stopAll();
 		const ticksAtStop = ticks.mock.calls.length;
-		// A quiet span after the stop, which is the one thing a clock states: nothing more happened.
+		// A quiet span after the stop, which is the one thing a clock states: a further tick didn't happen.
 		await sleep(20);
 		expect(ticks.mock.calls.length).toBe(ticksAtStop);
 	});
@@ -246,7 +246,7 @@ describe("UrakataRegistry persistence of transitions", () => {
 		expect(freshRow?.execution).toBe(world.tag.key);
 		await registry.stopAll();
 
-		// Re-registering the prior id (a restart) overwrites it with the current instance and no stoppedAt.
+		// Re-registering the prior id (a restart) overwrites it with the current instance and without a stoppedAt.
 		const registry2 = new UrakataRegistry(world, () => undefined);
 		registry2.register({ id: "imap.idle.acct/INBOX", description: "restarted", intervalMs: 1000, tick: () => undefined });
 		await sleep(0);

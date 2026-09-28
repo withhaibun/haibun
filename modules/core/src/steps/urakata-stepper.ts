@@ -14,8 +14,8 @@ const UrakataListSchema = z.object({ urakata: z.array(UrakataSchema) });
 
 /**
  * The persisted Urakata type: a task's lifecycle facts, queryable like any other individual. `execution` is a CONTEXT
- * facet so "what ran in instance E" is a stored query; the numeric counts derive their own columns. Nothing stores or
- * serves a "running" claim: a reader concludes it from the facts (no stoppedAt, execution is the current instance).
+ * facet so "what ran in instance E" is a stored query; the numeric counts derive their own columns. The stepper doesn't store or
+ * serve a "running" claim: a reader concludes it from the facts (the record doesn't have a stoppedAt, and execution is the current instance).
  */
 const DOMAIN_URAKATA_TASK = "urakata-task";
 const urakataTaskDomainDefinition = {

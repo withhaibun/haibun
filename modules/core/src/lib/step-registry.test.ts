@@ -41,7 +41,7 @@ describe("step tool input schemas", () => {
 		expect(data.required).not.toContain("generatedAtTime");
 	});
 
-	it("a domain declaring a type with no JSON Schema representation throws at registration, naming the domain and the type", () => {
+	it("a domain declaring a type without a JSON Schema representation throws at registration, naming the domain and the type", () => {
 		const unrepresentable = z.object({ handle: z.bigint() });
 		expect(() => createStepTool(new RecordSteps(), "createRecord", stepDef, worldWith(unrepresentable))).toThrow(
 			/test-record" declares a "bigint" field, which doesn't have a JSON Schema form/,
@@ -106,10 +106,10 @@ describe("what a read of the run's declarations shows", () => {
 		registry.inject([remoteTool("write", "write {data}", "Remote:write"), remoteTool("read", "read {data}", "Read:private")]);
 		expect(
 			definitionsOf(emptyWorld, registry, "", ["Remote:write"]).steps.map((step) => step.capability),
-			"one it holds, and nothing it may not call",
+			"one it holds, and doesn't show a step it may not call",
 		).toEqual(["Remote:write"]);
-		expect(definitionsOf(emptyWorld, registry, "", ["Read:opened"]).steps, "a narrower read allows no broader one").toEqual([]);
-		expect(definitionsOf(emptyWorld, registry, "", []).steps, "and a caller holding nothing is shown nothing").toEqual([]);
+		expect(definitionsOf(emptyWorld, registry, "", ["Read:opened"]).steps, "a narrower read doesn't allow a broader one").toEqual([]);
+		expect(definitionsOf(emptyWorld, registry, "", []).steps, "and a caller that doesn't hold an action isn't shown a step").toEqual([]);
 		expect(
 			definitionsOf(emptyWorld, registry, "").steppers.map((entry) => entry.stepper),
 			"the run is shown every step",
@@ -204,7 +204,7 @@ describe("a call by name of another host's step", () => {
 		).toBe(9);
 		const local = new StepRegistry([new LocalSteps()], emptyRegistryWorld).get("LocalSteps-passes");
 		if (!local) throw new Error("the local step is not registered");
-		expect(buildFeatureStepForTransport(local, {}, [0, -1, 2]).targetHostId, "and nothing for a step of this run").toBeUndefined();
+		expect(buildFeatureStepForTransport(local, {}, [0, -1, 2]).targetHostId, "and undefined for a step of this run").toBeUndefined();
 	});
 });
 
@@ -229,12 +229,12 @@ describe("what the manifest says about a domain", () => {
 });
 
 describe("what a refused caller from outside the run is told", () => {
-	it("tells a caller that proved no key only that it may not make the call, alike whether the step exists", () => {
+	it("tells a caller that didn't prove a key only that it may not make the call, alike whether the step exists", () => {
 		expect(refusal("Pool-drain", "Pool:drain", undefined)).toBe(refusal("Pool-nowhere", undefined, undefined).replace("Pool-nowhere", "Pool-drain"));
-		expect(refusal("Pool-drain", "Pool:drain", undefined), "and names nothing it could ask for").not.toContain("Pool:drain");
+		expect(refusal("Pool-drain", "Pool:drain", undefined), "and doesn't name an action it could ask for").not.toContain("Pool:drain");
 	});
 
-	it("tells a caller that proved a key the action it lacks, or that no such step exists, since it can ask a holder", () => {
+	it("tells a caller that proved a key the action it lacks, or that such a step doesn't exist, since it can ask a holder", () => {
 		expect(refusal("Pool-drain", "Pool:drain", "did:key:zSwimmer")).toBe("Pool-drain: capability Pool:drain required");
 		expect(refusal("Pool-nowhere", undefined, "did:key:zSwimmer")).toBe("Pool-nowhere: unknown step method");
 	});

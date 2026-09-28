@@ -63,7 +63,7 @@ const LAYOUT_STYLE = `
     flex: 1;
     min-height: 0;
     /* the closed docked pane's footprint (published by its pane), so the columns end above it rather than behind it; the
-       open docked pane still floats over them. 0 when no pane is docked. */
+       open docked pane still floats over them. 0 when a pane isn't docked. */
     margin-bottom: var(${DOCK_FOOTPRINT}, 0px);
   }
   /* Results pane styles (inside query pane's light DOM .results-target) */
@@ -101,15 +101,15 @@ function seedHashFromQueryString(): void {
 
 /**
  * What this reader holds here: the key the page keeps, and what was delegated to it, read through the deployment's
- * delegation read, signed as the key. A deployment that verifies no delegation gives its readers what needs none.
+ * delegation read, signed as the key. A deployment that doesn't verify a delegation gives its readers what doesn't need one.
  */
 function openReaderAuthority(): Promise<TPageAuthority> {
 	const read = deploymentVerifiesDelegations() ? () => conduit().follow<TDelegations>(reads(DELEGATIONS_READ_METHOD), "read what was delegated to this page") : undefined;
 	return openPageAuthority(read, deploymentAllowedWithoutDelegation());
 }
 
-/** A page that may read nothing here shows the key a holder delegates to, what to do with it, and nothing else: every
- *  view reads. */
+/** A page that may not read here shows the key a holder delegates to and what to do with it. It doesn't show a view,
+ *  since every view reads. */
 function showPageKey(appRoot: HTMLElement, authority: TPageAuthority): void {
 	const origin = esc(location.origin);
 	appRoot.innerHTML = `<div style="padding:20px;max-width:48rem">
@@ -122,15 +122,15 @@ function showPageKey(appRoot: HTMLElement, authority: TPageAuthority): void {
 
 const main = async (): Promise<void> => {
 	// What the reader's address says, before anything writes to it. An address naming views is the reader's own
-	// arrangement, which is what lets two addresses show different views of one run; an address saying nothing is a
-	// reader with no arrangement, and the run's own views are what they are shown.
+	// arrangement, which is what lets two addresses show different views of one run; an address that doesn't name a view is a
+	// reader without an arrangement, and the run's own views are what they are shown.
 	const arrivedWithAddress = getHash().length > 1;
 	hydrateFromDom();
 	// A page embedding shu at the origin this deployment names posts it the page the reader is on, and delegates to its key.
 	const embedder = window.parent !== window ? deploymentEmbedderOrigin() : undefined;
 	if (embedder) receiveFromEmbedder(embedder);
 	// One conduit, whatever the page is: a page with a server behind it reaches it, and a page carrying its own run
-	// reaches nothing, which every read already answers from what the page holds. Installed before anything else, since
+	// doesn't reach a server, which every read already answers from what the page holds. Installed before anything else, since
 	// every component reads through the accessor and would otherwise throw on first use.
 	setConduit(new LiveConduit(""));
 	// A page that carries its run fills the client cache with it before anything reads the run: every view then reads it
@@ -173,7 +173,7 @@ const main = async (): Promise<void> => {
 	}
 	if (!carried) {
 		// Opened before anything reads the run: the server announces from the moment a page connects, so a page that waited
-		// until its first view was ready would lose what the run said while it booted. A page that reached no server opens
+		// until its first view was ready would lose what the run said while it booted. A page that didn't reach a server opens
 		// it too, and is told at once that it is down; a page that may not follow the run is refused it, and reads without
 		// following.
 		eventStream().connect();
@@ -198,8 +198,8 @@ const main = async (): Promise<void> => {
 	/** The pane a view shows in: the index pane for the query, and the pane that holds it for every other view. */
 	const paneOf = (view: Element | null): Element | null => (view && view === getQuery() ? getIndexPane() : (view?.closest?.(SHU_TAG.COLUMN_PANE) ?? null));
 
-	// A reader with no arrangement of their own is shown the views this run has shown, read from its records. A page
-	// carrying its own run reads the records it carries, by the same read, so a report needs nothing precomputed.
+	// A reader without an arrangement of their own is shown the views this run has shown, read from its records. A page
+	// carrying its own run reads the records it carries, by the same read, so a report doesn't need the views precomputed.
 	const shown = arrivedWithAddress ? [] : await viewsShown();
 	if (shown.length > 0) ShuElement.pushHash(hashWithColumns(shown));
 
@@ -212,7 +212,7 @@ const main = async (): Promise<void> => {
 	 * Structured-event channel for external-component lifecycle phases. Error-level
 	 * emissions also carry `haibun.autonomic.event: "step.failure"` + exception
 	 * attributes so the autonomic agent picks them up via the same peer-failure
-	 * channel it uses for IMAP skips and lifecycle step failures: no per-source plumbing.
+	 * channel it uses for IMAP skips and lifecycle step failures, without a channel per source.
 	 */
 	const reportExternalComponent = (
 		level: "debug" | "error" | "info" | "warn" | "error",
@@ -264,12 +264,12 @@ const main = async (): Promise<void> => {
 	// Miller-column behavior: a click in column x replaces columns at index > x
 	// (the subsequent panes are stale relative to the new selection). ctrl/shift
 	// click in `detail.addToSelection` opts out and appends instead. Programmatic
-	// dispatches that pass no modifier default to replace.
+	// dispatches that don't pass a modifier default to replace.
 	appRoot.addEventListener(
 		SHU_EVENT.PANE_DISMISS,
 		((e: CustomEvent) => {
 			const paneId = e.detail?.paneId;
-			// The close is in the address at once: a reader who has closed a view has an arrangement, so nothing reseeds it.
+			// The close is in the address at once: a reader who has closed a view has an arrangement, so the run's views don't reseed it.
 			if (typeof paneId === "string" && paneId !== "query") PaneState.dismiss(paneId);
 		}) as EventListener,
 		{ signal },
@@ -280,7 +280,7 @@ const main = async (): Promise<void> => {
 	appRoot.addEventListener("click", followPaneLink, { capture: true, signal });
 
 	// A view in the other bundle opens a pane through this event, since that bundle's PaneState isn't the page's. Fail
-	// fast on a malformed request: no silent default pane.
+	// fast on a malformed request rather than open a default pane silently.
 	appRoot.addEventListener(
 		SHU_EVENT.PANE_OPEN,
 		((e: CustomEvent) => {
@@ -310,7 +310,7 @@ const main = async (): Promise<void> => {
 	// (PaneState.requestFrom). Results changing, a query re-run, or the initial query on a reload, must NOT remove
 	// panes: that would drop component-pane views restored from the URL the moment those first results arrive.
 
-	// Column widths persist via the pane's own ShuElement.persistFields (keyed by data-column-key): no listener here.
+	// Column widths persist via the pane's own ShuElement.persistFields (keyed by data-column-key), so this file doesn't add a listener.
 
 	/** The pane the reader is on, as the strip holds it. */
 	const activePaneElement = (): HTMLElement | undefined =>
@@ -318,7 +318,7 @@ const main = async (): Promise<void> => {
 	const paneSubjectOf = (pane: Element | undefined | null): TContextPattern[] | null =>
 		(viewOf(pane) as { paneSubject?(): TContextPattern[] | null } | null)?.paneSubject?.() ?? null;
 	/** The page scope's entry, from the pane the reader is on. The reader moving to a pane that shows a subject activates
-	 *  it; the columns changing under them updates it to what the pane now shows. A pane about nothing activates nothing,
+	 *  it; the columns changing under them updates it to what the pane now shows. A pane that doesn't show a subject doesn't activate one,
 	 *  so moving to a log beside a conversation leaves the active record where it is. */
 	const raiseActivePaneSubject = (type: "activate" | "update"): void => {
 		const patterns = paneSubjectOf(activePaneElement());
@@ -333,7 +333,7 @@ const main = async (): Promise<void> => {
 			const context = PageContextSchema.parse(e.detail);
 			pageContext.set(context);
 			// A view stating what it shows moves the reader to it only where it is the active pane: the query view
-			// publishing at boot, or a column that is not the one the reader is on, changes nothing about where they are.
+			// publishing at boot, or a column that is not the one the reader is on, doesn't change where they are.
 			const statedBy = paneOf(e.target as Element | null);
 			if (statedBy && statedBy === activePaneElement()) dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: entryOf(context.patterns, context.accessLevel) });
 		}) as EventListener,
@@ -384,8 +384,8 @@ const main = async (): Promise<void> => {
 		{ signal },
 	);
 
-	// The cursor names the moment the run is read at. A window holds a few thousand records, so a moment far from the
-	// newest records is a moment no window holds: without this a reader who moved there would be shown the records they
+	// The cursor names the moment the run is read at. A window holds a few thousand records, so the window doesn't hold a moment far from the
+	// newest records: without this a reader who moved there would be shown the records they
 	// had left. One rule for every way the cursor moves, so a press on the rail, a click on a row and scrubbing all read
 	// the run the same way.
 	eventsController.signal.addEventListener(
@@ -402,7 +402,7 @@ const main = async (): Promise<void> => {
 			query?.setFilters?.(e.detail || {});
 			// A reader searching is asking to see what it finds, so the index comes back from its spine, whether it
 			// minimized to give the run's views room or the reader put it there. The bar restoring its own search at
-			// load asked for nothing, and leaves the index where it is.
+			// load didn't ask to see what it finds, and leaves the index where it is.
 			if (e.detail?.asked) getIndexPane()?.setMinimized(false);
 		}) as EventListener,
 		{ signal },
@@ -509,12 +509,12 @@ const main = async (): Promise<void> => {
 				{ pane: { paneType: "component", tag: SHU_TAG.ACTIONS_BAR, label: "Actions", docked: true }, attributes: { "api-base": apiBase, "testid-prefix": "app-" } },
 			],
 		);
-		// The query column is written into the boot markup, so it never passes through PaneState and nothing names it
+		// The query column is written into the boot markup, so it never passes through PaneState and PaneState doesn't name it
 		// active. Name it here, before reading the hash: a hash that describes panes replaces this, and one that does
-		// not leaves the column that is on screen as the active pane rather than none.
+		// not leaves the column that is on screen as the active pane rather than leaving `activePane` null.
 		if (activePane.get() === null) activePane.set("query");
 		PaneState.fromHash();
-		// The index gives the run's views the room: a reader shown them asked for nothing, so the search that is on
+		// The index gives the run's views the room: a reader shown them didn't ask for a view, so the search that is on
 		// screen minimizes to its spine, where it still says which search is behind it. A reader who arrived with an
 		// arrangement of their own keeps the index as they left it.
 		if (shown.length > 0) {

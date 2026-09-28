@@ -71,7 +71,7 @@ describe("the actions bar's search mode", () => {
 		vi.useRealTimers();
 	});
 
-	it("runs each select filter with a value and each filter row that names a field, and no row still unnamed", () => {
+	it("runs each select filter with a value and each filter row that names a field, and doesn't run a row still unnamed", () => {
 		const rows: TSearchCondition[] = [
 			{ predicate: "subject", operator: "contains", value: "crumb" },
 			{ predicate: "", operator: "eq", value: "left unnamed" },
@@ -102,12 +102,12 @@ describe("the actions bar's search mode", () => {
 		expect(changes).toEqual([{ asked: false, accessLevel: query.accessLevel, label: "File", conditions: [{ predicate: "folder", operator: "eq", value: "Drafts" }] }]);
 	});
 
-	it("reads the first type where the address names none, and keeps a label no type carries, saying the run holds no such type", async () => {
+	it("reads the first type where the address doesn't name one, and keeps a label that the types don't carry, saying the run doesn't hold such a type", async () => {
 		const { query, statuses } = await aQueryPage();
 		expect(query.selectedLabel).toBe("Email");
 		query.setContext([], query.accessLevel, { label: NOT_HELD });
 		expect(query.selectedLabel, "the label stays as it was named").toBe(NOT_HELD);
-		expect(pageTypes.get().selected, "no type the run holds is chosen for it").toBe("");
+		expect(pageTypes.get().selected, "the types the run holds aren't chosen for it").toBe("");
 		expect(pageTypes.get().options.length, "and the run's types are all offered").toBeGreaterThan(0);
 		expect(statuses).toContain(typeNotHeld(NOT_HELD));
 	});
@@ -142,7 +142,7 @@ describe("the actions bar's search mode", () => {
 		expect(recorded(searches)).toBe(2);
 	});
 
-	it("adds the distinct values a batch of events brings for the selected type, and none for another type", async () => {
+	it("adds the distinct values a batch of events brings for the selected type, and doesn't add values for another type", async () => {
 		const { host, query } = await aQueryPage();
 		const before = host.updatesAsked;
 		const quad = (namedGraph: string, object: string) => ({

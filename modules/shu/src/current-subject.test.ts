@@ -43,7 +43,7 @@ describe("an entry for a pane's patterns", () => {
 		expect(EMAIL).toEqual({ record: { id: "a@test.com", label: "Email" }, bundle: { patterns: [anIndividual("Email", "a@test.com")], accessLevel: "private" } });
 	});
 
-	it("names no record for a type, and still bundles it", () => {
+	it("doesn't name a record for a type, and still bundles it", () => {
 		const typed = entryOf([aType("Email")], "private");
 		expect(typed.record).toBeNull();
 		expect(typed.bundle.patterns).toEqual([aType("Email")]);
@@ -78,7 +78,7 @@ describe("each event", () => {
 		expect(scopeEntry(cleared, SCOPE.actionsBar)).toBeNull();
 		expect(currentSubject(cleared), "a new conversation leaves the page's record leading").toEqual(EMAIL.record);
 		expect(currentSubject(transition(cleared, update(SCOPE.actionsBar, ANSWER))), "a session restored after it does not take the lead").toEqual(EMAIL.record);
-		expect(transition(INITIAL_SUBJECT, { type: "clear", scope: SCOPE.actionsBar }), "a scope with no entry is unchanged").toBe(INITIAL_SUBJECT);
+		expect(transition(INITIAL_SUBJECT, { type: "clear", scope: SCOPE.actionsBar }), "a scope without an entry is unchanged").toBe(INITIAL_SUBJECT);
 	});
 
 	it("lists every event it takes", () => {
@@ -87,7 +87,7 @@ describe("each event", () => {
 });
 
 describe("the active entry", () => {
-	it("is nothing before anything is activated", () => {
+	it("is null before anything is activated", () => {
 		expect(activeEntry(INITIAL_SUBJECT)).toBeNull();
 		expect(currentSubject(INITIAL_SUBJECT)).toBeNull();
 	});
@@ -115,7 +115,7 @@ describe("the active entry", () => {
 		expect(currentSubject(transition(closed, open(SCOPE.actionsBar)))).toEqual(ANSWER.record);
 	});
 
-	it("is nothing after a reader chooses nothing on the page, whatever a closed scope holds", () => {
+	it("is null after a reader chooses an empty entry on the page, whatever a closed scope holds", () => {
 		const state = run(open(SCOPE.actionsBar), activate(SCOPE.actionsBar, ANSWER), close(SCOPE.actionsBar), activate(SCOPE.page, NOTHING));
 		expect(activeScope(state)).toBe(SCOPE.page);
 		expect(currentSubject(state)).toBeNull();
@@ -127,7 +127,7 @@ describe("the active entry", () => {
 		expect(currentSubject(transition(state, update(SCOPE.page, OTHER))), "an update to the active scope shows its new record").toEqual(OTHER.record);
 	});
 
-	it("is an updated scope's entry where no open scope was activated", () => {
+	it("is an updated scope's entry where the open scopes weren't activated", () => {
 		expect(currentSubject(run(open(SCOPE.actionsBar), update(SCOPE.actionsBar, ANSWER)))).toEqual(ANSWER.record);
 	});
 });

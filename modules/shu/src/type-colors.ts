@@ -40,7 +40,7 @@ const TYPE_PALETTE: ReadonlyArray<string> = [
 
 function hashString(s: string): number {
 	// Small djb2, sufficient distribution for an 8-colour palette and stable
-	// across runs (no Math.random, no Date).
+	// across runs (without Math.random or Date).
 	let h = 5381;
 	for (let i = 0; i < s.length; i++) h = (h * 33) ^ s.charCodeAt(i);
 	return h >>> 0;

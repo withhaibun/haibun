@@ -64,7 +64,7 @@ const bodyCsp = (baseOrigin: string): string =>
 export function buildBodyIframeDoc(content: string, mediaType: string, pageUrl = ""): string {
 	const baseOrigin = pageUrl ? new URL(pageUrl).origin : "";
 	const csp = mediaType === MEDIA_TYPE.html ? "" : `<meta http-equiv="Content-Security-Policy" content="${bodyCsp(baseOrigin)}">`;
-	// In a data: document a `#` link resolves against the data: URL and goes nowhere; the base re-roots links against
+	// In a data: document a `#` link resolves against the data: URL and doesn't navigate; the base re-roots links against
 	// the app and target=_top sends them to the top frame (the iframe sandbox permits user-initiated top navigation).
 	const base = pageUrl ? `<base href="${escAttr(pageUrl)}" target="_top">` : "";
 	return `<!DOCTYPE html><html><head><meta charset="utf-8">${csp}${base}<style>body{${BODY_READING_STYLE}margin:8px;color:#111;}</style></head><body>${content}</body></html>`;
@@ -92,7 +92,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		:host { display: flex; flex-direction: column; height: 100%; overflow: auto; padding: var(--shu-space-3) var(--shu-space-4); font-family: inherit; color: var(--shu-fg); }
 		.entity-content { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 		.entity-header { padding: var(--shu-space-2) 0; }
-		/* A statement about where the view came from, not a control: no border, background or radius, which read as a button. */
+		/* A statement about where the view came from, not a control: it doesn't have a border, background or radius, which read as a button. */
 		.entity-from-store { align-self: flex-start; margin-bottom: var(--shu-space-1); font-size: var(--shu-font-sm); color: var(--shu-fg-muted); }
 		.body-reading { padding: var(--shu-space-3); color: var(--shu-fg-muted); font-style: italic; }
 		.entity-type { font-weight: 600; color: var(--shu-accent); font-size: 0.85em; letter-spacing: 0.5px; margin-right: var(--shu-space-4); }
@@ -354,7 +354,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	}
 
 	/** The record's type as a link to the type's own view, which holds its description, schema and individuals: the same
-	 *  navigation a @type value and a #Type reference use. Empty for an ad-hoc result view with no registered type. */
+	 *  navigation a @type value and a #Type reference use. Empty for an ad-hoc result view without a registered type. */
 	private typeLine(persistedAs: string): string {
 		if (getRels(persistedAs) === undefined) return "";
 		const link = linkHtml(refHref(REF_DENOTES.type, { domain: persistedAs }), persistedAs, ` data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_TYPE_LINK}"`);
@@ -406,7 +406,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	}
 
 	/** Plain-language names for the roles CORE's own general rels name. A consumer edge's phrase comes from its declared
-	 *  edge label in the concern catalog (getDeclaredEdgeLabel): no consumer vocabulary is named here. */
+	 *  edge label in the concern catalog (getDeclaredEdgeLabel): this view doesn't name a consumer vocabulary. */
 	private static readonly ROLE_PHRASE: Record<string, string> = {
 		delegator: "Delegated by",
 		performedBy: "Performed by",
@@ -501,12 +501,12 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 						)
 						.join("")}</div>`
 				: "";
-		// Text this view was HANDED (a step's products carry their own body) needs no request; otherwise it is the text
+		// Text this view was HANDED (a step's products carry their own body) doesn't need a request; otherwise it is the text
 		// read on request, and until that lands the body area says it is reading rather than showing an empty frame.
 		const raw = active.content ?? this.bodyText[activeId];
 		if (raw === undefined)
 			return `<div class="body-container"><div class="content-toolbar">${switcherHtml}</div><div class="body-reading" data-testid="body-reading">Reading ${esc(String(active.mediaType))}…</div></div>`;
-		if (raw === "") return ""; // a body with nothing in it: show nothing, not an empty frame
+		if (raw === "") return ""; // an empty body renders an empty string, not an empty frame
 		const content = renderContentHtml(raw, String(active.mediaType));
 		const encoded = utf8ToBase64(buildBodyIframeDoc(content, String(active.mediaType), pageAddress()));
 		const invertible = String(active.mediaType) !== "text/html" ? " invertible" : "";
@@ -559,7 +559,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		return `<button class="pane-icon annotate-enter${has ? " has-annotations" : ""}" data-testid="annotate-enter" type="button" aria-pressed="${active}" title="${title}"><span class="anno-glyph">${ANNOTATION_GLYPH}</span></button>`;
 	}
 
-	/** Show or hide the annotation gutter. On with no annotations yet enters authoring (the inline view needs a note or
+	/** Show or hide the annotation gutter. On without annotations yet enters authoring (the inline view needs a note or
 	 *  a draft to show); off also drops any pending passage reveal, since the reveal renders in the gutter. */
 	private toggleAnnotationGutter(show: boolean): void {
 		if (!show) this.revealTarget = null;
@@ -568,7 +568,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 
 	/** The body area. A text body (markdown / plain) that carries annotations, with the gutter on (the default when any
 	 *  exist), renders inline via shu-annotated-body: the passages highlighted and the notes shown in a margin rail
-	 *  beside them, the toolbar's pencil toggling back to the plain iframe. Any other case (no annotations, gutter off, or a
+	 *  beside them, the toolbar's pencil toggling back to the plain iframe. Any other case (without annotations, gutter off, or a
 	 *  non-text body such as an original HTML email) keeps the sandboxed body iframe, whose pencil toggles the gutter on. */
 	private renderBodyArea(iframeHtml: string): TemplateResult {
 		if (!iframeHtml) return html``;
@@ -613,7 +613,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	}
 
 	/** The record's governance fields: who may see it, what it allows, whether it is revoked. The field table drops them
-	 *  (their rel says they belong here), so without this they render nowhere at all. */
+	 *  (their rel says they belong here), so without this they don't render. */
 	private renderGovernance(persistedAs: string): string {
 		if (!this.vertex) return "";
 		const fields = governanceFields(this.vertex, persistedAs);
@@ -627,7 +627,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	 * Render literal body-presentation content: an inline scalar whose rel has presentation `body` (a SeqPath's
 	 * `stepText`, mapped to `content`), as plain text blocks in the body area. isVisibleKey routes body-presentation
 	 * fields out of the field table, but renderContentIframe only handles linked `hasBody` sub-resources, so a literal
-	 * `content` value would otherwise render nowhere.
+	 * `content` value otherwise doesn't render.
 	 */
 	private renderBodyLiterals(persistedAs: string): string {
 		if (!this.vertex) return "";
@@ -661,7 +661,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 
 	/** The type's scoped @context (field → {@id, @type?}) from the served hypermedia: the server resolves each field to
 	 *  its genuine vocabulary IRI here, so the view reads provenance/representation from it rather than guessing. Undefined
-	 *  for an ad-hoc view with no served context. */
+	 *  for an ad-hoc view without a served context. */
 	private scopedContext(): Record<string, { "@id"?: string; "@type"?: string }> | undefined {
 		const ctx = this.vertex?.["@context"] as Record<string, unknown> | undefined;
 		type TScopedField = { "@id"?: string; "@type"?: string };
@@ -718,7 +718,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	// NOT rebuild while unchanged), so a per-node addEventListener in `updated()` (which runs on every render) accumulated
 	// a fresh listener on each surviving button: one click then fired N times. Delegation binds one stable listener to
 	// the shadow root, which addEventListener dedups by identity, so re-binding every render is a no-op by spec. Links
-	// need none: the page follows their addresses.
+	// don't need one: the page follows their addresses.
 	private onShadowClick = (e: Event): void => {
 		const switchBtn = (e.target as Element | null)?.closest(".content-switch-btn") as HTMLElement | null;
 		if (switchBtn) this.switchBody(switchBtn);

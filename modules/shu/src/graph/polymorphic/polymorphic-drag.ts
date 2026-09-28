@@ -1,5 +1,5 @@
 // The node-drag state machine, lifted out of the polymorphic view component so its geometry + pin behaviour is unit-tested with
-// stubs: no GPU, no raycaster, no rendered scene. The flake it replaces lived ENTIRELY in picking a pixel out of an
+// stubs, without a GPU, a raycaster or a rendered scene. The flake it replaces lived ENTIRELY in picking a pixel out of an
 // occluded WebGL scene, never in this logic, which is pure number-shuffling once a node is picked. The component owns the
 // DOM events + the THREE projection; this owns the state transitions: a press that stays put is a click; one that crosses
 // the threshold pins the whole layout and drags a node; release leaves that node pinned while freeing the rest.
@@ -61,7 +61,7 @@ export class NodeDrag {
 		if (!this.activeState) {
 			const p = this.pendingState;
 			if (!p || Math.hypot(e.clientX - p.downX, e.clientY - p.downY) <= DRAG_THRESHOLD_PX) return; // still a potential click
-			// Threshold crossed → promote to a real drag: NOW pin every node and hold the engine so nothing else moves.
+			// Threshold crossed → promote to a real drag: NOW pin every node and hold the engine so the other nodes don't move.
 			for (const n of this.d.nodes()) {
 				n.fx = n.x;
 				n.fy = n.y;

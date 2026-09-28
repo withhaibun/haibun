@@ -5,7 +5,7 @@
  * their intrinsic heights are: the alignment is decided once here rather than by each row's own markup. `trailing`
  * puts the name after the control, which is where a checkbox's name belongs.
  *
- * It owns nothing: the control is the host's, slotted in, keeping its own id, value and events.
+ * It doesn't own the control: the control is the host's, slotted in, keeping its own id, value and events.
  */
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
@@ -13,7 +13,7 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 
 class ShuField extends ShuElement<z.ZodType> {
-	/** A control, not a view of data, contributes nothing to the Kihan's context. */
+	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
@@ -33,7 +33,7 @@ class ShuField extends ShuElement<z.ZodType> {
 		css`
 			:host { display: inline-flex; align-items: center; gap: var(--shu-space-1); font-size: var(--shu-font-sm); color: var(--shu-fg); }
 			.name { color: var(--shu-fg-muted); white-space: nowrap; }
-			/* The slot carries no box of its own, so several slotted controls are each a flex item here and take the gap
+			/* The slot doesn't carry a box of its own, so several slotted controls are each a flex item here and take the gap
 			   between them: a name, its box and its button read as three things, not one run. */
 			slot { display: contents; }
 			/* The control keeps its own look; only its alignment is decided here, so a row of fields shares one centre line. */

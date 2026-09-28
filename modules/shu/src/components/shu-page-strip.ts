@@ -24,7 +24,7 @@ import type { ShuColumnPane } from "./shu-column-pane.js";
 const PageStripSchema = z.object({});
 
 export class ShuPageStrip extends ShuElement<typeof PageStripSchema> {
-	/** A control, not a view of data, contributes nothing to the Kihan's context. */
+	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}

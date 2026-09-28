@@ -14,7 +14,7 @@ describe("quadsToGanttModel / isGanttable (fields recognised via the gantt upper
 		q("t1", LinkRelations.ENDED_AT_TIME.rel, "2026-01-05"),
 		q("t1", "name", "Design"),
 		q("t2", LinkRelations.STARTED_AT_TIME.rel, "2026-01-05"),
-		q("t2", LinkRelations.DURATION.rel, String(4 * DAY_MS)), // no explicit end → derived from duration
+		q("t2", LinkRelations.DURATION.rel, String(4 * DAY_MS)), // without an explicit end → derived from duration
 		q("t2", LinkRelations.EFFORT.rel, String(2 * DAY_MS)),
 		q("t2", LinkRelations.DEPENDS_ON.rel, "t1"),
 		q("x", "name", "Not a task"),
@@ -27,7 +27,7 @@ describe("quadsToGanttModel / isGanttable (fields recognised via the gantt upper
 		expect(t2?.end).toBe(day("2026-01-05") + 4 * DAY_MS);
 		expect(t2?.effort).toBe(2 * DAY_MS);
 		expect(t2?.dependsOn).toEqual(["t1"]);
-		expect(m.tasks.find((t) => t.id === "x")).toBeUndefined(); // no ganttStart → not a task
+		expect(m.tasks.find((t) => t.id === "x")).toBeUndefined(); // without ganttStart → not a task
 	});
 
 	it("sorts tasks by start then id", () => {
@@ -35,13 +35,13 @@ describe("quadsToGanttModel / isGanttable (fields recognised via the gantt upper
 		expect(m.tasks.map((t) => t.id)).toEqual(["t1", "t2"]);
 	});
 
-	it("a start-kind instant with no end is a zero-length milestone task, placed at its moment", () => {
+	it("a start-kind instant without an end is a zero-length milestone task, placed at its moment", () => {
 		const m = quadsToGanttModel([q("note", LinkRelations.STARTED_AT_TIME.rel, "2026-08-03")]);
 		expect(m.tasks).toHaveLength(1);
 		expect(m.tasks[0]).toMatchObject({ id: "note", start: day("2026-08-03"), end: day("2026-08-03") });
 	});
 
-	it("a record's generation time is NOT subject time: generatedAtTime alone yields no task", () => {
+	it("a record's generation time is NOT subject time: generatedAtTime alone doesn't yield a task", () => {
 		expect(quadsToGanttModel([q("rec", LinkRelations.GENERATED_AT_TIME.rel, "2026-08-03")]).tasks).toHaveLength(0);
 	});
 

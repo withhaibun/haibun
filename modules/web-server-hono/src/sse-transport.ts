@@ -60,7 +60,7 @@ export class SSETransport implements ITransport, IStepTransport {
 			this.eventLogger.debug("SSE Client connected");
 			return await streamSSE(c, async (sseStream) => {
 				// The stream announces what happens from here on. What happened before is in the graph, which a
-				// connecting page reads; nothing is replayed to it. Each announcement goes to a follower that may read at
+				// connecting page reads; the stream doesn't replay events to it. Each announcement goes to a follower that may read at
 				// its level, so one holding a public read follows the public part of the run.
 				const handler = (data: string, level: AccessLevel) => {
 					if (!capabilityAllows(granted, readAction(level))) return;
@@ -70,7 +70,7 @@ export class SSETransport implements ITransport, IStepTransport {
 				};
 				this.hub.on("event", handler);
 				// The stream is open until its follower leaves or the authority it follows under lapses; a follower whose
-				// delegation was revoked or expired is sent nothing more, and connecting again is refused.
+				// delegation was revoked or expired isn't sent further events, and connecting again is refused.
 				const followed = new AbortController();
 				sseStream.onAbort(() => followed.abort("the follower left"));
 				endWhenLapsed(this.runtime, authority, followed.signal, (reason) => followed.abort(reason));
@@ -96,7 +96,7 @@ export class SSETransport implements ITransport, IStepTransport {
 			const requestInfo: TTransportRequestInfo = { headers: c.req.header(), method: c.req.method, url: c.req.url, body };
 			const isStream = (data as Record<string, unknown>).stream === true;
 
-			// Streaming requests open an NDJSON response and run the same dispatcher inside `streamContext`. Step actions read the per-request emit callback from AsyncLocalStorage and push chunks during execution; the final dispatchStep result (success or refusal) lands on the seqPath via stepStart/stepEnd lifecycle events. No dual handler path: one dispatcher, one error contract.
+			// Streaming requests open an NDJSON response and run the same dispatcher inside `streamContext`. Step actions read the per-request emit callback from AsyncLocalStorage and push chunks during execution; the final dispatchStep result (success or refusal) lands on the seqPath via stepStart/stepEnd lifecycle events. One handler path: one dispatcher, one error contract.
 			if (isStream) {
 				c.header("Content-Type", "application/x-ndjson");
 				return stream(c, async (s) => {
@@ -185,7 +185,7 @@ export class SSETransport implements ITransport, IStepTransport {
 			payload = JSON.stringify(fallback);
 			this.eventLogger.error(`SSE event dropped (payload too large to serialize): ${fallback.droppedReason}`);
 		}
-		// Every event of the run states its level as it is emitted, and what states none is taken as private.
+		// Every event of the run states its level as it is emitted, and an event that doesn't state one is taken as private.
 		this.hub.emit("event", payload, AccessLevelSchema.parse(data?.event?.accessLevel ?? Access.private));
 	}
 
@@ -202,8 +202,8 @@ export class SSETransport implements ITransport, IStepTransport {
 	/**
 	 * Whether a call asks the run a question rather than acting on it.
 	 *
-	 * Reading a run is not an act of the run, which is why a read invoked into a running instance writes no record and
-	 * announces no step. Narrating that a read was served is the same fact by another route: a view reading at a level
+	 * Reading a run is not an act of the run, which is why a read invoked into a running instance doesn't write a record and
+	 * doesn't announce a step. Narrating that a read was served is the same fact by another route: a view reading at a level
 	 * that carried the line would read the run again for its own reading, and each such read would be served, narrated
 	 * and read again without end.
 	 */

@@ -26,7 +26,7 @@ export async function callStepByName(ctx: DispatchContext, method: string, input
 }
 
 /**
- * The same call from a stepper, which holds its world and the steppers it was set up with, but no registry.
+ * The same call from a stepper, which holds its world and the steppers it was set up with, but doesn't hold a registry.
  *
  * The run's own registry is used: a registry built again lacks the tools a transport put on the run's.
  */

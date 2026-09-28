@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 /**
- * Reported: the Ask pane sometimes shows no session selector.
+ * Reported: the Ask pane sometimes doesn't show a session selector.
  *
  * The selector used to render only when the pane held sessions, and the list was refreshed only when a turn's stream
- * announced its seqPath, so a turn that announced none left it missing. A control that appears and disappears is the
+ * announced its seqPath, so a turn that didn't announce one left it missing. A control that appears and disappears is the
  * fault: the selector is always rendered, and its options fill in as sessions arrive.
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
@@ -71,7 +71,7 @@ describe("the session selector", () => {
 		sessionsAnswer = () => ({ sessions: [...listed] });
 	});
 
-	it("is there before any turn, offering a new conversation and no sessions", async () => {
+	it("is there before any turn, offering a new conversation without sessions", async () => {
 		const el = await chat();
 		expect(hasSelector(el)).toBe(true);
 		expect(optionCount(el)).toBe(1);
@@ -84,7 +84,7 @@ describe("the session selector", () => {
 		expect(optionCount(el)).toBe(2);
 	});
 
-	it("keeps the pane rendering when the read answers with no list, so the conversation continues past that turn", async () => {
+	it("keeps the pane rendering when the read answers without a list, so the conversation continues past that turn", async () => {
 		sessionsAnswer = () => ({});
 		const el = await chat();
 		await turn(el, "the first");
@@ -93,7 +93,7 @@ describe("the session selector", () => {
 		expect(conversationState.get().asked).toMatchObject({ prompt: "the second", status: "completed" });
 	});
 
-	it("offers the session even when the turn's stream announced no seqPath, since the session exists either way", async () => {
+	it("offers the session even when the turn's stream didn't announce a seqPath, since the session exists either way", async () => {
 		onStartSeqPath = null;
 		const el = await chat();
 		await turn(el);

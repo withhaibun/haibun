@@ -37,7 +37,7 @@ describe("extractQuadsFromEvents", () => {
 		expect(quads[1]).toMatchObject({ subject: "/api/other", predicate: "name", object: "POST 201 12ms", namedGraph: "observation/http" });
 	});
 
-	it("returns empty array for events with no quadObservations", () => {
+	it("returns empty array for events without quadObservations", () => {
 		const events = [
 			{ id: "log-1", timestamp: 1000, kind: "log", level: "info", source: "test" },
 			{ id: "artifact-1", timestamp: 2000, kind: "artifact", artifactType: "screenshot", source: "test" },
@@ -54,7 +54,7 @@ describe("extractQuadsFromEvents", () => {
 		expect(extractQuadsFromEvents(events)).toEqual([]);
 	});
 
-	it("uses event timestamp when quad has no timestamp", () => {
+	it("uses event timestamp when quad doesn't have a timestamp", () => {
 		const events = [
 			{ id: "q-1", timestamp: 5000, kind: "artifact", artifactType: "json", json: { quadObservation: { subject: "/x", predicate: "name", object: "val", namedGraph: "test" } } },
 		];
@@ -68,15 +68,15 @@ describe("eventsAffectLabel", () => {
 		expect(eventsAffectLabel([quadEvent("FieldReport")], "FieldReport")).toBe(true);
 	});
 
-	it("is false when no quad is in the label's named graph", () => {
+	it("is false when the quads aren't in the label's named graph", () => {
 		expect(eventsAffectLabel([quadEvent("Email")], "FieldReport")).toBe(false);
 	});
 
-	it("is false when the batch carries no quads (e.g. a plain log event)", () => {
+	it("is false when the batch doesn't carry quads (e.g. a plain log event)", () => {
 		expect(eventsAffectLabel([{ id: "log-1", timestamp: 1, kind: "log", level: "info" }], "FieldReport")).toBe(false);
 	});
 
-	it("with no label, any quad is relevant (unscoped view); an empty batch is not", () => {
+	it("without a label, any quad is relevant (unscoped view); an empty batch is not", () => {
 		expect(eventsAffectLabel([quadEvent("Email")])).toBe(true);
 		expect(eventsAffectLabel([])).toBe(false);
 	});
@@ -108,7 +108,7 @@ describe("matching a quad against a pattern", () => {
 		expect(matchesQuadPattern(quad("one"), { object: "two" })).toBe(false);
 	});
 
-	it("names only the fields it states, so a pattern of nothing matches everything", () => {
+	it("names only the fields it states, so an empty pattern matches every quad", () => {
 		expect(matchesQuadPattern(quad("one"), {})).toBe(true);
 		expect(matchesQuadPattern(quad("one"), { subject: "s", predicate: "q" })).toBe(false);
 		expect(matchesQuadPattern(quad("one"), { namedGraph: "H" })).toBe(false);

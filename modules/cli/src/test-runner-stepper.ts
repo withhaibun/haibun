@@ -4,13 +4,13 @@
  *
  * THE RULE THIS FOLLOWS: the agent's tool surface IS the step surface. Every tool it has is a step here, callable
  * the same three ways everything else is (a feature line, an RPC call, another agent), gated by the same
- * capabilities, and recorded as the same individuals. Nothing here adds a second way to call a tool, hold a session,
+ * capabilities, and recorded as the same individuals. This stepper doesn't add a second way to call a tool, hold a session,
  * or record an act. Its memory is the graph; its transcript is the discourse; its story is the sequence.
  *
  * WHAT IT WILL NOT DO, by construction rather than by hope:
  *   - run two tests at once: one run is in flight per agent, and asking again while one is live answers with the
- *     live one, since a second run of the same features leaves two runs and no way to say which one failed;
- *   - re-run the same features with nothing changed: a re-run is refused unless something was applied since, or the
+ *     live one, since a second run of the same features leaves two runs without a way to say which one failed;
+ *   - re-run the same features while their state hasn't changed: a re-run is refused unless something was applied since, or the
  *     asker asked for it in as many words;
  *   - run past its limits: they come from the environment, and reaching one ends the loop with a record saying which
  *     limit was reached and where it stood, rather than stopping quietly;
@@ -18,7 +18,7 @@
  *     the standing limit is refused, naming the runs to stop.
  *
  * WHAT COMES FROM THE ENVIRONMENT, never from source: which model answers, where it is, and what it may use. A
- * self-hosted model router is one such environment; a hosted API is another. No step, feature or default here names a model.
+ * self-hosted model router is one such environment; a hosted API is another. The steps, features and defaults here don't name a model.
  */
 import type { TInputSchema, TStepDescriptor } from "@haibun/core/lib/step-discovery.js";
 import path from "node:path";
@@ -47,7 +47,7 @@ import { forgetOutcomes } from "./verified.js";
 import { DOMAIN_FILE_PATH } from "@haibun/core/lib/domains.js";
 
 /** The supervisor steps this agent's tools call. A run is started, read and stopped by the instance supervisor; this
- *  stepper decides what may be run and records what came of it, and holds neither a process nor a port.
+ *  stepper decides what may be run and records what came of it, and doesn't hold a process or a port.
  *
  *  Each tool declares the capability of the supervisor step it calls, not one of its own, so starting a run through
  *  this stepper requires the same capability as starting one directly. One action, one capability, whatever the
@@ -59,7 +59,7 @@ const SUPERVISOR = { start: "InstanceStepper-startRun", read: "InstanceStepper-r
 export function answerOfRun(products: Record<string, unknown>): { text: string; answer: string } {
 	// What the run says about itself comes first. An answer that states how many it holds has its listings counted rather
 	// than repeated: a reader asking how many reads the front of an answer, and a listing pushes the count past where it
-	// stops. An answer that states no count, as a listing of steps, is its entries, so they are handed on. The whole of it
+	// stops. An answer that doesn't state a count, as a listing of steps, is its entries, so they are handed on. The whole of it
 	// is there for a caller that wants the entries.
 	const entries = Object.entries(products);
 	const ordered = [...entries.filter(([, value]) => !Array.isArray(value)), ...entries.filter(([, value]) => Array.isArray(value))];
@@ -82,7 +82,7 @@ const DOMAIN_ASKED_PARAMS = "asked-params";
 const unquote = (value: string): string => value.trim().replace(/^"(.*)"$/s, "$1");
 
 /** The step a name asks for: the name that host knows it by, or the step half of one where that names exactly one
- *  step there. A caller writing `listTyped` where the host knows it as `Something-listTyped` has named one step and no other. */
+ *  step there. A caller writing `listTyped` where the host knows it as `Something-listTyped` has named exactly one step. */
 export function stepAtRun(atRun: TStepDescriptor[], host: number, method: string): TStepDescriptor | undefined {
 	const named = atRun.find((step) => step.method === hostScopedMethodName(host, method));
 	if (named) return named;
@@ -103,8 +103,8 @@ const LISTS_WHAT_IT_HOLDS = /\blists?\b/i;
 
 /**
  * The parameters of a question put to a run, as a feature line or a model can write them: `name=value` pairs, or
- * JSON from a caller that can write it. A quoted feature-line argument holds no double quotes, so pairs are what a
- * line can say. A step that takes one parameter also accepts the bare value, since naming it adds nothing, and an object
+ * JSON from a caller that can write it. A quoted feature-line argument doesn't hold double quotes, so pairs are what a
+ * line can say. A step that takes one parameter also accepts the bare value, since naming it is redundant, and an object
  * is a bare value too: JSON that doesn't name a parameter of such a step is its value. A parameter the step takes as an object
  * or a list is accepted as its JSON text, as a feature line writes one.
  */
@@ -151,7 +151,7 @@ const lastOf = (output: string): string => (output.length <= RUN_ANSWER_CHARS ? 
  *  attribution reaches a record rather than a string. Its name says which agent, since a graph may hold several. */
 export const TEST_RUNNER_AUTHOR = "agent:test-runner";
 
-/** What the environment decides. Every one has a default that is a limit rather than a preference, so an agent with no
+/** What the environment decides. Every one has a default that is a limit rather than a preference, so an agent without
  *  configuration still cannot run away. */
 export const RUNNER_DEFAULTS = { maxRuns: 3, port: 0, maxStanding: 2, hostId: 9 } as const;
 
@@ -247,15 +247,15 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 		},
 	};
 
-	/** The run in flight, if any. One at a time: a second run started while this one is live would leave two runs and
-	 *  no way to say which of them a finding is about. */
+	/** The run in flight, if any. One at a time: a second run started while this one is live would leave two runs
+	 *  without a way to say which of them a finding is about. */
 	private inFlight: TTrackedRun | undefined;
 	/** Every run started while answering the current ask, so a cap is counted against the ask rather than for ever. */
 	private runsThisAsk: TTrackedRun[] = [];
 	/** The last run this agent started, whichever ask started it. An operator asks about a test after the exchange that
-	 *  ran it, so a question in a later ask is about that run, and an answer saying none was started is false. */
+	 *  ran it, so a question in a later ask is about that run, and an answer saying a run wasn't started is false. */
 	private lastRun: TTrackedRun | undefined;
-	/** The record of the last attempt to start a run, where it did not start, so a step that finds no run says what
+	/** The record of the last attempt to start a run, where it did not start, so a step that doesn't find a run says what
 	 *  became of it. */
 	private notStarted: TFeatureExecution | undefined;
 	/** Runs given a port, which stand after their features finish and hold that port until they are stopped. */
@@ -318,7 +318,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			action: async ({ seconds }: { seconds: number }) => {
 				const tracked = this.inFlight;
 				if (!tracked) return actionNotOK(this.nothingToRead("wait for"));
-				// The supervisor holds the child, so it answers when the run ends. Nothing here asks repeatedly.
+				// The supervisor holds the child, so it answers when the run ends. This step doesn't ask repeatedly.
 				const waited = await this.callSupervisor(runReadSchema, SUPERVISOR.wait, { run: tracked.id, seconds, cursor: tracked.cursor });
 				if (waited.ok === false) return actionNotOK(waited.why);
 				const seen = waited.products;
@@ -330,7 +330,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 				if (seen.status !== "ended" && !seen.finished)
 					return actionNotOK(`the run "${tracked.filter}" had not ended after ${seconds} seconds; read it, or stop it, rather than waiting again`);
 				const status = seen.status === "ended" ? statusOfExit(seen.exitCode) : seen.failed > 0 ? RUN_STATUS.failed : RUN_STATUS.passed;
-				// A run that reported its features over without exiting has no exit code to read the outcome from, so
+				// A run that reported its features over without exiting doesn't have an exit code to read the outcome from, so
 				// what it said about itself is the outcome.
 				await this.finishRun(seen.exitCode, seen.status === "ended" ? undefined : status);
 				await this.recordOutcome(tracked);
@@ -370,7 +370,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 		askTestRun: {
 			gwta: `ask the test run to {method: ${DOMAIN_ASKED_STEP}} with {params: ${DOMAIN_ASKED_PARAMS}}`,
 			capability: SUPERVISOR_CAPABILITIES.read,
-			// Offered once there is a run to ask about, and not before: a model that sees it with nothing started asks a
+			// Offered once there is a run to ask about, and not before: a model that sees it before a run has started asks a
 			// run that does not exist rather than starting one.
 			offeredBeforeDiscovery: () => this.startedARun(),
 			description:
@@ -385,7 +385,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 						"a test run hasn't been started here, so this step doesn't have a run to ask; start one first, with TestRunnerStepper-runTest or TestRunnerStepper-runAllTests",
 					);
 				// A run that is gone still has a record here, and that is what an operator asking about it after the fact
-				// is answered from; saying nothing was started, or leaving a model to guess where the run went, is false.
+				// is answered from; saying a run wasn't started, or leaving a model to guess where the run went, is false.
 				if (!tracked.host || (!this.inFlight && !this.standing.has(tracked.id)))
 					return actionNotOK(
 						`the run "${tracked.filter}" in "${tracked.where}" is no longer up, so it doesn't answer now; what is left of it is its record here, which TestRunnerStepper-examineTestRun and a list of "${FEATURE_EXECUTION_LABEL}" report`,
@@ -454,7 +454,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 	};
 
 	/** What every ask to run comes through, whether it named features or asked for all of them: the limits are here, so
-	 *  neither form can go around them. An empty filter runs every feature the base holds. */
+	 *  both forms are checked against them. An empty filter runs every feature the base holds. */
 	private async askedToRun(where: string, filter: string) {
 		if (this.inFlight) return actionNotOK(`a run is already in flight: "${this.inFlight.filter}" (${this.inFlight.id}); read it before starting another`);
 		const standingCap = this.cap("MAX_STANDING", RUNNER_DEFAULTS.maxStanding);
@@ -477,7 +477,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 		this.notStarted = undefined;
 		// The record IS the products: the run as its individual stands, which is what the goal resolver asserts as the
 		// satisfied `feature-execution` and what a caller reads the id, endpoint and host from: the host being how a
-		// standing run is addressed afterwards (`on host {host}, <step>`); a run that ends with its features carries none.
+		// standing run is addressed afterwards (`on host {host}, <step>`); a run that ends with its features doesn't carry one.
 		return actionOKWithProducts(run.record as unknown as Record<string, unknown>);
 	}
 
@@ -486,7 +486,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 	 * asserted and a wrong shape fails here. The missing-supervisor case is named: the agent cannot run a test in a
 	 * process where run supervision was never registered, and saying so is more use than a step that is absent.
 	 */
-	/** Why there is no run to work with: the failure that stopped the last one from starting, where there was one, so a
+	/** Why this agent doesn't have a run to work with: the failure that stopped the last one from starting, where there was one, so a
 	 *  caller is answered with what happened rather than with its consequence. */
 	private nothingToRead(what: string): string {
 		const why = this.notStarted?.why;
@@ -500,7 +500,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 	}
 
 	/** What a standing run answers to, as this registry knows it: the steps its transport injected under its host,
-	 *  with what each takes. An empty list means nothing was injected, so a call is passed on as written. */
+	 *  with what each takes. An empty list means the transport didn't inject steps, so a call is passed on as written. */
 	private stepsAtRun(host: number): TStepDescriptor[] {
 		return runRegistry(this.getWorld())
 			.descriptors()
@@ -539,7 +539,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 	}
 
 	/** Who a run started now is attributed to: the principal controlling the capability the call ran under, or this
-	 *  agent when the call carried no capability. */
+	 *  agent when the call didn't carry a capability. */
 	private actingPrincipal(): string {
 		return actingAs() ?? TEST_RUNNER_AUTHOR;
 	}
@@ -568,7 +568,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 		// Only a run left standing answers afterwards, so only such a run has an endpoint to record.
 		const endpoint = stands ? `http://localhost:${port}` : "";
 		const from = (getStepperOption(this, "RUN_FROM", this.getWorld().moduleOptions) as string | undefined) ?? where;
-		// A run that stays takes a host id, which is how it is addressed afterwards; a run that ends takes none.
+		// A run that stays takes a host id, which is how it is addressed afterwards; a run that ends doesn't take one.
 		const hostId = stands ? this.cap("RUN_HOST_ID", RUNNER_DEFAULTS.hostId) : 0;
 		const started = await this.callSupervisor(runStartedSchema, SUPERVISOR.start, { where, filter, from, port, run: id, hostId });
 		if (started.ok === false) return { ok: false, why: started.why };
@@ -632,14 +632,14 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 	}
 
 	/** Forget how the features named last ran against their state, so they run again whatever it is: what a caller
-	 *  says when something was applied that their dependencies do not show, or when the run is wanted regardless. No
-	 *  features named is every feature of the base. */
+	 *  says when something was applied that their dependencies do not show, or when the run is wanted regardless. An empty
+	 *  filter is every feature of the base. */
 	noteApplied(filter: string, where = ""): void {
 		forgetOutcomes(path.resolve(where || "."), filter || undefined);
 	}
 
 	/** Close out the run in flight with what its exit code says, and let the next run start. A run ended by the agent
-	 *  rather than by its own features carries that as its status, since no exit code answers for it. */
+	 *  rather than by its own features carries that as its status, since its exit code doesn't state how it went. */
 	async finishRun(exitCode: number | null, ended?: TRunStatus): Promise<void> {
 		const run = this.inFlight;
 		if (!run) return;

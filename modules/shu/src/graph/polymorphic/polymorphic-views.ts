@@ -1,5 +1,5 @@
-// The polymorphic's central CATALOG of view-type + camera identifiers: the SINGLE source for these strings. Nothing else
-// declares them as bare literals: the render types, the camera, the data pipeline, the view, and the controls all
+// The polymorphic's central CATALOG of view-type + camera identifiers: the SINGLE source for these strings. Other modules don't
+// declare them as bare literals: the render types, the camera, the data pipeline, the view, and the controls all
 // reference VIEW.* / REFRAME.*. A rename or a new view is one edit here.
 
 /** The view types the polymorphic view can render. force/td/lr are force-layout variants; gantt + sequence are time-on-z views. */

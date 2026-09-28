@@ -93,7 +93,7 @@ describe("LSP stdout cleanliness", () => {
 		// biome-ignore lint/suspicious/noExplicitAny: private
 		await (lsp as any).processDocument(doc);
 
-		// Check no raw output went to stdout
+		// Check that raw output didn't go to stdout
 		const stdoutCalls = stdoutSpy.mock.calls;
 		expect(stdoutCalls.length).toBe(0);
 	});
@@ -129,7 +129,7 @@ describe("LSP stdout cleanliness", () => {
 		const params = { textDocument: { uri: "file:///test/feature.feature" } };
 		semanticTokensHandler(params);
 
-		// Check no raw output went to stdout
+		// Check that raw output didn't go to stdout
 		const stdoutCalls = stdoutSpy.mock.calls;
 		expect(stdoutCalls.length).toBe(0);
 	});
@@ -149,7 +149,7 @@ describe("LSP stdout cleanliness", () => {
 
 		await (lsp as unknown as { processDocument: (d: TextDocument) => Promise<void> }).processDocument(bgDoc);
 
-		// Check no raw output went to stdout
+		// Check that raw output didn't go to stdout
 		const stdoutCalls = stdoutSpy.mock.calls;
 		expect(stdoutCalls.length).toBe(0);
 	});

@@ -211,12 +211,12 @@ describe("step-dispatch", () => {
 			expect(validateToolInput([], tool, { x: LATER }, w).x).toBe(LATER);
 		});
 
-		it("states no list of every domain or type a parameter naming one takes, and refuses an unregistered one", () => {
+		it("doesn't state a list of every domain or type a parameter naming one takes, and refuses an unregistered one", () => {
 			const w = getDefaultWorld();
 			const tool = toolTaking(`test {key: ${DOMAIN_DOMAIN_KEY}} {type: ${DOMAIN_PERSISTED_TYPE}}`, w);
 			const { key, type } = tool.descriptor.inputSchema.properties as Record<string, { enum?: unknown }>;
-			expect(key.enum, "no domain key listed").toBeUndefined();
-			expect(type.enum, "no type listed").toBeUndefined();
+			expect(key.enum, "the key doesn't list a domain key").toBeUndefined();
+			expect(type.enum, "the type doesn't list a type").toBeUndefined();
 			expect(validateToolInput([], tool, { key: DOMAIN_NUMBER, type: "Anything" }, w).key).toBe(DOMAIN_NUMBER);
 			expect(() => validateToolInput([], tool, { key: "no-such-domain", type: "Anything" }, w)).toThrow(/`show domains` lists them/);
 		});
@@ -301,7 +301,15 @@ describe("step-dispatch", () => {
 		// that name when it is dispatched.
 		const synth = (step: { stepperName: string; stepName: string; description: string }, input: Record<string, unknown>, seqPath: number[] = [0]) =>
 			buildFeatureStepForTransport(
-				{ descriptor: { method: stepMethodName(step.stepperName, step.stepName), stepperName: step.stepperName, stepName: step.stepName, pattern: step.description, paramDomains: {} } } as StepTool,
+				{
+					descriptor: {
+						method: stepMethodName(step.stepperName, step.stepName),
+						stepperName: step.stepperName,
+						stepName: step.stepName,
+						pattern: step.description,
+						paramDomains: {},
+					},
+				} as StepTool,
 				input,
 				seqPath,
 			);
@@ -395,7 +403,7 @@ describe("step-dispatch", () => {
 			expect(result.products).toMatchObject({ echoed: "hello", _seqPath: [0, 7] });
 		});
 
-		it("judges an empty value a caller writes by its domain, since no fact stands for a value", async () => {
+		it("judges an empty value a caller writes by its domain, since a fact doesn't stand for a value", async () => {
 			const FILTER = "empty-means-every";
 			registerDomains(world, [[{ selectors: [FILTER], schema: z.string(), description: "a filter an empty value runs everything by" }]]);
 			const stepper = new (class extends AStepper {
@@ -415,20 +423,20 @@ describe("step-dispatch", () => {
 			expect(result.products).toMatchObject({ echoed: "" });
 		});
 
-		it("refuses products a step names no domain of, and checks what a step passes on against its statement's domain", async () => {
+		it("refuses products whose domain a step doesn't name, and checks what a step passes on against its statement's domain", async () => {
 			const said = async (line: string) => {
 				const res = await testWithWorld(getDefaultWorld(), line, [PassesOn]);
 				return { ok: res.ok, error: res.failure?.error.message, products: res.featureResults?.[0]?.stepResults.find((r) => r.in === line)?.products };
 			};
-			expect((await said(COUNT_UNNAMED)).error, "a step answering with products of no domain").toMatch(/returned products and names no domain/);
+			expect((await said(COUNT_UNNAMED)).error, "a step returning products without a domain").toMatch(/returned products and names no domain/);
 			expect(await said(`${ANSWER_AS} ${COUNT}`), "a step passing on what its statement answered").toMatchObject({ ok: true, products: { count: 1 } });
 			expect(await said(`${ANSWER_AS} ${ANSWER_AS} ${COUNT}`), "through a step that passes it on too").toMatchObject({ ok: true, products: { count: 1 } });
-			expect((await said(`${PASS_ON} ${COUNT}`)).error, "a step passing it on that declares nothing").toMatch(/returned products and names no domain/);
+			expect((await said(`${PASS_ON} ${COUNT}`)).error, "a step passing it on that doesn't declare a domain").toMatch(/returned products and names no domain/);
 			expect((await said(`${ANSWER_WRONGLY} ${COUNT}`)).error, "products not in its statement's domain").toMatch(/answering as PassesOn\.counts products failed schema validation/);
 			const naming = new (class extends AStepper {
 				steps = { names: { gwta: "name {n: number}", productsOf: "n", action: async () => OK } };
 			})();
-			expect(() => new StepRegistry([naming], world), "a step naming a parameter that takes no statement").toThrow(
+			expect(() => new StepRegistry([naming], world), "a step naming a parameter that doesn't take a statement").toThrow(
 				/productsOf names \{n\}, which isn't a statement its phrase takes/,
 			);
 		});
@@ -467,10 +475,10 @@ describe("step-dispatch", () => {
 					],
 					world,
 				);
-			expect(() => declaring({ gwta: `read {label: ${DOMAIN_PERSISTED_TYPE}} {id: ${DOMAIN_RECORD_ID}}` }), "a record id paired with nothing").toThrow(
+			expect(() => declaring({ gwta: `read {label: ${DOMAIN_PERSISTED_TYPE}} {id: ${DOMAIN_RECORD_ID}}` }), "a record id that isn't paired with a parameter").toThrow(
 				/\{id\} is a record-id that its recordIds doesn't pair with a type/,
 			);
-			expect(() => declaring({ gwta: `read {label: string} {id: ${DOMAIN_RECORD_ID}}`, recordIds: { id: "label" } }), "paired with a parameter naming no type").toThrow(
+			expect(() => declaring({ gwta: `read {label: string} {id: ${DOMAIN_RECORD_ID}}`, recordIds: { id: "label" } }), "paired with a parameter that doesn't name a type").toThrow(
 				/recordIds pairs \{id\} with \{label\}, which doesn't name a type/,
 			);
 		});
@@ -539,14 +547,14 @@ describe("step-dispatch", () => {
 				};
 			};
 
-			it("refuses a step that declares nothing to a caller not holding its name, and a read to a caller holding no read", async () => {
+			it("refuses a step that doesn't declare a capability to a caller not holding its name, and a read to a caller that doesn't hold a read", async () => {
 				const { call } = held();
 				await expect(call("readsAtCeiling", [], [0, 20, 1])).rejects.toThrow(/capability Held:readsAtCeiling required/);
-				await expect(call("describesItself", [], [0, 20, 2]), "no step is open to a caller holding nothing").rejects.toThrow(/capability Read:public required/);
+				await expect(call("describesItself", [], [0, 20, 2]), "a step isn't open to a caller that doesn't hold a capability").rejects.toThrow(/capability Read:public required/);
 				expect((await call("describesItself", ["Read:private"], [0, 20, 3])).ok, "a broader read allows it").toBe(true);
 			});
 
-			it("bounds what a step reads by the broadest read its caller holds, and at public for a caller holding none", async () => {
+			it("bounds what a step reads by the broadest read its caller holds, and at public for a caller that doesn't hold one", async () => {
 				const { call } = held();
 				expect((await call("readsAtCeiling", ["Held:readsAtCeiling"], [0, 21, 1])).products?.at).toBe("public");
 				expect((await call("readsAtCeiling", ["Held:readsAtCeiling", "Read:opened"], [0, 21, 2])).products?.at).toBe("opened");
@@ -554,14 +562,14 @@ describe("step-dispatch", () => {
 				expect((await runReadingAt("public", () => call("readsAtCeiling", RUN_AUTHORITY, [0, 21, 4]))).products?.at, "and never above a ceiling already in force").toBe("public");
 			});
 
-			it("records what a caller's step required and held and who proved it, and nothing of authority for the run's own", async () => {
+			it("records what a caller's step required and held and who proved it, and doesn't record authority for the run's own", async () => {
 				const { call, fieldOf } = held();
 				await runActingAs("did:example:alice", () => call("readsAtCeiling", ["Held:readsAtCeiling"], [0, 22, 1]));
 				expect(await fieldOf([0, 22, 1], SEQ_PATH_FIELD.capabilityAction)).toBe("Held:readsAtCeiling");
 				expect(await fieldOf([0, 22, 1], SEQ_PATH_FIELD.allowedAction)).toBe("Held:readsAtCeiling");
 				expect(await fieldOf([0, 22, 1], LinkRelations.PERFORMED_BY.rel)).toBe("did:example:alice");
 				await call("readsAtCeiling", RUN_AUTHORITY, [0, 22, 2]);
-				expect(await fieldOf([0, 22, 2], SEQ_PATH_FIELD.capabilityAction), "the run holds everything, and its step says nothing of it").toBeUndefined();
+				expect(await fieldOf([0, 22, 2], SEQ_PATH_FIELD.capabilityAction), "the run holds every capability, and its step doesn't record one").toBeUndefined();
 				expect(await fieldOf([0, 22, 2], SEQ_PATH_FIELD.allowedAction)).toBeUndefined();
 			});
 		});
@@ -586,9 +594,9 @@ describe("step-dispatch", () => {
 			const answered = await dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, overATransport);
 			expect(answered.ok).toBe(true);
 			expect(answered.products, "the question is answered").toMatchObject({ count: 3 });
-			expect(await recordOf([0, 9, 1]), "no record of the run being read over a transport").toEqual([]);
-			expect(await getFact(world, TEST_DOMAIN.count, factIdOf("0.9.1"), FACT_GRAPH), "and no fact of what it answered").toBeUndefined();
-			expect(world.runtime.stepResults?.length ?? 0, "nothing kept in the process for it").toBe(kept);
+			expect(await recordOf([0, 9, 1]), "the run being read over a transport doesn't leave a record").toEqual([]);
+			expect(await getFact(world, TEST_DOMAIN.count, factIdOf("0.9.1"), FACT_GRAPH), "and doesn't leave a fact of what it returned").toBeUndefined();
+			expect(world.runtime.stepResults?.length ?? 0, "the process doesn't keep a step result for it").toBe(kept);
 
 			// Beneath a step the feature states, which is the feature reading through a combinator: `set x from <a read>`
 			// answers from the read's own result, so the read is a step of the run like the line that stated it.
@@ -761,7 +769,7 @@ describe("step-dispatch", () => {
 			expect(tool?.descriptor.outputSchema).toBeDefined();
 		});
 
-		it("refuses a parameter whose domain no stepper registers, naming the step, the parameter and the domain", () => {
+		it("refuses a parameter whose domain the steppers don't register, naming the step, the parameter and the domain", () => {
 			class JustUnregistered extends AStepper {
 				steps = { unregisteredInput: new DomainEchoStepper().steps.unregisteredInput };
 			}
@@ -836,14 +844,14 @@ describe("step-dispatch", () => {
 			const products = result.products as Record<string, unknown>;
 			const links = products._links as Record<string, { method: string; params?: Record<string, unknown> }> | undefined;
 			expect(links).toBeDefined();
-			// Two follow-on verbs accept demo-vc as input, revoke and suspend. The issue step itself accepts no demo-vc input so it is NOT listed.
+			// Two follow-on verbs accept demo-vc as input, revoke and suspend. The issue step itself doesn't accept demo-vc input so it is NOT listed.
 			expect(Object.keys(links ?? {}).sort()).toEqual(["revokeDemo", "suspendDemo"]);
 			// Method is the canonical fully-qualified dispatch address; params skeleton is populated from the product's `id`.
 			expect(links?.revokeDemo).toEqual({ method: "IssuerStepper-revokeDemo", params: { credential: { id: "vc-1" } } });
 			expect(links?.suspendDemo).toEqual({ method: "IssuerStepper-suspendDemo", params: { credential: { id: "vc-1" } } });
 		});
 
-		it("emits no `_links` when no other step accepts this product's domain", async () => {
+		it("doesn't emit `_links` when the other steps don't accept this product's domain", async () => {
 			class IsolatedStepper extends AStepper {
 				steps = {
 					produce: {
@@ -865,7 +873,7 @@ describe("step-dispatch", () => {
 			expect(result.ok).toBe(true);
 
 			const products = result.products as Record<string, unknown>;
-			// No follow-on verbs accept lone-domain: the `_links` marker must be absent, not an empty object, so consumers can rely on `_links` always being a non-empty Record when present.
+			// Follow-on verbs don't accept lone-domain: the `_links` marker must be absent, not an empty object, so consumers can rely on `_links` always being a non-empty Record when present.
 			expect(products._links).toBeUndefined();
 		});
 
@@ -909,7 +917,7 @@ describe("step-dispatch", () => {
 			expect(links?.revokeVc).toEqual({ method: "VertexRefStepper-revokeVc", params: { credential: { id: "vc-1" } } });
 		});
 
-		it("omits params skeleton when the product has no `id`: the consumer fills params from the step's shown schema", async () => {
+		it("omits params skeleton when the product doesn't have an `id`: the consumer fills params from the step's shown schema", async () => {
 			class IdlessStepper extends AStepper {
 				steps = {
 					produce: {
@@ -948,14 +956,14 @@ describe("retainedProducts", () => {
 		expect(retainedProducts(p, undefined)).toBe(p);
 		expect(retainedProducts(p, true)).toBe(p);
 	});
-	it("keeps none when false", () => {
+	it("doesn't keep a product when false", () => {
 		expect(retainedProducts(p, false)).toBeUndefined();
 	});
 	it("keeps the filter's subset, descriptor kept, payload dropped", () => {
 		const keepDescriptor = (x: Record<string, unknown>) => ({ _component: x._component, id: x.id });
 		expect(retainedProducts(p, keepDescriptor)).toEqual({ _component: "shu-thread-column", id: "x" });
 	});
-	it("keeps none when the filter returns undefined or there are no products", () => {
+	it("doesn't keep a product when the filter returns undefined or the step doesn't return products", () => {
 		expect(retainedProducts(p, () => undefined)).toBeUndefined();
 		expect(retainedProducts(undefined, (x) => x)).toBeUndefined();
 	});

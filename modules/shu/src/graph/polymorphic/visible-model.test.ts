@@ -18,7 +18,7 @@ const quad = (subject: string, predicate: string, object: string, namedGraph: st
 	timestamp: 1,
 });
 
-// An email that names its sender, a person nothing points at, and a file the email attaches.
+// An email that names its sender, a person without an incoming edge, and a file the email attaches.
 const quads: TQuad[] = [
 	quad("email-1", "subject", "Invoice", "Email"),
 	quad("email-1", "sender", "person-1", "Email", "Principal"),
@@ -34,7 +34,7 @@ const ids = (m: ReturnType<typeof visibleGraphModel>): string[] => m.nodes.map((
 const rels = (m: ReturnType<typeof visibleGraphModel>): string[] => m.edges.map((e) => e.predicate).sort();
 
 describe("what a person's filter leaves of the graph", () => {
-	it("shows every type with nothing put away", () => {
+	it("shows every type when the filter doesn't hide a type", () => {
 		expect(ids(model())).toEqual(["email-1", "file-1", "person-1"]);
 		expect(rels(model())).toEqual(["attachment", "sender"]);
 	});
@@ -42,7 +42,7 @@ describe("what a person's filter leaves of the graph", () => {
 	it("a type put away takes its records with it, and the edges that pointed at them", () => {
 		const shown = model({ hiddenGraphs: ["File"] });
 		expect(ids(shown)).toEqual(["email-1", "person-1"]);
-		expect(rels(shown), "an edge to a record nothing shows is not an edge").toEqual(["sender"]);
+		expect(rels(shown), "an edge to a record that the view doesn't show is not an edge").toEqual(["sender"]);
 	});
 
 	it("a predicate put away takes only its edges: the records it linked stay", () => {
@@ -53,14 +53,14 @@ describe("what a person's filter leaves of the graph", () => {
 });
 
 describe("the prune, which reads what is left rather than what was there", () => {
-	it("drops what nothing links to", () => {
+	it("drops a node without an incoming link", () => {
 		const shown = model({ quads: [...quads, quad("note-1", "name", "aside", "Note")], prune: true });
-		expect(ids(shown), "the note nothing points at goes").toEqual(["email-1", "file-1", "person-1"]);
+		expect(ids(shown), "the note without an incoming edge goes").toEqual(["email-1", "file-1", "person-1"]);
 	});
 
 	it("counts a record edgeless when its every edge was put away, since the hiding comes first", () => {
 		const shown = model({ hiddenPredicates: ["sender"], prune: true });
-		expect(ids(shown), "the person is now linked by nothing").toEqual(["email-1", "file-1"]);
+		expect(ids(shown), "the person no longer has an incoming link").toEqual(["email-1", "file-1"]);
 	});
 });
 
@@ -97,7 +97,7 @@ describe("the bars a sequence reads along", () => {
 		]);
 	});
 
-	it("keeps a participant with nothing on it, which is itself to read", () => {
+	it("keeps a participant without an object on its bar, which is itself to read", () => {
 		expect(actorBars(layout()).find((b) => b.id === "verifier")?.nodeIds).toEqual([]);
 	});
 });

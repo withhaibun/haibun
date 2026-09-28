@@ -15,7 +15,7 @@ import { isPrimitiveDomain, normalizeDomainKey } from "./domains.js";
 import { requiredAction } from "./actions.js";
 import { stepParamDomains } from "./step-registry.js";
 
-/** Sentinel source domain for terminal producers (steps that need no inputs). */
+/** Sentinel source domain for terminal producers (steps that don't need inputs). */
 export const SOURCE_DOMAIN = "∅";
 
 type TDomainChainNode = {
@@ -78,7 +78,7 @@ export function buildDomainChain(steppers: AStepper[], domains: Record<string, T
 			});
 			if (outputDomains.length === 0) continue;
 			if (inputDomains.length === 0) {
-				// Terminal producer, has no domain preconditions but still produces.
+				// Terminal producer: it doesn't have domain preconditions but still produces.
 				// Represent as edges from a sentinel "∅" source so producers are
 				// reachable from goal resolution's backward search.
 				for (const to of outputDomains) edges.push({ from: SOURCE_DOMAIN, to, stepperName, stepName });

@@ -3,8 +3,8 @@
  * from its selector, without reading the label or learning the colours.
  *
  * Derived from the type name: the initial of each word, taking CamelCase segments and separator-delimited parts alike
- * (SpecificResource → SR, Principal → P, observation/http-request → OHR). A new type needs no registration: there is no
- * list to append to and nothing to keep in step with the schema.
+ * (SpecificResource → SR, Principal → P, observation/http-request → OHR). A new type doesn't need a registration: this module doesn't
+ * keep a list to append to or a table to keep in step with the schema.
  */
 
 /** Initials kept, so a long type name cannot stretch the avatar past a glanceable badge. */

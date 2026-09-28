@@ -319,7 +319,7 @@ async function startClient(context: ExtensionContext) {
 		steppersToAdd.delete(s);
 	}
 
-	// Final filter to ensure no monitor steppers slip through (defensive)
+	// Final filter to ensure the arguments don't include monitor steppers (defensive)
 	const withSteppers = Array.from(steppersToAdd).filter((s: string) => !s.trim().startsWith("@haibun/monitor-"));
 	const args = [cliPath, safeBase, "serve-lsp"];
 	if (withSteppers.length > 0) {

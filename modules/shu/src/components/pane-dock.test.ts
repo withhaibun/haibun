@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
  * How a docked pane stands, held apart from the pane: its open height and its strip, a drag of its top edge, closing on a
- * click elsewhere unless pinned, and the footprint of its closed strip. jsdom does no layout, so the heights the dock
+ * click elsewhere unless pinned, and the footprint of its closed strip. jsdom doesn't do layout, so the heights the dock
  * reads are stated by each case.
  */
 import { describe, expect, it } from "vitest";
@@ -52,7 +52,7 @@ const rendered = (pane: TDocked) => {
 	for (const controller of pane.host.controllers) controller.hostUpdated?.();
 };
 
-/** The pane's height as a percentage of its container, or nothing where it stands at its strip. */
+/** The pane's height as a percentage of its container, or undefined where it stands at its strip. */
 const percentTall = (el: HTMLElement) => (el.style.height.endsWith("%") ? Number.parseFloat(el.style.height) : undefined);
 const pointer = (type: string, clientY: number) => new PointerEvent(type, { pointerId: 1, clientY, bubbles: true });
 
@@ -71,7 +71,7 @@ describe("how a docked pane stands", () => {
 		expect(pane.host.hasAttribute(SHU_ATTR.DATA_COVERS_VIEWS)).toBe(false);
 	});
 
-	it("doesn't stand a column in the strip: the column takes no height from the dock and doesn't cover the columns", () => {
+	it("doesn't stand a column in the strip: the column doesn't take a height from the dock and doesn't cover the columns", () => {
 		const pane = aDockedPane({ docked: false, closed: false });
 		pane.dock.hostUpdate();
 		expect(percentTall(pane.host)).toBeUndefined();

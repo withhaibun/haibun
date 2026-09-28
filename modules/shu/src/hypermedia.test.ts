@@ -50,7 +50,7 @@ describe("what a link asks of a run", () => {
 	it("states reading, and states acting, and cannot be made without stating one", () => {
 		expect(reads("SomeStepper-showThings")).toEqual({ method: "SomeStepper-showThings", params: undefined, summary: undefined, asks: "read" });
 		expect(acts("SomeStepper-doThing", { id: "a" })).toMatchObject({ method: "SomeStepper-doThing", params: { id: "a" }, asks: "act" });
-		// @ts-expect-error a bare method is not a link: it says nothing about what it asks of the run
+		// @ts-expect-error a bare method is not a link: it doesn't say what it asks of the run
 		const unstated: TLink = { method: "SomeStepper-showThings" };
 		expect(unstated.asks).toBeUndefined();
 	});
@@ -77,7 +77,7 @@ describe("hasLink", () => {
 		expect(hasLink(rep, "malformed")).toBe(false);
 	});
 
-	it("is false when the Representation has no _links", () => {
+	it("is false when the Representation doesn't have _links", () => {
 		expect(hasLink({ _type: "Email" }, "trace")).toBe(false);
 	});
 });
@@ -109,7 +109,7 @@ describe("getLink", () => {
 });
 
 describe("conduit accessor", () => {
-	it("throws with a precise message when no Conduit has been installed", () => {
+	it("throws with a precise message when a Conduit hasn't been installed", () => {
 		expect(() => conduit()).toThrow(/a Conduit isn't installed/);
 	});
 
@@ -119,7 +119,7 @@ describe("conduit accessor", () => {
 		expect(conduit()).toBe(c);
 	});
 
-	it("a page that has ended has no conduit installed", () => {
+	it("a page that has ended doesn't have a conduit installed", () => {
 		setConduit(new TestConduit(() => ({})));
 		endPage();
 		expect(() => conduit()).toThrow(/a Conduit isn't installed/);
@@ -128,13 +128,13 @@ describe("conduit accessor", () => {
 
 describe("a server that does not respond", () => {
 	// Whether the site has answered, and whether it was found silent, is what a page holds about it: each case states
-	// the situation it is about, from a page that holds neither.
+	// the situation it is about, from a page that doesn't hold either.
 	beforeEach(() => {
 		endPage();
 		document.head.innerHTML = "";
 	});
 
-	// A request that never gets a response says nothing about what it asked: the page reports it and reads what it caches.
+	// A request that never gets a response doesn't indicate a fault in what it asked: the page reports it and reads what it caches.
 	// Every other failure, including an error the server itself returns, stays a fault to fail on.
 	it("raises ServerUnreachable when the request cannot be made, and isServerUnreachable finds it through a chain of causes", async () => {
 		const fetchWas = globalThis.fetch;
@@ -168,13 +168,13 @@ describe("a server that does not respond", () => {
 		}
 	});
 
-	it("records when the server last responded, and records nothing when it never did", async () => {
+	it("records when the server last responded, and doesn't record a time when it never did", async () => {
 		const fetchWas = globalThis.fetch;
 		endPage();
 		globalThis.fetch = () => Promise.reject(new TypeError("Failed to fetch"));
 		try {
 			await new LiveConduit("").follow(acts(SHOW_STEPS_METHOD), "test").catch(() => undefined);
-			expect(serverLastRespondedAt(), "a page that has reached no server holds no such time").toBeUndefined();
+			expect(serverLastRespondedAt(), "a page that hasn't reached a server doesn't hold such a time").toBeUndefined();
 			// A page that has just found the site silent reads what it holds instead of calling again, and this is about
 			// the call after that span rather than within it.
 			endPage();
@@ -190,8 +190,8 @@ describe("a server that does not respond", () => {
 	});
 
 	it("reports a server that accepts a request without responding as unreachable, at the timeout", async () => {
-		// The failure this bounds: a call neither answered nor refused left the view that made it reading nothing, with
-		// no word of why, so the reading never fell back to what the device holds.
+		// The failure this bounds: a call that wasn't answered or refused left the view that made it empty, and the view didn't
+		// state why, so the reading never fell back to what the device holds.
 		const fetchWas = globalThis.fetch;
 		setHydration({ settings: { responseTimeoutMs: 40 } });
 		hydrateFromDom();
@@ -216,7 +216,7 @@ describe("a server that does not respond", () => {
 		}
 	});
 
-	it("applies the timeout to a request the page awaits and none to a stream, which stays open while the run writes to it", async () => {
+	it("applies the timeout to a request the page awaits and doesn't apply one to a stream, which stays open while the run writes to it", async () => {
 		const fetchWas = globalThis.fetch;
 		setHydration({ settings: { responseTimeoutMs: 30 } });
 		hydrateFromDom();
@@ -234,7 +234,7 @@ describe("a server that does not respond", () => {
 			endPage();
 			const streaming = new LiveConduit("").followStream(acts(SHOW_STEPS_METHOD), () => undefined, { why: "the run's own stream" }).catch(() => undefined);
 			await new Promise((r) => setTimeout(r, 60));
-			expect(bounds.at(-1), "and a stream carries none, so it is not closed under a run still writing to it").toBe(false);
+			expect(bounds.at(-1), "and a stream doesn't carry one, so it is not closed under a run still writing to it").toBe(false);
 			void streaming;
 		} finally {
 			globalThis.fetch = fetchWas;
@@ -259,7 +259,7 @@ describe("a server that does not respond", () => {
 			const began = Date.now();
 			await Promise.all(Array.from({ length: 8 }, () => conduit.follow(reads(SHOW_STEPS_METHOD), "a view reading").catch(() => undefined)));
 			expect(made, "the reads that followed took the answer the first one got").toBe(afterFirst);
-			expect(Date.now() - began, "so none of them waited the bound out again").toBeLessThan(60);
+			expect(Date.now() - began, "so they didn't wait the bound out again").toBeLessThan(60);
 		} finally {
 			globalThis.fetch = fetchWas;
 			endPage();
@@ -295,7 +295,7 @@ describe("a server that does not respond", () => {
 	});
 
 	it("issues an act within that span, since a reader asked for it and a read's timeout is not its answer", async () => {
-		// The failure this bounds: a question typed into the ask pane went nowhere because a view's read had timed out a
+		// The failure this bounds: a question typed into the ask pane wasn't sent because a view's read had timed out a
 		// moment earlier, so the page refused to carry what the reader asked for.
 		const fetchWas = globalThis.fetch;
 		endPage();
@@ -321,7 +321,7 @@ describe("a server that does not respond", () => {
 		}
 	});
 
-	it("issues a request again immediately after one the network refused, since that failure takes no waiting", async () => {
+	it("issues a request again immediately after one the network refused, since that failure doesn't need a wait", async () => {
 		const fetchWas = globalThis.fetch;
 		let made = 0;
 		globalThis.fetch = (() => {
@@ -360,7 +360,7 @@ describe("a server that does not respond", () => {
 			await new Promise((r) => setTimeout(r, 5));
 			stopping.abort();
 			const err = await following;
-			expect(err, "a reader who stopped reading says nothing about whether the site answers").not.toBeInstanceOf(ServerUnreachable);
+			expect(err, "a reader who stopped reading doesn't show whether the site answers").not.toBeInstanceOf(ServerUnreachable);
 		} finally {
 			globalThis.fetch = fetchWas;
 			document.head.innerHTML = "";

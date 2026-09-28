@@ -3,7 +3,7 @@
  * one: an invoker that presents a holder, the action it invokes and a digest of the body, and a verifier that grants a
  * holder the actions it was told to, when they allow the action it invokes, as core reads what an action allows. Each
  * holder's grant is one capability, which what it allows rests on, and withdrawing it is reported as its revocation. It
- * proves nothing, so nothing outside a test registers it. Loaded by a launched fixture's config as
+ * doesn't prove an identity, so code outside a test doesn't register it. Loaded by a launched fixture's config as
  * `@haibun/core/lib/test/fake-authority`.
  */
 import { createHash } from "node:crypto";

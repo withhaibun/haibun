@@ -134,11 +134,11 @@ describe("ServerHono", () => {
 	describe("addRpcMethods", () => {
 		const read = { action: "Fam:read", handle: () => Promise.resolve("read") };
 
-		it("serves a family's methods by their full names and no others, and records the family as a service Endpoint", async () => {
+		it("serves a family's methods by their full names only, and records the family as a service Endpoint", async () => {
 			server.addRpcMethods("fam.", { description: "a family" }, { read });
 			expect(server.rpcMethod("fam.read")).toBe(read);
 			expect(server.rpcMethod("fam.write"), "a name the family doesn't serve").toBeUndefined();
-			expect(server.rpcMethod("other.read"), "a name under no family").toBeUndefined();
+			expect(server.rpcMethod("other.read"), "a name outside every family").toBeUndefined();
 			await new Promise((r) => setTimeout(r, 0));
 			expect(await store.getIndividual<Record<string, unknown>>(EndpointLabels.Endpoint, "/rpc/fam.*")).toMatchObject({ description: "a family", endpointClass: "service" });
 		});
@@ -156,7 +156,7 @@ describe("ServerHono", () => {
 		});
 	});
 
-	it("serves no route that ends the process, since ending it is a step that takes WebServer:stop", async () => {
+	it("doesn't serve a route that ends the process, since ending it is a step that takes WebServer:stop", async () => {
 		expect((await server.app.request("/stop", { method: "POST" })).status).toBe(404);
 	});
 
@@ -195,7 +195,7 @@ describe("ServerHono", () => {
 			expect(() => server.checkAddStaticFolder("public", "", P)).toThrow("mountAt is required");
 		});
 
-		it("records a folder it serves as an Endpoint with its purpose, as a route is, and refuses one with none", async () => {
+		it("records a folder it serves as an Endpoint with its purpose, as a route is, and refuses one without a purpose", async () => {
 			server.addKnownStaticFolder(tmpdir(), "/files", { description: "files a test serves" });
 			server.checkAddIndexFolder(".", "/listing", { description: "an index a test serves" });
 			await new Promise((r) => setTimeout(r, 0)); // the mount's persist is fire-and-forget

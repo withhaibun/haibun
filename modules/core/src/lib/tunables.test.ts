@@ -55,7 +55,7 @@ describe("getTunableOptions", () => {
 		expect(getTunableOptions([new PlainStepper()])).toEqual([]);
 	});
 
-	it("returns empty for an IHasTunables stepper with no tunables declared", () => {
+	it("returns empty for an IHasTunables stepper that doesn't declare tunables", () => {
 		expect(getTunableOptions([new TunableEmpty()])).toEqual([]);
 	});
 
@@ -89,7 +89,7 @@ describe("getTunableOptions", () => {
 
 	it("discovery is duck-typed on the `tunables` property, not an instanceof check", () => {
 		// Mirrors how CLI --help walks options / cycles: introspect the property,
-		// no instanceof of some ATunableStepper base class.
+		// it doesn't check instanceof of some ATunableStepper base class.
 		class NotDeclared extends AStepper {
 			description = "has a tunables field without declaring IHasTunables in its types";
 			steps: TStepperSteps = {};

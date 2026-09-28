@@ -9,7 +9,7 @@
  *   - goals: for each registered domain, the resolver's verdict (satisfied | resolvable
  *     | unreachable). Resolvable carries the plan so a client can preview it.
  *
- * Affordances are the HATEOAS step layer: a client that knows nothing about the registry
+ * Affordances are the HATEOAS step layer: a client that doesn't hold the registry
  * can ask "what can I do?" and get typed, ready-to-call entries with their RPC names.
  */
 import type { AStepper, TFeatureStep } from "./astepper.js";
@@ -28,7 +28,7 @@ export const AFFORDANCE_EVENT_PREFIX = "affordances.";
 
 /**
  * Does this domain's value come from a step argument? True when the domain is a
- * primitive, or when no registered step produces it (no fact source exists, so the
+ * primitive, or when the registered steps don't produce it (a fact source doesn't exist, so the
  * value must be passed in as an argument).
  */
 export function isArgumentDomain(domain: string, forward: ReadonlyArray<{ outputDomains: string[] }>): boolean {
@@ -44,9 +44,9 @@ export type TForwardAffordance = {
 	gwta?: string;
 	inputDomains: string[];
 	outputDomains: string[];
-	/** True when every input domain has at least one asserted fact (no gwta args needed). */
+	/** True when every input domain has at least one asserted fact (it doesn't need gwta args). */
 	readyToRun: boolean;
-	/** The action the caller must hold to dispatch this step; absent for a step that requires nothing. */
+	/** The action the caller must hold to dispatch this step; absent for a step that doesn't require an action. */
 	capability?: string;
 };
 
@@ -155,7 +155,7 @@ export function buildAffordances(inputs: TAffordancesInputs): TAffordances {
 /**
  * Keep only facts whose seqPath subject is at or before the cursor. Non-
  * seqPath subjects (rare, but possible for hand-asserted facts) are kept
- * unconditionally: they have no temporal ordering against seqPaths.
+ * unconditionally: they don't have a temporal ordering against seqPaths.
  */
 function filterFactsAsOf(facts: TQuad[], asOf: number[]): TQuad[] {
 	return facts.filter((q) => {
@@ -165,7 +165,7 @@ function filterFactsAsOf(facts: TQuad[], asOf: number[]): TQuad[] {
 	});
 }
 
-/** Project the registered domains' `topology.ranges` into the wire-format snapshot. Empty when no domain declares any ranges.
+/** Project the registered domains' `topology.ranges` into the wire-format snapshot. Empty when the domains don't declare ranges.
  *  A reference is left out: it stands for the type it refers to, as the goals and the chain lint read it. */
 function collectCompositeRanges(domains: Record<string, TRegisteredDomain>): TCompositeRanges | undefined {
 	const out: TCompositeRanges = {};
@@ -221,7 +221,7 @@ function buildGoalFrontier(
 		if (domains[domain] && refTargetOf(domains[domain], domains) !== undefined) continue;
 		const resolution = resolveGoal(domain, { graph, facts, held, domains, compositeDecomposition, compositeMaxDepth });
 		// Trivial goals duplicate the forward frontier: a single producer step
-		// whose inputs are all arguments: no upstream facts, no composite
+		// whose inputs are all arguments, without upstream facts or composite
 		// decomposition with fact-bindings. Skip those. Paths that exercise
 		// composite ranges (fact-bindings, recursive decomposition) stay visible
 		// even when they collapse to one step late in a chain.
@@ -233,7 +233,7 @@ function buildGoalFrontier(
 		//   2. The schema's Zod `.describe(...)` metadata: the canonical place
 		//      because the description travels with the schema wherever it is
 		//      reused (other steppers, downstream consumers).
-		// Fail loud when neither is set, naming both fix points so the omission
+		// Fail loud when the domain doesn't set either, naming both fix points so the omission
 		// is repaired at the source of truth.
 		const def = domains[domain];
 		const description = def?.description ?? (typeof def?.schema?.description === "string" ? def.schema.description : "");
@@ -250,7 +250,7 @@ function buildGoalFrontier(
 /**
  * A michi is "trivial" when it duplicates a forward-frontier entry: one
  * producer step whose every binding ultimately resolves to a user-supplied
- * argument (no facts, no chained sub-paths). Composite bindings count as
+ * argument (without facts or chained sub-paths). Composite bindings count as
  * trivial when every field is itself an argument, since the form-rendered
  * step already exposes those fields.
  */

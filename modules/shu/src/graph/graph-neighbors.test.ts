@@ -33,7 +33,7 @@ describe("buildNeighbors", () => {
 		expect(n.get("a")?.has("c")).toBe(false);
 	});
 
-	it("returns an empty map for a graph with no edges", () => {
+	it("returns an empty map for a graph without edges", () => {
 		const empty = buildNeighbors({ nodes: [{ id: "x", label: "x" }], edges: [] });
 		expect(empty.size).toBe(0);
 	});
@@ -66,7 +66,7 @@ describe("connectedNodes", () => {
 		expect(reached.has("x")).toBe(false);
 	});
 
-	it("returns just the start node when it has no edges", () => {
+	it("returns just the start node when it doesn't have edges", () => {
 		const g: TGraph = { nodes: [{ id: "lonely", label: "lonely" }], edges: [] };
 		const n = buildNeighbors(g);
 		expect([...connectedNodes(n, "lonely")]).toEqual(["lonely"]);

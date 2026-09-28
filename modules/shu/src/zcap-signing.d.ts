@@ -1,5 +1,5 @@
 /**
- * The parts of the zcap-LD signing libraries a page uses to delegate, declared because the packages publish no types:
+ * The parts of the zcap-LD signing libraries a page uses to delegate, declared because the packages don't publish types:
  * the library's shape is stated once, where a reader can check it against the library.
  */
 type TSigningDocument = Record<string, unknown>;

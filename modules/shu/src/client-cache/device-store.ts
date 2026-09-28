@@ -1,12 +1,12 @@
 /**
  * The device's store: the client cache's persistence: the graph this page holds and the site's registry (the step list
  * with its concerns and domains), off the JS heap and surviving a reload. A run is records in that graph, so a device
- * that read a run holds the run, and a tab with no server still reads what it holds and still knows the site's
+ * that read a run holds the run, and a tab without a server still reads what it holds and still knows the site's
  * declarations.
  *
  * Degrades by design: without IndexedDB (a standalone report, a context without it) every read returns empty and every
  * write is a no-op. Browser-only (IndexedDB is absent in jsdom/node) → exercised by the e2e suites, with an in-memory
- * stand-in for the unit tests. No dependency: raw IndexedDB, promisified.
+ * stand-in for the unit tests. It uses raw IndexedDB, promisified, without a dependency.
  */
 import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
 import { pagePinned } from "../page-pinned.js";
@@ -45,7 +45,7 @@ const DB_NAME = "shu-client-cache";
 /** The databases this one replaces, dropped once on open so a device does not keep them beside it. */
 const FORMER_DB_NAMES = ["shu-events", "shu-graph"];
 /** Bumped when the shape changes. An upgrade creates what is missing and keeps what is cached, and a page holding an
- *  earlier version closes its connection as soon as another page upgrades, so no page waits on another. */
+ *  earlier version closes its connection as soon as another page upgrades, so a page doesn't wait on another. */
 const VERSION = 6;
 const META = "meta";
 /** The graph the page holds: quads, in the same database as the registry so the client cache has one lifecycle. */
@@ -69,7 +69,7 @@ function openDb(): Promise<IDBDatabase | null> {
 	if (dbPromise) return dbPromise;
 	dbPromise = new Promise((resolve) => {
 		if (typeof indexedDB === "undefined") {
-			resolve(null); // no IndexedDB here → reads stub, writes drop, and a view reads what the site answers
+			resolve(null); // IndexedDB doesn't exist here → reads stub, writes drop, and a view reads what the site answers
 			return;
 		}
 		const req = indexedDB.open(DB_NAME, VERSION);

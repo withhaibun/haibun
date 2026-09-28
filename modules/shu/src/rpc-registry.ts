@@ -114,10 +114,10 @@ interface ShuHydration {
 	/** What a view showed, by the step that produces it. A view whose products cannot be read from the run is given
 	 *  what it showed when the record was written, rather than asking a server that is not there. */
 	viewProducts?: Record<string, unknown>;
-	/** The address this run opens at: the type its query column was showing, which no record of the run states. Which
+	/** The address this run opens at: the type its query column was showing, which the records of the run don't state. Which
 	 *  views were open it never names, since the page reads those from the records it carries. */
 	viewHash?: string;
-	/** The run this page carries, for a page with no server: filled into the client cache at boot. */
+	/** The run this page carries, for a page without a server: filled into the client cache at boot. */
 	cache?: TCachePayload;
 	/** What this deployment set for the page, written by the step that serves it. */
 	settings?: TDeploymentSettings;
@@ -135,7 +135,7 @@ export type TDeploymentSettings = {
 	/** What every reader holds here without presenting anything, as the web server declares it. */
 	allowedWithoutDelegation?: string[];
 	/** Whether anything here verifies a delegation, so the page knows to read what was delegated to its key: a key's
-	 *  proof sent where nothing could check it is refused. */
+	 *  proof sent where the deployment couldn't check it is refused. */
 	verifiesDelegations?: boolean;
 	/** The origin of a page that embeds shu in a frame and posts it the page the reader is on. */
 	embedderOrigin?: string;
@@ -151,7 +151,7 @@ const cachedHydration = (): { data: ShuHydration | null } => pagePinned(HYDRATIO
 
 /** Parse the embedded hydration and drop the text it was parsed from: the element caches the whole run: every event:
  *  as one string, which would sit in the DOM for the life of the page beside the objects parsed out of it. Read once
- *  (`hydrateFromDom`, at boot), so nothing reads it again. */
+ *  (`hydrateFromDom`, at boot), so a caller doesn't read it again. */
 function readHydration(): ShuHydration | null {
 	const el = document.getElementById("shu-hydration");
 	if (!el?.textContent) return null;
@@ -181,7 +181,7 @@ export function carriedProducts(method: string): unknown | undefined {
 }
 
 /**
- * True when this page carries its own run, which is what a record of a run is: there is no server behind it, so every
+ * True when this page carries its own run, which is what a record of a run is: it doesn't have a server behind it, so every
  * read is answered from what the page holds. The hydration script is present either way (a live serve carries an empty
  * one so the shape is stable); a carried run is the signal, since a live serve never has one.
  */
@@ -189,27 +189,27 @@ export function isOffline(): boolean {
 	return cachedHydration().data?.cache !== undefined;
 }
 
-/** What every reader holds here without presenting anything: nothing, where the page was served saying nothing. */
+/** What every reader holds here without presenting anything: empty, where the page was served without stating it. */
 export function deploymentAllowedWithoutDelegation(): string[] {
 	return cachedHydration().data?.settings?.allowedWithoutDelegation ?? [];
 }
 
-/** The rounds of tool calls an ask starts with, as this deployment sets them, or undefined where it set none. */
+/** The rounds of tool calls an ask starts with, as this deployment sets them, or undefined where it didn't set one. */
 export function deploymentAskToolLimit(): number | undefined {
 	return cachedHydration().data?.settings?.askToolLimit;
 }
 
-/** The origin of the page this deployment lets embed shu, or undefined where it lets none. */
+/** The origin of the page this deployment lets embed shu, or undefined where it doesn't let one. */
 export function deploymentEmbedderOrigin(): string | undefined {
 	return cachedHydration().data?.settings?.embedderOrigin;
 }
 
-/** Whether this deployment verifies a delegation: not, where the page was served saying nothing. */
+/** Whether this deployment verifies a delegation: false, where the page was served without stating it. */
 export function deploymentVerifiesDelegations(): boolean {
 	return cachedHydration().data?.settings?.verifiesDelegations === true;
 }
 
-/** A timing this deployment set, in milliseconds, or undefined where it set none. A value the page cannot apply is a
+/** A timing this deployment set, in milliseconds, or undefined where it didn't set one. A value the page cannot apply is a
  *  deployment stating something it does not mean, so it is refused rather than replaced with the product's own. */
 export function deploymentMs(name: "streamReconnectAfterMs" | "responseTimeoutMs"): number | undefined {
 	const set = cachedHydration().data?.settings?.[name];
@@ -222,7 +222,7 @@ export function deploymentMs(name: "streamReconnectAfterMs" | "responseTimeoutMs
 /**
  * The timeout on a request the page awaits, after which the server is reported unreachable.
  *
- * A server that accepts a request without responding leaves the view that issued it with no result and no error, so
+ * A server that accepts a request without responding leaves the view that issued it without a result or an error, so
  * the read never fails and never falls back to the device store. The timeout converts that into a reported failure.
  *
  * Calibrated against measured query latency. Over a corpus of eight thousand messages the consumer's engine answers a
@@ -299,9 +299,9 @@ function readAgain(r: TRegistry): void {
 }
 
 /** Ask the server what it offers this page. Its response is cached on the device; when the server does not respond, the
- *  device's copy is the registry the page runs on (and reports it), so a page with no server still knows the server's
+ *  device's copy is the registry the page runs on (and reports it), so a page without a server still holds the server's
  *  declarations. A server that responds with a refusal is answered, not the copy: what the page may no longer read is
- *  not read from the device instead. With neither, the request fails as it did. */
+ *  not read from the device instead. Where the page doesn't have either, the request fails as it did. */
 async function discover(): Promise<TStepList> {
 	const r = registry();
 	r.unfollow ??= followRun(r);
@@ -350,7 +350,7 @@ async function discover(): Promise<TStepList> {
  *
  * A caller that chooses a method as it runs: a person picking a step, a panel following an affordance it was offered
  * cannot state what the step is, so the step states it: the registry the page loaded carries each step's own
- * declaration. A method no loaded stepper provides asks the run to act, which is what naming an unknown step is.
+ * declaration. A method the loaded steppers don't provide asks the run to act, which is what naming an unknown step is.
  */
 export function linkTo(method: string, params?: Record<string, unknown>, summary?: string): TLink {
 	return findStep(method)?.read === true ? reads(method, params, summary) : acts(method, params, summary);
@@ -386,7 +386,7 @@ export function stepsAllowedBy(action: string): TStepDefinition[] {
 	return steps.filter((step) => capabilityAllows(action, step.capability));
 }
 
-/** Resolve a friendly name (e.g. `"graphQuery"`) to the loaded stepper's full method (e.g. `"GraphStepper-graphQuery"`). A name no loaded stepper provides fails fast at runtime. */
+/** Resolve a friendly name (e.g. `"graphQuery"`) to the loaded stepper's full method (e.g. `"GraphStepper-graphQuery"`). A name the loaded steppers don't provide fails fast at runtime. */
 export function requireStep(name: string): string {
 	const step = findStep(name);
 	if (step) return step.method;

@@ -11,7 +11,7 @@
  *
  * A fact's target is a record here, `#Type:id`, optionally with a W3C/WICG Text Fragment directive
  * (`:~:text=[prefix-,]exact[,-suffix]`, one-to-one with a Web Annotation TextQuoteSelector) for a passage. Any other
- * href (a page anchor, a relative path, a web address) is a link and nothing more.
+ * href (a page anchor, a relative path, a web address) is only a link.
  *
  * This module is the grammar alone: it reads text and reports facts. Writing them is `readTypedLinks` (resources.ts),
  * which resolves each target against the store.
@@ -40,7 +40,7 @@ type TRefHref =
 /** What a statement can be about: a typed individual, optionally a passage inside it. */
 type TAddressableTarget = { kind: typeof DENOTES.individual; persistedAs: string; id: string; anchor?: TQuoteAnchor };
 
-/** What a link's href denotes. A TYPE is a schema term, not an individual: a link to one navigates and states nothing. */
+/** What a link's href denotes. A TYPE is a schema term, not an individual: a link to one navigates and doesn't state a fact. */
 type TLinkTarget = TAddressableTarget | { kind: typeof DENOTES.type; persistedAs: string };
 
 /**
@@ -62,7 +62,7 @@ export type TLinkVocabulary = {
 
 export const TEXT_DIRECTIVE = ":~:text=";
 /**
- * The typed form: link text, a colon, a rel. No whitespace touches the colon, so ordinary prose link text
+ * The typed form: link text, a colon, a rel. Whitespace doesn't touch the colon, so ordinary prose link text
  * ("Section 3: Overview") is not read as typed. The link text may be omitted (`:cites`).
  */
 const TYPED_TEXT = /^(?<linkText>\S(?:.*\S)?)?:(?<rel>[a-zA-Z][a-zA-Z0-9_]*)$/;
@@ -79,7 +79,7 @@ function decodeHref(href: string, context: string): string {
 /**
  * Parse a Text Fragment directive value (`[prefix-,]exact[,-suffix]`) into a quote anchor. The marker dashes are
  * literal in the raw directive (an encoded %2D is text, not a marker), so parts are classified before decoding.
- * A range form (`start,end`) has no TextQuoteSelector equivalent, so it yields no anchor.
+ * A range form (`start,end`) doesn't have a TextQuoteSelector equivalent, so it doesn't yield an anchor.
  */
 export function parseTextDirective(directive: string): TQuoteAnchor | undefined {
 	const parts = directive.split(",");
@@ -119,7 +119,7 @@ export function typedHref(persistedAs: string, id?: string): string {
 export const markdownRef = (text: string, persistedAs: string, id?: string): string => `[${text.replace(/[[\]]/g, "\\$&")}](${typedHref(persistedAs, id)})`;
 
 /**
- * Resolve an href to what it names, or null when it names no record here (a plain in-page `#anchor`, a path, an
+ * Resolve an href to what it names, or null when it doesn't name a record here (a plain in-page `#anchor`, a path, an
  * address on the web, an empty href). The id may itself contain colons (a DID), so the type/id split is on the FIRST
  * colon only.
  */
@@ -189,8 +189,8 @@ function markdownLinks(markdown: string): Array<{ text: string; href: string }> 
 
 /**
  * The facts the markdown states. A typed link is held to its rel: an undeclared rel, a rel that does not point at a
- * resource, or a target naming no record here is an error. An untyped link whose target names no record here is
- * prose and states nothing.
+ * resource, or a target that doesn't name a record here is an error. An untyped link whose target doesn't name a record here is
+ * prose and doesn't state a fact.
  */
 export function typedLinkFacts(markdown: string, vocab: TLinkVocabulary): TTypedLinkFact[] {
 	const facts: TTypedLinkFact[] = [];

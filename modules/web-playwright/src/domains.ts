@@ -78,7 +78,7 @@ const httpClientSchema = PersistedVertexSchema.extend({ id: z.string(), name: z.
 const httpHostSchema = PersistedVertexSchema.extend({ id: z.string(), name: z.string().optional(), requestCount: z.number().optional(), generatedAtTime: z.string() });
 const visitedPageSchema = PersistedVertexSchema.extend({ id: z.string(), name: z.string().optional(), generatedAtTime: z.string() });
 
-/** The HTTP methods a request is made with: those that send a body, and those that send none. */
+/** The HTTP methods a request is made with: those that send a body, and those that don't. */
 export const HTTP_METHODS_WITH_BODY = ["POST", "PUT", "PATCH"] as const;
 const HTTP_METHODS_WITHOUT_BODY = ["GET", "DELETE", "HEAD"] as const;
 export const DOMAIN_HTTP_METHOD = "http-method";
@@ -152,7 +152,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 				performedBy: { rel: LinkRelations.PERFORMED_BY.rel, range: [HTTP_CLIENT_LABEL, HTTP_HOST_LABEL] },
 				target: { rel: LinkRelations.AS_TARGET.rel, range: [ENDPOINT_LABEL, HTTP_HOST_LABEL] },
 			},
-			// No displayLabel: the id ("GET /path") is the title; status and duration are fields, not a stored summary copy.
+			// This type doesn't declare a displayLabel: the id ("GET /path") is the title; status and duration are fields, not a stored summary copy.
 		},
 	},
 	{

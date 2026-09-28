@@ -18,10 +18,10 @@ export interface WindowedSource<T> {
 	subscribe(cb: () => void): () => void;
 	/** Significant rows to mark on the scroll rail (annotations, failed steps, feature boundaries), across the whole set. */
 	markers(): TScrollMarker[];
-	/** The size of a row known without rendering it: 0 for a cached row that renders nothing, so the renderer gives it
-	 *  no room and does not let it drag its estimate of the rows it has not measured; undefined to measure and estimate. */
+	/** The size of a row known without rendering it: 0 for a cached empty row, so the renderer doesn't give it
+	 *  room and does not let it drag its estimate of the rows it has not measured; undefined to measure and estimate. */
 	rowSize?(index: number): number | undefined;
-	/** The rail this source's rows sit on, where the rows are a window of something longer. A source that offers none
+	/** The rail this source's rows sit on, where the rows are a window of something longer. A source that doesn't offer one
 	 *  has a rail of its own rows, spread evenly. */
 	rail?: TSourceRail;
 }
@@ -30,9 +30,9 @@ export interface WindowedSource<T> {
  * A rail over the whole of what a source is a window of.
  *
  * A window holds a few thousand rows and the set can be a year of them, so a rail that spread the window evenly would
- * say nothing about the rest. The source states the rail instead: how many places it has, where each row it holds sits
+ * not describe the rest. The source states the rail instead: how many places it has, where each row it holds sits
  * among them, what marks the whole set puts on it, and what a press on a place asks the set for. The renderer draws
- * places and knows nothing of what they mean.
+ * places and doesn't depend on what they mean.
  */
 type TSourceRail = {
 	/** How many places the rail has. A place is what a mark sits at and what a press names. */
@@ -58,7 +58,7 @@ export function arrayWindowedSource<T>(
 		count: () => items.length,
 		rowAt: (i) => items[i],
 		ensureRange: async () => {
-			/* cached: every row is already in memory, nothing to fetch */
+			/* cached: every row is already in memory, so this doesn't fetch */
 		},
 		subscribe: (cb) => (subs.add(cb), () => subs.delete(cb)),
 		markers: () => marks,
@@ -92,7 +92,7 @@ type TPagedSource<T> = WindowedSource<T> & {
 	 *  return more, so a partial last page is re-fetched and the view re-renders. */
 	notifyCountChanged(): void;
 	/** Seed an already-fetched, page-aligned run of rows (the first page the caller fetched to record the total) so the
-	 *  first paint needs no second round-trip. `startRow` must be a multiple of `pageSize`. */
+	 *  first paint doesn't need a second round-trip. `startRow` must be a multiple of `pageSize`. */
 	prime(startRow: number, rows: readonly T[]): void;
 	/** A row arrived live at `index` (the source's count has grown to include it): placed into its page when that page is
 	 *  cached up to it, so the live edge caches rendering without a fetch; cached aside while that page is being fetched and
@@ -262,7 +262,7 @@ function makePagedSource<T>(opts: { count: () => number; fetch: TPageFetcher<T>;
 /**
  * A source over a read that answers a page at a time, with the page the caller has already read placed in it. Every
  * view that lists what a read answers is built this way: how many rows there are in all, how big a page is, how to
- * read one, and the page in hand. A view that lists rows holds no paging of its own.
+ * read one, and the page in hand. A view that lists rows doesn't hold paging of its own.
  */
 export function readWindowedSource<T>(opts: {
 	/** How many rows the read answers in all, read again as it changes (a re-query, a live append). */

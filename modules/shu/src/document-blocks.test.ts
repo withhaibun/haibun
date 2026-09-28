@@ -104,7 +104,7 @@ describe("finalizeBlocks", () => {
 		expect(out[0].html).not.toContain("thumb-row");
 		expect(out[0].html).toContain("feature-artifacts");
 	});
-	it("drops an artifact block that renders nothing, so it cannot split a run of screenshots", () => {
+	it("drops an artifact block that renders an empty string, so it cannot split a run of screenshots", () => {
 		// A dispatch trace (or any artifact resolving to "") sat between two screenshots as an invisible block: the run
 		// broke there and every tile stacked alone instead of flowing. Empty artifact blocks must not exist at all.
 		const silent: TArtifactResolver = (id) => (id.startsWith("img") ? thumb(id) : "");
@@ -140,9 +140,9 @@ describe("blockIndexForHeading", () => {
 		expect(blockIndexForHeading(blocks, "9-the-authority-revokes-the-permit")).toBe(3);
 	});
 
-	it("finds nothing for a link this document has no heading for, so such a link is left alone", () => {
+	it("doesn't find a block for a link without a heading in this document, so such a link is left alone", () => {
 		expect(blockIndexForHeading(blocks, "Principal"), "a link out of the document, not into it").toBe(-1);
-		expect(blockIndexForHeading(blocks, ""), "and an empty target names nothing").toBe(-1);
+		expect(blockIndexForHeading(blocks, ""), "and an empty target doesn't name a heading").toBe(-1);
 	});
 
 	it("does not take a heading whose name merely starts the same way", () => {
@@ -161,11 +161,11 @@ describe("blocksByEvent", () => {
 		const events = [{ id: "0.1" }, { id: "0.1" }]; // one step named twice
 		expect(blocksByEvent(events, [block("0.1"), block("0.1")]).map((bs) => bs.length)).toEqual([2, 0]);
 	});
-	it("a block whose id no later event carries stays with the event last matched (a holder filled for an earlier step)", () => {
+	it("a block whose id the later events don't carry stays with the event last matched (a holder filled for an earlier step)", () => {
 		const events = [{ id: "0.1" }, { id: "0.2" }];
 		expect(blocksByEvent(events, [block("0.2"), block("0.1")]).map((bs) => bs.map((b) => b.id))).toEqual([[], ["0.2", "0.1"]]);
 	});
-	it("blocks before any id'd block belong to the first event; no events, no rows", () => {
+	it("blocks before any id'd block belong to the first event; without events, it doesn't return a row", () => {
 		expect(blocksByEvent([{ id: "a" }], [block("", "<div></div>")]).map((bs) => bs.length)).toEqual([1]);
 		expect(blocksByEvent([], [block("a")])).toEqual([]);
 	});

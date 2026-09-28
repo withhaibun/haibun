@@ -48,7 +48,7 @@ describe("statementsWith", () => {
 		expect(row.outcome).toBe(SEQ_PATH_STATUS.passed);
 	});
 
-	it("reads a statement no reading claims, made by hand, as a row with no provenance", async () => {
+	it("reads a hand-made statement that a reading doesn't claim as a row without provenance", async () => {
 		await store.createEdge(REPORT, "report-2", LinkRelations.CITES_AS_EVIDENCE.rel, REPORT, "spec-1");
 		const rows = await statementsWith(store, LinkRelations.CITES_AS_EVIDENCE.rel);
 		const byHand = rows.find((r) => r.subject["@id"] === "report-2");
@@ -56,7 +56,7 @@ describe("statementsWith", () => {
 		expect(byHand?.outcome).toBeUndefined();
 	});
 
-	it("reads nothing for a predicate nothing was stated with", async () => {
+	it("doesn't read a row for a predicate that a statement didn't use", async () => {
 		expect(await statementsWith(store, LinkRelations.LINKS_TO.rel)).toEqual([]);
 	});
 });

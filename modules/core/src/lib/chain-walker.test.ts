@@ -150,11 +150,11 @@ describe("a walk belongs to whoever began it", () => {
 		expect(advanced.kind).toBe("advanced");
 	});
 
-	it("is refused to anyone else, and to no one at all", async () => {
+	it("is refused to anyone else, and to a run that doesn't act as anyone", async () => {
 		const ctx = buildContext(world, [new IssueStepper(), new VcStepper()]);
 		const inst = await runActingAs("did:example:alice", () => createChainInstance(world, VC_DOMAIN, twoStepMichi));
 		await expect(runActingAs("did:example:mallory", () => advanceChainInstance(ctx, inst.id, { issuerId: "mallory" }))).rejects.toThrow(/begun by did:example:alice/);
-		await expect(advanceChainInstance(ctx, inst.id, { issuerId: "nobody" }), "and by a run acting as no one").rejects.toThrow(/begun by did:example:alice/);
+		await expect(advanceChainInstance(ctx, inst.id, { issuerId: "nobody" }), "and by a run that doesn't act as anyone").rejects.toThrow(/begun by did:example:alice/);
 	});
 
 	it("a walk an unnamed caller began isn't advanced by a named one", async () => {

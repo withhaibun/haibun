@@ -21,16 +21,16 @@ export const RpcRequestSchema = z.object({
 	/** The most this caller may see. A server bounds a call to the narrower of this and its own ceiling, so a caller
 	 *  can ask to see less than it is allowed but never more. */
 	readingAt: AccessLevelSchema.optional(),
-	/** What the caller asks of the run: to be answered, or to act. A call asking to read is answered and leaves no
-	 *  record of the reading, and is refused where the step does not declare itself a read. A call that states nothing
-	 *  asks the run to act, which is what a caller that knows nothing of this can only be doing. */
+	/** What the caller asks of the run: to be answered, or to act. A call asking to read is answered and doesn't leave a
+	 *  record of the reading, and is refused where the step does not declare itself a read. A call that doesn't state it
+	 *  asks the run to act, which is what a caller that doesn't send this field can only be doing. */
 	asks: z.enum(["read", "act"]).optional(),
 });
 type TRpcRequest = z.infer<typeof RpcRequestSchema>;
 
 /** Marks an answer to a request whose presented authority failed verification, which a transport states as unauthenticated. */
 export const RPC_REFUSED = "refused";
-/** What a call answers where its step succeeded with no products. A caller reads the step's declaration, not this, to know
+/** What a call answers where its step succeeded without products. A caller reads the step's declaration, not this, to know
  *  whether it answers with products. */
 export const ANSWERED_WITHOUT_PRODUCTS = { ok: true } as const;
 
@@ -93,7 +93,7 @@ export type TRpcEnvelope = Parameters<typeof rpcEnvelope>[0];
 /** A call as it is sent: its address, and the POST carrying its envelope under the headers made over it. */
 type TRpcCall = { url: string; init: { method: "POST"; headers: Record<string, string>; body: string } };
 
-/** Proving nothing: a call that invokes no action is sent with its headers as they are. */
+/** `provesNothing`: a call that doesn't invoke an action is sent with its headers as they are. */
 export const provesNothing: TProveRequest = (request) => Promise.resolve(request.headers);
 
 /**
@@ -120,7 +120,7 @@ export async function postRpc(base: string, method: string, params: Record<strin
  * whether or not it ends in a newline.
  *
  * A malformed line throws. Every line on this wire is written by JSON.stringify, so a line that will not parse is
- * something else writing into the response, and a dropped line is a chunk of an answer missing with nothing said.
+ * something else writing into the response, and a dropped line is a chunk of an answer missing without an error.
  */
 export async function* readNdjson<T>(body: ReadableStream<Uint8Array>): AsyncGenerator<T, void, unknown> {
 	const reader = body.getReader();

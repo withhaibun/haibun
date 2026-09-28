@@ -14,12 +14,12 @@ type TAuthorizedRequest = { method?: string; url?: string; headers?: TRequestHea
 const PRESENTED_AUTHORITY_HEADER = "capability-invocation";
 
 /** What a request carries: what its caller may do, who they proved themselves to be where a proof said so, and what that
- *  proof rests on. A presented proof that fails, or that nothing here can check, is `refused`, and a refused request runs
- *  nothing. */
+ *  proof rests on. A presented proof that fails, or that the runtime can't check, is `refused`, and a refused request doesn't run
+ *  a step. */
 type TRequestAuthority = { granted: string[]; principal?: string; restsOn?: TRestsOn; refused?: string };
 
 /**
- * What the caller of this request may do: the actions this deployment allows without a delegation, which are none
+ * What the caller of this request may do: the actions this deployment allows without a delegation, which form an empty list
  * unless it says otherwise, and what proof it presents of authority it holds, which whatever is registered to read that proof decides.
  * A request presenting proof is asked about as a whole, since a signed request's proof covers what it asks and of what.
  *
@@ -60,8 +60,8 @@ export const requiring =
 
 /**
  * Hold a call open only while the authority it was allowed under holds: `end` is told why once a capability its proof
- * rests on is revoked or expires, and watching stops when `signal` aborts. A call allowed without a proof rests on
- * nothing that lapses.
+ * rests on is revoked or expires, and watching stops when `signal` aborts. A call allowed without a proof doesn't rest on
+ * a capability that lapses.
  */
 export function endWhenLapsed(runtime: TRuntime, { restsOn }: TRequestAuthority, signal: AbortSignal, end: (reason: string) => void): void {
 	if (!restsOn) return;

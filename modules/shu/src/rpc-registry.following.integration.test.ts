@@ -81,7 +81,7 @@ describe("a page open on a run", () => {
 		const base = `http://localhost:${port}`;
 		const world = getTestWorldWithOptions({
 			...DEF_PROTO_OPTIONS,
-			// Nothing here verifies a delegation, so the deployment allows every action without one, as a haibun-only run does.
+			// This run doesn't verify a delegation, so the deployment allows every action without one, as a haibun-only run does.
 			moduleOptions: {
 				...DEF_PROTO_OPTIONS.moduleOptions,
 				[getStepperOptionName(WebServerStepper, "PORT")]: String(port),

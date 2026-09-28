@@ -124,7 +124,7 @@ describe("a persisted type's level property", () => {
 			topology: { persistedAs: "Note", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel, ...properties } },
 		});
 
-	it("is added where the type is registered, so no declaration repeats it", () => {
+	it("is added where the type is registered, so a declaration doesn't repeat it", () => {
 		expect((persisted({}).topology as THypermediaTopology).properties.accessLevel).toBe(LinkRelations.ACCESS_LEVEL.rel);
 	});
 });
@@ -150,26 +150,26 @@ describe("a reference to a record of a type", () => {
 });
 
 describe("a list a caller gives", () => {
-	it("is an array, its JSON text or text separated by commas, and is refused naming nothing", () => {
+	it("is an array, its JSON text or text separated by commas, and is refused where it doesn't name an action", () => {
 		const { schema } = getDefaultWorld().domains[DOMAIN_ACTIONS];
 		const READ_AND_RUN = ["Read:private", "Instance:run"];
 		expect(schema.parse(READ_AND_RUN)).toEqual(READ_AND_RUN);
 		expect(schema.parse(JSON.stringify(READ_AND_RUN))).toEqual(READ_AND_RUN);
 		expect(schema.parse(" Read:private, Instance:run ")).toEqual(READ_AND_RUN);
-		expect(schema.safeParse(" , ").success, "text naming no action").toBe(false);
-		expect(schema.safeParse("[not json").success, "text opening as JSON that is none").toBe(false);
+		expect(schema.safeParse(" , ").success, "text that doesn't name an action").toBe(false);
+		expect(schema.safeParse("[not json").success, "text opening as JSON that isn't JSON").toBe(false);
 	});
 });
 
 describe("a step's place and a length of time", () => {
-	it("reads a step's place from its sequence path or an id beginning with one, and refuses an id naming no step", () => {
+	it("reads a step's place from its sequence path or an id beginning with one, and refuses an id that doesn't name a step", () => {
 		const { schema } = getDefaultWorld().domains[DOMAIN_STEP_PATH];
 		expect(schema.parse("0.1.-5.3")).toEqual([0, 1, -5, 3]);
 		expect(schema.parse("0.1.5.3.artifact.0"), "an event's id").toEqual([0, 1, 5, 3]);
 		expect(schema.safeParse("artifact.0").error?.issues[0]?.message).toMatch(/doesn't name a step/);
 	});
 
-	it("reads seconds and milliseconds as milliseconds, and refuses a length given in no unit", () => {
+	it("reads seconds and milliseconds as milliseconds, and refuses a length given without a unit", () => {
 		const { schema } = getDefaultWorld().domains[DOMAIN_DURATION];
 		expect(schema.parse("2s")).toBe(2000);
 		expect(schema.parse("30 ms")).toBe(30);

@@ -38,12 +38,12 @@ describe("the actions bar's history", () => {
 		timeCursor.set(null);
 	});
 
-	it("states nothing to return to while it follows the newest turn", async () => {
+	it("doesn't state a place to return to while it follows the newest turn", async () => {
 		const history = await aHistory(2);
-		expect(arrivedIn(history)?.hidden, "a reader at the newest turn has nothing to return to").toBe(true);
+		expect(arrivedIn(history)?.hidden, "a reader at the newest turn doesn't have a place to return to").toBe(true);
 	});
 
-	it("states the turns asked after a reader's place, and states none once they return to the newest", async () => {
+	it("states the turns asked after a reader's place, and doesn't state one once they return to the newest", async () => {
 		const history = await aHistory(2);
 		history.dispatchEvent(new WheelEvent("wheel", { deltaY: -100 }));
 		alsoAsked(3);

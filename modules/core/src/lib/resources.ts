@@ -3,7 +3,7 @@
  *
  * Answers "what is a graph resource, how is it typed, how does it link, and how is it governed?"
  * Pure declarative data: zod schemas, type aliases, vocabulary consts, and tiny pure derivations.
- * No runtime behavior, no node built-ins, browser-safe.
+ * It doesn't hold runtime behavior or node built-ins, so it is browser-safe.
  *
  * Contents:
  *   - Resource identity (id/type), Access levels, Comment vocabulary
@@ -39,7 +39,7 @@ export const ResourceSchema = z.object({
 /** Root node label: any resource. Use as edge range when the target is polymorphic. */
 export const RESOURCE_LABEL = "Resource";
 
-/** haibun's canonical vocabulary namespace: the fallback base when no serving host is known, and the stem a consumer
+/** haibun's canonical vocabulary namespace: the fallback base when a serving host isn't known, and the stem a consumer
  *  publishes a sub-vocabulary beneath. A served @context binds `hbn` under the request host instead. */
 export const HAIBUN_NS = "https://withhaibun.github.io/ns/";
 const HAIBUN_NS_PATH = "/ns/";
@@ -81,10 +81,10 @@ export type AccessQueryLevel = z.infer<typeof AccessQueryLevelSchema>;
 export const AccessQuery = AccessQueryLevelSchema.enum;
 
 /**
- * The base every type persisted as a vertex in a quad store declares. Every persisted type states `accessLevel` —
- * in its schema and its topology — so the level of every row is known at read time: a record stating no level of
+ * The base every type persisted as a vertex in a quad store declares. Every persisted type states `accessLevel`
+ * in its schema and its topology, so the level of every row is known at read time: a record that doesn't state a level of
  * its own is classified by its type at write time, never wider than the level the writer sees, and a type that
- * declares the property nowhere cannot classify its records. A store's registration guard enforces the
+ * doesn't declare the property cannot classify its records. A store's registration guard enforces the
  * declaration; this base is the declaration.
  */
 export const PersistedVertexSchema = z.object({
@@ -103,7 +103,7 @@ export function narrowerAccess(inForce: AccessLevel, asked: AccessLevel): Access
 }
 
 /** Whether a record at `level` is within what a read at `asked` may see: the one rule every store reads by. A record
- *  stating no level of its own is not something the reading can judge, and is left to whatever served it to decide. */
+ *  that doesn't state a level of its own isn't something the reading can judge, and is left to whatever served it to decide. */
 export function withinAccess(level: unknown, asked: AccessLevel): boolean {
 	const held = typeof level === "string" ? ACCESS_BREADTH[level as AccessLevel] : undefined;
 	return held === undefined || held <= ACCESS_BREADTH[asked];
@@ -115,12 +115,12 @@ export function levelsWithin(seen: AccessLevel): AccessLevel[] {
 }
 
 /** The scope a read runs at in a store, from the level it asked for: `all` asks for every level, which a store reads
- *  at its widest. One reading, so no two surfaces scope the same request differently. */
+ *  at its widest. One reading, so two surfaces don't scope the same request differently. */
 export function storeScopeFor(asked: AccessQueryLevel): AccessLevel {
 	return asked === AccessQuery.all ? Access.private : asked;
 }
 
-/** The narrower of two ceilings, either of which may be absent: absent means "bounded by nothing of its own". */
+/** The narrower of two ceilings, either of which may be absent: absent means "not bounded by a ceiling of its own". */
 export function narrowerCeiling(inForce: AccessLevel | undefined, asked: AccessLevel | undefined): AccessLevel | undefined {
 	if (!inForce) return asked;
 	if (!asked) return inForce;
@@ -151,7 +151,7 @@ export const BODY_LABEL = "Body";
 
 /**
  * The media types a body is written and matched by. One name each, because a body is FOUND by its media type: a
- * mistyped literal writes a body no reader asks for, and says nothing when it happens.
+ * mistyped literal writes a body a reader doesn't ask for, and doesn't report the mismatch when it happens.
  *
  * These are for what a record carries. An HTTP `Content-Type` header keeps its literal: that is the wire's
  * vocabulary rather than this module's, and a wrong one there fails at the request.
@@ -169,7 +169,7 @@ export const HAS_BODY_EDGE = "hasBody";
 /**
  * Reading: one reading of a text, asserting what its links state (`prov:Activity`). One per source. It names the
  * source it read (`prov:used`), the run step that read it, and the statements it made, so reading a rewritten text
- * retracts exactly what the previous reading asserted and nothing a person asserted by hand.
+ * retracts exactly what the previous reading asserted and doesn't retract a statement a person asserted by hand.
  */
 export const READING_LABEL = "Reading";
 const READING_DOMAIN = "reading";
@@ -212,7 +212,7 @@ export type TDiscourseRel = (typeof DISCOURSE_RELS)[number];
  *   - "container": points at a multi-valued structure (bag, list, or nested context).
  *                  Renders as a select/select-like control.
  *
- * This is a deliberately small subset of RDFS: no reasoner, no subPropertyOf, just enough
+ * This is a deliberately small subset of RDFS without a reasoner or subPropertyOf, just enough
  * to let `linkRelFromSemantic` be a one-line lookup instead of a growing chain.
  *
  * Reply/conversation semantics are modeled by per-entry `subPropertyOf: "inReplyTo"`; ancestry checks walk the chain via `isSubPropertyOf`.
@@ -229,7 +229,7 @@ export type TRelRange = "iri" | "literal" | "container";
  *   "governance", control rules about the resource (accessLevel, capability
  *                  bindings). Rendered in a labelled governance section, not
  *                  mixed into content fields.
- * Rels with no presentation default to the regular field table.
+ * Rels without a presentation default to the regular field table.
  */
 type TRelPresentation = "summary" | "body" | "governance";
 
@@ -266,7 +266,7 @@ export const LinkRelations = {
 	URL: { rel: "url", uri: "as:url", range: "literal" },
 	// schema.org: a work references an entity it names but is not about (schema:mentions). The edge a body-bearing
 	// individual (an email, a document) draws to each person, place, organization, or other entity extracted from it.
-	// Also the rel an untyped link states: a link whose text names no property type still says the text refers to what it points at.
+	// Also the rel an untyped link states: a link whose text doesn't name a property type still says the text refers to what it points at.
 	MENTIONS: { rel: "mentions", uri: "schema:mentions", range: "iri" },
 	// CiTO (Citation Typing Ontology): one work citing another, and the refinement that says the citing work offers the
 	// cited passage as evidence for what it claims. A feature citing the requirement it exercises states the latter, so
@@ -391,8 +391,8 @@ export const LinkRelations = {
 	// does. fromActor = the source/origin actor an entity is FROM (its creator/sender/responsible agent); toActor = the
 	// destination/audience actor it is TO (its subject/recipient/registry). Both subPropertyOf inRoleOf, so every concrete
 	// actor rel that declares under one is STILL a role rel (roleRels derives transitively): the split only ADDS direction,
-	// it removes nothing. An Actor is a prov:Agent ≡ as:Actor ≡ foaf:Agent. Generic across vocabularies: a sequence reads
-	// any entity carrying a fromActor AND a toActor as a message source→target, with no per-type knowledge.
+	// it doesn't remove a role rel. An Actor is a prov:Agent ≡ as:Actor ≡ foaf:Agent. Generic across vocabularies: a sequence reads
+	// any entity carrying a fromActor AND a toActor as a message source→target, without per-type knowledge.
 	// Abstract: never a written edge label, only a classification target (like inRoleOf). These are the UPPER ONTOLOGY
 	// POINTERS a consumer's domain declaration uses: an edge declared `{ rel: "fromActor", iri: "<its own term>" }`
 	// classifies under the pointer while serving its genuine vocabulary IRI, so consumer vocabularies never appear here.
@@ -476,7 +476,7 @@ export function edgeRel(predicate: string): TRel | undefined {
 }
 
 /** A rel's declared parents (rdfs:subPropertyOf). A rel may sit under MORE THAN ONE upper concept, so this is a set:
- *  `subPropertyOf` accepts a single rel or an array, and both forms normalise to a list here. Empty when none declared. */
+ *  `subPropertyOf` accepts a single rel or an array, and both forms normalise to a list here. Empty when the rel doesn't declare a parent. */
 function superPropertiesOf(rel: string): string[] {
 	const sp = (RELATION_BY_REL.get(rel) as { subPropertyOf?: string | string[] } | undefined)?.subPropertyOf;
 	return sp === undefined ? [] : Array.isArray(sp) ? sp : [sp];
@@ -517,7 +517,7 @@ export function isReplyEdge(edgeType: string): boolean {
 /**
  * The ontology-derived ROLE-ATTRIBUTION predicate set: every CORE rel declared `subPropertyOf` the broad role
  * super-property `inRoleOf` (performedBy, author, wasAttributedTo, attributedTo, …). Declaring a new core role
- * predicate is a single `subPropertyOf: "inRoleOf"` in LinkRelations, with NOTHING to add here; a CONSUMER's role
+ * predicate is a single `subPropertyOf: "inRoleOf"` in LinkRelations, and doesn't need an entry here; a CONSUMER's role
  * predicates never appear here: they classify through their domain declarations' edges (rel = an actor upper pointer),
  * merged with this set by the client's rels-cache. The role merge reads the merged set to merge each node's
  * HypermediaRole (the party it is attributed to) and to form the role containers / swimlanes.
@@ -623,7 +623,7 @@ export type TEdgeDef = {
  * Distinct from `THypermediaTopology.edges`: edges declare outgoing graph edges
  * keyed by predicate name (with their own rel + range); ranges annotate the
  * scalar / nested-object schema fields already enumerated in `properties`
- * with their declared domain. A field with no ranges entry is treated as
+ * with their declared domain. A field without a ranges entry is treated as
  * primitive by the resolver (resolves to an `argument` binding).
  */
 type TDomainRanges = Record<string, string>;
@@ -681,12 +681,12 @@ export type THypermediaTopology = {
 	 */
 	instrumentation?: boolean;
 	/**
-	 * The level records of this type are stored at when a record states none. A type declares the LEAST sharing its
-	 * records can be read under and still be useful, so nothing is published by a writer forgetting to say: what is
-	 * shared more widely says so on the record itself. A type declaring none stores private, which shares least.
+	 * The level records of this type are stored at when a record doesn't state one. A type declares the LEAST sharing its
+	 * records can be read under and still be useful, so a writer forgetting to say doesn't publish a record: what is
+	 * shared more widely says so on the record itself. A type that doesn't declare one stores private, which shares least.
 	 */
 	accessLevel?: AccessLevel;
-	/** Default sort field when a query specifies none. Must be one of this type's sort columns. Declare it for a type whose meaningful event/content time differs from its record-creation time (e.g. an email's received time vs its import time); otherwise the universal generatedAtTime is used. */
+	/** Default sort field when a query doesn't specify one. Must be one of this type's sort columns. Declare it for a type whose meaningful event/content time differs from its record-creation time (e.g. an email's received time vs its import time); otherwise the universal generatedAtTime is used. */
 	defaultSort?: string;
 	/**
 	 * The property or edge of this type that titles it: its vocabulary's labeling property, the way foaf:name or
@@ -727,8 +727,8 @@ export function isPersisted(topology: TDomainTopology | undefined): topology is 
 	return !!topology && "persistedAs" in topology && typeof topology.persistedAs === "string";
 }
 
-/** The level a type's records are written at where a record states none: what its topology declares, or private. A name
- *  that is no persisted type, such as the graph a run's variables are held in, declares none. */
+/** The level a type's records are written at where a record doesn't state one: what its topology declares, or private. A name
+ *  that isn't a persisted type, such as the graph a run's variables are held in, doesn't declare one. */
 export function declaredAccessLevel(domain: TRegisteredDomain & { topology: THypermediaTopology }): AccessLevel;
 export function declaredAccessLevel(domain: TRegisteredDomain | undefined): AccessLevel | undefined;
 export function declaredAccessLevel(domain: TRegisteredDomain | undefined): AccessLevel | undefined {
@@ -773,7 +773,7 @@ export type TDomainDefinition = {
 	ui?: Record<string, unknown>;
 };
 
-/** A domain as registration holds it: its definition, with the coercer that its schema gives where it states none. */
+/** A domain as registration holds it: its definition, with the coercer that its schema gives where it doesn't state one. */
 export type TRegisteredDomain = TDomainDefinition & { coerce: TDomainCoercer };
 
 // ============================================================================
@@ -822,8 +822,8 @@ export type TComment = z.infer<typeof CommentSchema>;
 /**
  * Comment domain definition, register this in a stepper's
  * `getConcerns().domains` to expose Comment as a graph node.
- * Topology uses existing LinkRelations for every property; no new rels
- * introduced here.
+ * Topology uses existing LinkRelations for every property and doesn't
+ * introduce new rels here.
  */
 /** A registered route as a graph vertex: persisted at mount by the web server, targeted by observed requests and
  *  published by the principal that serves it. */
@@ -877,7 +877,7 @@ export const commentDomainDefinition: TDomainDefinition = {
 			// discourse as messages between agents; distinct from oa:hasTarget, which is what the comment is ABOUT.
 			[LinkRelations.AUDIENCE.rel]: { rel: LinkRelations.AUDIENCE.rel, range: RESOURCE_LABEL },
 			// What the comment carries: a petition carries the proposal it asks for, a measure carries its observation.
-			// Declared so the record it carries is reachable from it, rather than a quad no view can follow.
+			// Declared so the record it carries is reachable from it, rather than a quad a view can't follow.
 			[LinkRelations.ATTACHMENT.rel]: { rel: LinkRelations.ATTACHMENT.rel, range: RESOURCE_LABEL },
 			// A linking annotation's cross-reference: the note points at another SpecificResource (a section) in the source.
 			[LinkRelations.LINKS_TO.rel]: { rel: LinkRelations.LINKS_TO.rel, range: SPECIFIC_RESOURCE_LABEL },
@@ -902,12 +902,12 @@ export const commentDomainDefinition: TDomainDefinition = {
  * (a string) equals the `Principal.id`, resolvable via
  * `getIndividual("Principal", comment.author)`.
  *
- * Only PUBLIC material persists: there is no private-key field, by design.
+ * Only PUBLIC material persists: the schema doesn't have a private-key field, by design.
  */
 
 const PrincipalSchema = PersistedVertexSchema.extend({
 	id: z.string(),
-	/** as:name: an optional human name for this Principal (a DID has none intrinsically). Lets a party be titled by a readable name instead of its DID; resolves as the display headline (rdfs:label → as:name priority). Named `name`, not `label`, so it is a queryable column: `label` is a reserved column name in a graph store. */
+	/** as:name: an optional human name for this Principal (a DID doesn't have one intrinsically). Lets a party be titled by a readable name instead of its DID; resolves as the display headline (rdfs:label → as:name priority). Named `name`, not `label`, so it is a queryable column: `label` is a reserved column name in a graph store. */
 	name: z.string().optional(),
 	controller: z.string().optional(),
 	publicKey: z.string().optional(),
@@ -924,7 +924,7 @@ export type TPrincipal = z.infer<typeof PrincipalSchema>;
  * GENERATED_AT_TIME-rel field is optional.
  *
  * `controller` is a plain property: in every persist path `controller === id` (a
- * Principal controls itself), so a self-referential edge draws nothing useful; it
+ * Principal controls itself), so a self-referential edge doesn't draw a useful link; it
  * stays a scalar in `properties` + `sortColumns`.
  */
 export const principalDomainDefinition: TDomainDefinition = {
@@ -991,7 +991,7 @@ type TBodyReader = { getIndividual(label: string, id: string): Promise<unknown> 
 export const BODY_PREFERENCE: readonly string[] = [MEDIA_TYPE.markdown, MEDIA_TYPE.plain, MEDIA_TYPE.html];
 
 /**
- * The reading to use, by that preference; the first usable body where a record holds none of them. A body is usable
+ * The reading to use, by that preference; the first usable body where a record doesn't hold one of them. A body is usable
  * when it states its media type and is not known to be empty. A listing names bodies without their text, which is read
  * on request, so a body whose text has not been read is chosen by its media type like any other.
  */
@@ -1007,7 +1007,7 @@ export function pickPreferredBody<T extends { mediaType?: string; content?: stri
 /**
  * Read the text of an individual's body in a given media type: the intentional call for it. A record NAMES the bodies
  * it links (id + media type) but never carries their text, since a body is a whole record's content and may be very
- * large; so the matching body is read here, by asking for it. Undefined when the individual links no such body.
+ * large; so the matching body is read here, by asking for it. Undefined when the individual doesn't link such a body.
  */
 export async function bodyByMediaType(
 	store: TBodyReader,
@@ -1023,7 +1023,7 @@ export async function bodyByMediaType(
 /**
  * The markdown text of an individual, however its store holds it: a store that partitions content into a Body
  * sub-resource is read through the `hasBody` link; one that keeps it inline is read off the field. Undefined when the
- * individual holds no markdown.
+ * individual doesn't hold markdown.
  */
 export async function markdownOf(store: Pick<TDiscourseStore, "getIndividual">, label: string, id: string): Promise<string | undefined> {
 	const individual = (await store.getIndividual(label, id)) as
@@ -1098,7 +1098,7 @@ export const textQuoteSelectorDomainDefinition: TDomainDefinition = {
 			suffix: LinkRelations.SUFFIX.rel,
 			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
 		},
-		// Named as the labeling property, never remapped to CONTENT.rel: the selector has no content, and asserting the
+		// Named as the labeling property, never remapped to CONTENT.rel: the selector doesn't have content, and asserting the
 		// quote as its content would serialize a false claim.
 		displayLabel: "exact",
 		sortColumns: { exact: "TEXT" },
@@ -1112,19 +1112,19 @@ export const textQuoteSelectorDomainDefinition: TDomainDefinition = {
  * the document itself is never edited, annotations attach from outside, and a view
  * resolves the selector against the document's content when rendering.
  *
- * Carries no property of its own to be titled by, which is what the model says it is: a proxy standing for a passage,
- * serialized inline and dereferenced by no one. Its subject id is a storage artifact rather than identity, so it
- * is titled through oa:hasSelector by the passage its selector locates, see `displayLabel` below. It takes no name of
- * its own: the model gives oa:SpecificResource none.
+ * It doesn't carry a property of its own to be titled by, which is what the model says it is: a proxy standing for a passage,
+ * serialized inline and never dereferenced. Its subject id is a storage artifact rather than identity, so it
+ * is titled through oa:hasSelector by the passage its selector locates, see `displayLabel` below. It doesn't take a name of
+ * its own: the model doesn't give oa:SpecificResource one.
  */
 const SPECIFIC_RESOURCE_DOMAIN = "specific-resource";
 
 export const SpecificResourceSchema = PersistedVertexSchema.extend({
 	id: z.string(),
 	generatedAtTime: z.string(),
-	/** `rdfs:label`: what a reader called this passage where it was referred to. The W3C model gives a SpecificResource
-	 *  no title of its own, so it otherwise reads as the bare text it quotes (a clause number, a fragment), which says
-	 *  nothing about what it was cited for. RDFS's labelling property is the standard place for the words that do. */
+	/** `rdfs:label`: what a reader called this passage where it was referred to. The W3C model doesn't give a SpecificResource
+	 *  a title of its own, so it otherwise reads as the bare text it quotes (a clause number, a fragment), which doesn't
+	 *  say what it was cited for. RDFS's labelling property is the standard place for the words that do. */
 	label: z.string().optional(),
 });
 export const specificResourceDomainDefinition: TDomainDefinition = {
@@ -1144,7 +1144,7 @@ export const specificResourceDomainDefinition: TDomainDefinition = {
 			hasSource: { rel: LinkRelations.HAS_SOURCE.rel, range: RESOURCE_LABEL },
 			hasSelector: { rel: LinkRelations.HAS_SELECTOR.rel, range: TEXT_QUOTE_SELECTOR_LABEL },
 		},
-		// Titled through its selector: the proxy carries no property of its own a reader could be shown.
+		// Titled through its selector: the proxy doesn't carry a property of its own a reader could be shown.
 		displayLabel: "hasSelector",
 	},
 };
@@ -1282,7 +1282,7 @@ export type TDiscourseStore = {
 	remove(pattern: { subject?: string; predicate?: string; object?: unknown; namedGraph?: string }): Promise<void>;
 	createEdge?(fromLabel: string, fromId: string, edgeLabel: string, toLabel: string, toId: string): Promise<void>;
 	/** An edge to something that may not be here yet, such as a document not read or a record not made. A store that keeps edges
-	 *  strictly holds an id-only placeholder until the target arrives; a store that models edges as quads needs no distinction. */
+	 *  strictly holds an id-only placeholder until the target arrives; a store that models edges as quads doesn't need the distinction. */
 	referenceEdge?(fromLabel: string, fromId: string, edgeLabel: string, toLabel: string, toId: string): Promise<void>;
 };
 
@@ -1302,7 +1302,7 @@ export async function writeEdge(store: TDiscourseStore, fromLabel: string, fromI
 
 /** Write an edge to something that may not be here yet: what a text referring to an unread document states, or an
  *  observation of a request naming an endpoint whose record has not landed. Falls back to the ordinary edge write for a
- *  store that keeps no placeholders, where an edge to an absent target is just a quad. */
+ *  store that doesn't keep placeholders, where an edge to an absent target is just a quad. */
 export async function writeReferenceEdge(store: TDiscourseStore, fromLabel: string, fromId: string, rel: string, toLabel: string, toId: string): Promise<void> {
 	if (store.referenceEdge) await store.referenceEdge(fromLabel, fromId, rel, toLabel, toId);
 	else await writeEdge(store, fromLabel, fromId, rel, toLabel, toId);
@@ -1346,7 +1346,7 @@ async function anchorPassage(
 	sourceId: string,
 	quote: TQuoteAnchor,
 	now: string,
-	/** `sourceMayBeAbsent`: a text can quote a document nothing has read (annotating a record in hand does not need it).
+	/** `sourceMayBeAbsent`: a text can quote a document that hasn't been read (annotating a record in hand does not need it).
 	 *  `label`: what a reader called this passage where it was referred to, so it reads as more than the text it quotes. */
 	opts?: { sourceMayBeAbsent?: boolean; label?: string },
 ): Promise<{ specificResourceId: string; selectorId: string }> {
@@ -1373,7 +1373,7 @@ async function anchorPassage(
 const GROUNDING_RELS = new Set<string>([LinkRelations.TARGET.rel, LinkRelations.ATTACHMENT.rel]);
 
 /** Enforce that a Comment references what it is about: an oa:hasTarget subject, an attachment, or (in a thread) the
- *  comment it replies to. No floating comments. A conversation root with no subject is a deliberate general question and
+ *  comment it replies to. Every comment is grounded. A conversation root without a subject is a deliberate general question and
  *  its own origin, callers skip the check there. */
 export async function assertCommentGrounded(store: TDiscourseStore, commentId: string): Promise<void> {
 	const quads = await store.query({ subject: commentId });
@@ -1382,7 +1382,7 @@ export async function assertCommentGrounded(store: TDiscourseStore, commentId: s
 }
 
 /** Walk reply-family edges upward from an individual to its conversation root, so a comment groups under the same root
- *  as what it concerns. Stops at the first individual with no reply parent (a top-level subject is its own root). */
+ *  as what it concerns. Stops at the first individual without a reply parent (a top-level subject is its own root). */
 export async function conversationRoot(store: TDiscourseStore, id: string): Promise<string> {
 	let root = id;
 	for (let depth = 0; depth < 100; depth++) {
@@ -1471,8 +1471,8 @@ async function retractReading(store: TDiscourseStore, readingId: string): Promis
  * Write the facts a text's links state, with `source` as their subject.
  *
  * Every statement connects two records of REGISTERED types: the text (already a record, whatever its type) and the
- * individual its link names by `#Type:id`. The persisted-type registry is the articulation, so no receiving type
- * exists for anything else; a link to something with no record here is prose, or an error when it stated a term.
+ * individual its link names by `#Type:id`. The persisted-type registry is the articulation, so a receiving type
+ * doesn't exist for anything else; a link to something without a record here is prose, or an error when it stated a term.
  * A typed link's passage target is anchored on the W3C Web Annotation types (`anchorPassage`), labelled by its link text.
  *
  * A `Derivation` records the reading: what it read (`prov:used`), the step that read it, and every statement it made,
@@ -1508,13 +1508,13 @@ export async function readTypedLinks(
 	};
 	for (const fact of facts) {
 		const named = { label: fact.target.persistedAs, id: fact.target.id };
-		// The target must exist. Creating an id-only record to point at would add a node with nothing in it.
+		// The target must exist. Creating an id-only record to point at would add a node that doesn't hold a property.
 		if (!(await store.getIndividual(named.label, named.id))) {
 			if (!fact.typed) continue;
 			throw new Error(`typed link "${fact.linkText ?? fact.rel}" refers to ${named.label} "${named.id}", which is not here; a fact's target is a record that exists`);
 		}
 		// Only a typed link anchors its passage. An untyped link derives the record-level edge alone; its passage stays
-		// in the link, so no anchor records are added for plain cross-references.
+		// in the link, so plain cross-references don't add anchor records.
 		const target = fact.typed && fact.target.anchor ? await anchored(named, fact.target.anchor, fact.linkText) : named;
 		await writeEdge(store, source.label, source.id, fact.rel, target.label, target.id);
 		stated.push({ kind: "edge", s: source.id, sLabel: source.label, rel: fact.rel, o: target.id, oLabel: target.label });
@@ -1538,8 +1538,8 @@ export async function readTypedLinks(
  * The runtime shape of a rel definition. `LinkRelations` is the canonical
  * declaration; this is its serialised projection: what travels on the wire
  * to the SPA so renderers can read label / icon / presentation / RDFS
- * ancestry without bundling the const itself. One source of truth, one
- * projection, no graph-stored copy that could diverge.
+ * ancestry without bundling the const itself. One source of truth and one
+ * projection; the graph doesn't store a copy that could diverge.
  */
 type TPropertyDefinition = {
 	id: string;

@@ -26,7 +26,7 @@ function cluster(type: string, totalCount: number, sampledCount = totalCount, om
 }
 
 describe("projectFilterClusters", () => {
-	it("returns the snapshot clusters unchanged when no time cursor is active", () => {
+	it("returns the snapshot clusters unchanged when a time cursor isn't active", () => {
 		const result = projectFilterClusters({
 			knownClusters: new Map([
 				["Kihan", cluster("Kihan", 7, 5, 2)],
@@ -69,7 +69,7 @@ describe("projectFilterClusters", () => {
 		expect(result[0].omittedCount).toBe(0);
 	});
 
-	it("drops types that have no visible subjects at the cursor", () => {
+	it("drops types that don't have a visible subject at the cursor", () => {
 		const result = projectFilterClusters({
 			knownClusters: new Map([
 				["Kihan", cluster("Kihan", 7)],
@@ -110,10 +110,10 @@ describe("projectFilterClusters", () => {
 describe("effectiveHiddenTypes (instrumentation default + user overrides)", () => {
 	const types = ["Person", "SeqPath", "facts"];
 	// SeqPath declares itself instrumentation in its topology, which the page reads from the catalog. The facts graph and
-	// observation/* have no type, so the named-graph list states them.
+	// observation/* don't have a type, so the named-graph list states them.
 	beforeEach(() => setSiteMetadata(siteMetadataFromConcerns(buildConcernCatalog(mapDefinitionsToDomains([seqPathDomainDefinition])))));
 
-	it("hides instrumentation by default with NO user overrides, and the default is not a stored choice", () => {
+	it("hides instrumentation by default without user overrides, and the default is not a stored choice", () => {
 		expect(effectiveHiddenTypes(types, {}).sort()).toEqual(["SeqPath", "facts"]);
 	});
 
@@ -125,7 +125,7 @@ describe("effectiveHiddenTypes (instrumentation default + user overrides)", () =
 		expect(effectiveHiddenTypes(types, { Person: false }).sort()).toEqual(["Person", "SeqPath", "facts"]);
 	});
 
-	it("classifies a streamed observation/* type as instrumentation even with no cluster record", () => {
+	it("classifies a streamed observation/* type as instrumentation even without a cluster record", () => {
 		expect(effectiveHiddenTypes([...types, "observation/http-request"], { SeqPath: true }).sort()).toEqual(["facts", "observation/http-request"]);
 	});
 
@@ -153,14 +153,14 @@ describe("declared labeling property (topology.displayLabel) reaches the browser
 
 	beforeEach(() => setSiteMetadata(metadata));
 
-	it("serves each type's labeling property, and none for a type titled by the shared headline", () => {
+	it("serves each type's labeling property, and doesn't serve one for a type titled by the shared headline", () => {
 		expect(getTitledBy(TEXT_QUOTE_SELECTOR_LABEL)).toEqual({ key: "exact", through: false });
 		expect(getTitledBy(SPECIFIC_RESOURCE_LABEL)).toEqual({ key: "hasSelector", through: true });
 		expect(getTitledBy(COMMENT_LABEL)).toBeUndefined();
 		expect(getTitledBy(PRINCIPAL_LABEL)).toBeUndefined();
 	});
 
-	it("hides no domain type for being hard to title: a declared type draws like any other", () => {
+	it("doesn't hide a domain type for being hard to title: a declared type draws like any other", () => {
 		expect(effectiveHiddenTypes(types, {})).toEqual([]);
 	});
 });

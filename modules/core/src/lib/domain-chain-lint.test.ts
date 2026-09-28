@@ -71,8 +71,8 @@ class StubStepper extends AStepper {
 }
 
 describe("lintDomainChain", () => {
-	it("reports unsupplied-step for a step whose input domain no other step produces", () => {
-		// Only EmailFromPerson is loaded. It consumes PERSON but nothing produces PERSON.
+	it("reports unsupplied-step for a step whose input domain the other steps don't produce", () => {
+		// Only EmailFromPerson is loaded. It consumes PERSON but a step doesn't produce PERSON.
 		const graph = buildDomainChain([new EmailFromPerson()], domains());
 		const report = lintDomainChain(graph, domains());
 		const unsupplied = report.findings.filter((f) => f.kind === "unsupplied-step");
@@ -81,7 +81,7 @@ describe("lintDomainChain", () => {
 		if (first.kind === "unsupplied-step") expect(first.inputDomain).toBe(PERSON);
 	});
 
-	it("reports no unsupplied-step for a value its caller writes in the line, a value domain naming no thing", () => {
+	it("doesn't report unsupplied-step for a value its caller writes in the line, since a value domain doesn't name a thing", () => {
 		class Greets extends AStepper {
 			steps: TStepperSteps = { greet: { gwta: `say {what: ${GREETING}}`, productsDomain: EMAIL, action: () => actionOKWithProducts({ id: "e1" }) } };
 		}
@@ -102,7 +102,7 @@ describe("lintDomainChain", () => {
 			return lintDomainChain(buildDomainChain(steppers, withRefs), withRefs).findings;
 		};
 		const unsupplied = (steppers: AStepper[], stepName: string) => findings(steppers).filter((f) => f.kind === LINT_FINDING.UNSUPPLIED_STEP && f.stepName === stepName);
-		expect(unsupplied([new RemovesEmail()], "remove"), "no step produces an email").toHaveLength(1);
+		expect(unsupplied([new RemovesEmail()], "remove"), "the steps don't produce an email").toHaveLength(1);
 		expect(unsupplied([new RemovesEmail(), new EmailFromPerson()], "remove"), "a step issuing an email supplies a reference to one").toEqual([]);
 		expect(unsupplied([new ArchiveEmail(), new FindsEmail()], "archive"), "a step answering with a reference supplies the email it refers to").toEqual([]);
 		expect(findings([new RemovesEmail()]).map(lintFindingLine), "a step taking a reference to an email takes an email").toContain(`unproduced-domain ${EMAIL}`);
@@ -144,14 +144,14 @@ describe("lintDomainChain", () => {
 		expect(report.findings.filter((f) => f.kind === LINT_FINDING.UNREACHABLE_DOMAIN)).toEqual([]);
 	});
 
-	it("reports unreachable-domain for a registered domain neither consumed nor produced", () => {
+	it("reports unreachable-domain for a registered domain that steps don't consume or produce", () => {
 		const graph = buildDomainChain([], domains());
 		const report = lintDomainChain(graph, domains());
 		const unreachable = report.findings.filter((f) => f.kind === "unreachable-domain").map((f) => (f.kind === "unreachable-domain" ? f.domain : ""));
 		expect(unreachable).toContain("dead-registered");
 	});
 
-	it("reports unproduced-domain for a domain referenced as input but no step produces it", () => {
+	it("reports unproduced-domain for a domain referenced as input but the steps don't produce it", () => {
 		const graph = buildDomainChain([new EmailFromPerson()], domains());
 		const report = lintDomainChain(graph, domains());
 		const unproduced = report.findings.filter((f) => f.kind === "unproduced-domain").map((f) => (f.kind === "unproduced-domain" ? f.domain : ""));
@@ -183,7 +183,7 @@ describe("lintDomainChain", () => {
 		]);
 	});
 
-	it("reports no primitive domain as unreachable, since a caller supplies it and it is no node of the graph", () => {
+	it("doesn't report a primitive domain as unreachable, since a caller supplies it and it isn't a node of the graph", () => {
 		const world = getDefaultWorld();
 		const withPrimitives = { ...getCoreDomains(world), ...domains() };
 		const report = lintDomainChain(buildDomainChain([new StubStepper()], withPrimitives), withPrimitives);

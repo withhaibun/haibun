@@ -55,9 +55,9 @@ describe("what a reader may do here", () => {
 		expect(refTexts(el, "entity"), "and every action it holds leads there").toEqual(expect.arrayContaining(["Instance:read", "comment.grant"]));
 	});
 
-	it("links an action nothing here recorded, such as one allowed without a delegation, to what it allows rather than to a record", async () => {
+	it("links an action without a record here, such as one allowed without a delegation, to what it allows rather than to a record", async () => {
 		const el = await mounted();
-		expect(refTexts(el, "entity"), "no record accounts for what it holds").not.toContain("comment.grant");
+		expect(refTexts(el, "entity"), "the records don't account for what it holds").not.toContain("comment.grant");
 		expect(refTexts(el, "action"), "so it opens the steps it allows").toContain("comment.grant");
 	});
 
@@ -75,7 +75,7 @@ describe("what a reader may do here", () => {
 	it("says how many principals the deployment knows, and names each on asking as a way to its record", async () => {
 		const el = await mounted();
 		expect(el.shadowRoot?.textContent, "the count, so the panel opens the size of a panel").toContain("principals (2)");
-		expect(refTexts(el, "entity"), "and none of them until they are asked for").toEqual([]);
+		expect(refTexts(el, "entity"), "and doesn't link them until a reader asks for them").toEqual([]);
 		Array.from(el.shadowRoot?.querySelectorAll("button") ?? [])
 			.find((b) => b.textContent?.includes("principals"))
 			?.click();
@@ -95,7 +95,7 @@ describe("what a reader may do here", () => {
 		expect(copy?.source, "and it can be taken away as text").toBe("graphQuery: step not registered");
 	});
 
-	it("says plainly when nothing was delegated to this page's key", async () => {
+	it("says plainly when this page's key doesn't hold a delegation", async () => {
 		const el = await mounted({ controller: PAGE, holds: [], grantedBy: {}, principals: [] });
 		expect(el.shadowRoot?.textContent).toContain("nothing was delegated to this page's key");
 	});
@@ -106,6 +106,6 @@ describe("what the indicator is told", () => {
 		const heard: TPermissionsSummary[] = [];
 		document.addEventListener("permissions-summary", (e) => heard.push((e as CustomEvent<TPermissionsSummary>).detail));
 		await mounted();
-		expect(heard.at(-1), "one count per thing it lists, so nothing it shows is unaccounted for").toEqual({ holds: 2, principals: 2 });
+		expect(heard.at(-1), "one count per thing it lists, so each thing it shows is counted").toEqual({ holds: 2, principals: 2 });
 	});
 });

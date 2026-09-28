@@ -4,7 +4,7 @@ import LogicStepper from "./logic-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
 
 describe("every/some with member values", () => {
-	describe("every iterates over member values when domain has no enum values", () => {
+	describe("every iterates over member values when domain doesn't have enum values", () => {
 		it("passes when all members satisfy condition", async () => {
 			const feature = {
 				path: "/features/test.feature",
@@ -39,7 +39,7 @@ describe("every/some with member values", () => {
 			expect(result.ok).toBe(true);
 		});
 
-		it("vacuously true when domain has no members", async () => {
+		it("vacuously true when domain doesn't have members", async () => {
 			const feature = {
 				path: "/features/test.feature",
 				content: `
@@ -55,7 +55,7 @@ describe("every/some with member values", () => {
 		});
 	});
 
-	describe("some iterates over member values when domain has no enum values", () => {
+	describe("some iterates over member values when domain doesn't have enum values", () => {
 		it("passes when at least one member satisfies condition", async () => {
 			const feature = {
 				path: "/features/test.feature",
@@ -73,7 +73,7 @@ describe("every/some with member values", () => {
 			expect(result.ok).toBe(true);
 		});
 
-		it("fails when no members satisfy condition", async () => {
+		it("fails when the members don't satisfy condition", async () => {
 			const feature = {
 				path: "/features/test.feature",
 				content: `

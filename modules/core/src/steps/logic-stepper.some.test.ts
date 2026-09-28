@@ -16,7 +16,7 @@ describe("some", () => {
 		expect(result.ok).toBe(true);
 	});
 
-	it("some fails if no match", async () => {
+	it("some fails if the members don't match", async () => {
 		const feature = {
 			path: "/features/test.feature",
 			content: `

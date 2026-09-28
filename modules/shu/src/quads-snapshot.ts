@@ -24,7 +24,7 @@ import { pagePinned } from "./page-pinned.js";
 import type { AccessLevel } from "@haibun/core/lib/resources.js";
 
 export const DEFAULT_PER_TYPE_LIMIT = 100;
-/** Ceiling for the per-type sample, everywhere the limit can be set (the filter slider AND the +N-more cluster expand), so no path can silently inflate the limit past what the slider expresses. */
+/** Ceiling for the per-type sample, everywhere the limit can be set (the filter slider AND the +N-more cluster expand), so a path can't silently inflate the limit past what the slider expresses. */
 export const MAX_PER_TYPE_LIMIT = 1000;
 
 /** Off-heap persistent backing for the client graph: live merges + each backfill are written here, and a reload seeds
@@ -46,7 +46,7 @@ export function cachedGraphStore(): TCachedGraphStore {
 	return graphStoreSlot().store;
 }
 
-/** The client-held graph snapshot IS the wire shape (quads + clusters + the responding site): one type, no drift. */
+/** The client-held graph snapshot IS the wire shape (quads + clusters + the responding site): one type, so the shapes don't drift. */
 type TGraphSnapshot = TClusteredQuads;
 
 /**
@@ -123,7 +123,7 @@ export function setActiveViewId(id: string | null): void {
  * Implementors should gate slow re-renders on whether their view is the
  * strip's active pane (`isActiveView` from ShuElement). Inactive viewers can
  * defer the work: the snapshot stays cached and they will pick up the latest
- * state on next activation, while burning no cycles updating a hidden surface.
+ * state on next activation, without spending cycles updating a hidden surface.
  * They can still react to context changes (e.g. zoom to selected subject) since
  * those are fast relative to a full re-layout.
  *
@@ -200,7 +200,7 @@ export async function getGraphSnapshot(opts: { perTypeLimit?: number; types?: st
 			notify(s, scope);
 			return model.snapshot;
 		} catch (err) {
-			// No server: the graph this page caches is the graph, and it answers the question the server was asked, so the
+			// The server didn't answer: the graph this page caches is the graph, and it answers the question the server was asked, so the
 			// sample, its totals and its `+N more` nodes are what they would have been.
 			const clustered = await cachedGraphStore().getClusteredQuads({ perTypeLimit, types: opts.types, accessLevel: accessLevel as AccessLevel });
 			if (clustered.quads.length === 0) throw err;
@@ -219,7 +219,7 @@ export async function getGraphSnapshot(opts: { perTypeLimit?: number; types?: st
 }
 
 /**
- * The one rule for reading the graph: ask the site, and when nothing answers, give the answer from what this page
+ * The one rule for reading the graph: ask the site, and when the site doesn't answer, give the answer from what this page
  * holds. `held` returns undefined when the page cannot answer either, and then the site's own failure is what the
  * caller is told, since a question this page cannot answer is not one to be quiet about.
  */
@@ -235,16 +235,16 @@ async function askElseHeld<T>(ask: () => Promise<T>, held: () => Promise<T | und
 }
 
 /**
- * A label's dropdown values: what the site answers, and when nothing answers, the distinct values its context fields
+ * A label's dropdown values: what the site answers, and when the site doesn't answer, the distinct values its context fields
  * hold in the graph this page caches. The site derives its answer from the same declaration over the same fields, so a
- * reader with no server offered the values in the graph they hold is offered the same fields, narrowed to what is there.
+ * reader without a server offered the values in the graph they hold is offered the same fields, narrowed to what is there.
  */
 export function selectValuesFor(label: string): Promise<Record<string, string[]>> {
 	return askElseHeld(
 		async () => (await conduit().follow<{ values: Record<string, string[]> }>(reads(requireStep("getSelectValues"), { label }), `select values for ${label}`)).values ?? {},
 		async () => {
-			// A type the site never declared is a question this page cannot answer at all; a declared type with no context
-			// field has no dropdowns, which is an answer.
+			// A type the site never declared is a question this page cannot answer at all; a declared type without a context
+			// field doesn't have dropdowns, which is an answer.
 			if (!getRels(label)) return undefined;
 			const values: Record<string, string[]> = {};
 			for (const field of getSelectFields(label)) values[field] = await cachedGraphStore().distinctPropertyValues(label, field);
@@ -254,7 +254,7 @@ export function selectValuesFor(label: string): Promise<Record<string, string[]>
 }
 
 /**
- * The run as this page reads it: the site's answer, and what the page holds when nothing answers. The one reading a
+ * The run as this page reads it: the site's answer, and what the page holds when the site doesn't answer. The one reading a
  * live page uses, stated rather than reached for, so what a view reads a run through is visible where the view is made.
  */
 export function pageRunGraph(): TRunGraph {
@@ -262,9 +262,9 @@ export function pageRunGraph(): TRunGraph {
 }
 
 /**
- * How many records fall in each division of a span, by how each turned out: what the site answers, and when nothing
- * answers, the same count over the graph this page caches. The site counts over the whole run it holds; a page with no
- * site counts over what it has read, which is what a reader with no site has.
+ * How many records fall in each division of a span, by how each turned out: what the site answers, and when the site doesn't
+ * answer, the same count over the graph this page caches. The site counts over the whole run it holds; a page without a
+ * site counts over what it has read, which is what a reader without a site has.
  */
 function densityOf(query: TDensityQuery): Promise<TDensityResult> {
 	return askElseHeld(
@@ -274,8 +274,8 @@ function densityOf(query: TDensityQuery): Promise<TDensityResult> {
 }
 
 /**
- * The rows a graph query names: what the site answers, and when nothing answers, the same query over the graph this
- * page caches. The site's own inherent query is that function over its store, so a reader with no server is given the
+ * The rows a graph query names: what the site answers, and when the site doesn't answer, the same query over the graph this
+ * page caches. The site's own inherent query is that function over its store, so a reader without a server is given the
  * answer the site would have given, bounded by what they hold. A type the site never declared, or a query a store of
  * quads cannot answer, is reported as the failure it is.
  */
@@ -289,7 +289,7 @@ export function queryGraph(query: Record<string, unknown>): Promise<TGraphQueryR
 	);
 }
 
-/** A scope's current snapshot, read synchronously (no fetch). Empty before anything loads. */
+/** A scope's current snapshot, read synchronously (without a fetch). Empty before anything loads. */
 export function currentSnapshot(scope = ""): TGraphSnapshot {
 	return getStore().scopes.get(scope)?.cache?.model.snapshot ?? { quads: [], clusters: [] };
 }
@@ -335,8 +335,8 @@ export function mergeQuadsIntoSnapshot(quads: TQuad[]): void {
 }
 
 /**
- * One individual with its edges: what the site answers, and when nothing answers, the individual as the page holds it.
- * Undefined only when the site answered that there is no such individual; anything else the site said is reported.
+ * One individual with its edges: what the site answers, and when the site doesn't answer, the individual as the page holds it.
+ * Undefined only when the site answered that such an individual doesn't exist; anything else the site said is reported.
  */
 export function readIndividual(label: string, id: string, accessLevel: string): Promise<TIndividualWithEdges> {
 	return askElseHeld(
@@ -346,7 +346,7 @@ export function readIndividual(label: string, id: string, accessLevel: string): 
 }
 
 /**
- * What points at an individual: what the site answers, and when nothing answers, the edges the page holds that point at
+ * What points at an individual: what the site answers, and when the site doesn't answer, the edges the page holds that point at
  * it, windowed the same way. The count is what the reader can reach, which offline is what they hold.
  */
 export function incomingEdges(label: string, id: string, window: { limit: number; offset: number }): Promise<{ edges: TQuadEdge[]; total: number }> {

@@ -261,7 +261,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					if (stream) endWhenLapsed(this.getWorld().runtime, authority, stream.signal, stream.end);
 
 					// A method of a served family: gated by the action it declares, verified through the path a step's capability
-					// is, with no ungated default.
+					// is, without an ungated default.
 					const served = this.webserver?.rpcMethod(method);
 					if (served) {
 						if (!mayCall(granted, { capability: served.action })) return { error: refusal(method, served.action, principal) };
@@ -280,11 +280,11 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					}
 
 					try {
-						// A call is refused before its input is read, and alike whether its step exists, so a refusal tells the caller
-						// nothing of the steps it may not call.
+						// A call is refused before its input is read, and alike whether its step exists, so a refusal doesn't tell the caller
+						// about the steps it may not call.
 						const tool = registry.get(method);
 						if (!tool || !mayCall(granted, tool.descriptor)) return { error: refusal(method, tool && lackedAction(granted, tool.descriptor), principal) };
-						// External callers (no feature-step context) get a server-synthesised seqPath, matching MCP.
+						// External callers (without a feature-step context) get a server-synthesised seqPath, matching MCP.
 						const seqPath = msg.seqPath && msg.seqPath.length > 0 ? msg.seqPath : allocateSyntheticSeqPath(world);
 						const validatedParams = validateToolInput(seqPath, tool, params as Record<string, unknown>, world);
 						const featureStep = buildFeatureStepForTransport(tool, validatedParams, seqPath);
@@ -295,8 +295,8 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 						// reader who asked for it rather than the process that carried it out. What it reads is bounded by the read it
 						// holds, in dispatch, and by the level the call asked to read at, which can only be narrower.
 						const hr = await runWithRequestContext({ baseIri: requestBaseIri(requestInfo?.headers) }, () =>
-							// A request holds what it presented and nothing else: the server was started inside a step of the run, and
-							// what that step held is no caller's.
+							// A request holds only what it presented: the server was started inside a step of the run, and
+							// a caller doesn't hold what that step held.
 							runActingAs(principal, () => runReadingAt(msg.readingAt, () => dispatchStep({ registry, world, steppers: this.steppers, grantedCapability: granted }, featureStep))),
 						);
 						if (hr.ok) return hr.products ?? ANSWERED_WITHOUT_PRODUCTS;

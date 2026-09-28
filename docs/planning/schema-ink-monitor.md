@@ -84,7 +84,7 @@ interface IStepperCycles {
 #### 3. Default Output: NDJSON
 
 > [!IMPORTANT]
-> **REQUIRED**: Default output (when no monitor configured) is NDJSON to stdout.
+> **REQUIRED**: Default output (when a monitor isn't configured) is NDJSON to stdout.
 
 This enables piping to external monitors: `haibun run | haibun-tui`
 
@@ -441,7 +441,7 @@ if (entry.classList.contains('disappeared')) return false;        // Hide comple
 
 3. **Simplified TuiMonitorStepper** (`modules/monitor-tui/src/index.tsx`):
    - Uses `EventFormatter.formatLine()` for all output formatting
-   - No duplicate rendering logic
+   - Doesn't duplicate rendering logic
    - Stores formatted strings, not events
 
 4. **Removed unused exports**:
@@ -722,7 +722,7 @@ const HaibunEvent = z.object({
 
 ### Speculative Steps via OTel Links
 
-**Authoritative step:** Normal span (no links)
+**Authoritative step:** Normal span (without links)
 
 **Speculative step:** Span with `links` pointing to the compound statement:
 
@@ -746,7 +746,7 @@ The `links` field is standard OTel, speculative steps link to their "decision sp
 | `traceId` | `trace_id` | Standard OTel term |
 | `parentId` | `parent_span_id` | Standard OTel term |
 | `speculative` | `links` present | OTel native, linked to decision span |
-| `authoritative` | No `links` | OTel native, standalone span |
+| `authoritative` | Without `links` | OTel native, standalone span |
 | `lifecycle.status` | `status.code` | Standard OTel span status |
 | `lifecycle.kind` | `attributes['haibun.scope']` | Haibun-specific hierarchy |
 | `control` | `haibun.control` | Debugger-specific extension |
@@ -984,7 +984,7 @@ For efficiency, use an **interleaved Just-In-Time schema** approach. Schemas are
 
 **Benefits:**
 - ~60% smaller than full JSON objects
-- Stream-friendly (no header required upfront)
+- Stream-friendly (doesn't require a header upfront)
 - Self-describing (schema embedded in stream)
 - Validates via Zod on parse
 
@@ -1145,7 +1145,7 @@ Speculative steps use OTel `links` to point to their decision span:
 }
 ```
 
-**Detection:** `event.links?.length > 0` = speculative, no links = authoritative.
+**Detection:** `event.links?.length > 0` = speculative, an event without links = authoritative.
 
 #### Monitor-Core Filter Logic
 
@@ -1368,7 +1368,7 @@ Events reference these by name/id rather than embedding full objects:
 This matches how MCP resources work, catalog of resources, then fetch by URI.
 
 
-### 1. Level-First API (No `.emit()` Required)
+### 1. Level-First API (Doesn't Require `.emit()`)
 
 The **level method IS the emission**. Everything goes through a log level:
 
@@ -1549,7 +1549,7 @@ actionResult.debugHandled = true;
 
 Or use a shared context flag `world.runtime.debugHandled`.
 
-#### 5.2 Live Commands (No Break Required)
+#### 5.2 Live Commands (Don't Require a Break)
 
 **Idea**: Allow sending commands while execution is running, not just on breaks.
 
@@ -1782,7 +1782,7 @@ This allows incremental migration while keeping monitors working.
    - Keep `out()` for backward compatibility during migration
 
 3. **Create default `NdjsonOutputStepper`**
-   - Auto-registered if no other monitor stepper configured
+   - Auto-registered if another monitor stepper isn't configured
    - Outputs NDJSON to stdout for piping
 
 4. **Deprecate `EventLogger`** – merge its functionality into `Logger`
@@ -1817,7 +1817,7 @@ This allows incremental migration while keeping monitors working.
 
 ### Phase 4: Default Monitor Selection
 
-1. If no monitor stepper in config, auto-add `NdjsonOutputStepper`:
+1. If the config doesn't list a monitor stepper, auto-add `NdjsonOutputStepper`:
    ```typescript
    // In Runner setup
    if (!steppers.some(s => s.onEvent)) {
@@ -1942,7 +1942,7 @@ const ControlEvent = BaseEvent.extend({
 | 1 | Schema: Create Zod schemas | ✅ Complete |
 | 2 | Runner Update: Emit via EventLogger | ⚠️ Partial (dual-emit) |
 | 3 | Unify Logger: Subscriber pattern for events | 🔲 Not started |
-| 4 | Monitor CLI: Ink TUI with debugging | ⚠️ Displays only, no debug |
+| 4 | Monitor CLI: Ink TUI with debugging | ⚠️ Displays only, doesn't debug |
 | 5 | Monitor Web: Migrate from TMessageContext | 🔲 Not started |
 | 6 | Remove TMessageContext | 🔲 Blocked by phases 3-5 |
 
@@ -2045,7 +2045,7 @@ type: 'log' | 'lifecycle' | 'artifact' | 'control'
 
 ---
 
-#### 3. No Subscriber Integration for CLI
+#### 3. CLI Doesn't Integrate Subscribers
 
 **Evidence** (`monitor-cli/index.tsx` lines 25-36):
 ```typescript
@@ -2063,7 +2063,7 @@ rl.on('line', (line) => {
 ```
 
 **Problem**: CLI reads from stdin, not integrated with Logger's subscriber pattern.
-**Impact**: Can't run CLI monitor in-process for testing. No bidirectional prompter.
+**Impact**: Can't run CLI monitor in-process for testing. The CLI doesn't have a bidirectional prompter.
 
 **Target solution**: CLI as stepper with `IStepperCycles.onEvent()`:
 ```typescript
@@ -2112,14 +2112,14 @@ world.logger.log('Screenshot captured', artifact({ type: 'image', path }));
 | **Event types** | 19-value enum | 4 clear types |
 | **Monitor integration** | stdin piping | `IStepperCycles` hooks |
 | **Artifact attachment** | Helper function | Direct varargs |
-| **Shared code** | None | `monitor-core` library |
+| **Shared code** | Not shared | `monitor-core` library |
 | **Wire format** | Full JSON | JIT schema (~60% smaller) |
 | **Speculative handling** | Ad-hoc CSS classes | Consistent filter logic |
 | **Industry alignment** | Custom patterns | OpenTelemetry-like model |
 
 ### Ease of Reasoning
 
-1. **One way to do things**: Log via `world.logger.<level>(content...)`. No choice paralysis.
+1. **One way to do things**: Log via `world.logger.<level>(content...)`. A caller doesn't choose between logging methods.
 2. **Events are data**: Zod schemas are inspectable, validatable, serializable.
 3. **Monitors are steppers**: Same lifecycle as all other components.
 4. **Filters are composable**: Level + depth + speculative, all in `monitor-core`.

@@ -52,7 +52,7 @@ export function appAccessLevel(): AccessQueryLevel {
 
 import { getSiteMetadataSync } from "./rels-cache.js";
 
-/** First available persisted type from domain metadata. No hard-coded default. */
+/** First available persisted type from domain metadata. It doesn't use a hard-coded default. */
 export function defaultLabel(): string {
 	return getSiteMetadataSync()?.types?.[0] ?? "";
 }
@@ -122,8 +122,8 @@ export function persistedTypeOf(v: Record<string, unknown>): string {
 }
 
 /**
- * SPA-only artifact keys, projection or storage internals that have no domain
- * meaning (no rel) and should not appear in field tables.
+ * SPA-only artifact keys, projection or storage internals that don't have a domain
+ * meaning (without a rel) and should not appear in field tables.
  * Anything domain-meaningful (body, hasBody, accessLevel, …) lives in
  * `LinkRelations` with a `presentation` hint instead.
  * `STORED_TYPE_PROP` is the literal storage property the consumer's graph store
@@ -201,7 +201,7 @@ export function extractFieldEntries(vertex: Record<string, unknown>, label?: str
  * Literal body-presentation fields: an inline scalar whose rel has presentation `body` (e.g. a SeqPath's `stepText`,
  * mapped to `content`). extractFieldEntries routes body-presentation fields out of the field table on the assumption
  * the body path renders them, but that path only handles LINKED `hasBody` sub-resources, so a literal `content`
- * scalar would otherwise render nowhere. Linked bodies (arrays of Body objects) are excluded here by the string test.
+ * scalar wouldn't otherwise render. Linked bodies (arrays of Body objects) are excluded here by the string test.
  */
 export function extractBodyLiterals(vertex: Record<string, unknown>, label?: string): Record<string, string> {
 	const out: Record<string, string> = {};

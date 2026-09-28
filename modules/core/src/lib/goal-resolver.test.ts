@@ -54,8 +54,8 @@ describe("resolveGoal", () => {
 		expect(result).toMatchObject({ finding: GOAL_FINDING.SATISFIED, factIds: ["fact-1", "fact-2"] });
 	});
 
-	it("returns unreachable when no producer exists and goal isn't its own argument leaf", () => {
-		// "z" is the goal itself, not an input, and the empty graph has no edges into it.
+	it("returns unreachable when a producer doesn't exist and goal isn't its own argument leaf", () => {
+		// "z" is the goal itself, not an input, and the empty graph doesn't have edges into it.
 		const result = resolveGoal("z", inputs(emptyGraph()));
 		expect(result.finding).toBe(GOAL_FINDING.UNREACHABLE);
 		if (result.finding === GOAL_FINDING.UNREACHABLE) expect(result.missing).toContain("z");
@@ -104,8 +104,8 @@ describe("resolveGoal", () => {
 		expect(result).toMatchObject({ finding: GOAL_FINDING.SATISFIED, factIds: ["fact-1"] });
 	});
 
-	it("a step input with no producer is treated as a user-supplied argument binding", () => {
-		// "a" has no producer in the graph, chase treats it as an argument leaf.
+	it("a step input without a producer is treated as a user-supplied argument binding", () => {
+		// "a" doesn't have a producer in the graph, chase treats it as an argument leaf.
 		const graph: TDomainChainGraph = {
 			domains: [
 				{ key: "a", hasTopology: false },
@@ -121,7 +121,7 @@ describe("resolveGoal", () => {
 		}
 	});
 
-	it("returns unreachable for a 2-cycle (no external producer)", () => {
+	it("returns unreachable for a 2-cycle (without an external producer)", () => {
 		const graph: TDomainChainGraph = {
 			domains: [
 				{ key: "a", hasTopology: false },

@@ -13,7 +13,7 @@ describe("availablePaints", () => {
 		expect(paints[0].label).toBe("Gantt");
 	});
 
-	it("offers no paint view-types for data with none of their rels", () => {
+	it("doesn't offer paint view-types for data without their rels", () => {
 		expect(availablePaints([q("x", "name", "y")], idRel)).toEqual([]);
 	});
 });

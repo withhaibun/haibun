@@ -14,7 +14,7 @@
  * A run's own events are read here as it produces them: its output arrives as NDJSON, and each chunk accrues into the
  * outcome a caller reads, which features ran, how many steps, what failed first, and whether the run says it is
  * finished. Beside that outcome the child's PROCESS output is kept as a bounded tail read from a cursor, since a run
- * that fails before it serves says nothing else, and a long run cannot be allowed to grow without limit.
+ * that fails before it serves doesn't write other output, and a long run cannot be allowed to grow without limit.
  * `SseSubscriber` subscribes to a serving run this process did not fork.
  *
  * Runs are supervised by the same list and torn down by the same rule as instances.
@@ -76,7 +76,7 @@ const LAUNCHED_FROM = "LAUNCHED_FROM";
  * runs" are separate grants, and either can be revoked while the other stands.
  *
  * The check itself is in `dispatchStep`, identically for a feature line, an RPC call, an MCP tool call and a model's
- * tool call; the caller's capability comes from the authority the step runs under, so no step here reads one.
+ * tool call; the caller's capability comes from the authority the step runs under, so the steps here don't read one.
  */
 export const SUPERVISOR_CAPABILITIES = {
 	/** Start a serving instance from a directory of features. */
@@ -114,7 +114,7 @@ export const runReadSchema = z.object({
 
 /**
  * A run's output as it is kept: a bounded tail, read from a cursor, with what fell out of the tail counted rather
- * than passed off as nothing. A reader that asks from further back than what is kept is told how much it missed.
+ * than discarded silently. A reader that asks from further back than what is kept is told how much it missed.
  */
 export class RunTail {
 	/** What is kept, as it arrived. Joining on a read rather than on every chunk keeps a busy run from copying the
@@ -169,13 +169,13 @@ export function runEnvironment(inherited: NodeJS.ProcessEnv, port: number, stand
 	// register under it here.
 	if (hostId !== undefined) env[HAIBUN_HOST_ID_ENV] = String(hostId);
 	// The child is read by this process, not watched by a person, so it reports its events rather than only its
-	// formatted log: what failed, where, and how the whole run ended are on that stream and nowhere else.
+	// formatted log: what failed, where, and how the whole run ended are on that stream only.
 	env[NDJSON_ENV] = "true";
 	return env;
 }
 
 /** The environment a run started in a directory has: what it was given, and what the directory's own .env file adds
- *  where the run has nothing of that name already, which is how a run reads that file itself. */
+ *  where the run doesn't already have a variable of that name, which is how a run reads that file itself. */
 function environmentIn(cwd: string, env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
 	const dotenv = path.join(cwd, ".env");
 	if (!existsSync(dotenv)) return env;
@@ -184,7 +184,7 @@ function environmentIn(cwd: string, env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
 
 /** How the features a run would carry out last ran against their present state under the conditions the run would be
  *  given, computed as the run would compute them: from the directory it runs in, with the environment it reads there.
- *  Undefined where no run has, or where the state cannot be read, in which case the run runs. */
+ *  Undefined where the features haven't run against it, or where the state cannot be read, in which case the run runs. */
 export function verifiedRun(config: string, dir: string, filter: string, cwd: string, env: NodeJS.ProcessEnv): TOutcome | undefined {
 	const specl = getConfigFromBase([dir]);
 	if (!specl) return undefined;
@@ -262,7 +262,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 	}
 
 	private children: Array<{ child: ChildProcess; label: string; launch: TLaunch }> = [];
-	/** Visible to a subclass so a test can hold a run without a process behind it; nothing outside reaches it. */
+	/** Visible to a subclass so a test can hold a run without a process behind it; code outside the class hierarchy doesn't reach it. */
 	protected runs = new Map<string, TRun>();
 	/** The host id a standing run took, so its steps are addressable as that host's. */
 
@@ -331,7 +331,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 				const started = await this.startRun({ where, filter, from, port, run, standing, hostId: standing ? hostId : undefined });
 				if (!started.ok || !standing) return started;
 				// A standing run exists to be asked, so a run whose steps never registered is an error now, not a
-				// surprise later. The child is ended rather than left holding a port nothing can reach.
+				// surprise later. The child is ended rather than left holding a port that a caller can't reach.
 				const registered = await this.registerRunHost(run, port);
 				if (!registered) {
 					const held = this.runs.get(run);
@@ -422,8 +422,8 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		}
 		const cliEntry = createRequire(import.meta.url).resolve("@haibun/cli");
 		// A pinned port is what makes a run addressable, so it is also what leaves the run standing after its features
-		// finish: STAY holds the endpoint up to be asked about. Port 0 is a run that answers with its exit code and
-		// nothing else; it keeps whatever port its own features declare, which features that assert a default need,
+		// finish: STAY holds the endpoint up to be asked about. Port 0 is a run that answers with its exit code
+		// only; it keeps whatever port its own features declare, which features that assert a default need,
 		// and it ends when they end.
 		const env = runEnvironment(process.env, port, standing, hostId, perProcessOptionNames(this.steppers));
 		// A run that would answer what an earlier run answered is not started. The child records what it passed
@@ -464,7 +464,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 	 * A run that stays is another host, and haibun already reaches another host's steps: the proxy discovers the id
 	 * through the same handshake, fetches that host's step descriptors, and injects them into this registry under
 	 * `{hostId}:{method}`. Asking the run something is then `on host {hostId}, <step>`, dispatched and gated exactly
-	 * as a local step is. A run that never serves registers nothing, which is what a run with nothing to answer is.
+	 * as a local step is. A run that never serves doesn't register steps, since it doesn't answer a call.
 	 */
 	private async registerRunHost(run: string, port: number): Promise<boolean> {
 		const url = localOrigin(port);
@@ -496,7 +496,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		return false;
 	}
 
-	/** Answer when the run ends, or when the caller's patience does. The child's own exit is the signal; nothing polls. */
+	/** Answer when the run ends, or when the caller's patience does. The child's own exit is the signal; this step doesn't poll. */
 	private async waitRun(run: string, seconds: number, cursor: number) {
 		const held = this.runs.get(run);
 		if (!held) return actionNotOK(`wait for run: this process didn't start a run "${run}"`);

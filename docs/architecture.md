@@ -1,6 +1,6 @@
 # Haibun Architecture: The Journey of a Feature Line
 
-This document explains how Haibun processes feature files, grounded in a practical example: logging into a site, verifying all requests stay within allowed domains, and checking that no requests return 4xx/5xx or take longer than 5 seconds.
+This document explains how Haibun processes feature files, grounded in a practical example: logging into a site, verifying all requests stay within allowed domains, and checking that the requests don't return 4xx/5xx or take longer than 5 seconds.
 
 The following concepts will be introduced: phases, steppers, domains, observations, quantifiers, activities, waypoints and proofs, and monitors.
 
@@ -65,7 +65,7 @@ set of Allowed domains is [...]           # Define what's valid
 every host observed in ... is some ...    # Assert all observations satisfy constraint
 ```
 
-For example, to verify no console errors occurred:
+For example, to verify that console errors didn't occur:
 
 ```gherkin
 set of Allowed levels is ["log", "info", "warn"]
@@ -76,9 +76,9 @@ This pattern generalizes to other observation sources:
 
 | Observation | Captures | Example Constraint |
 |-------------|----------|-------------------|
-| `http-trace` | Network requests | No 4xx/5xx, all hosts in allowlist |
+| `http-trace` | Network requests | Statuses aren't 4xx/5xx, all hosts in allowlist |
 | `http-headers` | Request/response headers | Valid auth tokens, security headers present |
-| `console-log` | Browser messages | No error-level entries |
+| `console-log` | Browser messages | Entries aren't error-level |
 | `page-performance` | Timing metrics | Largest contentful paint < 2500ms |
 | Accessibility | WCAG violations | Serious = 0, moderate ≤ 3 |
 
@@ -149,7 +149,7 @@ For `every request observed in http-trace is variable {request}/status is less t
 
 ### Waypoint Resolution
 
-Waypoints are registered during resolution. When the resolver encounters an `Activity:` block, it collects the steps before `waypoint` statements as the activity body, then generates a dynamic step that matches the corresponding `ensure` call with a proof, or a statement call with no proof.
+Waypoints are registered during resolution. When the resolver encounters an `Activity:` block, it collects the steps before `waypoint` statements as the activity body, then generates a dynamic step that matches the corresponding `ensure` call with a proof, or a statement call without a proof.
 
 ## Phase 4: Executor
 
@@ -327,7 +327,7 @@ For `Origin.defined` (the common case for unquoted variable references):
 2. Environment: Check `world.options.envVariables[term]`
 3. Stored variables: Check `this.values[term]` (set via `set foo to "bar"`)
 4. Literal fallback: If the term looks like a literal value (contains special chars), use it directly
-5. Domain value: If the parameter's domain lists values (an enum) and the term is one of them, the term is that value, so `click "username" by placeholder` and `make an HTTP GET to ...` need no quotes. A variable of the same name still wins
+5. Domain value: If the parameter's domain lists values (an enum) and the term is one of them, the term is that value, so `click "username" by placeholder` and `make an HTTP GET to ...` don't need quotes. A variable of the same name still wins
 
 For `Origin.quoted` (quoted strings like `"literal value"`):
 - If `{varName}` syntax inside quotes, resolve via runtimeArgs → stored

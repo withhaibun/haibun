@@ -21,7 +21,7 @@ const applied = async (panel: { updateComplete: Promise<unknown> }): Promise<voi
 
 /**
  * The panel always reaches a terminal display state, rendering the forward/goals lists when
- * products arrive, or showing a clear "no data yet, trigger X" message when no products have
+ * products arrive, or showing a clear "no data yet, trigger X" message when products haven't
  * been supplied. A persistent spinner is a defect.
  *
  * Tests use `await el.updateComplete` after every mutation because the component is a
@@ -120,7 +120,7 @@ describe("shu-affordances-panel", () => {
 		expect(panel.shadowRoot?.querySelectorAll(".start-path").length).toBe(2);
 	});
 
-	it("clicking 'Start this path' opens the path's first step in the actions bar with no auto-dispatch", async () => {
+	it("clicking 'Start this path' opens the path's first step in the actions bar without auto-dispatch", async () => {
 		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel & { products: Record<string, unknown> };
 		document.body.appendChild(panel);
 		const path = { steps: [{ stepperName: "Issue", stepName: "issueCredential" }], bindings: [{ kind: "argument", domain: "issuer" }] };
@@ -315,7 +315,7 @@ describe("shu-affordances-panel", () => {
 		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel;
 		document.body.appendChild(panel);
 		await applied(panel);
-		// Either the actionable empty-state appears, or the panel rendered goals/waypoints lists. The forbidden outcome is only a spinner with no path forward.
+		// Either the actionable empty-state appears, or the panel rendered goals/waypoints lists. The forbidden outcome is only a spinner without a path forward.
 		const emptyState = panel.shadowRoot?.querySelector('[data-testid="affordances-empty"]');
 		const goalsList = panel.shadowRoot?.querySelector('[data-testid="affordances-goals"]');
 		const waypointsList = panel.shadowRoot?.querySelector('[data-testid="affordances-waypoints"]');
@@ -333,7 +333,7 @@ describe("shu-affordances-panel", () => {
 		expect(panel.shadowRoot?.querySelector('[data-testid="waypoint-deliver-report"]')).toBeTruthy();
 	});
 
-	it("a burst of change signals coalesces to ONE snapshot refetch (no spurious-RPC flood)", async () => {
+	it("a burst of change signals coalesces to ONE snapshot refetch (without a spurious-RPC flood)", async () => {
 		// A run emits one `affordances.` change signal per step, and a new subscriber is replayed the whole history.
 		// Refetching per signal is the RPC flood (hundreds per run); the panel starts one timer per coalesce window
 		// (REFRESH_COALESCE_MS) and the burst rides it, exactly one read of the affordances on offer.
@@ -356,7 +356,7 @@ describe("shu-affordances-panel", () => {
 		expect(snapshotCalls).toBe(1);
 	});
 
-	it("takes the run its snapshot names as the run the page reads, where a fact's step opens, and refuses one naming no run", () => {
+	it("takes the run its snapshot names as the run the page reads, where a fact's step opens, and refuses one that doesn't name a run", () => {
 		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel & { products: Record<string, unknown> };
 		document.body.appendChild(panel);
 		panel.products = { execution: EXECUTION, forward: [], goals: [] };

@@ -43,7 +43,7 @@ function clusterId(type: string): string {
  * cluster sits inside its type's neighborhood under force layout.
  */
 /** Whether a quad DRAWS as an edge, independent of which nodes are in hand. An edge is a TYPED reference: the quad
- *  carries `objectType`: the JSON-LD range of its target. A plain-string property (no objectType) is never an edge,
+ *  carries `objectType`: the JSON-LD range of its target. A plain-string property (without an objectType) is never an edge,
  *  even if its value coincidentally matches a node id. This is the same rule the overview's property classifier applies
  *  ("declared by the range, never guessed from the id"); guessing is what mis-linked string properties like `account`
  *  onto whatever node shared their value. THE rule, so a chip legend offers exactly the predicates the graph draws. */
@@ -90,7 +90,7 @@ export function buildGraphModelFromQuads(quads: TQuad[], options: BuildGraphMode
 			for (const [subject, label] of Object.entries(c.displayLabels)) {
 				const node = nodeMap.get(subject);
 				if (!node) continue;
-				// `label === subject` is composeDisplayLabel's id-fallback (the cluster @type has no NAME/CONTENT/body/weak rel, e.g. a name-less Principal sharing a named node's @id). Never let it clobber a real headline already set by another cluster for the same collapsed node. Order-independent: a real name beats the bare id regardless of cluster iteration order.
+				// `label === subject` is composeDisplayLabel's id-fallback (the cluster @type doesn't have a NAME/CONTENT/body/weak rel, e.g. a name-less Principal sharing a named node's @id). Never let it clobber a real headline already set by another cluster for the same collapsed node. Order-independent: a real name beats the bare id regardless of cluster iteration order.
 				if (label === subject && node.displayLabel !== undefined && node.displayLabel !== subject) continue;
 				node.displayLabel = label;
 			}
@@ -139,7 +139,7 @@ export function buildGraphModelFromQuads(quads: TQuad[], options: BuildGraphMode
 		for (const node of nodeMap.values()) {
 			const out = outByFrom.get(node.id);
 			// Record the agent at EACH actor predicate on the node, so a "group by <predicate>" axis reads a plain property
-			// (properties[predicate]) with nothing enumerating the predicates: a rel declared subPropertyOf inRoleOf is
+			// (properties[predicate]) without code enumerating the predicates: a rel declared subPropertyOf inRoleOf is
 			// groupable the moment it appears.
 			if (out) for (const e of out) if (roleRelSet.has(e.predicate)) (node.properties ??= {})[e.predicate] = e.to;
 			// The "role" axis: the single highest-priority actor (ROLE_PRIORITY order, via opts.roleRels).

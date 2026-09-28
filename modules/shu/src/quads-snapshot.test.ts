@@ -69,7 +69,7 @@ describe("quads-snapshot store singleton", () => {
 		expect(getViewContext().activeViewId).toBe("x");
 	});
 
-	it("dedups identical setActiveViewId calls (no spurious notifications)", () => {
+	it("dedups identical setActiveViewId calls (without spurious notifications)", () => {
 		let count = 0;
 		const unsub = subscribeSnapshot(() => count++);
 		setActiveViewId("once");
@@ -97,7 +97,7 @@ describe("mergeQuadsIntoSnapshot is bounded by the limit (the OOM fix)", () => {
 		endPage();
 	});
 
-	it("caps retained quads at the per-type limit no matter how many subjects stream in", () => {
+	it("caps retained quads at the per-type limit regardless of how many subjects stream in", () => {
 		const TYPES = 5;
 		const SUBJECTS_PER_TYPE = 2_000; // far over the limit
 		const PROPS = 3;
@@ -146,7 +146,7 @@ describe("mergeQuadsIntoSnapshot is bounded by the limit (the OOM fix)", () => {
 		expect(label).toBe("a later body");
 	});
 
-	it("merges 100k streamed quads in near-linear time (no O(n²) index rebuild)", () => {
+	it("merges 100k streamed quads in near-linear time (without an O(n²) index rebuild)", () => {
 		const N = 100_000;
 		const PROPS = 5;
 		const start = performance.now();
@@ -170,7 +170,7 @@ describe("per-scope snapshots, independent data sources over one store", () => {
 		subscribeSnapshot((snap) => scopedSeen.push(snap?.quads.length ?? -1), "class-browser");
 		feedSubject("Email", "e-1", 2); // creates the default scope's cache; the scoped cache doesn't exist yet
 		expect(sharedSeen.at(-1)).toBe(2);
-		expect(scopedSeen.length).toBe(0); // no cache in that scope yet → no data notification for it
+		expect(scopedSeen.length).toBe(0); // that scope doesn't have a cache yet → it doesn't get a data notification
 	});
 
 	it("pinning and reading are scoped: subjects pinned in one scope never appear in another's snapshot", () => {
@@ -190,7 +190,7 @@ describe("per-scope snapshots, independent data sources over one store", () => {
 	});
 });
 
-describe("the graph a page caches, with no server to ask", () => {
+describe("the graph a page caches, without a server to ask", () => {
 	// A page that carries its graph clusters it for itself: the sample, its totals and its `+N more` nodes are what the
 	// site's own answer would have been, rather than a captured copy of that answer riding in the page.
 	beforeEach(() => {
@@ -219,14 +219,14 @@ describe("the graph a page caches, with no server to ask", () => {
 		expect(Array.isArray(snapshot.clusters), "clustered by the store, not by a captured response").toBe(true);
 	});
 
-	it("reports that the graph is not available when it caches none and no server answers", async () => {
+	it("reports that the graph is not available when it doesn't cache one and a server doesn't answer", async () => {
 		setGraphStore(new QuadStore());
 		await expect(getGraphSnapshot({ perTypeLimit: 10, scope: "empty" })).rejects.toThrow();
 	});
 });
 
-describe("the dropdown values a reader is offered, with no server to ask", () => {
-	// The site derives them from the fields a type declares as context; a page with no server derives them the same way
+describe("the dropdown values a reader is offered, without a server to ask", () => {
+	// The site derives them from the fields a type declares as context; a page without a server derives them the same way
 	// over the graph it caches, so the reader is offered the same fields narrowed to the values there.
 	beforeEach(() => {
 		endPage();
@@ -235,7 +235,7 @@ describe("the dropdown values a reader is offered, with no server to ask", () =>
 		setSiteMetadata({ types: ["Email"], rels: { Email: { folder: LinkRelations.CONTEXT.rel, subject: "name" } }, edgeRanges: {} } as unknown as SiteMetadata);
 	});
 
-	it("offers the distinct values its context fields hold, and no field the type does not declare as one", async () => {
+	it("offers the distinct values its context fields hold, and doesn't offer a field the type does not declare as one", async () => {
 		const store = new QuadStore();
 		await store.setMany([
 			{ subject: "a", predicate: "folder", object: "INBOX", namedGraph: "Email", timestamp: 1 },
@@ -246,7 +246,7 @@ describe("the dropdown values a reader is offered, with no server to ask", () =>
 		expect(await selectValuesFor("Email")).toEqual({ folder: ["INBOX", "Sent"] });
 	});
 
-	it("offers no dropdown for a declared type that has no context field, and reports the failure for a type the site never declared", async () => {
+	it("doesn't offer a dropdown for a declared type that doesn't have a context field, and reports the failure for a type the site never declared", async () => {
 		setSiteMetadata({ types: ["Email", "Note"], rels: { Email: { folder: LinkRelations.CONTEXT.rel }, Note: { body: "hasBody" } }, edgeRanges: {} } as unknown as SiteMetadata);
 		setGraphStore(new QuadStore());
 		expect(await selectValuesFor("Note")).toEqual({});
@@ -254,7 +254,7 @@ describe("the dropdown values a reader is offered, with no server to ask", () =>
 	});
 });
 
-describe("the rows a graph query names, with no server to ask", () => {
+describe("the rows a graph query names, without a server to ask", () => {
 	// The page answers with the same function the site's own inherent query uses, over the graph it caches.
 	beforeEach(() => {
 		endPage();

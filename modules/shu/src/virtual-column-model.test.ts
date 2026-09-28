@@ -33,13 +33,13 @@ describe("the cursor on resident rows", () => {
 		{ index: 4, timestamp: 110 },
 		{ index: 9, timestamp: 120 },
 	];
-	it("the current row is the last resident one at or before the cursor, by index; none without a cursor or before the first", () => {
+	it("the current row is the last resident one at or before the cursor, by index; a row isn't current without a cursor or before the first", () => {
 		expect(currentRowIndex(rows, null)).toBe(-1);
 		expect(currentRowIndex(rows, 50)).toBe(-1);
 		expect(currentRowIndex(rows, 115)).toBe(4);
 		expect(currentRowIndex(rows, 120)).toBe(9);
 	});
-	it("a row after the cursor is future, the cursor's row current, an earlier one unclassed, and nothing without a cursor", () => {
+	it("a row after the cursor is future, the cursor's row current, an earlier one unclassed, and a row isn't classed without a cursor", () => {
 		const current = currentRowIndex(rows, 115);
 		expect(rowTimeClass(120, 9, 115, current)).toBe("future");
 		expect(rowTimeClass(110, 4, 115, current)).toBe("current");

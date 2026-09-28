@@ -2,7 +2,7 @@
  * Which fields of a type a text search reads.
  *
  * A reader names part of a value and expects the records carrying it. Read from two rels alone, a type addressed by a
- * string reached no primitive: its address is not a bounded value, so no filter compares it, and it carried neither of
+ * string didn't reach a primitive: its address is not a bounded value, so a filter doesn't compare it, and it didn't carry either of
  * the two rels a search read. Every text property a type declares is read instead, and the fields stating when a record
  * was made, where it sits and who may read it are left out.
  */
@@ -22,8 +22,8 @@ const person = { schema: PersonSchema, topology: personTopology };
 describe("the fields a text search reads", () => {
 	it("reads the text properties naming what a record is, and leaves its identifier for a read that holds it", () => {
 		// A type's identifier holds a handle a reader knows, such as an address, and a handle a run generated, such as a
-		// comment's own id. A search reading both answered a question with the asking run's own records; a type states
-		// which of the two it holds nowhere, so neither is read.
+		// comment's own id. A search reading both answered a question with the asking run's own records; a type doesn't state
+		// which of the two it holds, so the search doesn't read either.
 		expect(searchableFields(person)).toEqual(["name"]);
 	});
 
@@ -58,9 +58,9 @@ describe("the fields a text search reads", () => {
 		expect(searchableFields({ schema, topology })).toEqual(["title"]);
 	});
 
-	it("leaves out a value that is nothing but a value, whatever it holds", () => {
-		// `tag` is the rel for a count, a flag, a duration or an error string: it says a record carries something and no
-		// more, so naming its value names no record in particular.
+	it("leaves out a value that is only a value, whatever it holds", () => {
+		// `tag` is the rel for a count, a flag, a duration or an error string: it says a record carries something and doesn't
+		// say more, so naming its value doesn't name a record in particular.
 		const schema = z.object({ subject: z.string(), unread: z.boolean(), size: z.number(), state: z.string() });
 		const topology: THypermediaTopology = {
 			persistedAs: "Message",

@@ -1,7 +1,7 @@
 /**
  * Cross-SHU design tokens + shared base styles.
  *
- * Every visible SHU component is required to express colour, spacing, sizing, and font through these CSS custom properties: no hard-coded colours, no ad-hoc magic numbers. The tokens cascade from `:root` (the document), so:
+ * Every visible SHU component is required to express colour, spacing, sizing, and font through these CSS custom properties, without hard-coded colours or ad-hoc magic numbers. The tokens cascade from `:root` (the document), so:
  *   - light/dark themes flip with a single attribute / media query, never per-component edits
  *   - user-overridable scale (`--shu-scale`) multiplies all sizing without re-rendering
  *   - portrait/narrow breakpoints adjust spacing tokens, not individual rules
@@ -99,7 +99,7 @@ const DARK_PALETTE = `
 
 /** Design tokens. Apply at `:host` on every shu component (and at `:root` on the page for context). Override via:
  *  - `<html data-theme="dark">` / `<shu-app data-theme="dark">` for explicit choice
- *  - `prefers-color-scheme: dark` for OS preference (falls through when no explicit choice)
+ *  - `prefers-color-scheme: dark` for OS preference (falls through when the page doesn't make an explicit choice)
  *  - `<html style="--shu-scale: 1.25">` for a user-set zoom multiplier (every size derives from `--shu-scale`).
  */
 export const SHU_TOKENS = `
@@ -274,7 +274,7 @@ export const SHU_BASE = `
 	.card.info { border-left: calc(var(--shu-border-w) * 4) solid var(--shu-info); }
 	.future-event { opacity: 0.4; }
 	/* A JSON value as disclosures: what holds parts indents under what it belongs to, and a name reads before its value.
-	   The disclosure itself is the browser's, styled no further than the indent that shows what belongs to what. */
+	   The disclosure itself is the browser's, styled only with the indent that shows what belongs to what. */
 	.json-disclosure { margin: 0 0 0 var(--shu-space-2); }
 	.json-line { margin: 0 0 0 var(--shu-space-3); }
 	.json-name { color: var(--shu-fg-faded); }
@@ -284,7 +284,7 @@ export const SHU_BASE = `
 	.time-current { background: var(--shu-accent-soft); border-left: calc(var(--shu-border-w) * 3) solid var(--shu-accent); }
 `;
 
-/** The shared base sheet as a lit `CSSResult`, for `static styles = [shuBaseStyles, css\`…\`]`. One object across all components → lit builds the constructable `CSSStyleSheet` once and adopts it by reference into every shadow root (one parse, N light adoptions). Consumers only, no token declarations, so it never dams the document-level theme cascade. String-injecting shadow roots (manual `innerHTML`, template `<style>`) use the `SHU_BASE` string form instead. */
+/** The shared base sheet as a lit `CSSResult`, for `static styles = [shuBaseStyles, css\`…\`]`. One object across all components → lit builds the constructable `CSSStyleSheet` once and adopts it by reference into every shadow root (one parse, N light adoptions). It only consumes tokens and doesn't declare them, so it never blocks the document-level theme cascade. String-injecting shadow roots (manual `innerHTML`, template `<style>`) use the `SHU_BASE` string form instead. */
 export const shuBaseStyles: CSSResult = css`${unsafeCSS(SHU_BASE)}`;
 
 /** The standard small icon button: the column pane's min/max/gear/pin/close controls, and any other control that

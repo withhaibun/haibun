@@ -21,7 +21,7 @@ describe("the steps that act as view commands", () => {
 		expect([...paneOpsFor([openEvent("ev-1", "shu-affordances-panel")]).values()]).toEqual([expect.objectContaining({ op: "component", tag: "shu-affordances-panel" })]);
 	});
 
-	it("a trace-level substep yields no op, so a view refetching its own data does not reopen itself", () => {
+	it("a trace-level substep doesn't yield an op, so a view refetching its own data does not reopen itself", () => {
 		expect(paneOpsFor([openEvent("ev-1", "shu-affordances-panel", { level: "trace" })]).size).toBe(0);
 	});
 
@@ -29,7 +29,7 @@ describe("the steps that act as view commands", () => {
 		expect([...paneOpsFor([openEvent("ev-1", "pane-a"), openEvent("ev-2", "pane-b"), openEvent("ev-3", "pane-a")]).keys()]).toEqual(["pane-a", "pane-b"]);
 	});
 
-	it("non-step-end events and product-less step-ends yield nothing", () => {
+	it("non-step-end events and product-less step-ends don't yield an op", () => {
 		const events = [
 			{ id: "log-1", timestamp: 1, kind: "log", level: "info" },
 			{ id: "ev-9", timestamp: 2, kind: "lifecycle", type: "step", stage: "end", status: "completed", level: "info" },

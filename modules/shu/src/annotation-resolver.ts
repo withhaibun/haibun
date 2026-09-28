@@ -49,15 +49,15 @@ type Quad = { subject: string; predicate: string; object: unknown; objectType?: 
 
 /** Resolve the annotations anchored in (label, id) live, via the `annotations` RPC step. Null when the step is
  *  unavailable (offline, or the registry is momentarily unready): the caller then chooses the offline walk. The entity
- *  store pairs this with the entity's own resolution: if the entity fetch reached the server, so will this, so there is
- *  no registry race to retry around. */
+ *  store pairs this with the entity's own resolution: if the entity fetch reached the server, so will this, so a registry
+ *  race doesn't occur and the caller doesn't retry. */
 export async function resolveAnnotationsLive(label: string, id: string): Promise<AnnotationView[] | null> {
 	const res = await callStep<{ annotations: AnnotationView[] }>("annotations", { label, id }, `annotation-resolver: ${label}:${id}`);
 	return res.ok ? (res.value.annotations ?? []) : null;
 }
 
 /** The offline reverse walk over the serialized snapshot: SpecificResource --hasSource--> id, its selector, and each
- *  annotating Comment (--hasTarget--> the SpecificResource) with its markdown body. Pure quad reads; no network. The
+ *  annotating Comment (--hasTarget--> the SpecificResource) with its markdown body. Pure quad reads, without a network call. The
  *  genuine path for an offline (`file://`) report, where the RPC never becomes available. */
 export async function resolveAnnotationsOffline(id: string): Promise<AnnotationView[]> {
 	const srQuads = await queryStoredQuads({ namedGraph: SPECIFIC_RESOURCE_LABEL });
@@ -138,7 +138,7 @@ function objectOf(quads: Quad[], predicate: string): string | undefined {
 	return q ? String(q.object) : undefined;
 }
 
-/** The literal value for a predicate (a plain property quad, no objectType). */
+/** The literal value for a predicate (a plain property quad without an objectType). */
 function literalOf(quads: Quad[], predicate: string): string | undefined {
 	const q = quads.find((x) => x.predicate === predicate && x.objectType === undefined);
 	return q ? String(q.object) : undefined;

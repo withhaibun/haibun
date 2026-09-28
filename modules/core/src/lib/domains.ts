@@ -89,7 +89,7 @@ export const DOMAIN_UNION = " | ";
 /** The domains a domain key names: itself, or each part of a union. */
 export const domainParts = (domainKey: string): string[] => domainKey.split(DOMAIN_UNION);
 
-/** Primitive domains: a caller supplies their values, no step's product is one, and they aren't nodes of the typed
+/** Primitive domains: a caller supplies their values, a step doesn't produce one, and they aren't nodes of the typed
  *  step graph, since every step would connect through them. */
 const PRIMITIVE_DOMAINS: ReadonlySet<string> = new Set<string>([
 	...BASE_TYPES,
@@ -142,8 +142,8 @@ export const registerDomains = (world: TWorld, results: TDomainDefinition[][]) =
 	deriveNamingDomains(world.domains);
 };
 
-/** The type a reference domain refers to: the stored type its `topology.ranges.id` names, where the domain is itself
- *  stored as no type. Undefined for any other domain. */
+/** The type a reference domain refers to: the stored type its `topology.ranges.id` names, where the domain itself
+ *  isn't stored as a type. Undefined for any other domain. */
 export function refTargetOf(domain: TRegisteredDomain, domains: Record<string, TRegisteredDomain>): string | undefined {
 	if (!domain.topology || isPersisted(domain.topology)) return undefined;
 	const target = (domain.topology as { ranges?: Record<string, string> }).ranges?.id;
@@ -166,7 +166,7 @@ export function refDomainKey(domainKey: string): string {
  * The domains that name what is registered, derived again whenever a domain is registered, so a type or a domain a
  * feature declares is named: for each type a record persists as, a reference to one of its records (`refDomainKey`);
  * `persisted-type`, the type a record persists as; and `domain-key`, every domain's key. The last two test membership
- * with `names` and list no members, so a step taking one, as a model's prompt describes it, states no list of every type
+ * with `names` and don't list members, so a step taking one, as a model's prompt describes it, doesn't state a list of every type
  * or domain; `show domains` lists them. `persisted-type` is open to any type name, since the store holds what exists and
  * records of a type an earlier session declared stay readable; a bare word naming a declared type is that type.
  */
@@ -264,7 +264,7 @@ export const createEnumDomainDefinition = ({ name, values, description, ordered 
 /**
  * A persisted type's topology with the property that states each record's level. Every persisted type states its level,
  * as a field through `PersistedVertexSchema` and as this property, so the property is added here, where every type is
- * registered, and no declaration repeats it. A consumer reads the level from the `accessLevel` property alone, so the
+ * registered, and a declaration doesn't repeat it. A consumer reads the level from the `accessLevel` property alone, so the
  * property always has that name.
  */
 function withLevelProperty(topology: TDomainTopology | undefined): TDomainTopology | undefined {

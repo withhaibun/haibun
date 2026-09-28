@@ -91,7 +91,7 @@ function activateComment(id: string, turn: string, bundle: TBundle): void {
 }
 
 export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
-	/** A control, not a view of data, contributes nothing to the Kihan's context. */
+	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
@@ -127,8 +127,8 @@ export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
 		};
 
 	/** Activate the comment this message was recorded as, with the bundle its turn was sent with, in the actions bar's
-	 *  scope. The graph follows that comment, and the next question replies to its turn. A message with no recorded
-	 *  comment activates nothing. */
+	 *  scope. The graph follows that comment, and the next question replies to its turn. A message without a recorded
+	 *  comment doesn't activate a comment. */
 	private onSelect = (): void => {
 		const m = this.message;
 		if (!m.recordId || !m.turn || !m.bundle) return;

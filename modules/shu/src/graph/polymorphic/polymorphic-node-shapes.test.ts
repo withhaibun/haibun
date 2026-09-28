@@ -16,7 +16,7 @@ const boxMark = (zExtent: number, over: Partial<NodeMark> = {}): NodeMark => ({
 });
 
 // Recording stubs for THREE + the label: a 3D object is just numbers, so the paint's geometry (box dimensions, child
-// offsets, colours) is asserted with no GPU. The polymorphic injects the real AFRAME.THREE + a SpriteText factory at runtime.
+// offsets, colours) is asserted without a GPU. The polymorphic injects the real AFRAME.THREE + a SpriteText factory at runtime.
 type RecBox = { geometry: { w: number; h: number; d: number }; material: { color: string }; renderOrder: number; children: RecLabel[]; add(o: unknown): void };
 type RecLabel = ShapeLabel & { text: string; color: string };
 
@@ -100,7 +100,7 @@ describe("polymorphic paint (mark → three.js geometry, GPU-free)", () => {
 	it("chipShape paints the mark's colour as a centred chip billboard, depth-test off, on-chip text colour", () => {
 		const chip = chipShape(chipMark(), harness().deps) as unknown as RecLabel;
 		expect(chip.backgroundColor).toBe("colour:Person"); // the mark carries the colour (not a deps lookup)
-		expect(chip.center.x).toBe(0.5); // centred on the node, so the focus magnifier grows it in place (no sideways drift)
+		expect(chip.center.x).toBe(0.5); // centred on the node, so the focus magnifier grows it in place (without sideways drift)
 		expect(chip.material.depthTest).toBe(false);
 		expect(chip.color).toBe("#111"); // textColor (dark on the light chip), NOT the scene colour
 	});
@@ -112,7 +112,7 @@ describe("polymorphic paint (mark → three.js geometry, GPU-free)", () => {
 		expect(box.children.length).toBe(1);
 		expect(box.children[0].position.z).toBe(-20 + GANTT_LABEL_INSET); // inset from the bar's start (earliest-z) face
 		expect(box.children[0].position.x).toBe(0);
-		expect(box.children[0].backgroundColor).toBe(""); // plain text, no chip frame
+		expect(box.children[0].backgroundColor).toBe(""); // plain text without a chip frame
 		expect(box.children[0].color).toBe("#eee"); // off-chip text → the SCENE colour (white-on-black in dark), not the chip's dark
 	});
 
@@ -131,7 +131,7 @@ describe("polymorphic paint (mark → three.js geometry, GPU-free)", () => {
 		expect(header.children[0].position.z).toBe(-20); // exactly at the start (earliest-z) face: the lifeline's top on screen
 	});
 
-	it("boxShape falls back to a chip with no THREE (headless)", () => {
+	it("boxShape falls back to a chip without THREE (headless)", () => {
 		expect((boxShape(boxMark(40), harness(false).deps) as unknown as RecLabel).backgroundColor).toBe("colour:Task");
 	});
 

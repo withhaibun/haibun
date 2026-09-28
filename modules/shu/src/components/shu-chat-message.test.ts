@@ -62,10 +62,10 @@ describe("what a question carries", () => {
 		]);
 	});
 
-	it("links nothing for an answer, or for a question that carries nothing", async () => {
+	it("doesn't link a record for an answer, or for a question that doesn't carry one", async () => {
 		expect(carried(await rendered({ id: "a1", role: "llm", text: "an answer", bundle: BUNDLE })), "the answer's question carries the bundle").toEqual([]);
 		expect(carried(await rendered({ id: "q2", role: "user", text: "anything", bundle: { patterns: [], accessLevel: "opened" } }))).toEqual([]);
-		expect(document.querySelectorAll(`[data-testid="${SHU_TEST_IDS.APP.CHAT_CARRIES}"]`), "and renders no empty line").toHaveLength(0);
+		expect(document.querySelectorAll(`[data-testid="${SHU_TEST_IDS.APP.CHAT_CARRIES}"]`), "and doesn't render an empty line").toHaveLength(0);
 	});
 
 	it("opens the linked record without selecting the question", async () => {

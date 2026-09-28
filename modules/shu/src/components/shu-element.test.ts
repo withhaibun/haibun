@@ -6,8 +6,8 @@
  * getter runs (`customElements.define` reads it). A subclass that overrode the getter
  * with a raw `return [...]` never called `super`, so `finalize()` never ran and the
  * component inherited the base class's empty `elementStyles`: every `static styles`
- * rule was silently dropped from the shadow root (no layout, no sizing, no resize
- * handle, no aria-pressed highlight). jsdom applies no CSS, so attribute-reflection
+ * rule was silently dropped from the shadow root (without layout, sizing, a resize
+ * handle or the aria-pressed highlight). jsdom doesn't apply CSS, so attribute-reflection
  * tests stayed green while the live UI was unstyled. This test pins the mechanism that
  * jsdom *can* see: declaring `observedHtmlAttributes` must still finalize styles.
  */
@@ -139,7 +139,7 @@ describe("ShuElement persistFields", () => {
 		expect(attach("two").current.size).toBe(2);
 	});
 
-	it("a null persistKey neither persists nor restores", () => {
+	it("a null persistKey doesn't persist or restore", () => {
 		writeElementPrefs("shu-persist-probe", "", { size: 99 });
 		const el = attach(null);
 		expect(el.current.size).toBe(10);
@@ -271,8 +271,8 @@ describe("ShuElement attribute fields", () => {
 });
 
 /**
- * An invalid state write is a caller error, and the console is where it lands. A bare ZodError names the failing field
- * and nothing else, not the element, not the write, not the attribute that drove it, and setState is re-entrant
+ * An invalid state write is a caller error, and the console is where it lands. A bare ZodError names only the failing
+ * field. It doesn't name the element, the write or the attribute that drove it, and setState is re-entrant
  * (state → attribute → attributeChangedCallback → setState), so the stack does not say either.
  */
 describe("ShuElement invalid state reporting", () => {
@@ -346,8 +346,8 @@ describe("ShuElement invalid state reporting", () => {
 	});
 
 	// A state→attribute write removes the attribute when the value is empty, and the browser reports that removal back.
-	// Reading it as "no value" would reject a field the element must hold, the loop a boot-time attribute write fell into.
-	it("leaves a field that must have a value alone when its attribute is removed, since an absent attribute says nothing", () => {
+	// Reading it as an absent value would reject a field the element must hold, the loop a boot-time attribute write fell into.
+	it("leaves a field that must have a value alone when its attribute is removed, since an absent attribute doesn't state a value", () => {
 		const el = probe();
 		el.write({ label: "a name" });
 		expect(() => el.attributeChangedCallback("data-label", "a name", null)).not.toThrow();
@@ -415,7 +415,7 @@ describe("knowing whether the hosting column is collapsed", () => {
 		expect(deep.collapsed, "open to begin with").toBe(false);
 		pane.setMinimized(true);
 		await deep.updateComplete;
-		expect(deep.collapsed, "and told when its column becomes a strip, with nothing passing it down").toBe(true);
+		expect(deep.collapsed, "and told when its column becomes a strip, without the wrapper passing it down").toBe(true);
 	});
 
 	it("follows the column back open", async () => {
@@ -427,7 +427,7 @@ describe("knowing whether the hosting column is collapsed", () => {
 		expect(deep.collapsed).toBe(false);
 	});
 
-	it("says open for a view in no column at all, rather than throwing", async () => {
+	it("says open for a view outside a column, rather than throwing", async () => {
 		document.body.innerHTML = "";
 		const loose = document.createElement("shu-deep-probe") as Deep;
 		document.body.appendChild(loose);

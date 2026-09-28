@@ -45,7 +45,7 @@ const VIEWS_PICKER = SHU_TEST_IDS.VIEWS_PICKER.ROOT;
 const VIEWS_PICKER_MONITOR = `${SHU_TEST_IDS.VIEWS_PICKER.ROW}${SHU_TAG.MONITOR_COLUMN}`;
 const testIdSetup = flattenTestIds(IDS).map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
 // Step-caller test-ids are generated per-invocation by createStepUI's helpers
-// (method + callIndex + param), so there's nothing to pre-register at file scope:
+// (method + callIndex + param), so they aren't pre-registered at file scope:
 // each invocation does its own setAs via the helper. The empty list is here so the
 // `...stepIdSetup` spread below remains a stable extension point.
 const stepIdSetup: ReturnType<typeof setAs>[] = [];
@@ -59,14 +59,14 @@ export const features: TKirejiExport = {
 
 		"This feature drives the shu SPA end-to-end as a real user would: open every view, exercise affordances, trigger goal resolution, then reload the page and verify everything reappears. Each scenario narrates why it exists so a reader can follow the system without consulting the implementation.",
 		"Every step's screenshot is what the document view builds its manual of the run from, so the run captures one after each.",
-		"This deployment registers nothing that could verify a delegation, so it allows every action without one: the page signs nothing, and every call it makes is allowed.",
+		"This deployment doesn't register a delegation verifier, so it allows every action without one: the page doesn't sign its calls, and every call it makes is allowed.",
 		"after every WebPlaywright, take a screenshot",
 		...testIdSetup,
 		...stepIdSetup,
 
 		scenario({ scenario: "Bootstrap server and seed representative data" }),
 
-		"A live haibun server hosts the SPA and exposes every stepper step as an RPC method. Seeding variables and comments here gives the views something to render, without it, the affordances panel would show only goals and forward steps but no asserted facts.",
+		"A live haibun server hosts the SPA and exposes every stepper step as an RPC method. Seeding variables and comments here gives the views something to render, without it, the affordances panel would show only goals and forward steps and wouldn't show asserted facts.",
 		"enable rpc",
 		'saves shu to "/tmp/shu.html"',
 		serveShuApp({ path: '"/haibun"' }),
@@ -104,7 +104,7 @@ export const features: TKirejiExport = {
 		waitFor({ target: IDS.MONITOR.PRODUCED }),
 		inElement({ container: `"${MONITOR_PANE}"`, what: `click ${IDS.COLUMN_PANE.CONTROLS_TOGGLE}` }),
 
-		"The log's own scroll rail is where the shared cursor is shown and picked, so there is no separate range control on the page. The moment being shown is always somewhere on the run, so its mark is on the rail from the start: at the live edge, with nothing scrubbed to.",
+		"The log's own scroll rail is where the shared cursor is shown and picked, so the page doesn't have a separate range control. The moment being shown is always somewhere on the run, so its mark is on the rail from the start: at the live edge, before the cursor is scrubbed.",
 		waitFor({ target: IDS.SCROLLBAR.RAIL }),
 		waitFor({ target: IDS.SCROLLBAR.CURSOR }),
 
@@ -141,7 +141,7 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "Browse the seeded comments in the column browser" }),
 
-		"The column browser lists stored records of a chosen type. Picking the Comment type queries the store and shows the comments seeded earlier as a table, one row per comment. Every store responds this query the same way, so the browser needs no type-specific code.",
+		"The column browser lists stored records of a chosen type. Picking the Comment type queries the store and shows the comments seeded earlier as a table, one row per comment. Every store responds this query the same way, so the browser doesn't need type-specific code.",
 		...chooseGraphLabel(COMMENT_LABEL),
 		waitFor({ target: IDS.QUERY.TABLE }),
 		waitFor({ target: IDS.QUERY.FIRST_ROW }),
@@ -165,7 +165,7 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "Goal resolution: `resolve` returns a verdict for a registered domain" }),
 
-		"The resolver reports a verdict for any registered domain key. page-alt-text is registered, as every locator domain is, and no step produces it. The resolver returns unreachable. The test stashes the goal-resolution product into a variable.",
+		"The resolver reports a verdict for any registered domain key. page-alt-text is registered, as every locator domain is, and the steps don't produce it. The resolver returns unreachable. The test stashes the goal-resolution product into a variable.",
 		setFromStatement({ what: "unproducedGoal", statement: `resolve "page-alt-text"` }),
 		exists({ what: "unproducedGoal" }),
 
@@ -190,7 +190,7 @@ export const features: TKirejiExport = {
 		waitFor({ target: IDS.SCROLLBAR.CURSOR }),
 		waitFor({ target: IDS.POLYMORPHIC_VIEW.ROOT }),
 
-		"The document comes back too, with the monitor open beside it. Both read the run the same way, at the level each shows: the whole run by index, paged in as the reader reaches for a region, with nothing requested twice between them. The document opens at the live edge with its newest events, and the start of the run is one press away on its rail: its top glyph is the first row, and pressing it pages that region in, so the feature's own heading is on the page.",
+		"The document comes back too, with the monitor open beside it. Both read the run the same way, at the level each shows: the whole run by index, paged in as the reader reaches for a region, without a region requested twice between them. The document opens at the live edge with its newest events, and the start of the run is one press away on its rail: its top glyph is the first row, and pressing it pages that region in, so the feature's own heading is on the page.",
 		"show document",
 		waitFor({ target: IDS.DOCUMENT.ROOT }),
 		setAs({ what: FEATURE_HEADING, domain: "page-test-id", value: `"${FEATURE_HEADING}"` }),
@@ -247,7 +247,7 @@ export const features: TKirejiExport = {
 		"An uncompressed copy carries the same content as plain text, so a reader can confirm secrets are redacted in the output without unpacking it.",
 		'saves shu uncompressed to "/tmp/shu-audit.html"',
 
-		"The affordances panel has been open since the reader showed it, and it has read the affordances on offer after every step since, to stay current. Reading is not an act of the run: the run's records name the step that showed the panel, and none of the panel's own reading. The report carries the run's records, so it says which.",
+		"The affordances panel has been open since the reader showed it, and it has read the affordances on offer after every step since, to stay current. Reading is not an act of the run: the run's records name the step that showed the panel, and don't name the panel's own reading. The report carries the run's records, so it says which.",
 		'text at "/tmp/shu-audit.html" contains "GoalResolutionStepper.showAffordances"',
 		'not text at "/tmp/shu-audit.html" contains "GoalResolutionStepper.affordancesOnOffer"',
 
@@ -271,7 +271,7 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "The server responding again returns the page to it" }),
 
-		"A network that comes back is the same page reading the same stores, with the server available again: the registry is the server's once more, and the run source is loaded from it. Nothing about the views changes between the two states, which is the reason for reading everything through the one cache.",
+		"A network that comes back is the same page reading the same stores, with the server available again: the registry is the server's once more, and the run source is loaded from it. The views don't change between the two states, which is the reason for reading everything through the one cache.",
 		`requests matching "${RPC_GLOB}" are "allowed"`,
 		`requests matching "${STREAM_GLOB}" are "allowed"`,
 		reloadPage({}),
@@ -284,7 +284,7 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "A server that accepts a request without responding is reported unreachable" }),
 
-		"A refused request fails immediately, which a read falls back from. A request the server accepts without responding to is the harder case: nothing fails, so a read awaiting it returns no result and reports no error. Every request the page awaits carries a timeout, so an unresponsive server is reported unreachable and the page reads its declarations from the device store exactly as it does when the network drops. This deployment sets a short timeout, which suits a deployment whose storage answers quickly rather than a path that exists for a test.",
+		"A refused request fails immediately, which a read falls back from. A request the server accepts without responding to is the harder case: the request doesn't fail, so a read awaiting it doesn't return a result or report an error. Every request the page awaits carries a timeout, so an unresponsive server is reported unreachable and the page reads its declarations from the device store exactly as it does when the network drops. This deployment sets a short timeout, which suits a deployment whose storage answers quickly rather than a path that exists for a test.",
 		`requests matching "${RPC_GLOB}" are "unanswered"`,
 		reloadPage({}),
 		waitFor({ target: IDS.CLIENT_CACHE.ROOT }),
@@ -301,16 +301,16 @@ export const features: TKirejiExport = {
 		reloadPage({}),
 		waitFor({ target: CACHE_LOG_LOADED }),
 
-		scenario({ scenario: "A page with no stream reads the run and hears nothing" }),
+		scenario({ scenario: "A page without a stream reads the run and doesn't receive events" }),
 
-		"The stream announces; the run is read from records. A page that reloads with the stream blocked reads the run it holds and is told nothing after that, which is a reader whose connection dropped rather than one whose server is gone: every other call still works. This page has been without its server altogether and holds the whole run on the device, which is the page that once stopped catching up. What the reading holds is what it read on the way in, and it stops there. The reading says so itself: a source cut off from the stream cannot claim to be current, and the client cache shows it as cut off rather than as read.",
+		"The stream announces; the run is read from records. A page that reloads with the stream blocked reads the run it holds and doesn't receive an event after that, which is a reader whose connection dropped rather than one whose server is gone: every other call still works. This page has been without its server altogether and holds the whole run on the device, which is the page that once stopped catching up. What the reading holds is what it read on the way in, and it stops there. The reading says so itself: a source cut off from the stream cannot claim to be current, and the client cache shows it as cut off rather than as read.",
 		`requests matching "${STREAM_GLOB}" are "blocked"`,
 		reloadPage({}),
 		waitFor({ target: IDS.CLIENT_CACHE.ROOT }),
 		waitFor({ target: CACHE_LOG_DISCONNECTED }),
 		`save text from ${CACHE_LOG_EVENTS} to eventsUnheard`,
 
-		"The run goes on recording while the page hears none of it: these steps are the records the reading has to catch up on. What each one does is beside the point; that each one is recorded is not.",
+		"The run goes on recording while the page doesn't receive its events: these steps are the records the reading has to catch up on. What each one does is beside the point; that each one is recorded is not.",
 		set({ what: "unheard-1", value: '"recorded while the page was not listening"' }),
 		set({ what: "unheard-2", value: '"recorded while the page was not listening"' }),
 		set({ what: "unheard-3", value: '"recorded while the page was not listening"' }),
@@ -318,15 +318,15 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "The stream coming back is what a view catches up on" }),
 
-		"Allowing the stream is the only thing that happens: the page is not reloaded and nothing is clicked. The stream coming back is itself the announcement that there is something to read again for, so the reading is behind from that moment until a read begun after it has finished, and current after that. Catching up is not a second path beside following: it is the same one. A feature waits for the reading to say it is current rather than for a length of time, since a page reconnects on its own schedule and reads on its own, and what it then holds is what the run recorded while nobody was listening.",
+		"Allowing the stream is the only thing that happens: the page is not reloaded or clicked. The stream coming back is itself the announcement that there is something to read again for, so the reading is behind from that moment until a read begun after it has finished, and current after that. Catching up is not a second path beside following: it is the same one. A feature waits for the reading to say it is current rather than for a length of time, since a page reconnects on its own schedule and reads on its own, and what it then holds is what the run recorded while the page wasn't reading the stream.",
 		`requests matching "${STREAM_GLOB}" are "allowed"`,
 		waitFor({ target: CACHE_LOG_LOADED }),
 		`save text from ${CACHE_LOG_EVENTS} to eventsCaughtUp`,
 		"not variable eventsCaughtUp is eventsUnheard",
 
-		scenario({ scenario: "A page with no layout of its own starts on the views the run showed" }),
+		scenario({ scenario: "A page without a layout of its own starts on the views the run showed" }),
 
-		"An address that names views is a reader's own arrangement, which is what lets two addresses show different views of one run. An address that names none is a reader with no arrangement, and they are shown the views this run has shown, read from its records. Nothing is replayed to the page: it reads the run, as it reads everything else. The address it arrives at then names every view a step of this run showed, the monitor, the graph, the document, the client cache and the affordances panel among them, in the order the site declares them. Which views those are is stated nowhere but the records, so an address naming them was built from the records.",
+		"An address that names views is a reader's own arrangement, which is what lets two addresses show different views of one run. An address that doesn't name one is a reader without an arrangement, and they are shown the views this run has shown, read from its records. The run doesn't replay events to the page: it reads the run, as it reads everything else. The address it arrives at then names every view a step of this run showed, the monitor, the graph, the document, the client cache and the affordances panel among them, in the order the site declares them. Only the records state which views those are, so an address naming them was built from the records.",
 		gotoPage({ name: `"${host}/haibun"` }),
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
 		waitFor({ target: IDS.DOCUMENT.ROOT }),
@@ -339,7 +339,7 @@ export const features: TKirejiExport = {
 		`matches freshUri with "*col=${SHU_TAG.CLIENT_CACHE_COLUMN}*"`,
 		`matches freshUri with "*col=${SHU_TAG.AFFORDANCES_PANEL}*"`,
 
-		"A view no step of this run showed is not among them. The thread column is one this deployment declares and this run never opened, so an address that named it would be naming something other than what the records say.",
+		"A view that the steps of this run didn't show is not among them. The thread column is one this deployment declares and this run never opened, so an address that named it would be naming something other than what the records say.",
 		`not matches freshUri with "*${SHU_TAG.THREAD_COLUMN}*"`,
 
 		scenario({ scenario: "The views on offer are read from what the deployment declares" }),

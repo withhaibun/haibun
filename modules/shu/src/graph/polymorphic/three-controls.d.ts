@@ -1,4 +1,4 @@
-// super-three ships no .d.ts for its addon entry points; declare the minimal surface this view drives.
+// super-three doesn't ship a .d.ts for its addon entry points; declare the minimal surface this view drives.
 declare module "three/examples/jsm/controls/OrbitControls.js" {
 	export class OrbitControls {
 		constructor(object: unknown, domElement?: HTMLElement);

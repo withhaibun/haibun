@@ -345,8 +345,8 @@ class RpcVerifyStepper extends AStepper {
 					body: JSON.stringify({ type: "rpc", id: "1", method: SHOW_STEPS_METHOD, params: EVERY_DEFINITION }),
 				});
 				const data = await res.json();
-				// Old format is not parsed as a valid JSON-RPC 2.0 request, so no handler processes it.
-				// Transport returns { ok: true } as default (no handler matched).
+				// Old format is not parsed as a valid JSON-RPC 2.0 request, so a handler doesn't process it.
+				// Transport returns { ok: true } as default (a handler didn't match).
 				if ("steps" in data) return actionNotOK("the old format was dispatched");
 				return OK;
 			},
@@ -354,7 +354,7 @@ class RpcVerifyStepper extends AStepper {
 	};
 }
 
-/** A server on `port` where every caller holds `allowedWithoutDelegation`, where the case states it: nothing otherwise. */
+/** A server on `port` where every caller holds `allowedWithoutDelegation`, where the case states it: an empty list otherwise. */
 function makeOptions(port: number, allowedWithoutDelegation?: string) {
 	return {
 		...DEF_PROTO_OPTIONS,
@@ -421,8 +421,8 @@ run narrated the call that acted on it and not the call that read it
 	});
 
 	it("answers a read of a step that declares itself one, and refuses to answer a read of a step that does not", async () => {
-		// A read is answered and leaves no record of the reading, so what may be read that way is what the step itself
-		// declares. Asked to read a step that declares nothing, the run refuses rather than answering and recording the
+		// A read is answered and doesn't leave a record of the reading, so what may be read that way is what the step itself
+		// declares. Asked to read a step that doesn't declare itself a read, the run refuses rather than answering and recording the
 		// reading as something it did, which is a run that writes about being read for as long as a page follows it.
 		const port = 8246;
 		const feature = {
@@ -438,9 +438,9 @@ rpc read at "http://localhost:${port}/rpc/PingStepper-ping" of "PingStepper-ping
 		expect(result.ok).toBe(true);
 	});
 
-	it("refuses a call presenting authority that nothing here verifies, as unauthenticated, and runs nothing", async () => {
-		// A proof that isn't checked grants nothing, and a request running with nothing granted would still run every
-		// step that asks for no capability, so a request presenting one is refused whole.
+	it("refuses a call presenting authority that the run can't verify, as unauthenticated, and doesn't run a step", async () => {
+		// A proof that isn't checked doesn't grant an action, and a request running with an empty grant would still run every
+		// step that doesn't ask for a capability, so a request presenting one is refused whole.
 		const port = 8248;
 		const feature = {
 			path: "/features/test.feature",
@@ -454,7 +454,7 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-ping" with method "PingSte
 		expect(result.ok).toBe(true);
 	});
 
-	it("refuses to end the instance for a caller presenting nothing, since ending it takes WebServer:stop", async () => {
+	it("refuses to end the instance for a caller that doesn't present authority, since ending it takes WebServer:stop", async () => {
 		const kill = vi.spyOn(process, "kill").mockImplementation(() => true);
 		try {
 			const port = 8254;
@@ -489,7 +489,7 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-ping" with method "PingSte
 		expect(result.ok).toBe(true);
 	});
 
-	it("refuses a caller presenting nothing every step, alike whether the step exists, so no refusal maps the run", async () => {
+	it("refuses a caller that doesn't present authority every step, alike whether the step exists, so a refusal doesn't map the run", async () => {
 		const port = 8255;
 		const feature = {
 			path: "/features/test.feature",
@@ -503,7 +503,7 @@ rpc call to "http://localhost:${port}/rpc/${SHOW_STEPS_METHOD}" with method "${S
 `,
 		};
 		const result = await passWithDefaults([feature], steppers, makeOptions(port));
-		expect(result.ok, "and nothing, not even the list of steps, is open to a caller holding nothing").toBe(true);
+		expect(result.ok, "and a caller that doesn't hold an action can't call a step, even the list of steps").toBe(true);
 	});
 
 	it("grants every caller what the deployment allows without a delegation, beside what it proves", async () => {
@@ -601,7 +601,7 @@ rpc old format to "http://localhost:${port}/rpc/${SHOW_STEPS_METHOD}" is not dis
 		expect(result.ok).toBe(true);
 	});
 
-	it("shows a caller the steps it holds what they require for, and none it may not call", async () => {
+	it("shows a caller the steps it holds what they require for, and not the steps it may not call", async () => {
 		const port = 8237;
 		const feature = {
 			path: "/features/shown-steps.feature",
@@ -820,7 +820,7 @@ stream rpc call to "http://localhost:${port}/rpc/StreamingStepper-stream3" metho
 		};
 		const result = await passWithDefaults([feature], [WebServerStepper, StreamingStepper, StreamingRpcVerifyStepper], makeOptions(port, "StreamingStepper:stream3"));
 		expect(result.ok).toBe(true);
-		// All three streamed chunks arrived via streamContext.emit; no terminal "products" record because dispatch was OK.
+		// All three streamed chunks arrived via streamContext.emit; the stream doesn't hold a terminal "products" record because dispatch was OK.
 		expect(collectedChunks).toEqual([{ status: "starting" }, { text: "alpha" }, { text: "beta" }]);
 	});
 

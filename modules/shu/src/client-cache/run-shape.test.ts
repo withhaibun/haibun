@@ -1,6 +1,6 @@
 // The shape of a run, drawn from counts rather than rows: a reader looking at a decade reads what a reader looking at
 // an hour does, and a run that grows is counted only where it has grown. Every reading states the graph it reads, so
-// these read a store made here and install nothing.
+// these read a store made here and don't install a store.
 import { describe, it, expect } from "vitest";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
@@ -83,12 +83,12 @@ describe("the shape of a run, by division", () => {
 		expect(shape.marks[0].color).toBe(MARK_COLOUR.pending);
 	});
 
-	it("marks nothing where the run holds nothing, and counts nothing either", async () => {
+	it("doesn't mark a division where the run doesn't hold a record, and doesn't count one either", async () => {
 		const { graph, counted } = await aRun([]);
 		const shape = runShape(graph, { divisions: 4 });
 		await shape.update(2000);
 		expect(shape.marks).toEqual([]);
-		expect(counted, "a run with no records has no shape to count").toEqual([]);
+		expect(counted, "a run without records doesn't have a shape to count").toEqual([]);
 	});
 
 	it("leaves out what the level a reader is shown does not carry", async () => {
@@ -124,7 +124,7 @@ describe("the shape of a run, by division", () => {
 		await shape.update(3000);
 		expect(
 			shape.marks.map((m) => m.at),
-			"the divisions the other run wrote in hold nothing of this one",
+			"the divisions the other run wrote in don't hold a record of this one",
 		).toEqual([shape.beginningOf(0), shape.beginningOf(2)]);
 	});
 
@@ -148,7 +148,7 @@ describe("the shape of a run, by division", () => {
 		).toBe(true);
 	});
 
-	it("reads nothing at all where the run has not moved since it was counted", async () => {
+	it("doesn't read the store again where the run has not moved since it was counted", async () => {
 		const { graph, counted } = await aRun([
 			{ at: 1000, status: "passed" },
 			{ at: 1300, status: "passed" },

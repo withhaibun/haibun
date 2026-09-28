@@ -6,12 +6,12 @@
  *
  * A classic sequence diagram is AGENTS + MESSAGES. The participants (lifelines) are the agent NODES themselves: the
  * parties an artifact points to through a directional actor edge, never a role-grouping container. The messages are
- * ARTIFACT-MEDIATED and fully general (no per-type knowledge): an entity carrying a `fromActor` edge (its SOURCE
+ * ARTIFACT-MEDIATED and fully general (without per-type knowledge): an entity carrying a `fromActor` edge (its SOURCE
  * agent) AND a `toActor` edge (its DESTINATION agent) reads as one message source → destination, at the entity's time,
  * labelled by the entity. The artifact itself is the message, not a lifeline. Both edge-label sets are derived from
  * the ontology + concern catalog (rels-cache fromActorEdgeLabels/toActorEdgeLabels, core rels `subPropertyOf`
- * fromActor/toActor plus every consumer edge declared with those upper pointers), so a new actor predicate needs
- * nothing here.
+ * fromActor/toActor plus every consumer edge declared with those upper pointers), so a new actor predicate doesn't
+ * need a change here.
  *
  * Unit-tested without a scene (see sequence-model.test.ts).
  */
@@ -29,7 +29,7 @@ export type SeqEdge = { from: string; to: string; predicate: string };
 
 /** Options the host injects: the display label for a participant id (defaults to the id), lets the live view resolve a
  *  DID → "Coastal Fisheries Authority". A message is labelled by its mediating artifact's @type, never an edge predicate,
- *  so no predicate resolver is needed here. */
+ *  so this doesn't need a predicate resolver here. */
 type SeqMapOptions = {
 	labelOf?: (participantId: string) => string;
 };
@@ -103,7 +103,7 @@ function deriveSeq(
 
 	// Which bar each object belongs to. ONE actor link is enough: an object attributed to an agent belongs against that
 	// agent's bar whether or not it also addresses a second one. Requiring both (a message) left everything that names a
-	// single actor, most of a discourse graph, with nowhere to go.
+	// single actor, most of a discourse graph, without a bar.
 	const isActor = new Set(actorIds);
 	const barOf = new Map<string, string>();
 	const claim = (objectId: string, actorId: string) => {
@@ -139,10 +139,10 @@ export function mapGraphToSeq(nodes: ReadonlyArray<SeqNode>, edges: ReadonlyArra
 
 /** y spacing between participant lifelines (lanes). Wide enough that arrows between adjacent lifelines read clearly. */
 export const SEQ_LANE_SPACING = 70;
-/** z length of the time axis when nothing places on it (no messages). */
+/** z length of the time axis when an object doesn't place on it (zero messages). */
 const SEQ_TIME_LEN = 240;
 /** z between consecutive message rows. A sequence diagram is ORDINAL: one row per message, evenly spaced in time
- *  order: wall-clock gaps carry no length, so a burst within one second reads as its rows, not as a pile. */
+ *  order: wall-clock gaps don't carry a length, so a burst within one second reads as its rows, not as a pile. */
 export const SEQ_ROW_GAP = 12;
 /** Clear space between one lifeline and the next, on top of the widest chip standing against each. */
 const SEQ_LANE_GAP = 24;
@@ -158,7 +158,7 @@ type SeqSpan = { z0: number; z1: number };
  *  node's position (agents centre on their active-window lifeline; artifacts ride their arrow), each actor's lifeline
  *  span, the message arrows, and the framing extents. */
 export type SeqLayout = {
-	/** Which bar each object belongs to (absent = no part in the exchange, so it rests on the margin lane). */
+	/** Which bar each object belongs to (absent = it doesn't take part in the exchange, so it rests on the margin lane). */
 	barOf: Map<string, string>;
 	actors: TSeqActor[];
 	laneY: Map<string, number>;
@@ -184,7 +184,7 @@ export function mapGraphToSeqLayout(nodes: ReadonlyArray<SeqNode>, edges: Readon
 	const widestOn = new Map<string, number>();
 	const halfWidth = (n: SeqNode) => collideRadius({ name: opts.labelOf?.(n.id) || artifactLabel(n), isCluster: false });
 
-	// ONE time axis for every object, bar or no bar: each takes a ROW of its own, in order of appearance, and time reads
+	// ONE time axis for every object, with or without a bar: each takes a ROW of its own, in order of appearance, and time reads
 	// DOWN: the way a sequence diagram is read. Rows are ordinal, so two acts in one second are two rows and a long
 	// pause is no taller than a short one.
 	const isActor = new Set(actors.map((a) => a.id));
@@ -226,7 +226,7 @@ export function mapGraphToSeqLayout(nodes: ReadonlyArray<SeqNode>, edges: Readon
 		placement.set(a.id, { y: laneY.get(a.id) ?? 0, z: (z0 + z1) / 2 });
 	}
 
-	// An object stands on the lifeline it names, at its own row; one that names no VISIBLE actor keeps its row on a lane
+	// An object stands on the lifeline it names, at its own row; one that doesn't name a VISIBLE actor keeps its row on a lane
 	// of its own, outside them: the graph's own order, still read down, rather than a heap at the axis start.
 	for (const n of objects) {
 		const lane = laneY.get(barOf.get(n.id) ?? "");
@@ -247,7 +247,7 @@ export function mapGraphToSeqLayout(nodes: ReadonlyArray<SeqNode>, edges: Readon
 }
 
 /** Each participant's bar and what sits on it, in the order the layout placed them: what an accessible reading of a
- *  sequence walks, and what a still image draws as the lanes. Empty bars are kept, since a participant with nothing
+ *  sequence walks, and what a still image draws as the lanes. Empty bars are kept, since a participant without an object
  *  on it is itself to read. */
 export function actorBars(layout: SeqLayout): Array<{ id: string; label: string; nodeIds: string[] }> {
 	const onBar = new Map<string, string[]>(layout.actors.map((a): [string, string[]] => [a.id, []]));

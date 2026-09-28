@@ -87,7 +87,7 @@ describe("EntityController", () => {
 		expect(annotationCalls).toBe(before + 1);
 	});
 
-	it("takes no further updates for an individual it has released", async () => {
+	it("doesn't take further updates for an individual it has released", async () => {
 		const el = mount();
 		await el.entity.open("Email", "e1", "private");
 		el.entity.release();

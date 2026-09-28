@@ -4,12 +4,12 @@
  * assembled JSON-LD @context (produced by getJsonLdContext: the single topology→context bridge). This module CONSUMES
  * that context with the jsonld processor (the single resolver): it reads the type's declared field names from the scoped
  * context and resolves each referenced standardContext's type-scoped terms to genuine IRIs, returning the terms the
- * standard declares that the type does NOT model (deduped by name against the type's own fields). No hand-rolled context
- * walking, no IRI-local-name matching, jsonld handles prefix expansion, keyword aliases, and string/array contexts, so a
- * context shape this code cannot resolve yields no terms rather than fabricating any.
+ * standard declares that the type does NOT model (deduped by name against the type's own fields). This code doesn't walk
+ * contexts by hand or match IRI local names: jsonld handles prefix expansion, keyword aliases, and string/array contexts, so a
+ * context shape this code cannot resolve yields an empty set rather than fabricated terms.
  *
  * Server-side only (Node): a consumer registers the context documents + a resolver into core's loader; this reads
- * whatever a type declares, naming no consumer vocabulary.
+ * whatever a type declares, without naming a consumer vocabulary.
  */
 import { jsonld as jsonldRaw, documentLoader } from "@haibun/core/lib/jsonld-loader.js";
 import { getJsonLdContext } from "@haibun/core/lib/hypermedia.js";
@@ -76,7 +76,7 @@ function scopedTermsOf(url: string, classLabel: string, base: unknown): Promise<
 export async function enumerateStandardVocab(domains: Record<string, TRegisteredDomain>): Promise<Map<string, TStandardTerm[]>> {
 	const context = (getJsonLdContext(domains) as { "@context": TContext })["@context"];
 	// Only absolute-IRI prefixes seed the base context; a relative binding (haibun's "/ns/") is not a valid @context @id
-	// and jsonld rejects it. Standard contexts that use CURIEs still resolve; ones that use full IRIs need no prefixes.
+	// and jsonld rejects it. Standard contexts that use CURIEs still resolve; ones that use full IRIs don't need prefixes.
 	const prefixes: TContext = Object.fromEntries(Object.entries(context).filter(([, v]) => typeof v === "string" && /^[a-z][a-z0-9+.-]*:/i.test(v)));
 	const prefixSig = JSON.stringify(prefixes);
 	const base = await baseContext(prefixSig, prefixes);

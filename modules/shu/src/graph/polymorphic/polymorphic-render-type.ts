@@ -5,7 +5,7 @@
 //
 // THE CRUX (3D views): a node's force lane target (the groupX/groupY pull) and its data-assigned z BOTH read ONE method:
 // lanePlacement(id): so the two cannot diverge mid-settle (the "node teleports while the layout is still settling"
-// failure). A gantt RenderType returns {y, z} from its placement cache; the force-family RenderTypes return undefined (no
+// failure). A gantt RenderType returns {y, z} from its placement cache; the force-family RenderTypes return undefined (without a
 // lane: the layout owns x/y, z is the recorded-time depth). polymorphic-render-type.test.ts pins this.
 //
 // THE SEQUENCE: a sequence diagram is gantt rotated 90°, participants are lanes, time is the SAME z axis gantt uses, and
@@ -23,11 +23,11 @@ import { truncateLabel } from "./layout-forces.js";
 import type { GanttTarget } from "./polymorphic-data-pipeline.js";
 import { VIEW, type ViewType, REFRAME, type ReframeMode, FRAME, type FrameMove } from "./polymorphic-views.js";
 
-/** Sentinel a render type's `controls()` returns when it adds nothing to the shared control bar (lit's no-render value). */
+/** Sentinel a render type's `controls()` returns when it doesn't add a control to the shared control bar (lit's no-render value). */
 type ControlsFragment = TemplateResult | typeof nothing;
 
-/** Context a render type's `controls()` reads to build its OWN control fragment. No view today adds controls of its own
- *  (a sequence is actors + messages: nothing to toggle), so this is empty; kept as the extension point. */
+/** Context a render type's `controls()` reads to build its OWN control fragment. The views don't add controls of their own
+ *  (a sequence is actors + messages, without a toggle), so this is empty; kept as the extension point. */
 type RenderTypeControlsCtx = Record<string, never>;
 
 /** A node's pinned target: the {x,y} the groupX/groupY force pulls it to, plus the z it is placed on when the view sets
@@ -36,7 +36,7 @@ type RenderTypeControlsCtx = Record<string, never>;
 type LanePlacement = { x?: number; y: number; z?: number };
 
 /** The calendar context a node's @type presenter needs to paint a duration mark (a gantt bar's span). undefined = the
- *  node has no time mark in this view (a point-in-time chip). */
+ *  node doesn't have a time mark in this view (a point-in-time chip). */
 type MarkTime = { start: number; end: number; zExtent: number };
 
 /** Live caches the component exposes; every getter is read at CALL time so a per-repaint-refreshed map is current. */
@@ -88,7 +88,7 @@ export interface RenderType {
 	 *  rather than each consumer remembering which options a view can't honour. */
 	readonly forces: TViewForces;
 	/** The x every node of this view sits at, when the view lays out in ONE plane: the sequence draws on x=0 (its wide
-	 *  actor chips ARE the lifelines), so its placement carries no x of its own. undefined = the view places its own x. */
+	 *  actor chips ARE the lifelines), so its placement doesn't carry an x of its own. undefined = the view places its own x. */
 	readonly lanePlaneX: number | undefined;
 	/** A node's label caps it, upright above the mark, rather than sitting on it: the sequence-diagram read of a
 	 *  participant's name over its vertical lifeline. */
@@ -96,16 +96,16 @@ export interface RenderType {
 	/** This view draws the calendar ruler along its time axis (the baseline, its ticks and their dates). */
 	readonly drawsCalendarAxis: boolean;
 	/** What this view's axes mean, for the reader: gantt's z is a linear calendar span and its y is one row per task, so
-	 *  the legend names that span and that count. null = the axes carry no meaning of their own. */
+	 *  the legend names that span and that count. null = the axes don't carry a meaning of their own. */
 	axisLegend(): { from: string; to: string; count: number } | null;
 	/** The structural flow this view lays out along, for inspect() and its tests: which way the ranks read and which
 	 *  axis they advance on. null = the view is not a layered flow. */
 	layeredFlow(): { direction: "td" | "lr"; flowAxis: "x" | "y" } | null;
 	/** A LANE view (gantt) IS its own grouping, the lanes are the axis, so the generic group/group-by controls and the
 	 *  role/type enclosure boxes don't apply: true suppresses them while this view is active. The 2D sequence likewise
-	 *  suppresses them (it has no 3D enclosures at all). */
+	 *  suppresses them (it doesn't have 3D enclosures at all). */
 	readonly suppressesGrouping: boolean;
-	/** This view's OWN control fragment for the shared control bar, or `nothing` when the view adds no controls of its own. */
+	/** This view's OWN control fragment for the shared control bar, or `nothing` when the view doesn't add controls of its own. */
 	controls(ctx: RenderTypeControlsCtx): ControlsFragment;
 	/** The actors + messages model for inspect()/tests (the sequence's protocol read). Present only on the sequence view. */
 	seqModel?(): TSeqModel;
@@ -120,7 +120,7 @@ abstract class BaseRenderType implements RenderType {
 	reframeMode(): ReframeMode {
 		return REFRAME.front;
 	}
-	/** A lane view has ONE canonical frame, so its aim IS its fit; the force family has no canonical aim, so fit keeps
+	/** A lane view has ONE canonical frame, so its aim IS its fit; the force family doesn't have a canonical aim, so fit keeps
 	 *  the user's orbit and re-frames the bounds. Derived from `reframeMode`: the rule is stated once, for every view. */
 	fitMove(): FrameMove {
 		const aim = this.reframeMode();
@@ -155,7 +155,7 @@ abstract class BaseRenderType implements RenderType {
 	}
 }
 
-/** force: the free d3 force layout owns x/y; z is the recorded-time depth (no lane). */
+/** force: the free d3 force layout owns x/y; z is the recorded-time depth (without a lane). */
 export class ForceRenderType extends BaseRenderType {
 	constructor(
 		readonly viewType: "force",
@@ -273,7 +273,7 @@ export class SequenceRenderType extends BaseRenderType {
 		return this.seqLayout().placement.get(id);
 	}
 	/** A participant's lifeline IS a gantt duration bar: its active-window span drives the SAME box mark gantt uses (zExtent
-	 *  = window length), so markFor emits a box for a participant and a point-in-time chip for an artifact: no bespoke shape. */
+	 *  = window length), so markFor emits a box for a participant and a point-in-time chip for an artifact, without a bespoke shape. */
 	override markTime(id: string): MarkTime | undefined {
 		const s = this.seqLayout().spans.get(id);
 		return s ? { start: s.z0, end: s.z1, zExtent: Math.abs(s.z1 - s.z0) } : undefined;

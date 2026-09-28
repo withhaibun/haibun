@@ -1,6 +1,6 @@
 /**
  * What the graph tells a model it shows, in a real browser: how many records the store holds of each type the graph read
- * and how many the view draws, so a type the view draws in part, or hides, is not read as a type with no records.
+ * and how many the view draws, so a type the view draws in part, or hides, isn't read as a type without records.
  */
 import { afterAll, beforeAll, expect, test } from "vitest";
 import { mountPolymorphicPage, type TMountedPage } from "./polymorphic-page.test-fake.js";
@@ -24,7 +24,7 @@ beforeAll(async () => {
 
 afterAll(() => mounted?.close());
 
-test("states each type's records held and drawn, a hidden type drawing none", async () => {
+test("states each type's records held and drawn, and a hidden type doesn't draw one", async () => {
 	const quads = [quad("e-1", DRAWN), quad("e-2", DRAWN), quad("l-1", HIDDEN)];
 	const summary = await mounted.page.evaluate(
 		({ quads, clusters, hidden }) => {

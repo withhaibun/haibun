@@ -8,7 +8,7 @@
  *    so a chip takes a couple of small objects (a per-node material, a bit of glyph geometry against the shared atlas)
  *    instead of the per-node canvas raster + GPU texture upload three-spritetext takes (the time the profiler attributes
  *    to the per-type-limit stall). troika's Text is a Mesh (not a billboard) and its glyph alpha rides fillOpacity (a
- *    shared material.opacity does nothing), so the chip carries its own faceCamera + opacity; the geometry-less group
+ *    shared material.opacity doesn't affect it), so the chip carries its own faceCamera + opacity; the geometry-less group
  *    can't be raycast, so pickTarget is the background quad.
  *  - spriteVisual: the plain sprite/mesh the other marks paint to (box, lozenge, square). It billboards natively (or is
  *    a fixed 3D bar), raycasts as itself, and dims through its material, so faceCamera is a no-op and opacity is the
@@ -23,7 +23,7 @@ import { GLOW_SPREAD, type GlowThree, MarkGlow, makeGlow } from "../polymorphic/
 import type { NodeVisual, Obj3D } from "./polymorphic-graph-types.js";
 
 /** A scene object this module CONSTRUCTS or parents onto: the structural handle leaves `add` optional because a
- *  mark that parents nothing never needs it. */
+ *  mark that doesn't parent a child never needs it. */
 type Group3D = Obj3D & { add(child: unknown): void };
 
 /** The uniform handle the view holds for a node's render object (FGNode.__visual). Every subsystem that used to reach
@@ -43,7 +43,7 @@ type ChipDeps = {
 	textColor: string; // dark, on the light type-colour background (as the three-spritetext chip)
 	borderColor: string; // the chip's own edge, so a pale type colour still has a shape against a light page
 	highlightColor: string; // the colour the active-node glow is drawn in when the chip wears one (setHighlighted)
-	avatar?: string; // the type's initials, badged at the chip's leading edge; absent for a chip with no type to show
+	avatar?: string; // the type's initials, badged at the chip's leading edge; absent for a chip without a type to show
 	laidOut: () => void; // told each time the chip is laid out from measured text, which arrives off the main thread, so a resting scene draws it
 };
 /** Background padding around the measured text, in fontSize units. */
@@ -69,7 +69,7 @@ let sharedPlane: unknown;
 export const avatarLeadX = (initialsWidth: number, fontSize: number): number => initialsWidth + fontSize * (AVATAR_PAD_X * 2 + AVATAR_GAP);
 
 /** A chip's quads, in the group's own space where the node's point is the origin. Sizes and positions are just numbers,
- *  so the layout is unit-tested without a GPU. `leadX` is 0 for a chip with no avatar; the badge spans the chip's left
+ *  so the layout is unit-tested without a GPU. `leadX` is 0 for a chip without an avatar; the badge spans the chip's left
  *  edge up to the gap before the label. */
 type ChipGeometry = { w: number; h: number; cx: number; cy: number; badge?: { w: number; cx: number }; border: { w: number; h: number }; glow: { w: number; h: number } };
 
@@ -86,7 +86,7 @@ export function chipGeometry(textBounds: readonly [number, number, number, numbe
 		cy: margin - h / 2,
 		...(badgeW !== undefined ? { badge: { w: badgeW, cx: -margin + badgeW / 2 } } : {}),
 		// The chip's edge: a hairline beyond the background on every side. A type colour is a light pastel, so on the
-		// light theme a chip and the page are near the same value, without an edge the chip has no shape at all.
+		// light theme a chip and the page are near the same value, without an edge the chip doesn't have a shape at all.
 		border: { w: w + fontSize * BORDER_WIDTH * 2, h: h + fontSize * BORDER_WIDTH * 2 },
 		// The glow reaches past the chip by a share of its HEIGHT on every side (not its width), so a long label glows
 		// as thickly as a short one: a width-proportional reach would smear a wide chip and pinch a narrow one.
@@ -141,7 +141,7 @@ export function makeTroikaChip(label: string, bgColor: string, three: ChipThree,
 	const text = makeText(label, d.textColor, d.renderOrder + 2);
 
 	// The badge sets itself apart by its surface alone, a plain block beside the type-coloured body, so the initials keep
-	// the label's own dark colour and need no second colour per type.
+	// the label's own dark colour and don't need a second colour per type.
 	const avatarText = d.avatar ? makeText(d.avatar, AVATAR_TEXT_COLOR, d.renderOrder + 3) : undefined;
 	let avatarBg: Obj3D | undefined;
 	if (avatarText) {
@@ -265,7 +265,7 @@ export function spriteVisual(obj: Obj3D, highlight: { three: GlowThree; color: s
 			}
 		},
 		faceCamera() {
-			/* a native-billboard sprite / fixed bar orients itself: nothing to do */
+			/* a native-billboard sprite / fixed bar orients itself, so this method is empty */
 		},
 	};
 }

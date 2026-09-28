@@ -2,7 +2,7 @@
  * What a run holds, counted rather than read: one mark per division of a span that holds something.
  *
  * A division is counted, so a rail carrying a year takes what its divisions take rather than what the run did. The
- * store counts; nothing here reads a row. Each type a run records is counted by the field that says how its records
+ * store counts; this module doesn't read a row. Each type a run records is counted by the field that says how its records
  * turned out, and the divisions are merged, so a step that failed and a message reporting an error both mark their
  * division as a failure.
  */
@@ -44,7 +44,7 @@ const atOrAbove = (minLevel: THaibunLogLevel): THaibunLogLevel[] => HAIBUN_LOG_L
 
 /** How many records of each counted type fall in each division of a span, by how each turned out: one array per type,
  *  in the order the types are counted, each holding one set of counts per division. What a division holds and what it
- *  looks like are two rules, so nothing is marked here. */
+ *  looks like are two rules, so this function doesn't choose a mark. */
 export function runCounts(
 	graph: TRunGraph,
 	{ from, to, divisions, minLevel = "info" }: { from: number; to: number; divisions: number; minLevel?: THaibunLogLevel },
@@ -52,7 +52,7 @@ export function runCounts(
 	const levels = atOrAbove(minLevel);
 	return Promise.all(
 		COUNTED.map(async (type) => {
-			// A graph that does not carry a type holds none of it, so asking for it would be asking a question with no answer.
+			// A graph that does not carry a type doesn't hold a record of it, so asking for it would be asking a question that doesn't have an answer.
 			if (!graph.declares(type.label)) return [];
 			const query: TDensityQuery = {
 				label: type.label,

@@ -48,7 +48,7 @@ describe("LinkRelations extensions", () => {
 		}
 	});
 
-	it("no two rels claim the same name, and none shares a uri except where the standard has one term for both", () => {
+	it("two rels don't claim the same name, and two don't share a uri except where the standard has one term for both", () => {
 		const rels = Object.values(LinkRelations).map((e) => e.rel);
 		expect(new Set(rels).size).toBe(rels.length);
 		// Web Annotation says `oa:hasBody` both for a note's content and for what a linking annotation refers to, so
@@ -132,7 +132,7 @@ describe("LinkRelations self-consistency: a class can never render as a super-pr
 	const entries = Object.values(LinkRelations);
 	const declaredRels = new Set(entries.map((e) => e.rel));
 
-	it("every subPropertyOf target names a declared property rel (no dangling super-property)", () => {
+	it("every subPropertyOf target names a declared property rel (without a dangling super-property)", () => {
 		for (const e of entries) {
 			const sp = (e as { subPropertyOf?: string | string[] }).subPropertyOf;
 			for (const parent of sp === undefined ? [] : Array.isArray(sp) ? sp : [sp]) expect(declaredRels, `${e.rel} subPropertyOf ${parent}`).toContain(parent);
@@ -186,7 +186,7 @@ describe("getJsonLdContext prefix declarations", () => {
 		expect((getJsonLdContext({})["@context"] as Record<string, unknown>).hbn).toBe(HAIBUN_NS);
 	});
 
-	it("declares NO consumer vocabulary: a consumer's prefixes (e.g. a credentials suite's) arrive via topology.namespaces", () => {
+	it("DOESN'T declare a consumer vocabulary: a consumer's prefixes (e.g. a credentials suite's) arrive via topology.namespaces", () => {
 		const out = getJsonLdContext({}) as { "@context": Record<string, unknown> };
 		const ctx = out["@context"];
 		expect(ctx.cred).toBeUndefined();
@@ -286,7 +286,7 @@ describe("getJsonLdContext ontology @graph, rdfs:subClassOf as a real RDF statem
 		expect(classNode?.["rdfs:subClassOf"]).toEqual({ "@id": "prov:Agent" });
 	});
 
-	it("omits rdfs:subClassOf from the class node when a type declares no superclass", () => {
+	it("omits rdfs:subClassOf from the class node when a type doesn't declare a superclass", () => {
 		const domains = {
 			a: { topology: { persistedAs: "A", type: "ex:A", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel } }, schema: { parse: (v: unknown) => v } },
 		} as unknown as Parameters<typeof getJsonLdContext>[0];
@@ -314,7 +314,7 @@ describe("roleRels: the ontology-derived role-attribution predicate set", () => 
 		expect(set.has(LinkRelations.IN_REPLY_TO.rel)).toBe(false); // a reply rel is not a role attribution
 	});
 
-	it("names NO consumer vocabulary, consumer actor edges classify via their declared upper-ontology rel, not entries here", () => {
+	it("DOESN'T name a consumer vocabulary, consumer actor edges classify via their declared upper-ontology rel, not entries here", () => {
 		for (const rel of ["issuer", "holder", "credentialSubject", "verifier", "registeredIn", "presentedTo", "resolvedIssuer", "verifiableCredential"]) {
 			expect(getRelRange(rel)).toBeUndefined();
 		}
@@ -395,7 +395,7 @@ describe("getJsonLdContext ontology @graph, rdfs:subPropertyOf as a real RDF sta
 		expect((out["@context"] as Record<string, unknown>).ex).toBe("https://vocab.example/ns#");
 	});
 
-	it("omits rdfs:subPropertyOf from a property node whose rel declares no parent", () => {
+	it("omits rdfs:subPropertyOf from a property node whose rel doesn't declare a parent", () => {
 		const domains = {
 			a: { topology: { persistedAs: "A", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel } }, schema: { parse: (v: unknown) => v } },
 		} as unknown as Parameters<typeof getJsonLdContext>[0];
@@ -674,10 +674,10 @@ describe("getPropertyDefinitions", () => {
 	});
 });
 
-/** A note whose text states nothing needs no ontology: this asserts the annotation shape alone, not what a note's own links state. */
+/** A note whose text doesn't state a link doesn't need an ontology: this asserts the annotation shape alone, not what a note's own links state. */
 const noLinkVocabulary = { relRange: () => undefined, isType: () => false };
 
-/** A minimal in-memory quad store with no createEdge, so the discourse helpers must fall back to plain `add` quads. */
+/** A minimal in-memory quad store without createEdge, so the discourse helpers must fall back to plain `add` quads. */
 function memStore() {
 	const quads: Array<{ subject: string; predicate: string; object: unknown; namedGraph: string }> = [];
 	const nodes = new Map<string, Record<string, unknown>>();
@@ -717,7 +717,7 @@ function memStore() {
 	return { store, quads, nodes };
 }
 
-describe("assertCommentGrounded: no floating comments", () => {
+describe("assertCommentGrounded: every comment is grounded", () => {
 	const withEdges = (predicates: string[]) =>
 		({ query: () => Promise.resolve(predicates.map((predicate) => ({ subject: "c1", predicate, object: "x" }))) }) as unknown as TDiscourseStore;
 	it("passes for an oa:hasTarget edge (about a subject)", async () => {
@@ -734,7 +734,7 @@ describe("assertCommentGrounded: no floating comments", () => {
 	});
 });
 
-describe("writeAnnotation, self-contained on a plain quad store (no createEdge)", () => {
+describe("writeAnnotation, self-contained on a plain quad store (without createEdge)", () => {
 	it("builds Comment, hasTarget→ SpecificResource, hasSource→ doc /, hasSelector→ TextQuoteSelector, grounded, without editing the doc", async () => {
 		const { store, quads, nodes } = memStore();
 		const { commentId, specificResourceId } = await writeAnnotation(store, noLinkVocabulary, "did:site:0", {
@@ -748,7 +748,7 @@ describe("writeAnnotation, self-contained on a plain quad store (no createEdge)"
 		const target = quads.find((q) => q.subject === commentId && q.predicate === LinkRelations.TARGET.rel);
 		expect(target?.object).toBe(specificResourceId);
 		const source = quads.find((q) => q.subject === specificResourceId && q.predicate === LinkRelations.HAS_SOURCE.rel);
-		expect(source?.object).toBe("doc-1"); // the SpecificResource points at the document; the document itself gets no quad
+		expect(source?.object).toBe("doc-1"); // the SpecificResource points at the document; the document itself doesn't get a quad
 		expect(quads.some((q) => q.subject === "doc-1")).toBe(false);
 		const selEdge = quads.find((q) => q.subject === specificResourceId && q.predicate === LinkRelations.HAS_SELECTOR.rel);
 		const selector = nodes.get(`${TEXT_QUOTE_SELECTOR_LABEL}:${String(selEdge?.object)}`);

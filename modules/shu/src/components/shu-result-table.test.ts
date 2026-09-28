@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * shu-result-table rendering and interaction that does not need layout. In jsdom there is no ResizeObserver, so the
+ * shu-result-table rendering and interaction that does not need layout. jsdom doesn't have a ResizeObserver, so the
  * inner <shu-virtual-column> renders its plain-list fallback (every row), which lets these tests assert the derived
  * columns, row test-ids, selection, group headers, future-dimming, and the sort/row/deselect events. Scroll geometry
  * (thumb, marker jump, O(viewport) window) needs real layout and is covered by shu-scrollbar's tests and the browser e2e.
@@ -131,7 +131,7 @@ describe("shu-result-table", () => {
 
 	it("a non-sortable header is inert", async () => {
 		const el = await mount();
-		el.setSortableFields([]); // nothing sortable
+		el.setSortableFields([]); // the fields aren't sortable
 		el.setResults(rows(2));
 		await settle(el);
 		const events = clickEvents(el, SHU_EVENT.SORT_CHANGE);
@@ -144,10 +144,10 @@ describe("shu-result-table", () => {
 		el.setResults([...rows(2, "Person"), ...rows(2, "Place")]);
 		await settle(el);
 		const groups = q(el, ".group-header").map((g) => (g.textContent ?? "").trim());
-		expect(groups).toEqual(["Place"]); // one boundary: Person -> Place (the first type gets no header)
+		expect(groups).toEqual(["Place"]); // one boundary: Person -> Place (the first type doesn't get a header)
 	});
 
-	it("shows no group headers for a single-type set", async () => {
+	it("doesn't show a group header for a single-type set", async () => {
 		const el = await mount();
 		el.setResults(rows(5, "Person"));
 		await settle(el);

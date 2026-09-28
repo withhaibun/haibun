@@ -13,7 +13,7 @@ import { WINDOW_SIZES, windowSizeSetting } from "../window-size-setting.js";
 const EmptySchema = z.object({});
 
 class ShuWindowSize extends ShuElement<typeof EmptySchema> {
-	/** A control, not a view of data, contributes nothing to the Kihan's context. */
+	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}

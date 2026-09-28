@@ -1,6 +1,6 @@
 Feature: Walking toward a goal one step at a time
 
-A goal gets reached by running the steps that produce it. Where those steps need nothing, `pursue` runs the whole path at once. Where a step needs something from the person walking it, the path gets walked instead: begun, then advanced with what each step takes.
+A goal gets reached by running the steps that produce it. Where those steps don't need input, `pursue` runs the whole path at once. Where a step needs something from the person walking it, the path gets walked instead: begun, then advanced with what each step takes.
 
 Scenario: A path whose only step needs an argument
 

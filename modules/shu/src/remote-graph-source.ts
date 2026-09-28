@@ -3,7 +3,7 @@
  * Implements TFederatedGraphSource against a peer haibun instance: handshake via action.begin (the
  * peer self-reports its site principal), clustered reads via RPC_METHOD.CLUSTERED_QUADS, every
  * sampled subject stamped with the site that served it. Deliberately NOT a routed backing store:
- * no raw pattern queries and no writes; those arrive with capability-gated federation.
+ * it doesn't take raw pattern queries or writes; those arrive with capability-gated federation.
  */
 import { discoverInstance, RpcClient } from "@haibun/core/lib/rpc-client.js";
 import type { TRequestSigner } from "@haibun/core/lib/authority-types.js";

@@ -38,7 +38,7 @@ type TPartialEvent = {
 };
 
 /** The mark palette, named by what a mark says rather than by its hue, so every surface that marks an event reads from
- *  one place. UNDECIDED is neither fault nor success: a speculative try, or a call the run handed out. */
+ *  one place. UNDECIDED isn't a fault or a success: a speculative try, or a call the run handed out. */
 export const MARK_COLOUR = {
 	feature: "#c084fc",
 	scenario: "#60a5fa",
@@ -64,7 +64,7 @@ export function eventMarkerStyle(event: unknown): TEventMarkerStyle {
 			if (e.status === SEQ_PATH_STATUS.failed)
 				return isHandedOutEvent(e) ? { color: MARK_COLOUR.undecided, icon: RETURNED_TO_CALLER } : { color: MARK_COLOUR.fault, icon: ICON_STEP_FAILED };
 			if (e.status === SEQ_PATH_STATUS.passed) return { color: MARK_COLOUR.ok, icon: ICON_STEP_COMPLETED };
-			// A step its caller stopped is neither a fault nor a pass.
+			// A step its caller stopped isn't a fault or a pass.
 			if (e.status === SEQ_PATH_STATUS.stopped) return { color: MARK_COLOUR.undecided, icon: ICON_STEP_STOPPED };
 			return { color: MARK_COLOUR.undecided, icon: ICON_DEFAULT };
 		}
@@ -80,7 +80,7 @@ export function eventMarkerStyle(event: unknown): TEventMarkerStyle {
 }
 
 /**
- * The mark an event gets, or nothing where it gets none.
+ * The mark an event gets, or undefined where it doesn't get one.
  *
  * This is the one call a surface makes to mark an event: whether it is to mark and what it looks like are
  * decided together, in one place, so a rail, a track and anything else that marks events cannot disagree about which
@@ -119,7 +119,7 @@ function shouldMarkEvent(event: unknown): boolean {
  * by the successes around it; otherwise it marks as whatever it holds most of. What a failure looks like, and which
  * failures count as one, are `eventMarkerStyle`'s to say, so a division and a row can never disagree.
  *
- * Nothing for a division holding nothing, so an empty stretch of the run draws as empty.
+ * Undefined for a division that doesn't hold an event, so an empty stretch of the run draws as empty.
  */
 export function bucketMarkerStyle(held: ReadonlyArray<{ event: unknown; count: number }>): TEventMarkerStyle | undefined {
 	const styled = held.filter(({ count }) => count > 0).map(({ event, count }) => ({ style: eventMarkerStyle(event), count }));

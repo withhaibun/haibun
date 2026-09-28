@@ -20,7 +20,7 @@ import { SharedMachine } from "./signals.js";
 /** A record: what a pane shows, or a comment of a conversation. */
 export type TRecord = { id: string; label: string };
 
-/** What a scope has active. An entry with no record is a scope whose reader chose nothing, or chose a type. */
+/** What a scope has active. An entry without a record is a scope whose reader didn't choose a record, or chose a type. */
 export type TEntry = { record: TRecord | null; turn?: string; bundle: TBundle };
 
 /** The scopes this page activates records in. */
@@ -48,7 +48,7 @@ export const SUBJECT_EVENTS = ["activate", "update", "clear", "open", "close"] a
 export const INITIAL_SUBJECT: TSubjectState = { scopes: {}, open: [SCOPE.page], clock: 1 };
 
 /** The entry for a set of context patterns: the record the first of them names, where it names one, with the patterns
- *  as its bundle. A type names no record. */
+ *  as its bundle. A type doesn't name a record. */
 export function entryOf(patterns: TContextPattern[], accessLevel: AccessQueryLevel): TEntry {
 	const first = patterns[0];
 	const record = first && first.kind === DENOTES.individual ? { id: first.id, label: first.persistedAs } : null;
@@ -57,7 +57,7 @@ export function entryOf(patterns: TContextPattern[], accessLevel: AccessQueryLev
 
 /** The next state, for any state and any event. `activate` stamps the scope's entry as the newest activation; `update`
  *  keeps the stamp it had, and a scope updated before it was ever activated is the oldest. `clear` removes the scope's
- *  entry and its stamp, so the scope leads nothing until it activates again. */
+ *  entry and its stamp, so the scope doesn't lead until it activates again. */
 export function transition(state: TSubjectState, event: TSubjectEvent): TSubjectState {
 	switch (event.type) {
 		case "activate":
@@ -76,7 +76,7 @@ export function transition(state: TSubjectState, event: TSubjectEvent): TSubject
 	}
 }
 
-/** The open scope activated most recently, or null where no open scope has an entry. */
+/** The open scope activated most recently, or null where the open scopes don't have an entry. */
 export function activeScope(state: TSubjectState): string | null {
 	let newest: string | null = null;
 	for (const scope of state.open) {

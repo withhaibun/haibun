@@ -9,8 +9,8 @@
  *
  * The reading is a script: one list in the order records were made, each line saying who it belongs to where it
  * belongs to anyone, with what it points at beneath it and a way to each of those. It states a stretch at a time and
- * carries on from where it stopped, so a graph of any size is readable and no repaint builds all of it. All text
- * lands via textContent, so node names need no escaping.
+ * carries on from where it stopped, so a graph of any size is readable and a repaint doesn't build all of it. All text
+ * lands via textContent, so node names don't need escaping.
  */
 import { linkEndId, type FGNode } from "../polymorphic/polymorphic-graph-types.js";
 import { graphSummary, type IGraphRenderer, type TDrawn } from "../polymorphic/polymorphic-renderer.js";
@@ -46,14 +46,14 @@ const EDGE_LINES = 6;
 type TEdgeLine = { predicate: string; targetId: string; targetName: string; count: number };
 
 /** A node's edges as a reading states them: the same edge twice is said once with its count, a few are stated, and how
- *  many are left is said, so nothing is quietly dropped. */
+ *  many are left is said, so an edge isn't dropped quietly. */
 function linesFor(edges: Map<string, TEdgeLine> | undefined): { shown: TEdgeLine[]; rest: number } {
 	const said = edges ? [...edges.values()] : [];
 	return { shown: said.slice(0, EDGE_LINES), rest: Math.max(0, said.length - EDGE_LINES) };
 }
 
 /** When a node was made: the time it was written down, not the time it is about, and not whatever places depth. A node
- *  with no such time reads last, so an undated record never displaces a dated one. */
+ *  without such a time reads last, so an undated record never displaces a dated one. */
 const created = (n: FGNode | undefined): number => n?.__created ?? Number.POSITIVE_INFINITY;
 
 /** Oldest first, by name where two were made at once, so a reading is stable between draws. */
@@ -72,7 +72,7 @@ export class A11yRenderer implements IGraphRenderer {
 	constructor(private readonly deps: TA11yRendererDeps) {}
 
 	size(): void {
-		// a document has no pixel size; the host's CSS decides how the region shows
+		// a document doesn't have a pixel size; the host's CSS decides how the region shows
 	}
 
 	rebuildNodes(): void {
@@ -184,9 +184,9 @@ export class A11yRenderer implements IGraphRenderer {
 			}
 			list.append(li);
 		}
-		// A reading that stopped somewhere and said so would leave a reader who cannot see the picture with no way to the
-		// rest of it. It goes on from where it stopped instead, a press at a time: nothing is out of reach, and no single
-		// repaint builds a document of tens of thousands of lines. Focus stays on the control, which is where the reader
+		// A reading that stopped somewhere and said so would leave a reader who cannot see the picture without a way to the
+		// rest of it. It goes on from where it stopped instead, a press at a time: the reader can reach every part, and a single
+		// repaint doesn't build a document of tens of thousands of lines. Focus stays on the control, which is where the reader
 		// is, and it announces how much more there is each time.
 		if (script.length > stated.length) {
 			const rest = doc.createElement("li");

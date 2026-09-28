@@ -24,7 +24,7 @@ describe("getArtifactBasePath", () => {
 		storageFS.world = getDefaultWorld();
 		const basePath = storageFS.getArtifactBasePath();
 		expect(basePath).toEqual(`./${CAPTURE}/default/${storageFS.world.tag.key}`);
-		// Verify no seq/featn in path
+		// Verify the path doesn't hold seq/featn
 		expect(basePath).not.toContain("seq-");
 		expect(basePath).not.toContain("featn-");
 	});
@@ -56,7 +56,7 @@ describe("saveArtifact", () => {
 
 		const saved = await storageFS.saveArtifact("report.html", "<html></html>", EMediaTypes.html);
 
-		// Feature-relative for serialized HTML (no subpath)
+		// Feature-relative for serialized HTML (without a subpath)
 		expect(saved.featureRelativePath).toEqual("./report.html");
 
 		// Base-relative for live server

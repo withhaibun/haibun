@@ -49,7 +49,7 @@ describe("variables integration", () => {
 		expect(resolvedStored.value).toBe("stored");
 		expect(resolvedStored.origin).toBe(Origin.var);
 
-		// Returns undefined if neither (no literal fallback)
+		// Returns undefined if the term isn't in the env or stored (without a literal fallback)
 		const resolvedMissing = await world.shared.resolveVariable({ term: "missing", origin: Origin.defined });
 		expect(resolvedMissing.value).toBeUndefined();
 	});

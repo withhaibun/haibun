@@ -75,7 +75,7 @@ describe("buildDomainChain", () => {
 		expect(edge1).toMatchObject({ from: PERSON_DOMAIN, to: EMAIL_DOMAIN, stepperName: "EmailFromPerson", stepName: "issue" });
 	});
 
-	it("produces no edges for a step with no input or output domains", () => {
+	it("doesn't produce edges for a step without input or output domains", () => {
 		const graph = buildDomainChain([new PlainStepper()], fixedDomains());
 		expect(graph.edges).toHaveLength(0);
 		const ping = graph.steps.find((s) => s.stepName === "ping");

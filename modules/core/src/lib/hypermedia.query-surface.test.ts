@@ -1,9 +1,9 @@
 /**
  * What a type offers a reader, per property.
  *
- * A primitive reaches some of a type's properties and not others. A reader told nothing asks the primitive they
- * already know and reads its answer as the answer to what they asked: a search that reads no field of a type answers
- * with no match rather than stating that it reads none. This states which primitive reaches each property, from what
+ * A primitive reaches some of a type's properties and not others. A reader that isn't told asks the primitive they
+ * already know and reads its answer as the answer to what they asked: a search that doesn't read a field of a type answers
+ * without a match rather than stating that it doesn't read one. This states which primitive reaches each property, from what
  * the type already declares.
  */
 import { describe, it, expect } from "vitest";
@@ -53,12 +53,12 @@ describe("what a type offers a reader", () => {
 		expect(querySurface(message).properties.folder?.slice().sort()).toEqual([REACHED_BY.filter, REACHED_BY.search]);
 	});
 
-	it("states no primitive for a relation, since a relation is read by naming the record at its other end", () => {
+	it("doesn't state a primitive for a relation, since a relation is read by naming the record at its other end", () => {
 		expect(querySurface(message).properties.from).toBeUndefined();
 	});
 
-	it("leaves a property no primitive reaches out of what it offers", () => {
-		// A type's identifier is held and shown and answers no question a reader asks, which is what naming the surface
+	it("leaves a property that a primitive doesn't reach out of what it offers", () => {
+		// A type's identifier is held and shown and a reader can't query it, which is what naming the surface
 		// says rather than leaving a reader to find out by asking.
 		expect(querySurface(message).properties.messageId).toBeUndefined();
 	});

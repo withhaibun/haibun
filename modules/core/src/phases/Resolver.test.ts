@@ -168,7 +168,7 @@ describe("prose", () => {
 	it("resolves a heading whose title ends with punctuation to the heading", () => {
 		expect(resolvedTo("Scenario: What can I make right now?")).toBe("Haibun.scenario");
 	});
-	it("resolves a line that starts with a character other than a letter to a step that matches it, and to prose where none does", () => {
+	it("resolves a line that starts with a character other than a letter to a step that matches it, and to prose where the steps don't match it", () => {
 		expect(resolvedTo('"flatten" the graph layout', LineStepper)).toBe("LineStepper.layout");
 		expect(resolvedTo("- a list item", LineStepper)).toBe(PROSE);
 	});

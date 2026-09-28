@@ -64,7 +64,7 @@ export type TStepperOption = {
 	/**
 	 * Set when the option belongs to one process rather than to a run: a port it listens on, an identity it takes.
 	 * A process that starts another does not pass these on, since the child would then take what the parent holds.
-	 * The option declares it, so nothing else has to name the option to know it.
+	 * The option declares it, so other code doesn't have to name the option to read it.
 	 */
 	perProcess?: boolean;
 	desc: string;
@@ -133,13 +133,13 @@ type TStepperStepBase = {
 	precludes?: string[];
 	unique?: boolean;
 	fallback?: boolean;
-	/** A step that answers a question of the run's records and changes nothing. Invoked from outside the run, through
-	 *  a call into a running instance, it is answered and not recorded: no step record, no announcement, no usage
-	 *  count, no result kept. Reading a run is not an act of the run, and an instance read for a year is not made to
+	/** A step that reads the run's records and doesn't change one. Invoked from outside the run, through
+	 *  a call into a running instance, it is answered and not recorded: it doesn't leave a step record, an announcement, a usage
+	 *  count or a kept result. Reading a run is not an act of the run, and an instance read for a year is not made to
 	 *  write a year of records of being read. From within a feature it is a step like any other. */
 	read?: boolean;
 	/** The action a caller must hold to run this step, where it is not the step's own: a group of steps declares one
-	 *  action so a delegation can name them together. A step that declares none requires `Read:public` if it declares
+	 *  action so a delegation can name them together. A step that doesn't declare one requires `Read:public` if it declares
 	 *  itself a read, and otherwise its own name (actions.ts). */
 	capability?: string;
 	/** The level of what the step reads, where it reads more than records the caller's read bounds: a step reading a
@@ -148,8 +148,8 @@ type TStepperStepBase = {
 	/** A step whose result answers the turn that called it, so that turn ends with it rather than asking its model
 	 *  again. A caller reads this from the step's definition, so which steps end a turn is known without running one. */
 	answersTheTurn?: boolean;
-	/** Offer this step to a model before it discovers anything. A model is offered a small set at first, so that no
-	 *  request carries the whole manifest; a step marked here joins that set, because the question it answers is one
+	/** Offer this step to a model before it discovers anything. A model is offered a small set at first, so that a
+	 *  request doesn't carry the whole manifest; a step marked here joins that set, because the question it answers is one
 	 *  an operator can open with. Reserve it for steps that are the only way to do what they do. A predicate says
 	 *  whether there is anything for it to answer right now: a step offered when it can only refuse is among the few a
 	 *  model can see, so it is what the model reaches for, and the turn goes on refusing. */
@@ -163,8 +163,8 @@ type TStepperStepBase = {
 	match?: RegExp;
 	gwta?: string;
 	exact?: string;
-	/** A prose line resolves to this step, which declares no pattern: a line written as a sentence, or a line that starts
-	 *  with a character other than a letter and that no step's pattern matches (Resolver.findSingleStepAction). */
+	/** A prose line resolves to this step, which doesn't declare a pattern: a line written as a sentence, or a line that starts
+	 *  with a character other than a letter and that the steps' patterns don't match (Resolver.findSingleStepAction). */
 	prose?: boolean;
 	resolveFeatureLine?(line: string, path: string, stepper: AStepper, backgrounds: TFeatures, allLines?: string[], lineIndex?: number, actualSourcePath?: string): boolean | void;
 	/**
@@ -172,7 +172,7 @@ type TStepperStepBase = {
 	 * the named domain's schema. The dispatcher auto-asserts the product as a typed
 	 * fact, registers a producer edge in the resolver graph, and exposes the JSON
 	 * Schema for discovery. A step that returns products names their domain here or in
-	 * `productsDomains`, and dispatch refuses products it names no domain of.
+	 * `productsDomains`, and dispatch refuses products whose domain it doesn't name.
 	 */
 	productsDomain?: string;
 	/**
@@ -183,8 +183,8 @@ type TStepperStepBase = {
 	productsDomains?: Record<string, string>;
 	/**
 	 * The statement parameter whose products the step answers with, for a step that runs a statement and passes on what
-	 * it answered. Their domain is the one that statement's last step names, as each line resolves it, so the step names
-	 * none of its own. Mutually exclusive with `productsDomain` and `productsDomains`.
+	 * it answered. Their domain is the one that statement's last step names, as each line resolves it, so the step doesn't name
+	 * one of its own. Mutually exclusive with `productsDomain` and `productsDomains`.
 	 */
 	productsOf?: string;
 	/**
@@ -193,11 +193,11 @@ type TStepperStepBase = {
 	 */
 	recordIds?: Record<string, string>;
 	/**
-	 * Which of the step's products are kept on its lifecycle event. Default (absent/true): all. `false`: none, for a step
+	 * Which of the step's products are kept on its lifecycle event. Default (absent/true): all. `false`: the event doesn't keep them, for a step
 	 * whose products are bulk payload consumed via the action result or a separate fetch (a query's rows, a captured page's
 	 * HTML), which would otherwise bloat the in-memory event stream. A function: the subset it returns, for a product that
 	 * mixes a small render descriptor (keep, so a view re-mounts on replay) with bulk payload (drop, retrieved live via the
-	 * reference); return undefined to keep none.
+	 * reference); return undefined so the event doesn't keep one.
 	 */
 	retainProducts?: boolean | ((products: Record<string, unknown>) => Record<string, unknown> | undefined);
 };

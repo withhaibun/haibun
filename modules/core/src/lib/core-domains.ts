@@ -84,7 +84,7 @@ const durationSchema = z.preprocess((value, ctx) => {
  *
  * One value, built once. A function called per caller registers a schema of
  * its own for every run, and converting one to JSON Schema walks the
- * recursion, so no conversion of it could ever be held.
+ * recursion, so a conversion of it could never be held.
  */
 const fieldBindingSchema: z.ZodType = z.discriminatedUnion("kind", [
 	z.object({ kind: z.literal("fact"), fieldName: z.string(), fieldDomain: z.string(), fieldType: z.string(), optional: z.boolean(), factId: z.string() }).strict(),
@@ -171,7 +171,7 @@ export const affordancesSchema = z
 		goals: z.array(z.object({ domain: z.string(), description: z.string(), resolution: z.unknown() }).strict()),
 		satisfiedDomains: z.array(z.string()).default([]),
 		satisfiedFacts: z.record(z.string(), z.array(z.string())).default({}),
-		// Per-domain composite-field map (haibun's sh:node / rdfs:range equivalent): the registered topology.ranges, so the SPA's chain view can emit synthetic field nodes between composite domains and their components. Absent when no domain declares ranges.
+		// Per-domain composite-field map (haibun's sh:node / rdfs:range equivalent): the registered topology.ranges, so the SPA's chain view can emit synthetic field nodes between composite domains and their components. Absent when the domains don't declare ranges.
 		composites: z.record(z.string(), z.record(z.string(), z.string())).optional(),
 		// Registered waypoints projected as panel entries, contributed to `show affordances` by every stepper with the ProvidesWaypoints capability (e.g. ActivitiesStepper). Each is a virtual step registered with a gwta the SPA's step-caller renders into a parameter form.
 		waypoints: z

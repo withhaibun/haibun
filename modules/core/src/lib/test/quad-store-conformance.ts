@@ -1,6 +1,6 @@
 /**
  * One specification, every quad store. A view reads the graph through `IQuadStore` and does not know which store is
- * under it: the one in memory (a report, a test, a server with no engine of its own), the page's IndexedDB, or a
+ * under it: the one in memory (a report, a test, a server without an engine of its own), the page's IndexedDB, or a
  * consumer's graph engine. A difference between them is a difference in what a reader sees, so each answers these
  * cases rather than carrying a suite of its own. Exported from core because the contract is core's; a consumer brings
  * its own store and the types it registers, and is held to the same rule.
@@ -79,7 +79,7 @@ export function describeQuadStore(
 			expect(await store.get("x", "content", OTHER)).toBe("in the second");
 		});
 
-		it("reads nothing for a subject it does not hold, rather than reporting something absent", async () => {
+		it("doesn't return a value for a subject it does not hold, rather than reporting something absent", async () => {
 			expect(await store.get("missing", "content", GRAPH)).toBeUndefined();
 			expect(await store.query({ subject: "missing", namedGraph: GRAPH })).toEqual([]);
 		});
@@ -102,7 +102,7 @@ export function describeQuadStore(
 			};
 
 			// The length is the count asked for whatever the span holds, which is what makes reading a decade take what
-			// reading an hour takes; the cases below state it for a span with records and for one with none.
+			// reading an hour takes; the cases below state it for a span with records and for one without records.
 			it("answers with the buckets asked for, each counting what it holds by how it turned out", async () => {
 				await held([
 					{ id: "a", minute: 1, status: "passed" },
@@ -116,7 +116,7 @@ export function describeQuadStore(
 				expect(buckets[1]).toEqual({ passed: 1 });
 			});
 
-			it("answers a span holding nothing with empty buckets, rather than with nothing", async () => {
+			it("answers a span that doesn't hold a record with empty buckets, rather than without buckets", async () => {
 				const { buckets } = await store.density({ ...span, buckets: 3 });
 				expect(buckets).toEqual([{}, {}, {}]);
 			});
@@ -141,7 +141,7 @@ export function describeQuadStore(
 			});
 		});
 
-		it("removes what a pattern names, and nothing else", async () => {
+		it("removes what a pattern names, and doesn't remove another quad", async () => {
 			await store.set("a", "content", "one", GRAPH);
 			await store.set("b", "content", "two", GRAPH);
 			await store.set("c", "content", "three", OTHER);
@@ -160,7 +160,7 @@ export function describeQuadStore(
 				return;
 			}
 			expect(await store.get("a", "content", GRAPH), "the graph it was asked to discard").toBeUndefined();
-			expect(await store.get("c", "content", OTHER), "and no other").toBe("three");
+			expect(await store.get("c", "content", OTHER), "and doesn't discard another").toBe("three");
 			await store.clear();
 			expect(await store.all()).toEqual([]);
 		});

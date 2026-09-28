@@ -46,7 +46,7 @@ async function centred(id: string): Promise<{ at: { x: number; y: number }; cent
 
 test("a record another view states is centred while the graph follows", { timeout: 60_000 }, async () => {
 	// The selection arrives from outside the scene here, which is the path a click on the canvas never takes: the click
-	// centres the node itself, so nothing it does says whether a record stated by a column, a pane or a conversation is
+	// centres the node itself, so its behaviour doesn't show whether a record stated by a column, a pane or a conversation is
 	// followed.
 	await following();
 	expect(mounted.errors(), "page errors").toEqual([]);
@@ -63,14 +63,14 @@ test("a pan that takes the followed node off the view is followed by its return,
 });
 
 test("a pan that leaves the node on the view is left alone", { timeout: 60_000 }, async () => {
-	// Following moves the camera to restore the rule and at no other time: a reader who pans the node toward an edge,
+	// Following moves the camera only to restore the rule: a reader who pans the node toward an edge,
 	// still in view, has put it where they want it.
 	await following();
 	await mounted.scene((scene) => scene.panBy(200, "pixels", "left"));
 	const moved = await mounted.projection(FOLLOWED);
 	await mounted.page.waitForTimeout(600); // longer than the camera rest a re-aim waits for
 	const later = await mounted.projection(FOLLOWED);
-	expect(Math.abs(later.x - moved.x) + Math.abs(later.y - moved.y), "nothing moved it back").toBeLessThan(2);
+	expect(Math.abs(later.x - moved.x) + Math.abs(later.y - moved.y), "following didn't move it back").toBeLessThan(2);
 });
 
 test("a zoom that pushes the node out is followed by its return, at the zoom the reader chose", { timeout: 60_000 }, async () => {
@@ -151,7 +151,7 @@ test("a panel over the view aims the followed record clear of it, and closing th
 	await mounted.page.evaluate(() => (document.querySelector("#cover") as HTMLElement).removeAttribute("data-covers-views"));
 	const uncovered = await centred(FOLLOWED);
 	expect(mounted.errors(), "page errors").toEqual([]);
-	expect(uncovered.centred, "and back to the middle of the view once nothing covers it").toBe(true);
+	expect(uncovered.centred, "and back to the middle of the view once an overlay doesn't cover it").toBe(true);
 	await mounted.page.evaluate(() => document.querySelector("#cover")?.remove());
 });
 
@@ -170,17 +170,17 @@ test("a click on the followed record opens it when the same click uncovers the v
 	await mounted.page.evaluate(() => (document.querySelector("#cover") as HTMLElement).setAttribute("data-covers-views", ""));
 	const pressed = await mounted.projection(FOLLOWED);
 	expect(pressed.y, "the followed record is aimed above the panel").toBeLessThan(COVER_TOP);
-	expect(await mounted.click(pressed), "the record the reader pressed on is the one opened (null: the click opened nothing)").toBe(FOLLOWED);
+	expect(await mounted.click(pressed), "the record the reader pressed on is the one opened (null: the click didn't open a node)").toBe(FOLLOWED);
 	expect(mounted.errors(), "page errors").toEqual([]);
 	await mounted.page.evaluate(() => document.querySelector("#cover")?.remove());
 });
 
-test("a click on empty space makes the page's entry empty, so no record is active", { timeout: 60_000 }, async () => {
-	// Empty space is the reader choosing nothing on the page: the scene activates an empty entry in the page scope, and
-	// the views that read the active record are told there is none.
+test("a click on empty space makes the page's entry empty, so a record isn't active", { timeout: 60_000 }, async () => {
+	// Empty space is the reader choosing an empty entry on the page: the scene activates an empty entry in the page scope, and
+	// the views that read the active record are told that a record isn't active.
 	await following();
-	expect(await mounted.click(await mounted.emptyPixel()), "the click opened no node").toBeNull();
+	expect(await mounted.click(await mounted.emptyPixel()), "the click didn't open a node").toBeNull();
 	const state = await mounted.subjectState();
-	expect(state.scopes.page?.entry.record, "the page's entry names no record").toBeNull();
+	expect(state.scopes.page?.entry.record, "the page's entry doesn't name a record").toBeNull();
 	expect(state.scopes.page?.entry.bundle.patterns).toEqual([]);
 });

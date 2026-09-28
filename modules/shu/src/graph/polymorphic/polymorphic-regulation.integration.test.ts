@@ -2,8 +2,8 @@
  * Real-browser self-regulation of shu-polymorphic-graph-view: a headless browser draws through a software rasterizer,
  * where a frame of a modest scene takes tens of milliseconds, so this is the environment that needs the regulator.
  *
- * The invariant: with a selected node and nothing moving, a scene whose frames are slow measures that time, rests the
- * breath, and draws no frame at all, so the run that opened the page does nothing on it after that.
+ * The invariant: with a selected node at rest, a scene whose frames are slow measures that time, rests the
+ * breath, and doesn't draw a frame, so the run that opened the page doesn't draw on it after that.
  */
 import { afterAll, beforeAll, expect, test } from "vitest";
 import { DEFAULT_REGULATION_THRESHOLDS } from "./polymorphic-regulator.js";
@@ -42,7 +42,7 @@ test("under a software rasterizer the scene measures its frames as slow and rest
 	expect(regulation.resting, `resting on ${regulation.frameTimeMs} ms a frame`).toBe(true);
 });
 
-test("at rest with a selected node, the scene draws no frame: the glow is held, not breathed", { timeout: 30_000 }, async () => {
+test("at rest with a selected node, the scene doesn't draw a frame: the glow is held, not breathed", { timeout: 30_000 }, async () => {
 	// The beat after the signal draws the held glow once and the gate pauses the scene; measure from the pause.
 	await mounted.atRest();
 	expect(await mounted.framesOver(REST_TICKS), `frames drawn over ${REST_TICKS} gate ticks with the breath resting`).toBe(0);
@@ -62,7 +62,7 @@ test("a scene at rest given a change between its ticks isn't paused until it dra
 	expect(mounted.errors(), "page errors").toEqual([]);
 });
 
-test("a canvas that moves without resizing draws no frame; one that resizes draws", { timeout: 60_000 }, async () => {
+test("a canvas that moves without resizing doesn't draw a frame; one that resizes draws", { timeout: 60_000 }, async () => {
 	// A page that lays out again after the scene rests, as a late stylesheet or a column opening beside it does, moves the
 	// canvas. What the canvas shows is the same wherever it is, so only a changed size is drawn again.
 	await mounted.atRest();
@@ -80,9 +80,9 @@ test("a canvas that moves without resizing draws no frame; one that resizes draw
 	expect(mounted.errors(), "page errors").toEqual([]);
 });
 
-test("a feed that changes nothing visible draws no frame; one that changes the visible model draws", { timeout: 60_000 }, async () => {
-	// The page's own requests return to it as observations, and with instrumentation hidden they change nothing
-	// visible. A scene that draws on every feed draws on its own recordings.
+test("a feed that doesn't change the visible model doesn't draw a frame; one that changes the visible model draws", { timeout: 60_000 }, async () => {
+	// The page's own requests return to it as observations, and with instrumentation hidden they don't change the
+	// visible model. A scene that draws on every feed draws on its own recordings.
 	await mounted.atRest();
 	const before = await mounted.framesDrawn();
 	await mounted.feed(QUADS);

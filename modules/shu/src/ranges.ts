@@ -1,7 +1,7 @@
 /**
  * Pure range math for the windowed event cache: each consumer registers the time span it wants, the cache holds the
  * reconciled union of all of them, fetches the gaps, and evicts the orphans. Half-open intervals [from, to) in epoch ms;
- * `to === Infinity` is the live edge (the only open interval). No I/O, no state, total functions over arrays of ranges.
+ * `to === Infinity` is the live edge (the only open interval). Total functions over arrays of ranges, without I/O or state.
  */
 export type Range = { from: number; to: number };
 

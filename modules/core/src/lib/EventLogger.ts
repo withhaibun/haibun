@@ -140,7 +140,7 @@ export class EventLogger implements IEventLogger {
 		if (!narrated && !this.kindCounts.has(event.kind)) return;
 		const name = event.kind === "blip" ? event.name : undefined;
 		// Every event states the level of what it may reveal, so a follower is sent only what it may read. An event is
-		// written as a record is, and one stating none is the run's own and private.
+		// written as a record is, and one that doesn't state a level is the run's own and private.
 		const eventWithEmitter = {
 			...event,
 			emitter: event.emitter || getEmitter(),
@@ -251,7 +251,7 @@ export class EventLogger implements IEventLogger {
 		stepValuesMap: Record<string, unknown> | undefined,
 		products: Record<string, unknown> | undefined,
 	): void {
-		// A step that did not fail has no error, and saying so is leaving the field out. Describing `undefined` produces
+		// A step that did not fail doesn't have an error, and saying so is leaving the field out. Describing `undefined` produces
 		// the string "undefined", which reads as an error to anything that shows one.
 		const errorMessage = error === undefined ? undefined : errorDetail(error);
 		const safeStepValuesMap = stepValuesMap ? sanitizeObjectSecrets(stepValuesMap, this.isSecretFn) : undefined;

@@ -35,14 +35,14 @@ const payload = (over: Partial<TCachePayload> = {}): TCachePayload => ({
 describe("a run carried in a page", () => {
 	let handle: TShuTestHandle;
 	beforeEach(() => {
-		// A page with no site: every request fails, as it does for a report opened from a file.
+		// A page without a site: every request fails, as it does for a report opened from a file.
 		handle = setupShuTest({
 			dispatch: () => {
 				throw new Error("this page has no site");
 			},
 		});
-		// What the site declared, which a report carries as its registry: a type the page does not know is one it holds
-		// no records of, so the window would ask a question with no answer.
+		// What the site declared, which a report carries as its registry: a type the page does not know is a type whose
+		// records it doesn't hold, so the window would ask a question without an answer.
 		setSiteMetadata({ types: [SEQ_PATH_LABEL], rels: { [SEQ_PATH_LABEL]: {} }, edgeRanges: {} } as unknown as SiteMetadata);
 	});
 	afterEach(() => {
@@ -59,7 +59,7 @@ describe("a run carried in a page", () => {
 		expect(currentExecution(), "the execution the page carries is the one being read").toBe(EXECUTION);
 	});
 
-	it("carries the registry, so the page knows the site's declarations with no site to ask", async () => {
+	it("carries the registry, so the page knows the site's declarations without a site to ask", async () => {
 		await hydrateClientCache(payload());
 		expect((await deviceStore().registry())?.response).toEqual({ steps: [], domains: {}, concerns: { persisted: {} } });
 	});

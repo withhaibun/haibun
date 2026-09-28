@@ -38,8 +38,8 @@ export function applyScene(views: Array<Element & { applySceneState(fields: Reco
 
 /**
  * The level to store a new record at, given what the reader is looking at. `all` relaxes the READ ceiling and is not a
- * level anything can be stored at, so it maps to none: saving under it wrote a record no schema accepts, and nothing
- * showed the failure, so saving appeared to do nothing.
+ * level anything can be stored at, so it maps to undefined: saving under it wrote a record the schemas don't accept,
+ * and the page didn't show the failure, so saving didn't appear to act.
  */
 export function storedAccessLevel(viewing: string): string | undefined {
 	return AccessLevelSchema.safeParse(viewing).success ? viewing : undefined;
@@ -66,7 +66,7 @@ const EXCHANGE_IRIS = (iri: string): boolean => iri.startsWith("sec:") || iri ==
  * what it required and what allowed it, a principal naming its keys, a capability naming its controller. Then one hop
  * along those types' ACTOR edges only, who a thing came from and what it was directed at, the same edges the sequence
  * view reads as lifelines, so where a request went and who held a capability come with it, while what a record merely
- * carries (its bodies, its selectors) does not. No type is named here: a deployment's own vocabulary decides.
+ * carries (its bodies, its selectors) does not. This module doesn't name a type: a deployment's own vocabulary decides.
  */
 export function networkSceneTypes(): string[] {
 	const declares = (label: string): boolean =>
@@ -113,7 +113,7 @@ async function savedScenes(why: string): Promise<TScene[]> {
 	});
 }
 
-/** One saved scene by name, or undefined when none is saved under it. */
+/** One saved scene by name, or undefined when a scene isn't saved under it. */
 export async function readScene(name: string, why: string): Promise<TScene | undefined> {
 	return (await listScenes(why)).find((scene) => scene.id === name);
 }

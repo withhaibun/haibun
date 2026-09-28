@@ -47,7 +47,7 @@ describe("chain-instance", () => {
 		expect(loaded?.michi.steps[0]?.stepperName).toBe("Issue");
 	});
 
-	it("getChainInstance returns undefined for an unknown id (no throw)", async () => {
+	it("getChainInstance returns undefined for an unknown id (it doesn't throw)", async () => {
 		const result = await getChainInstance(world, "ci_does_not_exist");
 		expect(result).toBeUndefined();
 	});

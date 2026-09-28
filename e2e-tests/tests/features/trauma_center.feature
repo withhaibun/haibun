@@ -30,7 +30,7 @@ Feature: Patient Rights and Hospital Journey
   Additionally, at least one care team member must be present.
   waypoint Care Team is assembled with some member in Care Team is Staff {member} is attending
 
-  A waypoint can guard itself: this one asks nothing at all unless the emergency department is open, and only then that someone is attending.
+  A waypoint can guard itself: this one doesn't check a condition unless the emergency department is open, and only then checks that someone is attending.
   waypoint Emergency response is covered with where variable Emergency status is "Active", some member in Care Team is Staff {member} is attending
 
   Activity: Environmental Hygiene

@@ -107,7 +107,7 @@ export function formatRecordName(name: TRecordName): string {
 	return name.ordinal === undefined ? under : `${under}@${name.ordinal}`;
 }
 
-/** The record a name names, or undefined where the id names no record of a run. */
+/** The record a name names, or undefined where the id doesn't name a record of a run. */
 export function parseRecordName(id: string): TRecordName | undefined {
 	const parts = id.split("@");
 	const [execution, ...path] = itemAt(parts, 0).split(".");
@@ -171,7 +171,7 @@ export const SEQ_PATH_FIELD = {
 	 *  run records exactly like any other. */
 	level: "level",
 	/** The run this step belongs to. Written by every writer; a record without one was written before the field was
-	 *  declared, and is part of no run a reader can ask for by name. */
+	 *  declared, and isn't part of a run a reader can ask for by name. */
 	execution: EXECUTION_FIELD,
 	/** When this record was written, and written again at the step's end. */
 	recordedAtTime: RECORDED_AT_TIME_FIELD,

@@ -24,7 +24,7 @@ describe("composeDisplayLabel priority: headline → body → weak → id", () =
 		expect(composeDisplayLabel({ rels, getProperty: props({ label: "Importer Co.", controller: "did:web:x" }), bodyContents: [], id: "did:web:x" })).toBe("Importer Co.");
 	});
 
-	it("uses an inline CONTENT field when there is no name", () => {
+	it("uses an inline CONTENT field when the node doesn't have a name", () => {
 		const rels = { text: LinkRelations.CONTENT.rel };
 		expect(composeDisplayLabel({ rels, getProperty: props({ text: "inline note" }), bodyContents: [], id: "n1" })).toBe("inline note");
 	});
@@ -36,17 +36,17 @@ describe("composeDisplayLabel priority: headline → body → weak → id", () =
 		expect(label).not.toContain("seqPath");
 	});
 
-	it("falls to a weak provenance pointer only when there is no headline or body", () => {
+	it("falls to a weak provenance pointer only when the node doesn't have a headline or body", () => {
 		const rels = { seqPath: LinkRelations.SEQ_PATH.rel };
 		expect(composeDisplayLabel({ rels, getProperty: props({ seqPath: "0.1" }), bodyContents: [], id: "x" })).toBe("seqPath: 0.1");
 	});
 
-	it("falls to the subject id when nothing resolves", () => {
+	it("falls to the subject id when a title doesn't resolve", () => {
 		expect(composeDisplayLabel({ rels: {}, getProperty: () => undefined, bodyContents: [], id: "n1" })).toBe("n1");
 		expect(composeDisplayLabel({ rels: undefined, getProperty: () => undefined, id: "n2" })).toBe("n2");
 	});
 
-	it("titles a type by the labeling property its own vocabulary declares, when it has no shared headline", () => {
+	it("titles a type by the labeling property its own vocabulary declares, when it doesn't have a shared headline", () => {
 		// oa:exact is a property, so the selector's title is its value, read off the node itself.
 		const rels = { exact: LinkRelations.EXACT.rel, id: LinkRelations.IDENTIFIER.rel };
 		const label = composeDisplayLabel({
@@ -59,13 +59,13 @@ describe("composeDisplayLabel priority: headline → body → weak → id", () =
 	});
 
 	it("titles a proxy through the edge it declares, by the title of what it stands for", () => {
-		// oa:hasSelector is an edge: the SpecificResource has no text of its own, so its title is its selector's.
+		// oa:hasSelector is an edge: the SpecificResource doesn't have text of its own, so its title is its selector's.
 		const rels = { id: LinkRelations.IDENTIFIER.rel };
 		const args = { rels, getProperty: props({ id: "sr-1" }), id: "sr-1" };
 		expect(composeDisplayLabel({ ...args, displayLabel: { key: "hasSelector", through: true, linkedLabel: "a passage inside the document" } })).toBe(
 			"a passage inside the document",
 		);
-		// Nothing at the far end (an unresolved or access-filtered target) falls through to the id, never to a blank title.
+		// A far end without a value (an unresolved or access-filtered target) falls through to the id, never to a blank title.
 		expect(composeDisplayLabel({ ...args, displayLabel: { key: "hasSelector", through: true } })).toBe("sr-1");
 		expect(composeDisplayLabel({ ...args, displayLabel: { key: "hasSelector", through: true, linkedLabel: "  " } })).toBe("sr-1");
 	});
@@ -93,12 +93,12 @@ describe("composeDisplayLabel priority: headline → body → weak → id", () =
 		const topologyOf = (d: { topology: unknown }) => d.topology as THypermediaTopology;
 		expect(topologyOf(textQuoteSelectorDomainDefinition).displayLabel).toBe("exact");
 		expect(topologyOf(specificResourceDomainDefinition).displayLabel).toBe("hasSelector");
-		// A Comment says what it is by its own note text (as:name / content): no vocabulary-specific title needed.
+		// A Comment says what it is by its own note text (as:name / content): it doesn't need a vocabulary-specific title.
 		expect(topologyOf(commentDomainDefinition).displayLabel).toBeUndefined();
 		expect(topologyOf(principalDomainDefinition).displayLabel).toBeUndefined();
 	});
 
-	it("rejects a declared labeling property the type does not carry: it would silently title nothing", () => {
+	it("rejects a declared labeling property the type does not carry: it would silently leave the record untitled", () => {
 		const topology: THypermediaTopology = {
 			persistedAs: "Thing",
 			id: "id",
@@ -146,7 +146,7 @@ describe("queryableFields: the one declaration-side derivation of a type's query
 		expect(queryableFields({ schema, topology: withBody })).not.toContain("body");
 	});
 
-	it("derives from a declaration with no schema shape (a `set of {domain}` prose declaration) via its sortColumns", () => {
+	it("derives from a declaration without a schema shape (a `set of {domain}` prose declaration) via its sortColumns", () => {
 		const proseTopology: THypermediaTopology = { persistedAs: "Recipe", id: "name", properties: {}, sortColumns: { servings: "DOUBLE PRECISION" } };
 		expect(queryableFields({ schema: undefined, topology: proseTopology })).toEqual(["servings"]);
 	});
@@ -176,7 +176,7 @@ describe("validTimeField: the catalog names the field a type's individuals place
 
 /**
  * A type's claim about which standard it belongs to is a declaration, not prose: it must resolve. An unbound prefix
- * still serves, the reader's JSON-LD then resolves the term to nothing, so it fails at build, where the rel checks do.
+ * still serves, the reader's JSON-LD then doesn't resolve the term to an IRI, so it fails at build, where the rel checks do.
  */
 describe("buildConcernCatalog vocabulary binding", () => {
 	const domain = (topology: Partial<THypermediaTopology>) => ({
@@ -216,7 +216,7 @@ describe("buildConcernCatalog vocabulary binding", () => {
 		expect(() => buildConcernCatalog(domain({ edges: { e: { rel: LinkRelations.HAS_BODY.rel, range: "Thing", iri: "zzz:e" } } }))).toThrow(/"zzz:" vocabulary is not bound/);
 	});
 
-	it("leaves an absolute IRI and a bare local name alone: neither names a vocabulary to bind", () => {
+	it("leaves an absolute IRI and a bare local name alone: these don't name a vocabulary to bind", () => {
 		expect(() => buildConcernCatalog(domain({ type: "https://www.w3.org/ns/did#DIDDocument" }))).not.toThrow();
 		expect(() => buildConcernCatalog(domain({ subClassOf: "Thing" }))).not.toThrow();
 	});

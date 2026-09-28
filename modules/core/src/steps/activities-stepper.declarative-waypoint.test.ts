@@ -72,7 +72,7 @@ describe("ActivitiesStepper, declarative waypoint with goal resolution", () => {
 	// (1a) Without any prior fact, `ensure Logged in` runs the activity (resolver returns
 	//      finding: "michi" with the activity's signIn step), the activity asserts a
 	//      DOMAIN_AUTH_SESSION fact, and `show var current_session` finds it.
-	it("(1a) ensure runs the activity when no prior fact exists, michi finding produced", async () => {
+	it("(1a) ensure runs the activity when a prior fact doesn't exist, michi finding produced", async () => {
 		const feature = {
 			path: "/features/declarative-waypoint.feature",
 			content: `Activity: Sign in
@@ -88,7 +88,7 @@ show current session`,
 	});
 
 	// (1b) On a second `ensure Logged in` in the same feature, the resolver returns
-	//      finding: "satisfied" and the activity is skipped (no second signIn).
+	//      finding: "satisfied" and the activity is skipped (without a second signIn).
 	it("(1b) second ensure finds satisfied; activity is skipped", async () => {
 		const feature = {
 			path: "/features/declarative-waypoint-twice.feature",
@@ -105,12 +105,12 @@ ensure Logged in`,
 		// stronger assertion: only one signIn dispatched (step-execution count for AuthStepper-signIn == 1).
 	});
 
-	// (1c) Removing the producer step (no path to DOMAIN_AUTH_SESSION) makes the resolver
+	// (1c) Removing the producer step (so a path to DOMAIN_AUTH_SESSION doesn't exist) makes the resolver
 	//      return finding: "unreachable" and `ensure Logged in` fails with a typed error.
-	it("(1c) unreachable finding when no producer exists; ensure fails", async () => {
-		// Without AuthStepper, the auth-session domain isn't registered AND no producer
-		// step exists. A permissive ad-hoc domain is registered via a minimal stepper so
-		// the waypoint declares a known domain key whose chain has no producer.
+	it("(1c) unreachable finding when a producer doesn't exist; ensure fails", async () => {
+		// Without AuthStepper, the auth-session domain isn't registered AND a producer
+		// step doesn't exist. A permissive ad-hoc domain is registered via a minimal stepper so
+		// the waypoint declares a known domain key whose chain doesn't have a producer.
 		class DomainOnlyStepper extends AStepper implements IHasCycles {
 			cycles: IStepperCycles = {
 				getConcerns: () => ({
@@ -136,7 +136,7 @@ ensure Logged in`,
 	});
 
 	// (1d) Capability gating: when the producer step requires a capability the caller
-	//      doesn't have, the resolver filters it from the producer set. With no other
+	//      doesn't have, the resolver filters it from the producer set. Without other
 	//      producers, the goal becomes unreachable: the step lacking capability cannot
 	//      be invoked, so it cannot satisfy the waypoint. A run's own feature holds the
 	//      run's authority, so the caller lacking it is stated: one holding only another action.

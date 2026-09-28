@@ -28,7 +28,7 @@ describe("refHref", () => {
 		expect(desiredPaneFor("step", { method: "S-s" })).toEqual({ paneType: "step", method: "S-s" });
 	});
 
-	it("is no link at all for a kind with no pane, rather than one that goes nowhere", () => {
+	it("isn't a link for a kind without a pane, rather than a link that doesn't open a pane", () => {
 		expect(refHref("step", { stepperName: "S", stepName: "s" }), "a step is named by its method").toBeUndefined();
 		expect(refHref("domain", {})).toBeUndefined();
 	});
@@ -77,7 +77,7 @@ describe("a link to a pane", () => {
 			return { anchor, heard, opened: vi.spyOn(PaneState, "requestFrom").mockImplementation(() => undefined) };
 		};
 
-		it("opens the pane it addresses beside the one it was clicked in, and nothing under the page takes the click", () => {
+		it("opens the pane it addresses beside the one it was clicked in, and a listener under the page doesn't take the click", () => {
 			const { anchor, heard, opened } = linkIn(refHref(REF_DENOTES.individual, { persistedAs: "Email", id: "m-1" }) ?? "");
 			const click = new MouseEvent("click", { bubbles: true, composed: true, cancelable: true });
 			anchor.dispatchEvent(click);

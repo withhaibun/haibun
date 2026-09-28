@@ -15,13 +15,13 @@ import type { ShuColumnPane } from "./shu-column-pane.js";
 
 type PaneEl = ShuColumnPane & HTMLElement;
 
-/** A pane's stable identity in the `activePane` signal: its columnKey, or its column-type for the query pane (which has none). */
+/** A pane's stable identity in the `activePane` signal: its columnKey, or its column-type for the query pane (which doesn't have one). */
 const paneKeyOf = (pane: PaneEl): string => pane.dataset.columnKey ?? pane.getAttribute(SHU_ATTR.COLUMN_TYPE) ?? "";
 /** Layout snapshot taken when a pane maximizes; restored on un-maximize. Flex is derived state (the pane recomputes it), so only display and accordion collapse are stashed. */
 type SavedPaneState = { accordionCollapsed: boolean; inlineDisplay: string };
 
 export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
-	/** A control, not a view of data, contributes nothing to the Kihan's context. */
+	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
@@ -30,8 +30,8 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		shuBaseStyles,
 		css`
 		/* The strip uses the browser's default scrollbar behaviour: the horizontal scrollbar only appears when the panes
- overflow (rare: the accordion flex-shares them to fit). No reserved gutter, so there is never a
-		   scrollbar track spanning the columns when nothing overflows. */
+ overflow (rare: the accordion flex-shares them to fit). The strip doesn't reserve a gutter, so a
+		   scrollbar track never spans the columns when the panes don't overflow. */
 		:host { display: flex; flex: 1; min-height: 0; overflow-x: auto; overflow-y: hidden; background: var(--shu-border); }
 		::slotted(shu-column-pane) { background: var(--shu-bg); }
 		@media (max-width: 600px), (orientation: portrait) {
@@ -95,7 +95,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		const panes = this.panes;
 		if (index < 0 || index >= panes.length) return;
 		const removedKey = paneKeyOf(panes[index]);
-		this.savedLayout?.delete(panes[index]); // a pane that leaves under a maximize has nothing to restore
+		this.savedLayout?.delete(panes[index]); // a pane that leaves under a maximize doesn't have a layout to restore
 		panes[index].remove();
 		const remaining = this.panes.filter((pane) => pane.activates);
 		// If the removed pane held focus, move it to the nearest remaining pane that takes activation (the one now at its slot, else the last).
@@ -113,7 +113,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 	 *
 	 * They are not always the same pane. A collapsed column is fixed at the width of its strip, so when the rightmost
 	 * column is collapsed the pane before it does the growing; marking the collapsed one would leave the strip's
-	 * remaining width belonging to nobody, and showing as a gap.
+	 * remaining width without a pane, and showing as a gap.
 	 */
 	private updateEdges(): void {
 		for (const pane of this.panes.filter((p) => p.docked)) {
@@ -139,7 +139,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 	 * While panes are open, one of them is the pane you are on. The strip owns that invariant because it owns which
 	 * panes exist: a pane can be added by a restore, a reconcile, or a step, and not every path names one.
 	 *
-	 * Only a signal naming NOTHING is repaired. A signal naming a pane that is not open yet is a restore in flight:
+	 * Only a signal that does NOT name a pane is repaired. A signal naming a pane that is not open yet is a restore in flight:
 	 * it names the pane it is about to attach, and applyActive lands it the moment it does; claiming the first pane
 	 * there would steal activation from the pane being restored.
 	 */
@@ -300,7 +300,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 			if (target !== -1) this.activatePane(target);
 		}
 		// A minimize always changes which pane can grow. updateAccordion decides that too, but it returns early when
-		// there is no sharing to do (one pane, a maximized strip, the wrapped narrow layout), so it is said here.
+		// the strip doesn't have width to share (one pane, a maximized strip, the wrapped narrow layout), so it is said here.
 		this.updateAccordion();
 		this.updateEdges();
 		this.publishPanes();

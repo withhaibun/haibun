@@ -57,6 +57,6 @@ describe("a drag ends once", () => {
 		move(60);
 		release();
 		expect(drag.moves, "a view that went away is no longer following").toEqual([]);
-		expect(drag.ended(), "and nothing ended, since nothing was released while it held").toBe(0);
+		expect(drag.ended(), "and a drag didn't end, since a pointer wasn't released while it held").toBe(0);
 	});
 });

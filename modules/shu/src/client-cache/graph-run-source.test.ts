@@ -23,7 +23,7 @@ describe("the run a view reads, over the records it wrote", () => {
 	let store: QuadStore;
 	beforeEach(async () => {
 		endPage();
-		// No server answers: the page reads the records it holds.
+		// A server doesn't answer: the page reads the records it holds.
 		handle = setupShuTest({
 			dispatch: (method) => {
 				throw new ServerUnreachable(`/rpc/${method}`, new Error("this test reads the records, not a server"));
@@ -98,7 +98,7 @@ describe("the run a view reads, over the records it wrote", () => {
 		expect(source.extent()).toMatchObject({ total: 4, first: 1000, last: 1400 });
 	});
 
-	it("holds the levels at or above the one asked for, and nothing under it", async () => {
+	it("holds the levels at or above the one asked for, and doesn't hold a level under it", async () => {
 		const source = graphRunSource("info");
 		await source.ready();
 		expect(source.count(), "the two steps and the warning, and not the detail under info").toBe(3);
@@ -112,7 +112,7 @@ describe("the run a view reads, over the records it wrote", () => {
 		expect(source.rowAt(0)).toMatchObject({ timestamp: 1000 });
 	});
 
-	it("reads every source at the moment the run is read around, and follows the newest records again when none is named", async () => {
+	it("reads every source at the moment the run is read around, and follows the newest records again when a moment isn't named", async () => {
 		const info = graphRunSource("info", { size: 2 });
 		const debug = graphRunSource("debug", { size: 2 });
 		await Promise.all([info.ready(), debug.ready()]);
@@ -189,16 +189,16 @@ describe("the run a view reads, over the records it wrote", () => {
 		expect(source.rowAt(0), "a row it already held is the same row").toBe(first);
 	});
 
-	it("stops reading a run nothing is showing, and reads afresh for the next view", async () => {
+	it("stops reading a run that a view isn't showing, and reads afresh for the next view", async () => {
 		const source = graphRunSource("debug");
 		await source.ready();
 		const held = source.count();
 		expect(held, "the run it read").toBeGreaterThan(0);
 		const release = source.subscribe(() => undefined);
 		release();
-		// A source nothing holds is reading a run nobody is shown. The next view at this level is given a new one.
+		// A source that a view doesn't hold is reading a run that a reader isn't shown. The next view at this level is given a new one.
 		const next = graphRunSource("debug");
-		expect(next, "a source nothing held was let go rather than left reading").not.toBe(source);
+		expect(next, "a source that a view didn't hold was let go rather than left reading").not.toBe(source);
 		await next.ready();
 		expect(next.count(), "and the run reads the same either way").toBe(held);
 	});
@@ -232,7 +232,7 @@ describe("the run a view reads, over the records it wrote", () => {
 		expect(source.rowAt(4)).toMatchObject({ in: "a running step", status: "passed", endedAt: 1800 });
 	});
 
-	it("reads again when the stream comes back, since what was recorded while it was down arrived in no batch", async () => {
+	it("reads again when the stream comes back, since what was recorded while it was down didn't arrive in a batch", async () => {
 		const source = graphRunSource("debug", { reReadAfterMs: 0 });
 		await source.ready();
 		expect(source.count()).toBe(4);
@@ -255,7 +255,7 @@ describe("the run a view reads, over the records it wrote", () => {
 	it("is behind an announcement until it has read for it, and current once it has", async () => {
 		const source = graphRunSource("debug", { reReadAfterMs: 0 });
 		await source.ready();
-		expect(source.behind, "read once and nothing announced since").toBe(false);
+		expect(source.behind, "read once and a record hasn't been announced since").toBe(false);
 		handle.eventStream.emit({ level: "info", kind: "log", message: "something the run said", timestamp: 1600 } as never);
 		await new Promise((r) => requestAnimationFrame(() => r(undefined)));
 		expect(source.behind, "announced, and the read for it has not finished").toBe(true);
@@ -268,7 +268,7 @@ describe("the run a view reads, over the records it wrote", () => {
 		await source.ready();
 		expect(source.disconnected).toBe(false);
 		handle.eventStream.disconnect();
-		expect(source.disconnected, "what the run does now reaches this page no more").toBe(true);
+		expect(source.disconnected, "what the run does now no longer reaches this page").toBe(true);
 		handle.eventStream.reconnect();
 		expect(source.disconnected).toBe(false);
 		expect(source.behind, "the stream coming back says there may be something to read again for").toBe(true);

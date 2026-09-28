@@ -40,7 +40,7 @@ describe("the values a filter offers", () => {
 		await stepper.setWorld(getDefaultWorld(), []);
 	});
 
-	it("returns no select values for Comment (no enum-backed fields)", async () => {
+	it("doesn't return select values for Comment (it doesn't have enum-backed fields)", async () => {
 		const world = stepper.getWorld();
 		const commentDomain = mapDefinitionsToDomains([commentDomainDefinition])[commentDomainDefinition.selectors.sort().join(" | ")];
 		world.domains = { ...world.domains, comment: commentDomain };
@@ -51,7 +51,7 @@ describe("the values a filter offers", () => {
 		expect(selectProducts(result).values).toEqual({});
 	});
 
-	it("fails when no filter topology is registered for the label", async () => {
+	it("fails when a filter topology isn't registered for the label", async () => {
 		const result = await stepper.steps.getSelectValues.action({ label: "Missing" });
 		expect(result.ok).toBe(false);
 		if (result.ok) throw new Error("expected missing filter topology to fail");
@@ -111,7 +111,7 @@ describe("one individual with its edges, from the store this instance holds", ()
 		expect(answer.incomingCount).toBe(1);
 	});
 
-	it("says so where it holds nothing of the individual, rather than answering with an empty one", async () => {
+	it("says so where it doesn't hold the individual, rather than answering with an empty one", async () => {
 		const stepper = await held();
 		const result = await stepper.steps.getIndividualWithEdges.action({ label: EMAIL, id: "nobody@test.com" });
 		expect(result.ok).toBe(false);

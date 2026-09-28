@@ -103,13 +103,13 @@ const ClientBlipsSchema = z.object({
 type TClientBlips = z.infer<typeof ClientBlipsSchema>;
 
 /** The step an event happened in, as the path the run walks: what a run says or produces names itself for that step,
- *  and what is named for no step has none. */
+ *  and what isn't named for a step doesn't have one. */
 const stepOf = (e: Record<string, unknown>): number[] => {
 	const path = extractSeqPathPrefix(String(e.id));
 	return path === null ? [] : (parseSeqPath(path) ?? []);
 };
 
-/** The step a record belongs to, named as any record is named; empty where it belongs to no step. */
+/** The step a record belongs to, named as any record is named; empty where it doesn't belong to a step. */
 const underStep = (tag: TTag, e: Record<string, unknown>): string => {
 	const path = stepOf(e);
 	return path.length ? formatRecordName({ execution: executionOf(tag), path }) : "";
@@ -253,7 +253,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	 * What a run produced, written as a record under the step that produced it. The record says where the artifact is
 	 * and what it is, not what it holds: an artifact is a file, and a record of it is a pointer to that file.
 	 *
-	 * A trace of the run's own machinery says where nothing is, because it is not a file the run produced. The graph
+	 * A trace of the run's own machinery doesn't state where a file is, because it is not a file the run produced. The graph
 	 * holds such a trace as what it is instead: a request is an HttpRequest, and a record of it here would be a second
 	 * copy of the same fact.
 	 */
@@ -280,7 +280,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			.catch((err) => this.getWorld().eventLogger.warn(`[monitor] what the run produced was not recorded: ${errorDetail(err)}`));
 	}
 
-	/** The run as the page holds it, for a page with no site to read it from: the graph the run wrote, which is the run,
+	/** The run as the page holds it, for a page without a site to read it from: the graph the run wrote, which is the run,
 	 *  and the site's registry as it stood. */
 	private cacheForReport(registry: unknown, quads: TQuad[]): TCachePayload {
 		return { shape: CACHE_SHAPE, execution: executionOf(this.getWorld().tag), registry, quads };
@@ -306,7 +306,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				}
 			}),
 		);
-		// The run's declarations ride in the cache as the registry, where a page with no server reads them, read as every
+		// The run's declarations ride in the cache as the registry, where a page without a server reads them, read as every
 		// caller reads them: the steps the report's writer holds, which for the run's own report is every step.
 		const world = this.getWorld();
 		if (!world.runtime.steppers) throw new Error("a report reads the run's steppers, and the run doesn't hold them");
@@ -334,7 +334,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		// itself, so what a reader sees of the graph is what the views would have painted from the site's own answer.
 		const built = await buildGraphSource(this.getWorld());
 		if (!built) logger.warn("[shu writeStandaloneReport] the graph was not captured: this store does not cluster, so a page reading this report has no graph");
-		// The address a report opens at names the type the query column was showing, which no record of the run states.
+		// The address a report opens at names the type the query column was showing, which the records of the run don't state.
 		// Which views were open it does not name: the page reads those from the records it carries, by the same read a
 		// page with a server makes. What is inlined is the code those views need, so the views are still read for that.
 		const shown = await this.getWorld().shared.getStore().query({ predicate: SEQ_PATH_FIELD.showed, namedGraph: SEQ_PATH_LABEL });

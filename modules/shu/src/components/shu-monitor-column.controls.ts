@@ -278,7 +278,7 @@ export default class ShuMonitorColumnControls extends AStepper implements IHasCy
 			},
 		},
 		scrubMonitorFirstRow: {
-			// Click the first monitor row's time (onTimeClick sets the GLOBAL cursor with no local requestUpdate), so this drives
+			// Click the first monitor row's time (onTimeClick sets the GLOBAL cursor without a local requestUpdate), so this drives
 			// the cursor EXTERNALLY, the way the timeline or another view would, isolating whether onTimeSync updates a view.
 			gwta: "scrub the cursor from the monitor's first row",
 			action: async () => {

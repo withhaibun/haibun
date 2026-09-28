@@ -1,6 +1,6 @@
 /**
  * A call to a host's `/rpc`, built once for every caller: its address under the host's base, its envelope, and the
- * headers its proof makes over the request as it is sent, the request's `host` among them. A call proving nothing is
+ * headers its proof makes over the request as it is sent, the request's `host` among them. A call that doesn't carry a proof is
  * sent with those headers as they are.
  */
 import { describe, expect, it } from "vitest";
@@ -22,7 +22,7 @@ describe("a call to a host's rpc", () => {
 		expect(call.init.headers).toEqual({ "content-type": "application/json", host: "site.test:8123", proof: "signed" });
 	});
 
-	it("proving nothing, is sent with its headers as they are", async () => {
+	it("without a proof, is sent with its headers as they are", async () => {
 		const call = await buildRpcCall(BASE, { id: "call-2", method: METHOD, params: {} }, provesNothing);
 		expect(call.init.headers).toEqual({ "content-type": "application/json", host: "site.test:8123" });
 	});

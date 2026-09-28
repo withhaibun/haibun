@@ -80,7 +80,7 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 				console.info(
 					`${OPTION_ONCE}: this run has no dependencies to record a pass against (${parsed.dryRun ? "a rehearsal" : parsed.statements.length ? "a run of statements" : "features kept in no repository"}), so it runs`,
 				);
-			// A group that passed with no dependency changed since would pass again. A group that failed runs again: what a person
+			// A group that passed and whose dependencies haven't changed since would pass again. A group that failed runs again: what a person
 			// does with a failure is retry it, and a run that fails for a reason outside the sources is one they must be
 			// able to retry without changing anything.
 			else if (outcomeAgainst(verification)?.outcome === "passed") return verifiedExit(bases);
@@ -100,7 +100,7 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 
 		const runner = new Runner(world);
 		const result = await runner.runFeaturesAndBackgrounds(csteppers, featuresBackgrounds);
-		// A run that reached none of its features says nothing about them: what stopped it was before them.
+		// A run that didn't reach its features isn't evidence about them: what stopped it was before them.
 		if (verification && result.featureResults.length === 0) forgetOutcome(verification);
 		else if (verification) recordOutcome(verification, result.ok ? "passed" : "failed", result.featureResults.length);
 		// What a run of features took, kept with the code: the file's history is what each feature takes, change by change.
@@ -114,7 +114,7 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 	} catch (error) {
 		// Final Error "Nothing" Branch
 		if (error instanceof PhaseBailError) {
-			// A run that did not get as far as its features says nothing about the state they depend on.
+			// A run that did not get as far as its features isn't evidence about the state they depend on.
 			if (verification) forgetOutcome(verification);
 			if (!world || !protoOptions) {
 				const failure = error.result.failure;
@@ -131,7 +131,7 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 		// Vitest mocks process.exit as throwing an error. Let it bubble so tests pass.
 		if (message.startsWith("exit with code ")) throw error;
 
-		// A run that ended in an error it did not report as a result says nothing about the state, and what stood
+		// A run that ended in an error it did not report as a result isn't evidence about the state, and what stood
 		// before it is not left standing over it.
 		if (verification) forgetOutcome(verification);
 		console.error(`\n${CHECK_NO} ${message}`);
@@ -170,7 +170,7 @@ export function resolveRunPolicy(cliPolicyConfig: TRunPolicyConfig | undefined, 
 	return policyConfig;
 }
 
-/** Says the pass and exits as one, for a group that passed with no dependency changed since then. */
+/** Says the pass and exits as one, for a group that passed and whose dependencies haven't changed since then. */
 function verifiedExit(bases: TBase): never {
 	console.info(`\n${CHECK_YES} ${bases.join(",")} passed, and no dependency has changed since then, so it did not run. Run without ${OPTION_ONCE} to run it anyway.\n`);
 	process.exit(0);
@@ -334,10 +334,10 @@ export function processBaseEnvToOptionsAndErrors(env: TEnv, specl: TSpecl) {
  * already sets up (a store, a served app, seeded data), then the lines being tried, without copying the setup into
  * the command or writing a throwaway feature file. Statements alone run against the base's backgrounds.
  */
-/** A filter no feature path can hold, so a collect returns the base's backgrounds and none of its features. */
+/** A filter that a feature path can't hold, so a collect returns the base's backgrounds without its features. */
 const NO_FEATURE_MATCHES = "\u0000no-feature-matches";
 
-/** A base holding no features and no backgrounds is not an error when only statements are being run. */
+/** A base that doesn't hold features or backgrounds is not an error when only statements are being run. */
 const emptyIfNoFeatures = (e: unknown): TFeaturesBackgrounds => {
 	if (!String((e as Error)?.message ?? e).includes("no features or backgrounds found")) throw e;
 	return { features: [], backgrounds: [] };
@@ -350,8 +350,8 @@ export async function collect(bases: TBase, featureFilter: string[] | undefined,
 		const collected = await getFeaturesAndBackgrounds(bases, featureFilter, policyConfig);
 		return { features: [...collected.features, statementFeature], backgrounds: collected.backgrounds };
 	}
-	// The base's backgrounds, without its features: a filter that matches nothing collects the backgrounds alone. A
-	// base holding neither is a base a statement can still run against, and only that case is passed over; anything
+	// The base's backgrounds, without its features: a filter that doesn't match a feature collects the backgrounds alone. A
+	// base that doesn't hold either is a base a statement can still run against, and only that case is passed over; anything
 	// else the collector refuses is the caller's to hear about.
 	const holdsNothing = !nodeFS.existsSync(bases[0] ?? ".");
 	const backgrounds = holdsNothing ? [] : (await getFeaturesAndBackgrounds(bases, [NO_FEATURE_MATCHES], policyConfig).catch(emptyIfNoFeatures)).backgrounds;

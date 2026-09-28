@@ -29,7 +29,7 @@ export function currentExecution(): string | undefined {
 	return reading().chosen;
 }
 
-/** The execution whose records a window last read: what the page is looking at when no reader has chosen one. A run
+/** The execution whose records a window last read: what the page is looking at when a reader hasn't chosen one. A run
  *  that has started while a page was following the one before it is the execution being read from that moment, so this
  *  says so the way a reader choosing one does: what is drawn of a run and what is read of it are of the same run. */
 export function noteExecution(execution: string): void {
@@ -37,7 +37,7 @@ export function noteExecution(execution: string): void {
 	if (held.observed === execution) return;
 	const was = readingExecution();
 	held.observed = execution;
-	// A page learning which run it is reading is not a change of run: it read nothing before and reads that run now.
+	// A page learning which run it is reading is not a change of run: it didn't read a run before and reads that run now.
 	// One named run giving way to another is, and that is a run that started while the page followed the one before it.
 	if (was === undefined || readingExecution() === was) return;
 	for (const fn of held.switched) fn();
@@ -105,7 +105,7 @@ export async function executionsHeld(): Promise<THeldExecution[]> {
  * times a view was shown: a view that refreshes its own data is shown by a step per refresh, and reading records to
  * find the set would read those instead of the views shown once each.
  *
- * This is what a page arriving with no address of its own starts on. A page with an address shows what the address
+ * This is what a page arriving without an address of its own starts on. A page with an address shows what the address
  * names, which is what lets two addresses show different views of one run.
  */
 export async function viewsShown(): Promise<string[]> {
@@ -147,7 +147,7 @@ export async function forgetExecution(execution: string): Promise<number> {
 	return gone;
 }
 
-/** Whether a write failed because the browser has no room left for what this page holds. */
+/** Whether a write failed because the browser doesn't have room left for what this page holds. */
 function storageIsFull(err: unknown): boolean {
 	return (err as { name?: string } | undefined)?.name === "QuotaExceededError";
 }
@@ -155,10 +155,10 @@ function storageIsFull(err: unknown): boolean {
 /**
  * Hold what a window read on this device, in one write.
  *
- * What a device holds is the runs a reader can come back to, and it holds them until the browser has no room left. At
+ * What a device holds is the runs a reader can come back to, and it holds them until the browser doesn't have room left. At
  * that point the oldest run the reader is not reading is forgotten and the write is tried once more, so what is kept
- * is the runs nearest to what a reader is looking at rather than whichever ones were written first. A device with
- * nothing it can forget says so: reading carries on against the site, and a reader who loses the site loses what this
+ * is the runs nearest to what a reader is looking at rather than whichever ones were written first. A device that
+ * doesn't hold a run it can forget says so: reading carries on against the site, and a reader who loses the site loses what this
  * write would have held.
  */
 export async function holdOnDevice(quads: TQuad[]): Promise<void> {

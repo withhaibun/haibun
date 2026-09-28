@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildGraphModelFromQuads, HYPERMEDIA_ROLE_KEY, SITE_KEY } from "./graph-model.js";
 // An injected, ordered role list, consumers derive theirs from rels-cache roleEdgeLabels() (declared rolePriority);
-// the merge itself is generic, so the fixture names no consumer vocabulary.
+// the merge itself is generic, so the fixture doesn't name a consumer vocabulary.
 const TEST_ROLE_ORDER: readonly string[] = ["archive", "keeper", "maker", "subjectOf", "performedBy", "author", "wasAttributedTo", "attributedTo"];
 import type { TQuad, TCluster } from "@haibun/core/lib/quad-types.js";
 
@@ -69,7 +69,7 @@ describe("displayLabel merge (shared-@id collapse)", () => {
 		expect(model.nodes.find((n) => n.id === vid)?.displayLabel).toBe("Site Inspector");
 	});
 
-	it("a node with no name anywhere falls back to its id (plain fallback unchanged)", () => {
+	it("a node without a name anywhere falls back to its id (plain fallback unchanged)", () => {
 		const lone = "did:lone";
 		const model = buildGraphModelFromQuads([q(lone, "controller", lone, "Principal")], { clusters: [cluster("Principal", { [lone]: lone })] });
 		expect(model.nodes.find((n) => n.id === lone)?.displayLabel).toBe(lone);
@@ -93,7 +93,7 @@ describe("HypermediaRole merge (roleRels)", () => {
 		expect(model.nodes.find((n) => n.id === "did:keeper")?.properties?.[HYPERMEDIA_ROLE_KEY]).toBeUndefined(); // not a target here → unattributed
 	});
 
-	it("leaves a node with no matching role edge unattributed (no role key)", () => {
+	it("leaves a node without a matching role edge unattributed (without a role key)", () => {
 		const model = buildGraphModelFromQuads([q("e1", "name", "Hi", "Email")], { roleRels: ["maker"] });
 		expect(model.nodes.find((n) => n.id === "e1")?.properties?.[HYPERMEDIA_ROLE_KEY]).toBeUndefined();
 	});
@@ -142,7 +142,7 @@ describe("role placement honours the injected priority order", () => {
 		expect(model.nodes.find((n) => n.id === "r1")?.properties?.[HYPERMEDIA_ROLE_KEY]).toBe("p:maker"); // maker outranks subjectOf
 	});
 
-	it("an ordinary record (no consumer edges) still groups by its author", () => {
+	it("an ordinary record (without consumer edges) still groups by its author", () => {
 		const model = buildGraphModelFromQuads([q("e1", "name", "Hi", "Email"), q("e1", "author", "p1", "Email", "Person"), q("p1", "name", "Alice", "Person")], {
 			roleRels: TEST_ROLE_ORDER,
 		});
@@ -175,7 +175,7 @@ describe("serving-site merge (SITE_KEY)", () => {
 		expect(model.nodes.find((n) => n.id === "r1")?.properties?.[SITE_KEY]).toBe("did:site:imap.1");
 	});
 
-	it("merges nothing when the response carries no site (offline snapshots, plain quad tests)", () => {
+	it("doesn't merge a site into a node when the response doesn't carry one (offline snapshots, plain quad tests)", () => {
 		const model = buildGraphModelFromQuads([q("e1", "name", "E1", "Email")]);
 		expect(model.nodes.find((n) => n.id === "e1")?.properties?.[SITE_KEY]).toBeUndefined();
 	});

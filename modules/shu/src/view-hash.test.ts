@@ -47,7 +47,7 @@ describe("canonicalizeArrival", () => {
 	});
 });
 
-/** Make this page a record of a run: it carries one, so there is no server behind it. */
+/** Make this page a record of a run: it carries one, so it doesn't have a server behind it. */
 function carryARun(): void {
 	const carried = document.createElement("script");
 	carried.type = "application/json";
@@ -68,7 +68,7 @@ describe("pageAddress", () => {
 		carryNothing();
 		expect(pageAddress()).toBe(location.origin + location.pathname + location.search);
 		carryARun();
-		expect(pageAddress(), "a record of a run has no address to serve").toBe("");
+		expect(pageAddress(), "a record of a run doesn't have an address to serve").toBe("");
 		carryNothing();
 	});
 });
@@ -84,20 +84,20 @@ describe("params a view writes into the hash", () => {
 		expect(hashParam("label"), "and removing a deep link is not a reset").toBe("File");
 	});
 
-	it("tells the views reading it that it moved, since writing the hash raises no event of its own", () => {
+	it("tells the views reading it that it moved, since writing the hash doesn't raise an event of its own", () => {
 		pushHash("#?");
 		let announced = 0;
 		const heard = onHashChanged(() => announced++);
 		mergeHashParams({ "aff-goal": "vc" });
 		expect(announced).toBe(1);
 		mergeHashParams({ "aff-goal": "vc" });
-		expect(announced, "writing what is already there says nothing").toBe(1);
+		expect(announced, "writing what is already there doesn't announce a change").toBe(1);
 		heard();
 		mergeHashParams({ "aff-goal": "other" });
-		expect(announced, "and a view that has gone hears nothing").toBe(1);
+		expect(announced, "and a view that has gone doesn't hear it").toBe(1);
 	});
 
-	it("round-trips in a record of a run, where there is no address to write to", () => {
+	it("round-trips in a record of a run, where the page doesn't have an address to write to", () => {
 		carryARun();
 		pushHash("#?");
 		let announced = 0;

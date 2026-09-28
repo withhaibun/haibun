@@ -82,7 +82,7 @@ describe("a view's place on the timeline", () => {
 		expect(view.cursor).toBe(PAST);
 	});
 
-	it("states nothing in the address where it names none", () => {
+	it("doesn't state a cursor in the address where the view doesn't name one", () => {
 		const view = mount();
 		view.hold(PAST);
 		expect(getHash()).not.toContain(String(PAST));

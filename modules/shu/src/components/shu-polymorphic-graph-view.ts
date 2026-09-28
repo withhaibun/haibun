@@ -49,7 +49,7 @@ const FISHEYE_CSS = `
 	shu-polymorphic-graph-view shu-graph-filter { flex: 0 0 auto; }
 	${viewHeadCss("shu-polymorphic-graph-view")}
 	shu-polymorphic-graph-view #polymorphic-counts { color: var(--shu-fg-muted); }
-	/* Latest step: inline in the head after the counts. Hidden when no SeqPath is visible. */
+	/* Latest step: inline in the head after the counts. Hidden when a SeqPath isn't visible. */
 	shu-polymorphic-graph-view #polymorphic-step { max-width: 30ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--shu-fg); color: var(--shu-bg); padding: var(--shu-space-1) var(--shu-space-3); border-radius: var(--shu-radius); font-weight: 600; }
 	shu-polymorphic-graph-view #polymorphic-step[hidden] { display: none; }
 	/* Saved views are about the whole view, so they take their own line under the options rather than trailing them. */
@@ -106,9 +106,9 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	private countsText = "";
 	private latestStep: string | null = null;
 	private sceneConfig!: GraphSceneConfig;
-	/** The saved scenes offered in the settings, fetched by this host (the settings element reaches no RPC of its own). */
+	/** The saved scenes offered in the settings, fetched by this host (the settings element doesn't call an RPC of its own). */
 	private sceneNames: string[] = [];
-	/** What went wrong with the last scene a reader asked to save or return to, shown beside the controls; null when nothing did. */
+	/** What went wrong with the last scene a reader asked to save or return to, shown beside the controls; null when the last one succeeded. */
 	private sceneError: string | null = null;
 
 	constructor() {
@@ -117,7 +117,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	}
 
 	/** External-data mode (`data-external` attribute): the embedding host gives the quads (setQuads) and the selection
-	 *  (selectNode); the view reads nothing from the store. */
+	 *  (selectNode); the view doesn't read from the store. */
 	protected override get usesExternalData(): boolean {
 		return this.hasAttribute("data-external");
 	}
@@ -265,7 +265,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	private onApplyScene = (name: string): void => void this.applySavedScene(name);
 
 	/** Save this view under a name, through the same step RPC every write goes through, then re-offer the saved scenes.
-	 *  A write that does not land is SAID so, beside the control that asked for it: a save that quietly did nothing looks
+	 *  A write that does not land is SAID so, beside the control that asked for it: a save that quietly didn't write looks
 	 *  exactly like a save that worked until the reader comes back for the scene. */
 	private async saveSceneAs(name: string): Promise<void> {
 		const written = await saveScene(name, this.captureScene(), "polymorphic: save this view as a scene");
@@ -291,7 +291,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 
 	/** The saved scenes a reader can return to. Fetched by the host and handed down to the settings; a control never reaches the RPC. */
 	private async loadScenes(): Promise<void> {
-		if (this.usesExternalData) return; // fed by its caller: this view has no RPC of its own
+		if (this.usesExternalData) return; // fed by its caller: this view doesn't have an RPC of its own
 		this.sceneNames = (await listScenes("polymorphic: offer the saved scenes")).map((scene) => scene.id);
 		this.requestUpdate();
 	}
@@ -440,7 +440,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	 *  counts / latest step). Called at each scene repaint end and on a config change. */
 	private onSceneChanged(d: GraphSceneChangedDetail): void {
 		// The scene rebuilds this array on every emit; keep the identity when the axes are the same, or the settings element
-		// dirty-checks a new array each repaint and re-renders its controls for nothing.
+		// dirty-checks a new array each repaint and re-renders its controls without a change.
 		if (d.groupByAxes.join("\0") !== this.groupByAxes.join("\0")) this.groupByAxes = d.groupByAxes;
 		this.forces = d.forces;
 		const c = d.counts;

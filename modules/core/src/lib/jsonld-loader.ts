@@ -1,6 +1,6 @@
 /**
  * JSON-LD document loader and processor for haibun core. A conformant JSON-LD processor (jsonld) plus a document loader
- * that resolves @context / DID / key documents from a local in-memory registry: no network on this path. Network
+ * that resolves @context / DID / key documents from a local in-memory registry: this path doesn't use the network. Network
  * resolution is opt-in: a consumer that wants it registers a resolver via setNetworkResolver; absent one, an unresolved
  * URL throws rather than silently reaching out.
  *
@@ -45,7 +45,7 @@ export function setNetworkResolver(resolver: NetworkResolver | undefined): void 
 }
 
 /**
- * What is held here, and nothing else: local key documents, then registered contexts. An unresolved URL throws.
+ * Only what is held here: local key documents, then registered contexts. An unresolved URL throws.
  *
  * This is the loader for reading something a caller presented. Resolving a presented identifier over the network would
  * let whoever wrote it choose the host that answers for it, so a proof would be checked against a document its own
@@ -59,7 +59,7 @@ export function registryDocumentLoader(url: string): Promise<LoaderResult> {
 	throw new Error(`a JSON-LD document for ${url} isn't registered`);
 }
 
-/** JSON-LD document loader: what is held here, then the injected network resolver. With no resolver an unresolved URL
+/** JSON-LD document loader: what is held here, then the injected network resolver. Without a resolver an unresolved URL
  *  throws: core never reaches the network implicitly. */
 export async function documentLoader(url: string): Promise<LoaderResult> {
 	try {

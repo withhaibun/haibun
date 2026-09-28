@@ -61,7 +61,7 @@ describe("on host", () => {
 		expect(remoteCalled).toBe(true);
 	});
 
-	it("fails cleanly when no registry entry exists for the target hostId", async () => {
+	it("fails cleanly when a registry entry doesn't exist for the target hostId", async () => {
 		const feature = { path: "/features/test.feature", content: "on host 9, passes" };
 		const result = await failWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(false);
@@ -74,7 +74,7 @@ describe("seqPath ordering", () => {
 	// seqPath format: [hostId, featureNum, scenarioNum, ...stepPath]
 	// hostId: 0 by default; distinct per haibun instance for multi-host uniqueness
 	// featureNum: 1-based feature number
-	// scenarioNum: 1-based scenario number (1 when no scenario declared)
+	// scenarioNum: 1-based scenario number (1 when a scenario isn't declared)
 	// stepPath: hierarchical step numbering with negative numbers for conditions
 
 	it("linear steps have incremental single-element seqPath", async () => {
@@ -156,7 +156,7 @@ describe("afterEvery", () => {
 		const result = await passWithDefaults([feature], [Haibun, TestSteps, LogicStepper]);
 		expect(result.ok).toBe(true);
 		const said = (result.featureResults?.[0].stepResults ?? []).filter((r) => r.in === "Noodles, man.").length;
-		expect(said, "one statement for the step the feature holds, and none for the substep another step ran").toBe(1);
+		expect(said, "one statement for the step the feature holds, and not one for the substep another step ran").toBe(1);
 	});
 });
 
@@ -281,11 +281,11 @@ describe("show steps", () => {
 		expect(validations[1]).toMatchObject({ valid: false });
 	});
 
-	it("answers a line naming a step its caller doesn't hold as one naming no step, so validating maps nothing it may not call", () => {
+	it("treats a line naming a step its caller doesn't hold as one that doesn't name a step, so validating doesn't map a step it may not call", () => {
 		const steppers = [new TestSteps()];
 		expect(validateStep("passes", steppers, RUN_AUTHORITY)).toMatchObject({ valid: true });
 		expect(validateStep("passes", steppers, ["Read:public"]), "a step it doesn't hold").toEqual({ valid: false, error: 'no step found for "passes"' });
-		expect(validateStep("no step reads this", steppers, ["Read:public"]), "answered as a line naming none").toEqual({
+		expect(validateStep("no step reads this", steppers, ["Read:public"]), "treated as a line that doesn't name a step").toEqual({
 			valid: false,
 			error: 'no step found for "no step reads this"',
 		});
@@ -293,7 +293,7 @@ describe("show steps", () => {
 });
 
 describe("nothing", () => {
-	it("nothing step does nothing and passes", async () => {
+	it("nothing step doesn't act and passes", async () => {
 		const feature = { path: "/features/test.feature", content: "" };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);

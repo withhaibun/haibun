@@ -58,7 +58,7 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 	static styles = [
 		shuBaseStyles,
 		css`
-		/* It shares the corner popover with the level control, so it takes the room it needs and no more: a section a
+		/* It shares the corner popover with the level control, so it takes only the room it needs: a section a
 		   reader opens scrolls within the panel rather than growing it past what is behind it. */
 		:host { display: block; color: var(--shu-fg); font-size: var(--shu-font-sm); width: 20rem; max-width: 100%; max-height: 40vh; overflow-y: auto; user-select: text; }
 		h3 { font-size: var(--shu-font-sm); margin: var(--shu-space-2) 0 var(--shu-space-1); }
@@ -99,7 +99,7 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 
 	/**
 	 * An action, as what granted it. A reader holds what it holds by a delegation this deployment records, so the action
-	 * opens that record, and from there what it was delegated from and on to its root. An action nothing here recorded,
+	 * opens that record, and from there what it was delegated from and on to its root. An action this deployment didn't record,
 	 * such as one allowed without a delegation, is still named, since a reader holds it either way.
 	 */
 	private grantedAt(action: string): TemplateResult {

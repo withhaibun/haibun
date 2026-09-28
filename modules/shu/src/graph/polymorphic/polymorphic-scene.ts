@@ -103,7 +103,7 @@ export interface GraphSceneModel {
 	timeCursor: number | null;
 }
 
-/** The layout choices, owned and persisted by the host, pushed down as a plain object so the scene holds no persisted state. */
+/** The layout choices, owned and persisted by the host, pushed down as a plain object so the scene doesn't hold persisted state. */
 export interface GraphSceneConfig {
 	viewType: ViewType;
 	flatten: boolean;
@@ -142,7 +142,7 @@ export interface GraphSceneChangedDetail {
 	pins: Record<string, [number, number]>;
 }
 
-/** Empty state schema: the scene holds no persisted state: all inputs are pushed via setModel/setConfig. */
+/** Empty state schema: the scene doesn't hold persisted state: all inputs are pushed via setModel/setConfig. */
 const SceneStateSchema = z.object({});
 
 // Node chips mirror the SVG overview: the cluster type-colour as fill, dark text, a light stroke:
@@ -181,7 +181,7 @@ const CANVAS_GEOMETRY_EVERY = 15;
 const LAYOUT_DEBOUNCE_MS = 450;
 
 // Controlled "ghost" tween for a layout change: solve the final layout off-screen, then glide every node along one
-// eased path from where it is to where it lands (links follow). No physics churn: the engine only holds the pins.
+// eased path from where it is to where it lands (links follow). The physics doesn't move the nodes: the engine only holds the pins.
 const TWEEN_MS = 700;
 
 // three.js MOUSE enum values for OrbitControls.mouseButtons (ROTATE=0, DOLLY=1, PAN=2).
@@ -192,7 +192,7 @@ const ORBIT_PAN = 2;
 // re-used here by the gantt axis ruler + the gantt drag ghost (same render layer) and the focus tier consts.
 // The slice of A-Frame's bundled THREE that the group enclosures + the gantt overlays drive. Constructed at runtime via the scene's OWN
 // THREE instance (AFRAME.THREE), never a separately imported `three`, which would be a second copy whose objects
-// the scene can't render. Typed structurally so this view keeps depending on no three .d.ts.
+// the scene can't render. Typed structurally so this view doesn't depend on a three .d.ts.
 type DragPlane = { setFromNormalAndCoplanarPoint(normal: Vec3, point: Vec3): unknown };
 /** The enclosures' slice of THREE, and what the gantt overlays and a node's drag add to it. */
 interface ThreeNs extends EnclosureThree {
@@ -316,7 +316,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	private controls?: OrbitControls;
 	private rafHandle?: number;
 	// Render-on-demand bookkeeping: a monotonic frame counter, the frame up to which a discrete change keeps the scene
-	// drawing, and whether the A-Frame render loop is currently paused because nothing is moving.
+	// drawing, and whether the A-Frame render loop is currently paused because motion has ended.
 	private rafFrame = 0;
 	private dirtyUntilFrame = 0;
 	private dirtyCause: TWakeCause = "data"; // what set dirtyUntilFrame, named while its grace lasts
@@ -350,7 +350,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 
 	/** The group-by axes offered: `@type` and the highest-priority actor always, plus each actor predicate that
 	 *  appears on a visible node, plus the serving site once the view holds data from MORE than one site (a single-site
-	 *  graph has nothing to separate): all derived from the data, so an axis the graph does not carry never shows. */
+	 *  graph doesn't have sites to separate): all derived from the data, so an axis the graph does not carry never shows. */
 	private get groupByAxes(): string[] {
 		const roleLabels = roleEdgeLabels();
 		const present = new Set<string>();
@@ -443,7 +443,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		lanePinXY: (id) => {
 			const lp = this.renderType.lanePlacement(id);
 			if (!lp) return undefined;
-			// A view that lays out in one plane carries no x in its placement and names the plane it draws on instead.
+			// A view that lays out in one plane doesn't carry an x in its placement and names the plane it draws on instead.
 			const x = lp.x ?? this.renderType.lanePlaneX;
 			return x !== undefined ? { x, y: lp.y } : undefined;
 		},
@@ -452,7 +452,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	});
 	// The focus subsystem: the whole purely-visual dim/highlight + the focus-chip MAGNIFY pop. Wired like the camera:
 	// constructor-injected accessors read at call time, so a late-bound graph, a per-repaint nodeMap, or a theme-recoloured
-	// colour field is always current; it OWNS the magnify animation state, the component delegates and reads nothing back.
+	// colour field is always current; it OWNS the magnify animation state, the component delegates and doesn't read state back.
 	// (Named focusCtl, not focus, HTMLElement.focus() is a method on the element.)
 	private focusCtl = new PolymorphicFocus({
 		decorates: () => this.decorates(),
@@ -546,10 +546,10 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	// repaint entry (invalidateModelCache), so the reference is stable within a repaint and fresh across repaints.
 	private modelCache?: GraphModel;
 	private seqNodesCache?: SeqNode[];
-	// Active ghost tween: each frame the node pins ease from `from`→`to`. Null when no transition is running.
+	// Active ghost tween: each frame the node pins ease from `from`→`to`. Null when a transition isn't running.
 	private tween?: { start: number; from: Map<string, XYZ>; to: Map<string, XYZ> };
 	// Active node drag: the node follows the pointer in the camera-facing plane; every other node is pinned so
-	// nothing else moves. After release the dragged node's pin PERSISTS (a blocked view stays fixed) until the
+	// the other nodes don't move. After release the dragged node's pin PERSISTS (a blocked view stays fixed) until the
 	// next layout change re-solves and releases all pins.
 	// The drag state-machine (down/move/up + the pin geometry) lives in NodeDrag, unit-tested with stubs: the flake it
 	// replaces was entirely in picking a pixel out of an occluded WebGL scene, never in this logic. This component owns
@@ -612,7 +612,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	private freshTimers: number[] = [];
 	// Gantt layout: per-node calendar-grid target (subject id → world x/y of the bar CENTRE, plus the bar width = its
 	// duration), recomputed in toGraphData when viewType is "gantt". The groupX/groupY forces pull each task to its
-	// slot; the node object is a duration bar of width `w`. Non-task nodes have no entry.
+	// slot; the node object is a duration bar of width `w`. Non-task nodes don't have an entry.
 	// Gantt layout target per task: y = lane (one row each, force-pulled), z = the bar's CENTRE on the linear time
 	// axis (data-assigned in toGraphData), zLen = its duration as a z-span (the box depth). Time is the z axis; the
 	// camera pivots so z lies flat/horizontal on screen.
@@ -672,7 +672,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		}
 		if (patch.viewType !== undefined && patch.viewType !== prev.viewType) {
 			const prevType = this.renderTypes.get(prev.viewType) ?? this.renderTypes.get(VIEW.force);
-			// A view built on ACTORS needs its actors: a hidden actor type leaves the exchange with nobody in it, so
+			// A view built on ACTORS needs its actors: a hidden actor type leaves the exchange without a participant, so
 			// choosing the view reveals them, exactly as it settles the layout options it cannot honour.
 			if (this.renderType.needsActors) this.revealActorTypes();
 			// The new view may force options the old one honoured (a lane view settles grouping, flatten and label-as-depth),
@@ -687,8 +687,8 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		}
 		if (patch.follow !== undefined && patch.follow && !prev.follow && this.activeSubject) this.followActive(this.activeSubject); // turning follow on centres the active node at once
 		if (patch.readAsDocument !== undefined && patch.readAsDocument !== prev.readAsDocument) {
-			// Showing or hiding the reading changes one attribute on a region the renderer already keeps current: nothing
-			// about the model or the layout moves, so this re-renders the template and stops there.
+			// Showing or hiding the reading changes one attribute on a region the renderer already keeps current: the
+			// model and the layout don't move, so this re-renders the template and stops there.
 			this.requestUpdate();
 			this.emitSceneChanged();
 			return;
@@ -738,11 +738,11 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			tween: this.tween ? { elapsedMs: performance.now() - this.tween.start } : null,
 			pointerOverCanvas: this.pointerOverCanvas,
 			engineMode: this.engine.mode,
-			// Render-on-demand state: the scene pauses when nothing is moving and no recent discrete change is pending, and
+			// Render-on-demand state: the scene pauses when motion has ended and a recent discrete change isn't pending, and
 			// `ticks` counts the gate's frames whether or not one was drawn. A reader whose focus/highlight assertion
-			// depends on a redraw can tell a paused scene from a live one, and can count ticks over which nothing was drawn.
-			// A change made since the last tick is drawn from the next one, so the scene is paused only while that tick draws
-			// nothing either.
+			// depends on a redraw can tell a paused scene from a live one, and can count ticks over which a frame wasn't drawn.
+			// A change made since the last tick is drawn from the next one, so the scene is paused only while that tick doesn't
+			// draw either.
 			// `welcoming` and `layingOut` count the changes a paused scene has scheduled: newcomers whose welcome glow is still to
 			// end, and chips whose measured text is still to land.
 			render: {
@@ -776,7 +776,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			viewType: this.viewType,
 			// The sequence-diagram ground truth, or null off-sequence: the participant actors, the time-ordered
 			// cross-participant messages, and each placed node's lane (y) + time (z), so a test asserts the diagram and
-			// that participants sit in distinct lanes at their times, all from the graph (no hand-applied labels).
+			// that participants sit in distinct lanes at their times, all from the graph (without hand-applied labels).
 			sequence: this.sequenceInspect(),
 			// The td/lr layered ground truth (null off those views): per-node pinned target + rendered position + flow axis,
 			// so a test asserts the flow reads monotonically by layer and the pins held.
@@ -795,7 +795,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			viewport: this.camera.zoomMetric(),
 			// Visibility: the fraction of nodes whose world position projects inside the canvas (NDC within [-1,1], in front
 			// of the camera). 1 = the whole graph is framed; a low value means the camera is not framing the graph (the
-			// "rendered but nothing visible" failure). Computed through the real camera projection, so it tracks any fov/dolly.
+			// "rendered but not visible" failure). Computed through the real camera projection, so it tracks any fov/dolly.
 			onScreen: (() => {
 				const T = aframeThree();
 				const cam = this.fgCamera as unknown as { updateMatrixWorld?: (force?: boolean) => void } | undefined;
@@ -820,7 +820,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 					}
 				}
 				// span: the graph's projected bounding box as a fraction of the viewport. A healthy frame fills a meaningful
-				// share; a value near 0 is the "rendered but a tiny dot / nothing visible" failure.
+				// share; a value near 0 is the "rendered but a tiny dot / not visible" failure.
 				const span = total ? Math.max((maxX - minX) / NDC_SPAN, (maxY - minY) / NDC_SPAN) : 0;
 				return { total, onScreen: on, fraction: total ? on / total : 1, span: Number.isFinite(span) ? span : 0 };
 			})(),
@@ -854,7 +854,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			})),
 			// The resolved per-@type mark for each node: the headless render check: recomputed exactly as nodeObject
 			// paints it (via markFor), so a Playwright test asserts a task paints as a "box" on a "time" role with its
-			// duration zExtent and a plain node as a "chip"/"free", with no GPU.
+			// duration zExtent and a plain node as a "chip"/"free", without a GPU.
 			marks: nodes.slice(0, 80).map((n) => {
 				const m = this.markFor(n);
 				return { id: n.id, type: n.type, kind: m.kind, role: m.role.kind, zExtent: m.zExtent ?? null };
@@ -884,7 +884,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 				shu-graph-scene #polymorphic-axis-legend { position: absolute; top: var(--shu-space-5); right: var(--shu-space-5); z-index: 10; pointer-events: none; background: var(--shu-bg-elevated); padding: var(--shu-space-2) var(--shu-space-4); border-right: 3px solid var(--shu-accent); border-radius: var(--shu-radius); font-family: var(--shu-mono, monospace); font-size: var(--shu-font-sm); color: var(--shu-fg); }
 				shu-graph-scene #polymorphic-axis-legend .axis-row { display: flex; gap: var(--shu-space-2); align-items: baseline; }
 				shu-graph-scene #polymorphic-axis-legend .axis-key { color: var(--shu-fg-muted); min-width: 3.5em; }
-				/* Pin the scene/canvas to the column box and clip: A-Frame may size its buffer larger, but it can never overflow or push scrollbars. The rAF loop keeps the buffer+camera matched to this box (no stretch/blur). */
+				/* Pin the scene/canvas to the column box and clip: A-Frame may size its buffer larger, but it can never overflow or push scrollbars. The rAF loop keeps the buffer+camera matched to this box (without stretch or blur). */
 				shu-graph-scene #polymorphic-canvas { position: absolute; inset: 0; overflow: hidden; }
 				/* Stacking as well as position: the VR lib treats its scene as fullscreen and gives the canvas a z-index of
 				   its own, which painted it over every control on the page, the graph column's own header among them. */
@@ -894,7 +894,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 				   clipped away. Both ways in land on the same shown state, so there is one appearance to maintain. */
 				shu-graph-scene #polymorphic-a11y { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 				/* A reading is a document: its text selects and copies by hand. Each entry is also the way to that node,
-				   so it is written as a link is, underlined, in the accent, rather than as a face that says nothing. */
+				   so it is written as a link is, underlined, in the accent, rather than as plain text that doesn't show it is a link. */
 				shu-graph-scene #polymorphic-a11y button { user-select: text; background: none; border: 0; padding: 0; margin: 0; font: inherit; text-align: left; color: var(--shu-accent); text-decoration: underline; cursor: pointer; }
 				shu-graph-scene #polymorphic-a11y button:hover, shu-graph-scene #polymorphic-a11y button:focus-visible { text-decoration-thickness: 2px; }
 				/* A marker is drawn in the list's own left padding, so the padding has to hold the widest one: at a fixed
@@ -972,8 +972,8 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		scene?.setAttribute("embedded", "true");
 		scene?.setAttribute("data-testid", SHU_TEST_IDS.POLYMORPHIC_VIEW.SCENE);
 		scene?.querySelector("[camera]")?.setAttribute("data-testid", SHU_TEST_IDS.POLYMORPHIC_VIEW.CAMERA);
-		// Plain HTTP (no secure context, e.g. http://<host>: dev): WebXR and the device sensors can't be granted, so
-		// don't offer VR at all: no enter-VR button and no A-Frame "use HTTPS" alert. HTTPS keeps the full XR UI.
+		// Plain HTTP (without a secure context, e.g. http://<host>: dev): WebXR and the device sensors can't be granted, so
+		// don't offer VR at all: don't show an enter-VR button or an A-Frame "use HTTPS" alert. HTTPS keeps the full XR UI.
 		if (!window.isSecureContext) {
 			scene?.setAttribute("device-orientation-permission-ui", "enabled: false");
 			scene?.setAttribute("xr-mode-ui", "enabled: false");
@@ -997,16 +997,16 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		return this.profiler.node(() => {
 			const mark = this.markFor(n);
 			// The common instance node (a "chip") renders as an SDF glyph-atlas chip (troika), dark text on a solid
-			// type-coloured background, all labels sharing one atlas texture and one background geometry, so a node takes
-			// no per-node canvas raster + GPU texture upload. Other marks (the gantt box, the ontology lozenge/square)
+			// type-coloured background, all labels sharing one atlas texture and one background geometry, so a node doesn't take
+			// a per-node canvas raster + GPU texture upload. Other marks (the gantt box, the ontology lozenge/square)
 			// keep the three-spritetext paint: they are few, and the box carries its label as a child. The billboard
 			// frame job keeps the chips facing the camera. fontSize is the WORLD text height (chipTextHeight), as SpriteText's.
 			// "Label as z factor" labels each chip with the value that places its depth: the date under a time basis, the
-			// connection count under connections, so the z factor reads straight off the graph. Off (or no value), the usual label.
+			// connection count under connections, so the z factor reads straight off the graph. Off (or without a value), the usual label.
 			const chipLabel = (this.labelAsZ ? this.zFactor(n).chip : undefined) ?? mark.label;
 			n.__chipText = chipLabel; // what the chip says, so a reader of inspect() sees what was drawn
 			// Every mark is built highlight-capable and the FOCUS pass glows the active node (visual.setHighlighted), so
-			// the highlight follows the selection without rebuilding a single object. A drag-pin carries no highlight: a
+			// the highlight follows the selection without rebuilding a single object. A drag-pin doesn't carry a highlight: a
 			// pin is a position the reader chose, not a state to advertise, and the pin set persists across queries, so
 			// highlighting pins would mark nodes unrelated to what is being read.
 			const visual =
@@ -1051,10 +1051,10 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	}
 
 	/** Orient the node visuals to face the camera (each visual billboards itself: a troika chip group turns, a native
-	 *  sprite is a no-op). Runs every frame (no camera-turn guard): troika builds a chip's geometry on a LATER frame than
+	 *  sprite is a no-op). Runs every frame (without a camera-turn guard): troika builds a chip's geometry on a LATER frame than
 	 *  its graphData feed, so a guarded pass would leave a just-built chip in its default orientation until the next camera
-	 *  turn: the tilted-label bug. The work is one in-place quaternion copy per chip (no allocation: the earlier drag lag
-	 *  was a per-frame ALLOCATION here, since removed); nodeMap is the live set, so no separate registry leaks. */
+	 *  turn: the tilted-label bug. The work is one in-place quaternion copy per chip (without an allocation: the earlier drag lag
+	 *  was a per-frame ALLOCATION here, since removed); nodeMap is the live set, so a separate registry doesn't leak. */
 	private billboardLabels(): void {
 		const q = (this.fgCamera as unknown as { quaternion?: { x: number; y: number; z: number; w: number } })?.quaternion;
 		if (!q) return;
@@ -1066,7 +1066,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			// The lib derives line opacity from the global linkOpacity × the colour's alpha and pools materials by
 			// colour: so focus dim/highlight is carried ENTIRELY in the rgba the accessor returns (see lineRgbaFor). Global
 			// opacity is 1 so the per-edge alpha is the sole driver; re-calling linkColor on focus change re-pools
-			// without rebuilding objects or reheating the layout. No mesh handles, no per-link material clones.
+			// without rebuilding objects or reheating the layout. It doesn't hold mesh handles or clone a material per link.
 			.linkColor((l) => this.focusCtl.lineRgbaFor(l))
 			.linkOpacity(1)
 			.linkWidth(0.5)
@@ -1090,7 +1090,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 				const sprite = obj as TSprite;
 				// The lib sets the link GROUP's renderOrder to 10, and three.js uses a group's renderOrder as the
 				// children's groupOrder, the PRIMARY sort key, so links would always paint over the node chips
-				// (groupOrder 0) no matter what the sprites' own flags say. Zero it; the secondary renderOrder then
+				// (groupOrder 0) whatever the sprites' own flags say. Zero it; the secondary renderOrder then
 				// layers line (0) → edge label (15) → node chip (20), back to front.
 				if (sprite.parent && sprite.parent.renderOrder !== 0) sprite.parent.renderOrder = 0;
 				if (sprite.parent?.children) link.__lineObj = sprite.parent.children[0]; // refresh every tick, read-only handle for inspect()/tests; never cached-once, so never stale
@@ -1101,7 +1101,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 				const cameToRest = this.engine.engineStopped(); // the governor records that the engine rests
 				this.camera.autoFitOnSettle(!!this.tween); // keep the spreading graph framed (growth-gated); the controller owns the policy
 				// Release the temporary data-feed pins now the settle has come to rest: existing nodes held still
-				// through the reheat (no jitter), and the resting layout is not left permanently frozen.
+				// through the reheat (without jitter), and the resting layout is not left permanently frozen.
 				for (const id of this.dataPinnedIds) {
 					const n = this.nodeMap.get(id);
 					if (n) {
@@ -1123,12 +1123,12 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 				}
 			})
 			.showNavInfo(false) // its "Mouse drag: look" text describes the controls this replaced
-			.numDimensions(2) // matches the scene's own 2D placement; the lib sim has no forces, so it never decides positions
-			.warmupTicks(0) // no synchronous main-thread block in the digest, placement already ran (layoutForFeed)
+			.numDimensions(2) // matches the scene's own 2D placement; the lib sim doesn't have forces, so it never decides positions
+			.warmupTicks(0) // the digest doesn't block the main thread synchronously, placement already ran (layoutForFeed)
 			.cooldownTicks(120)
 			// Node clicks are handled by the scene's canvas click listener via pickNodeAt (the same authoritative press-time
 			// pick the drag uses), NOT the lib's onNodeClick: that raycaster fires unreliably (and a stale post-drag
-			// click capture made it miss after several focus switches). One reliable pick, no capture flag.
+			// click capture made it miss after several focus switches). One reliable pick, without a capture flag.
 			.onNodeHover((n) => {
 				// Phantom-hover guards: during a layout tween, a drag, or a data-feed SETTLE, nodes pass UNDER the cursor
 				// (the graph is still moving); and when the pointer isn't over the canvas at all, the cursor raycasts a
@@ -1159,7 +1159,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 
 	/**
 	 * Remove the library simulation's forces, so its ticks only move sprites: a pinned node tracks its pin, an unpinned
-	 * one has no velocity and stays put. Where the nodes go is decided before the feed (layoutForFeed), never by the
+	 * one doesn't have velocity and stays put. Where the nodes go is decided before the feed (layoutForFeed), never by the
 	 * library: which is what lets any renderer display the same positions.
 	 */
 	private removeLibraryForces(): void {
@@ -1343,8 +1343,8 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		if (this.aimedAt !== id || !this.inClearView(id)) this.followActive(id);
 	}
 
-	/** Whether a node draws inside the canvas and outside everything covering it. With no projection yet there is nothing
-	 *  to judge, so it counts as in view and nothing moves. */
+	/** Whether a node draws inside the canvas and outside everything covering it. Without a projection yet the node doesn't
+	 *  have a position to judge, so it counts as in view and the camera doesn't move. */
 	private inClearView(id: string): boolean {
 		const at = this.projectNodeToScreen(id);
 		const canvas = this.ctx.canvas?.getBoundingClientRect();
@@ -1378,8 +1378,8 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 * synchronous layout flush 60×/s for the component's lifetime). Re-asserts the buffer size aspect-only via
 	 * syncViewport (an A-Frame body-sized resize must not persist), NEVER the fov-preserving resize path, so it
 	 * cannot rescale the graph, and refreshes the cursor's cached pick bounds when the canvas merely MOVES, strip
-	 * scrolled sideways, a column opened/closed, the actions bar, which fires neither ResizeObserver (size
-	 * unchanged) nor A-Frame's window listeners (inner scroller). Integer-pixel comparison so subpixel layout jitter
+	 * scrolled sideways, a column opened/closed, the actions bar, which doesn't fire ResizeObserver (size
+	 * unchanged) or A-Frame's window listeners (inner scroller). Integer-pixel comparison so subpixel layout jitter
 	 * doesn't refresh in a loop. Real container resizes are handled immediately by the ResizeObserver (the fov path).
 	 */
 	private checkCanvasGeometry(): void {
@@ -1508,7 +1508,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 
 	/** Ask the render loop to (re)apply the active focus once the layout is at rest and the node visuals exist.
 	 *  `focusDirty` keeps the loop awake until a frozen frame applies it. A node whose visual the library builds after
-	 *  that asks again as it is built (`nodeObject`), so no visual is left unfocused. */
+	 *  that asks again as it is built (`nodeObject`), so a visual isn't left unfocused. */
 	private requestFocusAtRest(): void {
 		this.focusDirty = true;
 		this.markDirty("focus");
@@ -1526,7 +1526,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 *
 	 * Asked of the render loop for the moment the layout comes to rest, and applied outright as well: a loop that is
 	 * paused, or an engine frozen at rest, never reaches that moment, and the nodes a feed just staged would stay lit
-	 * with nothing dimmed around the selected one. Every caller that changes what is focused, or what is there to
+	 * and the nodes around the selected one wouldn't dim. Every caller that changes what is focused, or what is there to
 	 * focus, goes through here.
 	 */
 	private reassertFocus(): void {
@@ -1547,7 +1547,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	}
 
 	/** Why the gate draws on tick `frame`: a motion in progress (a drag, a tween, the engine settling, a magnify easing),
-	 *  a focus still to apply, or a discrete change within its grace, named by its cause. Rest where none holds, so a
+	 *  a focus still to apply, or a discrete change within its grace, named by its cause. Rest where these don't hold, so a
 	 *  scene draws only while something it shows changes. */
 	private drawingReason(frame: number): TDrawingReason {
 		if (this.nodeDrag.dragging) return "drag";
@@ -1632,7 +1632,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			if (!press || Math.hypot(e.clientX - press.x, e.clientY - press.y) > DRAG_THRESHOLD_PX) return;
 			const node = press.node;
 			if (node) this.onNodeClick(node, e);
-			// Empty space is the reader choosing nothing on the page; the host relays the active record back through setSelectedSubject.
+			// Empty space is the reader not choosing a record on the page; the host relays the active record back through setSelectedSubject.
 			else if (this.selectedSubject) dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: entryOf([], appAccessLevel()) });
 		};
 		canvas.addEventListener("pointerdown", onPointerDown);
@@ -1652,7 +1652,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.frame.add("layout-tween", () => this.updateLayoutTween());
 		// Track the group containers on a throttled cadence WHILE the layout is settling, so they form and follow the
 		// nodes instead of popping in only at full stop (a large graph's settle is otherwise a long wait). Nodes are
-		// anchor-seeded with real positions from the first frame, so there is no z=0 flash to sample into; the final
+		// anchor-seeded with real positions from the first frame, so the frames don't flash at z=0; the final
 		// draw still lands on onEngineStop. Skipped once frozen, while a node is being dragged (the drag owns the pins),
 		// and when grouping is off.
 		this.frame.add(
@@ -1664,8 +1664,8 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		);
 		// Drawing on demand: the frame jobs run and the scene draws only while something is moving (layout settle, tween,
 		// drag, magnify ease, camera damping via the `change` listener), a discrete change is still to be drawn, or a focus
-		// is pending. Otherwise `Drawing` pauses the components and stops the renderer's loop, so an idle graph draws
-		// nothing, wherever the pointer rests. The rAF loop below keeps running as a per-frame gate of one
+		// is pending. Otherwise `Drawing` pauses the components and stops the renderer's loop, so an idle graph doesn't
+		// draw, wherever the pointer rests. The rAF loop below keeps running as a per-frame gate of one
 		// comparison, so a change wakes the scene within one frame.
 		// What a drawn frame takes is measured after the draw (see `FrameTime`) and read in the gate below, where the
 		// regulator sets whether the breath may keep requesting frames.
@@ -1676,8 +1676,8 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		const tick = () => {
 			this.rafFrame++;
 			const now = performance.now();
-			// A wake detector, not a render job: the canvas can MOVE (strip scroll, column shift) without resizing, which no
-			// observer catches, so this light poll runs even while the scene is paused and marks dirty on any geometry change.
+			// A wake detector, not a render job: the canvas can MOVE (strip scroll, column shift) without resizing, which the
+			// observers don't catch, so this light poll runs even while the scene is paused and marks dirty on any geometry change.
 			if (this.rafFrame % CANVAS_GEOMETRY_EVERY === 0) this.checkCanvasGeometry();
 			const frameTimeMs = frameTime.poll();
 			if (frameTimeMs !== undefined) {
@@ -1694,7 +1694,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 				if (this.focusCtl.updateHighlight(this.decorates())) this.markDirty("breath", 1);
 			}
 			// A pending focus keeps the scene awake until it can be applied: applyFocus needs the layout at rest (its pin +
-			// sim tick would jump an under-converged graph) and the node visuals built (it skips a node with no visual
+			// sim tick would jump an under-converged graph) and the node visuals built (it skips a node without a visual
 			// yet), and either can lag a selection made mid-build. Sleeping before then would leave the dim undrawn.
 			const reason = this.drawingReason(this.rafFrame);
 			this.drawFor(reason, now);
@@ -1730,7 +1730,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		const canvas = this.ctx.canvas;
 		const cam = this.ctx.camera;
 		if (!T || !canvas || !cam) return null;
-		// Raycast from a CURRENT camera matrix. A pick can run between render frames, after a fit reframe nothing has
+		// Raycast from a CURRENT camera matrix. A pick can run between render frames, after a fit reframe a render hasn't
 		// repainted the camera's matrixWorld yet, so setFromCamera would build the ray from a stale matrix and miss every
 		// sprite. `projectNodeToScreen` forces the same for the symmetric projection; the pick must match or the two disagree.
 		(cam as { updateMatrixWorld?: (f?: boolean) => void }).updateMatrixWorld?.(true);
@@ -1784,7 +1784,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 
 	/**
 	 * Drag a node aside (it sometimes blocks a more important one): pointerdown on a node starts a drag in
-	 * the camera-facing plane through it. Every OTHER node is pinned for the duration so nothing else moves, only
+	 * the camera-facing plane through it. Every OTHER node is pinned for the duration so the other nodes don't move; only
 	 * the dragged node follows the pointer, links tracking live. On release the dragged node's pin persists, so the
 	 * cleared view holds until the next layout change re-solves the layout and releases every pin.
 	 */
@@ -1804,13 +1804,13 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		if (!canvas) return;
 		const onDown = (e: PointerEvent) => {
 			// Ctrl/meta is the CAMERA modifier: a modified press always orbits, even over a chip, otherwise a dense graph
-			// leaves no pixel from which the camera can be rotated. A press during a tween or an active drag is ignored.
+			// doesn't leave a pixel from which the camera can be rotated. A press during a tween or an active drag is ignored.
 			if (e.button !== 0 || this.tween || this.nodeDrag.dragging || !this.graph) return;
 			if (e.ctrlKey || e.metaKey) return;
 			this.nodeDrag.down(e);
 			if (this.nodeDrag.pendingId !== null) {
 				try {
-					canvas.setPointerCapture(e.pointerId); // keeps moves flowing outside the canvas; synthetic pointers (tests) have no capturable id
+					canvas.setPointerCapture(e.pointerId); // keeps moves flowing outside the canvas; synthetic pointers (tests) don't have a capturable id
 				} catch {
 					/* drag still works, bounded to the canvas */
 				}
@@ -1818,8 +1818,8 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		};
 		const onMove = (e: PointerEvent) => {
 			// Any move over the canvas proves presence, pointerenter alone misses the page loading with the cursor already
-			// over the canvas (no enter fires), which left hover and drag dead until a re-entry. A move is drawn, so hover
-			// follows the pointer; a pointer at rest changes nothing and draws nothing.
+			// over the canvas (an enter doesn't fire), which left hover and drag dead until a re-entry. A move is drawn, so hover
+			// follows the pointer; a pointer at rest doesn't change the hover or draw a frame.
 			this.pointerOverCanvas = true;
 			this.markDirty("pointer");
 			this.nodeDrag.move(e);
@@ -1896,9 +1896,9 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		}, 0);
 	}
 
-	/** New/removed streamed nodes: short trailing coalesce so the newcomer shows promptly; positions are preserved (no scatter).
-	 *  The schedule itself draws nothing: the repaint draws when the visible model changed, and a feed that changed
-	 *  nothing visible (an observation of the page's own request, with instrumentation hidden) leaves the scene at rest. */
+	/** New/removed streamed nodes: short trailing coalesce so the newcomer shows promptly; positions are preserved (without a scatter).
+	 *  The schedule itself doesn't draw: the repaint draws when the visible model changed, and a feed that didn't change
+	 *  the visible model (an observation of the page's own request, with instrumentation hidden) leaves the scene at rest. */
 	private scheduleData(): void {
 		if (this.repaintTimer !== undefined) return;
 		this.repaintTimer = window.setTimeout(() => {
@@ -1934,7 +1934,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		const existingIds = new Set(this.nodeMap.keys()); // before toGraphData rebuilds the map
 		const { nodes, links, freshLinks } = this.profiler.compute(() => this.pipeline.toGraphData());
 		// Re-feeding graphData reheats the layout (visible jitter), skip entirely when the visible model is unchanged
-		// (e.g. instrumentation-adjacent merges or a throttled window that brought nothing new). In gantt the time z is
+		// (e.g. instrumentation-adjacent merges or a throttled window that didn't bring a new node). In gantt the time z is
 		// part of the model, so a reschedule (same nodes/links, moved bars) is detected here and DOES repaint.
 		const hash = this.pipeline.hashCurrentModel(nodes, links);
 		if (hash === this.lastModelHash && !this.nodeRebuildPending) return; // a pending shape rebuild must still feed
@@ -2018,7 +2018,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.requestUpdate(); // refresh the scene's own axis-legend chrome
 	}
 
-	/** The display label of the highest-timestamp SeqPath visible at the current time cursor, or null when none is visible. */
+	/** The display label of the highest-timestamp SeqPath visible at the current time cursor, or null when the SeqPaths aren't visible. */
 	private computeLatestStep(): string | null {
 		const seqCluster = this.model.clusters.find((c) => c.type === "SeqPath");
 		if (!seqCluster || seqCluster.sampledSubjects.length === 0) return null;
@@ -2036,14 +2036,14 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 
 	/**
 	 * A layout change (flatten/dag/group/type-filter): rebuild the model, solve the FINAL layout off-screen, then
-	 * glide every surviving node from where it is to where it lands over one eased tween: no physics churn, the
+	 * glide every surviving node from where it is to where it lands over one eased tween, without physics moving the nodes: the
 	 * one redraw the user asked for. New nodes (rare on a layout change) appear at their target.
 	 */
 	private repaintLayout(): void {
 		if (!this.graph) return;
 		this.parkedPositions.clear(); // layout changes move everything; parked positions would be stale
 		this.linkMap.clear(); // layout rebuilds all link objects; old __lineObj refs point at orphaned meshes
-		// Nothing to lay out yet (e.g. a persisted grouping restored before any data): bail rather than run an
+		// The model doesn't hold a node to lay out yet (e.g. a persisted grouping restored before any data): bail rather than run an
 		// empty solve: its engine-stop would consume the one-time initial warmup the FIRST real feed relies on.
 		if (this.nodeMap.size === 0 && this.model.quads.length === 0) return;
 		this.invalidateModelCache(); // a fresh layout repaint: rebuild the model + seqNodes once, so the render-type caches re-key
@@ -2079,7 +2079,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		const to = new Map<string, XYZ>();
 		for (const n of nodes) to.set(n.id, { x: n.x ?? 0, y: n.y ?? 0, z: n.z ?? 0 });
 		// Anchor the last-selected node: translate the WHOLE solved layout so that node lands exactly where the user
-		// left it: the layout's internal shape is unchanged (a rigid translation breaks no constraint), but the eye's
+		// left it: the layout's internal shape is unchanged (a rigid translation doesn't break a constraint), but the eye's
 		// reference point holds still through the transition. z is never translated: it is the time axis (data).
 		const anchorId = this.selectedSubject;
 		const af = anchorId ? from.get(anchorId) : undefined;
@@ -2095,7 +2095,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			}
 		}
 		// Snap every node back to its start and pin it there, so the first painted frame is the BEFORE layout; the
-		// tween then eases the pins to the targets. A node with no prior position (newly revealed) starts at its target.
+		// tween then eases the pins to the targets. A node without a prior position (newly revealed) starts at its target.
 		for (const n of nodes) {
 			const start = from.get(n.id) ?? to.get(n.id);
 			if (!start) continue;
@@ -2104,7 +2104,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			// z is the time axis (assigned from data in toGraphData), never a layout pin, don't tween it.
 		}
 		// Keep the engine ticking through the tween so it applies the pins and redraws links/sprites; pinned nodes
-		// ignore the forces, so there is no churn, only the eased pin motion shows.
+		// ignore the forces, so the forces don't move them; only the eased pin motion shows.
 		this.engine.hold();
 		this.tween = { start: performance.now(), from, to };
 		if (this.hoverSubject || this.selectedSubject) this.requestFocusAtRest();
@@ -2149,13 +2149,13 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		requestAnimationFrame(() => this.enclosureCtl.updateEnclosureGeometry());
 	}
 
-	/** What is focused: the open column's node stays focused while a column is open; hover takes over only when nothing is selected. */
+	/** What is focused: the open column's node stays focused while a column is open; hover takes over only when a node isn't selected. */
 	private get focusId(): string | null {
 		return this.activeSubject ?? this.hoverSubject;
 	}
 
 	/** The selected subject IF it is in the graph. A selection made elsewhere (a reply column, a search) can name a node
-	 *  this graph does not show, filtered out by type, dropped by prune, or never fetched. There is then no active node:
+	 *  this graph does not show, filtered out by type, dropped by prune, or never fetched. The graph then doesn't have an active node:
 	 *  the graph carries on exactly as it is, rather than dimming every node against a focus that is not on screen or
 	 *  following a node that cannot be seen. The selection itself is untouched, so hiding and re-showing the type brings
 	 *  the active node back. */
@@ -2235,9 +2235,9 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 
 	/** The display name for a sequence actor (a participant id). Mirrors the role-container labelling: the party's display
 	 *  name prefixed by its role designation, named from the role rel by which nodes attribute to it, not the party's
-	 *  vertex type (one Principal per DID); an id with no node falls back to the id. */
+	 *  vertex type (one Principal per DID); an id without a node falls back to the id. */
 	/** The noun a party displays under: what the edge conferring the role declares its target is called, else the
-	 *  party's own type. Declared vocabulary, read from the projection: a graph view names no roles of its own. */
+	 *  party's own type. Declared vocabulary, read from the projection: a graph view doesn't name roles of its own. */
 	private roleNoun(roleRel: unknown, type: string | undefined): string | undefined {
 		return roleNounFor(roleRel) ?? type;
 	}
@@ -2251,7 +2251,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	}
 
 	/** Ask the host to show the actor types, through the same reveal the schema scope uses. A no-op when they are all
-	 *  shown already, so choosing the view repeatedly does nothing. */
+	 *  shown already, so choosing the view repeatedly doesn't change the types shown. */
 	private revealActorTypes(): void {
 		const hidden = new Set(this.model.hiddenGraphs);
 		const showing = [...this.model.knownClusters.keys()].filter((t) => !hidden.has(t));
@@ -2300,7 +2300,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		// In the ontology view a node IS a schema term, not an individual. A Class opens its own type column (its CLASS
 		// view: description, schema graph, individuals), the same navigation a #Type reference / a graph Class-click uses,
 		// so exploring the schema stays in the schema rather than dropping into a list of instances. A Property opens the
-		// windowed instances of a type that declares it, sorted by it (no instances → no pane).
+		// windowed instances of a type that declares it, sorted by it (zero instances → a pane doesn't open).
 		if (n.type === ONTOLOGY_CLASS) {
 			this.openPane({ paneType: "type", persistedAs: n.id }, e);
 			return;
@@ -2338,8 +2338,8 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	}
 
 	/** Open the windowed instances column for a clicked ontology Property: the instances of a declaring type, sorted by it
-	 *  (shu-filter-column → graphQuery). No instances to show (an abstract super-property, or a property no type
-	 *  declares) → nothing opens. */
+	 *  (shu-filter-column → graphQuery). Zero instances to show (an abstract super-property, or a property the types
+	 *  don't declare) → a column doesn't open. */
 	private openOntologyInstances(n: FGNode, e?: MouseEvent): void {
 		const target = this.propertyInstancesTarget(n.id);
 		if (target) this.openPane({ paneType: "filter-prop", ...target }, e);
@@ -2347,7 +2347,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 
 	/** A Property's instances target: the first type whose data USES the rel, or any of its sub-properties, since
 	 *  an abstract super-property (inRoleOf) is never used directly, but its concrete descendants (issuer, fromActor) are.
-	 *  Opens that type's column keyed by the rel that's used. Undefined only when nothing in the data uses the rel or a
+	 *  Opens that type's column keyed by the rel that's used. Undefined only when the data doesn't use the rel or a
 	 *  descendant: the actual uses, not the declared rdfs:domain, which a super-property or an undeclared rel wouldn't have. */
 	private propertyInstancesTarget(rel: string): { persistedAs: string; predicate: string } | undefined {
 		for (const q of this.model.quads) if (!isSchemaType(q.namedGraph) && isSubPropertyOf(q.predicate, rel)) return { persistedAs: q.namedGraph, predicate: q.predicate };
@@ -2364,7 +2364,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		return true;
 	}
 
-	/** Which node a press at these client pixels would pick, pickNodeAt without any pointer side effects (no hover
+	/** Which node a press at these client pixels would pick, pickNodeAt without any pointer side effects (without a hover
 	 * change). Lets a test prove the press-pick reads the chip's RESTING footprint, so a magnified focus chip never
 	 * widens its own grab zone (the "focused node blocks the graph" guard at pickNodeAt). */
 	pickAt(clientX: number, clientY: number): string | null {
@@ -2372,8 +2372,8 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	}
 
 	/** The pixel a node is drawn at: its engine coordinates through the render camera, with the matrix forced current
-	 *  (`pointerRay` forces the same, so aiming here and picking there agree between frames). Null when the scene has no
-	 *  camera or canvas yet, or the id names no node. The graph's ONE projection: whatever aims at a node reads it here
+	 *  (`pointerRay` forces the same, so aiming here and picking there agree between frames). Null when the scene doesn't have a
+	 *  camera or canvas yet, or the id doesn't name a node. The graph's ONE projection: whatever aims at a node reads it here
 	 *  rather than repeating the arithmetic, which is what lets a pick land on what a projection pointed at. */
 	projectNodeToScreen(id: string): TClientPoint | null {
 		const T = aframeThree();
@@ -2392,7 +2392,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		const n = id ? (this.nodeMap.get(id) ?? null) : null;
 		this.hoverSubject = n?.id ?? null;
 		this.updateHoverInfo(n);
-		this.requestFocusAtRest(); // a programmatic hover (external/test) with no pointer over the canvas must still wake the paused loop
+		this.requestFocusAtRest(); // a programmatic hover (external/test) without a pointer over the canvas must still wake the paused loop
 		this.applyFocus();
 	}
 
@@ -2435,12 +2435,12 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	}
 
 	/* Visual-graph navigation, exposed imperatively so a control step, a keyboard shortcut, or a button all drive ONE
-	 * path. These are the ONLY sanctioned camera changes: the explicit, user-initiated re-framing. Nothing else (a
-	 * node click, focus, data feed, or a resize) may re-decide the zoom: the graph never auto-determines its framing. */
+	 * path. These are the ONLY sanctioned camera changes: the explicit, user-initiated re-framing. Another change (a
+	 * node click, focus, data feed, or a resize) may not re-decide the zoom: the graph never auto-determines its framing. */
 
 	/** The placed-gantt extent the camera frames (centre + half-spans of the bars), computed here, in the gantt
 	 *  layout's owner, and handed to the camera controller so it never reaches into render-type state. The time span
-	 *  (z) becomes screen-horizontal and the lane stack (y) screen-vertical. Null when no bars are placed. */
+	 *  (z) becomes screen-horizontal and the lane stack (y) screen-vertical. Null when the view hasn't placed bars. */
 	private ganttExtent(): GanttExtent | null {
 		if (this.ganttTargets.size === 0) return null;
 		let minY = Infinity,
@@ -2462,7 +2462,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	}
 
 	/** The participant-lane (y) × time (z) extent the camera frames for the sequence view, mirroring ganttExtent and
-	 *  sourced from the active RenderType's seqLayout; null when the active view has no sequence layout. */
+	 *  sourced from the active RenderType's seqLayout; null when the active view doesn't have a sequence layout. */
 	private sequenceExtent(): GanttExtent | null {
 		const layout = this.renderType.seqLayout?.();
 		if (!layout || layout.placement.size === 0) return null;
@@ -2512,7 +2512,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	/** Follow the active node: centre it, holding the reader's zoom level. Not a fit around its neighbourhood: that
 	 *  sizes the distance to each node's own surroundings, so the label scale would change from node to node; the zoom
 	 *  belongs to the reader, and following only moves what the camera looks at. With the guide open over the canvas,
-	 *  "centre" is the clear strip beside it, centring under the guide showed the reader nothing. */
+	 *  "centre" is the clear strip beside it, centring under the guide didn't show the reader the node. */
 	private followActive(nodeId: string): void {
 		const n = this.nodeMap.get(nodeId);
 		if (!n) return;
@@ -2521,8 +2521,8 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	}
 
 	/** What covers the canvas right now, as the aim offset a framing applies: the reading guide of this scene, and every
-	 *  overlay on the page that declares it covers the views (the actions bar while it is open). Null where nothing
-	 *  reaches the canvas or what does leaves the centre clear, which is where a framing aims anyway. */
+	 *  overlay on the page that declares it covers the views (the actions bar while it is open). Null where an overlay doesn't
+	 *  reach the canvas or one that does leaves the centre clear, which is where a framing aims anyway. */
 	private coverClearOffset(): { dxPx: number; dyPx: number } | null {
 		const canvas = this.ctx.canvas?.getBoundingClientRect();
 		const covered = canvas ? this.coveredRect(canvas) : null;
@@ -2560,7 +2560,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 
 	/** Draw the calendar ruler for a view that reads along a calendar, and take it off screen for one that does not, so a
 	 *  view switch cannot leave the previous view's ruler behind. A sequence's lifelines are the actor chips themselves,
-	 *  so it needs no overlay of its own. */
+	 *  so it doesn't need an overlay of its own. */
 	private updateLaneAxis(): void {
 		if (this.renderType.drawsCalendarAxis) this.updateGanttAxis();
 		else this.clearGanttAxis();
@@ -2714,7 +2714,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 
 	/** The current graph as a self-contained SVG still: the SAME placed nodes and links the WebGL renderer displays,
 	 *  drawn by another renderer, for a report, a print, a saved image. Positions are the scene's own (layoutForFeed),
-	 *  so nothing is computed twice and a still always matches what is on screen. */
+	 *  so a position isn't computed twice and a still always matches what is on screen. */
 	still(): string {
 		const svg = new SvgRenderer({ timeIsHorizontal: () => this.renderType.timeIsHorizontal });
 		svg.draw({ nodes: [...this.nodeMap.values()], links: this.currentLinks });

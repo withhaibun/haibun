@@ -1,4 +1,4 @@
-// What a device holds of the runs it has read, and what it does when it can hold no more. A record's id names the run
+// What a device holds of the runs it has read, and what it does when it can't hold more. A record's id names the run
 // it belongs to, so forgetting a run is asked of the records rather than of a second index beside them.
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
@@ -75,14 +75,14 @@ describe("what a device holds of the runs it has read", () => {
 		const stop = subscribeExecutionSwitch(() => told++);
 		noteExecution(NEWER);
 		expect(readingExecution(), "the run the reader chose").toBe(OLDER);
-		expect(told, "nothing changed for a reader who is reading a run of their own choosing").toBe(0);
+		expect(told, "a reader who is reading a run of their own choosing isn't told of a change").toBe(0);
 		stop();
 	});
 
 	it("forgets one run entirely and holds the rest of what it has read", async () => {
 		const store = await aDevice();
 		expect(await forgetExecution(OLDER)).toBe(3);
-		expect(await heldOf(store, OLDER), "nothing of the run it forgot").toBe(0);
+		expect(await heldOf(store, OLDER), "it doesn't hold a record of the run it forgot").toBe(0);
 		expect(await heldOf(store, NEWER), "every record of the run it kept").toBe(3);
 	});
 
@@ -104,7 +104,7 @@ describe("what a device holds of the runs it has read", () => {
 		expect(await heldOf(store, NEWER)).toBe(4);
 	});
 
-	it("says a device it can free nothing on is full, and goes on reading", async () => {
+	it("says a device is full when it can't free a record there, and goes on reading", async () => {
 		const store = await aDevice();
 		await forgetExecution(OLDER);
 		readExecution(NEWER);

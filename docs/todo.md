@@ -1,7 +1,7 @@
  [ ] add and update unit tests for each checkmark
 
 
-[x] should show raw json when it finds no message (currently blank for graph-link)
+[x] should show raw json when it doesn't find a message (currently blank for graph-link)
 [x] max depth should default to 6
 [x] ~~~ hidden should handle hidden by depth
 
@@ -53,7 +53,7 @@
 * [x] increment test must pass 	it('whenever loop increment and compare with is', async () => {
 * [k] should coerce only when variables are being tested or consumed
  [ ]  * make sure that variables are not coerced when they are being set
-* [ ] make sure there are no side effects in resolveVariable or populateActionArgs
+* [ ] make sure resolveVariable and populateActionArgs don't have side effects
 * [x] populateActionArgs should be a minimal wrapper around resolveVariable
 * [x] Haibun.prose should use new rules in FIXME
 * [ ] normalizeDomainKey is probably not needed, see if it ever throws Error

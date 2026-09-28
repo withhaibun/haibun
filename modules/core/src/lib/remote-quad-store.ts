@@ -3,7 +3,7 @@
  * `store.*` protocol (store-protocol.ts). Registered as a backing store (QuadStore.registerStore) for the
  * graphs it is mounted for, so a satellite instance keeps those records in the main instance's store
  * instead of its own: writes route through, reads come back: one store, one custodian. Every call
- * is signed, invoking the action its method takes; a peer holding no delegation for it is refused by the serving side.
+ * is signed, invoking the action its method takes; a peer that doesn't hold a delegation for it is refused by the serving side.
  * Mount-scoped: clustered reads and all() cover only the mounted graphs, never the peer's whole store.
  */
 import { discoverInstance, RpcClient, type RpcError } from "./rpc-client.js";
@@ -101,10 +101,10 @@ export class RemoteQuadStore implements IQuadStore {
 	}
 
 	/**
-	 * Mount-scoped: a caller's type filter intersects the mounted graphs; no filter means exactly the mounted graphs.
+	 * Mount-scoped: a caller's type filter intersects the mounted graphs; a call without a filter reads exactly the mounted graphs.
 	 * Every subject is stamped with the serving site: a mounted record's location IS the serving instance's store (a
-	 * read-time store fact), so this instance's own view already shows it under the site that holds it, no federation
-	 * needed. A subject the peer itself stamped (transitive mount) keeps that deeper stamp.
+	 * read-time store fact), so this instance's own view already shows it under the site that holds it, and doesn't need
+	 * federation. A subject the peer itself stamped (transitive mount) keeps that deeper stamp.
 	 */
 	async getClusteredQuads(opts: TClusteredQuadsOpts): Promise<TClusteredQuads> {
 		const types = opts.types ? opts.types.filter((t) => this.config.graphs.includes(t)) : [...this.config.graphs];

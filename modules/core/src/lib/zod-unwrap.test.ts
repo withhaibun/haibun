@@ -2,7 +2,7 @@
  * The wrapper walk, over the nestings that occur: a default over an optional over an object, a preprocess over the
  * type it reads into, and the object itself.
  * Written three times, one copy reached zod's older `_def.innerType` while the others reached `_zod.def`, so on the
- * installed zod that copy returned the wrapper it was asked to remove and reported nothing. These assert the walk
+ * installed zod that copy returned the wrapper it was asked to remove and didn't report an error. These assert the walk
  * against the library installed, which is what makes a version move a failing test rather than a silence.
  */
 import { describe, it, expect } from "vitest";
@@ -49,7 +49,7 @@ describe("unwrapToShape", () => {
 		expect(unwrapToObject(fromJsonText(strict))).toBe(strict);
 	});
 
-	it("answers null where there is no shape to read", () => {
+	it("answers null where the schema doesn't have a shape to read", () => {
 		expect(unwrapToShape(z.string())).toBeNull();
 		expect(unwrapToShape(z.number().optional())).toBeNull();
 	});

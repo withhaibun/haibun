@@ -34,7 +34,7 @@ export function nextQuestion(state: TSubjectState): { carries: TEntry | null; re
 /**
  * What a turn this page asks may do, as the delegation the page signs to the turn's key: reading at the level the page
  * asks at, no wider than the page reads, and each action the page holds of those the instance names for a turn and those
- * the reader allowed its turns. Undefined where the deployment verifies no delegation, where a turn holds what the
+ * the reader allowed its turns. Undefined where the deployment doesn't verify a delegation, where a turn holds what the
  * deployment allows without one.
  */
 async function turnDelegation(): Promise<Record<string, unknown> | undefined> {
@@ -77,7 +77,7 @@ class ChunkEvents {
 export async function startTurn({ prompt, envelope, target }: TTurnRequest): Promise<TAskedTurn> {
 	const refusal = askRefusal(conversationState.get());
 	if (refusal) throw new Error(refusal);
-	// Stated before the turn is asked, so an envelope that does not serialize is refused and leaves no turn in flight.
+	// Stated before the turn is asked, so an envelope that does not serialize is refused and doesn't leave a turn in flight.
 	const delegation = await turnDelegation();
 	const stated = TurnEnvelopeSchema.parse({ ...envelope, ...(delegation ? { delegation } : {}) });
 	const context = JSON.stringify(stated);

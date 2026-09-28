@@ -31,7 +31,7 @@ Instead of hardcoded "Developer" or "User" logs, views are projections based on 
 **Goal:** All steps, including compound statements and activities, must be fully resolved *before* execution begins.
 -   **Resolve Phase:** A distinct phase where the parser expands all `activities`, `waypoints`, and compound steps (`whenever`, `anyOf`) into a static execution tree.
 -   **Determinism:** This ensures that the entire execution path (including potential branches) is known and validatable before a single step runs.
--   **No "Hidden" Logic:** Activities are not "found" at runtime; they are linked during the resolution phase.
+-   **Logic Isn't "Hidden":** Activities are not "found" at runtime; they are linked during the resolution phase.
 
 ### 2.3. Unified Parsing & Cycles
 -   **Unified Parser:** Standardize on a single argument parsing mechanism.

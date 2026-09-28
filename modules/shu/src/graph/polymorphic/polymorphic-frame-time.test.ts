@@ -38,7 +38,7 @@ describe("measuring a drawn frame", () => {
 		const c = clock();
 		const frameTime = new FrameTime(() => held.gl, c.now);
 		for (let i = 0; i < SAMPLE_EVERY - 1; i++) frameTime.drew();
-		expect(held.fences, "no fence before the sampled frame").toBe(0);
+		expect(held.fences, "a fence isn't made before the sampled frame").toBe(0);
 		frameTime.drew();
 		expect(held.fences).toBe(1);
 		c.t = 5;
@@ -56,14 +56,14 @@ describe("measuring a drawn frame", () => {
 		expect(held.fences).toBe(1);
 	});
 
-	it("measures nothing on a context without fences, and nothing before the renderer exists", () => {
+	it("doesn't measure a frame on a context without fences, or before the renderer exists", () => {
 		const frameTime = new FrameTime(() => ({}) as unknown as TFenceGl);
 		for (let i = 0; i < SAMPLE_EVERY; i++) frameTime.drew();
 		expect(frameTime.poll()).toBeUndefined();
 		let gl: TFenceGl | undefined;
 		const later = new FrameTime(() => gl);
 		for (let i = 0; i < SAMPLE_EVERY; i++) later.drew();
-		expect(later.poll(), "no renderer yet").toBeUndefined();
+		expect(later.poll(), "the renderer doesn't exist yet").toBeUndefined();
 		const held = fakeGl(1);
 		gl = held.gl;
 		for (let i = 0; i < SAMPLE_EVERY; i++) later.drew();

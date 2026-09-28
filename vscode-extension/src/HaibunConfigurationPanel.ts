@@ -705,7 +705,7 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
 		configNode.commonConfig = { cwd, bases, configFile };
 		items.push(configNode);
 
-		// 4. LSP Section (no children)
+		// 4. LSP Section (without children)
 		const lspStatusIcon = this._lspStatus === "running" ? "●" : this._lspStatus === "starting" ? "○" : this._lspStatus === "error" ? "✕" : "○";
 		const lspNode = new TreeNode("section", "LSP", `${lspStatusIcon} ${this._lspStatusMessage}`, vscode.TreeItemCollapsibleState.None);
 		items.push(lspNode);

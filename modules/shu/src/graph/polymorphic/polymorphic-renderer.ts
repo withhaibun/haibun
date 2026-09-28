@@ -1,5 +1,5 @@
 // How a graph is shown, as an interface. The scene computes the placed nodes and links; a renderer displays them.
-// There is no second model: a renderer is handed what the pipeline already produced, and what it displayed is read back
+// A renderer doesn't hold a second model: a renderer is handed what the pipeline already produced, and what it displayed is read back
 // through the scene's own snapshot (inspect).
 
 import type { FGLink, FGNode } from "./polymorphic-graph-types.js";
@@ -60,7 +60,7 @@ export function compositeRenderer(...media: IGraphRenderer[]): IGraphRenderer {
 
 /**
  * A renderer that keeps what it was given, so a test can ask what a change displayed, did a view change place the nodes
- * differently, did a merge that changed nothing display at all, without a browser.
+ * differently, did a merge that didn't change the model display at all, without a browser.
  */
 export class RecordingRenderer implements IGraphRenderer {
 	readonly placements: TPlacement[] = [];

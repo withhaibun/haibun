@@ -74,7 +74,7 @@ describe("viewQuery store", () => {
 		expect(viewQuery.current).toEqual(DEFAULTS);
 	});
 
-	it("keeps the live query when an open= fragment arrives (a document's view link names no query state)", () => {
+	it("keeps the live query when an open= fragment arrives (a document's view link doesn't name a query state)", () => {
 		const live = "#?label=File&sort=dateModified&col=shu-monitor-column";
 		viewQuery.hydrate(live);
 		expect(viewQuery.current.label).toBe("File");

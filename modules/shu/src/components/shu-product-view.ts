@@ -2,7 +2,7 @@
  * <shu-product-view>: Unified product renderer.
  * Resolves the product's type to a single component (resolveUi) and mounts it; each component takes the
  * product via openProducts(), or self-fetches (the _component views: graph/monitor/sequence). One path,
- * no shape-sniffing.
+ * without shape-sniffing.
  *
  * The mounted component lives in LIGHT DOM (slot-projected), never in this element's shadow root: a WebXR/A-Frame
  * presenter resolves its own camera and UI anchors through document.querySelector, which cannot see into a shadow

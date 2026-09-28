@@ -26,7 +26,7 @@ export const GRAPH_REGULATION_BLIP = "haibun.shu.graph.regulation";
 const WAKE_CAUSES = ["data", "camera", "arrange", "resize", "theme", "breath", "focus", "pointer", "label", "particles"] as const;
 export type TWakeCause = (typeof WAKE_CAUSES)[number];
 
-/** Why a scene draws: nothing (it rests), a motion in progress (a drag, a tween, the engine settling, a magnify
+/** Why a scene draws: rest where it doesn't draw, a motion in progress (a drag, a tween, the engine settling, a magnify
  *  easing), or a discrete change within its grace, named by what caused it. Bounded, so it is a dimension. */
 const DRAWING_REASONS = ["rest", "drag", "tween", "settle", "magnify", ...WAKE_CAUSES] as const;
 export type TDrawingReason = (typeof DRAWING_REASONS)[number];

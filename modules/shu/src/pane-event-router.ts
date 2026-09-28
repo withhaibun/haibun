@@ -7,7 +7,7 @@
  * opens its view from the response it asked for (`affordance-dispatch`), which is the one thing that can say a reader
  * asked, while the SPA cannot write to the graph.
  *
- * The stream announces what happens from here on and replays nothing, so every event here is a live occurrence: a view
+ * The stream announces what happens from here on and doesn't replay what it sent before, so every event here is a live occurrence: a view
  * a reader closed is reopened only by the run showing it again, which is a new decision.
  *
  * Within one batch the LATEST op per pane wins, keyed by pane identity; the order across DISTINCT panes is preserved by

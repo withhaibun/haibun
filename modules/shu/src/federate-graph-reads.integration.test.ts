@@ -71,7 +71,7 @@ capture the federated clustered read
 		// The namer durably recorded the assignment as a Principal individual.
 		const store = world.shared.getStore();
 		expect((await store.getIndividual<TPrincipal>(PRINCIPAL_LABEL, "did:site:0.1"))?.controller).toBe("did:site:0.1");
-		// The merged view came back (no recursion) with the peer's subjects present and EVERY one stamped with its serving site.
+		// The merged view came back (without recursion) with the peer's subjects present and EVERY one stamped with its serving site.
 		const principals = captured?.clusters.find((c) => c.type === PRINCIPAL_LABEL);
 		expect(principals?.sampledSubjects.length).toBeGreaterThan(0);
 		for (const s of principals?.sampledSubjects ?? []) expect(principals?.sites?.[s]).toBe("did:site:0.1");
@@ -111,7 +111,7 @@ capture the federated clustered read
 		);
 		if (!result.ok) throw new Error(JSON.stringify({ failure: result.failure, steps: result.featureResults?.map((f) => f.stepResults.map((s) => [s.in, s.ok])) }, null, 2));
 
-		// Distinct hostIds → distinct site principals → no collision, nothing adopted: this instance stays did:site:0.
+		// Distinct hostIds → distinct site principals → they don't collide, and this instance doesn't adopt an identity: it stays did:site:0.
 		expect(adoptedDuringRun).toBe("did:site:0");
 		// The peer's own Principals (its serve feature ran `name a connecting site`, persisting did:site:7 + did:site:7.1)
 		// arrive in the merged view, every subject stamped with the SERVING site: the data group-by-site separates on.

@@ -26,7 +26,7 @@ export class ScrollFollowController implements ReactiveController {
 	/** The reader's intent to follow: true until they scroll away, true again when they return or the page goes live. */
 	#following = true;
 	/** What the host holds after the reader's place, read rather than counted, so a record removed while they read
-	 *  leaves nothing behind. A host that states none offers the reader nothing to return to. */
+	 *  doesn't leave a count behind. A host that doesn't state one doesn't offer the reader a place to return to. */
 	#arrivedAfter: () => number;
 	/** Where the reader is on the timeline as they stop following, which the view holds from then on. */
 	#placeNow: () => number | null;
@@ -38,7 +38,7 @@ export class ScrollFollowController implements ReactiveController {
 		this.#jumpToEdge = jumpToEdge;
 		this.view = opts.view ?? new TimelineViewController(host);
 		this.#arrivedAfter = opts.arrivedAfter ?? (() => 0);
-		// A host that states no place holds the page's cursor, which is what a view tracking the page already shows.
+		// A host that doesn't state a place holds the page's cursor, which is what a view tracking the page already shows.
 		this.#placeNow = opts.placeNow ?? (() => this.view.cursor);
 		host.addController(this);
 	}
@@ -61,7 +61,7 @@ export class ScrollFollowController implements ReactiveController {
 		return this.#following;
 	}
 
-	/** How many entries arrived after the reader's place. A view at the end states none. */
+	/** How many entries arrived after the reader's place. A view at the end states zero. */
 	get arrived(): number {
 		return this.#following ? 0 : this.#arrivedAfter();
 	}

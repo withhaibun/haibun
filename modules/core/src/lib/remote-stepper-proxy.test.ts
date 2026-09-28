@@ -155,7 +155,7 @@ describe("RemoteStepperProxy", () => {
 		expect(result.products).toMatchObject({ echoed: "hello" });
 	});
 
-	it("answers with no products for a step that declares none, whatever the host's answer carries in their place", async () => {
+	it("doesn't return products for a step that doesn't declare them, whatever the host's answer carries in their place", async () => {
 		const proxy = new RemoteStepperProxy(`http://localhost:${port}`);
 		await proxy.setWorld(world, []);
 		const registry = new StepRegistry([], world);
@@ -219,7 +219,7 @@ describe("RemoteStepperProxy", () => {
 		expect(tool.descriptor.capability).toBe("EchoStepper:admin");
 	});
 
-	it("signs a call to a step for the action it requires, its own name where it declares none, and reading what the host offers as a public read", async () => {
+	it("signs a call to a step for the action it requires, its own name where it doesn't declare one, and reading what the host offers as a public read", async () => {
 		const proxy = new RemoteStepperProxy(`http://localhost:${port}`);
 		await proxy.setWorld(world, []);
 		const registry = new StepRegistry([], world);
@@ -236,6 +236,6 @@ describe("RemoteStepperProxy", () => {
 		expect(presented.get("EchoStepper-protectedPing")).toBe('fake action="EchoStepper:admin"');
 		expect(presented.get("EchoStepper-echo")).toBe('fake action="EchoStepper:echo"');
 		expect(presented.get("Haibun-showSteps"), "the host shows the steps the proxy holds there").toBe('fake action="Read:public"');
-		expect(presented.get("action.begin"), "and the handshake requires nothing").toBeUndefined();
+		expect(presented.get("action.begin"), "and the handshake doesn't require an action").toBeUndefined();
 	});
 });

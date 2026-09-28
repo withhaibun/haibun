@@ -30,7 +30,7 @@ const TARGET_TICKS = 8; // aim for roughly this many marks across the span
 
 /** Calendar tick marks across the gantt time axis: a step sized to the span (so a drag has a date reference), each
  *  tick's epoch-ms, its z on the axis, and a short label. Day/week steps align to UTC midnight + label MM-DD; month/
- *  quarter/year steps walk the calendar (UTC, no drift) + label YYYY-MM. */
+ *  quarter/year steps walk the calendar (UTC, without drift) + label YYYY-MM. */
 export function ganttAxisTicks(scale: GanttScale): GanttTick[] {
 	const { min, span } = scale;
 	const end = min + span;

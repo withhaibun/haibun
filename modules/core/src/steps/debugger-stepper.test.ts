@@ -181,7 +181,7 @@ describe("DebuggerStepper sequence integration", () => {
 
 describe("DebuggerStepper RPC dispatch", () => {
 	// buildFeatureStepForTransport stamps source.path === "rpc" on every transport-
-	// driven dispatch. Those callers have no human at the prompter, so the
+	// driven dispatch. Those callers don't have a human at the prompter, so the
 	// debugger's before/afterStep hooks must not enter debugLoop, otherwise
 	// prompter.prompt() awaits forever, stepEnd never fires, and the caller hangs.
 	// Regression for the "fetching forever" symptom of a missing-node RPC.

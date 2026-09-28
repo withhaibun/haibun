@@ -71,7 +71,7 @@ const cross = (a: XYZ, b: XYZ): XYZ => ({ x: a.y * b.z - a.z * b.y, y: a.z * b.x
 type TRect = { left: number; top: number; right: number; bottom: number };
 
 /** What several overlays cover together: the box around the ones that reach the canvas at all, so a framing aims clear
- *  of all of them at once rather than out from under one and under the next. Null when none of them reaches it. */
+ *  of all of them at once rather than out from under one and under the next. Null when the overlays don't reach it. */
 export function coveredTogether(canvas: TRect, overlays: readonly TRect[]): TRect | null {
 	const over = overlays.filter((o) => o.right > canvas.left && o.left < canvas.right && o.bottom > canvas.top && o.top < canvas.bottom);
 	if (over.length === 0) return null;
@@ -85,8 +85,8 @@ export function coveredTogether(canvas: TRect, overlays: readonly TRect[]): TRec
 
 /**
  * Where a framing should aim when an overlay covers part of the canvas: the centre of the widest clear strip on any
- * side of the overlay, as a right/up pixel offset from the canvas centre. Null when nothing is occluded (centre is
- * fine) or when the overlay leaves no strip to aim at (nowhere better exists). Screen y grows downward, so a strip
+ * side of the overlay, as a right/up pixel offset from the canvas centre. Null when the overlay doesn't cover the canvas (centre
+ * is fine) or when the overlay doesn't leave a strip to aim at (a better place doesn't exist). Screen y grows downward, so a strip
  * below the canvas centre is a negative dyPx. Every side counts: a guide down one side leaves the strip beside it, and
  * a bar across the bottom leaves the strip above it, which is the only place its reader can be shown anything.
  */
@@ -338,7 +338,7 @@ export class PolymorphicCamera {
 	}
 
 	/** Called on every engine stop. Frames EXACTLY ONCE, when the first real layout settles: the from-scratch warmup
-	 *  makes that first stop the FINAL, converged layout, so one fit lands the whole graph and nothing needs re-fitting.
+	 *  makes that first stop the FINAL, converged layout, so one fit lands the whole graph and the graph doesn't need re-fitting.
 	 *  Never re-frames after settling (in non-flatten the z axis is TIME, which grows as data streams; a growth-driven
 	 *  re-fit slid the camera along time and chased later reheats). A full clear lets it frame again; the user taking the camera
 	 *  (or a running tween) suppresses it. */
@@ -353,7 +353,7 @@ export class PolymorphicCamera {
 		if (this.frame(this.deps.reframeMode())) this.framedOnce = true;
 	}
 
-	/** Apply a queued framing move (set in queueFrame) once the new layout has settled. A no-op when nothing is queued,
+	/** Apply a queued framing move (set in queueFrame) once the new layout has settled. A no-op when a move isn't queued,
 	 *  so it's safe to call on every settle. */
 	applyPendingFrame(): void {
 		if (!this.pendingFrame) return;
@@ -363,11 +363,11 @@ export class PolymorphicCamera {
 	}
 
 	/**
-	 * Move the camera toward or away from what it looks at. No limit on how near or far: a graph is laid out in whatever
+	 * Move the camera toward or away from what it looks at. It doesn't limit how near or far: a graph is laid out in whatever
 	 * units its data implies, so a fixed floor is arbitrary. A world-unit floor stopped zoom-in dead, and since pan and
 	 * orbit scale with the distance to the target, it reduced those too.
 	 *
-	 * A step must not REACH the target (a camera on it has no direction to zoom back out along), so a step that would
+	 * A step must not REACH the target (a camera on it doesn't have a direction to zoom back out along), so a step that would
 	 * reach or pass it closes a fraction of what remains instead.
 	 */
 	zoomBy(amount: number, unit: TMeasureUnit, dir: TZoomDirection): void {

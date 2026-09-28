@@ -50,7 +50,7 @@ describe("SubjectController", () => {
 		new SubjectController(host, (record) => seen.push(record)).hostConnected();
 		dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: PANE });
 		dispatchSubjectEvent({ type: "update", scope: SCOPE.page, entry: PANE }); // the same record, restated
-		dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry: NOTHING }); // a closed scope leads nothing
+		dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry: NOTHING }); // a closed scope doesn't lead
 		expect(seen).toEqual([null, { id: "a@test.com", label: "Email" }]);
 	});
 

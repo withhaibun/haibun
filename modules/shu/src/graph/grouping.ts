@@ -9,18 +9,18 @@ export type XYZ = { x: number; y: number; z: number };
 
 /** A grouping/container axis. `"type"` groups by `@type`; `"role"` by the highest-priority actor a node is attributed to
  *  (rels-cache `roleEdgeLabels()`: ontology + concern-catalog derived, ordered by each rel's / consumer edge's DECLARED
- *  rolePriority: never a hand-kept list, and no consumer vocabulary named here); ANY other value is a merged
+ *  rolePriority: never a hand-kept list, and this file doesn't name a consumer vocabulary); ANY other value is a merged
  *  node-property key: an actor predicate, or the read-time SITE_KEY stamp (the site whose store served the node, set at
  *  the federation merge). */
 export type GroupKeyMode = "type" | "role" | (string & {});
 
-/** Container bucket for a node with no agent at the chosen actor axis. */
+/** Container bucket for a node without an agent at the chosen actor axis. */
 export const UNATTRIBUTED_ROLE = "(unattributed)";
 
 /** The group/container key for a node under `axis`: its `@type`, its highest-priority actor (`"role"`), or the agent at a
  *  specific actor predicate. buildGraphModelFromQuads records each actor edge on `properties[predicate]` and the winner on
- *  `properties[HYPERMEDIA_ROLE_KEY]`, so this reads a plain property either way: no edge walking, no predicate enumerated
- *  here (the axis string IS the predicate). */
+ *  `properties[HYPERMEDIA_ROLE_KEY]`, so this reads a plain property either way, without walking edges or enumerating a
+ *  predicate here (the axis string IS the predicate). */
 export const groupKeyOf = (n: { type: string; properties?: Record<string, unknown> }, axis: GroupKeyMode = "type"): string => {
 	if (axis === "type") return n.type;
 	if (axis === "role") return String(n.properties?.[HYPERMEDIA_ROLE_KEY] ?? UNATTRIBUTED_ROLE);
@@ -45,7 +45,7 @@ export const ENCLOSURE_MIN_THICK = 1;
 
 export type GroupAnchor = { x: number; y: number };
 
-/** Ring anchors for the distinct group keys, in the given order. One group sits at the origin; none ⇒ empty map. */
+/** Ring anchors for the distinct group keys, in the given order. One group sits at the origin; zero keys ⇒ empty map. */
 export function ringAnchors(keys: string[], radius: number): Map<string, GroupAnchor> {
 	const anchors = new Map<string, GroupAnchor>();
 	const k = keys.length;
@@ -81,7 +81,7 @@ export function shelfPack(sizes: ReadonlyMap<string, { w: number; h: number }>, 
 	// Deterministic total order: tallest first (a wide-short cell sinks to a late short row), then widest, then key.
 	cells.sort((a, b) => b.ch - a.ch || b.cw - a.cw || a.k.localeCompare(b.k));
 	const area = cells.reduce((s, c) => s + c.cw * c.ch, 0);
-	const targetW = Math.max(Math.max(...cells.map((c) => c.cw)), Math.sqrt(area)); // the widest cell always fits a row alone (no infinite wrap)
+	const targetW = Math.max(Math.max(...cells.map((c) => c.cw)), Math.sqrt(area)); // the widest cell always fits a row alone (without an infinite wrap)
 	const placed: Array<{ k: string; cx: number; cy: number; w: number; h: number }> = [];
 	let x = 0;
 	let y = 0;

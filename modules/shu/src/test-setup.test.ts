@@ -11,7 +11,7 @@ import { eventStream } from "./event-stream.js";
 import { setupShuTest } from "./test-setup.js";
 
 beforeEach(() => {
-	// Each test re-runs setupShuTest; nothing leaks between cases.
+	// Each test re-runs setupShuTest; state doesn't leak between cases.
 });
 
 describe("setupShuTest", () => {

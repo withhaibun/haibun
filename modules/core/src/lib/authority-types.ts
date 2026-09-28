@@ -37,7 +37,7 @@ export const DELEGATIONS_READ_METHOD = "AuthorityStepper-delegationsTo";
 
 /**
  * What the delegation read requires. A key holds it by invoking its own root, which a verifier resolves as controlled by
- * the key that signs, and holds nothing else under that root: all the invocation proves is the key.
+ * the key that signs, and doesn't hold another action under that root: all the invocation proves is the key.
  */
 export const DELEGATIONS_READ_ACTION = "Authority:readOwnDelegations";
 
@@ -55,7 +55,7 @@ export type TVerdict = { ok: boolean; error?: string; principal?: string; allowe
  * Decides whether evidence supports what it claims, and says what it supports: for a request, everything the delegation
  * it presents allows, the action it invokes among them. It also answers what this deployment delegated to a key and
  * hasn't revoked, which the framework asks only for the key a call proved it holds. A consumer registers one for the specification its
- * deployment uses; the framework holds no signing key and reads no proof itself.
+ * deployment uses; the framework doesn't hold a signing key or read a proof itself.
  */
 export interface IAuthorityVerifier {
 	verify(evidence: TAuthorityEvidence): Promise<TVerdict>;
@@ -73,8 +73,8 @@ export type TActingFor = { root: true } | { root: false; controller: string };
 /** What the authority did: the id of what it recorded or revoked and when, or why it refused. */
 export type TAuthorityAct = { ok: true; id: string; at: string } | { ok: false; error: string };
 
-/** A request this process makes, as it is sent: what a signature over it covers. A request with no body, such as a GET,
- *  carries none. */
+/** A request this process makes, as it is sent: what a signature over it covers. A request without a body, such as a GET,
+ *  doesn't carry one. */
 export type TOutgoingRequest = { method: string; url: string; headers: Record<string, string>; body?: string };
 
 /** Signs a request that invokes `action` at the far side, answering the headers the request is sent with. */
@@ -83,7 +83,7 @@ export type TRequestSigner = (request: TOutgoingRequest, action: string) => Prom
 /**
  * Signs a request this process makes, invoking an action under authority this process holds at the far side. A consumer
  * registers one for the specification its deployment uses, and it chooses what the request presents; the framework
- * holds no key and chooses nothing.
+ * doesn't hold a key or make that choice.
  */
 export interface IAuthorityInvoker {
 	sign: TRequestSigner;
@@ -96,8 +96,8 @@ export interface IAuthorityInvoker {
 export interface IAuthority {
 	registerVerifier(verifier: IAuthorityVerifier): void;
 	registerInvoker(invoker: IAuthorityInvoker): void;
-	/** What was delegated here to a key, read as the instance: none, where nothing is registered that could verify a
-	 *  delegation. */
+	/** What was delegated here to a key, read as the instance: empty, where a verifier that could verify a
+	 *  delegation isn't registered. */
 	delegationsTo(controller: string): Promise<TDelegations>;
 	signRequest: TRequestSigner;
 	/** Whether anything is registered to decide evidence at all, so a boundary reading a request knows to ask. */

@@ -1,7 +1,7 @@
 /**
  * graph-expansion: reveal a node's bounded neighborhood in the shared graph
  * snapshot when the user selects it. Generic: the overview and any external
- * viewer call it the same way; it knows nothing about which view it serves.
+ * viewer call it the same way; it doesn't depend on which view it serves.
  *
  * Each neighbor is brought in as its own node (so it renders, not merely as an
  * edge endpoint) in both directions, the node + neighbors are pinned so streamed
@@ -21,7 +21,7 @@ const INCOMING_LIMIT = 100;
 type ProjectedVertex = Record<string, unknown>;
 type EdgeRow = { type: string; target: ProjectedVertex };
 
-/** A projected vertex's scalar properties as quads (no edges), so a revealed neighbor renders as a node. */
+/** A projected vertex's scalar properties as quads (without edges), so a revealed neighbor renders as a node. */
 function vertexPropsToQuads(label: string, vertex: ProjectedVertex, timestamp: number): TQuad[] {
 	const subject = idOf(vertex);
 	if (!subject) return [];
@@ -38,7 +38,7 @@ function vertexPropsToQuads(label: string, vertex: ProjectedVertex, timestamp: n
  * Fetch a node's outgoing + incoming neighborhood (server-bounded), bring the node
  * and every neighbor into the snapshot as pinned nodes, and merge. Returns the set
  * of graph types touched so the caller can expand them. A non-individual graph
- * (no rels) has no neighborhood and returns empty.
+ * (without rels) doesn't have a neighborhood and returns empty.
  */
 export async function expandNeighborhood(label: string, id: string): Promise<Set<string>> {
 	const types = new Set<string>();

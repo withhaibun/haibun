@@ -1,11 +1,11 @@
 /**
  * Project the ONTOLOGY (the schema / T-Box) as quads, so the same graph view that renders the instance data (the A-Box)
- * renders the model that drives it: no separate visualization engine. The ontology is already RDFS/OWL triples:
+ * renders the model that drives it, without a separate visualization engine. The ontology is already RDFS/OWL triples:
  * `sec:Issuer rdfs:subClassOf prov:Agent`, `issuer rdfs:subPropertyOf fromActor rdfs:subPropertyOf inRoleOf`\. The projection emits
  * them as the same TQuad shape the store emits for individuals, so buildGraphModelFromQuads / the polymorphic view treat the
  * ontology as just another graph: two clusters, Class and Property, with the subClassOf / subPropertyOf hierarchies as
  * edges. Pure + GPU-free (unit-tested). Reusable: any consumer that has the registered domains + LinkRelations can show
- * its own ontology; nothing here is consumer- or credential-specific.
+ * its own ontology; this module isn't consumer- or credential-specific.
  */
 import { edgeRanges, LinkRelations, isPersisted, edgeRel, HAIBUN_NS, HAIBUN_PREFIXES, type TRegisteredDomain } from "@haibun/core/lib/resources.js";
 import type { TQuad, TCluster, TClusteredQuads } from "@haibun/core/lib/quad-types.js";
@@ -20,8 +20,8 @@ export const isSchemaType = (type: string): boolean => type === ONTOLOGY_CLASS |
 
 /** A property's provenance, keyed off its IRI. `haibun` when the term is haibun's own vocabulary: a CURIE under one of
  *  haibun's own prefixes, or an IRI under HAIBUN_NS. Otherwise the term belongs to a separate vocabulary (a standard, or a
- *  consumer's own) and is identified by that vocabulary's own prefix: no closed assumption about which non-haibun
- *  vocabularies exist. Lets a view mark haibun-added fields distinctly and group a type's properties by their vocabulary. */
+ *  consumer's own) and is identified by that vocabulary's own prefix: this doesn't assume a closed set of
+ *  non-haibun vocabularies. Lets a view mark haibun-added fields distinctly and group a type's properties by their vocabulary. */
 export function propertyVocabulary(iri: string): { source: "haibun" | "standard"; prefix: string } {
 	const colon = iri.indexOf(":");
 	const curiePrefix = colon > 0 && !iri.startsWith("http") ? iri.slice(0, colon) : "";
@@ -89,7 +89,7 @@ export function categoryOf(cls: string, supers: Map<string, string[]>): string {
 const ONTOLOGY_TS = 0;
 
 /** The rdfs:domain of a rel: the persisted type labels that declare it (as an edge or a property), in registration
- *  order. Empty for an abstract super-property (inRoleOf/fromActor/toActor) or a rel no registered type uses. Lets a
+ *  order. Empty for an abstract super-property (inRoleOf/fromActor/toActor) or a rel the registered types don't use. Lets a
  *  click on a Property node open the windowed instances of a type that carries it. */
 export function typesDeclaringRel(domains: Record<string, TRegisteredDomain>, rel: string): string[] {
 	const labels: string[] = [];
@@ -116,7 +116,7 @@ const cluster = (type: string, subjects: string[], displayLabels: Record<string,
  * Build the ontology graph: a Class node per persisted type plus the superclasses it `subClassOf` (e.g. Principal →
  * prov:Agent), and a Property node per LinkRelations rel with its `subPropertyOf` hierarchy (issuer → fromActor →
  * inRoleOf). Abstract super-properties (inRoleOf/fromActor/toActor) ARE shown: they are the interesting structure. The
- * `domains` give the classes; LinkRelations gives the properties, so the relation hierarchy renders even with no domains.
+ * `domains` give the classes; LinkRelations gives the properties, so the relation hierarchy renders even without domains.
  */
 export function ontologyToQuads(domains: Record<string, TRegisteredDomain> = {}): TClusteredQuads {
 	const quads: TQuad[] = [];
@@ -267,8 +267,8 @@ export function withOntologySchema(
 	standardVocab?: Map<string, TStandardTerm[]>,
 ): TClusteredQuads {
 	const ontology = pruneOntologyToUse(ontologyToQuads(domains), evidence);
-	// Merge in each type's declared standard vocabulary AFTER pruning: these terms are declared-not-present (no instance
-	// uses them), so the evidence-only prune would drop them; they must survive so a type view shows a standard's whole
+	// Merge in each type's declared standard vocabulary AFTER pruning: these terms are declared-not-present (the instances
+	// don't use them), so the evidence-only prune would drop them; they must survive so a type view shows a standard's whole
 	// vocabulary. Each carries an rdfs:domain edge to its type so scopeSchemaToType keeps it for the viewed type.
 	if (standardVocab) injectStandardVocab(ontology, standardVocab);
 	const classNodes = new Set(ontology.clusters.find((c) => c.type === ONTOLOGY_CLASS)?.sampledSubjects ?? []);
@@ -293,7 +293,7 @@ export function withOntologySchema(
 /** Add each type's declared standard-vocabulary terms to the (already-pruned) ontology as Property nodes, but only the
  *  terms NOT already present as a haibun rel (compared by IRI local name, so a compact term and its full IRI form are
  *  one term). Each injected term is stamped inData=false and given an rdfs:domain edge to its type's Class (added if the
- *  type has no instances), so it renders attached to the type and survives scopeSchemaToType. */
+ *  type doesn't have instances), so it renders attached to the type and survives scopeSchemaToType. */
 function injectStandardVocab(ontology: TClusteredQuads, standardVocab: Map<string, TStandardTerm[]>): void {
 	const propCluster = ontology.clusters.find((c) => c.type === ONTOLOGY_PROPERTY);
 	const classCluster = ontology.clusters.find((c) => c.type === ONTOLOGY_CLASS);
@@ -308,7 +308,7 @@ function injectStandardVocab(ontology: TClusteredQuads, standardVocab: Map<strin
 		ontology.quads.push({ subject: label, predicate: ONTOLOGY_PRED.name, object: label, namedGraph: ONTOLOGY_CLASS, timestamp: ONTOLOGY_TS });
 	};
 	// The terms are already the declared-not-present set (enumerateStandardVocab deduped by name against the type's own
-	// fields), so no dedup here, only skip a name that is already an ontology Property node (a global rel), then attach
+	// fields), so this doesn't dedup; skip only a name that is already an ontology Property node (a global rel), then attach
 	// each to its type via an rdfs:domain edge.
 	for (const [typeLabel, terms] of standardVocab) {
 		for (const { term, iri } of terms) {

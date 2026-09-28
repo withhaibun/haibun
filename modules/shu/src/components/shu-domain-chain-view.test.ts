@@ -56,7 +56,7 @@ describe("shu-domain-chain-view", () => {
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});
 	});
 
-	it("must NOT show only a spinner forever when mounted without products (regression: reload shows nothing actionable)", async () => {
+	it("must NOT show only a spinner forever when mounted without products (regression: reload doesn't show an actionable message)", async () => {
 		const view = mount();
 		await view.updateComplete;
 		const html = view.shadowRoot?.innerHTML ?? "";
@@ -122,14 +122,14 @@ describe("shu-domain-chain-view", () => {
 		view.routeNodeClick(chainNode({ id: "vc", link: { href: "#?aff-goal=vc" } }));
 		expect(deepLink(AFFORDANCE_PARAM.GOAL)).toBe("vc");
 		expect(stepChosen).toBeUndefined();
-		// No link.href and not fact-instance is a projection bug, refused rather than dispatching a step.
+		// A node without link.href that isn't fact-instance is a projection bug, refused rather than dispatching a step.
 		expect(() => view.routeNodeClick(chainNode({ id: "vc" }))).toThrow("chain node vc doesn't have a deep link to open");
 		expect(stepChosen).toBeUndefined();
 		document.removeEventListener("step-choose", onChoose);
 		opened.mockRestore();
 	});
 
-	it("takes the run it names as the run the page reads, where a fact's step opens, and refuses one naming no run", () => {
+	it("takes the run it names as the run the page reads, where a fact's step opens, and refuses one that doesn't name a run", () => {
 		const view = mount();
 		view.products = mkSnap(1);
 		expect(readingExecution()).toBe(EXECUTION);

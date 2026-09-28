@@ -8,7 +8,7 @@ const evt = (x: number, y: number): PointerEvent => ({ clientX: x, clientY: y })
 function setup(over: Partial<NodeDragDeps> = {}) {
 	const nodes = [node("X", 10, 20), node("Y", 5, 5), node("Z", -3, 8)];
 	const calls = { held: false, frozen: false, controls: true, droppedPin: "", ghost: 0, cleared: 0, committed: "" };
-	// planeHit stub: the pointer's client coords ARE the world hit: the test drives the geometry directly, no THREE.
+	// planeHit stub: the pointer's client coords ARE the world hit: the test drives the geometry directly, without THREE.
 	const deps: NodeDragDeps = {
 		pick: () => nodes[0],
 		makePlane: () => ({}),
@@ -65,16 +65,16 @@ describe("NodeDrag", () => {
 		expect(calls.droppedPin).toBe("X"); // and it leaves the transient data-pin set
 	});
 
-	it("a press that never crosses the threshold is a click, not a drag: nothing pins, camera controls stay enabled", () => {
+	it("a press that never crosses the threshold is a click, not a drag: the node doesn't pin, camera controls stay enabled", () => {
 		const { nodes, calls, drag } = setup();
 		drag.down(evt(100, 100));
 		drag.move(evt(102, 103)); // hypot(2,3) < 5 → still a click
 		expect(drag.dragging).toBe(false);
 		expect(calls.held).toBe(false);
-		expect(nodes[0].fx).toBeUndefined(); // nothing pinned
+		expect(nodes[0].fx).toBeUndefined(); // the node isn't pinned
 		drag.up();
 		expect(calls.controls).toBe(true); // camera controls re-enabled for the click
-		expect(calls.frozen).toBe(false); // no drag to freeze
+		expect(calls.frozen).toBe(false); // the click doesn't freeze a drag
 	});
 
 	it("the selected node keeps its pin through a drag release", () => {

@@ -87,7 +87,7 @@ describe("withAction", () => {
 		expect(action.gwta).toBe("set sound to moo");
 	});
 
-	it("should handle steps with no arguments", () => {
+	it("should handle steps without arguments", () => {
 		const executor = doSomething({});
 		const action = executor();
 		expect(action.actionName).toBe("doSomething");

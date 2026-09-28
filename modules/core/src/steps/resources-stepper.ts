@@ -158,14 +158,14 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 
 	/**
 	 * A feature's prose is a text like any other: its links are facts about the step that spoke them. That step is already
-	 * a record (its SeqPath, what the document and monitor views show), so no second record is made for the feature. The
+	 * a record (its SeqPath, what the document and monitor views show), so a second record isn't made for the feature. The
 	 * id is the step's position, so re-running restates rather than accumulates, and the step's status says how it ended.
 	 */
 	async readFeatureProse({ featureStep }: TBeforeStep): Promise<void> {
 		if (!featureStep.action.step.prose) return;
 		const text = featureStep.in;
 		const vocab = this.linkVocabulary;
-		// Prose that states nothing changes nothing; the facts parsed here are the reading's, so the text parses once.
+		// Prose that doesn't state a fact doesn't change a record; the facts parsed here are the reading's, so the text parses once.
 		const facts = typedLinkFacts(text, vocab);
 		if (facts.length === 0) return;
 		// The step that spoke the prose, by the identity its record carries: its path under the execution it ran in.
@@ -327,7 +327,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 					const specificResourceId = String(tq.object);
 					if (!srIds.has(specificResourceId)) continue;
 					const quote = quoteOf(specificResourceId);
-					if (!quote) continue; // a target without a selector anchors nothing
+					if (!quote) continue; // a target without a selector doesn't anchor a passage
 					const commentId = String(tq.subject);
 					const comment = (await store.getIndividual(COMMENT_LABEL, commentId)) as Record<string, unknown> | null;
 					if (!comment) continue;

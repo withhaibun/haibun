@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { validateStepInput } from "./step-input-validator.js";
 
 describe("validateStepInput", () => {
-	it("returns no errors when every required field passes its schema", () => {
+	it("doesn't return an error when every required field passes its schema", () => {
 		const schema = {
 			type: "object",
 			properties: { owner: { type: "string", format: "uri" }, name: { type: "string" } },
@@ -57,7 +57,7 @@ describe("validateStepInput", () => {
 		expect(errors[0].message).toMatch(/must be one of: pending, completed/);
 	});
 
-	it("accepts an `undefined inputSchema` as 'nothing to validate' (no errors)", () => {
+	it("accepts an `undefined inputSchema` as a schema that doesn't validate a field (it doesn't return an error)", () => {
 		const errors = validateStepInput({ foo: "bar" }, undefined);
 		expect(errors).toEqual([]);
 	});

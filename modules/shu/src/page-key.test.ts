@@ -40,7 +40,7 @@ describe("the key a page controls", () => {
 		expect(after).toBe(before);
 	});
 
-	it("proves itself and nothing more while it reads what was delegated to it, and holds what that answers with what needs no delegation", async () => {
+	it("proves only itself while it reads what was delegated to it, and holds what that answers with what doesn't need a delegation", async () => {
 		let proof: Record<string, string> | undefined;
 		const authority = await openPageAuthority(async () => {
 			proof = await keyHeaders({ url: `${SITE}/rpc/AuthorityStepper-delegationsTo`, method: "POST", headers: { host: "localhost:8123" }, body: "{}" });
@@ -51,11 +51,11 @@ describe("the key a page controls", () => {
 		expect(proof?.authorization, "signed by the page's key").toContain(authority.controller);
 		expect(pageHolds()).toEqual(["Read:public", "Read:private"]);
 		expect(pageMay("Read:opened"), "a private read allows a narrower one").toBe(true);
-		expect(pageMay("ResourcesStepper:comment"), "and nothing it wasn't given").toBe(false);
+		expect(pageMay("ResourcesStepper:comment"), "and doesn't allow a call it wasn't given").toBe(false);
 		expect(pageAuthority()?.records, "and where each delegation is recorded").toEqual(records);
 	});
 
-	it("proves no key it hasn't opened", async () => {
+	it("doesn't prove a key it hasn't opened", async () => {
 		await expect(keyHeaders({ url: `${SITE}/rpc/AuthorityStepper-delegationsTo`, method: "POST", headers: {}, body: "{}" })).rejects.toThrow(
 			/while it reads what was delegated to it/,
 		);
@@ -81,20 +81,20 @@ describe("what a page sends", () => {
 		expect(headers?.digest, "which covers the body as well, so what was asked cannot be swapped").toBeTruthy();
 	});
 
-	it("signs a request with no body without a digest, as the page asks for the run's stream", async () => {
+	it("signs a request that doesn't have a body without a digest, as the page asks for the run's stream", async () => {
 		await opened([delegatedReading]);
 		const headers = await signedHeaders(call("Read:private", "GET"));
 		expect(headers?.["capability-invocation"]).toContain('action="Read:private"');
 		expect(headers?.digest).toBeUndefined();
 	});
 
-	it("signs nothing where no delegation allows the call, which is sent as it is for what needs no delegation to decide", async () => {
+	it("doesn't sign where the delegations don't allow the call, which is sent as it is for what doesn't need a delegation to decide", async () => {
 		await opened([delegatedReading], ["ResourcesStepper:comment"]);
 		expect(await signedHeaders(call("ResourcesStepper:comment"))).toBeUndefined();
 		expect(await signedHeaders({ ...call("Read:private"), url: "http://elsewhere.example/rpc/x" }), "nor a call to another instance").toBeUndefined();
 	});
 
-	it("signs nothing before the page has read what it holds", async () => {
+	it("doesn't sign a request before the page has read what it holds", async () => {
 		expect(await signedHeaders(call("ShuStepper:showViews"))).toBeUndefined();
 	});
 });

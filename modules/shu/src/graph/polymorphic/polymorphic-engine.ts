@@ -1,7 +1,7 @@
 /**
  * The engine governor: the ONLY code that touches the library engine's pacing. The library's forces are removed
  * (the scene places nodes itself, see polymorphic-layout.ts), so its ticks only move sprites: a pinned node tracks its
- * pin, an unpinned one has no velocity and stays put. Every consumer states INTENT: settle after a data feed (tick
+ * pin, an unpinned one doesn't have velocity and stays put. Every consumer states INTENT: settle after a data feed (tick
  * briefly so the sprites reach their placed positions), hold for a tween or drag (tick continuously; pins move each
  * frame), freeze at rest. "Who controls the engine" has one answer, and the mode is observable.
  */
@@ -54,7 +54,7 @@ export class EngineGovernor {
 	/** Wired to the lib's onEngineStop: records that the engine rests, and returns whether this stop ended motion.
 	 * The cooldown is pinned to 0 at rest so a later purely VISUAL repool (the lib restarts its countdown whenever a
 	 * colour accessor is re-set, and the focus dimming must re-pool linkColor) can't silently tick past the rest. That
-	 * restart still reports a stop on its first tick. A stop reported while already frozen ended nothing, and a
+	 * restart still reports a stop on its first tick. A stop reported while already frozen didn't end a motion, and a
 	 * consumer that re-pools colours on coming to rest must not take that stop for another rest. */
 	engineStopped(): boolean {
 		const endedMotion = this.mode !== "frozen";

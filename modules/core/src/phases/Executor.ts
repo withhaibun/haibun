@@ -32,7 +32,7 @@ import { basename } from "path";
 /**
  * What a run keeps of a feature it has moved on from. A passing step's products, artifacts and traces are read while
  * that feature is the one running, and by a caller that has just received its result; once the run has moved to
- * another feature, nothing reads them again, and holding them holds every graph slice, response body and rendered
+ * another feature, a reader doesn't read them again, and holding them holds every graph slice, response body and rendered
  * document the run has produced. That is what made a nineteen-feature run exhaust the heap and be killed rather than
  * fail. A failed step keeps everything, since the verdict is made of it.
  */
@@ -71,7 +71,7 @@ export function calculateShouldClose({
 
 function initExecutionRuntime(_world: TWorld): void {
 	// Working-memory observations live in the quad store under the observation/* named
-	// graphs; the store is created with the world, so nothing to initialize here.
+	// graphs; the store is created with the world, so this function doesn't initialize a store.
 }
 
 async function initFeatureRuntime(world: TWorld): Promise<void> {
@@ -200,8 +200,8 @@ export class Executor {
 				await doStepperCycle(steppers, "onFailure", { featureResult, failedStep });
 			}
 			okSoFar = okSoFar && thisFeatureOK;
-			// The feature just finished keeps what it produced for whoever receives this result; the one before it has
-			// no reader left, so the run stops holding what that one produced.
+			// The feature just finished keeps what it produced for whoever receives this result; the one before it
+			// doesn't have a reader left, so the run stops holding what that one produced.
 			const previous = featureResults[featureResults.length - 1];
 			if (previous) releasePayloads(previous);
 			featureResults.push(featureResult);
@@ -406,8 +406,8 @@ export function advanceSyntheticSeqPath(seqPath: TSeqPath, dir: 1 | -1 = 1): TSe
  * weeks allocates every path by reading every result it has ever produced. The count answers in constant time and
  * holds only the parents allocated under.
  *
- * The count only advances, so a path this hands out is never handed out again, and an allocation nothing goes on to
- * use leaves a gap in the numbering. Nothing reads the numbering for anything but order and identity, both of which a
+ * The count only advances, so a path this hands out is never handed out again, and an allocation that a step doesn't go on to
+ * use leaves a gap in the numbering. Readers read the numbering only for order and identity, both of which a
  * gap preserves.
  */
 export function nextSeqPath(world: TWorld, parent: TSeqPath, dir = 1): TSeqPath {

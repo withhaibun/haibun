@@ -6,7 +6,7 @@
  * (`@id` + `@type`), never a copied display string, so a view renders each cell as something to open: the subject,
  * the passage, the reading, the run.
  *
- * Nothing here is stored: this is a projection of what the store already holds, shaped as RDF reification
+ * This module doesn't store a record: this is a projection of what the store already holds, shaped as RDF reification
  * (`rdf:Statement`, subject / predicate / object) plus provenance. A coverage table, which requirements a run
  * evidenced, and whether it passed, is this read with the citation predicate, not a report of its own.
  */
@@ -63,7 +63,7 @@ async function runOf(store: TStatementStore, seqPathId: string): Promise<TSeqPat
 
 /**
  * Every statement made with `predicate`, newest reading first, each with the reading that asserted it and how that
- * run ended. A statement no reading claims (asserted by hand) is still a row: it names no reading.
+ * run ended. A statement that a reading doesn't claim (asserted by hand) is still a row: it doesn't name a reading.
  */
 export async function statementsWith(store: TStatementStore, predicate: string): Promise<TStatementRow[]> {
 	const quads = (await store.query({ predicate })) as TEdgeQuad[];
@@ -71,7 +71,7 @@ export async function statementsWith(store: TStatementStore, predicate: string):
 	const rows: TStatementRow[] = [];
 	for (const quad of quads) {
 		const objectType = quad.objectType;
-		// A quad with no target type is a literal property, not a statement about another individual.
+		// A quad without a target type is a literal property, not a statement about another individual.
 		if (!objectType) continue;
 		const row: TStatementRow = {
 			"@type": "rdf:Statement",

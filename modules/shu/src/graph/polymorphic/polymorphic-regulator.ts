@@ -5,7 +5,7 @@
  * The active node's breath requests a drawn frame every `BREATH_MS`. A frame takes one or two milliseconds of the
  * renderer's time on a GPU and tens of milliseconds under a software rasterizer or on a slow device, and the page
  * cannot measure which from its main thread. The regulator reads what a drawn frame takes (see `FrameTime`), keeps
- * the median of the last few so one slow frame changes nothing, and compares the breath's share of wall time with
+ * the median of the last few so one slow frame doesn't change the result, and compares the breath's share of wall time with
  * its limit. The breath rests over its limit: the glow is drawn once and held. It breathes again within its limit.
  * Decoration starts at rest and runs once a full window measures within the limit, so a slow renderer never pays for
  * decoration while it is being measured.
@@ -22,7 +22,7 @@ type TRegulationKind = (typeof REGULATION_KINDS)[number];
 type TRegulationSignal = { kind: TRegulationKind; frameTimeMs: number; share: number };
 
 export type TRegulationThresholds = {
-	/** Frame times kept; the median of these is the time compared with the limit. Fewer than this compares nothing. */
+	/** Frame times kept; the median of these is the time compared with the limit. The regulator doesn't compare with fewer than this. */
 	windowSamples: number;
 	/** The share of wall time the breath may take, as a fraction: at ten beats a second, a 5 ms frame is 5%. */
 	decorativeShareLimit: number;
@@ -52,7 +52,7 @@ export function recordFrameTime(state: TRegulationState, timeMs: number, windowS
 	if (state.frameTimes.length > windowSamples) state.frameTimes.shift();
 }
 
-/** The median: one anomalous frame, slow or fast, moves it by nothing. */
+/** The median: one anomalous frame doesn't move it, whether slow or fast. */
 export function medianOf(samples: readonly number[]): number {
 	const sorted = [...samples].sort((a, b) => a - b);
 	return sorted[sorted.length >> 1];
@@ -65,7 +65,7 @@ function breathShare(frameTimeMs: number, thresholds: TRegulationThresholds): nu
 
 /**
  * Evaluate the window against the thresholds. Returns the signal that tripped or cleared now, respecting the
- * cooldown, and moves the state with it; undefined when nothing changed.
+ * cooldown, and moves the state with it; undefined when the state didn't change.
  */
 export function evaluateRegulation(state: TRegulationState, thresholds: TRegulationThresholds = DEFAULT_REGULATION_THRESHOLDS, now: number): TRegulationSignal | undefined {
 	if (state.frameTimes.length < thresholds.windowSamples) return undefined;

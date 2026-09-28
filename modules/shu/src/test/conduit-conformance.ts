@@ -28,7 +28,7 @@ export type TConduitUnderTest = {
 
 const METHOD = "TestStepper-read";
 
-/** Run the specification against one conduit. `make` returns a conduit with no answer arranged. */
+/** Run the specification against one conduit. `make` returns a conduit without an answer arranged. */
 export function describeConduit(name: string, make: () => TConduitUnderTest | Promise<TConduitUnderTest>): void {
 	describe(`the conduit (${name})`, () => {
 		let held: TConduitUnderTest;
@@ -70,7 +70,7 @@ export function describeConduit(name: string, make: () => TConduitUnderTest | Pr
 			expect(arrived.map((c) => (c as { text?: string }).text)).toEqual(["one", "two"]);
 		});
 
-		it("fails a stream at a chunk carrying an error, and delivers nothing after it", async () => {
+		it("fails a stream at a chunk carrying an error, and doesn't deliver a chunk after it", async () => {
 			held.streams(METHOD, [{ text: "one" }, { error: "the step stopped" }, { text: "three" }] as TStreamChunk[]);
 			const arrived: TStreamChunk[] = [];
 			await expect(conduit.followStream(reads(METHOD, {}), (chunk) => arrived.push(chunk), { why: "read as it comes" })).rejects.toThrow(/the step stopped/);

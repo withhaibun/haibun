@@ -2,9 +2,9 @@
 /**
  * A served page and a record of a run both ship a `<script id="shu-hydration">` element, since the live template injects
  * an empty one so the page shape is stable. What tells them apart is the run: a record carries one, a served page never
- * does, and a page that carries its own run has no server behind it.
+ * does, and a page that carries its own run doesn't have a server behind it.
  *
- * If the signal widened to the script alone, every served page would decide it had no server and stop reaching the one
+ * If the signal widened to the script alone, every served page would decide it didn't have a server and stop reaching the one
  * it has. These tests pin the rule.
  */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
@@ -38,7 +38,7 @@ function setHydration(payload: unknown): void {
 	document.head.appendChild(s);
 }
 
-describe("a page that carries its own run has no server behind it", () => {
+describe("a page that carries its own run doesn't have a server behind it", () => {
 	beforeEach(() => {
 		document.head.innerHTML = "";
 		document.body.innerHTML = "";
@@ -50,13 +50,13 @@ describe("a page that carries its own run has no server behind it", () => {
 		expect(isOffline()).toBe(true);
 	});
 
-	it("says nothing of the sort for the served template, which carries an empty hydration", () => {
+	it("doesn't say so for the served template, which carries an empty hydration", () => {
 		setHydration({});
 		hydrateFromDom();
 		expect(isOffline()).toBe(false);
 	});
 
-	it("says nothing of the sort when there is no hydration script at all", () => {
+	it("doesn't say so when the page doesn't have a hydration script", () => {
 		hydrateFromDom();
 		expect(isOffline()).toBe(false);
 	});
@@ -90,7 +90,7 @@ describe("the timings a deployment sets", () => {
 		expect(deploymentAskToolLimit()).toBe(7);
 	});
 
-	it("answers with nothing where the deployment set nothing, so the page applies what it carries", () => {
+	it("answers with undefined where the deployment didn't set a value, so the page applies what it carries", () => {
 		setHydration({ settings: {} });
 		hydrateFromDom();
 		expect(deploymentMs("streamReconnectAfterMs")).toBeUndefined();
@@ -112,7 +112,7 @@ describe("how long a call to the site may take", () => {
 		document.body.innerHTML = "";
 	});
 
-	it("allows what the product carries where the deployment sets nothing", () => {
+	it("allows what the product carries where the deployment doesn't set a value", () => {
 		setHydration({ settings: {} });
 		hydrateFromDom();
 		expect(responseTimeoutMs()).toBe(RESPONSE_TIMEOUT_MS);
@@ -164,7 +164,7 @@ describe("the step a name answers to", () => {
 		expect(requireStep("graphQuery")).toBe("GraphStepper-graphQuery");
 	});
 
-	it("takes the fallback where nothing else answers to the name", async () => {
+	it("takes the fallback where the other steps don't answer to the name", async () => {
 		handle = listing([aStep("GraphSourceStepper", "graphQuery", true)]);
 		await getAvailableSteps();
 		expect(requireStep("graphQuery")).toBe("GraphSourceStepper-graphQuery");
@@ -179,7 +179,7 @@ describe("the step a name answers to", () => {
 
 describe("the registry cached on the device", () => {
 	// The site's response to the show steps step is cached on the device; a page whose site does not respond runs on that copy and reports
-	// so; with neither, the request fails as it did.
+	// so; without either, the request fails as it did.
 	const ANSWER = stepsShown([]);
 	const unreachable = () => {
 		throw new ServerUnreachable(`/rpc/${SHOW_STEPS_METHOD}`, new Error("offline"));
@@ -193,7 +193,7 @@ describe("the registry cached on the device", () => {
 		handle?.teardown();
 	});
 
-	it("caches the server's response on the device and runs on it when the server does not respond; with neither, fails", async () => {
+	it("caches the server's response on the device and runs on it when the server does not respond; without either, fails", async () => {
 		handle = setupShuTest({ dispatch: (method) => (method === SHOW_STEPS_METHOD ? ANSWER : undefined) });
 		await getAvailableSteps();
 		expect(registryOrigin()).toEqual({ from: "server" });
@@ -207,7 +207,7 @@ describe("the registry cached on the device", () => {
 		await getAvailableSteps();
 		expect(registryOrigin()?.from).toBe("device");
 		expect(typeof registryOrigin()?.savedAt).toBe("number");
-		// A device with nothing cached and a server that does not respond: the failure is the server's.
+		// A device without a cached copy and a server that does not respond: the failure is the server's.
 		handle.teardown();
 		handle = setupShuTest({ dispatch: unreachable });
 		await expect(getAvailableSteps()).rejects.toThrow("offline");
@@ -226,7 +226,7 @@ describe("the registry cached on the device", () => {
 		});
 		setDeviceStore(store);
 		await expect(getAvailableSteps()).rejects.toThrow("capability Read:public required");
-		expect(registryOrigin()?.from, "and runs on nothing it was refused").not.toBe("device");
+		expect(registryOrigin()?.from, "and doesn't run on a copy it was refused").not.toBe("device");
 	});
 });
 

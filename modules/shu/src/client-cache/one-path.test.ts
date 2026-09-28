@@ -4,8 +4,8 @@
  * test fails the build when a second path appears, so the next change extends the cache rather than reaching around it.
  *
  * What it holds to:
- *  - nothing outside the client cache builds a store of its own,
- *  - nothing rebuilds the replayed responses a report used to carry,
+ *  - the modules outside the client cache don't build a store of their own,
+ *  - the modules don't rebuild the replayed responses a report used to carry,
  *  - a view branching on "is this a report" is a mode, and a mode is a second path.
  */
 import { describe, it, expect } from "vitest";
@@ -31,7 +31,7 @@ const outsideTheLibrary = sources().filter((f) => !f.startsWith(`${LIBRARY}/`));
 const text = (f: string): string => readFileSync(join(SRC, f), "utf8");
 
 describe("the client cache is the one path to a run", () => {
-	it("no file outside the library builds a store of its own", () => {
+	it("the files outside the library don't build a store of their own", () => {
 		// The test harness installs a store of its own, which is how a test drives the cache; everything else asks the library.
 		const offenders = outsideTheLibrary.filter((f) => f !== "test-setup.ts" && /new (IndexedDbDeviceStore|IndexedDbQuadStore|MemoryDeviceStore)\(/.test(text(f)));
 		expect(offenders, `${offenders.join(", ")} builds a store. A store is installed through the client cache (setDeviceStore, setGraphStore) and read through it.`).toEqual([]);
@@ -46,7 +46,7 @@ describe("the client cache is the one path to a run", () => {
 		).toEqual([]);
 	});
 
-	it("no view asks whether this page is a report: a mode is a second path", () => {
+	it("the views don't ask whether this page is a report: a mode is a second path", () => {
 		const views = outsideTheLibrary.filter((f) => f.startsWith("components/"));
 		const offenders = views.filter((f) => /isStandaloneMode|getCachedResponse|SerializedConduit/.test(text(f)));
 		expect(
@@ -55,7 +55,7 @@ describe("the client cache is the one path to a run", () => {
 		).toEqual([]);
 	});
 
-	it("nothing serves a page answers a live run received: the replay is gone and stays gone", () => {
+	it("the files don't serve a page the answers a live run received: the replay is gone and stays gone", () => {
 		const offenders = outsideTheLibrary.filter((f) => /getCachedResponse|findCachedMethod|setRpcCache|rpc-cache\.js/.test(text(f)));
 		expect(
 			offenders,

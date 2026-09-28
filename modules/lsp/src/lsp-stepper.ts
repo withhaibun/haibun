@@ -309,7 +309,7 @@ export default class LspStepper extends AStepper {
 		// Try to find the workspace for this document
 		const workspace = findHaibunWorkspace(filePath);
 
-		// Default to initial backgrounds/config if no workspace found
+		// Default to initial backgrounds/config if a workspace isn't found
 		if (!workspace) {
 			this.currentWorkspace = {
 				base: "Default",
@@ -328,7 +328,7 @@ export default class LspStepper extends AStepper {
 			backgroundCount: 0, // Updated if they load
 		};
 
-		// If no backgrounds path, just return default backgrounds but keep workspace info
+		// If the workspace doesn't have a backgrounds path, just return default backgrounds but keep workspace info
 		if (!workspace.backgroundsPath) {
 			this.currentWorkspace.backgroundCount = this.backgrounds.length;
 			try {
@@ -487,7 +487,7 @@ export default class LspStepper extends AStepper {
 			try {
 				expandedFeatures = await expand({ features: [feature], backgrounds: [] });
 			} catch (e2) {
-				// If even that fails, nothing can be done
+				// If even that fails, the error is reported without a further retry
 				const errorMessage2 = errorDetail(e2);
 				const diagnostics: Diagnostic[] = [
 					{
@@ -604,7 +604,7 @@ export default class LspStepper extends AStepper {
 							};
 							featureSteps.push({ step, startOffset: pos.character, length: trimmed.length });
 						} else {
-							// Should not happen if throw happens on no match
+							// Should not happen if a missing match throws
 						}
 					} catch (_e) {
 						// Collect diagnostic/error

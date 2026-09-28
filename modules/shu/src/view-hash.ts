@@ -79,7 +79,7 @@ if (typeof location !== "undefined") {
 
 /**
  * What a view subscribes to when it renders from the hash: the address arriving with one, and a view writing one
- * through history. A window `hashchange` covers only the first, and an offline snapshot raises neither, so a page
+ * through history. A window `hashchange` covers only the first, and an offline snapshot doesn't raise either, so a page
  * saved for reading offline would otherwise never hear its own deep links.
  */
 const subscribers = new Set<() => void>();
@@ -104,14 +104,14 @@ export function pushHash(newHash: string): void {
 	if (location.hash !== newHash) replaceLocationHash(newHash);
 }
 
-/** One param's value from the live hash, or "" when it carries none. */
+/** One param's value from the live hash, or "" when it doesn't carry one. */
 export function hashParam(name: string): string {
 	return hashParams(getHash()).get(name) ?? "";
 }
 
 /**
  * Merge params into the live hash, leaving every other one as it stands: an empty value removes its param. The
- * subscribers hear it, since the hash is written through history, which raises no event of its own, and a view
+ * subscribers hear it, since the hash is written through history, which doesn't raise an event of its own, and a view
  * reading the same param has to hear that it moved.
  */
 export function mergeHashParams(values: Record<string, string>): void {
@@ -127,7 +127,7 @@ export function mergeHashParams(values: Record<string, string>): void {
 }
 
 /** The page's own address without the hash: what an embedded body's `<base>` re-roots against.
- * An offline snapshot has no servable address, so none is offered. */
+ * An offline snapshot doesn't have a servable address, so this doesn't offer one. */
 export function pageAddress(): string {
 	if (isOffline() || typeof location === "undefined") return "";
 	return location.origin + location.pathname + location.search;

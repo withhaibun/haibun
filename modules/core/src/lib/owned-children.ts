@@ -1,12 +1,12 @@
 /**
  * A supervised child never outlives its owner. The supervisor's endFeature terminates children when a run closes, but
  * a process that STAYS (a kihan serve, any HAIBUN_STAY session) ends by signal or exit instead, and a child that
- * survives that is an orphan holding its port, refusing the owner's own next session with no way to ask it anything.
+ * survives that is an orphan holding its port, refusing the owner's own next session without a way to send it a request.
  *
  * One process-wide registry: every supervised child is entered at fork and leaves at its own exit. The first entry
  * installs the process hooks, SIGINT and SIGTERM terminate the children and then re-raise so the process ends exactly
  * as the signal would have ended it, and the exit hook covers the process.exit paths. Termination here is one SIGTERM
- * with no waiting: a signal handler cannot await, and a child that ignores it is beyond what an ending owner can do.
+ * without waiting: a signal handler cannot await, and a child that ignores it is beyond what an ending owner can do.
  */
 import type { ChildProcess } from "child_process";
 

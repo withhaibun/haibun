@@ -4,7 +4,7 @@
  * edge properties, and each group-by-reference axis, so a chip behaves the same wherever it appears: tick to show,
  * untick to hide, hover to preview.
  *
- * It owns NO state. The host supplies the chips and hears intent back through `onToggle`/`onPreview`; what a chip's
+ * It does NOT own state. The host supplies the chips and hears intent back through `onToggle`/`onPreview`; what a chip's
  * visibility means (a hidden type, a hidden predicate, a hidden axis value) is the host's business.
  */
 import { html, css, type TemplateResult } from "lit";
@@ -16,7 +16,7 @@ import { shuBaseStyles } from "./styles.js";
 export type TChip = { id: string; label: string; checked: boolean; count?: number; color?: string };
 
 class ShuChipGroup extends ShuElement<z.ZodType> {
-	/** A control, not a view of data, contributes nothing to the Kihan's context. */
+	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
@@ -33,7 +33,7 @@ class ShuChipGroup extends ShuElement<z.ZodType> {
 	declare chips: TChip[];
 	/** Reports a chip ticked or unticked. The host decides what visibility means. */
 	declare onToggle: (id: string, checked: boolean) => void;
-	/** Reports a chip hovered (id) or the hover ending (null). Optional: a group with no preview passes nothing. */
+	/** Reports a chip hovered (id) or the hover ending (null). Optional: a group without a preview doesn't pass one. */
 	declare onPreview?: (id: string | null) => void;
 
 	static styles = [
@@ -62,8 +62,8 @@ class ShuChipGroup extends ShuElement<z.ZodType> {
 
 	/** The host owns what a chip's state means, so the box is put back to what the host had before the report and only a
 	 *  host state change moves it. A host that intercepts the toggle (the graph filter's solo tool answers a tick by
-	 *  showing that type ALONE) would otherwise leave the box showing a state nobody took: the browser has already
-	 *  flipped it, and the binding, seeing its value unchanged, writes nothing. */
+	 *  showing that type ALONE) would otherwise leave the box showing a state the host didn't set: the browser has already
+	 *  flipped it, and the binding sees its value unchanged and doesn't write to the box. */
 	private toggle(chip: TChip, e: Event): void {
 		const input = e.target as HTMLInputElement;
 		const reported = input.checked;

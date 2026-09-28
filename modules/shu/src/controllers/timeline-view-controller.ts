@@ -22,7 +22,7 @@ export class TimelineViewController implements ReactiveController {
 	#tracking = true;
 	#unwatch: Array<() => void> = [];
 
-	/** `name` is the address key a held place is written under. A view that states none holds a place for as long as it
+	/** `name` is the address key a held place is written under. A view that doesn't state one holds a place for as long as it
 	 *  is mounted and doesn't write it to the address. */
 	constructor(host: ReactiveControllerHost, opts: { name?: string; onMove?: () => void } = {}) {
 		this.#host = host;
@@ -95,7 +95,7 @@ export class TimelineViewController implements ReactiveController {
 		mergeHashParams({ [this.#name]: this.#tracking || this.#held === null ? "" : String(this.#held) });
 	}
 
-	/** Read the place the address states. A place this view already shows changes nothing. */
+	/** Read the place the address states. A place this view already shows doesn't change the view. */
 	#readAddress(): void {
 		if (!this.#name) return;
 		const stated = hashParam(this.#name);

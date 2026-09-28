@@ -50,7 +50,7 @@ describe("layered solver: td/lr structural pin positions", () => {
 	});
 });
 
-describe("layered solver: compact + bounded ranks (no unbounded fan-out)", () => {
+describe("layered solver: compact + bounded ranks (without unbounded fan-out)", () => {
 	const chain = ["a", "b", "c", "d"];
 	const chainEdges = [
 		{ from: "a", to: "b" },

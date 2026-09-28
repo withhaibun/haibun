@@ -171,7 +171,7 @@ describe("validateRunPolicyConfig", () => {
 		expect(errors.some((e) => e.includes("Denied"))).toBe(true);
 	});
 
-	it("allows r in prod (no deny rule for it)", () => {
+	it("allows r in prod (without a deny rule for it)", () => {
 		const config: TRunPolicyConfig = {
 			place: "prod",
 			dirFilters: [{ dir: "smoke", access: "r" }],
@@ -306,7 +306,7 @@ describe("validateRunPolicyConfig with anyOf/oneOf", () => {
 		expect(validateRunPolicyConfig(config, anyOfPolicy, SCHEMA_PATH)).toEqual([]);
 	});
 
-	it("rejects config matching no anyOf branches", () => {
+	it("rejects config that doesn't match an anyOf branch", () => {
 		const config: TRunPolicyConfig = {
 			place: "dev",
 			dirFilters: [{ dir: "smoke", access: "r" }],

@@ -27,7 +27,7 @@ export const features: TKirejiExport = {
 		is({ what: "ended.status", value: '"passed"' }),
 
 		scenario({ scenario: "A second run against the same state is refused" }),
-		"Nothing the group depends on has changed since it passed, so a run would answer what that run answered, and it is not started.",
+		"What the group depends on hasn't changed since it passed, so a run would answer what that run answered, and it is not started.",
 		not({ statements: RUN_ALL }),
 
 		scenario({ scenario: "Noting that the group changed lets it run again" }),

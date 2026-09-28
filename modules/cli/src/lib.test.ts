@@ -44,7 +44,7 @@ describe("options", () => {
 	});
 });
 
-/** A base that states no option of its own. */
+/** A base that doesn't state an option of its own. */
 const NO_CONFIG: TSpecl = { steppers: [] };
 
 describe("processEnv", () => {
@@ -71,7 +71,7 @@ describe("processEnv", () => {
 		const { options } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_ONCE: "true" }, NO_CONFIG);
 		expect(lib.runsOnce({ once: false }, options), "the environment alone").toBe(true);
 		expect(lib.runsOnce({ once: true }, lib.processBaseEnvToOptionsAndErrors({}, NO_CONFIG).options), "the command line alone").toBe(true);
-		expect(lib.runsOnce({ once: false }, lib.processBaseEnvToOptionsAndErrors({}, NO_CONFIG).options), "neither").toBe(false);
+		expect(lib.runsOnce({ once: false }, lib.processBaseEnvToOptionsAndErrors({}, NO_CONFIG).options), "without either").toBe(false);
 		expect(lib.runsOnce({ once: false }, lib.processBaseEnvToOptionsAndErrors({ HAIBUN_ONCE: "false" }, NO_CONFIG).options), "the environment saying no").toBe(false);
 		expect(() => lib.processBaseEnvToOptionsAndErrors({ HAIBUN_ONCE: "yes" }, NO_CONFIG), "a value that is not true or false").toThrow();
 	});
@@ -96,7 +96,7 @@ describe("collect", () => {
 		expect(features[0].content).toBe("create graph store\nenable rpc");
 		expect(features[0].type).toBe("feature");
 	});
-	it("runs against a base with no features of its own", async () => {
+	it("runs against a base without features of its own", async () => {
 		const { features, backgrounds } = await lib.collect(["/nonexistent-base"], undefined, ["create graph store"]);
 		expect(features[0].content).toBe("create graph store");
 		expect(backgrounds).toEqual([]);
@@ -110,7 +110,7 @@ describe("collect", () => {
 			"and only the features asked for run before them",
 		).toBe(true);
 	});
-	it("collects features as before when no statement is given", async () => {
+	it("collects features as before when a statement isn't given", async () => {
 		const { features } = await lib.collect([POLICY_BASE], ["health"], []);
 		expect(features.every((f) => f.path.includes("health"))).toBe(true);
 	});
@@ -138,11 +138,11 @@ describe("processArgs", () => {
 		const { statements } = lib.processArgs(["--statement", "create graph store", "--statement", "enable rpc"]);
 		expect(statements).toEqual(["create graph store", "enable rpc"]);
 	});
-	it("takes a statement given with an equals, so a shell needs no second word", () => {
+	it("takes a statement given with an equals, so a shell doesn't need a second word", () => {
 		const { statements } = lib.processArgs(["--statement=create graph store"]);
 		expect(statements).toEqual(["create graph store"]);
 	});
-	it("refuses a statement with nothing after it, rather than running an empty feature", () => {
+	it("refuses a statement option without a value, rather than running an empty feature", () => {
 		expect(() => lib.processArgs(["--statement"])).toThrow(/requires a statement/);
 	});
 	it("gets parameters", () => {
@@ -191,7 +191,7 @@ describe("runCli", () => {
 		vitest.spyOn(process, "exit").mockImplementationOnce(expectExitAndThrow(0));
 		await expect(lib.runCli(s("--config modules/cli/test --show-steppers"), {})).rejects.toThrow("exit with code 0");
 	});
-	it("fails with no config", async () => {
+	it("fails without a config", async () => {
 		vitest.spyOn(process, "exit").mockImplementationOnce(expectExitAndThrow(1));
 		await expect(lib.runCli(s("--config nowhere/noway"), {})).rejects.toThrow("exit with code 1");
 	});

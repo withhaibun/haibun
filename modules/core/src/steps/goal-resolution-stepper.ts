@@ -7,7 +7,7 @@
  *   show chain lint                                     → DOMAIN_CHAIN_LINT (orphan/unsupplied/unreachable findings + affordance overlay)
  *
  * The resolver is pure search; it never auto-runs anything. A resolved path gets run in one of two ways: `pursue`
- * runs it straight through, which it can only do where no step needs anything supplied, and `walk toward` holds it
+ * runs it straight through, which it can only do where the steps don't need a supplied value, and `walk toward` holds it
  * open one step at a time so what each step takes can be given to it, which is what the chain-walker
  * (`advanceChainInstance` in lib/chain-walker.js) does.
  *
@@ -59,7 +59,7 @@ const COMPOSITE_DECOMPOSITION_DEFAULT = true;
 const COMPOSITE_MAX_DEPTH_DEFAULT = 4;
 
 // Projection-query domains, steps that only compute a view of current memory (show affordances / waypoints /
-// chain-lint). Completing one changes nothing, so afterStep must NOT emit an `affordances.*` change signal for it. The
+// chain-lint). Completing one doesn't change a record, so afterStep must NOT emit an `affordances.*` change signal for it. The
 // same holds of every step declared a read, which is what the affordances panel's own re-fetch dispatches: announcing
 // a change for it would re-fire that fetch over SSE without bound.
 const PROJECTION_DOMAINS = new Set([DOMAIN_AFFORDANCES, DOMAIN_GOAL_RESOLUTION, DOMAIN_CHAIN_LINT]);
@@ -123,7 +123,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 			// resolution trees + composite michi), so the affordances panel and the domain-chain view re-fetch the
 			// current snapshot on demand (show affordances) rather than ride every step's event.
 			// Keeps the event log lean by construction: the bulk never denormalizes onto every step.
-			// A step that changed nothing announces no change: a read, or a step that only computes a view of memory.
+			// A step that didn't change a record doesn't announce a change: a read, or a step that only computes a view of memory.
 			// Otherwise the panel's own re-fetch, which is a read, would re-trigger itself over SSE without bound.
 			const step = after.featureStep.action.step;
 			if (step.read === true || PROJECTION_DOMAINS.has(step.productsDomain ?? "")) return Promise.resolve({ failed: false });
@@ -186,7 +186,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 	 * panel reconstructs the run state at that point.
 	 *
 	 * Every registered stepper with the ProvidesWaypoints capability contributes waypoint entries to the same
-	 * snapshot. Live only, waypoint ensure-state is current run state, so an as-of projection carries none.
+	 * snapshot. Live only, waypoint ensure-state is current run state, so an as-of projection doesn't carry waypoint entries.
 	 */
 	private async computeAffordances(asOf: number[] | undefined, featureStep: TFeatureStep) {
 		const world = this.getWorld();
@@ -259,7 +259,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 
 		/**
 		 * Begin a walk toward a goal: resolve it, hold the path chosen, and stop before each step so what that step needs
-		 * can be supplied. `pursue` runs a path straight through and so can only run one whose steps need nothing; a walk
+		 * can be supplied. `pursue` runs a path straight through and so can only run one whose steps don't need a supplied value; a walk
 		 * is how a path that needs something from a person is run, one step at a time, with what it produced recorded as
 		 * it goes. The walk belongs to whoever began it.
 		 */
@@ -322,7 +322,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 
 		// The same snapshot the showing steps produce, as a read: what a page showing the panel asks for after every
 		// step to stay current. Showing the panel is an act of the run and is recorded as one; asking what is on offer
-		// shows nothing and is not.
+		// isn't shown and isn't recorded.
 		affordancesOnOffer: {
 			gwta: "affordances on offer",
 			read: true,

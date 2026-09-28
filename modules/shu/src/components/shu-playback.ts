@@ -5,7 +5,7 @@
  * rail cannot do is move on its own, so that is what this is: the part of the old timeline that was not a position.
  *
  * Playing advances the cursor from the first event to the last at `speed`, and stops on arrival. At the last event the
- * cursor is published as null rather than as that timestamp: null means "now, no upper bound", so a record written
+ * cursor is published as null rather than as that timestamp: null means "now, without an upper bound", so a record written
  * after the newest event this page has seen is not filtered out as future before its own event arrives. Only a scrub
  * into the past publishes a concrete cutoff.
  */
@@ -27,7 +27,7 @@ const StateSchema = z.object({
 });
 
 export class ShuPlayback extends ShuElement<typeof StateSchema> {
-	/** A control, not a view of data, contributes nothing to the Kihan's context. */
+	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
@@ -58,14 +58,14 @@ export class ShuPlayback extends ShuElement<typeof StateSchema> {
 		this.autoTeardown(() => this.#stop());
 	}
 
-	/** What playing runs between: the shared log's span, read without asking for a window of it. This control keeps no
-	 *  running bounds of its own, and registers nothing that would hold the run in memory after it is put away. */
+	/** What playing runs between: the shared log's span, read without asking for a window of it. This control doesn't keep
+	 *  running bounds of its own, and doesn't register a subscription that would hold the run in memory after it is put away. */
 	get #span(): { first: number; last: number } {
 		return runSpan();
 	}
 
 	/** Whether the cursor has reached the end of the run. Derived rather than kept: every place that would have written
-	 *  it is this same comparison, and nothing renders from it. */
+	 *  it is this same comparison, and the template doesn't render from it. */
 	get #atEnd(): boolean {
 		return this.#currentTime >= this.#span.last;
 	}
@@ -104,7 +104,7 @@ export class ShuPlayback extends ShuElement<typeof StateSchema> {
 	private onPlay = (): void => {
 		if (this.state.playing) return this.#stop();
 		const { first, last } = this.#span;
-		if (last === 0) return; // nothing has happened yet, so there is nothing to play through
+		if (last === 0) return; // the run doesn't have an event yet, so playback doesn't have a span to play through
 		this.#lastFrame = performance.now();
 		if (this.#currentTime >= last) this.#currentTime = first;
 		this.setState({ playing: true });

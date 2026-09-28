@@ -25,7 +25,7 @@ const classify = (lineText: string, step?: TPlacedStep, opts: { prose?: boolean;
 	});
 
 describe("classifyDocument", () => {
-	it("paints a resolved step with no arguments as one call", () => {
+	it("paints a resolved step without arguments as one call", () => {
 		expect(classify("pause for 1s", placed("pause for 1s"))).toEqual([{ line: 0, char: 0, length: 12, type: "function" }]);
 	});
 
@@ -66,15 +66,15 @@ describe("classifyDocument", () => {
 		expect(classify("This describes what the feature is for.")).toEqual([{ line: 0, char: 0, length: 39, type: "comment" }]);
 	});
 
-	it("paints nothing for an unresolved lowercase line, which the diagnostics report as an error", () => {
+	it("doesn't paint an unresolved lowercase line, which the diagnostics report as an error", () => {
 		expect(classify("invalid step")).toEqual([]);
 	});
 
-	it("paints nothing for an unresolved line outside a feature, where prose is code", () => {
+	it("doesn't paint an unresolved line outside a feature, where prose is code", () => {
 		expect(classify('import { withAction } from "@haibun/core";', undefined, { prose: false })).toEqual([]);
 	});
 
-	it("paints nothing for a blank line", () => {
+	it("doesn't paint a blank line", () => {
 		expect(classify("   ")).toEqual([]);
 	});
 

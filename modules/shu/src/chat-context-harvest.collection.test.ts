@@ -4,12 +4,12 @@
  *
  * The page's bound on members is a safeguard on the payload, not the limit of what fits: what a model's window holds
  * of what arrives is the turn's to decide against its own window, and it states the members the window held out and
- * the call that reads them. Capped, a block states the page terms: `partOf` (the page has no address of its own), the
- * count the collection holds stands against what `items` carries — and no `@type` claim, because a context payload
+ * the call that reads them. Capped, a block states the page terms: `partOf` (the page doesn't have an address of its own),
+ * the count the collection holds stands against what `items` carries. A block doesn't state a `@type` claim, because a context payload
  * is not a resource persisted and offered on an endpoint; the claim belongs to the boundary. A block that states
  * `items` is held to `ViewCollectionSchema`: a non-conformant summary is rejected loudly, naming the view, never
- * silently trimmed. A view that states no collection — a graph stating its nodes and edges under their own names —
- * is carried as it stated.
+ * silently trimmed. A view that doesn't state a collection is carried as it stated. A graph that states its nodes and
+ * edges under their own names is such a view.
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import { HARVEST_MEMBERS, harvested, harvestChatViewLd } from "./chat-context-harvest.js";
@@ -33,27 +33,27 @@ const collection = (count: number) => ({
 describe("what a page sends of a view that states many members", () => {
 	it("carries the members the view stated first, and states the page terms", () => {
 		const carried = harvested(collection(HARVEST_MEMBERS + 50)) as Record<string, unknown>;
-		expect(carried.partOf, "the page has no address of its own: it pages the collection at the view's address").toBe("view:graph");
+		expect(carried.partOf, "the page doesn't have an address of its own: it pages the collection at the view's address").toBe("view:graph");
 		expect(
 			(carried.items as Array<{ at: number }>).map((m) => m.at),
 			"the view states the order it wants them read",
 		).toEqual(Array.from({ length: HARVEST_MEMBERS }, (_, at) => at));
 		expect(carried.totalItems, "the count the view stated stands, so a reader is told how many the view holds").toBe(HARVEST_MEMBERS + 50);
 		expect("membersCarried" in carried, "what arrived is what items carries; the count standing against it says so").toBe(false);
-		expect(carried["@type"], "a context payload claims no resource type; the claim belongs to the boundary").toBeUndefined();
+		expect(carried["@type"], "a context payload doesn't claim a resource type; the claim belongs to the boundary").toBeUndefined();
 	});
 
-	it("states the members held as the count when a view states no count", () => {
+	it("states the members held as the count when a view doesn't state a count", () => {
 		const unstated = { "@id": "view:many", items: Array.from({ length: HARVEST_MEMBERS + 1 }, (_, at) => ({ at })) };
 		expect(harvested(unstated).totalItems).toBe(HARVEST_MEMBERS + 1);
 	});
 
-	it("carries a view whose members a page holds as it stated it, saying nothing about carrying", () => {
+	it("carries a view whose members a page holds as it stated it, without a statement about carrying", () => {
 		const whole = collection(3);
 		expect(harvested(whole)).toBe(whole);
 	});
 
-	it("sends a view stating two member sets under their own names as it stated it, saying nothing about carrying", () => {
+	it("sends a view stating two member sets under their own names as it stated it, without a statement about carrying", () => {
 		// A 2D graph states its nodes and edges under their own names: two member sets, which a collection is not, so
 		// the view states its own shape and a page sends it as it stated it.
 		const graph = {
@@ -67,7 +67,7 @@ describe("what a page sends of a view that states many members", () => {
 		expect(harvested(graph)).toBe(graph);
 	});
 
-	it("carries a summary with no members as it is", () => {
+	it("carries a summary without members as it is", () => {
 		const stated = { "@id": "view:one", name: "a view of one thing" };
 		expect(harvested(stated)).toBe(stated);
 	});
@@ -102,7 +102,7 @@ describe("the harvest rejects a non-conformant summary loudly, naming the view",
 		expect(() => harvestChatViewLd()).toThrow(/shu-bad-view/);
 	});
 
-	it("is what the harvest sends, so no view sends more members than a page carries", () => {
+	it("is what the harvest sends, so the views don't send more members than a page carries", () => {
 		const strip = document.createElement("shu-column-strip");
 		strip.appendChild(pane("only", view("shu-polymorphic-graph-view", collection(HARVEST_MEMBERS + 10))));
 		document.body.appendChild(strip);

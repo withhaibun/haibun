@@ -49,7 +49,7 @@ export async function buildGraphSource(world: TWorld): Promise<
 	// federated peers still being reachable, and each peer's record is its own report.
 	const raw = await store.getClusteredQuads({ perTypeLimit: 10000, accessLevel: Access.private, scope: "own" });
 	// Include the schema exactly as the live getClusteredQuads does, so the offline report's ontology/class-browser view
-	// matches live, pruned against the serialized graph itself (the report IS the full data). The one assembler, no drift.
+	// matches live, pruned against the serialized graph itself (the report IS the full data). The one assembler, so the two don't drift.
 	const standardVocab = await enumerateStandardVocab(world.domains);
 	const { quads, clusters } = withOntologySchema({ quads: raw.quads as TQuad[], clusters: raw.clusters }, raw.quads as TQuad[], world.domains, standardVocab);
 	const model = buildGraphModelFromQuads(quads as TQuad[]);
@@ -86,7 +86,7 @@ function loadBundle(): string {
 }
 
 /** The bundle for the standalone report: the minified production build (≈half the development build). Falls back to the
- *  development build if the report bundle is not built yet; neither carries a source map, which the served page adds. */
+ *  development build if the report bundle is not built yet; the two bundles don't carry a source map, which the served page adds. */
 export function loadReportBundle(): string {
 	try {
 		return readFileSync(join(__dirname, "..", "build", "shu-report-bundle.js"), "utf-8");
@@ -105,8 +105,8 @@ function spaDocument(basePath: string, scriptsHtml: string): string {
   <style>
     * { box-sizing: border-box; }
     html, body { height: 100%; margin: 0; overflow: hidden; }
-    /* The reader's own fonts: an app over private records asks nothing of a font service, and a page served here
-       renders the same with no network at all. A named face is used where it is installed, the system's otherwise. */
+    /* The reader's own fonts: an app over private records doesn't call a font service, and a page served here
+       renders the same without a network at all. A named face is used where it is installed, the system's otherwise. */
     body { font-family: "Source Sans 3", system-ui, sans-serif; }
     code, pre, table, td, th { font-family: "Source Code Pro", ui-monospace, monospace; }
   </style>
@@ -122,7 +122,7 @@ ${scriptsHtml}
 </html>`;
 }
 
-// What the served page's hydration carries: the timings this deployment set, and nothing else. A record of a run
+// What the served page's hydration carries: only the timings this deployment set. A record of a run
 // carries the run itself and writes its own hydration element (buildReportHtml).
 export function buildSpaHtml(basePath: string, bundle: string, settings: TDeploymentSettings = {}): string {
 	const scripts = `  <script type="application/json" id="shu-hydration">${JSON.stringify({ settings })}</script>\n\n  <script>${bundle}\n//# sourceMappingURL=${SPA_SOURCE_MAP}</script>`;
@@ -132,7 +132,7 @@ export function buildSpaHtml(basePath: string, bundle: string, settings: TDeploy
 /**
  * Offline report: a `{bundle, hydration, scripts}` payload plus a tiny loader that recreates the `#shu-hydration` script
  * the bundle reads, injects the in-view component scripts, then the bundle (which boots via app.ts's readyState check).
- * `compressed` embeds the payload as gzip+base64 to keep shared files small (base64 needs no `</` escaping); uncompressed
+ * `compressed` embeds the payload as gzip+base64 to keep shared files small (base64 doesn't need `</` escaping); uncompressed
  * embeds plain JSON (only `</` escaped) so the redacted text can be read and audited directly in the file: the
  * secret-obscuring check greps it.
  */
@@ -162,7 +162,7 @@ export function buildReportHtml(basePath: string, payload: string, compressed: b
 function createSpaHandler(basePath: string, settings: () => TDeploymentSettings) {
 	// Read the bundle from disk on every request rather than caching it at
 	// handler construction, so a rebuilt shu-bundle.js is served after
-	// `npm run build` + reload with no service restart. The ~3.7MB readFileSync
+	// `npm run build` + reload without a service restart. The ~3.7MB readFileSync
 	// is sub-ms on a warm cache.
 	// `no-store` is required because the bundle is inlined in the HTML response:
 	// `no-cache` still permits cached storage with revalidation, so a soft reload
@@ -231,7 +231,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 
 	cycles = {
 		// A feature gets a fresh web server, so the route this stepper adds to the previous one is gone with it: the flag
-		// that stops a duplicate route within a feature must not outlive that feature, or the next one serves no bundle.
+		// that stops a duplicate route within a feature must not outlive that feature, or the next one doesn't serve a bundle.
 		startFeature: (): void => {
 			this.viewBundleServed = false;
 			this.appPaths.clear();
@@ -307,7 +307,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 		},
 	};
 	/** The timings and the embedding page's origin this deployment set, written into every page it serves. A deployment
-	 *  that sets none serves a page that runs on the values the product carries. */
+	 *  that doesn't set them serves a page that runs on the values the product carries. */
 	private settings: TDeploymentSettings = {};
 
 	steps = {

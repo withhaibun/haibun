@@ -23,7 +23,7 @@ describe("finalizer-stepper", () => {
 		expect((await result.world.shared.all()).counterB?.value).toBe("1");
 	});
 
-	it("does nothing when no finalizer steps are provided", async () => {
+	it("doesn't run a finalizer when finalizer steps aren't provided", async () => {
 		const result = await passWithDefaults([{ path: "/features/main.feature", content: 'set baseline to "ok"' }], [VariablesStepper, Haibun, FinalizerStepper], {
 			options: { DEST: "default" },
 			moduleOptions: {},

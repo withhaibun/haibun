@@ -22,7 +22,7 @@ const SCROLL = {
 };
 
 describe("blips: fine-grained occurrences, never retained", () => {
-	it("does nothing when nothing is subscribed to the kind: a hot path can record unconditionally", () => {
+	it("doesn't emit an event when a subscriber doesn't watch the kind: a hot path can record unconditionally", () => {
 		declareBlips(SCROLL);
 		const { world, eventLogger } = make();
 		const narrated: THaibunEvent[] = [];
@@ -66,10 +66,10 @@ describe("blips: fine-grained occurrences, never retained", () => {
 		expect(seen.map((e) => (e.kind === "blip" ? e.name : e.kind))).toEqual([HTTP.name]);
 	});
 
-	it("returns before any lookup when no filter matches the name, so an unwatched hot path still is one check", () => {
+	it("returns before any lookup when a filter doesn't match the name, so an unwatched hot path still is one check", () => {
 		const { world, eventLogger } = make();
 		eventLogger.subscribe(() => undefined, { kinds: ["blip"], names: ["haibun.test.http"] });
-		// Undeclared and mismatched: with no subscriber filter matching, recording never reaches the declaration check.
+		// Undeclared and mismatched: where a subscriber filter doesn't match, recording never reaches the declaration check.
 		expect(() => recordBlip(world, "haibun.test.never.declared", 1)).not.toThrow();
 	});
 
@@ -78,7 +78,7 @@ describe("blips: fine-grained occurrences, never retained", () => {
 		expect(() => eventLogger.subscribe(() => undefined, { names: ["haibun.test.http"] })).toThrow(/kinds/);
 	});
 
-	it("refuses a name nobody declared, rather than letting a vocabulary grow at the call site", () => {
+	it("refuses a name that isn't declared, rather than letting a vocabulary grow at the call site", () => {
 		const { world, eventLogger } = make();
 		eventLogger.subscribe(() => undefined, { kinds: ["blip"] });
 		expect(() => recordBlip(world, "haibun.test.undeclared", 1)).toThrow(/not declared/);

@@ -3,11 +3,11 @@
  *
  * The main thread cannot measure the time: `render()` returns in half a millisecond once the commands are queued, and
  * the work is done in the browser's GPU process, by a GPU or by a software rasterizer. A WebGL2 fence placed after the
- * draw signals when that work is complete, and polling it on later frames does nothing, so the time from the fence to
+ * draw signals when that work is complete, and polling it on later frames doesn't block them, so the time from the fence to
  * its signal is the frame's time as the renderer used it: one to two milliseconds on a GPU, sixteen and more under
  * SwiftShader for the same scene.
  *
- * One frame in `SAMPLE_EVERY` is measured, one fence at a time. A context without fences measures nothing, and the
+ * One frame in `SAMPLE_EVERY` is measured, one fence at a time. A context without fences doesn't measure a frame, and the
  * regulator that reads this then never trips.
  */
 
@@ -36,7 +36,7 @@ export class FrameTime {
 		private readonly now: () => number = () => performance.now(),
 	) {}
 
-	/** A frame was drawn. On every `SAMPLE_EVERY`th, with no measurement pending, a fence is placed after it. */
+	/** A frame was drawn. On every `SAMPLE_EVERY`th, without a measurement pending, a fence is placed after it. */
 	drew(): void {
 		this.#drawn++;
 		if (this.#pending || this.#drawn % SAMPLE_EVERY !== 0) return;

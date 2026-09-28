@@ -121,7 +121,7 @@ Only a meta domain whose value depends on the step it fills, such as `statement`
 
 #### Validation & errors
 
-- A parameter naming a domain no loaded stepper registers is refused when the step registers, naming the step and the domain.
+- A parameter naming a domain that the loaded steppers don't register is refused when the step registers, naming the step and the domain.
 - A value its parameter's domain refuses fails the step, naming the step, the parameter, the term and the schema's reason. Text that isn't JSON where JSON text is taken is refused at once, with the parser's reason and the text.
 - A variable of another domain fills a parameter only where the parameter's domain is a reference to it: otherwise the step fails, naming both domains.
 - `{x:${DOMAIN_STATEMENT}}` whose inner text does not resolve to a known step → `statement '...' invalid`.

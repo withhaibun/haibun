@@ -105,7 +105,7 @@ const feedGoalGraph = (presenter: TGraphPresenter, graph: TGraph): void => {
 export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSchema> {
 	private affordances: TAffordances | null = null;
 
-	/** The discovery surface as linked data: every forward step (the deployment's callable verbs) and each goal's verdict: the core affordance shapes, uninvented. No served vocabulary term types this composite, so it carries none. */
+	/** The discovery surface as linked data: every forward step (the deployment's callable verbs) and each goal's verdict: the core affordance shapes, uninvented. The served vocabulary terms don't type this composite, so it doesn't carry a type. */
 	summarizeForKihan(): TLinkedData | null {
 		if (!this.affordances) return null;
 		return {
@@ -167,7 +167,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	}
 
 	private _refreshTimer: ReturnType<typeof setTimeout> | undefined;
-	/** One refetch per coalesce window, no matter how many change signals arrive: the first signal starts the timer, and the rest fall inside it. */
+	/** One refetch per coalesce window, however many change signals arrive: the first signal starts the timer, and the rest fall inside it. */
 	private scheduleRefresh(): void {
 		if (this._refreshTimer !== undefined) return;
 		this._refreshTimer = setTimeout(() => {
@@ -185,7 +185,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	/**
 	 * View-open contract: `pane-opener` assigns this property with the products
 	 * `show affordances` produced. The forward/goals shape is required, fail fast
-	 * if either is missing, no fallbacks.
+	 * if either is missing, without fallbacks.
 	 */
 	set products(p: Record<string, unknown>) {
 		// app.ts coalesces the connect-time replay (one PaneState.request per pane per frame), so a burst never reaches
@@ -239,8 +239,8 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		const asOf = this.getAttribute("as-of");
 		const params = asOf ? { asOf } : {};
 		// The affordances on offer, read rather than shown: the whole snapshot (forward + goals + waypoints), asked of
-		// the run without being recorded as an act of it. The as-of replay variant carries no waypoints: waypoint
-		// ensure-state is current run state, so there is no waypoint history to replay.
+		// the run without being recorded as an act of it. The as-of replay variant doesn't carry waypoints: waypoint
+		// ensure-state is current run state, so the run doesn't hold a waypoint history to replay.
 		const candidates = asOf ? [RPC_METHOD.AFFORDANCES_ON_OFFER_AS_OF] : [RPC_METHOD.AFFORDANCES_ON_OFFER];
 
 		let lastError = "";
@@ -285,7 +285,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	 *  reader points at, are found in it. */
 	private goalGraphs = new Map<string, TGraph>();
 
-	/** Light the nodes a path runs through in its goal's graph and dim the rest; no path ends the preview. */
+	/** Light the nodes a path runs through in its goal's graph and dim the rest; an undefined path ends the preview. */
 	private previewPath(goalIdx: number, pathIdx: number | undefined): void {
 		const slot = goalGraphSlot(this.goalDomainAt(goalIdx));
 		const graph = this.goalGraphs.get(slot);

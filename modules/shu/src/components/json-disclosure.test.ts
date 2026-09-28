@@ -1,11 +1,11 @@
 // A record read from the graph is JSON-LD. All of it is shown, opened: what it says and the vocabulary it is written
-// in, which is part of what it is. The disclosures give it structure a reader can follow and collapse, and take nothing
-// away.
+// in, which is part of what it is. The disclosures give it structure a reader can follow and collapse, and don't remove
+// a part of it.
 import { describe, it, expect } from "vitest";
 import { jsonDisclosure, literalWithJson } from "./json-disclosure.js";
 
 describe("a JSON value as disclosures", () => {
-	it("shows a scalar as it reads, with nothing to open", () => {
+	it("shows a scalar as it reads, without a disclosure to open", () => {
 		expect(jsonDisclosure("what the run said", "message")).toContain("what the run said");
 		expect(jsonDisclosure("what the run said", "message")).not.toContain("<details");
 	});
@@ -53,7 +53,7 @@ describe("a JSON value as disclosures", () => {
 		expect(shown).toMatch(/<details class="json-disclosure" data-testid="json-@context"/);
 	});
 
-	it("closes nothing else, at any depth", () => {
+	it("doesn't close another disclosure, at any depth", () => {
 		const shown = jsonDisclosure({ record: { held: { deeper: { deepest: 1 } } } });
 		expect(shown.match(/<details(?![^>]* open)/g) ?? []).toHaveLength(0);
 	});
@@ -71,7 +71,7 @@ describe("a literal that carries JSON", () => {
 		expect(shown, "the method a reader is looking for").toContain("action.begin");
 	});
 
-	it("returns a literal carrying no JSON as it reads", () => {
+	it("returns a literal that doesn't carry JSON as it reads", () => {
 		expect(literalWithJson("what the run said")).toBe("what the run said");
 	});
 

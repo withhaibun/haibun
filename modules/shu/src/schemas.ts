@@ -129,7 +129,7 @@ export const EntityColumnSchema = z.object({
 	/** Show annotations anchored in this body inline (on by default). When the body has annotations this renders the
 	 *  inline annotated view; off returns to the plain body iframe. Remembered per column via persistFields. */
 	showAnnotations: z.boolean().default(true),
-	/** Enter the inline annotated view to author the first annotation on a body that has none yet (transient). */
+	/** Enter the inline annotated view to author the first annotation on a body that doesn't have one yet (transient). */
 	annotateMode: z.boolean().default(false),
 });
 
@@ -148,7 +148,7 @@ export const TypeChoiceSchema = z.object({ key: z.string().min(1) });
 
 // --- Breadcrumb ---
 
-/** What the page's search is called with nothing selected, since the page then acts on everything. */
+/** What the page's search is called when the reader hasn't selected a record, since the page then acts on everything. */
 export const NOTHING_SELECTED_LABEL = "All";
 
 export const BreadcrumbSchema = z.object({
@@ -198,7 +198,7 @@ export const ResultTableSchema = z.object({
 /**
  * An individual is named by the type it is persisted as and its own id, the pair every surface names one by, so
  * whoever resolves it reads it directly. A type names its members, narrowed by the conditions given. `kind` tells the
- * two apart in the words core already names them by, so a surface holding only a type can say nothing else.
+ * two apart in the words core already names them by, so a surface holding only a type can't say more.
  */
 const ContextIndividualSchema = z.object({
 	kind: z.literal(DENOTES.individual),

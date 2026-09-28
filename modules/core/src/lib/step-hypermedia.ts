@@ -61,7 +61,7 @@ export function augmentViewHypermedia(world: TWorld, step: TStepperStep, actionR
 /**
  * Walk every registered step's gwta param domains and return a `_links` map of the
  * verbs that accept this product's domain as one of their inputs. One entry per
- * matching step, keyed by the step's bare name (no stepperName prefix) so the
+ * matching step, keyed by the step's bare name (without a stepperName prefix) so the
  * affordance is named by intent, not by method address.
  *
  * Matching is in two layers:
@@ -79,7 +79,7 @@ export function augmentViewHypermedia(world: TWorld, step: TStepperStep, actionR
  * etc.). Otherwise pass an empty object: the consumer fills the rest from the
  * step's own inputSchema (already in what show steps returns).
  *
- * H1: a single derivation; no per-step authoring needed.
+ * H1: a single derivation; it doesn't need per-step authoring.
  */
 function deriveActionLinks(
 	productsDomain: string,
@@ -91,7 +91,7 @@ function deriveActionLinks(
 	const productId = typeof products.id === "string" ? products.id : undefined;
 	const matchesProduct = (paramDomain: string): boolean => {
 		if (paramDomain === productsDomain) return true;
-		// Some gwta params declare a union domain (e.g. a page target, any way a page is searched): those carry no single-domain topology to follow, so skip them. normalizeDomainKey throws on misordered unions; guard with try/catch so a single quirky param doesn't break affordance derivation for every product the step produces.
+		// Some gwta params declare a union domain (e.g. a page target, any way a page is searched): those don't carry a single-domain topology to follow, so skip them. normalizeDomainKey throws on misordered unions; guard with try/catch so a single quirky param doesn't break affordance derivation for every product the step produces.
 		let refDomain: { topology?: { ranges?: { id?: string } } } | undefined;
 		try {
 			refDomain = world.domains?.[normalizeDomainKey(paramDomain)];
@@ -125,18 +125,18 @@ function deriveActionLinks(
 
 /**
  * A domain that exists only to render a view (its schema is empty, its `ui.component`
- * names the pane to open) carries no knowledge to chain on. Asserting such a
+ * names the pane to open) doesn't carry data to chain on. Asserting such a
  * "fact" creates a loop: each affordances refresh sees the asserted view, includes
  * it in the snapshot, and the SPA re-opens the pane, accumulating duplicates.
  *
  * A domain is view-only iff it declares `ui.component` AND its registered schema
- * has no fields. Real product-bearing domains (DOMAIN_AFFORDANCES, DOMAIN_CHAIN_LINT,
+ * doesn't have fields. Real product-bearing domains (DOMAIN_AFFORDANCES, DOMAIN_CHAIN_LINT,
  * domain-key, etc.) carry data even if they ALSO map to a view, and stay assertable.
  */
 export function isViewOnlyDomain(world: TWorld, domainKey: string): boolean {
 	const domain = world.domains[normalizeDomainKey(domainKey)];
 	if (!domain?.ui?.component || typeof domain.ui.component !== "string") return false;
-	// unrepresentable:"any" keeps the presence check working for a schema carrying a date (z.coerce.date has no JSON Schema form), only whether it has fields matters, not to represent them.
+	// unrepresentable:"any" keeps the presence check working for a schema carrying a date (z.coerce.date doesn't have a JSON Schema form), only whether it has fields matters, not to represent them.
 	const jsonSchema = jsonSchemaOf(domain.schema, "fields", () => z.toJSONSchema(domain.schema, { unrepresentable: "any" }) as Record<string, unknown>) as {
 		properties?: Record<string, unknown>;
 		type?: string;

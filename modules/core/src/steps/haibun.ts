@@ -29,7 +29,7 @@ import { DOMAIN_STEP_DETAIL, SHOW_STEPS_ACTION, SHOW_STEPS_DESCRIPTION, StepDeta
 import { shownTo } from "../lib/capability-context.js";
 import { validateStep } from "../lib/step-validation.js";
 
-/** Whether a line resolves to one step, and the method of that step or why it resolves to none or to several. */
+/** Whether a line resolves to one step, and the method of that step or why it doesn't resolve to exactly one. */
 const StepValidationSchema = z.discriminatedUnion("valid", [z.object({ valid: z.literal(true), method: z.string() }), z.object({ valid: z.literal(false), error: z.string() })]);
 /** The store a run reads and writes through: the site it answers for, and the types it holds. */
 const StoreInUseSchema = z.object({ site: z.string(), types: z.array(z.string()) });

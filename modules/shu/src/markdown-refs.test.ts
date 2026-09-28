@@ -37,7 +37,7 @@ describe("parseRefHref", () => {
 		});
 	});
 
-	it("keeps the individual ref but drops the selector for a range directive (no TextQuoteSelector form)", () => {
+	it("keeps the individual ref but drops the selector for a range directive (it doesn't have a TextQuoteSelector form)", () => {
 		expect(parseRefHref("#FieldReport:r1:~:text=start,end", isType)).toEqual({ kind: "entity", target: { persistedAs: "FieldReport", id: "r1" } });
 	});
 
@@ -80,18 +80,18 @@ describe("renderRefProse", () => {
 		expect(html).toContain("party"); // the author's words, not the type name, are what the reader reads
 	});
 
-	it("leaves an ordinary anchor and a link to no known type as plain text", () => {
+	it("leaves an ordinary anchor and a link to an unknown type as plain text", () => {
 		expect(renderRefProse("see [below](#notes)", isType)).not.toContain("shu-ref");
 		expect(renderRefProse("see [that](#Nonesuch)", isType)).not.toContain("shu-ref");
 	});
 
-	it("renders a description as one sentence: no paragraph wrapper to break the line it sits on", () => {
+	it("renders a description as one sentence without a paragraph wrapper to break the line it sits on", () => {
 		expect(renderRefProse("A plain description.", isType)).toBe("A plain description.");
 	});
 
 	it("renders markup a description carries as text: a description is prose, not a document body", () => {
 		const html = renderRefProse('<img src=x onerror="alert(1)"> plain', isType);
-		expect(html).not.toContain("<img"); // escaped, so nothing of it is live
+		expect(html).not.toContain("<img"); // escaped, so the tag isn't live
 		expect(html).toContain("&lt;img");
 	});
 });

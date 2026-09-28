@@ -57,12 +57,12 @@ export interface IWebServer extends IRouteRegistry {
 	addRoute(type: TRouteTypes, path: string, purpose: TRoutePurpose, ...handlers: TRequestHandler[]): void;
 	addRouteIfAbsent(type: TRouteTypes, path: string, purpose: TRoutePurpose, ...handlers: TRequestHandler[]): void;
 	/** Serve a family of `/rpc` methods under `prefix`, which ends in ".", each gated by the action it declares as a step is
-	 *  by its capability. A family adds no route: its methods are called over `/rpc`. */
+	 *  by its capability. A family doesn't add a route: its methods are called over `/rpc`. */
 	addRpcMethods(prefix: string, purpose: TRoutePurpose, methods: Record<string, TRpcMethod>): void;
 	/** The method of a served family that an `/rpc` call names, if any. */
 	rpcMethod(method: string): TRpcMethod | undefined;
 	clearMounted(): void;
-	/** The actions every caller may take without a delegation, beside what it proves: none, unless the deployment says. */
+	/** The actions every caller may take without a delegation, beside what it proves: an empty list, unless the deployment states one. */
 	readonly allowedWithoutDelegation: readonly string[];
 	use(middleware: MiddlewareHandler): void;
 	readonly app: Hono;

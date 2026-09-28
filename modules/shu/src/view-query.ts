@@ -7,7 +7,7 @@
  * back/forward, `set()` writes it back, so a reload restores the view.
  *
  * FAIL-FAST: every param is validated by {@link ViewQuerySchema}. A malformed enum / non-integer
- * offset / bad filter operator throws rather than silently resetting (no `|| default`, no
+ * offset / bad filter operator throws rather than silently resetting (without `|| default` or
  * `parseInt || 0`). The schema is the contract.
  *
  * SCOPE: this owns the QUERY params (label, q, sort, order, offset, access, f). The pane params
@@ -72,7 +72,7 @@ function queryParams(q: TViewQuery): URLSearchParams {
 	return p;
 }
 
-/** Canonical hash string for a view query alone (no pane/affordance params). */
+/** Canonical hash string for a view query alone (without pane/affordance params). */
 export function serializeViewQuery(q: TViewQuery): string {
 	const s = queryParams(q).toString();
 	return s ? `#?${s}` : "";

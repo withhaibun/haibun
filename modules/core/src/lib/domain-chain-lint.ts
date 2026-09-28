@@ -14,7 +14,7 @@
  *   - unproduced-domain: a thing a step consumes and another step doesn't declare as an output. It is the domain-level
  *     form of unsupplied-step.
  *
- * Pure projection over the domain-chain graph plus the domain registry. No I/O.
+ * Pure projection over the domain-chain graph plus the domain registry. It doesn't perform I/O.
  * Drift detection: callers persist a snapshot of findings and diff against a new
  * snapshot to detect graph-shape regressions across boots.
  */
@@ -29,7 +29,7 @@ export const LINT_FINDING = {
 	UNSUPPLIED_STEP: "unsupplied-step",
 	UNREACHABLE_DOMAIN: "unreachable-domain",
 	UNPRODUCED_DOMAIN: "unproduced-domain",
-	/** A parameter whose domain is `string`, or a union with it, which says nothing of what the value is. */
+	/** A parameter whose domain is `string`, or a union with it, which doesn't say what the value is. */
 	STRING_PARAM: "string-param",
 } as const;
 

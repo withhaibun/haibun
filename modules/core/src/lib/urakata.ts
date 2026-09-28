@@ -3,10 +3,10 @@
  *
  * Tickers register here instead of each stepper rolling its own setInterval /
  * AbortController. The registry:
- *   - schedules ticks via setTimeout-recursion (no overlap when a tick is slow),
+ *   - schedules ticks via setTimeout-recursion (ticks don't overlap when a tick is slow),
  *   - gives each tick an AbortSignal; a timeout or a stop aborts the in-flight
  *     tick and awaits its settlement, so no-overlap holds on every path,
- *   - wraps every tick in a per-instance try/catch (no unhandled exceptions),
+ *   - wraps every tick in a per-instance try/catch (so an exception isn't left unhandled),
  *   - allocates a synthetic seqPath root per registration (traces scope cleanly),
  *   - emits structured step.failure events when ticks throw (autonomic visibility),
  *   - stops everything on endFeature(shouldClose) and process signals.
@@ -15,8 +15,8 @@
  * and a tick method: the registry composes them. A long-lived task is a ticker
  * whose tick blocks (honouring the signal) until there is work or the signal fires.
  *
- * State is derived, never stored as a claim about the present: a live entry with
- * no stoppedAt is running; stop() records stoppedAt. A persisted snapshot carries
+ * State is derived, never stored as a claim about the present: a live entry without
+ * a stoppedAt is running; stop() records stoppedAt. A persisted snapshot carries
  * only these past-tense facts, so it cannot outlive its truth.
  */
 
@@ -39,7 +39,7 @@ const URAKATA_ERROR_PERSIST_EVERY = 10;
 export const UrakataSchema = PersistedVertexSchema.extend({
 	id: z.string(),
 	description: z.string(),
-	/** The run instance this task ran in (world.tag.key). A view says "running" only when this equals the current instance and there is no stoppedAt; a persisted row from another instance can never claim the present. */
+	/** The run instance this task ran in (world.tag.key). A view says "running" only when this equals the current instance and it doesn't have a stoppedAt; a persisted row from another instance can never claim the present. */
 	execution: z.string(),
 	seqPath: z.array(z.number()),
 	startedAt: z.string(),
@@ -145,7 +145,7 @@ export class UrakataRegistry implements IUrakataRegistry {
 			const controller = new AbortController();
 			// A tick settling and the registry counting its outcome are one flow: settled resolves once the count is
 			// recorded, so stop()/timeout can await a clean state. A tick aborted by stop() is a normal end, not an error.
-			// A tick runs with no capability of its own. A ticker registered during an authorized step would otherwise
+			// A tick runs without a capability of its own. A ticker registered during an authorized step would otherwise
 			// inherit that step's capability through the async context and keep it for as long as it ticks, which is
 			// for the life of the process; authority belongs to the act that asks for it, not to whoever started a timer.
 			const settled: Promise<void> = runAuthorizedWith(undefined, async () => {

@@ -47,7 +47,7 @@ function declared(row: TRunRow): Record<string, unknown> {
 
 /** Which record a rendered row is: its type and its own name. A row shows a step's path, and what was said under a step
  *  shows that step's, so without this a row of what a run said cannot be told from the step it was said during, and a
- *  reader pressing it has nothing to open. */
+ *  reader pressing it doesn't have a record to open. */
 const recordOf = (row: TRunRow): { persistedAs: string; id: string } => ({ persistedAs: row.label, id: row.id });
 
 /** A row as a view renders it. A step carries how it went and how long it took; what was said carries its own level. */
@@ -123,7 +123,7 @@ const sources = (): Map<string, TGraphRunSource> =>
 
 type TGraphRunSource = RunSource & { close(): void };
 
-/** Stop reading a run nothing is showing, and forget it, so the next view to read at that level reads afresh. */
+/** Stop reading a run the views don't show, and forget it, so the next view to read at that level reads afresh. */
 function releaseSource(key: string): void {
 	const held = sources().get(key);
 	if (held === undefined) return;
@@ -232,9 +232,9 @@ function makeGraphRunSource(
 			window = [...byName.values()].sort(inRunOrder).slice(-size);
 		} else window = answer.rows;
 		// What a step produced is claimed over the window as it now stands: a shot is recorded after the step that took
-		// it, so a read that finds the shot alone would leave it claimed by nothing.
+		// it, so a read that finds the shot alone would leave it unclaimed.
 		producedUnderSteps(window);
-		// What a page has read, it holds: the records are what a reader with no site to ask reads them back from, and
+		// What a page has read, it holds: the records are what a reader without a site to ask reads them back from, and
 		// what makes an execution one this device can be brought back to. Only what is new to the window is written,
 		// and every new record in one write, so reading a window is one write rather than one per record.
 		void hold(window.filter((row) => !held.has(renderKey(row))));
@@ -268,8 +268,8 @@ function makeGraphRunSource(
 		if (due) return;
 		due = setTimeout(() => {
 			due = null;
-			// A read nothing awaits still says when it failed: a view left showing an older window with no word of
-			// why is a view a reader cannot tell apart from one that is current.
+			// A read that a caller doesn't await still says when it failed: a view left showing an older window without a
+			// report of why is a view a reader cannot tell apart from one that is current.
 			read().catch((err: unknown) => failFastOrLog("the run could not be read again", err));
 		}, reReadAfterMs);
 	};
@@ -282,7 +282,7 @@ function makeGraphRunSource(
 		onBatch: (events) => {
 			if (events.some((e) => shows.has((e as { level?: THaibunLogLevel }).level ?? "info"))) announce();
 		},
-		// What the run recorded while the stream was down arrived in no batch: the stream coming back is the same
+		// What the run recorded while the stream was down didn't arrive in a batch: the stream coming back is the same
 		// reason to read again, on the same schedule, and until that read has finished the reading is behind.
 		onReconnect: () => {
 			disconnected = false;
@@ -329,7 +329,7 @@ function makeGraphRunSource(
 		at = undefined;
 		window = [];
 		held.clear();
-		// The counts are of the run that was being read, so another run is counted from nothing rather than added to.
+		// The counts are of the run that was being read, so another run is counted from zero rather than added to.
 		shape = runShape(runGraph(), { minLevel: level });
 		reach = { first: 0, last: 0 };
 		void read();
@@ -338,8 +338,8 @@ function makeGraphRunSource(
 	const source: TGraphRunSource = {
 		level,
 		// The rail this window's rows sit on: the run's whole reach, focused where the reader is reading. A window holds
-		// a few thousand records and a run can hold a year of them, so a rail spread over the window alone would say
-		// nothing about the rest of the run. The reach and the marks are read where the window is read, so a rail of a
+		// a few thousand records and a run can hold a year of them, so a rail spread over the window alone wouldn't
+		// count the rest of the run. The reach and the marks are read where the window is read, so a rail of a
 		// year takes the counts its divisions take rather than what the run did.
 		rail: {
 			places: RAIL_PLACES,
@@ -378,8 +378,8 @@ function makeGraphRunSource(
 			window = []; // another moment is another window, read as one rather than added to the one being left
 			return read();
 		},
-		// A view holds the source by subscribing to it, and lets it go by unsubscribing. A source nothing holds is
-		// reading a run nobody is shown: it stops, and the next view to read at this level starts one afresh.
+		// A view holds the source by subscribing to it, and lets it go by unsubscribing. A source the views don't hold is
+		// reading a run the reader isn't shown: it stops, and the next view to read at this level starts one afresh.
 		subscribe: (fn: () => void) => {
 			subs.add(fn);
 			return () => {

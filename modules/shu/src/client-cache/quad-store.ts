@@ -7,7 +7,7 @@
  * Degrades by design: without IndexedDB (a report, or any context without it) every read returns empty and the view
  * renders what it has. Every read, the query surface included, is answered from what this page caches: the site serves
  * the graph while it can be reached, and the page reads the same store either way, so a view offline sees what it holds
- * rather than nothing. What it holds is what the site already served this reader, so a read of it gates nothing further.
+ * rather than an empty view. What it holds is what the site already served this reader, so a read of it isn't gated further.
  */
 import { LinkRelations, withinAccess, type AccessLevel } from "@haibun/core/lib/resources.js";
 import { matchesQuadPattern, type IQuadStore, type TClusteredQuads, type TDensityQuery, type TDensityResult, type TQuad, type TQuadPattern } from "@haibun/core/lib/quad-types.js";
@@ -98,7 +98,7 @@ export class IndexedDbQuadStore implements IQuadStore {
 	/** Batch upsert in one transaction: each quad replaces any prior quad with the same subject+predicate+namedGraph,
 	 *  so persisting a live merge batch keeps the stored graph bounded (one row per fact) rather than appending. */
 	/** Hold each fact, replacing what is held under its subject, predicate and graph. A fact the device holds as it is
-	 *  is not written again, and which it holds is found in a read, which holds back no other reader: a page reloaded
+	 *  is not written again, and which it holds is found in a read, which doesn't hold back another reader: a page reloaded
 	 *  over what it held otherwise rewrote every fact, and the device's other reads queued behind the rewrite. */
 	async setMany(quads: TQuad[]): Promise<void> {
 		const changed = await this.notHeld(quads);
@@ -113,7 +113,7 @@ export class IndexedDbQuadStore implements IQuadStore {
 	}
 
 	/** The facts the device doesn't hold as they are: one it holds under the same subject, predicate and graph, with the
-	 *  same object, is held, whenever it was held. Without IndexedDB nothing is held, and nothing is written either. */
+	 *  same object, is held, whenever it was held. Without IndexedDB a fact isn't held, and isn't written either. */
 	private async notHeld(quads: TQuad[]): Promise<TQuad[]> {
 		if (quads.length === 0) return [];
 		const held = await withStore("readonly", (store) =>

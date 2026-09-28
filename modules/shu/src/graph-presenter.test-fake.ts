@@ -38,7 +38,7 @@ export class FakeGraphPresenter extends HTMLElement implements TGraphPresenter {
 	}
 }
 
-/** Declare the fake as the site's graph presenter, in a site that declares nothing else. */
+/** Declare the fake as the site's graph presenter, in a site whose other declarations are empty. */
 export function declareFakeGraphPresenter(): void {
 	if (!customElements.get(FAKE_PRESENTER_TAG)) customElements.define(FAKE_PRESENTER_TAG, FakeGraphPresenter);
 	setSiteMetadata({

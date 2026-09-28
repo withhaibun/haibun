@@ -3,7 +3,7 @@
  * within a deployment. Prepended to every seqPath root so observations from
  * different hosts cannot collide even when running identical features.
  *
- * Single-host deployments keep hostId = 0 (the default) and see no change.
+ * Single-host deployments keep hostId = 0 (the default) and don't see a change.
  * Multi-host deployments set HAIBUN_HOST_ID per instance; assigning ids is
  * an operator concern (config, supervisor, orchestration).
  *
@@ -57,7 +57,7 @@ export function activeSitePrincipal(world: TSitePrincipalWorld, env: Record<stri
 	return typeof adopted === "string" && adopted.length > 0 ? adopted : resolveSitePrincipal(env);
 }
 
-/** True when this instance still carries the default derived principal (`did:site:<hostId>`, nothing adopted or operator-set). */
+/** True when this instance still carries the default derived principal (`did:site:<hostId>`, without an adopted or operator-set principal). */
 export function hasDefaultSitePrincipal(world: TSitePrincipalWorld, env: Record<string, string | undefined> = process.env): boolean {
 	return activeSitePrincipal(world, env) === `${SITE_DID_PREFIX}${resolveHostId(env)}` && !env[HAIBUN_SITE_KEY_ENV];
 }

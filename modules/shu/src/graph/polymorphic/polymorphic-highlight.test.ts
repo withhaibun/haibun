@@ -48,7 +48,7 @@ describe("the glow burns through a warm ramp", () => {
 		expect(fullest.red).toBeGreaterThan(100);
 	});
 
-	it("steps by no more than a shade between the frames it is drawn on, so it never cuts", () => {
+	it("doesn't step by more than a shade between the frames it is drawn on, so it never cuts", () => {
 		const channels = (colour: string) => [0, 1, 2].map((i) => Number.parseInt(colour.slice(1 + i * 2, 3 + i * 2), 16));
 		const FRAME_MS = 100; // the highlight is redrawn a few times a second, not every frame
 		let widest = 0;
@@ -63,7 +63,7 @@ describe("the glow burns through a warm ramp", () => {
 		for (const ms of [0, 137, 400, 900, 3000]) expect(glowColorAt(pulseAt(ms), GLOW_RAMP.light)).toMatch(/^#[0-9a-f]{6}$/);
 	});
 
-	it("the light theme starts warm, never white, white on a white page is nothing to see", () => {
+	it("the light theme starts warm, never white, white on a white page isn't visible", () => {
 		expect(GLOW_RAMP.light).not.toContain("#ffffff");
 		expect(GLOW_RAMP.dark[0]).toBe("#ffffff");
 	});

@@ -53,7 +53,7 @@ describe("shu-entity-column type and fields", () => {
 		expect(html).not.toContain("A widget.");
 	});
 
-	it("names no type for an ad-hoc result view with no registered type", async () => {
+	it("doesn't name a type for an ad-hoc result view without a registered type", async () => {
 		expect(await render("Result")).not.toContain(`data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_TYPE_LINK}"`);
 	});
 
@@ -112,7 +112,7 @@ describe("shu-entity-column type and fields", () => {
 		// rdf:type renders as the standard @type keyword, each class an explorable link.
 		expect(html).toContain(">@type</td>");
 		expect(html).toContain(typeHref("AquaticAnimalImportPermit"));
-		// Who may see the record is shown as its field, under no heading of its own.
+		// Who may see the record is shown as its field, without a heading of its own.
 		expect(html).toContain('data-testid="entity-governance"');
 		expect(html).not.toContain(">Governance<");
 	});

@@ -48,7 +48,7 @@ function harness(opts: { pageSize: number; maxResidentPages?: number; dataEnd: n
 			const [p] = pending.splice(which % Math.max(1, pending.length), 1);
 			p?.resolve();
 		},
-		/** Complete every outstanding fetch, and the fetches those completions start, until none remain. */
+		/** Complete every outstanding fetch, and the fetches those completions start, until a fetch doesn't remain. */
 		async drain(): Promise<void> {
 			for (let pass = 0; pass < 200; pass++) {
 				while (pending.length > 0) this.complete(0);
@@ -109,7 +109,7 @@ describe("the paging core under arbitrary interleaving", () => {
 		}
 	});
 
-	it("converges: after any interleaving, one request over a window caches all of it, and no page is fetched twice", async () => {
+	it("converges: after any interleaving, one request over a window caches all of it, and a page isn't fetched twice", async () => {
 		for (let seed = 1; seed <= 40; seed++) {
 			const random = seededRandom(seed * 7);
 			const pageSize = 2 + Math.floor(random() * 6);
@@ -159,7 +159,7 @@ describe("the paging core under arbitrary interleaving", () => {
 			await whole;
 			expect(h.src.cachedRanges(), `seed ${seed}: the whole stream cached`).toEqual([{ from: 0, to: final }]);
 			const fetchedPages = h.fetches.flatMap(([start, end]) => Array.from({ length: Math.ceil((end - start) / pageSize) }, (_, k) => Math.floor(start / pageSize) + k));
-			expect(new Set(fetchedPages).size, `seed ${seed}: no page fetched twice under the stream`).toBe(fetchedPages.length);
+			expect(new Set(fetchedPages).size, `seed ${seed}: a page isn't fetched twice under the stream`).toBe(fetchedPages.length);
 		}
 	});
 });

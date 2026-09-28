@@ -1,20 +1,20 @@
 /**
  * The members a view holds, as the block a page carries states them.
  *
- * A view describes what a reader is looking at while they look at it. Nothing persists it, so the block carries no
+ * A view describes what a reader is looking at while they look at it. A store doesn't persist it, so the block doesn't carry a
  * vocabulary type, and it keeps its `@id` so a reader reads statements about that subject. The builder validates as it
  * builds, so a view that states its members states them the one way or raises where it is written. A page's summary of
  * a view states its members and may state a name or a count: a page carrying fewer states the page terms beside them,
- * and the harvest states the count the page holds where the view states none.
+ * and the harvest states the count the page holds where the view doesn't state one.
  */
 import { describe, it, expect } from "vitest";
 import { ViewCollectionSchema, viewCollection } from "./hypermedia.js";
 
 describe("a view's collection", () => {
-	it("states the members under items, counts them, and claims no type", () => {
+	it("states the members under items, counts them, and doesn't claim a type", () => {
 		const built = viewCollection({ id: "view:query", name: "the search results shown in this column", items: [{ at: 0 }, { at: 1 }] });
 		expect(built).toEqual({ "@id": "view:query", name: "the search results shown in this column", items: [{ at: 0 }, { at: 1 }], totalItems: 2 });
-		expect(built["@type"], "nothing persists a view, so the block states no type").toBeUndefined();
+		expect(built["@type"], "a store doesn't persist a view, so the block doesn't state a type").toBeUndefined();
 	});
 
 	it("keeps the count a view states where the view holds more than it carries", () => {
@@ -34,14 +34,14 @@ describe("a view's collection", () => {
 		expect(built["@id"]).toBe("view:query");
 	});
 
-	it("raises where a block states members without an address, and an empty address names no view", () => {
+	it("raises where a block states members without an address, and an empty address doesn't name a view", () => {
 		expect(() => ViewCollectionSchema.parse({ name: "a name", items: [], totalItems: 0 })).toThrow();
 		expect(() => ViewCollectionSchema.parse({ "@id": "", name: "a name", items: [], totalItems: 0 })).toThrow();
 	});
 
-	it("states no name or a count where a page's summary states them not, since the page's bound is a safeguard on the payload", () => {
+	it("doesn't state a name or a count where a page's summary doesn't state them, since the page's bound is a safeguard on the payload", () => {
 		const summary = ViewCollectionSchema.parse({ "@id": "view:query", items: [{ at: 0 }] });
-		expect(summary.name, "the builder states a name; a page's summary may state none").toBeUndefined();
-		expect(summary.totalItems, "the builder states a count; a page's summary may state none").toBeUndefined();
+		expect(summary.name, "the builder states a name; a page's summary may omit it").toBeUndefined();
+		expect(summary.totalItems, "the builder states a count; a page's summary may omit it").toBeUndefined();
 	});
 });

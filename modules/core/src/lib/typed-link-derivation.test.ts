@@ -50,7 +50,7 @@ describe("readTypedLinks", () => {
 		expect(JSON.parse(reading?.stated[0] ?? "{}")).toMatchObject({ kind: "edge", rel: LinkRelations.MENTIONS.rel, o: "spec-1" });
 	});
 
-	it("derives no anchor for an untyped reference to a passage: navigation stays in the link, the edge is record-level", async () => {
+	it("doesn't derive an anchor for an untyped reference to a passage: navigation stays in the link, the edge is record-level", async () => {
 		await readTypedLinks(store, vocab, source, "Also [§12.1.2](#FieldReport:spec-1:~:text=a%20clause).");
 		expect(await edgesOf(store, source.id, LinkRelations.MENTIONS.rel)).toEqual(["spec-1"]);
 		expect(await store.queryIndividuals(SPECIFIC_RESOURCE_LABEL)).toHaveLength(0);
@@ -80,12 +80,12 @@ describe("readTypedLinks", () => {
 		expect(await edgesOf(store, source.id, LinkRelations.CITES.rel)).toEqual(["spec-1"]);
 	});
 
-	it("leaves no reading behind for a text that states nothing", async () => {
+	it("doesn't leave a reading for a text that doesn't state a fact", async () => {
 		await readTypedLinks(store, vocab, source, "Plain prose with no links.");
 		expect(await store.queryIndividuals(READING_LABEL)).toHaveLength(0);
 	});
 
-	it("states nothing for an untyped link to a record that is not here; a typed link fails", async () => {
+	it("doesn't state a fact for an untyped link to a record that is not here; a typed link fails", async () => {
 		await readTypedLinks(store, vocab, source, "See [an absent one](#FieldReport:absent-1).");
 		expect(await edgesOf(store, source.id, LinkRelations.MENTIONS.rel)).toEqual([]);
 		await expect(readTypedLinks(store, vocab, source, "[an absent one:cites](#FieldReport:absent-1)")).rejects.toThrow(/a record that exists/);

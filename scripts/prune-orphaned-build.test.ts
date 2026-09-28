@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-// @ts-expect-error a plain JavaScript build script, which states no types
+// @ts-expect-error a plain JavaScript build script, which doesn't state types
 import { missingBuildOutput, staleBuildRecords } from "./prune-orphaned-build.mjs";
 
 /** A module's sources and its build output, as a build leaves them. */
@@ -26,13 +26,13 @@ afterEach(() => {
 });
 
 describe("a module's sources the build did not compile", () => {
-	it("names each compiled source with no JavaScript in build, and none the build leaves out by design", () => {
+	it("names each compiled source without JavaScript in build, and doesn't name one the build leaves out by design", () => {
 		const moduleDir = aModule(["lib/one.ts", "lib/two.ts", "lib/two.test.ts", "types.d.ts", "lib/nested/three.ts"], ["lib/one.js"]);
 		made.push(moduleDir);
 		expect(missingBuildOutput(moduleDir).sort()).toEqual(["lib/nested/three", "lib/two"]);
 	});
 
-	it("names nothing for a module whose every compiled source has its JavaScript", () => {
+	it("doesn't name a source for a module whose every compiled source has its JavaScript", () => {
 		const moduleDir = aModule(["lib/one.ts", "lib/one.test.ts"], ["lib/one.js"]);
 		made.push(moduleDir);
 		expect(missingBuildOutput(moduleDir)).toEqual([]);

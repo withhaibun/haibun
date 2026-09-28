@@ -11,7 +11,7 @@ describe("emptyOrLoading", () => {
 		expect(c.textContent).not.toContain("No events at this level.");
 	});
 
-	it("shows the empty message (no loading indicator) once loaded", () => {
+	it("shows the empty message (without a loading indicator) once loaded", () => {
 		const c = document.createElement("div");
 		render(emptyOrLoading(true, "No events at this level."), c);
 		expect(c.textContent).toContain("No events at this level.");

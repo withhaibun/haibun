@@ -45,7 +45,7 @@ export function describeStorage(name: string, make: () => AStorage, root: string
 
 		it("creates a directory, with its parents where they are named, and says which exist", () => {
 			const storage = make();
-			expect(storage.exists(at("made")), "nothing exists before it is made").toBe(false);
+			expect(storage.exists(at("made")), "the directory doesn't exist before it is made").toBe(false);
 			storage.mkdir(at("made"));
 			expect(storage.exists(at("made"))).toBe(true);
 			storage.mkdirp(at("made/under/here"));

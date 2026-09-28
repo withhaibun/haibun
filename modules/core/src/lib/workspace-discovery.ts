@@ -18,7 +18,7 @@ interface HaibunWorkspace {
  *
  * @param featurePath - Absolute path to a .feature file
  * @param fs - File system interface (for testing)
- * @returns Workspace info or null if no features/ parent found
+ * @returns Workspace info or null if a features/ parent isn't found
  */
 export function findHaibunWorkspace(featurePath: string, fs: TFileSystem = nodeFS): HaibunWorkspace | null {
 	// Normalize path

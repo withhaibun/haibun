@@ -56,7 +56,7 @@ describe("the mark a division of the run gets", () => {
 		).toBe(MARK_COLOUR.fault);
 	});
 
-	it("marks as whatever it holds most of, where it holds no failure", () => {
+	it("marks as whatever it holds most of, where it doesn't hold a failure", () => {
 		const held = [
 			{ event: step("passed"), count: 3 },
 			{ event: said("warn"), count: 7 },
@@ -64,7 +64,7 @@ describe("the mark a division of the run gets", () => {
 		expect(bucketMarkerStyle(held)?.color).toBe(MARK_COLOUR.pending);
 	});
 
-	it("marks a division holding nothing with nothing, so an empty stretch of the run draws as empty", () => {
+	it("doesn't mark an empty division, so an empty stretch of the run draws as empty", () => {
 		expect(bucketMarkerStyle([])).toBeUndefined();
 		expect(bucketMarkerStyle([{ event: step("passed"), count: 0 }])).toBeUndefined();
 	});

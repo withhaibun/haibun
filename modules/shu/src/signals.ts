@@ -3,12 +3,12 @@
  *
  * SCOPE: signals are NOT a cross-bundle transport. Two things must be shared for
  * a signal to work across the app's separate IIFE bundles (main app vs an external viewer
- * viewer), and the library gives neither by default:
+ * viewer), and the library doesn't give either by default:
  *   1. The signal INSTANCE: a `Signal.State` is a per-module object, so each bundle
  *      gets its own unless the singleton is pinned on `globalThis` (the same trick
  *      `quads-snapshot.ts` uses). `getSignals()` below does that pinning.
  *   2. The polyfill's dependency-tracking context, `signal-polyfill` keeps its
- *      "current consumer" in a module-level variable with no globalThis pinning, so
+ *      "current consumer" in a module-level variable without globalThis pinning, so
  *      a `SignalWatcher` in one bundle does NOT reactively track a signal read whose
  *      getter runs in another bundle's copy of the library.
  *
@@ -91,7 +91,7 @@ export class SharedMachine<S, E> {
 		this.#transition = transition;
 	}
 	/** The only writer: raise an event, and every reader sees the next state and every follower the move. An event that
-	 *  moves nothing tells no follower. */
+	 *  doesn't move the state doesn't tell a follower. */
 	dispatch(event: E): S {
 		const before = this.state.get();
 		const after = this.#transition(before, event);
@@ -107,10 +107,10 @@ export class SharedMachine<S, E> {
 	}
 }
 
-/** Global live time cursor (absolute epoch ms; null = no time filter / "now"). Snapshot-pinned components keep their own cursor and ignore this. */
+/** Global live time cursor (absolute epoch ms; null = without a time filter / "now"). Snapshot-pinned components keep their own cursor and ignore this. */
 export const timeCursor = new SharedSignal<number | null>("timeCursor", null);
 
-/** Global active pane: the `columnKey` of the column with actions/keyboard focus (null = none / the query pane). THE one
+/** Global active pane: the `columnKey` of the column with actions/keyboard focus (null = a column isn't active / the query pane). THE one
  *  source of truth for "which column you are on": the chat harvest, every view's `isActiveView`, the strip's active
  *  styling, and the graph dimming all read it, and the pane router is its only writer. Replaces the old split between a
  *  DOM `active` attribute, a `VIEW_ACTIVE` event, and a separate `activeViewId`, which could disagree. */
@@ -127,7 +127,7 @@ type TStripPane = { key: string; label: string; query: boolean; docked: boolean 
 /** The pane docked along the bottom of the app: its key, and whether it is open. */
 type TDockedPane = { key: string; open: boolean };
 
-/** The pane docked along the bottom of the app, or null where none is. The docked pane is its only writer, and the page
+/** The pane docked along the bottom of the app, or null where a pane isn't docked. The docked pane is its only writer, and the page
  *  strip reads it to open and close the pane. */
 export const dockedPane = new SharedSignal<TDockedPane | null>("dockedPane", null);
 
@@ -151,7 +151,7 @@ export const stripPanes = new SharedSignal<ReadonlyArray<TStripPane>>("stripPane
 // localStorage is the durable store; a globalThis-pinned signal is the in-bundle reactive mirror, reading get() in a
 // lit render() auto-subscribes the view, so changing a setting in the UI re-renders every view that reads it. (A
 // cross-bundle view, a separate IIFE like the polymorphic view, does not track signals across the boundary; a setting that
-// must reach one would keep an explicit subscribe, as timeCursor does. Settings consumed in-bundle need none.)
+// must reach one would keep an explicit subscribe, as timeCursor does. Settings consumed in-bundle don't need one.)
 
 const SETTING_SIGNALS_KEY = "__SHU_SETTING_SIGNALS__";
 
@@ -169,7 +169,7 @@ function settingSignal(storageKey: string): Signal.State<string | null> {
 
 type PersistedSetting = { get(): string; set(value: string): void };
 
-/** Define a persisted, cross-view reactive setting. `fallback` applies when nothing valid is stored; `isValid` rejects a
+/** Define a persisted, cross-view reactive setting. `fallback` applies when a valid value isn't stored; `isValid` rejects a
  *  stale/foreign stored value. get() reads reactively (auto-subscribes a lit render); set() persists then notifies all. */
 /** localStorage may be absent or unusable: a non-DOM test env, or a browser with storage disabled (private mode). */
 const canStore = (): boolean => typeof localStorage !== "undefined" && typeof localStorage.getItem === "function";

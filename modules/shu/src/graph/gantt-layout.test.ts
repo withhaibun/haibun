@@ -42,7 +42,7 @@ describe("ganttAxisTicks (calendar marks sized to the span, for a draggable date
 		expect(ticks.every((t, i) => i === 0 || (t.ms - ticks[i - 1].ms) % (14 * DAY) === 0)).toBe(true); // 14-day step
 	});
 
-	it("walks calendar months (UTC, no drift) for a multi-month span", () => {
+	it("walks calendar months (UTC, without drift) for a multi-month span", () => {
 		const ticks = ganttAxisTicks({ min: Date.parse("2026-01-15T00:00:00.000Z"), span: 200 * DAY });
 		expect(ticks.map((t) => t.label)).toEqual(["2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07", "2026-08"]);
 	});

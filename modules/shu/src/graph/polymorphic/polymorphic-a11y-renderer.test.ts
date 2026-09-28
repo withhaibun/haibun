@@ -51,7 +51,7 @@ describe("A11yRenderer: the graph as an accessible document", () => {
 
 	it("summarises a fan instead of transcribing it, and says a repeated edge once with its count", () => {
 		// A cluster stands for the records it holds and points at every one of them. Listed, that is hundreds of lines
-		// under one entry and no reading at all.
+		// under one entry that a reader can't read.
 		const members = Array.from({ length: 9 }, (_, at) => ({ id: `m${at}`, name: `member ${at}`, type: "SeqPath" }) as FGNode);
 		const cluster: FGNode = { id: "cl", name: "+9 more", type: "SeqPath" };
 		const { renderer, region } = harness();
@@ -62,10 +62,10 @@ describe("A11yRenderer: the graph as an accessible document", () => {
 		const under = [...(region.querySelector("li")?.querySelectorAll("ul li") ?? [])].map((li) => li.textContent);
 		expect(under.length, "six lines and what is left, rather than every one of them").toBe(7);
 		expect(under[0], "the same edge twice is said once, with how many times").toBe("clusterOf → member 0 (×2)");
-		expect(under.at(-1), "and nothing is quietly dropped").toBe("… and 3 more");
+		expect(under.at(-1), "and a member isn't quietly dropped").toBe("… and 3 more");
 	});
 
-	it("goes on from where it stopped, so nothing is out of a reader's reach", () => {
+	it("goes on from where it stopped, so a member isn't out of a reader's reach", () => {
 		// A reader who cannot see the picture has only this. Stating a first slice and stopping would put the rest
 		// beyond them; stating all of it would build tens of thousands of lines on every repaint.
 		const many: FGNode[] = Array.from({ length: 460 }, (_, at) => ({ id: `n${at}`, name: `record ${at}`, type: "SeqPath", __created: at }));
@@ -81,8 +81,8 @@ describe("A11yRenderer: the graph as an accessible document", () => {
 		expect(region.querySelectorAll("ol > li").length, "the reading carries on from where it was").toBe(401);
 		expect(readOn()?.textContent).toBe("read on: 60 more, in the same order");
 		readOn()?.click();
-		expect(region.querySelectorAll("ol > li").length, "to the end of it, where there is nothing left to press").toBe(460);
-		expect(readOn(), "the way on is gone once there is no more").toBeNull();
+		expect(region.querySelectorAll("ol > li").length, "to the end of it, where a control isn't left to press").toBe(460);
+		expect(readOn(), "the way on is gone once every member is listed").toBeNull();
 	});
 
 	it("says what can be opened: every node is an entry that acts, and the rest is text", () => {
@@ -97,7 +97,7 @@ describe("A11yRenderer: the graph as an accessible document", () => {
 			acting.every((b) => b.hasAttribute("data-node-id")),
 			"and each says which node it opens",
 		).toBe(true);
-		expect(region.querySelector("[data-testid='polymorphic-a11y-copy']"), "nothing else to press: the text is copied by selecting it").toBeNull();
+		expect(region.querySelector("[data-testid='polymorphic-a11y-copy']"), "the region doesn't offer another control to press: the text is copied by selecting it").toBeNull();
 	});
 
 	it("activating an entry opens the node and focusing one highlights it: the pointer's own paths", () => {

@@ -4,12 +4,12 @@
  * Given a goal domain and the current working memory, find a sequence of steps
  * whose forward firings would assert a fact of that domain. Returns one of four
  * findings: satisfied (already in memory), plan (here is the chain), unreachable
- * (no producer chain), refused (the resolver declined to operate without an accurate result).
+ * (a producer chain doesn't exist), refused (the resolver declined to operate without an accurate result).
  *
  * Anti-drift invariants:
  *   - Single source of truth: consumes the same TDomainChainGraph dispatch traverses.
  *   - What the caller holds is required: the resolver filters producer steps by it,
- *     and refuses to search without it. No optimistic assumptions.
+ *     and refuses to search without it. It doesn't make optimistic assumptions.
  *   - Cycle protection mandatory: visited set + depth limit; cycles return unreachable.
  *   - Plans are advisory, never auto-executed: this module is pure search; a separate
  *     "run plan" step runs the chain.
@@ -37,8 +37,8 @@ type TPlanStep = {
 /**
  * How one of a step's inputs is satisfied in a michi:
  *   - kind: "fact"       → existing fact in working memory, identified by its subject (seqPath).
- *   - kind: "argument"   → user supplies this at run time as a step argument (no producer chain
- *                          exists, or the input is a primitive/json/string).
+ *   - kind: "argument"   → user supplies this at run time as a step argument (a producer chain doesn't
+ *                          exist, or the input is a primitive/json/string).
  *   - kind: "composite"  → the input is a composite domain whose fields each have their own
  *                          binding. `fields[]` mirrors the schema (subset of TDomainTopology.ranges)
  *                          and may recurse further. Emitted only when composite decomposition is
@@ -48,7 +48,7 @@ export type TBinding = { domain: string } & ({ kind: "fact"; factId: string } | 
 
 /**
  * One field within a composite binding. `fieldDomain` is empty when the field
- * has no declared `topology.ranges` entry, in that case the field is treated
+ * doesn't have a declared `topology.ranges` entry, in that case the field is treated
  * as a primitive argument. `fieldType` is the Zod type label (`"string"`,
  * `"number"`, `"date"`, `"array"`, etc.) so consumers can show what shape
  * to supply.
@@ -105,7 +105,7 @@ export type TGoalResolution =
 export interface TResolverInputs {
 	graph: TDomainChainGraph;
 	facts: TQuad[];
-	/** What the caller holds, as dispatch reads it: a producer it may not run is no way to the goal. */
+	/** What the caller holds, as dispatch reads it: a producer it may not run isn't a way to the goal. */
 	held: string | string[] | undefined;
 	depthLimit?: number;
 	/** Per-field filters over the goal fact's object. */
@@ -135,7 +135,7 @@ const COMPOSITE_DEFAULT_DEPTH = 4;
  * hang the test (or the live RPC), typical resolves finish in well under 10k calls. */
 const ENUMERATE_LIMIT = 200_000;
 
-/** What one resolution walks with: its inputs, the domains on the path it is walking, the domains it found no producer
+/** What one resolution walks with: its inputs, the domains on the path it is walking, the domains it didn't find a producer
  *  for, its bounds, and how many times it has recursed. */
 type TWalk = { inputs: TResolverInputs; visited: Set<string>; missing: string[]; depthLimit: number; maxMichi: number; calls: number };
 
@@ -206,7 +206,7 @@ function keyForVisited(domain: string, path: string): string {
 
 /**
  * Enumerate every path from working memory to `target`, bounded by depthLimit + maxMichi.
- * Each producer edge branches; each fact match adds a binding; each "no producer" domain
+ * Each producer edge branches; each fact match adds a binding; each domain without a producer
  * is treated as a user-supplied argument (matches the forward-frontier model). When
  * composite decomposition is enabled and a no-producer domain has registered field
  * `topology.ranges`, the resolver recurses per field and emits a `kind: "composite"`
@@ -237,7 +237,7 @@ function enumerate(target: string, walk: TWalk, depth: number, path: string): TE
 		out.push({ steps: [], bindings: [{ kind: "fact", domain: target, factId: fact.subject }] });
 	}
 
-	// Branch 2: no producer registered → the value comes from a step argument.
+	// Branch 2: a producer isn't registered → the value comes from a step argument.
 	// When composite-decomposition is on and the target's schema declares field ranges,
 	// decompose into a composite binding whose fields each resolve independently.
 	if (producers.length === 0 && factsOfTarget.length === 0) {
@@ -333,9 +333,9 @@ function tryComposite(target: string, walk: TWalk, depth: number, path: string):
 		const options = resolveFieldOptions(field, walk, depth, path);
 		if (options.truncated) truncated = true;
 		if (options.options.length === 0) {
-			// A required field with no resolution fails the composite as a whole.
+			// A required field without a resolution fails the composite as a whole.
 			if (!field.optional) return null;
-			// Optional field with no resolution: skip it.
+			// Optional field without a resolution: skip it.
 			continue;
 		}
 		perFieldOptions.push(options.options);
@@ -365,7 +365,7 @@ function resolveFieldOptions(field: TCompositeField, walk: TWalk, depth: number,
 	const { visited } = walk;
 	const nextPath = path ? `${path}.${field.fieldName}` : field.fieldName;
 	const fieldType = zodTypeLabel(field.zodType);
-	// A field with no registered range is a primitive argument.
+	// A field without a registered range is a primitive argument.
 	if (!field.fieldDomain) {
 		return { options: [{ field: { fieldName: field.fieldName, fieldDomain: "", fieldType, optional: field.optional, kind: "argument" }, steps: [] }], truncated: false };
 	}
@@ -378,9 +378,9 @@ function resolveFieldOptions(field: TCompositeField, walk: TWalk, depth: number,
 	const options: TFieldOption[] = [];
 	for (const m of sub.michi) {
 		const leaf = m.bindings[0];
-		// `leaf` is absent when the producer chain takes no graph-level inputs
+		// `leaf` is absent when the producer chain doesn't take graph-level inputs
 		// (e.g. a step whose gwta args are all primitive). In that case the
-		// chain still produces the field's value: the field carries no
+		// chain still produces the field's value: the field doesn't carry an
 		// upstream binding, but `m.steps` runs to satisfy it. Represent it as
 		// an `argument`-kind field-binding so the consumer surfaces "you
 		// supply" semantics for the field as a whole, while the outer michi's

@@ -1,5 +1,5 @@
-// The client IQuadStore answers every read over what this page caches, its query surface included: with no server to
-// ask, a view is offered what the reader holds rather than nothing. The quad primitives are covered by the conformance
+// The client IQuadStore answers every read over what this page caches, its query surface included: without a server to
+// ask, a view is offered what the reader holds rather than an empty result. The quad primitives are covered by the conformance
 // specification both stores answer; these are the questions the site is otherwise asked.
 import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach } from "vitest";

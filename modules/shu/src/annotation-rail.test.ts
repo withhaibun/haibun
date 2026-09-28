@@ -20,7 +20,7 @@ describe("railMarks", () => {
 		const marks = railMarks([{ commentId: "c1", offset: 120.4, label: "a note" }], "#08f");
 		expect(marks).toEqual([{ index: 120, id: "c1", icon: ANNOTATION_GLYPH, color: "#08f", label: "a note" }]);
 	});
-	it("is empty when nothing located", () => {
+	it("is empty when an annotation isn't located", () => {
 		expect(railMarks([], "#08f")).toEqual([]);
 	});
 });

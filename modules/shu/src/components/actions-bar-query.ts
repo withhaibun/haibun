@@ -33,8 +33,8 @@ export const SEARCH_DEBOUNCE_MS = 300;
  *  conditions it was opened with. */
 type TQueryContextExtra = TContextExtra & { textQuery?: string; conditions?: TSearchCondition[] };
 
-/** The conditions a search runs: each select filter with a value, then each filter row that names a field. A row with no
- *  field chosen names nothing to match, so it stays in the bar being edited and out of the query. */
+/** The conditions a search runs: each select filter with a value, then each filter row that names a field. A row without a
+ *  chosen field doesn't name what to match, so it stays in the bar being edited and out of the query. */
 export function searchConditions(selectFilters: Record<string, string>, rows: readonly TSearchCondition[]): TSearchCondition[] {
 	const selected = Object.entries(selectFilters)
 		.filter(([, value]) => value)
@@ -133,7 +133,7 @@ export class ActionsBarQuery implements ReactiveController {
 
 	/**
 	 * Read the types the query surface offers and settle on one: the label and field filters the address names, else the
-	 * first type. The search it describes is announced as not asked for, since the bar restoring itself is no reader
+	 * first type. The search it describes is announced as not asked for, since the bar restoring itself isn't a reader
 	 * looking for results.
 	 */
 	async loadDomains(): Promise<void> {
@@ -164,7 +164,7 @@ export class ActionsBarQuery implements ReactiveController {
 	}
 
 	/** Read the distinct values the selected type's fields take. Values the bar already holds are kept, unless `force`: a
-	 *  read made before the type's data was indexed returns none, and keeping that would freeze the menus until a reload. */
+	 *  read made before the type's data was indexed doesn't return values, and keeping that would freeze the menus until a reload. */
 	async loadSelectValues(force = false): Promise<void> {
 		const label = this.#selectedLabel;
 		if (!label || !this.#selectedDomainKey || (!force && hasUsableSelectValues(label))) return;
@@ -230,8 +230,8 @@ export class ActionsBarQuery implements ReactiveController {
 		</span>`;
 	}
 
-	/** The selected type's key, from its label, or the first type where none is selected. A label no type carries stays
-	 *  selected with no key, and the bar says the run holds no such type. */
+	/** The selected type's key, from its label, or the first type where a type isn't selected. A label the types don't carry stays
+	 *  selected without a key, and the bar says the run doesn't hold such a type. */
 	#syncSelectedDomainKey(): void {
 		// A view can state its context before the types are read, when the bar connects after it: the label is held, and
 		// reading the types settles it.
@@ -316,7 +316,7 @@ export class ActionsBarQuery implements ReactiveController {
 	}
 
 	/** State the types the page offers and the one the search reads, which the page strip shows. A page told what it
-	 *  already holds renders again for nothing, so the types are stated as they change. */
+	 *  already holds renders again without a change, so the types are stated as they change. */
 	#statePageTypes(): void {
 		const stated = pageTypes.get();
 		if (stated.options === this.#typeOptions && stated.selected === this.#selectedDomainKey) return;

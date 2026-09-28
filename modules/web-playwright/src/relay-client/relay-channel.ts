@@ -42,7 +42,7 @@ export async function openRelayChannel({ base, sign }: { base: string; sign: TPr
 			queueMicrotask(() => {
 				const batch: TRelayBatch = { messages: held };
 				held = [];
-				// The first failed send ends the channel, so nothing is sent after a message the relay didn't take.
+				// The first failed send ends the channel, so the channel doesn't send a message after one the relay didn't take.
 				sending = sending.then(() => call("send", batch)).then((): undefined => undefined);
 				sending.catch((e: unknown) => channel.close(`relay.send failed: ${errorDetail(e)}`));
 			});

@@ -2,7 +2,7 @@
  * <shu-index-summary>: what the index is showing, in one line, for the spine it collapses to.
  *
  * The index is a search: a type, some text, some conditions, an access level, and a number of results. Collapsed,
- * there is no room for the results, but there is room to say which search they came from and how many there are, so
+ * the strip doesn't have room for the results, but there is room to say which search they came from and how many there are, so
  * the strip still answers what is behind it.
  *
  * The search itself is the shared `viewQuery`, read in render: ShuElement is a SignalWatcher, so reading it there
@@ -24,7 +24,7 @@ import { viewQuery } from "../view-query.js";
 
 const EmptySchema = z.object({});
 
-/** What the strip says the column is. The index pane carries no label, an open index shows no header, so the strip
+/** What the strip says the column is. The index pane doesn't carry a label, and an open index doesn't show a header, so the strip
  *  would otherwise be the only column that does not say what it is. */
 const INDEX_NAME = "Index";
 

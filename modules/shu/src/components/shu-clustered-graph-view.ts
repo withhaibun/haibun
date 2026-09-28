@@ -88,8 +88,8 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 		this.setState(partial as Partial<z.infer<T>>);
 	}
 
-	/** External-data mode: the host that embeds the view gives it all its data and its selection, so the view reads
-	 *  nothing from the store and follows no page selection. */
+	/** External-data mode: the host that embeds the view gives it all its data and its selection, so the view doesn't
+	 *  read from the store or follow the page selection. */
 	protected get usesExternalData(): boolean {
 		return false;
 	}
@@ -157,7 +157,7 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 		this.scene?.setSelectedSubject(subject);
 	}
 
-	/** The time-visible slice of the snapshot: quads at/before the global time cursor (all of them with no cursor).
+	/** The time-visible slice of the snapshot: quads at/before the global time cursor (all of them without a cursor).
 	 * The ONE time pathway every clustered graph view renders from, never `state.quads` directly, so scrubbing
 	 * the shared timeline hides/restores the same objects in every view. */
 	protected get visibleQuads(): TQuad[] {
@@ -232,7 +232,7 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 		await this.onGraphConnected();
 		await this.refetchSnapshot({ perTypeLimit: initial.perTypeLimit });
 
-		if (this.hasAttribute("data-snapshot-time")) return; // snapshot mode: one fetch, no live updates
+		if (this.hasAttribute("data-snapshot-time")) return; // snapshot mode: one fetch, without live updates
 
 		this.autoTeardown(
 			this.subscribeBatched({
@@ -243,10 +243,10 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 					// Repaint on EVERY batch. Instrumentation graphs (SeqPath, observation/*, variables, facts) are ordinary
 					// toggleable graph elements, not a special case: they must stream in and render like any other type. The
 					// render→RPC→observe→render loop this once guarded against is gone: the overview now paints client-side
-					// (graphToSvg), so a repaint issues no RPC to re-observe. Frequent batches are coalesced by the paint debounce.
+					// (graphToSvg), so a repaint doesn't issue an RPC to re-observe. Frequent batches are coalesced by the paint debounce.
 					this.syncFromSnapshot();
 				},
-				// What was written while the stream was down arrived in no batch, so the snapshot is read again through the
+				// What was written while the stream was down didn't arrive in a batch, so the snapshot is read again through the
 				// same commit a visibility change makes, at the scope and limit the view is already reading at.
 				onReconnect: () => this.applyHiddenChange({}),
 			}),
@@ -262,7 +262,7 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 
 	/** hiddenGraphs is DERIVED, never the stored truth: the instrumentation-default predicate combined with the user's
 	 *  explicit overrides, applied to every known type (snapshot clusters AND types seen only in live quads, so a graph
-	 *  that streams in mid-run, with no server cluster yet, is classified the moment it appears). */
+	 *  that streams in mid-run, without a server cluster yet, is classified the moment it appears). */
 	private hiddenGraphsFor(types: Iterable<string>): string[] {
 		return effectiveHiddenTypes(types, this.filterOverrides);
 	}
@@ -270,7 +270,7 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 		return this.hiddenGraphsFor(this.allKnownGraphs());
 	}
 	/** The hidden set for a freshly-arrived snapshot: its clusters AND the named graphs of its quads (the latter catch a
-	 *  type that exists only as streamed quads, with no cluster record yet). */
+	 *  type that exists only as streamed quads, without a cluster record yet). */
 	private hiddenForSnapshot(snap: { clusters: ReadonlyArray<TCluster>; quads: ReadonlyArray<TQuad> }): string[] {
 		const types = new Set<string>();
 		for (const c of snap.clusters) types.add(c.type);
@@ -287,7 +287,7 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 
 	protected commitHidden(hiddenGraphs: string[], visibleTypes: string[] | undefined, perTypeLimit: number): void {
 		this.setGraphState({ hiddenGraphs });
-		// An external host's graph is all there is: the view draws it again, and reads nothing from the store.
+		// An external host's graph is all there is: the view draws it again, and doesn't read from the store.
 		if (this.usesExternalData) this.onGraphData();
 		else void this.refetchSnapshot({ types: this.narrowsRefetchToVisible ? visibleTypes : undefined, perTypeLimit });
 	}
@@ -329,7 +329,7 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 	/** Reveal a selected subject's bounded neighborhood (both directions, pinned), once per view lifetime. */
 	protected async fetchIfMissing(subject: string, label: string): Promise<void> {
 		if (this.fetchedSubjects.has(subject)) return;
-		if (!getRels(label)) return; // non-individual graphs (facts, observation/*, variables) have no neighborhood
+		if (!getRels(label)) return; // non-individual graphs (facts, observation/*, variables) don't have a neighborhood
 		this.fetchedSubjects.add(subject);
 		try {
 			const types = await expandNeighborhood(label, subject);

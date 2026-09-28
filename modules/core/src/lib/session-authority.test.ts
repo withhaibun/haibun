@@ -11,7 +11,7 @@ describe("SessionAuthority", () => {
 	describe("evidence from outside this process", () => {
 		const evidence: TAuthorityEvidence = { kind: "document", document: { id: "urn:cap:1" }, action: "read", target: "urn:res:1" };
 
-		it("refuses it when nothing is registered to decide it, rather than deciding it here", async () => {
+		it("refuses it when a verifier isn't registered to decide it, rather than deciding it here", async () => {
 			const authority = new SessionAuthority();
 			const result = await authority.verifyEvidence(evidence);
 			expect(result.ok).toBe(false);
@@ -70,7 +70,7 @@ describe("SessionAuthority", () => {
 			]);
 		});
 
-		it("refuses a caller that proved no key and holds less than every action, and refuses where nothing is registered", async () => {
+		it("refuses a caller that didn't prove a key and holds less than every action, and refuses where a verifier isn't registered", async () => {
 			const { authority, acts } = recording();
 			expect(await runAuthorizedWith([AUTHORITY_CAPABILITIES.delegate], () => authority.recordDelegation({ id: UNRECORDED }))).toEqual({
 				ok: false,
@@ -121,7 +121,7 @@ describe("SessionAuthority", () => {
 	describe("authority this process presents elsewhere", () => {
 		const request: TOutgoingRequest = { method: "POST", url: "http://peer.example/rpc/m", headers: { "content-type": "application/json" }, body: "{}" };
 
-		it("refuses to sign when nothing is registered to, naming the action and where", () => {
+		it("refuses to sign when a signer isn't registered, naming the action and where", () => {
 			expect(() => new SessionAuthority().signRequest(request, "Peer:act")).toThrow(
 				"a signer isn't registered, so this process can't invoke Peer:act at http://peer.example/rpc/m",
 			);

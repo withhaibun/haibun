@@ -70,12 +70,12 @@ describe("the browser relay", () => {
 	it("answers Playwright once the extension's handshake is done, attaching its tabs and forwarding the rest", async () => {
 		const reported: unknown[] = [];
 		const relay = new BrowserRelay((e) => void reported.push(e));
-		expect(relay.attachment(), "nothing is held before an extension attaches").toEqual({ attached: false, tabs: [] });
+		expect(relay.attachment(), "the relay doesn't hold an attachment before an extension attaches").toEqual({ attached: false, tabs: [] });
 		const extension = attached(relay);
 		const playwright = driven(relay);
 		playwright.send(1, "Browser.getVersion");
 		await settle();
-		expect(playwright.received, "nothing is answered before the handshake").toEqual([]);
+		expect(playwright.received, "the relay doesn't return a result before the handshake").toEqual([]);
 		relay.receive([
 			{ method: "chrome.tabs.onCreated", params: [TAB] },
 			{ method: "extension.initialized", params: [] },
@@ -133,7 +133,7 @@ describe("the browser relay", () => {
 		relay.receive([{ method: "extension.initialized", params: [] }]);
 		playwright.send(1, "Storage.getCookies");
 		await settle();
-		expect(playwright.received[0], "a browser command with no tab attached is refused").toMatchObject({ id: 1, error: { message: expect.stringMatching(/No attached tab/) } });
+		expect(playwright.received[0], "a browser command without an attached tab is refused").toMatchObject({ id: 1, error: { message: expect.stringMatching(/No attached tab/) } });
 		expect(() => relay.receive([{ id: 99, result: {} }]), "an answer to a command never sent").toThrow(/didn't send command 99/);
 		extension.end();
 		await extension.held;
@@ -141,7 +141,7 @@ describe("the browser relay", () => {
 		expect(() => relay.receive([{ method: "extension.initialized", params: [] }]), "and a browser isn't attached to answer").toThrow(/a browser isn't attached/);
 	});
 
-	it("ends a holder's attachment when that holder attaches again, and refuses a caller that proved no key", async () => {
+	it("ends a holder's attachment when that holder attaches again, and refuses a caller that didn't prove a key", async () => {
 		const relay = new BrowserRelay(() => undefined);
 		const first = attached(relay);
 		const playwright = driven(relay);

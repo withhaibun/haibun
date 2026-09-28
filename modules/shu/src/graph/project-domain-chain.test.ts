@@ -23,7 +23,7 @@ describe("projectDomainChain", () => {
 		expect(g.nodes.find((n) => n.id === "b")?.kind).toBe("reachable");
 	});
 
-	it("introduces the sentinel source domain when any step has no input domains", () => {
+	it("introduces the sentinel source domain when any step doesn't have an input domain", () => {
 		const snap: TAffordancesSnapshot = {
 			forward: [{ stepperName: "S", stepName: "s", inputDomains: [], outputDomains: ["b"], readyToRun: true }],
 			goals: [],
@@ -50,7 +50,7 @@ describe("projectDomainChain", () => {
 		expect(fieldToComposite).toBeTruthy();
 	});
 
-	it("holds a node for every domain an edge ends at, a composite no step takes or returns included, so the scene draws each edge", () => {
+	it("holds a node for every domain an edge ends at, including a composite that a step doesn't take or return, so the scene draws each edge", () => {
 		const snap: TAffordancesSnapshot = {
 			forward: [{ stepperName: "S", stepName: "s", inputDomains: ["a"], outputDomains: ["b"], readyToRun: true }],
 			goals: [],

@@ -1,8 +1,8 @@
 import { isOffline } from "./rpc-registry.js";
 /**
  * The page's diagnostic channel to the run: one call, one behaviour. A diagnostic is reported to the run through the
- * monitor's client-log step; a page with no server (a report) reports nothing; a server that cannot be reached has
- * nowhere to take it, so that is noted for the reader of the browser console and nothing else happens; any other
+ * monitor's client-log step; a page without a server (a report) doesn't report it; a server that cannot be reached doesn't
+ * receive it, so that is noted for the reader of the browser console and the call returns; any other
  * failure is RPC plumbing, which would otherwise hide every diagnostic that follows it, so it fails fast.
  *
  * Occurrences a view records at the rate they happen go to the blip channel (client-blips.ts) instead: this is for the

@@ -20,14 +20,25 @@ import GoalResolutionStepper from "@haibun/core/steps/goal-resolution-stepper.js
 import UrakataStepper from "@haibun/core/steps/urakata-stepper.js";
 import WebPlaywright from "./web-playwright.js";
 
-const steppers = createSteppers([Haibun, VariablesStepper, LogicStepper, ResourcesStepper, AuthorityStepper, ActivitiesStepper, BlipsStepper, GoalResolutionStepper, UrakataStepper, WebPlaywright]);
+const steppers = createSteppers([
+	Haibun,
+	VariablesStepper,
+	LogicStepper,
+	ResourcesStepper,
+	AuthorityStepper,
+	ActivitiesStepper,
+	BlipsStepper,
+	GoalResolutionStepper,
+	UrakataStepper,
+	WebPlaywright,
+]);
 const resolver = new Resolver(steppers);
 
 /** A step's parameters, by name, with the domain each takes. */
 const paramsOf = (gwta: string): Array<[string, string | undefined]> =>
 	Object.entries(namedInterpolation(gwta.replace(/\([^)]*\)\?/g, "")).stepValuesMap ?? {}).map(([name, value]) => [name, value.domain]);
 
-/** The line of a step that takes nothing, which a statement parameter is given. */
+/** The line of a step that doesn't take a parameter, which a statement parameter is given. */
 const STATEMENT = "page has settled";
 
 /** A literal term for a parameter of `domain`: a number or a composite where the domain takes one, a statement line,

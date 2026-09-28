@@ -117,7 +117,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 	async open(seqPath: number[]): Promise<void> {
 		this.setState({ seqPath });
 		// Opening a step is a reader's move to it, stated as a record column states its record. The load below runs again
-		// whenever the run being read moves on, which is no move of the reader's, so it states nothing.
+		// whenever the run being read moves on, which isn't a move of the reader's, so it doesn't state the subject.
 		const patterns = this.paneSubject();
 		if (patterns)
 			this.dispatchEvent(new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, { detail: { patterns, accessLevel: appAccessLevel(), label: SEQ_PATH_LABEL }, bubbles: true, composed: true }));
@@ -128,7 +128,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 	protected override onConnected(): void {
 		// A step still running reaches its end while this pane is open, and its record then says so. A step that has
 		// ended will not change again, so it is read once: a pane that re-read on every announcement would never settle,
-		// since reading the run is itself something the run announces. In snapshot mode nothing changes.
+		// since reading the run is itself something the run announces. In snapshot mode the run doesn't change.
 		if (this.hasAttribute("data-snapshot-time")) return;
 		let due: ReturnType<typeof setTimeout> | null = null;
 		const unsubscribe = subscribeBatchedEvents({

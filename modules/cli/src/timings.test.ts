@@ -65,7 +65,7 @@ describe("what a run took", () => {
 		const now: TTimings = { features: { "/a.feature": timing(20, 5), "/b.feature": timing(11, 5), "/c.feature": timing(1.2, 1) }, steps: 11, seconds: 32.2 };
 		expect(
 			variancesBetween(recorded, now).map((v) => v.feature),
-			"a fifth longer and a second longer; eleven against ten is neither, and a short feature is under the second",
+			"a fifth longer and a second longer; eleven against ten isn't either, and a short feature is under the second",
 		).toEqual(["/a.feature"]);
 	});
 
@@ -78,7 +78,7 @@ describe("what a run took", () => {
 		]);
 	});
 
-	it("reports nothing where no run was recorded, and leaves out a feature only one run holds", () => {
+	it("doesn't report a variance where a run wasn't recorded, and leaves out a feature only one run holds", () => {
 		const now: TTimings = { features: { "/a.feature": timing(20, 5) }, steps: 5, seconds: 20 };
 		expect(variancesBetween(undefined, now)).toEqual([]);
 		expect(variancesBetween({ features: { "/b.feature": timing(1, 1) }, steps: 1, seconds: 1 }, now)).toEqual([]);
@@ -93,13 +93,13 @@ describe("what a run took", () => {
 
 	it("compares the run against the last run on this class of machine", () => {
 		const dir = tempDir("haibun-variance-");
-		expect(recordTimings(dir, result, false), "a machine with no recorded run has nothing to compare").toEqual([]);
+		expect(recordTimings(dir, result, false), "a machine without a recorded run doesn't have times to compare").toEqual([]);
 		const changed = recordTimings(dir, runOf(featureRan("/features/slow.feature", 2000, 9000, 1)), false);
 		expect(changed.map((v) => [v.feature, v.was, v.seconds])).toEqual([["/features/slow.feature", 2.3, 7]]);
 		expect(writtenIn(dir)[machineKey()].features["/features/slow.feature"].seconds).toBe(7);
 	});
 
-	it("names the class of machine by its processor, cores, architecture and platform, and by nothing that identifies the host", () => {
+	it("names the class of machine by its processor, cores, architecture and platform, and not by a value that identifies the host", () => {
 		const key = machineKey();
 		expect(key).toContain(os.platform());
 		expect(key).toContain(os.arch());
@@ -112,7 +112,7 @@ describe("what a run took", () => {
 		const dir = tempDir("haibun-machines-");
 		const other = { features: { "/features/slow.feature": timing(99, 1) }, steps: 1, seconds: 99 };
 		nodeFS.writeFileSync(path.join(dir, TIMINGS_FILE), JSON.stringify({ "linux-x64-8x-another-processor": other }));
-		expect(recordTimings(dir, result, false), "the other machine's times are no measure of this one").toEqual([]);
+		expect(recordTimings(dir, result, false), "the other machine's times don't measure this one").toEqual([]);
 		expect(writtenIn(dir)["linux-x64-8x-another-processor"]).toEqual(other);
 		expect(writtenIn(dir)[machineKey()].features["/features/slow.feature"].seconds).toBe(2.3);
 	});

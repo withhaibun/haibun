@@ -38,7 +38,7 @@ export default class ShuColumnStripControls extends AStepper implements IHasCycl
 	steps: TStepperSteps = {
 		annotatedBodyOwnsScroll: {
 			// The annotated file must scroll in its OWN region with the native scrollbar hidden, so the glyph rail is the only
-			// bar (the two-scrollbars report). Assert the region exists, is an overflow scroller, and shows no native gutter.
+			// bar (the two-scrollbars report). Assert the region exists, is an overflow scroller, and doesn't show a native gutter.
 			gwta: "annotated body scrolls in its own region with no native scrollbar",
 			action: async () => {
 				const region = (await this.page()).locator(".annotated-scroll").first();

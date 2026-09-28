@@ -48,7 +48,7 @@ describe("QuadGraphModel", () => {
 	});
 
 	it("keeps the title a seeded snapshot gave a subject, and titles only what the seed left untitled", () => {
-		// A reader hiding a type refetches narrowed to the visible ones, so the merge holds no body quads for a record
+		// A reader hiding a type refetches narrowed to the visible ones, so the merge doesn't hold body quads for a record
 		// whose text lives in a Body. Titling from what remains gives a comment its seqPath in place of its own words.
 		const m = new QuadGraphModel(10, noRels);
 		m.seed({

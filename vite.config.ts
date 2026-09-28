@@ -6,7 +6,7 @@ interface Config extends ViteUserConfig {
 }
 
 // `*.integration.test.ts` is the convention for a test that boots a real dependency: here each launches a browser and
-// serves a built bundle to it. Run beside 270 other files they contend for the machine and time out with nothing wrong
+// serves a built bundle to it. Run beside 270 other files they contend for the machine and time out without a fault
 // in the code; run in their own capped group they pass. A new browser test needs only that name.
 const INTEGRATION_TESTS = "modules/**/*.integration.test.{ts,tsx}";
 const EXCLUDE = ["**/node_modules/**", "**/dist/**", "**/build/**"];

@@ -72,7 +72,7 @@ export const StepDescriptorSchema = z
 		readsAt: AccessLevelSchema.optional(),
 		/** Whether the step is a read: a caller that names it asks to read, and the run answers without recording the reading. */
 		read: z.boolean(),
-		/** Whether the step answers only when no other step answers to its name. */
+		/** Whether the step answers only when the other steps don't answer to its name. */
 		fallback: z.boolean(),
 		/** Whether the step's result answers the turn that called it, so that turn ends with it rather than asking its model again. */
 		answersTheTurn: z.boolean(),
@@ -193,7 +193,7 @@ export function toolDefinition(step: TStepDescriptor): TToolDefinition {
 /** What a caller is told of a run before it asks for anything: the step that reads the run's declarations, and each
  *  stepper of the steps the caller holds, by its name, what it does and how many of its steps the caller holds. The
  *  definition of show steps states how to read. A model's turn states it in its standing instruction; an MCP host, whose
- *  instructions are set before any caller connects, sends it naming no stepper. */
+ *  instructions are set before any caller connects, sends it without naming a stepper. */
 export function stepsInstructions(steppers: TStepperSummary[]): string {
 	const ask = `Call ${SHOW_STEPS_METHOD} to find the step a request needs.`;
 	if (steppers.length === 0) return ask;

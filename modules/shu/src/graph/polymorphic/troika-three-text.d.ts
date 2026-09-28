@@ -1,5 +1,5 @@
-/** Minimal ambient types for the slice of troika-three-text the polymorphic view uses (the package ships no .d.ts). Text is a
- *  THREE.Mesh subclass; only the properties this view sets/reads are declared, structurally (no dependency on three's types). */
+/** Minimal ambient types for the slice of troika-three-text the polymorphic view uses (the package doesn't ship a .d.ts). Text is a
+ *  THREE.Mesh subclass; only the properties this view sets/reads are declared, structurally (without a dependency on three's types). */
 declare module "troika-three-text" {
 	export class Text {
 		text: string;

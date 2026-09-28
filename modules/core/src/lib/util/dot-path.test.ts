@@ -4,7 +4,7 @@ import { z } from "zod";
 
 describe("parseDotPath", () => {
 	it.each([
-		["a simple term has no segments", "foo", { baseName: "foo", pathSegments: [] }],
+		["a simple term doesn't have segments", "foo", { baseName: "foo", pathSegments: [] }],
 		["the split is at the first dot", "result.total", { baseName: "result", pathSegments: ["total"] }],
 		["every later dot is a further segment", "result.vertex.subject", { baseName: "result", pathSegments: ["vertex", "subject"] }],
 		["an empty term is an empty base", "", { baseName: "", pathSegments: [] }],
@@ -17,10 +17,10 @@ describe("navigateValue", () => {
 	it.each([
 		["reads a nested key", { a: { b: 42 } }, ["a", "b"], { value: 42, found: true }],
 		["an index-like key reads an array element", { items: [10, 20, 30] }, ["items", "1"], { value: 20, found: true }],
-		["no segments is the value itself", { a: 1 }, [], { value: { a: 1 }, found: true }],
+		["an empty path is the value itself", { a: 1 }, [], { value: { a: 1 }, found: true }],
 		["a missing key is not found", { a: 1 }, ["b"], { value: undefined, found: false }],
-		["null holds nothing to read", null, ["a"], { value: undefined, found: false }],
-		["neither does a primitive", "hello", ["a"], { value: undefined, found: false }],
+		["null doesn't hold a value to read", null, ["a"], { value: undefined, found: false }],
+		["a primitive doesn't either", "hello", ["a"], { value: undefined, found: false }],
 	])("%s", (_, value, segments, expected) => {
 		expect(navigateValue(value, segments as string[])).toEqual(expected);
 	});
@@ -37,7 +37,7 @@ describe("validateZodPath", () => {
 	});
 
 	// A path the schema declares resolves to its field; anything else is null, including a path that walks INTO a
-	// declared leaf, since a string has no fields to reach.
+	// declared leaf, since a string doesn't have fields to reach.
 	it.each([
 		["a top-level field", ["name"], true],
 		["a nested field", ["nested", "count"], true],

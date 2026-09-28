@@ -195,20 +195,20 @@ describe("pickPreferredBody", () => {
 		expect(pickPreferredBody([html, md])).toBe(md);
 	});
 
-	it("falls back to text/plain when no markdown", () => {
+	it("falls back to text/plain when the bodies don't include markdown", () => {
 		expect(pickPreferredBody([plain, html])).toBe(plain);
 	});
 
-	it("falls back to text/html when no markdown or plain", () => {
+	it("falls back to text/html when the bodies don't include markdown or plain", () => {
 		expect(pickPreferredBody([html])).toBe(html);
 	});
 
-	it("returns the first usable when no preferred type matches", () => {
+	it("returns the first usable when the preferred types don't match", () => {
 		const ical = { mediaType: "text/calendar", content: "BEGIN:VCALENDAR" };
 		expect(pickPreferredBody([ical])).toBe(ical);
 	});
 
-	it("skips a body known to be empty, and a body that states no media type", () => {
+	it("skips a body known to be empty, and a body that doesn't state a media type", () => {
 		expect(pickPreferredBody([{ mediaType: "text/markdown", content: "" }, plain])).toBe(plain);
 		expect(pickPreferredBody([{ content: "no media type" }, md])).toBe(md);
 	});

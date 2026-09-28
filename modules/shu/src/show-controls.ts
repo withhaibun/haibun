@@ -1,6 +1,6 @@
 /**
  * Per-component show-controls preference, stored as a single cookie keyed by tag.
- * Pure module, no HTMLElement reference, so server-side importers (pane-state,
+ * Pure module without an HTMLElement reference, so server-side importers (pane-state,
  * monitor-stepper) can pull it without dragging in the browser-only base class.
  */
 import { getJsonCookie, setJsonCookie } from "./cookies.js";

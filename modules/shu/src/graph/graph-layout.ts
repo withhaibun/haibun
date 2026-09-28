@@ -4,7 +4,7 @@
  * and SVG paints place marks identically and can't drift. Position + size live HERE (in the placement), not on the
  * mark: the presenter declares a node's role (e.g. its time span); this pass turns the whole set into coordinates.
  *
- * - `free`  → no placement: the force layout owns x/y, z is the recorded-time depth (the view's default).
+ * - `free`  → without a placement: the force layout owns x/y, z is the recorded-time depth (the view's default).
  * - `time`  → one shared calendar scale across every time-role node → a lane y, a z centre, a duration zExtent, plus a
  *             ruler adornment. (Reproduces the gantt layout, now driven by the marks rather than a private path.)
  * - `xyz`   → explicit coordinates, pinned as given.
@@ -21,7 +21,7 @@ type LayoutItem = { id: string; role: LayoutRole };
  *  mark's length along z (a calendar bar's duration in world units), consumed only by length-bearing marks (box). */
 export type Placement = { x?: number; y?: number; z?: number; zExtent?: number };
 /** A backend-neutral view adornment (drawn once per layout, not per node). The calendar ruler: a baseline along z with
- *  calendar tick marks, just below the lowest lane. Null when the layout has no axis to draw. */
+ *  calendar tick marks, just below the lowest lane. Null when the layout doesn't have an axis to draw. */
 export type Adornment = { kind: "calendar-axis"; baseY: number; zMin: number; zMax: number; ticks: GanttTick[] } | null;
 type LayoutResult = { placements: Map<string, Placement>; scale?: { min: number; span: number }; adornment: Adornment };
 

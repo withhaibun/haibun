@@ -4,7 +4,7 @@
  * controls. The surface is a property of the polymorphic view component, not of one embedding: every instance gets the same
  * options in the same place because they come from the same element.
  *
- * It owns NO state. The host owns the options (a Zod schema + setState + persistFields) and pushes them to the scene;
+ * It does NOT own state. The host owns the options (a Zod schema + setState + persistFields) and pushes them to the scene;
  * this element renders what it is given and reports the reader's intent back through `onChange`. Data it needs to render
  * an option (the group-by axes) arrives as a property: a component never reaches the RPC for it.
  *
@@ -31,7 +31,7 @@ type TPolymorphicOptions = GraphSceneConfig;
 export type TPolymorphicOptionChange = Partial<TPolymorphicOptions>;
 
 class ShuPolymorphicSettings extends ShuElement<z.ZodType> {
-	/** A control, not a view of data, contributes nothing to the Kihan's context. */
+	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
@@ -66,7 +66,7 @@ class ShuPolymorphicSettings extends ShuElement<z.ZodType> {
 	declare onChange: (change: TPolymorphicOptionChange) => void;
 	/** The scenes saved here, for a reader to return to one. Handed down; a component never reaches the RPC itself. */
 	declare scenes: string[];
-	/** What went wrong with the last scene asked for, shown beside the controls. Null when nothing did. */
+	/** What went wrong with the last scene asked for, shown beside the controls. Null when the last one succeeded. */
 	declare sceneError: string | null;
 	/** Reports that the reader picked a saved scene to return to. */
 	declare onApplyScene: (name: string) => void;
@@ -178,7 +178,7 @@ class ShuPolymorphicSettings extends ShuElement<z.ZodType> {
 		`;
 	}
 
-	/** Save this view under the name the reader typed. An unnamed scene could not be returned to, so nothing is saved. */
+	/** Save this view under the name the reader typed. A reader couldn't return to an unnamed scene, so it isn't saved. */
 	private saveNamed(): void {
 		const input = this.querySelector<HTMLInputElement>(`[data-testid="${IDS.SCENE_NAME}"]`);
 		const name = input?.value.trim();

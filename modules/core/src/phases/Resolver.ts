@@ -174,7 +174,7 @@ export class Resolver {
 	/**
 	 * The one step a line resolves to. How a line is written decides whether it is prose: a sentence is prose, but for a
 	 * step whose pattern starts with a capital, such as a heading whose title ends with punctuation. A line that starts
-	 * with a character other than a letter is prose where no step's pattern matches it. A pattern reads a line after
+	 * with a character other than a letter is prose where the steps' patterns don't match it. A pattern reads a line after
 	 * `dePolite` removes its leading articles, so without this rule a sentence such as "A type is a view." would match
 	 * `type {text}`.
 	 */
@@ -295,7 +295,7 @@ export function findFeatureStepsFromStatement(statement: string, steppers: AStep
 	// expandLine needs a feature context: a Backgrounds: directive ignores it and uses the actual
 	// background files, while a regular statement uses this feature's path. `base` is the full path,
 	// so it goes in feature.base with feature.path left empty.
-	// A statement a step called over RPC or MCP states has no source file, so its lines have no base path.
+	// A statement a step called over RPC or MCP states doesn't have a source file, so its lines don't have a base path.
 	const contextFeature: TFeature = { path: "", base: base ?? "", name: "statement-context", content: statement };
 	const expanded = expandLine(statement, undefined, world.runtime.backgrounds, contextFeature);
 	// Increment the last segment of seqStart by inc for each expanded step

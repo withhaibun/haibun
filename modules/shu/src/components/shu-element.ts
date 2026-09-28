@@ -13,7 +13,7 @@
  *
  * `render()` returns a lit-html `TemplateResult`; Lit reconciles it against
  * the prior tree, preserving focus on inputs whose identity hasn't changed
- * and skipping work on unchanged subtrees. No component writes to
+ * and skipping work on unchanged subtrees. Components don't write to
  * `innerHTML` directly.
  *
  * `setState(partial)` validates the merged state against the schema and
@@ -73,7 +73,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	/** Map of observed HTML attribute → state field. The base reflects each into `state` through the Zod schema:
 	 * coerced by the field's type (string / boolean-by-presence / number / enum), validated by setState: an invalid
 	 * value throws, it never silently defaults. Declare this instead of a hand-written attributeChangedCallback
-	 * if-chain. The attribute stays the source of truth; state mirrors it one-way (no reflect → no loops; CSS
+	 * if-chain. The attribute stays the source of truth; state mirrors it one-way (state doesn't reflect, so updates don't loop; CSS
 	 * `:host([attr])` keeps working). Use onAttributeChanged only for side effects beyond state (e.g. syncing a child DOM node). */
 	static attributeFields: Record<string, string> = {};
 
@@ -102,12 +102,12 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 
 	/**
 	 * A spine view stays attached while its column is open, so it keeps hearing what it needs to be current the moment
-	 * the column collapses. Attached is not shown, though: until the pane's spine slot takes it, nothing it renders can
-	 * be seen, and rendering it anyway takes the same as rendering it for a reader. So it holds off, and the pane asks
+	 * the column collapses. Attached is not shown, though: until the pane's spine slot takes it, the page doesn't show what it
+	 * renders, and rendering it anyway takes the same as rendering it for a reader. So it holds off, and the pane asks
 	 * it to catch up when the spine slot takes it.
 	 */
 	protected override shouldUpdate(changed: Map<PropertyKey, unknown>): boolean {
-		// Only a view MOUNTED into the pane's spine slot holds off: assigned to no slot, it is the one the pane is not
+		// Only a view MOUNTED into the pane's spine slot holds off: a view that isn't assigned to a slot is the one the pane is not
 		// showing. A column rendering its own spine is marked `spine` without being slotted at all, and it is on screen,
 		// so it renders, which is why this asks about the slot rather than about serving as a spine.
 		if (this.getAttribute("slot") === SPINE_SLOT && !this.assignedSlot) return false;
@@ -115,7 +115,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	}
 
 	/** Identity under which `persistFields` store: "" (default) is a per-tag singleton; a multi-instance
-	 * component overrides this with its instance identity (e.g. a column key); null means "no identity yet,
+	 * component overrides this with its instance identity (e.g. a column key); null means "the identity isn't known yet,
 	 * don't persist". */
 	protected get persistKey(): string | null {
 		return "";
@@ -136,7 +136,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	 * views read the shared global `timeCursor` SharedSignal (scrubbing one view syncs them all); snapshot-pinned
 	 * views replay the frozen instant carried by `data-snapshot-time` (set by shu-product-view when a view
 	 * is opened "as of" a point in history). The attribute is the single store for a pinned time: it is
-	 * declarative, serializable, and already the marker other views check, so there is no parallel field.
+	 * declarative, serializable, and already the marker other views check, so the element doesn't hold a parallel field.
 	 * Reading this during an update auto-subscribes an in-bundle component via SignalWatcher; cross-bundle views
 	 * react through `watchSignal(timeCursor, …)` (wired here by #installTimeSync for any onTimeSync overrider).
 	 * Setting it publishes app-wide for a live view; a pinned view is frozen, so set is a no-op.
@@ -154,8 +154,8 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	}
 
 	/** Record one fine-grained occurrence of this view's behaviour, at whatever rate it happens: held in the page's
-	 *  fixed ring and handed to the run in batches, which retains none of it. The view attribution is this element's
-	 *  hosting column (or the element itself when unhosted), so any control emits with one call and no plumbing of its
+	 *  fixed ring and handed to the run in batches, which doesn't retain them. The view attribution is this element's
+	 *  hosting column (or the element itself when unhosted), so any control emits with one call and without plumbing of its
 	 *  own. The name must be declared in `view-blips.ts`, where the vocabulary lives. */
 	protected recordBlip(name: string, value?: number, attributes?: Record<string, unknown>): void {
 		const root = this.getRootNode();
@@ -173,8 +173,8 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	 * the column told the scroller, and anything below that could not be told at all.
 	 *
 	 * Distinct from the `spine` attribute, which is an INSTRUCTION to one column ("you are the strip now, render
-	 * narrow"). This is a fact about the surroundings that anything may read: a scroll rail draws no thumb in a strip,
-	 * where nothing is on screen for a thumb to be the size of.
+	 * narrow"). This is a fact about the surroundings that anything may read: a scroll rail doesn't draw a thumb in a strip,
+	 * since the strip doesn't show content for a thumb to measure.
 	 */
 	protected get columnCollapsed(): boolean {
 		return this.#collapsedColumn;
@@ -198,7 +198,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	}
 
 	/** Follow the hosting column's collapsed state. Watched on the pane's own attribute, which is the pane's single
-	 *  writer of it, so there is nothing to keep in step and no event to route down through the views between. */
+	 *  writer of it, so a copy doesn't need to be kept in step, and an event doesn't route down through the views between. */
 	#installColumnDisplay(): void {
 		const pane = this.#hostingColumn();
 		if (!pane) return;
@@ -215,8 +215,8 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	}
 
 	/** The context patterns of what this view shows, where it shows a record or a type: what the reader is on while this
-	 *  is the active pane, and what an ask from here is about. A view with no subject of its own (a log, a document, a
-	 *  conversation) states none, so activating it moves the reader nowhere. */
+	 *  is the active pane, and what an ask from here is about. A view without a subject of its own (a log, a document, a
+	 *  conversation) doesn't state one, so activating it doesn't move the reader. */
 	paneSubject(): TContextPattern[] | null {
 		return null;
 	}
@@ -267,7 +267,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		try {
 			this.state = this._schema.parse({ ...(this.state as object), ...partial });
 		} catch (error) {
-			// A raw ZodError names the field and nothing else, not which element, which write, or what value. setState is
+			// A raw ZodError names only the field, not which element, which write, or what value. setState is
 			// re-entrant (state → attribute → attributeChangedCallback → setState), so the stack alone does not say either.
 			throw new Error(`<${this.tagName.toLowerCase()}> setState ${describeStateWrite(partial)}: ${error instanceof z.ZodError ? z.prettifyError(error) : String(error)}`, {
 				cause: error,
@@ -285,8 +285,8 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 
 	/**
 	 * The options this element would carry across a reload, as a scene records them: exactly its `persistFields`, read
-	 * off the live state. A saved view is therefore the same set of choices the element already treats as durable: there
-	 * is no second list to keep in step with this one.
+	 * off the live state. A saved view is therefore the same set of choices the element already treats as durable: the
+	 * element doesn't keep a second list in step with this one.
 	 */
 	captureSceneState(): Record<string, unknown> {
 		const state = this.state as Record<string, unknown>;
@@ -397,13 +397,13 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		const fieldSchema = shape[field];
 		if (!fieldSchema) throw new Error(`${this.constructor.name}: attributeFields maps "${name}" → state field "${field}", which is absent from the schema`);
 		const coerced = coerceAttribute(fieldSchema, val);
-		// An attribute that is NOT THERE says nothing about a field that must have a value; it does not blank it. The
+		// An attribute that is NOT THERE doesn't state a value for a field that must have one; it does not blank it. The
 		// inverse write removes an attribute whose value is empty, and reading that removal back as "no value" would
 		// reject state the element legitimately holds. That is the loop a boot-time attribute write once fell into.
 		const absent = fieldSchema.safeParse(undefined);
 		if (coerced === undefined && !absent.success) return;
-		// The state already holds what the attribute says, so this change reports the element's own write and there is
-		// nothing to write. The element compares the value rather than timing its own writes, since the browser delivers
+		// The state already holds what the attribute says, so this change reports the element's own write and the element
+		// doesn't have a value to write. The element compares the value rather than timing its own writes, since the browser delivers
 		// the reactions it holds for other attributes whenever the element writes one.
 		if ((this.state as Record<string, unknown>)[field] === (coerced === undefined ? absent.data : coerced)) return;
 		try {
@@ -418,7 +418,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 
 	/** Reflect every changed attributeField state value back onto its bound attribute (inverse of #reflectAttribute). The
 	 *  change each write reports reaches #reflectAttribute, which reads it as the state the element already holds. Fields
-	 *  with no bound attribute are ignored. */
+	 *  without a bound attribute are ignored. */
 	#reflectFieldsToAttributes(changed: string[]): void {
 		const attributeFields = (this.constructor as typeof ShuElement).attributeFields;
 		const bound = Object.entries(attributeFields).filter(([, field]) => changed.includes(field));
@@ -458,8 +458,8 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	/**
 	 * What this view presents, summarized for a Kihan as linked data: a JSON-LD node (`@id`, `@type`, and the
 	 * view's content or a faithful digest of it). Called ON DEMAND by the chat-context harvester when the person
-	 * asks: never on render, so a large summary does nothing until it is sent. A view on screen the
-	 * model cannot read is a broken ask; return null only for a pure control that presents no data (a picker, a
+	 * asks: never on render, so a large summary isn't computed until the ask is sent. A view on screen the
+	 * model cannot read is a broken ask; return null only for a pure control that doesn't present data (a picker, a
 	 * button strip): the decision is required of every view, never implicit.
 	 */
 	abstract summarizeForKihan(): TLinkedData | null;
@@ -490,7 +490,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	}
 
 	/** addEventListener that auto-removes on disconnect. Register in onConnected; the sealed disconnect path tears it
-	 * down: so a component needs no onDisconnected body and can never leak a forgotten removeEventListener. */
+	 * down: so a component doesn't need an onDisconnected body and can never leak a forgotten removeEventListener. */
 	protected autoListen(target: EventTarget, type: string, handler: EventListenerOrEventListenerObject, opts?: boolean | AddEventListenerOptions): void {
 		target.addEventListener(type, handler, opts);
 		this.#teardowns.push(() => target.removeEventListener(type, handler, opts));
@@ -519,7 +519,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		this.requestUpdate();
 	}
 
-	/** True iff the timestamp lies strictly after the current time cursor. When no cursor is set, nothing is in the future. */
+	/** True iff the timestamp lies strictly after the current time cursor. When a cursor isn't set, a timestamp isn't in the future. */
 	protected isFuture(timestamp: number): boolean {
 		return this.timeCursor !== null && timestamp > this.timeCursor;
 	}
@@ -596,8 +596,8 @@ function coerceAttribute(fieldSchema: z.ZodTypeAny, val: string | null): unknown
 /** Serialize a state value onto its bound attribute: the inverse of coerceAttribute, so the attribute reads as the value
  * written. A boolean at its field's default removes the attribute, which reads as that default; otherwise it is present
  * for true and "false" for false. A default-false boolean stays presence-based for CSS, and a default-true boolean
- * declared false holds "false". An undefined, null or empty value removes the attribute, so the attribute holds no value
- * the state does not; anything else writes its string form. An attribute that already holds the value is not written
+ * declared false holds "false". An undefined, null or empty value removes the attribute, so the attribute doesn't hold a value
+ * the state doesn't hold; anything else writes its string form. An attribute that already holds the value is not written
  * again, since a write reports a change. */
 function reflectAttributeValue(el: HTMLElement, attr: string, fieldSchema: z.ZodTypeAny | undefined, value: unknown): void {
 	const serialized = attributeValueOf(fieldSchema, value);

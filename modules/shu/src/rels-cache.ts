@@ -106,7 +106,7 @@ export function getRelSync(label: string, property: string): string | undefined 
 
 /** Whether a type is a SYSTEM schema: its class IRI is haibun's own vocabulary (a haibun-namespace prefix), as opposed
  *  to a standard's (prov:/sosa:/…) or a consumer's coined one. A consumer-standard type is not a system schema; a
- *  haibun-defined type (e.g. hbn:SeqPath) is. False when the type declares no class IRI. */
+ *  haibun-defined type (e.g. hbn:SeqPath) is. False when the type doesn't declare a class IRI. */
 export function isSystemSchemaType(label: string): boolean {
 	const iri = metadata?.classIris?.[label];
 	return iri !== undefined && propertyVocabulary(iri).source === "haibun";
@@ -132,8 +132,8 @@ export function getEdgeRanges(label: string): Record<string, string[]> | undefin
 	return metadata?.edgeRanges[label];
 }
 
-/** The types an edge may point at from a source type, else from any type declaring an edge of that name; undefined for a
- *  name no type declares an edge. */
+/** The types an edge may point at from a source type, else from any type declaring an edge of that name; undefined where
+ *  the types don't declare an edge of that name. */
 export function getEdgeTargetLabels(edgeType: string, sourceLabel?: string): string[] | undefined {
 	return (sourceLabel ? metadata?.edgeRanges[sourceLabel]?.[edgeType] : undefined) ?? edgeTypeIndex.get(edgeType);
 }
@@ -213,7 +213,7 @@ export function componentOfView(view: string): string {
  * The component a RECORD of this type opens or renders as, or undefined for the generic view.
  *
  * A declaration carrying a `slot` mounts a panel into that slot: the petitions panel sits in the permissions area
- * for every proposal there is, and is about the type rather than about one record of it. Such a panel has none of a
+ * for every proposal there is, and is about the type rather than about one record of it. Such a panel doesn't have a
  * record view's methods, so opening a record with it fails at the first call it receives. Only a slotless
  * declaration names a type's own view.
  */
@@ -262,7 +262,7 @@ export function getSelectValues(label: string): Record<string, string[]> {
  *
  * Only predicates the label already offers gain values. Which predicates are dropdowns at all is the type's own
  * declaration, established by the fetch that built this entry; a quad about any other predicate is not one of them,
- * and a label with no entry yet has not been fetched, so there is nothing to add to. Returns whether anything was
+ * and a label without an entry yet has not been fetched, so this doesn't add to it. Returns whether anything was
  * added, so a caller re-renders only when the dropdowns changed.
  */
 export function addObservedSelectValues(label: string, quads: readonly TQuad[]): boolean {
@@ -327,7 +327,7 @@ import { LinkRelations, RESOURCE_LABEL, getPropertyDefinitions, isSubPropertyOf,
 import { pagePinned } from "./page-pinned.js";
 
 // What the site declares is one thing per page, and a page is more than one bundle: the app, the graph view, a panel a
-// deployment adds. Held per bundle, whichever bundle did not ask the site would have no vocabulary at all.
+// deployment adds. Held per bundle, whichever bundle did not ask the site wouldn't have a vocabulary at all.
 const CATALOG_KEY = "__SHU_CONCERN_CATALOG__";
 type TDeclared = { catalog: TConcernCatalog | null; meta: SiteMetadata | null };
 const declared = (): TDeclared => pagePinned(CATALOG_KEY, () => ({ catalog: null, meta: null }));
@@ -477,7 +477,7 @@ export function siteMetadataFromConcerns(catalog: TConcernCatalog, domains?: Rec
  * Actor edge labels classified under `upper`, with ordering weights: core's concrete rels declared subPropertyOf
  * `upper` (each carrying its declared rolePriority), plus every concern edge whose rel classifies under `upper`:
  * a consumer edge declares an upper-ontology pointer (fromActor/toActor/…) as its rel and carries its own
- * rolePriority in its domain declaration. Unranked labels weigh 0. No consumer vocabulary is named anywhere here.
+ * rolePriority in its domain declaration. Unranked labels weigh 0. This module doesn't name a consumer vocabulary.
  */
 function actorEdgeWeights(upper: string, coreRels: ReadonlySet<string>): Map<string, number> {
 	const corePriority = new Map(getPropertyDefinitions().map((d) => [d.id, d.rolePriority ?? 0]));
@@ -523,8 +523,8 @@ export function fromActorEdgeLabels(): ReadonlySet<string> {
 
 /**
  * The noun a party displays under, given the edge by which others attribute to it: `X issuer→ P` makes P an
- * "Issuer". Read from the declarations, so a view names no vocabulary of its own: a deployment that declares no
- * role nouns gets none, and one that declares them gets exactly what it declared.
+ * "Issuer". Read from the declarations, so a view doesn't name a vocabulary of its own: a deployment that doesn't declare
+ * role nouns doesn't get a role noun, and one that declares them gets exactly what it declared.
  */
 export function roleNounFor(edgeLabel: unknown): string | undefined {
 	if (!cachedRoleNouns) {

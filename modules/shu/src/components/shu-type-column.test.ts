@@ -46,7 +46,7 @@ describe("buildTypeSchemaGraph: one type's schema", () => {
 		expect(opens("prop:name")).toEqual({ paneType: "filter-prop", persistedAs: "Issuer", predicate: "name" });
 	});
 
-	it("opens the view a pressed node links, and nothing for a press on the background", () => {
+	it("opens the view a pressed node links, and doesn't open a view for a press on the background", () => {
 		if (!customElements.get("shu-type-column")) customElements.define("shu-type-column", ShuTypeColumn);
 		const column = document.body.appendChild(new ShuTypeColumn());
 		const opened = vi.spyOn(PaneState, "requestFrom").mockImplementation(() => undefined);
@@ -91,7 +91,7 @@ describe("getUiPresenting, discovering the site's presenter for a capability", (
 		setSiteMetadata({ ...META, classIris: { SeqPath: "hbn:SeqPath", VerifiableCredential: "cred:VerifiableCredential" } });
 		expect(isSystemSchemaType("SeqPath")).toBe(true); // hbn: is haibun's own vocabulary
 		expect(isSystemSchemaType("VerifiableCredential")).toBe(false); // cred: is a standard
-		expect(isSystemSchemaType("Issuer")).toBe(false); // no declared class IRI
+		expect(isSystemSchemaType("Issuer")).toBe(false); // it doesn't declare a class IRI
 		setSiteMetadata(META);
 	});
 });

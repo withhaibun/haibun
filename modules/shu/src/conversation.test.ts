@@ -73,16 +73,16 @@ const on = (...types: TConversationEventType[]): TConversationState => run(...ty
 const staying = <S extends string>(status: S, moves: Partial<Record<TConversationEventType, S>>): Record<TConversationEventType, S> =>
 	Object.fromEntries(CONVERSATION_EVENTS.map((type) => [type, moves[type] ?? status])) as Record<TConversationEventType, S>;
 const askedStatus = (conversation: TConversationState): TTurnStatus => conversation.asked?.status ?? "idle";
-/** A conversation holding a turn at a status the run recorded, which no event of the page's moves a turn to. */
+/** A conversation holding a turn at a status the run recorded, which the page's events don't move a turn to. */
 const holdingTurnAt = (status: TChatStatus): TConversationState => {
 	const running = on("open", "read", "ask", "started");
 	return { ...running, asked: { ...(running.asked as NonNullable<TConversationState["asked"]>), status } };
 };
 
-/** A conversation at each status, with no turn of the page's. */
+/** A conversation at each status, without a turn of the page's. */
 const AT: Record<TConversationState["status"], TConversationState> = { closed: CLOSED_CONVERSATION, opening: on("open"), open: on("open", "read") };
 
-/** The table of the conversation: the status each event moves each status to, with no turn of the page's in flight. */
+/** The table of the conversation: the status each event moves each status to, without a turn of the page's in flight. */
 const TABLE: Record<TConversationState["status"], Record<TConversationEventType, TConversationState["status"]>> = {
 	closed: staying("closed", { open: "opening", ask: "open" }),
 	opening: staying("opening", { read: "open", failed: "closed", close: "closed" }),
@@ -98,11 +98,11 @@ const TURN_AT: Record<TTurnStatus, TConversationState> = {
 	failed: on("open", "read", "ask", "started", "erred"),
 	stopped: on("open", "read", "ask", "started", "stop", "erred"),
 	// A turn ends unverified where it stated a handle what it was sent doesn't hold. The run decides that when it records
-	// the turn, so no event of the page's reaches it: the page holds a turn read back at that status.
+	// the turn, so the page's events don't reach it: the page holds a turn read back at that status.
 	unverified: holdingTurnAt("unverified"),
 };
 
-/** The table of the page's turn: the status each event moves each status to, for a turn no reader stopped. A turn in
+/** The table of the page's turn: the status each event moves each status to, for a turn that a reader didn't stop. A turn in
  *  flight refuses a question, and so does a conversation opening, which `open` leaves the turn in. */
 const TURN_TABLE: Record<TTurnStatus, Record<TConversationEventType, TTurnStatus>> = {
 	idle: staying("idle", { ask: "asking" }),
@@ -146,13 +146,13 @@ describe("every status and every event", () => {
 });
 
 describe("each move of the conversation", () => {
-	it("open reads a session with no turns yet, whatever the conversation was on, and the page's turn runs on", () => {
+	it("open reads a session without turns yet, whatever the conversation was on, and the page's turn runs on", () => {
 		const opened = transition(TURN_AT.running, { type: "open", session: question("0.2.1") });
 		expect(opened).toMatchObject({ status: "opening", session: question("0.2.1"), turns: [] });
 		expect(opened.asked).toBe(TURN_AT.running.asked);
 	});
 
-	it("read applies only to the session being opened or open, so a read that returns after the reader moved on changes nothing", () => {
+	it("read applies only to the session being opened or open, so a read that returns after the reader moved on doesn't change the conversation", () => {
 		const moved = transition(AT.opening, { type: "open", session: question("0.2.1") });
 		expect(transition(moved, EVENT.read)).toBe(moved);
 		expect(transition(AT.closed, EVENT.read)).toBe(AT.closed);
@@ -173,7 +173,7 @@ describe("each move of the conversation", () => {
 		expect(transition(AT.closed, EVENT.close)).toBe(AT.closed);
 	});
 
-	it("ask in a closed conversation opens one on no session, and the first record of its turn names the session", () => {
+	it("ask in a closed conversation opens one without a session, and the first record of its turn names the session", () => {
 		const first = { ...EVENT.ask, session: undefined, inReplyTo: undefined } as TConversationEvent;
 		const asking = run(first, EVENT.started);
 		expect(asking).toMatchObject({ status: "open", session: null });
@@ -201,14 +201,14 @@ describe("each move of the conversation", () => {
 });
 
 describe("each move of the page's turn", () => {
-	it("ask starts a turn with the question, its records, its session and the turn it replies to, and nothing of the turn before", () => {
+	it("ask starts a turn with the question, its records, its session and the turn it replies to, and doesn't keep a field of the turn before", () => {
 		expect(transition(TURN_AT.completed, EVENT.ask).asked).toEqual({
 			askId: null,
 			prompt: "what does this say",
 			response: "",
 			bundle: [EMAIL],
 			inReplyTo: SESSION,
-			// The run states when the turn was asked once it records it; a turn this page is still asking states none.
+			// The run states when the turn was asked once it records it; a turn this page is still asking doesn't state one.
 			generatedAtTime: "",
 			status: "asking",
 			error: "",
@@ -226,7 +226,7 @@ describe("each move of the page's turn", () => {
 		expect(answered.asked).toMatchObject({ askId: QUESTION.id, sayId: ANSWER.id });
 	});
 
-	it("text, status and recorded add to a running turn, in order, and to no turn that is not running", () => {
+	it("text, status and recorded add to a running turn, in order, and don't add to a turn that is not running", () => {
 		const answered = run(EVENT.open, EVENT.read, EVENT.ask, EVENT.started, EVENT.text, EVENT.status, EVENT.recorded, EVENT.text, EVENT.status, {
 			type: "recorded",
 			record: ANSWER,
@@ -235,7 +235,7 @@ describe("each move of the page's turn", () => {
 		for (const type of ["text", "status", "recorded"] as const) expect(transition(TURN_AT.asking, EVENT[type]), `asking + ${type}`).toBe(TURN_AT.asking);
 	});
 
-	it("refused states each action a running turn was refused once, and nothing of a turn that is not running", () => {
+	it("refused states each action a running turn was refused once, and doesn't state an action of a turn that is not running", () => {
 		const another = { step: "Example-actAgain", action: REFUSED.action };
 		const refused = run(EVENT.open, EVENT.read, EVENT.ask, EVENT.started, EVENT.refused, { type: "refused", call: another });
 		expect(refused.asked?.refused, "one allowing answers every call that needs the action").toEqual([REFUSED]);
@@ -252,7 +252,7 @@ describe("each move of the page's turn", () => {
 		});
 	});
 
-	it("erred ends a turn no reader stopped as failed, ended a running turn as completed, and a turn whose step never started as failed", () => {
+	it("erred ends a turn that a reader didn't stop as failed, ended a running turn as completed, and a turn whose step never started as failed", () => {
 		expect(TURN_AT.failed.asked).toMatchObject({ status: "failed", error: "connection reset" });
 		expect(TURN_AT.completed.asked).toMatchObject({ status: "completed", error: "" });
 		expect(on("open", "read", "ask", "ended").asked).toMatchObject({ status: "failed", error: NOT_STARTED });
@@ -267,7 +267,7 @@ describe("each move of the page's turn", () => {
 		expect(pageTurn(transition(transition(readWhileRunning, EVENT.text), EVENT.ended))).toMatchObject([{ status: "completed", response: "an answer" }]);
 	});
 
-	it("is written into no other session, nor into its own while that opens, and once it is read back it stands in the store's order", () => {
+	it("isn't written into another session, or into its own while that opens, and once it is read back it stands in the store's order", () => {
 		const running = on("open", "read", "ask", "started", "recorded");
 		const elsewhere = after(running, { type: "open", session: question("0.2.1") }, { type: "read", session: question("0.2.1"), turns: [readBack("0.2.1")] });
 		expect(transition(elsewhere, EVENT.text).turns.map((turn) => turn.askId)).toEqual([question("0.2.1")]);
@@ -320,7 +320,7 @@ describe("any sequence of events", () => {
 				if (event.type === "refused" && running && !held.refused.some((refused) => refused.action === event.call.action)) held.refused = [...held.refused, event.call];
 				conversation = transition(conversation, event);
 				expect(askedStatus(conversation), label).toBe(wanted);
-				expect(conversation.turns.filter((turn) => turn.askId === null).length, `${label}: one turn at most no question names`).toBeLessThanOrEqual(1);
+				expect(conversation.turns.filter((turn) => turn.askId === null).length, `${label}: at most one turn that a question doesn't name`).toBeLessThanOrEqual(1);
 				const { asked } = conversation;
 				if (!asked) continue;
 				const { askId, sayId, response, activity, stoppedBy, refused } = asked;
@@ -341,7 +341,7 @@ describe("the transcript", () => {
 	const shownTurns = (entries: ReturnType<typeof transcript>) => [...new Set(entries.filter((entry) => entry.shown).map((entry) => entry.message.turn ?? "pending"))];
 	const answerIn = (entries: ReturnType<typeof transcript>, turn: string) => entries.find((entry) => entry.message.role === "llm" && entry.message.turn === turn)?.message;
 
-	it("lists every turn's question and answer, and shows the branch of the newest turn where the next question replies to none", () => {
+	it("lists every turn's question and answer, and shows the branch of the newest turn where the next question doesn't reply to a turn", () => {
 		const entries = transcript(BRANCHED, undefined, LEVEL);
 		expect(entries).toHaveLength(8);
 		expect(shownTurns(entries)).toEqual([SESSION, question("0.1.5")]);
@@ -407,7 +407,7 @@ describe("the transcript", () => {
 		expect(shownTurns(transcript(again, SESSION, LEVEL)), "following it shows that branch").toEqual([SESSION]);
 	});
 
-	it("shows every turn of a conversation that never branched and offers nothing, and nothing for a conversation with no turns", () => {
+	it("shows every turn of a conversation that never branched and doesn't offer another branch, and doesn't show an entry for a conversation without turns", () => {
 		const straight = run(EVENT.open, { type: "read", session: SESSION, turns: [readBack(FIRST), readBack("0.1.2", FIRST)] });
 		const entries = transcript(straight, question("0.1.2"), LEVEL);
 		expect(entries.every((entry) => entry.shown && !entry.message.otherBranch)).toBe(true);

@@ -4,7 +4,7 @@
  * `optional`, `nullable` and `default` each wrap the type they qualify, and a preprocess wraps the type it reads its
  * input into, so every reader that wants the underlying type has to walk through them. Written three times, two of
  * them reached different private zod internals, `_zod.def` and `_def.innerType`, so a zod version that moves one
- * leaves the other returning an unpeeled type and saying nothing about it. One walk, one place to correct when the
+ * leaves the other returning an unpeeled type without reporting it. One walk, one place to correct when the
  * library moves.
  */
 import type { z } from "zod";

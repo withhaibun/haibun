@@ -20,14 +20,14 @@ function fed(takes: number[]) {
 }
 
 describe("the frame-time window", () => {
-	it("keeps the last window of samples and takes their median, so one anomaly changes nothing", () => {
+	it("keeps the last window of samples and takes their median, so one anomaly doesn't change the median", () => {
 		const state = fed([1, 1, 90, 1, 1, 1, 1]);
 		expect(state.frameTimes, "the window holds the newest five").toEqual([90, 1, 1, 1, 1]);
 		expect(medianOf(state.frameTimes)).toBe(1);
 		expect(medianOf([2, 40, 3]), "an anomaly among three").toBe(3);
 	});
 
-	it("compares nothing before the window is full, and decoration rests until it has been measured", () => {
+	it("doesn't compare before the window is full, and decoration rests until it has been measured", () => {
 		const state = fed([1, 1, 1]);
 		expect(evaluateRegulation(state, thresholds, 0)).toBeUndefined();
 		expect(state.resting).toBe(true);
@@ -35,7 +35,7 @@ describe("the frame-time window", () => {
 });
 
 describe("the breath's limit", () => {
-	it("keeps decoration at rest on a frame that would take it past its limit: it never starts, and nothing fires", () => {
+	it("keeps decoration at rest on a frame that would take it past its limit: it never starts, and a signal doesn't fire", () => {
 		const state = fed([16, 17, 16, 25, 16]); // a software rasterizer: 16 ms a frame at ten beats a second is 16%
 		expect(evaluateRegulation(state, thresholds, 1_000)).toBeUndefined();
 		expect(state.resting).toBe(true);
@@ -53,13 +53,13 @@ describe("the breath's limit", () => {
 		const state = fed([2, 2, 2, 2, 2]);
 		evaluateRegulation(state, thresholds, 1_000);
 		for (const c of [16, 17, 16, 25, 16]) recordFrameTime(state, c, thresholds.windowSamples);
-		expect(evaluateRegulation(state, thresholds, 5_000), "within the cooldown: no flap").toBeUndefined();
+		expect(evaluateRegulation(state, thresholds, 5_000), "within the cooldown: it doesn't flap").toBeUndefined();
 		expect(state.resting).toBe(false);
 		const signal = evaluateRegulation(state, thresholds, 11_001);
 		expect(signal).toEqual({ kind: "decorativeOverLimit", frameTimeMs: 16, share: 0.16 });
 		expect(state.resting).toBe(true);
 		recordFrameTime(state, 16, thresholds.windowSamples);
-		expect(evaluateRegulation(state, thresholds, 30_000), "still over, already resting: no new signal").toBeUndefined();
+		expect(evaluateRegulation(state, thresholds, 30_000), "still over, already resting: it doesn't send a new signal").toBeUndefined();
 		expect(describeRegulation(signal as NonNullable<typeof signal>)).toBe("the breath rests: it would take 16% of wall time at 16.0 ms a frame");
 	});
 

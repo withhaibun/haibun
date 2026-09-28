@@ -1,10 +1,10 @@
 /**
  * Real-browser drawing on demand: a headless browser draws through a software rasterizer, where a frame takes tens of
  * milliseconds, so a scene that draws a frame it doesn't need holds the page's main thread, and every key and click
- * waits behind it. What the scene draws is what changed, and a scene with nothing changing draws nothing.
+ * waits behind it. What the scene draws is what changed, and a scene at rest doesn't draw a frame.
  *
  * The invariants: a feed of new records into a scene at rest is drawn in a few frames and the scene rests again, and a
- * pointer resting over the canvas draws nothing. Each is a frame count over stated states, never a time.
+ * pointer resting over the canvas doesn't draw a frame. Each is a frame count over stated states, never a time.
  */
 import { afterAll, beforeAll, expect, test } from "vitest";
 import { mountPolymorphicPage, quadsNamed, type TMountedPage } from "./polymorphic-page.test-fake.js";
@@ -33,7 +33,7 @@ test("a feed of new records into a scene at rest is drawn in a few frames, and t
 	expect(mounted.errors(), "page errors").toEqual([]);
 });
 
-test("a pointer resting over the canvas draws nothing", { timeout: 60_000 }, async () => {
+test("a pointer resting over the canvas doesn't draw a frame", { timeout: 60_000 }, async () => {
 	const box = await mounted.box();
 	await mounted.page.mouse.move(box.x + box.w / 2, box.y + box.h / 2);
 	await mounted.atRest();

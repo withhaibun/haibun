@@ -43,7 +43,7 @@ export type DataPipelineDeps = {
 	visibleQuads: () => TQuad[];
 	hiddenGraphs: () => string[]; // cgState.hiddenGraphs
 	visibleModel: () => GraphModel;
-	lastModelHash: () => number | undefined; // undefined = first feed / post-reset (everything is "new", no arrival pops)
+	lastModelHash: () => number | undefined; // undefined = first feed / post-reset (everything is "new", without arrival pops)
 	timeCursor: () => number | null; // the resolved cursor (a pinned view's frozen instant, else the global cursor); null = live
 	zBasis: () => "valid" | "indexed" | "connections"; // what places depth: the object's valid time (its declared field), its indexed time (generatedAtTime), or its number of connections
 	validTimeFieldFor: (type: string) => string; // the catalog's validTimeField per label (rels-cache)
@@ -126,7 +126,7 @@ export class DataPipeline {
 
 	/** Calendar placement per task, via the pure tested layout pass (computeLayout over the tasks' time roles: the one
 	 *  source of the scale/lane/z/zExtent/ruler math, shared with the SVG paint). Cached in ganttTargets, which the
-	 *  forces/z/paint/ghost/drag read. Only populated in "gantt" view-type; non-task nodes get no entry. */
+	 *  forces/z/paint/ghost/drag read. Only populated in "gantt" view-type; non-task nodes don't get an entry. */
 	private recomputeGanttTargets(): void {
 		if (this.deps.viewType() !== VIEW.gantt) {
 			this.deps.setGanttTargets(new Map());
@@ -185,15 +185,15 @@ export class DataPipeline {
 						cursor,
 					}
 				: cached;
-		// A scale over one age, or none, places every node at one depth, which is no scale at all: the first build of a
+		// A scale over one age, or over zero ages, places every node at one depth, which isn't a scale at all: the first build of a
 		// graph that arrives in pieces holds whatever landed first, and holding that scale left every node on the z=0
 		// plane for the rest of the reading. Holding a scale protects settled nodes from being placed again, and a graph
-		// at one depth has none to protect, so only a scale that spreads them is held.
+		// at one depth doesn't have settled nodes to protect, so only a scale that spreads them is held.
 		if (current.scale.range > 0) this.zScaleCache = current;
 		const { scale: zScale, cursorMs } = current;
 		// The "# connections" z basis: depth is node degree, not time. Its scale is derived FRESH each build (unlike the
-		// time scale), degree changes only when edges do, i.e. only on a data change that already repaints, so there is
-		// no per-frame teleport to guard against. HIGH degree sits toward the FRONT (small z) so hubs come forward.
+		// time scale), degree changes only when edges do, i.e. only on a data change that already repaints, so a
+		// per-frame teleport doesn't occur. HIGH degree sits toward the FRONT (small z) so hubs come forward.
 		const zBasis = this.deps.zBasis();
 		const degrees = zBasis === "connections" ? this.degrees(new Set(nodes.map((n) => n.id)), edges) : undefined;
 		const degreeScale = degrees ? spanZScale(degrees.values(), TIME_DEPTH_MAX) : undefined;
@@ -207,9 +207,9 @@ export class DataPipeline {
 		const isInitial = this.deps.lastModelHash() === undefined;
 		const nextMap = new Map<string, FGNode>();
 		const fgNodes: FGNode[] = [];
-		const unseeded: FGNode[] = []; // newcomers with no position yet (ungrouped, or grouped with no anchor), seeded from neighbours below
+		const unseeded: FGNode[] = []; // newcomers without a position yet (ungrouped, or grouped without an anchor), seeded from neighbours below
 		// Per grouped node, its stable index within its group + the group size: the deterministic in-cell grid seed reads
-		// these so members land on a fixed √count grid (no Math.random), and the cohesion + collide then only refine.
+		// these so members land on a fixed √count grid (without Math.random), and the cohesion + collide then only refine.
 		const groupIndex = new Map<string, { i: number; c: number }>();
 		if (grouped) {
 			const byGroup = new Map<string, string[]>();
@@ -231,7 +231,7 @@ export class DataPipeline {
 			// The deterministic PIN target. Grouped: the container cell (groupPin) wins in every view, so the member sits in
 			// its shelf-packed cell and the box stays exclusive. Ungrouped: the lane pin wins: the td/lr Sugiyama {x,y} or the
 			// gantt/sequence lane. Both fixed via fx/fy. The key reads n.properties so the merged role resolves here (fgNode
-			// carries them below). A node with no pin keeps its parked place or seeds from a neighbour.
+			// carries them below). A node without a pin keeps its parked place or seeds from a neighbour.
 			const groupKey = groupKeyOf({ type: n.type, properties: n.properties }, groupBy);
 			const anchor = grouped ? groupAnchors.get(groupKey) : undefined;
 			const size = anchor ? groupSizes.get(groupKey) : undefined;
@@ -267,7 +267,7 @@ export class DataPipeline {
 					fgNode.x = parked.x;
 					fgNode.y = parked.y;
 				} else {
-					unseeded.push(fgNode); // ungrouped (or no anchor): seed from a placed neighbour once links are known
+					unseeded.push(fgNode); // ungrouped (or without an anchor): seed from a placed neighbour once links are known
 				}
 				if (!isInitial) this.deps.startNewcomerPop(fgNode); // newly arrived: welcomed, and grown in where decoration runs
 			}
@@ -378,7 +378,7 @@ type TVisibleModelInput = {
 	hiddenGraphs: string[];
 	/** Predicates the person put away: a node whose every edge is hidden IS edgeless for the prune below. */
 	hiddenPredicates: string[];
-	/** Drop what nothing links to: a graph of unconnected chips says less than the connections between them. */
+	/** Drop the nodes that links don't connect: a graph of unconnected chips says less than the connections between them. */
 	prune: boolean;
 	site?: string;
 	roleRels: readonly string[];

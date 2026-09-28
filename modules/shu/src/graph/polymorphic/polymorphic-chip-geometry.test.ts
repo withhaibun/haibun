@@ -37,12 +37,12 @@ describe("chipGeometry", () => {
 		if (!badge) throw new Error("a chip built with an avatar lead has a badge");
 		const badgeLeft = badge.cx - badge.w / 2;
 		const badgeRight = badge.cx + badge.w / 2;
-		expect(badgeLeft).toBeCloseTo(g.cx - g.w / 2); // flush with the chip's leading edge: no sliver of body before it
+		expect(badgeLeft).toBeCloseTo(g.cx - g.w / 2); // flush with the chip's leading edge: without a sliver of body before it
 		expect(badgeRight).toBeLessThan(leadX); // stops short of where the label starts
 		expect(badgeRight).toBeGreaterThan(0);
 	});
 
-	it("has no badge when the chip carries no avatar", () => {
+	it("doesn't have a badge when the chip doesn't carry an avatar", () => {
 		expect(chipGeometry(LABEL, 0, FONT).badge).toBeUndefined();
 	});
 

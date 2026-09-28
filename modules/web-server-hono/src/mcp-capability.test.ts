@@ -46,7 +46,7 @@ class ProtectedStepper extends AStepper {
 		verifyProtectedMcpDenied: {
 			gwta: `verify protected mcp tool on port {port: ${DOMAIN_NUMBER}} is denied`,
 			action: async ({ port }: { port: string }) => {
-				// A client presenting nothing is listed no tools, and refused alike a tool that exists and one that doesn't.
+				// A client that doesn't present authority gets an empty tool list, and is refused alike a tool that exists and one that doesn't.
 				const listed = (await rpc(`http://localhost:${port}/mcp`, 2, "tools/list", {})).result as { tools?: unknown[] } | undefined;
 				if (listed?.tools?.length !== 0) throw new Error(`Expected no tools listed, got ${JSON.stringify(listed)}`);
 				for (const tool of ["ProtectedStepper-protectedAction", "Nowhere-nothing"]) {
@@ -106,7 +106,7 @@ const mcpOptions = (port: number) => ({
 const signedSteppers = [WebServerStepper, McpStepper, AuthorityStepper, FakeAuthorityStepper, ProtectedStepper];
 
 describe("McpStepper capability enforcement", () => {
-	it("denies a protected tool to a caller presenting nothing", async () => {
+	it("denies a protected tool to a caller that doesn't present authority", async () => {
 		const port = 8134;
 		const feature = {
 			path: "/features/mcp-capability-denied.feature",
@@ -174,7 +174,7 @@ verify admin mcp tool signed by "agent" for "ProtectedStepper:invoke" on port ${
 	});
 });
 
-/** A call signed by `holder` for `action`, where one is given; otherwise one presenting nothing. */
+/** A call signed by `holder` for `action`, where one is given; otherwise one that doesn't present authority. */
 type TSigned = { holder: string; action: string };
 
 const MCP_HEADERS = { "content-type": "application/json", accept: "application/json, text/event-stream" };

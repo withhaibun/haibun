@@ -8,9 +8,9 @@ type ResolvedUi = {
 	slot?: string;
 };
 
-/** Default component for a single entity when the type declares none. */
+/** Default component for a single entity when the type doesn't declare one. */
 export const ENTITY_COMPONENT = "shu-entity-column";
-/** Default component for a collection (a product carrying `items`) when the type declares none. */
+/** Default component for a collection (a product carrying `items`) when the type doesn't declare one. */
 export const COLLECTION_COMPONENT = "shu-thread-column";
 
 /**
