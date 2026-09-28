@@ -387,6 +387,12 @@ variable setVar exists`;
 		const res = await failWithDefaults(content, steppers);
 		expect(res.ok).toBe(false);
 	});
+	it("names the fields a value has where a dot path names one it doesn't have", async () => {
+		const content = `set snap as json to {"highlighted": 1, "follow": false}
+variable snap.hilighted is "1"`;
+		const res = await failWithDefaults(content, steppers);
+		expect(res.failure?.error.message).toBe("snap doesn't have hilighted; it has highlighted, follow");
+	});
 	it("passes when variable is in env", async () => {
 		const content = `variable "fromenv" exists`;
 		const envVariables = { fromenv: "1" };

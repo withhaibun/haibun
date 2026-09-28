@@ -21,7 +21,7 @@ export default class ShuActivityHistoryControls extends AStepper {
 		return (await controlledPage(this)).locator(SHU_TAG.ACTIVITY_HISTORY).first();
 	}
 
-	steps: TStepperSteps = {
+	steps = {
 		chatIsAtItsNewestTurn: {
 			gwta: "chat shows its newest turn",
 			action: async () => {
@@ -53,5 +53,5 @@ export default class ShuActivityHistoryControls extends AStepper {
 				return scrolled === true ? actionOK() : actionNotOK(`the chat's history was not scrolled: ${String(scrolled)}`);
 			},
 		},
-	};
+	} satisfies TStepperSteps;
 }

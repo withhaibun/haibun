@@ -35,7 +35,7 @@ export default class ShuColumnStripControls extends AStepper implements IHasCycl
 		return controlledPage(this);
 	}
 
-	steps: TStepperSteps = {
+	steps = {
 		annotatedBodyOwnsScroll: {
 			// The annotated file must scroll in its OWN region with the native scrollbar hidden, so the glyph rail is the only
 			// bar (the two-scrollbars report). Assert the region exists, is an overflow scroller, and doesn't show a native gutter.
@@ -96,5 +96,5 @@ export default class ShuColumnStripControls extends AStepper implements IHasCycl
 				return actionNotOK(`the active column doesn't match "${match}" (panes: [${(await columnKeys(page)).join(", ")}])`);
 			},
 		},
-	};
+	} satisfies TStepperSteps;
 }

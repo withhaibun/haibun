@@ -8,17 +8,17 @@ export function parseDotPath(term: string): { baseName: string; pathSegments: st
 	return { baseName: term.slice(0, idx), pathSegments: term.slice(idx + 1).split(".") };
 }
 
-/** Navigate into a runtime value using path segments. */
-export function navigateValue(value: unknown, segments: string[]): { value: unknown; found: boolean } {
+/** Where a dot path stopped: the segments it read, the one the value there doesn't have, and the fields that value has. */
+export type TDotPathMiss = { at: string[]; missing: string; has: string[] };
+
+/** Navigate into a runtime value using path segments. A path that names a field the value doesn't have states where it
+ *  stopped. */
+export function navigateValue(value: unknown, segments: string[]): { value: unknown; found: true } | { value: undefined; found: false; miss: TDotPathMiss } {
 	let current = value;
-	for (const seg of segments) {
-		if (current === null || current === undefined || typeof current !== "object") {
-			return { value: undefined, found: false };
-		}
-		if (!(seg in (current as Record<string, unknown>))) {
-			return { value: undefined, found: false };
-		}
-		current = (current as Record<string, unknown>)[seg];
+	for (const [i, seg] of segments.entries()) {
+		const fields = current !== null && typeof current === "object" ? (current as Record<string, unknown>) : undefined;
+		if (!fields || !(seg in fields)) return { value: undefined, found: false, miss: { at: segments.slice(0, i), missing: seg, has: fields ? Object.keys(fields) : [] } };
+		current = fields[seg];
 	}
 	return { value: current, found: true };
 }

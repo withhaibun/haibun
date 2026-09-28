@@ -208,7 +208,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		return actionOKWithProducts(affordancesSchema.parse({ ...affordances, waypoints, execution: executionOf(world.tag) }));
 	}
 
-	steps: TStepperSteps = {
+	steps = {
 		resolve: {
 			gwta: `resolve {goal: ${DOMAIN_DOMAIN_KEY}}`,
 			productsDomain: DOMAIN_GOAL_RESOLUTION,
@@ -346,7 +346,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 				return actionOKWithProducts(chainLintSchema.parse({ ...report, forward: affordances.forward, goals: affordances.goals, execution: executionOf(world.tag) }));
 			},
 		},
-	};
+	} satisfies TStepperSteps;
 }
 
 export default GoalResolutionStepper;

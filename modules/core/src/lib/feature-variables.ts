@@ -219,7 +219,17 @@ export class FeatureVariables {
 		};
 	}
 
-	private async resolveDotPath(lookupTerm: string): Promise<{ value: unknown; found: boolean }> {
+	/** Why `term` doesn't resolve: a variable that isn't set, or a dot path that names a field its value doesn't have,
+	 *  with the fields that value has. */
+	async unsetReason(term: string): Promise<string> {
+		const read = await this.resolveDotPath(term);
+		if (read.found || !("miss" in read)) return `${term} isn't set`;
+		const { at, missing, has } = read.miss;
+		const where = [parseDotPath(term).baseName, ...at].join(".");
+		return has.length > 0 ? `${where} doesn't have ${missing}; it has ${has.join(", ")}` : `${where} doesn't have ${missing}, since it doesn't hold fields`;
+	}
+
+	private async resolveDotPath(lookupTerm: string): Promise<ReturnType<typeof navigateValue> | { value: undefined; found: false }> {
 		const { baseName, pathSegments } = parseDotPath(lookupTerm);
 		const baseEntry = pathSegments.length > 0 ? await this.getStoredEntry(baseName) : undefined;
 		if (!baseEntry) return { value: undefined, found: false };

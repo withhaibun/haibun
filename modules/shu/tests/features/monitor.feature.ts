@@ -126,11 +126,11 @@ export const features: TKirejiExport = {
 		takeScreenshot({}),
 		takeScreenshot({}),
 		takeScreenshot({}),
-		documentAtLiveEdge(),
+		documentAtLiveEdge({}),
 
 		scenario({ scenario: "The run's screenshots render as tiles that flow in the column" }),
 		"The screenshots this very run just took stream in as artifact events and render as thumbnail tiles in the document: each frame sits in a thumbnail grid row, sized as a tile of the column's grid (never shrink-wrapped small, never blown up to the whole column), with the real image served and filling its frame. Grouping a run of screenshots into one strip is covered by the document-blocks unit tests; this measures the real rendered result.",
-		documentThumbnailsFlow(),
+		documentThumbnailsFlow({}),
 		"The same caches where the blocks differ in height: a screen of prose and a screen of screenshots put very different numbers of blocks on screen, and the thumb must not resize between them.",
 		railThumbHoldsSize({ host: `"${SHU_TAG.DOCUMENT_COLUMN}"` }),
 
@@ -139,9 +139,9 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "A thumbnail expands with its step caption and arrows walk the run's screenshots" }),
 		"Clicking a thumbnail expands it over the column and captions it with the step that took it; the caption rides a stamp the document build put on the frame, since under virtualization the step's own row may not be in the reading window at all. Arrow keys then move between the run's screenshots through the document column, which is the only party that can reach frames outside the rendered window; the time cursor follows each expanded screenshot's step, dimming everything recorded after it.",
-		expandFirstThumbnail(),
+		expandFirstThumbnail({}),
 		documentFutureRowsAtLeast({ min: "1" }),
-		expandedThumbnailNavigates(),
+		expandedThumbnailNavigates({}),
 
 		scenario({ scenario: "The document follows the global time cursor" }),
 		"Scrubbing the time cursor to a row dims every event recorded after it. Click the first row and the later rows dim, proving the virtualized document tracks the shared cursor, not just its own initial paint.",
@@ -150,7 +150,7 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "The monitor and document both follow an externally moved cursor" }),
 		"Move the cursor from the monitor's own first row (the way the timeline or another view moves it): both the monitor AND the still-open document dim their later rows, proving each virtualized view re-renders on the shared cursor, not only when it set the cursor itself.",
-		scrubMonitorFirstRow(),
+		scrubMonitorFirstRow({}),
 		monitorFutureRowsAtLeast({ min: "1" }),
 		documentFutureRowsAtLeast({ min: "1" }),
 	],

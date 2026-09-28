@@ -68,7 +68,7 @@ export default class ShuMonitorColumnControls extends AStepper implements IHasCy
 		return comesToHold(this.firstRowStated(page), test, String(ordinal), STATE_MS);
 	}
 
-	steps: TStepperSteps = {
+	steps = {
 		monitorShowsMoreThan: {
 			gwta: `monitor shows more than {min: ${DOMAIN_NUMBER}} rows`,
 			action: async ({ min }: { min: number }) => {
@@ -315,5 +315,5 @@ export default class ShuMonitorColumnControls extends AStepper implements IHasCy
 					: actionNotOK(`document dimmed ${await future.count()} future rows after the cursor moved, expected at least ${min}`);
 			},
 		},
-	};
+	} satisfies TStepperSteps;
 }

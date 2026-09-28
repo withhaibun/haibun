@@ -118,7 +118,7 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 		},
 	};
 
-	steps: TStepperSteps = {
+	steps = {
 		watchBlips: {
 			gwta: `watch blips {names: ${DOMAIN_BLIP_NAMES}}`,
 			description:
@@ -178,5 +178,5 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 				return actionOKWithProducts({ text, names: declared.map((d) => d.name) });
 			},
 		},
-	};
+	} satisfies TStepperSteps;
 }

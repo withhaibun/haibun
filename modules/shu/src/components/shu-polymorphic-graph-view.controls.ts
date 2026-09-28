@@ -136,50 +136,34 @@ const PointSchema = z.object({ x: z.number(), y: z.number(), z: z.number() });
 const CameraSchema = PointSchema.extend({ target: PointSchema.nullable().optional() }).nullable();
 const ViewportSchema = z.object({ h: z.number(), w: z.number(), worldPerPx: z.number(), calibratedH: z.number() }).nullable();
 const FramingSchema = z.object({ camera: CameraSchema, viewport: ViewportSchema, pos: z.record(z.string(), PointSchema) });
-/** The graph at rest: its framing, and what it draws, which a feature compares through the variables and logic steps. */
+/** The graph at rest: its framing, and what it draws, which a feature compares through the variables and logic steps.
+ *  Each field describes itself, so the domain's schema states what a feature reads. */
 const GraphSnapshotSchema = FramingSchema.extend({
-	/** The node whose column is open, while the graph shows it. */
-	active: z.string().nullable(),
-	/** How many nodes wear the active highlight. */
-	highlighted: z.number(),
-	/** Whether the camera follows the node a reader chooses. */
-	follow: z.boolean(),
-	/** Whether the camera frames the whole graph at a usable size. */
-	framed: z.boolean(),
-	/** Whether a focus lights its neighbourhood and dims the rest. */
-	focusDims: z.boolean(),
-	/** The drawn nodes that a drawn edge doesn't touch. */
-	isolated: z.array(z.string()),
-	/** The predicates the drawn edges carry, each once. */
-	predicates: z.array(z.string()),
-	/** The titles of the boxes drawn around groups. */
-	containers: z.array(z.string()),
-	/** The pairs of group boxes that overlap on the x/y plane, each named by its two titles. */
-	overlapping: z.array(z.string()),
-	/** The area of the group boxes' bounding box over their summed area, while two or more boxes are drawn. */
-	packing: z.number().nullable(),
-	/** The lesser of the ranges the placed nodes span on x and on y. */
-	extent: z.number(),
-	/** The range of depth the nodes with a time span. */
-	timeDepth: z.number(),
-	/** Whether the most connected node is drawn in front of the least connected one. */
-	connectedInFront: z.boolean(),
-	/** Whether a focus lights some edges and dims others. */
-	focusDimsEdges: z.boolean(),
-	/** The types with a node drawn lit, and the types with a node drawn below lit, as a type preview or a focus leaves them. */
-	litTypes: z.array(z.string()),
-	dimTypes: z.array(z.string()),
-	/** Whether a layered view's ranks advance along its flow axis in disjoint bands that span more than the depth time adds; null in another view. */
-	rankedFlow: z.boolean().nullable(),
-	/** In a lane view, the nodes it doesn't draw on its plane where it placed them; null in another view. */
-	offLanePlane: z.array(z.string()).nullable(),
-	/** Whether the camera aims along x, where a lane view's time reads across the view. */
-	facesLanePlane: z.boolean(),
-	/** How many tasks the gantt calendar places, 0 in another view. */
-	ganttTasks: z.number(),
-	/** The sequence's actors by label, and its messages, each as "from → to: label"; empty in another view. */
-	actors: z.array(z.string()),
-	messages: z.array(z.string()),
+	active: z.string().nullable().describe("The node whose column is open, while the graph shows it."),
+	highlighted: z.number().describe("How many nodes wear the active highlight."),
+	follow: z.boolean().describe("Whether the camera follows the node a reader chooses."),
+	framed: z.boolean().describe("Whether the camera frames the whole graph at a usable size."),
+	focusDims: z.boolean().describe("Whether a focus lights its neighbourhood and dims the rest."),
+	isolated: z.array(z.string()).describe("The drawn nodes that a drawn edge doesn't touch."),
+	predicates: z.array(z.string()).describe("The predicates the drawn edges carry, each once."),
+	containers: z.array(z.string()).describe("The titles of the boxes drawn around groups."),
+	overlapping: z.array(z.string()).describe("The pairs of group boxes that overlap on the x/y plane, each named by its two titles."),
+	packing: z.number().nullable().describe("The area of the group boxes' bounding box over their summed area, while two or more boxes are drawn."),
+	extent: z.number().describe("The lesser of the ranges the placed nodes span on x and on y."),
+	timeDepth: z.number().describe("The range of depth the nodes with a time span."),
+	connectedInFront: z.boolean().describe("Whether the most connected node is drawn in front of the least connected one."),
+	focusDimsEdges: z.boolean().describe("Whether a focus lights some edges and dims others."),
+	litTypes: z.array(z.string()).describe("The types with a node drawn lit, as a type preview or a focus leaves them."),
+	dimTypes: z.array(z.string()).describe("The types with a node drawn below lit, as a type preview or a focus leaves them."),
+	rankedFlow: z
+		.boolean()
+		.nullable()
+		.describe("Whether a layered view's ranks advance along its flow axis in disjoint bands that span more than the depth time adds; null in another view."),
+	offLanePlane: z.array(z.string()).nullable().describe("In a lane view, the nodes it doesn't draw on its plane where it placed them; null in another view."),
+	facesLanePlane: z.boolean().describe("Whether the camera aims along x, where a lane view's time reads across the view."),
+	ganttTasks: z.number().describe("How many tasks the gantt calendar places, 0 in another view."),
+	actors: z.array(z.string()).describe("The sequence's actors by label; empty in another view."),
+	messages: z.array(z.string()).describe('The sequence\'s messages, each as "from → to: label"; empty in another view.'),
 });
 const DOMAIN_GRAPH_NODE = "graph-node";
 const DOMAIN_GRAPH_PREDICATES = "graph-predicates";
@@ -518,7 +502,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		return this.hoveredK(page, id);
 	}
 
-	steps: TStepperSteps = {
+	steps = {
 		waitForGraphNodes: {
 			gwta: `graph has at least {count: ${DOMAIN_NUMBER}} nodes`,
 			action: async ({ count }: { count: number }) => {
@@ -1511,7 +1495,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 					: actionNotOK(`limit ${limit} didn't re-render the graph (0 repaints): it didn't change the visible set, so the profile doesn't have a repaint to read`);
 			},
 		},
-	};
+	} satisfies TStepperSteps;
 
 	/** Move the real pointer onto a pixel that picks node `id` AND that a real pointer reaches, or null where such a pixel doesn't exist.
 	 * Probes with the side-effect-free pickAt: a real press on a MISS would orbit the camera and walk the node off-screen,

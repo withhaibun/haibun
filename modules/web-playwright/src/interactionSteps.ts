@@ -263,7 +263,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 					wp.inContainer = (await located.evaluate((element) => element.tagName)) === "IFRAME" ? located.contentFrame().locator(":root") : located;
 					try {
 						const flowResult = await new FlowRunner(wp.getWorld(), [wp]).runSteps(what, { parentStep: featureStep });
-						return flowResult.ok ? OK : actionNotOK(flowResult.errorMessage || "inElement flow failed");
+						return flowResult.ok ? OK : actionNotOK(flowResult.errorMessage);
 					} finally {
 						// Every caller of a running instance shares the container scope, so a failed flow must not leave it set.
 						wp.inContainer = undefined;

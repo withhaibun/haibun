@@ -59,7 +59,7 @@ export default class FinalizerStepper extends AStepper implements IHasCycles {
 		this.held = new FlowRunner(world, steppers);
 	}
 
-	steps: TStepperSteps = {
+	steps = {
 		registerFinalizer: {
 			gwta: `finalizer {statement:${DOMAIN_STATEMENT}}`,
 			action: ({ statement }: { statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
@@ -71,5 +71,5 @@ export default class FinalizerStepper extends AStepper implements IHasCycles {
 				return OK;
 			},
 		},
-	};
+	} satisfies TStepperSteps;
 }

@@ -1,0 +1,17 @@
+{
+	"extends": "./modules/tsconfig.settings.json",
+	"compilerOptions": {
+		"noEmit": true,
+		"allowImportingTsExtensions": true,
+		"rootDir": ".",
+		"composite": false,
+		"incremental": false,
+		"declaration": false,
+		"declarationMap": false,
+		"sourceMap": false,
+		"lib": ["es2022", "DOM"],
+		"paths": {}
+	},
+	"include": ["e2e-tests/*/features/**/*.ts", "e2e-tests/*/backgrounds/**/*.ts", "modules/*/tests*/**/*.ts", "modules/*/test/**/*.feature.ts"],
+	"exclude": ["**/node_modules/**", "**/build/**", "**/capture/**"]
+}

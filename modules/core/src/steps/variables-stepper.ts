@@ -328,7 +328,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 					secure: true,
 				});
 				if (resolved.value === undefined || (resolved.origin !== Origin.var && resolved.origin !== Origin.env)) {
-					return actionNotOK(`${term} is not set`);
+					return actionNotOK(await this.getWorld().shared.unsetReason(term));
 				}
 
 				const domainKey = normalizeDomainKey(resolved.domain);
@@ -528,7 +528,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			secure: true,
 		});
 		if (!stored) {
-			return actionNotOK(`${term} is not set`);
+			return actionNotOK(await this.getWorld().shared.unsetReason(term));
 		}
 		const domainKey = normalizeDomainKey(stored.domain);
 		const domainEntry = registeredDomain(this.getWorld().domains, domainKey, `the value of ${term}`);
