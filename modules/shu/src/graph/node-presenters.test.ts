@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { presenterForType, registerNodePresenter, DEFAULT_PRESENTER, type NodePresenter } from "./node-presenters.js";
-import { assertNodeMark } from "./graph-scene.js";
-import { ONTOLOGY_PROPERTY } from "./ontology-projection.js";
+import { presenterForType, DEFAULT_PRESENTER } from "./node-presenters.js";
+import { ONTOLOGY_CLASS, ONTOLOGY_PROPERTY } from "./ontology-projection.js";
 
 describe("node presenters (per-@type, capability-driven default)", () => {
 	it("default presenter renders a free chip when it doesn't have a time placement", () => {
@@ -26,11 +25,9 @@ describe("node presenters (per-@type, capability-driven default)", () => {
 		expect(p.present({ id: "maker", name: "maker", type: ONTOLOGY_PROPERTY }, {}).faint).toBeFalsy();
 	});
 
-	it("presenterForType falls back to the default, and a registered @type overrides it", () => {
-		expect(presenterForType("Unregistered")).toBe(DEFAULT_PRESENTER);
-		const square: NodePresenter = { present: (n) => assertNodeMark({ id: n.id, type: n.type, kind: "mesh", label: n.name, color: "#111", role: { kind: "free" } }) };
-		registerNodePresenter("Widget", square);
-		expect(presenterForType("Widget")).toBe(square);
-		expect(presenterForType("Widget").present({ id: "w", name: "W", type: "Widget" }, {}).kind).toBe("mesh");
+	it("presenterForType gives a schema type its own mark, and every other type the default", () => {
+		expect(presenterForType("Person")).toBe(DEFAULT_PRESENTER);
+		expect(presenterForType(ONTOLOGY_CLASS).present({ id: "Person", name: "Person", type: ONTOLOGY_CLASS }, {}).kind).toBe("square");
+		expect(presenterForType(ONTOLOGY_PROPERTY).present({ id: "maker", name: "maker", type: ONTOLOGY_PROPERTY }, {}).kind).toBe("lozenge");
 	});
 });

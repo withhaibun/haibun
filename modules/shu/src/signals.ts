@@ -17,6 +17,7 @@
  * signals mirror it for ergonomic auto-rerender of main-bundle lit components.
  */
 import { Signal } from "@lit-labs/signals";
+import { pagePinned } from "./page-pinned.js";
 import { NOTHING_SELECTED_LABEL, type TComboboxOption, type TPageContext } from "./schemas.js";
 
 /** The globalThis key every bundle's shared cells are held under, so a page reader outside the bundles finds the same cells. */
@@ -148,17 +149,16 @@ export const stripPanes = new SharedSignal<ReadonlyArray<TStripPane>>("stripPane
 
 // --- Persisted reactive settings -------------------------------------------------------------------------------------
 // One mechanism for every global UI setting (data window size, …) so they can't drift into bespoke per-setting wiring.
-// localStorage is the durable store; a globalThis-pinned signal is the in-bundle reactive mirror, reading get() in a
+// localStorage is the durable store; a signal the page holds is the in-bundle reactive mirror, reading get() in a
 // lit render() auto-subscribes the view, so changing a setting in the UI re-renders every view that reads it. (A
 // cross-bundle view, a separate IIFE like the polymorphic view, does not track signals across the boundary; a setting that
 // must reach one would keep an explicit subscribe, as timeCursor does. Settings consumed in-bundle don't need one.)
 
 const SETTING_SIGNALS_KEY = "__SHU_SETTING_SIGNALS__";
 
-/** Resolve (creating once) the globalThis-pinned signal backing a setting key, so every importer shares one instance. */
+/** Resolve (creating once) the signal the page holds for a setting key, so every importer shares one instance. */
 function settingSignal(storageKey: string): Signal.State<string | null> {
-	const g = globalThis as unknown as Record<string, Map<string, Signal.State<string | null>> | undefined>;
-	const map = (g[SETTING_SIGNALS_KEY] ??= new Map<string, Signal.State<string | null>>());
+	const map = pagePinned(SETTING_SIGNALS_KEY, () => new Map<string, Signal.State<string | null>>());
 	let signal = map.get(storageKey);
 	if (!signal) {
 		signal = new Signal.State<string | null>(null);

@@ -9,8 +9,7 @@
 		"./*": {
 			"development": "./src/*",
 			"default": "./build/*"
-		},
-		"./schema/*": "./build/schema/*"
+		}
 	},
 	"main": "./build/index.js",
 	"files": [

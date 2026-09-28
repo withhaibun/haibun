@@ -109,3 +109,25 @@ describe("params a view writes into the hash", () => {
 		carryNothing();
 	});
 });
+
+/** The copy of this module another bundle on the page loads, as the graph view's bundle loads its own beside the app's. */
+const BUNDLE_COPY = "./view-hash.js?bundle=graph-view";
+const anotherBundle = (): Promise<typeof import("./view-hash.js")> => import(/* @vite-ignore */ BUNDLE_COPY);
+
+describe("the page's hash, across its bundles", () => {
+	it("reaches a view in another bundle, which reads the same hash and hears an arrival once", async () => {
+		const other = await anotherBundle();
+		pushHash("#?");
+		let heard = 0;
+		const stop = other.onHashChanged(() => heard++);
+		mergeHashParams({ "aff-goal": "vc" });
+		expect(heard, "a hash one bundle writes reaches a view in the other").toBe(1);
+		window.dispatchEvent(new HashChangeEvent("hashchange"));
+		expect(heard, "the page hears an arrival once, whatever bundles it loads").toBe(2);
+		stop();
+		carryARun();
+		pushHash("#?aff-goal=offline");
+		expect(other.hashParam("aff-goal"), "a record of a run holds one hash for the page").toBe("offline");
+		carryNothing();
+	});
+});

@@ -63,11 +63,14 @@ const SHAPE_KEY = "shape";
  *  an earlier build would be read wrongly by this one: the store then forgets what it cached rather than serving it. */
 export const CACHE_SHAPE = "run-records/1";
 
-let dbPromise: Promise<IDBDatabase | null> | null = null;
+/** The page's one connection to the device's database, which every bundle on the page opens through. */
+const DEVICE_DB_KEY = "__SHU_DEVICE_DB__";
+const deviceDb = (): { opening: Promise<IDBDatabase | null> | null } => pagePinned(DEVICE_DB_KEY, () => ({ opening: null }));
 
 function openDb(): Promise<IDBDatabase | null> {
-	if (dbPromise) return dbPromise;
-	dbPromise = new Promise((resolve) => {
+	const held = deviceDb();
+	if (held.opening) return held.opening;
+	held.opening = new Promise((resolve) => {
 		if (typeof indexedDB === "undefined") {
 			resolve(null); // IndexedDB doesn't exist here → reads stub, writes drop, and a view reads what the site answers
 			return;
@@ -98,7 +101,7 @@ function openDb(): Promise<IDBDatabase | null> {
 			const db = req.result;
 			db.onversionchange = () => {
 				db.close();
-				dbPromise = null;
+				held.opening = null;
 			};
 			for (const former of FORMER_DB_NAMES) indexedDB.deleteDatabase(former); // the databases this one replaces
 			void forgetIfIncompatible(db).then(() => resolve(db));
@@ -108,7 +111,7 @@ function openDb(): Promise<IDBDatabase | null> {
 			resolve(null);
 		};
 	});
-	return dbPromise;
+	return held.opening;
 }
 
 /** Forget what was cached under a different shape, and record the shape this build reads. What is forgotten is a cache:

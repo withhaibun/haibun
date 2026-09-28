@@ -1,3 +1,4 @@
+import { pagePinned } from "./page-pinned.js";
 import { esc } from "@haibun/core/lib/document-content.js";
 
 export { esc };
@@ -91,12 +92,13 @@ export function utf8ToBase64(str: string): string {
 	return btoa(binary);
 }
 
-/** Label → ID field mapping, populated from server via setIdFields(). */
-let idFields: Record<string, string> = {};
+/** The page's label → ID field mapping, which every bundle on the page reads, populated from the server via setIdFields(). */
+const ID_FIELDS_KEY = "__SHU_ID_FIELDS__";
+const pageIdFields = (): { byLabel: Record<string, string> } => pagePinned(ID_FIELDS_KEY, () => ({ byLabel: {} }));
 
 /** Set the ID fields mapping (called once from loadMetadata with server data). */
 export function setIdFields(fields: Record<string, string>): void {
-	idFields = fields;
+	pageIdFields().byLabel = fields;
 }
 
 /** Get the identity value from a record. Prefers JSON-LD `@id` (parses the IRI tail) and falls back to label-keyed id fields or common id-bearing fields. */
@@ -107,6 +109,7 @@ export function idOf(v: Record<string, unknown>): string {
 		if (slash >= 0) return iri.slice(slash + 1);
 	}
 	const label = v["@type"] as string | undefined;
+	const idFields = pageIdFields().byLabel;
 	if (label && idFields[label]) return String(v[idFields[label]] ?? "");
 	return String(v.messageId ?? v.email ?? v.id ?? v.path ?? v.name ?? v.account ?? "");
 }

@@ -1,7 +1,7 @@
 /**
  * viewQuery: the single, schema-validated source of truth for the URL-hash view/query state: the
  * type, text search, sort, pagination, access level, and compound filters that shu-graph-query and
- * the actions bar share. One signal per param, globalThis-pinned (so every importer in this realm
+ * the actions bar share. One signal per param, held by the page (so every importer on the page
  * shares one instance); reading `.get()` inside a lit render() auto-subscribes the view via the
  * SignalWatcher base. The URL hash is the durable store: `hydrate()` reads it at boot and on
  * back/forward, `set()` writes it back, so a reload restores the view.
@@ -20,6 +20,7 @@ import { z } from "zod";
 import { AccessQuery, AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
 import { parseFilterParam, serializeFilterParam } from "./schemas.js";
 import { SearchConditionSchema, type TSearchCondition } from "@haibun/core/lib/quad-types.js";
+import { pagePinned } from "./page-pinned.js";
 import * as ViewHash from "./view-hash.js";
 
 type TAccessQueryLevel = z.infer<typeof AccessQueryLevelSchema>;
@@ -78,7 +79,7 @@ export function serializeViewQuery(q: TViewQuery): string {
 	return s ? `#?${s}` : "";
 }
 
-// --- the globalThis-pinned signal store ---
+// --- the page's signal store ---
 
 const STORE_KEY = "__SHU_VIEW_QUERY__";
 type ViewQueryStore = {
@@ -93,22 +94,19 @@ type ViewQueryStore = {
 };
 
 function store(): ViewQueryStore {
-	const g = globalThis as unknown as Record<string, ViewQueryStore | undefined>;
-	const existing = g[STORE_KEY];
-	if (existing) return existing;
-	const d = ViewQuerySchema.parse({});
-	const fresh: ViewQueryStore = {
-		label: new Signal.State(d.label),
-		q: new Signal.State(d.q),
-		sort: new Signal.State(d.sort),
-		order: new Signal.State(d.order),
-		offset: new Signal.State(d.offset),
-		access: new Signal.State<TAccessQueryLevel>(d.access),
-		f: new Signal.State(d.f),
-		lastWrittenHash: "",
-	};
-	g[STORE_KEY] = fresh;
-	return fresh;
+	return pagePinned(STORE_KEY, (): ViewQueryStore => {
+		const d = ViewQuerySchema.parse({});
+		return {
+			label: new Signal.State(d.label),
+			q: new Signal.State(d.q),
+			sort: new Signal.State(d.sort),
+			order: new Signal.State(d.order),
+			offset: new Signal.State(d.offset),
+			access: new Signal.State<TAccessQueryLevel>(d.access),
+			f: new Signal.State(d.f),
+			lastWrittenHash: "",
+		};
+	});
 }
 
 function snapshot(): TViewQuery {

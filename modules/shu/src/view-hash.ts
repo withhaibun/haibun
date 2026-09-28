@@ -1,3 +1,4 @@
+import { pagePinned } from "./page-pinned.js";
 import { isOffline } from "./rpc-registry.js";
 
 /** The hash parameter that names one open column by its pane id, once for each column, in order. */
@@ -59,46 +60,62 @@ function replaceLocationHash(newHash: string): void {
 	}
 }
 
-// The last canonical hash: the offline store, the merge base for `open=` arrivals, and (seeded at
-// import, updated on every arrival and push) a mirror of location.hash.
-let _storedHash = "";
+/**
+ * The page's hash, which every bundle on the page reads and writes, so a view in one bundle hears a hash a view in
+ * another pushes. `stored` is the last canonical hash: the offline store, the merge base for `open=` arrivals, and a
+ * mirror of location.hash, updated on every arrival and push. `subscribers` are the views that render from it.
+ */
+type TPageHash = { stored: string; subscribers: Set<() => void> };
+const PAGE_HASH_KEY = "__SHU_PAGE_HASH__";
+const pageHash = (): TPageHash => pagePinned(PAGE_HASH_KEY, arriveAtBoot, departPage);
+
+/** The boot arrival: the address itself is the only state there is, so it is its own merge base. The page listens for
+ *  later arrivals once, from the bundle that holds its hash first. */
+function arriveAtBoot(): TPageHash {
+	const held: TPageHash = { stored: "", subscribers: new Set() };
+	if (typeof location === "undefined") return held;
+	held.stored = canonicalizeArrival(location.hash, location.hash);
+	if (held.stored !== location.hash) replaceLocationHash(held.stored);
+	if (typeof addEventListener !== "undefined") addEventListener("hashchange", onHashArrival);
+	return held;
+}
+
+function departPage(): void {
+	if (typeof removeEventListener !== "undefined") removeEventListener("hashchange", onHashArrival);
+}
 
 function onHashArrival(): void {
+	const held = pageHash();
 	const arrived = location.hash;
-	_storedHash = canonicalizeArrival(arrived, _storedHash);
-	if (_storedHash !== arrived) replaceLocationHash(_storedHash);
+	held.stored = canonicalizeArrival(arrived, held.stored);
+	if (held.stored !== arrived) replaceLocationHash(held.stored);
 	announce();
 }
 
-if (typeof location !== "undefined") {
-	// Boot arrival: the address itself is the only state there is, so it is its own merge base.
-	_storedHash = canonicalizeArrival(location.hash, location.hash);
-	if (_storedHash !== location.hash) replaceLocationHash(_storedHash);
-	if (typeof addEventListener !== "undefined") addEventListener("hashchange", onHashArrival);
-}
+// At import, so the arrival listener runs before any a view adds later and a view reads the canonical hash.
+pageHash();
 
 /**
  * What a view subscribes to when it renders from the hash: the address arriving with one, and a view writing one
  * through history. A window `hashchange` covers only the first, and an offline snapshot doesn't raise either, so a page
  * saved for reading offline would otherwise never hear its own deep links.
  */
-const subscribers = new Set<() => void>();
-
 export function onHashChanged(listener: () => void): () => void {
+	const { subscribers } = pageHash();
 	subscribers.add(listener);
 	return () => subscribers.delete(listener);
 }
 
 function announce(): void {
-	for (const listener of subscribers) listener();
+	for (const listener of pageHash().subscribers) listener();
 }
 
 export function getHash(): string {
-	return isOffline() ? _storedHash : typeof location !== "undefined" ? location.hash : "";
+	return isOffline() ? pageHash().stored : typeof location !== "undefined" ? location.hash : "";
 }
 
 export function pushHash(newHash: string): void {
-	_storedHash = newHash;
+	pageHash().stored = newHash;
 	if (isOffline()) return;
 	if (typeof location === "undefined" || typeof history === "undefined") return;
 	if (location.hash !== newHash) replaceLocationHash(newHash);

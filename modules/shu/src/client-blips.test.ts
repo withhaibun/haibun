@@ -11,13 +11,8 @@ vi.mock("./hypermedia.js", () => ({
 }));
 vi.mock("./rpc-registry.js", () => ({ isOffline: () => offline }));
 
-import { CLIENT_RING } from "./client-blips.js";
-
-type TClientBlips = typeof import("./client-blips.js");
-let recordClientBlip: TClientBlips["recordClientBlip"];
-let flushClientBlips: TClientBlips["flushClientBlips"];
-let clientBlipsRecorded: TClientBlips["clientBlipsRecorded"];
-let clientBlipsSent: TClientBlips["clientBlipsSent"];
+import { CLIENT_RING, clientBlipsRecorded, clientBlipsSent, flushClientBlips, recordClientBlip } from "./client-blips.js";
+import { endPage } from "./page-pinned.js";
 
 type TSentCall = { params: { batch: { blips: { name: string; value?: number }[]; recorded: number } } };
 const sentBatch = () => {
@@ -27,14 +22,13 @@ const sentBatch = () => {
 };
 
 describe("recording in the browser: hold it, hand it over in batches", () => {
-	// A page records from the moment it loads, so each case loads the module afresh.
-	beforeEach(async () => {
+	// A page records from the moment it loads, so each case is a page of its own: the previous page ends first.
+	beforeEach(() => {
 		vi.useFakeTimers();
 		follow.mockClear();
 		offline = false;
 		conduitInstalled = true;
-		vi.resetModules();
-		({ recordClientBlip, flushClientBlips, clientBlipsRecorded, clientBlipsSent } = await import("./client-blips.js"));
+		endPage();
 	});
 	afterEach(() => vi.useRealTimers());
 

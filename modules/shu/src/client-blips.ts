@@ -1,3 +1,4 @@
+import { pagePinned } from "./page-pinned.js";
 import { isOffline } from "./rpc-registry.js";
 /**
  * The browser side of the blip channel.
@@ -21,63 +22,70 @@ const FLUSH_DELAY_MS = 250;
 
 type TClientBlip = { name: string; value?: number; attributes?: Record<string, unknown>; at: number };
 
-let ring: TClientBlip[] = [];
-let at = 0;
-let recorded = 0;
-let sent = 0;
-let timer: ReturnType<typeof setTimeout> | undefined;
+/** The page's one buffer of occurrences, which every bundle on the page records into and sends from. */
+type TBlipBuffer = { ring: TClientBlip[]; at: number; recorded: number; sent: number; timer?: ReturnType<typeof setTimeout> };
+const BLIPS_KEY = "__SHU_CLIENT_BLIPS__";
+const buffer = (): TBlipBuffer =>
+	pagePinned<TBlipBuffer>(
+		BLIPS_KEY,
+		() => ({ ring: [], at: 0, recorded: 0, sent: 0 }),
+		(held) => clearTimeout(held.timer),
+	);
 
 /**
  * Record one occurrence. This is the hot path: it holds the occurrence and returns, and is meant to be called
  * unconditionally from wherever the thing being observed happens.
  */
 export function recordClientBlip(name: string, value?: number, attributes?: Record<string, unknown>): void {
-	recorded++;
+	const held = buffer();
+	held.recorded++;
 	const blip: TClientBlip = { name, value, attributes, at: Date.now() };
-	if (ring.length < CLIENT_RING) ring.push(blip);
+	if (held.ring.length < CLIENT_RING) held.ring.push(blip);
 	else {
-		ring[at] = blip;
-		at = (at + 1) % CLIENT_RING;
+		held.ring[held.at] = blip;
+		held.at = (held.at + 1) % CLIENT_RING;
 	}
 	scheduleFlush();
 }
 
 /** Every occurrence recorded since the page loaded, including any a full ring dropped before it could be sent. */
 export function clientBlipsRecorded(): number {
-	return recorded;
+	return buffer().recorded;
 }
 
 /** Occurrences handed to the run so far. */
 export function clientBlipsSent(): number {
-	return sent;
+	return buffer().sent;
 }
 
 function scheduleFlush(): void {
 	// A page that doesn't have a run for its batches (offline, or mounted without a conduit) holds what it records and doesn't send a batch.
-	if (timer || isOffline() || !hasConduit()) return;
-	timer = setTimeout(() => {
-		timer = undefined;
+	const held = buffer();
+	if (held.timer || isOffline() || !hasConduit()) return;
+	held.timer = setTimeout(() => {
+		held.timer = undefined;
 		void flushClientBlips();
 	}, FLUSH_DELAY_MS);
 }
 
 /** Hand everything held to the run as one batch. Exported so a test can flush without waiting for the timer. */
 export async function flushClientBlips(): Promise<void> {
-	const batch = takeHeld();
+	const held = buffer();
+	const batch = takeHeld(held);
 	if (batch.length === 0) return;
-	sent += batch.length;
+	held.sent += batch.length;
 	// A dropped batch is a lost observation, never a broken page: the run keeps its own count of what it received, and
 	// the occurrence was by definition one the run does not retain.
 	// A read, not an act: the run doesn't retain a blip, so a batch's arrival is not recorded as a step. A recorded
 	// batch would be a step whose events reach the page and repaint a scene that then records what it drew.
 	await conduit()
-		.follow(reads("MonitorStepper-recordClientBlips", { batch: { blips: batch, recorded } }), `blips: ${batch.length} occurrence(s)`)
+		.follow(reads("MonitorStepper-recordClientBlips", { batch: { blips: batch, recorded: held.recorded } }), `blips: ${batch.length} occurrence(s)`)
 		.catch((e) => console.warn("[shu] blip batch not delivered", e));
 }
 
-function takeHeld(): TClientBlip[] {
-	const held = ring.length < CLIENT_RING ? ring : [...ring.slice(at), ...ring.slice(0, at)];
-	ring = [];
-	at = 0;
-	return held;
+function takeHeld(held: TBlipBuffer): TClientBlip[] {
+	const taken = held.ring.length < CLIENT_RING ? held.ring : [...held.ring.slice(held.at), ...held.ring.slice(0, held.at)];
+	held.ring = [];
+	held.at = 0;
+	return taken;
 }

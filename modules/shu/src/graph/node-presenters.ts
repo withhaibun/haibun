@@ -1,7 +1,7 @@
 /**
  * Per-@type node presenters: each decides a node's SEMANTIC presentation (a backend-neutral NodeMark), the view hands
- * each node off to `presenterForType(node.type)`. A registry keyed by @type with a capability-driven DEFAULT covers
- * unregistered types, so this is hypermedia-led (a node's declared rels/capabilities pick its mark) with per-type
+ * each node off to `presenterForType(node.type)`. A table keyed by @type with a capability-driven DEFAULT covers
+ * the types it doesn't list, so this is hypermedia-led (a node's declared rels/capabilities pick its mark) with per-type
  * overrides, not a hardcoded type enumeration. Pure + fail-fast (every mark goes through assertNodeMark). The colour is
  * the shared per-type colour (one source of truth across 3D + SVG); the paints translate the mark to their medium.
  */
@@ -41,18 +41,6 @@ export const DEFAULT_PRESENTER: NodePresenter = {
 	},
 };
 
-const registry = new Map<string, NodePresenter>();
-
-/** Register a presenter for a concrete @type (overrides the capability default for that type). */
-export function registerNodePresenter(type: string, presenter: NodePresenter): void {
-	registry.set(type, presenter);
-}
-
-/** The presenter for a @type: a registered one, else the capability-driven default. */
-export function presenterForType(type: string): NodePresenter {
-	return registry.get(type) ?? DEFAULT_PRESENTER;
-}
-
 // The merged ontology's SCHEMA types each carry their own paint KIND, symmetrically through the mark registry: a Property
 // is a "lozenge" (an elongated diamond holding the name), a Class a "square" token, set apart from the rounded instance
 // chips. The plain @type name is the label; the shape carries the kind.
@@ -69,5 +57,14 @@ const schemaPresenter = (schema: "class" | "property"): NodePresenter => ({
 			faint: schema === "property" && n.properties?.inData === false,
 		}),
 });
-registerNodePresenter(ONTOLOGY_CLASS, schemaPresenter("class"));
-registerNodePresenter(ONTOLOGY_PROPERTY, schemaPresenter("property"));
+
+/** The types whose mark differs from the capability default: the merged ontology's schema types. */
+const PRESENTERS: ReadonlyMap<string, NodePresenter> = new Map([
+	[ONTOLOGY_CLASS, schemaPresenter("class")],
+	[ONTOLOGY_PROPERTY, schemaPresenter("property")],
+]);
+
+/** The presenter for a @type: the one the table lists, else the capability-driven default. */
+export function presenterForType(type: string): NodePresenter {
+	return PRESENTERS.get(type) ?? DEFAULT_PRESENTER;
+}

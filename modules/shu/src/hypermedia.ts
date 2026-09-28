@@ -107,10 +107,13 @@ export interface Conduit {
 
 type ActionScope = { readonly root: readonly number[]; subSeq: number };
 
-let rpcCounter = 0;
+/** How many calls the page has numbered, across its bundles, so two calls on the page don't share an id. */
+const RPC_IDS_KEY = "__SHU_RPC_IDS__";
+const issuedRpcIds = (): { count: number } => pagePinned(RPC_IDS_KEY, () => ({ count: 0 }));
 function nextRpcId(): string {
-	rpcCounter += 1;
-	return `rpc-${rpcCounter}-${Date.now().toString(36)}`;
+	const issued = issuedRpcIds();
+	issued.count += 1;
+	return `rpc-${issued.count}-${Date.now().toString(36)}`;
 }
 
 /** What the run answers `action.begin` with: the place in its sequence the act is recorded at. */
