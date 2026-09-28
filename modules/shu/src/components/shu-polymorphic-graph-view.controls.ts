@@ -202,7 +202,8 @@ const graphControlDomains: TDomainDefinition[] = [
 ];
 
 type TFraming = z.infer<typeof FramingSchema>;
-type Snapshot = z.infer<typeof GraphSnapshotSchema>;
+/** The graph at rest as `snapshot the graph` records it. */
+export type TGraphSnapshot = z.infer<typeof GraphSnapshotSchema>;
 type TGraphNode = { id: string };
 type TGraphScene = z.infer<typeof GraphSceneSchema>;
 type TSampled = TGraphState["sample"][number];
@@ -270,7 +271,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	}
 
 	/** The graph as `snapshot the graph` records it: its framing and what it draws. */
-	private async snapshot(page: Page): Promise<Snapshot> {
+	private async snapshot(page: Page): Promise<TGraphSnapshot> {
 		const state = await this.state(page);
 		const { focus, highlighted, follow, onScreen, sample, edges, enclosures, layered, camera, gantt, sequence } = state;
 		const drawn = await this.view(page).evaluate((view: ShuPolymorphicGraphView) => [...(view.nodeMap?.keys() ?? [])]);
@@ -825,7 +826,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			// where the graph must NOT re-decide its own framing. "changed" confirms a sanctioned pan/orbit/fit moved it.
 			// Node positions are not checked: opening a node may legitimately bring in data; only the framing is pinned.
 			gwta: `graph view is {state: ${DOMAIN_GRAPH_CHANGE}} since {before: ${DOMAIN_GRAPH_SNAPSHOT}}`,
-			action: async ({ state, before }: { state: string; before: Snapshot }) => {
+			action: async ({ state, before }: { state: string; before: TGraphSnapshot }) => {
 				if (!before.camera || !before.viewport) return actionNotOK("the graph snapshot doesn't hold a framing");
 				const page = await this.page();
 				await this.waitForCalibratedViewport(page);
@@ -847,7 +848,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			// Node WORLD positions barely moved since the snapshot: the layout did not wiggle/reheat. This is the
 			// "bananas" guard, distinct from framing: the camera can hold steady while nodes churn under rapid focus switches.
 			gwta: `graph layout is steady since {before: ${DOMAIN_GRAPH_SNAPSHOT}}`,
-			action: async ({ before }: { before: Snapshot }) => {
+			action: async ({ before }: { before: TGraphSnapshot }) => {
 				const after = await this.framing(await this.page());
 				let maxDrift = 0;
 				let worst = "";
@@ -868,7 +869,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		},
 		graphZoom: {
 			gwta: `graph zoom is {comparison: ${DOMAIN_GRAPH_ZOOM_CMP}} than {before: ${DOMAIN_GRAPH_SNAPSHOT}}`,
-			action: async ({ comparison, before }: { comparison: string; before: Snapshot }) => {
+			action: async ({ comparison, before }: { comparison: string; before: TGraphSnapshot }) => {
 				if (!before.viewport) return actionNotOK("the graph snapshot doesn't hold a viewport");
 				const after = await this.framing(await this.page());
 				if (!after.viewport) return actionNotOK("the graph doesn't have a live viewport");
@@ -1366,7 +1367,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			// be the same after following to another node as before. (inspect's worldPerPx is measured at the ORIGIN, so
 			// it moves whenever the target moves in depth even though the camera didn't zoom; the distance is the reliable signal.)
 			gwta: `graph holds its distance to what it looks at since {before: ${DOMAIN_GRAPH_SNAPSHOT}}`,
-			action: async ({ before }: { before: Snapshot }) => {
+			action: async ({ before }: { before: TGraphSnapshot }) => {
 				const after = await this.framing(await this.page());
 				const span = (s: TFraming): number | null =>
 					s.camera?.target ? Math.hypot(s.camera.x - s.camera.target.x, s.camera.y - s.camera.target.y, s.camera.z - s.camera.target.z) : null;
