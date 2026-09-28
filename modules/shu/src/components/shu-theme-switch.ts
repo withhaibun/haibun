@@ -61,7 +61,7 @@ export function applyShuPreferences(): void {
 	document.documentElement.style.setProperty("--shu-scale", readScale());
 }
 
-export class ShuThemeSwitch extends ShuElement<typeof ThemeSwitchSchema> {
+class ShuThemeSwitch extends ShuElement<typeof ThemeSwitchSchema> {
 	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;

@@ -15,7 +15,7 @@ export type SceneNode = { id: string; name: string; type: string; isCluster?: bo
  *  `time` = a placed calendar task (epoch-ms span + the bar's world length); absent when not time-laid-out. */
 export type PresentContext = { time?: { start: number; end: number; zExtent: number } };
 
-export interface NodePresenter {
+interface NodePresenter {
 	/** A node's mark: what it looks like + its layout role. Must return an assertNodeMark()-validated mark. */
 	present(node: SceneNode, ctx: PresentContext): NodeMark;
 }

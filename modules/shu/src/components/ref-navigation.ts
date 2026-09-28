@@ -49,7 +49,7 @@ export function paneHref(desired: DesiredPane): string {
 }
 
 /** What a link in the page addresses: the pane its one column names, and the view state its other params set. */
-export type TDeepLink = { pane: DesiredPane; state: Record<string, string> };
+type TDeepLink = { pane: DesiredPane; state: Record<string, string> };
 
 /** What a link addresses, or null for an href that doesn't name one pane, which the browser follows. A hash that names the
  *  active pane is a layout of the page rather than a link to a view. */

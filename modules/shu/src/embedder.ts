@@ -29,7 +29,7 @@ const SelectionSchema = z
 
 /** The page the reader is on, as the embedding page posts it: its address, its title, the passage the reader selected,
  *  and the call that reads the page, which the embedding page states once the page's tab is attached. */
-export const EmbeddedPageViewSchema = z
+const EmbeddedPageViewSchema = z
 	.object({
 		"@id": z.url(),
 		"@type": z.literal(EMBEDDED_PAGE_TYPE),
@@ -63,7 +63,7 @@ export type TEmbedderMessage = z.infer<typeof EmbedderMessageSchema>;
 
 /** A message shu posts to the page embedding it: the key shu signs as, which that page delegates to. */
 export const FrameMessageSchema = z.object({ kind: z.literal(EMBED_MESSAGE.pageKey), controller: z.string() }).strict();
-export type TFrameMessage = z.infer<typeof FrameMessageSchema>;
+type TFrameMessage = z.infer<typeof FrameMessageSchema>;
 
 /** The page the reader is on, as the embedding page last posted it. */
 export const embeddedPageView = new SharedSignal<TEmbeddedPageView | null>("embeddedPageView", null);

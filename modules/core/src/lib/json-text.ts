@@ -31,4 +31,3 @@ export function fromJsonText<T extends z.ZodType>(schema: T) {
 
 /** A JSON object read whole, as a record's JSON body or a signed document holds one. */
 export const JsonObjectSchema = z.record(z.string(), z.json());
-export type TJsonObject = z.infer<typeof JsonObjectSchema>;

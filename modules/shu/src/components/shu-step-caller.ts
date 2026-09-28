@@ -41,7 +41,7 @@ function isCompositeProperty(prop: InputProperty | undefined): prop is InputProp
  *   auto: call on mount without showing input form
  *   params: JSON string of fixed params, merged with form values
  */
-export class StepCaller extends HTMLElement {
+class StepCaller extends HTMLElement {
 	private descriptor: TStepDefinition | undefined;
 	private fixedParams: Record<string, unknown> = {};
 	private result: unknown = null;

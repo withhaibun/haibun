@@ -21,7 +21,6 @@ export {
 	MAYBE_CHECK_YES,
 	MAYBE_CHECK_NO,
 	Timer,
-	JITSerializer,
 	EventFormatter,
 	shortenURI,
 } from "../schema/protocol.js";

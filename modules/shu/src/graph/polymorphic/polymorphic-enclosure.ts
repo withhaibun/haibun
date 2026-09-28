@@ -41,7 +41,7 @@ export type Obj3D = {
 	add(o: Obj3D): void;
 	remove(o: Obj3D): void;
 };
-export type EnclMaterial = Disposable & { color: { set(c: string): void }; opacity: number };
+type EnclMaterial = Disposable & { color: { set(c: string): void }; opacity: number };
 export interface EnclosureThree {
 	Group: new () => Obj3D;
 	Mesh: new (geometry: unknown, material: unknown) => Obj3D;

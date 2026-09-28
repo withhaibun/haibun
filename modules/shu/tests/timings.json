@@ -7,7 +7,7 @@
 				"declaredStepTextHash": "8f5030b6d857f3835d5a6a79dc6481200b9908badeac264df789405dfa00967b"
 			},
 			"/features/federate.feature.ts": {
-				"seconds": 0.7,
+				"seconds": 0.6,
 				"steps": 6,
 				"declaredStepTextHash": "ab37731cb50813b783e0aa872bb80a9b995c504e308a5603c48f254263f91584"
 			},
@@ -28,6 +28,6 @@
 			}
 		},
 		"steps": 979,
-		"seconds": 13.4
+		"seconds": 13.3
 	}
 }

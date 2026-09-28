@@ -12,7 +12,7 @@ import { BreadcrumbSchema, NOTHING_SELECTED_LABEL } from "../schemas.js";
 import { SEARCH_SLOT, SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
 
-export class ShuBreadcrumb extends ShuElement<typeof BreadcrumbSchema> {
+class ShuBreadcrumb extends ShuElement<typeof BreadcrumbSchema> {
 	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;

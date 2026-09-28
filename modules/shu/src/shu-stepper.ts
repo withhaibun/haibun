@@ -177,7 +177,7 @@ function createSpaHandler(basePath: string, settings: () => TDeploymentSettings)
 }
 
 /** The pages that may frame shu: this site's own, and the embedding page's origin where the deployment names one. */
-export const frameAncestors = (embedderOrigin: string | undefined): string => ["frame-ancestors 'self'", ...(embedderOrigin ? [embedderOrigin] : [])].join(" ");
+const frameAncestors = (embedderOrigin: string | undefined): string => ["frame-ancestors 'self'", ...(embedderOrigin ? [embedderOrigin] : [])].join(" ");
 
 /** An origin as a page states it: a scheme and a host, such as `https://example.com` or `chrome-extension://<id>`. */
 const ORIGIN = /^[a-z][a-z0-9+.-]*:\/\/[^/\s]+$/;

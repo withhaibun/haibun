@@ -20,7 +20,7 @@ import { esc } from "../util.js";
 import { JsonObjectSchema, jsonCarried } from "@haibun/core/lib/json-text.js";
 import { isRefKind, refHref, defaultLabel } from "./ref-navigation.js";
 
-export class ShuRef extends HTMLElement {
+class ShuRef extends HTMLElement {
 	connectedCallback(): void {
 		if (!this.shadowRoot) this.attachShadow({ mode: "open" });
 		this.render();

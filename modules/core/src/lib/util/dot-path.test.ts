@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseDotPath, navigateValue, validateZodPath } from "./dot-path.js";
-import { z } from "zod";
+import { parseDotPath, navigateValue } from "./dot-path.js";
 
 describe("parseDotPath", () => {
 	it.each([
@@ -24,31 +23,5 @@ describe("navigateValue", () => {
 		["a primitive doesn't either", "hello", ["a"], { value: undefined, found: false, miss: { at: [], missing: "a", has: [] } }],
 	])("%s", (_, value, segments, expected) => {
 		expect(navigateValue(value, segments as string[])).toEqual(expected);
-	});
-});
-
-describe("validateZodPath", () => {
-	const schema = z.object({
-		name: z.string(),
-		nested: z.object({
-			count: z.number(),
-			deep: z.object({ flag: z.boolean() }),
-		}),
-		optional: z.string().optional(),
-	});
-
-	// A path the schema declares resolves to its field; anything else is null, including a path that walks INTO a
-	// declared leaf, since a string doesn't have fields to reach.
-	it.each([
-		["a top-level field", ["name"], true],
-		["a nested field", ["nested", "count"], true],
-		["a deeply nested field", ["nested", "deep", "flag"], true],
-		["an optional field", ["optional"], true],
-		["a field the schema does not declare", ["doesNotExist"], false],
-		["a missing field under a declared object", ["nested", "missing"], false],
-		["a path into a leaf", ["name", "sub"], false],
-	])("%s", (_, path, resolves) => {
-		const found = validateZodPath(schema, path as string[]);
-		expect(found === null).toBe(!resolves);
 	});
 });

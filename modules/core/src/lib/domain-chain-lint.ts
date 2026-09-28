@@ -55,7 +55,7 @@ type TDomainChainLintReport = {
  *  declaration decides it, whatever else the run loads. An unsupplied step and an unproduced domain depend on the
  *  steppers a run loads and on records written outside steps, such as the site's Principal, so a run reports them, and
  *  each module's step graph test holds them to its baseline with every stepper the module declares. */
-export const BLOCKING_FINDINGS: readonly TLintKind[] = [LINT_FINDING.STRING_PARAM];
+const BLOCKING_FINDINGS: readonly TLintKind[] = [LINT_FINDING.STRING_PARAM];
 
 /** A finding as one line: its kind, then the step or domain it is about. */
 export function lintFindingLine(finding: TLintFinding): string {
