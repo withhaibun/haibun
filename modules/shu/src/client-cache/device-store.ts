@@ -8,8 +8,11 @@
  * write is a no-op. Browser-only (IndexedDB is absent in jsdom/node) → exercised by the e2e suites, with an in-memory
  * stand-in for the unit tests. It uses raw IndexedDB, promisified, without a dependency.
  */
-import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
+import { reportFailure, reportToRun } from "../client-log.js";
 import { pagePinned } from "../page-pinned.js";
+
+/** The source the device store reports under. */
+const DEVICE_STORE = "device-store";
 
 /** The site's registry as the device caches it: the step list response (steps, concerns, domains), and when it was cached. */
 export type TStoredRegistry = { savedAt: number; response: unknown };
@@ -96,7 +99,7 @@ function openDb(): Promise<IDBDatabase | null> {
 			if (db.objectStoreNames.contains("events")) db.deleteObjectStore("events");
 		};
 		// Another page of this origin is upgrading: this connection closes at once so it is not the reason that page waits.
-		req.onblocked = () => console.warn("[device-store] another page of this origin holds an earlier version open; waiting for it to close");
+		req.onblocked = () => reportToRun("warn", DEVICE_STORE, "another page of this origin holds an earlier version open; waiting for it to close");
 		req.onsuccess = () => {
 			const db = req.result;
 			db.onversionchange = () => {
@@ -107,8 +110,8 @@ function openDb(): Promise<IDBDatabase | null> {
 			void forgetIfIncompatible(db).then(() => resolve(db));
 		};
 		req.onerror = () => {
-			failFastOrLog("[device-store] open failed; the client cache will not persist:", req.error);
 			resolve(null);
+			reportFailure(DEVICE_STORE, "the device's store didn't open, so the client cache doesn't persist", req.error);
 		};
 	});
 	return held.opening;
@@ -124,7 +127,7 @@ function forgetIfIncompatible(db: IDBDatabase): Promise<void> {
 		found.onsuccess = () => {
 			if (found.result === CACHE_SHAPE) return;
 			if (found.result !== undefined)
-				console.warn(`[device-store] what this device holds was written as ${String(found.result)}; this build reads ${CACHE_SHAPE}, so it is forgotten`);
+				reportToRun("warn", DEVICE_STORE, `what this device holds was written as ${String(found.result)}; this build reads ${CACHE_SHAPE}, so it is forgotten`);
 			tx.objectStore(QUADS).clear();
 			meta.clear();
 			meta.put(CACHE_SHAPE, SHAPE_KEY);

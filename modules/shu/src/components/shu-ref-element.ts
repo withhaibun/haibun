@@ -17,6 +17,7 @@
 import { SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
 import { esc } from "../util.js";
+import { JsonObjectSchema, jsonCarried } from "@haibun/core/lib/json-text.js";
 import { isRefKind, refHref, defaultLabel } from "./ref-navigation.js";
 
 export class ShuRef extends HTMLElement {
@@ -51,11 +52,9 @@ export class ShuRef extends HTMLElement {
 	private hrefForRef(): string | undefined {
 		const kind = this.getAttribute("kind") ?? "";
 		if (!isRefKind(kind)) return undefined;
-		try {
-			return refHref(kind, JSON.parse(this.getAttribute("linkTarget") ?? "{}") as Record<string, unknown>);
-		} catch {
-			return undefined; // a malformed linkTarget renders as text
-		}
+		// Markup a body carries may hold any linkTarget: one that isn't a JSON object renders as text.
+		const target = JsonObjectSchema.safeParse(jsonCarried(this.getAttribute("linkTarget") ?? "{}"));
+		return target.success ? refHref(kind, target.data) : undefined;
 	}
 }
 

@@ -13,6 +13,8 @@ import { isOffline } from "./rpc-registry.js";
  * recording does, where it is one check while the channel doesn't have a subscriber.
  */
 import { conduit, hasConduit, reads } from "./hypermedia.js";
+import { reportToRun } from "./client-log.js";
+import { errorDetail } from "@haibun/core/lib/util/index.js";
 
 /** How many occurrences the browser holds between batches. Fixed, so the buffer cannot grow while a batch is in flight. */
 export const CLIENT_RING = 240;
@@ -80,7 +82,7 @@ export async function flushClientBlips(): Promise<void> {
 	// batch would be a step whose events reach the page and repaint a scene that then records what it drew.
 	await conduit()
 		.follow(reads("MonitorStepper-recordClientBlips", { batch: { blips: batch, recorded: held.recorded } }), `blips: ${batch.length} occurrence(s)`)
-		.catch((e) => console.warn("[shu] blip batch not delivered", e));
+		.catch((e: unknown) => reportToRun("warn", "client-blips", `a batch holding ${batch.length} of the page's occurrences wasn't delivered: ${errorDetail(e)}`));
 }
 
 function takeHeld(held: TBlipBuffer): TClientBlip[] {

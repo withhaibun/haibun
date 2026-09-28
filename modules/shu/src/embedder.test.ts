@@ -2,14 +2,15 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { EMBED_MESSAGE, EMBEDDED_PAGE_TYPE, askEmbedderToDelegate, embeddedPageView, givenDelegation, receiveFromEmbedder } from "./embedder.js";
-import { openPageAuthority, pageMay } from "./page-key.js";
-import { reportingTo, setupShuTest, type TReportedToRun, type TShuTestHandle } from "./test-setup.js";
+import { pageMay } from "./page-key.js";
+import { openReportingPage, reportingTo, setupShuTest, type TReportedToRun, type TShuTestHandle } from "./test-setup.js";
 
 const reported: TReportedToRun[] = [];
 let t: TShuTestHandle;
-beforeEach(() => {
+beforeEach(async () => {
 	reported.length = 0;
 	t = setupShuTest({ dispatch: reportingTo(reported) });
+	await openReportingPage();
 });
 afterEach(() => t.teardown());
 
@@ -80,7 +81,7 @@ describe("the delegation the page embedding shu gives its key", () => {
 	beforeEach(() => givenDelegation.set(null));
 
 	it("is asked for by posting the key to the embedding page, which shu holds once it answers, in place of the one given before", async () => {
-		const { controller } = await openPageAuthority(undefined, []);
+		const { controller } = await openReportingPage();
 		const posted: Array<{ message: unknown; origin: string }> = [];
 		const parent = { postMessage: (message: unknown, origin: string) => posted.push({ message, origin }) } as unknown as Window;
 		const frame = aFrame(parent);
@@ -97,7 +98,7 @@ describe("the delegation the page embedding shu gives its key", () => {
 	});
 
 	it("refuses a delegation to another key and reports it, and goes on with what it holds when a delegation isn't given in time", async () => {
-		const { controller } = await openPageAuthority(undefined, []);
+		const { controller } = await openReportingPage();
 		const parent = { postMessage: () => undefined } as unknown as Window;
 		const frame = aFrame(parent);
 		const stop = receiveFromEmbedder(EMBEDDER, frame);

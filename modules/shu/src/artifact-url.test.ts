@@ -8,8 +8,7 @@ import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { READS_THE_RUNS_ARTIFACTS } from "@haibun/core/lib/actions.js";
 import { shownArtifact, shownOrReported } from "./artifact-url.js";
-import { openPageAuthority } from "./page-key.js";
-import { carryARun, reportingTo, setupShuTest, type TReportedToRun, type TShuTestHandle } from "./test-setup.js";
+import { carryARun, openReportingPage, reportingTo, setupShuTest, type TReportedToRun, type TShuTestHandle } from "./test-setup.js";
 
 const SCREENSHOT = "/artifacts/featn-1/image/event-0.1.png";
 /** The source a view reports under, and what the run answers a read it allows with. */
@@ -35,7 +34,7 @@ describe("where a view shows an artifact of the run", () => {
 		};
 		t = setupShuTest({ dispatch: reportingTo(reported), artifact });
 		URL.createObjectURL = () => `blob:shown-${fetched.length}`;
-		({ controller } = await openPageAuthority(() => Promise.resolve({ delegations: [readingTheRun()] }), []));
+		({ controller } = await openReportingPage(() => Promise.resolve({ delegations: [readingTheRun()] })));
 	});
 	afterEach(() => t.teardown());
 

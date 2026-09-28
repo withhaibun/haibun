@@ -6,7 +6,7 @@
  * query over the records, here the steps that declared a feature, which is what names an execution for a reader and
  * is one small query however long the run was.
  */
-import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
+import { reportFailure, reportToRun } from "../client-log.js";
 import { FEATURE_START, declaredName } from "@haibun/core/schema/protocol.js";
 import { SEQ_PATH_FIELD, parseRecordName } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
@@ -16,6 +16,9 @@ import { cachedGraphStore, selectValuesFor } from "../quads-snapshot.js";
 import { RUN_TYPES } from "./run-window.js";
 import { componentOfView, declaredViews } from "../rels-cache.js";
 import { pagePinned } from "../page-pinned.js";
+
+/** The source the device's runs report under. */
+const EXECUTIONS = "executions";
 
 /** An execution as this device holds it: what it ran, and the moments its features span. */
 export type THeldExecution = { execution: string; features: string[]; first?: number; last?: number };
@@ -166,16 +169,16 @@ export async function holdOnDevice(quads: TQuad[]): Promise<void> {
 	try {
 		await cachedGraphStore().setMany(quads);
 	} catch (err: unknown) {
-		if (!storageIsFull(err)) return failFastOrLog("the run's records could not be held on this device", err);
+		if (!storageIsFull(err)) return reportFailure(EXECUTIONS, "the run's records could not be held on this device", err);
 		const held = await executionsHeld();
 		const oldest = held.filter((one) => one.execution !== readingExecution()).pop();
-		if (oldest === undefined) return failFastOrLog("this device is full and doesn't hold a run it could forget", err);
+		if (oldest === undefined) return reportFailure(EXECUTIONS, "this device is full and doesn't hold a run it could forget", err);
 		const gone = await forgetExecution(oldest.execution);
 		// Making room is what a full device does rather than a failure of the page, so it is said rather than thrown:
 		// a reader whose earlier run is no longer here is told why it went.
-		console.warn(`[shu] this device is full, so the run ${oldest.execution} and its ${gone} records were forgotten`);
+		reportToRun("warn", EXECUTIONS, `this device is full, so the run ${oldest.execution} and its ${gone} records were forgotten`);
 		await cachedGraphStore()
 			.setMany(quads)
-			.catch((again: unknown) => failFastOrLog("the run's records could not be held on this device after forgetting a run", again));
+			.catch((again: unknown) => reportFailure(EXECUTIONS, "the run's records could not be held on this device after forgetting a run", again));
 	}
 }

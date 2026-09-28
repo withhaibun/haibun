@@ -14,7 +14,7 @@ import { individualWithEdges, incomingEdgesOf } from "@haibun/core/lib/quad-stor
 import type { TRunGraph } from "./client-cache/run-graph.js";
 import { QuadGraphModel } from "@haibun/core/lib/quad-graph-model.js";
 import { queryQuadStore } from "@haibun/core/lib/quad-store.js";
-import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
+import { reportFailure } from "./client-log.js";
 import { appAccessLevel } from "./util.js";
 import { reads, conduit } from "./hypermedia.js";
 import { getRels, getTitledBy, getSelectFields } from "./rels-cache.js";
@@ -153,7 +153,7 @@ function notify(s: Store, changedScope?: string): void {
 		try {
 			fn(s.scopes.get(scope)?.cache?.model.snapshot ?? null, s.viewContext);
 		} catch (err) {
-			failFastOrLog("[quads-snapshot] listener failed:", err);
+			reportFailure("quads-snapshot", "a listener to the graph snapshot failed", err);
 		}
 	}
 }

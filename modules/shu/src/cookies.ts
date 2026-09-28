@@ -4,6 +4,8 @@
  * doesn't break the call site, bad JSON falls back instead of throwing.
  */
 
+import { jsonCarried } from "@haibun/core/lib/json-text.js";
+
 const ONE_YEAR = 60 * 60 * 24 * 365;
 
 /** Internal: the JSON pair below is how a caller reads and writes a cookie. A component's remembered options go
@@ -26,11 +28,8 @@ function setCookie(name: string, value: string): void {
 export function getJsonCookie<T>(name: string, fallback: T): T {
 	const raw = getCookie(name);
 	if (!raw) return fallback;
-	try {
-		return JSON.parse(raw) as T;
-	} catch {
-		return fallback;
-	}
+	const held = jsonCarried(raw);
+	return held === undefined ? fallback : (held as T);
 }
 
 export function setJsonCookie(name: string, value: unknown): void {

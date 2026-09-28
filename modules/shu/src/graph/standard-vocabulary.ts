@@ -13,6 +13,8 @@
  */
 import { jsonld as jsonldRaw, documentLoader } from "@haibun/core/lib/jsonld-loader.js";
 import { getJsonLdContext } from "@haibun/core/lib/hypermedia.js";
+import { reportToRun } from "../client-log.js";
+import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { isPersisted, type TRegisteredDomain } from "@haibun/core/lib/resources.js";
 
 const jsonld = jsonldRaw as unknown as {
@@ -60,7 +62,8 @@ function scopedTermsOf(url: string, classLabel: string, base: unknown): Promise<
 					const iri = def?.["@id"];
 					return typeof iri === "string" && !iri.startsWith("@") ? [{ term, iri }] : [];
 				});
-			} catch {
+			} catch (err) {
+				reportToRun("warn", "standard-vocabulary", `the scoped context of ${classLabel} could not be read from ${url}, so its terms are left out: ${errorDetail(err)}`);
 				return [];
 			}
 		})();

@@ -43,6 +43,9 @@ import { hydrateFromDom } from "./rpc-registry.js";
 import { rpcAnswer } from "@haibun/core/lib/test/rpc-answer.js";
 import { endPage, pagePinned } from "./page-pinned.js";
 
+/** The copy of this module another bundle on the page loads. */
+const BUNDLE_COPY = "./hypermedia.js?bundle=graph-view";
+
 describe("what a link asks of a run", () => {
 	// A page cannot read a run through a step whose answer the run would record, and cannot forget to say which it
 	// wants: a link carries what it asks, so the two constructors are the only ways to make one. A bare object is not a
@@ -152,6 +155,14 @@ describe("a server that does not respond", () => {
 		} finally {
 			globalThis.fetch = fetchWas;
 		}
+	});
+
+	it("finds the server not responding in a failure another bundle's copy of the conduit raised", async () => {
+		// A second bundle loads its own copy of this module, so its conduit fails with its own ServerUnreachable class.
+		const otherBundle: typeof import("./hypermedia.js") = await import(/* @vite-ignore */ BUNDLE_COPY);
+		expect(otherBundle.ServerUnreachable).not.toBe(ServerUnreachable);
+		expect(isServerUnreachable(new Error("wrapped", { cause: new otherBundle.ServerUnreachable("/rpc/action.begin", new TypeError("Failed to fetch")) }))).toBe(true);
+		expect(isServerUnreachable(new Error("refused"))).toBe(false);
 	});
 
 	it("fails a call a path the server does not serve answered as text, with the status and what it sent, and reads a refusal the run states", async () => {

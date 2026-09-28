@@ -2,12 +2,16 @@ import { reads, acts, conduit, isServerUnreachable, type TLink } from "./hyperme
 import { getConcernCatalog, cachedConcernCatalog, setConcernCatalog } from "./rels-cache.js";
 import { pagePinned } from "./page-pinned.js";
 import { deviceStore, type TCachePayload } from "./client-cache/index.js";
-import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
+import { reportFailure, reportToRun } from "./client-log.js";
+import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { STEPS_CHANGED } from "@haibun/core/schema/protocol.js";
 import { EVERY_DEFINITION, SHOW_STEPS_METHOD, readShownSteps, type TDomainDiscoveryInfo, type TStepDefinition, type TStepDefinitions } from "@haibun/core/lib/step-discovery.js";
 import { eventStream } from "./event-stream.js";
 import { domainParts } from "@haibun/core/lib/domains.js";
 import { capabilityAllows } from "@haibun/core/lib/actions.js";
+
+/** The source the registry reports under. */
+const REGISTRY = "rpc-registry";
 
 export type DomainOption = {
 	key: string;
@@ -160,7 +164,7 @@ function readHydration(): ShuHydration | null {
 	try {
 		return JSON.parse(text) as ShuHydration;
 	} catch (err) {
-		failFastOrLog("[shu] Failed to parse hydration data:", err);
+		reportFailure(REGISTRY, "the run the page carries isn't JSON", err);
 		return null;
 	}
 }
@@ -295,7 +299,7 @@ function readAgain(r: TRegistry): void {
 			await Promise.all([...r.listeners].map(async (listener) => listener()));
 		})
 		// A server that doesn't answer leaves the page on the steps it holds, as every read does; any other failure is a fault.
-		.catch((err) => (isServerUnreachable(err) ? undefined : failFastOrLog("[rpc-registry] the run's steps were not read again:", err)));
+		.catch((err) => (isServerUnreachable(err) ? undefined : reportFailure(REGISTRY, "the run's steps were not read again", err)));
 }
 
 /** Ask the server what it offers this page. Its response is cached on the device; when the server does not respond, the
@@ -314,7 +318,7 @@ async function discover(): Promise<TStepList> {
 		origin().value = { from: "server" };
 		void deviceStore()
 			.setRegistry(parsed)
-			.catch((err) => failFastOrLog("[rpc-registry] the registry was not cached on the device:", err));
+			.catch((err) => reportFailure(REGISTRY, "the registry was not cached on the device", err));
 	} catch (err) {
 		if (!isServerUnreachable(err)) throw err;
 		const cached = await deviceStore()
@@ -323,7 +327,7 @@ async function discover(): Promise<TStepList> {
 		if (!cached) throw err;
 		parsed = readShownSteps(cached.response, EVERY_DEFINITION.detail);
 		origin().value = { from: "device", savedAt: cached.savedAt };
-		console.warn(`[rpc-registry] the server did not respond; the registry cached on this device (${new Date(cached.savedAt).toISOString()}) is in use:`, err);
+		reportToRun("warn", REGISTRY, `the server did not respond; the registry cached on this device (${new Date(cached.savedAt).toISOString()}) is in use: ${errorDetail(err)}`);
 	}
 	const { steps, domains, concerns } = parsed;
 	setConcernCatalog(concerns, domains);

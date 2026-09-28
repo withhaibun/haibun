@@ -43,8 +43,7 @@ import type { ShuActionColumn } from "./components/shu-action-column.js";
 import type { ShuFilterColumn } from "./components/shu-filter-column.js";
 import type { ShuGraphQuery } from "./components/shu-graph-query.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
-import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
-import { reportToRun, type TClientLogLevel } from "./client-log.js";
+import { reportFailure, reportToRun, type TClientLogLevel } from "./client-log.js";
 import { observeLongFrames } from "./long-frames.js";
 import { hydrateClientCache, viewsShown, readRunAt } from "./client-cache/index.js";
 
@@ -391,7 +390,7 @@ const main = async (): Promise<void> => {
 	eventsController.signal.addEventListener(
 		"abort",
 		timeCursor.subscribe((at) => {
-			void readRunAt(at).catch((err: unknown) => failFastOrLog("the run could not be read at the moment the cursor names", err));
+			void readRunAt(at).catch((err: unknown) => reportFailure("shu-app", "the run could not be read at the moment the cursor names", err));
 		}),
 	);
 	// Filter change from actions bar

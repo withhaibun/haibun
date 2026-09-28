@@ -10,6 +10,7 @@
  * the browser's own, as every other disclosure here is.
  */
 import { esc, escAttr } from "../util.js";
+import { jsonCarried } from "@haibun/core/lib/json-text.js";
 
 /** The vocabulary a record is written in. It is there in full, under a disclosure that starts closed: a reader reads
  *  what a record says first, and opens what its terms mean when that is the question. */
@@ -61,14 +62,11 @@ export function jsonDisclosure(value: unknown, name = ""): string {
  */
 export function literalWithJson(text: string): string {
 	const at = text.search(/[[{]/);
-	if (at >= 0) {
-		try {
-			const carried = jsonDisclosure(JSON.parse(text.slice(at)));
-			const said = text.slice(0, at).trim();
-			return `${said === "" ? "" : `<div class="json-said">${esc(said)}</div>`}${carried}`;
-		} catch {
-			// the braces are part of what was said, not JSON it carries
-		}
+	// Braces that don't open JSON are part of what was said.
+	const carried = at >= 0 ? jsonCarried(text.slice(at)) : undefined;
+	if (carried !== undefined) {
+		const said = text.slice(0, at).trim();
+		return `${said === "" ? "" : `<div class="json-said">${esc(said)}</div>`}${jsonDisclosure(carried)}`;
 	}
 	return esc(text);
 }

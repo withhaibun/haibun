@@ -7,7 +7,8 @@ import { dispatchAffordanceFromResponse } from "../affordance-dispatch.js";
 import { esc, escAttr, prettifyGwta, normalizeStepKey } from "../util.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { validateStepInput, type TFieldError } from "../step-input-validator.js";
-import { getConcernCatalog } from "../rels-cache.js";
+import { cachedConcernCatalog, getConcernCatalog } from "../rels-cache.js";
+import { JsonObjectSchema, jsonCarried } from "@haibun/core/lib/json-text.js";
 import type { TComboboxOption } from "../schemas.js";
 import { SHU_EVENT, SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
@@ -76,11 +77,9 @@ export class StepCaller extends HTMLElement {
 
 		const paramsAttr = this.getAttribute("params");
 		if (paramsAttr) {
-			try {
-				this.fixedParams = JSON.parse(paramsAttr);
-			} catch {
-				this.error = "Invalid params JSON";
-			}
+			const params = JsonObjectSchema.safeParse(jsonCarried(paramsAttr));
+			if (params.success) this.fixedParams = params.data;
+			else this.error = "Invalid params JSON";
 		}
 
 		if (this.hasAttribute("auto")) {
@@ -439,12 +438,7 @@ export class StepCaller extends HTMLElement {
 	private refTargetLabel(desc: TStepDefinition, paramName: string): string | undefined {
 		const domainKey = desc.paramDomains[paramName];
 		if (!domainKey) return undefined;
-		try {
-			const ref = getConcernCatalog().references?.[domainKey];
-			return ref?.targetPersistedAs;
-		} catch {
-			return undefined;
-		}
+		return cachedConcernCatalog()?.references?.[domainKey]?.targetPersistedAs;
 	}
 
 	private async populatePersistedRef(cb: HTMLElement & { setOptions?: (opts: TComboboxOption[]) => void }, label: string): Promise<void> {

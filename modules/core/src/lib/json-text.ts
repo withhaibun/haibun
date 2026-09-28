@@ -10,6 +10,16 @@ export function parseJsonText(text: string, ctx: z.RefinementCtx): unknown {
 	}
 }
 
+/** The value text carries as JSON, or undefined where the text isn't JSON: for text that may or may not carry it, such as
+ *  what a reader wrote, a cookie, or an attribute of sanitized markup. */
+export function jsonCarried(text: string): unknown {
+	try {
+		return JSON.parse(text) as unknown;
+	} catch {
+		return undefined;
+	}
+}
+
 /**
  * A schema that also takes its value as JSON text, the form a feature line writes a composite in: text is parsed and then
  * checked by `schema`. Text that isn't JSON is refused there, before anything else is checked. Its JSON Schema is

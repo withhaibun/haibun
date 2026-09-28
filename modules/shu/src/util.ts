@@ -1,5 +1,6 @@
 import { pagePinned } from "./page-pinned.js";
 import { esc } from "@haibun/core/lib/document-content.js";
+import { jsonCarried } from "@haibun/core/lib/json-text.js";
 
 export { esc };
 
@@ -75,11 +76,8 @@ export function renderContentHtml(raw: string, mimeType: string): string {
 	if (mimeType === "text/markdown") return renderRefBody(raw, isKnownType);
 	if (mimeType === "text/html") return raw;
 	if (mimeType === "application/ld+json" || mimeType === "application/json") {
-		try {
-			return preBlock(JSON.stringify(JSON.parse(raw), null, 2));
-		} catch {
-			return preBlock(raw); // not valid JSON, show it verbatim rather than throw
-		}
+		const carried = jsonCarried(raw);
+		return preBlock(carried === undefined ? raw : JSON.stringify(carried, null, 2)); // text that isn't JSON shows as it reads
 	}
 	return preBlock(raw);
 }

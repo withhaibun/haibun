@@ -23,6 +23,7 @@ import {
 import { html, css, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { jsonDisclosure, literalWithJson } from "./json-disclosure.js";
+import { jsonCarried } from "@haibun/core/lib/json-text.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { ShuElement, TIME_SYNC_CLASS, type TLinkedData } from "./shu-element.js";
 import { SHU_EVENT, ANNOTATION_GLYPH, SHU_TAG } from "../consts.js";
@@ -641,13 +642,9 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	 *  everything else falls through to fieldValueHtml (its navigation affordance + escaping). */
 	private formatFieldValue(value: string, propertyName: string): string {
 		const trimmed = value.trim();
-		if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
-			try {
-				return `<div class="field-json" data-testid="field-json-${escAttr(propertyName)}">${jsonDisclosure(JSON.parse(trimmed))}</div>`;
-			} catch {
-				// not valid JSON, render as an ordinary scalar
-			}
-		}
+		// A value that isn't JSON renders as an ordinary scalar.
+		const carried = (trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]")) ? jsonCarried(trimmed) : undefined;
+		if (carried !== undefined) return `<div class="field-json" data-testid="field-json-${escAttr(propertyName)}">${jsonDisclosure(carried)}</div>`;
 		return this.fieldValueHtml(value, propertyName);
 	}
 

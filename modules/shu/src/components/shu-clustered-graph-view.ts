@@ -9,6 +9,8 @@
 import { z } from "zod";
 import { ShuElement } from "./shu-element.js";
 import { SHU_EVENT } from "../consts.js";
+import { reportToRun } from "../client-log.js";
+import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { extractQuadsFromEvents, type TCluster, type TQuad } from "@haibun/core/lib/quad-types.js";
 import { getRels } from "../rels-cache.js";
 import { getGraphSnapshot, currentSnapshot, mergeQuadsIntoSnapshot, DEFAULT_PER_TYPE_LIMIT, MAX_PER_TYPE_LIMIT } from "../quads-snapshot.js";
@@ -18,6 +20,9 @@ import { ShuGraphFilter } from "./shu-graph-filter.js";
 import "../graph/polymorphic/polymorphic-scene.js";
 import { type ShuGraphScene, type GraphSceneModel } from "../graph/polymorphic/polymorphic-scene.js";
 import { effectiveHiddenTypes } from "../graph-filter-projection.js";
+
+/** The source the clustered graph view reports under. */
+const CLUSTERED_SOURCE = "clustered-graph-view";
 
 const QuadFieldSchema = z.object({
 	subject: z.string(),
@@ -309,8 +314,8 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 			this.fetchedSubjects.clear();
 			this.setGraphState({ quads: snap.quads, clusters: snap.clusters, site: snap.site, perTypeLimit: opts.perTypeLimit, hiddenGraphs: this.hiddenForSnapshot(snap) });
 			this.onGraphData();
-		} catch {
-			/* stepper may not be loaded */
+		} catch (err) {
+			reportToRun("warn", CLUSTERED_SOURCE, `the graph snapshot could not be read again, so the view shows the one it holds: ${errorDetail(err)}`);
 		}
 	}
 
@@ -337,8 +342,10 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 			// Expand every touched type so revealed nodes render instead of staying inside a collapsed cluster.
 			const expanded = [...new Set([...this.cgState.expandedGraphs, ...types])];
 			this.syncFromSnapshot({ expandedGraphs: expanded });
-		} catch {
+		} catch (err) {
+			// Forgotten, so a later selection of the subject reads its neighborhood again.
 			this.fetchedSubjects.delete(subject);
+			reportToRun("warn", CLUSTERED_SOURCE, `the neighborhood of ${subject} could not be read: ${errorDetail(err)}`);
 		}
 	}
 }

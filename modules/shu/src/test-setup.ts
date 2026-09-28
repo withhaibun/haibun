@@ -96,7 +96,9 @@ import { setEventStream, SerializedEventStream, type TEvent } from "./event-stre
 import { endPage } from "./page-pinned.js";
 import { setDeviceStore, MemoryDeviceStore, CACHE_SHAPE } from "./client-cache/index.js";
 import { hydrateFromDom, onStepsChanged } from "./rpc-registry.js";
-import { CLIENT_LOG_METHOD, type TClientLogLevel } from "./client-log.js";
+import { CLIENT_LOG_ACTION, CLIENT_LOG_METHOD, type TClientLogLevel } from "./client-log.js";
+import { openPageAuthority, type TPageAuthority } from "./page-key.js";
+import type { TDelegations } from "@haibun/core/lib/authority-types.js";
 import { SHOW_STEPS_METHOD, STEP_DETAIL, readShownSteps, stepDefinition, type TStepDefinitions } from "@haibun/core/lib/step-discovery.js";
 import { requiredAction } from "@haibun/core/lib/actions.js";
 import { steppersOf } from "@haibun/core/lib/step-registry.js";
@@ -240,6 +242,11 @@ export function makeEntityDispatch(over: { entity: () => unknown; annotations?: 
 
 /** A report the page sent the run through the monitor's client-log step. */
 export type TReportedToRun = { level: TClientLogLevel; source: string; message: string; attributes?: Record<string, unknown> };
+
+/** Open the page's authority as a page the run lets report to it: it holds what reporting requires, beside
+ *  `withoutDelegation` and what `read` delegates. A test that opens one needs an IndexedDB for the page's key. */
+export const openReportingPage = (read?: () => Promise<TDelegations>, withoutDelegation: string[] = []): Promise<TPageAuthority> =>
+	openPageAuthority(read, [CLIENT_LOG_ACTION, ...withoutDelegation]);
 
 /** A dispatch answering the page's reports to the run as the monitor's client-log step does, holding each in `reported`;
  *  any other call throws. */

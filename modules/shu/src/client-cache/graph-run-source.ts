@@ -21,7 +21,7 @@ import { pageRunGraph } from "../quads-snapshot.js";
 import { ofExecution, type TRunGraph } from "./run-graph.js";
 import { individualAsQuads } from "./quad-store.js";
 import { currentExecution, holdOnDevice, noteExecution, readingExecution, subscribeExecutionSwitch } from "./executions.js";
-import { failFastOrLog } from "@haibun/core/lib/dev-mode.js";
+import { reportFailure } from "../client-log.js";
 import type { Range } from "../ranges.js";
 import type { TScrollMarker } from "../scrollbar-model.js";
 import { RUN_WINDOW_SIZE, inRunOrder, producedUnderSteps, runExtent, runWindow, type TRunRow } from "./run-window.js";
@@ -29,6 +29,9 @@ import { runShape } from "./run-shape.js";
 import { railAt, momentAt, type TRunFocus, type TRunSpan } from "../run-scale.js";
 import { timeCursor } from "../signals.js";
 import { atLiveEdge, noteRunSpan, readingBy, runReadingAt, type RunSource, type TEventRecord, type TRunExtent } from "./run-source.js";
+
+/** The source the run's window reports under. */
+const RUN_SOURCE = "graph-run-source";
 
 /** How long a burst of changes is collected before the window is read again. */
 const RE_READ_AFTER_MS = 250;
@@ -251,7 +254,7 @@ function makeGraphRunSource(
 		done();
 		// The rail carries the whole run, so it is read where the window is: what the run reaches, and what its divisions
 		// hold. A rail read that fails leaves the rail as it was rather than emptying it under a reader.
-		await readRail().catch((err: unknown) => failFastOrLog("the run's rail could not be read", err));
+		await readRail().catch((err: unknown) => reportFailure(RUN_SOURCE, "the run's rail could not be read", err));
 		notify();
 		// Last of all: saying which run this window is of can be what says the run being read has changed, and what
 		// reads a run again on hearing that is this same source. A read that announced before it had finished would be
@@ -270,7 +273,7 @@ function makeGraphRunSource(
 			due = null;
 			// A read that a caller doesn't await still says when it failed: a view left showing an older window without a
 			// report of why is a view a reader cannot tell apart from one that is current.
-			read().catch((err: unknown) => failFastOrLog("the run could not be read again", err));
+			read().catch((err: unknown) => reportFailure(RUN_SOURCE, "the run could not be read again", err));
 		}, reReadAfterMs);
 	};
 	const announce = (): void => {
