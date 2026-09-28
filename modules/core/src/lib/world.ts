@@ -4,7 +4,7 @@ import type { FeatureVariables } from "./feature-variables.js";
 import type { Prompter } from "./prompter.js";
 import type { IEventLogger } from "./EventLogger.js";
 import type { TStepResult, Timer, TFeatureSteps } from "../schema/protocol.js";
-import { CONTINUE_AFTER_ERROR } from "../schema/protocol.js";
+import { CONTINUE_AFTER_ERROR, NDJSON } from "../schema/protocol.js";
 import type { TRegisteredDomain } from "./resources.js";
 import type { StepRegistry } from "./step-registry.js";
 import type { TFeature } from "./execution.js";
@@ -78,6 +78,8 @@ export type TBaseOptions = {
 	/** Run a group only when one of its dependencies changed since it last passed. */
 	ONCE?: boolean;
 	[CONTINUE_AFTER_ERROR]?: boolean;
+	/** Report the run's events as NDJSON on stdout. */
+	[NDJSON]?: boolean;
 	envVariables?: TEnvVariables;
 };
 

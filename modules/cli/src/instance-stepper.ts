@@ -31,6 +31,7 @@ import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature } from
 import type { TWorld } from "@haibun/core/lib/world.js";
 import type { TDomainDefinition } from "@haibun/core/lib/resources.js";
 import { actionNotOK, actionOKWithProducts, perProcessOptionNames } from "@haibun/core/lib/util/index.js";
+import { localOrigin } from "@haibun/core/lib/local-origin.js";
 import { RpcCallFailed, RpcClient } from "@haibun/core/lib/rpc-client.js";
 import { RemoteStepperProxy } from "@haibun/core/lib/remote-stepper-proxy.js";
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
@@ -201,9 +202,6 @@ type TLaunch = { dir: string; config: string; port: number; hostId: number };
 
 /** Whether a run is running or ended. */
 const runStatus = (held: TRun): string => (held.ended === null ? "running" : "ended");
-
-/** Where an instance this process starts on `port` is reached. */
-const localOrigin = (port: number): string => `http://localhost:${port}`;
 
 /** The domain of the instances and runs this process started. */
 const DOMAIN_INSTANCES = "haibun-instances";

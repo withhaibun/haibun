@@ -141,9 +141,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
 		this.steppers = steppers;
-		const sname = this.constructor.name;
-		const fromModule = (world.moduleOptions as unknown as Record<string, Record<string, unknown> | undefined>)?.[sname]?.["PORT"];
-		const portOption = fromModule || getStepperOption(this, "PORT", world.moduleOptions);
+		const portOption = getStepperOption(this, "PORT", world.moduleOptions);
 		if (portOption) {
 			const parsed = parseInt(String(portOption), 10);
 			if (Number.isNaN(parsed) || parsed <= 0) {

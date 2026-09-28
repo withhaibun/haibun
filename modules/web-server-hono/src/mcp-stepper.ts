@@ -15,7 +15,7 @@ import { AStepper, type IHasCycles, type IHasOptions } from "@haibun/core/lib/as
 import { allocateSyntheticSeqPath } from "@haibun/core/lib/host-id.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { OK } from "@haibun/core/schema/protocol.js";
-import { getFromRuntime, getStepperOption, stringOrError, errorDetail } from "@haibun/core/lib/util/index.js";
+import { getFromRuntime, getStepperOption, getStepperOptionName, stringOrError, errorDetail } from "@haibun/core/lib/util/index.js";
 import { currentVersion as version } from "@haibun/core/currentVersion.js";
 import { dispatchStep } from "@haibun/core/lib/step-dispatch.js";
 import { buildFeatureStepForTransport, refusal, type StepRegistry } from "@haibun/core/lib/step-registry.js";
@@ -24,10 +24,15 @@ import { stepsInstructions, toolDefinition } from "@haibun/core/lib/step-discove
 import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
 import type { IWebServer, Context } from "./defs.js";
 import { WEBSERVER } from "./defs.js";
+import { ServerHono } from "./server-hono.js";
+import WebServerStepper from "./web-server-stepper.js";
 import type { IStepTransport } from "./step-transport.js";
 import { grantedCapabilityForRequest } from "./capability-auth.js";
 import { actingAs, authorizedWith, runActingAs, runAuthorizedWith, shownTo } from "@haibun/core/lib/capability-context.js";
 import { DOMAIN_ROUTE } from "@haibun/core/lib/domains.js";
+/** The port the MCP endpoint listens on where neither it nor the web server states one. */
+const DEFAULT_MCP_PORT = 8128;
+
 export default class McpStepper extends AStepper implements IHasOptions, IHasCycles, IStepTransport {
 	description = "Expose all Haibun steps as callable MCP tools for LLM agents";
 	readonly name = "McpStepper";
@@ -182,31 +187,15 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 		this.setupRoutes(webserver);
 		this.getWorld().eventLogger.info(`🔗 MCP endpoint registered at ${this.mcpPath}`);
 
-		// --- RESOLVE PORT (Fixed Priority) ---
-		// 1. Check McpStepper options (highest priority)
-		const myPortOpt = getStepperOption(this, "PORT", this.getWorld().moduleOptions);
-		// 2. Check WebServerStepper options
-		const wsPortOpt = (this.getWorld().moduleOptions as unknown as Record<string, Record<string, unknown> | undefined>)?.["WebServerStepper"]?.["PORT"];
-		// 3. Check Environment variable
-		const envPort = process.env["HAIBUN_O_WEBSERVERSTEPPER_PORT"];
-
-		// Default to '8128' if the other options aren't set.
-		const rawPort = myPortOpt || wsPortOpt || envPort || "8128";
-		const port = parseInt(String(rawPort), 10);
-
-		try {
-			await webserver.listen("mcp", port);
-			this.getWorld().eventLogger.info(`[MCP] WebServer started on port ${port}`);
-		} catch (e) {
-			const estr = String(e);
-			if ((e as { code?: string })?.code === "EADDRINUSE" || estr.includes("already in use")) {
-				this.getWorld().eventLogger.info(`[MCP] WebServer already listening on port ${port} (shared)`);
-			} else {
-				const msg = `[MCP] WebServer listen failure: ${estr}`;
-				this.getWorld().eventLogger.error(msg);
-				throw new Error(msg);
-			}
+		// The endpoint listens on its own PORT, else on the web server's PORT, which it then shares, else on its default.
+		const { moduleOptions } = this.getWorld();
+		const port = Number(getStepperOption(this, "PORT", moduleOptions) || moduleOptions[getStepperOptionName(WebServerStepper, "PORT")] || DEFAULT_MCP_PORT);
+		if (ServerHono.listeningPorts.has(port)) {
+			this.getWorld().eventLogger.info(`[MCP] WebServer already listening on port ${port} (shared)`);
+			return;
 		}
+		await webserver.listen("mcp", port);
+		this.getWorld().eventLogger.info(`[MCP] WebServer started on port ${port}`);
 	}
 
 	private setupMiddleware(webserver: IWebServer) {

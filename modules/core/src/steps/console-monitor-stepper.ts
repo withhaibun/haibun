@@ -1,4 +1,5 @@
 import { AStepper, IHasCycles, StepperKinds } from "../lib/astepper.js";
+import { getStepperOption } from "../lib/util/index.js";
 import { THaibunEvent, THaibunLogLevel } from "../schema/protocol.js";
 import { EventFormatter } from "../monitor/index.js";
 
@@ -34,11 +35,11 @@ export default class ConsoleMonitorStepper extends AStepper implements IHasCycle
 
 	cycles = {
 		startExecution: () => {
-			const options = this.getWorld()?.moduleOptions || {};
-			this.verbose = options["HAIBUN_O_CONSOLEMONITORSTEPPER_CONSOLE_MONITOR_VERBOSE"] === "true";
-			this.showLogEvents = options["HAIBUN_O_CONSOLEMONITORSTEPPER_CONSOLE_MONITOR_LOGS"] !== "false";
-			this.showLifecycleEvents = options["HAIBUN_O_CONSOLEMONITORSTEPPER_CONSOLE_MONITOR_LIFECYCLE"] !== "false";
-			this.minLevel = (process.env.HAIBUN_LOG_LEVEL as string) || (options["HAIBUN_LOG_LEVEL"] as string) || "info";
+			const { options, moduleOptions } = this.getWorld();
+			this.verbose = getStepperOption(this, "CONSOLE_MONITOR_VERBOSE", moduleOptions) === "true";
+			this.showLogEvents = getStepperOption(this, "CONSOLE_MONITOR_LOGS", moduleOptions) !== "false";
+			this.showLifecycleEvents = getStepperOption(this, "CONSOLE_MONITOR_LIFECYCLE", moduleOptions) !== "false";
+			this.minLevel = options.LOG_LEVEL ?? "info";
 		},
 
 		onEvent: (event: THaibunEvent): void => {

@@ -26,6 +26,7 @@ import { z } from "zod";
 import { JsonObjectSchema, fromJsonText } from "@haibun/core/lib/json-text.js";
 import { AStepper, type IHasCycles, type IHasOptions, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { actionNotOK, actionOK, actionOKWithProducts, boolOrError, getStepperOption, intOrError } from "@haibun/core/lib/util/index.js";
+import { localOrigin } from "@haibun/core/lib/local-origin.js";
 import { callStepFrom } from "@haibun/core/lib/call-step.js";
 import { actingAs } from "@haibun/core/lib/capability-context.js";
 import { askedIn } from "@haibun/core/lib/capability-context.js";
@@ -566,7 +567,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 		const startedAt = new Date().toISOString();
 		const id = runId(filter, startedAt);
 		// Only a run left standing answers afterwards, so only such a run has an endpoint to record.
-		const endpoint = stands ? `http://localhost:${port}` : "";
+		const endpoint = stands ? localOrigin(port) : "";
 		const from = (getStepperOption(this, "RUN_FROM", this.getWorld().moduleOptions) as string | undefined) ?? where;
 		// A run that stays takes a host id, which is how it is addressed afterwards; a run that ends doesn't take one.
 		const hostId = stands ? this.cap("RUN_HOST_ID", RUNNER_DEFAULTS.hostId) : 0;

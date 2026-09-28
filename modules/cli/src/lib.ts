@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { type TSpecl, SpeclSchema } from "@haibun/core/lib/execution.js";
 import type { TBase, TBaseOptions, TProtoOptions, TWorld } from "@haibun/core/lib/world.js";
-import { BASE_PREFIX, CHECK_NO, CHECK_YES, DEFAULT_DEST, MODULE_OPTION_PREFIX, STAY, STAY_ALWAYS, Timer, TExecutorResult } from "@haibun/core/schema/protocol.js";
+import { BASE_PREFIX, CHECK_NO, CHECK_YES, DEFAULT_DEST, MODULE_OPTION_PREFIX, NDJSON, STAY, STAY_ALWAYS, Timer, TExecutorResult } from "@haibun/core/schema/protocol.js";
 import { IHasOptions } from "@haibun/core/lib/astepper.js";
 import { getCreateSteppers, getDefaultTag } from "@haibun/core/lib/test/lib.js";
 import { resolveSitePrincipal } from "@haibun/core/lib/host-id.js";
@@ -220,7 +220,7 @@ async function reportAndExit(executorResult: TExecutorResult, world: TWorld, pro
 function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 	const { KEY: keyIn } = protoOptions.options;
 	const tag = getDefaultTag();
-	const eventLogger = new EventLogger((name: string) => world.shared?.isSecret(name) ?? false);
+	const eventLogger = new EventLogger((name: string) => world.shared?.isSecret(name) ?? false, protoOptions.options[NDJSON] === true);
 	const timer = new Timer();
 
 	Timer.key = keyIn || Timer.key;

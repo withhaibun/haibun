@@ -1,5 +1,5 @@
 import { errorDetail } from "./util/index.js";
-import { BASE_PREFIX, HAIBUN_LOG_LEVELS, LogEvent, LifecycleEvent, NDJSON, stepLevel } from "../schema/protocol.js";
+import { HAIBUN_LOG_LEVELS, LogEvent, LifecycleEvent, stepLevel } from "../schema/protocol.js";
 import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TEventKind, TStepEnd } from "../schema/protocol.js";
 import { TFeatureStep } from "./astepper.js";
 import { sanitizeObjectSecrets } from "./util/secret-utils.js";
@@ -97,11 +97,10 @@ export class EventLogger implements IEventLogger {
 	 *  suppression. */
 	public readonly ndjsonForced: boolean;
 
-	constructor(isSecretFn: TIsSecretFn = () => false) {
+	/** `ndjson` is the run's NDJSON option. */
+	constructor(isSecretFn: TIsSecretFn = () => false, ndjson = false) {
 		this.isSecretFn = isSecretFn;
-		this.ndjsonForced = process.env[`${BASE_PREFIX}${NDJSON}`] === "true";
-		const isTest = process.env["VITEST"] !== undefined || process.env["NODE_ENV"] === "test";
-		this.suppressConsole = !this.ndjsonForced && isTest;
+		this.ndjsonForced = ndjson;
 	}
 
 	/** Without options, delivers everything the run narrates and never blips; `{ kinds }` delivers exactly those kinds
