@@ -5,10 +5,7 @@
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import { ShuCombobox } from "./shu-combobox.js";
-import { SHU_TAG } from "../consts.js";
 import { installTestMediaQueries } from "../test-setup.js";
-
-if (!customElements.get(SHU_TAG.COMBOBOX)) customElements.define(SHU_TAG.COMBOBOX, ShuCombobox);
 
 const OPTIONS = [
 	{ value: "email-domain", label: "Email" },

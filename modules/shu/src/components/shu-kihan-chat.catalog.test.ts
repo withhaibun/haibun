@@ -32,10 +32,9 @@ vi.mock("../hypermedia.js", async () => {
 const { SerializedEventStream, setEventStream } = await import("../event-stream.js");
 const { setSiteMetadata } = await import("../rels-cache.js");
 const { LinkRelations } = await import("@haibun/core/lib/resources.js");
-const { ShuCombobox } = await import("./shu-combobox.js");
+await import("./shu-combobox.js");
 const { ShuKihanChat } = await import("./shu-kihan-chat.js");
 const { SHU_ATTR } = await import("../consts.js");
-if (!customElements.get("shu-combobox")) customElements.define("shu-combobox", ShuCombobox);
 
 const KIHAN = "Kihan";
 const MODEL = { id: "openai:a-model", displayName: "a model" };

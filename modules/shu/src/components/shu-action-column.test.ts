@@ -8,11 +8,10 @@ import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { readAction } from "@haibun/core/lib/actions.js";
 import { Access } from "@haibun/core/lib/resources.js";
 import { ShuActionColumn } from "./shu-action-column.js";
-import { ShuRef } from "./shu-ref-element.js";
+import "./shu-ref-element.js";
 
 import { setupShuTest, stepsShown, type TShuTestHandle } from "../test-setup.js";
 import { setDeviceStore, MemoryDeviceStore } from "../client-cache/index.js";
-import { SHU_TAG } from "../consts.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { endPage } from "../page-pinned.js";
 
@@ -31,11 +30,6 @@ describe("an action's view", () => {
 		endPage();
 		setDeviceStore(new MemoryDeviceStore());
 		handle = setupShuTest({ dispatch: (method) => (method === SHOW_STEPS_METHOD ? stepsShown([PUBLIC_READ, PRIVATE_READ, DELEGATES, REVOKES]) : undefined) });
-		for (const [tag, element] of [
-			[SHU_TAG.ACTION_COLUMN, ShuActionColumn],
-			[SHU_TAG.REF, ShuRef],
-		] as const)
-			if (!customElements.get(tag)) customElements.define(tag, element);
 	});
 	afterEach(() => {
 		handle.teardown();

@@ -2,6 +2,7 @@ import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { html, css, type TemplateResult } from "lit";
 import { defaultLabel } from "../util.js";
 import { SHU_EVENT, SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { openRef } from "./ref-navigation.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 /**
@@ -501,3 +502,5 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		}
 	}
 }
+
+defineElement(SHU_TAG.GRAPH_QUERY, ShuGraphQuery);

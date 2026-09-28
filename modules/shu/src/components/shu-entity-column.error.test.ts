@@ -16,7 +16,6 @@ describe("shu-entity-column error surfacing", () => {
 		// LiveConduit honours the stubbed `fetch` below; SerializedEventStream replaces the run's stream, which this case doesn't follow.
 		setConduit(new LiveConduit(""));
 		setEventStream(new SerializedEventStream());
-		if (!customElements.get("shu-entity-column")) customElements.define("shu-entity-column", ShuEntityColumn);
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});
 		// 422 + {error} mirrors a server actionNotOK response.
 		globalThis.fetch = (input: unknown): Promise<Response> => {
@@ -31,7 +30,7 @@ describe("shu-entity-column error surfacing", () => {
 	});
 
 	it("surfaces the server's 'not found' error in the entity column instead of leaving it spinning", async () => {
-		const el = document.createElement("shu-entity-column") as ShuEntityColumn;
+		const el = new ShuEntityColumn();
 		document.body.appendChild(el);
 		await el.open("did:example:pookie", "Issuer");
 		await el.updateComplete;

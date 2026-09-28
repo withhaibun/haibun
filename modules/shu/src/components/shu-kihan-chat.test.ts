@@ -34,8 +34,7 @@ vi.mock("../hypermedia.js", async () => {
 });
 
 // The selector must be a real combobox, so define that one element rather than the whole registry.
-const { ShuCombobox } = await import("./shu-combobox.js");
-if (!customElements.get("shu-combobox")) customElements.define("shu-combobox", ShuCombobox);
+await import("./shu-combobox.js");
 const { ShuKihanChat } = await import("./shu-kihan-chat.js");
 const { SHU_ATTR } = await import("../consts.js");
 const { CLOSED_CONVERSATION, conversationState } = await import("../conversation.js");

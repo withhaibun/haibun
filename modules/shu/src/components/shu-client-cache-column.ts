@@ -10,6 +10,8 @@
  * test id (SHU_TEST_IDS.CLIENT_CACHE), so this one view is what a feature reads cache facts from. It also reports where
  * the server's registry the page runs on came from: the server, or the device's copy when the server did not respond.
  */
+import { SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
@@ -441,3 +443,5 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 		</div>`;
 	}
 }
+
+defineElement(SHU_TAG.CLIENT_CACHE_COLUMN, ShuClientCacheColumn);

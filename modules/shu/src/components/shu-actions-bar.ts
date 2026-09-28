@@ -16,6 +16,7 @@ import { ActionsBarSteps } from "./actions-bar-steps.js";
 import { ActionsBarQuery } from "./actions-bar-query.js";
 import { ACTIONS_BAR_STYLES } from "./actions-bar-styles.js";
 import { SHU_EVENT, ACTION_BAR_ASK_SLOT, ACTION_BAR_CHAT_SLOT, SHU_TAG, CONVERSATION_PARAM } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { SCOPE, dispatchSubjectEvent } from "../current-subject.js";
 import type { ShuColumnPane } from "./shu-column-pane.js";
 import { ActionsBarSchema, BAR_MODES, QuestionRestateSchema, StepChoiceSchema, TypeChoiceSchema, type TQuestionRestate } from "../schemas.js";
@@ -299,3 +300,5 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		return pane;
 	}
 }
+
+defineElement(SHU_TAG.ACTIONS_BAR, ShuActionsBar);

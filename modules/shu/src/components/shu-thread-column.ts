@@ -6,7 +6,8 @@ import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
 import { shuBaseStyles } from "./styles.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
-import { SHU_EVENT } from "../consts.js";
+import { SHU_EVENT, SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { openRef } from "./ref-navigation.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { addsToSelection } from "../pane-state.js";
@@ -267,3 +268,5 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 		return quads;
 	}
 }
+
+defineElement(SHU_TAG.THREAD_COLUMN, ShuThreadColumn);

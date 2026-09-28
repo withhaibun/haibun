@@ -14,6 +14,8 @@
  *                 domain: `{ "domain": "..." }`
  *   text: display label (defaults to a derived label per kind)
  */
+import { SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { esc } from "../util.js";
 import { isRefKind, refHref, defaultLabel } from "./ref-navigation.js";
 
@@ -56,3 +58,5 @@ export class ShuRef extends HTMLElement {
 		}
 	}
 }
+
+defineElement(SHU_TAG.REF, ShuRef);

@@ -18,7 +18,7 @@ const preparing = (el: ShuAnnotatedBody): boolean => !!el.querySelector('[data-t
 const rendered = (el: ShuAnnotatedBody): string => el.querySelector('[data-testid="annotated-content"]')?.textContent ?? "";
 
 const mount = (content: string): ShuAnnotatedBody => {
-	const el = document.createElement("shu-annotated-body") as ShuAnnotatedBody;
+	const el = new ShuAnnotatedBody();
 	el.content = content;
 	el.mediaType = "text/plain";
 	el.sourceId = "f1";
@@ -31,7 +31,6 @@ describe("shu-annotated-body preparing indicator", () => {
 	let el: ShuAnnotatedBody | undefined;
 	beforeEach(() => {
 		provideLayout();
-		if (!customElements.get("shu-annotated-body")) customElements.define("shu-annotated-body", ShuAnnotatedBody);
 	});
 	afterEach(() => {
 		el?.remove();

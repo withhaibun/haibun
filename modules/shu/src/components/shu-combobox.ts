@@ -1,3 +1,5 @@
+import { SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { html, css, type TemplateResult } from "lit";
 import type { ZodType } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
@@ -485,3 +487,5 @@ const GROUP_HEADER_STYLE: Partial<CSSStyleDeclaration> = {
 	cursor: "default",
 	userSelect: "none",
 };
+
+defineElement(SHU_TAG.COMBOBOX, ShuCombobox);

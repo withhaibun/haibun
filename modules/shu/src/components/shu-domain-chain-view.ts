@@ -16,8 +16,8 @@ import { AFFORDANCE_EVENT_PREFIX } from "@haibun/core/lib/affordances.js";
 import { projectDomainChain, waypointNodeId, type TAffordancesSnapshot, type TWaypointSnapshot } from "../graph/project-domain-chain.js";
 import { graphToQuads } from "../graph/graph-quads.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
-import { SHU_EVENT, AFFORDANCE_PARAM, DEEP_LINK_PREFIX, SHU_TAG } from "../consts.js";
-import { RPC_METHOD } from "../consts.js";
+import { SHU_EVENT, AFFORDANCE_PARAM, DEEP_LINK_PREFIX, RPC_METHOD, SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import * as ViewHash from "../view-hash.js";
 import { producingStep } from "@haibun/core/lib/seq-path.js";
 import { openRef } from "./ref-navigation.js";
@@ -231,3 +231,5 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 		PaneState.requestFrom(this, { paneType: "component", tag: SHU_TAG.AFFORDANCES_PANEL, label: "Affordances" });
 	}
 }
+
+defineElement(SHU_TAG.DOMAIN_CHAIN_VIEW, ShuDomainChainView);

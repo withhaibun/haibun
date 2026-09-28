@@ -10,8 +10,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { viewQuery } from "../view-query.js";
 import { ShuGraphQuery } from "./shu-graph-query.js";
 
-if (!customElements.get("shu-graph-query-test")) customElements.define("shu-graph-query-test", ShuGraphQuery);
-const make = () => document.createElement("shu-graph-query-test") as ShuGraphQuery;
+const make = () => new ShuGraphQuery();
 
 describe("shu-graph-query → viewQuery", () => {
 	beforeEach(() => {

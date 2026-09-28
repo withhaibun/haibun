@@ -160,6 +160,9 @@ export const SHU_TAG = {
 	SCROLLBAR: "shu-scrollbar",
 	ARTIFACT_FRAME: "shu-artifact-frame",
 	VIRTUAL_COLUMN: "shu-virtual-column",
+	POLYMORPHIC_SETTINGS: "shu-polymorphic-settings",
+	FIELD: "shu-field",
+	ANNOTATED_BODY: "shu-annotated-body",
 } as const;
 
 /** The index pane's identity: the column every other one is opened from, and the only one the app builds itself. */

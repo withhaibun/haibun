@@ -4,6 +4,8 @@
  * A page holds only what was delegated to its key here, so the key is what a reader hands to whoever may delegate to
  * it: shown alone while the page doesn't hold a read, and in the permissions panel after.
  */
+import { SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { html, css, type TemplateResult } from "lit";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
@@ -38,3 +40,5 @@ export class ShuPageKey extends ShuElement<typeof PageKeySchema> {
 		return html`<code data-testid=${SHU_TEST_IDS.APP.PAGE_KEY}>${recordRef(PRINCIPAL_LABEL, controller)}</code><shu-copy-button label="copy" title="copy this page's key" .source=${controller}></shu-copy-button>`;
 	}
 }
+
+defineElement(SHU_TAG.PAGE_KEY, ShuPageKey);

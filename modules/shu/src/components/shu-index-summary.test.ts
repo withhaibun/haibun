@@ -30,8 +30,6 @@ function publish(from: string, detail: Record<string, unknown>): void {
 beforeAll(() => {
 	installTestMediaQueries(); // the pane asks the viewport whether it is narrow; jsdom doesn't answer such a question
 	provideLayout(); // the pane observes its size, to reserve its strip's height where it is docked
-	if (!customElements.get("shu-index-summary")) customElements.define("shu-index-summary", ShuIndexSummary);
-	if (!customElements.get("shu-column-pane")) customElements.define("shu-column-pane", ShuColumnPane);
 });
 
 describe("the index's spine summary", () => {
@@ -40,7 +38,7 @@ describe("the index's spine summary", () => {
 	beforeEach(async () => {
 		document.body.innerHTML = "";
 		searching("#?"); // the shared query outlives one test, so each starts without a search
-		summary = document.createElement("shu-index-summary") as ShuIndexSummary;
+		summary = new ShuIndexSummary();
 		document.body.appendChild(summary);
 		await summary.updateComplete;
 	});
@@ -94,10 +92,10 @@ describe("a spine view while its column is open", () => {
 	// takes: a reader can't see what it renders, so it doesn't render until the spine slot takes it.
 	it("hears the index without rendering, and is current the moment the column collapses", async () => {
 		document.body.innerHTML = "";
-		const pane = document.createElement("shu-column-pane") as ShuColumnPane;
+		const pane = new ShuColumnPane();
 		pane.setAttribute("label", "Index");
 		pane.dataset.columnKey = "query";
-		const summary = document.createElement("shu-index-summary") as ShuIndexSummary;
+		const summary = new ShuIndexSummary();
 		summary.setAttribute("slot", SPINE_SLOT);
 		pane.appendChild(document.createElement("div"));
 		pane.appendChild(summary);

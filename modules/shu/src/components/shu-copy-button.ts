@@ -1,3 +1,5 @@
+import { SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { copyText } from "../copy-util.js";
 
 /**
@@ -85,3 +87,5 @@ const STYLES = `
 	button:hover { background: var(--shu-bg-hover); }
 	button:focus-visible { outline: 2px solid var(--shu-accent); outline-offset: 1px; }
 `;
+
+defineElement(SHU_TAG.COPY_BUTTON, ShuCopyButton);

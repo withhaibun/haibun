@@ -11,7 +11,8 @@ import { z } from "zod";
 import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
-import { SHU_EVENT } from "../consts.js";
+import { SHU_EVENT, SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { getAvailableSteps } from "../rpc-registry.js";
 import { actionRef, domainRef, originLink } from "./shu-ref.js";
@@ -107,3 +108,5 @@ export class ShuStepDefinition extends ShuElement<typeof StateSchema> {
 		</div>`;
 	}
 }
+
+defineElement(SHU_TAG.STEP_DEFINITION, ShuStepDefinition);

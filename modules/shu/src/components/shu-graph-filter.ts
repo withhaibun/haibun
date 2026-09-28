@@ -20,7 +20,8 @@ import { z } from "zod";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles, shuRowSeparated } from "./styles.js";
-import { SHU_EVENT } from "../consts.js";
+import { SHU_EVENT, SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 
 const FILTER_IDS = SHU_TEST_IDS.GRAPH_FILTER;
@@ -313,6 +314,4 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 	};
 }
 
-if (!customElements.get("shu-graph-filter")) {
-	customElements.define("shu-graph-filter", ShuGraphFilter);
-}
+defineElement(SHU_TAG.GRAPH_FILTER, ShuGraphFilter);

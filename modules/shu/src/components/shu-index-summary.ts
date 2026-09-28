@@ -17,9 +17,9 @@ import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { SHU_EVENT, SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { describeSearch } from "./shu-search-summary.js";
-import { ShuGraphQuery } from "./shu-graph-query.js";
 import { viewQuery } from "../view-query.js";
 
 const EmptySchema = z.object({});
@@ -62,7 +62,7 @@ export class ShuIndexSummary extends ShuElement<typeof EmptySchema> {
 		// The index is not an ancestor of this element (it renders into the pane from outside it), so its context does
 		// not bubble through here. The document is where both meet.
 		this.autoListen(document, SHU_EVENT.CONTEXT_CHANGE, (e: Event) => {
-			if ((e.target as Element | null)?.tagName.toLowerCase() !== ShuGraphQuery.domainSelector) return;
+			if ((e.target as Element | null)?.tagName.toLowerCase() !== SHU_TAG.GRAPH_QUERY) return;
 			const total = (e as CustomEvent).detail?.total;
 			this.found = typeof total === "number" ? total : null;
 		});
@@ -78,4 +78,4 @@ export class ShuIndexSummary extends ShuElement<typeof EmptySchema> {
 	}
 }
 
-customElements.define(ShuIndexSummary.domainSelector, ShuIndexSummary);
+defineElement(SHU_TAG.INDEX_SUMMARY, ShuIndexSummary);

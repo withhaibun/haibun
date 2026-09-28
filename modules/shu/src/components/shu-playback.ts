@@ -15,6 +15,7 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { SHU_EVENT, SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { runSpan } from "../client-cache/index.js";
 
 /** Playback rates. The two below 1 run slower than the run did, for a dense burst to watch as it plays. */
@@ -140,4 +141,4 @@ export class ShuPlayback extends ShuElement<typeof StateSchema> {
 	}
 }
 
-customElements.define(ShuPlayback.domainSelector, ShuPlayback);
+defineElement(SHU_TAG.PLAYBACK, ShuPlayback);

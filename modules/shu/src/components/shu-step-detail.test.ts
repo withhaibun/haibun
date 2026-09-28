@@ -25,7 +25,6 @@ describe("shu-step-detail", () => {
 		document.body.innerHTML = "";
 		setConduit(new LiveConduit(""));
 		setEventStream(new SerializedEventStream());
-		if (!customElements.get("shu-step-detail")) customElements.define("shu-step-detail", ShuStepDetail);
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});
 		// One step of the execution being read: what it asked for, what ran, how it went and where.
 		const store = new QuadStore();

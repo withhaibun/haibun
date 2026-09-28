@@ -5,6 +5,8 @@
  * and writes `--shu-scale` as a custom property on the root, which every SHU component
  * picks up through `calc(N * var(--shu-scale))` in its tokens. Persists via localStorage.
  */
+import { SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { html, css, type TemplateResult } from "lit";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles, shuSegmentedStyles } from "./styles.js";
@@ -113,3 +115,5 @@ export class ShuThemeSwitch extends ShuElement<typeof ThemeSwitchSchema> {
 		`;
 	}
 }
+
+defineElement(SHU_TAG.THEME_SWITCH, ShuThemeSwitch);

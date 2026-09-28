@@ -27,7 +27,8 @@ import { availablePaints, browserRelOf } from "../paint-select.js";
 import { ganttBarTimes, GANTT_ROW_H, GANTT_BAR_H, GANTT_BAR_D, GANTT_MIN_BAR_W, GANTT_GHOST_PAD } from "../gantt-layout.js";
 import { type Adornment } from "../graph-layout.js";
 import { PolymorphicCamera, clearStripOffset, coveredTogether, type GanttExtent, type TMeasureUnit, type TPanDirection, type TZoomDirection } from "./polymorphic-camera.js";
-import { SHU_ATTR, SHU_EVENT } from "../../consts.js";
+import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../consts.js";
+import { defineElement } from "../../define-element.js";
 import { ndcToClient, clientToNdc, ndcOnScreen, NDC_EDGE, NDC_SPAN, type TNdc, type TClientPoint } from "../polymorphic/polymorphic-project.js";
 import { syncPickTarget, restorePickTarget, type TPickObject, type TScaleRestore } from "../polymorphic/polymorphic-pick-sync.js";
 import { RenderContext } from "./polymorphic-render-context.js";
@@ -2734,6 +2735,4 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	}
 }
 
-if (!customElements.get("shu-graph-scene")) {
-	customElements.define("shu-graph-scene", ShuGraphScene);
-}
+defineElement(SHU_TAG.GRAPH_SCENE, ShuGraphScene);

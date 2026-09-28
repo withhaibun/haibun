@@ -7,6 +7,8 @@
  *
  * It doesn't own the control: the control is the host's, slotted in, keeping its own id, value and events.
  */
+import { SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
@@ -79,6 +81,4 @@ class ShuField extends ShuElement<z.ZodType> {
 	}
 }
 
-if (!customElements.get("shu-field")) {
-	customElements.define("shu-field", ShuField);
-}
+defineElement(SHU_TAG.FIELD, ShuField);

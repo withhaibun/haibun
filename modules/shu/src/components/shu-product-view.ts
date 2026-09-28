@@ -9,6 +9,8 @@
  * root: mounted there, its scene boots but its graph component dies on the camera lookup. Light DOM keeps the
  * mounted subtree document-reachable wherever the product view is embedded.
  */
+import { SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
@@ -79,3 +81,5 @@ export class ShuProductView extends ShuElement<typeof ProductViewSchema> {
 		return html`<slot></slot>`;
 	}
 }
+
+defineElement(SHU_TAG.PRODUCT_VIEW, ShuProductView);

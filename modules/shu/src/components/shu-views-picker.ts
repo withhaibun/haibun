@@ -2,6 +2,8 @@
  * <shu-views-picker>: Lists available views (id, description) and opens one
  * on click via PaneState. Populated by the host via setViews().
  */
+import { SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { html, css, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
 import { z } from "zod";
@@ -62,4 +64,4 @@ export class ShuViewsPicker extends ShuElement<typeof ViewsPickerSchema> {
 	}
 }
 
-if (!customElements.get("shu-views-picker")) customElements.define("shu-views-picker", ShuViewsPicker);
+defineElement(SHU_TAG.VIEWS_PICKER, ShuViewsPicker);

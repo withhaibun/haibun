@@ -29,11 +29,10 @@ class RecordingRenderer implements IGraphRenderer {
 describe("shu-graph", () => {
 	beforeEach(() => {
 		document.body.innerHTML = "";
-		if (!customElements.get("shu-graph")) customElements.define("shu-graph", ShuGraph);
 	});
 
 	it("renders through the injected renderer when products carry a TGraph", async () => {
-		const el = document.createElement("shu-graph") as ShuGraph;
+		const el = new ShuGraph();
 		const renderer = new RecordingRenderer();
 		el.setRenderer(renderer);
 		document.body.appendChild(el);
@@ -53,7 +52,7 @@ describe("shu-graph", () => {
 	});
 
 	it("re-renders on subsequent products assignments", async () => {
-		const el = document.createElement("shu-graph") as ShuGraph;
+		const el = new ShuGraph();
 		const renderer = new RecordingRenderer();
 		el.setRenderer(renderer);
 		document.body.appendChild(el);
@@ -76,7 +75,7 @@ describe("shu-graph", () => {
 	});
 
 	it("re-dispatches graph-node-click out of the shadow boundary", async () => {
-		const el = document.createElement("shu-graph") as ShuGraph;
+		const el = new ShuGraph();
 		const renderer = new RecordingRenderer();
 		renderer.emitClick = true;
 		el.setRenderer(renderer);
@@ -98,7 +97,7 @@ describe("shu-graph", () => {
 	it("setZoom mutates the diagram-container CSS transform without re-rendering through the injected renderer", async () => {
 		// Regression: zoom changes must not retrigger layout. The container's
 		// transform updates directly; the renderer's call count stays put.
-		const el = document.createElement("shu-graph") as ShuGraph;
+		const el = new ShuGraph();
 		const renderer = new RecordingRenderer();
 		el.setRenderer(renderer);
 		document.body.appendChild(el);
@@ -116,7 +115,7 @@ describe("shu-graph", () => {
 	it("repaint skips renderer.render when the projected graph source is byte-identical to the previous paint", async () => {
 		// Regression: live affordance pings that don't change the graph shape must not
 		// retrigger layout, preserves scroll position and stops the diagram jumping.
-		const el = document.createElement("shu-graph") as ShuGraph;
+		const el = new ShuGraph();
 		const renderer = new RecordingRenderer();
 		el.setRenderer(renderer);
 		document.body.appendChild(el);
@@ -132,7 +131,7 @@ describe("shu-graph", () => {
 	});
 
 	it("throws when products lacks a TGraph (it doesn't fail silently)", () => {
-		const el = document.createElement("shu-graph") as ShuGraph;
+		const el = new ShuGraph();
 		document.body.appendChild(el);
 		expect(() => {
 			(el as ShuGraph & { products: Record<string, unknown> }).products = { foo: "bar" };

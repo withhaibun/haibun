@@ -22,7 +22,8 @@ import {
 	satisfiedGoalDomains,
 } from "@haibun/core/lib/affordances.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
-import { RPC_METHOD, SHU_EVENT, AFFORDANCE_PARAM } from "../consts.js";
+import { RPC_METHOD, SHU_EVENT, AFFORDANCE_PARAM, SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import * as ViewHash from "../view-hash.js";
 import { pathNodeIds, projectGoalPaths } from "../graph/project-goal-paths.js";
 import { graphToQuads } from "../graph/graph-quads.js";
@@ -638,3 +639,5 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		}
 	}
 }
+
+defineElement(SHU_TAG.AFFORDANCES_PANEL, ShuAffordancesPanel);

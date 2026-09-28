@@ -8,6 +8,8 @@
  * Shown from the access indicator, beside the level a read is bounded by: a capability decides whether a question may
  * be put, the level decides how much of the answer comes back, and a reader is looking at both in one place.
  */
+import { SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { html, css, type TemplateResult } from "lit";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
@@ -164,3 +166,5 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 		`;
 	}
 }
+
+defineElement(SHU_TAG.PERMISSIONS, ShuPermissions);

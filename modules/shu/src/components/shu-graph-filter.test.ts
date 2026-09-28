@@ -48,7 +48,6 @@ async function mount(schemaOnly: boolean): Promise<ShuGraphFilter> {
 describe("shu-graph-filter host modes", () => {
 	beforeEach(() => {
 		document.body.innerHTML = "";
-		if (!customElements.get("shu-graph-filter")) customElements.define("shu-graph-filter", ShuGraphFilter);
 	});
 
 	it("the legend groups the data types apart from the properties, with the instance-data controls", async () => {

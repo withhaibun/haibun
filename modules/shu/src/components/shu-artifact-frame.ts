@@ -3,7 +3,8 @@
  * Uses a slot for content, wrap any artifact (img, iframe, pre, shu-product-view) inside.
  * Attributes: caption (display text).
  */
-import { SHU_ATTR, SHU_EVENT } from "../consts.js";
+import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { shownOrReported } from "../artifact-url.js";
 
 const STYLES = `
@@ -170,4 +171,4 @@ export class ShuArtifactFrame extends HTMLElement {
 	}
 }
 
-if (!customElements.get("shu-artifact-frame")) customElements.define("shu-artifact-frame", ShuArtifactFrame);
+defineElement(SHU_TAG.ARTIFACT_FRAME, ShuArtifactFrame);

@@ -9,8 +9,6 @@ import { SHU_TAG } from "../consts.js";
 import { PaneState } from "../pane-state.js";
 import { ShuViewsPicker } from "./shu-views-picker.js";
 
-if (!customElements.get(SHU_TAG.VIEWS_PICKER)) customElements.define(SHU_TAG.VIEWS_PICKER, ShuViewsPicker);
-
 const IDS = SHU_TEST_IDS.VIEWS_PICKER;
 const views = [
 	{ id: "run", description: "the run as it happens", component: SHU_TAG.MONITOR_COLUMN },

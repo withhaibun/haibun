@@ -8,6 +8,7 @@ import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles, shuSegmentedStyles } from "./styles.js";
 import { SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { WINDOW_SIZES, windowSizeSetting } from "../window-size-setting.js";
 
 const EmptySchema = z.object({});
@@ -41,4 +42,4 @@ class ShuWindowSize extends ShuElement<typeof EmptySchema> {
 	}
 }
 
-customElements.define(SHU_TAG.WINDOW_SIZE, ShuWindowSize);
+defineElement(SHU_TAG.WINDOW_SIZE, ShuWindowSize);

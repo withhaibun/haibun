@@ -38,7 +38,6 @@ describe("shu-affordances-panel", () => {
 		// The deep link lives in the view hash, which is module state: clear it the way the app does, or one test's
 		// open goal is the next one's starting point.
 		ViewHash.mergeHashParams({ [AFFORDANCE_PARAM.GOAL]: "", [AFFORDANCE_PARAM.WAYPOINT]: "" });
-		if (!customElements.get("shu-affordances-panel")) customElements.define("shu-affordances-panel", ShuAffordancesPanel);
 		if (!customElements.get("shu-spinner")) {
 			class FakeSpinner extends HTMLElement {}
 			customElements.define("shu-spinner", FakeSpinner);
@@ -53,7 +52,7 @@ describe("shu-affordances-panel", () => {
 	afterEach(() => handle.teardown());
 
 	it("renders the goals section when products are assigned", async () => {
-		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel & { products: Record<string, unknown> };
+		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel);
 		panel.products = {
 			execution: EXECUTION,
@@ -69,7 +68,7 @@ describe("shu-affordances-panel", () => {
 	});
 
 	it("renders satisfied goals with every matching fact id (plural)", async () => {
-		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel & { products: Record<string, unknown> };
+		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel);
 		panel.products = {
 			execution: EXECUTION,
@@ -88,7 +87,7 @@ describe("shu-affordances-panel", () => {
 	});
 
 	it("renders michi findings as a picker with one card per enumerated path", async () => {
-		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel & { products: Record<string, unknown> };
+		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel);
 		panel.products = {
 			execution: EXECUTION,
@@ -121,7 +120,7 @@ describe("shu-affordances-panel", () => {
 	});
 
 	it("clicking 'Start this path' opens the path's first step in the actions bar without auto-dispatch", async () => {
-		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel & { products: Record<string, unknown> };
+		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel);
 		const path = { steps: [{ stepperName: "Issue", stepName: "issueCredential" }], bindings: [{ kind: "argument", domain: "issuer" }] };
 		panel.products = {
@@ -146,7 +145,7 @@ describe("shu-affordances-panel", () => {
 	});
 
 	it("reports the truncated cap in the path heading when the resolver hit its enumeration limit", async () => {
-		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel & { products: Record<string, unknown> };
+		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel);
 		panel.products = {
 			execution: EXECUTION,
@@ -166,7 +165,7 @@ describe("shu-affordances-panel", () => {
 	});
 
 	it("draws an open goal's paths in the site's graph presenter, previews the path a reader points at, and opens a step node in the actions bar", async () => {
-		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel & { products: Record<string, unknown> };
+		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel);
 		panel.products = {
 			execution: EXECUTION,
@@ -217,7 +216,7 @@ describe("shu-affordances-panel", () => {
 	});
 
 	it("re-rendering after a new affordances snapshot preserves <details> open state", async () => {
-		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel & { products: Record<string, unknown> };
+		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel);
 		panel.products = {
 			execution: EXECUTION,
@@ -244,7 +243,7 @@ describe("shu-affordances-panel", () => {
 	});
 
 	it("re-rendering preserves open state on a composite-binding tree", async () => {
-		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel & { products: Record<string, unknown> };
+		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel);
 		const compositeMichi = {
 			steps: [{ stepperName: "Cred", stepName: "issue" }],
@@ -282,7 +281,7 @@ describe("shu-affordances-panel", () => {
 	});
 
 	it("a satisfied goal that still has producer paths renders BOTH the existing-fact summary AND a Run-again section", async () => {
-		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel & { products: Record<string, unknown> };
+		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel);
 		panel.products = {
 			execution: EXECUTION,
@@ -312,7 +311,7 @@ describe("shu-affordances-panel", () => {
 	});
 
 	it("must NOT show 'Loading affordances…' forever when mounted without products (regression: reload-without-fetch hangs)", async () => {
-		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel;
+		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel);
 		await applied(panel);
 		// Either the actionable empty-state appears, or the panel rendered goals/waypoints lists. The forbidden outcome is only a spinner without a path forward.
@@ -325,7 +324,7 @@ describe("shu-affordances-panel", () => {
 	it("waypoints carried by `show affordances` products render the waypoint section: the ONE verb brings the whole snapshot", async () => {
 		const wp = { outcome: "deliver-report", kind: "declarative", ensured: false, method: "Acts-ensure", resolvesDomain: "report", paramSlots: [], proofStatements: [] };
 		setConduit(new TestConduit(async () => ({})));
-		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel & { products: Record<string, unknown> };
+		const panel = new ShuAffordancesPanel();
 		panel.products = { execution: EXECUTION, forward: [], goals: [], waypoints: [wp] };
 		document.body.appendChild(panel);
 		await applied(panel);
@@ -346,7 +345,7 @@ describe("shu-affordances-panel", () => {
 		);
 		const stream = new SerializedEventStream();
 		setEventStream(stream);
-		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel & { products: Record<string, unknown> };
+		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel); // subscribes via subscribeBatchedEvents
 		await new Promise((r) => setTimeout(r, 40)); // let the mount-time fetchInitial settle, then measure ONLY the burst
 		snapshotCalls = 0;
@@ -357,7 +356,7 @@ describe("shu-affordances-panel", () => {
 	});
 
 	it("takes the run its snapshot names as the run the page reads, where a fact's step opens, and refuses one that doesn't name a run", () => {
-		const panel = document.createElement("shu-affordances-panel") as ShuAffordancesPanel & { products: Record<string, unknown> };
+		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel);
 		panel.products = { execution: EXECUTION, forward: [], goals: [] };
 		expect(readingExecution()).toBe(EXECUTION);

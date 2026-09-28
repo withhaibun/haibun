@@ -29,11 +29,9 @@ provideLayout();
 
 const { ShuActionsBar } = await import("./shu-actions-bar.js");
 const { SHU_ATTR, SHU_EVENT, SHU_TAG } = await import("../consts.js");
-if (!customElements.get(SHU_TAG.ACTIONS_BAR)) customElements.define(SHU_TAG.ACTIONS_BAR, ShuActionsBar);
 const { ShuColumnPane } = await import("./shu-column-pane.js");
 // The app registers the ask pane, which the bar renders in Ask mode.
 await import("./shu-kihan-chat.js");
-if (!customElements.get(SHU_TAG.COLUMN_PANE)) customElements.define(SHU_TAG.COLUMN_PANE, ShuColumnPane);
 const { INITIAL_SUBJECT, SCOPE, currentSubjectState } = await import("../current-subject.js");
 const { pageContext, pageStatus, pageTrail } = await import("../signals.js");
 const { STOPPED_BY_THE_READER, conversationState, dispatchConversationEvent } = await import("../conversation.js");

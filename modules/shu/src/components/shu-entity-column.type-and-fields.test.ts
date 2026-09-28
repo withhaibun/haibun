@@ -41,7 +41,6 @@ describe("shu-entity-column type and fields", () => {
 	beforeEach(() => {
 		document.body.innerHTML = "";
 		setConcernCatalog(buildConcernCatalog({ widget: typeDomain("Widget", "widget", "A widget.") }));
-		if (!customElements.get("shu-entity-column")) customElements.define("shu-entity-column", ShuEntityColumn);
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});
 	});
 

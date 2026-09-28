@@ -9,11 +9,10 @@ import { render } from "lit";
 import { LinkRelations, PRINCIPAL_LABEL } from "@haibun/core/lib/resources.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { setSiteMetadata, type SiteMetadata } from "../rels-cache.js";
-import { SHU_TAG } from "../consts.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { provideLayout } from "../test/jsdom-layout.js";
 import { fieldRef } from "./shu-ref.js";
-import { ShuRef } from "./shu-ref-element.js";
+import "./shu-ref-element.js";
 import { ShuThreadColumn } from "./shu-thread-column.js";
 import { ShuPageKey } from "./shu-page-key.js";
 import { ShuEntityColumn } from "./shu-entity-column.js";
@@ -42,14 +41,6 @@ const refsIn = (root: ParentNode) => [...root.querySelectorAll("shu-ref")].map((
 beforeEach(() => {
 	provideLayout();
 	setSiteMetadata(META);
-	for (const [tag, element] of [
-		["shu-ref", ShuRef],
-		[SHU_TAG.THREAD_COLUMN, ShuThreadColumn],
-		[SHU_TAG.PAGE_KEY, ShuPageKey],
-		[SHU_TAG.ENTITY_COLUMN, ShuEntityColumn],
-	] as const) {
-		if (!customElements.get(tag)) customElements.define(tag, element);
-	}
 	document.body.innerHTML = "";
 });
 

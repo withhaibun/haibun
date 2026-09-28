@@ -14,6 +14,7 @@ import type { ShuSpinner } from "./shu-spinner.js";
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
 import { SCOPE, dispatchSubjectEvent } from "../current-subject.js";
 import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { patternRef, recordRef } from "./shu-ref.js";
 import { BundleSchema, ChatRoleSchema, ChatStatusSchema, UNVERIFIED_TURN, type TBundle, type TChatRole, type TQuestionRestate } from "../schemas.js";
@@ -204,4 +205,4 @@ export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
 	}
 }
 
-customElements.define(SHU_TAG.CHAT_MESSAGE, ShuChatMessage);
+defineElement(SHU_TAG.CHAT_MESSAGE, ShuChatMessage);

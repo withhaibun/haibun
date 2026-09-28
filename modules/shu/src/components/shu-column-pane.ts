@@ -26,7 +26,8 @@
  */
 import { html, css, nothing, unsafeCSS, type TemplateResult } from "lit";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
-import { PAGE_STRIP_FOOTPRINT, SHU_EVENT, SHU_ATTR, SPINE_SLOT } from "../consts.js";
+import { PAGE_STRIP_FOOTPRINT, SHU_EVENT, SHU_ATTR, SPINE_SLOT, SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { ColumnPaneSchema } from "../schemas.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
@@ -574,3 +575,5 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		`;
 	}
 }
+
+defineElement(SHU_TAG.COLUMN_PANE, ShuColumnPane);

@@ -15,7 +15,8 @@ import { virtualColumnCss } from "./shu-virtual-column.js";
 import { atLiveEdge, graphRunSource, type RunSource } from "../client-cache/index.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { SCROLL_TO_INDEX, type TSeekBy } from "./shu-scrollbar.js";
-import { SHU_EVENT } from "../consts.js";
+import { SHU_EVENT, SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import type { WindowedSource } from "../windowed-source.js";
 import type { TScrollMarker } from "../scrollbar-model.js";
 import { artifactAt, artifactUrl } from "../artifact-url.js";
@@ -440,3 +441,5 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		</div>`;
 	};
 }
+
+defineElement(SHU_TAG.MONITOR_COLUMN, ShuMonitorColumn);

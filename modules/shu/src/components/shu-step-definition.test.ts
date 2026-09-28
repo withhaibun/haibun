@@ -8,11 +8,11 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { ShuStepDefinition } from "./shu-step-definition.js";
-import { ShuRef } from "./shu-ref-element.js";
+import "./shu-ref-element.js";
 
 import { setupShuTest, stepsShown, type TShuTestHandle } from "../test-setup.js";
 import { setDeviceStore, MemoryDeviceStore } from "../client-cache/index.js";
-import { SHU_EVENT, SHU_TAG } from "../consts.js";
+import { SHU_EVENT } from "../consts.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { endPage } from "../page-pinned.js";
 
@@ -53,11 +53,6 @@ describe("a step's view", () => {
 		handle = setupShuTest({
 			dispatch: (method) => (method === SHOW_STEPS_METHOD ? stepsShown([VERIFY, HOLDING, READ], { [CREDENTIAL]: { persistedAs: CREDENTIAL_TYPE }, [CHECK]: {} }) : undefined),
 		});
-		for (const [tag, element] of [
-			[SHU_TAG.STEP_DEFINITION, ShuStepDefinition],
-			[SHU_TAG.REF, ShuRef],
-		] as const)
-			if (!customElements.get(tag)) customElements.define(tag, element);
 	});
 	afterEach(() => {
 		handle.teardown();

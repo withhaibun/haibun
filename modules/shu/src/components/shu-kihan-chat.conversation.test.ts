@@ -113,8 +113,7 @@ vi.mock("../hypermedia.js", async () => {
 	);
 });
 
-const { ShuCombobox } = await import("./shu-combobox.js");
-if (!customElements.get("shu-combobox")) customElements.define("shu-combobox", ShuCombobox);
+await import("./shu-combobox.js");
 const { ShuActivityHistory } = await import("./shu-activity-history.js");
 const { ShuKihanChat, NEW_CONVERSATION } = await import("./shu-kihan-chat.js");
 const { CLOSED_CONVERSATION, CONVERSATION_OPENING, TURN_IN_FLIGHT, askDraft, conversationState, dispatchConversationEvent, openConversation } = await import("../conversation.js");

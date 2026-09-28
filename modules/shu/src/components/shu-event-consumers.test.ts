@@ -73,8 +73,6 @@ describe("the views of a run, over the records it wrote", () => {
 	let handle: TShuTestHandle;
 	beforeEach(async () => {
 		endPage();
-		if (!customElements.get(SHU_TAG.MONITOR_COLUMN)) customElements.define(SHU_TAG.MONITOR_COLUMN, ShuMonitorColumn);
-		if (!customElements.get(SHU_TAG.DOCUMENT_COLUMN)) customElements.define(SHU_TAG.DOCUMENT_COLUMN, ShuDocumentColumn);
 		// What a reader chose of a view is remembered across reloads, so each case starts from a view that a reader hasn't set.
 		forgetElementPrefs(SHU_TAG.MONITOR_COLUMN, "");
 		handle = setupShuTest({
@@ -86,8 +84,8 @@ describe("the views of a run, over the records it wrote", () => {
 	});
 	afterEach(() => handle.teardown());
 
-	const open = async <T extends HTMLElement>(tag: string): Promise<T> => {
-		const view = document.createElement(tag) as T;
+	const open = async <T extends HTMLElement>(View: new () => T): Promise<T> => {
+		const view = new View();
 		document.body.appendChild(view);
 		await flush();
 		await flush();
@@ -103,7 +101,7 @@ describe("the views of a run, over the records it wrote", () => {
 			[],
 			[producedRecord(1, { id: `${RUN}.0.1.-1@0`, isPartOf: `${RUN}.0.1.-1` })],
 		);
-		const mon = await open<ShuMonitorColumn>(SHU_TAG.MONITOR_COLUMN);
+		const mon = await open(ShuMonitorColumn);
 		expect(
 			mon.rows.map((row) => row.step),
 			"the run's steps, without a row for what one of them produced",
@@ -118,7 +116,7 @@ describe("the views of a run, over the records it wrote", () => {
 	it("shows the steps run to carry other steps out when a reader asks for them, each naming the step that established it", async () => {
 		const RUN = "1700000000000-1";
 		await aRun([stepRecord(1, { id: `${RUN}.0.1` }), stepRecord(2, { id: `${RUN}.0.1.-1`, isPartOf: `${RUN}.0.1`, stepText: "take a screenshot", level: "trace" })]);
-		const mon = await open<ShuMonitorColumn>(SHU_TAG.MONITOR_COLUMN);
+		const mon = await open(ShuMonitorColumn);
 		expect(
 			mon.rows.map((row) => row.step),
 			"a reader reading what the feature did is not shown the machinery",
@@ -142,7 +140,7 @@ describe("the views of a run, over the records it wrote", () => {
 			[stepRecord(1), stepRecord(2, { actionStatus: "failed" })],
 			[{ id: "0.1@0", isPartOf: "0.1", message: "something to note", level: "warn", generatedAtTime: iso(1) }],
 		);
-		const mon = await open<ShuMonitorColumn>(SHU_TAG.MONITOR_COLUMN);
+		const mon = await open(ShuMonitorColumn);
 		const glyphs = new Map(mon.rows.map((row) => [row.step || row.message, row.icon]));
 		expect(glyphs.get("step 1"), "a step that passed").toBe(ICON_STEP_COMPLETED);
 		expect(glyphs.get("step 2"), "a step that failed says so rather than repeating the level every step reports at").not.toBe(ICON_LOG_INFO);
@@ -154,24 +152,24 @@ describe("the views of a run, over the records it wrote", () => {
 	});
 
 	it("shows a step as one row, which is what its record is", async () => {
-		const mon = await open<ShuMonitorColumn>(SHU_TAG.MONITOR_COLUMN);
+		const mon = await open(ShuMonitorColumn);
 		expect(mon.rows.map((r) => r.step)).toEqual(["step 1", "step 2"]);
 	});
 
 	it("states on the row where the step ran and how it went, rather than pairing it with a separate account of the same act", async () => {
-		const mon = await open<ShuMonitorColumn>(SHU_TAG.MONITOR_COLUMN);
+		const mon = await open(ShuMonitorColumn);
 		expect(mon.rows[0]).toMatchObject({ status: "passed", ranVia: "local" });
 	});
 
 	it("shows what a step said as its own row, under the step it was said during", async () => {
 		await aRun([stepRecord(1)], [{ id: "0.1@said", message: "it said this", level: "warn", generatedAtTime: iso(1), isPartOf: "0.1" }]);
-		const mon = await open<ShuMonitorColumn>(SHU_TAG.MONITOR_COLUMN);
+		const mon = await open(ShuMonitorColumn);
 		expect(mon.rows.map((r) => r.message)).toContain("it said this");
 	});
 
 	it("does not show a reader the traffic of whoever is reading the run", async () => {
 		await aRun([stepRecord(1), stepRecord(2, { stepText: "graph query", called: "MonitorStepper.graphQuery", level: "trace" })]);
-		const mon = await open<ShuMonitorColumn>(SHU_TAG.MONITOR_COLUMN);
+		const mon = await open(ShuMonitorColumn);
 		expect(
 			mon.rows.map((r) => r.step),
 			"a call made into the instance reports under the run's own steps",
@@ -179,7 +177,7 @@ describe("the views of a run, over the records it wrote", () => {
 	});
 
 	it("places the cursor at a row's instant, and at the newest row places it at the live edge so every view follows again", async () => {
-		const mon = await open<ShuMonitorColumn>(SHU_TAG.MONITOR_COLUMN);
+		const mon = await open(ShuMonitorColumn);
 		const times = Array.from(mon.shadowRoot?.querySelectorAll(".time-group") ?? []) as HTMLElement[];
 		expect(times.length).toBe(2);
 		timeCursor.set(999);
@@ -190,7 +188,7 @@ describe("the views of a run, over the records it wrote", () => {
 	});
 
 	it("renders the run as blocks, and an update about something else re-renders the same ones", async () => {
-		const doc = await open<ShuDocumentColumn>(SHU_TAG.DOCUMENT_COLUMN);
+		const doc = await open(ShuDocumentColumn);
 		const count = () => doc.shadowRoot?.querySelectorAll(".doc-row").length ?? 0;
 		const before = count();
 		expect(before).toBeGreaterThan(0);
@@ -200,7 +198,7 @@ describe("the views of a run, over the records it wrote", () => {
 	});
 
 	it("scrubs to a document row's own instant, and to the live edge at the newest", async () => {
-		const doc = await open<ShuDocumentColumn>(SHU_TAG.DOCUMENT_COLUMN);
+		const doc = await open(ShuDocumentColumn);
 		const rows = (Array.from(doc.shadowRoot?.querySelectorAll(".doc-row[data-raw-time]") ?? []) as HTMLElement[]).sort(
 			(a, b) => parseFloat(a.getAttribute("data-raw-time") ?? "0") - parseFloat(b.getAttribute("data-raw-time") ?? "0"),
 		);
@@ -218,7 +216,7 @@ describe("the views of a run, over the records it wrote", () => {
 			stepRecord(2, { id: "0.2", stepText: "Scenario: Something happens", called: "Haibun.scenario" }),
 			stepRecord(3, { id: "0.3", stepText: "A step of it" }),
 		]);
-		const doc = await open<ShuDocumentColumn>(SHU_TAG.DOCUMENT_COLUMN);
+		const doc = await open(ShuDocumentColumn);
 		const headings = Array.from(doc.shadowRoot?.querySelectorAll(".header-block") ?? []).map((h) => h.textContent?.trim() ?? "");
 		expect(headings.some((h) => h.includes("A run to read"))).toBe(true);
 		expect(headings.some((h) => h.includes("Something happens"))).toBe(true);
@@ -232,7 +230,7 @@ describe("the views of a run, over the records it wrote", () => {
 			edgeRanges: {},
 			ui: { "test-view": { component: "test-view-element", summary: "the test view" } },
 		} as unknown as SiteMetadata);
-		const doc = await open<ShuDocumentColumn>(SHU_TAG.DOCUMENT_COLUMN);
+		const doc = await open(ShuDocumentColumn);
 		expect(doc.shadowRoot?.textContent).toContain("show the graph");
 		expect(doc.shadowRoot?.querySelector("shu-product-view"), "a manual records what a step showed; what that view looked like is the run's own screenshot").toBeNull();
 	});
@@ -253,7 +251,7 @@ describe("the views of a run, over the records it wrote", () => {
 			[],
 			[producedRecord(PAGE + 2, { id: `${shooter}.-1@0`, isPartOf: `${shooter}.-1` }), producedRecord(PAGE + 3, { id: `${shooter}@0`, isPartOf: shooter })],
 		);
-		const doc = await open<ShuDocumentColumn>(SHU_TAG.DOCUMENT_COLUMN);
+		const doc = await open(ShuDocumentColumn);
 		const frames = Array.from(doc.shadowRoot?.querySelectorAll<ShuArtifactFrame>(`${SHU_TAG.ARTIFACT_FRAME}.thumb`) ?? []);
 		expect(frames.length, "both screenshots are in the document").toBe(2);
 		const captions = frames.map((frame) => {
@@ -267,7 +265,7 @@ describe("the views of a run, over the records it wrote", () => {
 
 	it("doesn't show a row when the run hasn't recorded a step, rather than a false one", async () => {
 		await aRun([]);
-		const doc = await open<ShuDocumentColumn>(SHU_TAG.DOCUMENT_COLUMN);
+		const doc = await open(ShuDocumentColumn);
 		expect(doc.shadowRoot?.querySelectorAll(".doc-row").length ?? 0).toBe(0);
 	});
 });
@@ -290,9 +288,6 @@ describe("the virtual column over a paged source", () => {
 			markers: () => [],
 		};
 	};
-	beforeEach(() => {
-		if (!customElements.get("shu-virtual-column")) customElements.define("shu-virtual-column", ShuVirtualColumn);
-	});
 
 	it("as a strip that has never shown rows, a following column's rail sits at the live edge, not at row one", async () => {
 		const col = document.createElement("shu-virtual-column") as ShuVirtualColumn;

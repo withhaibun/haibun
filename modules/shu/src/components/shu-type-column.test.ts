@@ -47,7 +47,6 @@ describe("buildTypeSchemaGraph: one type's schema", () => {
 	});
 
 	it("opens the view a pressed node links, and doesn't open a view for a press on the background", () => {
-		if (!customElements.get("shu-type-column")) customElements.define("shu-type-column", ShuTypeColumn);
 		const column = document.body.appendChild(new ShuTypeColumn());
 		const opened = vi.spyOn(PaneState, "requestFrom").mockImplementation(() => undefined);
 		const press = (graphNode: unknown) => column.dispatchEvent(new CustomEvent(SHU_EVENT.GRAPH_NODE_CLICK, { detail: { node: graphNode }, bubbles: true, composed: true }));

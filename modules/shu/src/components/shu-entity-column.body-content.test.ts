@@ -10,7 +10,7 @@ import { provideLayout } from "../test/jsdom-layout.js";
 type Body = { id: string; content: string; mediaType: string };
 
 const render = async (type: string, fields: Record<string, unknown>, bodies: Body[]): Promise<string> => {
-	const el = document.createElement("shu-entity-column") as ShuEntityColumn;
+	const el = new ShuEntityColumn();
 	document.body.appendChild(el);
 	el.openProducts({ _type: type, _summary: fields.id ?? type, ...fields, hasBody: bodies });
 	await el.updateComplete;
@@ -20,7 +20,6 @@ const render = async (type: string, fields: Record<string, unknown>, bodies: Bod
 describe("entity body content renders for every type and view that should show it", () => {
 	beforeEach(() => {
 		provideLayout();
-		if (!customElements.get("shu-entity-column")) customElements.define("shu-entity-column", ShuEntityColumn);
 	});
 
 	it("email with html + plain bodies: shows the body iframe and a switcher button per type", async () => {
@@ -74,17 +73,13 @@ describe("entity body content renders for every type and view that should show i
 // A graph read names a record's bodies by id and media type and doesn't carry their text, which is read on request.
 // The reading shown is chosen from that listing, whatever order the store lists the bodies in.
 describe("the reading a record shows, chosen from a listing that doesn't carry text", () => {
-	beforeEach(() => {
-		if (!customElements.get("shu-entity-column")) customElements.define("shu-entity-column", ShuEntityColumn);
-	});
-
 	const LISTED = [
 		{ id: "b-plain", mediaType: "text/plain" },
 		{ id: "b-html", mediaType: "text/html" },
 		{ id: "b-md", mediaType: "text/markdown" },
 	];
 	const openListing = async (): Promise<ShuEntityColumn> => {
-		const el = document.createElement("shu-entity-column") as ShuEntityColumn;
+		const el = new ShuEntityColumn();
 		document.body.appendChild(el);
 		el.openProducts({ _type: "Email", _summary: "e1", id: "e1", from: "a@x", subject: "Hi", hasBody: LISTED });
 		await el.updateComplete;
@@ -100,7 +95,7 @@ describe("the reading a record shows, chosen from a listing that doesn't carry t
 	});
 
 	it("anchors a record's annotations on the reading shown, where the store lists plain text before markdown", async () => {
-		const el = document.createElement("shu-entity-column") as ShuEntityColumn;
+		const el = new ShuEntityColumn();
 		document.body.appendChild(el);
 		el.openProducts({
 			_type: "Email",
@@ -132,12 +127,8 @@ describe("the reading a record shows, chosen from a listing that doesn't carry t
 // The annotate toggle uses the pane-icon toggle system (aria-pressed = active), and colours its glyph only when
 // annotations exist, so a reader tells at a glance whether a document carries notes, before opening the gutter.
 describe("annotate toggle button", () => {
-	beforeEach(() => {
-		if (!customElements.get("shu-entity-column")) customElements.define("shu-entity-column", ShuEntityColumn);
-	});
-
 	const openWithAnnotatableBody = async (annotations: unknown[]): Promise<ShuEntityColumn> => {
-		const el = document.createElement("shu-entity-column") as ShuEntityColumn;
+		const el = new ShuEntityColumn();
 		document.body.appendChild(el);
 		el.openProducts({ _type: "File", _summary: "notes.md", id: "f1", hasBody: [{ id: "fb", content: "# Notes\n\nbody text", mediaType: "text/markdown" }] });
 		// Seed annotations directly, then force the plain-body (iframe) path so the assertion doesn't depend on the

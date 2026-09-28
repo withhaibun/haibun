@@ -9,7 +9,8 @@ import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { validateStepInput, type TFieldError } from "../step-input-validator.js";
 import { getConcernCatalog } from "../rels-cache.js";
 import type { TComboboxOption } from "../schemas.js";
-import { SHU_EVENT } from "../consts.js";
+import { SHU_EVENT, SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { linkTo } from "../rpc-registry.js";
 
 type InputProperty = {
@@ -538,3 +539,5 @@ function collectFieldErrors(errs: TFieldError[]): Record<string, string> {
 	}
 	return out;
 }
+
+defineElement(SHU_TAG.STEP_CALLER, StepCaller);

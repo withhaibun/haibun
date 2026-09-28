@@ -17,6 +17,8 @@
  * The `.annotated-content` node does NOT carry lit bindings, so lit creates it once and never re-diffs it, leaving the
  * innerHTML this component sets and the layer the annotator injects intact across re-renders (see lit render pitfalls).
  */
+import { SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { html, type TemplateResult, type PropertyValues } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { property, state } from "lit/decorators.js";
@@ -632,4 +634,4 @@ function rangeForOffsets(container: HTMLElement, start: number, end: number): Ra
 	return range;
 }
 
-if (!customElements.get("shu-annotated-body")) customElements.define("shu-annotated-body", ShuAnnotatedBody);
+defineElement(SHU_TAG.ANNOTATED_BODY, ShuAnnotatedBody);

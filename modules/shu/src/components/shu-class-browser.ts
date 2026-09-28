@@ -16,6 +16,8 @@
  * Light DOM: the scene resolves its A-Frame camera through document.querySelector, and its chrome positions against
  * this host.
  */
+import { SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { html, type TemplateResult } from "lit";
 import type { TLinkedData } from "./shu-element.js";
@@ -281,6 +283,4 @@ class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSchema> {
 	}
 }
 
-if (!customElements.get("shu-class-browser")) {
-	customElements.define("shu-class-browser", ShuClassBrowser);
-}
+defineElement(SHU_TAG.CLASS_BROWSER, ShuClassBrowser);

@@ -12,6 +12,7 @@ import { html } from "lit";
 import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { SHU_EVENT, SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import type { TViewQuery } from "../view-query.js";
 
 const EmptySchema = z.object({});
@@ -68,4 +69,4 @@ export class ShuSearchSummary extends ShuElement<typeof EmptySchema> {
 	}
 }
 
-customElements.define(SHU_TAG.SEARCH_SUMMARY, ShuSearchSummary);
+defineElement(SHU_TAG.SEARCH_SUMMARY, ShuSearchSummary);

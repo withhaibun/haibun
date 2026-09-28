@@ -19,18 +19,10 @@ provideLayout();
 
 const { ShuPageStrip } = await import("./shu-page-strip.js");
 const { ShuColumnPane } = await import("./shu-column-pane.js");
-const { ShuBreadcrumb } = await import("./shu-breadcrumb.js");
-const { ShuCombobox } = await import("./shu-combobox.js");
+await import("./shu-breadcrumb.js");
+await import("./shu-combobox.js");
 const { SHU_EVENT, SHU_TAG } = await import("../consts.js");
 const { SHU_TEST_IDS } = await import("../test-ids.js");
-for (const [tag, element] of [
-	[SHU_TAG.PAGE_STRIP, ShuPageStrip],
-	[SHU_TAG.COLUMN_PANE, ShuColumnPane],
-	[SHU_TAG.BREADCRUMB, ShuBreadcrumb],
-	[SHU_TAG.COMBOBOX, ShuCombobox],
-] as const) {
-	if (!customElements.get(tag)) customElements.define(tag, element);
-}
 const { activePane, dockedPane, pageContext, pageStatus, pageTrail, pageTypes, stripPanes } = await import("../signals.js");
 const { setupShuTest } = await import("../test-setup.js");
 

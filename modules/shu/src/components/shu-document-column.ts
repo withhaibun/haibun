@@ -14,7 +14,8 @@ import { z } from "zod";
 import MarkdownIt from "markdown-it";
 import DOMPurify from "dompurify";
 import { ShuElement, TIME_SYNC_CLASS, type TLinkedData } from "./shu-element.js";
-import { SHU_ATTR, SHU_EVENT } from "../consts.js";
+import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { shuBaseStyles } from "./styles.js";
 import { artifactStepId, buildArtifactIndex, generateDocumentMarkdown, stepAncestors } from "@haibun/core/lib/document-content.js";
@@ -456,3 +457,5 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		this.#readRun(); // another level is another run source: the run at that level
 	}
 }
+
+defineElement(SHU_TAG.DOCUMENT_COLUMN, ShuDocumentColumn);

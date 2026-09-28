@@ -392,12 +392,11 @@ describe("knowing whether the hosting column is collapsed", () => {
 		provideLayout();
 		if (!customElements.get("shu-deep-probe")) customElements.define("shu-deep-probe", Deep);
 		if (!customElements.get("shu-wrapper-probe")) customElements.define("shu-wrapper-probe", Wrapper);
-		if (!customElements.get("shu-column-pane")) customElements.define("shu-column-pane", ShuColumnPane);
 	});
 
 	const mounted = async (): Promise<{ pane: ShuColumnPane; deep: Deep }> => {
 		document.body.innerHTML = "";
-		const pane = document.createElement("shu-column-pane") as ShuColumnPane;
+		const pane = new ShuColumnPane();
 		pane.setAttribute("label", "A");
 		pane.dataset.columnKey = "a";
 		const wrapper = document.createElement("shu-wrapper-probe") as Wrapper;

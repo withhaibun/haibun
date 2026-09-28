@@ -36,7 +36,6 @@ function railBox(el: ShuScrollbar, top: number, height: number): void {
 describe("shu-scrollbar interaction", () => {
 	beforeAll(() => {
 		provideLayout();
-		if (!customElements.get("shu-scrollbar")) customElements.define("shu-scrollbar", ShuScrollbar);
 	});
 
 	it("a press on a marker past the last window says that row, which doesn't begin a window", async () => {
@@ -212,7 +211,6 @@ describe("the position glyphs are presses to the run's edges", () => {
 	// The rail's rows are what a view holds; the top glyph asks for the START of the run and the bottom one for its live
 	// END, beyond what is held, which a host that pages its data answers by loading to that edge.
 	beforeAll(() => {
-		if (!customElements.get("shu-scrollbar")) customElements.define("shu-scrollbar", ShuScrollbar);
 		provideLayout();
 	});
 

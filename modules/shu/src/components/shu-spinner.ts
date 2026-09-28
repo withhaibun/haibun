@@ -1,3 +1,5 @@
+import { SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 /**
  * <shu-spinner>: reusable spinner with status text for async UI operations.
  * Pulses on each status update to show aliveness.
@@ -97,3 +99,5 @@ export class ShuSpinner extends HTMLElement {
 }
 
 // Registration moved to component-registry.ts
+
+defineElement(SHU_TAG.SPINNER, ShuSpinner);

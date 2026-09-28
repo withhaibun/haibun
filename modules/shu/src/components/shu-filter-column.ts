@@ -5,6 +5,8 @@
  * identity across updates via the `data-key` attribute so its inner DOM
  * survives.
  */
+import { SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { html, css, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
 import { ref, createRef } from "lit/directives/ref.js";
@@ -165,3 +167,5 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 		`;
 	}
 }
+
+defineElement(SHU_TAG.FILTER_COLUMN, ShuFilterColumn);

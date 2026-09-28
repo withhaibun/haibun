@@ -6,15 +6,13 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { ShuClientCacheColumn } from "./shu-client-cache-column.js";
-import { ShuMonitorColumn } from "./shu-monitor-column.js";
+import "./shu-monitor-column.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
 import { timeCursor } from "../signals.js";
 import { setGraphStore } from "../quads-snapshot.js";
 import { setSiteMetadata, type SiteMetadata } from "../rels-cache.js";
 import { currentExecution, graphRunSource } from "../client-cache/index.js";
-
-import { SHU_TAG } from "../consts.js";
 import { endPage } from "../page-pinned.js";
 
 const IDS = SHU_TEST_IDS.CLIENT_CACHE;
@@ -41,8 +39,6 @@ describe("the client cache view", () => {
 	const STEPS = 70;
 	beforeEach(async () => {
 		endPage();
-		if (!customElements.get(SHU_TAG.CLIENT_CACHE_COLUMN)) customElements.define(SHU_TAG.CLIENT_CACHE_COLUMN, ShuClientCacheColumn);
-		if (!customElements.get(SHU_TAG.MONITOR_COLUMN)) customElements.define(SHU_TAG.MONITOR_COLUMN, ShuMonitorColumn);
 		handle = setupShuTest({
 			dispatch: () => {
 				throw new Error("the views read the run's records");
@@ -69,7 +65,7 @@ describe("the client cache view", () => {
 	};
 
 	const open = async (): Promise<ShuClientCacheColumn> => {
-		const view = document.createElement(SHU_TAG.CLIENT_CACHE_COLUMN) as ShuClientCacheColumn;
+		const view = new ShuClientCacheColumn();
 		document.body.appendChild(view);
 		await flush();
 		return view;
@@ -79,7 +75,7 @@ describe("the client cache view", () => {
 
 	it("reports what it does not know as pending, never as absent", async () => {
 		setGraphStore(new QuadStore());
-		const view = document.createElement(SHU_TAG.CLIENT_CACHE_COLUMN) as ShuClientCacheColumn;
+		const view = new ShuClientCacheColumn();
 		document.body.appendChild(view);
 		await view.updateComplete; // before what the device holds has been read once
 		expect(text(view), "what this device holds has not been read yet, so the view doesn't make a claim about it").toContain("Waiting");

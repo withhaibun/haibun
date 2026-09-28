@@ -15,6 +15,8 @@
  * host's row styles reach the virtualized rows (a shadow-DOM wrapper would trap them). The host includes
  * `virtualColumnCss` in its own `static styles` for the layout the element needs; the rows are styled by the host.
  */
+import { SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { html, css, type TemplateResult, type CSSResultGroup } from "lit";
 import { z } from "zod";
 import { property } from "lit/decorators.js";
@@ -454,4 +456,4 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 	}
 }
 
-customElements.define("shu-virtual-column", ShuVirtualColumn);
+defineElement(SHU_TAG.VIRTUAL_COLUMN, ShuVirtualColumn);

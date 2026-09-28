@@ -7,7 +7,8 @@
  */
 import { html, css, type TemplateResult } from "lit";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
-import { SHU_EVENT, SHU_ATTR } from "../consts.js";
+import { SHU_EVENT, SHU_ATTR, SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { ColumnStripSchema } from "../schemas.js";
 import { activePane, stripPanes } from "../signals.js";
 import { shuBaseStyles } from "./styles.js";
@@ -343,3 +344,5 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		return html`<slot @slotchange=${this.onSlotChange}></slot>`;
 	}
 }
+
+defineElement(SHU_TAG.COLUMN_STRIP, ShuColumnStrip);

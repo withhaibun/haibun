@@ -26,7 +26,8 @@ const INSTANCES_PAGE = 100;
 
 /** A `#Type` link resolves against the site's own declared types: the same test every ref surface uses. */
 import type { ShuResultTable } from "./shu-result-table.js";
-import { SHU_EVENT } from "../consts.js";
+import { SHU_EVENT, SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { findDomain, stepsJoining } from "../rpc-registry.js";
 import { stepRef } from "./shu-ref.js";
@@ -290,3 +291,5 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 		return html`${steps("Returned by", returning, IDS.RETURNED_BY)}${steps("Taken by", taking, IDS.TAKEN_BY)}`;
 	}
 }
+
+defineElement(SHU_TAG.TYPE_COLUMN, ShuTypeColumn);

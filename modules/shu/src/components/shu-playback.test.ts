@@ -6,7 +6,7 @@
  * publishes: a concrete time while it is playing through the past, and null at the end, "now, without an upper bound", so a
  * record written after the newest event this page has seen is not read as future before its own event arrives.
  */
-import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ShuPlayback } from "./shu-playback.js";
 import { timeCursor } from "../signals.js";
 import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
@@ -38,15 +38,11 @@ async function aRun(): Promise<void> {
 
 let shu: TShuTestHandle;
 
-beforeAll(() => {
-	if (!customElements.get("shu-playback")) customElements.define("shu-playback", ShuPlayback);
-});
-
 /** A control that has seen a run between FIRST and LAST. */
 async function playing(): Promise<ShuPlayback> {
 	document.body.innerHTML = "";
 	timeCursor.set(null);
-	const el = document.createElement("shu-playback") as ShuPlayback;
+	const el = new ShuPlayback();
 	document.body.appendChild(el);
 	await el.updateComplete;
 	// The run's span comes from the run sources the open views read: so the run is read at a level (as an open monitor or
@@ -149,7 +145,7 @@ describe("playing through a run", () => {
 	it("doesn't set a cursor when an event hasn't happened yet, rather than playing an empty run", async () => {
 		document.body.innerHTML = "";
 		timeCursor.set(null);
-		const el = document.createElement("shu-playback") as ShuPlayback;
+		const el = new ShuPlayback();
 		document.body.appendChild(el);
 		await el.updateComplete;
 		await click(el, "playback-play");

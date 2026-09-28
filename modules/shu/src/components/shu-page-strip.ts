@@ -15,6 +15,7 @@ import { loadSlotExtensions } from "./slot-extensions.js";
 import { SignalController } from "../controllers/signal-controller.js";
 import { activePane, dockedPane, pageContext, pageStatus, pageTrail, pageTypes, stripPanes } from "../signals.js";
 import { PAGE_STRIP_FOOTPRINT, PERMISSIONS_SLOT, SEARCH_SLOT, SHU_ATTR, SHU_EVENT, SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { isOffline } from "../rpc-registry.js";
 import { reportToRun } from "../client-log.js";
 import { appAccessLevel } from "../util.js";
@@ -149,3 +150,5 @@ export class ShuPageStrip extends ShuElement<typeof PageStripSchema> {
 		</div>`;
 	}
 }
+
+defineElement(SHU_TAG.PAGE_STRIP, ShuPageStrip);

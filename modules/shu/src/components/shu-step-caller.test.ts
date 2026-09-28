@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from "vitest";
-import { StepCaller } from "./shu-step-caller.js";
+import "./shu-step-caller.js";
 
 /**
  * Step-caller form rendering and submit-time input assembly. Two behaviours
@@ -26,7 +26,6 @@ describe("shu-step-caller", () => {
 		// LiveConduit goes through the stubbed `fetch` set in each test; SerializedEventStream stands in for the SSE source.
 		setConduit(new LiveConduit(""));
 		setEventStream(new SerializedEventStream());
-		if (!customElements.get("shu-step-caller")) customElements.define("shu-step-caller", StepCaller);
 	});
 
 	function makeCaller(descriptor: Record<string, unknown>): HTMLElement {

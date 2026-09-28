@@ -34,7 +34,7 @@ const mkSnap = (n: number): Record<string, unknown> => ({
 });
 
 const mount = (): ShuDomainChainView => {
-	const view = document.createElement("shu-domain-chain-view") as ShuDomainChainView;
+	const view = new ShuDomainChainView();
 	document.body.appendChild(view);
 	return view;
 };
@@ -52,7 +52,6 @@ describe("shu-domain-chain-view", () => {
 		// is module state rather than the document's.
 		clearDeepLink();
 		declareFakeGraphPresenter();
-		if (!customElements.get("shu-domain-chain-view")) customElements.define("shu-domain-chain-view", ShuDomainChainView);
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});
 	});
 

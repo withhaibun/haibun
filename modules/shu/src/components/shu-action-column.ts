@@ -4,6 +4,8 @@
  * not a step: one action allows every step that requires it, a read at a level allows reads at narrower ones, and a
  * trailing `*` allows every action it begins.
  */
+import { SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { html, css, type TemplateResult } from "lit";
 import { Task } from "@lit/task";
 import { z } from "zod";
@@ -77,3 +79,5 @@ export class ShuActionColumn extends ShuElement<typeof StateSchema> {
 		});
 	}
 }
+
+defineElement(SHU_TAG.ACTION_COLUMN, ShuActionColumn);

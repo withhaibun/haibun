@@ -8,7 +8,6 @@ import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { MEDIA_TYPE } from "@haibun/core/lib/resources.js";
 import { ShuEntityColumn } from "./shu-entity-column.js";
 import { setSiteMetadata, type SiteMetadata } from "../rels-cache.js";
-import { SHU_TAG } from "../consts.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { provideLayout } from "../test/jsdom-layout.js";
 
@@ -41,7 +40,6 @@ describe("the references a record's body makes", () => {
 	beforeEach(() => {
 		provideLayout();
 		setSiteMetadata(META);
-		if (!customElements.get(SHU_TAG.ENTITY_COLUMN)) customElements.define(SHU_TAG.ENTITY_COLUMN, ShuEntityColumn);
 		document.body.innerHTML = "";
 	});
 

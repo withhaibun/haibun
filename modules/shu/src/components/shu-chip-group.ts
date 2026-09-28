@@ -7,6 +7,8 @@
  * It does NOT own state. The host supplies the chips and hears intent back through `onToggle`/`onPreview`; what a chip's
  * visibility means (a hidden type, a hidden predicate, a hidden axis value) is the host's business.
  */
+import { SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
@@ -90,6 +92,4 @@ class ShuChipGroup extends ShuElement<z.ZodType> {
 	}
 }
 
-if (!customElements.get("shu-chip-group")) {
-	customElements.define("shu-chip-group", ShuChipGroup);
-}
+defineElement(SHU_TAG.CHIP_GROUP, ShuChipGroup);

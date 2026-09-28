@@ -14,12 +14,12 @@ import { Task, TaskStatus } from "@lit/task";
 import { z } from "zod";
 import { eventMarkerStyle } from "../event-marker.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
-import { RPC_METHOD } from "../consts.js";
+import { RPC_METHOD, SHU_EVENT, SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { reads, conduit } from "../hypermedia.js";
 import { subscribeBatchedEvents } from "../event-stream.js";
 import { readIndividual } from "../quads-snapshot.js";
-import { SHU_EVENT } from "../consts.js";
 import { getRels } from "../rels-cache.js";
 import { appAccessLevel } from "../util.js";
 import { anIndividual, type TContextPattern } from "../schemas.js";
@@ -207,3 +207,5 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 		</div>`;
 	}
 }
+
+defineElement(SHU_TAG.STEP_DETAIL, ShuStepDetail);

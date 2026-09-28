@@ -9,7 +9,8 @@ import { html, css, type TemplateResult } from "lit";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { BreadcrumbSchema, NOTHING_SELECTED_LABEL } from "../schemas.js";
-import { SEARCH_SLOT } from "../consts.js";
+import { SEARCH_SLOT, SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 
 export class ShuBreadcrumb extends ShuElement<typeof BreadcrumbSchema> {
 	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
@@ -86,3 +87,5 @@ export class ShuBreadcrumb extends ShuElement<typeof BreadcrumbSchema> {
 		return html`${crumbs.map((label, i) => html`${i > 0 ? html`<span class="crumb-sep">›</span>` : ""}<span class=${i === activeIndex ? "crumb active" : "crumb"} data-index=${i} title=${label} @click=${this.onCrumb(i)}>${i === 0 && hasSync ? html`<button class="sync-btn" title="New data available, click to refresh" @click=${this.onSync}>⟳</button>` : ""}${i === 0 ? html`<slot name=${SEARCH_SLOT}>${label}</slot>` : label}</span>`)}`;
 	}
 }
+
+defineElement(SHU_TAG.BREADCRUMB, ShuBreadcrumb);

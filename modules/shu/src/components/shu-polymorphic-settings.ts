@@ -11,6 +11,8 @@
  * `fit` and `copy graph` are NOT here: they are actions, not options, and stay directly reachable on the view head.
  * The orientation group holds only actions (the two head-on aims), so the host renders it directly.
  */
+import { SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { html, type TemplateResult } from "lit";
 import { z } from "zod";
@@ -187,4 +189,4 @@ class ShuPolymorphicSettings extends ShuElement<z.ZodType> {
 	}
 }
 
-customElements.define("shu-polymorphic-settings", ShuPolymorphicSettings);
+defineElement(SHU_TAG.POLYMORPHIC_SETTINGS, ShuPolymorphicSettings);

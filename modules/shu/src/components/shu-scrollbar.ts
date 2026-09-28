@@ -9,6 +9,8 @@
  * It doesn't scroll the column itself: it emits `scroll-to-index` and the column (which owns the virtualizer) scrolls. Input is
  * unified through Pointer Events so mouse, touch, and pen behave identically on every device.
  */
+import { SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { html, css, nothing, type TemplateResult } from "lit";
 import { z } from "zod";
 import { property } from "lit/decorators.js";
@@ -260,4 +262,4 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 	};
 }
 
-customElements.define("shu-scrollbar", ShuScrollbar);
+defineElement(SHU_TAG.SCROLLBAR, ShuScrollbar);

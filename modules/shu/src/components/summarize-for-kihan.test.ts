@@ -4,24 +4,14 @@
  * active pane. Seeds each view through its public API and calls the method directly (without a render), so this covers the
  * projection shape and the empty→null contract, not layout.
  */
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect } from "vitest";
 import { ShuThreadColumn } from "./shu-thread-column.js";
 import { ShuAnnotatedBody } from "./shu-annotated-body.js";
 import { ShuProductView } from "./shu-product-view.js";
 
-const define = (tag: string, ctor: CustomElementConstructor): void => {
-	if (!customElements.get(tag)) customElements.define(tag, ctor);
-};
-
-beforeAll(() => {
-	define("shu-thread-column", ShuThreadColumn);
-	define("shu-annotated-body", ShuAnnotatedBody);
-	define("shu-product-view", ShuProductView);
-});
-
 describe("summarizeForKihan, enriched view projections", () => {
 	it("thread-column: an ordered collection of items with internal keys stripped and the reply surfaced", () => {
-		const el = document.createElement("shu-thread-column") as ShuThreadColumn;
+		const el = new ShuThreadColumn();
 		expect(el.summarizeForKihan()).toBeNull(); // empty thread
 		el.openItems([
 			{ "@id": "c1", "@type": "Comment", body: "root" },
@@ -35,7 +25,7 @@ describe("summarizeForKihan, enriched view projections", () => {
 	});
 
 	it("annotated-body: an as:Document carrying its content and each annotation's quote, note, and links", () => {
-		const el = document.createElement("shu-annotated-body") as ShuAnnotatedBody;
+		const el = new ShuAnnotatedBody();
 		expect(el.summarizeForKihan()).toBeNull(); // without content
 		el.content = "the body text";
 		el.mediaType = "text/markdown";
@@ -50,7 +40,7 @@ describe("summarizeForKihan, enriched view projections", () => {
 	});
 
 	it("product-view: delegates to the mounted child, so the wrapper never blanks its subtree", () => {
-		const el = document.createElement("shu-product-view") as ShuProductView;
+		const el = new ShuProductView();
 		expect(el.summarizeForKihan()).toBeNull(); // a child isn't mounted
 		const child = document.createElement("div") as HTMLElement & { summarizeForKihan?: () => unknown };
 		child.summarizeForKihan = () => ({ "@id": "view:result-table", "@type": "as:Collection" });

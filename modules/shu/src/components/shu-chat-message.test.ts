@@ -11,13 +11,10 @@ import { PaneState } from "../pane-state.js";
 import { followPaneLink } from "./ref-navigation.js";
 import { ChatMessageSchema, ShuChatMessage } from "./shu-chat-message.js";
 import { SHU_EVENT } from "../consts.js";
-import { ShuRef } from "./shu-ref-element.js";
+import "./shu-ref-element.js";
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
 import { REF_DENOTES, markdownRef } from "@haibun/core/lib/typed-links.js";
 import { setSiteMetadata } from "../rels-cache.js";
-
-if (!customElements.get("shu-chat-message")) customElements.define("shu-chat-message", ShuChatMessage);
-if (!customElements.get("shu-ref")) customElements.define("shu-ref", ShuRef);
 
 const BUNDLE = { patterns: [anIndividual("Email", "a@test.com"), aType("Email")], accessLevel: "private" };
 

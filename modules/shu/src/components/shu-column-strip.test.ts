@@ -24,12 +24,10 @@ beforeAll(() => {
 		Element.prototype.scrollIntoView = () => {
 			/* jsdom doesn't have a layout to scroll */
 		};
-	if (!customElements.get("shu-column-pane")) customElements.define("shu-column-pane", ShuColumnPane);
-	if (!customElements.get("shu-column-strip")) customElements.define("shu-column-strip", ShuColumnStrip);
 });
 
 function makePane(label: string): ShuColumnPane {
-	const pane = document.createElement("shu-column-pane") as ShuColumnPane;
+	const pane = new ShuColumnPane();
 	pane.setAttribute("label", label);
 	pane.setAttribute("column-type", "entity");
 	pane.dataset.columnKey = label;
@@ -50,7 +48,7 @@ describe("shu-column-strip minimize", () => {
 		setJsonCookie("shu-prefs-shu-column-pane", {});
 		activePane.set(null);
 		document.body.innerHTML = "";
-		strip = document.createElement("shu-column-strip") as ShuColumnStrip;
+		strip = new ShuColumnStrip();
 		document.body.appendChild(strip);
 		await (strip as unknown as { updateComplete: Promise<unknown> }).updateComplete;
 		panes = [makePane("A"), makePane("B"), makePane("C")];
@@ -104,7 +102,7 @@ describe("shu-column-strip activation invariant", () => {
 		setJsonCookie("shu-prefs-shu-column-pane", {});
 		activePane.set(null);
 		document.body.innerHTML = "";
-		strip = document.createElement("shu-column-strip") as ShuColumnStrip;
+		strip = new ShuColumnStrip();
 		document.body.appendChild(strip);
 		await (strip as unknown as { updateComplete: Promise<unknown> }).updateComplete;
 	});
@@ -146,13 +144,13 @@ describe("the panes a strip publishes", () => {
 		activePane.set(null);
 		stripPanes.set([]);
 		document.body.innerHTML = "";
-		strip = document.createElement("shu-column-strip") as ShuColumnStrip;
+		strip = new ShuColumnStrip();
 		document.body.appendChild(strip);
 		await (strip as unknown as { updateComplete: Promise<unknown> }).updateComplete;
 	});
 
 	it("publishes the panes it holds, in its order, with the query pane marked, as panes are added and removed", () => {
-		const query = document.createElement("shu-column-pane") as ShuColumnPane;
+		const query = new ShuColumnPane();
 		query.setAttribute("column-type", "query");
 		strip.addPane(query as ShuColumnPane & HTMLElement);
 		strip.addPane(makePane("A") as ShuColumnPane & HTMLElement);
@@ -187,7 +185,7 @@ describe("the panes a strip publishes", () => {
 	});
 
 	it("lays a docked pane out apart from the columns: it isn't last or growing, and the query pane is alone beside it", () => {
-		const query = document.createElement("shu-column-pane") as ShuColumnPane;
+		const query = new ShuColumnPane();
 		query.setAttribute("column-type", "query");
 		strip.addPane(query as ShuColumnPane & HTMLElement);
 		const docked = makePane("Actions");
@@ -222,7 +220,7 @@ describe("which pane grows into the strip's leftover width", () => {
 		setJsonCookie("shu-prefs-shu-column-pane", {});
 		activePane.set(null);
 		document.body.innerHTML = "";
-		strip = document.createElement("shu-column-strip") as ShuColumnStrip;
+		strip = new ShuColumnStrip();
 		document.body.appendChild(strip);
 		await (strip as unknown as { updateComplete: Promise<unknown> }).updateComplete;
 		panes = [makePane("A"), makePane("B"), makePane("C")];

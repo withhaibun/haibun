@@ -37,8 +37,6 @@ beforeAll(() => {
 		Element.prototype.scrollIntoView = () => {
 			/* jsdom doesn't have a layout to scroll */
 		};
-	if (!customElements.get("shu-column-pane")) customElements.define("shu-column-pane", ShuColumnPane);
-	if (!customElements.get("shu-column-strip")) customElements.define("shu-column-strip", ShuColumnStrip);
 });
 
 // A pane updates while it is in the page, and a pane doesn't update after it leaves the page: every case ends with the panes it
@@ -53,7 +51,7 @@ function stripWidth(el: HTMLElement, px: number): void {
 }
 
 function makePane(label = "Test", columnType = "entity"): ShuColumnPane {
-	const pane = document.createElement("shu-column-pane") as ShuColumnPane;
+	const pane = new ShuColumnPane();
 	pane.setAttribute("label", label);
 	pane.setAttribute("column-type", columnType);
 	pane.dataset.columnKey = label;
@@ -270,7 +268,7 @@ describe("shu-column-strip maximize + is-last", () => {
 
 	beforeEach(async () => {
 		document.body.innerHTML = "";
-		strip = document.createElement("shu-column-strip") as ShuColumnStrip;
+		strip = new ShuColumnStrip();
 		document.body.appendChild(strip);
 		await nextFrame(strip);
 	});

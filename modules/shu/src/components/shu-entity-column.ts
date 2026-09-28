@@ -25,7 +25,8 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { jsonDisclosure, literalWithJson } from "./json-disclosure.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { ShuElement, TIME_SYNC_CLASS, type TLinkedData } from "./shu-element.js";
-import { SHU_EVENT, ANNOTATION_GLYPH } from "../consts.js";
+import { SHU_EVENT, ANNOTATION_GLYPH, SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { bindCopyButtons, copyButtonHtml } from "../copy-util.js";
 import { isReplyEdge, MEDIA_TYPE } from "@haibun/core/lib/resources.js";
 import { anIndividual, EntityColumnSchema, type TContextPattern } from "../schemas.js";
@@ -747,3 +748,5 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		}
 	}
 }
+
+defineElement(SHU_TAG.ENTITY_COLUMN, ShuEntityColumn);

@@ -4,7 +4,8 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
 import { ShuClusteredGraphView, clusteredGraphStateShape } from "./shu-clustered-graph-view.js";
 import type { TLinkedData } from "@haibun/core/lib/hypermedia.js";
-import { SHU_EVENT } from "../consts.js";
+import { SHU_EVENT, SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { acts, conduit } from "../hypermedia.js";
 import type { TPaneOpen } from "../pane-state.js";
 import type { TPresenterNodeClick } from "../graph-presenter.js";
@@ -532,6 +533,4 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	};
 }
 
-if (!customElements.get("shu-polymorphic-graph-view")) {
-	customElements.define("shu-polymorphic-graph-view", ShuPolymorphicGraphView);
-}
+defineElement(SHU_TAG.POLYMORPHIC_GRAPH_VIEW, ShuPolymorphicGraphView);

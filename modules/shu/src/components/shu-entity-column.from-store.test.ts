@@ -14,14 +14,13 @@ describe("shu-entity-column stored-copy indication", () => {
 	let handle: TShuTestHandle;
 	beforeEach(() => {
 		endPage();
-		if (!customElements.get("shu-entity-column")) customElements.define("shu-entity-column", ShuEntityColumn);
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});
 		handle = setupShuTest({ dispatch: makeEntityDispatch({ entity: () => ({ vertex: { "@id": "t1", title: "a task" }, edges: [], incomingCount: 0 }) }) });
 	});
 	afterEach(() => handle.teardown());
 
 	const open = async (): Promise<ShuEntityColumn> => {
-		const el = document.createElement("shu-entity-column") as ShuEntityColumn;
+		const el = new ShuEntityColumn();
 		document.body.appendChild(el);
 		await el.open("t1", "Task");
 		await el.updateComplete;

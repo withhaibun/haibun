@@ -19,6 +19,7 @@ import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { ShuChatMessage } from "./shu-chat-message.js";
 import { CHAT_VIEW_PARAM, SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { FOLLOW_EDGE_SLACK_PX, ScrollFollowController, SignalController, SubjectController, TimelineViewController } from "../controllers/index.js";
 import { nextQuestion } from "../chat-turn.js";
@@ -167,4 +168,4 @@ export class ShuActivityHistory extends ShuElement<typeof EmptySchema> {
 	}
 }
 
-customElements.define(SHU_TAG.ACTIVITY_HISTORY, ShuActivityHistory);
+defineElement(SHU_TAG.ACTIVITY_HISTORY, ShuActivityHistory);

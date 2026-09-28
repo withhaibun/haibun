@@ -5,12 +5,9 @@
  */
 import { describe, it, expect } from "vitest";
 import { ShuPermissions, type TPermissionsSummary } from "./shu-permissions.js";
-import { ShuPageKey } from "./shu-page-key.js";
+import "./shu-page-key.js";
 import type { TAuthority } from "../controllers/index.js";
 import { pageAuthorityFails, pageHolding } from "../controllers/authority-controller.test-fake.js";
-
-if (!customElements.get("shu-permissions")) customElements.define("shu-permissions", ShuPermissions);
-if (!customElements.get("shu-page-key")) customElements.define("shu-page-key", ShuPageKey);
 
 const PAGE = "did:key:zDnaePage";
 const held: TAuthority = {

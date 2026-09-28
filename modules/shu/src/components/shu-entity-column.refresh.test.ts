@@ -19,7 +19,6 @@ const observation = (subject: string, predicate: string, object: string): Record
 describe("shu-entity-column live refresh", () => {
 	let handle: TShuTestHandle;
 	beforeEach(() => {
-		if (!customElements.get("shu-entity-column")) customElements.define("shu-entity-column", ShuEntityColumn);
 		handle = setupShuTest({ dispatch: makeEntityDispatch({ entity: () => ({ vertex: { "@id": "t1", title: "before", note: "x" }, edges: [], incomingCount: 0 }) }) });
 	});
 	afterEach(() => {
@@ -28,7 +27,7 @@ describe("shu-entity-column live refresh", () => {
 	});
 
 	const openSeeded = async (): Promise<ShuEntityColumn> => {
-		const el = document.createElement("shu-entity-column") as ShuEntityColumn;
+		const el = new ShuEntityColumn();
 		document.body.appendChild(el); // onConnected subscribes through the entity handle
 		await el.open("t1", "Task");
 		await flush();

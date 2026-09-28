@@ -23,7 +23,8 @@ import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
-import { SHU_EVENT } from "../consts.js";
+import { SHU_EVENT, SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { SvgGraphRenderer, graphToDot, findSvgNodes, findSvgEdges } from "../graph/svg-renderer.js";
 import { buildNeighbors, connectedNodes } from "../graph/graph-neighbors.js";
 import type { IGraphRenderer, TGraph, TGraphRenderOptions } from "../graph/types.js";
@@ -214,3 +215,5 @@ export class ShuGraph extends ShuElement<typeof ShuGraphSchema> {
 		this.paintHighlight(id, true);
 	}
 }
+
+defineElement(SHU_TAG.GRAPH, ShuGraph);

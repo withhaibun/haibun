@@ -19,7 +19,8 @@ import { shuBaseStyles } from "./styles.js";
 import { renderRef } from "./ref-navigation.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { viewCollection } from "@haibun/core/lib/hypermedia.js";
-import { SHU_EVENT } from "../consts.js";
+import { SHU_EVENT, SHU_TAG } from "../consts.js";
+import { defineElement } from "../define-element.js";
 import { z } from "zod";
 import { ResultTableSchema } from "../schemas.js";
 import { formatDate, isDateValue, idOf, persistedTypeOf, isVisibleKey } from "../util.js";
@@ -310,4 +311,4 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 	};
 }
 
-customElements.define("shu-result-table", ShuResultTable);
+defineElement(SHU_TAG.RESULT_TABLE, ShuResultTable);
