@@ -16,17 +16,16 @@ import { AFFORDANCE_EVENT_PREFIX } from "@haibun/core/lib/affordances.js";
 import { projectDomainChain, waypointNodeId, type TAffordancesSnapshot, type TWaypointSnapshot } from "../graph/project-domain-chain.js";
 import { graphToQuads } from "../graph/graph-quads.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
-import { SHU_EVENT, AFFORDANCE_PARAM, DEEP_LINK_PREFIX, RPC_METHOD, SHU_TAG } from "../consts.js";
+import { SHU_EVENT, AFFORDANCE_PARAM, RPC_METHOD, SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
 import * as ViewHash from "../view-hash.js";
 import { producingStep } from "@haibun/core/lib/seq-path.js";
-import { openRef } from "./ref-navigation.js";
+import { deepLinkOf, followDeepLink, openRef } from "./ref-navigation.js";
 import { domainRef, stepRef } from "./shu-ref.js";
 import { LINT_FINDING, LintFindingSchema, type TLintFinding } from "@haibun/core/lib/domain-chain-lint.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { noteExecution } from "../client-cache/executions.js";
-import { PaneState } from "../pane-state.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { NODE_KIND, nodeIn, type TGraph, type TGraphNode } from "../graph/types.js";
 import { linkTo } from "../rpc-registry.js";
@@ -225,10 +224,9 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 			return;
 		}
 		// Every other node of the chain projection deep-links into the affordances panel.
-		const href = node.link?.href;
-		if (typeof href !== "string" || !href.startsWith(DEEP_LINK_PREFIX)) throw new Error(`chain node ${node.id} doesn't have a deep link to open`);
-		ViewHash.mergeHashParams(Object.fromEntries(ViewHash.hashParams(href)));
-		PaneState.requestFrom(this, { paneType: "component", tag: SHU_TAG.AFFORDANCES_PANEL, label: "Affordances" });
+		const addressed = deepLinkOf(node.link?.href ?? "");
+		if (!addressed) throw new Error(`chain node ${node.id} doesn't have a deep link to open`);
+		followDeepLink(this, addressed);
 	}
 }
 

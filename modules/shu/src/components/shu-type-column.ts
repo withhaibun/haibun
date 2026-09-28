@@ -34,8 +34,7 @@ import { stepRef } from "./shu-ref.js";
 import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 
 const IDS = SHU_TEST_IDS.TYPE_COLUMN;
-import { openRef, paneAddressedBy, paneHref, refHref } from "./ref-navigation.js";
-import { PaneState } from "../pane-state.js";
+import { deepLinkOf, followDeepLink, openRef, paneHref, refHref } from "./ref-navigation.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { aType, type TContextPattern } from "../schemas.js";
 import { NODE_KIND, type TGraph } from "../graph/types.js";
@@ -192,9 +191,9 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 	private onSchemaNodeClick = (e: Event): void => {
 		const node = (e as CustomEvent<{ node: TSchemaNode | null }>).detail.node;
 		if (!node) return;
-		const pane = paneAddressedBy(node.link?.href ?? "");
-		if (!pane) throw new Error(`schema node ${node.id} doesn't address a view`);
-		PaneState.requestFrom(e, pane);
+		const addressed = deepLinkOf(node.link?.href ?? "");
+		if (!addressed) throw new Error(`schema node ${node.id} doesn't address a view`);
+		followDeepLink(e, addressed);
 	};
 
 	/** A row opens the individual it is, exactly as a row in the query or filter view does. */

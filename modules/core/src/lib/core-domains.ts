@@ -347,7 +347,7 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		selectors: [DOMAIN_AFFORDANCES],
 		schema: affordancesSchema,
 		description: "What can I do next: forward-reachable steps and goal-resolution verdicts.",
-		ui: { component: "shu-affordances-panel" },
+		ui: { component: "shu-affordances-panel", summary: "Affordances" },
 	},
 	{
 		selectors: [DOMAIN_CHAIN_WALK],

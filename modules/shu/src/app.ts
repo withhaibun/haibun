@@ -1,6 +1,6 @@
 import { appAccessLevel, defaultLabel, esc } from "./util.js";
 import { DOCK_FOOTPRINT, INDEX_PANE_KEY, SHU_EVENT, SHU_ATTR, SHU_TAG } from "./consts.js";
-import { getHash, hashWithColumns } from "./view-hash.js";
+import { getHash, hashOf, hashWithColumns } from "./view-hash.js";
 /**
  * Main SPA entry point, uses shu-column-strip + shu-column-pane layout.
  * Query pane is sticky on the left, additional columns scroll right.
@@ -95,7 +95,7 @@ function seedHashFromQueryString(): void {
 	if (search.size === 0) return;
 	const hashParams = new URLSearchParams();
 	for (const [key, value] of search) hashParams.set(key, value);
-	ShuElement.pushHash(`#?${hashParams.toString()}`);
+	ShuElement.pushHash(hashOf(hashParams));
 }
 
 /**

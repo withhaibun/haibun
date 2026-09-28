@@ -6,7 +6,7 @@
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
-import { desiredPaneFor, followPaneLink, paneAddressedBy, paneHref, refHref } from "./ref-navigation.js";
+import { deepLinkOf, desiredPaneFor, followPaneLink, paneHref, refHref } from "./ref-navigation.js";
 import { PaneState, type DesiredPane } from "../pane-state.js";
 import { hashWithColumns } from "../view-hash.js";
 
@@ -48,14 +48,21 @@ describe("a link to a pane", () => {
 	];
 
 	it("reads back as the pane it addresses, an individual's passage included", () => {
-		for (const pane of PANES) expect(paneAddressedBy(paneHref(pane))).toEqual(pane);
+		for (const pane of PANES) expect(deepLinkOf(paneHref(pane))).toEqual({ pane, state: {} });
+	});
+
+	it("carries the view state a link opens its pane with", () => {
+		expect(deepLinkOf(hashWithColumns(["shu-affordances-panel"], { "aff-goal": "vc" }))).toEqual({
+			pane: { paneType: "component", tag: "shu-affordances-panel", label: "shu-affordances-panel" },
+			state: { "aff-goal": "vc" },
+		});
 	});
 
 	it("is only an address of one column; any other href is the browser's to follow", () => {
-		expect(paneAddressedBy(hashWithColumns(["type:A", "type:B"]))).toBeNull();
-		expect(paneAddressedBy(`${paneHref(PANES[1])}&active=type%3APrincipal`)).toBeNull();
-		expect(paneAddressedBy("https://example.com/#?col=type%3AA")).toBeNull();
-		expect(paneAddressedBy("#section-2")).toBeNull();
+		expect(deepLinkOf(hashWithColumns(["type:A", "type:B"]))).toBeNull();
+		expect(deepLinkOf(`${paneHref(PANES[1])}&active=type%3APrincipal`)).toBeNull();
+		expect(deepLinkOf("https://example.com/#?col=type%3AA")).toBeNull();
+		expect(deepLinkOf("#section-2")).toBeNull();
 	});
 
 	describe("clicked", () => {

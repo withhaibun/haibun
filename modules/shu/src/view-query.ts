@@ -75,8 +75,8 @@ function queryParams(q: TViewQuery): URLSearchParams {
 
 /** Canonical hash string for a view query alone (without pane/affordance params). */
 export function serializeViewQuery(q: TViewQuery): string {
-	const s = queryParams(q).toString();
-	return s ? `#?${s}` : "";
+	const params = queryParams(q);
+	return params.toString() ? ViewHash.hashOf(params) : "";
 }
 
 // --- the page's signal store ---
@@ -155,7 +155,7 @@ export const viewQuery = {
 		const merged = ViewHash.hashParams(ViewHash.getHash());
 		for (const k of QUERY_PARAMS) merged.delete(k);
 		for (const [k, v] of queryParams(next)) merged.append(k, v);
-		const hash = merged.toString() ? `#?${merged.toString()}` : "";
+		const hash = merged.toString() ? ViewHash.hashOf(merged) : "";
 		store().lastWrittenHash = hash;
 		ViewHash.pushHash(hash);
 	},

@@ -8,7 +8,7 @@
  */
 import { esc, escAttr } from "../util.js";
 import { PaneState, addsToSelection, columnEntryOf, parseColEntry, type DesiredPane } from "../pane-state.js";
-import { COLUMN_PARAM, hashParams, hashWithColumns } from "../view-hash.js";
+import { ACTIVE_PARAM, COLUMN_PARAM, hashParams, hashWithColumns, mergeHashParams } from "../view-hash.js";
 import { DEEP_LINK_PREFIX } from "../consts.js";
 import { QuoteAnchorSchema } from "@haibun/core/lib/resources.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
@@ -48,12 +48,26 @@ export function paneHref(desired: DesiredPane): string {
 	return hashWithColumns([columnEntryOf(desired)]);
 }
 
-/** The pane a link addresses: the one column its href names, or null for any other href, which the browser follows. */
-export function paneAddressedBy(href: string): DesiredPane | null {
+/** What a link in the page addresses: the pane its one column names, and the view state its other params set. */
+export type TDeepLink = { pane: DesiredPane; state: Record<string, string> };
+
+/** What a link addresses, or null for an href that doesn't name one pane, which the browser follows. A hash that names the
+ *  active pane is a layout of the page rather than a link to a view. */
+export function deepLinkOf(href: string): TDeepLink | null {
 	if (!href.startsWith(DEEP_LINK_PREFIX)) return null;
 	const params = hashParams(href);
+	if (params.has(ACTIVE_PARAM)) return null;
 	const columns = params.getAll(COLUMN_PARAM);
-	return columns.length === 1 && [...params.keys()].length === 1 ? parseColEntry(columns[0]) : null;
+	const pane = columns.length === 1 ? parseColEntry(columns[0]) : null;
+	if (!pane) return null;
+	params.delete(COLUMN_PARAM);
+	return { pane, state: Object.fromEntries(params) };
+}
+
+/** Follow a link: set the view state it names, then open its pane beside the one it was followed from. */
+export function followDeepLink(from: Element | Event, link: TDeepLink, addToSelection = false): void {
+	if (Object.keys(link.state).length > 0) mergeHashParams(link.state);
+	PaneState.requestFrom(from, link.pane, addToSelection);
 }
 
 /**
@@ -71,11 +85,11 @@ export function refHref(kind: TRefKind, linkTarget: Record<string, unknown>): st
 export function followPaneLink(e: MouseEvent): void {
 	if (e.button !== 0) return;
 	const link = e.composedPath().find((target): target is HTMLAnchorElement => target instanceof HTMLAnchorElement);
-	const desired = link ? paneAddressedBy(link.getAttribute("href") ?? "") : null;
-	if (!desired) return;
+	const addressed = link ? deepLinkOf(link.getAttribute("href") ?? "") : null;
+	if (!addressed) return;
 	e.preventDefault();
 	e.stopPropagation();
-	PaneState.requestFrom(e, desired, addsToSelection(e));
+	followDeepLink(e, addressed, addsToSelection(e));
 }
 
 /** Open what a reference points at from a view that isn't a link. */

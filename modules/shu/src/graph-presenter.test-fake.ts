@@ -38,8 +38,9 @@ export class FakeGraphPresenter extends HTMLElement implements TGraphPresenter {
 	}
 }
 
-/** Declare the fake as the site's graph presenter, in a site whose other declarations are empty. */
-export function declareFakeGraphPresenter(): void {
+/** Declare the fake as the site's graph presenter, in a site whose other declarations are empty but for the `ui` a case
+ *  gives, by domain. */
+export function declareFakeGraphPresenter(ui: Record<string, Record<string, unknown>> = {}): void {
 	if (!customElements.get(FAKE_PRESENTER_TAG)) customElements.define(FAKE_PRESENTER_TAG, FakeGraphPresenter);
 	setSiteMetadata({
 		types: [],
@@ -50,7 +51,7 @@ export function declareFakeGraphPresenter(): void {
 		queryable: {},
 		validTimeFields: {},
 		summary: {},
-		ui: { graph: { component: FAKE_PRESENTER_TAG, presents: "graph" } },
+		ui: { graph: { component: FAKE_PRESENTER_TAG, presents: "graph" }, ...ui },
 		propertyDefinitions: {},
 	});
 }

@@ -8,11 +8,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { ShuDomainChainView } from "./shu-domain-chain-view.js";
 import * as ViewHash from "../view-hash.js";
-import { AFFORDANCE_PARAM } from "../consts.js";
+import { AFFORDANCE_PARAM, SHU_TAG } from "../consts.js";
 import { PaneState } from "../pane-state.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { LINT_FINDING } from "@haibun/core/lib/domain-chain-lint.js";
-import { DOMAIN_STRING } from "@haibun/core/lib/domains.js";
+import { DOMAIN_AFFORDANCES, DOMAIN_STRING } from "@haibun/core/lib/domains.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { readingExecution } from "../client-cache/executions.js";
 import { declareFakeGraphPresenter, mountedPresenter } from "../graph-presenter.test-fake.js";
@@ -39,6 +39,9 @@ const mount = (): ShuDomainChainView => {
 	return view;
 };
 
+/** The title the affordances panel's declaration gives its pane. */
+const AFFORDANCES_TITLE = "Affordances";
+
 /** A chain node as the projection gives one. */
 const chainNode = (node: Partial<TGraphNode> & { id: string }): TGraphNode => ({ label: node.id, ...node });
 
@@ -51,7 +54,8 @@ describe("shu-domain-chain-view", () => {
 		// Clear the deep link left over from previous tests so each one starts clean: it lives in the view hash, which
 		// is module state rather than the document's.
 		clearDeepLink();
-		declareFakeGraphPresenter();
+		// The site declares the affordances panel as core does, titled by its summary.
+		declareFakeGraphPresenter({ [DOMAIN_AFFORDANCES]: { component: SHU_TAG.AFFORDANCES_PANEL, summary: AFFORDANCES_TITLE } });
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});
 	});
 
@@ -94,7 +98,7 @@ describe("shu-domain-chain-view", () => {
 		presenter.openNode("vc");
 		expect(deepLink(AFFORDANCE_PARAM.GOAL)).toBe("vc");
 		expect(announced, "and every view reading the same deep link hears that it moved").toBeGreaterThanOrEqual(1);
-		expect(opened.mock.calls.map(([, pane]) => pane)).toEqual([{ paneType: "component", tag: "shu-affordances-panel", label: "Affordances" }]);
+		expect(opened.mock.calls.map(([, pane]) => pane)).toEqual([{ paneType: "component", tag: SHU_TAG.AFFORDANCES_PANEL, label: AFFORDANCES_TITLE }]);
 		// A listener's error is the page's to report, not the dispatcher's to catch.
 		const reported: string[] = [];
 		const onError = (e: ErrorEvent): void => {
@@ -118,7 +122,7 @@ describe("shu-domain-chain-view", () => {
 		};
 		document.addEventListener("step-choose", onChoose);
 		expect(deepLink(AFFORDANCE_PARAM.GOAL)).toBe("");
-		view.routeNodeClick(chainNode({ id: "vc", link: { href: "#?aff-goal=vc" } }));
+		view.routeNodeClick(chainNode({ id: "vc", link: { href: "#?col=shu-affordances-panel&aff-goal=vc" } }));
 		expect(deepLink(AFFORDANCE_PARAM.GOAL)).toBe("vc");
 		expect(stepChosen).toBeUndefined();
 		// A node without link.href that isn't fact-instance is a projection bug, refused rather than dispatching a step.

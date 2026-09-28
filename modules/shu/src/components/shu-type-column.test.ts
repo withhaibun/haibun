@@ -3,7 +3,7 @@
 import { describe, it, expect, beforeAll, vi } from "vitest";
 import { buildTypeSchemaGraph, buildFullSchemaGraph, ShuTypeColumn } from "./shu-type-column.js";
 import { getUiPresenting, setSiteMetadata, isSystemSchemaType, type SiteMetadata } from "../rels-cache.js";
-import { paneAddressedBy } from "./ref-navigation.js";
+import { deepLinkOf } from "./ref-navigation.js";
 import { NODE_KIND } from "../graph/types.js";
 import { PaneState } from "../pane-state.js";
 import { SHU_EVENT } from "../consts.js";
@@ -41,7 +41,7 @@ describe("buildTypeSchemaGraph: one type's schema", () => {
 
 	it("links a type's node to the type's view, and a property's node to the type's records ordered by it", () => {
 		const g = buildTypeSchemaGraph("Issuer");
-		const opens = (id: string) => paneAddressedBy(node(g, id)?.link?.href ?? "");
+		const opens = (id: string) => deepLinkOf(node(g, id)?.link?.href ?? "")?.pane;
 		expect(opens("VerificationMethod")).toEqual({ paneType: "type", persistedAs: "VerificationMethod" });
 		expect(opens("prop:name")).toEqual({ paneType: "filter-prop", persistedAs: "Issuer", predicate: "name" });
 	});

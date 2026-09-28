@@ -22,6 +22,7 @@ import { INDEX_PANE_KEY, SHU_ATTR, SHU_EVENT, SHU_TAG } from "./consts.js";
 import { readShowControlsCookie } from "./show-controls.js";
 import { readElementPrefs } from "./element-prefs.js";
 import { presentationForType } from "./graph/type-presentation.js";
+import { getUiByComponent } from "./rels-cache.js";
 import { activePane } from "./signals.js";
 import type { ShuColumnPane } from "./components/shu-column-pane.js";
 import type { ShuColumnStrip } from "./components/shu-column-strip.js";
@@ -285,7 +286,7 @@ class PaneStateImpl {
 		this.held.hydrated = true; // the hash has now been read at least once, writes are safe (see `hydrated`)
 		// `open=` arrivals never reach here: view-hash canonicalizes them into col= entries at its ingress.
 		const params = ViewHash.hashParams(ViewHash.getHash());
-		const active = params.get("active");
+		const active = params.get(ViewHash.ACTIVE_PARAM);
 		const next = new Map<string, DesiredPane>();
 		const idParam = params.get("id");
 		const labelParam = params.get("label");
@@ -551,9 +552,9 @@ class PaneStateImpl {
 			const suffix = `${d.docked ? ViewHash.PANE_ENDING.dock : ""}${d.flag ? ViewHash.PANE_ENDING[d.flag] : ""}`;
 			params.append(ViewHash.COLUMN_PARAM, `${id}${suffix}`);
 		}
-		if (this.activePaneId) params.set("active", this.activePaneId);
-		else params.delete("active");
-		const next = `#?${params.toString()}`;
+		if (this.activePaneId) params.set(ViewHash.ACTIVE_PARAM, this.activePaneId);
+		else params.delete(ViewHash.ACTIVE_PARAM);
+		const next = ViewHash.hashOf(params);
 		this.held.lastWrittenHash = next; // mark as this instance's so the echoed hashchange doesn't re-enter fromHash and clobber desired
 		if (next !== base) ViewHash.pushHash(next);
 	}
@@ -636,7 +637,14 @@ export function parseColEntry(raw: string): DesiredPane | null {
 		if (seq.some((n) => Number.isNaN(n))) return null;
 		return safe({ paneType: "step-detail", seqPath: seq, ...placement });
 	}
-	return safe({ paneType: "component", tag: body, label: body, ...placement });
+	return safe({ paneType: "component", tag: body, label: componentTitle(body), ...placement });
+}
+
+/** A component pane's title: the summary its domain's `ui` declares, as a step that opens it titles it, or its tag where the
+ *  declaration doesn't state one. */
+function componentTitle(tag: string): string {
+	const summary = getUiByComponent(tag)?.summary;
+	return typeof summary === "string" ? summary : tag;
 }
 
 function safe(input: unknown): DesiredPane | null {

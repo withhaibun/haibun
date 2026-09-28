@@ -4,12 +4,21 @@ import { isOffline } from "./rpc-registry.js";
 /** The hash parameter that names one open column by its pane id, once for each column, in order. */
 export const COLUMN_PARAM = "col";
 
-/** The hash that names these columns, in this order: what a page starting on a run's views is given, the same form a
- *  reader's own layout is written in. */
-export function hashWithColumns(columns: readonly string[]): string {
+/** The hash parameter that names the active pane by its pane id. */
+export const ACTIVE_PARAM = "active";
+
+/** The hash that states these params: the one form every hash the page writes takes. */
+export function hashOf(params: URLSearchParams): string {
+	return `#?${params.toString()}`;
+}
+
+/** The hash that names these columns, in this order, and sets the view state given: what a page starting on a run's views
+ *  is given, and what a link to a view opened with its state addresses, the same form a reader's own layout is written in. */
+export function hashWithColumns(columns: readonly string[], state: Record<string, string> = {}): string {
 	const params = new URLSearchParams();
 	for (const column of columns) params.append(COLUMN_PARAM, column);
-	return `#?${params.toString()}`;
+	for (const [name, value] of Object.entries(state)) params.set(name, value);
+	return hashOf(params);
 }
 
 /** The hash body as URLSearchParams, tolerant of a leading `#` or `#?`. */
@@ -47,8 +56,8 @@ export function canonicalizeArrival(hash: string, base: string): string {
 	const merged = hashParams(base);
 	merged.delete("open");
 	for (const entry of opened) merged.append(COLUMN_PARAM, entry);
-	merged.set("active", splitPaneEntry(opened[opened.length - 1]).id);
-	return `#?${merged.toString()}`;
+	merged.set(ACTIVE_PARAM, splitPaneEntry(opened[opened.length - 1]).id);
+	return hashOf(merged);
 }
 
 function replaceLocationHash(newHash: string): void {
@@ -137,7 +146,7 @@ export function mergeHashParams(values: Record<string, string>): void {
 		if (value) params.set(name, value);
 		else params.delete(name);
 	}
-	const next = `#?${params.toString()}`;
+	const next = hashOf(params);
 	if (next === getHash()) return;
 	pushHash(next);
 	announce();

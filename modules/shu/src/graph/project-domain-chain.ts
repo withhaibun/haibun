@@ -17,10 +17,14 @@
  *   - capability-gated  →  step requires an unmet capability
  */
 import { SOURCE_DOMAIN } from "@haibun/core/lib/domain-chain.js";
-import { AFFORDANCE_PARAM, DEEP_LINK_PREFIX } from "../consts.js";
+import { AFFORDANCE_PARAM, SHU_TAG } from "../consts.js";
+import { hashWithColumns } from "../view-hash.js";
 import { GOAL_FINDING } from "@haibun/core/lib/goal-resolver.js";
 import type { TForwardAffordance, TWaypointEntry, TCompositeRanges } from "@haibun/core/lib/affordances.js";
 import { EDGE_KIND, NODE_KIND, type TGraph, type TGraphEdge, type TGraphNode } from "./types.js";
+
+/** A link to the affordances panel, opened on the goal or waypoint a node names. */
+const affordancesAt = (param: (typeof AFFORDANCE_PARAM)[keyof typeof AFFORDANCE_PARAM], value: string): string => hashWithColumns([SHU_TAG.AFFORDANCES_PANEL], { [param]: value });
 
 /** The chain projection consumes the waypoint fields it renders: a subset of the core panel entry. */
 export type TWaypointSnapshot = Pick<TWaypointEntry, "outcome" | "kind" | "method" | "resolvesDomain" | "ensured">;
@@ -138,7 +142,7 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 	/** A domain's node: its verdict as its kind, a link to it in the affordances panel, and its one producer, if one. */
 	const domainNode = (d: string): TGraphNode => {
 		if (d === SOURCE_DOMAIN) return { id: d, label: `${SOURCE_DOMAIN} without preconditions`, kind: NODE_KIND.default };
-		const node: TGraphNode = { id: d, label: d, kind: findingToKind(goalFindings.get(d)), link: { href: `${DEEP_LINK_PREFIX}${AFFORDANCE_PARAM.GOAL}=${encodeURIComponent(d)}` } };
+		const node: TGraphNode = { id: d, label: d, kind: findingToKind(goalFindings.get(d)), link: { href: affordancesAt(AFFORDANCE_PARAM.GOAL, d) } };
 		const producer = producersByDomain.get(d);
 		if (producer) node.invokes = { stepperName: producer.stepperName, stepName: producer.stepName };
 		return node;
@@ -182,7 +186,7 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 					id: fieldId,
 					label: `${fieldName} : ${fieldDomain}`,
 					kind: NODE_KIND.field,
-					link: { href: `${DEEP_LINK_PREFIX}${AFFORDANCE_PARAM.GOAL}=${encodeURIComponent(fieldDomain)}` },
+					link: { href: affordancesAt(AFFORDANCE_PARAM.GOAL, fieldDomain) },
 				});
 				declareDomain(fieldDomain);
 				declareDomain(composite);
@@ -204,7 +208,7 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 				id,
 				label: `waypoint: ${w.outcome}`,
 				kind,
-				link: { href: `${DEEP_LINK_PREFIX}${AFFORDANCE_PARAM.WAYPOINT}=${encodeURIComponent(w.outcome)}` },
+				link: { href: affordancesAt(AFFORDANCE_PARAM.WAYPOINT, w.outcome) },
 				invokes: { stepperName, stepName },
 			});
 			if (w.resolvesDomain && domains.has(w.resolvesDomain)) {
