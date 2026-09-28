@@ -49,7 +49,7 @@ type TAnsweringStep = { stepperName: string; actionName: string; step: TStepperS
 function answeringStep(stepperName: string, actionName: string, stepDef: TStepperStep, args: TStepArgs): TAnsweringStep | string {
 	if (stepDef.productsOf === undefined) return { stepperName, actionName, step: stepDef, passedOn: false };
 	const ran = (args[stepDef.productsOf] as unknown as TFeatureStep[] | undefined)?.at(-1);
-	if (!ran) return `step ${stepperName}.${actionName} answers with what its {${stepDef.productsOf}} answered, and was given no statement there`;
+	if (!ran) return `step ${stepperName}.${actionName} answers with what its {${stepDef.productsOf}} answered, and wasn't given a statement there`;
 	return { stepperName: ran.action.stepperName, actionName: ran.action.actionName, step: ran.action.step, passedOn: true };
 }
 
@@ -64,8 +64,8 @@ export function validateProducts(stepperName: string, actionName: string, stepDe
 	if (answering.passedOn && answering.step.productsOf !== undefined) return undefined;
 	const named = `step ${stepperName}.${actionName}${answering.passedOn ? ` answering as ${answering.stepperName}.${answering.actionName}` : ""}`;
 	const schema = resolveOutputSchema(answering.stepperName, answering.actionName, answering.step, world);
-	if (!schema) return products === undefined || products === null ? undefined : `${named} returned products and names no domain they are`;
-	if (products === undefined || products === null) return `${named} declared an output schema but action returned no products`;
+	if (!schema) return products === undefined || products === null ? undefined : `${named} returned products and doesn't name a domain for them`;
+	if (products === undefined || products === null) return `${named} declared an output schema but its action didn't return products`;
 	// What a statement's step answered carries the markers its dispatch added, which aren't part of its domain.
 	const result = schema.safeParse(answering.passedOn ? productData(products as Record<string, unknown>) : products);
 	if (result.success) return undefined;

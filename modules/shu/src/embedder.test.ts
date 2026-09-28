@@ -106,7 +106,7 @@ describe("the delegation the page embedding shu gives its key", () => {
 		post(frame, { kind: EMBED_MESSAGE.delegation, delegation: delegationTo("did:key:zDnOther") }, EMBEDDER, parent);
 		expect(reported.map((r) => r.message)).toEqual(["refused a delegation from the embedding page"]);
 		await askEmbedderToDelegate(EMBEDDER, controller, frame, 10);
-		expect(reported.map((r) => r.message).at(-1)).toBe("the embedding page gave the key shu signs as no delegation");
+		expect(reported.map((r) => r.message).at(-1)).toBe("the embedding page didn't give a delegation to shu's page key");
 		expect(pageMay("Read:private")).toBe(false);
 		stop();
 	});

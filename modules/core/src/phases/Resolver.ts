@@ -207,7 +207,7 @@ export class Resolver {
 				throw Error(`not one step found for "${line}": ${JSON.stringify(stepActions.map((a) => a.actionName))}`);
 			}
 		} else if (stepActions.length < 1) {
-			throw Error(`no step found for "${line}"`);
+			throw Error(`"${line}" doesn't match a step`);
 		}
 		return itemAt(stepActions, 0);
 	}

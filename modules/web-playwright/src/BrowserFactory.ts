@@ -200,7 +200,7 @@ export class BrowserFactory {
 		const launchConfig = { ...deviceContext, ...config.options, ...config.launchOptions };
 		if (config.cdp !== undefined) {
 			const [context] = (await this.getBrowser(tag)).contexts();
-			if (!context) throw Error(`${cdpName(config.cdp)} has no context to adopt`);
+			if (!context) throw Error(`${cdpName(config.cdp)} doesn't have a context to adopt`);
 			this.adoptedContexts.add(context);
 			browserContext = context;
 		} else if (config.persistentDirectory !== undefined) {

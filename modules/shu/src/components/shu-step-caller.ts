@@ -357,7 +357,7 @@ export class StepCaller extends HTMLElement {
 
 	/** Rows as one table, its columns every field a row has, since a field one row states another may leave out. */
 	private renderTable(rows: Record<string, unknown>[]): string {
-		if (rows.length === 0) return "<p>No results.</p>";
+		if (rows.length === 0) return "<p>The result doesn't hold a row.</p>";
 		const cols = [...new Set(rows.flatMap((r) => Object.keys(r)))];
 		const header = cols.map((c) => `<th>${esc(c)}</th>`).join("");
 		const body = rows.map((r) => `<tr>${cols.map((c) => `<td>${this.renderCell(r[c])}</td>`).join("")}</tr>`).join("");

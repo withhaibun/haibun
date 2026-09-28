@@ -63,7 +63,7 @@ variable xy is "12"`,
 
 		expect(result.ok).toBe(false);
 		expect(result.failure?.stage).toBe("Resolve");
-		expect(result.failure?.error.message).toMatch(/Nonexistent outcome|no step found/);
+		expect(result.failure?.error.message).toMatch(/Nonexistent outcome|doesn't match a step/);
 	});
 
 	it("should execute a simple single-line proof", async () => {

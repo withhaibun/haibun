@@ -208,13 +208,13 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 				{ selectors: [DOMAIN_TEST_RUN_ANSWER], schema: TestRunAnswerSchema, description: "What a standing test run answered a step asked of it" },
 				{
 					selectors: [DOMAIN_ASKED_STEP],
-					schema: z.string().min(1, "names no step"),
+					schema: z.string().min(1, "doesn't name a step"),
 					description: "A step a test run is asked, by the name it has there or the step half of that name",
 				},
 				{
 					selectors: [DOMAIN_ASKED_PARAMS],
 					schema: z.string(),
-					description: "What a step asked of a test run takes: name=value pairs, JSON, or the bare value where it takes one parameter; empty where it takes none",
+					description: "What a step asked of a test run takes: name=value pairs, JSON, or the bare value where it takes one parameter; empty where it doesn't take a parameter",
 				},
 			],
 		}),
@@ -344,7 +344,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			gwta: `examine the test run`,
 			capability: SUPERVISOR_CAPABILITIES.read,
 			description:
-				"What the run reported: how it said it ended, every step it recorded as failed with the seqPath it failed at, and where it wrote its report. All of it is the run's own words. A run whose output is formatted for a person carries no step events, and then the step count is absent rather than zero; the summary and the report say how it went. The report path is recorded on the run, so a later reader reaches it from the record.",
+				"What the run reported: how it said it ended, every step it recorded as failed with the seqPath it failed at, and where it wrote its report. All of it is the run's own words. A run whose output is formatted for a person doesn't carry step events, and then the step count is absent rather than zero; the summary and the report say how it went. The report path is recorded on the run, so a later reader reaches it from the record.",
 			productsDomain: DOMAIN_TEST_RUN_EXAMINED,
 			action: async () => {
 				const tracked = this.inFlight ?? this.runsThisAsk.at(-1);
@@ -436,7 +436,8 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 		stopTestRun: {
 			gwta: `stop the test run`,
 			capability: SUPERVISOR_CAPABILITIES.stop,
-			description: "End the run in flight and release its port. A run is left standing after its features finish, so it is stopped when there is nothing left to ask it.",
+			description:
+				"End the run in flight and release its port. A run is left standing after its features finish, so it is stopped when the caller doesn't have another step to ask it.",
 			action: async () => {
 				// A run whose features are over may still be standing, holding its port for anything that wants to ask
 				// it something. Stopping is what ends that, so it is not limited to a run still in flight.
@@ -490,7 +491,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 	 *  caller is answered with what happened rather than with its consequence. */
 	private nothingToRead(what: string): string {
 		const why = this.notStarted?.why;
-		return why ? `there is no run to ${what}: the last one did not start, ${why}` : `no run has been started in this ask, so there is nothing to ${what}`;
+		return why ? `this ask doesn't have a run to ${what}: the last one did not start, ${why}` : `this ask doesn't have a run to ${what}: it hasn't started one`;
 	}
 
 	/** Whether this agent has a run to be asked about at all: one in flight, one standing, or one it started earlier

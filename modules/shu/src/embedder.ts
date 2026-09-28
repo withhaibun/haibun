@@ -109,7 +109,7 @@ export function askEmbedderToDelegate(embedderOrigin: string, controller: string
 			resolve();
 		};
 		const timer = setTimeout(() => {
-			reportToRun("warn", EMBEDDER_SOURCE, "the embedding page gave the key shu signs as no delegation", { controller, waitedMs: waitMs });
+			reportToRun("warn", EMBEDDER_SOURCE, "the embedding page didn't give a delegation to shu's page key", { controller, waitedMs: waitMs });
 			done();
 		}, waitMs);
 		const stop = givenDelegation.subscribe(done);

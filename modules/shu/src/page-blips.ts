@@ -21,7 +21,7 @@ const PAGE_BLIPS: TBlipDeclaration[] = [
 		name: PAGE_LONG_FRAME_BLIP,
 		instrument: "histogram",
 		description:
-			"A frame held the page's main thread past the browser's long-frame threshold. `value` is its duration, `blocking` how long it held input back, `render` how much of it the browser spent rendering, and `script` the longest script that ran in it, or (rendering) where none did.",
+			"A frame held the page's main thread past the browser's long-frame threshold. `value` is its duration, `blocking` how long it held input back, `render` how much of it the browser spent rendering, and `script` the longest script that ran in it, or (rendering) where a script didn't run.",
 		unit: "ms",
 		attributes: z.object({ blocking: z.number(), render: z.number(), script: z.string(), at: z.number().optional() }),
 		origin: true,

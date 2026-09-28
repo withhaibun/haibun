@@ -333,7 +333,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		// The whole graph, as the site holds it: it rides in the cache as quads, and a page reading it clusters them for
 		// itself, so what a reader sees of the graph is what the views would have painted from the site's own answer.
 		const built = await buildGraphSource(this.getWorld());
-		if (!built) logger.warn("[shu writeStandaloneReport] the graph was not captured: this store does not cluster, so a page reading this report has no graph");
+		if (!built) logger.warn("[shu writeStandaloneReport] the graph was not captured: this store does not cluster, so a page reading this report doesn't show a graph");
 		// The address a report opens at names the type the query column was showing, which the records of the run don't state.
 		// Which views were open it does not name: the page reads those from the records it carries, by the same read a
 		// page with a server makes. What is inlined is the code those views need, so the views are still read for that.
@@ -408,7 +408,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		recordClientBlips: {
 			gwta: `record client blips {batch: ${DOMAIN_CLIENT_BLIPS}}`,
 			description:
-				"Receive a batch of fine-grained occurrences the SPA recorded and put each into the run's blip channel, in the order the browser recorded them. A read: the run retains nothing of a blip, so it records nothing of a batch's arrival either. A recorded batch would be a step whose events reach the page and repaint a scene that then records what it drew.",
+				"Receive a batch of fine-grained occurrences the SPA recorded and put each into the run's blip channel, in the order the browser recorded them. A read: the run doesn't retain a blip, so it doesn't record a batch's arrival either. A recorded batch would be a step whose events reach the page and repaint a scene that then records what it drew.",
 			read: true,
 			action: ({ batch }: { batch: TClientBlips }) => {
 				const world = this.getWorld();

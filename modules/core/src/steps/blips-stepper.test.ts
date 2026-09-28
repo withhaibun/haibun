@@ -99,7 +99,7 @@ describe("a watch: which occurrences, in what order", () => {
 	});
 
 	it("says so plainly when the watch didn't record an occurrence", () => {
-		expect(renderWatch([], 0, [])).toMatch(/No occurrences/);
+		expect(renderWatch([], 0, [])).toMatch(/didn't record an occurrence/);
 	});
 
 	it("totals each name and declared dimension over every occurrence recorded, including those the window dropped", () => {

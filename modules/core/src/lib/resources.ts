@@ -88,7 +88,7 @@ export const AccessQuery = AccessQueryLevelSchema.enum;
  * declaration; this base is the declaration.
  */
 export const PersistedVertexSchema = z.object({
-	accessLevel: AccessLevelSchema.optional().describe("How widely the record is shared. A record stating no level is classified by its type at write time."),
+	accessLevel: AccessLevelSchema.optional().describe("How widely the record is shared. A record that doesn't state a level is classified by its type at write time."),
 });
 /** How much of the graph each level lets a reader see, so two of them can be compared: a reader at a level sees the
  *  records at that level and at each level narrower than it, so private sees every record and public the public ones. */
@@ -933,7 +933,7 @@ export const principalDomainDefinition: TDomainDefinition = {
 	// THE definition of a DID for a reader: a Principal's identity IS one, so this is where the term is explained, and
 	// every other description links the word here rather than explaining it again.
 	description:
-		"A person or service that acts in this system: the author behind records, comments, and decisions. Each is identified by a DID: a decentralized identifier, a stable web address of its own (written did:…) that anyone can look up to find the keys it signs with, so no central directory decides who is who.",
+		"A person or service that acts in this system: the author behind records, comments, and decisions. Each is identified by a DID: a decentralized identifier, a stable web address of its own (written did:…) that anyone can look up to find the keys it signs with, so a central directory doesn't decide who is who.",
 	topology: {
 		persistedAs: PRINCIPAL_LABEL,
 		type: "sec:Controller",

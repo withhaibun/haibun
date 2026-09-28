@@ -68,7 +68,7 @@ describe("what a caller must hold to run a test", () => {
 		const reader = [SUPERVISOR_CAPABILITIES.read];
 		await expect(h.call("TestRunnerStepper-runTest", { where: NOWHERE, filter: "any" }, reader)).rejects.toThrow(new RegExp(`capability ${SUPERVISOR_CAPABILITIES.run} required`));
 		const read = await h.call("TestRunnerStepper-readTestRun", {}, reader);
-		expect(read.result.errorMessage, "the read passed the gate and didn't find a run to read").toMatch(/nothing to read/);
+		expect(read.result.errorMessage, "the read passed the gate and didn't find a run to read").toMatch(/doesn't have a run to read/);
 	});
 
 	it("is not reachable through the agent by a capability the agent named for itself: the power gated is the power exercised", async () => {

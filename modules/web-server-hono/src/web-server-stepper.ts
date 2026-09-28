@@ -115,7 +115,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			parse: (input: string) => ({ result: input }),
 		},
 		ALLOW_WITHOUT_DELEGATION: {
-			desc: "Actions every caller may take without a delegation, comma-separated, beside what its delegation allows: Read:public for a site anyone may read. Unset, a caller holds only what it proves, and one that proves nothing may call only a step that requires nothing",
+			desc: "Actions every caller may take without a delegation, comma-separated, beside what its delegation allows: Read:public for a site anyone may read. Unset, a caller holds only what it proves, and one that doesn't prove a key may call only a step that doesn't require an action",
 			parse: (input: string) => (actionList(input).length > 0 ? { result: input } : { parseError: "ALLOW_WITHOUT_DELEGATION: name at least one action, comma-separated" }),
 		},
 	};

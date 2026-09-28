@@ -129,7 +129,7 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 			</div>
 
 			<h3>this page signs as</h3>
-			${controller ? html`<shu-page-key controller=${controller}></shu-page-key>` : html`<p class="none">no key; this page holds only what needs no delegation here</p>`}
+			${controller ? html`<shu-page-key controller=${controller}></shu-page-key>` : html`<p class="none">this page doesn't hold a key, so it holds only what doesn't need a delegation here</p>`}
 
 			<h3>what this page may do</h3>
 			${
@@ -137,7 +137,7 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 					? html`<ul class="holds">
 						${holds.map((action) => html`<li>${this.grantedAt(action)}</li>`)}
 					</ul>`
-					: html`<p class="none">nothing here; nothing was delegated to this page's key</p>`
+					: html`<p class="none">this page's key doesn't hold a delegation</p>`
 			}
 
 			<h3>

@@ -97,7 +97,7 @@ describe("what a reader may do here", () => {
 
 	it("says plainly when this page's key doesn't hold a delegation", async () => {
 		const el = await mounted({ controller: PAGE, holds: [], grantedBy: {}, principals: [] });
-		expect(el.shadowRoot?.textContent).toContain("nothing was delegated to this page's key");
+		expect(el.shadowRoot?.textContent).toContain("this page's key doesn't hold a delegation");
 	});
 });
 

@@ -280,7 +280,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		if (!name) return;
 		const scene = await readScene(name, "polymorphic: return to a saved scene");
 		if (!scene) {
-			this.sceneError = `no scene is saved as "${name}"`;
+			this.sceneError = `a scene isn't saved as "${name}"`;
 			this.requestUpdate();
 			return;
 		}

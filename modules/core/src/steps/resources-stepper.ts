@@ -206,7 +206,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 					const sourceId = String(sourceQuad.object);
 					const text = await markdownOf(store, sourceLabel, sourceId);
 					const said = describeAnchor(selector);
-					if (text === undefined) unresolved.push(`${sourceLabel} "${sourceId}" holds no text to anchor ${said} in (anchor ${anchor.id})`);
+					if (text === undefined) unresolved.push(`${sourceLabel} "${sourceId}" doesn't hold text to anchor ${said} (anchor ${anchor.id})`);
 					else if (!anchorResolves(text, selector)) unresolved.push(`${sourceLabel} "${sourceId}" no longer says ${said} (anchor ${anchor.id})`);
 				}
 				if (unresolved.length > 0) return actionNotOK(`${unresolved.length} of ${checked} citations no longer resolve:\n${unresolved.join("\n")}`);

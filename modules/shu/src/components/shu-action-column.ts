@@ -70,7 +70,7 @@ export class ShuActionColumn extends ShuElement<typeof StateSchema> {
 								allowed.length
 									? html`<p>Allows these steps this page may call:</p>
 											<ul>${allowed.map((step) => html`<li>${stepRef(step.method, step.method, IDS.STEP)}: ${step.pattern}</li>`)}</ul>`
-									: html`<p>Allows none of the steps this page may call.</p>`
+									: html`<p>Doesn't allow a step this page may call.</p>`
 							}
 						</div>`
 					: html``,

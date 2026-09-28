@@ -15,7 +15,7 @@ describe("SessionAuthority", () => {
 			const authority = new SessionAuthority();
 			const result = await authority.verifyEvidence(evidence);
 			expect(result.ok).toBe(false);
-			expect(result.error).toBe("no verifier is registered to decide this evidence");
+			expect(result.error).toBe("a verifier isn't registered to decide this evidence");
 		});
 
 		it("hands it to the registered verifier, and says who it proved was acting", async () => {
@@ -74,10 +74,10 @@ describe("SessionAuthority", () => {
 			const { authority, acts } = recording();
 			expect(await runAuthorizedWith([AUTHORITY_CAPABILITIES.delegate], () => authority.recordDelegation({ id: UNRECORDED }))).toEqual({
 				ok: false,
-				error: "a caller that proved no key and holds less than every action records and revokes no delegation",
+				error: "a caller that didn't prove a key and holds less than every action doesn't record or revoke a delegation",
 			});
 			expect(acts).toEqual([]);
-			expect(await new SessionAuthority().revoke(UNRECORDED)).toEqual({ ok: false, error: "no verifier is registered to record or revoke a delegation" });
+			expect(await new SessionAuthority().revoke(UNRECORDED)).toEqual({ ok: false, error: "a verifier isn't registered to record or revoke a delegation" });
 		});
 	});
 

@@ -1597,7 +1597,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				| undefined;
 			if (!n) return "[not in nodeMap]";
 			const s = n.__sprite;
-			if (!s) return "[no sprite]";
+			if (!s) return "[doesn't have a sprite]";
 			const t = n.__visual?.pickTarget;
 			const at = s.position ? `${s.position.x.toFixed(0)},${s.position.y.toFixed(0)},${s.position.z.toFixed(0)}` : "?";
 			const node = `${(n.x ?? 0).toFixed(0)},${(n.y ?? 0).toFixed(0)},${(n.z ?? 0).toFixed(0)}`;

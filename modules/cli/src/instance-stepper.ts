@@ -227,7 +227,7 @@ export const featureFilterDomainDefinition: TDomainDefinition = {
 		.string()
 		.refine(
 			(filter) => filter.split(",").every(isPattern),
-			"has a part that is no pattern a feature's path is matched against, such as * alone; leave it empty to run every feature",
+			"has a part that isn't a pattern a feature's path is matched against, such as * alone; leave it empty to run every feature",
 		),
 	description: "The features a run runs, by patterns of their paths, such as graph or a.*b, separated by commas, as haibun-cli takes them; an empty filter runs every feature",
 };
@@ -349,7 +349,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			gwta: `start a haibun run of {where: ${DOMAIN_FILE_PATH}} matching {filter: ${RUN_DOMAIN.featureFilter}} from {from: ${DOMAIN_FILE_PATH}} on port {port: ${DOMAIN_NUMBER}} as run {run: ${RUN_DOMAIN.name}} host {hostId: ${DOMAIN_NUMBER}}`,
 			capability: SUPERVISOR_CAPABILITIES.run,
 			description:
-				"Run features from a directory, filtered to the ones named, in a child of this process, started rather than awaited, so the caller watches it while it happens (see `read the haibun run`). It runs FROM the directory given, because a config's relative stepper paths and a base's served files are read from where a run is started: for most bases that is the base itself, and for a base run from its parent it is that parent. The port is the one its own web server takes, so two runs can go at once without meeting on a default; port zero leaves it to whatever ports its features declare. Host zero is a run that ends when its features do; a host above zero is a run that stays, takes that id, and has its steps registered here, so asking it something is `on host {id}, <step>` rather than a second way of calling. A run that stays needs a port of its own, since a run nobody can address is a run nobody can ask.",
+				"Run features from a directory, filtered to the ones named, in a child of this process, started rather than awaited, so the caller watches it while it happens (see `read the haibun run`). It runs FROM the directory given, because a config's relative stepper paths and a base's served files are read from where a run is started: for most bases that is the base itself, and for a base run from its parent it is that parent. The port is the one its own web server takes, so two runs can go at once without meeting on a default; port zero leaves it to whatever ports its features declare. Host zero is a run that ends when its features do; a host above zero is a run that stays, takes that id, and has its steps registered here, so asking it something is `on host {id}, <step>` rather than a second way of calling. A run that stays needs a port of its own, since a caller can't ask a run it can't address.",
 			productsDomain: RUN_DOMAIN.started,
 			action: async ({ where, filter, from, port, run, hostId }: { where: string; filter: string; from: string; port: number; run: string; hostId: number }) => {
 				const standing = hostId > 0;

@@ -88,7 +88,7 @@ export const emptyOutcome = (): TRunOutcome => ({
 	steps: 0,
 	failures: [],
 	report: "",
-	summary: "the run reported no outcome",
+	summary: "the run didn't report an outcome",
 	pending: "",
 	finished: false,
 	succeeded: false,

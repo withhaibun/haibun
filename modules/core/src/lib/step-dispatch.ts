@@ -266,7 +266,7 @@ async function checkInputPreconditions(world: TWorld, paramDomainKeys: ReadonlyM
 		if (stepValue?.term !== undefined && stepValue.term !== "") continue;
 		// The facts that stand for an input are the statement's, read at the ceiling it was stated at, as its arguments are.
 		const facts = await readingAsStated(() => queryFacts(world, normalized, FACT_GRAPH));
-		if (facts.length === 0) return `precondition-not-satisfied: domain "${normalized}" has no asserted facts and no resolved value for {${param}}`;
+		if (facts.length === 0) return `precondition-not-satisfied: domain "${normalized}" doesn't have an asserted fact or a resolved value for {${param}}`;
 	}
 	return undefined;
 }

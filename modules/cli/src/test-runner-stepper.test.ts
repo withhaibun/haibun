@@ -330,7 +330,7 @@ describe("what a run reported", () => {
 	});
 
 	it("says so when a run didn't report an outcome", () => {
-		expect(examineRun("       i █ 1.2:step-dispatch ｜ ✅ [0.1.1.1] set answer to ready\n").summary).toBe("the run reported no outcome");
+		expect(examineRun("       i █ 1.2:step-dispatch ｜ ✅ [0.1.1.1] set answer to ready\n").summary).toBe("the run didn't report an outcome");
 	});
 
 	it("takes the report from the artifact that wrote it, and falls back to what the run announced", () => {

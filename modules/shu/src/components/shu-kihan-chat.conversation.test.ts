@@ -616,7 +616,7 @@ describe("a conversation", () => {
 	});
 
 	it("isn't named by a session on a first turn the run refused before it recorded anything, whose question returns to the input", async () => {
-		refusedBeforeRecording = 'no Kihan registered for target "openai:gone"';
+		refusedBeforeRecording = 'a Kihan isn\'t registered for target "openai:gone"';
 		const { pane } = await aPage();
 		await submit(pane, "what do these have in common");
 		await settle();

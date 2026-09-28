@@ -51,8 +51,8 @@ export class BaseOptions implements IHasOptions {
 				for (const pair of pairs) {
 					const [k, v] = pair.split("=").map((i) => i.trim());
 					if (!k && !v) continue;
-					if (!k) throw Error(`No key provided for ENV ${v}`);
-					if (v === undefined) return { parseError: `ENV ${k} has no value: write ${k}=value` };
+					if (!k) throw Error(`ENV value ${v} doesn't have a key: write key=${v}`);
+					if (v === undefined) return { parseError: `ENV ${k} doesn't have a value: write ${k}=value` };
 					if (cur[k] || env[k]) return { parseError: `ENV ${k} already defined` };
 					env[k] = v;
 				}

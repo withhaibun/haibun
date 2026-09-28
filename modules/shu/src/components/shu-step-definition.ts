@@ -100,7 +100,7 @@ export class ShuStepDefinition extends ShuElement<typeof StateSchema> {
 				${step.productsDomain ? html`<dt>Returns</dt><dd data-testid=${IDS.PRODUCTS}>${domainRef(step.productsDomain)}</dd>` : ""}
 				${step.productsOf ? html`<dt>Returns</dt><dd data-testid=${IDS.PRODUCTS}>what its <code>{${step.productsOf}}</code> returns</dd>` : ""}
 				<dt>Requires</dt><dd>${actionRef(step.capability)}</dd>
-				<dt>Does</dt><dd>${step.read ? "reads, and the run records no reading" : "acts, and the run records it"}</dd>
+				<dt>Does</dt><dd>${step.read ? "reads, and the run doesn't record the reading" : "acts, and the run records it"}</dd>
 				${step.remoteOrigin ? html`<dt>Runs at</dt><dd>${originLink(step.remoteOrigin)}</dd>` : ""}
 			</dl>
 			<button type="button" class="primary" data-testid=${IDS.CHOOSE} @click=${this.onChoose}>Choose this step</button>

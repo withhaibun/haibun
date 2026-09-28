@@ -335,7 +335,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 			<h4>Live stream since this view opened (device time ${at(this.#openedAt)})</h4>
 			${
 				this.#liveByLevel.size === 0
-					? html`<div class="empty">No event has arrived since this view opened.</div>`
+					? html`<div class="empty">An event hasn't arrived since this view opened.</div>`
 					: html`<table>
 							<tr>
 								<th>level</th>
@@ -354,7 +354,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 			<h4>Run sources</h4>
 			${
 				sources.length === 0
-					? html`<div class="empty">No view has read the run yet.</div>`
+					? html`<div class="empty">A view hasn't read the run yet.</div>`
 					: html`<table>
 							<tr>
 								<th>level</th>
@@ -383,12 +383,12 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 			<h4>Executions this device holds <small>(named by the features each ran, from the newest ${EXECUTIONS_READ} feature declarations held)</small></h4>
 			<div>
 				reading
-				<span data-testid=${IDS.READING}>${named(reading) || "no execution yet"}</span>
+				<span data-testid=${IDS.READING}>${named(reading) || "not reading an execution yet"}</span>
 				${earlier === undefined ? "" : html` <button data-testid=${IDS.READ_EARLIER} @click=${() => readExecution(earlier)}>read the execution before it</button>`}
 			</div>
 			${
 				this.#held.length === 0
-					? emptyOrLoading(this.#deviceRead, "No execution is held on this device.")
+					? emptyOrLoading(this.#deviceRead, "This device doesn't hold an execution.")
 					: html`<table data-testid=${IDS.HELD}>
 							<tr>
 								<th>execution</th>
@@ -417,7 +417,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 			<h4>IndexedDB <small>(this build reads ${CACHE_SHAPE}; a cache written to another rule is forgotten on open)</small></h4>
 			${
 				this.#databases.length === 0
-					? emptyOrLoading(this.#deviceRead, "No IndexedDB database on this origin.")
+					? emptyOrLoading(this.#deviceRead, "This origin doesn't hold an IndexedDB database.")
 					: html`<table>
 							<tr>
 								<th>database</th>

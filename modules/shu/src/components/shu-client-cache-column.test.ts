@@ -83,14 +83,14 @@ describe("the client cache view", () => {
 		document.body.appendChild(view);
 		await view.updateComplete; // before what the device holds has been read once
 		expect(text(view), "what this device holds has not been read yet, so the view doesn't make a claim about it").toContain("Waiting");
-		expect(text(view)).not.toContain("No execution is held on this device");
+		expect(text(view)).not.toContain("This device doesn't hold an execution");
 		await settle();
-		expect(text(view), "read, and now empty").toContain("No execution is held on this device");
+		expect(text(view), "read, and now empty").toContain("This device doesn't hold an execution");
 	});
 
 	it("doesn't list a source until a view has read the run, and doesn't make one itself", async () => {
 		const view = await open();
-		expect(text(view)).toContain("No view has read the run yet");
+		expect(text(view)).toContain("A view hasn't read the run yet");
 		expect(value(view, IDS.CURSOR)).toBe("live edge");
 		expect(value(view, IDS.REGISTRY), "a step list hasn't been requested in this page").toBe("not known yet");
 	});
@@ -110,7 +110,7 @@ describe("the client cache view", () => {
 
 	it("shows every change at once: a source made after it opened, the cursor's row in it, and the live stream by level", async () => {
 		const view = await open();
-		expect(text(view)).toContain("No event has arrived since this view opened");
+		expect(text(view)).toContain("An event hasn't arrived since this view opened");
 		expect(text(view), "what the live counts are measured from: the device's time when the view opened").toMatch(
 			/Live stream since this view opened \(device time \d\d:\d\d:\d\d\.\d\d\d\)/,
 		);

@@ -262,7 +262,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 
 				const metadata = this.registeredOutcomeMetadata.get(pattern);
 				if (!metadata) {
-					this.emitEnsureEnd(featureStep, outcomeKey, false, "no metadata for waypoint");
+					this.emitEnsureEnd(featureStep, outcomeKey, false, "the waypoint doesn't have metadata");
 					return actionNotOK(`ensure: waypoint "${outcomeKey}" doesn't have metadata.`);
 				}
 
@@ -317,7 +317,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				}
 
 				if (metadata.proofStatements.length === 0) {
-					this.emitEnsureEnd(featureStep, outcomeKey, false, "no proof defined");
+					this.emitEnsureEnd(featureStep, outcomeKey, false, "the waypoint doesn't have a proof");
 					return actionNotOK(`ensure: waypoint "${outcomeKey}" doesn't have a proof, and ensure takes only a waypoint with a proof.`);
 				}
 
@@ -458,7 +458,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		// from a person gets walked instead, through `walk toward` and `advance the walk`.
 		const registry = runRegistry(world);
 		const firstMichi = resolution.michi[0];
-		if (!firstMichi) return { handled: true, ok: false, errorMessage: `goal-unreachable: ${domainKey} (no michi returned)` };
+		if (!firstMichi) return { handled: true, ok: false, errorMessage: `goal-unreachable: ${domainKey} (the resolver didn't return a michi)` };
 		for (const planStep of firstMichi.steps) {
 			const tool = registry.get(stepMethodName(planStep.stepperName, planStep.stepName));
 			if (!tool) return { handled: true, ok: false, errorMessage: `plan step not in registry: ${planStep.stepperName}.${planStep.stepName}` };

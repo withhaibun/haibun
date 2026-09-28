@@ -553,7 +553,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		featureStep?: TFeatureStep,
 		options?: { lenient?: boolean },
 	): Promise<{ value: string; secret: boolean } | { error: string }> {
-		if (template === undefined) return { error: "no variable name to resolve: the step received an empty term" };
+		if (template === undefined) return { error: "the step doesn't have a variable name to resolve: it received an empty term" };
 		const placeholderRegex = /\{([^}]+)\}/g;
 		let result = template;
 		let match: RegExpExecArray | null;

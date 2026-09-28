@@ -591,7 +591,7 @@ export default class LspStepper extends AStepper {
 					try {
 						const match = resolver.findSingleStepAction(trimmed);
 						if (!match) {
-							this.connection?.console.log(`[LSP] No match found for step: "${trimmed}"`);
+							this.connection?.console.log(`[LSP] "${trimmed}" doesn't match a step`);
 						} else {
 							this.connection?.console.log(`[LSP] Match found: ${match.actionName}`);
 						}

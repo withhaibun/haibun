@@ -186,7 +186,7 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 		const { mode, loading, error, depth } = this.state;
 		if (loading) return html`<div class="empty">Loading thread...</div>`;
 		if (error) return html`<div class="error">${error}</div>`;
-		if (this.thread.length === 0) return html`<div class="empty">No thread found.</div>`;
+		if (this.thread.length === 0) return html`<div class="empty">A thread wasn't found.</div>`;
 		return html`
 			<div class="toolbar">
 				<button class=${`mode-btn${mode === "tree" ? " active" : ""}`} @click=${this.onModeClick("tree")}>Tree</button>

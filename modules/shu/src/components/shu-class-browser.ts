@@ -207,7 +207,7 @@ class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSchema> {
 		const list = this.individuals;
 		if (list === null) return html`<div class="individuals-view"><span class="empty">Loading…</span></div>`;
 		return html`<div class="individuals-view" data-testid=${SHU_TEST_IDS.CLASS_BROWSER.INDIVIDUALS_VIEW}>
-			${list.length ? html`<ul>${list.map((v) => html`<li>${unsafeHTML(renderRef("entity", { persistedAs: this.focusType, id: idOf(v) }, instanceLabel(v)))}</li>`)}</ul>` : html`<span class="empty">No individuals.</span>`}
+			${list.length ? html`<ul>${list.map((v) => html`<li>${unsafeHTML(renderRef("entity", { persistedAs: this.focusType, id: idOf(v) }, instanceLabel(v)))}</li>`)}</ul>` : html`<span class="empty">The store doesn't hold an individual of this type.</span>`}
 		</div>`;
 	}
 

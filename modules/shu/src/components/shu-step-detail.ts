@@ -171,7 +171,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 
 	private renderContent(key: string, data: TStepData): TemplateResult {
 		const { step, variablesSet } = data;
-		if (!step && variablesSet.length === 0) return html`<div class="empty">No record of step [${key}]</div>`;
+		if (!step && variablesSet.length === 0) return html`<div class="empty">The run doesn't hold a record of step [${key}]</div>`;
 		const field = (name: string): string => (step && typeof step[name] === "string" ? String(step[name]) : "");
 		// The same glyph the log and the rail use, so a speculative try or a handed-out call is not shown as a fault.
 		const status = field(SEQ_PATH_FIELD.actionStatus) ? eventMarkerStyle({ status: field(SEQ_PATH_FIELD.actionStatus), kind: "lifecycle", type: "step" }).icon : "";

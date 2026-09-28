@@ -1175,7 +1175,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			const c = n.__degree ?? 0;
 			return { display: `${c} connections`, chip: `${c}` };
 		}
-		if (n.__t === undefined) return { display: "no recorded time", chip: undefined };
+		if (n.__t === undefined) return { display: "time isn't recorded", chip: undefined };
 		const date = formatDate(new Date(n.__t).toISOString());
 		return { display: `${n.__tField ?? LinkRelations.GENERATED_AT_TIME.rel} ${date}`, chip: date };
 	}

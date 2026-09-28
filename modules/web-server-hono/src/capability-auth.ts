@@ -33,7 +33,7 @@ export async function grantedCapabilityForRequest(
 ): Promise<TRequestAuthority> {
 	if (!presentsAuthority(request?.headers)) return { granted: [...allowedWithoutDelegation] };
 	const authority = getAuthority(runtime);
-	if (!authority?.hasVerifier()) return { granted: [], refused: "the request presents authority, and nothing here verifies it" };
+	if (!authority?.hasVerifier()) return { granted: [], refused: "the request presents authority, and a verifier isn't registered to check it" };
 	if (!request?.method || !request.url) return { granted: [], refused: "the request presents authority without the method and address its proof covers" };
 	const verdict = await authority.verifyEvidence({ kind: "request", method: request.method, url: request.url, headers: request.headers ?? {}, body: request.body });
 	if (!verdict.ok) return { granted: [], refused: `the presented authority failed verification: ${verdict.error}` };

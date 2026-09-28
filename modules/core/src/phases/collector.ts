@@ -7,6 +7,9 @@ import { TFileSystem } from "../lib/util/node/workspace-lib.js";
 import { toBdd } from "../kireji/converter.js";
 import { type TRunPolicyConfig, type TDirFilter, featureMatchesFilter } from "../run-policy/run-policy-types.js";
 
+/** How a base that doesn't hold a feature or a background is refused. */
+export const BASE_WITHOUT_FEATURES = "doesn't hold a feature or a background";
+
 export type TFeaturesBackgrounds = {
 	features: TFeature[];
 	backgrounds: TFeature[];
@@ -33,13 +36,13 @@ export async function getFeaturesAndBackgrounds(
 			}
 		}
 		if (rawFeaturesAndBackgrounds.features.length < 1 && rawFeaturesAndBackgrounds.backgrounds.length < 1) {
-			throw Error(`no features or backgrounds found from "${abase}"`);
+			throw Error(`"${abase}" ${BASE_WITHOUT_FEATURES}`);
 		}
 		ret.features = ret.features.concat(rawFeaturesAndBackgrounds.features);
 		ret.backgrounds = ret.backgrounds.concat(rawFeaturesAndBackgrounds.backgrounds);
 	}
 	if (ret.features.length < 1) {
-		throw Error(`no features found from "${bases}"`);
+		throw Error(`"${bases}" doesn't hold a feature`);
 	}
 	return ret;
 }

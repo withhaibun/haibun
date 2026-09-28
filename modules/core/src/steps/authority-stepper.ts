@@ -108,7 +108,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 			gwta: "delegations to the caller",
 			productsDomain: DOMAIN_DELEGATIONS,
 			description:
-				"The signed delegations this instance recorded to the key that signs the call and hasn't revoked, as the documents a holder presents: how a key finds what it may do here. A key reads its own, and no other key's.",
+				"The signed delegations this instance recorded to the key that signs the call and hasn't revoked, as the documents a holder presents: how a key finds what it may do here. A key reads its own delegations and doesn't read another key's.",
 			action: async () => {
 				const controller = actingAs();
 				if (!controller) return actionNotOK("the delegation read answers the key that signs the call, and this call doesn't prove a key");

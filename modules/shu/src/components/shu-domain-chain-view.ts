@@ -134,13 +134,13 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 		const step = (stepperName: string, stepName: string) => stepRef(stepMethodName(stepperName, stepName));
 		switch (f.kind) {
 			case LINT_FINDING.UNSUPPLIED_STEP:
-				return html`${step(f.stepperName, f.stepName)} takes ${domainRef(f.inputDomain)}, which no step returns and a caller doesn't write`;
+				return html`${step(f.stepperName, f.stepName)} takes ${domainRef(f.inputDomain)}, which the steps don't return and a caller doesn't write`;
 			case LINT_FINDING.UNREACHABLE_DOMAIN:
-				return html`no step takes or returns ${domainRef(f.domain)}`;
+				return html`the steps don't take or return ${domainRef(f.domain)}`;
 			case LINT_FINDING.UNPRODUCED_DOMAIN:
-				return html`a step takes ${domainRef(f.domain)}, and no step returns it`;
+				return html`a step takes ${domainRef(f.domain)}, and the steps don't return it`;
 			case LINT_FINDING.STRING_PARAM:
-				return html`${step(f.stepperName, f.stepName)} takes ${f.param} as ${domainRef(f.domain)}, which says nothing of what the value is`;
+				return html`${step(f.stepperName, f.stepName)} takes ${f.param} as ${domainRef(f.domain)}, which doesn't state what the value is`;
 		}
 	}
 
@@ -174,7 +174,7 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 			${
 				graphPresenterTag()
 					? html`<div class="graph" data-testid=${CHAIN_GRAPH.slot}><slot name=${CHAIN_GRAPH.slot}></slot></div>`
-					: html`<div class="empty">The site declares no graph view to draw the chain with.</div>`
+					: html`<div class="empty">The site doesn't declare a graph view that draws the chain.</div>`
 			}
 			${
 				this.findings.length

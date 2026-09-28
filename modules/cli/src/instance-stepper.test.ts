@@ -304,6 +304,6 @@ describe("the features a run runs", () => {
 		const { schema } = featureFilterDomainDefinition;
 		expect(schema.safeParse("graph,a.*b").success).toBe(true);
 		expect(schema.safeParse("").success, "every feature").toBe(true);
-		expect(schema.safeParse("graph,*").error?.issues[0]?.message).toMatch(/is no pattern a feature's path is matched against/);
+		expect(schema.safeParse("graph,*").error?.issues[0]?.message).toMatch(/isn't a pattern a feature's path is matched against/);
 	});
 });

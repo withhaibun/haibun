@@ -57,7 +57,7 @@ const VIEW_BLIPS: TBlipDeclaration[] = [
 		name: VIEW_SCROLL_BLIP,
 		instrument: "span-event",
 		description:
-			"A view's scroll position moved, by `value` pixels, signed. `reason` says whether the reader moved it or the system did, so a move nobody asked for can be read as one and placed in order against what else happened.",
+			"A view's scroll position moved, by `value` pixels, signed. `reason` says whether the reader moved it or the system did, so a move the reader didn't request can be read as one and placed in order against what else happened.",
 		unit: "px",
 		attributes: viewAttributes.extend({ reason: z.enum(SCROLL_REASONS) }),
 		dimensions: ["view", "reason"],

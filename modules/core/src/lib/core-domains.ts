@@ -265,7 +265,7 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 	{ selectors: [DOMAIN_DURATION], schema: durationSchema, description: "A length of time, given as seconds or milliseconds, such as 2s or 30 ms, read as milliseconds." },
 	{
 		selectors: [DOMAIN_STEP_METHOD],
-		schema: z.string().regex(/^[A-Za-z0-9_]+-[A-Za-z0-9_]+$/, "names no step: a step is named by its stepper and step joined by a hyphen"),
+		schema: z.string().regex(/^[A-Za-z0-9_]+-[A-Za-z0-9_]+$/, "doesn't name a step: a step is named by its stepper and step joined by a hyphen"),
 		description: "A step as a call names it, its stepper and step joined by a hyphen, such as Haibun-showSteps.",
 	},
 	{ selectors: [DOMAIN_LINK_REL], schema: NameSchema, description: "A link relation, by the name a predicate carries it under, such as cites." },

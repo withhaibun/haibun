@@ -667,7 +667,7 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
 							command: "haibun.editMcpPort",
 							title: "Edit MCP Port",
 						}),
-						new TreeNode("config", "Access Token", mcpAccessToken ? "••••••••" : "(none - required)", vscode.TreeItemCollapsibleState.None, {
+						new TreeNode("config", "Access Token", mcpAccessToken ? "••••••••" : "(required, not set)", vscode.TreeItemCollapsibleState.None, {
 							command: "haibun.editMcpAccessToken",
 							title: "Edit MCP Access Token",
 						}),

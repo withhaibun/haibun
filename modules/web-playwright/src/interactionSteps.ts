@@ -383,7 +383,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		serveBrowserRelay: {
 			gwta: "serve the browser relay",
 			description:
-				"Serves the relay a person's extension attaches their browser through, over `/rpc` as `relay.attach` and `relay.send`, which require `WebPlaywright:attach`, and drives that browser from the next page the run opens. The run never closes the attached browser's pages or context. With no browser attached, a step that needs the browser is refused, saying so.",
+				"Serves the relay a person's extension attaches their browser through, over `/rpc` as `relay.attach` and `relay.send`, which require `WebPlaywright:attach`, and drives that browser from the next page the run opens. The run never closes the attached browser's pages or context. A step that needs the browser is refused while a browser isn't attached, and the refusal says so.",
 			action: () => wp.serveRelay(),
 		},
 
@@ -496,7 +496,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 					await wp.withScope(async (scope) => {
 						const locator = wp.locateByDomain(scope, what);
 						if ((await locator.count()) !== 1) {
-							throw Error(`no single ${what.value} from ${locator} `);
+							throw Error(`${locator} doesn't locate exactly one ${what.value}`);
 						}
 						await locator.screenshot({ path: where });
 						wp.getWorld().eventLogger.info(`screenshot of ${what.value} saved to ${pathToFileURL(where)} `);

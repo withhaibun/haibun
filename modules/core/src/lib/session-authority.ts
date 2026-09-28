@@ -56,7 +56,7 @@ export class SessionAuthority implements IAuthority {
 
 	verifyEvidence(evidence: TAuthorityEvidence): Promise<TVerdict> {
 		const verifier = this.verifier;
-		if (!verifier) return Promise.resolve({ ok: false, error: "no verifier is registered to decide this evidence" });
+		if (!verifier) return Promise.resolve({ ok: false, error: "a verifier isn't registered to decide this evidence" });
 		// A chain is checked against the instance's own records, whatever the call presenting it may read.
 		return runReadingAsTheInstance(() => verifier.verify(evidence));
 	}
@@ -73,9 +73,9 @@ export class SessionAuthority implements IAuthority {
 	 *  read. */
 	private act(done: (verifier: IAuthorityVerifier, by: TActingFor) => Promise<TAuthorityAct>): Promise<TAuthorityAct> {
 		const verifier = this.verifier;
-		if (!verifier) return Promise.resolve({ ok: false, error: "no verifier is registered to record or revoke a delegation" });
+		if (!verifier) return Promise.resolve({ ok: false, error: "a verifier isn't registered to record or revoke a delegation" });
 		const by = actingFor();
-		if (!by) return Promise.resolve({ ok: false, error: "a caller that proved no key and holds less than every action records and revokes no delegation" });
+		if (!by) return Promise.resolve({ ok: false, error: "a caller that didn't prove a key and holds less than every action doesn't record or revoke a delegation" });
 		return runReadingAsTheInstance(() => done(verifier, by));
 	}
 

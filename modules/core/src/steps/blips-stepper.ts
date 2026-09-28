@@ -46,7 +46,7 @@ function renderSeries(series: TBlipSeries): string {
 
 /** The watch as text: the total recorded, each series over every occurrence recorded, and the window, oldest first. */
 export function renderWatch(occurrences: readonly TBlipEvent[], seen: number, totals: readonly TBlipSeries[]): string {
-	if (seen === 0) return "No occurrences were recorded for the watched names.";
+	if (seen === 0) return "The watch didn't record an occurrence of a watched name.";
 	const dropped = seen - occurrences.length;
 	return [
 		`${seen} occurrence(s) recorded. By name and dimension, over all of them:`,
@@ -173,7 +173,7 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 				const declared = blipDeclarations();
 				const text =
 					declared.length === 0
-						? "This run declares no blips."
+						? "This run doesn't declare a blip."
 						: declared.map((d) => `${d.name}${d.unit ? ` (${d.unit})` : ""}: ${d.description}${d.declaredAt ? ` [declared at ${d.declaredAt}]` : ""}`).join("\n");
 				return actionOKWithProducts({ text, names: declared.map((d) => d.name) });
 			},

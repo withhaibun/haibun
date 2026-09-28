@@ -103,7 +103,7 @@ export const DOMAIN_URL_GLOB = "url-glob";
 export const WebPlaywrightDomains: TDomainDefinition[] = [
 	createEnumDomainDefinition({ name: DOMAIN_HTTP_METHOD, values: [...HTTP_METHODS_WITHOUT_BODY, ...HTTP_METHODS_WITH_BODY], description: "An HTTP method a request is made with" }),
 	createEnumDomainDefinition({ name: DOMAIN_HTTP_METHOD_WITH_BODY, values: [...HTTP_METHODS_WITH_BODY], description: "An HTTP method whose request sends a body" }),
-	createEnumDomainDefinition({ name: DOMAIN_HTTP_METHOD_WITHOUT_BODY, values: [...HTTP_METHODS_WITHOUT_BODY], description: "An HTTP method whose request sends no body" }),
+	createEnumDomainDefinition({ name: DOMAIN_HTTP_METHOD_WITHOUT_BODY, values: [...HTTP_METHODS_WITHOUT_BODY], description: "An HTTP method whose request doesn't send a body" }),
 	createEnumDomainDefinition({ name: DOMAIN_FIND_WAY, values: [...FIND_WAYS], description: "A way to find what a click presses" }),
 	createEnumDomainDefinition({
 		name: DOMAIN_REQUEST_STATE,
@@ -213,7 +213,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 		written: true,
 		description: "The name of a parameter of a page's address query, as the line writes it",
 	},
-	{ selectors: [DOMAIN_MEDIA_TYPE], schema: z.string().regex(/^[\w.+-]+\/[\w.+*-]+/, "is no media type"), description: "A media type, such as application/json" },
+	{ selectors: [DOMAIN_MEDIA_TYPE], schema: z.string().regex(/^[\w.+-]+\/[\w.+*-]+/, "isn't a media type"), description: "A media type, such as application/json" },
 	{ selectors: [DOMAIN_JSON_PROPERTY], schema: NameSchema, description: "A property of a JSON response's members, by name" },
 	{
 		selectors: [DOMAIN_PAGE_TEST_ID],

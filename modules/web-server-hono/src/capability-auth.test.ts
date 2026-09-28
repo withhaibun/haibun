@@ -66,7 +66,7 @@ describe("what a request carries to a boundary", () => {
 
 	it("refuses a request presenting a proof that the runtime can't verify", async () => {
 		const carried = await grantedCapabilityForRequest(signedRequest(ACTION), runtimeWith(new SessionAuthority()), NOBODY);
-		expect(carried.refused).toBe("the request presents authority, and nothing here verifies it");
+		expect(carried.refused).toBe("the request presents authority, and a verifier isn't registered to check it");
 	});
 
 	it("holds what doesn't need a delegation and doesn't name a principal for a request that doesn't present authority, whatever else it carries", async () => {

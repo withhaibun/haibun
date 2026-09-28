@@ -113,7 +113,7 @@ export class SSETransport implements ITransport, IStepTransport {
 						const result = await this.handleMessage(data, requestInfo);
 						if (result === undefined) {
 							const method = (data as Record<string, unknown>).method ?? "unknown";
-							await writeChunk({ error: `No handler for RPC method: ${method}` });
+							await writeChunk({ error: `RPC method ${method} doesn't have a handler` });
 							return;
 						}
 						const response = result as Record<string, unknown>;
@@ -134,7 +134,7 @@ export class SSETransport implements ITransport, IStepTransport {
 				return c.json(
 					{
 						ok: false,
-						error: `${method} was asked to answer a read, and does not declare itself one: a read is answered and leaves no record, so a step read by a page declares read: true`,
+						error: `${method} was asked to answer a read, and does not declare itself one: a read is answered and doesn't leave a record, so a step read by a page declares read: true`,
 					},
 					422,
 				);
@@ -143,7 +143,7 @@ export class SSETransport implements ITransport, IStepTransport {
 			const result = await this.handleMessage(data, requestInfo);
 			if (result === undefined) {
 				const method = (data as Record<string, unknown>).method ?? "unknown";
-				return c.json({ ok: false, error: `No handler for RPC method: ${method}` }, 404);
+				return c.json({ ok: false, error: `RPC method ${method} doesn't have a handler` }, 404);
 			}
 			const response = result as Record<string, unknown>;
 			// A request whose presented authority failed is unauthenticated, which is a different answer from a call refused

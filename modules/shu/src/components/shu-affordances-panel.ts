@@ -302,8 +302,8 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		const producerTpl =
 			producers.length > 0
 				? html`<div class="blocked-producers">Producers ready to run: ${producers.map((p) => html`<button class="produce" @click=${(): void => this.chooseStep(p.method)}><code>${p.gwta ?? p.method}</code></button> `)}</div>`
-				: html`<div class="blocked-producers">No producer step is registered. Add a step whose <code>productsDomain</code> matches, or assert ${missingTyped.length > 1 ? "these facts" : "this fact"} directly.</div>`;
-		return html`<div class="blocked"><span class="blocked-label">Blocked:</span> input${missingTyped.length > 1 ? "s" : ""} ${missingTyped.map((m, i) => html`${i > 0 ? ", " : ""}${domainRef(m)}`)} ${missingTyped.length > 1 ? "have" : "has"} no asserted fact yet.${producerTpl}</div>`;
+				: html`<div class="blocked-producers">A producer step isn't registered. Add a step whose <code>productsDomain</code> matches, or assert ${missingTyped.length > 1 ? "these facts" : "this fact"} directly.</div>`;
+		return html`<div class="blocked"><span class="blocked-label">Blocked:</span> input${missingTyped.length > 1 ? "s" : ""} ${missingTyped.map((m, i) => html`${i > 0 ? ", " : ""}${domainRef(m)}`)} ${missingTyped.length > 1 ? "don't have" : "doesn't have"} an asserted fact yet.${producerTpl}</div>`;
 	}
 
 	private producersFor(missing: string[]): TForwardAffordance[] {
@@ -331,7 +331,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		if (r.finding === GOAL_FINDING.UNREACHABLE) {
 			if (!Array.isArray(r.missing))
 				throw new Error(`shu-affordances-panel: unreachable resolution for ${g.domain} doesn't have missing[]. Got: ${JSON.stringify(r).slice(0, 200)}.`);
-			return html`<span class="resolution-detail">no producer chain. Missing leaves: ${r.missing.map((m, i) => html`${i > 0 ? ", " : ""}${domainRef(m)}`)}</span>`;
+			return html`<span class="resolution-detail">a producer chain doesn't reach it. Missing leaves: ${r.missing.map((m, i) => html`${i > 0 ? ", " : ""}${domainRef(m)}`)}</span>`;
 		}
 		if (r.finding === GOAL_FINDING.REFUSED) {
 			if (typeof r.refusalReason !== "string" || typeof r.detail !== "string")
@@ -533,7 +533,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 				<div class="explanation-body">
 					<p>This view is a projection over the loaded steppers, registered domains, and the current working memory.</p>
 					<ul>
-						<li><strong>Goals</strong> are the domains some step can produce. For each, the resolver reports one of: <em>satisfied</em> (a fact already exists), <em>reachable</em> (one or more paths exist from the current state, pick one to start), <em>unreachable</em> (no producer chain), or <em>refused</em> (resolver cannot decide without more information).</li>
+						<li><strong>Goals</strong> are the domains some step can produce. For each, the resolver reports one of: <em>satisfied</em> (a fact already exists), <em>reachable</em> (one or more paths exist from the current state, pick one to start), <em>unreachable</em> (a producer chain doesn't reach it), or <em>refused</em> (resolver cannot decide without more information).</li>
 						<li>Clicking a step or <em>Start this path</em> opens the first step in the actions bar so you can supply any inputs and run it. Subsequent steps in a path become reachable through normal affordances after each step asserts its fact.</li>
 					</ul>
 				</div>
@@ -541,7 +541,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 			${this.renderAsOfBannerTpl()}
 			${this.state.fetchError ? html`<div class="banner error">${this.state.fetchError}</div>` : ""}
 			${loading ? html`<shu-spinner visible status="Loading affordances…"></shu-spinner>` : ""}
-			${empty ? html`<div class="empty" data-testid="affordances-empty">No affordances yet. Invoke <code>show affordances</code> from the actions bar (Step mode) to populate this view, or run any step: every step end announces a change this panel follows.</div>` : ""}
+			${empty ? html`<div class="empty" data-testid="affordances-empty">The panel doesn't hold affordances yet. Invoke <code>show affordances</code> from the actions bar (Step mode) to populate this view, or run any step: every step end announces a change this panel follows.</div>` : ""}
 			${
 				!loading && !empty && waypoints.length > 0
 					? html`
@@ -554,7 +554,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 				!loading && !empty
 					? html`
 				<div class="section-header"><h3>Goals (${goals.length})</h3><shu-copy-button data-copy-id="goals" label="Copy" title="Copy Goals JSON to clipboard" .source=${goalsCopySource}></shu-copy-button></div>
-				<div data-testid="affordances-goals">${goals.length === 0 ? html`<div class="empty">No goal-producing steps loaded.</div>` : goals.map((g, idx) => this.renderGoalTpl(g, idx, openGoal))}</div>
+				<div data-testid="affordances-goals">${goals.length === 0 ? html`<div class="empty">A goal-producing step isn't loaded.</div>` : goals.map((g, idx) => this.renderGoalTpl(g, idx, openGoal))}</div>
 			`
 					: ""
 			}

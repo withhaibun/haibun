@@ -169,7 +169,7 @@ export async function holdOnDevice(quads: TQuad[]): Promise<void> {
 		if (!storageIsFull(err)) return failFastOrLog("the run's records could not be held on this device", err);
 		const held = await executionsHeld();
 		const oldest = held.filter((one) => one.execution !== readingExecution()).pop();
-		if (oldest === undefined) return failFastOrLog("this device is full and holds no run it could forget", err);
+		if (oldest === undefined) return failFastOrLog("this device is full and doesn't hold a run it could forget", err);
 		const gone = await forgetExecution(oldest.execution);
 		// Making room is what a full device does rather than a failure of the page, so it is said rather than thrown:
 		// a reader whose earlier run is no longer here is told why it went.

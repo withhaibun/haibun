@@ -60,7 +60,7 @@ export class EntityController implements ReactiveController {
 
 	/** Write a note anchored to a passage of this individual, and re-resolve so it reads back anchored. */
 	annotate(draft: TAnnotationDraft): Promise<{ ok: true } | { ok: false; error: string }> {
-		if (!this.id) return Promise.resolve({ ok: false as const, error: "no individual open to annotate" });
+		if (!this.id) return Promise.resolve({ ok: false as const, error: "an individual isn't open to annotate" });
 		return annotateIndividual(this.label, this.id, draft);
 	}
 

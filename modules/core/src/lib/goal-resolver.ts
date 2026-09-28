@@ -190,7 +190,7 @@ function checkResolverInvariants(inputs: TResolverInputs, goal: string): TGoalRe
 			finding: GOAL_FINDING.REFUSED,
 			goal,
 			refusalReason: REFUSAL_REASON.CAPABILITY_CONTEXT_REQUIRED,
-			detail: "the resolver searches for what a caller may run, so it requires what the caller holds; pass an empty list for a caller that holds nothing",
+			detail: "the resolver searches for what a caller may run, so it requires what the caller holds; pass an empty list for a caller that doesn't hold a capability",
 		};
 	}
 	return undefined;

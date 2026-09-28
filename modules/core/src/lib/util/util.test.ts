@@ -146,7 +146,7 @@ describe("findStepperFromOptionOrKind", () => {
 		const steppers = await getCreateSteppers([], [ConsumerStepper]); // Doesn't include a storage stepper
 		const moduleOptions = {};
 
-		expect(() => util.findStepperFromOptionOrKind(steppers, consumer, moduleOptions, StepperKinds.STORAGE)).toThrow(/no stepper of kind STORAGE found/);
+		expect(() => util.findStepperFromOptionOrKind(steppers, consumer, moduleOptions, StepperKinds.STORAGE)).toThrow(/the loaded steppers don't include one of kind STORAGE/);
 	});
 });
 
@@ -302,7 +302,7 @@ describe("depolite", () => {
 
 describe("checkNoPoliteStepPrefixes", () => {
 	// A gwta/exact starting with a dePolite stopword can never match (the resolver dePolites the feature line but not the
-	// step pattern), so stepper creation must fail fast naming the dead step instead of a bare "no step found" at resolve.
+	// step pattern), so stepper creation must fail fast naming the dead step instead of a bare "doesn't match a step" at resolve.
 	const stepperWith = (steps: TAnyFixme) =>
 		new (class PoliteStepper extends AStepper {
 			steps = steps;

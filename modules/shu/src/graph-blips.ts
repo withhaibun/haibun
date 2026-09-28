@@ -42,7 +42,7 @@ const GRAPH_BLIPS: TBlipDeclaration[] = [
 		name: GRAPH_DRAWING_BLIP,
 		instrument: "span-event",
 		description:
-			"A graph scene's reason to draw changed. `reason` is why it draws from now, or rest where nothing keeps it drawing; `was` is why it drew before, and `value` how long it drew for that, over `frames` frames, during which a change woke it `wakes` times. A scene that never rests draws every frame, and this names what kept it drawing.",
+			"A graph scene's reason to draw changed. `reason` is why it draws from now, or rest where it doesn't have a reason to draw; `was` is why it drew before, and `value` how long it drew for that, over `frames` frames, during which a change woke it `wakes` times. A scene that never rests draws every frame, and this names what kept it drawing.",
 		unit: "ms",
 		attributes: viewAttributes.extend({ reason: z.enum(DRAWING_REASONS), was: z.enum(DRAWING_REASONS), frames: z.number(), wakes: z.number() }),
 		// `was` is the reason the value measures, so a total by dimension is the drawing time of each reason.

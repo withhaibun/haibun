@@ -393,7 +393,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			}
 			${
 				total === 0 && !spine
-					? html`<div class="log-rows">${unavailableOrEmpty(this.#run.loaded, this.#run.unavailable, "No events at this level.")}</div>`
+					? html`<div class="log-rows">${unavailableOrEmpty(this.#run.loaded, this.#run.unavailable, "The run doesn't hold an event at this level.")}</div>`
 					: html`<shu-virtual-column ?spine=${spine} .cursor=${this.#cursorMark} .source=${this.#source} .renderRow=${this.renderLogRow} ?follow=${this.state.tail}></shu-virtual-column>`
 			}
 		`;

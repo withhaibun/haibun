@@ -196,7 +196,7 @@ class RpcVerifyStepper extends AStepper {
 			},
 		},
 		rpcCallRefusedUnauthenticated: {
-			gwta: `rpc call to {url: ${DOMAIN_LINK}} with method {method: ${DOMAIN_STEP_METHOD}} presenting authority nothing here verifies is refused unauthenticated`,
+			gwta: `rpc call to {url: ${DOMAIN_LINK}} with method {method: ${DOMAIN_STEP_METHOD}} presenting authority without a registered verifier is refused unauthenticated`,
 			action: async ({ url, method }: TStepArgs) => {
 				const res = await fetch(String(url), {
 					method: "POST",
@@ -206,7 +206,7 @@ class RpcVerifyStepper extends AStepper {
 				const data = await res.json();
 				if (res.status !== 401) return actionNotOK(`Expected HTTP 401, got ${res.status}: ${JSON.stringify(data)}`);
 				if (data.pong !== undefined) return actionNotOK(`the step ran: ${JSON.stringify(data)}`);
-				return String(data.error).includes("nothing here verifies it") ? OK : actionNotOK(`Expected the refusal to say why, got ${JSON.stringify(data)}`);
+				return String(data.error).includes("a verifier isn't registered to check it") ? OK : actionNotOK(`Expected the refusal to say why, got ${JSON.stringify(data)}`);
 			},
 		},
 		rpcCallSucceedsSigned: {
@@ -447,7 +447,7 @@ rpc read at "http://localhost:${port}/rpc/PingStepper-ping" of "PingStepper-ping
 			content: `
 enable rpc
 webserver is listening for "rpc-unverified-proof"
-rpc call to "http://localhost:${port}/rpc/PingStepper-ping" with method "PingStepper-ping" presenting authority nothing here verifies is refused unauthenticated
+rpc call to "http://localhost:${port}/rpc/PingStepper-ping" with method "PingStepper-ping" presenting authority without a registered verifier is refused unauthenticated
 `,
 		};
 		const result = await passWithDefaults([feature], steppers, makeOptions(port));

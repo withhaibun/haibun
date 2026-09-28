@@ -151,7 +151,7 @@ class Haibun extends AStepper implements IHasCycles {
 			read: true,
 			gwta: `validate step {text: ${DOMAIN_TEXT}}`,
 			description:
-				"Whether a line resolves to exactly one of the steps the caller may call, and which method that step is; otherwise why the line resolves to none or to more than one.",
+				"Whether a line resolves to exactly one of the steps the caller may call, and which method that step is; otherwise why the line doesn't resolve to one of them or resolves to more than one.",
 			productsDomain: DOMAIN_STEP_VALIDATION,
 			action: ({ text }: { text: string }) => {
 				const validation = validateStep(text, this.steppers, shownTo());

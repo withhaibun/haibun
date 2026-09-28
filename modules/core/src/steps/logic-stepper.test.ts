@@ -321,7 +321,7 @@ describe("a statement that doesn't resolve to a step", () => {
 		const content = [
 			'set "outcome" from maybe this line resolves to no step',
 			'variable "outcome.outcome.ok" is "false"',
-			'matches outcome.outcome.errorMessage with "*no step found for *"',
+			'matches outcome.outcome.errorMessage with "*doesn\'t match a step*"',
 		].join("\n");
 		const result = await passWithDefaults([{ path: "/features/test.feature", content }], [LogicStepper, VariablesSteppers, Haibun]);
 		expect(result.ok).toBe(true);

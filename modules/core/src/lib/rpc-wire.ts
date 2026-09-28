@@ -63,7 +63,7 @@ type TRpcAnswer = { kind: "answered"; body: unknown } | { kind: "refused"; error
  * host's RPC, as a path a server does not serve answers as text, and is refused with its status and what it sent.
  */
 export async function readRpcAnswer(method: string, res: Response): Promise<TRpcAnswer> {
-	const mediaType = res.headers.get("content-type") ?? "no media type";
+	const mediaType = res.headers.get("content-type") ?? "a body that doesn't state its media type";
 	if (!mediaType.startsWith("application/json"))
 		return { kind: "refused", error: `${method}: the server answered ${res.status} with ${mediaType}, not the run's JSON: ${(await res.text()).slice(0, 200)}` };
 	const body: unknown = await res.json();

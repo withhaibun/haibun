@@ -91,7 +91,7 @@ class A11yStepper extends AStepper implements IHasOptions {
 			}
 		}
 
-		this.getWorld().eventLogger.warn(`no storage defined, including report inline - skipping artifact`);
+		this.getWorld().eventLogger.warn(`a storage stepper isn't defined, so the report is included inline and isn't saved as an artifact`);
 		return undefined;
 	}
 }

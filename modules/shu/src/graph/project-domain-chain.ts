@@ -137,7 +137,7 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 
 	/** A domain's node: its verdict as its kind, a link to it in the affordances panel, and its one producer, if one. */
 	const domainNode = (d: string): TGraphNode => {
-		if (d === SOURCE_DOMAIN) return { id: d, label: `${SOURCE_DOMAIN} no preconditions`, kind: NODE_KIND.default };
+		if (d === SOURCE_DOMAIN) return { id: d, label: `${SOURCE_DOMAIN} without preconditions`, kind: NODE_KIND.default };
 		const node: TGraphNode = { id: d, label: d, kind: findingToKind(goalFindings.get(d)), link: { href: `${DEEP_LINK_PREFIX}${AFFORDANCE_PARAM.GOAL}=${encodeURIComponent(d)}` } };
 		const producer = producersByDomain.get(d);
 		if (producer) node.invokes = { stepperName: producer.stepperName, stepName: producer.stepName };

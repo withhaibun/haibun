@@ -346,7 +346,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		const without = this.#providersWithout;
 		if (!without || without.providers.length === 0) return nothing;
 		return html`<span class="providers-without" data-testid=${`${this.testIdPrefix}providers-without`}>${without.providers.map(
-			(provider) => html`<span>${recordRef(without.type, provider.id)}: ${provider.answered ? "listed no models" : `did not answer discovery: ${provider.why ?? ""}`}</span>`,
+			(provider) => html`<span>${recordRef(without.type, provider.id)}: ${provider.answered ? "didn't list a model" : `did not answer discovery: ${provider.why ?? ""}`}</span>`,
 		)}</span>`;
 	}
 
@@ -478,11 +478,11 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 					this._models.length > 0
 						? html`<shu-combobox class="model-select" testid=${`${this.testIdPrefix}model-select`} placeholder="model..." .options=${this.#modelOptions} .value=${this.state.model} @combo-change=${this.onModelChange}></shu-combobox>`
 						: this.#modelsRead
-							? html`<span data-testid=${`${this.testIdPrefix}no-models`}>No models in this run.</span>`
+							? html`<span data-testid=${`${this.testIdPrefix}no-models`}>This run doesn't hold a model.</span>`
 							: nothing
 				}
 				${this.providersWithoutTemplate()}
-				<label class="tool-limit-label" title="The most rounds of tool calls a turn makes. A round is one reply from the model with the calls it asks for. A turn that uses every round without answering fails, and 0 offers the model no tools.">
+				<label class="tool-limit-label" title="The most rounds of tool calls a turn makes. A round is one reply from the model with the calls it asks for. A turn that uses every round without answering fails, and 0 doesn't offer the model a tool.">
 					<span>tool calls</span>
 					<input class="tool-limit" type="number" min=${TOOL_LIMIT_MIN} max=${TOOL_LIMIT_MAX} step="1" .value=${String(this.state.toolLimit)} data-testid=${`${this.testIdPrefix}tool-limit`} @change=${this.onToolLimitChange}>
 				</label>

@@ -19,7 +19,7 @@ import { TAnyFixme } from "@haibun/core/lib/fixme.js";
 import { OPTION_RUN_POLICY, OPTION_DRY_RUN, HAIBUN_RUN_POLICY, parseRunPolicyArgs, parseRunPolicyEnv, type TRunPolicyConfig } from "@haibun/core/run-policy/run-policy-types.js";
 import { loadAndValidateRunPolicy } from "@haibun/core/run-policy/run-policy-schema.js";
 import { PhaseRunner, PhaseBailError } from "@haibun/core/lib/PhaseRunner.js";
-import { getFeaturesAndBackgrounds, TFeaturesBackgrounds } from "@haibun/core/phases/collector.js";
+import { BASE_WITHOUT_FEATURES, getFeaturesAndBackgrounds, TFeaturesBackgrounds } from "@haibun/core/phases/collector.js";
 import { withNameType } from "@haibun/core/lib/features.js";
 import { forgetOutcome, outcomeAgainst, recordOutcome, verificationOf } from "./verified.js";
 import { recordTimings, varianceLine } from "./timings.js";
@@ -78,7 +78,7 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 		if (runsOnce(parsed, protoOptions.options)) {
 			if (!verification)
 				console.info(
-					`${OPTION_ONCE}: this run has no dependencies to record a pass against (${parsed.dryRun ? "a rehearsal" : parsed.statements.length ? "a run of statements" : "features kept in no repository"}), so it runs`,
+					`${OPTION_ONCE}: this run doesn't have dependencies to record a pass against (${parsed.dryRun ? "a rehearsal" : parsed.statements.length ? "a run of statements" : "features outside a repository"}), so it runs`,
 				);
 			// A group that passed and whose dependencies haven't changed since would pass again. A group that failed runs again: what a person
 			// does with a failure is retry it, and a run that fails for a reason outside the sources is one they must be
@@ -172,7 +172,7 @@ export function resolveRunPolicy(cliPolicyConfig: TRunPolicyConfig | undefined, 
 
 /** Says the pass and exits as one, for a group that passed and whose dependencies haven't changed since then. */
 function verifiedExit(bases: TBase): never {
-	console.info(`\n${CHECK_YES} ${bases.join(",")} passed, and no dependency has changed since then, so it did not run. Run without ${OPTION_ONCE} to run it anyway.\n`);
+	console.info(`\n${CHECK_YES} ${bases.join(",")} passed, and its dependencies haven't changed since then, so it did not run. Run without ${OPTION_ONCE} to run it anyway.\n`);
 	process.exit(0);
 }
 
@@ -244,7 +244,7 @@ function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 async function getSpeclOrExit(bases: TBase): Promise<TSpecl> {
 	const specl = getConfigFromBase(bases);
 	if (specl === null) return await usageThenExit(getDefaultOptions(), `missing or unusable config.json from ${bases} in ${process.cwd()}`);
-	if (bases.length < 1) return await usageThenExit(specl, "no bases");
+	if (bases.length < 1) return await usageThenExit(specl, "the command doesn't name a base");
 	return specl;
 }
 export async function usageThenExit(specl: TSpecl, message?: string): Promise<never> {
@@ -307,14 +307,14 @@ export function processBaseEnvToOptionsAndErrors(env: TEnv, specl: TSpecl) {
 			} else if (res.env) {
 				nenv = { ...nenv, ...res.env };
 			} else if (res.result === undefined) {
-				errors.push(`no option for ${opt} from ${JSON.stringify(value)}`);
+				errors.push(`option ${opt} doesn't accept ${JSON.stringify(value)}`);
 			} else {
 				(protoOptions.options as Record<string, unknown>)[opt] = res.result;
 			}
 		} else if (k.startsWith(MODULE_OPTION_PREFIX)) {
 			protoOptions.moduleOptions[k] = value;
 		} else {
-			errors.push(`no option for ${opt}`);
+			errors.push(`${opt} isn't an option`);
 		}
 	}
 	protoOptions.options.envVariables = nenv;
@@ -339,7 +339,7 @@ const NO_FEATURE_MATCHES = "\u0000no-feature-matches";
 
 /** A base that doesn't hold features or backgrounds is not an error when only statements are being run. */
 const emptyIfNoFeatures = (e: unknown): TFeaturesBackgrounds => {
-	if (!String((e as Error)?.message ?? e).includes("no features or backgrounds found")) throw e;
+	if (!String((e as Error)?.message ?? e).includes(BASE_WITHOUT_FEATURES)) throw e;
 	return { features: [], backgrounds: [] };
 };
 

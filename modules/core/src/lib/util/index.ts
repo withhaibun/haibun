@@ -76,7 +76,7 @@ export function createSteppers(steppers: CStepper[]): AStepper[] {
 }
 
 /** A gwta/exact starting with a dePolite stopword can never match: the resolver dePolites the feature line but the step
- *  pattern keeps its prefix, so the step is silently dead ("no step found" at resolve, without a hint why). Fail at stepper
+ *  pattern keeps its prefix, so the step is silently dead ("doesn't match a step" at resolve, without a hint why). Fail at stepper
  *  creation instead, naming the step and the prefix to drop. */
 export function checkNoPoliteStepPrefixes(stepper: AStepper): void {
 	for (const [name, def] of Object.entries(stepper.steps)) {
@@ -140,7 +140,7 @@ export function verifyExtraOptions(inExtraOptions: TModuleOptions, csteppers: CS
 	});
 
 	if (Object.keys(moduleOptions).length > 0) {
-		throw Error(`no extra option for ${moduleOptions}`);
+		throw Error(`the loaded steppers don't take the options ${JSON.stringify(moduleOptions)}`);
 	}
 	return;
 }
@@ -171,13 +171,13 @@ export function getStepperOptionValue(key: string, value: string, csteppers: CSt
 
 		if (key.startsWith(pre)) {
 			if (!ao.options) {
-				throw Error(`${cstepper.name} has no options`);
+				throw Error(`${cstepper.name} doesn't declare options`);
 			}
 
 			if (ao.options[name]) {
 				return ao.options[name].parse(value);
 			} else {
-				throw Error(`${cstepper.name} has no option ${name}`);
+				throw Error(`${cstepper.name} doesn't declare the option ${name}`);
 			}
 		}
 	}
@@ -264,7 +264,7 @@ export function findStepperFromOptionOrKind<Type>(steppers: AStepper[], stepper:
 	const matchingSteppers = steppers.filter((s) => s.kind === kind);
 
 	if (matchingSteppers.length === 0) {
-		throw Error(stepperOptionNotFoundError(stepper, optionNames, moduleOptions) + ` and no stepper of kind ${kind} found`);
+		throw Error(stepperOptionNotFoundError(stepper, optionNames, moduleOptions) + ` and the loaded steppers don't include one of kind ${kind}`);
 	}
 
 	if (matchingSteppers.length > 1) {

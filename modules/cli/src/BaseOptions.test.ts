@@ -17,6 +17,6 @@ describe("apply ENV", () => {
 		expect(res.parseError).toBe("ENV a already defined");
 	});
 	it("refuses a variable without a value", () => {
-		expect(BaseOptions.options.ENV.parse("a", {}).parseError).toBe("ENV a has no value: write a=value");
+		expect(BaseOptions.options.ENV.parse("a", {}).parseError).toBe("ENV a doesn't have a value: write a=value");
 	});
 });

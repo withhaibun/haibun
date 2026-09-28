@@ -286,7 +286,7 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 			setDetails(this._focusIndex >= 0 ? this._focusIndex : 0);
 		} else {
 			const li = document.createElement("li");
-			li.textContent = "No matches";
+			li.textContent = "The text doesn't match an option";
 			Object.assign(li.style, {
 				...LI_STYLE,
 				color: "var(--shu-fg-faded)",

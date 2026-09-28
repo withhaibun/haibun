@@ -50,7 +50,7 @@ describe("the models the ask pane offers", () => {
 		document.body.appendChild(pane);
 		await flush();
 		await pane.updateComplete;
-		expect(pane.shadowRoot?.querySelector('[data-testid$="no-models"]')?.textContent).toBe("No models in this run.");
+		expect(pane.shadowRoot?.querySelector('[data-testid$="no-models"]')?.textContent).toBe("This run doesn't hold a model.");
 		expect(pane.shadowRoot?.querySelector(".model-select")).toBeNull();
 
 		models = [MODEL];

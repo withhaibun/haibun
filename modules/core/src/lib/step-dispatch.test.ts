@@ -428,10 +428,10 @@ describe("step-dispatch", () => {
 				const res = await testWithWorld(getDefaultWorld(), line, [PassesOn]);
 				return { ok: res.ok, error: res.failure?.error.message, products: res.featureResults?.[0]?.stepResults.find((r) => r.in === line)?.products };
 			};
-			expect((await said(COUNT_UNNAMED)).error, "a step returning products without a domain").toMatch(/returned products and names no domain/);
+			expect((await said(COUNT_UNNAMED)).error, "a step returning products without a domain").toMatch(/returned products and doesn't name a domain/);
 			expect(await said(`${ANSWER_AS} ${COUNT}`), "a step passing on what its statement answered").toMatchObject({ ok: true, products: { count: 1 } });
 			expect(await said(`${ANSWER_AS} ${ANSWER_AS} ${COUNT}`), "through a step that passes it on too").toMatchObject({ ok: true, products: { count: 1 } });
-			expect((await said(`${PASS_ON} ${COUNT}`)).error, "a step passing it on that doesn't declare a domain").toMatch(/returned products and names no domain/);
+			expect((await said(`${PASS_ON} ${COUNT}`)).error, "a step passing it on that doesn't declare a domain").toMatch(/returned products and doesn't name a domain/);
 			expect((await said(`${ANSWER_WRONGLY} ${COUNT}`)).error, "products not in its statement's domain").toMatch(/answering as PassesOn\.counts products failed schema validation/);
 			const naming = new (class extends AStepper {
 				steps = { names: { gwta: "name {n: number}", productsOf: "n", action: async () => OK } };

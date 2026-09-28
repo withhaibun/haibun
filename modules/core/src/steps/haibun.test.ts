@@ -294,10 +294,10 @@ describe("show steps", () => {
 	it("treats a line naming a step its caller doesn't hold as one that doesn't name a step, so validating doesn't map a step it may not call", () => {
 		const steppers = [new TestSteps()];
 		expect(validateStep("passes", steppers, RUN_AUTHORITY)).toMatchObject({ valid: true });
-		expect(validateStep("passes", steppers, ["Read:public"]), "a step it doesn't hold").toEqual({ valid: false, error: 'no step found for "passes"' });
+		expect(validateStep("passes", steppers, ["Read:public"]), "a step it doesn't hold").toEqual({ valid: false, error: '"passes" doesn\'t match a step' });
 		expect(validateStep("no step reads this", steppers, ["Read:public"]), "treated as a line that doesn't name a step").toEqual({
 			valid: false,
-			error: 'no step found for "no step reads this"',
+			error: '"no step reads this" doesn\'t match a step',
 		});
 	});
 });

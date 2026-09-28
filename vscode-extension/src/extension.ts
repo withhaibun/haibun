@@ -167,15 +167,7 @@ async function stopClient() {
 function parseServerError(error: unknown): { type: string; message: string; action: string } {
 	const errorStr = String(error);
 
-	if (errorStr.includes("McpStepper: ACCESS_TOKEN is required")) {
-		return {
-			type: "config-error",
-			message: "MCP Access Token is required",
-			action: "Set Haibun: Mcp Access Token in Config",
-		};
-	}
-
-	if (errorStr.includes("McpStepper: No webserver found")) {
+	if (errorStr.includes("McpStepper: the runtime doesn't hold a webserver")) {
 		return {
 			type: "config-error",
 			message: "MCP requires WebServerStepper",
@@ -237,8 +229,8 @@ async function startClient(context: ExtensionContext) {
 	const cliPath = resolveCliPath(workspaceRoot);
 	if (!cliPath) {
 		outputChannel.appendLine("[Haibun] FATAL: Could not find haibun cli.js");
-		statusBarItem.text = "$(error) Haibun: No CLI";
-		configProvider.setLspStatus("error", "No CLI found");
+		statusBarItem.text = "$(error) Haibun: CLI not found";
+		configProvider.setLspStatus("error", "CLI not found");
 		configProvider.setError("Haibun CLI not found", "Run npm install in your workspace");
 		return;
 	}
@@ -265,7 +257,7 @@ async function startClient(context: ExtensionContext) {
 			env["HAIBUN_O_MCPSTEPPER_ACCESS_TOKEN"] = mcpToken;
 			configProvider.setMcpStatus("starting");
 		} else {
-			configProvider.setMcpStatus("error", "No Access Token");
+			configProvider.setMcpStatus("error", "Access Token not set");
 		}
 	} else {
 		configProvider.setMcpStatus("disabled");
