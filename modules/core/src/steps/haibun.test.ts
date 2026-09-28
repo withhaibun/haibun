@@ -20,10 +20,16 @@ import { RUN_AUTHORITY, runAuthorizedWith, runShowing } from "../lib/capability-
 import { OBSERVATION_GRAPH, assertFact, getFact } from "../lib/working-memory.js";
 
 describe("until", () => {
-	it("until passes", async () => {
-		const feature = { path: "/features/test.feature", content: "until passes" };
+	it("passes once its statements pass", async () => {
+		const feature = { path: "/features/test.feature", content: 'until passes within "1s"' };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
+	});
+	it("fails, naming why, when its statements haven't passed within the duration", async () => {
+		const feature = { path: "/features/test.feature", content: 'until fails within "50ms"' };
+		const result = await failWithDefaults([feature], [Haibun, TestSteps]);
+		expect(result.ok).toBe(false);
+		expect(result.featureResults?.[0].stepResults.at(-1)).toMatchObject({ ok: false, errorMessage: expect.stringMatching(/didn't pass within 50ms/) });
 	});
 });
 

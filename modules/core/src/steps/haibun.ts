@@ -41,6 +41,8 @@ const DOMAIN_STORE_IN_USE = "store-in-use";
 /** How `ends with` ends a feature. */
 const DOMAIN_ENDING = "ending";
 const ENDING = { ok: "OK", notOk: "not OK" } as const;
+/** How long `until` waits before it runs its statements again. */
+const UNTIL_RETRY_MS = 200;
 
 class Haibun extends AStepper implements IHasCycles {
 	description = "Core steps for features, scenarios, backgrounds, and prose";
@@ -162,17 +164,17 @@ class Haibun extends AStepper implements IHasCycles {
 		},
 
 		until: {
-			gwta: `until {statements:${DOMAIN_STATEMENT}}`,
-			action: async ({ statements }: { statements: TFeatureStep[] }, featureStep: TFeatureStep) => {
-				let signal;
+			description: 'Run statements again until they pass, and fail when they haven\'t passed within the duration, e.g. `until passes within "2s"`.',
+			gwta: `until {statements:${DOMAIN_STATEMENT}} within {duration: ${DOMAIN_DURATION}}`,
+			action: async ({ statements, duration }: { statements: TFeatureStep[]; duration: number }, featureStep: TFeatureStep) => {
 				const mode = featureStep.intent?.mode ?? "authoritative";
-				do {
-					signal = await this.runner.runSteps(statements, { intent: { mode, usage: "polling" }, parentStep: featureStep });
-					if (!signal.ok) {
-						await sleep(200);
-					}
-				} while (!signal.ok);
-				return OK;
+				const ends = Date.now() + duration;
+				for (;;) {
+					const signal = await this.runner.runSteps(statements, { intent: { mode, usage: "polling" }, parentStep: featureStep });
+					if (signal.ok) return OK;
+					if (Date.now() >= ends) return actionNotOK(`the statements didn't pass within ${duration}ms: ${signal.errorMessage}`);
+					await sleep(UNTIL_RETRY_MS);
+				}
 			},
 		},
 

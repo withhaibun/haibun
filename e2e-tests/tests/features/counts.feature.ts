@@ -13,7 +13,7 @@ increment counter
 waypoint Count to {num} with variable counter is {num}
 
 Scenario: Use Until to ensure counter reaches 3
-until ensure Count to 3
+until ensure Count to 3 within "5s"
 show var counter
 variable counter is 3`,
 	],
