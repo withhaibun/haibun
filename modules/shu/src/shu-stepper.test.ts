@@ -44,7 +44,12 @@ describe("the app a deployment serves", () => {
 		expect(served()).toContain(JSON.stringify({ settings: { allowedWithoutDelegation: ["Read:public"], verifiesDelegations: false } }));
 		const authority = new SessionAuthority();
 		const recordsNothing = async () => ({ ok: false as const, error: "records nothing" });
-		authority.registerVerifier({ verify: async () => ({ ok: false }), delegationsTo: async () => ({ delegations: [] }), record: recordsNothing, revoke: recordsNothing });
+		authority.registerVerifier({
+			verify: async () => ({ ok: false as const, error: "the stand-in refuses every proof" }),
+			delegationsTo: async () => ({ delegations: [] }),
+			record: recordsNothing,
+			revoke: recordsNothing,
+		});
 		(world.runtime.keys ??= {})[AUTHORITY_KEY] = authority;
 		expect(served(), "a verifier registered after the app was served").toContain('"verifiesDelegations":true');
 	});

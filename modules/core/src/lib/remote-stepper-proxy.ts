@@ -17,7 +17,7 @@ import { actionNotOK } from "./util/index.js";
 import { type StepTool, type StepRegistry, hostScopedMethodName } from "./step-registry.js";
 import { callInput } from "./populateActionArgs.js";
 import { EVERY_DEFINITION, SHOW_STEPS_ACTION, SHOW_STEPS_METHOD, readShownSteps, type TStepDescriptor } from "./step-discovery.js";
-import { RpcClient, discoverInstance, type RpcError } from "./rpc-client.js";
+import { RpcCallFailed, RpcClient, discoverInstance } from "./rpc-client.js";
 import { requestSigner } from "./session-authority.js";
 
 export class RemoteStepperProxy extends AStepper {
@@ -60,9 +60,6 @@ export class RemoteStepperProxy extends AStepper {
 	 *  signed like any other call, so the host shows the steps this process holds there and doesn't show others. */
 	private async fetchStepDescriptors(): Promise<void> {
 		const result = await this.rpc.call<Record<string, unknown>>(SHOW_STEPS_METHOD, EVERY_DEFINITION, [], { action: SHOW_STEPS_ACTION });
-		if ("error" in result) {
-			throw new Error(`RemoteStepperProxy: ${SHOW_STEPS_METHOD} failed at ${this.remoteUrl}: ${result.error}`);
-		}
 		this.stepDescriptors = readShownSteps(result, EVERY_DEFINITION.detail).steps.map(({ _links, ...descriptor }) => descriptor);
 	}
 
@@ -94,10 +91,12 @@ export class RemoteStepperProxy extends AStepper {
 	 *  products doesn't return them, whatever the answer carries in their place. */
 	private async call(descriptor: TStepDescriptor, params: Record<string, unknown>, seqPath: number[]): Promise<TActionResult> {
 		const { method, capability } = descriptor;
-		const result = await this.rpc.call<Record<string, unknown>>(method, params, seqPath, { action: capability });
-		if ("error" in result && typeof (result as RpcError).error === "string") {
-			return actionNotOK(`${method}: ${(result as RpcError).error}`);
-		}
+		// The remote step's refusal is this step's failure; a call that fails some other way is thrown.
+		const result = await this.rpc.call<Record<string, unknown>>(method, params, seqPath, { action: capability }).catch((e: unknown) => {
+			if (e instanceof RpcCallFailed) return e;
+			throw e;
+		});
+		if (result instanceof RpcCallFailed) return actionNotOK(`${method}: ${result.reason}`);
 		const answersWithProducts = descriptor.outputSchema !== undefined || descriptor.productsOf !== undefined;
 		return answersWithProducts ? { ok: true, products: result as Record<string, unknown> } : { ok: true };
 	}

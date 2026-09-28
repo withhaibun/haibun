@@ -284,7 +284,8 @@ export type TBeforeStep = { featureStep: TFeatureStep };
 export type TAfterStep = { featureStep: TFeatureStep; actionResult: TActionResult };
 /** A failed feature, and the step that failed where one did: a feature also fails on an error outside its steps. */
 export type TFailureArgs = { featureResult: TFeatureResult; failedStep?: TStepResult };
-export type TAfterStepResult = { rerunStep?: boolean; nextStep?: boolean; failed: boolean };
+/** What an afterStep cycle decides of a step: to run it again, to move on past its failure, or to fail it, stating why. */
+export type TAfterStepResult = { rerunStep?: boolean; nextStep?: boolean; failed?: string };
 
 export type StepperMethodArgs = {
 	[K in keyof IStepperCycles]: Parameters<NonNullable<IStepperCycles[K]>>[0];

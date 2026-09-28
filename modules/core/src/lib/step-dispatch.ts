@@ -83,12 +83,24 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	// held in full, since a reader of the result reads what those produced; a step further back doesn't have a reader left, and
 	// holding it holds every graph slice, response body and rendered document the run has produced. A feature that
 	// services requests for weeks would otherwise hold every step it ever ran.
-	const keep = (result: TStepResult): void => {
+	// A step's result takes its place among the results when it is first known, so a step reads before the steps its
+	// cycles run, and its outcome is counted into the run once the cycles decide it, in that same place.
+	const place = (result: TStepResult): void => {
 		if (!recorded) return;
-		foldStep((world.runtime.steps ??= { count: 0 }), result);
 		const held = world.runtime.stepResults;
 		held.push(result);
 		if (held.length > RESULTS_READ_IN_FULL) held.shift();
+	};
+	const settle = (placed: TStepResult, result: TStepResult): void => {
+		if (!recorded) return;
+		foldStep((world.runtime.steps ??= { count: 0 }), result);
+		const held = world.runtime.stepResults;
+		const at = held.indexOf(placed);
+		if (at >= 0) held[at] = result;
+	};
+	const keep = (result: TStepResult): void => {
+		place(result);
+		settle(result, result);
 	};
 	const pushAndReturn = (result: TStepResult): TStepResult => {
 		keep(result);
@@ -96,19 +108,19 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	};
 
 	if (world.runtime.exhaustionError) {
-		return pushAndReturn(stepResultFromActionResult(actionNotOK(`Execution halted: ${world.runtime.exhaustionError}`), action, start, Timer.since(), featureStep, false));
+		return pushAndReturn(stepResultFromActionResult(actionNotOK(`Execution halted: ${world.runtime.exhaustionError}`), action, start, Timer.since(), featureStep));
 	}
 	if (featureStep.seqPath.length > MAX_DISPATCH_SEQPATH) {
 		const msg = `Execution depth limit exceeded (${featureStep.seqPath.length} > ${MAX_DISPATCH_SEQPATH}). Possible infinite recursion in step: ${featureStep.in}`;
 		world.runtime.exhaustionError = msg;
-		return pushAndReturn(stepResultFromActionResult(actionNotOK(msg), action, start, Timer.since(), featureStep, false));
+		return pushAndReturn(stepResultFromActionResult(actionNotOK(msg), action, start, Timer.since(), featureStep));
 	}
 
 	const isLifecycle = action.actionName === FEATURE_START || action.actionName === SCENARIO_START;
 	if (isLifecycle) {
 		await emitSeqPathStart(world, featureStep, {}, { ranVia: "local" });
 		await emitSeqPathEnd(world, featureStep, SEQ_PATH_STATUS.passed);
-		return stepResultFromActionResult({ ok: true }, action, start, Timer.since(), featureStep, true);
+		return stepResultFromActionResult({ ok: true }, action, start, Timer.since(), featureStep);
 	}
 
 	const bareMethod = stepMethodName(action.stepperName, action.actionName);
@@ -117,7 +129,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	if (!tool) {
 		// A step the registry doesn't hold states what it is, as a line that didn't resolve to a step states why.
 		const described = action.step.description ? `: ${action.step.description}` : "";
-		return pushAndReturn(stepResultFromActionResult(actionNotOK(`Step not found in registry: ${method}${described}`), action, start, Timer.since(), featureStep, false));
+		return pushAndReturn(stepResultFromActionResult(actionNotOK(`Step not found in registry: ${method}${described}`), action, start, Timer.since(), featureStep));
 	}
 
 	// Where the statement was stated, which its arguments are read at, and which a step reading more than it is refused.
@@ -147,7 +159,6 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	// instance leaves the caller's own narration out of the run's history rather than among its steps.
 	const step = { seqPath: featureStep.seqPath.join("."), reportsAt: featureStep.isSubStep ? SUBSTEP_LEVEL : undefined };
 	let actionResult: TActionResult | undefined;
-	let ok = true;
 	let lastStepResult: TStepResult | undefined;
 	await runInStep(step, () =>
 		runAuthorizedWith(grantedCapability, () =>
@@ -159,9 +170,8 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 						const preconditionError = await checkInputPreconditions(world, tool.paramDomainKeys, featureStep);
 						if (preconditionError) {
 							actionResult = actionNotOK(preconditionError);
-							lastStepResult = stepResultFromActionResult(actionResult, action, start, Timer.since(), featureStep, false);
+							lastStepResult = stepResultFromActionResult(actionResult, action, start, Timer.since(), featureStep);
 							keep(lastStepResult);
-							ok = false;
 							doAction = false;
 							continue;
 						}
@@ -174,18 +184,17 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 							// A fact is a record of the run, so a read the run did not ask for doesn't assert one, as it doesn't record a step.
 							if (recorded) await autoAssertProducts(world, step.seqPath, action.step, actionResult);
 						}
-						if (!actionResult.ok && actionResult.errorMessage && featureStep.intent?.mode !== "speculative") {
+						if (!actionResult.ok && featureStep.intent?.mode !== "speculative") {
 							world.eventLogger.log(featureStep, "error", actionResult.errorMessage);
 						}
-						lastStepResult = stepResultFromActionResult(actionResult, action, start, Timer.since(), featureStep, ok && actionResult.ok);
-						keep(lastStepResult);
+						const placed = stepResultFromActionResult(actionResult, action, start, Timer.since(), featureStep);
+						place(placed);
 						const instructions: Array<TAfterStepResult | undefined> = await doStepperCycle(steppers, "afterStep", <TAfterStep>{ featureStep, actionResult }, action.actionName);
 						doAction = instructions.some((i) => i?.rerunStep);
-						if (instructions.some((i) => i?.failed)) {
-							ok = false;
-						} else if (instructions.some((i) => i?.nextStep)) {
-							actionResult = { ...actionResult, ok: true };
-						}
+						// A cycle can fail a step that passed, so the outcome counted into the run is the one the cycles decide.
+						actionResult = afterStepOutcome(actionResult, instructions);
+						lastStepResult = stepResultFromActionResult(actionResult, action, start, placed.end ?? Timer.since(), featureStep);
+						settle(placed, lastStepResult);
 					}
 				}),
 			),
@@ -194,8 +203,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	if (!actionResult || !lastStepResult) {
 		throw new Error(`${action.stepperName}.${action.actionName} didn't record an action result`);
 	}
-	ok = ok && actionResult.ok;
-	lastStepResult.ok = ok;
+	const ok = actionResult.ok;
 	if (!recorded) return lastStepResult;
 	// A step that did not pass while its caller's stream was stopped was stopped: the caller decided it, and the step didn't fail.
 	const ended: TStepEnd = ok ? LIFECYCLE_STATUS.completed : streamContext.getStore()?.signal.aborted ? LIFECYCLE_STATUS.stopped : LIFECYCLE_STATUS.failed;
@@ -204,7 +212,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 		action.stepperName,
 		action.actionName,
 		ended,
-		!ok ? actionResult.errorMessage : undefined,
+		actionResult.ok ? undefined : actionResult.errorMessage,
 		{},
 		featureStep.action.stepValuesMap,
 		retainedProducts(actionResult.products as Record<string, unknown> | undefined, action.step.retainProducts),
@@ -213,16 +221,25 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 		world,
 		featureStep,
 		SEQ_PATH_STATUS_OF[ended],
-		ok ? undefined : actionResult.errorMessage,
+		actionResult.ok ? undefined : actionResult.errorMessage,
 		viewShown(actionResult.products as Record<string, unknown> | undefined),
 	);
 	return lastStepResult;
 }
 
-function stepResultFromActionResult(actionResult: TActionResult, action: TStepAction, start: number, end: number, featureStep: TFeatureStep, ok: boolean): TStepResult {
+/** A step's result once the afterStep cycles have read it. A cycle that fails a step that passed states why, and the
+ *  step fails with that reason; a step that failed keeps its own. A cycle that moves on past a failure passes it. */
+function afterStepOutcome(result: TActionResult, instructions: Array<TAfterStepResult | undefined>): TActionResult {
+	const failure = instructions.find((i) => i?.failed)?.failed;
+	const { products, controlSignal, artifact, protocol } = result;
+	if (failure) return result.ok ? { products, controlSignal, artifact, protocol, ok: false, errorMessage: failure } : result;
+	if (instructions.some((i) => i?.nextStep)) return { products, controlSignal, artifact, protocol, ok: true };
+	return result;
+}
+
+function stepResultFromActionResult(actionResult: TActionResult, action: TStepAction, start: number, end: number, featureStep: TFeatureStep): TStepResult {
 	return {
 		...actionResult,
-		ok,
 		name: action.actionName,
 		in: featureStep.in,
 		path: featureStep.source?.path,

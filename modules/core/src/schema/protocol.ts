@@ -407,14 +407,14 @@ export type THypermediaProducts = {
  * The single result type for step execution. Used everywhere:
  * step actions, FlowRunner, feature loop, RPC transports.
  */
-export type TActionResult = {
-	ok: boolean;
-	errorMessage?: string;
+type TActionResultCarries = {
 	products?: THypermediaProducts;
 	controlSignal?: TDebugSignal;
 	artifact?: TArtifactEvent;
 	protocol?: SystemMessage;
 };
+/** A step passed, or failed stating why: a failure carries its message. */
+export type TActionResult = (TActionResultCarries & { ok: true; errorMessage?: undefined }) | (TActionResultCarries & { ok: false; errorMessage: string });
 
 export const OK: TActionResult = { ok: true };
 

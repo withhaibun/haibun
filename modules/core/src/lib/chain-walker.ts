@@ -1,4 +1,3 @@
-import type { StepRegistry } from "./step-registry.js";
 import type { DispatchContext } from "./step-dispatch.js";
 import { stepMethodName } from "./step-registry.js";
 import { callStepByName } from "./call-step.js";
@@ -44,20 +43,14 @@ export async function advanceChainInstance(ctx: TChainWalkerContext, instanceId:
 
 	const step = itemAt(inst.michi.steps, inst.stepIndex);
 	const method = stepMethodName(step.stepperName, step.stepName);
-	if (!registry.get(method)) {
-		const error = `chain step ${inst.stepIndex} (${method}) is not registered`;
-		await updateChainInstance(world, inst.id, { status: CHAIN_INSTANCE_STATUS.FAILED });
-		return { kind: "failed", instance: { ...inst, status: CHAIN_INSTANCE_STATUS.FAILED }, error };
-	}
-
 	// What a step is given is held to what that step declares it takes, and coerced by the domains it names, exactly as
 	// for a caller reaching it over the wire. A walk that could hand a step anything would be a way past the validation
 	// every other caller passes through, so what is dispatched below is what came back from it.
 	let given: Record<string, unknown>;
 	try {
-		given = validateToolInput([inst.stepIndex], registry.get(method) as NonNullable<ReturnType<StepRegistry["get"]>>, stepArgs, world);
+		given = validateToolInput([inst.stepIndex], registry.named(method), stepArgs, world);
 	} catch (err) {
-		const error = `chain step ${inst.stepIndex} (${method}) was given what it does not take: ${errorDetail(err)}`;
+		const error = `chain step ${inst.stepIndex} (${method}) can't run: ${errorDetail(err)}`;
 		await updateChainInstance(world, inst.id, { status: CHAIN_INSTANCE_STATUS.FAILED });
 		return { kind: "failed", instance: { ...inst, status: CHAIN_INSTANCE_STATUS.FAILED }, error };
 	}
@@ -66,11 +59,10 @@ export async function advanceChainInstance(ctx: TChainWalkerContext, instanceId:
 	await updateChainInstance(world, inst.id, { status: CHAIN_INSTANCE_STATUS.RUNNING, stepArgs: nextArgs });
 
 	const call = await callStepByName({ registry, world, steppers, grantedCapability }, method, given);
-	if (!call.registered) throw new Error(`chain step ${inst.stepIndex} (${method}) left the registry mid-advance`);
 	const { seqPath, result } = call;
 
 	if (!result.ok) {
-		const error = result.errorMessage ?? `chain step ${inst.stepIndex} (${method}) failed`;
+		const error = `chain step ${inst.stepIndex} (${method}) failed: ${result.errorMessage}`;
 		await updateChainInstance(world, inst.id, { status: CHAIN_INSTANCE_STATUS.FAILED });
 		return { kind: "failed", instance: { ...inst, stepArgs: nextArgs, status: CHAIN_INSTANCE_STATUS.FAILED }, error };
 	}

@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { TFeatureStep, TStepperStep } from "./astepper.js";
 import type { TWorld } from "./world.js";
 import { Origin, productData, type TSeqPath, type TStepArgs } from "../schema/protocol.js";
-import { normalizeDomainKey } from "./domains.js";
+import { normalizeDomainKey, registeredDomain } from "./domains.js";
 import type { StepTool } from "./step-registry.js";
 import { errorDetail } from "./util/index.js";
 
@@ -25,8 +25,7 @@ export function validateToolInput(fromSeqPath: TSeqPath, tool: StepTool, input: 
 	for (const [key, value] of Object.entries(input)) {
 		const domainKey = tool.paramDomainKeys.get(key);
 		if (domainKey === undefined) continue;
-		const domain = world.domains[domainKey];
-		if (!domain) throw new Error(`${tool.descriptor.method}: parameter "${key}" takes "${domainKey}", which is not a registered domain`);
+		const domain = registeredDomain(world.domains, domainKey, `${tool.descriptor.method}: parameter "${key}"`);
 		const result = domain.schema.safeParse(value);
 		if (!result.success) {
 			errors.push(`"${key}" (value: ${JSON.stringify(value)}): ${errorDetail(result.error)}`);
@@ -83,16 +82,12 @@ export function resolveOutputSchema(stepperName: string, stepName: string, stepD
 	const declared = [stepDef.productsDomain, stepDef.productsDomains, stepDef.productsOf].filter((d) => d !== undefined);
 	if (declared.length > 1) throw new Error(`step ${stepperName}.${stepName}: only one of productsDomain, productsDomains, productsOf may be set`);
 	if (stepDef.productsDomain) {
-		const domain = world.domains?.[normalizeDomainKey(stepDef.productsDomain)];
-		if (!domain) throw new Error(`step ${stepperName}.${stepName}: productsDomain "${stepDef.productsDomain}" is not a registered domain`);
-		return domain.schema;
+		return registeredDomain(world.domains, normalizeDomainKey(stepDef.productsDomain), `step ${stepperName}.${stepName}: productsDomain`).schema;
 	}
 	if (stepDef.productsDomains) {
 		const fields: Record<string, z.ZodType> = {};
 		for (const [field, domainKey] of Object.entries(stepDef.productsDomains)) {
-			const domain = world.domains?.[normalizeDomainKey(domainKey)];
-			if (!domain) throw new Error(`step ${stepperName}.${stepName}: productsDomains.${field} = "${domainKey}" is not a registered domain`);
-			fields[field] = domain.schema;
+			fields[field] = registeredDomain(world.domains, normalizeDomainKey(domainKey), `step ${stepperName}.${stepName}: productsDomains.${field}`).schema;
 		}
 		return z.object(fields);
 	}

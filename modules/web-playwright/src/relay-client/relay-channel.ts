@@ -3,12 +3,12 @@
  * stream carries the relay's commands; `relay.send` carries what the extension says back, the messages of one turn in
  * one call, after the calls before it. Each call is signed by `sign`, which is the extension's key signing under its
  * delegation. The channel opens once the relay states it holds the extension, and a refused attachment throws its
- * refusal.
+ * refusal, as does an attachment the relay doesn't open within `RELAY_OPEN_MS`.
  */
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { postRpc, readNdjson, type TProveRequest } from "@haibun/core/lib/rpc-wire.js";
 import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
-import { RELAY_ATTACHED, RELAY_METHOD_PREFIX, type TRelayBatch, type TRelayCall, type TRelayMessage } from "../relay/relay-wire.js";
+import { RELAY_ATTACHED, RELAY_METHOD_PREFIX, RELAY_OPEN_MS, type TRelayBatch, type TRelayCall, type TRelayMessage } from "../relay/relay-wire.js";
 import type { TRelayChannel } from "./relayConnection.js";
 
 export async function openRelayChannel({ base, sign }: { base: string; sign: TProveRequest }): Promise<TRelayChannel> {
@@ -19,15 +19,30 @@ export async function openRelayChannel({ base, sign }: { base: string; sign: TPr
 		return answer;
 	};
 	const ending = new AbortController();
-	const attached = await call("attach", {}, { signal: ending.signal });
-	if (!attached.body) throw new Error("relay.attach returned a response without a stream to carry the relay's commands");
-	const chunks = readNdjson<TStreamChunk>(attached.body);
-	const first = await chunks.next();
-	const opening = first.done ? undefined : first.value;
-	if (!opening || opening.error || (opening.message as TRelayMessage | undefined)?.method !== RELAY_ATTACHED) {
-		ending.abort();
-		throw new Error(`relay.attach was refused: ${opening ? (opening.error ?? JSON.stringify(opening)) : "the stream ended before the relay held the extension"}`);
-	}
+	const unopened = new Error(`relay.attach at ${base} didn't state that it holds the extension within ${RELAY_OPEN_MS}ms`);
+	const bound = setTimeout(() => ending.abort(unopened), RELAY_OPEN_MS);
+	const attach = async (): Promise<AsyncGenerator<TStreamChunk, void, unknown>> => {
+		const attached = await call("attach", {}, { signal: ending.signal });
+		if (!attached.body) throw new Error("relay.attach returned a response without a stream to carry the relay's commands");
+		const chunks = readNdjson<TStreamChunk>(attached.body);
+		const first = await chunks.next();
+		const opening = first.done ? undefined : first.value;
+		if (!opening || opening.error || (opening.message as TRelayMessage | undefined)?.method !== RELAY_ATTACHED)
+			throw new Error(`relay.attach was refused: ${opening ? (opening.error ?? JSON.stringify(opening)) : "the stream ended before the relay held the extension"}`);
+		return chunks;
+	};
+	const chunks = await attach().then(
+		(opened) => {
+			clearTimeout(bound);
+			return opened;
+		},
+		(e: unknown) => {
+			clearTimeout(bound);
+			const timedOut = ending.signal.reason === unopened;
+			ending.abort();
+			throw timedOut ? unopened : e;
+		},
+	);
 
 	let open = true;
 	let held: TRelayMessage[] = [];

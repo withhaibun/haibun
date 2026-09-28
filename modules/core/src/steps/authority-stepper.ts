@@ -161,7 +161,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 		// it: the framework doesn't hold a key or implement a specification.
 		const verified = await this.getAuthority().verifyEvidence({ kind: "document", document: capability as Record<string, unknown>, target });
 		if (!verified.ok) {
-			return actionNotOK(`holding capability: the evidence was refused, ${verified.error ?? "without a reason"}`);
+			return actionNotOK(`holding capability: the evidence was refused, ${verified.error}`);
 		}
 		const runner = new FlowRunner(this.getWorld(), this.steppers);
 		const run = () => runner.runSteps(what, { parentStep: featureStep });

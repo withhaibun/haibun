@@ -15,14 +15,13 @@ import { allocateSyntheticSeqPath } from "./host-id.js";
 import type { TSeqPath, TStepResult } from "../schema/protocol.js";
 
 /** What a call by name answers: the step is not registered here, or it ran and this is what it produced. */
-type TStepCall = { registered: false } | { registered: true; seqPath: TSeqPath; result: TStepResult };
+type TStepCall = { seqPath: TSeqPath; result: TStepResult };
 
 export async function callStepByName(ctx: DispatchContext, method: string, input: Record<string, unknown> = {}): Promise<TStepCall> {
-	const tool = ctx.registry.get(method);
-	if (!tool) return { registered: false };
+	const tool = ctx.registry.named(method);
 	const seqPath = allocateSyntheticSeqPath(ctx.world);
 	const result = await dispatchStep(ctx, buildFeatureStepForTransport(tool, input, seqPath));
-	return { registered: true, seqPath, result };
+	return { seqPath, result };
 }
 
 /**

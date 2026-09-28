@@ -290,9 +290,7 @@ describe("watching a run", () => {
 	it("says what is missing when run supervision was never registered, rather than reporting a run that does not exist", async () => {
 		const h = harness({ supervised: false });
 		h.stepper.beginAsk();
-		const started = await h.run("tests", "polymorphic");
-		expect(started.ok).toBe(false);
-		expect(started.errorMessage).toMatch(/InstanceStepper-startRun is not registered/);
+		await expect(h.run("tests", "polymorphic")).rejects.toThrow(/"InstanceStepper-startRun" isn't a step this run registers/);
 		expect(h.stepper.usage().inFlight, "a run that was never forked is not in flight").toBeUndefined();
 	});
 });

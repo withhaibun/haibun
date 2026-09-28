@@ -113,6 +113,16 @@ export const isPrimitiveDomain = (domainKey: string): boolean => domainParts(dom
  *  primitive and a value domain that doesn't name a thing. A persisted type, or a reference to one, is a thing a step
  *  produces. A caller writes a composite whose fields name things, and a step that takes it takes what its fields name
  *  (`fieldRangesOf`). */
+/** The domain `key` names, which `where` reads. A domain the loaded steppers don't register is refused, naming what read it. */
+export function registeredDomain(domains: Record<string, TRegisteredDomain> | undefined, key: string, where: string): TRegisteredDomain {
+	const domain = domains?.[key];
+	if (!domain)
+		throw new Error(
+			`${where} names the domain "${key}", which the loaded steppers don't register. A domain is one a stepper declares in getConcerns, or a union of them registered as one.`,
+		);
+	return domain;
+}
+
 export const isWrittenByCaller = (domainKey: string, domains: Record<string, TRegisteredDomain>): boolean =>
 	isPrimitiveDomain(domainKey) ||
 	domainParts(domainKey).every((part) => domains[part] !== undefined && !isPersisted(domains[part].topology) && refTargetOf(domains[part], domains) === undefined);

@@ -129,6 +129,16 @@ describe("afterEvery", () => {
 		expect(ins).toEqual(["have a test", 'after every "TestSteps", Noodles, man.', "passes", "Noodles, man.", "passes", "Noodles, man."]);
 	});
 
+	it("fails a step whose after-every step fails, stating why, and records the step before it", async () => {
+		const feature = { path: "/features/test.feature", content: 'after every "TestSteps", fails\npasses' };
+		const result = await failWithDefaults([feature], [Haibun, TestSteps]);
+		const results = result.featureResults?.[0].stepResults ?? [];
+		const passes = results.find((r) => r.in === "passes");
+		expect(passes?.ok, "a cycle fails a step that passed").toBe(false);
+		expect(passes?.errorMessage).toMatch(/a step run after every TestSteps step failed: /);
+		expect(results.map((r) => r.in).slice(-2), "the step is recorded before the step its cycle ran").toEqual(["passes", "fails"]);
+	});
+
 	it("afterEvery effect injects hierarchical step with parent seqPath extended", async () => {
 		const feature = {
 			path: "/features/test.feature",

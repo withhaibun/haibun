@@ -28,9 +28,9 @@ import { pathNodeIds, projectGoalPaths } from "../graph/project-goal-paths.js";
 import { graphToQuads } from "../graph/graph-quads.js";
 import { mountGraphPresenter, presenterIn, type TGraphPresenter, type TPresenterNodeClick } from "../graph-presenter.js";
 import { actionRef, domainRef, factIdRef } from "./shu-ref.js";
-import { factSeqPath } from "@haibun/core/lib/seq-path.js";
+import { producingStep } from "@haibun/core/lib/seq-path.js";
 import { openRef } from "./ref-navigation.js";
-import type { TGraph } from "../graph/types.js";
+import { nodeIn, type TGraph } from "../graph/types.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { linkTo } from "../rpc-registry.js";
 import { noteExecution } from "../client-cache/executions.js";
@@ -198,8 +198,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	private onGraphNodeClick(e: Event): void {
 		const { nodeId } = (e as CustomEvent<TPresenterNodeClick>).detail;
 		const slot = (e.target as Element).slot;
-		const node = this.goalGraphs.get(slot)?.nodes.find((n) => n.id === nodeId);
-		if (!node) throw new Error(`goal graph node "${nodeId}" isn't a node of the graph in slot "${slot}"`);
+		const node = nodeIn(this.goalGraphs.get(slot), nodeId, `the goal graph in slot "${slot}"`);
 		const invokes = node.invokes;
 		if (invokes?.stepperName && invokes?.stepName) {
 			this.chooseStep(stepMethodName(invokes.stepperName, invokes.stepName));
@@ -207,9 +206,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		}
 		const factId = node.wasGeneratedBy?.factId;
 		if (typeof factId !== "string") return;
-		const seqPath = factSeqPath(factId);
-		if (!seqPath) throw new Error(`fact "${factId}" doesn't name a step: a fact's id is the seqPath of the step that produced it`);
-		openRef(e, "seqPath", { seqPath });
+		openRef(e, "seqPath", { seqPath: producingStep(factId) });
 	}
 
 	private applyAffordances(a: TAffordances): void {

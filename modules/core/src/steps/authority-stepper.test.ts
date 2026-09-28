@@ -98,7 +98,7 @@ describe("delegations to the caller", () => {
 	const delegation = { id: "urn:uuid:pool", controller: "did:key:zSwimmer", allowedAction: ["Pool:enter"] };
 	const records = { [delegation.id]: { persistedAs: "Capability", accessLevel: "private" as const } };
 	const verifier: IAuthorityVerifier = {
-		verify: () => Promise.resolve({ ok: false }),
+		verify: () => Promise.resolve({ ok: false as const, error: "the stand-in refuses every proof" }),
 		delegationsTo: (controller) => Promise.resolve({ delegations: controller === delegation.controller ? [delegation] : [], records }),
 	};
 	const opened = async () => {

@@ -48,9 +48,17 @@ export function factIdOf(seqPathKey: string, field?: string): string {
 	return field === undefined ? seqPathKey : `${seqPathKey}${FACT_FIELD_MARK}${field}`;
 }
 
-/** The seqPath of the step that produced a fact, read from the fact's id. */
+/** The seqPath of the step that produced a fact, read from the fact's id; null where the id doesn't name a step. */
 export function factSeqPath(factId: string): number[] | null {
 	return parseSeqPath(itemAt(factId.split(FACT_FIELD_MARK), 0));
+}
+
+/** The seqPath of the step that produced a fact. An id that doesn't name a step is refused, since a fact's id is the
+ *  seqPath of the step that produced it. */
+export function producingStep(factId: string): number[] {
+	const seqPath = factSeqPath(factId);
+	if (!seqPath) throw new Error(`fact "${factId}" doesn't name a step: a fact's id is the seqPath of the step that produced it`);
+	return seqPath;
 }
 
 /**

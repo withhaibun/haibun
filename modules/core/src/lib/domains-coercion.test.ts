@@ -217,7 +217,7 @@ describe("domain coercion", () => {
 						origin: Origin.quoted,
 						domain: "nonexistent",
 					}),
-			).rejects.toThrow("unknown domain");
+			).rejects.toThrow(`variable "hello" names the domain "nonexistent", which the loaded steppers don't register`);
 		});
 	});
 });

@@ -19,7 +19,7 @@ import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { SHU_EVENT, AFFORDANCE_PARAM, DEEP_LINK_PREFIX, SHU_TAG } from "../consts.js";
 import { RPC_METHOD } from "../consts.js";
 import * as ViewHash from "../view-hash.js";
-import { factSeqPath } from "@haibun/core/lib/seq-path.js";
+import { producingStep } from "@haibun/core/lib/seq-path.js";
 import { openRef } from "./ref-navigation.js";
 import { domainRef, stepRef } from "./shu-ref.js";
 import { LINT_FINDING, LintFindingSchema, type TLintFinding } from "@haibun/core/lib/domain-chain-lint.js";
@@ -28,7 +28,7 @@ import { SHU_TEST_IDS } from "../test-ids.js";
 import { noteExecution } from "../client-cache/executions.js";
 import { PaneState } from "../pane-state.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
-import { NODE_KIND, type TGraph, type TGraphNode } from "../graph/types.js";
+import { NODE_KIND, nodeIn, type TGraph, type TGraphNode } from "../graph/types.js";
 import { linkTo } from "../rpc-registry.js";
 import { graphPresenterTag, mountGraphPresenter, presenterIn, type TGraphPresenter, type TPresenterNodeClick } from "../graph-presenter.js";
 
@@ -214,18 +214,14 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 	/** A node the reader opened in the graph opens what it names. */
 	private onNodeClick(e: Event): void {
 		const { nodeId } = (e as CustomEvent<TPresenterNodeClick>).detail;
-		const node = this.graph?.nodes.find((n) => n.id === nodeId);
-		if (!node) throw new Error(`chain graph node "${nodeId}" isn't a node of the chain`);
-		this.routeNodeClick(node);
+		this.routeNodeClick(nodeIn(this.graph, nodeId, "the chain graph"));
 	}
 
 	/** Click router for a graph node. Public for testability. */
 	routeNodeClick(node: TGraphNode): void {
 		// A fact-instance node opens the step that produced the fact.
 		if (node.kind === NODE_KIND.factInstance && node.wasGeneratedBy?.factId) {
-			const seqPath = factSeqPath(node.wasGeneratedBy.factId);
-			if (!seqPath) throw new Error(`fact "${node.wasGeneratedBy.factId}" doesn't name a step: a fact's id is the seqPath of the step that produced it`);
-			openRef(this, "seqPath", { seqPath });
+			openRef(this, "seqPath", { seqPath: producingStep(node.wasGeneratedBy.factId) });
 			return;
 		}
 		// Every other node of the chain projection deep-links into the affordances panel.

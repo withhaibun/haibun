@@ -95,6 +95,13 @@ export type TGraphStyle = {
 	className?: string;
 };
 
+/** The node `id` names in `graph`, which `where` names. A node the graph doesn't hold is refused. */
+export function nodeIn(graph: TGraph | null | undefined, id: string, where: string): TGraphNode {
+	const node = graph?.nodes.find((n) => n.id === id);
+	if (!node) throw new Error(`${where} doesn't hold a node "${id}"`);
+	return node;
+}
+
 export type TGraph = {
 	nodes: TGraphNode[];
 	edges: TGraphEdge[];

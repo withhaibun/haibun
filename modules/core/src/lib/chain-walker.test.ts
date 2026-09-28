@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { z } from "zod";
 import { AStepper, type TStepperSteps } from "./astepper.js";
 import { actionOKWithProducts, actionNotOK } from "./util/index.js";
-import { buildStepRegistry, type StepRegistry } from "./step-registry.js";
+import { StepRegistry } from "./step-registry.js";
 import { registerDomains } from "./domains.js";
 import { getDefaultWorld } from "./test/lib.js";
 import type { TWorld } from "./world.js";
@@ -65,7 +65,7 @@ function buildContext(world: TWorld, steppers: AStepper[]): { registry: StepRegi
 			{ selectors: [VC_DOMAIN], schema: VcSchema, description: "verifiable credential" },
 		],
 	]);
-	const registry = buildStepRegistry(steppers, world);
+	const registry = new StepRegistry(steppers, world);
 	return { registry, world, steppers, grantedCapability: RUN_AUTHORITY };
 }
 
@@ -120,7 +120,7 @@ describe("chain-walker", () => {
 		const result = await advanceChainInstance(ctx, inst.id, {});
 		expect(result.kind).toBe("failed");
 		if (result.kind !== "failed") throw new Error("unreachable");
-		expect(result.error).toMatch(/not registered/);
+		expect(result.error).toMatch(/"NotRegistered-nope" isn't a step this run registers/);
 	});
 
 	it("idempotently reports completion once every step has produced a fact", async () => {
@@ -184,7 +184,7 @@ describe("a walk gives a step only what that step takes", () => {
 		const advanced = await advanceChainInstance(ctx, inst.id, { count: "not a number" });
 		expect(advanced.kind).toBe("failed");
 		if (advanced.kind !== "failed") throw new Error("unreachable");
-		expect(advanced.error).toMatch(/does not take/);
+		expect(advanced.error).toMatch(/CountingStepper-countTo validation failed .*invalid number/);
 		expect(advanced.instance.status).toBe(CHAIN_INSTANCE_STATUS.FAILED);
 	});
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { RpcClient, type RpcError } from "./rpc-client.js";
+import { RpcCallFailed, RpcClient } from "./rpc-client.js";
 import type { TOutgoingRequest, TRequestSigner } from "./authority-types.js";
 
 /**
@@ -92,14 +92,15 @@ describe("RpcClient.call", () => {
 	it("refuses an answer that is not JSON with its status and what the server sent, as a path it does not serve answers", async () => {
 		const fetchImpl: typeof fetch = () => Promise.resolve(new Response("404 Not Found", { status: 404, headers: { "Content-Type": "text/plain" } }));
 		const client = new RpcClient({ baseUrl: "http://host", fetchImpl });
-		expect(await client.call("Stepper-echo", {}, [0])).toEqual({ error: "Stepper-echo: the server answered 404 with text/plain, not the run's JSON: 404 Not Found" });
+		await expect(client.call("Stepper-echo", {}, [0])).rejects.toThrow(
+			new RpcCallFailed("Stepper-echo", "http://host", "Stepper-echo: the server answered 404 with text/plain, not the run's JSON: 404 Not Found"),
+		);
 	});
 
 	it("surfaces application errors (HTTP 422 with error body) intact", async () => {
 		const { fetchImpl } = makeFakeFetch([{ ok: false, status: 422, bodyText: JSON.stringify({ error: "capability Foo required" }) }]);
 		const client = new RpcClient({ baseUrl: "http://host", fetchImpl, retry: { maxAttempts: 1 } });
-		const out = await client.call("m", {}, [0]);
-		expect((out as RpcError).error).toBe("capability Foo required");
+		await expect(client.call("m", {}, [0])).rejects.toThrow(new RpcCallFailed("m", "http://host", "capability Foo required"));
 	});
 
 	it("retries on network error and succeeds on a later attempt", async () => {
@@ -114,15 +115,14 @@ describe("RpcClient.call", () => {
 		expect(calls.length).toBe(2);
 	});
 
-	it("returns an RpcError with attempt count after all retries exhausted", async () => {
+	it("throws RpcCallFailed, naming the attempts, once every retry fails", async () => {
 		const { fetchImpl, calls } = makeFakeFetch([{ throwError: new Error("boom") }, { throwError: new Error("boom") }]);
 		const client = new RpcClient({
 			baseUrl: "http://host",
 			fetchImpl,
 			retry: { maxAttempts: 2, baseDelayMs: 0 },
 		});
-		const out = await client.call("m", {}, [0]);
-		expect((out as RpcError).error).toMatch(/2 attempts/);
+		await expect(client.call("m", {}, [0])).rejects.toThrow(/m at http:\/\/host: rpc failed after 2 attempts/);
 		expect(calls.length).toBe(2);
 	});
 

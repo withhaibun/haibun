@@ -12,8 +12,7 @@ import { AStepper, type IStepperCycles } from "../astepper.js";
 import { DOMAIN_ACTIONS } from "../domains.js";
 import type { TDomainDefinition } from "../resources.js";
 import { OK } from "../../schema/protocol.js";
-import { actionNotOK } from "../util/index.js";
-import { getAuthority } from "../session-authority.js";
+import { getAuthority, heldAuthority } from "../session-authority.js";
 import { capabilityAllows } from "../actions.js";
 import type { IAuthorityInvoker, IAuthorityVerifier, TAuthorityAct, TAuthorityEvidence, TDelegations, TOutgoingRequest, TVerdict } from "../authority-types.js";
 
@@ -109,9 +108,7 @@ export default class FakeAuthorityStepper extends AStepper {
 	};
 
 	private withAuthority(register: (authority: NonNullable<ReturnType<typeof getAuthority>>) => void) {
-		const authority = getAuthority(this.getWorld().runtime);
-		if (!authority) return Promise.resolve(actionNotOK("this run holds no authority to register a stand-in with"));
-		register(authority);
+		register(heldAuthority(this.getWorld().runtime, "registering a stand-in"));
 		return Promise.resolve(OK);
 	}
 }

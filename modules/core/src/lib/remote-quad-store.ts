@@ -6,7 +6,7 @@
  * is signed, invoking the action its method takes; a peer that doesn't hold a delegation for it is refused by the serving side.
  * Mount-scoped: clustered reads and all() cover only the mounted graphs, never the peer's whole store.
  */
-import { discoverInstance, RpcClient, type RpcError } from "./rpc-client.js";
+import { RemoteInstance } from "./rpc-client.js";
 import { STORE_METHOD_PREFIX, requiredStoreCapability } from "./store-protocol.js";
 import type { TRequestSigner } from "./authority-types.js";
 import type { AccessLevel } from "./resources.js";
@@ -16,23 +16,19 @@ type TRemoteQuadStoreConfig = { url: string; sign: TRequestSigner; graphs: strin
 
 export class RemoteQuadStore implements IQuadStore {
 	readonly isRemote = true;
-	private rpc: RpcClient;
-	private remoteSite?: string;
+	private remote: RemoteInstance;
 
 	constructor(private config: TRemoteQuadStoreConfig) {
-		this.rpc = new RpcClient({ baseUrl: config.url, sign: config.sign, fetchImpl: config.fetchImpl });
+		this.remote = new RemoteInstance(config.url, config.sign, config.fetchImpl);
 	}
 
 	/** Handshake before use: the serving instance self-reports its site principal: the custodian of everything mounted here. */
-	async connect(): Promise<string> {
-		const { site } = await discoverInstance(this.rpc, this.config.url);
-		this.remoteSite = site;
-		return site;
+	connect(): Promise<string> {
+		return this.remote.connect();
 	}
 
 	get site(): string {
-		if (!this.remoteSite) throw new Error("RemoteQuadStore: connect() has not completed, so the store doesn't hold the site's principal");
-		return this.remoteSite;
+		return this.remote.site;
 	}
 
 	get graphs(): readonly string[] {
@@ -41,9 +37,7 @@ export class RemoteQuadStore implements IQuadStore {
 
 	private async call<T>(method: string, params: Record<string, unknown>): Promise<T> {
 		const storeMethod = `${STORE_METHOD_PREFIX}${method}`;
-		const result = await this.rpc.call<{ result: T }>(storeMethod, params, [], { action: requiredStoreCapability(storeMethod) });
-		if (typeof (result as RpcError).error === "string") throw new Error(`RemoteQuadStore: ${method} failed at ${this.config.url}: ${(result as RpcError).error}`);
-		return (result as { result: T }).result;
+		return (await this.remote.rpc.call<{ result: T }>(storeMethod, params, [], { action: requiredStoreCapability(storeMethod) })).result;
 	}
 
 	set(subject: string, predicate: string, object: unknown, namedGraph: string, properties?: Record<string, unknown>): Promise<void> {

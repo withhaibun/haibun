@@ -25,6 +25,7 @@ import {
 	createEnumDomainDefinition,
 	globSource,
 	registerDomains,
+	registeredDomain,
 } from "../lib/domains.js";
 import { fromJsonText } from "../lib/json-text.js";
 import { HypermediaContextSchema, hypermediaDomainFromContext, type THypermediaContext } from "../lib/hypermedia.js";
@@ -331,8 +332,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				}
 
 				const domainKey = normalizeDomainKey(resolved.domain);
-				const compared = this.getWorld().domains[domainKey];
-				if (!compared) throw new Error(`${term} holds a value of the domain ${domainKey}, which isn't registered`);
+				const compared = registeredDomain(this.getWorld().domains, domainKey, `the value of ${term}`);
 				const compareVal = compared.coerce({ term: "_cmp", value: String(value.value), domain: domainKey, origin: Origin.quoted }, featureStep, this.steppers);
 
 				return JSON.stringify(resolved.value) === JSON.stringify(compareVal) ? OK : actionNotOK(`${term} is ${JSON.stringify(resolved.value)}, not ${JSON.stringify(compareVal)}`);
@@ -417,10 +417,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: `show domain {name: ${DOMAIN_DOMAIN_KEY}}`,
 			productsDomain: DOMAIN_DOMAIN_SNAPSHOT,
 			action: async ({ name }: { name: string }) => {
-				const domain = this.getWorld().domains[name];
-				if (!domain) {
-					return actionNotOK(`Domain "${name}" not found`);
-				}
+				const domain = registeredDomain(this.getWorld().domains, name, "show domain");
 				const shared = this.getWorld().shared;
 				const members: Record<string, TAnyFixme> = {};
 				for (const [key, variable] of Object.entries(await shared.all())) {
@@ -534,10 +531,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			return actionNotOK(`${term} is not set`);
 		}
 		const domainKey = normalizeDomainKey(stored.domain);
-		const domainEntry = this.getWorld().domains[domainKey];
-		if (!domainEntry) {
-			throw new Error(`the domain "${domainKey}" doesn't have a coercer`);
-		}
+		const domainEntry = registeredDomain(this.getWorld().domains, domainKey, `the value of ${term}`);
 		const left = domainEntry.coerce({ ...stored, domain: domainKey }, featureStep, this.steppers);
 
 		const right = domainEntry.coerce({ term: `${term}__comparison`, value: String(value.value), domain: domainKey, origin: Origin.quoted }, featureStep, this.steppers);
@@ -600,11 +594,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			}
 			const superdomainDefs: TRegisteredDomain[] = uniqueNames.map((name) => {
 				const normalized = normalizeDomainKey(name);
-				const registered = this.getWorld().domains[normalized];
-				if (!registered) {
-					throw new Error(`Superdomain "${name}" not registered`);
-				}
-				return registered;
+				return registeredDomain(this.getWorld().domains, normalized, `the set of ${domainKey}`);
 			});
 			const enumSources = superdomainDefs.filter((entry) => Array.isArray(entry.values) && entry.values.length);
 			const uniqueValues = Array.from(new Set(enumSources.flatMap((entry) => entry.values ?? [])));

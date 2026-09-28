@@ -1,7 +1,7 @@
 import { AStepper, TFeatureStep } from "./astepper.js";
 import type { TWorld } from "./world.js";
 import { TStepArgs, TStepValue } from "../schema/protocol.js";
-import { DOMAIN_STRING, DOMAIN_VARIABLE_VALUE, domainParts, isPrimitiveDomain, paramDomainKey } from "./domains.js";
+import { DOMAIN_STRING, DOMAIN_VARIABLE_VALUE, domainParts, isPrimitiveDomain, paramDomainKey, registeredDomain } from "./domains.js";
 import { errorDetail } from "./util/index.js";
 
 /** Resolves each parameter of a step and coerces it to the parameter's domain. A line's terms are resolved here, and a
@@ -53,8 +53,7 @@ function readInDomain(inStep: string, takes: string, resolved: TStepValue, world
 	const holds = resolved.domain;
 	const parts = domainParts(takes);
 	if (holds === takes || parts.includes(holds) || parts.includes(DOMAIN_STRING) || parts.includes(DOMAIN_VARIABLE_VALUE)) return resolved.value;
-	const domain = world.domains[takes];
-	if (!domain) throw new Error(`${inStep} takes the domain "${takes}", which the loaded steppers don't register`);
+	const domain = registeredDomain(world.domains, takes, inStep);
 	if (!isPrimitiveDomain(holds) && domain.topology?.ranges?.id !== holds) throw new Error(`${inStep} takes ${takes}, and ${resolved.term} holds ${holds}`);
 	try {
 		return domain.coerce({ ...resolved, domain: takes }, featureStep, steppers);

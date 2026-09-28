@@ -2,7 +2,7 @@ import type { Context, MiddlewareHandler } from "hono";
 import type { TRuntime } from "@haibun/core/lib/world.js";
 import { capabilityAllows } from "@haibun/core/lib/actions.js";
 import { refusal } from "@haibun/core/lib/step-registry.js";
-import { getAuthority } from "@haibun/core/lib/session-authority.js";
+import { getAuthority, heldAuthority } from "@haibun/core/lib/session-authority.js";
 import type { TRestsOn } from "@haibun/core/lib/authority-types.js";
 
 type TRequestHeaders = Record<string, string | undefined>;
@@ -36,7 +36,7 @@ export async function grantedCapabilityForRequest(
 	if (!authority?.hasVerifier()) return { granted: [], refused: "the request presents authority, and nothing here verifies it" };
 	if (!request?.method || !request.url) return { granted: [], refused: "the request presents authority without the method and address its proof covers" };
 	const verdict = await authority.verifyEvidence({ kind: "request", method: request.method, url: request.url, headers: request.headers ?? {}, body: request.body });
-	if (!verdict.ok) return { granted: [], refused: `the presented authority failed verification: ${verdict.error ?? "no reason given"}` };
+	if (!verdict.ok) return { granted: [], refused: `the presented authority failed verification: ${verdict.error}` };
 	return { granted: [...allowedWithoutDelegation, ...(verdict.allowedAction ?? [])], principal: verdict.principal, restsOn: verdict.restsOn };
 }
 
@@ -65,9 +65,7 @@ export const requiring =
  */
 export function endWhenLapsed(runtime: TRuntime, { restsOn }: TRequestAuthority, signal: AbortSignal, end: (reason: string) => void): void {
 	if (!restsOn) return;
-	const authority = getAuthority(runtime);
-	if (!authority) throw new Error("a call rests on verified authority, and this process doesn't hold an authority to watch it");
-	const held = authority.holdWhile(restsOn);
+	const held = heldAuthority(runtime, "watching the authority a call rests on").holdWhile(restsOn);
 	signal.addEventListener("abort", held.release, { once: true });
 	if (held.signal.aborted) end(String(held.signal.reason));
 	else held.signal.addEventListener("abort", () => end(String(held.signal.reason)), { once: true });

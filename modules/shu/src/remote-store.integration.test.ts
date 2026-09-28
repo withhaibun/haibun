@@ -3,7 +3,7 @@ import { getTestWorldWithOptions, testWithWorld, DEF_PROTO_OPTIONS } from "@haib
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { OK } from "@haibun/core/schema/protocol.js";
 import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
-import { RpcClient } from "@haibun/core/lib/rpc-client.js";
+import { RpcCallFailed, RpcClient } from "@haibun/core/lib/rpc-client.js";
 import { refusal } from "@haibun/core/lib/step-registry.js";
 import { PRINCIPAL_LABEL, type TPrincipal } from "@haibun/core/lib/resources.js";
 import Haibun from "@haibun/core/steps/haibun.js";
@@ -30,6 +30,18 @@ let heldByMain: TPrincipal[] | undefined;
 let deniedRead: string | undefined;
 let deniedWrite: string | undefined;
 
+/** Why the instance refused a call; a call it answers fails the probe. */
+const reasonRefused = (call: Promise<unknown>): Promise<string> =>
+	call.then(
+		() => {
+			throw new Error("the instance answered a call from a caller without the grant");
+		},
+		(e: unknown) => {
+			if (e instanceof RpcCallFailed) return e.reason;
+			throw e;
+		},
+	);
+
 class StoreDelegationProbeStepper extends AStepper {
 	description = "Probes the delegated store surface of another instance, for the remote store test.";
 	steps = {
@@ -41,10 +53,10 @@ class StoreDelegationProbeStepper extends AStepper {
 				const held = await asDelegate.call<{ result: TPrincipal[] }>("store.queryIndividuals", { label: PRINCIPAL_LABEL, filters: { id: "did:site:0.1" } }, [], {
 					action: "store.read",
 				});
-				heldByMain = (held as { result: TPrincipal[] }).result;
+				heldByMain = held.result;
 				const stranger = new RpcClient({ baseUrl: `http://localhost:${PEER_PORT}`, timeoutMs: 2_000, retry: { maxAttempts: 1 } });
-				deniedRead = ((await stranger.call<{ error?: string }>("store.queryIndividuals", { label: PRINCIPAL_LABEL }, [])) as { error?: string }).error;
-				deniedWrite = ((await stranger.call<{ error?: string }>("store.upsertIndividual", { label: PRINCIPAL_LABEL, data: { id: "intruder" } }, [])) as { error?: string }).error;
+				deniedRead = await reasonRefused(stranger.call("store.queryIndividuals", { label: PRINCIPAL_LABEL }, []));
+				deniedWrite = await reasonRefused(stranger.call("store.upsertIndividual", { label: PRINCIPAL_LABEL, data: { id: "intruder" } }, []));
 				return OK;
 			},
 		},

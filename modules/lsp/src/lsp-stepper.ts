@@ -26,7 +26,7 @@ import { runRegistry } from "@haibun/core/lib/step-registry.js";
 import type { TStepDescriptor } from "@haibun/core/lib/step-discovery.js";
 import { Resolver } from "@haibun/core/phases/Resolver.js";
 import { expand } from "@haibun/core/lib/features.js";
-import { TStepValue } from "@haibun/core/schema/protocol.js";
+import { OK, TStepValue } from "@haibun/core/schema/protocol.js";
 import { findHaibunWorkspace, loadBackgroundsFromPath, countFeatures } from "@haibun/core/lib/workspace-discovery.js";
 import { constructorName, errorDetail } from "@haibun/core/lib/util/index.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
@@ -83,7 +83,7 @@ export default class LspStepper extends AStepper {
 		lspIsReady: {
 			gwta: "lsp is ready",
 			action: () => {
-				return Promise.resolve({ ok: true, message: "LSP server is ready" });
+				return Promise.resolve(OK);
 			},
 		},
 	};

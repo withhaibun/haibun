@@ -789,7 +789,7 @@ describe("step-dispatch", () => {
 			class JustUnknown extends AStepper {
 				steps = { unknownDomain: new DomainEchoStepper().steps.unknownDomain };
 			}
-			expect(() => buildStepRegistry([new JustUnknown()], world)).toThrow(/not a registered domain/);
+			expect(() => buildStepRegistry([new JustUnknown()], world)).toThrow(/productsDomain names the domain "[^"]+", which the loaded steppers don't register/);
 		});
 	});
 

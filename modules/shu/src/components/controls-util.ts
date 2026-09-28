@@ -42,22 +42,33 @@ export async function pollUntil<T>(page: Page, read: () => Promise<T>, ok: (v: T
 	return v;
 }
 
+/** Whether an error is Playwright's timeout, which a bounded wait reads as the page not reaching the state it waited for. */
+const isTimeout = (e: unknown): boolean => e instanceof Error && e.name === "TimeoutError";
+
 /**
- * Wait until `test` holds of the element `locator` finds, running it in the page on each frame. The test takes the
- * element and `arg` only, since the page runs it apart from this module.
+ * Whether `test` comes to hold of the element `locator` finds within `timeout`, running it in the page on each frame.
+ * The test takes the element and `arg` only, since the page runs it apart from this module. An error other than the
+ * timeout, such as one the test throws, is thrown.
  */
-export async function until<E extends HTMLElement, A>(locator: Locator, test: (on: { el: E; arg: A }) => boolean, arg: A, timeout = SETTLES_MS): Promise<void> {
+export async function comesToHold<E extends HTMLElement, A>(locator: Locator, test: (on: { el: E; arg: A }) => boolean, arg: A, timeout: number): Promise<boolean> {
 	const el = await locator.evaluateHandle((found: E) => found);
 	// The page receives the handle as the element it names, which Playwright's types can't state for a generic element.
-	await locator.page().waitForFunction(test as (on: unknown) => boolean, { el, arg } as unknown, { timeout });
+	return locator
+		.page()
+		.waitForFunction(test as (on: unknown) => boolean, { el, arg } as unknown, { timeout })
+		.then(
+			() => true,
+			(e: unknown) => {
+				if (isTimeout(e)) return false;
+				throw e;
+			},
+		);
 }
 
-/** Whether `test` comes to hold of the element `locator` finds within `timeout`. */
-export function comesToHold<E extends HTMLElement, A>(locator: Locator, test: (on: { el: E; arg: A }) => boolean, arg: A, timeout: number): Promise<boolean> {
-	return until(locator, test, arg, timeout).then(
-		() => true,
-		() => false,
-	);
+/** Wait until `test` holds of the element `locator` finds. A wait that times out is refused naming `state`, the state it
+ *  waited for, so a failure says which of a step's waits the page didn't reach. */
+export async function until<E extends HTMLElement, A>(locator: Locator, state: string, test: (on: { el: E; arg: A }) => boolean, arg: A, timeout = SETTLES_MS): Promise<void> {
+	if (!(await comesToHold(locator, test, arg, timeout))) throw new Error(`waited ${timeout}ms for ${state}, and the page didn't reach it`);
 }
 
 /** Wait until `locator` finds an element in the page, shown or not. */

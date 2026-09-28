@@ -5,7 +5,7 @@
  * sampled subject stamped with the site that served it. Deliberately NOT a routed backing store:
  * it doesn't take raw pattern queries or writes; those arrive with capability-gated federation.
  */
-import { discoverInstance, RpcClient } from "@haibun/core/lib/rpc-client.js";
+import { RemoteInstance } from "@haibun/core/lib/rpc-client.js";
 import type { TRequestSigner } from "@haibun/core/lib/authority-types.js";
 import { AUTHORITY_CAPABILITIES } from "@haibun/core/steps/authority-stepper.js";
 import { RPC_METHOD } from "./consts.js";
@@ -16,32 +16,25 @@ import type { TCluster, TClusteredQuads, TFederatedGraphSource, TQuad } from "@h
 type TRemoteGraphSourceConfig = { url: string; sign: TRequestSigner; fetchImpl?: typeof fetch };
 
 export class RemoteGraphSource implements TFederatedGraphSource {
-	private rpc: RpcClient;
-	private remoteSite?: string;
+	private remote: RemoteInstance;
 
 	constructor(private config: TRemoteGraphSourceConfig) {
-		this.rpc = new RpcClient({ baseUrl: config.url, sign: config.sign, fetchImpl: config.fetchImpl });
+		this.remote = new RemoteInstance(config.url, config.sign, config.fetchImpl);
 	}
 
 	/** Handshake: the peer self-reports its site principal via action.begin. Must complete before reads. */
-	async connect(): Promise<string> {
-		const { site } = await discoverInstance(this.rpc, this.config.url);
-		this.remoteSite = site;
-		return site;
+	connect(): Promise<string> {
+		return this.remote.connect();
 	}
 
 	get site(): string {
-		if (!this.remoteSite) throw new Error("RemoteGraphSource: connect() has not completed, so the source doesn't hold the site's principal");
-		return this.remoteSite;
+		return this.remote.site;
 	}
 
 	/** Ask the peer to assign THIS instance a unique site principal (AuthorityStepper's `name a connecting site`), under a
 	 *  delegation the peer gave this instance for naming it. */
 	async requestName(): Promise<string> {
-		const result = await this.rpc.call<{ site?: string }>("AuthorityStepper-nameConnectingSite", {}, [], { action: AUTHORITY_CAPABILITIES.name });
-		if (typeof (result as { error?: unknown }).error === "string")
-			throw new Error(`RemoteGraphSource: naming failed at ${this.config.url}: ${(result as { error: string }).error}`);
-		const site = (result as { site?: string }).site;
+		const { site } = await this.remote.rpc.call<{ site?: string }>("AuthorityStepper-nameConnectingSite", {}, [], { action: AUTHORITY_CAPABILITIES.name });
 		if (typeof site !== "string" || site.length === 0) throw new Error(`RemoteGraphSource: naming at ${this.config.url} didn't return a site`);
 		return site;
 	}
@@ -58,10 +51,7 @@ export class RemoteGraphSource implements TFederatedGraphSource {
 			...(opts.types ? { types: JSON.stringify(opts.types) } : {}),
 		};
 		// A read at a level is invoked as one, under a delegation from the peer that allows reading at it.
-		const result = await this.rpc.call<TClusteredQuads>(RPC_METHOD.CLUSTERED_QUADS, params, [], { action: readAction(opts.accessLevel) });
-		if (typeof (result as { error?: unknown }).error === "string")
-			throw new Error(`RemoteGraphSource: getClusteredQuads failed at ${this.config.url}: ${(result as { error: string }).error}`);
-		const r = result as TClusteredQuads;
+		const r = await this.remote.rpc.call<TClusteredQuads>(RPC_METHOD.CLUSTERED_QUADS, params, [], { action: readAction(opts.accessLevel) });
 		const defaultSite = r.site ?? remote;
 		// Stamp EVERY sampled subject explicitly: merged into another instance's response (whose own default
 		// applies to unstamped subjects) these must keep the site that served them, and a peer that

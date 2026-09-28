@@ -126,7 +126,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 			// A step that didn't change a record doesn't announce a change: a read, or a step that only computes a view of memory.
 			// Otherwise the panel's own re-fetch, which is a read, would re-trigger itself over SSE without bound.
 			const step = after.featureStep.action.step;
-			if (step.read === true || PROJECTION_DOMAINS.has(step.productsDomain ?? "")) return Promise.resolve({ failed: false });
+			if (step.read === true || PROJECTION_DOMAINS.has(step.productsDomain ?? "")) return Promise.resolve({});
 			const seqPath = stepInFlight()?.seqPath;
 			if (!seqPath) throw new Error("GoalResolutionStepper.afterStep: a step isn't in flight. dispatchStep runs afterStep cycles inside the step.");
 			this.getWorld().eventLogger.emit({
@@ -139,7 +139,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 				level: "debug",
 				json: { affordancesChanged: true } as Record<string, unknown>,
 			});
-			return Promise.resolve({ failed: false });
+			return Promise.resolve({});
 		},
 	};
 
@@ -173,8 +173,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		for (const [i, step] of michi.steps.entries()) {
 			const method = stepMethodName(step.stepperName, step.stepName);
 			const call = await callStepByName({ registry, world, steppers: this.steppers }, method);
-			if (!call.registered) return actionNotOK(`pursue ${goal}: step ${i} (${method}) not registered`);
-			if (!call.result.ok) return actionNotOK(`pursue ${goal}: step ${i} (${method}) failed: ${call.result.errorMessage ?? "(it didn't give a message)"}`);
+			if (!call.result.ok) return actionNotOK(`pursue ${goal}: step ${i} (${method}) failed: ${call.result.errorMessage}`);
 			factIds.push(call.seqPath.join("."));
 		}
 		return actionOKWithProducts({ finding: "executed", goal, factIds });
@@ -238,15 +237,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 				if (resolution.finding === GOAL_FINDING.SATISFIED) {
 					return actionOKWithProducts(goalResolutionSchema.parse(resolution));
 				}
-				if (resolution.finding === GOAL_FINDING.UNREACHABLE) {
-					return actionNotOK(`pursue ${goal}: unreachable (missing producers: ${resolution.missing.join(", ")})`);
-				}
-				if (resolution.finding === GOAL_FINDING.REFUSED) {
-					return actionNotOK(`pursue ${goal}: refused (${resolution.refusalReason}: ${resolution.detail})`);
-				}
-				// finding === MICHI, take the first path
-				const [michi] = resolution.michi;
-				if (!michi) return actionNotOK(`pursue ${goal}: the resolver didn't return a michi`);
+				const michi = firstPathToward("pursue", resolution);
 				const argBindings = collectArgumentBindings(michi.bindings);
 				if (argBindings.length > 0) {
 					return actionNotOK(
@@ -269,10 +260,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 			action: async ({ goal }: { goal: string }) => {
 				const resolution = await this.runResolution(goal);
 				if (resolution.finding === GOAL_FINDING.SATISFIED) return actionNotOK(`walk toward ${goal}: already satisfied, so it doesn't need a path`);
-				if (resolution.finding === GOAL_FINDING.UNREACHABLE) return actionNotOK(`walk toward ${goal}: unreachable (missing producers: ${resolution.missing.join(", ")})`);
-				if (resolution.finding === GOAL_FINDING.REFUSED) return actionNotOK(`walk toward ${goal}: refused (${resolution.refusalReason}: ${resolution.detail})`);
-				const [michi] = resolution.michi;
-				if (!michi) return actionNotOK(`walk toward ${goal}: the resolver didn't return a michi`);
+				const michi = firstPathToward("walk toward", resolution);
 				const world = this.getWorld();
 				const instance = await createChainInstance(world, goal, michi);
 				return actionOKWithProducts(walkProducts(instance, runRegistry(world)));
@@ -362,6 +350,14 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 }
 
 export default GoalResolutionStepper;
+
+/** The first path the resolver found toward a goal that isn't satisfied yet. A goal it can't reach, or that it refused, is
+ *  refused as `doing` it, stating why. */
+function firstPathToward(doing: string, resolution: Exclude<TGoalResolution, { finding: typeof GOAL_FINDING.SATISFIED }>): TMichi {
+	if (resolution.finding === GOAL_FINDING.UNREACHABLE) throw new Error(`${doing} ${resolution.goal}: unreachable (missing producers: ${resolution.missing.join(", ")})`);
+	if (resolution.finding === GOAL_FINDING.REFUSED) throw new Error(`${doing} ${resolution.goal}: refused (${resolution.refusalReason}: ${resolution.detail})`);
+	return resolution.michi[0];
+}
 
 /**
  * Walk a michi's bindings (and their nested composite fields) and collect

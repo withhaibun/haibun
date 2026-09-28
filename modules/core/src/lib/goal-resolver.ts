@@ -98,7 +98,7 @@ type TRefusalReason = (typeof REFUSAL_REASON)[keyof typeof REFUSAL_REASON];
 
 export type TGoalResolution =
 	| { finding: typeof GOAL_FINDING.SATISFIED; goal: string; factIds: string[]; michi: TMichi[]; truncated: boolean }
-	| { finding: typeof GOAL_FINDING.MICHI; goal: string; michi: TMichi[]; truncated: boolean }
+	| { finding: typeof GOAL_FINDING.MICHI; goal: string; michi: [TMichi, ...TMichi[]]; truncated: boolean }
 	| { finding: typeof GOAL_FINDING.UNREACHABLE; goal: string; missing: string[] }
 	| { finding: typeof GOAL_FINDING.REFUSED; goal: string; refusalReason: TRefusalReason; detail: string };
 
@@ -175,9 +175,8 @@ export function resolveGoal(goal: string, inputs: TResolverInputs): TGoalResolut
 		return { finding: GOAL_FINDING.UNREACHABLE, goal, missing: [goal] };
 	}
 
-	if (enumeration.michi.length > 0) {
-		return { finding: GOAL_FINDING.MICHI, goal, michi: enumeration.michi, truncated: enumeration.truncated };
-	}
+	const [first, ...more] = enumeration.michi;
+	if (first) return { finding: GOAL_FINDING.MICHI, goal, michi: [first, ...more], truncated: enumeration.truncated };
 	return { finding: GOAL_FINDING.UNREACHABLE, goal, missing: dedupe(walk.missing.length > 0 ? walk.missing : [goal]) };
 }
 

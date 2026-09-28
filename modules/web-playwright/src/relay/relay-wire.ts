@@ -14,6 +14,10 @@ export type TRelayCall = "attach" | "send";
  *  attachment's stream carries its refusal instead. */
 export const RELAY_ATTACHED = "relay.attached";
 
+/** How long the relay has to state it holds the extension, from the start of the attach call. An attach it doesn't
+ *  open within this is refused, so the extension states why rather than waiting on a call that doesn't return. */
+export const RELAY_OPEN_MS = 10_000;
+
 /** A message between the relay and the attached extension: a command for it, or its answer, or a chrome event. */
 const RelayMessageSchema = z.object({
 	id: z.number().optional(),

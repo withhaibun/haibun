@@ -7,7 +7,7 @@ import { ControlEvent, STEPS_CHANGED, type TActionResult, type TSeqPath } from "
 import { namedInterpolation, mapInputToStepValues, literalTerm, renderStepLine } from "./namedVars.js";
 import { constructorName, actionNotOK } from "./util/index.js";
 import { populateActionArgs } from "./populateActionArgs.js";
-import { DOMAIN_DOMAIN_KEY, DOMAIN_RECORD_ID, DOMAIN_STATEMENT, paramDomainKey } from "./domains.js";
+import { DOMAIN_DOMAIN_KEY, DOMAIN_RECORD_ID, DOMAIN_STATEMENT, paramDomainKey, registeredDomain } from "./domains.js";
 import { zodTypeLabel } from "./composite-domain.js";
 import { DOMAIN_PERSISTED_TYPE, isPersisted, withinAccess, type AccessLevel } from "./resources.js";
 import { lackedAction, mayCall, requiredAction } from "./actions.js";
@@ -102,6 +102,13 @@ export class StepRegistry {
 
 	get(name: string): StepTool | undefined {
 		return this.tools.get(name);
+	}
+
+	/** The step `name` names. A step the run doesn't register is refused. */
+	named(name: string): StepTool {
+		const tool = this.tools.get(name);
+		if (!tool) throw new Error(`"${name}" isn't a step this run registers; show steps lists the method names it does`);
+		return tool;
 	}
 
 	list(): StepTool[] {
@@ -258,6 +265,8 @@ export function createStepHandler(stepperName: string, stepName: string, stepDef
 		try {
 			const args = await populateActionArgs(featureStep, world, runSteppers(world));
 			const result = await stepDef.action(args, featureStep);
+			// A failure states why; a result that doesn't, from code the types don't reach, is refused naming the step.
+			if (!result.ok && typeof result.errorMessage !== "string") throw new Error(`${stepperName}.${stepName} failed without stating why`);
 			// Checked where the arguments were resolved, since a statement the step ran names the domain of what it passes on.
 			const productsError = result.ok ? validateProducts(stepperName, stepName, stepDef, world, result.products, args) : undefined;
 			return productsError ? actionNotOK(productsError) : result;
@@ -355,12 +364,7 @@ function buildInputSchema(stepperName: string, stepName: string, stepDef: TStepp
 	const paramDomainKeys = stepParamDomains(stepDef);
 
 	for (const [term, domainKey] of paramDomainKeys) {
-		const domain = world.domains?.[domainKey];
-		if (!domain) {
-			throw new Error(
-				`step ${stepperName}.${stepName}: {${term}} names the domain "${domainKey}", which the loaded steppers don't register. A parameter's domain is one a stepper declares in getConcerns, or a union of them registered as one.`,
-			);
-		}
+		const domain = registeredDomain(world.domains, domainKey, `step ${stepperName}.${stepName}: {${term}}`);
 		// The schema describes what a caller must supply, so defaulted fields are optional.
 		const jsonSchema = jsonSchemaFor(`step ${stepperName}.${stepName}: {${term}}'s domain "${domainKey}"`, domain.schema, "input");
 		properties[term] = domain.description && !jsonSchema.description ? { ...jsonSchema, description: domain.description } : { ...jsonSchema };

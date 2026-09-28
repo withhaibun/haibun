@@ -105,7 +105,7 @@ describe("shu-domain-chain-view", () => {
 		window.addEventListener("error", onError);
 		presenter.openNode("nowhere");
 		window.removeEventListener("error", onError);
-		expect(reported.join(), "a node the chain does not hold is refused").toMatch(/isn't a node of the chain/);
+		expect(reported.join(), "a node the chain does not hold is refused").toMatch(/the chain graph doesn't hold a node "nowhere"/);
 		heard();
 		opened.mockRestore();
 	});

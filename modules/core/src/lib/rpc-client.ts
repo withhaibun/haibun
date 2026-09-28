@@ -35,7 +35,18 @@ type RpcCallOptions = {
 	action?: string;
 };
 
-export type RpcError = { error: string; [k: string]: unknown };
+type RpcError = { error: string };
+
+/** A call another instance refused, or that didn't reach it after every attempt. */
+export class RpcCallFailed extends Error {
+	constructor(
+		readonly method: string,
+		readonly url: string,
+		readonly reason: string,
+	) {
+		super(`${method} at ${url}: ${reason}`);
+	}
+}
 
 /**
  * Every RPC call must thread the caller's seqPath so observations on
@@ -60,20 +71,20 @@ export class RpcClient {
 		this.fetchImpl = config.fetchImpl ?? ((...args) => fetch(...args));
 	}
 
-	/**
-	 * Blocking JSON-RPC call. Returns parsed JSON on success; an RpcError
-	 * object (with string `error` field) on HTTP or application error.
-	 */
-	async call<T = unknown>(method: string, params: Record<string, unknown>, seqPath: number[], opts: RpcCallOptions = {}): Promise<T | RpcError> {
+	/** Blocking JSON-RPC call, returning what the instance answered. A call the instance refuses, or that doesn't reach it
+	 *  after every attempt, throws `RpcCallFailed`. */
+	async call<T = unknown>(method: string, params: Record<string, unknown>, seqPath: number[], opts: RpcCallOptions = {}): Promise<T> {
 		// What this caller may see travels with the call, so a host answers no wider than whoever is reading it: the far side
 		// takes the narrower of this and its own ceiling. The call is signed once, before anything is sent: a refusal to sign
 		// is this process's answer, not a fault the network might not repeat, so only sending is retried.
 		const call = await buildRpcCall(this.baseUrl, { id: `rpc-${Date.now()}`, method, params, seqPath, readingAt: readingAt() }, this.proving(opts.action));
-		return this.withRetry(async (signal) => {
+		const outcome = await this.withRetry(async (signal): Promise<{ answered: T } | RpcError> => {
 			const res = await this.fetchImpl(call.url, { ...call.init, signal });
 			const answer = await readRpcAnswer(method, res);
-			return answer.kind === "answered" ? (answer.body as T) : { error: answer.error };
+			return answer.kind === "answered" ? { answered: answer.body as T } : { error: answer.error };
 		}, opts.signal);
+		if ("error" in outcome) throw new RpcCallFailed(method, this.baseUrl, outcome.error);
+		return outcome.answered;
 	}
 
 	/**
@@ -157,10 +168,34 @@ export class RpcClient {
  * self-reports the peer's hostId and site principal. Fails fast on a peer that predates the site handshake.
  */
 export async function discoverInstance(rpc: RpcClient, url: string): Promise<{ hostId: number; site: string }> {
-	const result = await rpc.call<{ hostId?: number; site?: string }>("action.begin", {}, []);
-	if (typeof (result as { error?: unknown }).error === "string") throw new Error(`discoverInstance: action.begin failed at ${url}: ${(result as { error: string }).error}`);
-	const { hostId, site } = result as { hostId?: number; site?: string };
+	const { hostId, site } = await rpc.call<{ hostId?: number; site?: string }>("action.begin", {}, []);
 	if (typeof hostId !== "number") throw new Error(`discoverInstance: ${url} did not report a hostId`);
 	if (typeof site !== "string" || site.length === 0) throw new Error(`discoverInstance: ${url} did not report a site principal: the peer predates federation`);
 	return { hostId, site };
+}
+
+/** A connection to another instance: the client that signs each call there, and the site principal the instance reports
+ *  when the connection is made. The site is refused before `connect` completes. */
+export class RemoteInstance {
+	readonly rpc: RpcClient;
+	private reported?: string;
+
+	constructor(
+		readonly url: string,
+		sign: TRequestSigner,
+		fetchImpl?: typeof fetch,
+	) {
+		this.rpc = new RpcClient({ baseUrl: url, sign, fetchImpl });
+	}
+
+	/** The handshake: the instance reports its site principal, which a call made through this connection is made to. */
+	async connect(): Promise<string> {
+		this.reported = (await discoverInstance(this.rpc, this.url)).site;
+		return this.reported;
+	}
+
+	get site(): string {
+		if (!this.reported) throw new Error(`the connection to ${this.url} hasn't completed its handshake, so it doesn't hold the site's principal`);
+		return this.reported;
+	}
 }

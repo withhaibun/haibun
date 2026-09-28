@@ -165,27 +165,23 @@ describe("watching a run", () => {
 
 	it("refuses to read or stop a run it never started, rather than answering for a run that doesn't exist", async () => {
 		const s = stepper();
-		expect((await read(s, "no-such-run", 0)).errorMessage).toMatch(/didn't start a run "no-such-run"/);
-		const stop = (await (s.steps.stopRun.action as (a: { run: string }) => Promise<TResult>)({ run: "no-such-run" })) as TResult;
-		expect(stop.errorMessage).toMatch(/didn't start a run "no-such-run"/);
+		await expect(read(s, "no-such-run", 0)).rejects.toThrow(/didn't start a run "no-such-run"/);
+		await expect((s.steps.stopRun.action as (a: { run: string }) => Promise<TResult>)({ run: "no-such-run" })).rejects.toThrow(/didn't start a run "no-such-run"/);
 	});
 });
 
 describe("restarting an instance", () => {
 	it("refuses a port where this run didn't launch an instance, rather than starting one unasked", async () => {
-		const result = (await (stepper().steps.restartInstance.action as (a: { port: number }) => Promise<TResult>)({ port: 8299 })) as TResult;
-		expect(result.ok).toBe(false);
-		expect(result.errorMessage).toMatch(/didn't launch an instance on port 8299/);
+		await expect((stepper().steps.restartInstance.action as (a: { port: number }) => Promise<TResult>)({ port: 8299 })).rejects.toThrow(/didn't launch an instance on port 8299/);
 	});
 
 	it("refuses to start from a directory without a config, naming the directory", async () => {
-		const result = (await (stepper().steps.startInstance.action as (a: { where: string; port: number; hostId: number }) => Promise<TResult>)({
+		const starting = (stepper().steps.startInstance.action as (a: { where: string; port: number; hostId: number }) => Promise<TResult>)({
 			where: "/nonexistent-instance-dir",
 			port: 8298,
 			hostId: 9,
-		})) as TResult;
-		expect(result.ok).toBe(false);
-		expect(result.errorMessage).toMatch(/nonexistent-instance-dir doesn't hold a config\.json/);
+		});
+		await expect(starting).rejects.toThrow(/nonexistent-instance-dir doesn't hold a config\.json/);
 	});
 });
 
@@ -282,12 +278,12 @@ describe("waiting for a run", () => {
 
 	it("refuses to wait for a run it never started", async () => {
 		const s = stepper();
-		const result = (await (s.steps.waitRun.action as (a: { run: string; seconds: number; cursor: number }) => Promise<TResult>)({
+		const waiting = (s.steps.waitRun.action as (a: { run: string; seconds: number; cursor: number }) => Promise<TResult>)({
 			run: "no-such",
 			seconds: 1,
 			cursor: 0,
-		})) as TResult;
-		expect(result.errorMessage).toMatch(/didn't start a run "no-such"/);
+		});
+		await expect(waiting).rejects.toThrow(/didn't start a run "no-such"/);
 	});
 });
 

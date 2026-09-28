@@ -5,7 +5,7 @@ import { isLiteralValue } from "./util/index.js";
 import { parseDotPath, navigateValue } from "./util/dot-path.js";
 import { runEnvVariables, type TWorld } from "./world.js";
 import { Origin, TOrigin, TProvenanceIdentifier, TStepValue } from "../schema/protocol.js";
-import { DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_STRING, DOMAIN_UNION, domainParts, namesMember, normalizeDomainKey } from "./domains.js";
+import { DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_STRING, DOMAIN_UNION, domainParts, namesMember, normalizeDomainKey, registeredDomain } from "./domains.js";
 import { QuadStore } from "./quad-store.js";
 import { accessBound, readingAsStated } from "./capability-context.js";
 import { declaredAccessLevel } from "./resources.js";
@@ -195,8 +195,7 @@ export class FeatureVariables {
 			const sortedKey = parts.join(DOMAIN_UNION);
 			const isUnion = parts.length > 1;
 			const domainKey = this.world.domains[sortedKey] ? sortedKey : isUnion ? DOMAIN_STRING : sortedKey;
-			const domain = this.world.domains[domainKey];
-			if (!domain) throw new Error(`Cannot resolve variable "${input.term}": unknown domain "${domainKey}"`);
+			const domain = registeredDomain(this.world.domains, domainKey, `variable "${input.term}"`);
 			resolved.value = domain.coerce({ ...(resolved as TStepValue), domain: domainKey }, featureStep, steppers);
 			resolved.domain = domainKey;
 			const isSecretValue = resolved.secret === true || this.isSecret(lookupTerm);

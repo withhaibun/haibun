@@ -270,9 +270,9 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		await this.view(page).evaluate((view: ShuPolymorphicGraphView, nid) => view.openNode(nid), id);
 	}
 
-	/** Wait until `test` holds of the main graph. */
-	private untilGraph<A>(page: Page, test: (on: { el: ShuPolymorphicGraphView; arg: A }) => boolean, arg: A, timeout?: number): Promise<void> {
-		return until(this.view(page), test, arg, timeout);
+	/** Wait until `test` holds of the main graph; a timeout names `state`. */
+	private untilGraph<A>(page: Page, state: string, test: (on: { el: ShuPolymorphicGraphView; arg: A }) => boolean, arg: A, timeout?: number): Promise<void> {
+		return until(this.view(page), state, test, arg, timeout);
 	}
 
 	/** Whether `test` comes to hold of the main graph within `timeout`. */
@@ -327,14 +327,16 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	private async atRest(page: Page): Promise<void> {
 		await this.settle(page);
 		await this.waitForCalibratedViewport(page);
+		// A newcomer's welcome glow ends on a timer and a chip's text lands from a worker, so both are the scene coming to rest.
 		await this.untilGraph(
 			page,
+			"the end of every newcomer's welcome glow and of every chip's text still to land",
 			({ el }) => {
 				const render = el.inspect()?.render;
 				return render?.welcoming === 0 && render.layingOut === 0;
 			},
 			null,
-			STATE_MS,
+			SETTLES_MS,
 		);
 		await this.frames(page);
 	}
@@ -342,7 +344,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	/** Block until the graph holds at least `min` nodes. The scene mounts before its first data feed, so its test ids
 	 *  resolve before it holds any. */
 	private waitForNodes(page: Page, min: number): Promise<void> {
-		return this.untilGraph(page, ({ el, arg }) => (el.inspect()?.nodes ?? 0) >= arg, min);
+		return this.untilGraph(page, `${min} or more nodes in the graph`, ({ el, arg }) => (el.inspect()?.nodes ?? 0) >= arg, min);
 	}
 
 	/** Wait for the layout and the camera to come to rest, so a read is stable and a camera op is not raced by a settling
@@ -351,6 +353,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	private settle(page: Page): Promise<void> {
 		return this.untilGraph(
 			page,
+			"a settled scene, with its engine frozen and its tween, repaint and follow done",
 			({ el }) => {
 				const i = el.inspect();
 				return !!i && i.engineMode === "frozen" && i.tween === null && !i.repaintPending && !i.followPending;
@@ -362,12 +365,12 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	/** Wait for the scene to run `count` more frames: a change scheduled for the next frame has been drawn by then. */
 	private async frames(page: Page, count = 2): Promise<void> {
 		const from = (await this.state(page)).render.ticks;
-		await this.untilGraph(page, ({ el, arg }) => (el.inspect()?.render.ticks ?? 0) >= arg, from + count, STATE_MS);
+		await this.untilGraph(page, `${count} more frames of the scene`, ({ el, arg }) => (el.inspect()?.render.ticks ?? 0) >= arg, from + count, STATE_MS);
 	}
 
 	/** Wait for the group containers, which the graph draws a frame or two after its layout settles. */
 	private groupsDrawn(page: Page): Promise<void> {
-		return this.untilGraph(page, ({ el }) => (el.inspect()?.enclosures.length ?? 0) > 0, null, SETTLES_MS);
+		return this.untilGraph(page, "the group boxes drawn", ({ el }) => (el.inspect()?.enclosures.length ?? 0) > 0, null, SETTLES_MS);
 	}
 
 	/** Read `read` until two reads in a row are `stable`, running `beforeEach` (such as a settle) before every read. */
@@ -415,6 +418,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	private waitForCalibratedViewport(page: Page): Promise<void> {
 		return this.untilGraph(
 			page,
+			"the camera calibrated to the canvas height",
 			({ el }) => {
 				const v = el.inspect()?.viewport;
 				return !!v && v.h > 0 && v.h === v.calibratedH;
@@ -916,7 +920,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const before = await this.state(page); // after the press (which doesn't move a node), so "others hold still" measures only the drag
 				await page.mouse.move(target.x + 120, target.y + 60, { steps: 8 }); // well past the drag threshold (pointer already down on the node)
 				await page.mouse.up();
-				await this.untilGraph(page, ({ el }) => el.inspect()?.drag === null, null, STATE_MS);
+				await this.untilGraph(page, "the end of the drag", ({ el }) => el.inspect()?.drag === null, null, STATE_MS);
 				const after = await this.state(page);
 				const moved = dist(before.sample, after.sample, target.id);
 				if (moved <= 15) return actionNotOK(`the dragged node "${target.id}" did not track the pointer (moved ${moved.toFixed(1)})`);
@@ -1102,7 +1106,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const page = await this.page();
 				const scene = page.locator(CLASS_BROWSER_SCENE);
 				// Both views boot from a fresh navigation; wait for each to hold its own nodes before measuring.
-				await until(scene, ({ el }: { el: ShuGraphScene }) => el.nodeMap.size > 0, null);
+				await until(scene, "the class browser's first nodes", ({ el }: { el: ShuGraphScene }) => el.nodeMap.size > 0, null);
 				await this.waitForNodes(page, 1);
 				const count = () => scene.evaluate((el: ShuGraphScene) => el.nodeMap.size);
 				const before = await count();
@@ -1163,7 +1167,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				if ((await this.sceneOption(page, name).count()) === 0) return actionNotOK(`the view doesn't offer a scene saved as "${name}"`);
 				await this.view(page).getByTestId(POLYMORPHIC_IDS.SCENE_PICKER).selectOption(name);
 				// Reading the scene back is a round trip; the view says which scene it is showing once the return has landed.
-				await this.untilGraph(page, ({ el, arg }) => el.getAttribute("data-scene") === arg, name, ROUND_TRIP_MS);
+				await this.untilGraph(page, `the view showing scene "${name}"`, ({ el, arg }) => el.getAttribute("data-scene") === arg, name, ROUND_TRIP_MS);
 				await this.settle(page);
 				return actionOK();
 			},
@@ -1472,7 +1476,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				};
 				const base = await spanOf();
 				await this.openNode(page, id); // select it → it becomes the focus and magnifies (a hover is ignored while another node is selected)
-				await this.untilGraph(page, ({ el, arg }) => (el.inspect()?.sample.find((s) => s.id === arg)?.k ?? 1) > 1, id, STATE_MS);
+				await this.untilGraph(page, `node "${id}" magnified`, ({ el, arg }) => (el.inspect()?.sample.find((s) => s.id === arg)?.k ?? 1) > 1, id, STATE_MS);
 				const magnified = await spanOf();
 				if (base < 0) return actionNotOK(`node "${id}" was not pickable at any probed offset at rest`);
 				const SHIFT_TOLERANCE_PX = 25; // a focus re-anchor may move the footprint a little; a hijack moves it a lot

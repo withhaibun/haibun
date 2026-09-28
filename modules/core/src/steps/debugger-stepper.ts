@@ -134,7 +134,7 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 		return {
 			rerunStep: controlSignal === "retry",
 			nextStep: controlSignal === "next",
-			failed: controlSignal === "fail",
+			failed: controlSignal === "fail" ? "failed at the debugger" : undefined,
 		};
 	}
 	steps = {

@@ -62,7 +62,7 @@ export async function runSubprocess(csteppers: CStepper[], world: TWorld): Promi
 				const products = { ...(hr.products ?? {}), [TRACE_SEQ_PATH]: msg.seqPath };
 				process.send?.({ type: "result", ok: true, products } satisfies SubprocessResultMessage);
 			} else {
-				process.send?.({ type: "result", ok: false, error: hr.errorMessage ?? "Step failed" } satisfies SubprocessResultMessage);
+				process.send?.({ type: "result", ok: false, error: hr.errorMessage } satisfies SubprocessResultMessage);
 			}
 		} catch (err) {
 			process.send?.({

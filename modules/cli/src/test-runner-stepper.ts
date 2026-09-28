@@ -513,8 +513,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 		input: Record<string, unknown>,
 	): Promise<{ ok: true; products: z.infer<S> } | { ok: false; why: string }> {
 		const called = await callStepFrom(this, method, input);
-		if (!called.registered) return { ok: false, why: `${method} is not registered; run supervision comes from @haibun/cli's InstanceStepper, which this run has to include` };
-		if (!called.result.ok) return { ok: false, why: `${method}: ${called.result.errorMessage ?? "(no message)"}` };
+		if (!called.result.ok) return { ok: false, why: `${method}: ${called.result.errorMessage}` };
 		const parsed = schema.safeParse(called.result.products ?? {});
 		if (!parsed.success) return { ok: false, why: `${method} answered with something else than it declares: ${parsed.error.message}` };
 		return { ok: true, products: parsed.data as z.infer<S> };

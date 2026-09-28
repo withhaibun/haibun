@@ -60,8 +60,6 @@ describe("what a caller must hold to run a test", () => {
 
 	it("allows it to a caller holding exactly that action, and the run is refused for its own reasons rather than for authority", async () => {
 		const called = await h.call("TestRunnerStepper-runTest", { where: NOWHERE, filter: "any" }, [SUPERVISOR_CAPABILITIES.run]);
-		expect(called.registered).toBe(true);
-		if (!called.registered) return;
 		expect(called.result.ok, "the base doesn't exist").toBe(false);
 		expect(called.result.errorMessage, "the supervisor was reached, which is what authorization means here").toMatch(/doesn't hold a config.json/);
 	});
@@ -70,7 +68,7 @@ describe("what a caller must hold to run a test", () => {
 		const reader = [SUPERVISOR_CAPABILITIES.read];
 		await expect(h.call("TestRunnerStepper-runTest", { where: NOWHERE, filter: "any" }, reader)).rejects.toThrow(new RegExp(`capability ${SUPERVISOR_CAPABILITIES.run} required`));
 		const read = await h.call("TestRunnerStepper-readTestRun", {}, reader);
-		expect(read.registered && read.result.errorMessage, "the read passed the gate and didn't find a run to read").toMatch(/nothing to read/);
+		expect(read.result.errorMessage, "the read passed the gate and didn't find a run to read").toMatch(/nothing to read/);
 	});
 
 	it("is not reachable through the agent by a capability the agent named for itself: the power gated is the power exercised", async () => {
@@ -99,6 +97,6 @@ describe("what a caller must hold to run a test", () => {
 		// The agent's tool is authorized by an explicit capability, as an RPC or MCP caller reaches it. Its inner call to the
 		// supervisor must run under that same authority.
 		const called = await h.call("TestRunnerStepper-runTest", { where: NOWHERE, filter: "any" }, undefined, SUPERVISOR_CAPABILITIES.run);
-		expect(called.registered && called.result.errorMessage, "the inner call was authorized by what authorized the outer one").toMatch(/doesn't hold a config.json/);
+		expect(called.result.errorMessage, "the inner call was authorized by what authorized the outer one").toMatch(/doesn't hold a config.json/);
 	});
 });

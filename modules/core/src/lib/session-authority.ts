@@ -121,12 +121,15 @@ export function getAuthority(runtime: TRuntime): IAuthority | undefined {
 	return runtime.keys?.[AUTHORITY_KEY] as IAuthority | undefined;
 }
 
+/** The run's authority, which `need` requires. A run that doesn't hold one is refused, naming what required it. */
+export function heldAuthority(runtime: TRuntime, need: string): IAuthority {
+	const authority = getAuthority(runtime);
+	if (!authority) throw new Error(`the run doesn't hold an authority, which ${need} requires`);
+	return authority;
+}
+
 /** How a client in this process signs what it invokes elsewhere: through whatever invoker the run's authority holds when
  *  the call is made, so a client made before the invoker was registered still signs with it. */
 export function requestSigner(runtime: TRuntime): TRequestSigner {
-	return (request, action) => {
-		const authority = getAuthority(runtime);
-		if (!authority) throw new Error(`this process doesn't hold an authority, so it can't invoke ${action} at ${request.url}`);
-		return authority.signRequest(request, action);
-	};
+	return (request, action) => heldAuthority(runtime, `invoking ${action} at ${request.url}`).signRequest(request, action);
 }

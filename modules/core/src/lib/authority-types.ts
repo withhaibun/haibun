@@ -47,9 +47,9 @@ export const DELEGATIONS_READ_ACTION = "Authority:readOwnDelegations";
  */
 export type TRestsOn = { capabilities: string[]; expires?: string };
 
-/** A verifier's decision: whether the evidence holds, and when it does, who acted, what they may do, and what that rests
- *  on. */
-export type TVerdict = { ok: boolean; error?: string; principal?: string; allowedAction?: string[]; restsOn?: TRestsOn };
+/** A verifier's decision: where the evidence holds, who acted, what they may do, and what that rests on; where it
+ *  doesn't, why it was refused. */
+export type TVerdict = { ok: true; principal?: string; allowedAction?: string[]; restsOn?: TRestsOn } | { ok: false; error: string };
 
 /**
  * Decides whether evidence supports what it claims, and says what it supports: for a request, everything the delegation

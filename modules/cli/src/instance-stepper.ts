@@ -31,7 +31,7 @@ import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature } from
 import type { TWorld } from "@haibun/core/lib/world.js";
 import type { TDomainDefinition } from "@haibun/core/lib/resources.js";
 import { actionNotOK, actionOKWithProducts, perProcessOptionNames } from "@haibun/core/lib/util/index.js";
-import { RpcClient } from "@haibun/core/lib/rpc-client.js";
+import { RpcCallFailed, RpcClient } from "@haibun/core/lib/rpc-client.js";
 import { RemoteStepperProxy } from "@haibun/core/lib/remote-stepper-proxy.js";
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
 import { MODULE_OPTION_PREFIX, BASE_PREFIX, NDJSON, OK, ONCE, STAY, STAY_ALWAYS } from "@haibun/core/schema/protocol.js";
@@ -250,6 +250,23 @@ const InstancesSchema = z.object({
 	runs: z.array(z.object({ run: z.string(), status: z.string() })).describe("Each run this process started, and whether it is running or ended."),
 });
 
+/** What an instance says when it begins, or undefined while it doesn't take the call yet: a starting instance refuses or
+ *  doesn't answer until it serves, and a caller waiting for it asks again. */
+async function begins(rpc: RpcClient): Promise<{ hostId?: number; site?: string; serving?: boolean } | undefined> {
+	return await rpc.call<{ hostId?: number; site?: string; serving?: boolean }>("action.begin", {}, []).catch((e: unknown) => {
+		if (e instanceof RpcCallFailed) return undefined;
+		throw e;
+	});
+}
+
+/** The config a group directory holds, which a launch reads; a directory that doesn't hold one is refused as `doing` the launch. */
+function configIn(doing: string, where: string): { dir: string; config: string } {
+	const dir = path.resolve(String(where));
+	const config = path.join(dir, "config.json");
+	if (!existsSync(config)) throw new Error(`${doing}: ${dir} doesn't hold a config.json`);
+	return { dir, config };
+}
+
 export default class InstanceStepper extends AStepper implements IHasCycles {
 	description = "Start and supervise sibling haibun instances (forked cli.js, readiness via action.begin, terminated at endFeature)";
 
@@ -264,6 +281,20 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 	private children: Array<{ child: ChildProcess; label: string; launch: TLaunch }> = [];
 	/** Visible to a subclass so a test can hold a run without a process behind it; code outside the class hierarchy doesn't reach it. */
 	protected runs = new Map<string, TRun>();
+
+	/** The run named `run`, which this process started; one it didn't start is refused as `doing` it. */
+	private startedRun(doing: string, run: string): TRun {
+		const held = this.runs.get(run);
+		if (!held) throw new Error(`${doing}: this process didn't start a run "${run}"`);
+		return held;
+	}
+
+	/** The instance this run launched on `port`; one it didn't launch is refused as `doing` it. */
+	private launchedInstance(doing: string, port: number): { child: ChildProcess; label: string; launch: TLaunch } {
+		const held = this.children.find((c) => c.launch.port === port);
+		if (!held) throw new Error(`${doing}: this run didn't launch an instance on port ${port}`);
+		return held;
+	}
 	/** The host id a standing run took, so its steps are addressable as that host's. */
 
 	cycles: IStepperCycles = {
@@ -288,10 +319,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			capability: SUPERVISOR_CAPABILITIES.launch,
 			productsDomain: DOMAIN_INSTANCE_STARTED,
 			action: async ({ where, port, hostId }: { where: string; port: number; hostId: number }) => {
-				const dir = path.resolve(String(where));
-				const config = path.join(dir, "config.json");
-				if (!existsSync(config)) return actionNotOK(`start instance: ${dir} doesn't hold a config.json`);
-				return await this.launch({ dir, config, port, hostId });
+				return await this.launch({ ...configIn("start instance", where), port, hostId });
 			},
 		},
 		restartInstance: {
@@ -301,8 +329,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 				"Stop an instance this run launched and launch it again from what it was launched from, waiting for it to answer. What an instance serves comes from its source, so a change to that source takes effect only once it runs again. The run that restarts an instance is never the instance being restarted.",
 			productsDomain: DOMAIN_INSTANCE_STARTED,
 			action: async ({ port }: { port: number }) => {
-				const held = this.children.find((c) => c.launch.port === port);
-				if (!held) return actionNotOK(`restart instance: this run didn't launch an instance on port ${port}`);
+				const held = this.launchedInstance("restart instance", port);
 				await terminate(held.child);
 				this.children = this.children.filter((c) => c !== held);
 				return await this.launch(held.launch);
@@ -313,8 +340,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			description:
 				"Register the steps an instance this run launched offers this run, under its host id, so asking it something is `on host {id}, <step>`, dispatched and gated as a local step is. What it offers is what this run holds there: reading its steps takes a read, which the instance delegates to its launcher's key. The steps stay registered across a restart, which keeps the instance's port and host.",
 			action: async ({ port }: { port: number }) => {
-				const held = this.children.find((c) => c.launch.port === port);
-				if (!held) return actionNotOK(`reach instance: this run didn't launch an instance on port ${port}`);
+				this.launchedInstance("reach instance", port);
 				await this.registerHost(localOrigin(port));
 				return OK;
 			},
@@ -383,8 +409,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			description: "End a run this process started, whether or not it has finished. A run left standing holds its port until it is stopped.",
 			productsDomain: RUN_DOMAIN.stopped,
 			action: async ({ run }: { run: string }) => {
-				const held = this.runs.get(run);
-				if (!held) return actionNotOK(`stop run: this process didn't start a run "${run}"`);
+				const held = this.startedRun("stop run", run);
 				await terminate(held.child);
 				this.runs.delete(run);
 				return actionOKWithProducts({ run });
@@ -411,9 +436,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		hostId?: number;
 	}) {
 		if (this.runs.has(run)) return actionNotOK(`start run: "${run}" is already running; read it, or stop it first`);
-		const dir = path.resolve(String(where));
-		const config = path.join(dir, "config.json");
-		if (!existsSync(config)) return actionNotOK(`start run: ${dir} doesn't hold a config.json`);
+		const { dir, config } = configIn("start run", where);
 		// A run given a held port would fail at boot with EADDRINUSE deep in its own output. Refusing here instead names
 		// what is answering and the recourse, so the operator is told the situation rather than left to excavate it.
 		if (port > 0) {
@@ -488,8 +511,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		const rpc = new RpcClient({ baseUrl: url, timeoutMs: BEGIN_TIMEOUT_MS, retry: { maxAttempts: 1 } });
 		const deadline = Date.now() + READY_DEADLINE_MS;
 		while (Date.now() < deadline) {
-			const said = await rpc.call<{ hostId?: number }>("action.begin", {}, []);
-			if (!("error" in said)) return true;
+			if (await begins(rpc)) return true;
 			if (giveUp()) return false;
 			await new Promise((resolve) => setTimeout(resolve, READY_POLL_MS));
 		}
@@ -498,8 +520,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 
 	/** Answer when the run ends, or when the caller's patience does. The child's own exit is the signal; this step doesn't poll. */
 	private async waitRun(run: string, seconds: number, cursor: number) {
-		const held = this.runs.get(run);
-		if (!held) return actionNotOK(`wait for run: this process didn't start a run "${run}"`);
+		const held = this.startedRun("wait for run", run);
 		if (held.ended === null && !held.outcome.finished) {
 			await new Promise<void>((resolve) => {
 				const done = () => {
@@ -519,8 +540,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 
 	/** What a run has said since `cursor`, and whether it is still going. */
 	private readRun(run: string, cursor: number) {
-		const held = this.runs.get(run);
-		if (!held) return actionNotOK(`read run: this process didn't start a run "${run}"`);
+		const held = this.startedRun("read run", run);
 		const [first] = held.outcome.failures;
 		return actionOKWithProducts({
 			run,
@@ -572,9 +592,8 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 				const said = stderrTail.since(0).output;
 				return actionNotOK(`instance at ${dir} exited before ready (code ${child.exitCode})${said ? `\n${said}` : ""}`);
 			}
-			const result = await rpc.call<{ hostId?: number; site?: string; serving?: boolean }>("action.begin", {}, []);
-			if (typeof (result as { error?: unknown }).error !== "string") {
-				const begun = result as { hostId?: number; site?: string; serving?: boolean };
+			const begun = await begins(rpc);
+			if (begun) {
 				// Ready means serving: the instance's feature has run everything it sets up. Its port answers earlier, and a
 				// caller that took that as ready would race whatever the feature does after listening.
 				if (begun.serving !== true) {
