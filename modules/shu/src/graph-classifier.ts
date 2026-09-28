@@ -24,7 +24,7 @@ export interface PropertyClassifier {
 export const THREAD_CLASSIFIER: PropertyClassifier = {
 	classify: (_graph, predicate) => {
 		if (predicate.startsWith("_")) return "internal";
-		if (predicate === "name") return "name";
+		if (predicate === LinkRelations.NAME.rel) return "name";
 		return "edge";
 	},
 };

@@ -16,7 +16,7 @@
  * Light DOM: the scene resolves its A-Frame camera through document.querySelector, and its chrome positions against
  * this host.
  */
-import { SHU_TAG } from "../consts.js";
+import { CONTEXT_DOCUMENT, SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { html, type TemplateResult } from "lit";
@@ -147,14 +147,14 @@ class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSchema> {
 	 *  type, without the whole store's vocabulary (a credential does not use sosa/foaf/otel/wallet/…). */
 	private async loadContext(): Promise<void> {
 		try {
-			const res = await fetch("/ns/context.jsonld");
+			const res = await fetch(CONTEXT_DOCUMENT.namespace);
 			const ctx = ((await res.json()) as { "@context"?: Record<string, unknown> })["@context"] ?? {};
 			const typeNode = ctx[this.focusType];
 			const used = prefixesReferencedBy(typeNode);
 			const prefixes = Object.fromEntries(Object.entries(ctx).filter(([k, v]) => (typeof v === "string" && used.has(k)) || k === "@version"));
 			this.contextJson = JSON.stringify(typeNode === undefined ? prefixes : { ...prefixes, [this.focusType]: typeNode }, null, 2);
 		} catch (err) {
-			this.contextJson = `Could not fetch /ns/context.jsonld: ${errorDetail(err)}`;
+			this.contextJson = `Could not fetch ${CONTEXT_DOCUMENT.namespace}: ${errorDetail(err)}`;
 		}
 		this.requestUpdate();
 	}

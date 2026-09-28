@@ -1,7 +1,7 @@
 import { Page, Response, type Locator } from "playwright";
 
 import { TFeatureStep } from "@haibun/core/lib/astepper.js";
-import { OK, Origin, TStepResult, type TStepValue } from "@haibun/core/schema/protocol.js";
+import { HYPERMEDIA, OK, Origin, TStepResult, type TStepValue } from "@haibun/core/schema/protocol.js";
 import {
 	DOMAIN_GLOB,
 	DOMAIN_NUMBER,
@@ -541,7 +541,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 					const page = "page" in target ? target.page() : target;
 					return { url: page.url(), title: await page.title(), snapshot: await target.ariaSnapshot() };
 				});
-				return actionOKWithProducts({ ...read, _links: Object.fromEntries(SNAPSHOT_ACTIONS.map((step) => [step, { method: stepMethodName(wp, step) }])) });
+				return actionOKWithProducts({ ...read, [HYPERMEDIA.LINKS]: Object.fromEntries(SNAPSHOT_ACTIONS.map((step) => [step, { method: stepMethodName(wp, step) }])) });
 			},
 		},
 		saveURI: {

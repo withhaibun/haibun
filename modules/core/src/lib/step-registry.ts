@@ -3,7 +3,7 @@ import { jsonSchemaOf } from "./json-schema-of.js";
 import { AStepper, type TStepperStep, type TFeatureStep } from "./astepper.js";
 import { runSteppers, type TWorld } from "./world.js";
 import { buildConcernCatalog } from "./hypermedia.js";
-import { ControlEvent, STEPS_CHANGED, type TActionResult, type TSeqPath } from "../schema/protocol.js";
+import { ControlEvent, HYPERMEDIA, STEPS_CHANGED, type TActionResult, type TSeqPath } from "../schema/protocol.js";
 import { namedInterpolation, mapInputToStepValues, literalTerm, renderStepLine } from "./namedVars.js";
 import { constructorName, actionNotOK } from "./util/index.js";
 import { populateActionArgs } from "./populateActionArgs.js";
@@ -405,7 +405,7 @@ export function steppersOf(steps: TStepDescriptor[]): TStepperSummary[] {
 		const stepper = host === undefined ? step.stepperName : hostScopedMethodName(host, step.stepperName);
 		const entry = byStepper.get(stepper);
 		if (entry) entry.steps += 1;
-		else byStepper.set(stepper, { stepper, description: step.stepperDescription, steps: 1, _links: { steps: stepperStepsLink(stepper) } });
+		else byStepper.set(stepper, { stepper, description: step.stepperDescription, steps: 1, [HYPERMEDIA.LINKS]: { steps: stepperStepsLink(stepper) } });
 	}
 	return [...byStepper.values()];
 }

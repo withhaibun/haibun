@@ -11,6 +11,9 @@ import { edgeRanges, LinkRelations, isPersisted, edgeRel, HAIBUN_NS, HAIBUN_PREF
 import type { TQuad, TCluster, TClusteredQuads } from "@haibun/core/lib/quad-types.js";
 import type { TStandardTerm } from "./standard-vocabulary.js";
 
+/** The edge from an individual to the class it is an instance of, named as JSON-LD's `@type` and Turtle's `a` name it. */
+const INSTANCE_OF = "a";
+
 /** The two ontology clusters (the polymorphic view shows each as its own container, coloured by type). */
 export const ONTOLOGY_CLASS = "Class";
 export const ONTOLOGY_PROPERTY = "Property";
@@ -279,7 +282,7 @@ export function withOntologySchema(
 		linkedSubjects.add(q.subject);
 		typeEdges.push({
 			subject: q.subject,
-			predicate: "a",
+			predicate: INSTANCE_OF,
 			object: q.namedGraph,
 			objectType: ONTOLOGY_CLASS,
 			namedGraph: q.namedGraph,

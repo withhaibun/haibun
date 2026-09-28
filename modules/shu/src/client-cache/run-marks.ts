@@ -61,7 +61,7 @@ export function runCounts(
 				from: new Date(from).toISOString(),
 				to: new Date(to).toISOString(),
 				buckets: divisions,
-				filters: [{ predicate: "level", operator: "in", value: levels[0], values: levels }],
+				filters: [{ predicate: SEQ_PATH_FIELD.level, operator: "in", value: levels[0], values: levels }],
 			};
 			const { buckets } = await graph.density(query);
 			return buckets;

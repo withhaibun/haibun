@@ -14,7 +14,7 @@
  */
 import type { TCluster, TClusteredQuads, TQuad } from "./quad-types.js";
 import { displayLabelForQuads, type TDeclaredTitle, type TTitledBy } from "./hypermedia.js";
-import { BODY_LABEL } from "./resources.js";
+import { BODY_LABEL, LinkRelations } from "./resources.js";
 
 // A scalar PROPERTY (without objectType) keys by subject+predicate, so a later value for the same fact REPLACES in place:
 // an updated `subject`, a rescheduled gantt `startedAtTime`, an `accessLevel` change. An EDGE quad (objectType set) keys
@@ -169,7 +169,7 @@ export class QuadGraphModel {
 		const inMemoryBody = new Map<string, string>();
 		const quadsBySubject = new Map<string, TQuad[]>();
 		for (const q of this.quads) {
-			if (!bodyContentFor && q.namedGraph === BODY_LABEL && q.predicate === "content" && typeof q.object === "string") inMemoryBody.set(q.subject, q.object);
+			if (!bodyContentFor && q.namedGraph === BODY_LABEL && q.predicate === LinkRelations.CONTENT.rel && typeof q.object === "string") inMemoryBody.set(q.subject, q.object);
 			let bucket = quadsBySubject.get(q.subject);
 			if (!bucket) {
 				bucket = [];

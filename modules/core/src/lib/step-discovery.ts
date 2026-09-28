@@ -8,7 +8,7 @@
  */
 import { z } from "zod";
 import { ConcernCatalogSchema } from "./hypermedia.js";
-import { productData } from "../schema/protocol.js";
+import { HYPERMEDIA, productData } from "../schema/protocol.js";
 import { readAction } from "./actions.js";
 import { Access, AccessLevelSchema } from "./resources.js";
 
@@ -108,18 +108,18 @@ const definitionLinksSchema = z.object({ definition: readLinkSchema(STEP_DETAIL.
 /** One stepper whose steps a read matched: its name, what it does, how many of its steps matched, and the read of the
  *  summaries of its steps. A stepper another host declares is named with that host's prefix. */
 const StepperSummarySchema = z
-	.object({ stepper: z.string(), description: z.string(), steps: z.number(), _links: z.object({ steps: readLinkSchema(STEP_DETAIL.summary) }).strict() })
+	.object({ stepper: z.string(), description: z.string(), steps: z.number(), [HYPERMEDIA.LINKS]: z.object({ steps: readLinkSchema(STEP_DETAIL.summary) }).strict() })
 	.strict();
 export type TStepperSummary = z.infer<typeof StepperSummarySchema>;
 
 /** A step as a summary states it, linking its definition. */
 const StepSummarySchema = StepDescriptorSchema.pick({ method: true, stepperName: true, pattern: true, description: true, capability: true }).extend({
-	_links: definitionLinksSchema,
+	[HYPERMEDIA.LINKS]: definitionLinksSchema,
 });
 /** A domain as a summary states it, linking its definition. */
-const DomainSummarySchema = z.object({ description: z.string().optional(), _links: definitionLinksSchema }).strict();
+const DomainSummarySchema = z.object({ description: z.string().optional(), [HYPERMEDIA.LINKS]: definitionLinksSchema }).strict();
 /** A step as a definition states it, linking its call. */
-const StepDefinitionSchema = StepDescriptorSchema.extend({ _links: z.object({ call: z.object({ method: z.string() }).strict() }).strict() });
+const StepDefinitionSchema = StepDescriptorSchema.extend({ [HYPERMEDIA.LINKS]: z.object({ call: z.object({ method: z.string() }).strict() }).strict() });
 export type TStepDefinition = z.infer<typeof StepDefinitionSchema>;
 
 /** What a read of a run's declarations returns at each detail. Both state their domains by name. */
@@ -158,15 +158,15 @@ export const stepSummary = ({ method, stepperName, pattern, description, capabil
 	pattern,
 	description,
 	capability,
-	_links: { definition: definitionLink(method) },
+	[HYPERMEDIA.LINKS]: { definition: definitionLink(method) },
 });
 /** A domain as a summary states it. */
 export const domainSummary = (domain: string, description: string | undefined): TStepSummaries["domains"][string] => ({
 	description,
-	_links: { definition: definitionLink(domain) },
+	[HYPERMEDIA.LINKS]: { definition: definitionLink(domain) },
 });
 /** A step as a definition states it. */
-export const stepDefinition = (step: TStepDescriptor): TStepDefinition => ({ ...step, _links: { call: { method: step.method } } });
+export const stepDefinition = (step: TStepDescriptor): TStepDefinition => ({ ...step, [HYPERMEDIA.LINKS]: { call: { method: step.method } } });
 
 /** What a call to show steps returned at the detail it asked for. A dispatched step's products carry the seqPath it ran
  *  at, which is the call's trace and not what the run declares, so the reading drops it. */

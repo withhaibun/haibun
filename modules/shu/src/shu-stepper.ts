@@ -17,7 +17,7 @@ import { getAuthority } from "@haibun/core/lib/session-authority.js";
 import type { IWebServer } from "@haibun/web-server-hono/defs.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 import type { Context } from "@haibun/web-server-hono/defs.js";
-import { SHU_TYPE, SHU_TAG } from "./consts.js";
+import { CONTEXT_DOCUMENT, SHU_TYPE, SHU_TAG } from "./consts.js";
 import { DOMAIN_SHU_APPS, ShuAppsSchema } from "./schemas.js";
 import type { IQuadStore, TQuad } from "@haibun/core/lib/quad-types.js";
 import { buildGraphModelFromQuads } from "./graph-model.js";
@@ -358,8 +358,8 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 						}
 					});
 				}
-				webserver.addRoute("get", "/.well-known/haibun-context.jsonld", { description: "JSON-LD @context for haibun domain vocabulary" }, jsonLdHandler);
-				webserver.addRoute("get", "/ns/context.jsonld", { description: "JSON-LD @context (namespace alias of haibun-context.jsonld)" }, jsonLdHandler);
+				webserver.addRoute("get", CONTEXT_DOCUMENT.wellKnown, { description: "JSON-LD @context for haibun domain vocabulary" }, jsonLdHandler);
+				webserver.addRoute("get", CONTEXT_DOCUMENT.namespace, { description: "JSON-LD @context (namespace alias of haibun-context.jsonld)" }, jsonLdHandler);
 				return actionOK();
 			},
 		},

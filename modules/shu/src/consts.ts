@@ -27,6 +27,9 @@ export const CONVERSATION_PARAM = "ask";
  *  link to and a page saved for offline reading still keeps. */
 export const DEEP_LINK_PREFIX = "#?";
 
+/** Where the site serves its JSON-LD @context: the well-known address, and its alias under the namespace. */
+export const CONTEXT_DOCUMENT = { wellKnown: "/.well-known/haibun-context.jsonld", namespace: "/ns/context.jsonld" } as const;
+
 export const SHU_EVENT = {
 	/** A view in the graph bundle opens a pane (a `TPaneOpen` detail): that bundle's PaneState isn't the page's. */
 	PANE_OPEN: "pane-open",

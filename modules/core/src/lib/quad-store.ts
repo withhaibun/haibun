@@ -34,7 +34,7 @@ import {
 	type TStoreLevels,
 } from "./quad-types.js";
 import { displayLabelForQuads } from "./hypermedia.js";
-import { Access, AccessLevelSchema, BODY_LABEL, withinAccess, type AccessLevel } from "./resources.js";
+import { Access, AccessLevelSchema, BODY_LABEL, LinkRelations, withinAccess, type AccessLevel } from "./resources.js";
 import { seenAt, writesAtEveryLevel, writtenAt } from "./actions.js";
 
 export class QuadStore implements IQuadStore {
@@ -591,7 +591,7 @@ export function sliceQuadsPerType(quads: TQuad[], perTypeLimit: number, existing
 		arr.push(q);
 		if (!subjectsByType.has(q.namedGraph)) subjectsByType.set(q.namedGraph, new Set());
 		subjectsByType.get(q.namedGraph)?.add(q.subject);
-		if (q.namedGraph === BODY_LABEL && q.predicate === "content" && typeof q.object === "string") bodyContentBySubject.set(q.subject, q.object);
+		if (q.namedGraph === BODY_LABEL && q.predicate === LinkRelations.CONTENT.rel && typeof q.object === "string") bodyContentBySubject.set(q.subject, q.object);
 	}
 	const sampledQuads: TQuad[] = [];
 	const clusters: TCluster[] = [];

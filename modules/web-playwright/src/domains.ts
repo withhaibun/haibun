@@ -1,3 +1,4 @@
+import { HYPERMEDIA } from "@haibun/core/schema/protocol.js";
 import { z } from "zod";
 import { ENDPOINT_LABEL, HTTP_CLIENT_LABEL, HTTP_HOST_LABEL, HTTP_REQUEST_LABEL, LinkRelations, PersistedVertexSchema, TDomainDefinition } from "@haibun/core/lib/resources.js";
 import { asDomainKey, createEnumDomainDefinition, NameSchema } from "@haibun/core/lib/domains.js";
@@ -46,7 +47,7 @@ const AccessibilitySnapshotSchema = z.object({
 	url: z.string(),
 	title: z.string(),
 	snapshot: z.string().describe("The page's aria snapshot, in YAML."),
-	_links: z.record(z.string(), z.object({ method: z.string() }).strict()),
+	[HYPERMEDIA.LINKS]: z.record(z.string(), z.object({ method: z.string() }).strict()),
 });
 const RestJsonCountSchema = z.object({ summary: z.string(), details: z.object({ count: z.number() }) });
 /** The domains of what reading a page and a JSON response answer with. */
