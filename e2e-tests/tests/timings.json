@@ -7,7 +7,7 @@
 				"declaredStepTextHash": "fcf354a7834ddcc9faff9a5aa28ad4bb1b7b17e27b99a2f3873b3c755b5a284b"
 			},
 			"/features/a11y-pass.feature": {
-				"seconds": 0.4,
+				"seconds": 0.5,
 				"steps": 11,
 				"declaredStepTextHash": "1bf4a47a09dcf6dbdabd4e1e4517aa5a90e465edc7d8d9ca236eb9a3289c7541"
 			},
@@ -42,7 +42,7 @@
 				"declaredStepTextHash": "4f2c94ae645eda3071bcdce65b58a9a9b48a9d58cdbcc27edc047200d226cd22"
 			},
 			"/features/counter.feature": {
-				"seconds": 1,
+				"seconds": 1.8,
 				"steps": 19,
 				"declaredStepTextHash": "d6ff8e9cc2161764983ce4e28a1502b19cfa3d10bfc647a3dd2be3be69443b97"
 			},
@@ -87,12 +87,12 @@
 				"declaredStepTextHash": "066cbb83b5ed74495ded680541a3fbd3e3beb086a28bceb9a1adaea4f5ba992a"
 			},
 			"/features/once.feature.ts": {
-				"seconds": 0.6,
+				"seconds": 0.5,
 				"steps": 20,
 				"declaredStepTextHash": "006f43f7b774933fc9bebe65cc0bd082a8b856b21c34e008e1c61ffbf7ac8354"
 			},
 			"/features/popup.feature": {
-				"seconds": 0.5,
+				"seconds": 0.4,
 				"steps": 11,
 				"declaredStepTextHash": "5b6da41bba88c02e5712937690a3488ac6a9a3acbe100e54afe7848ebbcc2a67"
 			},
@@ -143,6 +143,6 @@
 			}
 		},
 		"steps": 1133,
-		"seconds": 17.3
+		"seconds": 18
 	}
 }
