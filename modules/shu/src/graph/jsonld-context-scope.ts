@@ -15,7 +15,7 @@ export function prefixesReferencedBy(node: unknown): Set<string> {
 		if (typeof v === "string") addCurie(v);
 		else if (Array.isArray(v)) v.forEach(scan);
 		else if (v && typeof v === "object")
-			for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+			for (const [k, val] of Object.entries(v)) {
 				addCurie(k);
 				scan(val);
 			}

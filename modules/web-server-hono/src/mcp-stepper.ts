@@ -145,7 +145,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 		// --- HANDLER 2: CALL TOOL ---
 		// A call runs under what its request presented, which the middleware verified over the whole request.
 		this.mcpServer.server.setRequestHandler(CallToolRequestSchema, (request) =>
-			this.executeTool(request.params.name, (request.params.arguments as Record<string, unknown>) ?? {}, authorizedWith(), actingAs()),
+			this.executeTool(request.params.name, request.params.arguments ?? {}, authorizedWith(), actingAs()),
 		);
 
 		// --- HANDLER 3: LIST RESOURCES ---

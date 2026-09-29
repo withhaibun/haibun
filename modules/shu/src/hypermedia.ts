@@ -68,7 +68,7 @@ export type { TStreamChunk };
 /** True iff `rep._links` has a well-formed entry under `rel`. Use before `getLink` when the rel is optional ("render the trace affordance only if present"). */
 export function hasLink(rep: TRepresentation, rel: string): boolean {
 	const link = rep._links?.[rel];
-	return !!link && typeof link === "object" && typeof (link as TLink).method === "string";
+	return !!link && typeof link === "object" && typeof link.method === "string";
 }
 
 /** Resolve one named affordance. Throws if absent or malformed: every unexpected path throws; callers use `hasLink` when the rel is optional. */
@@ -77,12 +77,12 @@ export function getLink(rep: TRepresentation, rel: string): TLink {
 	if (!links || typeof links !== "object") {
 		throw new Error(`getLink("${rel}"): Representation has no _links (type=${rep._type ?? "<unset>"})`);
 	}
-	const link = (links as Record<string, unknown>)[rel];
-	if (!link || typeof link !== "object" || typeof (link as TLink).method !== "string") {
+	const link = links[rel];
+	if (!link || typeof link !== "object" || typeof link.method !== "string") {
 		const have = Object.keys(links).join(", ") || "<none>";
 		throw new Error(`getLink("${rel}"): rel not in _links (have: ${have})`);
 	}
-	return link as TLink;
+	return link;
 }
 
 // ─── Conduit interface ───────────────────────────────────────────────────────

@@ -222,8 +222,9 @@ export class ServerHono implements IWebServer {
 		if (!statSync(folder).isDirectory()) throw new Error(`ServerHono: "${folder}" is not a directory`);
 	}
 
-	private registerRoute(type: TRouteTypes, path: string, handlers: TRequestHandler[]): void {
-		(this._app as unknown as Record<TRouteTypes, (...args: unknown[]) => unknown>)[type](path, ...handlers);
+	private registerRoute(type: TRouteTypes, path: string, [handler, ...more]: TRequestHandler[]): void {
+		if (!handler) throw new Error(`ServerHono: a ${type} route at "${path}" doesn't have a handler`);
+		this._app.on(type.toUpperCase(), path, handler, ...more);
 	}
 
 	/** What is served is recorded as its Endpoint, so the graph holds every route the instance serves. */

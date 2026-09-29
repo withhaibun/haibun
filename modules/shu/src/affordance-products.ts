@@ -37,7 +37,9 @@ type TAffordanceProductAction =
 	| { kind: "open-component"; view: string; component: string; label: string; products: Record<string, unknown> }
 	| { kind: "show-views"; views: TAffordanceView[]; label: string };
 
-const asRecord = (value: unknown): Record<string, unknown> | undefined => (value && typeof value === "object" ? (value as Record<string, unknown>) : undefined);
+/** A product, or an object or array a product is nested in, read by its fields. */
+const isFields = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object";
+const asRecord = (value: unknown): Record<string, unknown> | undefined => (isFields(value) ? value : undefined);
 
 const requiredString = (value: unknown, message: string): string => {
 	if (typeof value !== "string") throw new Error(message);
@@ -96,7 +98,7 @@ export function parseAffordanceProduct(product: unknown): TAffordanceProductActi
 		const view = requiredString(idOrView, "Affordance component product requires string id or view");
 		const summary = parsed[HYPERMEDIA.SUMMARY];
 		const label = typeof summary === "string" ? summary : component;
-		return { kind: "open-component", view, component, label, products: candidate as Record<string, unknown> };
+		return { kind: "open-component", view, component, label, products: candidate };
 	}
 	if (typeof parsed[PRODUCT_KEY.VIEW] === "string") throw new Error(`Unexpected view-only product shape: ${parsed[PRODUCT_KEY.VIEW]}`);
 	return { kind: "none" };

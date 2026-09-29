@@ -84,10 +84,7 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 	},
 	async endFeature(wtw: TEndFeature) {
 		if (wtw.shouldClose) {
-			for (const s of wss.steppers) {
-				const candidate = s as unknown as { detach?: () => void };
-				if (typeof candidate.detach === "function") candidate.detach();
-			}
+			for (const s of wss.steppers) if ("detach" in s && typeof s.detach === "function") s.detach();
 			wss.stepRegistry = undefined;
 			await wss.webserver?.close();
 			wss.webserver = undefined;
@@ -265,7 +262,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 						if (!mayCall(granted, { capability: served.action })) return { error: refusal(method, served.action, principal) };
 						try {
 							// Whoever proved themselves at this boundary is who acts inside it, as in a dispatched step.
-							return await runActingAs(principal, () => served.handle((params ?? {}) as Record<string, unknown>));
+							return await runActingAs(principal, () => served.handle(params));
 						} catch (err) {
 							return { error: `${method}: ${errorDetail(err)}` };
 						}
@@ -284,7 +281,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 						if (!tool || !mayCall(granted, tool.descriptor)) return { error: refusal(method, tool && lackedAction(granted, tool.descriptor), principal) };
 						// External callers (without a feature-step context) get a server-synthesised seqPath, matching MCP.
 						const seqPath = msg.seqPath && msg.seqPath.length > 0 ? msg.seqPath : allocateSyntheticSeqPath(world);
-						const validatedParams = validateToolInput(seqPath, tool, params as Record<string, unknown>, world);
+						const validatedParams = validateToolInput(seqPath, tool, params, world);
 						const featureStep = buildFeatureStepForTransport(tool, validatedParams, seqPath);
 						// RPC dispatches are SPA-initiated (constant polling like getClusteredQuads), not feature steps;
 						// log them at trace so they don't bury the run's own steps in the timeline. Still visible at debug.

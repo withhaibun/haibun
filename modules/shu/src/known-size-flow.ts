@@ -57,21 +57,20 @@ export class KnownSizeFlowLayout extends FlowLayout {
 	override _estimatePosition(idx: number): number {
 		const c = this._metricsCache;
 		const per = this.expectedRowSize();
-		const self = this as unknown as { _first: number; _last: number };
-		if (self._first === -1 || self._last === -1) return c.averageMarginSize + idx * (c.averageMarginSize + per);
-		if (idx < self._first) {
-			const delta = self._first - idx;
-			const ref = this._getPhysicalItem(self._first) as TBounds;
-			return ref.pos - (c.getMarginSize(self._first - 1) || c.averageMarginSize) - (delta * per + (delta - 1) * c.averageMarginSize);
+		if (this._first === -1 || this._last === -1) return c.averageMarginSize + idx * (c.averageMarginSize + per);
+		if (idx < this._first) {
+			const delta = this._first - idx;
+			const ref = this._getPhysicalItem(this._first) as TBounds;
+			return ref.pos - (c.getMarginSize(this._first - 1) || c.averageMarginSize) - (delta * per + (delta - 1) * c.averageMarginSize);
 		}
-		const delta = idx - self._last;
-		const ref = this._getPhysicalItem(self._last) as TBounds;
-		return ref.pos + (this._getSize(self._last) ?? this._getAverageSize()) + (c.getMarginSize(self._last) || c.averageMarginSize) + delta * (per + c.averageMarginSize);
+		const delta = idx - this._last;
+		const ref = this._getPhysicalItem(this._last) as TBounds;
+		return ref.pos + (this._getSize(this._last) ?? this._getAverageSize()) + (c.getMarginSize(this._last) || c.averageMarginSize) + delta * (per + c.averageMarginSize);
 	}
 }
 
 /** The layout for a virtual column whose source can say which rows are empty: the flow layout's own defaults, with
  *  this class and the source's response in place. */
-export function knownSizeFlow(rowSize: TRowSize): ReturnType<typeof flow> {
-	return { ...flow(), type: KnownSizeFlowLayout, rowSize } as unknown as ReturnType<typeof flow>;
+export function knownSizeFlow(rowSize: TRowSize): ReturnType<typeof flow> & { rowSize: TRowSize } {
+	return { ...flow(), type: KnownSizeFlowLayout, rowSize };
 }

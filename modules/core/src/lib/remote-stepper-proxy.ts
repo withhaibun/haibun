@@ -10,6 +10,7 @@
  * HTTP/JSON-RPC instead of Node.js fork() IPC.
  */
 
+import { z } from "zod";
 import { AStepper } from "./astepper.js";
 import { runSteppers, type TWorld } from "./world.js";
 import type { TActionResult } from "../schema/protocol.js";
@@ -59,7 +60,7 @@ export class RemoteStepperProxy extends AStepper {
 	/** Read every step the remote host offers this process, through the step every caller reads a run's declarations by:
 	 *  signed like any other call, so the host shows the steps this process holds there and doesn't show others. */
 	private async fetchStepDescriptors(): Promise<void> {
-		const result = await this.rpc.call<Record<string, unknown>>(SHOW_STEPS_METHOD, EVERY_DEFINITION, [], { action: SHOW_STEPS_ACTION });
+		const result = await this.rpc.call(SHOW_STEPS_METHOD, EVERY_DEFINITION, [], { action: SHOW_STEPS_ACTION });
 		this.stepDescriptors = readShownSteps(result, EVERY_DEFINITION.detail).steps.map(({ _links, ...descriptor }) => descriptor);
 	}
 
@@ -92,13 +93,13 @@ export class RemoteStepperProxy extends AStepper {
 	private async call(descriptor: TStepDescriptor, params: Record<string, unknown>, seqPath: number[]): Promise<TActionResult> {
 		const { method, capability } = descriptor;
 		// The remote step's refusal is this step's failure; a call that fails some other way is thrown.
-		const result = await this.rpc.call<Record<string, unknown>>(method, params, seqPath, { action: capability }).catch((e: unknown) => {
+		const result = await this.rpc.call(method, params, seqPath, { action: capability }).catch((e: unknown) => {
 			if (e instanceof RpcCallFailed) return e;
 			throw e;
 		});
 		if (result instanceof RpcCallFailed) return actionNotOK(`${method}: ${result.reason}`);
 		const answersWithProducts = descriptor.outputSchema !== undefined || descriptor.productsOf !== undefined;
-		return answersWithProducts ? { ok: true, products: result as Record<string, unknown> } : { ok: true };
+		return answersWithProducts ? { ok: true, products: z.record(z.string(), z.unknown()).parse(result) } : { ok: true };
 	}
 
 	/** IStepTransport.attach: duck-typed, so it doesn't need an import from web-server-hono. */

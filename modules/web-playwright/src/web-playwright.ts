@@ -75,6 +75,8 @@ type TRequestOptions = {
 /** Where a step finds elements: within the container `in {container}, {what}` names, or on the page. */
 export type TPageScope = Page | Locator;
 type TWithPageCallback<TReturn> = (page: Page) => TReturn | Promise<TReturn>;
+/** The step a screenshot shows, as the screenshot names its artifact after it. */
+type TScreenshotStep = Pick<TStepResult, "seqPath" | "in" | "path">;
 
 export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	private static readonly DOM_READY_TIMEOUT_MS = 1900;
@@ -398,7 +400,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		}
 	}
 
-	async captureScreenshotAndLog(event: string, details: { seq?: number; step?: TStepResult }): Promise<TImageReference> {
+	async captureScreenshotAndLog(event: string, details: { seq?: number; step?: TScreenshotStep }): Promise<TImageReference> {
 		const { image, savedTo } = await this.captureScreenshot(event, details);
 		this.getWorld().eventLogger.debug(`${event} screenshot to ${pathToFileURL(savedTo)}`);
 		return image;
@@ -406,7 +408,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 
 	/** Screenshot the page into the run's storage, as an image artifact, and return the address the run serves it at and
 	 *  where it was saved. */
-	async captureScreenshot(event: string, details: { seq?: number; step?: TStepResult }): Promise<{ image: TImageReference; savedTo: string }> {
+	async captureScreenshot(event: string, details: { seq?: number; step?: TScreenshotStep }): Promise<{ image: TImageReference; savedTo: string }> {
 		const { step } = details;
 		if (!step) throw new Error(`a ${event} screenshot is saved with the step it shows, and a step isn't named`);
 		const filename = `event-${step.seqPath.join(".")}.png`;

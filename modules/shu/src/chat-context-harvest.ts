@@ -38,7 +38,7 @@ export const HARVEST_MEMBERS = 200;
  * chain.
  */
 export function harvested(summary: TLinkedData, holds = HARVEST_MEMBERS): TLinkedData {
-	if (!Array.isArray((summary as Record<string, unknown>).items)) return summary;
+	if (!Array.isArray(summary.items)) return summary;
 	const collection = ViewCollectionSchema.safeParse(summary);
 	if (!collection.success)
 		throw new Error(`a view's summary that states its members under "items" is held to the view's collection, which it does not meet: ${collection.error.message}`);

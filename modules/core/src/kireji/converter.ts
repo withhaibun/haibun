@@ -1,7 +1,7 @@
 import { itemAt } from "../lib/util/item-at.js";
 import { AStepper } from "../lib/astepper.js";
 import { Resolver } from "../phases/Resolver.js";
-import { TActionExecutor, TCurriedAction, withAction } from "./withAction.js";
+import { TActionExecutor, stepActions } from "./withAction.js";
 
 // A kireji feature: steps are either TActionExecutor functions or plain prose strings.
 type TkirejiFeature = {
@@ -55,7 +55,7 @@ export const fromBdd = (bdd: string, steppers: AStepper[]): Promise<TkirejiFeatu
 		.filter((l) => l.length > 0);
 
 	const resolver = new Resolver(steppers);
-	const stepperActions = steppers.map((stepper) => withAction(stepper) as unknown as Record<string, TCurriedAction<string>>);
+	const stepperActions = steppers.map(stepActions);
 
 	const kirejiSteps = steps.map((step) => {
 		const action = resolver.findSingleStepAction(step);
@@ -67,9 +67,7 @@ export const fromBdd = (bdd: string, steppers: AStepper[]): Promise<TkirejiFeatu
 			}
 		}
 
-		const actionFunction = stepperActions.reduce<TCurriedAction<string> | undefined>((found, actions) => {
-			return found ?? actions[actionName];
-		}, undefined);
+		const actionFunction = stepperActions.find((actions) => actions[actionName])?.[actionName];
 
 		if (!actionFunction) {
 			throw new Error(`Action "${actionName}" not found in provided steppers.`);

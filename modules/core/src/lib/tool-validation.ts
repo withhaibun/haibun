@@ -1,7 +1,7 @@
 import { z } from "zod";
-import type { TFeatureStep, TStepperStep } from "./astepper.js";
+import type { TStepperStep } from "./astepper.js";
 import type { TWorld } from "./world.js";
-import { Origin, productData, type TSeqPath, type TStepArgs } from "../schema/protocol.js";
+import { Origin, productData, type THypermediaProducts, type TSeqPath, type TStepArgs } from "../schema/protocol.js";
 import { normalizeDomainKey, registeredDomain } from "./domains.js";
 import type { StepTool } from "./step-registry.js";
 import { errorDetail } from "./util/index.js";
@@ -41,6 +41,15 @@ export function validateToolInput(fromSeqPath: TSeqPath, tool: StepTool, input: 
 	return validated;
 }
 
+/** A statement's step as dispatch ran it: its stepper, its action and the step it ran as. */
+const RanStepSchema = z.object({
+	action: z.object({
+		stepperName: z.string(),
+		actionName: z.string(),
+		step: z.custom<TStepperStep>((step) => typeof step === "object" && step !== null && "action" in step && typeof step.action === "function"),
+	}),
+});
+
 /** The step whose domain products are in, and whether it is a statement's step whose products a step passed on. */
 type TAnsweringStep = { stepperName: string; actionName: string; step: TStepperStep; passedOn: boolean };
 
@@ -48,7 +57,7 @@ type TAnsweringStep = { stepperName: string; actionName: string; step: TStepperS
  *  answered, that statement's last step as `args` resolved it, since the last step's result is the one passed on. */
 function answeringStep(stepperName: string, actionName: string, stepDef: TStepperStep, args: TStepArgs): TAnsweringStep | string {
 	if (stepDef.productsOf === undefined) return { stepperName, actionName, step: stepDef, passedOn: false };
-	const ran = (args[stepDef.productsOf] as unknown as TFeatureStep[] | undefined)?.at(-1);
+	const ran = z.array(RanStepSchema).optional().parse(args[stepDef.productsOf])?.at(-1);
 	if (!ran) return `step ${stepperName}.${actionName} answers with what its {${stepDef.productsOf}} answered, and wasn't given a statement there`;
 	return { stepperName: ran.action.stepperName, actionName: ran.action.actionName, step: ran.action.step, passedOn: true };
 }
@@ -58,7 +67,14 @@ function answeringStep(stepperName: string, actionName: string, stepDef: TSteppe
  * a statement it ran answered, the one that statement's step names. A step answering with what another such step
  * answered was checked by that step. A step that doesn't name a domain doesn't return products.
  */
-export function validateProducts(stepperName: string, actionName: string, stepDef: TStepperStep, world: TWorld, products: unknown, args: TStepArgs): string | undefined {
+export function validateProducts(
+	stepperName: string,
+	actionName: string,
+	stepDef: TStepperStep,
+	world: TWorld,
+	products: THypermediaProducts | undefined,
+	args: TStepArgs,
+): string | undefined {
 	const answering = answeringStep(stepperName, actionName, stepDef, args);
 	if (typeof answering === "string") return answering;
 	if (answering.passedOn && answering.step.productsOf !== undefined) return undefined;
@@ -67,7 +83,7 @@ export function validateProducts(stepperName: string, actionName: string, stepDe
 	if (!schema) return products === undefined || products === null ? undefined : `${named} returned products and doesn't name a domain for them`;
 	if (products === undefined || products === null) return `${named} declared an output schema but its action didn't return products`;
 	// What a statement's step answered carries the markers its dispatch added, which aren't part of its domain.
-	const result = schema.safeParse(answering.passedOn ? productData(products as Record<string, unknown>) : products);
+	const result = schema.safeParse(answering.passedOn ? productData(products) : products);
 	if (result.success) return undefined;
 	return `${named} products failed schema validation: ${result.error.issues.map((i) => `${i.path.join(".") || "(root)"} ${i.message}`).join("; ")}`;
 }

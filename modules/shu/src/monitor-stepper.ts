@@ -15,7 +15,7 @@ import "./view-blips.js";
 import "./graph-blips.js";
 import "./page-blips.js";
 import { type TWorld } from "@haibun/core/lib/world.js";
-import { OK, type THaibunEvent } from "@haibun/core/schema/protocol.js";
+import { OK, type TArtifactEvent, type THaibunEvent } from "@haibun/core/schema/protocol.js";
 
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { OBSCURED_VALUE } from "@haibun/core/lib/feature-variables.js";
@@ -104,19 +104,19 @@ type TClientBlips = z.infer<typeof ClientBlipsSchema>;
 
 /** The step an event happened in, as the path the run walks: what a run says or produces names itself for that step,
  *  and what isn't named for a step doesn't have one. */
-const stepOf = (e: Record<string, unknown>): number[] => {
-	const path = extractSeqPathPrefix(String(e.id));
+const stepOf = (e: THaibunEvent): number[] => {
+	const path = extractSeqPathPrefix(e.id);
 	return path === null ? [] : (parseSeqPath(path) ?? []);
 };
 
 /** The step a record belongs to, named as any record is named; empty where it doesn't belong to a step. */
-const underStep = (tag: TTag, e: Record<string, unknown>): string => {
+const underStep = (tag: TTag, e: THaibunEvent): string => {
 	const path = stepOf(e);
 	return path.length ? formatRecordName({ execution: executionOf(tag), path }) : "";
 };
 
 /** A record's own name: the execution it belongs to, the step it came from, and which of that step's it is. */
-const recordId = (tag: TTag, e: Record<string, unknown>, ordinal: number): string => formatRecordName({ execution: executionOf(tag), path: stepOf(e), ordinal });
+const recordId = (tag: TTag, e: THaibunEvent, ordinal: number): string => formatRecordName({ execution: executionOf(tag), path: stepOf(e), ordinal });
 
 export default class MonitorStepper extends AStepper implements IHasCycles, IHasOptions {
 	description = "Records what a run says and produces, and serves the shu views what it holds";
@@ -169,12 +169,11 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			webserver.addKnownStaticFolder(artifactDir, ARTIFACTS_ROUTE, { description: "What the run's steps captured, such as screenshots and videos" }, privately);
 		},
 		onEvent: (event: THaibunEvent) => {
-			const e = event as Record<string, unknown>;
 			this.queriedLabel = queriedLabelOf(event) ?? this.queriedLabel;
 			// A quad announced is a quad the store holds, so the graph a view reads is read from the store rather than
 			// held again here. The live page still receives the announcement over the stream.
-			if (e.kind === "log") this.beganWriting(this.recordSaid(event));
-			if (e.kind === "artifact") this.beganWriting(this.recordProduced(event));
+			if (event.kind === "log") this.beganWriting(this.recordSaid(event));
+			if (event.kind === "artifact") this.beganWriting(this.recordProduced(event));
 			this.transport?.send({ type: "event", event });
 		},
 		endFeature: async ({ shouldClose = true }: TEndFeature) => {
@@ -228,8 +227,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		await writes;
 	}
 
-	private async recordSaid(event: THaibunEvent): Promise<void> {
-		const e = event as Record<string, unknown>;
+	private async recordSaid(e: Extract<THaibunEvent, { kind: "log" }>): Promise<void> {
 		const message = typeof e.message === "string" ? e.message : undefined;
 		if (message === undefined) return;
 		const at = typeof e.timestamp === "number" ? e.timestamp : Date.now();
@@ -257,9 +255,8 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	 * holds such a trace as what it is instead: a request is an HttpRequest, and a record of it here would be a second
 	 * copy of the same fact.
 	 */
-	private async recordProduced(event: THaibunEvent): Promise<void> {
-		const e = event as Record<string, unknown>;
-		if (typeof e.path !== "string") return;
+	private async recordProduced(e: TArtifactEvent): Promise<void> {
+		if (!("path" in e) || typeof e.path !== "string") return;
 		const at = typeof e.timestamp === "number" ? e.timestamp : Date.now();
 		const under = underStep(this.getWorld().tag, e);
 		const record: Record<string, unknown> = {

@@ -82,6 +82,11 @@ export interface IHasCycles {
 	cyclesWhen?: IStepperWhen;
 }
 
+/** A stepper declares cycles when it has a `cycles` object. */
+export function hasCycles(stepper: AStepper): stepper is AStepper & IHasCycles {
+	return "cycles" in stepper && typeof stepper.cycles === "object" && stepper.cycles !== null;
+}
+
 // ============================================================================
 // Resolved feature & step (stepper-protocol shapes)
 // ============================================================================

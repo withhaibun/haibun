@@ -104,7 +104,7 @@ export async function createChainInstance(world: TWorld, goal: string, michi: TM
 		michi,
 		stepIndex: 0,
 		status: CHAIN_INSTANCE_STATUS.PENDING,
-		stepArgs: michi.steps.map(() => ({}) as Record<string, unknown>),
+		stepArgs: michi.steps.map((): Record<string, unknown> => ({})),
 		stepFactIds: michi.steps.map((): string[] => []),
 		createdAt,
 		updatedAt: createdAt,

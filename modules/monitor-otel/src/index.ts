@@ -216,7 +216,6 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 			// Forward structured event.attributes verbatim, emitters
 			// supply OTel-aligned keys (haibun.* namespace, exception.* for error data) and
 			// expect them to reach the OTel backend as log record attributes.
-			const passthrough = (event.attributes ?? {}) as Record<string, unknown>;
 			logger.emit({
 				severityNumber: severityMap[event.level] || SeverityNumber.INFO,
 				severityText: event.level.toUpperCase(),
@@ -224,7 +223,7 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 				attributes: {
 					"haibun.event.id": event.id,
 					"haibun.event.kind": "log",
-					...passthrough,
+					...event.attributes,
 				},
 			});
 		} else if (event.kind === "artifact") {

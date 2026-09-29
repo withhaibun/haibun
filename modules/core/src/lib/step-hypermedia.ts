@@ -28,7 +28,7 @@ export function augmentViewHypermedia(world: TWorld, step: TStepperStep, actionR
 	if (!actionResult.ok || !actionResult.products) return actionResult;
 	const productsDomain = step.productsDomain;
 	if (!productsDomain) return actionResult;
-	const products = actionResult.products as Record<string, unknown>;
+	const products = actionResult.products;
 	if (typeof products[HYPERMEDIA.COMPONENT] === "string") return actionResult;
 	const domain = world.domains[normalizeDomainKey(productsDomain)];
 	const ui = domain?.ui;
@@ -137,7 +137,7 @@ export function isViewOnlyDomain(world: TWorld, domainKey: string): boolean {
 	const domain = world.domains[normalizeDomainKey(domainKey)];
 	if (!domain?.ui?.component || typeof domain.ui.component !== "string") return false;
 	// unrepresentable:"any" keeps the presence check working for a schema carrying a date (z.coerce.date doesn't have a JSON Schema form), only whether it has fields matters, not to represent them.
-	const jsonSchema = jsonSchemaOf(domain.schema, "fields", () => z.toJSONSchema(domain.schema, { unrepresentable: "any" }) as Record<string, unknown>) as {
+	const jsonSchema = jsonSchemaOf(domain.schema, "fields", () => z.toJSONSchema(domain.schema, { unrepresentable: "any" })) as {
 		properties?: Record<string, unknown>;
 		type?: string;
 	};

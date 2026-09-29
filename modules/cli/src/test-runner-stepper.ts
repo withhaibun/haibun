@@ -480,7 +480,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 		// The record IS the products: the run as its individual stands, which is what the goal resolver asserts as the
 		// satisfied `feature-execution` and what a caller reads the id, endpoint and host from: the host being how a
 		// standing run is addressed afterwards (`on host {host}, <step>`); a run that ends with its features doesn't carry one.
-		return actionOKWithProducts(run.record as unknown as Record<string, unknown>);
+		return actionOKWithProducts(run.record);
 	}
 
 	/**

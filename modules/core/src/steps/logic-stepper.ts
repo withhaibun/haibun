@@ -1,4 +1,4 @@
-import { AStepper, TStepperSteps, IHasCycles, TFeatureStep, IObservationSource, IStepperCycles } from "../lib/astepper.js";
+import { AStepper, TStepperSteps, IHasCycles, TFeatureStep, IObservationSource, IStepperCycles, hasCycles } from "../lib/astepper.js";
 import type { TWorld } from "../lib/world.js";
 import { OK, TActionResult, Origin } from "../schema/protocol.js";
 import { actionNotOK, actionOKWithProducts, sleep } from "../lib/util/index.js";
@@ -60,10 +60,8 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 
 		// Collect observation sources from other steppers
 		for (const stepper of steppers) {
-			// Check if stepper implements IHasCycles (duck typing as runtime check)
-			if ("cycles" in stepper) {
-				const hasCycles = stepper as unknown as IHasCycles;
-				const concerns = hasCycles.cycles.getConcerns?.();
+			if (hasCycles(stepper)) {
+				const concerns = stepper.cycles.getConcerns?.();
 				if (concerns?.sources) {
 					this.sources.push(...concerns.sources);
 				}

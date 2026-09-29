@@ -67,14 +67,12 @@ const DomainSnapshotSchema = z.object({
 });
 
 const envSummary = (p: Record<string, unknown>) => {
-	const env = p.env as Record<string, string> | undefined;
-	const count = env ? Object.keys(env).length : 0;
+	const count = Object.keys(EnvSnapshotSchema.parse(p).env).length;
 	return `${count} environment variable${count === 1 ? "" : "s"}`;
 };
 
 const varsSummary = (p: Record<string, unknown>) => {
-	const vars = p.vars as Record<string, unknown> | undefined;
-	const count = vars ? Object.keys(vars).length : 0;
+	const count = Object.keys(VarsSnapshotSchema.parse(p).vars).length;
 	return `${count} variable${count === 1 ? "" : "s"}`;
 };
 
@@ -84,8 +82,11 @@ const varSummary = (p: Record<string, unknown>) => {
 	return `${term} = ${display}`;
 };
 
-const domainsSummary = (p: Record<string, unknown>) => `${(p.items as unknown[]).length} domains`;
-const domainSummary = (p: Record<string, unknown>) => `${String(p.domain)}: ${Object.keys(p.members as Record<string, unknown>).length} members`;
+const domainsSummary = (p: Record<string, unknown>) => `${DomainsSnapshotSchema.parse(p).items.length} domains`;
+const domainSummary = (p: Record<string, unknown>) => {
+	const { domain, members } = DomainSnapshotSchema.parse(p);
+	return `${domain}: ${Object.keys(members).length} members`;
+};
 
 const cycles = (variablesStepper: VariablesStepper): IStepperCycles => ({
 	startFeature: clearVars(variablesStepper),

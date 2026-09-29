@@ -48,9 +48,7 @@ const PER_RUN_OPTIONS = new Set(["KEY", "DESCRIPTION", "STAY"]);
 
 /** A stable serialization: the same conditions give the same text whatever order their keys were written in. */
 const stable = (value: unknown): string =>
-	JSON.stringify(value, (_, v) =>
-		v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : 1))) : v,
-	);
+	JSON.stringify(value, (_, v: unknown) => (v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : 1))) : v));
 
 /** What distinguishes one way of running a group from another, as a key. */
 export function runConditions(c: TRunConditions): string {

@@ -25,11 +25,14 @@ export const SHARED_SIGNALS_KEY = "__SHU_SHARED_SIGNALS__";
 
 type SharedCell<T> = { signal: Signal.State<T>; subs: Set<(v: T, before: T) => void> };
 
+declare global {
+	var __SHU_SHARED_SIGNALS__: Map<string, SharedCell<unknown>> | undefined;
+}
+
 /** Resolve (creating once) the globalThis-pinned cell backing a key, so every importer in this realm, including a
  *  separately-bundled IIFE viewer, shares one signal instance AND one subscriber set. */
 function getSharedCell<T>(key: string, initial: T): SharedCell<T> {
-	const g = globalThis as unknown as Record<string, Map<string, SharedCell<unknown>> | undefined>;
-	const map = (g[SHARED_SIGNALS_KEY] ??= new Map<string, SharedCell<unknown>>());
+	const map = (globalThis[SHARED_SIGNALS_KEY] ??= new Map<string, SharedCell<unknown>>());
 	let cell = map.get(key) as SharedCell<T> | undefined;
 	if (!cell) {
 		cell = { signal: new Signal.State<T>(initial), subs: new Set() };

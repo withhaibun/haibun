@@ -18,7 +18,7 @@ export function recordBlip(world: TWorld, name: string, value?: number, attribut
 	if (!declared) throw new Error(`recordBlip: "${name}" is not declared, declare it with declareBlips before recording it`);
 	// What the declaration validated is what is emitted, so a key it does not name cannot ride along to an exporter, and
 	// omitting attributes a declaration requires is caught here rather than downstream.
-	const declaredAttributes = declared.attributes ? (declared.attributes.parse(attributes ?? {}) as Record<string, unknown>) : attributes;
+	const declaredAttributes = declared.attributes ? declared.attributes.parse(attributes ?? {}) : attributes;
 	const timestamp = Date.now();
 	const seqPath = stepInFlight()?.seqPath;
 	// emitter is set here so emit() never walks a stack for a per-frame recording.

@@ -13,9 +13,9 @@ type TDotPathMiss = { at: string[]; missing: string; has: string[] };
 export function navigateValue(value: unknown, segments: string[]): { value: unknown; found: true } | { value: undefined; found: false; miss: TDotPathMiss } {
 	let current = value;
 	for (const [i, seg] of segments.entries()) {
-		const fields = current !== null && typeof current === "object" ? (current as Record<string, unknown>) : undefined;
+		const fields = current !== null && typeof current === "object" ? current : undefined;
 		if (!fields || !(seg in fields)) return { value: undefined, found: false, miss: { at: segments.slice(0, i), missing: seg, has: fields ? Object.keys(fields) : [] } };
-		current = fields[seg];
+		current = Reflect.get(fields, seg);
 	}
 	return { value: current, found: true };
 }

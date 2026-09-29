@@ -57,12 +57,15 @@ export interface IHasTunables {
 export function getTunableOptions(steppers: AStepper[]): Array<{ stepperName: string; key: string; meta: TTunableOption }> {
 	const out: Array<{ stepperName: string; key: string; meta: TTunableOption }> = [];
 	for (const stepper of steppers) {
-		const withTunables = stepper as unknown as IHasTunables;
-		const tunables = withTunables.tunables;
-		if (!tunables) continue;
-		for (const [key, meta] of Object.entries(tunables)) {
+		if (!hasTunables(stepper)) continue;
+		for (const [key, meta] of Object.entries(stepper.tunables)) {
 			out.push({ stepperName: constructorName(stepper), key, meta });
 		}
 	}
 	return out;
+}
+
+/** A stepper declares tunables when it has a `tunables` object. */
+function hasTunables(stepper: AStepper): stepper is AStepper & Required<IHasTunables> {
+	return "tunables" in stepper && typeof stepper.tunables === "object" && stepper.tunables !== null;
 }

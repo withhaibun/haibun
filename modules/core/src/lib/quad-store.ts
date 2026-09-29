@@ -13,6 +13,7 @@
  * are answered from an index.
  */
 
+import { z } from "zod";
 import { itemAt } from "./util/item-at.js";
 import {
 	SHARED_GRAPH,
@@ -367,7 +368,7 @@ export class QuadStore implements IQuadStore {
 		const backing = this.storeFor(label);
 		if (backing) return await backing.upsertIndividual(label, data);
 		const schema = this.schemas[label];
-		const validated = { ...((schema ? schema.parse(data) : data) as Record<string, unknown>) };
+		const validated = { ...z.record(z.string(), z.unknown()).parse(schema ? schema.parse(data) : data) };
 		const idField = this.idFields[label] ?? "id";
 		// Read before stringifying: String(undefined) is "undefined", a truthy string, so the guard below it never fired
 		// and the record was written under that literal subject, unreachable and overwritten by the next one.

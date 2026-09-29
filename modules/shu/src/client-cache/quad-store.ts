@@ -12,6 +12,7 @@
 import { LinkRelations, withinAccess, type AccessLevel } from "@haibun/core/lib/resources.js";
 import { matchesQuadPattern, type IQuadStore, type TClusteredQuads, type TDensityQuery, type TDensityResult, type TQuad, type TQuadPattern } from "@haibun/core/lib/quad-types.js";
 import { densityOverQuadStore, sliceQuadsPerType } from "@haibun/core/lib/quad-store.js";
+import { RecordSchema } from "../schemas.js";
 import { QUADS, IDX_QUAD_SPG, IDX_QUAD_SUBJECT, IDX_QUAD_NAMED_GRAPH, IDX_QUAD_OBJECT, done, withStores as withClientCacheStores } from "./device-store.js";
 
 /** A stored quad carries a derived `spg` (namedGraph|subject|predicate) key so `set`/`get` can upsert without a scan. */
@@ -127,7 +128,7 @@ export class IndexedDbQuadStore implements IQuadStore {
 	// --- Individual convenience ops: persist + deref-by-@id, the client store's actual job, over the quad primitives. ---
 
 	async upsertIndividual(label: string, data: unknown): Promise<string> {
-		const [id, quads] = individualAsQuads(label, data as Record<string, unknown>);
+		const [id, quads] = individualAsQuads(label, RecordSchema.parse(data));
 		await this.setMany(quads);
 		return id;
 	}

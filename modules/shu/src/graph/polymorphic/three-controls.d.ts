@@ -11,5 +11,6 @@ declare module "three/examples/jsm/controls/OrbitControls.js" {
 		object: { position: { set(x: number, y: number, z: number): void } };
 		update(): boolean;
 		dispose(): void;
+		addEventListener(type: "start" | "change" | "end", listener: () => void): void;
 	}
 }

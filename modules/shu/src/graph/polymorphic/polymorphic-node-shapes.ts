@@ -32,6 +32,9 @@ export type ShapeThree = {
 	Mesh: new (geometry: unknown, material: unknown) => Obj3D;
 	BoxGeometry: new (w: number, h: number, d: number) => unknown;
 	MeshBasicMaterial: new (params: Record<string, unknown>) => unknown;
+	Sprite: new (material: unknown) => SpriteObj;
+	SpriteMaterial: new (params: Record<string, unknown>) => unknown;
+	CanvasTexture: new (canvas: unknown) => unknown;
 };
 export type NodeShapeDeps = {
 	three: ShapeThree | undefined; // undefined off-GPU (headless) → chip fallback
@@ -107,9 +110,7 @@ export function boxShape(mark: NodeMark, d: NodeShapeDeps): Obj3D {
  *  ends drawn to points: a relation reads as a distinct SHAPE, not a chip. A canvas-textured billboard (always faces the
  *  camera, sized so the name matches a chip's text height); off-GPU (headless) it falls back to a chip. */
 function lozengeShape(mark: NodeMark, d: NodeShapeDeps): Obj3D {
-	const T = d.three as unknown as
-		| (ShapeThree & { Sprite: new (m: unknown) => SpriteObj; SpriteMaterial: new (p: Record<string, unknown>) => unknown; CanvasTexture: new (c: unknown) => unknown })
-		| undefined;
+	const T = d.three;
 	if (!T || typeof document === "undefined") return chipShape(mark, d);
 	const font = 64; // canvas-space font; the sprite scale below maps the text back to chipTextHeight world units
 	const canvas = document.createElement("canvas");

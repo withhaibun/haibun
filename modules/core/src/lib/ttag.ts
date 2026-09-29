@@ -18,8 +18,8 @@ export type TTag = {
 export const getRunTag = (featureNum: TTagValue, featureName?: string, params = {}, trace = false, hostId: number = DEFAULT_HOST_ID) => {
 	const key = Timer.key;
 	const res: TTag = { key, hostId, featureNum, featureName, params, trace };
-	["featureNum", "hostId"].forEach((w) => {
-		const val = (res as Record<string, unknown>)[w];
+	(["featureNum", "hostId"] as const).forEach((w) => {
+		const val = res[w];
 		if (parseInt(String(val)) !== val) {
 			throw Error(`non - numeric ${w} from ${JSON.stringify(res)} `);
 		}

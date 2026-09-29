@@ -17,9 +17,9 @@ import { jsonCarried } from "@haibun/core/lib/json-text.js";
 const WRITTEN_IN = "@context";
 
 /** What a value holds, said in as few words as a summary can carry it. */
-function holds(value: unknown): string {
+function holds(value: object): string {
 	if (Array.isArray(value)) return value.length === 1 ? "1 item" : `${value.length} items`;
-	const keys = Object.keys(value as Record<string, unknown>);
+	const keys = Object.keys(value);
 	return keys.length === 1 ? "1 field" : `${keys.length} fields`;
 }
 
@@ -35,8 +35,8 @@ function scalar(value: unknown): string {
 }
 
 /** What a value holds, each part under the name it is held by: a field by its name, an item by its place. */
-function entries(value: unknown): Array<[string, unknown]> {
-	return Array.isArray(value) ? value.map((item, at) => [`[${at}]`, item] as [string, unknown]) : Object.entries(value as Record<string, unknown>);
+function entries(value: object): Array<[string, unknown]> {
+	return Array.isArray(value) ? value.map((item, at) => [`[${at}]`, item] as [string, unknown]) : Object.entries(value);
 }
 
 /**

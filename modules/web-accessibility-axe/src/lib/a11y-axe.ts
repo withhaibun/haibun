@@ -1,7 +1,14 @@
 import { readFileSync } from "fs";
 import { createRequire } from "module";
 import { Page } from "playwright";
-import { ElementContext, RunOptions, AxeResults } from "axe-core";
+import type { AxeResults } from "axe-core";
+
+declare global {
+	interface Window {
+		/** axe-core, once `injectAxe` has evaluated its source in the page. */
+		axe: typeof import("axe-core");
+	}
+}
 
 const require = createRequire(import.meta.url);
 
@@ -36,9 +43,4 @@ const injectAxe = async (page: Page): Promise<void> => {
 	await page.evaluate((axe: string) => window.eval(axe), axe);
 };
 
-const getAxeResults = (page: Page, context?: ElementContext, options?: RunOptions): Promise<AxeResults> => {
-	return page.evaluate(
-		([context, options]) => (window as unknown as { axe: { run: (ctx: unknown, opts: unknown) => Promise<AxeResults> } }).axe.run(context || window.document, options),
-		[/*context,*/ options],
-	) as Promise<AxeResults>;
-};
+const getAxeResults = (page: Page): Promise<AxeResults> => page.evaluate(() => window.axe.run(window.document));

@@ -14,7 +14,9 @@
  *   - Plans are advisory, never auto-executed: this module is pure search; a separate
  *     "run plan" step runs the chain.
  */
+import { z } from "zod";
 import { itemAt } from "./util/item-at.js";
+import { navigateValue } from "./util/dot-path.js";
 import { SOURCE_DOMAIN, type TDomainChainGraph, type TDomainChainStep } from "./domain-chain.js";
 import type { TQuad } from "./quad-types.js";
 import { getCompositeFields, zodTypeLabel, type TCompositeField } from "./composite-domain.js";
@@ -70,18 +72,32 @@ export type TMichi = {
 	bindings: TBinding[];
 };
 
+const ShibariBoundSchema = z.union([z.number(), z.string()]);
+
 /** Per-field filter over a fact's `object` value. Bare values are shorthand for `{ eq }`. */
-type TShibari =
-	| { eq: unknown }
-	| { ne: unknown }
-	| { in: unknown[] }
-	| { gt: number | string }
-	| { gte: number | string }
-	| { lt: number | string }
-	| { lte: number | string }
-	| { matches: string }
-	| { all: TShibari[] }
-	| { any: TShibari[] };
+const ShibariSchema = z.union([
+	z.object({ eq: z.unknown() }),
+	z.object({ ne: z.unknown() }),
+	z.object({ in: z.array(z.unknown()) }),
+	z.object({ gt: ShibariBoundSchema }),
+	z.object({ gte: ShibariBoundSchema }),
+	z.object({ lt: ShibariBoundSchema }),
+	z.object({ lte: ShibariBoundSchema }),
+	z.object({ matches: z.string() }),
+	z.object({
+		get all() {
+			return z.array(ShibariSchema);
+		},
+	}),
+	z.object({
+		get any() {
+			return z.array(ShibariSchema);
+		},
+	}),
+]);
+type TShibari = z.infer<typeof ShibariSchema>;
+
+const SHIBARI_OPERATORS = ShibariSchema.options.flatMap((option) => Object.keys(option.shape));
 
 export const GOAL_FINDING = {
 	SATISFIED: "satisfied",
@@ -427,21 +443,16 @@ function factMatchesWhere(fact: TQuad, where: Record<string, TShibari | unknown>
 	if (!where) return true;
 	const obj = fact.object;
 	for (const [path, raw] of Object.entries(where)) {
-		const value = getByDotPath(obj, path);
+		const { value } = navigateValue(obj, path.split("."));
 		const filter = normaliseShibari(raw);
 		if (!evaluateShibari(value, filter)) return false;
 	}
 	return true;
 }
 
-function normaliseShibari(raw: TShibari | unknown): TShibari {
-	if (raw && typeof raw === "object" && !Array.isArray(raw)) {
-		const r = raw as Record<string, unknown>;
-		if ("eq" in r || "ne" in r || "in" in r || "gt" in r || "gte" in r || "lt" in r || "lte" in r || "matches" in r || "all" in r || "any" in r) {
-			return raw as TShibari;
-		}
-	}
-	return { eq: raw };
+/** A `where` value as a filter: a value that names an operator is parsed as a filter, and any other value is `{ eq }` of it. */
+function normaliseShibari(raw: unknown): TShibari {
+	return raw && typeof raw === "object" && !Array.isArray(raw) && SHIBARI_OPERATORS.some((op) => op in raw) ? ShibariSchema.parse(raw) : { eq: raw };
 }
 
 function evaluateShibari(value: unknown, s: TShibari): boolean {
@@ -462,29 +473,18 @@ function deepEqual(a: unknown, b: unknown): boolean {
 	if (a === b) return true;
 	if (typeof a !== typeof b) return false;
 	if (a === null || b === null) return a === b;
-	if (typeof a !== "object") return false;
+	if (typeof a !== "object" || typeof b !== "object") return false;
 	if (Array.isArray(a) !== Array.isArray(b)) return false;
-	if (Array.isArray(a)) return a.length === (b as unknown[]).length && a.every((x, i) => deepEqual(x, (b as unknown[])[i]));
-	const ak = Object.keys(a as Record<string, unknown>);
-	const bk = Object.keys(b as Record<string, unknown>);
-	if (ak.length !== bk.length) return false;
-	return ak.every((k) => deepEqual((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]));
+	if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((x, i) => deepEqual(x, b[i]));
+	const ak = Object.keys(a);
+	if (ak.length !== Object.keys(b).length) return false;
+	return ak.every((k) => deepEqual(Reflect.get(a, k), Reflect.get(b, k)));
 }
 
 function compare(a: unknown, b: unknown): number {
 	if (typeof a === "number" && typeof b === "number") return a - b;
 	if (typeof a === "string" && typeof b === "string") return a < b ? -1 : a > b ? 1 : 0;
 	return Number.NaN;
-}
-
-function getByDotPath(obj: unknown, path: string): unknown {
-	const parts = path.split(".");
-	let cur: unknown = obj;
-	for (const p of parts) {
-		if (cur == null || typeof cur !== "object") return undefined;
-		cur = (cur as Record<string, unknown>)[p];
-	}
-	return cur;
 }
 
 function dedupe<T>(items: T[]): T[] {

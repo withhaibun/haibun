@@ -32,7 +32,7 @@ type TPolymorphicOptions = GraphSceneConfig;
 /** Reported when a control changes: the one option the reader touched, for the host to merge into its own state. */
 export type TPolymorphicOptionChange = Partial<TPolymorphicOptions>;
 
-class ShuPolymorphicSettings extends ShuElement<z.ZodType> {
+class ShuPolymorphicSettings extends ShuElement<z.ZodObject> {
 	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;

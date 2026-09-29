@@ -437,8 +437,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 
 	private renderArtifact(artifact: TArtifactEvent): string {
 		const type = artifact.artifactType;
-		const a = artifact as Record<string, unknown>;
-		const artifactPath = artifactUrl(a);
+		const artifactPath = artifactUrl(artifact);
 		// A frame's data-step-id holds the id of the step that produced its artifact. The fullscreen caption and the time cursor read it.
 		const step = `data-step-id="${esc(artifactStepId(artifact.id))}"`;
 		if (type === "image") {
@@ -447,8 +446,9 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		}
 		if (type === "html")
 			return `<shu-artifact-frame ${step}><iframe ${SHU_ATTR.DATA_ARTIFACT}="${esc(String(artifactPath))}" loading="lazy" sandbox="allow-scripts allow-same-origin" style="width:100%;min-height:80vh;border:none;"></iframe></shu-artifact-frame>`;
-		if (type === "json") return `<shu-artifact-frame ${step}><pre class="json-block">${esc(JSON.stringify(a.json, null, 2))}</pre></shu-artifact-frame>`;
-		if (type === "file") return `<shu-artifact-frame ${step} caption="${esc(String(a.path))}"><a href="${esc(String(a.path))}">${esc(String(a.path))}</a></shu-artifact-frame>`;
+		if (type === "json") return `<shu-artifact-frame ${step}><pre class="json-block">${esc(JSON.stringify(artifact.json, null, 2))}</pre></shu-artifact-frame>`;
+		if (type === "file")
+			return `<shu-artifact-frame ${step} caption="${esc(String(artifact.path))}"><a href="${esc(String(artifact.path))}">${esc(String(artifact.path))}</a></shu-artifact-frame>`;
 		return "";
 	}
 

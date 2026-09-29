@@ -38,8 +38,9 @@ export type Obj3D = {
 	parent: Obj3D | null;
 	children: Obj3D[];
 	raycast: () => void;
-	add(o: Obj3D): void;
-	remove(o: Obj3D): void;
+	/** A group holds meshes and the labels drawn beside them. */
+	add(o: Obj3D | TSprite): void;
+	remove(o: Obj3D | TSprite): void;
 };
 type EnclMaterial = Disposable & { color: { set(c: string): void }; opacity: number };
 export interface EnclosureThree {
@@ -161,10 +162,10 @@ export class EnclosureController {
 	}
 
 	private disposeEnclosure(e: Enclosure): void {
-		for (const o of [e.box, e.edges, e.label as unknown as Obj3D]) this.enclosureGroup?.remove(o);
+		for (const o of [e.box, e.edges, e.label]) this.enclosureGroup?.remove(o);
 		e.boxMat.dispose();
 		e.edgeMat.dispose();
-		(e.label as unknown as Partial<Disposable>).dispose?.();
+		e.label.dispose?.();
 	}
 
 	clearEnclosures(): void {
@@ -216,7 +217,7 @@ export class EnclosureController {
 			if (!e) {
 				e = this.createEnclosure(T, key, containerLabel(key));
 				this.enclosuresMap.set(key, e);
-				for (const o of [e.box, e.edges, e.label as unknown as Obj3D]) this.enclosureGroup.add(o);
+				for (const o of [e.box, e.edges, e.label]) this.enclosureGroup.add(o);
 			}
 			e.box.position.set(b.cx, b.cy, b.cz);
 			e.box.scale.set(b.sx, b.sy, b.sz);

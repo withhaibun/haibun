@@ -48,13 +48,17 @@ export function findTaiwa(steppers: AStepper[]): ITaiwa | undefined {
 		const names = matches.map((s) => s.constructor.name).join(", ");
 		throw new Error(`Multiple taiwa steppers loaded (${names}); deployments must pick one.`);
 	}
-	const candidate = match as unknown as Partial<ITaiwa>;
-	const name = match.constructor.name;
-	if (typeof candidate.ask !== "function" || candidate.ask.length < 1) {
+	assertTaiwa(match);
+	return match;
+}
+
+/** A stepper of the TAIWA kind implements the contract: it throws naming the method the stepper doesn't implement. */
+function assertTaiwa(stepper: AStepper): asserts stepper is AStepper & ITaiwa {
+	const name = stepper.constructor.name;
+	if (!("ask" in stepper) || typeof stepper.ask !== "function" || stepper.ask.length < 1) {
 		throw new Error(`${name} declares kind=${StepperKinds.TAIWA} but does not implement ask(prompt, opts?).`);
 	}
-	if (typeof candidate.isLocal !== "function") {
+	if (!("isLocal" in stepper) || typeof stepper.isLocal !== "function") {
 		throw new Error(`${name} declares kind=${StepperKinds.TAIWA} but does not implement isLocal(): boolean.`);
 	}
-	return candidate as ITaiwa;
 }

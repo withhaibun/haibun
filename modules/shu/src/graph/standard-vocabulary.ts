@@ -17,9 +17,9 @@ import { reportToRun } from "../client-log.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { isPersisted, type TRegisteredDomain } from "@haibun/core/lib/resources.js";
 
-const jsonld = jsonldRaw as unknown as {
+const jsonld: {
 	processContext: (active: unknown, localCtx: unknown, opts?: unknown) => Promise<{ mappings: Map<string, { "@id"?: string }> | Record<string, { "@id"?: string }> }>;
-};
+} = jsonldRaw;
 
 export type TStandardTerm = { term: string; iri: string };
 

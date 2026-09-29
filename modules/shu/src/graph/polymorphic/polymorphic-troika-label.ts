@@ -146,7 +146,7 @@ export function makeTroikaChip(label: string, bgColor: string, three: ChipThree,
 	let avatarBg: Obj3D | undefined;
 	if (avatarText) {
 		const avatarMaterial = new three.MeshBasicMaterial({ color: AVATAR_BG_COLOR, transparent: true, depthTest: false, depthWrite: false });
-		avatarBg = new three.Mesh(sharedPlane, avatarMaterial) as unknown as Obj3D;
+		avatarBg = new three.Mesh(sharedPlane, avatarMaterial);
 		avatarBg.renderOrder = d.renderOrder + 1; // over the chip background, under both texts
 	}
 
@@ -154,10 +154,9 @@ export function makeTroikaChip(label: string, bgColor: string, three: ChipThree,
 	group.add(bg);
 	if (avatarBg) group.add(avatarBg);
 	group.add(text);
-	if (avatarText) group.add(avatarText as unknown as Obj3D);
+	if (avatarText) group.add(avatarText);
 
-	const boundsOf = (t: Text): [number, number, number, number] | undefined =>
-		(t as unknown as { textRenderInfo?: { blockBounds: [number, number, number, number] } }).textRenderInfo?.blockBounds;
+	const boundsOf = (t: Text): [number, number, number, number] | undefined => t.textRenderInfo?.blockBounds;
 
 	// The chip's TOP-LEFT corner sits (all but exactly) at the node's point: a hair of pick margin up-and-left so the
 	// anchor point is pickable, real padding on the right and bottom. The chip extends right + down, never straddling

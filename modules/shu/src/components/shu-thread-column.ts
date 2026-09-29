@@ -12,7 +12,7 @@ import { openRef } from "./ref-navigation.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { addsToSelection } from "../pane-state.js";
 import { appAccessLevel, idOf, persistedTypeOf } from "../util.js";
-import { anIndividual, type TContextPattern } from "../schemas.js";
+import { anIndividual, RecordsSchema, type TContextPattern } from "../schemas.js";
 import { ellipsize } from "@haibun/core/lib/util/index.js";
 import { callStep } from "../pane-fetch.js";
 import { getRelSync } from "../rels-cache.js";
@@ -127,7 +127,7 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 
 	/** Render a collection product: its `items` become thread vertices (links merged into edges), without an RPC fetch. */
 	openProducts(products: Record<string, unknown>): void {
-		const items = Array.isArray(products.items) ? (products.items as Record<string, unknown>[]) : [];
+		const items = Array.isArray(products.items) ? RecordsSchema.parse(products.items) : [];
 		this.openItems(items.map(normalizeItem), String(products._type || "Result"));
 	}
 

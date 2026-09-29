@@ -31,7 +31,7 @@ export type TBlipDeclaration = {
 	/** UCUM unit for a measured value (`px`, `ms`, `1` for a count); omitted when a blip doesn't carry a value. */
 	unit?: string;
 	/** The attributes a recording carries. Validated on every record, so a stray key cannot reach an exporter. */
-	attributes?: z.ZodType;
+	attributes?: z.ZodType<Record<string, unknown>>;
 	/** Attributes that may become metric labels. All others stay on the span event, where cardinality does not matter.
 	 *  Unbounded metric label cardinality overwhelms a metrics backend. */
 	dimensions?: readonly string[];

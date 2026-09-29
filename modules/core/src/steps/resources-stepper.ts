@@ -329,7 +329,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 					const quote = quoteOf(specificResourceId);
 					if (!quote) continue; // a target without a selector doesn't anchor a passage
 					const commentId = String(tq.subject);
-					const comment = (await store.getIndividual(COMMENT_LABEL, commentId)) as Record<string, unknown> | null;
+					const comment = await store.getIndividual(COMMENT_LABEL, commentId);
 					if (!comment) continue;
 					const noteText = await bodyByMediaType(store, comment, MEDIA_TYPE.markdown);
 					const links = (linkSrsOfComment.get(commentId) ?? []).map((srId) => quoteOf(srId)).filter((l): l is NonNullable<typeof l> => l !== undefined);

@@ -1,4 +1,5 @@
 import { EventEmitter } from "events";
+import { z } from "zod";
 import { stream } from "hono/streaming";
 import { streamSSE } from "hono/streaming";
 import type { IWebServer } from "./defs.js";
@@ -7,7 +8,7 @@ import { truncateForLog, errorDetail } from "@haibun/core/lib/util/index.js";
 import type { StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { streamContext, streamOver, type TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import type { IStepTransport } from "./step-transport.js";
-import { RPC_REFUSED } from "@haibun/core/lib/rpc-wire.js";
+import { RPC_REFUSED, RpcRequestSchema } from "@haibun/core/lib/rpc-wire.js";
 import type { TRuntime } from "@haibun/core/lib/world.js";
 import { capabilityAllows, FOLLOWS_THE_RUN, readAction } from "@haibun/core/lib/actions.js";
 import { Access, AccessLevelSchema, type AccessLevel } from "@haibun/core/lib/resources.js";
@@ -24,6 +25,12 @@ type TTransportRequestInfo = {
 };
 
 type TMessageHandler = (data: unknown, requestInfo?: TTransportRequestInfo) => unknown | Promise<unknown>;
+
+/** What the transport reads of a call before a handler reads all of it: its method, whether it streams, and what it asks. */
+const RpcEnvelopeSchema = RpcRequestSchema.pick({ method: true, stream: true, asks: true }).partial().loose();
+
+/** The reason an answer states for refusing its call, where it states one. */
+const refusalReason = (answer: unknown): unknown => (typeof answer === "object" && answer !== null && "error" in answer ? answer.error : undefined);
 
 export interface ITransport {
 	send(data: unknown): void;
@@ -86,15 +93,17 @@ export class SSETransport implements ITransport, IStepTransport {
 			// is dispatched two different things.
 			let body: string;
 			let data: unknown;
+			let envelope: z.infer<typeof RpcEnvelopeSchema>;
 			try {
 				body = await c.req.text();
 				data = JSON.parse(body);
+				envelope = RpcEnvelopeSchema.parse(data);
 			} catch (e) {
 				this.eventLogger.error(`Error parsing RPC POST message: ${e}`);
 				return c.json({ ok: false, error: String(e) }, 400);
 			}
 			const requestInfo: TTransportRequestInfo = { headers: c.req.header(), method: c.req.method, url: c.req.url, body };
-			const isStream = (data as Record<string, unknown>).stream === true;
+			const isStream = envelope.stream === true;
 
 			// Streaming requests open an NDJSON response and run the same dispatcher inside `streamContext`. Step actions read the per-request emit callback from AsyncLocalStorage and push chunks during execution; the final dispatchStep result (success or refusal) lands on the seqPath via stepStart/stepEnd lifecycle events. One handler path: one dispatcher, one error contract.
 			if (isStream) {
@@ -112,13 +121,12 @@ export class SSETransport implements ITransport, IStepTransport {
 					await streamContext.run(streamOver(emit, abortController), async () => {
 						const result = await this.handleMessage(data, requestInfo);
 						if (result === undefined) {
-							const method = (data as Record<string, unknown>).method ?? "unknown";
-							await writeChunk({ error: `RPC method ${method} doesn't have a handler` });
+							await writeChunk({ error: `RPC method ${envelope.method ?? "unknown"} doesn't have a handler` });
 							return;
 						}
-						const response = result as Record<string, unknown>;
 						// Successful dispatch already pushed its content via streamContext.emit; emitting the products again would duplicate the stream. On refusal, emit the error as a terminating record so the client surfaces it. The lifecycle stepEnd event already fired on the seqPath via dispatchStep, seq-bound consumers see the canonical record there.
-						if (response.error) await writeChunk({ error: response.error });
+						const refusal = refusalReason(result);
+						if (refusal) await writeChunk({ error: refusal });
 					});
 				});
 			}
@@ -127,10 +135,9 @@ export class SSETransport implements ITransport, IStepTransport {
 			// step that does not declare itself a read, it refuses rather than answering and recording the reading as
 			// something the run did. A step declared a read is answered without a line of its own here, since a page
 			// following a run reads it on every announcement.
-			const servesARead = this.servesARead(data);
-			const asksToRead = (data as { asks?: unknown } | undefined)?.asks === "read";
-			if (asksToRead && !servesARead) {
-				const method = (data as Record<string, unknown>).method ?? "unknown";
+			const method = envelope.method ?? "unknown";
+			const servesARead = this.servesARead(envelope.method);
+			if (envelope.asks === "read" && !servesARead) {
 				return c.json(
 					{
 						ok: false,
@@ -142,18 +149,16 @@ export class SSETransport implements ITransport, IStepTransport {
 			if (!servesARead) this.eventLogger.debug(`RPC: ${JSON.stringify(truncateForLog(data))}`);
 			const result = await this.handleMessage(data, requestInfo);
 			if (result === undefined) {
-				const method = (data as Record<string, unknown>).method ?? "unknown";
 				return c.json({ ok: false, error: `RPC method ${method} doesn't have a handler` }, 404);
 			}
-			const response = result as Record<string, unknown>;
 			// A request whose presented authority failed is unauthenticated, which is a different answer from a call refused
 			// for want of a capability it didn't present.
-			const status = response[RPC_REFUSED] ? 401 : response.error ? 422 : 200;
+			const unauthenticated = typeof result === "object" && result !== null && RPC_REFUSED in result && result[RPC_REFUSED];
+			const status = unauthenticated ? 401 : refusalReason(result) ? 422 : 200;
 			try {
-				return c.json(response, status);
+				return c.json(result, status);
 			} catch (serializeErr) {
 				// V8 raises RangeError when JSON.stringify is asked for a string longer than ~512MB. Return a structured error instead of letting the unhandled throw stall the client's fetch.
-				const method = (data as Record<string, unknown>).method ?? "unknown";
 				const reason = errorDetail(serializeErr);
 				this.eventLogger.error(`RPC ${method} response too large to serialize: ${reason}`);
 				return c.json({ ok: false, error: `${method}: response too large to serialize (${reason}). Narrow the query or return a summary.` }, 413);
@@ -207,9 +212,8 @@ export class SSETransport implements ITransport, IStepTransport {
 	 * that carried the line would read the run again for its own reading, and each such read would be served, narrated
 	 * and read again without end.
 	 */
-	private servesARead(data: unknown): boolean {
-		const method = (data as { method?: unknown } | undefined)?.method;
-		if (typeof method !== "string") return false;
+	private servesARead(method: string | undefined): boolean {
+		if (method === undefined) return false;
 		return this.registry?.get(method)?.descriptor.read === true;
 	}
 

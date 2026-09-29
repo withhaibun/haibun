@@ -1,7 +1,7 @@
 import { Page, Response, type Locator } from "playwright";
 
 import { TFeatureStep } from "@haibun/core/lib/astepper.js";
-import { HYPERMEDIA, OK, Origin, TStepResult, type TStepValue } from "@haibun/core/schema/protocol.js";
+import { HYPERMEDIA, OK, Origin, type TStepValue } from "@haibun/core/schema/protocol.js";
 import {
 	DOMAIN_GLOB,
 	DOMAIN_NUMBER,
@@ -34,6 +34,8 @@ import {
 	type TFindWay,
 	DOMAIN_BROWSER_TYPE,
 	DOMAIN_DIALOG_FIELD,
+	DialogSaysSchema,
+	type TDialogField,
 } from "./domains.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { locatorDomainOf } from "./web-playwright.js";
@@ -51,6 +53,9 @@ import { FlowRunner } from "@haibun/core/lib/core/flow-runner.js";
 
 /** The steps that act on what an accessibility snapshot reads, which the snapshot links. */
 const SNAPSHOT_ACTIONS = ["click", "setValue", "press", "selectionOption", "gotoPage", "goBack", "takeScreenshot"] as const;
+
+/** What a dialog kept in a variable says in `field`. A variable that doesn't keep a record doesn't keep a dialog. */
+const dialogSays = (kept: unknown, field: TDialogField) => (typeof kept === "object" && kept !== null ? DialogSaysSchema.parse(kept)[field] : undefined);
 
 export const interactionSteps = (wp: WebPlaywright) =>
 	({
@@ -100,18 +105,16 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		dialogIs: {
 			...PAGE_READ,
 			gwta: `dialog {what: ${DOMAIN_VARIABLE_NAME}} {type: ${DOMAIN_DIALOG_FIELD}} says {value: ${DOMAIN_TEXT}}`,
-			action: async ({ what, type, value }: { what: string; type: string; value: string }) => {
-				const resolvedValue = await wp.getWorld().shared.get(what, true);
-				const cur = (resolvedValue as Record<string, unknown> | undefined)?.[type];
+			action: async ({ what, type, value }: { what: string; type: TDialogField; value: string }) => {
+				const cur = dialogSays(await wp.getWorld().shared.get(what, true), type);
 				return cur === value ? OK : actionNotOK(`${what} is ${cur}`);
 			},
 		},
 		dialogIsUnset: {
 			...PAGE_READ,
 			gwta: `dialog {what: ${DOMAIN_VARIABLE_NAME}} {type: ${DOMAIN_DIALOG_FIELD}} not set`,
-			action: async ({ what, type }: { what: string; type: string }) => {
-				const resolvedValue = await wp.getWorld().shared.get(what, true);
-				const cur = (resolvedValue as Record<string, unknown> | undefined)?.[type];
+			action: async ({ what, type }: { what: string; type: TDialogField }) => {
+				const cur = dialogSays(await wp.getWorld().shared.get(what, true), type);
 				return !cur ? OK : actionNotOK(`${what} is ${cur}`);
 			},
 		},
@@ -507,7 +510,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			action: async (_args, featureStep: TFeatureStep) => {
 				// Create a minimal step result for artifact tracking
 				const stepResult = featureStep ? { seqPath: featureStep.seqPath, path: featureStep.source?.path, in: featureStep.in } : undefined;
-				return actionOKWithProducts(await wp.captureScreenshotAndLog("action", { step: stepResult as unknown as TStepResult | undefined }));
+				return actionOKWithProducts(await wp.captureScreenshotAndLog("action", { step: stepResult }));
 			},
 		},
 		getPageContents: {

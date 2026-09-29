@@ -63,7 +63,7 @@ export const clusteredGraphStateShape = {
 const ClusteredGraphStateSchema = z.object(clusteredGraphStateShape);
 type TClusteredGraphState = z.infer<typeof ClusteredGraphStateSchema>;
 
-export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuElement<T> {
+export abstract class ShuClusteredGraphView<T extends z.ZodObject<typeof clusteredGraphStateShape>> extends ShuElement<T> {
 	protected knownClusters = new Map<string, TCluster>();
 	protected fetchedSubjects = new Set<string>();
 	private graphInitialized = false;
@@ -85,9 +85,9 @@ export abstract class ShuClusteredGraphView<T extends z.ZodTypeAny> extends ShuE
 		return "";
 	}
 
-	// The shared fields, typed: every subclass schema includes clusteredGraphStateShape, so the cast is sound.
+	// The shared fields, typed by the constraint: every subclass schema includes clusteredGraphStateShape.
 	protected get cgState(): TClusteredGraphState {
-		return this.state as unknown as TClusteredGraphState;
+		return this.state;
 	}
 	protected setGraphState(partial: Partial<TClusteredGraphState>): void {
 		this.setState(partial as Partial<z.infer<T>>);

@@ -258,7 +258,7 @@ export function selectValuesFor(label: string): Promise<Record<string, string[]>
  * live page uses, stated rather than reached for, so what a view reads a run through is visible where the view is made.
  */
 export function pageRunGraph(): TRunGraph {
-	return { query: (query) => queryGraph(query as unknown as Record<string, unknown>), density: densityOf, declares: (label) => !!getRels(label) };
+	return { query: (query) => queryGraph(query), density: densityOf, declares: (label) => !!getRels(label) };
 }
 
 /**

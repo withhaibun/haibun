@@ -14,6 +14,6 @@ declare module "@digitalbazaar/http-signature-zcap-invoke" {
 		/** A delegated capability, or a root's id; absent, the root of the address asked. */
 		capability?: Record<string, unknown> | string;
 		capabilityAction: string;
-		invocationSigner: { id: string; sign(options: { data: Uint8Array }): Promise<Uint8Array> };
+		invocationSigner: { id: string; sign(options: { data: Uint8Array<ArrayBuffer> }): Promise<Uint8Array> };
 	}): Promise<Record<string, string>>;
 }

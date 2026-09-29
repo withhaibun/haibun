@@ -51,7 +51,7 @@ function resolveRef(ref: string, rootDocs: unknown[]): unknown {
 		let curr: unknown = doc;
 		for (const part of parts) {
 			if (typeof curr === "object" && curr !== null && part in curr) {
-				curr = (curr as Record<string, unknown>)[part];
+				curr = Reflect.get(curr, part);
 			} else {
 				curr = undefined;
 				break;
@@ -62,19 +62,38 @@ function resolveRef(ref: string, rootDocs: unknown[]): unknown {
 	return undefined;
 }
 
-function evaluateCondition(
-	conditionObj: Record<string, unknown> | undefined,
-	config: Record<string, unknown>,
-	ctx: Pick<z.RefinementCtx, "addIssue">,
-	rootDocs: unknown[],
-	allowedKeys: Set<string>,
-): boolean {
+/** A JSON Schema node as the evaluator reads it: a boolean schema, or an object stating the conditions it checks. */
+const SchemaNodeSchema = z.union([
+	z.boolean(),
+	z.looseObject({
+		$ref: z.string().optional(),
+		allOf: z.array(z.unknown()).optional(),
+		anyOf: z.array(z.unknown()).optional(),
+		oneOf: z.array(z.unknown()).optional(),
+		if: z.unknown().optional(),
+		then: z.unknown().optional(),
+		required: z.array(z.string()).optional(),
+		properties: z.record(z.string(), z.unknown()).optional(),
+		const: z.unknown().optional(),
+		type: z.union([z.string(), z.array(z.string())]).optional(),
+	}),
+]);
+
+/** The conditions a schema node states. A node that isn't there, or a boolean schema, doesn't state one the evaluator checks. */
+function conditionsOf(node: unknown) {
+	if (!node) return undefined;
+	const parsed = SchemaNodeSchema.parse(node);
+	return typeof parsed === "boolean" ? undefined : parsed;
+}
+
+function evaluateCondition(node: unknown, config: Record<string, unknown>, ctx: Pick<z.RefinementCtx, "addIssue">, rootDocs: unknown[], allowedKeys: Set<string>): boolean {
+	const conditionObj = conditionsOf(node);
 	if (!conditionObj) return true;
 	let ok = true;
 
 	// 1. resolve $ref
-	if (typeof conditionObj.$ref === "string") {
-		const resolved = resolveRef(conditionObj.$ref, rootDocs) as Record<string, unknown> | undefined;
+	if (conditionObj.$ref !== undefined) {
+		const resolved = resolveRef(conditionObj.$ref, rootDocs);
 		if (resolved) {
 			ok = evaluateCondition(resolved, config, ctx, rootDocs, allowedKeys) && ok;
 		} else {
@@ -85,14 +104,12 @@ function evaluateCondition(
 	}
 
 	// 2. process allOf
-	if (Array.isArray(conditionObj.allOf)) {
-		for (const rule of conditionObj.allOf) {
-			ok = evaluateCondition(rule as Record<string, unknown>, config, ctx, rootDocs, allowedKeys) && ok;
-		}
+	for (const rule of conditionObj.allOf ?? []) {
+		ok = evaluateCondition(rule, config, ctx, rootDocs, allowedKeys) && ok;
 	}
 
-	if (Array.isArray(conditionObj.anyOf)) {
-		const results = conditionObj.anyOf.map((rule) => evaluateBranch(rule as Record<string, unknown>, config, rootDocs));
+	if (conditionObj.anyOf) {
+		const results = conditionObj.anyOf.map((rule) => evaluateBranch(rule, config, rootDocs));
 		const passing = results.filter((result) => result.ok);
 		if (passing.length === 0) {
 			ctx.addIssue({ code: z.ZodIssueCode.custom, message: "must match at least one schema in anyOf", path: [] });
@@ -106,8 +123,8 @@ function evaluateCondition(
 		}
 	}
 
-	if (Array.isArray(conditionObj.oneOf)) {
-		const results = conditionObj.oneOf.map((rule) => evaluateBranch(rule as Record<string, unknown>, config, rootDocs));
+	if (conditionObj.oneOf) {
+		const results = conditionObj.oneOf.map((rule) => evaluateBranch(rule, config, rootDocs));
 		const passing = results.filter((result) => result.ok);
 		const [only, ...others] = passing;
 		if (!only || others.length > 0) {
@@ -121,47 +138,44 @@ function evaluateCondition(
 	}
 
 	// 3. process if/then
-	if (conditionObj.if && typeof conditionObj.if === "object" && "properties" in conditionObj.if) {
+	const ifProperties = conditionsOf(conditionObj.if)?.properties;
+	if (ifProperties) {
 		let matchesIf = true;
-		for (const [k, v] of Object.entries((conditionObj.if as Record<string, unknown>).properties as Record<string, unknown>)) {
-			const castV = v as Record<string, unknown>;
-			if (castV.const !== undefined && config[k] !== castV.const) {
+		for (const [k, v] of Object.entries(ifProperties)) {
+			const constant = conditionsOf(v)?.const;
+			if (constant !== undefined && config[k] !== constant) {
 				matchesIf = false;
 				break;
 			}
 		}
 		if (matchesIf && conditionObj.then) {
-			ok = evaluateCondition(conditionObj.then as Record<string, unknown>, config, ctx, rootDocs, allowedKeys) && ok;
+			ok = evaluateCondition(conditionObj.then, config, ctx, rootDocs, allowedKeys) && ok;
 		}
 	}
 
 	// 4. process required
-	if (Array.isArray(conditionObj.required)) {
-		for (const req of conditionObj.required) {
-			if (config[req] === undefined) {
-				ctx.addIssue({ code: z.ZodIssueCode.custom, message: `must have required property '${req}'`, path: [req] });
-				ok = false;
-			}
+	for (const req of conditionObj.required ?? []) {
+		if (config[req] === undefined) {
+			ctx.addIssue({ code: z.ZodIssueCode.custom, message: `must have required property '${req}'`, path: [req] });
+			ok = false;
 		}
 	}
 
-	if (conditionObj.properties && typeof conditionObj.properties === "object") {
-		for (const [k, v] of Object.entries(conditionObj.properties as Record<string, unknown>)) {
-			allowedKeys.add(k);
-			const castV = v as Record<string, unknown>;
-			if (config[k] !== undefined) {
-				if (castV.const !== undefined && config[k] !== castV.const) {
-					ctx.addIssue({ code: z.ZodIssueCode.custom, message: `must be equal to constant "${castV.const}"`, path: [k] });
+	for (const [k, v] of Object.entries(conditionObj.properties ?? {})) {
+		allowedKeys.add(k);
+		const property = conditionsOf(v);
+		if (config[k] !== undefined) {
+			if (property?.const !== undefined && config[k] !== property.const) {
+				ctx.addIssue({ code: z.ZodIssueCode.custom, message: `must be equal to constant "${property.const}"`, path: [k] });
+				ok = false;
+			}
+			if (property?.type === "number" && typeof config[k] !== "number") {
+				// if it's string from env, parse it dynamically
+				if (typeof config[k] === "string" && !isNaN(Number(config[k]))) {
+					config[k] = Number(config[k]);
+				} else {
+					ctx.addIssue({ code: z.ZodIssueCode.custom, message: `must be number`, path: [k] });
 					ok = false;
-				}
-				if (castV.type === "number" && typeof config[k] !== "number") {
-					// if it's string from env, parse it dynamically
-					if (typeof config[k] === "string" && !isNaN(Number(config[k]))) {
-						config[k] = Number(config[k]);
-					} else {
-						ctx.addIssue({ code: z.ZodIssueCode.custom, message: `must be number`, path: [k] });
-						ok = false;
-					}
 				}
 			}
 		}
@@ -170,7 +184,7 @@ function evaluateCondition(
 	return ok;
 }
 
-function evaluateBranch(conditionObj: Record<string, unknown>, config: Record<string, unknown>, rootDocs: unknown[]) {
+function evaluateBranch(conditionObj: unknown, config: Record<string, unknown>, rootDocs: unknown[]) {
 	let issued = 0;
 	const branchAllowed = new Set<string>();
 	const ok = evaluateCondition(conditionObj, config, { addIssue: () => issued++ }, rootDocs, branchAllowed);
@@ -194,30 +208,9 @@ function buildConfigValidator(policy: TRunPolicy) {
 	const validPlaces = properties.place?.enum;
 	const validDirs = properties.dirFilters?.items?.properties?.dir?.enum;
 
-	const baseSchema: Record<string, z.ZodType> = {};
-	if (validPlaces) {
-		baseSchema.place = z.enum(validPlaces);
-	} else {
-		baseSchema.place = z.string();
-	}
-
-	if (validDirs) {
-		baseSchema.dirFilters = z.array(
-			z.object({
-				dir: z.union([z.enum(validDirs), z.literal("*")]),
-				access: z.enum(RUN_ACCESS_LEVELS),
-			}),
-		);
-	} else {
-		baseSchema.dirFilters = z.array(
-			z.object({
-				dir: z.string(),
-				access: z.enum(RUN_ACCESS_LEVELS),
-			}),
-		);
-	}
-
-	const ConfigValidator = z.looseObject(baseSchema);
+	const place = validPlaces ? z.enum(validPlaces) : z.string();
+	const dir = validDirs ? z.union([z.enum(validDirs), z.literal("*")]) : z.string();
+	const ConfigValidator = z.looseObject({ place, dirFilters: z.array(z.object({ dir, access: z.enum(RUN_ACCESS_LEVELS) })) });
 
 	return ConfigValidator.superRefine((config, ctx) => {
 		// 1. Evaluate policy rules dynamically
@@ -229,9 +222,9 @@ function buildConfigValidator(policy: TRunPolicy) {
 		// Pre-populate allowedKeys with root properties
 		allowedKeys.add("place");
 		allowedKeys.add("dirFilters");
-		if (policy.properties) Object.keys(policy.properties as Record<string, unknown>).forEach((k) => allowedKeys.add(k));
+		if (policy.properties) Object.keys(policy.properties).forEach((k) => allowedKeys.add(k));
 
-		evaluateCondition(policy as Record<string, unknown>, config, ctx, rootDocs, allowedKeys);
+		evaluateCondition(policy, config, ctx, rootDocs, allowedKeys);
 
 		// Validate strictness: block non-existent parameters
 		for (const key of Object.keys(config)) {
@@ -246,9 +239,9 @@ function buildConfigValidator(policy: TRunPolicy) {
 		}
 
 		// 2. Custom deny rule validation
-		const dirFilters = config.dirFilters as Record<string, unknown>[];
+		const { dirFilters } = config;
 		if (dirFilters) {
-			dirFilters.forEach((filter: Record<string, unknown>, index: number) => {
+			dirFilters.forEach((filter, index) => {
 				const flat = { place: config.place, dir: filter.dir, access: filter.access };
 
 				for (const rule of policy.deny) {

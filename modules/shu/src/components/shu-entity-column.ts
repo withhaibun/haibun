@@ -30,7 +30,7 @@ import { SHU_EVENT, ANNOTATION_GLYPH, SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
 import { bindCopyButtons, copyButtonHtml } from "../copy-util.js";
 import { isReplyEdge, MEDIA_TYPE } from "@haibun/core/lib/resources.js";
-import { anIndividual, EntityColumnSchema, type TContextPattern } from "../schemas.js";
+import { anIndividual, EntityColumnSchema, RecordSchema, RecordsSchema, type TContextPattern } from "../schemas.js";
 import { EntityController } from "../controllers/index.js";
 import type { TEntityResult, TEntityView, TAnnotationDraft } from "../entity-store.js";
 import type { AnnotationView } from "../annotation-resolver.js";
@@ -245,7 +245,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		this.vertex = result.vertex;
 		this.edges = (result.edges as EdgeData[]) ?? [];
 		this.incomingCount = result.incomingCount ?? 0;
-		this.products = result as unknown as Record<string, unknown>;
+		this.products = result;
 	}
 
 	/** Reveal a quoted passage in the already-open individual: the re-request path of a Text Fragment reference. */
@@ -371,7 +371,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		for (const [k, v] of Object.entries(this.vertex)) {
 			if (!isVisibleKey(k, persistedAs)) continue;
 			if (!Array.isArray(v) || v.length === 0 || typeof v[0] !== "object") continue;
-			const items = v as Record<string, unknown>[];
+			const items = RecordsSchema.parse(v);
 			// Inner table: items don't have a per-row label, fall back to projection-only filter.
 			const keys = Object.keys(items[0]).filter((key) => isVisibleKey(key));
 			// An item that names its type and identity is a record, and its row opens it.
@@ -661,9 +661,10 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	 *  its genuine vocabulary IRI here, so the view reads provenance/representation from it rather than guessing. Undefined
 	 *  for an ad-hoc view without a served context. */
 	private scopedContext(): Record<string, { "@id"?: string; "@type"?: string }> | undefined {
-		const ctx = this.vertex?.["@context"] as Record<string, unknown> | undefined;
+		// A JSON-LD @context is an object of terms, a URL, or a list of them; only an object holds a type's scoped context.
+		const ctx = RecordSchema.safeParse(this.vertex?.["@context"]);
 		type TScopedField = { "@id"?: string; "@type"?: string };
-		const inner = (ctx?.[this.state.persistedAs] as { "@context"?: unknown } | undefined)?.["@context"];
+		const inner = ((ctx.success ? ctx.data[this.state.persistedAs] : undefined) as { "@context"?: unknown } | undefined)?.["@context"];
 		// A type conforming to standard context(s) serves its scoped @context as a JSON-LD 1.1 array [url…, {haibun terms}];
 		// the field definitions this view marks are in the object member (the last element). A plain object stands alone.
 		if (Array.isArray(inner)) return inner.find((p): p is Record<string, TScopedField> => typeof p === "object" && p !== null && !Array.isArray(p));

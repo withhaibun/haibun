@@ -1,4 +1,3 @@
-
 import { ViewQuerySchema } from "../view-query.js";
 
 /**

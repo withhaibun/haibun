@@ -93,7 +93,9 @@ export const DOMAIN_FIND_WAY = "page-find-way";
 export const REQUEST_STATE = { blocked: "blocked", unanswered: "unanswered", allowed: "allowed" } as const;
 export const DOMAIN_REQUEST_STATE = "request-state";
 /** What a dialog a page opened says, as the step that accepts it keeps it. */
-const DIALOG_FIELDS = ["defaultValue", "message", "type"] as const;
+export const DialogSaysSchema = z.object({ defaultValue: z.string(), message: z.string(), type: z.string() });
+const DIALOG_FIELDS = DialogSaysSchema.keyof().options;
+export type TDialogField = (typeof DIALOG_FIELDS)[number];
 export const DOMAIN_DIALOG_FIELD = "dialog-field";
 /** The browsers a run drives. */
 export const BROWSER_TYPES = ["firefox", "chromium", "webkit"] as const;

@@ -28,7 +28,7 @@ export async function getSteppers(stepperEntries: TStepperEntry[]) {
 					constructor() {
 						super(remote);
 					}
-				} as unknown as CStepper,
+				},
 			);
 		}
 	}

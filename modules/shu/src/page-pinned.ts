@@ -8,11 +8,12 @@
 /** A value the page holds, and how the page lets it go when it ends, where the value holds something to close. */
 type TPinned = { value: unknown; release?: (value: unknown) => void };
 
+declare global {
+	var __SHU_PAGE__: Map<string, TPinned> | undefined;
+}
+
 const PAGE_KEY = "__SHU_PAGE__";
-const pinned = (): Map<string, TPinned> => {
-	const g = globalThis as unknown as Record<string, Map<string, TPinned> | undefined>;
-	return (g[PAGE_KEY] ??= new Map());
-};
+const pinned = (): Map<string, TPinned> => (globalThis[PAGE_KEY] ??= new Map());
 
 export function pagePinned<T>(key: string, make: () => T, release?: (value: T) => void): T {
 	const held = pinned().get(key);

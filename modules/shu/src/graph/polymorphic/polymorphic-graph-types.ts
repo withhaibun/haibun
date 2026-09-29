@@ -52,6 +52,8 @@ export type TSprite = ThreeObj & {
 	position: { x: number; y: number; z: number; set(x: number, y: number, z: number): void };
 	parent?: { renderOrder: number; children?: ThreeObj[] } | null;
 	raycast?: () => void;
+	/** Release the texture the label draws its text on. */
+	dispose?(): void;
 };
 
 export type FGNode = {

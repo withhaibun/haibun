@@ -53,7 +53,19 @@ export function opens(row: TLogRow): DesiredPane | undefined {
 	return row.record ? { paneType: "entity", persistedAs: row.record.persistedAs, id: row.record.id } : undefined;
 }
 
-export type TLogRow = {
+/** A step's outcome, how long it took, where it ran, and what it had to hold to run: what its own record says, and what a
+ *  row carries beside its words. */
+const RowOutcomeSchema = z.object({
+	status: z.string().optional(),
+	durationMs: z.number().optional(),
+	ranVia: z.string().optional(),
+	ranOn: z.string().optional(),
+	capabilityAction: z.string().optional(),
+	allowedAction: z.string().optional(),
+	performedBy: z.string().optional(),
+});
+
+export type TLogRow = z.infer<typeof RowOutcomeSchema> & {
 	time: string;
 	timestamp: number;
 	level: string;
@@ -65,14 +77,6 @@ export type TLogRow = {
 	/** The record this row is: pressing a row opens it, and a row that is not a step is opened the way any record of
 	 *  the graph is. */
 	record?: { persistedAs: string; id: string };
-	/** A step's outcome, how long it took, where it ran, and what it had to hold to run: what its own record says. */
-	status?: string;
-	durationMs?: number;
-	ranVia?: string;
-	ranOn?: string;
-	capabilityAction?: string;
-	allowedAction?: string;
-	performedBy?: string;
 	/** What this step produced, as the images a reader sees beside its words: a screenshot taken after a step belongs to
 	 *  the step a reader was reading, so the row of that step shows it. */
 	produced?: Array<{ url: string; what: string }>;
@@ -108,9 +112,6 @@ const LEVEL_ORDER: readonly string[] = HAIBUN_LOG_LEVELS;
  * moment in time. Indices are into the list passed in, so they address the rows the reader can scroll to.
  * Pure, so which rows mark the rail is tested without a virtualizer.
  */
-/** What a row carries beside its words: what its record says of how the step went and where it ran. */
-const ROW_FIELDS = ["status", "durationMs", "ranVia", "ranOn", "capabilityAction", "allowedAction", "performedBy"] as const;
-
 export function railMarkers(rows: readonly TLogRow[], indices?: readonly number[]): TScrollMarker[] {
 	const markers: TScrollMarker[] = [];
 	rows.forEach((row, i) => {
@@ -247,13 +248,13 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			count: () => run.count(),
 			rowAt: (i) => {
 				const e = run.rowAt(i);
-				return e ? this.#rowOf(e as Record<string, unknown>) : undefined;
+				return e ? this.#rowOf(e) : undefined;
 			},
 			ensureRange: (a, b) => run.ensureRange(a, b),
 			subscribe: (cb) => run.subscribe(cb),
 			markers: () => this.#marks,
 			// A shot drawn on the row of the step that took it is not a row of its own here, so it doesn't take room.
-			rowSize: (i) => (carried(run.rowAt(i) as Record<string, unknown> | undefined) ? 0 : undefined),
+			rowSize: (i) => (carried(run.rowAt(i)) ? 0 : undefined),
 		};
 	}
 
@@ -296,8 +297,8 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			mark: markFor(e),
 			...(produced.length ? { produced } : {}),
 			...(partOf === undefined ? {} : { partOf }),
+			...RowOutcomeSchema.parse(e),
 		};
-		for (const field of ROW_FIELDS) if (e[field] !== undefined) (row as Record<string, unknown>)[field] = e[field];
 		this.#rowCache.set(e, row);
 		return row;
 	}
@@ -308,7 +309,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		const out: Array<{ index: number; row: TLogRow }> = [];
 		for (const { from, to } of this.#run.cachedRanges())
 			for (let i = from; i < to; i++) {
-				const e = this.#run.rowAt(i) as Record<string, unknown> | undefined;
+				const e = this.#run.rowAt(i);
 				// A shot the step's own row carries is read there, so it marks the rail there rather than twice.
 				if (e && !carried(e)) out.push({ index: i, row: this.#rowOf(e) });
 			}
@@ -408,7 +409,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		if (!r) return html`<div class="log-row" data-testid="monitor-log-row"></div>`; // its page has not landed yet: a skeleton row
 		// Drawn on the row of the step that produced it, so this row doesn't render content. It is still an element, because the
 		// virtualizer positions and scrolls to one element per row.
-		if (carried(this.#run.rowAt(index) as Record<string, unknown> | undefined)) return html`<div class="carried"></div>`;
+		if (carried(this.#run.rowAt(index))) return html`<div class="carried"></div>`;
 		const testId = index === 0 ? SHU_TEST_IDS.MONITOR.FIRST_ROW : "monitor-log-row";
 		let cls = r.level === "error" ? " error" : r.level === "warn" ? " warn" : "";
 		if (this.timeCursor !== null) {

@@ -12,6 +12,7 @@
  * through; the server still validates strictly and returns 422 on edge
  * cases, so the client validator is an early-warning, not a gate.
  */
+import { RecordSchema } from "./schemas.js";
 
 export type TFieldError = { field: string; message: string };
 
@@ -75,9 +76,10 @@ function validateAgainstSchema(value: unknown, schema: TJsonSchema, fieldPath = 
 		return errors;
 	}
 	if (schema.type === "object" && schema.properties) {
-		if (typeof value !== "object" || Array.isArray(value)) errors.push({ field: fieldPath, message: "must be an object" });
+		const fields = RecordSchema.safeParse(value);
+		if (!fields.success) errors.push({ field: fieldPath, message: "must be an object" });
 		else {
-			const obj = value as Record<string, unknown>;
+			const obj = fields.data;
 			for (const [k, sub] of Object.entries(schema.properties)) {
 				const subPath = fieldPath ? `${fieldPath}.${k}` : k;
 				const present = obj[k] !== undefined && obj[k] !== null && obj[k] !== "";

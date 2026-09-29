@@ -196,7 +196,7 @@ import { itemAt } from "./util/item-at.js";
 function toJsonSchemaCached(schema: z.ZodType): Record<string, unknown> {
 	return jsonSchemaOf(schema, "concern", () => {
 		try {
-			return z.toJSONSchema(schema) as Record<string, unknown>;
+			return z.toJSONSchema(schema);
 		} catch {
 			return {};
 		}

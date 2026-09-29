@@ -56,7 +56,7 @@ import { readElementPrefs, schedulePersistWrite, forgetElementPrefs } from "../e
 import { recordClientBlip } from "../client-blips.js";
 import type { TContextPattern } from "../schemas.js";
 
-export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitElement) {
+export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(LitElement) {
 	/** Get the current view hash, from URL when a live `window.location` is present, from stored state when running in an offline standalone HTML file. */
 	static getHash(): string {
 		return ViewHash.getHash();
@@ -238,20 +238,15 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		this.state = schema.parse(defaults);
 		// Fail fast on a typo'd persistFields entry: a name absent from the schema would otherwise silently never persist.
 		const persisted = (this.constructor as typeof ShuElement).persistFields;
-		if (persisted.length > 0) {
-			const shape = (schema as unknown as { shape?: Record<string, unknown> }).shape;
-			for (const f of persisted) if (!shape?.[f]) throw new Error(`${this.constructor.name}: persistFields names "${f}", which is absent from the schema`);
-		}
+		for (const f of persisted) if (!schema.shape[f]) throw new Error(`${this.constructor.name}: persistFields names "${f}", which is absent from the schema`);
 		this.#assertSealedLifecycle();
 	}
 
 	// Fail fast: a subclass that overrides a sealed lifecycle method (instead of the onX hook) would silently
 	// bypass the base's super-call chain (SignalWatcher cleanup, lit attribute reflection). Throw at construction.
 	#assertSealedLifecycle(): void {
-		const proto = ShuElement.prototype as unknown as Record<string, unknown>;
-		const self = this as unknown as Record<string, unknown>;
 		for (const m of ["connectedCallback", "disconnectedCallback", "attributeChangedCallback"] as const) {
-			if (self[m] !== proto[m]) {
+			if (this[m] !== ShuElement.prototype[m]) {
 				const hook = m === "connectedCallback" ? "onConnected" : m === "disconnectedCallback" ? "onDisconnected" : "onAttributeChanged";
 				throw new Error(`${this.constructor.name} overrides sealed ShuElement.${m}(), override protected ${hook}() instead.`);
 			}
@@ -260,6 +255,11 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 
 	get schema(): T {
 		return this._schema;
+	}
+
+	/** The state read by field name, as the base reads the fields a subclass names in persistFields and attributeFields. */
+	get #fields(): Record<string, unknown> {
+		return this.state;
 	}
 
 	/** Shallow-merge a partial into state, validate against the schema, and assign it. The `@property accessor state` setter schedules the re-render off the new (Zod-parsed) reference; this also emits `SHU_EVENT.STATE_CHANGE` so external listeners (e.g. test harnesses) observe transitions. Throws if the merged shape fails schema validation, by contract a caller error. Merge is shallow by design (state is treated as a whole-object replacement so `===` change detection fires); pass the full sub-object to update a nested field. */
@@ -289,7 +289,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	 * element doesn't keep a second list in step with this one.
 	 */
 	captureSceneState(): Record<string, unknown> {
-		const state = this.state as Record<string, unknown>;
+		const state = this.#fields;
 		const out: Record<string, unknown> = {};
 		for (const field of (this.constructor as typeof ShuElement).persistFields) if (state[field] !== undefined) out[field] = state[field];
 		return out;
@@ -324,7 +324,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		const key = this.persistKey;
 		if (key === null) return;
 		schedulePersistWrite(this.tagName.toLowerCase(), key, () => {
-			const state = this.state as Record<string, unknown>;
+			const state = this.#fields;
 			const out: Record<string, unknown> = {};
 			for (const f of fields) if (state[f] !== undefined) out[f] = state[f];
 			return out;
@@ -393,8 +393,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 	#reflectAttribute(name: string, val: string | null): void {
 		const field = (this.constructor as typeof ShuElement).attributeFields[name];
 		if (!field) return;
-		const shape = (this._schema as unknown as { shape: Record<string, z.ZodTypeAny> }).shape;
-		const fieldSchema = shape[field];
+		const fieldSchema = this._schema.shape[field];
 		if (!fieldSchema) throw new Error(`${this.constructor.name}: attributeFields maps "${name}" → state field "${field}", which is absent from the schema`);
 		const coerced = coerceAttribute(fieldSchema, val);
 		// An attribute that is NOT THERE doesn't state a value for a field that must have one; it does not blank it. The
@@ -405,7 +404,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		// The state already holds what the attribute says, so this change reports the element's own write and the element
 		// doesn't have a value to write. The element compares the value rather than timing its own writes, since the browser delivers
 		// the reactions it holds for other attributes whenever the element writes one.
-		if ((this.state as Record<string, unknown>)[field] === (coerced === undefined ? absent.data : coerced)) return;
+		if (this.#fields[field] === (coerced === undefined ? absent.data : coerced)) return;
 		try {
 			this.setState({ [field]: coerced } as Partial<z.infer<T>>);
 		} catch (error) {
@@ -423,8 +422,7 @@ export abstract class ShuElement<T extends z.ZodType> extends SignalWatcher(LitE
 		const attributeFields = (this.constructor as typeof ShuElement).attributeFields;
 		const bound = Object.entries(attributeFields).filter(([, field]) => changed.includes(field));
 		if (bound.length === 0) return;
-		const shape = (this._schema as unknown as { shape: Record<string, z.ZodTypeAny> }).shape;
-		for (const [attr, field] of bound) reflectAttributeValue(this, attr, shape[field], (this.state as Record<string, unknown>)[field]);
+		for (const [attr, field] of bound) reflectAttributeValue(this, attr, this._schema.shape[field], this.#fields[field]);
 	}
 
 	// One wiring for every cursor-watching component, in any bundle: the cross-bundle cursor bus runs onTimeSync on each

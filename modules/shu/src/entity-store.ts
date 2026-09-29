@@ -107,7 +107,7 @@ function onQuads(quads: TQuad[]): void {
 
 function ensureFreshness(s: Store): void {
 	if (s.unsubscribe || !hasEventStream()) return;
-	s.unsubscribe = subscribeBatchedEvents({ onBatch: (events) => onQuads(extractQuadsFromEvents(events as Record<string, unknown>[])) });
+	s.unsubscribe = subscribeBatchedEvents({ onBatch: (events) => onQuads(extractQuadsFromEvents(events)) });
 }
 
 /** Resolve the annotations for a held individual by the path its entity took: a copy served from the persisted browser

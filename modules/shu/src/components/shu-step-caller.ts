@@ -9,7 +9,7 @@ import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { validateStepInput, type TFieldError } from "../step-input-validator.js";
 import { cachedConcernCatalog, getConcernCatalog } from "../rels-cache.js";
 import { JsonObjectSchema, jsonCarried } from "@haibun/core/lib/json-text.js";
-import type { TComboboxOption } from "../schemas.js";
+import { RecordSchema, RecordsSchema, type TComboboxOption } from "../schemas.js";
 import { SHU_EVENT, SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
 import { linkTo } from "../rpc-registry.js";
@@ -109,7 +109,7 @@ class StepCaller extends HTMLElement {
 					const subSchema = schema?.properties?.[parent]?.properties?.[sub];
 					const propType = subSchema?.type;
 					if (!value && !schema?.properties?.[parent]?.required?.includes(sub)) continue;
-					const existing = (params[parent] as Record<string, unknown> | undefined) ?? {};
+					const existing = RecordSchema.optional().parse(params[parent]) ?? {};
 					if ((propType === "array" || propType === "object") && value) existing[sub] = JSON.parse(value);
 					else if (propType === "number" && value) existing[sub] = Number(value);
 					else existing[sub] = value;
@@ -308,8 +308,8 @@ class StepCaller extends HTMLElement {
 	}
 
 	private renderOutput(): string {
-		const data = this.result as Record<string, unknown>;
-		const schema = this.descriptor?.outputSchema as Record<string, unknown> | undefined;
+		const data = this.result;
+		const schema = this.descriptor?.outputSchema;
 		if (!schema) {
 			return data != null ? `<pre>${esc(JSON.stringify(data, null, 2))}</pre>` : "";
 		}
@@ -328,7 +328,7 @@ class StepCaller extends HTMLElement {
 		if (jsonSchema.type === "object" && jsonSchema.properties) {
 			const props = jsonSchema.properties;
 			const keys = Object.keys(props);
-			const obj = data as Record<string, unknown>;
+			const obj = RecordSchema.parse(data);
 			if (keys.length === 1) {
 				const inner = obj[keys[0]];
 				if (inner !== undefined) return this.renderBySchema(inner, props[keys[0]]);
@@ -342,8 +342,8 @@ class StepCaller extends HTMLElement {
 
 		if (jsonSchema.type === "array" && Array.isArray(data)) {
 			const items = jsonSchema.items;
-			if (items && typeof items === "object" && (items as Record<string, unknown>).type === "object") {
-				return this.renderTable(data as Record<string, unknown>[]);
+			if (items && typeof items === "object" && items.type === "object") {
+				return this.renderTable(RecordsSchema.parse(data));
 			}
 			return `<ul>${(data as unknown[]).map((v) => `<li>${this.renderCell(v)}</li>`).join("")}</ul>`;
 		}
@@ -449,8 +449,8 @@ class StepCaller extends HTMLElement {
 			const idField = concern?.idField ?? "id";
 			const nameField = this.pickNameField(concern);
 			const options: TComboboxOption[] = (data.vertices ?? []).map((v) => {
-				const id = String((v as Record<string, unknown>)[idField] ?? "");
-				const name = nameField ? String((v as Record<string, unknown>)[nameField] ?? "") : "";
+				const id = String(v[idField] ?? "");
+				const name = nameField ? String(v[nameField] ?? "") : "";
 				return {
 					value: id,
 					label: name || id,

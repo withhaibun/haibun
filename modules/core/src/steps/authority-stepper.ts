@@ -159,7 +159,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 		const capability = parsed.data;
 		// The document goes to whoever knows how to read it, checked for everything it allows. This code doesn't read inside
 		// it: the framework doesn't hold a key or implement a specification.
-		const verified = await this.getAuthority().verifyEvidence({ kind: "document", document: capability as Record<string, unknown>, target });
+		const verified = await this.getAuthority().verifyEvidence({ kind: "document", document: capability, target });
 		if (!verified.ok) {
 			return actionNotOK(`holding capability: the evidence was refused, ${verified.error}`);
 		}

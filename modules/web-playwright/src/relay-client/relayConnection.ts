@@ -159,7 +159,7 @@ export class RelayConnection {
 	private _installEventForwarders(): void {
 		for (const fullMethod of CHROME_EVENT_METHODS) {
 			const target = resolveChromeMember(this._chrome, fullMethod);
-			const event = target.obj[target.name] as TChromeEvent<unknown[]>;
+			const event = Reflect.get(target.obj, target.name) as TChromeEvent<unknown[]>;
 			const listener = (...args: unknown[]) => this._onChromeEvent(fullMethod, args);
 			event.addListener(listener);
 			this._eventListeners.push({
@@ -317,21 +317,22 @@ export class RelayConnection {
 
 // Resolves chrome.<api>.<member>, shared by command invocation and event
 // listener installation.
-function resolveChromeMember(chrome: TChromeApi, fullMethod: string): { obj: Record<string, unknown>; name: string } {
+function resolveChromeMember(chrome: TChromeApi, fullMethod: string): { obj: object; name: string } {
 	const [root, ...path] = fullMethod.split(".");
 	const name = path.pop();
 	if (root !== "chrome" || name === undefined || path.length < 1) throw new Error(`Invalid chrome method: ${fullMethod}`);
-	let obj: unknown = chrome;
+	let obj: object = chrome;
 	for (const [i, part] of path.entries()) {
-		obj = (obj as Record<string, unknown> | undefined)?.[part];
-		if (obj === undefined) throw new Error(`Unknown chrome path: ${[root, ...path.slice(0, i + 1)].join(".")}, calling ${fullMethod}`);
+		const member: unknown = Reflect.get(obj, part);
+		if (typeof member !== "object" || member === null) throw new Error(`Unknown chrome path: ${[root, ...path.slice(0, i + 1)].join(".")}, calling ${fullMethod}`);
+		obj = member;
 	}
-	return { obj: obj as Record<string, unknown>, name };
+	return { obj, name };
 }
 
 async function invokeChromeMethod(chrome: TChromeApi, fullMethod: string, args: unknown[]): Promise<unknown> {
 	const { obj, name } = resolveChromeMember(chrome, fullMethod);
-	const fn = obj[name];
+	const fn: unknown = Reflect.get(obj, name);
 	if (typeof fn !== "function") throw new Error(`Not a function: ${fullMethod}`);
 	return await (fn as (...a: unknown[]) => Promise<unknown>).apply(obj, args);
 }

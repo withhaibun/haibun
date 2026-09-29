@@ -17,7 +17,7 @@ import {
 	STAY_ALWAYS,
 } from "../schema/protocol.js";
 import { LifecycleEvent, ResolvedFeaturesArtifact } from "../schema/protocol.js";
-import { AStepper } from "../lib/astepper.js";
+import { AStepper, hasCycles } from "../lib/astepper.js";
 import { sleep, setStepperWorldsAndDomains, constructorName } from "../lib/util/index.js";
 import { itemAt } from "../lib/util/item-at.js";
 import { dispatchStep } from "../lib/step-dispatch.js";
@@ -93,11 +93,7 @@ async function initFeatureRuntime(world: TWorld): Promise<void> {
  * attaches.
  */
 function attachTransportsToRegistry(steppers: AStepper[], registry: StepRegistry): void {
-	for (const s of steppers) {
-		const candidate = s as unknown as { attach?: (registry: StepRegistry) => void; detach?: () => void };
-		if (typeof candidate.attach !== "function" || typeof candidate.detach !== "function") continue;
-		candidate.attach(registry);
-	}
+	for (const s of steppers) if ("attach" in s && typeof s.attach === "function" && "detach" in s && typeof s.detach === "function") s.attach(registry);
 }
 
 export class Executor {
@@ -360,9 +356,8 @@ export class FeatureExecutor {
 export const addStepperConcerns = (world: TWorld, steppers: AStepper[]) => {
 	const allDomains: import("../lib/resources.js").TDomainDefinition[] = [];
 	for (const stepper of steppers) {
-		const hasCycles = stepper as unknown as { cycles?: { getConcerns?: () => import("../lib/astepper.js").IStepperConcerns } };
-		if (!hasCycles.cycles?.getConcerns) continue;
-		const concerns = hasCycles.cycles.getConcerns();
+		if (!hasCycles(stepper) || !stepper.cycles.getConcerns) continue;
+		const concerns = stepper.cycles.getConcerns();
 		if (concerns?.domains) {
 			const name = constructorName(stepper);
 			for (const domain of concerns.domains) {

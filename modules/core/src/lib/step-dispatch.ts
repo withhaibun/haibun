@@ -215,15 +215,9 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 		actionResult.ok ? undefined : actionResult.errorMessage,
 		{},
 		featureStep.action.stepValuesMap,
-		retainedProducts(actionResult.products as Record<string, unknown> | undefined, action.step.retainProducts),
+		retainedProducts(actionResult.products, action.step.retainProducts),
 	);
-	await emitSeqPathEnd(
-		world,
-		featureStep,
-		SEQ_PATH_STATUS_OF[ended],
-		actionResult.ok ? undefined : actionResult.errorMessage,
-		viewShown(actionResult.products as Record<string, unknown> | undefined),
-	);
+	await emitSeqPathEnd(world, featureStep, SEQ_PATH_STATUS_OF[ended], actionResult.ok ? undefined : actionResult.errorMessage, viewShown(actionResult.products));
 	return lastStepResult;
 }
 
@@ -287,7 +281,7 @@ async function autoAssertProducts(world: TWorld, seqPathKey: string, step: TStep
 		return;
 	}
 	if (step.productsDomains) {
-		const products = actionResult.products as Record<string, unknown>;
+		const products = actionResult.products;
 		for (const [field, domainKey] of Object.entries(step.productsDomains)) {
 			if (!(field in products)) continue;
 			if (isViewOnlyDomain(world, domainKey)) continue;

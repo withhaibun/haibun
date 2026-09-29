@@ -2,7 +2,7 @@ import nodeFS from "fs";
 import path from "node:path";
 
 import { type TSpecl, SpeclSchema } from "@haibun/core/lib/execution.js";
-import type { TBase, TBaseOptions, TProtoOptions, TWorld } from "@haibun/core/lib/world.js";
+import { BaseOptionsSchema, type TBase, type TBaseOptions, type TModuleOptions, type TProtoOptions, type TWorld } from "@haibun/core/lib/world.js";
 import { BASE_PREFIX, CHECK_NO, CHECK_YES, DEFAULT_DEST, MODULE_OPTION_PREFIX, NDJSON, STAY, STAY_ALWAYS, Timer, TExecutorResult } from "@haibun/core/schema/protocol.js";
 import { IHasOptions } from "@haibun/core/lib/astepper.js";
 import { getCreateSteppers, getDefaultTag } from "@haibun/core/lib/test/lib.js";
@@ -286,14 +286,15 @@ export async function usage(specl: TSpecl, message?: string) {
 
 /** A run's options: base options from the environment, and module options from the base's config with the environment
  *  stating an option over it. */
-export function processBaseEnvToOptionsAndErrors(env: TEnv, specl: TSpecl) {
-	const protoOptions: TProtoOptions = { options: { DEST: DEFAULT_DEST }, moduleOptions: { ...specl.moduleOptions } };
+export function processBaseEnvToOptionsAndErrors(env: TEnv, specl: TSpecl): TProtoOptions {
+	const options: Record<string, unknown> = { DEST: DEFAULT_DEST };
+	const moduleOptions: TModuleOptions = { ...specl.moduleOptions };
 
 	const errors: string[] = [];
 	let nenv = {};
 
 	const baseOptions = (BaseOptions as IHasOptions).options ?? {};
-	Object.entries(baseOptions).forEach(([k, v]) => ((protoOptions.options as Record<string, unknown>)[k] = v.default));
+	for (const [k, v] of Object.entries(baseOptions)) if (v.default !== undefined) options[k] = v.default;
 
 	for (const [k, value] of Object.entries(env)) {
 		if (value === undefined || !k.startsWith(BASE_PREFIX) || k === HAIBUN_RUN_POLICY) continue;
@@ -309,21 +310,21 @@ export function processBaseEnvToOptionsAndErrors(env: TEnv, specl: TSpecl) {
 			} else if (res.result === undefined) {
 				errors.push(`option ${opt} doesn't accept ${JSON.stringify(value)}`);
 			} else {
-				(protoOptions.options as Record<string, unknown>)[opt] = res.result;
+				options[opt] = res.result;
 			}
 		} else if (k.startsWith(MODULE_OPTION_PREFIX)) {
-			protoOptions.moduleOptions[k] = value;
+			moduleOptions[k] = value;
 		} else {
 			errors.push(`${opt} isn't an option`);
 		}
 	}
-	protoOptions.options.envVariables = nenv;
+	options.envVariables = nenv;
 
 	if (errors.length > 0) {
 		throw new Error(errors.join("\n"));
 	}
 
-	return protoOptions;
+	return { options: BaseOptionsSchema.parse(options), moduleOptions };
 }
 
 /**

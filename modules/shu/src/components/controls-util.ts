@@ -29,7 +29,7 @@ export function controlledBrowser(stepper: AStepper): WebPlaywright {
 
 /** The page the world's web-playwright drives, which a controls stepper reads and acts on. */
 export async function controlledPage(stepper: AStepper): Promise<Page> {
-	return (await controlledBrowser(stepper).getPage()) as unknown as Page;
+	return await controlledBrowser(stepper).getPage();
 }
 
 /** Read `read` until it satisfies `ok`, as a re-render or a backfill lands; returns the last value read. */

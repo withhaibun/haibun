@@ -3,12 +3,16 @@
  * Used by @haibun/shu (vanilla web components) to render the run document.
  * Pure functions: it doesn't import the DOM.
  */
+import { z } from "zod";
 import { itemAt } from "./util/item-at.js";
 import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TStepEvent, TLifecycleEvent, TLogEvent, TJsonArtifact } from "../schema/protocol.js";
 import { HAIBUN_LOG_LEVELS } from "../schema/protocol.js";
 import { parseRecordName } from "./seq-path.js";
 
 type TArtifactIndex = { artifactsByStep: Map<string, TArtifactEvent[]>; allArtifactIds: Set<string> };
+
+/** The artifacts a log event's attributes or a lifecycle event's products embed. */
+const EmbeddedArtifactsSchema = z.array(z.record(z.string(), z.unknown())).optional();
 
 const normalizeId = (id: string) => id.replace(/^\[|\]$/g, "");
 
@@ -40,10 +44,10 @@ export function buildArtifactIndex(events: THaibunEvent[]): TArtifactIndex {
 		}
 
 		let embeddedArtifacts: Record<string, unknown>[] | undefined;
-		if (e.kind === "log") embeddedArtifacts = e.attributes?.artifacts as Record<string, unknown>[];
-		else if (e.kind === "lifecycle") embeddedArtifacts = (e as unknown as Record<string, Record<string, unknown>>).products?.artifacts as Record<string, unknown>[];
+		if (e.kind === "log") embeddedArtifacts = EmbeddedArtifactsSchema.parse(e.attributes?.artifacts);
+		else if (e.kind === "lifecycle" && "products" in e) embeddedArtifacts = EmbeddedArtifactsSchema.parse(e.products?.artifacts);
 
-		if (embeddedArtifacts && Array.isArray(embeddedArtifacts)) {
+		if (embeddedArtifacts) {
 			const parentId = normalizeId(e.id);
 			if (!map.has(parentId)) map.set(parentId, []);
 			embeddedArtifacts.forEach((artifact: Record<string, unknown>, idx: number) => {
@@ -161,16 +165,15 @@ export function generateDocumentMarkdown(
 		// reads: a feature or a scenario is a heading, a technical step a compact row, anything else the prose it states.
 		if (e.kind === "lifecycle") {
 			const le = e as TLifecycleEvent;
-			const ev = e as Record<string, unknown>;
 			if (le.type === "feature" || le.type === "scenario" || (le.type as string) === "background") {
-				const headerKey = `${le.type}:${ev.featurePath ?? ev.scenarioName ?? le.id}`;
+				const headerKey = `${le.type}:${le.featurePath ?? (le.type === "scenario" ? le.scenarioName : undefined) ?? le.id}`;
 				if (renderedHeaders.has(headerKey)) continue;
 				renderedHeaders.add(headerKey);
 
 				if (lastType === "technical") md += '\n<div class="h-1"></div>\n';
 				const rawTime = le.timestamp - baseTime;
 				const headingLevel = le.type === "feature" ? 1 : le.type === "scenario" ? 2 : 3;
-				const named = String(le.type === "feature" ? (ev.featureName ?? ev.featurePath) : le.type === "scenario" ? ev.scenarioName : "Background");
+				const named = le.type === "feature" ? (le.featureName ?? le.featurePath) : le.type === "scenario" ? le.scenarioName : "Background";
 				const title = le.type === "feature" ? `Feature: ${named}` : le.type === "scenario" ? `Scenario: ${named}` : named;
 				const nid = normalizeId(le.id);
 				visibleIds.add(nid);

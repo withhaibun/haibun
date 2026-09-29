@@ -26,7 +26,7 @@ export type TPageAuthority = {
 };
 
 /** The page's key as it signs: its did:key, its verification method, and a signature over bytes. */
-type TSigningKey = { controller: string; keyId: string; sign(options: { data: Uint8Array }): Promise<Uint8Array> };
+type TSigningKey = { controller: string; keyId: string; sign(options: { data: Uint8Array<ArrayBuffer> }): Promise<Uint8Array> };
 
 // A reader is one reader across every bundle of its page, so what it holds is the page's, and so is the reading of it: a
 // bundle that signs a request waits on the reading the app started rather than starting one of its own.
@@ -57,7 +57,7 @@ async function pageKey(): Promise<TSigningKey> {
 	const pair = await keptPair();
 	return {
 		...didKeyOf(await crypto.subtle.exportKey("jwk", pair.publicKey)),
-		sign: async ({ data }) => new Uint8Array(await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, pair.privateKey, data as unknown as BufferSource)),
+		sign: async ({ data }) => new Uint8Array(await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, pair.privateKey, data)),
 	};
 }
 

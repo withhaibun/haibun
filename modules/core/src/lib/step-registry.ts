@@ -326,25 +326,22 @@ export function stepParamDomains(stepDef: TStepperStep): Map<string, string> {
  * date-time string, and a type without a JSON Schema form is refused at registration, naming `subject`, what declares it.
  */
 function jsonSchemaFor(subject: string, schema: z.ZodType, io: "input" | "output"): Record<string, unknown> {
-	return jsonSchemaOf(
-		schema,
-		io,
-		() =>
-			z.toJSONSchema(schema, {
-				io,
-				unrepresentable: "any",
-				override: (ctx) => {
-					const nodeType = zodTypeLabel(ctx.zodSchema);
-					if (nodeType === "date") {
-						ctx.jsonSchema.type = "string";
-						ctx.jsonSchema.format = "date-time";
-						return;
-					}
-					if (nodeType && UNREPRESENTABLE_ZOD_TYPES.has(nodeType)) {
-						throw new Error(`${subject} declares a "${nodeType}" field, which doesn't have a JSON Schema form; declare a representable type`);
-					}
-				},
-			}) as Record<string, unknown>,
+	return jsonSchemaOf(schema, io, () =>
+		z.toJSONSchema(schema, {
+			io,
+			unrepresentable: "any",
+			override: (ctx) => {
+				const nodeType = zodTypeLabel(ctx.zodSchema);
+				if (nodeType === "date") {
+					ctx.jsonSchema.type = "string";
+					ctx.jsonSchema.format = "date-time";
+					return;
+				}
+				if (nodeType && UNREPRESENTABLE_ZOD_TYPES.has(nodeType)) {
+					throw new Error(`${subject} declares a "${nodeType}" field, which doesn't have a JSON Schema form; declare a representable type`);
+				}
+			},
+		}),
 	);
 }
 
@@ -463,7 +460,7 @@ export function discoverSteps(world: TWorld, registry: StepRegistry, query: TSte
 function domainDiscoveryInfo(key: string, domain: TWorld["domains"][string]): TDomainDiscoveryInfo {
 	const enumerated = domain.values ? undefined : jsonSchemaFor(`domain "${key}"`, domain.schema, "input").enum;
 	const values = domain.values ?? (Array.isArray(enumerated) ? (enumerated as string[]) : undefined);
-	const ui = domain.ui ? (({ jsContent: _source, ...rest }) => rest)(domain.ui as Record<string, unknown> & { jsContent?: string }) : undefined;
+	const ui = domain.ui ? (({ jsContent: _source, ...rest }) => rest)(domain.ui) : undefined;
 	return {
 		description: domain.description,
 		values,

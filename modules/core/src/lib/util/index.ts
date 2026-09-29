@@ -348,7 +348,7 @@ export function trying<TResult>(fun: () => void): Promise<Error | TResult> {
 }
 
 export function asError(e: unknown): Error {
-	return typeof e === "object" && e !== null && "message" in e && typeof (e as Record<string, unknown>).message === "string" ? (e as Error) : new Error(String(e));
+	return typeof e === "object" && e !== null && "message" in e && typeof e.message === "string" ? (e as Error) : new Error(String(e));
 }
 
 export function dePolite(s: string) {

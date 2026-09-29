@@ -16,6 +16,8 @@ declare module "troika-three-text" {
 		scale: { x: number; y: number; z: number; set(x: number, y: number, z: number): void };
 		position: { x: number; y: number; z: number; set(x: number, y: number, z: number): void };
 		quaternion: { copy(q: unknown): void };
+		/** The laid-out text's bounds, once a sync has measured it. */
+		textRenderInfo?: { blockBounds: [number, number, number, number] };
 		sync(callback?: () => void): void;
 		dispose(): void;
 	}

@@ -94,7 +94,10 @@ const resolveArgValue = (value: TNestedArgValue): string => {
 // Map to typedSteps if available (e.g., ActivitiesStepper), otherwise use steps directly
 type TStepMap<T extends AStepper> = T extends { typedSteps: infer U } ? (U extends TStepperSteps ? U : T["steps"]) : T["steps"];
 
-export const withAction = <T extends AStepper>(stepper: T): TActionsFromStepper<TStepMap<T>> => {
+export const withAction = <T extends AStepper>(stepper: T): TActionsFromStepper<TStepMap<T>> => stepActions(stepper) as TActionsFromStepper<TStepMap<T>>;
+
+/** The action of each of a stepper's steps that declares a gwta, by the step's name. */
+export const stepActions = (stepper: AStepper): Record<string, TActionFactory> => {
 	const actions: Record<string, TActionFactory> = {};
 
 	for (const actionName in stepper.steps) {
@@ -123,5 +126,5 @@ export const withAction = <T extends AStepper>(stepper: T): TActionsFromStepper<
 		}
 	}
 
-	return actions as TActionsFromStepper<TStepMap<T>>;
+	return actions;
 };

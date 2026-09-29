@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { TAnyFixme } from "./fixme.js";
 import type { TTag } from "./ttag.js";
 import type { FeatureVariables } from "./feature-variables.js";
@@ -66,22 +67,27 @@ export function runEnvVariables(world: TWorld): TEnvVariables {
 	return world.options.envVariables ?? {};
 }
 
-export type TBaseOptions = {
-	DEST: string;
-	KEY?: string;
-	DESCRIPTION?: string;
-	LOG_LEVEL?: string;
-	LOG_FOLLOW?: string;
-	STAY?: string;
-	SETTING?: string;
-	STEP_DELAY?: number;
+/** A run's base options, as the environment states them. Strict, so an option the cli declares and this doesn't is refused
+ *  rather than dropped. */
+export const BaseOptionsSchema = z.strictObject({
+	DEST: z.string(),
+	KEY: z.string().optional(),
+	DESCRIPTION: z.string().optional(),
+	LOG_LEVEL: z.string().optional(),
+	LOG_FOLLOW: z.string().optional(),
+	STAY: z.string().optional(),
+	SETTING: z.string().optional(),
+	STEP_DELAY: z.number().optional(),
 	/** Run a group only when one of its dependencies changed since it last passed. */
-	ONCE?: boolean;
-	[CONTINUE_AFTER_ERROR]?: boolean;
+	ONCE: z.boolean().optional(),
+	[CONTINUE_AFTER_ERROR]: z.boolean().optional(),
 	/** Report the run's events as NDJSON on stdout. */
-	[NDJSON]?: boolean;
-	envVariables?: TEnvVariables;
-};
+	[NDJSON]: z.boolean().optional(),
+	HOST_ID: z.number().optional(),
+	PWDEBUG: z.string().optional(),
+	envVariables: z.record(z.string(), z.string()).optional(),
+});
+export type TBaseOptions = z.infer<typeof BaseOptionsSchema>;
 
 export type TEnvVariables = {
 	[name: string]: string;

@@ -114,7 +114,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 					artifactType: "json",
 					mimetype: "application/json",
 					level: "info",
-					json: { domainChainSmoke: { goals: smokeFindings } } as Record<string, unknown>,
+					json: { domainChainSmoke: { goals: smokeFindings } },
 				});
 			}
 		},
@@ -137,7 +137,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 				artifactType: "json",
 				mimetype: "application/json",
 				level: "debug",
-				json: { affordancesChanged: true } as Record<string, unknown>,
+				json: { affordancesChanged: true },
 			});
 			return Promise.resolve({});
 		},
