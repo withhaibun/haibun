@@ -96,5 +96,5 @@ export default class ShuColumnStripControls extends AStepper implements IHasCycl
 				return actionNotOK(`the active column doesn't match "${match}" (panes: [${(await columnKeys(page)).join(", ")}])`);
 			},
 		},
-	} satisfies TStepperSteps;
+	} as const satisfies TStepperSteps;
 }

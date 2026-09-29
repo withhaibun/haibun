@@ -1499,7 +1499,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 					: actionNotOK(`limit ${limit} didn't re-render the graph (0 repaints): it didn't change the visible set, so the profile doesn't have a repaint to read`);
 			},
 		},
-	} satisfies TStepperSteps;
+	} as const satisfies TStepperSteps;
 
 	/** Move the real pointer onto a pixel that picks node `id` AND that a real pointer reaches, or null where such a pixel doesn't exist.
 	 * Probes with the side-effect-free pickAt: a real press on a MISS would orbit the camera and walk the node off-screen,

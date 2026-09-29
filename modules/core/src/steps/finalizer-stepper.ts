@@ -71,5 +71,5 @@ export default class FinalizerStepper extends AStepper implements IHasCycles {
 				return OK;
 			},
 		},
-	} satisfies TStepperSteps;
+	} as const satisfies TStepperSteps;
 }

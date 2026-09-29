@@ -130,5 +130,5 @@ export default class ShuScrollbarControls extends AStepper {
 				return actionOK();
 			},
 		},
-	} satisfies TStepperSteps;
+	} as const satisfies TStepperSteps;
 }

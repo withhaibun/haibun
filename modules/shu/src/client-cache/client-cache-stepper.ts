@@ -5,7 +5,7 @@
  * so the steps here don't repeat what the view shows.
  */
 import { z } from "zod";
-import { AStepper, type IHasCycles, type IStepperCycles } from "@haibun/core/lib/astepper.js";
+import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionOKWithProducts } from "@haibun/core/lib/util/index.js";
 import { SHU_TAG } from "../consts.js";
 
@@ -31,5 +31,5 @@ export default class ClientCacheStepper extends AStepper implements IHasCycles {
 			productsDomain: SHU_TAG.CLIENT_CACHE_COLUMN,
 			action: () => actionOKWithProducts({}),
 		},
-	};
+	} as const satisfies TStepperSteps;
 }

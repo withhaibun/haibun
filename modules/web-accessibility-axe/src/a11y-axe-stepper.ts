@@ -44,7 +44,7 @@ class A11yStepper extends AStepper implements IHasOptions {
 				return await this.checkA11y(page, parseInt(serious, 10), parseInt(moderate, 10), `a11y-check-${featureStep.seqPath.join(".")}`, featureStep);
 			},
 		},
-	} satisfies TStepperSteps;
+	} as const satisfies TStepperSteps;
 	async checkA11y(page: Page, serious: number, moderate: number, filename: string, featureStep?: TFeatureStep) {
 		try {
 			const axeReport = await getAxeBrowserResult(page);

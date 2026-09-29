@@ -516,7 +516,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				return glob.test(actualValue) ? OK : actionNotOK(`"${actualValue}" does not match pattern "${actualPattern}"`);
 			},
 		},
-	} satisfies TStepperSteps;
+	} as const satisfies TStepperSteps;
 
 	readonly typedSteps = this.steps;
 

@@ -65,5 +65,5 @@ export default class ShuGraphQueryControls extends AStepper implements IHasCycle
 			productsDomain: VIEW_QUERY,
 			action: ({ sort }: { sort: string }) => actionOKWithProducts(ViewQueryControlSchema.parse({ sort })),
 		},
-	} satisfies TStepperSteps;
+	} as const satisfies TStepperSteps;
 }

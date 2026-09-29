@@ -220,7 +220,7 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 				return Promise.resolve(OK);
 			},
 		},
-	} satisfies TStepperSteps;
+	} as const satisfies TStepperSteps;
 
 	retry(): Promise<TActionResult> {
 		return Promise.resolve(actionOK({ controlSignal: "retry" }));

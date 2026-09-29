@@ -348,7 +348,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 				return actionOKWithProducts({ annotations, total: annotations.length });
 			},
 		},
-	} satisfies TStepperSteps;
+	} as const satisfies TStepperSteps;
 
 	constructor() {
 		super();

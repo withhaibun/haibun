@@ -19,7 +19,7 @@ import {
 } from "vscode-languageserver/node.js";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-import { AStepper, type TFeatureStep } from "@haibun/core/lib/astepper.js";
+import { AStepper, type TFeatureStep, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import type { TFeature, TFeatures } from "@haibun/core/lib/execution.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
@@ -86,7 +86,7 @@ export default class LspStepper extends AStepper {
 				return Promise.resolve(OK);
 			},
 		},
-	};
+	} as const satisfies TStepperSteps;
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);

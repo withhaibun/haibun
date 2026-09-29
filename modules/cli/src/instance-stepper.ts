@@ -27,7 +27,7 @@ import { existsSync, readFileSync } from "fs";
 import { parseEnv } from "node:util";
 import path from "path";
 import { z } from "zod";
-import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature } from "@haibun/core/lib/astepper.js";
+import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import type { TDomainDefinition } from "@haibun/core/lib/resources.js";
 import { actionNotOK, actionOKWithProducts, perProcessOptionNames } from "@haibun/core/lib/util/index.js";
@@ -413,7 +413,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 				return actionOKWithProducts({ run });
 			},
 		},
-	};
+	} as const satisfies TStepperSteps;
 
 	/** Fork the CLI against a feature filter. The child is NOT awaited: it is supervised, and read through readRun. */
 	private async startRun({

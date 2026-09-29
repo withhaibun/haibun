@@ -410,5 +410,5 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 				return actionOKWithProducts({ nodes, edges, clusters: layoutClusters });
 			},
 		},
-	} satisfies TStepperSteps;
+	} as const satisfies TStepperSteps;
 }

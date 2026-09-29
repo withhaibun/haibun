@@ -11,7 +11,7 @@ import {
 	type CallToolResult,
 } from "@modelcontextprotocol/sdk/types.js";
 
-import { AStepper, type IHasCycles, type IHasOptions } from "@haibun/core/lib/astepper.js";
+import { AStepper, type IHasCycles, type IHasOptions, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { allocateSyntheticSeqPath } from "@haibun/core/lib/host-id.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { OK } from "@haibun/core/schema/protocol.js";
@@ -320,5 +320,5 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 				return OK;
 			},
 		},
-	};
+	} as const satisfies TStepperSteps;
 }

@@ -5,7 +5,7 @@
  * Uses core monitor utilities (EventFormatter, THaibunEvent) for consistency.
  */
 
-import { AStepper, IHasCycles, IHasOptions, StepperKinds, IStepperCycles } from "@haibun/core/lib/astepper.js";
+import { AStepper, IHasCycles, IHasOptions, StepperKinds, IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { NameSchema } from "@haibun/core/lib/domains.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { OK, type TBlipEvent } from "@haibun/core/schema/protocol.js";
@@ -328,5 +328,5 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 				return OK;
 			},
 		},
-	};
+	} as const satisfies TStepperSteps;
 }

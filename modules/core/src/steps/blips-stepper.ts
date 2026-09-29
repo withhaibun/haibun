@@ -178,5 +178,5 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 				return actionOKWithProducts({ text, names: declared.map((d) => d.name) });
 			},
 		},
-	} satisfies TStepperSteps;
+	} as const satisfies TStepperSteps;
 }

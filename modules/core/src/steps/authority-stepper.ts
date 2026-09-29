@@ -2,7 +2,7 @@ import { z } from "zod";
 import { fromJsonText } from "../lib/json-text.js";
 import { persistPrincipalIndividual } from "../lib/principal-individual.js";
 import type { TWorld } from "../lib/world.js";
-import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature, type TFeatureStep } from "../lib/astepper.js";
+import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature, type TFeatureStep, type TStepperSteps } from "../lib/astepper.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/util/index.js";
 import { AUTHORITY_KEY, SessionAuthority } from "../lib/session-authority.js";
 import { DELEGATIONS_READ_ACTION, DOMAIN_HELD_CALLS, HeldCallsSchema, type IAuthority } from "../lib/authority-types.js";
@@ -142,7 +142,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 			productsOf: "what",
 			action: ({ cap, target, what }: { cap: unknown; target: string; what: TFeatureStep[] }, featureStep: TFeatureStep) => this.runUnderCapability(cap, target, what, featureStep),
 		},
-	};
+	} as const satisfies TStepperSteps;
 
 	/**
 	 * Run `what` as the controller of a signed capability, with what it allows, after verifying it through the registered

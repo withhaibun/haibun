@@ -5,7 +5,7 @@ import { OK } from "@haibun/core/schema/protocol.js";
 import { captureLocator } from "@haibun/core/lib/capture-locator.js";
 import { IFile, TLocationOptions } from "./domain-storage.js";
 import { EMediaTypes, TMediaType } from "./media-types.js";
-import { AStepper, StepperKinds, type IHasCycles, type IStepperCycles } from "@haibun/core/lib/astepper.js";
+import { AStepper, StepperKinds, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
 import { DOMAIN_NUMBER, DOMAIN_FILE_PATH, DOMAIN_TEXT } from "@haibun/core/lib/domains.js";
 
@@ -211,5 +211,5 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 				return actionNotOK(`file ${where} is not recent within ${minutes} minutes (age: ${Math.round(diff / 1000)}s)`);
 			},
 		},
-	};
+	} as const satisfies TStepperSteps;
 }

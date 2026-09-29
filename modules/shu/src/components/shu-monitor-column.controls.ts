@@ -315,5 +315,5 @@ export default class ShuMonitorColumnControls extends AStepper implements IHasCy
 					: actionNotOK(`document dimmed ${await future.count()} future rows after the cursor moved, expected at least ${min}`);
 			},
 		},
-	} satisfies TStepperSteps;
+	} as const satisfies TStepperSteps;
 }

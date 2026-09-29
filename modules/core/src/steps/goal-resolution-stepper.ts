@@ -332,7 +332,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 				return actionOKWithProducts(chainLintSchema.parse({ ...report, forward: affordances.forward, goals: affordances.goals, execution: executionOf(world.tag) }));
 			},
 		},
-	} satisfies TStepperSteps;
+	} as const satisfies TStepperSteps;
 }
 
 export default GoalResolutionStepper;

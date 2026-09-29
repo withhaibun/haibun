@@ -2,7 +2,7 @@ import { resolve } from "path";
 
 import type { TWorld } from "../lib/world.js";
 import { Origin } from "../schema/protocol.js";
-import { IHasCycles, IHasOptions, AStepper, TFeatureStep, IStepperCycles, TStartFeature } from "../lib/astepper.js";
+import { IHasCycles, IHasOptions, AStepper, TFeatureStep, IStepperCycles, TStartFeature, type TStepperSteps } from "../lib/astepper.js";
 import { actionNotOK, actionOK, getStepperOption, sleep, stringOrError } from "../lib/util/index.js";
 import { actualURI } from "../lib/util/node/actualURI.js";
 import { copyPreRenderedAudio, doExec, doSpawn, playAudioFile, preRenderFeatureProse, TRenderedAudioMap } from "./lib/tts.js";
@@ -87,7 +87,7 @@ class Narrator extends AStepper implements IHasOptions, IHasCycles {
 			gwta: `Scenario: {scenario: ${DOMAIN_TITLE}}`,
 			action: async ({ scenario }: { scenario: string }, featureStep: TFeatureStep) => this.rememberAndSay("scenario", scenario, featureStep),
 		},
-	};
+	} as const satisfies TStepperSteps;
 
 	async maybeSay(featureStep: TFeatureStep) {
 		const transcript = featureStep.in;

@@ -22,7 +22,7 @@ const HTTP = "HTTP";
 
 const base64Encode = ({ username, password }: { username: string; password: string }) => Buffer.from(`${username}:${password}`).toString("base64");
 
-export const restSteps = (webPlaywright: WebPlaywright): TStepperSteps =>
+export const restSteps = (webPlaywright: WebPlaywright) =>
 	({
 		setApiUserAgent: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,

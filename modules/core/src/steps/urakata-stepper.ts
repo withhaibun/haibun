@@ -4,7 +4,7 @@
  * `world.runtime[URAKATA]` and register their tickers there.
  */
 import { z } from "zod";
-import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature } from "../lib/astepper.js";
+import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature, type TStepperSteps } from "../lib/astepper.js";
 import { actionNotOK, actionOK, actionOKWithProducts } from "../lib/util/index.js";
 import { LinkRelations } from "../lib/resources.js";
 import { URAKATA, URAKATA_ID_DOMAIN, URAKATA_LABEL, UrakataRegistry, UrakataSchema, type IHasUrakata, type IUrakataRegistry, urakataIdDomainDefinition } from "../lib/urakata.js";
@@ -104,7 +104,7 @@ class UrakataStepper extends AStepper implements IHasCycles, IHasUrakata {
 				return u.stoppedAt === undefined ? actionOK() : actionNotOK(`urakata "${id}" was stopped at ${u.stoppedAt}, not running`);
 			},
 		},
-	};
+	} as const satisfies TStepperSteps;
 }
 
 export default UrakataStepper;

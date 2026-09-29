@@ -245,5 +245,5 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			// The same answer a page reading its own copy of the graph gives itself, so the two never drift.
 			action: async ({ query }: { query: TGraphQuery }) => actionOKWithProducts(await queryQuadStore(this.getWorld().shared.getStore(), query)),
 		},
-	} satisfies TStepperSteps;
+	} as const satisfies TStepperSteps;
 }

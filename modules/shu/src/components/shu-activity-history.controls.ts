@@ -53,5 +53,5 @@ export default class ShuActivityHistoryControls extends AStepper {
 				return scrolled === true ? actionOK() : actionNotOK(`the chat's history was not scrolled: ${String(scrolled)}`);
 			},
 		},
-	} satisfies TStepperSteps;
+	} as const satisfies TStepperSteps;
 }

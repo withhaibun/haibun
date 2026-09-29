@@ -417,5 +417,5 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				return OK;
 			},
 		},
-	} satisfies TStepperSteps;
+	} as const satisfies TStepperSteps;
 }

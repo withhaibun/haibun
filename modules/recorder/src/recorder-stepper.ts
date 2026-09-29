@@ -4,7 +4,7 @@
 
 import { writeFile, appendFile } from "fs/promises";
 
-import { AStepper, IHasCycles, IHasOptions, CycleWhen, TStartFeature } from "@haibun/core/lib/astepper.js";
+import { AStepper, IHasCycles, IHasOptions, CycleWhen, TStartFeature, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { OK, TActionResult } from "@haibun/core/schema/protocol.js";
 import { stringOrError } from "@haibun/core/lib/util/index.js";
 import { WebPlaywright } from "@haibun/web-playwright";
@@ -160,7 +160,7 @@ export class RecorderStepper extends AStepper implements IHasOptions, IHasCycles
 				return Promise.resolve(OK);
 			},
 		},
-	};
+	} as const satisfies TStepperSteps;
 }
 
 export default RecorderStepper;

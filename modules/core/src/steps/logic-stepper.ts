@@ -291,5 +291,5 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 				return OK;
 			},
 		},
-	} satisfies TStepperSteps;
+	} as const satisfies TStepperSteps;
 }
