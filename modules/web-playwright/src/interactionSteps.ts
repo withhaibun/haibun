@@ -13,7 +13,7 @@ import {
 	DOMAIN_LINK,
 	DOMAIN_FILE_PATH,
 } from "@haibun/core/lib/domains.js";
-import { actionNotOK, actionOKWithProducts, errorDetail, sleep, jsonArtifact } from "@haibun/core/lib/util/index.js";
+import { actionNotOK, actionOKWithProducts, errorDetail, jsonArtifact } from "@haibun/core/lib/util/index.js";
 import { DOMAIN_IMAGE_REFERENCE } from "@haibun/core/lib/image-reference.js";
 import {
 	DOMAIN_ACCESSIBILITY_SNAPSHOT,
@@ -168,18 +168,10 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 		currentTabIs: {
 			gwta: `current tab is {tab: ${DOMAIN_NUMBER}}`,
-			action: async ({ tab }: { tab: string }) => {
-				const waitForTab = parseInt(tab, 10);
-				let timedOut = false;
-				setTimeout(() => {
-					timedOut = true;
-				}, 5000);
-
-				while (wp.tab !== waitForTab && !timedOut) {
-					await sleep(100);
-				}
-
-				return wp.tab === waitForTab ? OK : actionNotOK(`current tab is ${wp.tab}, not ${waitForTab}`);
+			// A check, once: a feature that waits for a tab to open waits through `until`.
+			action: ({ tab }: { tab: string }) => {
+				const expected = parseInt(tab, 10);
+				return wp.tab === expected ? OK : actionNotOK(`current tab is ${wp.tab}, not ${expected}`);
 			},
 		},
 		onTabX: {

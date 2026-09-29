@@ -36,7 +36,6 @@ Feature: Auth-bearer Authentication
         make an HTTP GET to Profile API
         # RFC 6750: missing Authorization header -> 401 Unauthorized
         HTTP status is Unauthorized
-        pause for 1s
 
     Scenario: Fail authentication with browser user agent
         API user agent is "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
@@ -50,7 +49,6 @@ Feature: Auth-bearer Authentication
         use Authorization Bearer header with testtoken
         make an HTTP GET to Profile API
         HTTP status is OK
-        pause for 1s
 
     Scenario: Create authentication token
         request OAuth 2.0 access token from Authorization Server

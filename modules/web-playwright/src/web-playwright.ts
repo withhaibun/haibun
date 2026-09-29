@@ -80,32 +80,18 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	private static readonly DOM_READY_TIMEOUT_MS = 1900;
 	private static readonly RENDER_SETTLE_MS = 200;
 
-	private isTimeoutError(error: unknown): boolean {
-		if (!(error instanceof Error)) return false;
-		return error.name === "TimeoutError" || /timeout/i.test(error.message);
-	}
-
 	private async waitForDocumentReady(page: Page): Promise<void> {
 		await page.waitForFunction(() => document.readyState === "interactive" || document.readyState === "complete", undefined, {
 			timeout: WebPlaywright.DOM_READY_TIMEOUT_MS,
 		});
 	}
 
+	/** Wait for the page's document to be ready, then give it `RENDER_SETTLE_MS` to render: the grace a check that a view
+	 *  doesn't appear relies on. A page that doesn't become ready in time fails the step. */
 	async waitForLoaded(page: Page, mode: "navigation" | "settled" = "navigation") {
-		try {
-			if (mode === "navigation") {
-				await page.waitForLoadState("domcontentloaded", { timeout: WebPlaywright.DOM_READY_TIMEOUT_MS });
-			}
-			await this.waitForDocumentReady(page);
-			await page.waitForTimeout(WebPlaywright.RENDER_SETTLE_MS);
-		} catch (e) {
-			if (this.isTimeoutError(e)) {
-				this.getWorld().eventLogger.debug(`waitForLoaded timed out (${mode}), continuing...`);
-				return;
-			}
-			const message = errorDetail(e);
-			this.getWorld().eventLogger.warn(`waitForLoaded had error ${message}, continuing...`);
-		}
+		if (mode === "navigation") await page.waitForLoadState("domcontentloaded", { timeout: WebPlaywright.DOM_READY_TIMEOUT_MS });
+		await this.waitForDocumentReady(page);
+		await page.waitForTimeout(WebPlaywright.RENDER_SETTLE_MS);
 	}
 	description = "Navigate pages, click elements, fill forms, capture screenshots, and make REST API calls";
 

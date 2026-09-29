@@ -1,3 +1,3 @@
 serve mcp tools at /mcp
 webserver is listening for "mcp feature"
-pause for 900000s
+this feature runs as a service until stopped
