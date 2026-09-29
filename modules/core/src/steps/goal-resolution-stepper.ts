@@ -2,7 +2,6 @@
  * GoalResolutionStepper: exposes the goal resolver as steps.
  *
  *   resolve {goal: domain-key}                          → DOMAIN_GOAL_RESOLUTION
- *   resolve {goal: domain-key} where {constraint: json} → DOMAIN_GOAL_RESOLUTION (constraint accepted; resolution runs on the goal)
  *   show affordances                                    → DOMAIN_AFFORDANCES (forward edges + goal verdicts)
  *   show chain lint                                     → DOMAIN_CHAIN_LINT (orphan/unsupplied/unreachable findings + affordance overlay)
  *
@@ -34,7 +33,6 @@ import {
 	DOMAIN_CHAIN_WALK,
 	DOMAIN_DOMAIN_KEY,
 	DOMAIN_GOAL_RESOLUTION,
-	DOMAIN_JSON,
 	DOMAIN_JSON_OBJECT,
 	DOMAIN_STEP_PATH,
 	DOMAIN_WALK_ID,
@@ -281,18 +279,6 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 				const advanced = await advanceChainInstance(ctx, walk, args);
 				if (advanced.kind === "failed") return actionNotOK(`advance the walk ${walk}: ${advanced.error}`);
 				return actionOKWithProducts(walkProducts(advanced.instance, ctx.registry));
-			},
-		},
-
-		resolveWhere: {
-			// `resolve {goal}` matches this line too, taking the constraint into the goal.
-			precludes: [`${GoalResolutionStepper.name}.resolve`],
-			gwta: `resolve {goal: ${DOMAIN_DOMAIN_KEY}} where {constraint: ${DOMAIN_JSON}}`,
-			productsDomain: DOMAIN_GOAL_RESOLUTION,
-			action: async ({ goal }: { goal: string; constraint: unknown }) => {
-				// constraint is accepted as a domain input; resolution runs on the goal alone.
-				const resolution = await this.runResolution(goal);
-				return actionOKWithProducts(goalResolutionSchema.parse(resolution));
 			},
 		},
 
