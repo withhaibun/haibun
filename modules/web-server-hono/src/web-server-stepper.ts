@@ -2,7 +2,7 @@ import path from "path";
 import { z } from "zod";
 
 import type { TWorld } from "@haibun/core/lib/world.js";
-import { OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
+import { OK } from "@haibun/core/schema/protocol.js";
 import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption, intOrError, errorDetail } from "@haibun/core/lib/util/index.js";
 import { AStepper, type IHasCycles, type IHasOptions, type TEndFeature, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { dispatchStep } from "@haibun/core/lib/step-dispatch.js";
@@ -173,16 +173,16 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		},
 		isListening: {
 			gwta: `webserver is listening for {why: ${DOMAIN_TEXT}}`,
-			action: async ({ why }: TStepArgs) => {
-				await this.listen(String(why));
+			action: async ({ why }: { why: string }) => {
+				await this.listen(why);
 				return OK;
 			},
 		},
 		serveFiles: {
 			gwta: `serve files from {loc: ${DOMAIN_FILE_PATH}}`,
-			action: ({ loc }: TStepArgs) => {
+			action: ({ loc }: { loc: string }) => {
 				try {
-					this.webserver?.checkAddStaticFolder(String(loc), "/", { description: `Files from ${loc}` });
+					this.webserver?.checkAddStaticFolder(loc, "/", { description: `Files from ${loc}` });
 					return OK;
 				} catch (e) {
 					const message = errorDetail(e);
@@ -192,9 +192,9 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		},
 		serveFilesAt: {
 			gwta: `serve files at {where: ${DOMAIN_ROUTE}} from {loc: ${DOMAIN_FILE_PATH}}`,
-			action: ({ where, loc }: TStepArgs) => {
+			action: ({ where, loc }: { where: string; loc: string }) => {
 				try {
-					this.webserver?.checkAddStaticFolder(String(loc), String(where), { description: `Files from ${loc}` });
+					this.webserver?.checkAddStaticFolder(loc, where, { description: `Files from ${loc}` });
 					return OK;
 				} catch (e) {
 					const message = errorDetail(e);
@@ -204,9 +204,9 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		},
 		indexFiles: {
 			gwta: `index files from {loc: ${DOMAIN_FILE_PATH}}`,
-			action: ({ loc }: TStepArgs) => {
+			action: ({ loc }: { loc: string }) => {
 				try {
-					this.webserver?.checkAddIndexFolder(String(loc), "/", { description: `An index of the files in ${loc}` });
+					this.webserver?.checkAddIndexFolder(loc, "/", { description: `An index of the files in ${loc}` });
 					return OK;
 				} catch (e) {
 					const message = errorDetail(e);

@@ -1,7 +1,7 @@
 import { resolve, relative } from "path";
 
 import { z } from "zod";
-import { OK, TStepArgs } from "@haibun/core/schema/protocol.js";
+import { OK } from "@haibun/core/schema/protocol.js";
 import { captureLocator } from "@haibun/core/lib/capture-locator.js";
 import { IFile, TLocationOptions } from "./domain-storage.js";
 import { EMediaTypes, TMediaType } from "./media-types.js";
@@ -128,84 +128,84 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 	steps = {
 		createFile: {
 			gwta: `create file at {where: ${DOMAIN_FILE_PATH}} with {what: ${DOMAIN_TEXT}}`,
-			action: async ({ where, what }: TStepArgs) => {
-				await this.writeFile(String(where), String(what), EMediaTypes.html);
+			action: async ({ where, what }: { where: string; what: string }) => {
+				await this.writeFile(where, what, EMediaTypes.html);
 				return OK;
 			},
 		},
 		createDirectory: {
 			gwta: `create directory at {where: ${DOMAIN_FILE_PATH}}`,
-			action: async ({ where }: TStepArgs) => {
-				await this.mkdirp(String(where));
+			action: async ({ where }: { where: string }) => {
+				await this.mkdirp(where);
 				return OK;
 			},
 		},
 		filesCount: {
 			gwta: `directory {where: ${DOMAIN_FILE_PATH}} has {count: ${DOMAIN_NUMBER}} files`,
-			action: async ({ where, count }: TStepArgs) => {
-				const files = await this.readdir(String(where));
+			action: async ({ where, count }: { where: string; count: number }) => {
+				const files = await this.readdir(where);
 				return files.length === count ? OK : actionNotOK(`directory ${where} has ${files.length} files`);
 			},
 		},
 		testIs: {
 			gwta: `text at {where: ${DOMAIN_FILE_PATH}} is {what: ${DOMAIN_TEXT}}`,
-			action: async ({ where, what }: TStepArgs) => {
-				const text = await this.readFile(String(where), "utf-8");
-				return text === String(what) ? OK : actionNotOK(`text at ${where} is not ${what}; it's ${text}`);
+			action: ({ where, what }: { where: string; what: string }) => {
+				const text = this.readFile(where, "utf-8");
+				return text === what ? OK : actionNotOK(`text at ${where} is not ${what}; it's ${text}`);
 			},
 		},
 		testContains: {
 			gwta: `text at {where: ${DOMAIN_FILE_PATH}} contains {what: ${DOMAIN_TEXT}}`,
-			action: async ({ where, what }: TStepArgs) => {
-				const text = await this.readFile(String(where), "utf-8");
-				return text.toString().indexOf(String(what)) > -1 ? OK : actionNotOK(`text at ${where} does not contain ${what}; it's ${text}`);
+			action: ({ where, what }: { where: string; what: string }) => {
+				const text = this.readFile(where, "utf-8");
+				return text.toString().indexOf(what) > -1 ? OK : actionNotOK(`text at ${where} does not contain ${what}; it's ${text}`);
 			},
 		},
 		testNotContains: {
 			gwta: `text at {where: ${DOMAIN_FILE_PATH}} does not contain {what: ${DOMAIN_TEXT}}`,
-			action: async ({ where, what }: TStepArgs) => {
-				const text = await this.readFile(String(where), "utf-8");
-				return text.toString().indexOf(String(what)) === -1 ? OK : actionNotOK(`text at ${where} contains ${what}`);
+			action: ({ where, what }: { where: string; what: string }) => {
+				const text = this.readFile(where, "utf-8");
+				return text.toString().indexOf(what) === -1 ? OK : actionNotOK(`text at ${where} contains ${what}`);
 			},
 		},
 		listFiles: {
 			gwta: `list files from {where: ${DOMAIN_FILE_PATH}}`,
-			action: async ({ where }: TStepArgs) => {
-				const files = await this.readdir(String(where));
+			action: async ({ where }: { where: string }) => {
+				const files = await this.readdir(where);
 				this.getWorld().eventLogger.info(`files from ${where}: ${files.join(", ")}`);
 				return OK;
 			},
 		},
 		fileExists: {
 			gwta: `storage entry {what: ${DOMAIN_FILE_PATH}} exists`,
-			action: ({ what }: TStepArgs) => {
-				const exists = this.exists(String(what));
+			action: ({ what }: { what: string }) => {
+				const exists = this.exists(what);
 				return Promise.resolve(exists ? OK : actionNotOK(`file ${what} does not exist`));
 			},
 		},
 		isTheSame: {
 			gwta: `{what: ${DOMAIN_FILE_PATH}} is the same as {where: ${DOMAIN_FILE_PATH}}`,
-			action: ({ what, where }: TStepArgs) => {
-				const c1 = this.readFile(String(what), "binary");
-				const c2 = this.readFile(String(where), "binary");
+			action: ({ what, where }: { what: string; where: string }) => {
+				const c1 = this.readFile(what, "binary");
+				const c2 = this.readFile(where, "binary");
 				return Buffer.from(c1 as string)?.equals(Buffer.from(c2 as string)) ? OK : actionNotOK(`contents are not the same ${what} ${where}`);
 			},
 		},
 		readFile: {
 			gwta: `read file {where: ${DOMAIN_FILE_PATH}}`,
 			productsDomain: DOMAIN_FILE_CONTENTS,
-			action: async ({ where }: TStepArgs) => {
-				const contents = await this.readFile(String(where), "utf-8");
+			action: ({ where }: { where: string }) => {
+				const contents = this.readFile(where, "utf-8");
 				return actionOKWithProducts({ contents });
 			},
 		},
 		fileIsRecent: {
 			gwta: `file {where: ${DOMAIN_FILE_PATH}} is recent within {minutes: ${DOMAIN_NUMBER}} minutes`,
-			action: async ({ where, minutes }: TStepArgs) => {
-				const file = await this.lstatToIFile(String(where));
+			action: async ({ where, minutes }: { where: string; minutes: number }) => {
+				const file = await this.lstatToIFile(where);
 				const now = Date.now();
 				const diff = now - file.created;
-				if (diff <= Number(minutes) * 60 * 1000) {
+				if (diff <= minutes * 60 * 1000) {
 					return OK;
 				}
 				return actionNotOK(`file ${where} is not recent within ${minutes} minutes (age: ${Math.round(diff / 1000)}s)`);
