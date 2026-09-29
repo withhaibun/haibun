@@ -725,10 +725,12 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			productsDomain: DOMAIN_GRAPH_NODE,
 			action: async () => {
 				const page = await this.page();
+				let id: string | null | undefined;
 				for (let tries = 0; tries < ACTIVE_PICK_TRIES; tries++) {
 					await this.settle(page);
-					const id = (await this.state(page)).focus.selected;
-					if (!id) return actionNotOK("the graph doesn't have an active node to pick");
+					id = (await this.state(page)).focus.selected;
+					// The active node follows a record that can still be arriving.
+					if (!id) continue;
 					await this.settleNodeProjection(page, id);
 					const at = (await this.state(page)).focus.selected === id ? await this.aimAtNode(page, id) : null;
 					if (!at) continue;
@@ -736,6 +738,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 					if (await this.becomesSelected(page, id)) return actionOKWithProducts({ id });
 					return actionNotOK(`clicking graph node "${id}" at (${at.x.toFixed(0)},${at.y.toFixed(0)}) did not select it: selected is ${(await this.state(page)).focus.selected}`);
 				}
+				if (!id) return actionNotOK("the graph doesn't have an active node to pick");
 				const { sample } = await this.state(page);
 				return actionNotOK(`the active graph node never held still where the pointer could pick it ${await this.unpickableReport(page, sample)}`);
 			},

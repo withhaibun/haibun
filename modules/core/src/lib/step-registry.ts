@@ -234,7 +234,7 @@ const TYPE_NAMING_DOMAINS: readonly string[] = [DOMAIN_PERSISTED_TYPE, DOMAIN_DO
 /** Each `record-id` parameter is paired with a parameter naming its record's type, and each pairing names such parameters. */
 function assertRecordIds(step: string, stepDef: TStepperStep, paramDomainKeys: Map<string, string>): void {
 	for (const [id, type] of Object.entries(stepDef.recordIds ?? {})) {
-		if (paramDomainKeys.get(id) !== DOMAIN_RECORD_ID) throw new Error(`${step}: recordIds names {${id}}, which is no ${DOMAIN_RECORD_ID} its phrase takes`);
+		if (paramDomainKeys.get(id) !== DOMAIN_RECORD_ID) throw new Error(`${step}: recordIds names {${id}}, which isn't a ${DOMAIN_RECORD_ID} its phrase takes`);
 		if (!TYPE_NAMING_DOMAINS.includes(paramDomainKeys.get(type) ?? "")) throw new Error(`${step}: recordIds pairs {${id}} with {${type}}, which doesn't name a type`);
 	}
 	for (const [param, domain] of paramDomainKeys)
