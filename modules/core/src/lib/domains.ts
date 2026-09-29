@@ -23,6 +23,8 @@ export const DOMAIN_TEXT = "text";
 export const DOMAIN_LINK = "link";
 export const DOMAIN_NUMBER = "number";
 export const DOMAIN_JSON = "json";
+/** A JSON object, given as its text or as the object: what a step that takes named values as data takes. */
+export const DOMAIN_JSON_OBJECT = "json-object";
 export const DOMAIN_DATE = "date";
 /** The actions a caller holds or a delegation allows. */
 export const DOMAIN_ACTIONS = "actions";

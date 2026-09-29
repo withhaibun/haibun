@@ -15,7 +15,7 @@
  *   advance the walk {walk: walk-id} with {args: json}  → DOMAIN_CHAIN_WALK (runs the next step with what it takes)
  */
 import { z } from "zod";
-import { JsonObjectSchema, fromJsonText } from "../lib/json-text.js";
+import { JsonObjectSchema } from "../lib/json-text.js";
 import {
 	AStepper,
 	type IHasCycles,
@@ -35,6 +35,7 @@ import {
 	DOMAIN_DOMAIN_KEY,
 	DOMAIN_GOAL_RESOLUTION,
 	DOMAIN_JSON,
+	DOMAIN_JSON_OBJECT,
 	DOMAIN_STEP_PATH,
 	DOMAIN_WALK_ID,
 } from "../lib/domains.js";
@@ -272,13 +273,12 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		 * arguments a step runs with are theirs.
 		 */
 		advanceWalk: {
-			gwta: `advance the walk {walk: ${DOMAIN_WALK_ID}} with {args: ${DOMAIN_JSON}}`,
+			gwta: `advance the walk {walk: ${DOMAIN_WALK_ID}} with {args: ${DOMAIN_JSON_OBJECT}}`,
 			productsDomain: DOMAIN_CHAIN_WALK,
-			action: async ({ walk, args }: { walk: string; args: unknown }) => {
+			action: async ({ walk, args }: { walk: string; args: z.infer<typeof JsonObjectSchema> }) => {
 				const world = this.getWorld();
 				const ctx = { registry: runRegistry(world), world, steppers: this.steppers };
-				const supplied = fromJsonText(JsonObjectSchema).parse(args);
-				const advanced = await advanceChainInstance(ctx, walk, supplied);
+				const advanced = await advanceChainInstance(ctx, walk, args);
 				if (advanced.kind === "failed") return actionNotOK(`advance the walk ${walk}: ${advanced.error}`);
 				return actionOKWithProducts(walkProducts(advanced.instance, ctx.registry));
 			},
