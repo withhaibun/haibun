@@ -47,7 +47,7 @@ export function recordClientBlip(name: string, value?: number, attributes?: Reco
 		held.ring[held.at] = blip;
 		held.at = (held.at + 1) % CLIENT_RING;
 	}
-	scheduleFlush();
+	scheduleFlush(held);
 }
 
 /** Every occurrence recorded since the page loaded, including any a full ring dropped before it could be sent. */
@@ -60,9 +60,8 @@ export function clientBlipsSent(): number {
 	return buffer().sent;
 }
 
-function scheduleFlush(): void {
+function scheduleFlush(held: TBlipBuffer): void {
 	// A page that doesn't have a run for its batches (offline, or mounted without a conduit) holds what it records and doesn't send a batch.
-	const held = buffer();
 	if (held.timer || isOffline() || !hasConduit()) return;
 	held.timer = setTimeout(() => {
 		held.timer = undefined;

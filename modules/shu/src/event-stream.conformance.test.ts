@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 // Both implementations of the page's event stream, held to one specification: the live one over the host's stream, and
 // the serialized one a report and a scripted scenario drive.
+import { hydrate } from "./test-setup.js";
 import { vi, expect } from "vitest";
 import { LiveEventStream, SerializedEventStream, type TEvent } from "./event-stream.js";
 import { hydrateFromDom } from "./rpc-registry.js";
@@ -18,11 +19,7 @@ describeEventStream("a log the page carries", () => {
  * the stream, so a case can look at the stream while it is down.
  */
 describeEventStream("a live connection", async () => {
-	const hydration = document.createElement("script");
-	hydration.id = "shu-hydration";
-	hydration.type = "application/json";
-	hydration.textContent = JSON.stringify({ settings: { streamReconnectAfterMs: 1 } });
-	document.body.append(hydration);
+	const hydration = hydrate({ settings: { streamReconnectAfterMs: 1 } });
 	hydrateFromDom();
 	const bodies: Array<{ body: ReadableStreamDefaultController<Uint8Array>; read: boolean }> = [];
 	const held: Array<() => void> = [];

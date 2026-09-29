@@ -5,6 +5,7 @@
  * rpc-client reaches node-only capability context. One home for the wire means a field added to the envelope reaches
  * the browser and the server callers together, rather than to whichever one was remembered.
  */
+import { stripTrailingSlash } from "./local-origin.js";
 import { z } from "zod";
 import { AccessLevelSchema } from "./resources.js";
 
@@ -52,7 +53,7 @@ export const RpcStreamSchema = z.object({
 	data: z.unknown(),
 });
 /** What a host answers a call it did not serve with. */
-const RpcRefusalSchema = z.object({ error: z.string().min(1) });
+export const RpcRefusalSchema = z.object({ error: z.string().min(1) });
 
 /** A host's answer to a call: what it answered, or why it did not. */
 type TRpcAnswer = { kind: "answered"; body: unknown } | { kind: "refused"; error: string };
@@ -102,7 +103,7 @@ export const provesNothing: TProveRequest = (request) => Promise.resolve(request
  * covers is the same whoever sends it, and each caller decides only how it sends: once, with retries, or held open.
  */
 export async function buildRpcCall(base: string, envelope: TRpcEnvelope, prove: TProveRequest): Promise<TRpcCall> {
-	const url = `${base.replace(/\/+$/, "")}/rpc/${encodeURIComponent(envelope.method)}`;
+	const url = `${stripTrailingSlash(base)}/rpc/${encodeURIComponent(envelope.method)}`;
 	const body = rpcEnvelope(envelope);
 	const headers = { "content-type": "application/json", host: new URL(url).host };
 	return { url, init: { method: "POST", headers: await prove({ url, method: "POST", headers, body }), body } };

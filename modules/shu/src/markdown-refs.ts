@@ -12,7 +12,7 @@
 import MarkdownIt from "markdown-it";
 import DOMPurify from "dompurify";
 import { parseRefHref } from "@haibun/core/lib/typed-links.js";
-import { JsonObjectSchema } from "@haibun/core/lib/json-text.js";
+import { JsonObjectTextSchema } from "@haibun/core/lib/json-text.js";
 import { isRefKind, renderRef, type TRefKind } from "./components/ref-navigation.js";
 import { getPropertyDefinition } from "./rels-cache.js";
 
@@ -95,7 +95,7 @@ export function refsInContent(html: string, isType: (name: string) => boolean): 
 	for (const ref of template.content.querySelectorAll("shu-ref")) {
 		const kind = ref.getAttribute("kind") ?? "";
 		if (!isRefKind(kind)) continue;
-		const target = JsonObjectSchema.parse(JSON.parse(ref.getAttribute("linkTarget") ?? "{}"));
+		const target = JsonObjectTextSchema.parse(ref.getAttribute("linkTarget") ?? "{}");
 		found.set(`${kind} ${JSON.stringify(target)}`, { kind, target, text: ref.getAttribute("text") ?? "" });
 	}
 	for (const anchor of template.content.querySelectorAll("a[href]")) {

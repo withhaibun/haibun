@@ -3,7 +3,7 @@
  * Used by @haibun/shu (vanilla web components) to render the run document.
  * Pure functions: it doesn't import the DOM.
  */
-import { z } from "zod";
+import { RecordsSchema } from "./json-text.js";
 import { itemAt } from "./util/item-at.js";
 import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TStepEvent, TLifecycleEvent, TLogEvent, TJsonArtifact } from "../schema/protocol.js";
 import { HAIBUN_LOG_LEVELS } from "../schema/protocol.js";
@@ -12,7 +12,7 @@ import { parseRecordName } from "./seq-path.js";
 type TArtifactIndex = { artifactsByStep: Map<string, TArtifactEvent[]>; allArtifactIds: Set<string> };
 
 /** The artifacts a log event's attributes or a lifecycle event's products embed. */
-const EmbeddedArtifactsSchema = z.array(z.record(z.string(), z.unknown())).optional();
+const EmbeddedArtifactsSchema = RecordsSchema.optional();
 
 const normalizeId = (id: string) => id.replace(/^\[|\]$/g, "");
 

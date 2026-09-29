@@ -23,14 +23,14 @@ import {
 import { html, css, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { jsonDisclosure, literalWithJson } from "./json-disclosure.js";
-import { jsonCarried } from "@haibun/core/lib/json-text.js";
+import { jsonCarried, RecordsSchema, isRecord } from "@haibun/core/lib/json-text.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { ShuElement, TIME_SYNC_CLASS, type TLinkedData } from "./shu-element.js";
 import { SHU_EVENT, ANNOTATION_GLYPH, SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
 import { bindCopyButtons, copyButtonHtml } from "../copy-util.js";
 import { isReplyEdge, MEDIA_TYPE } from "@haibun/core/lib/resources.js";
-import { anIndividual, EntityColumnSchema, RecordSchema, RecordsSchema, type TContextPattern } from "../schemas.js";
+import { anIndividual, EntityColumnSchema, type TContextPattern } from "../schemas.js";
 import { EntityController } from "../controllers/index.js";
 import type { TEntityResult, TEntityView, TAnnotationDraft } from "../entity-store.js";
 import type { AnnotationView } from "../annotation-resolver.js";
@@ -660,21 +660,28 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	/** The type's scoped @context (field → {@id, @type?}) from the served hypermedia: the server resolves each field to
 	 *  its genuine vocabulary IRI here, so the view reads provenance/representation from it rather than guessing. Undefined
 	 *  for an ad-hoc view without a served context. */
-	private scopedContext(): Record<string, { "@id"?: string; "@type"?: string }> | undefined {
+	private scopedContext(): Record<string, unknown> | undefined {
 		// A JSON-LD @context is an object of terms, a URL, or a list of them; only an object holds a type's scoped context.
-		const ctx = RecordSchema.safeParse(this.vertex?.["@context"]);
-		type TScopedField = { "@id"?: string; "@type"?: string };
-		const inner = ((ctx.success ? ctx.data[this.state.persistedAs] : undefined) as { "@context"?: unknown } | undefined)?.["@context"];
+		const ctx = this.vertex?.["@context"];
+		const scoped = isRecord(ctx) ? ctx[this.state.persistedAs] : undefined;
+		const inner = isRecord(scoped) ? scoped["@context"] : undefined;
 		// A type conforming to standard context(s) serves its scoped @context as a JSON-LD 1.1 array [url…, {haibun terms}];
 		// the field definitions this view marks are in the object member (the last element). A plain object stands alone.
-		if (Array.isArray(inner)) return inner.find((p): p is Record<string, TScopedField> => typeof p === "object" && p !== null && !Array.isArray(p));
-		return inner as Record<string, TScopedField> | undefined;
+		if (Array.isArray(inner)) return inner.find(isRecord);
+		return isRecord(inner) ? inner : undefined;
+	}
+
+	/** The IRI the served @context gives a field. */
+	private fieldIri(propertyName: string): string | undefined {
+		const term = this.scopedContext()?.[propertyName];
+		const iri = isRecord(term) ? term["@id"] : undefined;
+		return typeof iri === "string" ? iri : undefined;
 	}
 
 	/** A provenance mark on a field name, from the served @context's genuine IRI for the field: haibun's own reads faint,
 	 *  a standard/consumer vocabulary shows its prefix (prov/schema/…). Empty when the context omits the field. */
 	private vocabBadge(propertyName: string): string {
-		const iri = this.scopedContext()?.[propertyName]?.["@id"];
+		const iri = this.fieldIri(propertyName);
 		if (!iri) return "";
 		const v = propertyVocabulary(iri);
 		return `<sup class="vocab vocab-${v.source}" data-testid="vocab-${escAttr(propertyName)}" title="${escAttr(v.source === "haibun" ? "haibun vocabulary" : `${v.prefix} vocabulary`)}">${esc(v.prefix)}</sup>`;
@@ -683,7 +690,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	/** True when the served @context aliases this field to the JSON-LD `@type` keyword, whose values are the entity's
 	 *  classes rather than ordinary data. */
 	private isTypeField(propertyName: string): boolean {
-		return this.scopedContext()?.[propertyName]?.["@id"] === "@type";
+		return this.fieldIri(propertyName) === "@type";
 	}
 
 	/** Render the rdf:type field the standard JSON-LD way: named `@type`, its values the entity's classes: each a link

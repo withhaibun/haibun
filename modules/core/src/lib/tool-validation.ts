@@ -49,6 +49,9 @@ const RanStepSchema = z.object({
 		step: z.custom<TStepperStep>((step) => typeof step === "object" && step !== null && "action" in step && typeof step.action === "function"),
 	}),
 });
+/** The statements a step ran, of which only the last, whose result is passed on, is read. */
+const RanStatementsSchema = z.array(z.unknown()).optional();
+const LastRanStepSchema = RanStepSchema.optional();
 
 /** The step whose domain products are in, and whether it is a statement's step whose products a step passed on. */
 type TAnsweringStep = { stepperName: string; actionName: string; step: TStepperStep; passedOn: boolean };
@@ -57,7 +60,7 @@ type TAnsweringStep = { stepperName: string; actionName: string; step: TStepperS
  *  answered, that statement's last step as `args` resolved it, since the last step's result is the one passed on. */
 function answeringStep(stepperName: string, actionName: string, stepDef: TStepperStep, args: TStepArgs): TAnsweringStep | string {
 	if (stepDef.productsOf === undefined) return { stepperName, actionName, step: stepDef, passedOn: false };
-	const ran = z.array(RanStepSchema).optional().parse(args[stepDef.productsOf])?.at(-1);
+	const ran = LastRanStepSchema.parse(RanStatementsSchema.parse(args[stepDef.productsOf])?.at(-1));
 	if (!ran) return `step ${stepperName}.${actionName} answers with what its {${stepDef.productsOf}} answered, and wasn't given a statement there`;
 	return { stepperName: ran.action.stepperName, actionName: ran.action.actionName, step: ran.action.step, passedOn: true };
 }

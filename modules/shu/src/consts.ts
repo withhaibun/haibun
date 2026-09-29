@@ -117,6 +117,9 @@ export const isMarkerType = (component: string): boolean => (Object.values(SHU_T
 /** Every built-in shu element, by its tag: what the registry defines, a step opens (`productsDomain`), a domain
  *  declares (`ui.component`), a component looks for in its tree and a test looks for on the page. One name each, here,
  *  so a file doesn't spell a tag again; a component that is also a domain exposes its own as `static domainSelector`. */
+/** The element a page carries its hydration in: its settings, and the run a record of one carries. */
+export const HYDRATION_ID = "shu-hydration";
+
 export const SHU_TAG = {
 	PERMISSIONS: "shu-permissions",
 	PAGE_KEY: "shu-page-key",

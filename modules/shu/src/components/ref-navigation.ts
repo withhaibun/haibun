@@ -12,7 +12,7 @@ import { ACTIVE_PARAM, COLUMN_PARAM, hashParams, hashWithColumns, mergeHashParam
 import { DEEP_LINK_PREFIX } from "../consts.js";
 import { QuoteAnchorSchema } from "@haibun/core/lib/resources.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
-import { JsonObjectSchema } from "@haibun/core/lib/json-text.js";
+import { JsonObjectTextSchema } from "@haibun/core/lib/json-text.js";
 
 export const REF_KIND = ["seqPath", REF_DENOTES.individual, REF_DENOTES.type, "step", "action"] as const;
 export type TRefKind = (typeof REF_KIND)[number];
@@ -109,7 +109,7 @@ export function linkHtml(href: string | undefined, text: string, attrs = "", lin
 /** The text a reference shows when its caller doesn't name one: the identifier itself, read out of the target. */
 export function defaultLabel(kind: string | null, targetJson: string | null): string {
 	if (!kind || !targetJson) return "";
-	const target = JsonObjectSchema.parse(JSON.parse(targetJson));
+	const target = JsonObjectTextSchema.parse(targetJson);
 	if (kind === "seqPath" && Array.isArray(target.seqPath)) return (target.seqPath as number[]).join(".");
 	if (kind === REF_DENOTES.individual && typeof target.id === "string") return target.id;
 	if (kind === REF_DENOTES.type && typeof target.domain === "string") return target.domain;

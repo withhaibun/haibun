@@ -7,6 +7,7 @@
  * If the signal widened to the script alone, every served page would decide it didn't have a server and stop reaching the one
  * it has. These tests pin the rule.
  */
+import { HYDRATION_ID } from "./consts.js";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
 	RESPONSE_TIMEOUT_MS,
@@ -22,7 +23,7 @@ import {
 	stepsJoining,
 } from "./rpc-registry.js";
 import { asDomainKey } from "@haibun/core/lib/domains.js";
-import { setupShuTest, stepsShown, type TShuTestHandle } from "./test-setup.js";
+import { setupShuTest, stepsShown, type TShuTestHandle, hydrate } from "./test-setup.js";
 import { ServerUnreachable } from "./hypermedia.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { deviceStore, setDeviceStore, MemoryDeviceStore } from "./client-cache/index.js";
@@ -31,11 +32,7 @@ import { endPage } from "./page-pinned.js";
 function setHydration(payload: unknown): void {
 	document.head.innerHTML = "";
 	document.body.innerHTML = "";
-	const s = document.createElement("script");
-	s.type = "application/json";
-	s.id = "shu-hydration";
-	s.textContent = JSON.stringify(payload);
-	document.head.appendChild(s);
+	hydrate(payload);
 }
 
 describe("a page that carries its own run doesn't have a server behind it", () => {
@@ -66,7 +63,7 @@ describe("a page that carries its own run doesn't have a server behind it", () =
 	it("does not keep the embedded run in the DOM once it has been parsed", () => {
 		setHydration({ cache: { shape: "run-indexed-events/1", run: "r1", events: [{ id: "0.1", message: "x" }], extents: {} }, viewHash: "" });
 		hydrateFromDom();
-		expect(document.getElementById("shu-hydration")?.textContent).toBe("");
+		expect(document.getElementById(HYDRATION_ID)?.textContent).toBe("");
 		expect(isOffline()).toBe(true); // decided by the parsed data, not the DOM text
 	});
 });

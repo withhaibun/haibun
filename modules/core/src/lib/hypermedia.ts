@@ -886,8 +886,11 @@ const STANDARD_NAMESPACES: Record<string, string> = {
 	rdfs: "http://www.w3.org/2000/01/rdf-schema#",
 };
 
+/** A JSON-LD context document: its term map, and the class and property nodes it states. */
+export type TJsonLdContextDocument = { "@context": Record<string, unknown>; "@graph": Record<string, unknown>[] };
+
 /** Build JSON-LD context from domain topology. Derives URI mappings from domain property rels. */
-export function getJsonLdContext(domains: Record<string, TRegisteredDomain>, haibunNs: string = HAIBUN_NS): Record<string, unknown> {
+export function getJsonLdContext(domains: Record<string, TRegisteredDomain>, haibunNs: string = HAIBUN_NS): TJsonLdContextDocument {
 	const context: Record<string, unknown> = {
 		"@version": 1.1,
 		...STANDARD_NAMESPACES,

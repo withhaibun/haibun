@@ -89,9 +89,7 @@ export const BaseOptionsSchema = z.strictObject({
 });
 export type TBaseOptions = z.infer<typeof BaseOptionsSchema>;
 
-export type TEnvVariables = {
-	[name: string]: string;
-};
+export type TEnvVariables = NonNullable<TBaseOptions["envVariables"]>;
 
 export type TModuleOptions = { [name: string]: string };
 

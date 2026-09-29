@@ -164,7 +164,8 @@ export function resolveGoal(goal: string, inputs: TResolverInputs): TGoalResolut
 	const refusal = checkResolverInvariants(inputs, goal);
 	if (refusal) return refusal;
 
-	const matchingFacts = inputs.facts.filter((q) => q.predicate === goal && factMatchesWhere(q, inputs.where));
+	const where = whereFilters(inputs.where);
+	const matchingFacts = inputs.facts.filter((q) => q.predicate === goal && factMatchesWhere(q, where));
 	const hasProducerEdge = inputs.graph.edges.some((e) => e.to === goal);
 	// Enumerate producer paths even when satisfied, `satisfied` doesn't mean
 	// "cannot be run again", just that at least one fact already exists. The
@@ -438,16 +439,14 @@ function* cartesian<T>(arrays: T[][], limit: number): Generator<T[]> {
 	}
 }
 
-/** True when the fact's `object` matches every path/filter in `where`. Empty/undefined where always matches. */
-function factMatchesWhere(fact: TQuad, where: Record<string, TShibari | unknown> | undefined): boolean {
-	if (!where) return true;
-	const obj = fact.object;
-	for (const [path, raw] of Object.entries(where)) {
-		const { value } = navigateValue(obj, path.split("."));
-		const filter = normaliseShibari(raw);
-		if (!evaluateShibari(value, filter)) return false;
-	}
-	return true;
+/** Each path in `where`, split into its segments, with its filter; read once for every fact a resolution checks. */
+function whereFilters(where: Record<string, TShibari | unknown> | undefined): [string[], TShibari][] {
+	return Object.entries(where ?? {}).map(([path, raw]) => [path.split("."), normaliseShibari(raw)]);
+}
+
+/** True when the fact's `object` matches every path's filter. An empty `where` always matches. */
+function factMatchesWhere(fact: TQuad, where: [string[], TShibari][]): boolean {
+	return where.every(([segments, filter]) => evaluateShibari(navigateValue(fact.object, segments).value, filter));
 }
 
 /** A `where` value as a filter: a value that names an operator is parsed as a filter, and any other value is `{ eq }` of it. */

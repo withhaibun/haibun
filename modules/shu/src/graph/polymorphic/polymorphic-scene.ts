@@ -31,7 +31,7 @@ import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../consts.js";
 import { defineElement } from "../../define-element.js";
 import { ndcToClient, clientToNdc, ndcOnScreen, NDC_EDGE, NDC_SPAN, type TClientPoint } from "../polymorphic/polymorphic-project.js";
 import { syncPickTarget, restorePickTarget, type TPickObject, type TScaleRestore } from "../polymorphic/polymorphic-pick-sync.js";
-import { RenderContext } from "./polymorphic-render-context.js";
+import { RenderContext, type TSceneCamera } from "./polymorphic-render-context.js";
 import { DataPipeline, visibleGraphModel } from "../polymorphic/polymorphic-data-pipeline.js";
 import { type RenderType, type TViewForces, buildRenderTypeRegistry } from "../polymorphic/polymorphic-render-type.js";
 import type { ViewType } from "../polymorphic/polymorphic-views.js";
@@ -302,19 +302,6 @@ type TSceneRenderer = {
 	/** Release the WebGL context now rather than at collection. */
 	dispose?(): void;
 	forceContextLoss?(): void;
-};
-
-/** The slice of the camera this scene drives: its framing, where it sits, and what it looks at. */
-type TSceneCamera = {
-	aspect: number;
-	fov?: number;
-	position?: Vec3;
-	updateProjectionMatrix(): void;
-	getWorldDirection?(target: Vec3): Vec3;
-	matrixWorld?: { elements: number[] }; // columns 0/1 = the camera's right/up axes, for screen-oriented placement
-	updateMatrixWorld?(force?: boolean): void;
-	/** The camera's orientation, which a chip copies to face it. */
-	quaternion?: { x: number; y: number; z: number; w: number };
 };
 
 /** The a-scene element as A-Frame extends it: the renderer and camera it holds once loaded, and the events it emits. */
@@ -1751,7 +1738,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		// Raycast from a CURRENT camera matrix. A pick can run between render frames, after a fit reframe a render hasn't
 		// repainted the camera's matrixWorld yet, so setFromCamera would build the ray from a stale matrix and miss every
 		// sprite. `projectNodeToScreen` forces the same for the symmetric projection; the pick must match or the two disagree.
-		(cam as { updateMatrixWorld?: (f?: boolean) => void }).updateMatrixWorld?.(true);
+		cam.updateMatrixWorld?.(true);
 		const n = clientToNdc({ x: e.clientX, y: e.clientY }, canvas.getBoundingClientRect());
 		const ndc = new T.Vector2(n.x, n.y);
 		const ray = new T.Raycaster();
@@ -2398,7 +2385,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		const canvas = this.ctx.canvas;
 		const n = this.nodeMap.get(id);
 		if (!T || !cam || !canvas || !n) return null;
-		(cam as { updateMatrixWorld?: (f?: boolean) => void }).updateMatrixWorld?.(true);
+		cam.updateMatrixWorld?.(true);
 		return ndcToClient(new T.Vector3(n.x ?? 0, n.y ?? 0, n.z ?? 0).project(cam), canvas.getBoundingClientRect());
 	}
 

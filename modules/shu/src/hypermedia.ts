@@ -144,11 +144,11 @@ function provingFor(method: string): TProveRequest {
 	};
 }
 
-/** `Conduit` implementation against a running haibun service. Sole owner of the SPA's RPC fetch path, wire envelope (jsonrpc + seqPath), `action.begin` allocation, NDJSON streaming reader, and error formatting all live here. Action scope is explicit via the `scope` constructor argument: a top-level instance doesn't have one and allocates one per `follow`; a `group`-issued child has a bound scope and appends sub-sequences to it. Concurrent groups can't accidentally share scope because the scope isn't module-level. */
+const SERVER_UNREACHABLE = "ServerUnreachable";
+
 /** The server could not be reached: the request never got a response, so the outcome of what it asked is unknown. A
  *  deployment state a view reports (the reader is offline, the server is stopped), not a fault to fail on; every other
  *  failure, including an error the server itself returns, stays a fault. */
-const SERVER_UNREACHABLE = "ServerUnreachable";
 export class ServerUnreachable extends Error {
 	constructor(
 		readonly url: string,
@@ -159,7 +159,6 @@ export class ServerUnreachable extends Error {
 	}
 }
 
-/** Whether a failure is the server being unreachable, however deep in a chain of causes it was raised. */
 /** Whether a failure, or one it was caused by, is the server not responding. Read by name, since each bundle on the page
  *  has its own copy of the class and a conduit one bundle installed fails with its own. */
 export function isServerUnreachable(err: unknown): boolean {
@@ -167,6 +166,7 @@ export function isServerUnreachable(err: unknown): boolean {
 	return false;
 }
 
+/** `Conduit` implementation against a running haibun service. Sole owner of the SPA's RPC fetch path, wire envelope (jsonrpc + seqPath), `action.begin` allocation, NDJSON streaming reader, and error formatting all live here. Action scope is explicit via the `scope` constructor argument: a top-level instance doesn't have one and allocates one per `follow`; a `group`-issued child has a bound scope and appends sub-sequences to it. Concurrent groups can't accidentally share scope because the scope isn't module-level. */
 export class LiveConduit implements Conduit {
 	constructor(
 		private readonly basePath: string = "",

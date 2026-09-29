@@ -1,3 +1,4 @@
+import { RecordSchema, RecordsSchema } from "@haibun/core/lib/json-text.js";
 import { z } from "zod";
 import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
 import WebPlaywright from "./web-playwright.js";
@@ -99,7 +100,7 @@ export const restSteps = (webPlaywright: WebPlaywright) =>
 				if (!lastResponse?.json || !Array.isArray(lastResponse.json)) {
 					return actionNotOK(`${JSON.stringify(lastResponse)} isn't JSON or an array`);
 				}
-				const filtered = lastResponse.json.filter((item: TJsonRecord) => (item[property] as string)?.match?.(match));
+				const filtered = lastResponse.json.filter((item) => (item[property] as string)?.match?.(match));
 				await webPlaywright.setLastResponse({ ...lastResponse, filtered }, featureStep);
 				return OK;
 			},
@@ -152,7 +153,7 @@ export const restSteps = (webPlaywright: WebPlaywright) =>
 				if (!filtered) {
 					return actionNotOK(`${lastResponse} doesn't hold a filtered response`);
 				}
-				if (!filtered.every((item: TJsonRecord) => item[property] !== undefined)) {
+				if (!filtered.every((item) => item[property] !== undefined)) {
 					return actionNotOK(`Property ${property} not found in all items`);
 				}
 				for (const item of filtered) {
@@ -192,11 +193,11 @@ export const restSteps = (webPlaywright: WebPlaywright) =>
 			gwta: `${HTTP} response property {property: ${DOMAIN_JSON_PROPERTY}} is {value: ${DOMAIN_TEXT}}`,
 			action: async ({ property, value }: { property: string; value: string }) => {
 				const lastResponse = await webPlaywright.getLastResponse();
-				if (lastResponse && lastResponse.json && !Array.isArray(lastResponse.json) && (lastResponse.json as TJsonRecord)[property] === value) {
+				if (lastResponse && lastResponse.json && !Array.isArray(lastResponse.json) && lastResponse.json[property] === value) {
 					return OK;
 				}
 				return actionNotOK(
-					`Expected lastResponse.json.${property} to be ${value}, got ${JSON.stringify(!Array.isArray(lastResponse?.json) ? (lastResponse?.json as TJsonRecord)?.[property] : undefined)}`,
+					`Expected lastResponse.json.${property} to be ${value}, got ${JSON.stringify(!Array.isArray(lastResponse?.json) ? lastResponse?.json?.[property] : undefined)}`,
 				);
 			},
 		},
@@ -214,9 +215,7 @@ export const restSteps = (webPlaywright: WebPlaywright) =>
 	}) as const satisfies TStepperSteps;
 
 /** A JSON response's body: a record, or a list of records. */
-const JsonRecordSchema = z.record(z.string(), z.unknown());
-type TJsonRecord = z.infer<typeof JsonRecordSchema>;
-const JsonResponseSchema = z.union([JsonRecordSchema, z.array(JsonRecordSchema)]);
+const JsonResponseSchema = z.union([RecordSchema, RecordsSchema]);
 export type TJsonResponse = z.infer<typeof JsonResponseSchema>;
 
 /** A response as a step captured it, which the run keeps as JSON text in a variable. */
@@ -228,6 +227,6 @@ export const CapturedResponseSchema = z.object({
 	/** The body read as JSON, absent where it isn't JSON. */
 	json: JsonResponseSchema.optional(),
 	text: z.string(),
-	filtered: z.array(JsonRecordSchema).optional(),
+	filtered: RecordsSchema.optional(),
 });
 export type TCapturedResponse = z.infer<typeof CapturedResponseSchema>;

@@ -1,3 +1,4 @@
+import { HYDRATION_ID } from "./consts.js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
@@ -80,7 +81,7 @@ describe("the app a deployment serves", () => {
 describe("the page a deployment serves", () => {
 	it("carries the timings the deployment set, so the page applies them from its first paint", () => {
 		const page = buildSpaHtml("/spa", "/* bundle */", { streamReconnectAfterMs: 500 });
-		expect(page).toContain('id="shu-hydration"');
+		expect(page).toContain(`id="${HYDRATION_ID}"`);
 		expect(page).toContain(JSON.stringify({ settings: { streamReconnectAfterMs: 500 } }));
 	});
 

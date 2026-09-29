@@ -8,8 +8,8 @@ import { esc, escAttr, prettifyGwta, normalizeStepKey } from "../util.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { validateStepInput, type TFieldError } from "../step-input-validator.js";
 import { cachedConcernCatalog, getConcernCatalog } from "../rels-cache.js";
-import { JsonObjectSchema, jsonCarried } from "@haibun/core/lib/json-text.js";
-import { RecordSchema, RecordsSchema, type TComboboxOption } from "../schemas.js";
+import { JsonObjectTextSchema, RecordSchema, RecordsSchema } from "@haibun/core/lib/json-text.js";
+import { type TComboboxOption } from "../schemas.js";
 import { SHU_EVENT, SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
 import { linkTo } from "../rpc-registry.js";
@@ -77,7 +77,7 @@ class StepCaller extends HTMLElement {
 
 		const paramsAttr = this.getAttribute("params");
 		if (paramsAttr) {
-			const params = JsonObjectSchema.safeParse(jsonCarried(paramsAttr));
+			const params = JsonObjectTextSchema.safeParse(paramsAttr);
 			if (params.success) this.fixedParams = params.data;
 			else this.error = "Invalid params JSON";
 		}

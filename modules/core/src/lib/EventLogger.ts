@@ -90,18 +90,14 @@ export class EventLogger implements IEventLogger {
 	private subscribers: { callback: TEventSubscriber; kinds?: ReadonlySet<TEventKind>; names?: readonly string[] }[] = [];
 	private kindCounts = new Map<TEventKind, number>();
 	public suppressConsole: boolean = false;
-	private isSecretFn: TIsSecretFn;
 
-	/** Set when the run was asked for its events as NDJSON. A caller reading this run's output, rather than a person
-	 *  watching it, needs the events whatever else is formatting the console, so this outranks the monitor's
+	/** `ndjsonForced` is set when the run was asked for its events as NDJSON. A caller reading this run's output, rather
+	 *  than a person watching it, needs the events whatever else is formatting the console, so it outranks the monitor's
 	 *  suppression. */
-	public readonly ndjsonForced: boolean;
-
-	/** `ndjson` is the run's NDJSON option. */
-	constructor(isSecretFn: TIsSecretFn = () => false, ndjson = false) {
-		this.isSecretFn = isSecretFn;
-		this.ndjsonForced = ndjson;
-	}
+	constructor(
+		private isSecretFn: TIsSecretFn = () => false,
+		public readonly ndjsonForced = false,
+	) {}
 
 	/** Without options, delivers everything the run narrates and never blips; `{ kinds }` delivers exactly those kinds
 	 *  and is the only way to receive `"blip"`; `{ names }` narrows the blips to a declared name or dotted namespace. */

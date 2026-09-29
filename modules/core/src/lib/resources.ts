@@ -16,6 +16,7 @@
  * Grounded in JSON-LD / ActivityStreams / RDF, node label is a local handle, `type` is the
  * RDF class URI that JSON-LD emits, `id` is the IRI.
  */
+import { stripTrailingSlash } from "./local-origin.js";
 import { z } from "zod";
 import { typedLinkFacts, type TLinkVocabulary, type TTypedLinkFact } from "./typed-links.js";
 import { fromJsonText } from "./json-text.js";
@@ -49,7 +50,7 @@ export const HAIBUN_PREFIXES = ["hbn"] as const;
 /** The haibun namespace under a request origin (`https://192.0.2.9:8223` → `…/ns/`), or the canonical stem when
  *  host-less. Pass to getJsonLdContext's `haibunNs`. */
 export function haibunNsForHost(baseOrigin?: string): string {
-	return baseOrigin ? `${baseOrigin.replace(/\/+$/, "")}${HAIBUN_NS_PATH}` : HAIBUN_NS;
+	return baseOrigin ? `${stripTrailingSlash(baseOrigin)}${HAIBUN_NS_PATH}` : HAIBUN_NS;
 }
 
 // ============================================================================

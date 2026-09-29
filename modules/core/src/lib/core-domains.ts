@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { DOMAIN_GRAPH_QUERY, GraphQuerySchema, DOMAIN_DENSITY_QUERY, DensityQuerySchema } from "./quad-types.js";
-import { JsonObjectSchema, fromJsonText } from "./json-text.js";
+import { fromJsonText, JsonObjectTextSchema } from "./json-text.js";
 import { DOMAIN_IMAGE_DATA, DOMAIN_IMAGE_REFERENCE, ImageDataSchema, ImageReferenceSchema } from "./image-reference.js";
 import { extractSeqPathPrefix, parseSeqPath } from "./seq-path.js";
 import { LintFindingSchema, LintSummarySchema } from "./domain-chain-lint.js";
@@ -336,7 +336,7 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 	},
 	{
 		selectors: [DOMAIN_JSON_OBJECT],
-		schema: fromJsonText(JsonObjectSchema),
+		schema: JsonObjectTextSchema,
 		description: "A JSON object, given as its text or as the object.",
 	},
 	{

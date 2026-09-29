@@ -8,7 +8,7 @@ import { truncateForLog, errorDetail } from "@haibun/core/lib/util/index.js";
 import type { StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { streamContext, streamOver, type TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import type { IStepTransport } from "./step-transport.js";
-import { RPC_REFUSED, RpcRequestSchema } from "@haibun/core/lib/rpc-wire.js";
+import { RPC_REFUSED, RpcRefusalSchema, RpcRequestSchema } from "@haibun/core/lib/rpc-wire.js";
 import type { TRuntime } from "@haibun/core/lib/world.js";
 import { capabilityAllows, FOLLOWS_THE_RUN, readAction } from "@haibun/core/lib/actions.js";
 import { Access, AccessLevelSchema, type AccessLevel } from "@haibun/core/lib/resources.js";
@@ -30,7 +30,7 @@ type TMessageHandler = (data: unknown, requestInfo?: TTransportRequestInfo) => u
 const RpcEnvelopeSchema = RpcRequestSchema.pick({ method: true, stream: true, asks: true }).partial().loose();
 
 /** The reason an answer states for refusing its call, where it states one. */
-const refusalReason = (answer: unknown): unknown => (typeof answer === "object" && answer !== null && "error" in answer ? answer.error : undefined);
+const refusalReason = (answer: unknown): string | undefined => RpcRefusalSchema.safeParse(answer).data?.error;
 
 export interface ITransport {
 	send(data: unknown): void;

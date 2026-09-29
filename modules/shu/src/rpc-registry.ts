@@ -1,3 +1,4 @@
+import { HYDRATION_ID } from "./consts.js";
 import { reads, acts, conduit, isServerUnreachable, type TLink } from "./hypermedia.js";
 import { getConcernCatalog, cachedConcernCatalog, setConcernCatalog } from "./rels-cache.js";
 import { pagePinned } from "./page-pinned.js";
@@ -157,7 +158,7 @@ const cachedHydration = (): { data: ShuHydration | null } => pagePinned(HYDRATIO
  *  as one string, which would sit in the DOM for the life of the page beside the objects parsed out of it. Read once
  *  (`hydrateFromDom`, at boot), so a caller doesn't read it again. */
 function readHydration(): ShuHydration | null {
-	const el = document.getElementById("shu-hydration");
+	const el = document.getElementById(HYDRATION_ID);
 	if (!el?.textContent) return null;
 	const text = el.textContent;
 	el.textContent = "";

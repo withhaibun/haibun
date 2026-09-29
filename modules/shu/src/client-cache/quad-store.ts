@@ -9,10 +9,10 @@
  * the graph while it can be reached, and the page reads the same store either way, so a view offline sees what it holds
  * rather than an empty view. What it holds is what the site already served this reader, so a read of it isn't gated further.
  */
+import { RecordSchema } from "@haibun/core/lib/json-text.js";
 import { LinkRelations, withinAccess, type AccessLevel } from "@haibun/core/lib/resources.js";
 import { matchesQuadPattern, type IQuadStore, type TClusteredQuads, type TDensityQuery, type TDensityResult, type TQuad, type TQuadPattern } from "@haibun/core/lib/quad-types.js";
 import { densityOverQuadStore, sliceQuadsPerType } from "@haibun/core/lib/quad-store.js";
-import { RecordSchema } from "../schemas.js";
 import { QUADS, IDX_QUAD_SPG, IDX_QUAD_SUBJECT, IDX_QUAD_NAMED_GRAPH, IDX_QUAD_OBJECT, done, withStores as withClientCacheStores } from "./device-store.js";
 
 /** A stored quad carries a derived `spg` (namedGraph|subject|predicate) key so `set`/`get` can upsert without a scan. */

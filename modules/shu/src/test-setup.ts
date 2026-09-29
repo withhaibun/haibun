@@ -15,6 +15,7 @@
  * what was missed.
  */
 
+import { HYDRATION_ID } from "./consts.js";
 import { setConduit, type Conduit, type TLink, type TRepresentation, type TStreamChunk } from "./hypermedia.js";
 
 // ─── The conduit a test installs ─────────────────────────────────────────────
@@ -277,18 +278,23 @@ export function installTestMediaQueries(): void {
 	});
 }
 
-/** The element a page carries its run in, as a deployment writes it, and the run a test page carries. */
-const HYDRATION_ID = "shu-hydration";
+/** The run a test page carries. */
 const CARRIED_RUN = { shape: CACHE_SHAPE, execution: "r1", quads: [] };
+
+/** Give the page the hydration a deployment writes, in place of any it carried. The page reads it at `hydrateFromDom`. */
+export function hydrate(payload: unknown): HTMLScriptElement {
+	document.getElementById(HYDRATION_ID)?.remove();
+	const script = document.createElement("script");
+	script.type = "application/json";
+	script.id = HYDRATION_ID;
+	script.textContent = JSON.stringify(payload);
+	document.head.appendChild(script);
+	return script;
+}
 
 /** Make this page a record of a run: it carries one, so it doesn't have a server behind it. */
 export function carryARun(): void {
-	carryNothing();
-	const carried = document.createElement("script");
-	carried.type = "application/json";
-	carried.id = HYDRATION_ID;
-	carried.textContent = JSON.stringify({ cache: CARRIED_RUN });
-	document.head.appendChild(carried);
+	hydrate({ cache: CARRIED_RUN });
 	hydrateFromDom();
 }
 

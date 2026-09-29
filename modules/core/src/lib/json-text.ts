@@ -31,3 +31,19 @@ export function fromJsonText<T extends z.ZodType>(schema: T) {
 
 /** A JSON object read whole, as a record's JSON body or a signed document holds one. */
 export const JsonObjectSchema = z.record(z.string(), z.json());
+/** A JSON object, or JSON text that carries one. */
+export const JsonObjectTextSchema = fromJsonText(JsonObjectSchema);
+
+/** An object read by its keys, whatever its values hold. */
+export const RecordSchema = z.record(z.string(), z.unknown());
+export const RecordsSchema = z.array(RecordSchema);
+
+/** Whether a value is an object read by its keys, checked without copying it, for a value a schema has already checked or
+ *  that `JSON.parse` returned. */
+export const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
+
+/** A value as an object read by its keys, checked without copying it; a value that isn't one is refused, named `what`. */
+export function recordOf(value: unknown, what: string): Record<string, unknown> {
+	if (!isRecord(value)) throw new Error(`${what} isn't an object: ${Array.isArray(value) ? "array" : typeof value}`);
+	return value;
+}

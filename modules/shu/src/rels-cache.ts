@@ -51,12 +51,15 @@ export interface SiteMetadata {
 
 let metadata: SiteMetadata | null = null;
 const edgeTypeIndex = new Map<string, string[]>();
+/** Each component's UI extensions, by the component they name: built from the metadata on its first read. */
+let uiByComponent: Map<string, Record<string, unknown>[]> | undefined;
 const metadataReadyResolvers: Array<(m: SiteMetadata) => void> = [];
 
 /** Populate the cache from a getSiteMetadata response. Called once at startup. */
 export function setSiteMetadata(data: SiteMetadata): void {
 	metadata = data;
 	edgeTypeIndex.clear();
+	uiByComponent = undefined;
 	for (const ranges of Object.values(data.edgeRanges)) {
 		for (const [edge, targets] of Object.entries(ranges)) {
 			edgeTypeIndex.set(edge, targets);
@@ -226,8 +229,14 @@ export function getRecordComponent(label: string): string | undefined {
 /** Resolve a UI extension by component tag name from concern-derived metadata. */
 export function getUiByComponent(component: string): Record<string, unknown> | undefined {
 	if (!metadata) return undefined;
-	const matches = Object.values(metadata.ui).filter((ui) => ui?.component === component);
-	if (matches.length === 0) return undefined;
+	if (!uiByComponent) {
+		uiByComponent = new Map();
+		for (const ui of Object.values(metadata.ui)) {
+			if (typeof ui?.component === "string") uiByComponent.set(ui.component, [...(uiByComponent.get(ui.component) ?? []), ui]);
+		}
+	}
+	const matches = uiByComponent.get(component);
+	if (!matches) return undefined;
 	if (matches.length > 1) throw new Error(`Ambiguous UI extension for component ${component}: ${matches.length} concern entries`);
 	return matches[0];
 }

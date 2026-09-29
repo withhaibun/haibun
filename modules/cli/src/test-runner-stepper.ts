@@ -23,7 +23,7 @@
 import type { TInputSchema, TStepDescriptor } from "@haibun/core/lib/step-discovery.js";
 import path from "node:path";
 import { z } from "zod";
-import { JsonObjectSchema, fromJsonText } from "@haibun/core/lib/json-text.js";
+import { fromJsonText, JsonObjectTextSchema } from "@haibun/core/lib/json-text.js";
 import { AStepper, type IHasCycles, type IHasOptions, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { actionNotOK, actionOK, actionOKWithProducts, boolOrError, getStepperOption, intOrError } from "@haibun/core/lib/util/index.js";
 import { localOrigin } from "@haibun/core/lib/local-origin.js";
@@ -116,7 +116,7 @@ export function askParams(params: string, takes: TInputSchema["properties"] = {}
 	if (text === "" || text === "{}") return {};
 	const written = (): Record<string, unknown> => {
 		if (text.startsWith("{")) {
-			const parsed = fromJsonText(JsonObjectSchema).parse(text);
+			const parsed = JsonObjectTextSchema.parse(text);
 			return only !== undefined && !(only in parsed) ? { [only]: parsed } : parsed;
 		}
 		if (!text.includes("=") && only !== undefined) return { [only]: text };

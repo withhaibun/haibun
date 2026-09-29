@@ -22,7 +22,7 @@ import {
 	isServerUnreachable,
 	serverLastRespondedAt,
 } from "./hypermedia.js";
-import { TestConduit } from "./test-setup.js";
+import { TestConduit, hydrate } from "./test-setup.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 
 beforeEach(() => {
@@ -32,11 +32,7 @@ beforeEach(() => {
 /** The page's own hydration, as a deployment serves it. */
 function setHydration(payload: unknown): void {
 	document.head.innerHTML = "";
-	const script = document.createElement("script");
-	script.type = "application/json";
-	script.id = "shu-hydration";
-	script.textContent = JSON.stringify(payload);
-	document.head.appendChild(script);
+	hydrate(payload);
 }
 
 import { hydrateFromDom } from "./rpc-registry.js";

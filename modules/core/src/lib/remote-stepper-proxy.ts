@@ -10,7 +10,7 @@
  * HTTP/JSON-RPC instead of Node.js fork() IPC.
  */
 
-import { z } from "zod";
+import { RecordSchema } from "./json-text.js";
 import { AStepper } from "./astepper.js";
 import { runSteppers, type TWorld } from "./world.js";
 import type { TActionResult } from "../schema/protocol.js";
@@ -99,7 +99,7 @@ export class RemoteStepperProxy extends AStepper {
 		});
 		if (result instanceof RpcCallFailed) return actionNotOK(`${method}: ${result.reason}`);
 		const answersWithProducts = descriptor.outputSchema !== undefined || descriptor.productsOf !== undefined;
-		return answersWithProducts ? { ok: true, products: z.record(z.string(), z.unknown()).parse(result) } : { ok: true };
+		return answersWithProducts ? { ok: true, products: RecordSchema.parse(result) } : { ok: true };
 	}
 
 	/** IStepTransport.attach: duck-typed, so it doesn't need an import from web-server-hono. */

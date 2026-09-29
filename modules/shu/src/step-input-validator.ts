@@ -12,7 +12,7 @@
  * through; the server still validates strictly and returns 422 on edge
  * cases, so the client validator is an early-warning, not a gate.
  */
-import { RecordSchema } from "./schemas.js";
+import { RecordSchema } from "@haibun/core/lib/json-text.js";
 
 export type TFieldError = { field: string; message: string };
 

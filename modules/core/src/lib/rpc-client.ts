@@ -1,3 +1,4 @@
+import { stripTrailingSlash } from "./local-origin.js";
 import { errorDetail } from "./util/index.js";
 import { readingAt } from "./capability-context.js";
 import { buildRpcCall, provesNothing, readNdjson, readRpcAnswer, type TProveRequest } from "./rpc-wire.js";
@@ -63,7 +64,7 @@ export class RpcClient {
 	private readonly fetchImpl: typeof fetch;
 
 	constructor(config: RpcClientConfig) {
-		this.baseUrl = config.baseUrl.replace(/\/+$/, "");
+		this.baseUrl = stripTrailingSlash(config.baseUrl);
 		this.sign = config.sign;
 		this.timeoutMs = config.timeoutMs ?? 30_000;
 		this.maxAttempts = config.retry?.maxAttempts ?? 3;

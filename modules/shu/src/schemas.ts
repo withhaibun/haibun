@@ -8,11 +8,6 @@ import { AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { ImageReferenceSchema } from "@haibun/core/lib/image-reference.js";
 
-/** A value read by its fields, each of any value: a record, a product or a result, before a view reads what it holds. */
-export const RecordSchema = z.record(z.string(), z.unknown());
-/** A list of such values, as a collection's items or a table's rows. */
-export const RecordsSchema = z.array(RecordSchema);
-
 // --- Combobox ---
 
 const ComboboxOptionSchema = z.object({

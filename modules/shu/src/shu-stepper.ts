@@ -17,7 +17,7 @@ import { getAuthority } from "@haibun/core/lib/session-authority.js";
 import type { IWebServer } from "@haibun/web-server-hono/defs.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 import type { Context } from "@haibun/web-server-hono/defs.js";
-import { CONTEXT_DOCUMENT, SHU_TYPE, SHU_TAG } from "./consts.js";
+import { CONTEXT_DOCUMENT, SHU_TYPE, SHU_TAG, HYDRATION_ID } from "./consts.js";
 import { DOMAIN_SHU_APPS, ShuAppsSchema } from "./schemas.js";
 import type { IQuadStore, TQuad } from "@haibun/core/lib/quad-types.js";
 import { buildGraphModelFromQuads } from "./graph-model.js";
@@ -125,7 +125,7 @@ ${scriptsHtml}
 // What the served page's hydration carries: only the timings this deployment set. A record of a run
 // carries the run itself and writes its own hydration element (buildReportHtml).
 export function buildSpaHtml(basePath: string, bundle: string, settings: TDeploymentSettings = {}): string {
-	const scripts = `  <script type="application/json" id="shu-hydration">${JSON.stringify({ settings })}</script>\n\n  <script>${bundle}\n//# sourceMappingURL=${SPA_SOURCE_MAP}</script>`;
+	const scripts = `  <script type="application/json" id="${HYDRATION_ID}">${JSON.stringify({ settings })}</script>\n\n  <script>${bundle}\n//# sourceMappingURL=${SPA_SOURCE_MAP}</script>`;
 	return spaDocument(basePath, scripts);
 }
 
@@ -137,7 +137,7 @@ export function buildSpaHtml(basePath: string, bundle: string, settings: TDeploy
  * secret-obscuring check greps it.
  */
 export function buildReportHtml(basePath: string, payload: string, compressed: boolean): string {
-	const inject = `const h = document.createElement("script"); h.type = "application/json"; h.id = "shu-hydration"; h.textContent = hydration; document.body.appendChild(h);
+	const inject = `const h = document.createElement("script"); h.type = "application/json"; h.id = "${HYDRATION_ID}"; h.textContent = hydration; document.body.appendChild(h);
     for (const s of scripts) { const el = document.createElement("script"); el.textContent = s; document.body.appendChild(el); }
     const b = document.createElement("script"); b.textContent = bundle; document.body.appendChild(b);`;
 	const loader = compressed

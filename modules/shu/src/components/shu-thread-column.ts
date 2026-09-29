@@ -2,6 +2,7 @@
  * <shu-thread-column>: Displays a conversation thread for any individual type with inReplyTo edges.
  * Fetches thread via getRelated RPC, renders flat (chronological) or tree (indented reply structure).
  */
+import { RecordsSchema } from "@haibun/core/lib/json-text.js";
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
 import { shuBaseStyles } from "./styles.js";
@@ -12,7 +13,7 @@ import { openRef } from "./ref-navigation.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { addsToSelection } from "../pane-state.js";
 import { appAccessLevel, idOf, persistedTypeOf } from "../util.js";
-import { anIndividual, RecordsSchema, type TContextPattern } from "../schemas.js";
+import { anIndividual, type TContextPattern } from "../schemas.js";
 import { ellipsize } from "@haibun/core/lib/util/index.js";
 import { callStep } from "../pane-fetch.js";
 import { getRelSync } from "../rels-cache.js";

@@ -188,7 +188,7 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 			action: ({ what, where }: { what: string; where: string }) => {
 				const c1 = this.readFile(what, "binary");
 				const c2 = this.readFile(where, "binary");
-				return Buffer.from(c1 as string)?.equals(Buffer.from(c2 as string)) ? OK : actionNotOK(`contents are not the same ${what} ${where}`);
+				return Buffer.from(c1 as string).equals(Buffer.from(c2 as string)) ? OK : actionNotOK(`contents are not the same ${what} ${where}`);
 			},
 		},
 		readFile: {

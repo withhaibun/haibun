@@ -98,6 +98,4 @@ export class ShuSpinner extends HTMLElement {
 	}
 }
 
-// Registration moved to component-registry.ts
-
 defineElement(SHU_TAG.SPINNER, ShuSpinner);
