@@ -6,7 +6,7 @@ import { SearchConditionSchema, type TSearchCondition } from "@haibun/core/lib/q
 import { DENOTES } from "@haibun/core/lib/typed-links.js";
 import { AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
-import { ImageReferenceSchema } from "@haibun/core/lib/image-reference.js";
+import { MediaObjectSchema } from "@haibun/core/lib/image-reference.js";
 
 // --- Combobox ---
 
@@ -297,8 +297,8 @@ export const TurnEnvelopeSchema = z
 		inReplyTo: z.string().optional(),
 		/** The delegation the asker signed to the turn's key: what the turn may do, which an ask from a key carries. */
 		delegation: z.record(z.string(), z.unknown()).optional(),
-		/** The images the person added to the question, kept by actuality, which the question shows its model. */
-		images: z.array(ImageReferenceSchema).optional(),
+		/** The files the person added to the question, kept by actuality, which the question shows its model. */
+		files: z.array(MediaObjectSchema).optional(),
 	})
 	.strict()
 	.refine((envelope) => envelope.inReplyTo === undefined || envelope.session !== undefined, { message: "a reply names the session it replies in", path: ["session"] });

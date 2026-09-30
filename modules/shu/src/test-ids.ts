@@ -12,10 +12,10 @@ export const SHU_TEST_IDS = {
 		DOCK_TOGGLE: "app-dock-toggle",
 		CHAT_INPUT: "app-chat-input",
 		CHAT_SUBMIT: "app-chat-submit",
-		/** The control that adds an image to the question being written. */
-		ASK_IMAGE: "app-ask-image",
-		/** An image the question being written shows. */
-		ASK_IMAGE_SHOWN: "app-ask-image-shown",
+		/** The control that adds a file to the question being written. */
+		ASK_FILE: "app-ask-file",
+		/** A file the question being written carries. */
+		ASK_FILE_SHOWN: "app-ask-file-shown",
 		CHAT_OUTPUT: "app-chat-output",
 		CHAT_TEXT: "app-chat-text",
 		CHAT_ACTIVITY: "app-chat-activity",

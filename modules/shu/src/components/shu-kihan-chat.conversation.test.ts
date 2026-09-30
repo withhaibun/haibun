@@ -58,11 +58,11 @@ const sent: Array<{
 	session?: string;
 	target?: string;
 	accessLevel?: string;
-	images?: unknown[];
+	files?: unknown[];
 }> = [];
-/** The image actuality keeps for a question, and each image the pane asked it to keep. */
-const KEPT_IMAGE = { contentUrl: "/artifacts/featn-1/image/question-1.png", encodingFormat: "image/png" };
-const keptImages: string[] = [];
+/** A file actuality keeps for a question, as its name and media type state it, and each file the pane asked it to keep. */
+const keptAs = (name: string, encodingFormat: string) => ({ contentUrl: `/artifacts/featn-1/kept/${name}`, encodingFormat, name });
+const keptFiles: Array<{ file: string; name: string }> = [];
 /** The seqPath each turn the stream starts is given, in order; a turn beyond them is given 0.1.2. Actuality records the
  *  turn's question as the step starts and its answer when it finishes, each named by the turn. */
 const turnSeqPaths: number[][] = [];
@@ -113,9 +113,10 @@ function aTurn(params: Record<string, unknown>): DrivenStream {
 function respond(step: string, params: Record<string, unknown>): unknown {
 	// The registry as the server holds it: a model states who reads its context, which the pane shows on the default.
 	if (step === CHAT_STEP.catalog) return catalog(params);
-	if (step === CHAT_STEP.keepImage) {
-		keptImages.push(String(params.image));
-		return KEPT_IMAGE;
+	if (step === CHAT_STEP.keepFile) {
+		const kept = { file: String(params.file), name: String(params.name) };
+		keptFiles.push(kept);
+		return keptAs(kept.name, /^data:([^;]*)/.exec(kept.file)?.[1] || "application/octet-stream");
 	}
 	if (step === CHAT_STEP.sessions) return { sessions: [{ session: RESTORED, label: "an earlier conversation", generatedAtTime: "2026-05-17T05:00:00.000Z", turns: 1 }] };
 	// A read held open, answered when a case reports the store got back to the page.
@@ -503,19 +504,24 @@ describe("the ask and the active record", () => {
 		expect(sent.at(-1)?.viewLd).toEqual([page]);
 	});
 
-	it("keeps an image the reader adds, shows it, and sends the question with it, and the next question without it", async () => {
+	it("keeps any file the reader adds, shows an image as one and another file by its name, and sends the question with them, and the next question without them", async () => {
 		const { pane } = await aPage();
 		const control = inside<HTMLInputElement>(pane.shadowRoot, "input[type=file]");
-		Object.defineProperty(control, "files", { value: [new File(["png"], "door.png", { type: "image/png" })], configurable: true });
+		expect(control.accept, "any file type").toBe("");
+		const chosen = [new File(["png"], "door.png", { type: "image/png" }), new File(["%PDF-1.7"], "lease.pdf", { type: "application/pdf" })];
+		Object.defineProperty(control, "files", { value: chosen, configurable: true });
 		control.dispatchEvent(new Event("change"));
-		await vi.waitFor(() => expect(keptImages).toHaveLength(1));
-		expect(keptImages[0], "the file, as actuality keeps it").toMatch(/^data:image\/png;base64,/);
+		await vi.waitFor(() => expect(keptFiles).toHaveLength(2));
+		expect(keptFiles.map((kept) => kept.name)).toEqual(["door.png", "lease.pdf"]);
+		expect(keptFiles[1]?.file, "the file, as actuality keeps it").toMatch(/^data:application\/pdf;base64,/);
 		await pane.updateComplete;
-		expect(pane.shadowRoot?.querySelectorAll(".ask-images img"), "the image the question shows").toHaveLength(1);
-		await submit(pane, "what is in the picture");
-		expect(sent.at(-1)?.images).toEqual([KEPT_IMAGE]);
-		expect(pane.shadowRoot?.querySelectorAll(".ask-images img"), "the image went with the question").toHaveLength(0);
-		keptImages.length = 0;
+		const shown = [...(pane.shadowRoot?.querySelectorAll(".ask-files span") ?? [])];
+		expect(shown.map((span) => span.querySelector("img") !== null)).toEqual([true, false]);
+		expect(shown[1]?.textContent).toBe("lease.pdf");
+		await submit(pane, "what does the lease say about the door");
+		expect(sent.at(-1)?.files).toEqual([keptAs("door.png", "image/png"), keptAs("lease.pdf", "application/pdf")]);
+		expect(pane.shadowRoot?.querySelectorAll(".ask-files"), "the files went with the question").toHaveLength(0);
+		keptFiles.length = 0;
 	});
 
 	it("activates each comment its turn records with the turn's bundle, and the comment leads while the bar is open", async () => {

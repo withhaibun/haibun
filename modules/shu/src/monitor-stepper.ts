@@ -32,8 +32,9 @@ import { SEQ_PATH_FIELD, executionOf, extractSeqPathPrefix, formatRecordName, pa
 import { SHU_TAG } from "./consts.js";
 import { READS_THE_RUNS_ARTIFACTS } from "@haibun/core/lib/actions.js";
 import { requiring } from "@haibun/web-server-hono/capability-auth.js";
+import { servedSandboxed } from "@haibun/web-server-hono/sandboxed-folder.js";
 import { LOG_MESSAGE_EDGE, LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
-import { ARTIFACTS_ROUTE, RUN_ARTIFACT_EDGE, RUN_ARTIFACT_FIELD, RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
+import { ARTIFACTS_ROUTE, KEPT_FILES_FOLDER, RUN_ARTIFACT_EDGE, RUN_ARTIFACT_FIELD, RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
 import { loadReportBundle, buildReportHtml, buildGraphSource } from "./shu-stepper.js";
 
 import { discoverSteps, runRegistry } from "@haibun/core/lib/step-registry.js";
@@ -166,7 +167,13 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			this.storage.ensureDirExists(artifactDir);
 			// A capture shows what actuality's steps saw, so only a caller holding a private read is served one.
 			const privately = requiring(READS_THE_RUNS_ARTIFACTS, this.getWorld().runtime, webserver);
-			webserver.addKnownStaticFolder(artifactDir, ARTIFACTS_ROUTE, { description: "What actuality's steps captured, such as screenshots and videos" }, privately);
+			webserver.addKnownStaticFolder(
+				artifactDir,
+				ARTIFACTS_ROUTE,
+				{ description: "What actuality's steps captured, such as screenshots and videos, and the files people add" },
+				privately,
+				servedSandboxed(KEPT_FILES_FOLDER),
+			);
 		},
 		onEvent: (event: THaibunEvent) => {
 			this.queriedLabel = queriedLabelOf(event) ?? this.queriedLabel;

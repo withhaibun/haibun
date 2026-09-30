@@ -93,6 +93,14 @@ describe("a question's controls", () => {
 		expect(scopeEntry(currentSubjectState.get(), SCOPE.actionsBar), "the question is not selected").toBeNull();
 	});
 
+	it("are icons under the icon of the person who asked, each named for what it does", async () => {
+		const el = await rendered({ id: "q4", role: "user", text: "what is this", turn: "cmt-ask-0.1.4", recordId: "cmt-ask-0.1.4", bundle: BUNDLE });
+		const named = [SHU_TEST_IDS.APP.CHAT_ASK_AGAIN, SHU_TEST_IDS.APP.CHAT_EDIT].map((control) =>
+			el.querySelector(`.msg-label [data-testid="${control}"]`)?.getAttribute("aria-label"),
+		);
+		expect(named).toEqual(["Ask again", "Edit and ask"]);
+	});
+
 	it("are on a recorded question only", async () => {
 		const answer = await rendered({ id: "a3", role: "llm", text: "an answer", recordId: "cmt-say-0.1.2" });
 		const unrecorded = await rendered({ id: "q3", role: "user", text: "not yet recorded" });

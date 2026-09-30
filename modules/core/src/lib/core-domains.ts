@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { DOMAIN_GRAPH_QUERY, GraphQuerySchema, DOMAIN_DENSITY_QUERY, DensityQuerySchema } from "./quad-types.js";
 import { fromJsonText, JsonObjectTextSchema } from "./json-text.js";
-import { DOMAIN_IMAGE_DATA, DOMAIN_IMAGE_REFERENCE, ImageDataSchema, ImageReferenceSchema } from "./image-reference.js";
+import { DOMAIN_FILE_DATA, DOMAIN_IMAGE_REFERENCE, DOMAIN_MEDIA_OBJECT, FileDataSchema, ImageReferenceSchema, MediaObjectSchema } from "./image-reference.js";
 import { extractSeqPathPrefix, parseSeqPath } from "./seq-path.js";
 import { LintFindingSchema, LintSummarySchema } from "./domain-chain-lint.js";
 import { AStepper, TFeatureStep } from "./astepper.js";
@@ -232,7 +232,12 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		description: "The name of a variable, as the line writes it, with each {name} in it given the value name resolves to.",
 	},
 	{ selectors: [DOMAIN_IMAGE_REFERENCE], schema: ImageReferenceSchema, description: "An image: where actuality keeps its bytes, and their media type." },
-	{ selectors: [DOMAIN_IMAGE_DATA], schema: ImageDataSchema, description: "An image's bytes, as a data: URL a page reads a file into." },
+	{ selectors: [DOMAIN_FILE_DATA], schema: FileDataSchema, description: "A file's bytes, as a data: URL a page reads a file into." },
+	{
+		selectors: [DOMAIN_MEDIA_OBJECT],
+		schema: MediaObjectSchema,
+		description: "A file a person adds: where actuality keeps its bytes, their media type and the name the file had.",
+	},
 	{ selectors: [DOMAIN_DOMAIN_NAME], schema: NameSchema, written: true, description: "The name a declaration gives a new domain, as the line writes it." },
 	{ selectors: [DOMAIN_GLOB], schema: NameSchema, description: "A pattern in which * stands for any run of characters." },
 	{ selectors: [DOMAIN_FILE_PATH], schema: NameSchema, description: "A file or directory's path, as a storage or the file system reads it." },

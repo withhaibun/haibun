@@ -33,6 +33,7 @@ export const EMediaTypes = {
 	video: "video",
 	json: "json",
 	image: "image",
+	file: "file",
 	javascript: "js",
 	directory: "",
 } as const;

@@ -18,6 +18,9 @@ export const ARTIFACTS_ROUTE = "/artifacts";
 
 /** The address actuality serves an artifact at, from its path under actuality's artifacts. */
 export const artifactAddress = (path: string): string => `${ARTIFACTS_ROUTE}/${path}`;
+
+/** The folder of actuality's artifacts that holds the files people add, which are served so that a script one holds doesn't run. */
+export const KEPT_FILES_FOLDER = "kept";
 export const RUN_ARTIFACT_LABEL = "Artifact";
 
 /** Artifact field names, shared by the schema, the topology and whatever writes one. */

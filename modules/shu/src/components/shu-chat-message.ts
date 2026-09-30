@@ -29,14 +29,15 @@ export const chatMessageStyles = css`
 	shu-chat-message .msg { display: grid; grid-template-columns: var(--shu-space-6) 1fr; }
 	shu-chat-message .msg-label {
 		font-size: var(--shu-font-sm);
-		display: flex; align-items: flex-start; justify-content: center;
+		display: flex; flex-direction: column; align-items: center; gap: var(--shu-space-1);
 		padding-top: var(--shu-space-2); user-select: text; color: var(--shu-fg-muted);
 	}
 	shu-chat-message[data-role="user"] { background: var(--shu-bg-elevated); }
 	shu-chat-message[data-role="llm"] { background: var(--shu-bg-soft); }
 	shu-chat-message .msg-content { min-width: 0; padding: var(--shu-space-2) var(--shu-space-3); }
 	shu-chat-message .chat-prompt { font-weight: 600; padding: var(--shu-space-1) 0; white-space: pre-wrap; }
-	shu-chat-message .chat-restate { display: flex; gap: var(--shu-space-2); }
+	/* Asking a question again, as it was or to edit, under the icon of the person who asked it. */
+	shu-chat-message .chat-restate { display: flex; flex-direction: column; gap: var(--shu-space-1); }
 	/* The records the question carries, each a link to its record or type. */
 	shu-chat-message .chat-carries { display: flex; flex-wrap: wrap; gap: var(--shu-space-2); font-size: var(--shu-font-sm); color: var(--shu-fg-muted); }
 	shu-chat-message .chat-text { font-size: inherit; overflow-wrap: break-word; word-break: break-word; }
@@ -162,17 +163,19 @@ export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
 		}
 		return html`
 			<div class="msg" @click=${this.onSelect}>
-				<span class="msg-label">${m.recordId ? recordRef(COMMENT_LABEL, m.recordId, ROLE_LABEL[m.role], SHU_TEST_IDS.APP.CHAT_RECORD) : ROLE_LABEL[m.role]}</span>
-				<div class="msg-content">
-					${m.role === "user" ? html`<div class="chat-prompt">${m.text}</div>` : ""}
+				<span class="msg-label">
+					${m.recordId ? recordRef(COMMENT_LABEL, m.recordId, ROLE_LABEL[m.role], SHU_TEST_IDS.APP.CHAT_RECORD) : ROLE_LABEL[m.role]}
 					${
 						m.role === "user" && m.recordId && m.text
-							? html`<div class="chat-restate">
-									<button type="button" data-testid=${SHU_TEST_IDS.APP.CHAT_ASK_AGAIN} @click=${this.restate(true)}>ask again</button>
-									<button type="button" data-testid=${SHU_TEST_IDS.APP.CHAT_EDIT} @click=${this.restate(false)}>edit</button>
-								</div>`
+							? html`<span class="chat-restate">
+									<button type="button" title="Ask again" aria-label="Ask again" data-testid=${SHU_TEST_IDS.APP.CHAT_ASK_AGAIN} @click=${this.restate(true)}>↻</button>
+									<button type="button" title="Edit and ask" aria-label="Edit and ask" data-testid=${SHU_TEST_IDS.APP.CHAT_EDIT} @click=${this.restate(false)}>✎</button>
+								</span>`
 							: ""
 					}
+				</span>
+				<div class="msg-content">
+					${m.role === "user" ? html`<div class="chat-prompt">${m.text}</div>` : ""}
 					${
 						m.role === "user" && m.bundle && m.bundle.patterns.length > 0
 							? html`<div class="chat-carries" data-testid=${SHU_TEST_IDS.APP.CHAT_CARRIES}>about ${m.bundle.patterns.map(patternRef)}</div>`

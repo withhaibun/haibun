@@ -631,7 +631,7 @@ export const ResolvedFeaturesArtifact = BaseArtifact.extend({
 });
 
 // Generic file artifact for other types
-const FileArtifact = BaseArtifact.extend({
+export const FileArtifact = BaseArtifact.extend({
 	artifactType: z.literal("file"),
 	path: z.string(),
 	mimetype: z.string(),

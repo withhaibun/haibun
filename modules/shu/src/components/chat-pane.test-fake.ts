@@ -11,14 +11,14 @@ import type { TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { CLIENT_LOG_METHOD } from "../client-log.js";
-import { ASK_STEP, KEEP_IMAGE_STEP } from "../conversation.js";
+import { ASK_STEP, KEEP_FILE_STEP } from "../conversation.js";
 import type { TSessionTurn } from "../schemas.js";
 import { stepsShown, type TDispatch } from "../test-setup.js";
 
 /** The consumer's stepper that offers the steps the pane calls. */
 export const CHAT_STEPPER = "AskingStepper";
 /** The steps the pane and the conversation call, by name. */
-export const CHAT_STEP = { ask: ASK_STEP, keepImage: KEEP_IMAGE_STEP, sessions: "listChatSessions", session: "loadChatSession", catalog: "showKihans" } as const;
+export const CHAT_STEP = { ask: ASK_STEP, keepFile: KEEP_FILE_STEP, sessions: "listChatSessions", session: "loadChatSession", catalog: "showKihans" } as const;
 
 /**
  * A dispatch answering the pane as a run that offers the steps named: the show steps step lists them with the types the

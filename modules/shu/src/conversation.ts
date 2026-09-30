@@ -36,8 +36,8 @@ import { mergeHashParams } from "./view-hash.js";
 export const ASK_STEP = "chatWithContext";
 /** The step that makes the key a turn acts as, which the page delegates to before it asks. */
 export const OPEN_TURN_STEP = "openTurn";
-/** The step that keeps an image a person adds to a question, which the question then names. */
-export const KEEP_IMAGE_STEP = "keepImage";
+/** The step that keeps a file a person adds to a question, which the question then names. */
+export const KEEP_FILE_STEP = "keepFile";
 
 /** A turn: as the store reads it back, or as this page asks it, with what it stated while it ran. Its question's record
  *  names it, and a turn this page asks isn't named until actuality records that question. */
