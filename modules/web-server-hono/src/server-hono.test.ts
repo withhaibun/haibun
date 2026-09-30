@@ -4,6 +4,7 @@ import { ServerHono } from "./server-hono.js";
 import type { IEventLogger } from "@haibun/core/lib/EventLogger.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { EndpointLabels } from "./defs.js";
+import { basicAuthUsers } from "./auth.js";
 
 const mockLogger: IEventLogger = {
 	subscribe: () => {
@@ -212,5 +213,39 @@ describe("ServerHono", () => {
 				expect(await answered.text()).toBe("held back");
 			}
 		});
+	});
+});
+
+describe("a server that admits people by basic auth", () => {
+	const ADMITTED = "reader:a-password-for-this-test";
+	const signIn = (entry: string) => ({ authorization: `Basic ${Buffer.from(entry).toString("base64")}` });
+	const serving = () => {
+		const server = new ServerHono(mockLogger, "/tmp", () => new QuadStore(), [], basicAuthUsers(ADMITTED));
+		server.addRoute("get", "/held", { description: "a route every feature might add" }, (c) => c.text("held"));
+		return server.app;
+	};
+
+	it("refuses a request that doesn't sign in 401, on every route, before the route reads it", async () => {
+		expect((await serving().request("/held")).status).toBe(401);
+		expect((await serving().request("/a-route-a-later-feature-adds")).status).toBe(401);
+		expect((await serving().request("/held", { headers: signIn("reader:another-password") })).status).toBe(401);
+	});
+
+	it("answers a request that signs in", async () => {
+		expect(await (await serving().request("/held", { headers: signIn(ADMITTED) })).text()).toBe("held");
+	});
+
+	it("still asks after a feature's routes are cleared, since the next feature's routes are as held", async () => {
+		const server = new ServerHono(mockLogger, "/tmp", () => new QuadStore(), [], basicAuthUsers(ADMITTED));
+		server.clearMounted();
+		expect((await server.app.request("/held")).status).toBe(401);
+	});
+
+	it("names people by user:password entries, and refuses an entry that isn't one without repeating it", () => {
+		expect(basicAuthUsers("reader:one,writer:two:with-a-colon")).toEqual([
+			{ username: "reader", password: "one" },
+			{ username: "writer", password: "two:with-a-colon" },
+		]);
+		expect(() => basicAuthUsers("reader:one,a-secret-without-a-user")).toThrow("basic auth entry 2 isn't user:password");
 	});
 });

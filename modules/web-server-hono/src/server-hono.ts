@@ -11,6 +11,7 @@ import { describePortOccupant } from "@haibun/core/lib/port-occupant.js";
 import { ENDPOINT_CLASS, isServicePath } from "@haibun/core/lib/http-observations.js";
 import type { IQuadStore } from "@haibun/core/lib/quad-types.js";
 import type { TRpcMethod } from "@haibun/core/lib/rpc-wire.js";
+import { basicAuth, type TBasicAuthUser } from "./auth.js";
 import { type IWebServer, type TRouteMap, type TRouteTypes, type TRoutePurpose, type TRequestHandler, ROUTE_TYPES, EndpointLabels } from "./defs.js";
 
 const DEFAULT_MOUNTED = (): TRouteMap => ROUTE_TYPES.reduce((acc, type) => ({ ...acc, [type]: {} }), {} as TRouteMap);
@@ -29,12 +30,16 @@ export class ServerHono implements IWebServer {
 		private readonly base: string,
 		private readonly getStore: () => IQuadStore,
 		readonly allowedWithoutDelegation: readonly string[],
+		/** The people every route admits by HTTP basic auth, before anything else reads a request. Empty, the server doesn't ask. */
+		private readonly admitted: readonly TBasicAuthUser[] = [],
 	) {
 		this.createApp();
 	}
 
 	private createApp(): void {
 		this._app = new Hono({ router: new LinearRouter() });
+		const [first, ...others] = this.admitted;
+		if (first) this._app.use("*", basicAuth(first, ...others));
 	}
 
 	get app(): Hono {

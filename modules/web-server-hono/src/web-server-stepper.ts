@@ -22,6 +22,7 @@ import { fromJsonText } from "@haibun/core/lib/json-text.js";
 
 import { type IWebServer, WEBSERVER, DOMAIN_ENDPOINT, EndpointLabels, EndpointSchema } from "./defs.js";
 import { endWhenLapsed, grantedCapabilityForRequest } from "./capability-auth.js";
+import { basicAuthUsers, type TBasicAuthUser } from "./auth.js";
 import { ServerHono, DEFAULT_PORT } from "./server-hono.js";
 import { SSETransport, TRANSPORT, type ITransport } from "./sse-transport.js";
 import type { IStepTransport } from "./step-transport.js";
@@ -69,7 +70,7 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 			wss.webserver.clearMounted();
 		} else {
 			const filesBase = path.join(process.cwd(), "files");
-			wss.webserver = new ServerHono(wss.getWorld().eventLogger, filesBase, () => wss.getWorld().shared.getStore(), wss.allowedWithoutDelegation);
+			wss.webserver = new ServerHono(wss.getWorld().eventLogger, filesBase, () => wss.getWorld().shared.getStore(), wss.allowedWithoutDelegation, wss.admitted);
 		}
 		// The delegated store surface: a sibling instance keeping its records in this instance's store. Reached only once RPC
 		// is enabled, since only the RPC transport calls a family's methods.
@@ -115,11 +116,24 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			desc: "Actions every caller may take without a delegation, comma-separated, beside what its delegation allows: Read:public for a site anyone may read. Unset, a caller holds only what it proves, and one that doesn't prove a key may call only a step that doesn't require an action",
 			parse: (input: string) => (actionList(input).length > 0 ? { result: input } : { parseError: "ALLOW_WITHOUT_DELEGATION: name at least one action, comma-separated" }),
 		},
+		BASIC_AUTH: {
+			desc: "Require HTTP basic auth on every route, as a proxy's basic auth does: user:password entries, comma-separated. A request that doesn't sign in is refused 401 before anything else reads it. Unset, the server doesn't ask",
+			parse: (input: string) => {
+				try {
+					basicAuthUsers(input);
+					return { result: input };
+				} catch (e) {
+					return { parseError: `BASIC_AUTH: ${errorDetail(e)}` };
+				}
+			},
+		},
 	};
 	port: number = DEFAULT_PORT;
 	hostname?: string;
 	/** The actions every caller may take without a delegation. */
 	allowedWithoutDelegation: string[] = [];
+	/** The people every route admits by HTTP basic auth. */
+	admitted: TBasicAuthUser[] = [];
 
 	/** Monotonic counter for session-allocated seqPath roots. Never resets while process runs. */
 	private sessionActionSeq = 0;
@@ -151,6 +165,8 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			this.hostname = String(interfaceOption);
 		}
 		this.allowedWithoutDelegation = actionList(getStepperOption(this, "ALLOW_WITHOUT_DELEGATION", world.moduleOptions));
+		const basicAuth = getStepperOption(this, "BASIC_AUTH", world.moduleOptions);
+		this.admitted = basicAuth ? basicAuthUsers(basicAuth) : [];
 	}
 
 	steps = {
