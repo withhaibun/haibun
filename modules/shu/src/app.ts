@@ -1,3 +1,4 @@
+import { SHU_TEST_IDS } from "./test-ids.js";
 import { appAccessLevel, defaultLabel, esc } from "./util.js";
 import { DOCK_FOOTPRINT, INDEX_PANE_KEY, SHU_EVENT, SHU_ATTR, SHU_TAG } from "./consts.js";
 import { getHash, hashOf, hashWithColumns } from "./view-hash.js";
@@ -15,6 +16,7 @@ import {
 	deploymentAllowedWithoutDelegation,
 	deploymentVerifiesDelegations,
 	deploymentEmbedderOrigin,
+	pageBuild,
 } from "./rpc-registry.js";
 import { openPageAuthority, pageMay, type TPageAuthority } from "./page-key.js";
 import { DELEGATIONS_READ_METHOD, type TDelegations } from "@haibun/core/lib/authority-types.js";
@@ -166,7 +168,9 @@ const main = async (): Promise<void> => {
 		await getAvailableSteps();
 	} catch (err) {
 		if (!isOffline()) {
-			appRoot.innerHTML = `<div style="padding:20px;color:#c00;font-family:monospace"><strong>This page didn't start.</strong> ${errorDetail(err)}</div>`;
+			// The build is stated with the failure: a deployment serving page code older than its source is recognized by it.
+			const build = pageBuild();
+			appRoot.innerHTML = `<div style="padding:20px;color:#c00;font-family:monospace"><strong>This page didn't start.</strong> ${esc(errorDetail(err))}${build ? `<div data-testid="${SHU_TEST_IDS.APP.PAGE_BUILD}">${esc(build)}</div>` : ""}</div>`;
 			return;
 		}
 	}

@@ -146,7 +146,12 @@ export type TDeploymentSettings = {
 	embedderOrigin?: string;
 	/** The rounds of tool calls an ask starts with, before the reader chooses. */
 	askToolLimit?: number;
+	/** The build this page's code is from: its version, and when its bundle was built. */
+	build?: TPageBuild;
 };
+
+/** The build a page's code is from, which a deployment that serves an old one is recognized by. */
+export type TPageBuild = { version: string; builtAt: string };
 
 // The page boots ONCE, but its modules load once PER BUNDLE (the app, the polymorphic view, an actions-bar extension
 // each carry their own copy of this module). The one payload is pinned to the page so every bundle reads the same
@@ -192,6 +197,12 @@ export function carriedProducts(method: string): unknown | undefined {
  */
 export function isOffline(): boolean {
 	return cachedHydration().data?.cache !== undefined;
+}
+
+/** The build this page's code is from, as a person reads it, or undefined where the page was served without stating it. */
+export function pageBuild(): string | undefined {
+	const build = cachedHydration().data?.settings?.build;
+	return build ? `haibun ${build.version}, page code built ${build.builtAt}` : undefined;
 }
 
 /** What every reader holds here without presenting anything: empty, where the page was served without stating it. */

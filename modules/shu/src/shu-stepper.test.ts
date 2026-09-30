@@ -1,3 +1,4 @@
+import { currentVersion } from "@haibun/core/currentVersion.js";
 import { HYDRATION_ID } from "./consts.js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
@@ -42,7 +43,10 @@ describe("the app a deployment serves", () => {
 		await stepper.steps.serveShuApp.action({ path: "/spa" });
 		const serve = addRoute.mock.calls.find(([, path]) => path === "/spa")?.[3] as (c: unknown) => string;
 		const served = () => serve({ header: () => undefined, html: (body: string) => body });
-		expect(served()).toContain(JSON.stringify({ settings: { allowedWithoutDelegation: ["Read:public"], verifiesDelegations: false } }));
+		expect(served()).toContain('"allowedWithoutDelegation":["Read:public"],"verifiesDelegations":false');
+		expect(served(), "and the build its code is from, so a deployment serving an old page is recognized").toMatch(
+			new RegExp(`"build":\\{"version":"${currentVersion}","builtAt":"\\d{4}-\\d{2}-\\d{2}T`),
+		);
 		const authority = new SessionAuthority();
 		const recordsNothing = async () => ({ ok: false as const, error: "records nothing" });
 		authority.registerVerifier({

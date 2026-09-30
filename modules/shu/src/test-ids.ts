@@ -62,6 +62,8 @@ export const SHU_TEST_IDS = {
 		HELD: "permissions-held",
 		/** The page's own key, as the did:key a holder delegates to. */
 		PAGE_KEY: "page-key",
+		/** The build the page's code is from, stated where the page didn't start. */
+		PAGE_BUILD: "page-build",
 	},
 	/** The graph filter's own controls, beside its chips. */
 	GRAPH_FILTER: {

@@ -9,7 +9,8 @@ import { gzipSync } from "node:zlib";
 import { z } from "zod";
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionOK, actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption, intOrError } from "@haibun/core/lib/util/index.js";
-import type { TDeploymentSettings } from "./rpc-registry.js";
+import type { TDeploymentSettings, TPageBuild } from "./rpc-registry.js";
+import { currentVersion } from "@haibun/core/currentVersion.js";
 import { getJsonLdContext } from "@haibun/core/lib/hypermedia.js";
 import { Access, haibunNsForHost, isPersisted } from "@haibun/core/lib/resources.js";
 import { requestBaseIri } from "@haibun/core/lib/request-context.js";
@@ -76,8 +77,14 @@ const GraphLayoutSchema = z.object({
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+const BUNDLE_PATH = join(__dirname, "..", "build", "shu-bundle.js");
+
+/** The build the served page's code is from: this module's version, and when its bundle was written. A deployment
+ *  serving a page older than its source is recognized by it. */
+const servedBuild = (): TPageBuild => ({ version: currentVersion, builtAt: statSync(BUNDLE_PATH).mtime.toISOString() });
+
 function loadBundle(): string {
-	const bundlePath = join(__dirname, "..", "build", "shu-bundle.js");
+	const bundlePath = BUNDLE_PATH;
 	try {
 		return readFileSync(bundlePath, "utf-8");
 	} catch {
@@ -323,6 +330,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 				// authority's, read for each page served, since a verifier may be registered after the app is.
 				const settings = (): TDeploymentSettings => ({
 					...this.settings,
+					build: servedBuild(),
 					allowedWithoutDelegation: [...webserver.allowedWithoutDelegation],
 					verifiesDelegations: getAuthority(this.getWorld().runtime)?.hasVerifier() === true,
 				});

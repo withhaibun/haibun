@@ -42,12 +42,12 @@
 				"declaredStepTextHash": "4f2c94ae645eda3071bcdce65b58a9a9b48a9d58cdbcc27edc047200d226cd22"
 			},
 			"/features/counter.feature": {
-				"seconds": 1.2,
+				"seconds": 0.5,
 				"steps": 19,
 				"declaredStepTextHash": "37c58d5784e80fb1590fa37dc9ab9fde541140ae177a9d6b34e8a5757d134af1"
 			},
 			"/features/counter.feature.ts": {
-				"seconds": 1.5,
+				"seconds": 2.2,
 				"steps": 19,
 				"declaredStepTextHash": "5c6fea35d68432b035bbca7445c03e6a962a0290efe7ec893c0b8065156906e0"
 			},
@@ -57,7 +57,7 @@
 				"declaredStepTextHash": "044398785f4c4e310f5a6db9af3f898b2ebd3f751ce6e65d63b9da9e1172d860"
 			},
 			"/features/elements.feature": {
-				"seconds": 0.3,
+				"seconds": 0.4,
 				"steps": 6,
 				"declaredStepTextHash": "f25538464d6291400a6bd6369ba30578b1498e8bde57dfc1a7033ddab3d87054"
 			},
@@ -97,7 +97,7 @@
 				"declaredStepTextHash": "5b6da41bba88c02e5712937690a3488ac6a9a3acbe100e54afe7848ebbcc2a67"
 			},
 			"/features/qrcode.feature": {
-				"seconds": 2.5,
+				"seconds": 2.6,
 				"steps": 18,
 				"declaredStepTextHash": "a027c3737b57ea7afadfa35619c47435fee5194b15576809f74720279f71096a"
 			},
@@ -107,7 +107,7 @@
 				"declaredStepTextHash": "973f020efebbbef86f06cda006feef3d98d079e5ecdc0fa7be02b881b43fbe33"
 			},
 			"/features/trauma_center.feature": {
-				"seconds": 0,
+				"seconds": 0.1,
 				"steps": 93,
 				"declaredStepTextHash": "70c4ba0a91793061edb72e073dc62e1fcb3940bac2e90550ab3b2a54ade3f5a6"
 			},
@@ -127,8 +127,8 @@
 				"declaredStepTextHash": "423b87fb62e3b26879565f24459e8474ab76e2eb6ff85bc3a5e49704ea336e08"
 			},
 			"/features/wikipedia.feature.ts": {
-				"seconds": 1,
-				"steps": 161,
+				"seconds": 1.1,
+				"steps": 143,
 				"declaredStepTextHash": "b162c447aa4626651d8e903bcce16dc77fdff6ddf5cdcb3dd48ed79db2d59972"
 			},
 			"/features/workflow.feature.ts": {
@@ -142,7 +142,7 @@
 				"declaredStepTextHash": "617b13893f007d943f178c8ace6290a8dbea8123df25ff7ff03cc2801b4d4fa8"
 			}
 		},
-		"steps": 1148,
-		"seconds": 13.4
+		"steps": 1130,
+		"seconds": 13.8
 	}
 }

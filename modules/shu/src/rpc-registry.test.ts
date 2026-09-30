@@ -21,6 +21,7 @@ import {
 	requireStep,
 	responseTimeoutMs,
 	stepsJoining,
+	pageBuild,
 } from "./rpc-registry.js";
 import { asDomainKey } from "@haibun/core/lib/domains.js";
 import { setupShuTest, stepsShown, type TShuTestHandle, hydrate } from "./test-setup.js";
@@ -85,6 +86,15 @@ describe("the timings a deployment sets", () => {
 		hydrateFromDom();
 		expect(deploymentEmbedderOrigin()).toBe("chrome-extension://abcdefghijklmnop");
 		expect(deploymentAskToolLimit()).toBe(7);
+	});
+
+	it("states the build the page's code is from, which a page that didn't start shows", () => {
+		setHydration({ settings: { build: { version: "4.0.0", builtAt: "2026-09-30T12:00:00.000Z" } } });
+		hydrateFromDom();
+		expect(pageBuild()).toBe("haibun 4.0.0, page code built 2026-09-30T12:00:00.000Z");
+		setHydration({ settings: {} });
+		hydrateFromDom();
+		expect(pageBuild(), "a page served without it doesn't state one").toBeUndefined();
 	});
 
 	it("answers with undefined where the deployment didn't set a value, so the page applies what it carries", () => {
