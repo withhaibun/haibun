@@ -83,7 +83,7 @@ describe("a question's controls", () => {
 		const raised: unknown[] = [];
 		const hear = (e: Event) => raised.push((e as CustomEvent).detail);
 		document.addEventListener(SHU_EVENT.QUESTION_RESTATE, hear);
-		for (const control of [SHU_TEST_IDS.APP.CHAT_ASK_AGAIN, SHU_TEST_IDS.APP.CHAT_EDIT]) (el.querySelector(`[data-testid="${control}"]`) as HTMLButtonElement).click();
+		for (const control of [SHU_TEST_IDS.APP.CHAT_FORK, SHU_TEST_IDS.APP.CHAT_EDIT]) (el.querySelector(`[data-testid="${control}"]`) as HTMLButtonElement).click();
 		document.removeEventListener(SHU_EVENT.QUESTION_RESTATE, hear);
 		const asked = { prompt: "what is this", patterns: BUNDLE.patterns, inReplyTo: "cmt-ask-0.1.1" };
 		expect(raised).toEqual([
@@ -93,18 +93,16 @@ describe("a question's controls", () => {
 		expect(scopeEntry(currentSubjectState.get(), SCOPE.actionsBar), "the question is not selected").toBeNull();
 	});
 
-	it("are icons under the icon of the person who asked, each named for what it does", async () => {
+	it("are icons under the icon of the person who asked, each named as the fork it makes", async () => {
 		const el = await rendered({ id: "q4", role: "user", text: "what is this", turn: "cmt-ask-0.1.4", recordId: "cmt-ask-0.1.4", bundle: BUNDLE });
-		const named = [SHU_TEST_IDS.APP.CHAT_ASK_AGAIN, SHU_TEST_IDS.APP.CHAT_EDIT].map((control) =>
-			el.querySelector(`.msg-label [data-testid="${control}"]`)?.getAttribute("aria-label"),
-		);
-		expect(named).toEqual(["Ask again", "Edit and ask"]);
+		const named = [SHU_TEST_IDS.APP.CHAT_FORK, SHU_TEST_IDS.APP.CHAT_EDIT].map((control) => el.querySelector(`.msg-label [data-testid="${control}"]`)?.getAttribute("aria-label"));
+		expect(named).toEqual(["Fork", "Edit and fork"]);
 	});
 
 	it("are on a recorded question only", async () => {
 		const answer = await rendered({ id: "a3", role: "llm", text: "an answer", recordId: "cmt-say-0.1.2" });
 		const unrecorded = await rendered({ id: "q3", role: "user", text: "not yet recorded" });
-		for (const el of [answer, unrecorded]) expect(el.querySelector(`[data-testid="${SHU_TEST_IDS.APP.CHAT_ASK_AGAIN}"]`)).toBeNull();
+		for (const el of [answer, unrecorded]) expect(el.querySelector(`[data-testid="${SHU_TEST_IDS.APP.CHAT_FORK}"]`)).toBeNull();
 	});
 });
 

@@ -36,7 +36,7 @@ export const chatMessageStyles = css`
 	shu-chat-message[data-role="llm"] { background: var(--shu-bg-soft); }
 	shu-chat-message .msg-content { min-width: 0; padding: var(--shu-space-2) var(--shu-space-3); }
 	shu-chat-message .chat-prompt { font-weight: 600; padding: var(--shu-space-1) 0; white-space: pre-wrap; }
-	/* Asking a question again, as it was or to edit, under the icon of the person who asked it. */
+	/* Forking a conversation at a question, asking it again as it was or edited, under the icon of the person who asked it. */
 	shu-chat-message .chat-restate { display: flex; flex-direction: column; gap: var(--shu-space-1); }
 	/* The records the question carries, each a link to its record or type. */
 	shu-chat-message .chat-carries { display: flex; flex-wrap: wrap; gap: var(--shu-space-2); font-size: var(--shu-font-sm); color: var(--shu-fg-muted); }
@@ -118,7 +118,8 @@ export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
 		activateComment(other.recordId, other.turn, other.bundle);
 	};
 
-	/** Ask this question again, as it was or to edit, replying where it replied. The bar the history sits in takes it. */
+	/** Fork the conversation at this question: ask it again, as it was or edited, replying where it replied, which starts a
+	 *  branch beside the one it began. The bar the history sits in takes it. */
 	private restate =
 		(send: boolean) =>
 		(e: Event): void => {
@@ -168,8 +169,8 @@ export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
 					${
 						m.role === "user" && m.recordId && m.text
 							? html`<span class="chat-restate">
-									<button type="button" title="Ask again" aria-label="Ask again" data-testid=${SHU_TEST_IDS.APP.CHAT_ASK_AGAIN} @click=${this.restate(true)}>↻</button>
-									<button type="button" title="Edit and ask" aria-label="Edit and ask" data-testid=${SHU_TEST_IDS.APP.CHAT_EDIT} @click=${this.restate(false)}>✎</button>
+									<button type="button" title="Fork: ask it again as a new branch" aria-label="Fork" data-testid=${SHU_TEST_IDS.APP.CHAT_FORK} @click=${this.restate(true)}>⑂</button>
+									<button type="button" title="Edit and fork: change it, then ask it as a new branch" aria-label="Edit and fork" data-testid=${SHU_TEST_IDS.APP.CHAT_EDIT} @click=${this.restate(false)}>✎</button>
 								</span>`
 							: ""
 					}

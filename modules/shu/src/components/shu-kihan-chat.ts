@@ -374,7 +374,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 			${
 				this.#restating
 					? html`<div class="restating" role="status" data-testid=${`${this.testIdPrefix}chat-restating`}>
-							Editing an earlier question: it replies where that question did.
+							Editing an earlier question: asking it starts a new branch where that question replied.
 							<button type="button" @click=${this.onCancelRestate}>cancel</button>
 						</div>`
 					: nothing
