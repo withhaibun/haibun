@@ -56,7 +56,7 @@ export const artifactAt = (url: string, source: string) =>
 	);
 
 async function readArtifact(url: string): Promise<string> {
-	const response = await fetch(url, { headers: await readingHeaders(url, READS_THE_RUNS_ARTIFACTS) });
+	const response = await fetch(url, { headers: await readingHeaders(url, READS_THE_RUNS_ARTIFACTS), credentials: "include" });
 	if (!response.ok) throw new Error(`actuality refused its artifact ${url}: ${response.status} ${await response.text()}`);
 	return URL.createObjectURL(await response.blob());
 }

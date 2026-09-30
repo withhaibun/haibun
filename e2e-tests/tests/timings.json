@@ -42,12 +42,12 @@
 				"declaredStepTextHash": "4f2c94ae645eda3071bcdce65b58a9a9b48a9d58cdbcc27edc047200d226cd22"
 			},
 			"/features/counter.feature": {
-				"seconds": 1,
+				"seconds": 1.2,
 				"steps": 19,
 				"declaredStepTextHash": "37c58d5784e80fb1590fa37dc9ab9fde541140ae177a9d6b34e8a5757d134af1"
 			},
 			"/features/counter.feature.ts": {
-				"seconds": 0.9,
+				"seconds": 1.5,
 				"steps": 19,
 				"declaredStepTextHash": "5c6fea35d68432b035bbca7445c03e6a962a0290efe7ec893c0b8065156906e0"
 			},
@@ -57,7 +57,7 @@
 				"declaredStepTextHash": "044398785f4c4e310f5a6db9af3f898b2ebd3f751ce6e65d63b9da9e1172d860"
 			},
 			"/features/elements.feature": {
-				"seconds": 0.4,
+				"seconds": 0.3,
 				"steps": 6,
 				"declaredStepTextHash": "f25538464d6291400a6bd6369ba30578b1498e8bde57dfc1a7033ddab3d87054"
 			},
@@ -72,7 +72,7 @@
 				"declaredStepTextHash": "f567c83cdc9db224634e851624576d77db1cdec635c722eabde2b3a633fd9b50"
 			},
 			"/features/identity-and-capability.feature.ts": {
-				"seconds": 0,
+				"seconds": 0.1,
 				"steps": 28,
 				"declaredStepTextHash": "6fc19779ac042d64dd1bf8fa1850899f3c719e5a5d1014c54aefd6fe4a39ef16"
 			},
@@ -87,7 +87,7 @@
 				"declaredStepTextHash": "066cbb83b5ed74495ded680541a3fbd3e3beb086a28bceb9a1adaea4f5ba992a"
 			},
 			"/features/once.feature.ts": {
-				"seconds": 0.5,
+				"seconds": 0.6,
 				"steps": 20,
 				"declaredStepTextHash": "006f43f7b774933fc9bebe65cc0bd082a8b856b21c34e008e1c61ffbf7ac8354"
 			},
@@ -97,7 +97,7 @@
 				"declaredStepTextHash": "5b6da41bba88c02e5712937690a3488ac6a9a3acbe100e54afe7848ebbcc2a67"
 			},
 			"/features/qrcode.feature": {
-				"seconds": 2.6,
+				"seconds": 2.5,
 				"steps": 18,
 				"declaredStepTextHash": "a027c3737b57ea7afadfa35619c47435fee5194b15576809f74720279f71096a"
 			},
@@ -128,7 +128,7 @@
 			},
 			"/features/wikipedia.feature.ts": {
 				"seconds": 1,
-				"steps": 143,
+				"steps": 161,
 				"declaredStepTextHash": "b162c447aa4626651d8e903bcce16dc77fdff6ddf5cdcb3dd48ed79db2d59972"
 			},
 			"/features/workflow.feature.ts": {
@@ -142,7 +142,7 @@
 				"declaredStepTextHash": "617b13893f007d943f178c8ace6290a8dbea8123df25ff7ff03cc2801b4d4fa8"
 			}
 		},
-		"steps": 1130,
-		"seconds": 12.6
+		"steps": 1148,
+		"seconds": 13.4
 	}
 }

@@ -60,9 +60,9 @@ type TRpcAnswer = { kind: "answered"; body: unknown } | { kind: "refused"; error
 
 /** What a caller is told when a call's answer didn't come from actuality: a call is always answered as JSON, so an answer
  *  of another type came from a proxy or server in front of it. A sign-in that was refused is named as one. */
-export function notFromActuality(method: string, status: number, mediaType: string, said: string): string {
-	const signIn = status === 401 || status === 407 ? " Sign in to the site, then reload this page." : "";
-	return `${method}: this call didn't reach actuality. Something in front of it answered ${status} (${mediaType}): ${said.trim()}.${signIn}`;
+export function notFromActuality(method: string, status: number, mediaType: string, answered: string, site?: string): string {
+	const signIn = status === 401 || status === 407 ? ` Sign in ${site ? `at ${site}` : "to the site"} in this browser, then try again.` : "";
+	return `${method}: this call didn't reach actuality. Something in front of it answered ${status} (${mediaType}): ${answered.trim()}.${signIn}`;
 }
 
 /**
@@ -72,7 +72,10 @@ export function notFromActuality(method: string, status: number, mediaType: stri
  */
 export async function readRpcAnswer(method: string, res: Response): Promise<TRpcAnswer> {
 	const mediaType = res.headers.get("content-type") ?? "a body that doesn't state its media type";
-	if (!mediaType.startsWith("application/json")) return { kind: "refused", error: notFromActuality(method, res.status, mediaType, (await res.text()).slice(0, 200)) };
+	if (!mediaType.startsWith("application/json")) {
+		const site = URL.canParse(res.url) ? new URL(res.url).origin : undefined;
+		return { kind: "refused", error: notFromActuality(method, res.status, mediaType, (await res.text()).slice(0, 200), site) };
+	}
 	const body: unknown = await res.json();
 	return res.ok ? { kind: "answered", body } : { kind: "refused", error: RpcRefusalSchema.parse(body).error };
 }
@@ -98,7 +101,12 @@ export type TProveRequest = (request: { url: string; method: string; headers: Re
 export type TRpcEnvelope = Parameters<typeof rpcEnvelope>[0];
 
 /** A call as it is sent: its address, and the POST carrying its envelope under the headers made over it. */
-type TRpcCall = { url: string; init: { method: "POST"; headers: Record<string, string>; body: string } };
+/** A call carries the sign-in the browser holds for the site it is sent to, such as a proxy's basic auth, beside its own
+ *  proof. A page sends its site's sign-in anyway. An extension calls from another origin, where a browser sends it only
+ *  when asked. A process doesn't hold one, and the setting doesn't change its request. */
+const WITH_THE_SITES_SIGN_IN = "include";
+
+type TRpcCall = { url: string; init: { method: "POST"; headers: Record<string, string>; body: string; credentials: typeof WITH_THE_SITES_SIGN_IN } };
 
 /** `provesNothing`: a call that doesn't invoke an action is sent with its headers as they are. */
 export const provesNothing: TProveRequest = (request) => Promise.resolve(request.headers);
@@ -112,7 +120,7 @@ export async function buildRpcCall(base: string, envelope: TRpcEnvelope, prove: 
 	const url = `${stripTrailingSlash(base)}/rpc/${encodeURIComponent(envelope.method)}`;
 	const body = rpcEnvelope(envelope);
 	const headers = { "content-type": "application/json", host: new URL(url).host };
-	return { url, init: { method: "POST", headers: await prove({ url, method: "POST", headers, body }), body } };
+	return { url, init: { method: "POST", headers: await prove({ url, method: "POST", headers, body }), body, credentials: WITH_THE_SITES_SIGN_IN } };
 }
 
 /** Post one call to `method` at the `/rpc` of the host at `base`, proven by `prove`. A streamed call is answered as NDJSON
