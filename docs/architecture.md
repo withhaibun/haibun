@@ -17,7 +17,7 @@ The name comes from the Japanese literary form that combines prose and haiku. In
 
 This case sensitivity rule creates self-documenting tests where prose and steps are visually distinct.
 
-**Actuality** is the live system and its results. The live system is the world (`TWorld`), its steppers and its step registry, from the Executor's first dispatched step until it ends. Its results are the record of each dispatched step, a `SeqPath` individual: the step's line, the stepper action it called, its status, its error where it failed, and when it started and ended. What the step said and produced is recorded against that individual. A feature states what is expected, and each of its steps passes or fails against actuality.
+**Actuality** is the live system and its results. The live system is the world (`TWorld`), its steppers and its step registry, from the Executor's first dispatched step until it ends. Its results are the record of each dispatched step, a `SeqPath` individual: the step's line, the stepper action it called, its status, its error where it failed, and when it started and ended. The messages a step logs and the products it returns are recorded against that individual. A feature states what is expected, and each of its steps passes or fails against actuality.
 
 Much of actuality is outside a feature's control, such as the requests a page makes to third parties. Haibun includes first-order logic to provide a grounded and consistent way to reason about it (like ensuring every request in a trace meets a performance threshold) without the brittle complexity and error-prone loops of general-purpose programming.
 
