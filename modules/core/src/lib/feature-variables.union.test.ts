@@ -18,7 +18,7 @@ describe("FeatureVariables - Union Domains", () => {
 		// "string" is a built-in domain in default world
 		const result = await variables.resolveVariable({
 			term: "literalValue",
-			origin: Origin.quoted, // or Origin.defined with literal fallback
+			origin: Origin.quoted,
 			domain: `string | other`,
 		});
 
@@ -26,28 +26,14 @@ describe("FeatureVariables - Union Domains", () => {
 		expect(result.domain).toBe(DOMAIN_STRING);
 	});
 
-	it('should resolve unquoted literal when domain is "string | other"', async () => {
-		const result = await variables.resolveVariable({
-			term: "/path/to/literal", // simple identifiers are not literals
-			origin: Origin.defined,
-			domain: `string | other`,
-		});
-
-		expect(result.value).toBe("/path/to/literal");
-		// It specifically falls back to string domain because 'string' is in the candidates
-		expect(result.domain).toBe(DOMAIN_STRING);
-	});
-
 	it("should coerce using resolved domain", async () => {
-		// When resolving a literal-like term, it falls back to string domain
-		// and coerces using that domain
 		const result = await variables.resolveVariable({
 			term: "/some/path",
-			origin: Origin.defined,
-			domain: `invalid | mockDomain`, // input domain is ignored for literal fallback
+			origin: Origin.quoted,
+			domain: `invalid | mockDomain`,
 		});
 
-		// Literal fallback resolves to string domain and coerces
+		// A union that isn't a registered domain is coerced as a string.
 		expect(result.value).toBe("/some/path");
 		expect(result.domain).toBe(DOMAIN_STRING);
 	});

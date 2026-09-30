@@ -1,5 +1,5 @@
 Feature: Auth-bearer Authentication
-    set Resource Server to http://localhost:8123
+    set Resource Server to "http://localhost:8123"
     set Profile Path to "/me"
     set Token Path to "/token"
     set Resources Path to "/api/resources"
@@ -26,7 +26,7 @@ Feature: Auth-bearer Authentication
     set Unauthorized to 401
     set Bad Request to 400
 
-    serve files at /static from "rest"
+    serve files at "/static" from "rest"
     webserver is listening for "auth-bearer"
     make auth scheme "bearer"
     API user agent is "curl/8.5.0"
@@ -72,12 +72,12 @@ Feature: Auth-bearer Authentication
     Scenario: filter list of resources
         request OAuth 2.0 access token from Authorization Server
         HTTP status is OK
-        accept application/json using HTTP GET to Resources API
+        accept "application/json" using HTTP GET to Resources API
         HTTP status is OK
         show JSON response count
         JSON response length is 3
         filter JSON response by "name" matching "Include"
         filtered response length is 2
         for each filtered "id", make REST DELETE to Resource API yielding status 204
-        accept application/json using HTTP GET to Resources API
+        accept "application/json" using HTTP GET to Resources API
         JSON response length is 1

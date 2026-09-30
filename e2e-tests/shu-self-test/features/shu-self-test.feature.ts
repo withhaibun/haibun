@@ -182,7 +182,7 @@ export const features: TKirejiExport = {
 		reloadPage({}),
 		"The reloaded URL must still carry the affordances pane in its hash, since that hash is what the app restores the panes from.",
 		"save URI to reloadUri",
-		"matches reloadUri with *shu-affordances-panel*",
+		'matches reloadUri with "*shu-affordances-panel*"',
 		waitFor({ target: IDS.AFFORDANCES.ROOT }),
 		waitFor({ target: IDS.DOMAIN_CHAIN.ROOT }),
 		"After hash-restore, the monitor and graph-view should also have come back, and with the monitor its rail and the mark on it. The playback controls open from the actions bar's current-time control; click it again after reload to confirm they survive.",

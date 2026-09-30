@@ -1,14 +1,14 @@
 Feature: Form-based Authentication
 
-    set Resource Server to http://localhost:8123
+    set Resource Server to "http://localhost:8123"
     compose REST Home with {Resource Server}/static/rest.html
 
-    start auth login route at /login
+    start auth login route at "/login"
 
     set OK to 200
     set Unauthorized to 401
 
-    serve files at /static from "rest"
+    serve files at "/static" from "rest"
     webserver is listening for "auth-form"
     make auth scheme "basic"
     using timeout of 1500ms

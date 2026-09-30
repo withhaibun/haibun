@@ -266,20 +266,22 @@ describe("FeatureVariables", () => {
 		});
 	});
 
-	describe("literal fallback", () => {
-		it("should fallback to literal value for unquoted literals", async () => {
+	describe("an unquoted term", () => {
+		it.each(["/path/to/resource", "https://example.com/a", "did:web:example.com", "file.json", "undefinedVar"])(
+			"doesn't resolve as a literal where it doesn't name a variable: %s",
+			async (term) => {
+				const fv = new FeatureVariables(world);
+				expect((await fv.resolveVariable({ term, origin: Origin.defined })).value).toBeUndefined();
+			},
+		);
+
+		it("resolves as a waypoint argument's own text inside the waypoint's activity", async () => {
 			const fv = new FeatureVariables(world);
-			const result = await fv.resolveVariable({ term: "/path/to/resource", origin: Origin.defined });
-			expect(result.value).toBe("/path/to/resource");
+			const inActivity = { runtimeArgs: { page: "/path/to/resource" } } as unknown as TFeatureStep;
+			expect((await fv.resolveVariable({ term: "/path/to/resource", origin: Origin.defined }, inActivity)).value).toBe("/path/to/resource");
 		});
 
-		it("should not fallback to literal for variable-like terms", async () => {
-			const fv = new FeatureVariables(world);
-			const result = await fv.resolveVariable({ term: "undefinedVar", origin: Origin.defined });
-			expect(result.value).toBeUndefined();
-		});
-
-		it("should prioritize defined variables over literal fallback", async () => {
+		it("resolves as the variable it names", async () => {
 			const fv = new FeatureVariables(world);
 			await fv.set({ term: "/path", value: "defined value", domain: DOMAIN_STRING, origin: Origin.var }, { in: "test", seq: [0], when: "now" });
 			const result = await fv.resolveVariable({ term: "/path", origin: Origin.defined });
@@ -339,9 +341,10 @@ describe("FeatureVariables", () => {
 
 		it("does not resolve invalid paths as variables", async () => {
 			await variables.setJSON("data", { vertex: { subject: "Hello" } }, Origin.var, mockFeatureStep);
-			const resolved = await variables.resolveVariable({ term: "data.vertex.missing", origin: Origin.defined }, mockFeatureStep);
-			// Invalid dot-path falls through to literal fallback, origin is not Origin.var
-			expect(resolved.origin).not.toBe(Origin.var);
+			// A path into a variable that names a field it doesn't have is refused, where as a literal it would reach a step as text.
+			await expect(variables.resolveVariable({ term: "data.vertex.missing", origin: Origin.defined }, mockFeatureStep)).rejects.toThrow(
+				"data.vertex doesn't have missing; it has subject. Quote the term to pass it as a literal.",
+			);
 		});
 
 		it("prefers full key over dot-path when both exist", async () => {

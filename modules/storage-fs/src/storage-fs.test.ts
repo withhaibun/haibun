@@ -1,5 +1,5 @@
 import { describe, it, expect, afterAll } from "vitest";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -17,6 +17,15 @@ import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
 const scratch = mkdtempSync(join(tmpdir(), "haibun-storage-fs-"));
 afterAll(() => rmSync(scratch, { recursive: true, force: true }));
 describeStorage("the filesystem", () => new StorageFS(), scratch);
+
+describe("a private file on the filesystem", () => {
+	it("is readable and writable by its owner alone, in a directory only its owner enters", () => {
+		const file = join(scratch, "private", "a.key");
+		new StorageFS().writePrivateFile(file, "kept");
+		expect(statSync(file).mode & 0o777, "the file").toBe(0o600);
+		expect(statSync(join(scratch, "private")).mode & 0o777, "the directory it made").toBe(0o700);
+	});
+});
 
 describe("getArtifactBasePath", () => {
 	it("returns base path without seq/featn", () => {

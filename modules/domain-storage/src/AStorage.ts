@@ -56,6 +56,9 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 		}
 	}
 
+	/** Write a file only its owner reads, making its directory where it doesn't exist. A file that exists is refused, so
+	 *  what is kept there, such as a key, isn't replaced. */
+	abstract writePrivateFile(file: string, contents: string): void;
 	abstract mkdir(dir: string): void;
 	abstract mkdirp(dir: string): void;
 	abstract exists(ntt: string): boolean;

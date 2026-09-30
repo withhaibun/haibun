@@ -1,6 +1,6 @@
 Feature: Auth-basic Authentication
 
-    set Resource Server to http://localhost:8123
+    set Resource Server to "http://localhost:8123"
     set Resources Path to "/api/resources"
     set Resource Path to "/api/resource"
     compose Resources API with {Resource Server}{Resources Path}
@@ -19,7 +19,7 @@ Feature: Auth-basic Authentication
     set OK to 200
     set Unauthorized to 401
 
-    serve files at /static from "rest"
+    serve files at "/static" from "rest"
     webserver is listening for "auth-basic"
     make auth scheme "basic"
     API user agent is "curl/8.5.0"
@@ -47,12 +47,12 @@ Feature: Auth-basic Authentication
         HTTP status is Unauthorized
 
     Scenario: filter list of resources
-        accept application/json using HTTP GET to Resources API
+        accept "application/json" using HTTP GET to Resources API
         HTTP status is OK
         show JSON response count
         JSON response length is 3
         filter JSON response by "name" matching "Include"
         filtered response length is 2
         for each filtered "id", make REST DELETE to Resource API yielding status 204
-        accept application/json using HTTP GET to Resources API
+        accept "application/json" using HTTP GET to Resources API
         JSON response length is 1

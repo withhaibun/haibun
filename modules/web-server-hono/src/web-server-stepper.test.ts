@@ -58,8 +58,8 @@ describe("WebServerStepper Integration", () => {
 			path: "/features/test.feature",
 			content: `
 webserver is listening for "webserverstepper serves files"
-serve files at /pub from test-content
-fetch from http://localhost:${port}/pub/hello.txt includes "Hello World"
+serve files at "/pub" from "test-content"
+fetch from "http://localhost:${port}/pub/hello.txt" includes "Hello World"
 `,
 		};
 
@@ -80,8 +80,8 @@ fetch from http://localhost:${port}/pub/hello.txt includes "Hello World"
 			path: "/features/index.feature",
 			content: `
 webserver is listening for "webserverstepper serves index"
-index files from test-content
-fetch from http://localhost:${port}/ includes "hello.txt"
+index files from "test-content"
+fetch from "http://localhost:${port}/" includes "hello.txt"
 `,
 		};
 

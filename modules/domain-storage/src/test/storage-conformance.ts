@@ -59,6 +59,14 @@ export function describeStorage(name: string, make: () => AStorage, root: string
 			expect(storage.readFile(at("written/one.txt"), "utf-8")).toEqual("what was written");
 		});
 
+		it("writes a private file in a directory it makes, and refuses to replace one that exists", () => {
+			const storage = make();
+			storage.writePrivateFile(at("kept/under/here/a.key"), "what is kept");
+			expect(storage.readFile(at("kept/under/here/a.key"), "utf-8")).toEqual("what is kept");
+			expect(() => storage.writePrivateFile(at("kept/under/here/a.key"), "another"), "what is kept there isn't replaced").toThrow();
+			expect(storage.readFile(at("kept/under/here/a.key"), "utf-8")).toEqual("what is kept");
+		});
+
 		it("lists what a directory holds", async () => {
 			const storage = make();
 			storage.mkdirp(at("listed/within"));

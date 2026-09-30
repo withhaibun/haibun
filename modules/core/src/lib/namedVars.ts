@@ -7,6 +7,8 @@ const TYPE_QUOTED = "q_";
 const TYPE_ENV = "e_";
 const TYPE_VAR = "b_";
 const TYPE_ENV_OR_VAR_OR_LITERAL = "t_";
+/** An empty literal as a line writes it; the quoted capture takes at least one character. */
+const EMPTY_QUOTED = '""';
 
 export const namedInterpolation = (inp: string): { regexPattern: string; stepValuesMap?: Record<string, TStepValue> } => {
 	if (!inp.includes("{")) {
@@ -143,7 +145,10 @@ export const getMatch = (actionable: string, r: RegExp, actionName: string, step
 						ph.origin = Origin.env;
 					} else {
 						const tTrim = String(t).trim();
-						if (tTrim.startsWith("{") || tTrim.startsWith("[") || /^-?\d+(\.\d+)?$/.test(tTrim)) {
+						if (tTrim === EMPTY_QUOTED) {
+							ph.term = "";
+							ph.origin = Origin.quoted;
+						} else if (tTrim.startsWith("{") || tTrim.startsWith("[") || /^-?\d+(\.\d+)?$/.test(tTrim)) {
 							ph.term = tTrim;
 							ph.origin = Origin.quoted;
 						} else {

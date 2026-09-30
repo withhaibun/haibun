@@ -38,6 +38,6 @@ export const features: TKirejiExport = {
 		waitFor({ target: "notHeld" }),
 		...chooseGraphLabel(SEQ_PATH_LABEL),
 		"save URI to chosenAddress",
-		`matches chosenAddress with *label=${SEQ_PATH_LABEL}*`,
+		`matches chosenAddress with "*label=${SEQ_PATH_LABEL}*"`,
 	],
 };

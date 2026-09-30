@@ -16,15 +16,6 @@ export function getStepTerm(featureStep: TFeatureStep, key: string): string | un
 	return featureStep?.action?.stepValuesMap?.[key]?.term;
 }
 
-// Checks if an unquoted term should be treated as a string literal
-// A term is literal if it:
-// - doesn't start with [a-zA-Z_], OR
-// - contains characters outside [a-zA-Z0-9_ ], OR
-// - contains / (paths like /count, MIME types like application/json)
-export function isLiteralValue(term: string): boolean {
-	return !/^[a-zA-Z_]/.test(term) || /[^a-zA-Z0-9_ ]/.test(term);
-}
-
 export const basesFrom = (s: string | undefined): string[] => (s === undefined ? [] : s.split(",").map((b) => b.trim()));
 
 export function actionNotOK(errorMessage: string, w?: { artifact?: TArtifactEvent; controlSignal?: TDebugSignal }): TActionResult {

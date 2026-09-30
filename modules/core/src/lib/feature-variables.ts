@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { AStepper, TFeatureStep } from "./astepper.js";
 import { fromJsonText } from "./json-text.js";
-import { isLiteralValue } from "./util/index.js";
 import { parseDotPath, navigateValue } from "./util/dot-path.js";
 import { runEnvVariables, type TWorld } from "./world.js";
 import { Origin, TOrigin, TProvenanceIdentifier, TStepValue } from "../schema/protocol.js";
@@ -160,7 +159,13 @@ export class FeatureVariables {
 				const found = await this.lookupVariable(lookupTerm);
 				if (found) {
 					Object.assign(resolved, found);
-				} else if (isLiteralValue(input.term)) {
+				} else if (await this.namesAMissingField(lookupTerm)) {
+					// A term whose first part names a variable that holds fields is a read of that variable, so the refusal names the
+					// field it doesn't have and the fields it has.
+					throw new Error(`${await this.unsetReason(lookupTerm)}. Quote the term to pass it as a literal.`);
+				} else if (featureStep?.runtimeArgs && Object.values(featureStep.runtimeArgs).includes(input.term)) {
+					// A waypoint's argument is written into its activity's lines as a term, so an argument that doesn't name a
+					// variable is its own text here, as it is where the waypoint is called.
 					resolved.value = input.term;
 					resolved.domain = writtenDomain;
 				} else if (input.domain && namesMember(this.world.domains[input.domain], input.term)) {
@@ -227,6 +232,13 @@ export class FeatureVariables {
 		const { at, missing, has } = read.miss;
 		const where = [parseDotPath(term).baseName, ...at].join(".");
 		return has.length > 0 ? `${where} doesn't have ${missing}; it has ${has.join(", ")}` : `${where} doesn't have ${missing}, since it doesn't hold fields`;
+	}
+
+	/** Whether a term is a dot path into a variable that holds fields, naming a field it doesn't have. A variable that
+	 *  holds a single value doesn't have fields to read, so a term that starts with its name is still a literal. */
+	private async namesAMissingField(term: string): Promise<boolean> {
+		const read = await this.resolveDotPath(term);
+		return !read.found && "miss" in read && read.miss.has.length > 0;
 	}
 
 	private async resolveDotPath(lookupTerm: string): Promise<ReturnType<typeof navigateValue> | { value: undefined; found: false }> {

@@ -3,7 +3,7 @@ Scenario: Generate and clear a QR code
 
   This will serve the local qrcode static files and exercise the UI.
 
-  serve files at /static from "qrcode"
+  serve files at "/static" from "qrcode"
   webserver is listening for "qrcode"
   
   go to the qrcode URI webpage

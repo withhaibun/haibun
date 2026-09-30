@@ -16,7 +16,7 @@ export const backgrounds: TKirejiExport = {
 		Outcomes can capture page state and navigate efficiently.`,
 
 		activity({ activity: knowsAboutWikipedia }),
-		set({ what: enWikipedia, value: "https://en.wikipedia.org/wiki/" }),
+		set({ what: enWikipedia, value: '"https://en.wikipedia.org/wiki/"' }),
 		compose({ what: "haibunUrl", template: "{enWikipedia}Haibun" }),
 		compose({ what: "mainUrl", template: "{enWikipedia}Main_Page" }),
 		set({ what: pagesVisited, value: "0" }),

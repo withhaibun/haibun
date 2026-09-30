@@ -35,7 +35,7 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "The same gate enforces calls arriving over the Model Context Protocol (MCP)" }),
 		`The capability isn't transport-specific. The MCP endpoint, the tool interface an external agent uses, verifies what a request presents over the whole request and runs each tool call under it. The accepted holder, which holds a public read beside the protected action, finds the protected tool among the steps shown to it for a text; calling it without presenting a proof is refused, calling it signed by that holder runs it, and the admin tool stays refused to that holder.`,
-		"serve mcp tools at /mcp",
+		'serve mcp tools at "/mcp"',
 		'webserver is listening for "capability over mcp"',
 		'accept authority from "ranger" for "TestServer:protected,Read:public"',
 		`mcp steps shown at "${MCP}" to "ranger" matching "TestServer-protected" include "TestServer-protectedRpcPing"`,

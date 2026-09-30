@@ -70,7 +70,7 @@ describe("AuthorityStepper signed-capability path", () => {
 			path: "/features/authority-signed-capability.feature",
 			content: `
 set cap as json to ${CAP_JSON}
-holding capability cap at "urn:res:1", comment on "${TEST_NODE_LABEL}" node-1 with "hi from the capability holder"
+holding capability cap at "urn:res:1", comment on "${TEST_NODE_LABEL}" "node-1" with "hi from the capability holder"
 `,
 		};
 
@@ -101,7 +101,7 @@ holding capability cap at "urn:res:1", comment on "${TEST_NODE_LABEL}" node-1 wi
 			path: "/features/authority-signed-capability-fail.feature",
 			content: `
 set cap as json to ${CAP_JSON}
-holding capability cap at "urn:res:1", comment on "${TEST_NODE_LABEL}" node-1 with "should never be written"
+holding capability cap at "urn:res:1", comment on "${TEST_NODE_LABEL}" "node-1" with "should never be written"
 `,
 		};
 

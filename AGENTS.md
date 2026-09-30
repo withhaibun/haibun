@@ -110,12 +110,13 @@ Referring to an undefined variable causes an error.
 
     not set missing setting to UndefinedVar
 
-**7. Unquoted literals**
+**7. Literals are quoted**
 
-A path contains a slash, which a variable name doesn't contain, so an unquoted path is a literal.
+An unquoted term names a variable, so a literal is quoted. An unquoted term that doesn't name a variable is refused, whatever characters it contains. A number and JSON are literals as written.
 
-    set endpoint to /api/items
+    set endpoint to "/api/items"
     variable endpoint is "/api/items"
+    not set endpoint to /api/items
 
 #### Stepper variables
 

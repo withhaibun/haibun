@@ -391,7 +391,23 @@ variable setVar exists`;
 		const content = `set snap as json to {"highlighted": 1, "follow": false}
 variable snap.hilighted is "1"`;
 		const res = await failWithDefaults(content, steppers);
-		expect(res.failure?.error.message).toBe("snap doesn't have hilighted; it has highlighted, follow");
+		expect(res.failure?.error.message).toContain("snap doesn't have hilighted; it has highlighted, follow");
+	});
+	it("refuses an argument that reads a field a variable doesn't have, where it would reach the step as literal text", async () => {
+		const content = `set snap as json to {"highlighted": 1, "follow": false}
+set copy to snap.hilighted`;
+		const res = await failWithDefaults(content, steppers);
+		expect(res.failure?.error.message).toContain("snap doesn't have hilighted; it has highlighted, follow. Quote the term to pass it as a literal.");
+	});
+	it("takes a dotted term as a literal where it is quoted", async () => {
+		const content = `set snap as json to {"highlighted": 1}
+set quoted to "snap.hilighted"
+variable quoted is "snap.hilighted"`;
+		expect((await passWithDefaults(content, steppers)).ok).toBe(true);
+	});
+	it.each(["file.json", "/api/items", "https://example.com/a", "did:web:example.com"])("refuses an unquoted %s, which doesn't name a variable", async (term) => {
+		const res = await failWithDefaults(`set named to ${term}`, steppers);
+		expect(res.failure?.error.message).toContain(`${term} doesn't name a variable or an environment variable. Quote it to pass it as a literal.`);
 	});
 	it("passes when variable is in env", async () => {
 		const content = `variable "fromenv" exists`;
@@ -410,19 +426,19 @@ variable x is "1"`;
 
 describe("matches with brace-bearing text", () => {
 	it("a value containing a literal {X} matches a brace-free pattern", async () => {
-		const content = 'set reply to "the {StepperName} echoed"\nmatches reply with the * echoed';
+		const content = 'set reply to "the {StepperName} echoed"\nmatches reply with "the * echoed"';
 		expect((await passWithDefaults(content, steppers)).ok).toBe(true);
 	});
 	it("a pattern containing a literal {X} matches the same literal", async () => {
-		const content = 'set reply to "the {StepperName} echoed"\nmatches reply with the {StepperName} echoed';
+		const content = 'set reply to "the {StepperName} echoed"\nmatches reply with "the {StepperName} echoed"';
 		expect((await passWithDefaults(content, steppers)).ok).toBe(true);
 	});
 	it("a resolvable {var} in the pattern still resolves", async () => {
-		const content = 'set who to "Ada"\nset reply to "hello Ada"\nmatches reply with hello {who}';
+		const content = 'set who to "Ada"\nset reply to "hello Ada"\nmatches reply with "hello {who}"';
 		expect((await passWithDefaults(content, steppers)).ok).toBe(true);
 	});
 	it("a wrong match still fails", async () => {
-		const content = 'set reply to "the {StepperName} echoed"\nmatches reply with totally different';
+		const content = 'set reply to "the {StepperName} echoed"\nmatches reply with "totally different"';
 		expect((await failWithDefaults(content, steppers)).ok).toBe(false);
 	});
 });

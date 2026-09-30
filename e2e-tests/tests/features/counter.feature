@@ -6,9 +6,9 @@ Scenario: A form and counter
     This scenario is written twice, here and as counter.feature.ts, so the two ways of writing a feature are shown to describe one run. The two copies aren't redundant: together they are the only proof that gherkin and kireji express the same thing.
     set username to 10 random characters
 
-    Then serve files at /static from "counter"
+    Then serve files at "/static" from "counter"
     webserver is listening for "counter"
-    And start tally route at /count
+    And start tally route at "/count"
     
     go to the counter webpage
 

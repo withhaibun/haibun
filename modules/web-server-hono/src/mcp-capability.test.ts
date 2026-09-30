@@ -111,7 +111,7 @@ describe("McpStepper capability enforcement", () => {
 		const feature = {
 			path: "/features/mcp-capability-denied.feature",
 			content: `
-serve mcp tools at /mcp
+serve mcp tools at "/mcp"
 webserver is listening for "mcp capability denied"
 verify protected mcp tool on port ${port} is denied
 `,
@@ -126,7 +126,7 @@ verify protected mcp tool on port ${port} is denied
 		const feature = {
 			path: "/features/mcp-capability-signed.feature",
 			content: `
-serve mcp tools at /mcp
+serve mcp tools at "/mcp"
 webserver is listening for "mcp capability signed"
 accept authority from "agent" for "ProtectedStepper:invoke"
 verify protected mcp tool signed by "agent" on port ${port} succeeds
@@ -143,7 +143,7 @@ verify protected mcp tool signed by "agent" on port ${port} is refused when its 
 		const feature = {
 			path: "/features/mcp-read-ceiling.feature",
 			content: `
-serve mcp tools at /mcp
+serve mcp tools at "/mcp"
 webserver is listening for "mcp read ceiling"
 accept authority from "reader" for "Read:public"
 accept authority from "owner" for "Read:private"
@@ -161,7 +161,7 @@ verify mcp read signed by "owner" for "Read:private" on port ${port} reads at "p
 		const feature = {
 			path: "/features/mcp-capability-least-privilege.feature",
 			content: `
-serve mcp tools at /mcp
+serve mcp tools at "/mcp"
 webserver is listening for "mcp capability least privilege"
 accept authority from "agent" for "ProtectedStepper:invoke"
 verify protected mcp tool signed by "agent" on port ${port} succeeds

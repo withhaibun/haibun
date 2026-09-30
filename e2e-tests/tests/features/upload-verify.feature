@@ -4,7 +4,7 @@ Feature: Upload-verify
 Scenario: Upload a file, then download it and verify it's the same file
 
 Backgrounds: int/upload-form
-    serve files at /static from "upload"
+    serve files at "/static" from "upload"
     webserver is listening for "upload-verify"
     start upload route at "/upload"
     start download route at "/download"

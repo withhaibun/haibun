@@ -255,7 +255,8 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 	{
 		selectors: [DOMAIN_BACKGROUND_NAMES],
 		schema: backgroundNamesSchema,
-		description: "The backgrounds a feature includes, by name, given as a list or as text separated by commas.",
+		written: true,
+		description: "The backgrounds a feature includes, by name, given as a list or as text separated by commas, as the line writes them.",
 	},
 	{ selectors: [DOMAIN_PASSWORD], schema: NameSchema, description: "The secret an account signs in with." },
 	{

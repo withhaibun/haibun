@@ -97,7 +97,7 @@ describe("McpStepper Protocol Conformance", () => {
 		const feature = {
 			path: "/features/test.feature",
 			content: `
-serve mcp tools at /mcp
+serve mcp tools at "/mcp"
 verify mcp protocol on port ${port}
 `,
 		};

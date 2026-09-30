@@ -4,12 +4,12 @@
 			"/features/a11y-fail.feature": {
 				"seconds": 0.5,
 				"steps": 11,
-				"declaredStepTextHash": "fcf354a7834ddcc9faff9a5aa28ad4bb1b7b17e27b99a2f3873b3c755b5a284b"
+				"declaredStepTextHash": "2f81c0c9ae35982bdf3f8a9b56a62e10bd7f80a7340e1ce0797ad7bbaece5cc0"
 			},
 			"/features/a11y-pass.feature": {
 				"seconds": 0.4,
 				"steps": 11,
-				"declaredStepTextHash": "1bf4a47a09dcf6dbdabd4e1e4517aa5a90e465edc7d8d9ca236eb9a3289c7541"
+				"declaredStepTextHash": "09cc25e61c080ca316fccb7e6a2bec04f811e90fc05becc626c61a7fabda8655"
 			},
 			"/features/activities.feature": {
 				"seconds": 0,
@@ -19,37 +19,37 @@
 			"/features/after-every.feature": {
 				"seconds": 0,
 				"steps": 9,
-				"declaredStepTextHash": "d51501df01358151e1bc2a5745ed9911f129a438d2b802952589201156400ecf"
+				"declaredStepTextHash": "b0eca8f53cdbc72079c3b13890aacf1b33a0fd50daccc93402e9d434c3b3338d"
 			},
 			"/features/agents-examples.feature": {
 				"seconds": 0.9,
-				"steps": 351,
-				"declaredStepTextHash": "bbe0b9b886d60b9a5cc37d32516fe09221885cbae90beeeb37e6c6e425574212"
+				"steps": 353,
+				"declaredStepTextHash": "1e1faeefcd335f54f285e9697b80e56634cb7022ed6b922a8398a730a8562894"
 			},
 			"/features/auth-basic.feature": {
 				"seconds": 0.6,
 				"steps": 41,
-				"declaredStepTextHash": "820f2536986878bc68ebd200c79316b1af8c43a0a39f030e7c9e470693ccb5b5"
+				"declaredStepTextHash": "63861894e69f7ae771aa94485f0ae1a63257c94c7706d32afbc111490dd590c8"
 			},
 			"/features/auth-bearer.feature": {
 				"seconds": 0.4,
 				"steps": 64,
-				"declaredStepTextHash": "b3c0fdff564c64b4090b0ab0fb284703d1c90c3ea807e5440bb02cb8341bc53f"
+				"declaredStepTextHash": "0d26c0a9d2e709649eb496c3ae4f657c9f065a65d9b22fc86967e33a2a6fefba"
 			},
 			"/features/auth-form.feature": {
 				"seconds": 0.7,
 				"steps": 23,
-				"declaredStepTextHash": "4f2c94ae645eda3071bcdce65b58a9a9b48a9d58cdbcc27edc047200d226cd22"
+				"declaredStepTextHash": "b7ae3ef23e1d45290cd9e8d3d5e3fa2db5b70bc5872aef2b6ff06a25a454b083"
 			},
 			"/features/counter.feature": {
-				"seconds": 0.8,
+				"seconds": 1.5,
 				"steps": 19,
-				"declaredStepTextHash": "37c58d5784e80fb1590fa37dc9ab9fde541140ae177a9d6b34e8a5757d134af1"
+				"declaredStepTextHash": "8c1b3b909e28bc05dac4eb957c9b1384d55393a5d3d4ed26b0910d3774bc4b95"
 			},
 			"/features/counter.feature.ts": {
-				"seconds": 2.3,
+				"seconds": 1,
 				"steps": 19,
-				"declaredStepTextHash": "5c6fea35d68432b035bbca7445c03e6a962a0290efe7ec893c0b8065156906e0"
+				"declaredStepTextHash": "2e43d35e8ca54dcf3b65f4bc5319e4e4d535aae75e236687ecdeb7357c80e33b"
 			},
 			"/features/counts.feature.ts": {
 				"seconds": 0.4,
@@ -59,7 +59,7 @@
 			"/features/elements.feature": {
 				"seconds": 0.3,
 				"steps": 6,
-				"declaredStepTextHash": "f25538464d6291400a6bd6369ba30578b1498e8bde57dfc1a7033ddab3d87054"
+				"declaredStepTextHash": "4aa63ec07d25bb61c89c944e52b73fead49300b7c5cc8d44cd055cda7c316e87"
 			},
 			"/features/executor-rpc.feature.ts": {
 				"seconds": 0,
@@ -72,9 +72,9 @@
 				"declaredStepTextHash": "f567c83cdc9db224634e851624576d77db1cdec635c722eabde2b3a633fd9b50"
 			},
 			"/features/identity-and-capability.feature.ts": {
-				"seconds": 0.1,
+				"seconds": 0,
 				"steps": 28,
-				"declaredStepTextHash": "6fc19779ac042d64dd1bf8fa1850899f3c719e5a5d1014c54aefd6fe4a39ef16"
+				"declaredStepTextHash": "c346576dbe366f5a9b046756da87b8613b679e774b64f5c2920e049db35ab58e"
 			},
 			"/features/if-set.feature": {
 				"seconds": 0,
@@ -82,9 +82,9 @@
 				"declaredStepTextHash": "32a4e3efb2eeb09912acf819cfb29ff5d751d9f8d81d5dadca1eb75fe983ded2"
 			},
 			"/features/not.feature": {
-				"seconds": 0.5,
+				"seconds": 0.4,
 				"steps": 7,
-				"declaredStepTextHash": "066cbb83b5ed74495ded680541a3fbd3e3beb086a28bceb9a1adaea4f5ba992a"
+				"declaredStepTextHash": "3d27dc08904c292a29f48133a4d137092f93786968c318fe7f44b34851066027"
 			},
 			"/features/once.feature.ts": {
 				"seconds": 0.6,
@@ -92,14 +92,14 @@
 				"declaredStepTextHash": "006f43f7b774933fc9bebe65cc0bd082a8b856b21c34e008e1c61ffbf7ac8354"
 			},
 			"/features/popup.feature": {
-				"seconds": 0.5,
+				"seconds": 0.6,
 				"steps": 12,
-				"declaredStepTextHash": "5b6da41bba88c02e5712937690a3488ac6a9a3acbe100e54afe7848ebbcc2a67"
+				"declaredStepTextHash": "f012b7fcf7b2484d728938eb62dc6457a9f0fec686fc8d0b3dbe3dc38e088aa9"
 			},
 			"/features/qrcode.feature": {
 				"seconds": 2.5,
 				"steps": 18,
-				"declaredStepTextHash": "a027c3737b57ea7afadfa35619c47435fee5194b15576809f74720279f71096a"
+				"declaredStepTextHash": "6c1cf006da48f78142e2c23c167266634114bcea223a400f8b4967a9a1f9c156"
 			},
 			"/features/recurse.feature": {
 				"seconds": 0,
@@ -114,12 +114,12 @@
 			"/features/upload-verify.feature": {
 				"seconds": 0.4,
 				"steps": 18,
-				"declaredStepTextHash": "8e73ff742625bb36aa44321622058fd14c1ed4fed9ccfc8cd08e3dd02dd56681"
+				"declaredStepTextHash": "df8801dd03cc6f67f2f5bdf94d21971c925f31d136b074c18880e0b7ac07fb80"
 			},
 			"/features/visited-pages.feature": {
 				"seconds": 0.4,
 				"steps": 29,
-				"declaredStepTextHash": "5ac8f6cfa55c1364eb3532ff3b4cc7350f41361ddad2d6323ae178ae0681a820"
+				"declaredStepTextHash": "2c00f16b3fc1c2191a0c36587f06f3817554b5ac4f90f24bcba4f184b9f3f89b"
 			},
 			"/features/walk-toward-a-goal.feature": {
 				"seconds": 0,
@@ -139,10 +139,10 @@
 			"/features/xss.feature": {
 				"seconds": 0.5,
 				"steps": 10,
-				"declaredStepTextHash": "617b13893f007d943f178c8ace6290a8dbea8123df25ff7ff03cc2801b4d4fa8"
+				"declaredStepTextHash": "435eb21ce6beca35c72e9cae34f8fa3c5a95dbc4b627e6ca3338ae97b207bd20"
 			}
 		},
-		"steps": 1130,
-		"seconds": 13.8
+		"steps": 1132,
+		"seconds": 13.1
 	}
 }

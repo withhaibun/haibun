@@ -71,7 +71,7 @@ describe("McpStepper tools", () => {
 		const feature = {
 			path: "/features/tools.feature",
 			content: `
-serve mcp tools at /mcp
+serve mcp tools at "/mcp"
 verify mcp tools on port ${port}
 `,
 		};
