@@ -13,6 +13,9 @@ type TAuthorizedRequest = { method?: string; url?: string; headers?: TRequestHea
 /** The header a caller presenting proven authority carries, rather than a secret to be looked up. */
 const PRESENTED_AUTHORITY_HEADER = "capability-invocation";
 
+/** The headers a request presenting authority carries: its signature, the capability it invokes, and its body's digest. */
+export const PRESENTED_REQUEST_HEADERS = ["authorization", PRESENTED_AUTHORITY_HEADER, "digest"] as const;
+
 /** What a request carries: what its caller may do, who they proved themselves to be where a proof said so, and what that
  *  proof rests on. A presented proof that fails, or that the runtime can't check, is `refused`, and a refused request doesn't run
  *  a step. */

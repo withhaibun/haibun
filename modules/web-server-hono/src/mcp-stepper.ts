@@ -27,7 +27,7 @@ import { WEBSERVER } from "./defs.js";
 import { ServerHono } from "./server-hono.js";
 import WebServerStepper from "./web-server-stepper.js";
 import type { IStepTransport } from "./step-transport.js";
-import { grantedCapabilityForRequest } from "./capability-auth.js";
+import { grantedCapabilityForRequest, PRESENTED_REQUEST_HEADERS } from "./capability-auth.js";
 import { actingAs, authorizedWith, runActingAs, runAuthorizedWith, shownTo } from "@haibun/core/lib/capability-context.js";
 import { DOMAIN_ROUTE } from "@haibun/core/lib/domains.js";
 /** The port the MCP endpoint listens on where neither it nor the web server states one. */
@@ -203,7 +203,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 			// 1. CORS
 			c.header("Access-Control-Allow-Origin", "*");
 			c.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-			c.header("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept, X-Custom-Header");
+			c.header("Access-Control-Allow-Headers", ["content-type", "accept", ...PRESENTED_REQUEST_HEADERS].join(", "));
 
 			if (c.req.method === "OPTIONS") return c.body(null, 204);
 

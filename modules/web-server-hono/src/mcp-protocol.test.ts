@@ -1,3 +1,4 @@
+import { PRESENTED_REQUEST_HEADERS } from "./capability-auth.js";
 import { describe, it, expect } from "vitest";
 import { passWithDefaults, DEF_PROTO_OPTIONS } from "@haibun/core/lib/test/lib.js";
 import McpStepper from "./mcp-stepper.js";
@@ -34,6 +35,11 @@ class TestStepper extends AStepper {
 			gwta: `verify mcp protocol on port {port: ${DOMAIN_NUMBER}}`,
 			action: async ({ port }: { port: string }) => {
 				const mcpUrl = `http://localhost:${port}/mcp`;
+				// A browser asks before it sends the headers a signed invocation carries, and sends them only where the answer allows each.
+				const preflight = await fetch(mcpUrl, { method: "OPTIONS" });
+				const allowed = (preflight.headers.get("access-control-allow-headers") ?? "").toLowerCase().split(", ");
+				const refused = PRESENTED_REQUEST_HEADERS.filter((header) => !allowed.includes(header));
+				if (refused.length > 0) throw new Error(`a browser's preflight doesn't allow ${refused.join(", ")}`);
 				// Manual JSON-RPC handshake to bypass SDK transport issues in test environment
 				const rpcPayload = {
 					jsonrpc: "2.0",
