@@ -3,10 +3,9 @@
  */
 import { z } from "zod";
 import { SearchConditionSchema, type TSearchCondition } from "@haibun/core/lib/quad-types.js";
-import { DENOTES } from "@haibun/core/lib/typed-links.js";
 import { AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
-import { IndividualAddressSchema } from "@haibun/core/lib/domains.js";
+import { DENOTES, IndividualAddressSchema } from "@haibun/core/lib/typed-links.js";
 
 // --- Combobox ---
 

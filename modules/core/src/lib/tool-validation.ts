@@ -11,6 +11,13 @@ import { errorDetail } from "./util/index.js";
  * coerced where the domain coerces, as a feature line's value is. Each domain's schema takes the forms of its value a
  * feature line may give, so a call may give them too. Throws naming every parameter refused.
  */
+/** How a refusal states a value it was given: as written, or by its length where it is too long to repeat, such as a file's bytes. */
+const STATED_VALUE_CHARS = 200;
+const statedValue = (value: unknown): string => {
+	const written = JSON.stringify(value) ?? String(value);
+	return written.length > STATED_VALUE_CHARS ? `${written.length} characters` : written;
+};
+
 export function validateToolInput(fromSeqPath: TSeqPath, tool: StepTool, input: Record<string, unknown>, world: TWorld): Record<string, unknown> {
 	const validated: Record<string, unknown> = { ...input };
 	const errors: string[] = [];
@@ -28,7 +35,7 @@ export function validateToolInput(fromSeqPath: TSeqPath, tool: StepTool, input: 
 		const domain = registeredDomain(world.domains, domainKey, `${tool.descriptor.method}: parameter "${key}"`);
 		const result = domain.schema.safeParse(value);
 		if (!result.success) {
-			errors.push(`"${key}" (value: ${JSON.stringify(value)}): ${errorDetail(result.error)}`);
+			errors.push(`"${key}" (value: ${statedValue(value)}): ${errorDetail(result.error)}`);
 			continue;
 		}
 		validated[key] = domain.coerce ? domain.coerce({ value: result.data, domain: domainKey, term: key, origin: Origin.defined }) : result.data;

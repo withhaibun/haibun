@@ -8,9 +8,8 @@ import { AStepper, TFeatureStep } from "./astepper.js";
 import { TDomainDefinition } from "./resources.js";
 import type { TWorld } from "./world.js";
 import { TStepValue } from "../schema/protocol.js";
+import { DOMAIN_INDIVIDUAL_ADDRESS, IndividualAddressSchema } from "./typed-links.js";
 import {
-	DOMAIN_INDIVIDUAL_ADDRESS,
-	IndividualAddressSchema,
 	DOMAIN_ACTIONS,
 	DOMAIN_AFFORDANCES,
 	DOMAIN_CHAIN_LINT,

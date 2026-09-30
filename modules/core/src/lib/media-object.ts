@@ -5,7 +5,7 @@
 import { z } from "zod";
 
 /** A media type's form: a type and a subtype. */
-const MEDIA_TYPE = "[\\w.+-]+\\/[\\w.+-]+";
+const MEDIA_TYPE_FORM = "[\\w.+-]+\\/[\\w.+-]+";
 
 /** Whether a media type is an image's. */
 export const isImageFormat = (encodingFormat: string): boolean => encodingFormat.startsWith("image/");
@@ -21,7 +21,7 @@ export type TImageReference = z.infer<typeof ImageReferenceSchema>;
 export const DOMAIN_FILE_DATA = "file-data";
 
 /** A `data:` URL in base64: its media type, which a browser always states, any parameters, and its bytes. */
-const FILE_DATA = new RegExp(`^data:(${MEDIA_TYPE})(?:;[\\w.+-]+=[^;,]*)*;base64,([A-Za-z0-9+/]*=*)$`);
+const FILE_DATA = new RegExp(`^data:(${MEDIA_TYPE_FORM})(?:;[\\w.+-]+=[^;,]*)*;base64,([A-Za-z0-9+/]*=*)$`);
 
 export const FileDataSchema = z.string().regex(FILE_DATA).describe("A file's bytes as a data: URL in base64.");
 

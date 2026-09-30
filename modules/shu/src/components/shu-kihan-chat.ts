@@ -12,12 +12,11 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { acts, reads, conduit } from "../hypermedia.js";
-import { DENOTES } from "@haibun/core/lib/typed-links.js";
 import { isImageFormat } from "@haibun/core/lib/media-object.js";
-import { IndividualAddressSchema, type TIndividualAddress } from "@haibun/core/lib/domains.js";
+import { IndividualAddressSchema } from "@haibun/core/lib/typed-links.js";
 import { deploymentAskToolLimit, findStep, getAvailableSteps, requireStep } from "../rpc-registry.js";
 import { edgeRecordType, getActionBarAskExtensionTags, getActionBarChatExtensionTags, getEdgeRanges, getRelSync } from "../rels-cache.js";
-import { ContextReadBySchema, SessionListSchema, type TComboboxOption, type TContextPattern, type TQuestionFork } from "../schemas.js";
+import { anIndividual, ContextReadBySchema, SessionListSchema, type TComboboxOption, type TContextIndividual, type TContextPattern, type TQuestionFork } from "../schemas.js";
 import { GraphQueryResultSchema, extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { hasEventStream, subscribeBatchedEvents } from "../event-stream.js";
@@ -100,7 +99,7 @@ function sessionOptionLabel(s: TChatSession): string {
 
 /** A file the reader added to a question: its name, the record actuality keeps it as, and the page's own copy of it where
  *  it is an image. */
-type TAddedFile = { name: string; record: TIndividualAddress; shown?: string };
+type TAddedFile = { name: string; record: TContextIndividual; shown?: string };
 
 /** A file's bytes as a data: URL. */
 function readAsDataUrl(file: Blob): Promise<string> {
@@ -567,7 +566,11 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 			const { carries, repliesTo } = nextQuestion(currentSubjectState.get());
 			const forking = this.#forking;
 			this.#forking = null;
-			const asking = forking ? this.askWith(prompt, forking.patterns, forking.inReplyTo) : this.askWith(prompt, carries?.bundle.patterns ?? [], repliesTo?.turn);
+			// A file the reader added is a record actuality keeps, so the question names it as it names any record.
+			const added = this.#files.map((file) => file.record);
+			const asking = forking
+				? this.askWith(prompt, [...forking.patterns, ...added], forking.inReplyTo)
+				: this.askWith(prompt, [...(carries?.bundle.patterns ?? []), ...added], repliesTo?.turn);
 			const files = this.#files;
 			this.#files = [];
 			chatInput.value = "";
@@ -592,8 +595,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		return startTurn({
 			prompt,
 			envelope: {
-				// A file the reader added is a record actuality keeps, so the question names it as it names any record.
-				patterns: [...patterns, ...this.#files.map((file): TContextPattern => ({ kind: DENOTES.individual, ...file.record }))],
+				patterns,
 				// The page the reader is on, where a page embedding shu posts it, is part of the view with only the bar open.
 				viewLd: [...harvestChatViewLd(), ...embeddedViewLd()],
 				maxToolCalls: this.state.toolLimit,
@@ -612,7 +614,8 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 			for (const file of input.files ?? []) {
 				const kept = await conduit().follow(acts(requireStep(KEEP_FILE_STEP), { file: await readAsDataUrl(file), name: file.name }), "kihan-chat: keep the question's file");
 				const shown = isImageFormat(file.type) ? URL.createObjectURL(file) : undefined;
-				this.#files = [...this.#files, { name: file.name, record: IndividualAddressSchema.parse(kept), shown }];
+				const { persistedAs, id } = IndividualAddressSchema.parse(kept);
+				this.#files = [...this.#files, { name: file.name, record: anIndividual(persistedAs, id), shown }];
 			}
 		} catch (err) {
 			this.#refusal = errorDetail(err);

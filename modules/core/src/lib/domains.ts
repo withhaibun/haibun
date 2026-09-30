@@ -310,15 +310,6 @@ export const mapDefinitionsToDomains = (definitions: TDomainDefinition[]) => {
  */
 const individualRefSchema = z.object({ id: z.string() }).strict();
 
-export const DOMAIN_INDIVIDUAL_ADDRESS = "individual-address";
-
-/** An individual named by the type it is persisted as and its own id, the pair every surface names one by, so whoever
- *  holds it reads it directly. */
-export const IndividualAddressSchema = z.object({
-	persistedAs: z.string().describe("The type the individual is persisted as."),
-	id: z.string().describe("The individual's id within that type."),
-});
-export type TIndividualAddress = z.infer<typeof IndividualAddressSchema>;
 export type TIndividualRef = z.infer<typeof individualRefSchema>;
 
 /**

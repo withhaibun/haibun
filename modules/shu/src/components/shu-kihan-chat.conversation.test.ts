@@ -61,10 +61,11 @@ const sent: Array<{
 	target?: string;
 	accessLevel?: string;
 }> = [];
-/** A file actuality keeps for a question, as its name and media type state it, and each file the pane asked it to keep. */
-const keptAs = (name: string) => ({ persistedAs: KEPT_TYPE, id: `added/${name}` });
 /** The type actuality keeps a file a person adds as, which the pane reads from what the keep step returns. */
 const KEPT_TYPE = "KeptFile";
+/** The record a kept file is returned as. */
+const keptAs = (name: string) => ({ persistedAs: KEPT_TYPE, id: `added/${name}` });
+/** Each file the pane asked actuality to keep. */
 const keptFiles: Array<{ file: string; name: string }> = [];
 /** The seqPath each turn the stream starts is given, in order; a turn beyond them is given 0.1.2. Actuality records the
  *  turn's question as the step starts and its answer when it finishes, each named by the turn. */

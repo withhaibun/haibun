@@ -16,6 +16,7 @@
  * This module is the grammar alone: it reads text and reports facts. Writing them is `readTypedLinks` (resources.ts),
  * which resolves each target against the store.
  */
+import { z } from "zod";
 import { itemAt } from "./util/item-at.js";
 import MarkdownIt from "markdown-it";
 import { LinkRelations, type TQuoteAnchor, type TRelRange } from "./resources.js";
@@ -32,13 +33,21 @@ export const DENOTES = { individual: "individual", type: "type" } as const;
  */
 export const REF_DENOTES = { individual: "entity", type: "domain" } as const;
 
+export const DOMAIN_INDIVIDUAL_ADDRESS = "individual-address";
+
+/** An individual named by the type it is persisted as and its own id, the pair every surface names one by, so whoever
+ *  holds it reads it directly. */
+export const IndividualAddressSchema = z.object({
+	persistedAs: z.string().describe("The type the individual is persisted as."),
+	id: z.string().describe("The individual's id within that type."),
+});
+export type TIndividualAddress = z.infer<typeof IndividualAddressSchema>;
+
 /** An in-app reference: a type, or an individual (optionally a passage inside it). The shape the SPA's renderer takes. */
-type TRefHref =
-	| { kind: typeof REF_DENOTES.type; target: { domain: string } }
-	| { kind: typeof REF_DENOTES.individual; target: { persistedAs: string; id: string; selector?: TQuoteAnchor } };
+type TRefHref = { kind: typeof REF_DENOTES.type; target: { domain: string } } | { kind: typeof REF_DENOTES.individual; target: TIndividualAddress & { selector?: TQuoteAnchor } };
 
 /** What a statement can be about: a typed individual, optionally a passage inside it. */
-type TAddressableTarget = { kind: typeof DENOTES.individual; persistedAs: string; id: string; anchor?: TQuoteAnchor };
+type TAddressableTarget = TIndividualAddress & { kind: typeof DENOTES.individual; anchor?: TQuoteAnchor };
 
 /** What a link's href denotes. A TYPE is a schema term, not an individual: a link to one navigates and doesn't state a fact. */
 type TLinkTarget = TAddressableTarget | { kind: typeof DENOTES.type; persistedAs: string };

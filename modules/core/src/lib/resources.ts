@@ -162,7 +162,7 @@ export const MEDIA_TYPE = {
 	plain: "text/plain",
 	html: "text/html",
 	json: "application/json",
-	/** Bytes whose type isn't stated, which a browser doesn't render as a page. */
+	/** Bytes whose type isn't stated. */
 	bytes: "application/octet-stream",
 } as const;
 const BODY_DOMAIN = "body";

@@ -306,19 +306,18 @@ type TStepAuthorization = { required?: string; held?: string; controller?: strin
 function asRecorded(featureStep: TFeatureStep, domains: TWorld["domains"]): TFeatureStep {
 	const values = featureStep.action.stepValuesMap;
 	if (!values) return featureStep;
+	const restated = Object.entries(values).flatMap(([name, value]) => {
+		const recordedAs = value.domain ? domains[value.domain]?.recordedAs : undefined;
+		return recordedAs && value.term ? [{ name, value, term: value.term, stated: recordedAs(value.value ?? value.term) }] : [];
+	});
+	if (restated.length === 0) return featureStep;
+	const statedValues = { ...values };
 	let line = featureStep.in;
-	let restated = false;
-	const statedValues = Object.fromEntries(
-		Object.entries(values).map(([name, value]) => {
-			const recordedAs = value.domain ? domains[value.domain]?.recordedAs : undefined;
-			if (!recordedAs || !value.term) return [name, value];
-			const stated = recordedAs(value.value ?? value.term);
-			line = line.split(value.term).join(stated);
-			restated = true;
-			return [name, { ...value, term: stated, value: stated }];
-		}),
-	);
-	return restated ? { ...featureStep, in: line, action: { ...featureStep.action, stepValuesMap: statedValues } } : featureStep;
+	for (const { name, value, term, stated } of restated) {
+		statedValues[name] = { ...value, term: stated, value: stated };
+		line = line.split(term).join(stated);
+	}
+	return { ...featureStep, in: line, action: { ...featureStep.action, stepValuesMap: statedValues } };
 }
 
 async function emitSeqPathStart(world: TWorld, featureStep: TFeatureStep, authorization: TStepAuthorization, ran: { ranVia: string; ranOn?: string }): Promise<void> {
