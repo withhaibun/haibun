@@ -21,13 +21,27 @@ export function requestHaibunNs(): string {
 	return haibunNsForHost(currentRequestBaseIri());
 }
 
-/** The absolute origin (scheme://host[:port]) a request arrived on, from its host / forwarding headers (honoring a
- *  reverse proxy). Undefined when a host header isn't present. */
-export function requestBaseIri(headers?: Record<string, string | undefined>): string | undefined {
-	if (!headers) return undefined;
-	const first = (v?: string): string | undefined => v?.split(",")[0]?.trim() || undefined;
-	const host = first(headers["x-forwarded-host"]) ?? first(headers["host"]);
-	if (!host) return undefined;
-	const proto = first(headers["x-forwarded-proto"]) ?? "http";
-	return `${proto}://${host}`;
+type TRequestHeaders = Record<string, string | undefined>;
+
+const firstOf = (value?: string): string | undefined => value?.split(",")[0]?.trim() || undefined;
+
+/** The host a request arrived on: the one a reverse proxy forwards, else its own Host header. A caller that reaches the
+ *  server directly writes either header, so neither is read as proof of anything. */
+const requestHost = (headers: TRequestHeaders): string | undefined => firstOf(headers["x-forwarded-host"]) ?? firstOf(headers.host);
+
+/** The absolute origin (scheme://host[:port]) a request arrived on, from its host and forwarding headers. Undefined when
+ *  a host header isn't present. */
+export function requestBaseIri(headers?: TRequestHeaders): string | undefined {
+	const host = headers && requestHost(headers);
+	if (!headers || !host) return undefined;
+	return `${firstOf(headers["x-forwarded-proto"]) ?? "http"}://${host}`;
+}
+
+/** Whether a browser sent this request for a page of another site: it states an `Origin` whose host isn't the host the
+ *  request arrived on. A request that doesn't state an `Origin` wasn't sent across sites by a browser, and a browser
+ *  doesn't let a page write the host or forwarding headers. */
+export function sentByAnotherSite(headers?: TRequestHeaders): boolean {
+	const origin = headers?.origin;
+	if (!headers || origin === undefined) return false;
+	return !URL.canParse(origin) || new URL(origin).host !== requestHost(headers);
 }

@@ -3,6 +3,7 @@
  * and holds what was delegated to it here, so what proves a request is a signature over that request under a
  * delegation to the page's key, rather than possession of anything that could be copied out of the page.
  */
+import { SIGNATURE_HEADER } from "@haibun/core/lib/signature-header.js";
 import "fake-indexeddb/auto";
 import { describe, it, expect, afterEach } from "vitest";
 import { forgetPageAuthority, holdGiven, keyHeaders, openPageAuthority, pageAuthority, pageAuthorityReady, pageHolds, pageMay, signedHeaders } from "./page-key.js";
@@ -48,7 +49,7 @@ describe("the key a page controls", () => {
 		}, ["Read:public"]);
 		expect(proof?.["capability-invocation"], "an invocation of a root, which the deployment resolves as the signer's own").toContain('zcap id="urn:zcap:root:');
 		expect(proof?.["capability-invocation"], "for the one action such a root allows").toContain('action="Authority:readOwnDelegations"');
-		expect(proof?.authorization, "signed by the page's key").toContain(authority.controller);
+		expect(proof?.[SIGNATURE_HEADER], "signed by the page's key").toContain(authority.controller);
 		expect(pageHolds()).toEqual(["Read:public", "Read:private"]);
 		expect(pageMay("Read:opened"), "a private read allows a narrower one").toBe(true);
 		expect(pageMay("ResourcesStepper:comment"), "and doesn't allow a call it wasn't given").toBe(false);
@@ -77,7 +78,7 @@ describe("what a page sends", () => {
 		const { controller } = await opened([delegatedReading, delegatedAll]);
 		const headers = await signedHeaders(call("ShuStepper:showViews"));
 		expect(headers?.["capability-invocation"], "a delegation is matched on what it lists, so the action is its own").toContain('action="*"');
-		expect(headers?.authorization, "and the signature names the page's key").toContain(controller);
+		expect(headers?.[SIGNATURE_HEADER], "and the signature names the page's key").toContain(controller);
 		expect(headers?.digest, "which covers the body as well, so what was asked cannot be swapped").toBeTruthy();
 	});
 

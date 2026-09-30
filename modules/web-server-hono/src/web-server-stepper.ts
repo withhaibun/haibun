@@ -248,7 +248,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 						return { seqPath, hostId: seqPath[0], site: activeSitePrincipal(this.getWorld()), serving: this.getWorld().runtime[SERVING] === true };
 					}
 
-					const authority = await grantedCapabilityForRequest(requestInfo, this.getWorld().runtime, this.allowedWithoutDelegation);
+					const authority = await grantedCapabilityForRequest(requestInfo, this.getWorld().runtime, this);
 					const { granted, principal, refused } = authority;
 					if (refused) return { error: `${method}: ${refused}`, [RPC_REFUSED]: true };
 					// A streamed call is held open only while the authority it was allowed under holds.

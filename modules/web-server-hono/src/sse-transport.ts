@@ -61,7 +61,7 @@ export class SSETransport implements ITransport, IStepTransport {
 
 	private setupRoutes(): void {
 		this.webserver.addRoute("get", "/sse", { description: "Server-Sent Events stream for live framework events" }, async (c) => {
-			const authority = await authorityAllowing(c, FOLLOWS_THE_RUN, this.runtime, this.webserver.allowedWithoutDelegation);
+			const authority = await authorityAllowing(c, FOLLOWS_THE_RUN, this.runtime, this.webserver);
 			if (authority instanceof Response) return authority;
 			const { granted } = authority;
 			this.eventLogger.debug("SSE Client connected");

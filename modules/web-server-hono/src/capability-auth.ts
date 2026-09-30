@@ -1,9 +1,12 @@
+import { SIGNATURE_HEADER } from "@haibun/core/lib/signature-header.js";
+import { sentByAnotherSite } from "@haibun/core/lib/request-context.js";
 import type { Context, MiddlewareHandler } from "hono";
 import type { TRuntime } from "@haibun/core/lib/world.js";
 import { capabilityAllows } from "@haibun/core/lib/actions.js";
 import { refusal } from "@haibun/core/lib/step-registry.js";
 import { getAuthority, heldAuthority } from "@haibun/core/lib/session-authority.js";
 import type { TRestsOn } from "@haibun/core/lib/authority-types.js";
+import type { IWebServer } from "./defs.js";
 
 type TRequestHeaders = Record<string, string | undefined>;
 
@@ -14,11 +17,14 @@ type TAuthorizedRequest = { method?: string; url?: string; headers?: TRequestHea
 const PRESENTED_AUTHORITY_HEADER = "capability-invocation";
 
 /** The headers a request presenting authority carries: its signature, the capability it invokes, and its body's digest. */
-export const PRESENTED_REQUEST_HEADERS = ["authorization", PRESENTED_AUTHORITY_HEADER, "digest"] as const;
+export const PRESENTED_REQUEST_HEADERS = [SIGNATURE_HEADER, PRESENTED_AUTHORITY_HEADER, "digest"] as const;
 
 /** What a request carries: what its caller may do, who they proved themselves to be where a proof said so, and what that
  *  proof rests on. A presented proof that fails, or that the runtime can't check, is `refused`, and a refused request doesn't run
  *  a step. */
+/** What a server states about its callers: what each may do without a delegation. */
+type TServed = Pick<IWebServer, "allowedWithoutDelegation">;
+
 type TRequestAuthority = { granted: string[]; principal?: string; restsOn?: TRestsOn; refused?: string };
 
 /**
@@ -29,12 +35,11 @@ type TRequestAuthority = { granted: string[]; principal?: string; restsOn?: TRes
  * A proof also says who made it, and that is answered here as well: what is done under a proof is done by whoever
  * proved it, so a record of the doing can name them rather than the process that carried it out.
  */
-export async function grantedCapabilityForRequest(
-	request: TAuthorizedRequest | undefined,
-	runtime: TRuntime,
-	allowedWithoutDelegation: readonly string[],
-): Promise<TRequestAuthority> {
-	if (!presentsAuthority(request?.headers)) return { granted: [...allowedWithoutDelegation] };
+export async function grantedCapabilityForRequest(request: TAuthorizedRequest | undefined, runtime: TRuntime, served: TServed): Promise<TRequestAuthority> {
+	const { allowedWithoutDelegation } = served;
+	// What is allowed without a delegation is allowed to a caller. A page of another site sending a request through a
+	// reader's browser isn't that caller, and it can't present a proof, so it is allowed only what a step doesn't require.
+	if (!presentsAuthority(request?.headers)) return { granted: sentByAnotherSite(request?.headers) ? [] : [...allowedWithoutDelegation] };
 	const authority = getAuthority(runtime);
 	if (!authority?.hasVerifier()) return { granted: [], refused: "the request presents authority, and a verifier isn't registered to check it" };
 	if (!request?.method || !request.url) return { granted: [], refused: "the request presents authority without the method and address its proof covers" };
@@ -45,8 +50,8 @@ export async function grantedCapabilityForRequest(
 
 /** A request's authority where it allows `action`, or else the answer that refuses it: a presented proof that fails is
  *  refused 401, and authority that doesn't allow the action 403. */
-export async function authorityAllowing(c: Context, action: string, runtime: TRuntime, allowedWithoutDelegation: readonly string[]): Promise<TRequestAuthority | Response> {
-	const authority = await grantedCapabilityForRequest({ method: c.req.method, url: c.req.url, headers: c.req.header() }, runtime, allowedWithoutDelegation);
+export async function authorityAllowing(c: Context, action: string, runtime: TRuntime, served: TServed): Promise<TRequestAuthority | Response> {
+	const authority = await grantedCapabilityForRequest({ method: c.req.method, url: c.req.url, headers: c.req.header() }, runtime, served);
 	if (authority.refused) return c.json({ error: `${c.req.path}: ${authority.refused}` }, 401);
 	if (!capabilityAllows(authority.granted, action)) return c.json({ error: refusal(c.req.path, action, authority.principal) }, 403);
 	return authority;
@@ -54,9 +59,9 @@ export async function authorityAllowing(c: Context, action: string, runtime: TRu
 
 /** A route's middleware that answers only a request whose authority allows `action`. */
 export const requiring =
-	(action: string, runtime: TRuntime, allowedWithoutDelegation: () => readonly string[]): MiddlewareHandler =>
+	(action: string, runtime: TRuntime, served: TServed): MiddlewareHandler =>
 	async (c, next) => {
-		const allowing = await authorityAllowing(c, action, runtime, allowedWithoutDelegation());
+		const allowing = await authorityAllowing(c, action, runtime, served);
 		if (allowing instanceof Response) return allowing;
 		await next();
 	};

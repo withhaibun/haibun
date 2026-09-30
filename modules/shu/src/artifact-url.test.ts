@@ -4,6 +4,7 @@
  * served page reads one under its delegation and shows what it read at an object URL, and a page opened as a file reads
  * its artifacts beside itself.
  */
+import { SIGNATURE_HEADER } from "@haibun/core/lib/signature-header.js";
 import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { READS_THE_RUNS_ARTIFACTS } from "@haibun/core/lib/actions.js";
@@ -42,7 +43,7 @@ describe("where a view shows an artifact of the run", () => {
 		expect(await shownArtifact(SCREENSHOT)).toBe("blob:shown-1");
 		expect(fetched.map(({ url }) => url)).toEqual([SCREENSHOT]);
 		expect(fetched[0].headers["capability-invocation"]).toContain(`action="${READS_THE_RUNS_ARTIFACTS}"`);
-		expect(fetched[0].headers.authorization, "signed by the page's key").toContain(controller);
+		expect(fetched[0].headers[SIGNATURE_HEADER], "signed by the page's key").toContain(controller);
 		expect(await shownArtifact(SCREENSHOT), "a view showing it again shows what was read").toBe("blob:shown-1");
 		expect(fetched).toHaveLength(1);
 	});

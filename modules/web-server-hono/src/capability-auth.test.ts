@@ -29,8 +29,10 @@ class StubVerifier implements IAuthorityVerifier {
 }
 
 /** What a deployment allows without a delegation when it doesn't state an action, and when anyone may read it. */
-const NOBODY: string[] = [];
-const PUBLIC_SITE = ["Read:public"];
+const READ_PUBLIC = "Read:public";
+const serving = (allowedWithoutDelegation: string[]) => ({ allowedWithoutDelegation });
+const NOBODY = serving([]);
+const PUBLIC_SITE = serving([READ_PUBLIC]);
 
 const runtimeWith = (authority: SessionAuthority): TRuntime => ({ keys: { [AUTHORITY_KEY]: authority } }) as unknown as TRuntime;
 
@@ -52,7 +54,7 @@ describe("what a request carries to a boundary", () => {
 	it("grants what the deployment allows without a delegation beside what a proof allows", async () => {
 		const authority = new SessionAuthority();
 		authority.registerVerifier(new StubVerifier());
-		expect((await grantedCapabilityForRequest(signedRequest(ACTION), runtimeWith(authority), PUBLIC_SITE)).granted).toEqual(["Read:public", ACTION, "comment.deny"]);
+		expect((await grantedCapabilityForRequest(signedRequest(ACTION), runtimeWith(authority), PUBLIC_SITE)).granted).toEqual([READ_PUBLIC, ACTION, "comment.deny"]);
 	});
 
 	it("refuses a request whose proof fails, without granting an action or naming a principal", async () => {
@@ -74,7 +76,19 @@ describe("what a request carries to a boundary", () => {
 		authority.registerVerifier(new StubVerifier());
 		const presentingNothing = { method: "POST", url: "http://site.test:8123/rpc/x", headers: { authorization: "Bearer tkn" } };
 		expect(await grantedCapabilityForRequest(presentingNothing, runtimeWith(authority), NOBODY), "a secret it carries isn't authority").toEqual({ granted: [] });
-		expect(await grantedCapabilityForRequest(presentingNothing, runtimeWith(authority), PUBLIC_SITE), "and anyone may read a public site").toEqual({ granted: PUBLIC_SITE });
+		expect(await grantedCapabilityForRequest(presentingNothing, runtimeWith(authority), PUBLIC_SITE), "and anyone may read a public site").toEqual({ granted: [READ_PUBLIC] });
+	});
+
+	it("doesn't hold what a caller holds without a delegation for a page of another site sending through a reader's browser, where a proof still does", async () => {
+		const authority = new SessionAuthority();
+		authority.registerVerifier(new StubVerifier());
+		const fromAnotherSite = { host: "site.test:8123", origin: "https://elsewhere.example" };
+		const unproven = { method: "POST", url: "http://site.test:8123/rpc/x", headers: fromAnotherSite };
+		expect(await grantedCapabilityForRequest(unproven, runtimeWith(authority), PUBLIC_SITE), "another site's page isn't the caller").toEqual({ granted: [] });
+		const ofThisSite = { ...unproven, headers: { host: "site.test:8123", origin: "http://site.test:8123" } };
+		expect((await grantedCapabilityForRequest(ofThisSite, runtimeWith(authority), PUBLIC_SITE)).granted, "a page of this site is").toEqual([READ_PUBLIC]);
+		const proven = { ...signedRequest(ACTION), headers: { ...signedRequest(ACTION).headers, ...fromAnotherSite } };
+		expect((await grantedCapabilityForRequest(proven, runtimeWith(authority), PUBLIC_SITE)).granted, "a page can't sign, so a proof is its caller's").toContain(READ_PUBLIC);
 	});
 });
 
@@ -84,24 +98,20 @@ describe("a route that requires an action", () => {
 		const authority = new SessionAuthority();
 		authority.registerVerifier(new StubVerifier());
 		const app = new Hono();
-		app.get(
-			"/held/*",
-			requiring(ACTION, runtimeWith(authority), () => allowed),
-			(c) => c.text("held"),
-		);
+		app.get("/held/*", requiring(ACTION, runtimeWith(authority), serving(allowed)), (c) => c.text("held"));
 		return (headers: Record<string, string> = {}) => app.request("http://site.test:8123/held/one", { headers });
 	};
 
 	it("answers a request whose proof allows the action, or a request that doesn't present authority where the deployment allows it", async () => {
-		expect(await (await held(NOBODY)(signedRequest(ACTION).headers)).text()).toBe("held");
+		expect(await (await held([])(signedRequest(ACTION).headers)).text()).toBe("held");
 		expect((await held([ACTION])()).status).toBe(200);
 	});
 
 	it("refuses a request that doesn't present authority 403, and one whose proof fails 401, naming why", async () => {
-		const unproven = await held(NOBODY)();
+		const unproven = await held([])();
 		expect(unproven.status).toBe(403);
 		expect(await unproven.json()).toEqual({ error: "/held/one: not a call this caller may make" });
-		const failed = await held(NOBODY)(signedRequest("comment.revoke").headers);
+		const failed = await held([])(signedRequest("comment.revoke").headers);
 		expect(failed.status).toBe(401);
 		expect(await failed.json()).toEqual({ error: "/held/one: the presented authority failed verification: not this one" });
 	});

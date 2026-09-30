@@ -214,7 +214,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 			const { granted, principal, refused } = await grantedCapabilityForRequest(
 				{ method: c.req.method, url: c.req.url, headers: c.req.header(), body },
 				this.getWorld().runtime,
-				webserver.allowedWithoutDelegation,
+				webserver,
 			);
 			if (refused) return c.json({ error: refused }, 401);
 

@@ -7,6 +7,7 @@
  * only the key, and signs each call with a delegation that allows what the call requires. The page doesn't send or keep a secret, and a delegation taken
  * from the page isn't useful to whoever took it: they cannot sign with a key they don't hold.
  */
+import { carriedInSignature } from "@haibun/core/lib/signature-header.js";
 import { signCapabilityInvocation } from "@digitalbazaar/http-signature-zcap-invoke";
 import { encode } from "base58-universal";
 import { actionUnder, capabilityAllows, delegatedActions, type TDelegation } from "@haibun/core/lib/actions.js";
@@ -203,7 +204,7 @@ export function forgetPageAuthority(): void {
 export async function keyHeaders(request: { url: string; method: string; headers: Record<string, string>; body?: string }): Promise<Record<string, string>> {
 	const key = pinned().key;
 	if (!key) throw new Error("the page proves its key while it reads what was delegated to it, and it isn't reading");
-	return await signCapabilityInvocation({ ...request, capabilityAction: DELEGATIONS_READ_ACTION, invocationSigner: { id: key.keyId, sign: key.sign } });
+	return carriedInSignature(await signCapabilityInvocation({ ...request, capabilityAction: DELEGATIONS_READ_ACTION, invocationSigner: { id: key.keyId, sign: key.sign } }));
 }
 
 /** The headers a page asks for `url` with by GET: signed under a delegation that allows `action`, where it holds one, and
@@ -228,15 +229,17 @@ export async function signedHeaders(request: {
 	for (const delegation of held.authority.delegations) {
 		const invoked = actionUnder(delegation, request.action, target);
 		if (!invoked) continue;
-		return await signCapabilityInvocation({
-			url: request.url,
-			method: request.method,
-			headers: request.headers,
-			body: request.body,
-			capability: delegation,
-			capabilityAction: invoked,
-			invocationSigner: { id: held.key.keyId, sign: held.key.sign },
-		});
+		return carriedInSignature(
+			await signCapabilityInvocation({
+				url: request.url,
+				method: request.method,
+				headers: request.headers,
+				body: request.body,
+				capability: delegation,
+				capabilityAction: invoked,
+				invocationSigner: { id: held.key.keyId, sign: held.key.sign },
+			}),
+		);
 	}
 	return undefined;
 }

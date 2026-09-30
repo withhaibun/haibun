@@ -165,7 +165,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			const artifactDir = resolve(this.storage.getArtifactBasePath());
 			this.storage.ensureDirExists(artifactDir);
 			// A capture shows what the run's steps saw, so only a caller holding a private read is served one.
-			const privately = requiring(READS_THE_RUNS_ARTIFACTS, this.getWorld().runtime, () => webserver.allowedWithoutDelegation);
+			const privately = requiring(READS_THE_RUNS_ARTIFACTS, this.getWorld().runtime, webserver);
 			webserver.addKnownStaticFolder(artifactDir, ARTIFACTS_ROUTE, { description: "What the run's steps captured, such as screenshots and videos" }, privately);
 		},
 		onEvent: (event: THaibunEvent) => {
