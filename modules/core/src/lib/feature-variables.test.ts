@@ -333,12 +333,11 @@ describe("FeatureVariables", () => {
 			expect(String(resolved.value)).toBe("Hello");
 		});
 
-		it("does not resolve invalid paths as variables", async () => {
+		it("doesn't resolve a path that names a field its variable doesn't have, and states the fields it has", async () => {
 			await variables.setJSON("data", { vertex: { subject: "Hello" } }, Origin.var, mockFeatureStep);
-			// A path into a variable that names a field it doesn't have is refused, where as a literal it would reach a step as text.
-			await expect(variables.resolveVariable({ term: "data.vertex.missing", origin: Origin.defined }, mockFeatureStep)).rejects.toThrow(
-				"data.vertex doesn't have missing; it has subject. Quote the term to pass it as a literal.",
-			);
+			const resolved = await variables.resolveVariable({ term: "data.vertex.missing", origin: Origin.defined }, mockFeatureStep);
+			expect(resolved.value).toBeUndefined();
+			expect(await variables.unsetReason("data.vertex.missing")).toBe("data.vertex doesn't have missing; it has subject");
 		});
 
 		it("prefers full key over dot-path when both exist", async () => {

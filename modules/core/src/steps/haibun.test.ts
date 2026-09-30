@@ -21,7 +21,7 @@ import { OBSERVATION_GRAPH, assertFact, getFact } from "../lib/working-memory.js
 
 describe("until", () => {
 	it("passes once its statements pass", async () => {
-		const feature = { path: "/features/test.feature", content: 'until passes within "1s"' };
+		const feature = { path: "/features/test.feature", content: "until passes within 1 s" };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
 	});

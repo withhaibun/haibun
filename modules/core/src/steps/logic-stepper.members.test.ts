@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { passWithDefaults } from "../lib/test/lib.js";
+import { failWithDefaults, passWithDefaults } from "../lib/test/lib.js";
 import LogicStepper from "./logic-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
 
@@ -114,6 +114,26 @@ describe("every/some with member values", () => {
 			};
 			const result = await passWithDefaults([feature], [LogicStepper, VariablesStepper]);
 			expect(result.ok).toBe(true);
+		});
+
+		it("takes a quoted value as its text where a variable has that text as its name", async () => {
+			const feature = {
+				path: "/features/test.feature",
+				content: `
+          set of colors is ["red" "green" "blue"]
+          set red to "yellow"
+          "red" is in colors
+          not red is in colors
+        `,
+			};
+			const result = await passWithDefaults([feature], [LogicStepper, VariablesStepper]);
+			expect(result.ok).toBe(true);
+		});
+
+		it("refuses an unquoted value that doesn't name a variable", async () => {
+			const feature = { path: "/features/test.feature", content: `set of colors is ["red" "green" "blue"]\nrde is in colors` };
+			const result = await failWithDefaults([feature], [LogicStepper, VariablesStepper]);
+			expect(result.failure?.error.message).toContain("rde doesn't name a variable or an environment variable. Quote it to pass it as a literal.");
 		});
 
 		it("passes when value is in member values", async () => {

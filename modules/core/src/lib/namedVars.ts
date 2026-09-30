@@ -1,14 +1,12 @@
 import { TStepperStep, TStepAction } from "./astepper.js";
 import { TStepValue, TOrigin, Origin } from "../schema/protocol.js";
-import { DOMAIN_STATEMENT, DOMAIN_STRING } from "./domains.js";
+import { DOMAIN_DURATION, DOMAIN_STATEMENT, DOMAIN_STRING, DURATION_TERM } from "./domains.js";
 import { itemAt } from "./util/item-at.js";
 
 const TYPE_QUOTED = "q_";
 const TYPE_ENV = "e_";
 const TYPE_VAR = "b_";
 const TYPE_ENV_OR_VAR_OR_LITERAL = "t_";
-/** An empty literal as a line writes it; the quoted capture takes at least one character. */
-const EMPTY_QUOTED = '""';
 
 export const namedInterpolation = (inp: string): { regexPattern: string; stepValuesMap?: Record<string, TStepValue> } => {
 	if (!inp.includes("{")) {
@@ -60,12 +58,12 @@ export const namedInterpolation = (inp: string): { regexPattern: string; stepVal
 		} else if (origin === Origin.var) {
 			matchGroupPattern = `\`(?<${TYPE_VAR}${matchIndex}>.+)\``;
 		} else if (origin === Origin.quoted) {
-			matchGroupPattern = `"(?<${TYPE_QUOTED}${matchIndex}>.+)"`;
+			matchGroupPattern = `"(?<${TYPE_QUOTED}${matchIndex}>.*)"`;
 		} else {
 			// A plain placeholder accepts several syntaxes, capturing each into a
 			// distinct named group so callers can detect whether the value was
 			// quoted, backticked or a bare literal.
-			matchGroupPattern = `(?:"(?<${TYPE_QUOTED}${matchIndex}>.+)"|\`(?<${TYPE_VAR}${matchIndex}>.+)\`|(?<${TYPE_ENV_OR_VAR_OR_LITERAL}${matchIndex}>${placeholderRegex}))`;
+			matchGroupPattern = `(?:"(?<${TYPE_QUOTED}${matchIndex}>.*)"|\`(?<${TYPE_VAR}${matchIndex}>.+)\`|(?<${TYPE_ENV_OR_VAR_OR_LITERAL}${matchIndex}>${placeholderRegex}))`;
 		}
 
 		regexPattern += matchGroupPattern;
@@ -145,10 +143,7 @@ export const getMatch = (actionable: string, r: RegExp, actionName: string, step
 						ph.origin = Origin.env;
 					} else {
 						const tTrim = String(t).trim();
-						if (tTrim === EMPTY_QUOTED) {
-							ph.term = "";
-							ph.origin = Origin.quoted;
-						} else if (tTrim.startsWith("{") || tTrim.startsWith("[") || /^-?\d+(\.\d+)?$/.test(tTrim)) {
+						if (tTrim.startsWith("{") || tTrim.startsWith("[") || /^-?\d+(\.\d+)?$/.test(tTrim) || (ph.domain === DOMAIN_DURATION && DURATION_TERM.test(tTrim))) {
 							ph.term = tTrim;
 							ph.origin = Origin.quoted;
 						} else {

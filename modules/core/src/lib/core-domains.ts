@@ -40,6 +40,7 @@ import {
 	DOMAIN_LINK_REL,
 	DOMAIN_WALK_ID,
 	DOMAIN_VARIABLE_VALUE,
+	DURATION_TERM,
 	DOMAIN_TEMPLATE,
 	DOMAIN_WAYPOINT_ARGUMENT,
 	DOMAIN_LINE_COMMENT,
@@ -72,7 +73,7 @@ const stepPathSchema = z.preprocess((value, ctx) => {
 /** A length of time in milliseconds, read from seconds or milliseconds such as `2s` or `30 ms`, or a number of milliseconds. */
 const durationSchema = z.preprocess((value, ctx) => {
 	if (typeof value !== "string") return value;
-	const match = /^(\d+(?:\.\d+)?)\s*(ms|s)$/.exec(value.trim());
+	const match = DURATION_TERM.exec(value.trim());
 	if (!match) ctx.addIssue({ code: "custom", message: `${JSON.stringify(value)} isn't a length of time: give seconds or milliseconds, such as 2s or 30 ms` });
 	return match ? Number(match[1]) * (match[2] === "s" ? 1000 : 1) : value;
 }, z.number().nonnegative());
@@ -223,7 +224,13 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		schema: stringSchema,
 		description: "Free text a person writes: a note, a question, a reason or a passage quoted, read as written.",
 	},
-	{ selectors: [DOMAIN_VARIABLE_NAME], schema: NameSchema, written: true, description: "The name of a variable, as the line writes it." },
+	{
+		selectors: [DOMAIN_VARIABLE_NAME],
+		schema: NameSchema,
+		written: true,
+		filled: true,
+		description: "The name of a variable, as the line writes it, with each {name} in it given the value name resolves to.",
+	},
 	{ selectors: [DOMAIN_IMAGE_REFERENCE], schema: ImageReferenceSchema, description: "An image: where actuality keeps its bytes, and their media type." },
 	{ selectors: [DOMAIN_IMAGE_DATA], schema: ImageDataSchema, description: "An image's bytes, as a data: URL a page reads a file into." },
 	{ selectors: [DOMAIN_DOMAIN_NAME], schema: NameSchema, written: true, description: "The name a declaration gives a new domain, as the line writes it." },

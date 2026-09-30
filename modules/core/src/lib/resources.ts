@@ -765,6 +765,8 @@ export type TDomainDefinition = {
 	names?: (term: string) => boolean;
 	/** Whether its value is the term its line writes, never a variable or an environment value the term names. */
 	written?: boolean;
+	/** Whether each `{name}` in its written term is given the value `name` resolves to, as a variable's name is. */
+	filled?: boolean;
 	description: string;
 	/** Stepper that registered this domain (set automatically by registerDomains) */
 	stepperName?: string;

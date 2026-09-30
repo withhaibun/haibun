@@ -25,6 +25,9 @@ export interface TSavedArtifact {
 	baseRelativePath: string;
 }
 
+/** The flag a write is made with where it must not replace a file: the write fails where the file exists. */
+export const CREATE_ONLY = "wx";
+
 export abstract class AStorage extends AStepper implements IHasCycles {
 	cycles: IStepperCycles = {
 		getConcerns: () => ({ domains: [{ selectors: [DOMAIN_FILE_CONTENTS], schema: FileContentsSchema, description: "A file's contents, as a storage read them" }] }),

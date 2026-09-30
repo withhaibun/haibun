@@ -18,7 +18,12 @@ async function readParams(featureStep: TFeatureStep, world: TWorld, steppers: AS
 				: await world.shared.resolveVariable(actionVal, featureStep, steppers, { secure: true }).catch((e: unknown) => {
 						throw new Error(`${inStep} refuses ${actionVal.term}: ${errorDetail(e)}`);
 					});
-		if (resolved.value === undefined) throw Error(`${inStep}: ${actionVal.term} doesn't name a variable or an environment variable. Quote it to pass it as a literal.`);
+		if (resolved.value === undefined) {
+			const reason = (await world.shared.namesAMissingField(actionVal.term))
+				? await world.shared.unsetReason(actionVal.term)
+				: `${actionVal.term} doesn't name a variable or an environment variable`;
+			throw Error(`${inStep}: ${reason}. Quote it to pass it as a literal.`);
+		}
 		const takes = paramDomainKey(actionVal.domain);
 		read.push({ name, takes, read: { ...resolved, value: readInDomain(inStep, takes, resolved, world, featureStep, steppers) } });
 	}

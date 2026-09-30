@@ -69,7 +69,7 @@ Use variables for configuration, test data, and efficiency.
    - First, from any existing **Environment Variable**.
    - Second, from any existing **Defined Variable**.
    - Third, a value equal to a member of the parameter's domain is that member.
-   - A number and JSON are literals as written. Any other unquoted value is refused, a waypoint's argument included.
+   - A number and JSON are literals as written, and so is a length of time for a duration, such as `pause for 30 s`. Any other unquoted value is refused, a waypoint's argument included.
    - If these rules don't apply, the step fails.
 
 #### Examples

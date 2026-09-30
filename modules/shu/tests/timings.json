@@ -7,12 +7,12 @@
 				"declaredStepTextHash": "4fb4a0611229a9e113146570c33eb184c18a6a7b7d03c3e0b34aece47b709864"
 			},
 			"/features/federate.feature.ts": {
-				"seconds": 0.6,
+				"seconds": 0.7,
 				"steps": 6,
 				"declaredStepTextHash": "ab37731cb50813b783e0aa872bb80a9b995c504e308a5603c48f254263f91584"
 			},
 			"/features/monitor.feature.ts": {
-				"seconds": 9.7,
+				"seconds": 9.4,
 				"steps": 555,
 				"declaredStepTextHash": "76d2783b1d0b4a18483f34a4e3cbffb47677f38a49ad650d6b4bbece7f5b48c4"
 			},
@@ -28,6 +28,6 @@
 			}
 		},
 		"steps": 982,
-		"seconds": 13.5
+		"seconds": 13.3
 	}
 }

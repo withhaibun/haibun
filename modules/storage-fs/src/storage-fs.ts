@@ -1,13 +1,12 @@
 import * as fs from "fs";
 import { dirname } from "path";
 
-import { AStorage } from "@haibun/domain-storage/AStorage.js";
+import { AStorage, CREATE_ONLY } from "@haibun/domain-storage/AStorage.js";
 import { IFile } from "@haibun/domain-storage/domain-storage.js";
 
-/** A file and a directory only their owner reads, and a write that fails where the file exists. */
+/** A file and a directory only their owner reads. */
 const OWNER_ONLY_FILE = 0o600;
 const OWNER_ONLY_DIRECTORY = 0o700;
-const CREATE_ONLY = "wx";
 
 export default class StorageFS extends AStorage {
 	readFile = (file: string, coding?: BufferEncoding) => fs.readFileSync(file, coding);

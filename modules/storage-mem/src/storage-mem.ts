@@ -1,7 +1,7 @@
 import { Volume, IFs, DirectoryJSON } from "memfs";
 import { dirname } from "path";
 
-import { AStorage } from "@haibun/domain-storage/AStorage.js";
+import { AStorage, CREATE_ONLY } from "@haibun/domain-storage/AStorage.js";
 import { IFile } from "@haibun/domain-storage/domain-storage.js";
 
 export default class StorageMem extends AStorage {
@@ -47,8 +47,8 @@ export default class StorageMem extends AStorage {
 	};
 
 	writePrivateFile = (file: string, contents: string) => {
-		this.volume.mkdirSync(dirname(file), { recursive: true });
-		this.volume.writeFileSync(file, contents, { flag: "wx" });
+		this.mkdirp(dirname(file));
+		this.volume.writeFileSync(file, contents, { flag: CREATE_ONLY });
 	};
 
 	rm = (file: string) => {

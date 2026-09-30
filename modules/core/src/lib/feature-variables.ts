@@ -5,7 +5,7 @@ import { parseDotPath, navigateValue } from "./util/dot-path.js";
 import { itemAt } from "./util/item-at.js";
 import { runEnvVariables, type TWorld } from "./world.js";
 import { Origin, TOrigin, TProvenanceIdentifier, TStepValue } from "../schema/protocol.js";
-import { DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_STRING, DOMAIN_UNION, DOMAIN_VARIABLE_NAME, domainParts, namesMember, normalizeDomainKey, registeredDomain } from "./domains.js";
+import { DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_STRING, DOMAIN_UNION, domainParts, namesMember, normalizeDomainKey, registeredDomain } from "./domains.js";
 import { QuadStore } from "./quad-store.js";
 import { accessBound, readingAsStated } from "./capability-context.js";
 import { declaredAccessLevel } from "./resources.js";
@@ -126,8 +126,7 @@ export class FeatureVariables {
 
 	/** `template` with each `{name}` given the value `name` resolves to, as a bare term resolves: a runtime argument, an
 	 *  environment variable or a variable. A lenient caller matches text, so a placeholder that doesn't resolve stays. */
-	async interpolate(template: string | undefined, featureStep?: TFeatureStep, options?: { lenient?: boolean }): Promise<{ value: string; secret: boolean } | { error: string }> {
-		if (template === undefined) return { error: "the step doesn't have a variable name to resolve: it received an empty term" };
+	async interpolate(template: string, featureStep?: TFeatureStep, options?: { lenient?: boolean }): Promise<{ value: string; secret: boolean } | { error: string }> {
 		let value = template;
 		let secret = false;
 		for (const match of template.matchAll(/\{([^{}"]+)\}/g)) {
@@ -165,7 +164,7 @@ export class FeatureVariables {
 		if (lookupTerm.startsWith("{") && lookupTerm.endsWith("}")) lookupTerm = lookupTerm.slice(1, -1);
 
 		if (!input.origin || (input.domain && this.world.domains[input.domain]?.written)) {
-			resolved.value = input.domain === DOMAIN_VARIABLE_NAME ? await this.filledName(input.term, featureStep) : input.term;
+			resolved.value = this.world.domains[input.domain ?? ""]?.filled ? await this.filledName(input.term, featureStep) : input.term;
 			resolved.domain = input.domain;
 		} else if (input.origin === Origin.env) {
 			resolved.value = runEnvVariables(this.world)[lookupTerm];
@@ -188,10 +187,6 @@ export class FeatureVariables {
 				const found = await this.lookupVariable(lookupTerm);
 				if (found) {
 					Object.assign(resolved, found);
-				} else if (await this.namesAMissingField(lookupTerm)) {
-					// A term whose first part names a variable that holds fields is a read of that variable, so the refusal names the
-					// field it doesn't have and the fields it has.
-					throw new Error(`${await this.unsetReason(lookupTerm)}. Quote the term to pass it as a literal.`);
 				} else if (input.domain && namesMember(this.world.domains[input.domain], input.term)) {
 					// A bare word naming a value of its parameter's own domain is that value, as `by placeholder` names a way to find.
 					resolved.value = input.term;
@@ -258,9 +253,8 @@ export class FeatureVariables {
 		return has.length > 0 ? `${where} doesn't have ${missing}; it has ${has.join(", ")}` : `${where} doesn't have ${missing}, since it doesn't hold fields`;
 	}
 
-	/** Whether a term is a dot path into a variable that holds fields, naming a field it doesn't have. A variable that
-	 *  holds a single value doesn't have fields to read, so a term that starts with its name is still a literal. */
-	private async namesAMissingField(term: string): Promise<boolean> {
+	/** Whether `term` is a dot path into a variable that holds fields and names a field it doesn't have. */
+	async namesAMissingField(term: string): Promise<boolean> {
 		const read = await this.resolveDotPath(term);
 		return !read.found && "miss" in read && read.miss.has.length > 0;
 	}

@@ -38,6 +38,8 @@ const BASE_TYPES = [DOMAIN_STRING, DOMAIN_TEXT, DOMAIN_LINK, DOMAIN_NUMBER, DOMA
 export const DOMAIN_DOMAIN_KEY = "domain-key";
 /** The name of a variable, as the line writes it. */
 export const DOMAIN_VARIABLE_NAME = "variable-name";
+/** A length of time as a line writes it: a number and its unit, seconds or milliseconds, such as `2s` or `30 ms`. */
+export const DURATION_TERM = /^(\d+(?:\.\d+)?)\s*(ms|s)$/;
 /** The name a declaration gives a new domain, as the line writes it. */
 export const DOMAIN_DOMAIN_NAME = "domain-name";
 /** A loaded stepper's name. */

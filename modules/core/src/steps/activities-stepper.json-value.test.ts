@@ -41,7 +41,7 @@ class PersonStepper extends AStepper {
 	};
 }
 
-describe("parameterized activity body builds a composite via setAs from a JSON value", () => {
+describe("parameterized activity body composes a typed composite from its argument", () => {
 	it("invokes the typed step with the composite the body built from the slot value", async () => {
 		const feature = {
 			path: "/features/parameterized-composite.feature",

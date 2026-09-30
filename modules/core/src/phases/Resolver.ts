@@ -196,7 +196,7 @@ export class Resolver {
 			// Only a statement with a quote inside it can have lost the quotes of its own terms, so others aren't matched again.
 			if (value.domain !== DOMAIN_STATEMENT || value.origin !== Origin.quoted || !value.term?.includes('"')) continue;
 			const written = `"${value.term}"`;
-			if (this.findActionableSteps(value.term).length === 0 && this.findActionableSteps(written).length > 0) value.term = written;
+			if (!this.matchesAStep(value.term) && this.matchesAStep(written)) value.term = written;
 		}
 		return action;
 	}
@@ -252,6 +252,10 @@ export class Resolver {
 				.filter(([actionName, step]) => !this.offers || this.offers(stepperName, actionName, step))
 				.map(([actionName, step]) => ({ actionName, stepperName, step }));
 		});
+	}
+
+	private matchesAStep(actionable: string): boolean {
+		return this.offeredSteps().some(({ step, actionName, stepperName }) => this.stepApplies(step, actionable, actionName, stepperName));
 	}
 
 	private findActionableSteps(actionable: string): TStepAction[] {

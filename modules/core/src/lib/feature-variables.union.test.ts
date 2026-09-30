@@ -14,7 +14,7 @@ describe("FeatureVariables - Union Domains", () => {
 		variables = new FeatureVariables(world);
 	});
 
-	it('should resolve literal string when domain is "string | other"', async () => {
+	it('resolves a quoted term as a string where the domain is "string | other"', async () => {
 		// "string" is a built-in domain in default world
 		const result = await variables.resolveVariable({
 			term: "literalValue",
@@ -26,7 +26,7 @@ describe("FeatureVariables - Union Domains", () => {
 		expect(result.domain).toBe(DOMAIN_STRING);
 	});
 
-	it("should coerce using resolved domain", async () => {
+	it("coerces a term as a string where its union isn't a registered domain", async () => {
 		const result = await variables.resolveVariable({
 			term: "/some/path",
 			origin: Origin.quoted,

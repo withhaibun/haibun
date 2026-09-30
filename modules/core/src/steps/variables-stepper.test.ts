@@ -391,13 +391,13 @@ variable setVar exists`;
 		const content = `set snap as json to {"highlighted": 1, "follow": false}
 variable snap.hilighted is "1"`;
 		const res = await failWithDefaults(content, steppers);
-		expect(res.failure?.error.message).toContain("snap doesn't have hilighted; it has highlighted, follow");
+		expect(res.failure?.error.message).toBe("snap doesn't have hilighted; it has highlighted, follow");
 	});
-	it("refuses an argument that reads a field a variable doesn't have, where it would reach the step as literal text", async () => {
+	it("refuses an argument that reads a field a variable doesn't have, and states the fields it has", async () => {
 		const content = `set snap as json to {"highlighted": 1, "follow": false}
 set copy to snap.hilighted`;
 		const res = await failWithDefaults(content, steppers);
-		expect(res.failure?.error.message).toContain("snap doesn't have hilighted; it has highlighted, follow. Quote the term to pass it as a literal.");
+		expect(res.failure?.error.message).toBe("step VariablesStepper.set: {value}: snap doesn't have hilighted; it has highlighted, follow. Quote it to pass it as a literal.");
 	});
 	it("takes a dotted term as a literal where it is quoted", async () => {
 		const content = `set snap as json to {"highlighted": 1}
