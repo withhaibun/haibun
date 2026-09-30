@@ -65,5 +65,5 @@ export type TDriven = HTMLElement & {
 	updateComplete: Promise<unknown>;
 	submitChat(): Promise<void>;
 	setState(s: Record<string, unknown>): void;
-	restate(restating: { prompt: string; patterns: unknown[]; inReplyTo?: string; send: boolean }): Promise<void>;
+	fork(forking: { prompt: string; patterns: unknown[]; inReplyTo?: string; send: boolean }): Promise<void>;
 };

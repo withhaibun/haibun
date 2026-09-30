@@ -36,8 +36,8 @@ export const SHU_EVENT = {
 	COLUMN_CLOSE: "column-close",
 	PANE_DISMISS: "pane-dismiss",
 	STEP_CHOOSE: "step-choose",
-	/** A reader asks a question from the history again, as it was or edited (a `TQuestionRestate` detail). */
-	QUESTION_RESTATE: "question-restate",
+	/** A reader forks the conversation at a question from the history, asking it again as it was or edited (a `TQuestionFork` detail). */
+	QUESTION_FORK: "question-fork",
 	COLUMN_ACTIVATE: "column-activate",
 	COLUMN_EXPAND: "column-expand",
 	COLUMN_MAXIMIZE: "column-maximize",

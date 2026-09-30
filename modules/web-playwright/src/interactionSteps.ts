@@ -14,7 +14,7 @@ import {
 	DOMAIN_FILE_PATH,
 } from "@haibun/core/lib/domains.js";
 import { actionNotOK, actionOKWithProducts, errorDetail, jsonArtifact } from "@haibun/core/lib/util/index.js";
-import { DOMAIN_IMAGE_REFERENCE } from "@haibun/core/lib/image-reference.js";
+import { DOMAIN_IMAGE_REFERENCE } from "@haibun/core/lib/media-object.js";
 import {
 	DOMAIN_ACCESSIBILITY_SNAPSHOT,
 	DOMAIN_BROWSER_EXTENSION,

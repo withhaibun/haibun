@@ -8,6 +8,8 @@
  * closes. A session is read back from the store, a new conversation leaves it, and the view hash addresses it. A turn of
  * the conversation activates the actions bar's scope with each comment it records.
  */
+import { artifactAddress, KEPT_FILES_FOLDER } from "@haibun/core/lib/run-artifact.js";
+import { fileDataParts } from "@haibun/core/lib/media-object.js";
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import type { TChatMessage } from "./shu-chat-message.js";
 import { anIndividual } from "../schemas.js";
@@ -61,7 +63,7 @@ const sent: Array<{
 	files?: unknown[];
 }> = [];
 /** A file actuality keeps for a question, as its name and media type state it, and each file the pane asked it to keep. */
-const keptAs = (name: string, encodingFormat: string) => ({ contentUrl: `/artifacts/featn-1/kept/${name}`, encodingFormat, name });
+const keptAs = (name: string, encodingFormat: string) => ({ contentUrl: artifactAddress(`featn-1/${KEPT_FILES_FOLDER}/${name}`), encodingFormat, name });
 const keptFiles: Array<{ file: string; name: string }> = [];
 /** The seqPath each turn the stream starts is given, in order; a turn beyond them is given 0.1.2. Actuality records the
  *  turn's question as the step starts and its answer when it finishes, each named by the turn. */
@@ -116,7 +118,7 @@ function respond(step: string, params: Record<string, unknown>): unknown {
 	if (step === CHAT_STEP.keepFile) {
 		const kept = { file: String(params.file), name: String(params.name) };
 		keptFiles.push(kept);
-		return keptAs(kept.name, /^data:([^;]*)/.exec(kept.file)?.[1] || "application/octet-stream");
+		return keptAs(kept.name, fileDataParts(kept.file).encodingFormat);
 	}
 	if (step === CHAT_STEP.sessions) return { sessions: [{ session: RESTORED, label: "an earlier conversation", generatedAtTime: "2026-05-17T05:00:00.000Z", turns: 1 }] };
 	// A read held open, answered when a case reports the store got back to the page.
@@ -504,22 +506,24 @@ describe("the ask and the active record", () => {
 		expect(sent.at(-1)?.viewLd).toEqual([page]);
 	});
 
-	it("keeps any file the reader adds, shows an image as one and another file by its name, and sends the question with them, and the next question without them", async () => {
+	it("keeps each file the reader adds, shows an image as a thumbnail and another file by its name, and sends them with one question only", async () => {
+		const DOOR = { name: "door.png", type: "image/png" };
+		const LEASE = { name: "lease.pdf", type: "application/pdf" };
 		const { pane } = await aPage();
 		const control = inside<HTMLInputElement>(pane.shadowRoot, "input[type=file]");
 		expect(control.accept, "any file type").toBe("");
-		const chosen = [new File(["png"], "door.png", { type: "image/png" }), new File(["%PDF-1.7"], "lease.pdf", { type: "application/pdf" })];
+		const chosen = [new File(["png"], DOOR.name, { type: DOOR.type }), new File(["%PDF-1.7"], LEASE.name, { type: LEASE.type })];
 		Object.defineProperty(control, "files", { value: chosen, configurable: true });
 		control.dispatchEvent(new Event("change"));
 		await vi.waitFor(() => expect(keptFiles).toHaveLength(2));
-		expect(keptFiles.map((kept) => kept.name)).toEqual(["door.png", "lease.pdf"]);
-		expect(keptFiles[1]?.file, "the file, as actuality keeps it").toMatch(/^data:application\/pdf;base64,/);
+		expect(keptFiles.map((kept) => kept.name)).toEqual([DOOR.name, LEASE.name]);
+		expect(fileDataParts(keptFiles[1]?.file ?? "").encodingFormat, "the file, as actuality keeps it").toBe(LEASE.type);
 		await pane.updateComplete;
 		const shown = [...(pane.shadowRoot?.querySelectorAll(".ask-files span") ?? [])];
 		expect(shown.map((span) => span.querySelector("img") !== null)).toEqual([true, false]);
-		expect(shown[1]?.textContent).toBe("lease.pdf");
+		expect(shown[1]?.textContent).toBe(LEASE.name);
 		await submit(pane, "what does the lease say about the door");
-		expect(sent.at(-1)?.files).toEqual([keptAs("door.png", "image/png"), keptAs("lease.pdf", "application/pdf")]);
+		expect(sent.at(-1)?.files).toEqual([keptAs(DOOR.name, DOOR.type), keptAs(LEASE.name, LEASE.type)]);
 		expect(pane.shadowRoot?.querySelectorAll(".ask-files"), "the files went with the question").toHaveLength(0);
 		keptFiles.length = 0;
 	});
@@ -774,7 +778,7 @@ describe("a question from the history asked again", () => {
 	it("is sent as it was, with the records it was about, replying where it replied", async () => {
 		elsewhere();
 		const { pane } = await aPage();
-		await pane.restate({ prompt: "what is this", patterns: EMAIL.bundle.patterns, inReplyTo: RESTORED, send: true });
+		await pane.fork({ prompt: "what is this", patterns: EMAIL.bundle.patterns, inReplyTo: RESTORED, send: true });
 		await settle();
 		await settle();
 		expect(sent.at(-1)).toMatchObject({ inReplyTo: RESTORED, patterns: EMAIL.bundle.patterns });
@@ -783,9 +787,9 @@ describe("a question from the history asked again", () => {
 	it("is put in the input to edit, and sent with the records it was about, replying where it replied", async () => {
 		elsewhere();
 		const { pane } = await aPage();
-		await pane.restate({ prompt: "what is this", patterns: EMAIL.bundle.patterns, inReplyTo: RESTORED, send: false });
+		await pane.fork({ prompt: "what is this", patterns: EMAIL.bundle.patterns, inReplyTo: RESTORED, send: false });
 		expect(chatInput(pane).value).toBe("what is this");
-		expect(pane.shadowRoot?.querySelector('[data-testid$="chat-restating"]'), "it shows the question replies where the earlier one did").not.toBeNull();
+		expect(pane.shadowRoot?.querySelector('[data-testid$="chat-forking"]'), "it shows the question replies where the earlier one did").not.toBeNull();
 		await submit(pane, "what is this, briefly");
 		expect(sent.at(-1)).toMatchObject({ inReplyTo: RESTORED, patterns: EMAIL.bundle.patterns });
 	});
@@ -793,8 +797,8 @@ describe("a question from the history asked again", () => {
 	it("put in the input and cancelled, leaves the next question replying to the bar's turn", async () => {
 		elsewhere();
 		const { pane } = await aPage();
-		await pane.restate({ prompt: "what is this", patterns: EMAIL.bundle.patterns, inReplyTo: RESTORED, send: false });
-		inside<HTMLButtonElement>(pane.shadowRoot, '[data-testid$="chat-restating"] button').click();
+		await pane.fork({ prompt: "what is this", patterns: EMAIL.bundle.patterns, inReplyTo: RESTORED, send: false });
+		inside<HTMLButtonElement>(pane.shadowRoot, '[data-testid$="chat-forking"] button').click();
 		await pane.updateComplete;
 		await submit(pane, "a new question");
 		expect(sent.at(-1)).toMatchObject({ inReplyTo: question("0.1.4"), patterns: OTHER.bundle.patterns });

@@ -13,6 +13,6 @@ describe("a folder served sandboxed", () => {
 
 	it("serves what isn't under it as it was", async () => {
 		const response = await app.request("/artifacts/seq-0/featn-1/report.html");
-		expect(response.headers.get("Content-Security-Policy")).toBeNull();
+		for (const name of Object.keys(SANDBOXED_HEADERS)) expect(response.headers.get(name), name).toBeNull();
 	});
 });

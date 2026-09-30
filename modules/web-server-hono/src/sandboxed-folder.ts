@@ -1,12 +1,16 @@
 import type { MiddlewareHandler } from "hono";
 
-/** The headers a response carries so the page it opens as can't run a script, and its bytes aren't read as another type. */
-export const SANDBOXED_HEADERS = { "Content-Security-Policy": "sandbox", "X-Content-Type-Options": "nosniff" } as const;
+/** The headers that sandbox a response: a browser opens it as a page that doesn't run a script, and doesn't read its
+ *  bytes as another media type. */
+/** The header whose sandbox value keeps a page a response opens as from running a script. */
+export const SANDBOX_HEADER = "Content-Security-Policy";
+
+export const SANDBOXED_HEADERS = { [SANDBOX_HEADER]: "sandbox", "X-Content-Type-Options": "nosniff" } as const;
 
 /**
- * A middleware that serves what is under a folder named `folder` sandboxed. A file a person adds can be a page that
- * holds a script, and served from this site it would run with a reader's authority here; sandboxed, it opens as a page
- * of its own origin that doesn't run one, and an image still shows where a page names it.
+ * Set SANDBOXED_HEADERS on each response whose path has a segment named `folder`. A file a person adds can be a page
+ * that holds a script. Served from this origin without the sandbox, the script would run with the reader's authority.
+ * An image still shows where a page names it.
  */
 export const servedSandboxed =
 	(folder: string): MiddlewareHandler =>

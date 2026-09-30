@@ -17,7 +17,7 @@ import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { patternRef, recordRef } from "./shu-ref.js";
-import { BundleSchema, ChatRoleSchema, ChatStatusSchema, UNVERIFIED_TURN, type TBundle, type TChatRole, type TQuestionRestate } from "../schemas.js";
+import { BundleSchema, ChatRoleSchema, ChatStatusSchema, UNVERIFIED_TURN, type TBundle, type TChatRole, type TQuestionFork } from "../schemas.js";
 
 /** Styles for a light-DOM chat message, exported for the shadow scope that hosts the activity history: the message
  *  renders in light DOM, so the scope that contains it declares the rules. */
@@ -36,8 +36,6 @@ export const chatMessageStyles = css`
 	shu-chat-message[data-role="llm"] { background: var(--shu-bg-soft); }
 	shu-chat-message .msg-content { min-width: 0; padding: var(--shu-space-2) var(--shu-space-3); }
 	shu-chat-message .chat-prompt { font-weight: 600; padding: var(--shu-space-1) 0; white-space: pre-wrap; }
-	/* Forking a conversation at a question, asking it again as it was or edited, under the icon of the person who asked it. */
-	shu-chat-message .chat-restate { display: flex; flex-direction: column; gap: var(--shu-space-1); }
 	/* The records the question carries, each a link to its record or type. */
 	shu-chat-message .chat-carries { display: flex; flex-wrap: wrap; gap: var(--shu-space-2); font-size: var(--shu-font-sm); color: var(--shu-fg-muted); }
 	shu-chat-message .chat-text { font-size: inherit; overflow-wrap: break-word; word-break: break-word; }
@@ -87,6 +85,12 @@ export type TChatMessage = z.infer<typeof ChatMessageSchema>;
 const EmptySchema = z.object({});
 const ROLE_LABEL: Record<TChatRole, string> = { user: "🧘", llm: "🤖" };
 
+/** The controls under a question's icon that fork the conversation at it, as each is named and described. */
+export const FORK_CONTROLS = {
+	fork: { label: "Fork", title: "Fork: ask it again as a new branch" },
+	editAndFork: { label: "Edit and fork", title: "Edit and fork: change it, then ask it as a new branch" },
+} as const;
+
 /** Activate a comment of the conversation in the actions bar's scope, with the bundle its turn was sent with. */
 function activateComment(id: string, turn: string, bundle: TBundle): void {
 	dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry: { record: { id, label: COMMENT_LABEL }, turn, bundle } });
@@ -118,15 +122,15 @@ export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
 		activateComment(other.recordId, other.turn, other.bundle);
 	};
 
-	/** Fork the conversation at this question: ask it again, as it was or edited, replying where it replied, which starts a
-	 *  branch beside the one it began. The bar the history sits in takes it. */
-	private restate =
+	/** Fork the conversation at this question. It is asked again, as it was or after editing, as a reply to the turn the
+	 *  original replied to, so it starts another branch. The actions bar that holds the history handles the event. */
+	private fork =
 		(send: boolean) =>
 		(e: Event): void => {
 			e.stopPropagation(); // the click is on the control, not a selection of this message
 			const m = this.message;
-			const detail: TQuestionRestate = { prompt: m.text, patterns: m.bundle?.patterns ?? [], inReplyTo: m.inReplyTo, send };
-			this.dispatchEvent(new CustomEvent(SHU_EVENT.QUESTION_RESTATE, { detail, bubbles: true, composed: true }));
+			const detail: TQuestionFork = { prompt: m.text, patterns: m.bundle?.patterns ?? [], inReplyTo: m.inReplyTo, send };
+			this.dispatchEvent(new CustomEvent(SHU_EVENT.QUESTION_FORK, { detail, bubbles: true, composed: true }));
 		};
 
 	/** Activate the comment this message was recorded as, with the bundle its turn was sent with, in the actions bar's
@@ -168,10 +172,8 @@ export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
 					${m.recordId ? recordRef(COMMENT_LABEL, m.recordId, ROLE_LABEL[m.role], SHU_TEST_IDS.APP.CHAT_RECORD) : ROLE_LABEL[m.role]}
 					${
 						m.role === "user" && m.recordId && m.text
-							? html`<span class="chat-restate">
-									<button type="button" title="Fork: ask it again as a new branch" aria-label="Fork" data-testid=${SHU_TEST_IDS.APP.CHAT_FORK} @click=${this.restate(true)}>⑂</button>
-									<button type="button" title="Edit and fork: change it, then ask it as a new branch" aria-label="Edit and fork" data-testid=${SHU_TEST_IDS.APP.CHAT_EDIT} @click=${this.restate(false)}>✎</button>
-								</span>`
+							? html`<button type="button" title=${FORK_CONTROLS.fork.title} aria-label=${FORK_CONTROLS.fork.label} data-testid=${SHU_TEST_IDS.APP.CHAT_FORK} @click=${this.fork(true)}>⑂</button>
+									<button type="button" title=${FORK_CONTROLS.editAndFork.title} aria-label=${FORK_CONTROLS.editAndFork.label} data-testid=${SHU_TEST_IDS.APP.CHAT_EDIT} @click=${this.fork(false)}>✎</button>`
 							: ""
 					}
 				</span>

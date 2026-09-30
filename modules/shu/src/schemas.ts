@@ -6,7 +6,7 @@ import { SearchConditionSchema, type TSearchCondition } from "@haibun/core/lib/q
 import { DENOTES } from "@haibun/core/lib/typed-links.js";
 import { AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
-import { MediaObjectSchema } from "@haibun/core/lib/image-reference.js";
+import { MediaObjectSchema } from "@haibun/core/lib/media-object.js";
 
 // --- Combobox ---
 
@@ -238,8 +238,8 @@ export const BundleSchema = z.object({ patterns: ContextQuerySchema, accessLevel
 
 /** A question from the history asked again: its words, the records it was about, the turn it replied to, and whether it
  *  is sent as it was or put in the input to edit. Either way it replies where the question did, as a branch there. */
-export const QuestionRestateSchema = z.object({ prompt: z.string().min(1), patterns: ContextQuerySchema, inReplyTo: z.string().optional(), send: z.boolean() });
-export type TQuestionRestate = z.infer<typeof QuestionRestateSchema>;
+export const QuestionForkSchema = z.object({ prompt: z.string().min(1), patterns: ContextQuerySchema, inReplyTo: z.string().optional(), send: z.boolean() });
+export type TQuestionFork = z.infer<typeof QuestionForkSchema>;
 export type TBundle = z.infer<typeof BundleSchema>;
 
 /**
@@ -297,7 +297,8 @@ export const TurnEnvelopeSchema = z
 		inReplyTo: z.string().optional(),
 		/** The delegation the asker signed to the turn's key: what the turn may do, which an ask from a key carries. */
 		delegation: z.record(z.string(), z.unknown()).optional(),
-		/** The files the person added to the question, kept by actuality, which the question shows its model. */
+		/** The files the person added to the question, as actuality keeps them. An image is sent to a model as an image, and
+		 *  the text another file holds is sent after the question. */
 		files: z.array(MediaObjectSchema).optional(),
 	})
 	.strict()

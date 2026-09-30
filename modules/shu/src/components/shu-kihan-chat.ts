@@ -13,10 +13,10 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { acts, reads, conduit } from "../hypermedia.js";
 import { artifactAt } from "../artifact-url.js";
-import { MediaObjectSchema, sentAsImage, type TMediaObject } from "@haibun/core/lib/image-reference.js";
+import { isImageFormat, MediaObjectSchema, type TMediaObject } from "@haibun/core/lib/media-object.js";
 import { deploymentAskToolLimit, findStep, getAvailableSteps, requireStep } from "../rpc-registry.js";
 import { edgeRecordType, getActionBarAskExtensionTags, getActionBarChatExtensionTags, getEdgeRanges, getRelSync } from "../rels-cache.js";
-import { ContextReadBySchema, SessionListSchema, type TComboboxOption, type TContextPattern, type TQuestionRestate } from "../schemas.js";
+import { ContextReadBySchema, SessionListSchema, type TComboboxOption, type TContextPattern, type TQuestionFork } from "../schemas.js";
 import { GraphQueryResultSchema, extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { hasEventStream, subscribeBatchedEvents } from "../event-stream.js";
@@ -203,11 +203,11 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	/** Why the reader's last question was not asked. It shows beside the input until the turn or the conversation moves,
 	 *  so a refusal is never shown for a question the reader did not submit. */
 	#refusal: string | null = null;
-	/** The files the reader added to the question being written, kept by actuality, which the question shows its model. */
+	/** The files the reader added to the question being written, as actuality keeps them. */
 	#files: TMediaObject[] = [];
 	/** A question from the history put in the input to edit: the records it was about and the turn it replied to, which
 	 *  the edited question is sent with in place of the active record and the bar's turn. */
-	#restating: Omit<TQuestionRestate, "prompt" | "send"> | null = null;
+	#forking: Omit<TQuestionFork, "prompt" | "send"> | null = null;
 	#conversation = new SignalController(
 		this,
 		conversationState,
@@ -372,10 +372,10 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 			<div class="transcript"><slot></slot></div>
 			${this.turnAuthorityTemplate(conversation.asked)}
 			${
-				this.#restating
-					? html`<div class="restating" role="status" data-testid=${`${this.testIdPrefix}chat-restating`}>
+				this.#forking
+					? html`<div class="forking" role="status" data-testid=${`${this.testIdPrefix}chat-forking`}>
 							Editing an earlier question: asking it starts a new branch where that question replied.
-							<button type="button" @click=${this.onCancelRestate}>cancel</button>
+							<button type="button" @click=${this.onCancelFork}>cancel</button>
 						</div>`
 					: nothing
 			}
@@ -385,7 +385,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 							${this.#files.map(
 								(file) =>
 									html`<span data-testid=${`${this.testIdPrefix}ask-file-shown`}>${
-										sentAsImage(file.encodingFormat) ? html`<img src=${artifactAt(file.contentUrl, KIHAN_CHAT_SOURCE)} alt=${file.name} />` : file.name
+										isImageFormat(file.encodingFormat) ? html`<img src=${artifactAt(file.contentUrl, KIHAN_CHAT_SOURCE)} alt=${file.name} />` : file.name
 									}</span><button type="button" @click=${() => this.removeFile(file)}>remove</button>`,
 							)}
 						</div>`
@@ -563,9 +563,9 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		try {
 			await this.loadModels();
 			const { carries, repliesTo } = nextQuestion(currentSubjectState.get());
-			const restating = this.#restating;
-			this.#restating = null;
-			const asking = restating ? this.askWith(prompt, restating.patterns, restating.inReplyTo) : this.askWith(prompt, carries?.bundle.patterns ?? [], repliesTo?.turn);
+			const forking = this.#forking;
+			this.#forking = null;
+			const asking = forking ? this.askWith(prompt, forking.patterns, forking.inReplyTo) : this.askWith(prompt, carries?.bundle.patterns ?? [], repliesTo?.turn);
 			const files = this.#files;
 			this.#files = [];
 			chatInput.value = "";
@@ -637,7 +637,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	 * the input to edit, sent with the records it was about when the reader sends it. A question sent at once is started,
 	 * as Send starts one, and the turn answers on the stream.
 	 */
-	async restate({ prompt, patterns, inReplyTo, send }: TQuestionRestate): Promise<void> {
+	async fork({ prompt, patterns, inReplyTo, send }: TQuestionFork): Promise<void> {
 		if (send) {
 			void this.showingRefusal(async () => {
 				await this.loadModels();
@@ -645,15 +645,15 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 			});
 			return;
 		}
-		this.#restating = { patterns, inReplyTo };
+		this.#forking = { patterns, inReplyTo };
 		askDraft.set(prompt);
 		this.requestUpdate();
 		await this.updateComplete;
 		this.shadowRoot?.querySelector<HTMLTextAreaElement>(".chat-input")?.focus();
 	}
 
-	private onCancelRestate = (): void => {
-		this.#restating = null;
+	private onCancelFork = (): void => {
+		this.#forking = null;
 		this.requestUpdate();
 	};
 

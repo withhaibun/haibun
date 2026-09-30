@@ -8,6 +8,7 @@ import { itemAt } from "./util/item-at.js";
 import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TStepEvent, TLifecycleEvent, TLogEvent, TJsonArtifact } from "../schema/protocol.js";
 import { HAIBUN_LOG_LEVELS } from "../schema/protocol.js";
 import { parseRecordName } from "./seq-path.js";
+import { MEDIA_TYPE } from "./resources.js";
 
 type TArtifactIndex = { artifactsByStep: Map<string, TArtifactEvent[]>; allArtifactIds: Set<string> };
 
@@ -59,7 +60,7 @@ export function buildArtifactIndex(events: THaibunEvent[]): TArtifactIndex {
 					source: "haibun",
 					kind: "artifact",
 					artifactType: artifact.artifactType,
-					mimetype: artifact.mimetype || "application/octet-stream",
+					mimetype: artifact.mimetype || MEDIA_TYPE.bytes,
 					...artifact,
 				} as TArtifactEvent);
 			});

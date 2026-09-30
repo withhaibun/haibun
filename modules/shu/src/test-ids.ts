@@ -25,11 +25,12 @@ export const SHU_TEST_IDS = {
 		CHAT_ARRIVED: "app-chat-arrived",
 		/** On a reply where another branch of the conversation leaves the one shown: follows that branch. */
 		CHAT_OTHER_BRANCH: "app-chat-other-branch",
-		/** On a question in the history: ask it again as it was, or put it in the input to edit, replying where it did. */
+		/** On a question in the history: fork the conversation, asking the question again as it was. */
 		CHAT_FORK: "app-chat-fork",
+		/** On a question in the history: fork the conversation after putting the question in the input to edit. */
 		CHAT_EDIT: "app-chat-edit",
-		/** Beside the ask input while an edited question will reply where the original did, with the control that cancels it. */
-		CHAT_RESTATING: "app-chat-restating",
+		/** Beside the ask input while an edited question will start a new branch, with the control that cancels it. */
+		CHAT_FORKING: "app-chat-forking",
 		/** On a question: the records its bundle names, each a link. */
 		CHAT_CARRIES: "app-chat-carries",
 		/** Under the ask: the actions the page delegated to its last turn. */

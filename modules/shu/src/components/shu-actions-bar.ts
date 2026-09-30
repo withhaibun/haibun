@@ -19,7 +19,7 @@ import { SHU_EVENT, ACTION_BAR_ASK_SLOT, ACTION_BAR_CHAT_SLOT, SHU_TAG, CONVERSA
 import { defineElement } from "../define-element.js";
 import { SCOPE, dispatchSubjectEvent } from "../current-subject.js";
 import type { ShuColumnPane } from "./shu-column-pane.js";
-import { ActionsBarSchema, BAR_MODES, QuestionRestateSchema, StepChoiceSchema, TypeChoiceSchema, type TQuestionRestate } from "../schemas.js";
+import { ActionsBarSchema, BAR_MODES, QuestionForkSchema, StepChoiceSchema, TypeChoiceSchema, type TQuestionFork } from "../schemas.js";
 import { commandList, readSlashCommand, type TBarMode, type TInputLine, type TSlashCommand } from "../slash-command.js";
 import type { ShuKihanChat } from "./shu-kihan-chat.js";
 // Constructed with `new` (not createElement + type-cast): the value use keeps the registering module in the
@@ -119,13 +119,13 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	}
 
 	/** Ask a question from the history again, in Ask mode, where the ask pane asks it. */
-	private async restateQuestion(restating: TQuestionRestate): Promise<void> {
+	private async forkAtQuestion(forking: TQuestionFork): Promise<void> {
 		this.setState({ mode: "ask" });
 		this.openPane();
 		await this.updateComplete;
 		const pane = this.renderRoot.querySelector<ShuKihanChat>(SHU_TAG.KIHAN_CHAT);
 		if (!pane) this.failFast("a question can be asked again only where actuality offers asking");
-		await pane.restate(restating);
+		await pane.fork(forking);
 	}
 
 	/** Report something on the page strip. */
@@ -163,7 +163,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		// A slash command in any mode's input line is read before the line's own Enter reads it.
 		this.autoListen(this.renderRoot, "keydown", this.onInputLineKeydown as EventListener, { capture: true });
 		// A question in the history is asked again from the bar the history sits in, in any mode.
-		this.autoListen(this, SHU_EVENT.QUESTION_RESTATE, (e: Event) => void this.restateQuestion(QuestionRestateSchema.parse((e as CustomEvent).detail)));
+		this.autoListen(this, SHU_EVENT.QUESTION_FORK, (e: Event) => void this.forkAtQuestion(QuestionForkSchema.parse((e as CustomEvent).detail)));
 		// The page strip offers the types beside what the search found, and states the one a reader chooses on the document.
 		this.autoListen(document, SHU_EVENT.TYPE_CHOOSE, (e: Event) => this.#query.chooseType(TypeChoiceSchema.parse((e as CustomEvent).detail).key));
 

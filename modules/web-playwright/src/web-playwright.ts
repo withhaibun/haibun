@@ -20,10 +20,10 @@ import {
 	errorDetail,
 } from "@haibun/core/lib/util/index.js";
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
-import { saveImageArtifact } from "@haibun/domain-storage/image-artifact.js";
+import { saveImageArtifact } from "@haibun/domain-storage/step-artifact.js";
 import { VideoStartArtifact } from "@haibun/core/schema/protocol.js";
 import { EMediaTypes, MAPPED_MEDIA_TYPES } from "@haibun/domain-storage/media-types.js";
-import type { TImageReference } from "@haibun/core/lib/image-reference.js";
+import type { TImageReference } from "@haibun/core/lib/media-object.js";
 import { artifactAddress } from "@haibun/core/lib/run-artifact.js";
 import { DOMAIN_STRING, domainParts } from "@haibun/core/lib/domains.js";
 import {

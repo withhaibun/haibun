@@ -148,12 +148,14 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	// it may run, so a step doesn't read a record for a caller who could not have read it.
 	const ceiling = readCeilingOf(grantedCapability) ?? Access.public;
 
+	// What the step's records state, where a value is too large to repeat in them.
+	const stated = asRecorded(featureStep, world.domains);
 	if (recorded) {
 		const usageKey = `${action.stepperName}.${action.actionName}`;
 		const priorCount = ((await getFact(world, "count", usageKey, OBSERVATION_GRAPH.STEP_USAGE)) as number | undefined) ?? 0;
 		await assertFact(world, "count", usageKey, priorCount + 1, OBSERVATION_GRAPH.STEP_USAGE);
-		world.eventLogger.stepStart(featureStep, action.stepperName, action.actionName, {}, featureStep.action.stepValuesMap, tool.isAsync);
-		await emitSeqPathStart(world, featureStep, authorization, { ranVia: tool.transport, ranOn: tool.descriptor.remoteOrigin });
+		world.eventLogger.stepStart(stated, action.stepperName, action.actionName, {}, stated.action.stepValuesMap, tool.isAsync);
+		await emitSeqPathStart(world, stated, authorization, { ranVia: tool.transport, ranOn: tool.descriptor.remoteOrigin });
 	}
 	// What is logged while this step runs reports no more prominently than the step does, so a call made into a running
 	// instance leaves the caller's own narration out of actuality's history rather than among its steps.
@@ -170,7 +172,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 						const preconditionError = await checkInputPreconditions(world, tool.paramDomainKeys, featureStep);
 						if (preconditionError) {
 							actionResult = actionNotOK(preconditionError);
-							lastStepResult = stepResultFromActionResult(actionResult, action, start, Timer.since(), featureStep);
+							lastStepResult = stepResultFromActionResult(actionResult, action, start, Timer.since(), stated);
 							keep(lastStepResult);
 							doAction = false;
 							continue;
@@ -187,13 +189,13 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 						if (!actionResult.ok && featureStep.intent?.mode !== "speculative") {
 							world.eventLogger.log(featureStep, "error", actionResult.errorMessage);
 						}
-						const placed = stepResultFromActionResult(actionResult, action, start, Timer.since(), featureStep);
+						const placed = stepResultFromActionResult(actionResult, action, start, Timer.since(), stated);
 						place(placed);
 						const instructions: Array<TAfterStepResult | undefined> = await doStepperCycle(steppers, "afterStep", <TAfterStep>{ featureStep, actionResult }, action.actionName);
 						doAction = instructions.some((i) => i?.rerunStep);
 						// A cycle can fail a step that passed, so the outcome counted into actuality is the one the cycles decide.
 						actionResult = afterStepOutcome(actionResult, instructions);
-						lastStepResult = stepResultFromActionResult(actionResult, action, start, placed.end ?? Timer.since(), featureStep);
+						lastStepResult = stepResultFromActionResult(actionResult, action, start, placed.end ?? Timer.since(), stated);
 						settle(placed, lastStepResult);
 					}
 				}),
@@ -208,13 +210,13 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	// A step that did not pass while its caller's stream was stopped was stopped: the caller decided it, and the step didn't fail.
 	const ended: TStepEnd = ok ? LIFECYCLE_STATUS.completed : streamContext.getStore()?.signal.aborted ? LIFECYCLE_STATUS.stopped : LIFECYCLE_STATUS.failed;
 	world.eventLogger.stepEnd(
-		featureStep,
+		stated,
 		action.stepperName,
 		action.actionName,
 		ended,
 		actionResult.ok ? undefined : actionResult.errorMessage,
 		{},
-		featureStep.action.stepValuesMap,
+		stated.action.stepValuesMap,
 		retainedProducts(actionResult.products, action.step.retainProducts),
 	);
 	await emitSeqPathEnd(world, featureStep, SEQ_PATH_STATUS_OF[ended], actionResult.ok ? undefined : actionResult.errorMessage, viewShown(actionResult.products));
@@ -298,6 +300,26 @@ async function autoAssertProducts(world: TWorld, seqPathKey: string, step: TStep
 /** What a step required and what allowed it, for the step's own record. A step actuality takes as itself holds
  *  every action, so its record doesn't gain a field; a caller's states what it required, what it held and who proved it. */
 type TStepAuthorization = { required?: string; held?: string; controller?: string };
+
+/** A step as its records state it: a value of a domain that declares what a record states for it is stated that way, in
+ *  the step's line and among its values, rather than as the value itself. */
+function asRecorded(featureStep: TFeatureStep, domains: TWorld["domains"]): TFeatureStep {
+	const values = featureStep.action.stepValuesMap;
+	if (!values) return featureStep;
+	let line = featureStep.in;
+	let restated = false;
+	const statedValues = Object.fromEntries(
+		Object.entries(values).map(([name, value]) => {
+			const recordedAs = value.domain ? domains[value.domain]?.recordedAs : undefined;
+			if (!recordedAs || !value.term) return [name, value];
+			const stated = recordedAs(value.value ?? value.term);
+			line = line.split(value.term).join(stated);
+			restated = true;
+			return [name, { ...value, term: stated, value: stated }];
+		}),
+	);
+	return restated ? { ...featureStep, in: line, action: { ...featureStep.action, stepValuesMap: statedValues } } : featureStep;
+}
 
 async function emitSeqPathStart(world: TWorld, featureStep: TFeatureStep, authorization: TStepAuthorization, ran: { ranVia: string; ranOn?: string }): Promise<void> {
 	const store = world.shared.getStore();

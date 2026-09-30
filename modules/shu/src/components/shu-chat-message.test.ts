@@ -9,7 +9,7 @@ import { INITIAL_SUBJECT, SCOPE, currentSubjectState, scopeEntry } from "../curr
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { PaneState } from "../pane-state.js";
 import { followPaneLink } from "./ref-navigation.js";
-import { ChatMessageSchema, ShuChatMessage } from "./shu-chat-message.js";
+import { ChatMessageSchema, FORK_CONTROLS, ShuChatMessage } from "./shu-chat-message.js";
 import { SHU_EVENT } from "../consts.js";
 import "./shu-ref-element.js";
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
@@ -82,9 +82,9 @@ describe("a question's controls", () => {
 		const el = await rendered({ id: "q2", role: "user", text: "what is this", turn: "cmt-ask-0.1.2", recordId: "cmt-ask-0.1.2", inReplyTo: "cmt-ask-0.1.1", bundle: BUNDLE });
 		const raised: unknown[] = [];
 		const hear = (e: Event) => raised.push((e as CustomEvent).detail);
-		document.addEventListener(SHU_EVENT.QUESTION_RESTATE, hear);
+		document.addEventListener(SHU_EVENT.QUESTION_FORK, hear);
 		for (const control of [SHU_TEST_IDS.APP.CHAT_FORK, SHU_TEST_IDS.APP.CHAT_EDIT]) (el.querySelector(`[data-testid="${control}"]`) as HTMLButtonElement).click();
-		document.removeEventListener(SHU_EVENT.QUESTION_RESTATE, hear);
+		document.removeEventListener(SHU_EVENT.QUESTION_FORK, hear);
 		const asked = { prompt: "what is this", patterns: BUNDLE.patterns, inReplyTo: "cmt-ask-0.1.1" };
 		expect(raised).toEqual([
 			{ ...asked, send: true },
@@ -93,10 +93,10 @@ describe("a question's controls", () => {
 		expect(scopeEntry(currentSubjectState.get(), SCOPE.actionsBar), "the question is not selected").toBeNull();
 	});
 
-	it("are icons under the icon of the person who asked, each named as the fork it makes", async () => {
+	it("are icons under the asker's icon, each named for the fork it makes", async () => {
 		const el = await rendered({ id: "q4", role: "user", text: "what is this", turn: "cmt-ask-0.1.4", recordId: "cmt-ask-0.1.4", bundle: BUNDLE });
 		const named = [SHU_TEST_IDS.APP.CHAT_FORK, SHU_TEST_IDS.APP.CHAT_EDIT].map((control) => el.querySelector(`.msg-label [data-testid="${control}"]`)?.getAttribute("aria-label"));
-		expect(named).toEqual(["Fork", "Edit and fork"]);
+		expect(named).toEqual([FORK_CONTROLS.fork.label, FORK_CONTROLS.editAndFork.label]);
 	});
 
 	it("are on a recorded question only", async () => {

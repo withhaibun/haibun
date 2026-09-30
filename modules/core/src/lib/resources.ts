@@ -162,6 +162,8 @@ export const MEDIA_TYPE = {
 	plain: "text/plain",
 	html: "text/html",
 	json: "application/json",
+	/** Bytes whose type isn't stated, which a browser doesn't render as a page. */
+	bytes: "application/octet-stream",
 } as const;
 const BODY_DOMAIN = "body";
 /** Edge from any resource to a Body sub-resource. */
@@ -769,6 +771,9 @@ export type TDomainDefinition = {
 	written?: boolean;
 	/** Whether each `{name}` in its written term is given the value `name` resolves to, as a variable's name is. */
 	filled?: boolean;
+	/** What a record of a step states in place of a value of this domain, for a value too large to repeat in a step's line,
+	 *  its events and its record, such as a file's bytes. */
+	recordedAs?: (value: unknown) => string;
 	description: string;
 	/** Stepper that registered this domain (set automatically by registerDomains) */
 	stepperName?: string;
