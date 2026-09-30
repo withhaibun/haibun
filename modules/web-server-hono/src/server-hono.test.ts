@@ -247,10 +247,10 @@ describe("a server that admits people by basic auth", () => {
 		const open = new ServerHono(mockLogger, "/tmp", () => new QuadStore(), []);
 		open.addRoute("get", "/held", { description: "a route anyone reaches" }, (c) => c.text("held"));
 		expect(await whyNotSignedInOnly("https://site.test/held", (at) => Promise.resolve(open.app.request(at)))).toBe(
-			"https://site.test/held answered 200 to a request that didn't sign in. It must answer 401, so nobody reaches this actuality without signing in. Put basic auth on the proxy in front of it, or set the web server's BASIC_AUTH option.",
+			"https://site.test/held answered 200 without a sign-in; it must answer 401. Put basic auth on its proxy, or set the web server's BASIC_AUTH option.",
 		);
 		expect(await whyNotSignedInOnly("https://site.test/held", () => Promise.reject(new Error("getaddrinfo ENOTFOUND site.test")))).toBe(
-			"https://site.test/held couldn't be reached to check that it asks visitors to sign in: getaddrinfo ENOTFOUND site.test. Check that the address is right and that the proxy in front of this actuality is running.",
+			"Couldn't check that https://site.test/held asks visitors to sign in: getaddrinfo ENOTFOUND site.test. Check the address and that its proxy is running.",
 		);
 	});
 

@@ -31,8 +31,8 @@ export async function whyNotSignedInOnly(
 		answer = await request(address);
 	} catch (e) {
 		const reason = e instanceof Error ? e.message : String(e);
-		return `${address} couldn't be reached to check that it asks visitors to sign in: ${reason}. Check that the address is right and that the proxy in front of this actuality is running.`;
+		return `Couldn't check that ${address} asks visitors to sign in: ${reason}. Check the address and that its proxy is running.`;
 	}
 	if (answer.status === ASKS_TO_SIGN_IN) return undefined;
-	return `${address} answered ${answer.status} to a request that didn't sign in. It must answer ${ASKS_TO_SIGN_IN}, so nobody reaches this actuality without signing in. Put basic auth on the proxy in front of it, or set the web server's BASIC_AUTH option.`;
+	return `${address} answered ${answer.status} without a sign-in; it must answer ${ASKS_TO_SIGN_IN}. Put basic auth on its proxy, or set the web server's BASIC_AUTH option.`;
 }
