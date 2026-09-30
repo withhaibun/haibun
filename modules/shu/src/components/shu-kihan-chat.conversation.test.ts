@@ -8,8 +8,8 @@
  * closes. A session is read back from the store, a new conversation leaves it, and the view hash addresses it. A turn of
  * the conversation activates the actions bar's scope with each comment it records.
  */
-import { artifactAddress, KEPT_FILES_FOLDER } from "@haibun/core/lib/run-artifact.js";
 import { fileDataParts } from "@haibun/core/lib/media-object.js";
+import { DENOTES } from "@haibun/core/lib/typed-links.js";
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import type { TChatMessage } from "./shu-chat-message.js";
 import { anIndividual } from "../schemas.js";
@@ -60,10 +60,11 @@ const sent: Array<{
 	session?: string;
 	target?: string;
 	accessLevel?: string;
-	files?: unknown[];
 }> = [];
 /** A file actuality keeps for a question, as its name and media type state it, and each file the pane asked it to keep. */
-const keptAs = (name: string, encodingFormat: string) => ({ contentUrl: artifactAddress(`featn-1/${KEPT_FILES_FOLDER}/${name}`), encodingFormat, name });
+const keptAs = (name: string) => ({ persistedAs: KEPT_TYPE, id: `added/${name}` });
+/** The type actuality keeps a file a person adds as, which the pane reads from what the keep step returns. */
+const KEPT_TYPE = "KeptFile";
 const keptFiles: Array<{ file: string; name: string }> = [];
 /** The seqPath each turn the stream starts is given, in order; a turn beyond them is given 0.1.2. Actuality records the
  *  turn's question as the step starts and its answer when it finishes, each named by the turn. */
@@ -118,7 +119,7 @@ function respond(step: string, params: Record<string, unknown>): unknown {
 	if (step === CHAT_STEP.keepFile) {
 		const kept = { file: String(params.file), name: String(params.name) };
 		keptFiles.push(kept);
-		return keptAs(kept.name, fileDataParts(kept.file).encodingFormat);
+		return keptAs(kept.name);
 	}
 	if (step === CHAT_STEP.sessions) return { sessions: [{ session: RESTORED, label: "an earlier conversation", generatedAtTime: "2026-05-17T05:00:00.000Z", turns: 1 }] };
 	// A read held open, answered when a case reports the store got back to the page.
@@ -506,7 +507,7 @@ describe("the ask and the active record", () => {
 		expect(sent.at(-1)?.viewLd).toEqual([page]);
 	});
 
-	it("keeps each file the reader adds, shows an image as a thumbnail and another file by its name, and sends them with one question only", async () => {
+	it("keeps each file the reader adds as a record, shows an image as a thumbnail and another file by its name, and names the records in one question only", async () => {
 		const DOOR = { name: "door.png", type: "image/png" };
 		const LEASE = { name: "lease.pdf", type: "application/pdf" };
 		const { pane } = await aPage();
@@ -523,7 +524,9 @@ describe("the ask and the active record", () => {
 		expect(shown.map((span) => span.querySelector("img") !== null)).toEqual([true, false]);
 		expect(shown[1]?.textContent).toBe(LEASE.name);
 		await submit(pane, "what does the lease say about the door");
-		expect(sent.at(-1)?.files).toEqual([keptAs(DOOR.name, DOOR.type), keptAs(LEASE.name, LEASE.type)]);
+		expect(sent.at(-1)?.patterns, "each file is a record the question names").toEqual(
+			expect.arrayContaining([DOOR, LEASE].map((file) => ({ kind: DENOTES.individual, ...keptAs(file.name) }))),
+		);
 		expect(pane.shadowRoot?.querySelectorAll(".ask-files"), "the files went with the question").toHaveLength(0);
 		keptFiles.length = 0;
 	});

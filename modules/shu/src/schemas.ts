@@ -6,7 +6,7 @@ import { SearchConditionSchema, type TSearchCondition } from "@haibun/core/lib/q
 import { DENOTES } from "@haibun/core/lib/typed-links.js";
 import { AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
-import { MediaObjectSchema } from "@haibun/core/lib/media-object.js";
+import { IndividualAddressSchema } from "@haibun/core/lib/domains.js";
 
 // --- Combobox ---
 
@@ -200,11 +200,7 @@ export const ResultTableSchema = z.object({
  * whoever resolves it reads it directly. A type names its members, narrowed by the conditions given. `kind` tells the
  * two apart in the words core already names them by, so a surface holding only a type can't state more.
  */
-const ContextIndividualSchema = z.object({
-	kind: z.literal(DENOTES.individual),
-	persistedAs: z.string().describe("The type the individual is persisted as."),
-	id: z.string().describe("The individual's id within that type."),
-});
+const ContextIndividualSchema = IndividualAddressSchema.extend({ kind: z.literal(DENOTES.individual) });
 const ContextTypeSchema = z.object({
 	kind: z.literal(DENOTES.type),
 	persistedAs: z.string().describe("The type whose members the ask is about."),
@@ -297,9 +293,6 @@ export const TurnEnvelopeSchema = z
 		inReplyTo: z.string().optional(),
 		/** The delegation the asker signed to the turn's key: what the turn may do, which an ask from a key carries. */
 		delegation: z.record(z.string(), z.unknown()).optional(),
-		/** The files the person added to the question, as actuality keeps them. An image is sent to a model as an image, and
-		 *  the text another file holds is sent after the question. */
-		files: z.array(MediaObjectSchema).optional(),
 	})
 	.strict()
 	.refine((envelope) => envelope.inReplyTo === undefined || envelope.session !== undefined, { message: "a reply names the session it replies in", path: ["session"] });

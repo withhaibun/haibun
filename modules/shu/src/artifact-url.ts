@@ -11,8 +11,6 @@ import { readingHeaders } from "./page-key.js";
 import { ARTIFACTS_ROUTE, artifactAddress } from "@haibun/core/lib/run-artifact.js";
 import { reportToRun } from "./client-log.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
-import { MEDIA_TYPE } from "@haibun/core/lib/resources.js";
-import { SANDBOX_HEADER, SANDBOXED_HEADERS } from "@haibun/web-server-hono/sandboxed-folder.js";
 
 /** The address of one artifact, from what the event recorded of it: its own URL, its path under actuality, or the path
  *  relative to the feature's directory that a report is written into. */
@@ -60,9 +58,5 @@ export const artifactAt = (url: string, source: string) =>
 async function readArtifact(url: string): Promise<string> {
 	const response = await fetch(url, { headers: await readingHeaders(url, READS_THE_RUNS_ARTIFACTS), credentials: "include" });
 	if (!response.ok) throw new Error(`actuality refused its artifact ${url}: ${response.status} ${await response.text()}`);
-	const blob = await response.blob();
-	// A response actuality serves sandboxed is read as bytes whose type isn't stated, so a view that opens it doesn't render
-	// it as a page. An image still shows, since a browser decodes an image by its bytes.
-	const sandboxed = response.headers.get(SANDBOX_HEADER) === SANDBOXED_HEADERS[SANDBOX_HEADER];
-	return URL.createObjectURL(sandboxed ? new Blob([blob], { type: MEDIA_TYPE.bytes }) : blob);
+	return URL.createObjectURL(await response.blob());
 }

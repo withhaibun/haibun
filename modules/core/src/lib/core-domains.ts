@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { DOMAIN_GRAPH_QUERY, GraphQuerySchema, DOMAIN_DENSITY_QUERY, DensityQuerySchema } from "./quad-types.js";
 import { fromJsonText, JsonObjectTextSchema } from "./json-text.js";
-import { DOMAIN_FILE_DATA, DOMAIN_IMAGE_REFERENCE, DOMAIN_MEDIA_OBJECT, FileDataSchema, ImageReferenceSchema, MediaObjectSchema, recordedFileData } from "./media-object.js";
+import { DOMAIN_FILE_DATA, DOMAIN_IMAGE_REFERENCE, FileDataSchema, ImageReferenceSchema, recordedFileData } from "./media-object.js";
 import { extractSeqPathPrefix, parseSeqPath } from "./seq-path.js";
 import { LintFindingSchema, LintSummarySchema } from "./domain-chain-lint.js";
 import { AStepper, TFeatureStep } from "./astepper.js";
@@ -9,6 +9,8 @@ import { TDomainDefinition } from "./resources.js";
 import type { TWorld } from "./world.js";
 import { TStepValue } from "../schema/protocol.js";
 import {
+	DOMAIN_INDIVIDUAL_ADDRESS,
+	IndividualAddressSchema,
 	DOMAIN_ACTIONS,
 	DOMAIN_AFFORDANCES,
 	DOMAIN_CHAIN_LINT,
@@ -238,11 +240,6 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		recordedAs: recordedFileData,
 		description: "A file's bytes, as a data: URL a page reads a file into. A step's record states the file's type and size in place of its bytes.",
 	},
-	{
-		selectors: [DOMAIN_MEDIA_OBJECT],
-		schema: MediaObjectSchema,
-		description: "A file a person adds: where actuality keeps its bytes, their media type and the name the file had.",
-	},
 	{ selectors: [DOMAIN_DOMAIN_NAME], schema: NameSchema, written: true, description: "The name a declaration gives a new domain, as the line writes it." },
 	{ selectors: [DOMAIN_GLOB], schema: NameSchema, description: "A pattern in which * stands for any run of characters." },
 	{ selectors: [DOMAIN_FILE_PATH], schema: NameSchema, description: "A file or directory's path, as a storage or the file system reads it." },
@@ -339,6 +336,11 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		selectors: [DOMAIN_ACTIONS],
 		schema: listedSchema(z.string().min(1), "action"),
 		description: "The actions a caller holds or a delegation allows, such as `Read:public` or `WebPlaywright:attach`, given as a list or as text separated by commas.",
+	},
+	{
+		selectors: [DOMAIN_INDIVIDUAL_ADDRESS],
+		schema: IndividualAddressSchema,
+		description: "An individual named by the type it is persisted as and its id.",
 	},
 	{
 		selectors: [DOMAIN_RECORD_ID],

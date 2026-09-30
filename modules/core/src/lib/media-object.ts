@@ -1,7 +1,6 @@
 /**
- * A file a record or a step's result names, as schema.org's MediaObject names one: where actuality keeps its bytes, their
- * media type and, for a file a person adds, the name it had. An image is an ImageObject, which is a MediaObject. A record
- * holds the reference, and a turn reads the bytes when it sends them.
+ * A file's bytes as a page sends them, and an image a step's result names, as schema.org's ImageObject names one: where
+ * actuality keeps its bytes, and their media type. A record holds the reference, and a turn reads the bytes when it sends them.
  */
 import { z } from "zod";
 
@@ -11,24 +10,13 @@ const MEDIA_TYPE = "[\\w.+-]+\\/[\\w.+-]+";
 /** Whether a media type is an image's. */
 export const isImageFormat = (encodingFormat: string): boolean => encodingFormat.startsWith("image/");
 
-const contentUrl = z.string().min(1).describe("Where actuality keeps the bytes.");
-
 export const DOMAIN_IMAGE_REFERENCE = "image-reference";
 
-export const ImageReferenceSchema = z.object({ contentUrl, encodingFormat: z.string().refine(isImageFormat).describe("The image's media type.") });
-export type TImageReference = z.infer<typeof ImageReferenceSchema>;
-
-export const DOMAIN_MEDIA_OBJECT = "media-object";
-
-export const MediaObjectSchema = z.object({
-	contentUrl,
-	encodingFormat: z
-		.string()
-		.regex(new RegExp(`^${MEDIA_TYPE}$`))
-		.describe("The file's media type."),
-	name: z.string().min(1).describe("The name the file had."),
+export const ImageReferenceSchema = z.object({
+	contentUrl: z.string().min(1).describe("Where actuality keeps the image's bytes."),
+	encodingFormat: z.string().refine(isImageFormat).describe("The image's media type."),
 });
-export type TMediaObject = z.infer<typeof MediaObjectSchema>;
+export type TImageReference = z.infer<typeof ImageReferenceSchema>;
 
 export const DOMAIN_FILE_DATA = "file-data";
 

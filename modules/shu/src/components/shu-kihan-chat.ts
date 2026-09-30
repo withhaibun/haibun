@@ -12,8 +12,9 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { acts, reads, conduit } from "../hypermedia.js";
-import { artifactAt } from "../artifact-url.js";
-import { isImageFormat, MediaObjectSchema, type TMediaObject } from "@haibun/core/lib/media-object.js";
+import { DENOTES } from "@haibun/core/lib/typed-links.js";
+import { isImageFormat } from "@haibun/core/lib/media-object.js";
+import { IndividualAddressSchema, type TIndividualAddress } from "@haibun/core/lib/domains.js";
 import { deploymentAskToolLimit, findStep, getAvailableSteps, requireStep } from "../rpc-registry.js";
 import { edgeRecordType, getActionBarAskExtensionTags, getActionBarChatExtensionTags, getEdgeRanges, getRelSync } from "../rels-cache.js";
 import { ContextReadBySchema, SessionListSchema, type TComboboxOption, type TContextPattern, type TQuestionFork } from "../schemas.js";
@@ -97,11 +98,9 @@ function sessionOptionLabel(s: TChatSession): string {
 	return `${preview} · ${when}${gained > 0 ? ` · ${gained} new` : ""}`;
 }
 
-/** What the chat remembers between visits: which model to ask, how many chained tool calls it may make, and who reads
- *  the records a turn is about. `contextReadBy` is unset until a reader states it, and unset means the model's own
- *  profile states which. The conversation is addressed in the view hash, not remembered here. */
-/** The source the ask pane reports what it couldn't show under. */
-const KIHAN_CHAT_SOURCE = "shu-kihan-chat";
+/** A file the reader added to a question: its name, the record actuality keeps it as, and the page's own copy of it where
+ *  it is an image. */
+type TAddedFile = { name: string; record: TIndividualAddress; shown?: string };
 
 /** A file's bytes as a data: URL. */
 function readAsDataUrl(file: Blob): Promise<string> {
@@ -113,6 +112,9 @@ function readAsDataUrl(file: Blob): Promise<string> {
 	});
 }
 
+/** What the chat remembers between visits: which model to ask, how many chained tool calls it may make, and who reads
+ *  the records a turn is about. `contextReadBy` is unset until a reader states it, and unset means the model's own
+ *  profile states which. The conversation is addressed in the view hash, not remembered here. */
 const ChatSchema = z.object({
 	model: z.string().default(""),
 	toolLimit: z.number().int().min(TOOL_LIMIT_MIN).max(TOOL_LIMIT_MAX).default(TOOL_LIMIT_DEFAULT),
@@ -203,8 +205,9 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	/** Why the reader's last question was not asked. It shows beside the input until the turn or the conversation moves,
 	 *  so a refusal is never shown for a question the reader did not submit. */
 	#refusal: string | null = null;
-	/** The files the reader added to the question being written, as actuality keeps them. */
-	#files: TMediaObject[] = [];
+	/** The files the reader added to the question being written: the record actuality keeps each as, which the question
+	 *  names among the records it is about, and the page's own copy of an image, which it shows. */
+	#files: TAddedFile[] = [];
 	/** A question from the history put in the input to edit: the records it was about and the turn it replied to, which
 	 *  the edited question is sent with in place of the active record and the bar's turn. */
 	#forking: Omit<TQuestionFork, "prompt" | "send"> | null = null;
@@ -384,9 +387,8 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 					? html`<div class="ask-files">
 							${this.#files.map(
 								(file) =>
-									html`<span data-testid=${`${this.testIdPrefix}ask-file-shown`}>${
-										isImageFormat(file.encodingFormat) ? html`<img src=${artifactAt(file.contentUrl, KIHAN_CHAT_SOURCE)} alt=${file.name} />` : file.name
-									}</span><button type="button" @click=${() => this.removeFile(file)}>remove</button>`,
+									html`<span data-testid=${`${this.testIdPrefix}ask-file-shown`}>${file.shown ? html`<img src=${file.shown} alt=${file.name} />` : file.name}</span
+										><button type="button" @click=${() => this.removeFile(file)}>remove</button>`,
 							)}
 						</div>`
 					: nothing
@@ -575,6 +577,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 				this.#files = files;
 				throw err;
 			});
+			for (const file of files) if (file.shown) URL.revokeObjectURL(file.shown);
 			if (ended.askId === null) restoreQuestion(chatInput, prompt);
 		} catch (err) {
 			restoreQuestion(chatInput, prompt);
@@ -589,26 +592,27 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		return startTurn({
 			prompt,
 			envelope: {
-				patterns,
+				// A file the reader added is a record actuality keeps, so the question names it as it names any record.
+				patterns: [...patterns, ...this.#files.map((file): TContextPattern => ({ kind: DENOTES.individual, ...file.record }))],
 				// The page the reader is on, where a page embedding shu posts it, is part of the view with only the bar open.
 				viewLd: [...harvestChatViewLd(), ...embeddedViewLd()],
 				maxToolCalls: this.state.toolLimit,
 				contextReadBy: this.state.contextReadBy || undefined,
 				session: this.#conversation.state.session ?? undefined,
 				inReplyTo,
-				...(this.#files.length > 0 ? { files: this.#files } : {}),
 			},
 			target: this.offeredModel(),
 		});
 	}
 
-	/** Keep each file the reader chose in actuality, which the question then names. */
+	/** Keep each file the reader chose as a record of actuality's, which the question then names. */
 	private readonly onFilesChosen = async (e: Event): Promise<void> => {
 		const input = e.target as HTMLInputElement;
 		try {
 			for (const file of input.files ?? []) {
 				const kept = await conduit().follow(acts(requireStep(KEEP_FILE_STEP), { file: await readAsDataUrl(file), name: file.name }), "kihan-chat: keep the question's file");
-				this.#files = [...this.#files, MediaObjectSchema.parse(kept)];
+				const shown = isImageFormat(file.type) ? URL.createObjectURL(file) : undefined;
+				this.#files = [...this.#files, { name: file.name, record: IndividualAddressSchema.parse(kept), shown }];
 			}
 		} catch (err) {
 			this.#refusal = errorDetail(err);
@@ -617,7 +621,8 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		this.requestUpdate();
 	};
 
-	private removeFile(file: TMediaObject): void {
+	private removeFile(file: TAddedFile): void {
+		if (file.shown) URL.revokeObjectURL(file.shown);
 		this.#files = this.#files.filter((kept) => kept !== file);
 		this.requestUpdate();
 	}
