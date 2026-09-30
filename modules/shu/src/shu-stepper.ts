@@ -27,6 +27,7 @@ import { enumerateStandardVocab } from "./graph/standard-vocabulary.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import type { IHasOptions } from "@haibun/core/lib/astepper.js";
 import { DOMAIN_ROUTE } from "@haibun/core/lib/domains.js";
+import { frameAncestors } from "./frame-ancestors.js";
 
 /**
  * Project the persisted quads into the renderer-agnostic graph model (nodes + typed-reference edges) the SPA also
@@ -182,9 +183,6 @@ function createSpaHandler(basePath: string, settings: () => TDeploymentSettings)
 		return c.html(buildSpaHtml(basePath, loadBundle(), served));
 	};
 }
-
-/** The pages that may frame shu: this site's own, and the embedding page's origin where the deployment names one. */
-const frameAncestors = (embedderOrigin: string | undefined): string => ["frame-ancestors 'self'", ...(embedderOrigin ? [embedderOrigin] : [])].join(" ");
 
 /** An origin as a page states it: a scheme and a host, such as `https://example.com` or `chrome-extension://<id>`. */
 const ORIGIN = /^[a-z][a-z0-9+.-]*:\/\/[^/\s]+$/;

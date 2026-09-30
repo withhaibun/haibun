@@ -7,6 +7,7 @@ import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 import { AUTHORITY_KEY, SessionAuthority } from "@haibun/core/lib/session-authority.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import ShuStepper, { buildSpaHtml } from "./shu-stepper.js";
+import { mayFrame } from "./frame-ancestors.js";
 
 describe("the app a deployment serves", () => {
 	let stepper: ShuStepper;
@@ -74,9 +75,12 @@ describe("the app a deployment serves", () => {
 			const page = serve({ header: (name: string, value: string) => (headers[name] = value), html: (body: string) => body });
 			return { headers, page };
 		};
-		expect((await headersOf({})).headers["Content-Security-Policy"]).toBe("frame-ancestors 'self'");
+		const own = (await headersOf({})).headers["Content-Security-Policy"];
+		expect(own).toBe("frame-ancestors 'self'");
+		expect(mayFrame(own ?? null, EMBEDDER), "a page that embeds shu reads that it may not").toBe(false);
 		const embedded = await headersOf({ [getStepperOptionName(ShuStepper, "EMBEDDER_ORIGIN")]: EMBEDDER });
 		expect(embedded.headers["Content-Security-Policy"]).toBe(`frame-ancestors 'self' ${EMBEDDER}`);
+		expect(mayFrame(embedded.headers["Content-Security-Policy"] ?? null, EMBEDDER), "and reads that it may once the deployment names it").toBe(true);
 		expect(embedded.page, "and the page reads the origin to accept messages from").toContain(`"embedderOrigin":"${EMBEDDER}"`);
 		expect(new ShuStepper().options.EMBEDDER_ORIGIN.parse("an origin").parseError).toMatch(/isn't an origin/);
 	});

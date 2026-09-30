@@ -104,7 +104,7 @@ export type TRpcEnvelope = Parameters<typeof rpcEnvelope>[0];
 /** A call carries the sign-in the browser holds for the site it is sent to, such as a proxy's basic auth, beside its own
  *  proof. A page sends its site's sign-in anyway. An extension calls from another origin, where a browser sends it only
  *  when asked. A process doesn't hold one, and the setting doesn't change its request. */
-const WITH_THE_SITES_SIGN_IN = "include";
+export const WITH_THE_SITES_SIGN_IN = "include" satisfies RequestCredentials;
 
 type TRpcCall = { url: string; init: { method: "POST"; headers: Record<string, string>; body: string; credentials: typeof WITH_THE_SITES_SIGN_IN } };
 
