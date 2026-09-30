@@ -148,7 +148,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: `compose {what: ${DOMAIN_VARIABLE_NAME}} as {domain: ${DOMAIN_DOMAIN_KEY}} with {template: ${DOMAIN_TEMPLATE}}`,
 			precludes: [`${VariablesStepper.name}.compose`],
 			action: async ({ what, domain, template }: { what: string; domain: string; template: string }, featureStep: TFeatureStep) => {
-				const result = await this.interpolateTemplate(template, featureStep);
+				const result = await this.getWorld().shared.interpolate(template, featureStep);
 				if ("error" in result) return actionNotOK(result.error);
 
 				return trySetVariable(
@@ -161,7 +161,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		compose: {
 			gwta: `compose {what: ${DOMAIN_VARIABLE_NAME}} with {template: ${DOMAIN_TEMPLATE}}`,
 			action: async ({ what, template }: { what: string; template: string }, featureStep: TFeatureStep) => {
-				const result = await this.interpolateTemplate(template, featureStep);
+				const result = await this.getWorld().shared.interpolate(template, featureStep);
 				if ("error" in result) return actionNotOK(result.error);
 
 				return trySetVariable(
@@ -184,9 +184,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		increment: {
 			gwta: `increment {what: ${DOMAIN_VARIABLE_NAME}}`,
 			action: async ({ what }: { what: string }, featureStep: TFeatureStep) => {
-				const interpolated = await this.interpolateTemplate(what, featureStep);
-				if ("error" in interpolated) return actionNotOK(interpolated.error);
-				const term = interpolated.value;
+				const term = what;
 				const resolved = await this.getWorld().shared.resolveVariable({ term, origin: Origin.var }, featureStep);
 				const presentVal = resolved.value;
 				const effectiveDomain = resolved.domain;
@@ -252,9 +250,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		set: {
 			gwta: `set( empty)? {what: ${DOMAIN_VARIABLE_NAME}} to {value: ${DOMAIN_VARIABLE_VALUE}}`,
 			action: async ({ what, value }: { what: string; value: TStepValue }, featureStep: TFeatureStep) => {
-				const interpolated = await this.interpolateTemplate(what, featureStep);
-				if ("error" in interpolated) return actionNotOK(interpolated.error);
-				const term = interpolated.value;
+				const term = what;
 
 				const skip = await shouldSkipEmpty(featureStep, term, this.getWorld().shared);
 				if (skip) return skip;
@@ -263,7 +259,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				const existing = await this.getWorld().shared.resolveVariable({ term, origin: Origin.var }, featureStep);
 				const result = trySetVariable(
 					this.getWorld().shared,
-					{ term, value: String(value.value), domain: existing?.domain ?? DOMAIN_STRING, origin: Origin.var, secret: interpolated.secret || value.secret },
+					{ term, value: String(value.value), domain: existing?.domain ?? DOMAIN_STRING, origin: Origin.var, secret: value.secret },
 					provenanceFromFeatureStep(featureStep),
 				);
 				return result;
@@ -275,16 +271,14 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			action: async ({ what, domain, value }: { what: string; domain: string; value: TStepValue }, featureStep: TFeatureStep) => {
 				const readonly = !!featureStep.in.match(/ as read-only /);
 
-				const interpolated = await this.interpolateTemplate(what, featureStep);
-				if ("error" in interpolated) return actionNotOK(interpolated.error);
-				const term = interpolated.value;
+				const term = what;
 
 				const skip = await shouldSkipEmpty(featureStep, term, this.getWorld().shared);
 				if (skip) return skip;
 
 				return trySetVariable(
 					this.getWorld().shared,
-					{ term, value: String(value.value), domain, origin: Origin.var, readonly, secret: interpolated.secret || value.secret },
+					{ term, value: String(value.value), domain, origin: Origin.var, readonly, secret: value.secret },
 					provenanceFromFeatureStep(featureStep),
 				);
 			},
@@ -321,9 +315,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		is: {
 			gwta: `variable {what: ${DOMAIN_VARIABLE_NAME}} is {value: ${DOMAIN_VARIABLE_VALUE}}`,
 			action: async ({ what, value }: { what: string; value: TStepValue }, featureStep: TFeatureStep) => {
-				const interpolated = await this.interpolateTemplate(what, featureStep);
-				if ("error" in interpolated) return actionNotOK(interpolated.error);
-				const term = interpolated.value;
+				const term = what;
 
 				const resolved = await this.getWorld().shared.resolveVariable({ term, origin: Origin.defined }, featureStep, undefined, {
 					secure: true,
@@ -370,9 +362,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: `show var {what: ${DOMAIN_VARIABLE_NAME}}`,
 			productsDomain: DOMAIN_VAR_SNAPSHOT,
 			action: async ({ what }: { what: string }, featureStep: TFeatureStep) => {
-				const interpolated = await this.interpolateTemplate(what, featureStep);
-				if ("error" in interpolated) return actionNotOK(interpolated.error);
-				const term = interpolated.value || "";
+				const term = what;
 
 				const shared = this.getWorld().shared;
 				const stepValue = await shared.resolveVariable({ term, origin: Origin.defined }, featureStep);
@@ -492,14 +482,14 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: `matches {value: ${DOMAIN_VARIABLE_VALUE}} with {pattern: ${DOMAIN_GLOB}}`,
 			action: async ({ value, pattern }: { value: TStepValue; pattern: string }, featureStep: TFeatureStep) => {
 				// Interpolate variables in pattern (e.g., "{counter URI}*" -> "http://localhost:8123/*")
-				const interpolated = await this.interpolateTemplate(pattern, featureStep, { lenient: true });
+				const interpolated = await this.getWorld().shared.interpolate(pattern, featureStep, { lenient: true });
 				if ("error" in interpolated) return actionNotOK(interpolated.error);
 				const actualPattern = interpolated.value;
 				const glob = new RegExp(globSource(actualPattern), "s");
 				// value/pattern are text being compared: an unresolved {X} is literal data (e.g. a captured reply echoing
 				// "{StepperName}"), not a variable reference, so interpolate leniently and leave unknown braces in place.
 				const textOf = async (item: unknown): Promise<string | { error: string }> => {
-					const read = await this.interpolateTemplate(typeof item === "string" ? item : JSON.stringify(item), featureStep, { lenient: true });
+					const read = await this.getWorld().shared.interpolate(typeof item === "string" ? item : JSON.stringify(item), featureStep, { lenient: true });
 					return "error" in read ? read : String(read.value);
 				};
 				// A list matches where one of its items does, each read as its own text.
@@ -521,9 +511,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 	readonly typedSteps = this.steps;
 
 	async compareValues(featureStep: TFeatureStep, rawTerm: string, value: TStepValue, operator: string) {
-		const interpolated = await this.interpolateTemplate(rawTerm, featureStep);
-		if ("error" in interpolated) return actionNotOK(interpolated.error);
-		const term = interpolated.value;
+		const term = rawTerm;
 
 		const stored = await this.getWorld().shared.resolveVariable({ term, origin: Origin.var }, featureStep, this.steppers, {
 			secure: true,
@@ -544,41 +532,6 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			return comparison < 0 ? OK : actionNotOK(`${term} is ${JSON.stringify(left)}, not ${JSON.stringify(right)}`);
 		}
 		return actionNotOK(`Unsupported operator: ${operator}`);
-	}
-
-	/** Replaces {varName} placeholders with variable values; errors if a variable is not found. Value XOR error: a
-	 *  missing template (an empty step argument reaches here untyped) is an error naming the situation, never an
-	 *  undefined value a caller could interpolate into a nameless message. */
-	private async interpolateTemplate(
-		template: string | undefined,
-		featureStep?: TFeatureStep,
-		options?: { lenient?: boolean },
-	): Promise<{ value: string; secret: boolean } | { error: string }> {
-		if (template === undefined) return { error: "the step doesn't have a variable name to resolve: it received an empty term" };
-		const placeholderRegex = /\{([^}]+)\}/g;
-		let result = template;
-		let match: RegExpExecArray | null;
-		let secret = false;
-
-		while ((match = placeholderRegex.exec(template)) !== null) {
-			const varName = itemAt(match, 1);
-			// Determine secrecy before secure resolution masks the value.
-			if (this.getWorld().shared.isSecret(varName)) {
-				secret = true;
-			}
-			const resolved = await this.getWorld().shared.resolveVariable({ term: varName, origin: Origin.defined }, featureStep, undefined, {
-				secure: true,
-			});
-
-			if (resolved.value === undefined) {
-				// Lenient callers (text-matching) treat an unresolved {X} as literal data and leave it in place.
-				if (options?.lenient) continue;
-				return { error: `Variable ${varName} not found` };
-			}
-			result = result.replace(match[0], String(resolved.value));
-		}
-
-		return { value: result, secret };
 	}
 
 	private registerSubdomainFromStatement(domain: string, superdomains: TFeatureStep[] | undefined, featureStep: TFeatureStep) {

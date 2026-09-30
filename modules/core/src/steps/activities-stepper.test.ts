@@ -171,5 +171,23 @@ variable Ada greeted is "yes"`,
 			const result = await passWithDefaults([feature], [VariablesStepper, ActivitiesStepper, Haibun]);
 			expect(result.ok, result.failure?.error?.message).toBe(true);
 		});
+
+		it("reads an argument as its value where a variable has that value as its name, and reads that variable where the line names it in backticks", async () => {
+			const feature = {
+				path: "/features/test.feature",
+				content: `Activity: Note a guest
+set noted to {who}
+set held to \`{who}\`
+waypoint Noted {who} with variable noted is {who}
+
+Scenario: Guests
+set Ada to "another value"
+ensure Noted "Ada"
+variable noted is "Ada"
+variable held is "another value"`,
+			};
+			const result = await passWithDefaults([feature], [VariablesStepper, ActivitiesStepper, Haibun]);
+			expect(result.ok, result.failure?.error?.message).toBe(true);
+		});
 	});
 });

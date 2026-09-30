@@ -2,9 +2,10 @@ import { z } from "zod";
 import { AStepper, TFeatureStep } from "./astepper.js";
 import { fromJsonText } from "./json-text.js";
 import { parseDotPath, navigateValue } from "./util/dot-path.js";
+import { itemAt } from "./util/item-at.js";
 import { runEnvVariables, type TWorld } from "./world.js";
 import { Origin, TOrigin, TProvenanceIdentifier, TStepValue } from "../schema/protocol.js";
-import { DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_STRING, DOMAIN_UNION, domainParts, namesMember, normalizeDomainKey, registeredDomain } from "./domains.js";
+import { DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_STRING, DOMAIN_UNION, DOMAIN_VARIABLE_NAME, domainParts, namesMember, normalizeDomainKey, registeredDomain } from "./domains.js";
 import { QuadStore } from "./quad-store.js";
 import { accessBound, readingAsStated } from "./capability-context.js";
 import { declaredAccessLevel } from "./resources.js";
@@ -123,6 +124,34 @@ export class FeatureVariables {
 		return readingAsStated(() => this.resolveTerm(input, featureStep, steppers, options));
 	}
 
+	/** `template` with each `{name}` given the value `name` resolves to, as a bare term resolves: a runtime argument, an
+	 *  environment variable or a variable. A lenient caller matches text, so a placeholder that doesn't resolve stays. */
+	async interpolate(template: string | undefined, featureStep?: TFeatureStep, options?: { lenient?: boolean }): Promise<{ value: string; secret: boolean } | { error: string }> {
+		if (template === undefined) return { error: "the step doesn't have a variable name to resolve: it received an empty term" };
+		let value = template;
+		let secret = false;
+		for (const match of template.matchAll(/\{([^{}"]+)\}/g)) {
+			const name = itemAt(match, 1);
+			// Secrecy is read before the secure resolution, which returns the value itself.
+			if (this.isSecret(name)) secret = true;
+			const resolved = await this.resolveTerm({ term: name, origin: Origin.defined }, featureStep, undefined, { secure: true });
+			if (resolved.value === undefined) {
+				if (options?.lenient) continue;
+				return { error: `Variable ${name} not found` };
+			}
+			value = value.replace(match[0], () => String(resolved.value));
+		}
+		return { value, secret };
+	}
+
+	/** A variable's name as a line writes it, with each `{name}` in it filled. */
+	private async filledName(name: string, featureStep?: TFeatureStep): Promise<string> {
+		if (!name.includes("{")) return name;
+		const filled = await this.interpolate(name, featureStep);
+		if ("error" in filled) throw new Error(`${filled.error}, in the variable name ${name}`);
+		return filled.value;
+	}
+
 	private async resolveTerm(
 		input: { term: string; origin: TOrigin; domain?: string },
 		featureStep?: TFeatureStep,
@@ -136,7 +165,7 @@ export class FeatureVariables {
 		if (lookupTerm.startsWith("{") && lookupTerm.endsWith("}")) lookupTerm = lookupTerm.slice(1, -1);
 
 		if (!input.origin || (input.domain && this.world.domains[input.domain]?.written)) {
-			resolved.value = input.term;
+			resolved.value = input.domain === DOMAIN_VARIABLE_NAME ? await this.filledName(input.term, featureStep) : input.term;
 			resolved.domain = input.domain;
 		} else if (input.origin === Origin.env) {
 			resolved.value = runEnvVariables(this.world)[lookupTerm];
@@ -144,7 +173,7 @@ export class FeatureVariables {
 			resolved.origin = Origin.env;
 			resolved.secret = this.isSecret(lookupTerm);
 		} else if (input.origin === Origin.var) {
-			Object.assign(resolved, await this.lookupVariable(lookupTerm));
+			Object.assign(resolved, await this.lookupVariable(await this.filledName(input.term, featureStep)));
 		} else if (input.origin === Origin.defined) {
 			if (featureStep?.runtimeArgs?.[lookupTerm] !== undefined) {
 				resolved.value = featureStep.runtimeArgs[lookupTerm];
@@ -163,11 +192,6 @@ export class FeatureVariables {
 					// A term whose first part names a variable that holds fields is a read of that variable, so the refusal names the
 					// field it doesn't have and the fields it has.
 					throw new Error(`${await this.unsetReason(lookupTerm)}. Quote the term to pass it as a literal.`);
-				} else if (featureStep?.runtimeArgs && Object.values(featureStep.runtimeArgs).includes(input.term)) {
-					// A waypoint's argument is written into its activity's lines as a term, so an argument that doesn't name a
-					// variable is its own text here, as it is where the waypoint is called.
-					resolved.value = input.term;
-					resolved.domain = writtenDomain;
 				} else if (input.domain && namesMember(this.world.domains[input.domain], input.term)) {
 					// A bare word naming a value of its parameter's own domain is that value, as `by placeholder` names a way to find.
 					resolved.value = input.term;

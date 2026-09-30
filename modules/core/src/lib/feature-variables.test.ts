@@ -275,12 +275,6 @@ describe("FeatureVariables", () => {
 			},
 		);
 
-		it("resolves as a waypoint argument's own text inside the waypoint's activity", async () => {
-			const fv = new FeatureVariables(world);
-			const inActivity = { runtimeArgs: { page: "/path/to/resource" } } as unknown as TFeatureStep;
-			expect((await fv.resolveVariable({ term: "/path/to/resource", origin: Origin.defined }, inActivity)).value).toBe("/path/to/resource");
-		});
-
 		it("resolves as the variable it names", async () => {
 			const fv = new FeatureVariables(world);
 			await fv.set({ term: "/path", value: "defined value", domain: DOMAIN_STRING, origin: Origin.var }, { in: "test", seq: [0], when: "now" });

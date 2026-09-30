@@ -4,7 +4,7 @@ import ActivitiesStepper from "@haibun/core/steps/activities-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import Haibun from "@haibun/core/steps/haibun.js";
 
-import { pagesVisited } from "../backgrounds/wikipedia-bg.feature.ts";
+import { knowsAboutWikipedia, pagesVisited } from "../backgrounds/wikipedia-bg.feature.ts";
 
 const { ensure } = withAction(new ActivitiesStepper());
 const { is } = withAction(new VariablesStepper());
@@ -22,7 +22,8 @@ export const features: TKirejiExport = {
 		"after every ActivitiesStepper, show affordances",
 
 		scenario({ scenario: "Visit pages with parameterized waypoints" }),
-		`↑ Ensures that Wikipedia base URL exists up.`,
+		ensure({ outcome: knowsAboutWikipedia }),
+		`↑ Sets the page addresses, which each call below passes as its argument.`,
 
 		ensure({ outcome: "Navigate to mainUrl" }),
 

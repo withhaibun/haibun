@@ -1,6 +1,6 @@
 /**
- * Repro: a parameterized activity whose body uses `set X as <typed-domain> to {JSON}`
- * to build a composite from the slot value, then passes the variable to a typed step.
+ * A parameterized activity whose body composes a typed composite from its argument into the variable the argument
+ * names, then passes that variable to a typed step.
  * Mirrors the shu-web feature's parameterized issuer activity but with a minimal typed
  * domain to keep the test self-contained.
  */
@@ -46,8 +46,8 @@ describe("parameterized activity body builds a composite via setAs from a JSON v
 		const feature = {
 			path: "/features/parameterized-composite.feature",
 			content: `Activity: Person registered {name}
-set {name} as person-input to {"did":"did:example:{name}","name":"{name}"}
-register person {name}
+compose {name} as person-input with {"did":"did:example:{name}","name":"{name}"}
+register person \`{name}\`
 waypoint Person registered {name} with variable {name} exists
 
 Scenario: Register a person via the parameterized activity (bare slot value)

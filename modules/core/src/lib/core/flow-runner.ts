@@ -33,17 +33,9 @@ export class FlowRunner {
 
 		const stmtText = typeof statement === "string" ? statement : statement.in;
 
-		const allArgs = { ...options.parentStep?.runtimeArgs, ...options.args };
-		let statementWithArgs = stmtText;
-		if (Object.keys(allArgs).length > 0) {
-			for (const [key, value] of Object.entries(allArgs)) {
-				statementWithArgs = statementWithArgs.replace(new RegExp(`\\{${key}\\}`, "g"), value);
-			}
-		}
-
 		let action;
 		try {
-			action = this.resolver.findSingleStepAction(statementWithArgs);
+			action = this.resolver.findSingleStepAction(stmtText);
 		} catch (e: unknown) {
 			if (intent.mode === "speculative") {
 				return actionNotOK(errorDetail(e));
@@ -83,7 +75,7 @@ export class FlowRunner {
 
 		const featureStep: TFeatureStep = {
 			source: { path: resolvedPath, lineNumber: resolvedLineNumber },
-			in: statementWithArgs,
+			in: stmtText,
 			seqPath,
 			action,
 			intent,

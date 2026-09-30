@@ -178,6 +178,8 @@ Steps can accept arguments using `{curly_braces}` in definitions. Inside activit
 
 In Definitions: `waypoint Initialize entities for {name}` creates a variable `name` available inside the activity.
 
+Inside the activity `{name}` is the value the waypoint was called with, resolved as any variable is. In a variable's name it fills that part of the name. In backticks it names the variable to read.
+
 In Steps: `set published to article` uses the value of the variable `article`.
 
     set article to "Haibun Guide"
