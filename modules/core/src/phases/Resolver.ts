@@ -1,10 +1,11 @@
 import type { TExpandedFeature, TExpandedLine, TFeatures, TFeature } from "../lib/execution.js";
 import type { TWorld } from "../lib/world.js";
-import { TStepValue, FEATURE_START, SCENARIO_START } from "../schema/protocol.js";
+import { TStepValue, FEATURE_START, SCENARIO_START, Origin } from "../schema/protocol.js";
 import { AStepper, TStepAction, TResolvedFeature, TStepperStep, TFeatureStep } from "../lib/astepper.js";
 import { matchGwtaToAction, getMatch } from "../lib/namedVars.js";
 import { getActionable, dePolite, constructorName, actionNotOK, asError, errorDetail } from "../lib/util/index.js";
 import { itemAt } from "../lib/util/item-at.js";
+import { DOMAIN_STATEMENT } from "../lib/domains.js";
 import { expandLine } from "../lib/features.js";
 
 /** A line written as a sentence: a capital first letter and a final `.`, `!`, `?`, `:` or `;`. */
@@ -151,7 +152,7 @@ export class Resolver {
 				}
 
 				if (stepAction.stepValuesMap) {
-					const statements = Object.values(stepAction.stepValuesMap).filter((v: TStepValue & { label?: string }) => v.domain === "statement" && v.term);
+					const statements = Object.values(stepAction.stepValuesMap).filter((v: TStepValue & { label?: string }) => v.domain === DOMAIN_STATEMENT && v.term);
 					for (const ph of statements) {
 						const rawVal = ph.term as string;
 						try {
@@ -182,7 +183,21 @@ export class Resolver {
 		const sentence = SENTENCE.test(line);
 		const found = this.findActionableSteps(line).filter((a) => !sentence || writtenCapitalized(a.step));
 		if (found.length === 0 && (sentence || STARTS_WITH_NON_LETTER.test(line))) return this.selectStep(line, this.proseSteps());
-		return this.selectStep(line, found);
+		return this.withStatementsAsWritten(this.selectStep(line, found));
+	}
+
+	/**
+	 * A statement a line passes in quotes is matched without them. A statement that starts and ends with a quoted term,
+	 * such as `"Le Artiste" has "signed"`, is matched the same way and loses the quotes of its own terms. Where the text
+	 * without the quotes doesn't match a step and the text with them does, the statement keeps them.
+	 */
+	private withStatementsAsWritten(action: TStepAction): TStepAction {
+		for (const value of Object.values(action.stepValuesMap ?? {})) {
+			if (value.domain !== DOMAIN_STATEMENT || value.origin !== Origin.quoted || !value.term) continue;
+			const written = `"${value.term}"`;
+			if (this.findActionableSteps(value.term).length === 0 && this.findActionableSteps(written).length > 0) value.term = written;
+		}
+		return action;
 	}
 
 	/** The one step of those a line matched: a unique step, then any but a fallback, then any a match doesn't preclude. */

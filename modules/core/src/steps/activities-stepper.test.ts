@@ -143,7 +143,7 @@ waypoint {name} has {concern} with variable {name}/{concern} is more than "negot
 
 Scenario: Dynamic domains
 ensure Engaged "Le Artiste"
-ensure "Le Artiste" has signed
+ensure "Le Artiste" has "signed"
 variable Le Artiste/signed is "agreed"`,
 			};
 
@@ -154,7 +154,7 @@ variable Le Artiste/signed is "agreed"`,
 			expect(result.ok).toBe(true);
 		});
 
-		it("binds a waypoint argument to the literal text its placeholder matches, or to the value of the variable it refers to", async () => {
+		it("binds a waypoint argument to the quoted text its placeholder matches, or to the value of the variable it refers to", async () => {
 			const feature = {
 				path: "/features/test.feature",
 				content: `Activity: Greet a guest
@@ -162,7 +162,7 @@ set {who} greeted to "yes"
 waypoint Greeted {who} with variable {who} greeted is "yes"
 
 Scenario: Guests
-ensure Greeted Room 101
+ensure Greeted "Room 101"
 variable Room 101 greeted is "yes"
 set guest to "Ada"
 ensure Greeted {guest}

@@ -13,7 +13,7 @@ waypoint Is guest with set loginType to "guest"
 Feature: Multi-condition test
 
 Scenario: Use only one condition
-ensure Is logged in as user Personoid
+ensure Is logged in as user "Personoid"
 variable "loginType" is "user"
 
 The condition has been validated with "loginType" variable set to "user".

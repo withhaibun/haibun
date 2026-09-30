@@ -51,7 +51,7 @@ Feature: Patient Rights and Hospital Journey
   Rights Protection (whenever).
   At any time the patient's privacy is pending review, it must be explicitly protected.
   set Privacy status to "Pending"
-  whenever variable Privacy status is "Pending", ensure Right to Privacy is upheld
+  whenever variable Privacy status is "Pending", ensure Right to "Privacy" is upheld
   
   Verify Privacy is respected.
   variable Privacy status is "Respected"
@@ -59,7 +59,7 @@ Feature: Patient Rights and Hospital Journey
   Right to a Clean Environment (whenever).
   The patient has a right to a clean room. If it is not clean, staff must rectify it.
   set Room 101 status to "Dirty"
-  whenever not variable Room 101 status is "Clean", ensure Cleanup Crew is dispatched to Room 101
+  whenever not variable Room 101 status is "Clean", ensure Cleanup Crew is dispatched to "Room 101"
   
   Verify Cleanliness.
   variable Room 101 status is "Clean"
@@ -67,7 +67,7 @@ Feature: Patient Rights and Hospital Journey
   Surgical Intervention (where).
   If the patient needs surgery, informed consent is mandatory before proceeding.
   set Surgery status to "Active"
-  where variable Surgery status is "Active", ensure Right to Informed Consent is upheld
+  where variable Surgery status is "Active", ensure Right to "Informed Consent" is upheld
   
   Verify Consent.
   variable Informed Consent status is "Respected"
@@ -80,7 +80,7 @@ Feature: Patient Rights and Hospital Journey
 
   Dignity Assurance.
   The patient's dignity must never be violated.
-  ensure Right to Dignity is upheld
+  ensure Right to "Dignity" is upheld
   not variable Dignity status is "Violated"
 
   Final Safety Check.

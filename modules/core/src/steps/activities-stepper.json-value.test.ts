@@ -51,7 +51,7 @@ register person \`{name}\`
 waypoint Person registered {name} with variable {name} exists
 
 Scenario: Register a person via the parameterized activity (bare slot value)
-Person registered Alice`,
+Person registered "Alice"`,
 		};
 		lastReceived = undefined;
 		const result = await passWithDefaults([feature], [VariablesStepper, ActivitiesStepper, Haibun, PersonStepper]);

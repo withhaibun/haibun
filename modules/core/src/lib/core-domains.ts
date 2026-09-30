@@ -233,10 +233,8 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 	{
 		selectors: [DOMAIN_WAYPOINT_ARGUMENT],
 		schema: NameSchema,
-		// Any string is a member, so an unquoted argument that doesn't refer to a variable is its literal text, such as `Room 101`.
-		names: () => true,
 		description:
-			"An argument in a call to a waypoint, for a placeholder in the waypoint's outcome pattern: the literal text the placeholder matches, or the value of the variable an unquoted name refers to. The activity and the proof read it as a runtime argument.",
+			"An argument in a call to a waypoint, for a placeholder in the waypoint's outcome pattern: quoted text, or the value of the variable an unquoted name refers to. The activity and the proof read it as a runtime argument.",
 	},
 	{
 		selectors: [DOMAIN_LINE_COMMENT],

@@ -68,8 +68,8 @@ Use variables for configuration, test data, and efficiency.
 3. **Unquoted values** are resolved dynamically:
    - First, from any existing **Environment Variable**.
    - Second, from any existing **Defined Variable**.
-   - Third, a value equal to a member of the parameter's domain is that member. A waypoint argument accepts any text as a member.
-   - A value that starts with a character other than a letter or an underscore, or contains a character other than a letter, a digit, an underscore or a space, is a literal.
+   - Third, a value equal to a member of the parameter's domain is that member.
+   - A number and JSON are literals as written. Any other unquoted value is refused, a waypoint's argument included.
    - If these rules don't apply, the step fails.
 
 #### Examples
@@ -465,7 +465,7 @@ A talent agency can have different types of clients, including artists and venue
     
     ensure Engaged "Theatre Z"
     ensure Engaged "Le Artiste"
-    ensure "Le Artiste" has signed
+    ensure "Le Artiste" has "signed"
     
     variable Theatre Z/signed is "negotiating"
     variable Le Artiste/signed is "agreed"
