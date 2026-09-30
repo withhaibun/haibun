@@ -18,6 +18,7 @@ import { setConduit, LiveConduit } from "../hypermedia.js";
 import { setEventStream, SerializedEventStream } from "../event-stream.js";
 import { rpcAnswer } from "@haibun/core/lib/test/rpc-answer.js";
 import { endPage } from "../page-pinned.js";
+import { provideLayout } from "../test/jsdom-layout.js";
 
 describe("shu-step-caller", () => {
 	beforeEach(() => {
@@ -147,9 +148,7 @@ describe("shu-step-caller", () => {
 			paramDomains: { credential: "string" },
 			inputSchema: { properties: { credential: { type: "object" } }, required: ["credential"] },
 		};
-		// jsdom also leaves scrollIntoView unset on HTMLElement; stub it so the
-		// post-render scroll call in callStep doesn't crash the test.
-		if (!HTMLElement.prototype.scrollIntoView) HTMLElement.prototype.scrollIntoView = (): void => undefined;
+		provideLayout();
 		const realFetch = globalThis.fetch;
 		// The web-server-stepper returns HTTP 422 for action results carrying
 		// an `error` field, mirroring the SPA's wire contract. The SSE client
@@ -189,7 +188,7 @@ describe("shu-step-caller", () => {
 			inputSchema: { properties: {}, required: [] },
 			outputSchema: { type: "object", properties: { goals: { type: "array", items: { type: "object" } } } },
 		};
-		if (!HTMLElement.prototype.scrollIntoView) HTMLElement.prototype.scrollIntoView = (): void => undefined;
+		provideLayout();
 		const realFetch = globalThis.fetch;
 		globalThis.fetch = (input: unknown): Promise<Response> => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
@@ -223,7 +222,7 @@ describe("shu-step-caller", () => {
 			paramDomains: { query: "string" },
 			inputSchema: { properties: { query: { type: "object" } }, required: ["query"] },
 		};
-		if (!HTMLElement.prototype.scrollIntoView) HTMLElement.prototype.scrollIntoView = (): void => undefined;
+		provideLayout();
 		const realFetch = globalThis.fetch;
 		globalThis.fetch = (input: unknown): Promise<Response> => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;

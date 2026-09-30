@@ -19,11 +19,6 @@ import { provideLayout } from "../test/jsdom-layout.js";
 
 beforeAll(() => {
 	provideLayout(); // a pane observes its own size for the footprint it reserves when docked
-	// jsdom doesn't have scrollIntoView; stub it so the strip's post-add scroll doesn't raise uncaught errors that bury real failures.
-	if (!Element.prototype.scrollIntoView)
-		Element.prototype.scrollIntoView = () => {
-			/* jsdom doesn't have a layout to scroll */
-		};
 });
 
 function makePane(label: string): ShuColumnPane {

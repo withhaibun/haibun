@@ -35,6 +35,7 @@ import { nodeIn, type TGraph } from "../graph/types.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { linkTo } from "../rpc-registry.js";
 import { noteExecution } from "../client-cache/executions.js";
+import { revealInDocument } from "../reveal.js";
 
 /** The panel's read-projection of the affordances wire blob: forward steps + goal verdicts (+ optional waypoints). forward/goals reuse the core element types; the panel ignores composites/satisfied* that the chain view consumes. */
 type TAffordances = {
@@ -623,7 +624,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		else if (openGoal !== this.lastScrolledGoal) {
 			const card = findByAttr("data-goal-domain", openGoal);
 			if (card) {
-				requestAnimationFrame(() => card.scrollIntoView({ block: "start", behavior: "auto" }));
+				requestAnimationFrame(() => revealInDocument(card, { block: "start" }));
 				this.lastScrolledGoal = openGoal;
 			}
 		}
@@ -631,7 +632,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		else if (openWaypoint !== this.lastScrolledWaypoint) {
 			const card = findByAttr("data-testid", `waypoint-${openWaypoint}`);
 			if (card) {
-				requestAnimationFrame(() => card.scrollIntoView({ block: "start", behavior: "auto" }));
+				requestAnimationFrame(() => revealInDocument(card, { block: "start" }));
 				this.lastScrolledWaypoint = openWaypoint;
 			}
 		}

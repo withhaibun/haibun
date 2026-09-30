@@ -32,11 +32,6 @@ function resetPanePrefs(): void {
 beforeAll(() => {
 	installTestMediaQueries(); // the strip asks the viewport whether it is narrow or portrait; jsdom doesn't answer such a question
 	provideLayout(); // a pane observes its own size for the footprint it reserves when docked
-	// jsdom doesn't have scrollIntoView; stub it so the strip's post-add scroll doesn't raise uncaught errors that bury real failures.
-	if (!Element.prototype.scrollIntoView)
-		Element.prototype.scrollIntoView = () => {
-			/* jsdom doesn't have a layout to scroll */
-		};
 });
 
 // A pane updates while it is in the page, and a pane doesn't update after it leaves the page: every case ends with the panes it

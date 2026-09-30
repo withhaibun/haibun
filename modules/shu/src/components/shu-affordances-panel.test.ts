@@ -10,6 +10,7 @@ import { RPC_METHOD } from "../consts.js";
 import { readingExecution } from "../client-cache/executions.js";
 import { declareFakeGraphPresenter, mountedPresenter } from "../graph-presenter.test-fake.js";
 import { presenterIn } from "../graph-presenter.js";
+import { provideLayout } from "../test/jsdom-layout.js";
 
 /** The actuality a snapshot records its facts from. */
 const EXECUTION = "1790000000000-1";
@@ -34,7 +35,7 @@ describe("shu-affordances-panel", () => {
 	beforeEach(() => {
 		document.body.innerHTML = "";
 		handle = setupShuTest();
-		if (!HTMLElement.prototype.scrollIntoView) HTMLElement.prototype.scrollIntoView = (): void => undefined;
+		provideLayout();
 		// The deep link lives in the view hash, which is module state: clear it the way the app does, or one test's
 		// open goal is the next one's starting point.
 		ViewHash.mergeHashParams({ [AFFORDANCE_PARAM.GOAL]: "", [AFFORDANCE_PARAM.WAYPOINT]: "" });

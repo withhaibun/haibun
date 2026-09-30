@@ -36,6 +36,7 @@ import "./shu-scrollbar.js";
 import { SCROLL_TO_INDEX } from "./shu-scrollbar.js";
 import type { TScrollMarker, TWindow } from "../scrollbar-model.js";
 import { railMarks, railTotalAndWindow } from "../annotation-rail.js";
+import { revealInDocument } from "../reveal.js";
 
 /** Characters of surrounding text captured as a selection's prefix/suffix, so a short or repeated quote re-anchors to the right spot. */
 /** The ref sanitize allowlist plus inline style, which the annotation gutter's highlight spans carry. */
@@ -502,7 +503,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 		} catch {
 			return; // the range crosses element boundaries, skip the flash, still scroll below
 		}
-		mark.scrollIntoView({ block: "center", behavior: "smooth" });
+		revealInDocument(mark, { block: "center", behavior: "smooth" });
 		setTimeout(() => {
 			const parent = mark.parentNode;
 			if (parent) {

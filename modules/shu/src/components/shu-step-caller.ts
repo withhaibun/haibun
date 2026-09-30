@@ -13,6 +13,7 @@ import { type TComboboxOption } from "../schemas.js";
 import { SHU_EVENT, SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
 import { linkTo } from "../rpc-registry.js";
+import { revealInDocument } from "../reveal.js";
 
 type InputProperty = {
 	type?: string;
@@ -176,7 +177,7 @@ class StepCaller extends HTMLElement {
 		this._executed = true;
 		this.renderComponent();
 		this.dataset.testid = `${this.idPrefix()}-${this.error ? "step-error" : "step-result"}`;
-		this.scrollIntoView({ behavior: "smooth", block: "nearest" });
+		revealInDocument(this, { behavior: "smooth", block: "nearest" });
 	}
 
 	private idPrefix(): string {

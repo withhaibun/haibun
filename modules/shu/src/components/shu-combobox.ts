@@ -5,6 +5,7 @@ import type { ZodType } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { ComboboxSchema, type TComboboxOption } from "../schemas.js";
 import { shuBaseStyles } from "./styles.js";
+import { revealInDocument } from "../reveal.js";
 
 export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
@@ -331,7 +332,8 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 		if (this._focusIndex >= 0 && this._focusIndex < items.length) {
 			// Headers are non-selectable <li>s interleaved with option <li>s, so the
 			// focused option's DOM index != _focusIndex. Scroll by data-value instead.
-			ul.querySelector(`li[data-value="${CSS.escape(items[this._focusIndex].value)}"]`)?.scrollIntoView({ block: "nearest" });
+			const focused = ul.querySelector(`li[data-value="${CSS.escape(items[this._focusIndex].value)}"]`);
+			if (focused) revealInDocument(focused, { block: "nearest" });
 		}
 	}
 
