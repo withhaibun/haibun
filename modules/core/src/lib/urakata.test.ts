@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { UrakataRegistry, URAKATA_LABEL, type IUrakataTicker } from "./urakata.js";
 import { getDefaultWorld } from "./test/lib.js";
+import { accessBound, runAuthorizedWith, runReadingAt } from "./capability-context.js";
+import { readAction, writtenAt } from "./actions.js";
+import { Access } from "./resources.js";
 
 const noOpErrorHandler = () => undefined;
 
@@ -40,6 +43,18 @@ describe("UrakataRegistry", () => {
 		}
 		const tickSuffixes = seen.map((sp) => sp[rootLen]);
 		expect(tickSuffixes).toEqual([...tickSuffixes].sort((a, b) => a - b));
+	});
+
+	it("ticks as the instance, without the capability or the ceiling of the step that registered it", async () => {
+		const registry = makeRegistry();
+		const bounds: ReturnType<typeof accessBound>[] = [];
+		const ticker: IUrakataTicker = { id: "bound", description: "test", intervalMs: 5, tick: () => void bounds.push(accessBound()) };
+		// Registered inside a step that reads at private and holds only its own read.
+		const u = await runAuthorizedWith([readAction(Access.private)], () => runReadingAt(Access.private, () => Promise.resolve(registry.register(ticker))));
+		await until(() => expect(bounds.length).toBeGreaterThan(0));
+		await registry.stop(u.id);
+		expect(bounds[0]).toEqual({ ceiling: undefined, held: undefined });
+		expect(writtenAt(Access.public, Access.private, bounds[0]), "the instance writes a record at the level it states").toBe(Access.public);
 	});
 
 	it("schedules ticker via setTimeout-recursion so a slow tick never overlaps itself", async () => {

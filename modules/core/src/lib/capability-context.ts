@@ -174,3 +174,9 @@ export function accessBound(): TAccessBound {
 export function runReadingAsTheInstance<T>(within: () => Promise<T>): Promise<T> {
 	return readCeilingStore.run(undefined, within);
 }
+
+/** Run `within` as the instance's own work, which no caller asked for: it holds no capability, and a ceiling doesn't
+ *  bound what it reads or writes. For work a ticker schedules, which outlives the step that started it. */
+export function runAsTheInstance<T>(within: () => Promise<T>): Promise<T> {
+	return runAuthorizedWith(undefined, () => runReadingAsTheInstance(within));
+}

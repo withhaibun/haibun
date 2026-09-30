@@ -23,7 +23,7 @@
 import { z } from "zod";
 import { NameSchema } from "./domains.js";
 import { allocateSyntheticSeqPath } from "./host-id.js";
-import { runAuthorizedWith } from "./capability-context.js";
+import { runAsTheInstance } from "./capability-context.js";
 import { errorDetail } from "./util/index.js";
 import type { TWorld } from "./world.js";
 import type { TSeqPath } from "../schema/protocol.js";
@@ -145,10 +145,12 @@ export class UrakataRegistry implements IUrakataRegistry {
 			const controller = new AbortController();
 			// A tick settling and the registry counting its outcome are one flow: settled resolves once the count is
 			// recorded, so stop()/timeout can await a clean state. A tick aborted by stop() is a normal end, not an error.
-			// A tick runs without a capability of its own. A ticker registered during an authorized step would otherwise
-			// inherit that step's capability through the async context and keep it for as long as it ticks, which is
-			// for the life of the process; authority belongs to the act that asks for it, not to whoever started a timer.
-			const settled: Promise<void> = runAuthorizedWith(undefined, async () => {
+			// A tick is the instance's own work, as a feature line in its own run is: it holds no capability and a ceiling
+			// doesn't bound it. A ticker registered during a step would otherwise inherit that step's capability and ceiling
+			// through the async context and keep them for as long as it ticks, which is for the life of the process;
+			// authority belongs to the act that asks for it, not to whoever started a timer. Inheriting only the ceiling left
+			// a tick that read at the step's ceiling and could not write more publicly than it.
+			const settled: Promise<void> = runAsTheInstance(async () => {
 				try {
 					await Promise.resolve(spec.tick({ seqPath: tickSeqPath, tickIndex: urakata.tickIndex - 1, signal: controller.signal }));
 				} catch (err) {
