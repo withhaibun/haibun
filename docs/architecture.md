@@ -11,19 +11,15 @@ Haibun offers value by extending behavior-driven development with literary progr
 2. Verify systems match that specification
 3. Explain the system to readers with up-to-date proof (screenshots, videos, network diagrams, etc)
 
-### Actuality
-
-A feature states what is expected. **Actuality** is the live system and its results. It is the process that carries the features out, the instance that acts and holds its authority while it does, and what that produces: a record of each step in the order it was performed, with how it went and what it produced.
-
-A feature is verified against actuality, and a reader is shown actuality as the proof. A page reads actuality, a monitor follows it, and a report carries it. Code, messages and docs say "actuality" for this, and do not say "the run". "A run" counts one execution among several, such as a test run an agent starts and supervises.
-
-Haibun includes first-order logic to provide a grounded and consistent way to reason about third-party behaviors (like ensuring every request in a trace meets a performance threshold) without the brittle complexity and error-prone loops of general-purpose programming.
-
 The name comes from the Japanese literary form that combines prose and haiku. In Haibun:
 - **Prose** (Sentence form) describes intent and context
 - **Steps** (lowercase statements) are executable statements, like haiku interspersed in prose
 
 This case sensitivity rule creates self-documenting tests where prose and steps are visually distinct.
+
+A feature states what is expected. What it is checked against is **actuality**: the live system and its results. The live system is the process that carries a feature's steps out, and the instance that acts while it does. Its results are a record of each step in the order it was performed, with how it went and what it produced. Verification compares a feature with actuality, and the proof a reader is shown is drawn from it.
+
+Much of actuality is outside a feature's control, such as the requests a page makes to third parties. Haibun includes first-order logic to provide a grounded and consistent way to reason about it (like ensuring every request in a trace meets a performance threshold) without the brittle complexity and error-prone loops of general-purpose programming.
 
 ## The Example Feature
 
