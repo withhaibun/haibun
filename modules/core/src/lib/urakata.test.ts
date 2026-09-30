@@ -1,11 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import { UrakataRegistry, URAKATA_LABEL, type IUrakataTicker } from "./urakata.js";
 import { getDefaultWorld } from "./test/lib.js";
-import { accessBound, runAuthorizedWith, runReadingAt } from "./capability-context.js";
-import { readAction, writtenAt } from "./actions.js";
+import { accessBound, actingAs, runActingAs, runAuthorizedWith } from "./capability-context.js";
+import { AUTHORITY_KEY, SessionAuthority } from "./session-authority.js";
+import { actionsToReadAndWrite, EVERY_ACTION, readAction, writeAction, writtenAt } from "./actions.js";
 import { Access } from "./resources.js";
 
 const noOpErrorHandler = () => undefined;
+const STARTER = "did:example:starter";
 
 function makeRegistry(onError = noOpErrorHandler) {
 	return new UrakataRegistry(getDefaultWorld(), onError);
@@ -23,6 +25,7 @@ describe("UrakataRegistry", () => {
 		const registry = makeRegistry();
 		const seen: number[][] = [];
 		const ticker: IUrakataTicker = {
+			needs: [],
 			id: "t1",
 			description: "test",
 			intervalMs: 5,
@@ -45,16 +48,47 @@ describe("UrakataRegistry", () => {
 		expect(tickSuffixes).toEqual([...tickSuffixes].sort((a, b) => a - b));
 	});
 
-	it("ticks as the instance, without the capability or the ceiling of the step that registered it", async () => {
+	it("ticks with what its ticker needs, reading at the ceiling that grants, and acting for whoever started it", async () => {
 		const registry = makeRegistry();
 		const bounds: ReturnType<typeof accessBound>[] = [];
-		const ticker: IUrakataTicker = { id: "bound", description: "test", intervalMs: 5, tick: () => void bounds.push(accessBound()) };
-		// Registered inside a step that reads at private and holds only its own read.
-		const u = await runAuthorizedWith([readAction(Access.private)], () => runReadingAt(Access.private, () => Promise.resolve(registry.register(ticker))));
+		const actors: (string | undefined)[] = [];
+		const needs = actionsToReadAndWrite(Access.private, [Access.private, Access.public]);
+		const ticker: IUrakataTicker = { id: "bound", description: "test", intervalMs: 5, needs, tick: () => void (bounds.push(accessBound()), actors.push(actingAs())) };
+		// Registered inside a step that holds every action, as a feature line of actuality's own run does.
+		const u = await runAuthorizedWith([EVERY_ACTION], () => runActingAs(STARTER, () => Promise.resolve(registry.register(ticker))));
 		await until(() => expect(bounds.length).toBeGreaterThan(0));
 		await registry.stop(u.id);
-		expect(bounds[0]).toEqual({ ceiling: undefined, held: undefined });
-		expect(writtenAt(Access.public, Access.private, bounds[0]), "the instance writes a record at the level it states").toBe(Access.public);
+		expect(bounds[0], "not every action the starting step held").toEqual({ ceiling: Access.private, held: needs });
+		expect(actors[0]).toBe(STARTER);
+		expect(writtenAt(Access.public, Access.private, bounds[0]), "a record the watch states is public is written at public").toBe(Access.public);
+		expect(u).toMatchObject({ startedBy: STARTER, holds: needs });
+	});
+
+	it("is refused where it is started by a caller that doesn't hold what it needs, naming what to delegate", () => {
+		const registry = makeRegistry();
+		const ticker: IUrakataTicker = {
+			id: "short",
+			description: "the watch of Trash",
+			intervalMs: 5,
+			needs: [readAction(Access.private), writeAction(Access.public)],
+			tick: () => undefined,
+		};
+		expect(() => runAuthorizedWith([readAction(Access.private)], () => Promise.resolve(registry.register(ticker)))).toThrow(
+			"Can't start the watch of Trash: it needs Write:public, which the caller doesn't hold. Delegate Write:public to the key that starts it.",
+		);
+	});
+
+	it("stops once the authority its starter proved is revoked, stating why", async () => {
+		const world = getDefaultWorld();
+		const authority = new SessionAuthority();
+		world.runtime.keys = { ...world.runtime.keys, [AUTHORITY_KEY]: authority };
+		const registry = new UrakataRegistry(world, noOpErrorHandler);
+		const ticker: IUrakataTicker = { id: "resting", description: "test", intervalMs: 5, needs: [readAction(Access.private)], tick: () => undefined };
+		const restsOn = { capabilities: ["urn:cap:starter"] };
+		const u = await runAuthorizedWith([readAction(Access.private)], () => runActingAs(STARTER, () => Promise.resolve(registry.register(ticker)), restsOn));
+		authority.revoked("urn:cap:starter");
+		await until(() => expect(registry.get(u.id).stoppedAt).toBeDefined());
+		expect(registry.get(u.id).stopReason).toBe("urn:cap:starter was revoked");
 	});
 
 	it("schedules ticker via setTimeout-recursion so a slow tick never overlaps itself", async () => {
@@ -63,6 +97,7 @@ describe("UrakataRegistry", () => {
 		let maxInFlight = 0;
 		let started = 0;
 		const ticker: IUrakataTicker = {
+			needs: [],
 			id: "slow",
 			description: "slow",
 			intervalMs: 1,
@@ -85,6 +120,7 @@ describe("UrakataRegistry", () => {
 		const registry = makeRegistry((id, _seq, err) => reported.push({ id, message: err.message }));
 		let calls = 0;
 		const ticker: IUrakataTicker = {
+			needs: [],
 			id: "bad",
 			description: "fails on every tick",
 			intervalMs: 5,
@@ -109,6 +145,7 @@ describe("UrakataRegistry", () => {
 		let maxInFlight = 0;
 		let sawAbort = false;
 		const ticker: IUrakataTicker = {
+			needs: [],
 			id: "hang",
 			description: "hangs past its timeout, then honours the abort",
 			intervalMs: 5,
@@ -148,6 +185,7 @@ describe("UrakataRegistry", () => {
 		const registry = makeRegistry((_id, _sp, err) => reported.push(err.message));
 		let settledAfterAbort = false;
 		const ticker: IUrakataTicker = {
+			needs: [],
 			id: "long",
 			description: "blocks until its signal fires",
 			intervalMs: 1,
@@ -175,8 +213,8 @@ describe("UrakataRegistry", () => {
 
 	it("rejects duplicate ids", () => {
 		const registry = makeRegistry();
-		registry.register({ id: "dup", description: "", intervalMs: 1000, tick: () => undefined });
-		expect(() => registry.register({ id: "dup", description: "", intervalMs: 1000, tick: () => undefined })).toThrow(/already registered/);
+		registry.register({ needs: [], id: "dup", description: "", intervalMs: 1000, tick: () => undefined });
+		expect(() => registry.register({ needs: [], id: "dup", description: "", intervalMs: 1000, tick: () => undefined })).toThrow(/already registered/);
 	});
 
 	it("throws on unknown id for get/stop", async () => {
@@ -187,7 +225,7 @@ describe("UrakataRegistry", () => {
 
 	it("forget halts then removes; subsequent lookup throws", async () => {
 		const registry = makeRegistry();
-		const u = registry.register({ id: "f1", description: "", intervalMs: 1000, tick: () => undefined });
+		const u = registry.register({ needs: [], id: "f1", description: "", intervalMs: 1000, tick: () => undefined });
 		await registry.forget(u.id);
 		expect(() => registry.get(u.id)).toThrow(/not found/);
 	});
@@ -195,8 +233,8 @@ describe("UrakataRegistry", () => {
 	it("stopAll halts every registered urakata", async () => {
 		const registry = makeRegistry();
 		const ticks = vi.fn();
-		registry.register({ id: "a", description: "", intervalMs: 5, tick: ticks });
-		registry.register({ id: "b", description: "", intervalMs: 5, tick: ticks });
+		registry.register({ needs: [], id: "a", description: "", intervalMs: 5, tick: ticks });
+		registry.register({ needs: [], id: "b", description: "", intervalMs: 5, tick: ticks });
 		await until(() => expect(ticks.mock.calls.length > 1).toBe(true));
 		await registry.stopAll();
 		const ticksAtStop = ticks.mock.calls.length;
@@ -214,6 +252,7 @@ describe("UrakataRegistry persistence of transitions", () => {
 		const registry = new UrakataRegistry(world, () => undefined);
 		let fail = true;
 		const u = registry.register({
+			needs: [],
 			id: "p1",
 			description: "persisting task",
 			intervalMs: 5,
@@ -252,7 +291,7 @@ describe("UrakataRegistry persistence of transitions", () => {
 			generatedAtTime: new Date(),
 		});
 		const registry = new UrakataRegistry(world, () => undefined);
-		const fresh = registry.register({ id: "different.task", description: "new", intervalMs: 1000, tick: () => undefined });
+		const fresh = registry.register({ needs: [], id: "different.task", description: "new", intervalMs: 1000, tick: () => undefined });
 		await sleep(0);
 		const prior = await readTask(world, "imap.idle.acct/INBOX");
 		expect(prior?.execution).toBe("OTHER-INSTANCE"); // untouched
@@ -263,7 +302,7 @@ describe("UrakataRegistry persistence of transitions", () => {
 
 		// Re-registering the prior id (a restart) overwrites it with the current instance and without a stoppedAt.
 		const registry2 = new UrakataRegistry(world, () => undefined);
-		registry2.register({ id: "imap.idle.acct/INBOX", description: "restarted", intervalMs: 1000, tick: () => undefined });
+		registry2.register({ needs: [], id: "imap.idle.acct/INBOX", description: "restarted", intervalMs: 1000, tick: () => undefined });
 		await sleep(0);
 		const restarted = await readTask(world, "imap.idle.acct/INBOX");
 		expect(restarted?.execution).toBe(world.tag.key);

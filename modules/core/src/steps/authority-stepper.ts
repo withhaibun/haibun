@@ -166,7 +166,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 		const runner = new FlowRunner(this.getWorld(), this.steppers);
 		const run = () => runner.runSteps(what, { parentStep: featureStep });
 		// What the capability allows is all its statements may do, and its controller is who does it.
-		return await runAuthorizedWith(verified.allowedAction ?? delegatedActions(capability), () => runActingAs(verified.principal ?? capability.controller, run));
+		return await runAuthorizedWith(verified.allowedAction ?? delegatedActions(capability), () => runActingAs(verified.principal ?? capability.controller, run, verified.restsOn));
 	}
 
 	private getAuthority(): IAuthority {

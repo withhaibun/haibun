@@ -28,7 +28,7 @@ import { ServerHono } from "./server-hono.js";
 import WebServerStepper from "./web-server-stepper.js";
 import type { IStepTransport } from "./step-transport.js";
 import { grantedCapabilityForRequest, PRESENTED_REQUEST_HEADERS } from "./capability-auth.js";
-import { actingAs, authorizedWith, runActingAs, runAuthorizedWith, shownTo } from "@haibun/core/lib/capability-context.js";
+import { actingAs, authorizedWith, restingOn, runActingAs, runAuthorizedWith, shownTo } from "@haibun/core/lib/capability-context.js";
 import { DOMAIN_ROUTE } from "@haibun/core/lib/domains.js";
 /** The port the MCP endpoint listens on where neither it nor the web server states one. */
 const DEFAULT_MCP_PORT = 8128;
@@ -115,8 +115,10 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 			const seqPath = allocateSyntheticSeqPath(world);
 			const featureStep = buildFeatureStepForTransport(tool, validateToolInput(seqPath, tool, args, world), seqPath);
 			// A caller holds only what it presented, not what the step that started this server held.
-			const result = await runActingAs(principal, () =>
-				dispatchStep({ registry: this.registry(), world, steppers: this.steppers, grantedCapability: grantedCapability ?? [] }, featureStep),
+			const result = await runActingAs(
+				principal,
+				() => dispatchStep({ registry: this.registry(), world, steppers: this.steppers, grantedCapability: grantedCapability ?? [] }, featureStep),
+				restingOn(),
 			);
 			if (!result.ok) return { isError: true, content: [{ type: "text", text: result.errorMessage ?? "Step failed" }] };
 			return { content: [{ type: "text", text: JSON.stringify(result.products ?? {}, null, 2) }] };
@@ -211,7 +213,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 			// every call it carries runs under that and what the deployment allows without a delegation, and only those: the
 			// server was started inside a step of actuality, and a caller doesn't hold what that step held.
 			const body = c.req.method === "POST" ? await c.req.raw.clone().text() : undefined;
-			const { granted, principal, refused } = await grantedCapabilityForRequest(
+			const { granted, principal, refused, restsOn } = await grantedCapabilityForRequest(
 				{ method: c.req.method, url: c.req.url, headers: c.req.header(), body },
 				this.getWorld().runtime,
 				webserver,
@@ -221,7 +223,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 			// 3. Disable Compression (Critical for SSE)
 			c.header("Cache-Control", "no-transform");
 
-			await runAuthorizedWith(granted, () => runActingAs(principal, next));
+			await runAuthorizedWith(granted, () => runActingAs(principal, next, restsOn));
 		};
 
 		webserver.app.use(this.mcpPath, applyMcpMiddleware);

@@ -15,8 +15,8 @@
  */
 import { AsyncLocalStorage } from "node:async_hooks";
 import { Access, narrowerCeiling, type AccessLevel } from "./resources.js";
-import { capabilityAllows, EVERY_ACTION, type TAccessBound } from "./actions.js";
-import type { TActingFor } from "./authority-types.js";
+import { capabilityAllows, EVERY_ACTION, readCeilingOf, type TAccessBound } from "./actions.js";
+import type { TActingFor, TRestsOn } from "./authority-types.js";
 import type { THaibunLogLevel } from "../schema/protocol.js";
 
 const capabilityStore = new AsyncLocalStorage<string | string[] | undefined>();
@@ -66,7 +66,7 @@ export function askedIn(): string | undefined {
 	return askStore.getStore();
 }
 
-const actingStore = new AsyncLocalStorage<string | undefined>();
+const actingStore = new AsyncLocalStorage<{ principal: string | undefined; restsOn: TRestsOn | undefined }>();
 
 /**
  * Who a call proved itself to be, for the length of that call.
@@ -75,13 +75,19 @@ const actingStore = new AsyncLocalStorage<string | undefined>();
  * rather than on the world for the reason the capability is: the world has one value for the whole process, so two
  * requests in flight would be recorded as each other, and this belongs to the call that proved it.
  */
-export function runActingAs<T>(principal: string | undefined, within: () => Promise<T>): Promise<T> {
-	return actingStore.run(principal, within);
+export function runActingAs<T>(principal: string | undefined, within: () => Promise<T>, restsOn?: TRestsOn): Promise<T> {
+	return actingStore.run({ principal, restsOn }, within);
 }
 
 /** Who proved themselves at the boundary this call came through, or undefined where a caller didn't. */
 export function actingAs(): string | undefined {
-	return actingStore.getStore();
+	return actingStore.getStore()?.principal;
+}
+
+/** What the proof this call came through rests on: the capabilities it descends through and when the first expires, or
+ *  undefined where the call didn't present one, as actuality's own statements don't. */
+export function restingOn(): TRestsOn | undefined {
+	return actingStore.getStore()?.restsOn;
 }
 
 /** Who an act of the authority is done for: the root, where the call holds every action, as actuality's own features and
@@ -175,8 +181,9 @@ export function runReadingAsTheInstance<T>(within: () => Promise<T>): Promise<T>
 	return readCeilingStore.run(undefined, within);
 }
 
-/** Run `within` as the instance's own work, which no caller asked for: it holds no capability, and a ceiling doesn't
- *  bound what it reads or writes. For work a ticker schedules, which outlives the step that started it. */
-export function runAsTheInstance<T>(within: () => Promise<T>): Promise<T> {
-	return runAuthorizedWith(undefined, () => runReadingAsTheInstance(within));
+/** Run `within` as a tick: holding `needs` and nothing more, reading at the ceiling they grant, and acting for whoever
+ *  started its ticker under the proof that start rested on. For work that outlives the step that started it. */
+export function runAsTicking<T>(needs: readonly string[], startedBy: string | undefined, restsOn: TRestsOn | undefined, within: () => Promise<T>): Promise<T> {
+	const held = [...needs];
+	return runAuthorizedWith(held, () => readCeilingStore.run(readCeilingOf(held) ?? Access.public, () => runActingAs(startedBy, within, restsOn)));
 }

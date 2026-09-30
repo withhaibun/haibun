@@ -273,7 +273,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					}
 
 					const authority = await grantedCapabilityForRequest(requestInfo, this.getWorld().runtime, this);
-					const { granted, principal, refused } = authority;
+					const { granted, principal, refused, restsOn } = authority;
 					if (refused) return { error: `${method}: ${refused}`, [RPC_REFUSED]: true };
 					// A streamed call is held open only while the authority it was allowed under holds.
 					const stream = streamContext.getStore();
@@ -286,7 +286,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 						if (!mayCall(granted, { capability: served.action })) return { error: refusal(method, served.action, principal) };
 						try {
 							// Whoever proved themselves at this boundary is who acts inside it, as in a dispatched step.
-							return await runActingAs(principal, () => served.handle(params));
+							return await runActingAs(principal, () => served.handle(params), restsOn);
 						} catch (err) {
 							return { error: `${method}: ${errorDetail(err)}` };
 						}
@@ -316,7 +316,11 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 						const hr = await runWithRequestContext({ baseIri: requestBaseIri(requestInfo?.headers) }, () =>
 							// A request holds only what it presented: the server was started inside a step of actuality, and
 							// a caller doesn't hold what that step held.
-							runActingAs(principal, () => runReadingAt(msg.readingAt, () => dispatchStep({ registry, world, steppers: this.steppers, grantedCapability: granted }, featureStep))),
+							runActingAs(
+								principal,
+								() => runReadingAt(msg.readingAt, () => dispatchStep({ registry, world, steppers: this.steppers, grantedCapability: granted }, featureStep)),
+								restsOn,
+							),
 						);
 						if (hr.ok) return hr.products ?? ANSWERED_WITHOUT_PRODUCTS;
 						return { error: `${method}: ${hr.errorMessage}` };

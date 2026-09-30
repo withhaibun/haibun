@@ -119,6 +119,13 @@ function mayWriteAt(level: AccessLevel, { ceiling, held }: TAccessBound): boolea
 	return !ceiling || narrowerAccess(ceiling, level) === ceiling || capabilityAllows(held, writeAction(level));
 }
 
+/** What reading at `ceiling` and writing records at each of `levels` takes: the read, and the write of each level more
+ *  public than the ceiling. */
+export function actionsToReadAndWrite(ceiling: AccessLevel, levels: AccessLevel[]): string[] {
+	const moreOpen = [...new Set(levels)].filter((level) => !mayWriteAt(level, { ceiling, held: undefined }));
+	return [readAction(ceiling), ...moreOpen.map(writeAction)];
+}
+
 /** A delegation as its holder presents it: what it lets the holder do, over what, and until when. */
 export type TDelegation = Record<string, unknown> & { allowedAction?: unknown; invocationTarget?: unknown; expires?: unknown };
 

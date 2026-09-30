@@ -23,7 +23,10 @@
 import { z } from "zod";
 import { NameSchema } from "./domains.js";
 import { allocateSyntheticSeqPath } from "./host-id.js";
-import { runAsTheInstance } from "./capability-context.js";
+import { actingAs, authorizedWith, restingOn, runAsTicking } from "./capability-context.js";
+import { capabilityAllows } from "./actions.js";
+import type { TRestsOn } from "./authority-types.js";
+import { getAuthority } from "./session-authority.js";
 import { errorDetail } from "./util/index.js";
 import type { TWorld } from "./world.js";
 import type { TSeqPath } from "../schema/protocol.js";
@@ -48,6 +51,12 @@ export const UrakataSchema = PersistedVertexSchema.extend({
 	errorCount: z.number(),
 	/** Set once, when the task is cleanly stopped. Its absence is what "running" means; a killed process leaves it absent, which reads as "ran, not cleanly stopped", never as a false "running". */
 	stoppedAt: z.string().optional(),
+	/** Who started the task, where a caller proved itself; each tick acts for them. */
+	startedBy: z.string().optional(),
+	/** What each tick does its work with. */
+	holds: z.array(z.string()),
+	/** Why the task stopped where it wasn't stopped by a caller: the authority it was started under lapsed. */
+	stopReason: z.string().optional(),
 	/** The universal record-time field every persisted type carries. */
 	generatedAtTime: z.coerce.date().default(() => new Date()),
 });
@@ -66,6 +75,11 @@ export interface IUrakataTicker {
 	readonly intervalMs: number;
 	readonly tickTimeoutMs?: number;
 	readonly keepAlive?: boolean;
+	/**
+	 * What each tick does its work with, which the registry grants it and no more. The step that starts the ticker must
+	 * hold every one of these, so a ticker never does more than whoever started it.
+	 */
+	readonly needs: readonly string[];
 	/** The signal fires when the tick exceeds tickTimeoutMs or the task is stopped; a well-behaved tick returns promptly once it fires. */
 	tick(ctx: { seqPath: TSeqPath; tickIndex: number; signal: AbortSignal }): void | Promise<void>;
 }
@@ -98,6 +112,13 @@ export class UrakataRegistry implements IUrakataRegistry {
 
 	register(spec: IUrakataTicker): TUrakata {
 		if (this.entries.has(spec.id)) throw new Error(`urakata id "${spec.id}" already registered`);
+		// The step that starts a ticker is checked once, here, so a missing action fails where it is started and not on
+		// every tick. A statement of actuality's own run isn't bounded by a capability, and holds what its ticker needs.
+		const held = authorizedWith();
+		const missing = held === undefined ? [] : spec.needs.filter((action) => !capabilityAllows(held, action));
+		if (missing.length > 0) {
+			throw new Error(`Can't start ${spec.description}: it needs ${missing.join(", ")}, which the caller doesn't hold. Delegate ${missing.join(", ")} to the key that starts it.`);
+		}
 		const seqPath = allocateSyntheticSeqPath(this.world);
 		const urakata: TUrakata = {
 			id: spec.id,
@@ -108,8 +129,12 @@ export class UrakataRegistry implements IUrakataRegistry {
 			tickIndex: 0,
 			errorCount: 0,
 			generatedAtTime: new Date(),
+			startedBy: actingAs(),
+			holds: [...spec.needs],
 		};
-		this.entries.set(spec.id, this.startTicker(spec, urakata));
+		const restsOn = restingOn();
+		this.entries.set(spec.id, this.startTicker(spec, urakata, restsOn));
+		if (restsOn) this.stopWhenLapsed(urakata, restsOn);
 		this.persist(urakata);
 		return urakata;
 	}
@@ -128,7 +153,23 @@ export class UrakataRegistry implements IUrakataRegistry {
 		});
 	}
 
-	private startTicker(spec: IUrakataTicker, urakata: TUrakata): RuntimeEntry {
+	/** Stop a task once the authority its starter proved lapses: a capability that proof rests on is revoked, or its
+	 *  expiry passes. A task started by actuality's own statements doesn't rest on a proof. */
+	private stopWhenLapsed(urakata: TUrakata, restsOn: TRestsOn): void {
+		const held = getAuthority(this.world.runtime)?.holdWhile(restsOn);
+		if (!held) return;
+		const lapsed = () => {
+			urakata.stopReason = String(held.signal.reason);
+			this.world.eventLogger.warn(`[urakata] stopped "${urakata.id}": ${urakata.stopReason}`);
+			void this.entries.get(urakata.id)?.stop();
+		};
+		if (held.signal.aborted) lapsed();
+		else held.signal.addEventListener("abort", lapsed, { once: true });
+		const entry = this.entries.get(urakata.id);
+		if (entry) this.entries.set(urakata.id, { ...entry, stop: () => entry.stop().finally(held.release) });
+	}
+
+	private startTicker(spec: IUrakataTicker, urakata: TUrakata, restsOn: TRestsOn | undefined): RuntimeEntry {
 		let timer: NodeJS.Timeout | null = null;
 		let stopped = false;
 		/** The controller of the currently running tick, or null between ticks. stop()/timeout abort through it. */
@@ -145,12 +186,10 @@ export class UrakataRegistry implements IUrakataRegistry {
 			const controller = new AbortController();
 			// A tick settling and the registry counting its outcome are one flow: settled resolves once the count is
 			// recorded, so stop()/timeout can await a clean state. A tick aborted by stop() is a normal end, not an error.
-			// A tick is the instance's own work, as a feature line in its own run is: it holds no capability and a ceiling
-			// doesn't bound it. A ticker registered during a step would otherwise inherit that step's capability and ceiling
-			// through the async context and keep them for as long as it ticks, which is for the life of the process;
-			// authority belongs to the act that asks for it, not to whoever started a timer. Inheriting only the ceiling left
-			// a tick that read at the step's ceiling and could not write more publicly than it.
-			const settled: Promise<void> = runAsTheInstance(async () => {
+			// A tick holds what its ticker needs, reads at the ceiling that grants, and acts for whoever started it. It
+			// doesn't keep what the starting step held through the async context: that lasts for the life of the process,
+			// and would give a tick more than its work takes.
+			const settled: Promise<void> = runAsTicking(spec.needs, urakata.startedBy, restsOn, async () => {
 				try {
 					await Promise.resolve(spec.tick({ seqPath: tickSeqPath, tickIndex: urakata.tickIndex - 1, signal: controller.signal }));
 				} catch (err) {

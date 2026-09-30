@@ -25,6 +25,7 @@ class TickHarnessStepper extends AStepper {
 					id: "test.tick",
 					description: "test ticker",
 					intervalMs: 5,
+					needs: [],
 					tick: () => {
 						this.tickCount++;
 					},
