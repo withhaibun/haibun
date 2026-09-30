@@ -297,7 +297,7 @@ describe("step-dispatch", () => {
 	});
 
 	describe("createStepHandler", () => {
-		// Named as the registry names it: a tool is what its key says it is, and the step built from it is resolved by
+		// Named as the registry names it: a tool is what its key names, and the step built from it is resolved by
 		// that name when it is dispatched.
 		const synth = (step: { stepperName: string; stepName: string; description: string }, input: Record<string, unknown>, seqPath: number[] = [0]) =>
 			buildFeatureStepForTransport(
@@ -358,7 +358,7 @@ describe("step-dispatch", () => {
 			const handler = createStepHandler("ProductStepper", "throwStep", stepper.steps.throwStep);
 			const result = await handler(synth({ stepperName: "ProductStepper", stepName: "throwStep", description: "" }, {}), world);
 			expect(result.ok).toBe(false);
-			expect(result.errorMessage, "what it said, as a step that refuses").toBe("boom");
+			expect(result.errorMessage, "what it returned, as a step that refuses").toBe("boom");
 		});
 
 		it("populates stepValuesMap from input", async () => {
@@ -668,7 +668,7 @@ describe("step-dispatch", () => {
 			);
 			expect(byPredicate[SEQ_PATH_FIELD.stepText]).toEqual(expect.any(String));
 			// Written even for the ordinary case: a reader asking for the steps that were NOT speculative can only be
-			// answered if an authoritative step says so as well.
+			// answered if an authoritative step states so as well.
 			expect(byPredicate[SEQ_PATH_FIELD.mode]).toBe("authoritative");
 		});
 
@@ -685,7 +685,7 @@ describe("step-dispatch", () => {
 
 			const store = world.shared.getStore();
 			const mode = await store.get(formatRecordName({ execution: executionOf(world.tag), path: [0, 4, 1] }), SEQ_PATH_FIELD.mode, SEQ_PATH_LABEL);
-			expect(mode, "a try whose failure is expected is not actuality failing, and its record says which it was").toBe("speculative");
+			expect(mode, "a try whose failure is expected is not actuality failing, and its record states which it was").toBe("speculative");
 		});
 
 		it("emits SeqPath quads with status=failed for a failing step", async () => {

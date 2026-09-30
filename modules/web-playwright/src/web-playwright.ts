@@ -373,7 +373,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	}
 
 	/** Serve the relay an extension attaches a person's browser through, and drive that browser from the next page the
-	 *  run opens. A step that needs the browser is refused while a browser isn't attached, saying so. */
+	 *  run opens. A step that needs the browser is refused while a browser isn't attached, stating so. */
 	serveRelay() {
 		const webserver = this.getWorld().runtime[WEBSERVER] as IWebServer | undefined;
 		if (!webserver) return actionNotOK("the browser relay is served by the web server, and a web server isn't running: start one before serving the relay");

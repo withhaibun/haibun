@@ -106,7 +106,7 @@ export class DataPipeline {
 		const indexed = LinkRelations.GENERATED_AT_TIME.rel;
 		// Always compute a time (for the hover + the "label as date" toggle); only the "indexed" basis reads generatedAtTime,
 		// valid AND connections use the declared valid-time field. The connections basis places depth by degree, not this.
-		// The same pass says when each record was written down, which is what a reading in the order things happened
+		// The same pass reports when each record was written down, which is what a reading in the order things happened
 		// follows whatever places depth.
 		const fieldFor = this.deps.zBasis() === "indexed" ? () => indexed : this.deps.validTimeFieldFor;
 		return subjectValidTimes(this.deps.quads(), fieldFor, indexed);
@@ -378,7 +378,7 @@ type TVisibleModelInput = {
 	hiddenGraphs: string[];
 	/** Predicates the person put away: a node whose every edge is hidden IS edgeless for the prune below. */
 	hiddenPredicates: string[];
-	/** Drop the nodes that links don't connect: a graph of unconnected chips says less than the connections between them. */
+	/** Drop the nodes that links don't connect: a graph of unconnected chips shows less than the connections between them. */
 	prune: boolean;
 	site?: string;
 	roleRels: readonly string[];

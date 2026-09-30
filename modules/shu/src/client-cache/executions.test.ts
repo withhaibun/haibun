@@ -14,7 +14,7 @@ const OLDER = "1700000000000-1";
 const NEWER = "1700000009000-2";
 const iso = (n: number): string => new Date(n).toISOString();
 
-/** A device holding two runs, each declaring the feature it ran and saying one thing. */
+/** A device holding two runs, each declaring the feature it ran and logging one thing. */
 const aDevice = async (): Promise<QuadStore> => {
 	const store = new QuadStore();
 	for (const [i, execution] of [OLDER, NEWER].entries()) {
@@ -56,7 +56,7 @@ describe("what a device holds of the runs it has read", () => {
 		expect((await executionsHeld())[0].features).toEqual(["run 1"]);
 	});
 
-	it("says the run being read changed when a run starts while the page is following the one before it", () => {
+	it("reports the run being read changed when a run starts while the page is following the one before it", () => {
 		let told = 0;
 		const stop = subscribeExecutionSwitch(() => told++);
 		noteExecution(OLDER);
@@ -104,7 +104,7 @@ describe("what a device holds of the runs it has read", () => {
 		expect(await heldOf(store, NEWER)).toBe(4);
 	});
 
-	it("says a device is full when it can't free a record there, and goes on reading", async () => {
+	it("reports a device is full when it can't free a record there, and goes on reading", async () => {
 		const store = await aDevice();
 		await forgetExecution(OLDER);
 		readExecution(NEWER);
@@ -116,7 +116,7 @@ describe("what a device holds of the runs it has read", () => {
 			level: "info",
 			generatedAtTime: iso(30000),
 		});
-		// The failure is reported rather than discarded: a development build throws it, a built page says it and reads on.
+		// The failure is reported rather than discarded: a development build throws it, a built page logs it and reads on.
 		await expect(holdOnDevice(quads)).rejects.toThrow("the device is full");
 	});
 });

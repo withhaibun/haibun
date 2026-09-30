@@ -1,7 +1,7 @@
 /**
- * LogMessage: what a run said, as a graph individual.
+ * LogMessage: what a run logged, as a graph individual.
  *
- * A step writes itself as a SeqPath individual; what it said while it ran is written here, under the same seqPath it
+ * A step writes itself as a SeqPath individual; what it logged while it ran is written here, under the same seqPath it
  * happened during. So one query over these and the SeqPath individuals is actuality, ordered by time and filtered by
  * level, and a second record of it doesn't exist to keep in step.
  *
@@ -22,7 +22,7 @@ export const LOG_MESSAGE_FIELD = {
 	message: "message",
 	level: "level",
 	generatedAtTime: "generatedAtTime",
-	/** The actuality this was said during. */
+	/** The actuality this was logged during. */
 	execution: EXECUTION_FIELD,
 	/** When this record was written. */
 	recordedAtTime: RECORDED_AT_TIME_FIELD,
@@ -30,7 +30,7 @@ export const LOG_MESSAGE_FIELD = {
 
 /** LogMessage edge names. */
 export const LOG_MESSAGE_EDGE = {
-	/** The step this was said during. */
+	/** The step this was logged during. */
 	isPartOf: "isPartOf",
 } as const;
 
@@ -47,13 +47,13 @@ const LogMessageSchema = PersistedVertexSchema.extend({
 export const logMessageDomainDefinition: TDomainDefinition = {
 	selectors: [LOG_MESSAGE_DOMAIN],
 	schema: LogMessageSchema,
-	description: "Something a run said while a step was running: its text, how serious it was, and when. It points back at the step it was said during.",
+	description: "Something a run logged while a step was running: its text, how serious it was, and when. It points back at the step it was logged during.",
 	topology: {
 		persistedAs: LOG_MESSAGE_LABEL,
 		id: LOG_MESSAGE_FIELD.id,
 		instrumentation: true,
-		// A reader is told a run said something by the run saying it. This record is the durable copy of that statement,
-		// so announcing the write would say it a second time, once per field.
+		// A reader is told a run logged something by the run logging it. This record is the durable copy of that statement,
+		// so announcing the write would report it a second time, once per field.
 		announceWrites: false,
 		properties: {
 			[LOG_MESSAGE_FIELD.id]: LinkRelations.IDENTIFIER.rel,

@@ -33,7 +33,7 @@ export function reportFailure(source: string, what: string, err: unknown): void 
 
 export function reportToRun(level: TClientLogLevel, source: string, message: string, attributes?: Record<string, unknown>): void {
 	if (isOffline() || !hasConduit()) return;
-	// A page that doesn't hold the report's action, as before its key holds what it was delegated, says it to the console.
+	// A page that doesn't hold the report's action, as before its key holds what it was delegated, logs it to the console.
 	if (!pageMay(CLIENT_LOG_ACTION)) return console.warn(`[${source}] not reported to actuality, since the page doesn't hold ${CLIENT_LOG_ACTION}: ${message}`, attributes);
 	void conduit()
 		.follow(acts(CLIENT_LOG_METHOD, { event: { level, source, message, attributes } }), `${source}: ${level}`)

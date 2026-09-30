@@ -116,7 +116,7 @@ describe("EventLogger", () => {
 		});
 	});
 
-	describe("what a step that did not fail says about errors", () => {
+	describe("what a step that did not fail reports about errors", () => {
 		const step = { source: { path: "/test/feature.ts", lineNumber: 1 }, in: "set count to 1", seqPath: [1, 1, 1] } as unknown as TFeatureStep;
 
 		it("doesn't state an error, so a reader downstream doesn't show one where it didn't occur", () => {
@@ -130,7 +130,7 @@ describe("EventLogger", () => {
 			expect(event.error, "describing an absent error produces the word `undefined`, which reads as an error").toBeUndefined();
 		});
 
-		it("says what went wrong when something did", () => {
+		it("logs what went wrong when something did", () => {
 			const emitted: unknown[] = [];
 			logger.subscribe((event) => emitted.push(event));
 
@@ -258,14 +258,14 @@ describe("EventLogger", () => {
 
 		it("reports at its own level while a step reports at its own", () => {
 			const heard = said();
-			logger.info("actuality says something");
+			logger.info("actuality reports something");
 			expect(heard[0].level).toBe("info");
 		});
 
-		it("reports no more prominently than the step it is said during, so a call into a running instance stays out of actuality's history", () => {
+		it("reports no more prominently than the step it is logged during, so a call into a running instance stays out of actuality's history", () => {
 			const heard = said();
-			runInStep(DURING_A_TRACE_STEP, () => logger.info("what the caller's own step said"));
-			expect(heard[0].level, "said during a step that reports at trace").toBe("trace");
+			runInStep(DURING_A_TRACE_STEP, () => logger.info("what the caller's own step logged"));
+			expect(heard[0].level, "logged during a step that reports at trace").toBe("trace");
 		});
 
 		it("leaves a statement quieter than the step where it is", () => {

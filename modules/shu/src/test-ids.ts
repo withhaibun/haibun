@@ -56,7 +56,7 @@ export const SHU_TEST_IDS = {
 
 		/** The permissions panel, inside the access popover. */
 		PERMISSIONS: "app-permissions",
-		/** The row saying how many await a decision. A reference, so pressing it opens what it is about. */
+		/** The row stating how many await a decision. A reference, so pressing it opens what it is about. */
 		AWAITING: "permissions-awaiting",
 		/** An action this reader caches. A reference, so pressing it opens the record of what granted it. */
 		HELD: "permissions-held",
@@ -219,7 +219,7 @@ export const SHU_TEST_IDS = {
 		/** One held execution's row: this prefix and its id, then `-features`, `-reading`, `-began`, `-newest`, `-read`, or
 		 *  `-forget` on every run but the one being read. */
 		RUN: "client-cache-run-",
-		/** The list of executions this device holds. It is there once the device holds one, so it is what says a run
+		/** The list of executions this device holds. It is there once the device holds one, so it is what states a run
 		 *  a page read has been written to the device and can be come back to. */
 		HELD: "client-cache-held",
 		/** The execution being read, named by what it ran, which is how a reader knows which one they are looking at. */
@@ -227,7 +227,7 @@ export const SHU_TEST_IDS = {
 		/** Read the newest execution this device holds other than the one being read. */
 		READ_EARLIER: "client-cache-read-earlier",
 		/** What the last forget removed: actuality and how many of its records went. It is there once a reader has forgotten a
-		 *  run and the executions have been read again, so it is the state that says the list no longer holds that run. */
+		 *  run and the executions have been read again, so it is the state that shows the list no longer holds that run. */
 		FORGOTTEN: "client-cache-forgotten",
 		IDB: "client-cache-idb-",
 	},

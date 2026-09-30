@@ -21,7 +21,7 @@ export const SHOW_STEPS_ACTION = readAction(Access.public);
 
 /** The domain of how much of each declaration a read of a run's declarations returns. */
 export const DOMAIN_STEP_DETAIL = "step-detail";
-/** A summary names each declaration and says what it does, and links its definition. A definition adds the schemas and
+/** A summary names each declaration and states what it does, and links its definition. A definition adds the schemas and
  *  links a step's call. A caller searches summaries, and reads the definitions of the steps it calls. */
 export const STEP_DETAIL = { summary: "summary", definition: "definition" } as const;
 export const StepDetailSchema = z.enum(STEP_DETAIL);
@@ -178,7 +178,7 @@ export function readShownSteps(products: unknown, detail: TStepDetail): TStepDis
 }
 
 /** What the show steps step does, which its definition states. */
-export const SHOW_STEPS_DESCRIPTION = `Reads what this run declares: the steps its caller may call, and every domain. The text is matched without regard to case against each step's method, pattern and description, and each domain's name and description; an empty text matches everything. A method names its stepper and a hyphen first, so the text GraphStepper- matches the steps of GraphStepper and of any stepper whose name ends in GraphStepper. The ${STEP_DETAIL.summary} detail names each match, says what it does and links its definition. The ${STEP_DETAIL.definition} detail adds each step's argument and product schemas and links its call, and a step whose definition you read is one you may call. Every result lists the steppers whose steps matched.`;
+export const SHOW_STEPS_DESCRIPTION = `Reads what this run declares: the steps its caller may call, and every domain. The text is matched without regard to case against each step's method, pattern and description, and each domain's name and description; an empty text matches everything. A method names its stepper and a hyphen first, so the text GraphStepper- matches the steps of GraphStepper and of any stepper whose name ends in GraphStepper. The ${STEP_DETAIL.summary} detail names each match, states what it does and links its definition. The ${STEP_DETAIL.definition} detail adds each step's argument and product schemas and links its call, and a step whose definition you read is one you may call. Every result lists the steppers whose steps matched.`;
 
 /** A tool as MCP defines one, which a model provider sends under its own field names. */
 export type TToolDefinition = { name: string; description: string; inputSchema: TInputSchema };

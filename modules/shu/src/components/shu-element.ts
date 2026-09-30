@@ -268,7 +268,7 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 			this.state = this._schema.parse({ ...(this.state as object), ...partial });
 		} catch (error) {
 			// A raw ZodError names only the field, not which element, which write, or what value. setState is
-			// re-entrant (state → attribute → attributeChangedCallback → setState), so the stack alone does not say either.
+			// re-entrant (state → attribute → attributeChangedCallback → setState), so the stack alone does not show either.
 			throw new Error(`<${this.tagName.toLowerCase()}> setState ${describeStateWrite(partial)}: ${error instanceof z.ZodError ? z.prettifyError(error) : String(error)}`, {
 				cause: error,
 			});
@@ -401,7 +401,7 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 		// reject state the element legitimately holds. That is the loop a boot-time attribute write once fell into.
 		const absent = fieldSchema.safeParse(undefined);
 		if (coerced === undefined && !absent.success) return;
-		// The state already holds what the attribute says, so this change reports the element's own write and the element
+		// The state already holds what the attribute holds, so this change reports the element's own write and the element
 		// doesn't have a value to write. The element compares the value rather than timing its own writes, since the browser delivers
 		// the reactions it holds for other attributes whenever the element writes one.
 		if (this.#fields[field] === (coerced === undefined ? absent.data : coerced)) return;

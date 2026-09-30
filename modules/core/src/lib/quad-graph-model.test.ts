@@ -53,12 +53,12 @@ describe("QuadGraphModel", () => {
 		const m = new QuadGraphModel(10, noRels);
 		m.seed({
 			quads: [q("cmt-1", "seqPath", "0.1.2", "Comment")],
-			clusters: [{ type: "Comment", totalCount: 1, sampledCount: 1, omittedCount: 0, sampledSubjects: ["cmt-1"], displayLabels: { "cmt-1": "what the comment says" } }],
+			clusters: [{ type: "Comment", totalCount: 1, sampledCount: 1, omittedCount: 0, sampledSubjects: ["cmt-1"], displayLabels: { "cmt-1": "what the comment states" } }],
 			site: "did:site:0",
 		});
 		m.merge([q("cmt-1", "seqPath", "0.1.2", "Comment"), q("cmt-2", "seqPath", "0.1.3", "Comment")]);
 		const c = m.clusters.find((c) => c.type === "Comment");
-		expect(c?.displayLabels["cmt-1"]).toBe("what the comment says");
+		expect(c?.displayLabels["cmt-1"]).toBe("what the comment states");
 		expect(typeof c?.displayLabels["cmt-2"]).toBe("string"); // a newcomer the seed never saw is titled here
 	});
 

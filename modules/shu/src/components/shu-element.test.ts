@@ -273,7 +273,7 @@ describe("ShuElement attribute fields", () => {
 /**
  * An invalid state write is a caller error, and the console is where it lands. A bare ZodError names only the failing
  * field. It doesn't name the element, the write or the attribute that drove it, and setState is re-entrant
- * (state → attribute → attributeChangedCallback → setState), so the stack does not say either.
+ * (state → attribute → attributeChangedCallback → setState), so the stack does not show either.
  */
 describe("ShuElement invalid state reporting", () => {
 	const Schema = z.object({ label: z.string(), count: z.number().default(0) });
@@ -426,7 +426,7 @@ describe("knowing whether the hosting column is collapsed", () => {
 		expect(deep.collapsed).toBe(false);
 	});
 
-	it("says open for a view outside a column, rather than throwing", async () => {
+	it("returns open for a view outside a column, rather than throwing", async () => {
 		document.body.innerHTML = "";
 		const loose = document.createElement("shu-deep-probe") as Deep;
 		document.body.appendChild(loose);

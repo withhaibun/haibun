@@ -15,7 +15,7 @@ export const features: TKirejiExport = {
 		`Scenario: Check the standalone output obscures secrets
     storage entry "/tmp/shu-audit.html" exists
 
-    The file must be the one this run wrote rather than one left by an earlier run, which is what its age says. The window covers a run rather than a moment: the self-test writes this copy part way through and goes on for several minutes after, so a window measured in seconds would report a growing feature as a stale file.
+    The file must be the one this run wrote rather than one left by an earlier run, which is what its age shows. The window covers a run rather than a moment: the self-test writes this copy part way through and goes on for several minutes after, so a window measured in seconds would report a growing feature as a stale file.
     file "/tmp/shu-audit.html" is recent within 10 minutes
 
     The obscured marker must be present first: it proves a secret was found and redacted, so the next check is not passing merely because a secret wasn't there.

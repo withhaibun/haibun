@@ -38,7 +38,7 @@ class InstanceStepper extends AStepper implements IHasCycles {
 	cycles: IStepperCycles = { getConcerns: () => ({ domains: runDomainDefinitions }) };
 	calls: Array<{ step: string; input: Record<string, unknown> }> = [];
 	ended: number | null = null;
-	/** What the run has said so far. A run reports its events, which is what the agent reads it for. */
+	/** What the run has logged so far. A run reports its events, which is what the agent reads it for. */
 	output = "a line of output";
 	steps = {
 		startRun: {
@@ -57,7 +57,7 @@ class InstanceStepper extends AStepper implements IHasCycles {
 			action: (input: { run: string; cursor: number }) => {
 				this.calls.push({ step: "readRun", input });
 				const status = this.ended === null ? "running" : "ended";
-				// A supervisor accrues what its run said as it arrives; this stands in for that with the same shape.
+				// A supervisor accrues what its run logged as it arrives; this stands in for that with the same shape.
 				const outcome = examineRun(this.output);
 				const [first] = outcome.failures;
 				return Promise.resolve(
@@ -149,7 +149,7 @@ describe("the test-runner agent's limits", () => {
 		const first = await h.run("tests", "polymorphic");
 		expect(first.ok).toBe(true);
 		const second = await h.run("tests", "graph-frontend");
-		expect(second.ok, "a second run would leave two runs without a way to say which failed").toBe(false);
+		expect(second.ok, "a second run would leave two runs without a way to report which failed").toBe(false);
 		expect(second.errorMessage).toMatch(/already in flight: "polymorphic"/);
 		expect(h.stepper.usage().runs).toBe(1);
 	});
@@ -201,7 +201,7 @@ describe("what a run leaves behind", () => {
 		).toBe(true);
 	});
 
-	it("closes the run with what its exit code says, so the graph shows the outcome", async () => {
+	it("closes the run with what its exit code shows, so the graph shows the outcome", async () => {
 		await h.run("tests", "polymorphic");
 		await h.stepper.finishRun(1);
 		const last = h.written.filter((w) => w.label === FEATURE_EXECUTION_LABEL).at(-1);
@@ -237,7 +237,7 @@ describe("watching a run", () => {
 		const waited = await h.waitFor(30);
 		expect(waited.ok, "the run's exit code is the answer; waiting for it succeeded is not").toBe(false);
 		expect(waited.errorMessage).toMatch(/failed \(exit 1\)/);
-		expect(waited.errorMessage, "with what the run last said, so the failure can be examined").toContain("a line of output");
+		expect(waited.errorMessage, "with what the run last logged, so the failure can be examined").toContain("a line of output");
 	});
 
 	it("runs every feature in a base when asked for all of them, rather than by an empty name", async () => {
@@ -287,7 +287,7 @@ describe("watching a run", () => {
 		expect(h.written.filter((w) => w.label === FEATURE_EXECUTION_LABEL).at(-1)?.data.status).toBe(RUN_STATUS.stopped);
 	});
 
-	it("says what is missing when run supervision was never registered, rather than reporting a run that does not exist", async () => {
+	it("reports what is missing when run supervision was never registered, rather than reporting a run that does not exist", async () => {
 		const h = harness({ supervised: false });
 		h.stepper.beginAsk();
 		await expect(h.run("tests", "polymorphic")).rejects.toThrow(/"InstanceStepper-startRun" isn't a step this run registers/);
@@ -314,7 +314,7 @@ describe("what a run reported", () => {
 		).toBe(true);
 	});
 
-	it("names the step that failed, where it failed, and what it said", () => {
+	it("names the step that failed, where it failed, and what it logged", () => {
 		const { failures, steps } = examineRun(OUTPUT);
 		expect(steps).toBe(2);
 		expect(failures).toEqual([{ seqPath: "0.1.1.2", step: "variable answer is other", message: "answer is ready, not other" }]);
@@ -329,7 +329,7 @@ describe("what a run reported", () => {
 		expect(examineRun('{"kind":"lifecycle","stage":"end","status":"completed","type":"execution"}').summary).toBe("the run completed");
 	});
 
-	it("says so when a run didn't report an outcome", () => {
+	it("reports so when a run didn't report an outcome", () => {
 		expect(examineRun("       i █ 1.2:step-dispatch ｜ ✅ [0.1.1.1] set answer to ready\n").summary).toBe("the run didn't report an outcome");
 	});
 
@@ -352,7 +352,7 @@ describe("where a run is started from", () => {
 	});
 });
 
-describe("what a finished run's record says about it", () => {
+describe("what a finished run's record states about it", () => {
 	it("carries what the run did, so a reader with the run has its outcome without asking again", async () => {
 		const h = harness();
 		h.stepper.beginAsk();
@@ -360,7 +360,7 @@ describe("what a finished run's record says about it", () => {
 		h.supervisor.ended = 0;
 		h.supervisor.output = [
 			'{"kind":"lifecycle","stage":"end","status":"completed","type":"step","in":"a step","seqPath":[0,1,1,1]}',
-			'{"kind":"lifecycle","stage":"end","status":"failed","type":"step","in":"another","seqPath":[0,1,1,2],"message":"it said no"}',
+			'{"kind":"lifecycle","stage":"end","status":"failed","type":"step","in":"another","seqPath":[0,1,1,2],"message":"it logged no"}',
 			'{"id":"feat-1","kind":"lifecycle","stage":"start","status":"running","type":"feature"}',
 			'{"id":"feat-1","kind":"lifecycle","stage":"start","status":"running","type":"feature"}',
 			'{"kind":"lifecycle","stage":"end","status":"failed","type":"execution"}',
@@ -370,7 +370,7 @@ describe("what a finished run's record says about it", () => {
 		expect(record?.data.steps, "how many steps the run ran").toBe(2);
 		expect(record?.data.features, "a feature reported twice is one feature").toBe(1);
 		expect(record?.data.failed).toBe(1);
-		expect(record?.data.firstFailure, "and the first thing that went wrong, where it went wrong").toBe("0.1.1.2: another (it said no)");
+		expect(record?.data.firstFailure, "and the first thing that went wrong, where it went wrong").toBe("0.1.1.2: another (it logged no)");
 	});
 
 	describe("running a test as a GOAL", () => {
@@ -418,7 +418,7 @@ describe("what a finished run's record says about it", () => {
 			expect(stepAtRun([atHost("A"), atHost("B")], 9, "listTyped"), "two steps of that name is not a name").toBeUndefined();
 		});
 
-		it("says what a missing parameter takes, so a caller can send it", async () => {
+		it("reports what a missing parameter takes, so a caller can send it", async () => {
 			const h = harness({ standing: true });
 			h.stepper.beginAsk();
 			expect((await h.run("features", "")).ok, "a standing run to ask").toBe(true);
@@ -453,14 +453,14 @@ describe("what a finished run's record says about it", () => {
 			expect(asked.errorMessage).toContain("detail (one of summary, definition) missing");
 		});
 
-		it("hands a model what the run said about itself, and keeps the entries beside it", () => {
+		it("hands a model what the run logged about itself, and keeps the entries beside it", () => {
 			const asked = answerOfRun({ vertices: [{ id: "cmt-1" }], total: 1 });
-			expect(asked.text, "counted, and what it says about itself first").toBe('{"total":1,"vertices":"1 entries; ask the run for one to see it"}');
+			expect(asked.text, "counted, and what it reports about itself first").toBe('{"total":1,"vertices":"1 entries; ask the run for one to see it"}');
 			expect(asked.answer, "the entries are there for a caller that wants them").toBe('{"total":1,"vertices":[{"id":"cmt-1"}]}');
 			const shown = answerOfRun({ detail: "summary", steps: [{ method: "GraphStepper-listTyped" }] });
 			expect(shown.text, "and an answer without a count, as a listing of steps, is its entries").toBe('{"detail":"summary","steps":[{"method":"GraphStepper-listTyped"}]}');
 			const long = answerOfRun({ total: 40, vertices: Array.from({ length: 500 }, (_, at) => ({ id: `cmt-${at}`, body: "x".repeat(40) })) });
-			expect(long.answer, "and a listing longer than a window says how much was left").toMatch(/characters in all\)$/);
+			expect(long.answer, "and a listing longer than a window reports how much was left").toMatch(/characters in all\)$/);
 		});
 	});
 });

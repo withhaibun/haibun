@@ -16,7 +16,7 @@ An **individual** is a particular thing the system reasons about. It is referred
 
 A **domain** (FOL: *sort*) is a named category. `set of meal is ["dinner", "lunch", "breakfast"]` declares one. A reference is read under a domain to fix which facets the rules speak about. The domain does not claim to capture the referent in full; it declares the properties, relationships, and states the rules attend to.
 
-A **predicate** is a named relationship with typed parts. `signed_by(VerifiableCredential, Issuer)` has two parts; `Ready(Meal)` has one. Each part has a declared domain that says what kind of individual can go there. Predicate names are themselves references, IRIs in JSON-LD, declared names in haibun that map to IRIs. A predicate becomes a **fact** when its parts are specific individuals: `signed_by(credential-7, did:web:tethys.osf)`. A fact is a triple of references, subject, predicate, object, each of which can be looked up.
+A **predicate** is a named relationship with typed parts. `signed_by(VerifiableCredential, Issuer)` has two parts; `Ready(Meal)` has one. Each part has a declared domain that states what kind of individual can go there. Predicate names are themselves references, IRIs in JSON-LD, declared names in haibun that map to IRIs. A predicate becomes a **fact** when its parts are specific individuals: `signed_by(credential-7, did:web:tethys.osf)`. A fact is a triple of references, subject, predicate, object, each of which can be looked up.
 
 A **variable** stands for any individual: `x`, `y`. In haibun a variable is a step placeholder `{x}`. Variables allow a single statement to speak about every individual without naming each.
 

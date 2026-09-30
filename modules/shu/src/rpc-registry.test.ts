@@ -41,19 +41,19 @@ describe("a page that carries its own run doesn't have a server behind it", () =
 		document.body.innerHTML = "";
 	});
 
-	it("says so when the page carries a run", () => {
+	it("reports so when the page carries a run", () => {
 		setHydration({ cache: { shape: "run-indexed-events/1", run: "r1", events: [], extents: {} }, rpcCache: {}, viewHash: "" });
 		hydrateFromDom();
 		expect(isOffline()).toBe(true);
 	});
 
-	it("doesn't say so for the served template, which carries an empty hydration", () => {
+	it("doesn't report so for the served template, which carries an empty hydration", () => {
 		setHydration({});
 		hydrateFromDom();
 		expect(isOffline()).toBe(false);
 	});
 
-	it("doesn't say so when the page doesn't have a hydration script", () => {
+	it("doesn't report so when the page doesn't have a hydration script", () => {
 		hydrateFromDom();
 		expect(isOffline()).toBe(false);
 	});
@@ -137,7 +137,7 @@ const aStep = (stepperName: string, stepName: string, fallback: boolean) => ({
 });
 
 describe("the step a name answers to", () => {
-	// Two steppers may declare one step name: the site says which of them is a fallback, and a page naming the step
+	// Two steppers may declare one step name: the site states which of them is a fallback, and a page naming the step
 	// takes the one that is not. A deployment that brings its own step is read through its own step.
 	let handle: TShuTestHandle;
 	const listing = (steps: Parameters<typeof stepsShown>[0]) => setupShuTest({ dispatch: (method) => (method === SHOW_STEPS_METHOD ? stepsShown(steps) : undefined) });

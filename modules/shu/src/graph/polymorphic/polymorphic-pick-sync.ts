@@ -3,7 +3,7 @@
  *
  * A raycast reads an object's MATRIX, never its position/scale fields. Those are written by the layout and the magnify;
  * the matrix is re-derived by the next render. So between a write and the next frame the fields are current and the
- * matrix is one frame behind, and a pick then misses every node, at the very pixel the projection says it is drawn at.
+ * matrix is one frame behind, and a pick then misses every node, at the very pixel the projection shows it is drawn at.
  * The matrix is therefore re-derived on every pick, whether or not anything moved: "the field already matches" doesn't
  * describe the matrix, and is exactly the case that misses.
  *
@@ -17,7 +17,7 @@ export type TPickObject = {
 	updateMatrixWorld?: (force?: boolean) => void;
 };
 
-/** The node side: where the engine says the node is, and the size it rests at. */
+/** The node side: where the engine shows the node is, and the size it rests at. */
 type TPickNode = { x?: number; y?: number; z?: number; baseScale?: { x: number; y: number } };
 
 /** A scale to put back after the raycast: the live magnify, replaced by the resting size while picking. */

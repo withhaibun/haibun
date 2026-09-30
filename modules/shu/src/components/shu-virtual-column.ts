@@ -117,7 +117,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 	#lastRawFraction: number | undefined;
 	#lastScrollTop: number | undefined;
 	#lastWindowShort: number | undefined;
-	#readerInputAt = 0; // when the reader last touched the view, so a scroll can say who moved it
+	#readerInputAt = 0; // when the reader last touched the view, so a scroll can show who moved it
 
 	protected override onConnected(): void {
 		this.#subscribe();

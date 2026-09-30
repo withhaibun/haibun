@@ -12,7 +12,7 @@
  * `SerializedEventStream` powers tests and the offline shu.html report. The
  * caller provides events via `emit(event)`; subscribers registered before or
  * after the emit see them in order. Tests drive scripted scenarios by calling
- * `emit` between assertions, and `reconnect` to say the stream came back.
+ * `emit` between assertions, and `reconnect` to report the stream came back.
  */
 
 import { SseSubscriber, StreamListeners } from "@haibun/core/lib/sse-subscriber.js";
@@ -43,8 +43,8 @@ export interface EventStream {
 	 *  view following actuality reads again on this through the path it already reads on. Returns an unsubscribe. */
 	reconnected(fn: () => void): () => void;
 
-	/** Be told the stream has broken: from then until it comes back, a view following actuality cannot say its reading
-	 *  is current, since what actuality does reaches it no more. A stream already down says so at once, as `subscribe`
+	/** Be told the stream has broken: from then until it comes back, a view following actuality cannot report its reading
+	 *  is current, since what actuality does reaches it no more. A stream already down reports so at once, as `subscribe`
 	 *  replays what it holds, so a view that starts listening after the break is not left believing it is current.
 	 *  Returns an unsubscribe. */
 	disconnected(fn: () => void): () => void;
@@ -133,13 +133,13 @@ export class SerializedEventStream implements EventStream {
 		return this.followers.disconnected(fn);
 	}
 
-	/** Say the stream broke, so a scripted scenario drives a view's reading the way a break does. An offline reading
+	/** Report that the stream broke, so a scripted scenario drives a view's reading the way a break does. An offline reading
 	 *  never calls it: a log that is all there never breaks. */
 	disconnect(): void {
 		this.followers.broke();
 	}
 
-	/** Say the stream came back after a break, so a scripted scenario drives a view's catch-up the way it drives arrivals. */
+	/** Report that the stream came back after a break, so a scripted scenario drives a view's catch-up the way it drives arrivals. */
 	reconnect(): void {
 		this.followers.becameOpen();
 	}

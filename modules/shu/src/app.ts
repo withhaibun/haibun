@@ -120,7 +120,7 @@ function showPageKey(appRoot: HTMLElement, authority: TPageAuthority): void {
 }
 
 const main = async (): Promise<void> => {
-	// What the reader's address says, before anything writes to it. An address naming views is the reader's own
+	// What the reader's address states, before anything writes to it. An address naming views is the reader's own
 	// arrangement, which is what lets two addresses show different views of one run; an address that doesn't name a view is a
 	// reader without an arrangement, and actuality's own views are what they are shown.
 	const arrivedWithAddress = getHash().length > 1;
@@ -172,7 +172,7 @@ const main = async (): Promise<void> => {
 	}
 	if (!carried) {
 		// Opened before anything reads actuality: the server announces from the moment a page connects, so a page that waited
-		// until its first view was ready would lose what actuality said while it booted. A page that didn't reach a server opens
+		// until its first view was ready would lose what actuality logged while it booted. A page that didn't reach a server opens
 		// it too, and is told at once that it is down; a page that may not follow actuality is refused it, and reads without
 		// following.
 		eventStream().connect();
@@ -514,7 +514,7 @@ const main = async (): Promise<void> => {
 		if (activePane.get() === null) activePane.set("query");
 		PaneState.fromHash();
 		// The index gives actuality's views the room: a reader shown them didn't ask for a view, so the search that is on
-		// screen minimizes to its spine, where it still says which search is behind it. A reader who arrived with an
+		// screen minimizes to its spine, where it still shows which search is behind it. A reader who arrived with an
 		// arrangement of their own keeps the index as they left it.
 		if (shown.length > 0) {
 			const index = getIndexPane();

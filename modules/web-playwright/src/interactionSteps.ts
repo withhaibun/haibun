@@ -54,7 +54,7 @@ import { FlowRunner } from "@haibun/core/lib/core/flow-runner.js";
 /** The steps that act on what an accessibility snapshot reads, which the snapshot links. */
 const SNAPSHOT_ACTIONS = ["click", "setValue", "press", "selectionOption", "gotoPage", "goBack", "takeScreenshot"] as const;
 
-/** What a dialog kept in a variable says in `field`. A variable that doesn't keep a record doesn't keep a dialog. */
+/** What a dialog kept in a variable holds in `field`. A variable that doesn't keep a record doesn't keep a dialog. */
 const dialogSays = (kept: unknown, field: TDialogField) => (typeof kept === "object" && kept !== null ? DialogSaysSchema.parse(kept)[field] : undefined);
 
 export const interactionSteps = (wp: WebPlaywright) =>
@@ -378,7 +378,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		serveBrowserRelay: {
 			gwta: "serve the browser relay",
 			description:
-				"Serves the relay a person's extension attaches their browser through, over `/rpc` as `relay.attach` and `relay.send`, which require `WebPlaywright:attach`, and drives that browser from the next page actuality opens. Actuality never closes the attached browser's pages or context. A step that needs the browser is refused while a browser isn't attached, and the refusal says so.",
+				"Serves the relay a person's extension attaches their browser through, over `/rpc` as `relay.attach` and `relay.send`, which require `WebPlaywright:attach`, and drives that browser from the next page actuality opens. Actuality never closes the attached browser's pages or context. A step that needs the browser is refused while a browser isn't attached, and the refusal states so.",
 			action: () => wp.serveRelay(),
 		},
 

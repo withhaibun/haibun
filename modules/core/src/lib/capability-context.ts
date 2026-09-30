@@ -92,7 +92,7 @@ export function actingFor(): TActingFor | undefined {
 	return controller ? { root: false, controller } : undefined;
 }
 
-/** The step running: its seqPath, and how prominently what is said while it runs reports. */
+/** The step running: its seqPath, and how prominently what is logged while it runs reports. */
 type TStepInFlight = { seqPath: string; reportsAt: THaibunLogLevel | undefined };
 
 const stepStore = new AsyncLocalStorage<TStepInFlight | undefined>();
@@ -120,7 +120,7 @@ const readCeilingStore = new AsyncLocalStorage<AccessLevel | undefined>();
  *
  * A ceiling each read opts into is not a ceiling: a store scoped by whoever happens to query it is bounded only where
  * someone remembered to bound it. So the boundary a call arrives at states what that caller may see, once, and every
- * read inside it is bounded by that whether or not it says anything about access. A read that names a level of its own
+ * read inside it is bounded by that whether or not it states anything about access. A read that names a level of its own
  * still cannot exceed this one; it can only ask for less.
  *
  * Scoped like the capability, and for the same reasons: the async chain bounds it to the call that set it, and it is

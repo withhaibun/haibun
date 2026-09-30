@@ -59,7 +59,7 @@ describe("what a type offers a reader", () => {
 
 	it("leaves a property that a primitive doesn't reach out of what it offers", () => {
 		// A type's identifier is held and shown and a reader can't query it, which is what naming the surface
-		// says rather than leaving a reader to find out by asking.
+		// states rather than leaving a reader to find out by asking.
 		expect(querySurface(message).properties.messageId).toBeUndefined();
 	});
 });

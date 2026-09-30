@@ -7,7 +7,7 @@
  * reads without moving focus), while the entries drive the graph through the host's own entries, activating an entry
  * opens the node, focusing one highlights it: the same paths a pointer takes.
  *
- * The reading is a script: one list in the order records were made, each line saying who it belongs to where it
+ * The reading is a script: one list in the order records were made, each line stating who it belongs to where it
  * belongs to anyone, with what it points at beneath it and a way to each of those. It states a stretch at a time and
  * carries on from where it stopped, so a graph of any size is readable and a repaint doesn't build all of it. All text
  * lands via textContent, so node names don't need escaping.
@@ -38,15 +38,15 @@ const idOfEvent = (e: Event): string | null => (e.target as Element | null)?.clo
  *  stopped, one press at a time, so a reader reaches any of it without a repaint ever building all of it. */
 const READING_LINES = 200;
 
-/** How many of a node's edges a reading states before it says how many are left. A record that stands for hundreds of
+/** How many of a node's edges a reading states before it states how many are left. A record that stands for hundreds of
  *  others (a cluster) points at every one of them, and transcribing that is not a reading of anything. */
 const EDGE_LINES = 6;
 
 /** One edge as a reading states it: what it is, what it points at, and how many times it points there. */
 type TEdgeLine = { predicate: string; targetId: string; targetName: string; count: number };
 
-/** A node's edges as a reading states them: the same edge twice is said once with its count, a few are stated, and how
- *  many are left is said, so an edge isn't dropped quietly. */
+/** A node's edges as a reading states them: the same edge twice is listed once with its count, a few are stated, and how
+ *  many are left is stated, so an edge isn't dropped quietly. */
 function linesFor(edges: Map<string, TEdgeLine> | undefined): { shown: TEdgeLine[]; rest: number } {
 	const said = edges ? [...edges.values()] : [];
 	return { shown: said.slice(0, EDGE_LINES), rest: Math.max(0, said.length - EDGE_LINES) };
@@ -117,7 +117,7 @@ export class A11yRenderer implements IGraphRenderer {
 			const t = byId.get(linkEndId(l.target));
 			if (!s || !t) throw new Error(`A11yRenderer: link ${l.predicate} names a node that was not drawn`);
 			// An arrow, not a colon: a colon reads as "this field holds that value", and these are edges: this record
-			// points at that one. The reading says which way, since the picture does.
+			// points at that one. The reading states which way, since the picture does.
 			const lines = edgesOf.get(s.id) ?? new Map<string, TEdgeLine>();
 			const key = `${l.predicate} → ${t.id}`;
 			const already = lines.get(key);
@@ -140,7 +140,7 @@ export class A11yRenderer implements IGraphRenderer {
 		let refocus: HTMLElement | undefined;
 
 		content.textContent = "";
-		// ONE reading, in the order things were made: a script of what happened, each line saying who it belongs to and
+		// ONE reading, in the order things were made: a script of what happened, each line stating who it belongs to and
 		// what it is. Grouping split the same events into piles a reader had to reassemble; a script does not.
 		const actorOf = new Map<string, string>();
 		for (const bar of this.deps.bars() ?? []) for (const id of bar.nodeIds) actorOf.set(id, bar.label);
@@ -184,7 +184,7 @@ export class A11yRenderer implements IGraphRenderer {
 			}
 			list.append(li);
 		}
-		// A reading that stopped somewhere and said so would leave a reader who cannot see the picture without a way to the
+		// A reading that stopped somewhere and stated so would leave a reader who cannot see the picture without a way to the
 		// rest of it. It goes on from where it stopped instead, a press at a time: the reader can reach every part, and a single
 		// repaint doesn't build a document of tens of thousands of lines. Focus stays on the control, which is where the reader
 		// is, and it announces how much more there is each time.

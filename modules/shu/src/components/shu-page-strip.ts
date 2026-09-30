@@ -78,7 +78,7 @@ export class ShuPageStrip extends ShuElement<typeof PageStripSchema> {
 		if (!isOffline()) this.autoTeardown(this.subscribeBatched({ onBatch: () => this.#corners.showTime(this.timeCursor) }));
 	}
 
-	/** Says where the cursor sits in actuality. It reads `now` while every view shows now, and an offset once a reader pins a moment. */
+	/** Shows where the cursor sits in actuality. It reads `now` while every view shows now, and an offset once a reader pins a moment. */
 	protected onTimeSync(cursor: number | null): void {
 		this.#corners.showTime(cursor);
 	}

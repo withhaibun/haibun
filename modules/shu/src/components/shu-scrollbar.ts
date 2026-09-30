@@ -28,7 +28,7 @@ export const SCROLL_TO_INDEX = "scroll-to-index";
 
 /** How the reader asked. A press or a drag on the rail is someone saying where they want to be; a wheel over it is
  *  reading, the same as wheeling the rows. A view that acts on more than scrolling, moving the shared time cursor,
- *  say: cares which, and would otherwise drag every other view along with a scroll gesture. */
+ *  for example: cares which, and would otherwise drag every other view along with a scroll gesture. */
 export type TSeekBy = "press" | "wheel";
 /** A press on one of the rail's position glyphs: the top one asks for the START of actuality, the bottom one for its live
  *  END: beyond what the rail's rows hold, which a host that pages its data answers by loading to that edge. */
@@ -53,8 +53,8 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 	 *  where the numbers would read as raw pixels, sets this false and keeps only the marks and the thumb. */
 	@property({ type: Boolean }) accessor showPosition = true;
 
-	/** Where the shared time cursor sits, as an absolute index, or -1 where a cursor isn't set. The thumb says what is on
-	 *  screen; this says which moment every view is showing. They are different things and are drawn differently: the
+	/** Where the shared time cursor sits, as an absolute index, or -1 where a cursor isn't set. The thumb shows what is on
+	 *  screen; this shows which moment every view is showing. They are different things and are drawn differently: the
 	 *  thumb fills the track, the cursor is a mark down its left edge. */
 	@property({ attribute: false }) accessor cursor = -1;
 
@@ -157,7 +157,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 			<div class="rail" data-testid=${SHU_TEST_IDS.SCROLLBAR.RAIL} @pointerdown=${this.#onRailDown} @wheel=${this.#onWheel}>
 				<div class="track"></div>
 				${
-					// A thumb says how much of the column is on screen. A collapsed column doesn't show rows, and before the first
+					// A thumb shows how much of the column is on screen. A collapsed column doesn't show rows, and before the first
 					// window is reported the size isn't known; in both cases a thumb would state a size the column hasn't reported, and in a
 					// strip a large one sits over the marks a reader is trying to point at. It appears when there is a
 					// viewport for it to be the size of.
@@ -182,7 +182,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
 		`;
 	}
 
-	/** Say which row the reader picked. A ROW, not a window start: the last `visible` rows don't begin a window, and clamping
+	/** Emit which row the reader picked. A ROW, not a window start: the last `visible` rows don't begin a window, and clamping
 	 *  here would make them unpickable, which is a scroller's limit, not a reader's. What to show is the scroller's to
 	 *  work out from this. */
 	#emit(index: number, by: TSeekBy, edge?: TSeekEdge): void {

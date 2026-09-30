@@ -14,3 +14,25 @@ export function basicAuthUsers(listed: string): TBasicAuthUser[] {
 		return { username, password };
 	});
 }
+
+/** The status a server answers a request that doesn't sign in with. */
+const ASKS_TO_SIGN_IN = 401;
+
+/**
+ * Why `address` doesn't ask a visitor to sign in, or undefined where it does: a request that carries no sign-in is answered
+ * 401. The message states what was found and what to change, since a failed check stops the actuality that made it.
+ */
+export async function whyNotSignedInOnly(
+	address: string,
+	request: (address: string) => Promise<Response> = (at) => fetch(at, { redirect: "manual" }),
+): Promise<string | undefined> {
+	let answer: Response;
+	try {
+		answer = await request(address);
+	} catch (e) {
+		const reason = e instanceof Error ? e.message : String(e);
+		return `${address} couldn't be reached to check that it asks visitors to sign in: ${reason}. Check that the address is right and that the proxy in front of this actuality is running.`;
+	}
+	if (answer.status === ASKS_TO_SIGN_IN) return undefined;
+	return `${address} answered ${answer.status} to a request that didn't sign in. It must answer ${ASKS_TO_SIGN_IN}, so nobody reaches this actuality without signing in. Put basic auth on the proxy in front of it, or set the web server's BASIC_AUTH option.`;
+}

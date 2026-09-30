@@ -224,7 +224,7 @@ export type TRelRange = "iri" | "literal" | "container";
  * Where a property carrying this rel belongs in a resource's presentation. The
  * rel declares its bucket; renderers consume the bucket. Buckets describe
  * intent, not audience: every accessor (human, agent, LLM) gets all data;
- * the bucket only says where in the layout it goes.
+ * the bucket only names where in the layout it goes.
  *   "summary": the resource's primary identification line (top of the card).
  *   "body", main content area; rendered as iframe / prose / structured body.
  *   "governance", control rules about the resource (accessLevel, capability
@@ -267,9 +267,9 @@ export const LinkRelations = {
 	URL: { rel: "url", uri: "as:url", range: "literal" },
 	// schema.org: a work references an entity it names but is not about (schema:mentions). The edge a body-bearing
 	// individual (an email, a document) draws to each person, place, organization, or other entity extracted from it.
-	// Also the rel an untyped link states: a link whose text doesn't name a property type still says the text refers to what it points at.
+	// Also the rel an untyped link states: a link whose text doesn't name a property type still indicates the text refers to what it points at.
 	MENTIONS: { rel: "mentions", uri: "schema:mentions", range: "iri" },
-	// CiTO (Citation Typing Ontology): one work citing another, and the refinement that says the citing work offers the
+	// CiTO (Citation Typing Ontology): one work citing another, and the refinement that states the citing work offers the
 	// cited passage as evidence for what it claims. A feature citing the requirement it exercises states the latter, so
 	// "which requirements are evidenced" is a query over stored facts rather than a naming convention.
 	CITES: { rel: "cites", uri: "cito:cites", range: "iri" },
@@ -345,10 +345,10 @@ export const LinkRelations = {
 	// Haibun native, other
 	SEQ_PATH: { rel: "seqPath", uri: "hbn:seqPath", range: "iri" },
 	// Where a step was written: the feature document it came from, as the path a reader can open. A literal location,
-	// not the step's identity: the identity is its seqPath id, and a second `identifier` on one record said the
+	// not the step's identity: the identity is its seqPath id, and a second `identifier` on one record stated the
 	// record had two names.
 	SOURCE_PATH: { rel: "sourcePath", uri: "hbn:sourcePath", range: "literal" },
-	// What ran for a step: the stepper and action, as `Stepper.action`. Its TEXT says what was asked for; this says what was called.
+	// What ran for a step: the stepper and action, as `Stepper.action`. Its TEXT states what was asked for; this states what was called.
 	CALLED: { rel: "called", uri: "hbn:called", range: "literal" },
 	HOST_ID: { rel: "hostId", uri: "hbn:hostId", range: "literal" },
 	/** How a step reached what ran it: in this process, in another host, or in a subprocess. */
@@ -670,7 +670,7 @@ export type THypermediaTopology = {
 	/**
 	 * Whether writing a record of this type is announced as an observation of the quads it holds. A type whose records
 	 * ARE the record of something already announced declares false, since announcing the write repeats what the reader
-	 * was told: a message a run said reaches a reader as the run saying it, and the record of it is the durable copy of
+	 * was told: a message a run logged reaches a reader as the run logging it, and the record of it is the durable copy of
 	 * that same statement rather than a second occurrence. Absent means announced, which is what a record whose writing
 	 * is the only news of it needs.
 	 */
@@ -683,15 +683,15 @@ export type THypermediaTopology = {
 	instrumentation?: boolean;
 	/**
 	 * The level records of this type are stored at when a record doesn't state one. A type declares the LEAST sharing its
-	 * records can be read under and still be useful, so a writer forgetting to say doesn't publish a record: what is
-	 * shared more widely says so on the record itself. A type that doesn't declare one stores private, which shares least.
+	 * records can be read under and still be useful, so a writer forgetting to state doesn't publish a record: what is
+	 * shared more widely states so on the record itself. A type that doesn't declare one stores private, which shares least.
 	 */
 	accessLevel?: AccessLevel;
 	/** Default sort field when a query doesn't specify one. Must be one of this type's sort columns. Declare it for a type whose meaningful event/content time differs from its record-creation time (e.g. an email's received time vs its import time); otherwise the universal generatedAtTime is used. */
 	defaultSort?: string;
 	/**
 	 * The property or edge of this type that titles it: its vocabulary's labeling property, the way foaf:name or
-	 * dcterms:title labels its own type. Declare it for a type that says what it is through a term of its own vocabulary
+	 * dcterms:title labels its own type. Declare it for a type that states what it is through a term of its own vocabulary
 	 * rather than the cross-domain rdfs:label / as:name / content that `DISPLAY_LABEL_HEADLINE` resolves: an
 	 * oa:TextQuoteSelector is the passage it quotes (oa:exact), not a thing with a name.
 	 *
@@ -809,7 +809,7 @@ export const CommentSchema = PersistedVertexSchema.extend({
 	seqPath: z.string().optional(),
 	body: z.string().optional(),
 	/** A short display name: the note's own text (truncated). The body is partitioned into a Body sub-resource, so
-	 *  without this a Comment node would title by its id; `name` lets a graph view show what the note says. */
+	 *  without this a Comment node would title by its id; `name` lets a graph view show what the note contains. */
 	name: z.string().optional(),
 	/** The handles the note states that the records it was made from don't hold, as an answer names records it was not
 	 *  sent. A reader of the note reads those records as the note's own rather than as records the graph holds. */
@@ -1113,7 +1113,7 @@ export const textQuoteSelectorDomainDefinition: TDomainDefinition = {
  * the document itself is never edited, annotations attach from outside, and a view
  * resolves the selector against the document's content when rendering.
  *
- * It doesn't carry a property of its own to be titled by, which is what the model says it is: a proxy standing for a passage,
+ * It doesn't carry a property of its own to be titled by, which is what the model defines: a proxy standing for a passage,
  * serialized inline and never dereferenced. Its subject id is a storage artifact rather than identity, so it
  * is titled through oa:hasSelector by the passage its selector locates, see `displayLabel` below. It doesn't take a name of
  * its own: the model doesn't give oa:SpecificResource one.
@@ -1125,7 +1125,7 @@ export const SpecificResourceSchema = PersistedVertexSchema.extend({
 	generatedAtTime: z.string(),
 	/** `rdfs:label`: what a reader called this passage where it was referred to. The W3C model doesn't give a SpecificResource
 	 *  a title of its own, so it otherwise reads as the bare text it quotes (a clause number, a fragment), which doesn't
-	 *  say what it was cited for. RDFS's labelling property is the standard place for the words that do. */
+	 *  state what it was cited for. RDFS's labelling property is the standard place for the words that do. */
 	label: z.string().optional(),
 });
 export const specificResourceDomainDefinition: TDomainDefinition = {
@@ -1167,7 +1167,7 @@ export type TReading = z.infer<typeof ReadingSchema>;
 export const readingDomainDefinition: TDomainDefinition = {
 	selectors: [READING_DOMAIN],
 	schema: ReadingSchema,
-	description: "One reading of a text that turned its links into facts. It names the text it read and the step that read it, so every stated fact says where it came from.",
+	description: "One reading of a text that turned its links into facts. It names the text it read and the step that read it, so every stated fact states where it came from.",
 	topology: {
 		persistedAs: READING_LABEL,
 		instrumentation: true,
@@ -1287,7 +1287,7 @@ export type TDiscourseStore = {
 	referenceEdge?(fromLabel: string, fromId: string, edgeLabel: string, toLabel: string, toId: string): Promise<void>;
 };
 
-/** A Comment's display name: its note text on one line, truncated so a graph view titles by what it says, not its id. */
+/** A Comment's display name: its note text on one line, truncated so a graph view titles by what it contains, not its id. */
 const COMMENT_NAME_MAX = 60;
 function commentName(text: string): string {
 	const oneLine = text.replace(/\s+/g, " ").trim();
@@ -1420,7 +1420,7 @@ export async function writeAnnotation(
 	// startedAtTime/endedAtTime so time-placed views (gantt) show the note over its period. `generatedAtTime`
 	// stays the moment the record was written; the two are different facts and never conflated.
 	const now = new Date().toISOString();
-	// The pinned passage is titled by what the note SAYS about it (the same rule Comment titles itself by), so in any
+	// The pinned passage is titled by what the note STATES about it (the same rule Comment titles itself by), so in any
 	// view the anchor reads as the statement made there, never as the bare quote it happens to pin.
 	const { specificResourceId } = await anchorPassage(store, a.label, a.id, a, now, { label: commentName(a.text) });
 	const commentId = await createComment(store, vocab, author, a.text, now, { start: a.at, end: a.until });

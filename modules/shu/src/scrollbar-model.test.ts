@@ -37,7 +37,7 @@ describe("thumb size and position", () => {
 	});
 
 	it("places a mark by the rows and the rail alone, never by how much happens to be on screen", () => {
-		// A mark says where a row sits in actuality. The thumb says how much of actuality is on screen: a different question,
+		// A mark shows where a row sits in actuality. The thumb shows how much of actuality is on screen: a different question,
 		// and once it was allowed into this answer a viewport holding a third of a short log squeezed every mark into the
 		// middle third of the rail and left its ends dead. Both ends stay reachable whatever the thumb is doing.
 		const total = 300;

@@ -32,7 +32,7 @@ async function mounted(authority = held) {
 }
 
 describe("what a reader may do here", () => {
-	it("says what this reader holds, so a refusal is explicable", async () => {
+	it("shows what this reader holds, so a refusal is explicable", async () => {
 		const el = await mounted();
 		expect(el.shadowRoot?.textContent).toContain("Instance:read");
 		expect(el.shadowRoot?.textContent, "and the rest of them").toContain("comment.grant");
@@ -69,7 +69,7 @@ describe("what a reader may do here", () => {
 		expect((el.shadowRoot?.querySelector("#read-access") as HTMLSelectElement | null)?.value, "showing the one in force").toBe("public");
 	});
 
-	it("says how many principals the deployment knows, and names each on asking as a way to its record", async () => {
+	it("shows how many principals the deployment knows, and names each on asking as a way to its record", async () => {
 		const el = await mounted();
 		expect(el.shadowRoot?.textContent, "the count, so the panel opens the size of a panel").toContain("principals (2)");
 		expect(refTexts(el, "entity"), "and doesn't link them until a reader asks for them").toEqual([]);
@@ -80,7 +80,7 @@ describe("what a reader may do here", () => {
 		expect(refTexts(el, "entity"), "each named, and each a way to its own record").toEqual(["did:site:0", "did:site:0:kihan-session"]);
 	});
 
-	it("a failure is text a reader can take away, and says so with a control", async () => {
+	it("a failure is text a reader can take away, and shows it with a control", async () => {
 		pageAuthorityFails(new Error("graphQuery: step not registered"));
 		const el = new ShuPermissions();
 		document.body.append(el);
@@ -92,7 +92,7 @@ describe("what a reader may do here", () => {
 		expect(copy?.source, "and it can be taken away as text").toBe("graphQuery: step not registered");
 	});
 
-	it("says plainly when this page's key doesn't hold a delegation", async () => {
+	it("states plainly when this page's key doesn't hold a delegation", async () => {
 		const el = await mounted({ controller: PAGE, holds: [], grantedBy: {}, principals: [] });
 		expect(el.shadowRoot?.textContent).toContain("this page's key doesn't hold a delegation");
 	});

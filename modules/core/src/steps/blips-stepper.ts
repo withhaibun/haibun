@@ -2,7 +2,7 @@
  * Run-facing steps and observation sources for blips. Recording is in `lib/blips.ts`.
  *
  * Two readings: the rollup counts per name for the whole run and is always attached; a watch is started by name and
- * holds a bounded window in order. Counts say how many, the window says in what order. Both are observation sources,
+ * holds a bounded window in order. Counts state how many, the window states in what order. Both are observation sources,
  * read with `observed in`.
  */
 import { AStepper, type IHasCycles, type IObservationSource, type IStepperCycles, type TStepperSteps } from "../lib/astepper.js";

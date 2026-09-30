@@ -44,13 +44,13 @@ import { endPage, pagePinned } from "./page-pinned.js";
 const BUNDLE_COPY = "./hypermedia.js?bundle=graph-view";
 
 describe("what a link asks of a run", () => {
-	// A page cannot read a run through a step whose answer the run would record, and cannot forget to say which it
+	// A page cannot read a run through a step whose answer the run would record, and cannot forget to state which it
 	// wants: a link carries what it asks, so the two constructors are the only ways to make one. A bare object is not a
 	// link, which the compiler states rather than a run discovering it while a page follows.
 	it("states reading, and states acting, and cannot be made without stating one", () => {
 		expect(reads("SomeStepper-showThings")).toEqual({ method: "SomeStepper-showThings", params: undefined, summary: undefined, asks: "read" });
 		expect(acts("SomeStepper-doThing", { id: "a" })).toMatchObject({ method: "SomeStepper-doThing", params: { id: "a" }, asks: "act" });
-		// @ts-expect-error a bare method is not a link: it doesn't say what it asks of actuality
+		// @ts-expect-error a bare method is not a link: it doesn't state what it asks of actuality
 		const unstated: TLink = { method: "SomeStepper-showThings" };
 		expect(unstated.asks).toBeUndefined();
 	});
@@ -218,6 +218,30 @@ describe("a server that does not respond", () => {
 			expect(taken, "the call was made").toBeGreaterThan(0);
 			expect(err, "and reported as the site not answering, which is what a reading falls back on").toBeInstanceOf(ServerUnreachable);
 			expect(Date.now() - began, "within the bound the deployment set, rather than never").toBeLessThan(4000);
+		} finally {
+			globalThis.fetch = fetchWas;
+			document.head.innerHTML = "";
+		}
+	});
+
+	it("reports a server whose answer stalls after its headers as unreachable, since the timeout bounds the whole response", async () => {
+		// The failure this bounds: a timeout that fired while the body was still arriving left the read as an aborted request,
+		// which a page reports as a fault, where a timeout before the headers was reported as the server not responding.
+		const fetchWas = globalThis.fetch;
+		setHydration({ settings: { responseTimeoutMs: 40 } });
+		hydrateFromDom();
+		globalThis.fetch = ((_url: string, init?: { signal?: AbortSignal }) => {
+			const stalled = new ReadableStream<Uint8Array>({
+				start: (controller) => init?.signal?.addEventListener("abort", () => controller.error(new DOMException("The user aborted a request.", "AbortError")), { once: true }),
+			});
+			return Promise.resolve(new Response(stalled, { status: 200, headers: { "content-type": "application/json" } }));
+		}) as unknown as typeof globalThis.fetch;
+		try {
+			const err = await new LiveConduit("").follow(acts(SHOW_STEPS_METHOD), "test").then(
+				() => undefined,
+				(e: unknown) => e,
+			);
+			expect(err, "the stalled answer is the server not responding").toBeInstanceOf(ServerUnreachable);
 		} finally {
 			globalThis.fetch = fetchWas;
 			document.head.innerHTML = "";

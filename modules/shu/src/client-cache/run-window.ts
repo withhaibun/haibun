@@ -1,7 +1,7 @@
 /**
  * Actuality as a reader is looking at it: the records around a moment, in order.
  *
- * A run is in the graph. A step is a `SeqPath` individual and what it said is a `LogMessage` individual pointing back
+ * A run is in the graph. A step is a `SeqPath` individual and what it logged is a `LogMessage` individual pointing back
  * at it, so reading actuality is a query over those two types by time, not a second history to keep. What a reader sees
  * is a window of a stated number of records around where they are, which is what keeps the time of looking the same
  * whether actuality has lasted an hour or a decade: the window is read by time, and within it a page is an offset that
@@ -22,17 +22,17 @@ import type { TRunGraph } from "./run-graph.js";
 /** How many records a reader is shown around where they are. */
 export const RUN_WINDOW_SIZE = 10000;
 
-/** One thing that happened: a step, something said while it ran, or something it produced. */
+/** One thing that happened: a step, something logged while it ran, or something it produced. */
 export type TRunRow = {
 	kind: "step" | "said" | "produced";
-	/** The step this row is, or the step it was said during, and its path within the execution. */
+	/** The step this row is, or the step it was logged during, and its path within the execution. */
 	step: string;
 	under?: number[];
 	at: number;
 	level: THaibunLogLevel;
-	/** The step's own text, or what was said. */
+	/** The step's own text, or what was logged. */
 	text: string;
-	/** What the step called: the stepper and the action within it. The text says what was asked for; this says what ran. */
+	/** What the step called: the stepper and the action within it. The text states what was asked for; this states what ran. */
 	called?: string;
 	/** When this record was written, or last written again: what a reader following actuality asks for what happened
 	 *  since by. Absent on a record written before it was declared. */
@@ -64,7 +64,7 @@ export type TRunRow = {
 	path?: string;
 	featureRelativePath?: string;
 	mediaType?: string;
-	/** This record's own name, as written and as read: a step's is the step; what it said or produced is named under it.
+	/** This record's own name, as written and as read: a step's is the step; what it logged or produced is named under it.
 	 *  Read once here, so the code that orders, groups or shows a row doesn't parse the same id again. */
 	id: string;
 	name?: TRecordName;
@@ -76,7 +76,7 @@ export type TRunRow = {
 /** The records a reader is looking at, oldest first, and the moments they span. */
 export type TRunWindow = { rows: TRunRow[]; from?: number; to?: number };
 
-/** Where a row of one kind sits among the rows of one step: the step itself, then what it said, then what it produced. */
+/** Where a row of one kind sits among the rows of one step: the step itself, then what it logged, then what it produced. */
 const KIND_ORDER: Record<TRunRow["kind"], number> = { step: 0, said: 1, produced: 2 };
 
 /**
@@ -100,13 +100,13 @@ const instant = (value: unknown): number => (typeof value === "string" ? Date.pa
 /** One field of a record, where it holds one, under the name a row carries it by. */
 const text = (record: Record<string, unknown>, field: string, as: string): Record<string, string> => (typeof record[field] === "string" ? { [as]: record[field] } : {});
 
-/** When a record was written, where it says. */
+/** When a record was written, where it states. */
 const recorded = (record: Record<string, unknown>): { recordedAt?: number } => {
 	const at = instant(record[RECORDED_AT_TIME_FIELD]);
 	return Number.isNaN(at) ? {} : { recordedAt: at };
 };
 
-/** A step, as a row. A step's own level is `info`: what a step said carries its own. */
+/** A step, as a row. A step's own level is `info`: what a step logged carries its own. */
 function stepRow(record: Record<string, unknown>): TRunRow {
 	const ended = instant(record[SEQ_PATH_FIELD.endedAtTime]);
 	const id = String(record[SEQ_PATH_FIELD.id] ?? "");
@@ -141,8 +141,8 @@ function stepRow(record: Record<string, unknown>): TRunRow {
 	};
 }
 
-/** Something said, as a row. What is said during a step belongs to that step; what is said outside every step, which
- *  is where a run says what went wrong after a step ended, belongs to the run by its own name. */
+/** Something logged, as a row. What is logged during a step belongs to that step; what is logged outside every step, which
+ *  is where a run reports what went wrong after a step ended, belongs to the run by its own name. */
 function saidRow(record: Record<string, unknown>): TRunRow {
 	const id = String(record[LOG_MESSAGE_FIELD.id] ?? "");
 	const step = String(record.isPartOf ?? id);
@@ -162,7 +162,7 @@ function saidRow(record: Record<string, unknown>): TRunRow {
 }
 
 /** Something produced, as a row. What a run produced as its work reports where its steps do; a trace of the run's own
- *  machinery reports under them, which is what its level says. */
+ *  machinery reports under them, which is what its level states. */
 function producedRow(record: Record<string, unknown>): TRunRow {
 	const id = String(record[RUN_ARTIFACT_FIELD.id] ?? "");
 	const step = String(record.isPartOf ?? id);
@@ -202,15 +202,15 @@ function oneEach(rows: TRunRow[]): TRunRow[] {
  *
  * A run records a produced thing under the step that made it, and that step is often part of the machinery: a
  * screenshot taken after every step is recorded under a step of its own. A reader reads the step they wrote, so the
- * shot is claimed by the nearest step among the rows of the window, and that step's row says it carries it. The row
+ * shot is claimed by the nearest step among the rows of the window, and that step's row states it carries it. The row
  * itself stays in the window, because a window is one reading that every view reads: a view of actuality's steps draws
  * the shot on the step's row, and actuality's document places it where its own reading puts it. A produced thing whose
  * step is not among the rows is unclaimed and is read as the row it is.
  */
 export function producedUnderSteps(rows: TRunRow[]): TRunRow[] {
 	const byPath = new Map<string, TRunRow>();
-	// A row is the same object across reads, and a step's shot can be recorded after the step: each pass says what the
-	// rows of this window hold rather than adding to what an earlier pass over other rows said.
+	// A row is the same object across reads, and a step's shot can be recorded after the step: each pass states what the
+	// rows of this window hold rather than adding to what an earlier pass over other rows stated.
 	for (const row of rows) {
 		if (row.kind === "produced") row.carriedBy = undefined;
 		if (row.kind === "step" && row.name) {
@@ -297,7 +297,7 @@ async function side(
 	direction: "before" | "after",
 	limit: number,
 	levels: readonly THaibunLogLevel[],
-	// Whether the reader asked for the steps run to carry other steps out. Each type says whether that widens it.
+	// Whether the reader asked for the steps run to carry other steps out. Each type states whether that widens it.
 	substeps = false,
 ): Promise<Record<string, unknown>[]> {
 	const { label, timeField } = type;

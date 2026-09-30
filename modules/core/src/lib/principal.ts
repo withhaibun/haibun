@@ -10,7 +10,7 @@ import { activeSitePrincipal } from "./host-id.js";
 const PRINCIPAL = "principal";
 
 /** Whoever is acting: the one who proved themselves at the boundary this call came through, and otherwise whoever the
- *  run itself is acting as. A proof is about the call that carried it, so it says who is acting inside that call. */
+ *  run itself is acting as. A proof is about the call that carried it, so it states who is acting inside that call. */
 export function currentPrincipal(world: TWorld): string | undefined {
 	const proven = actingAs();
 	if (proven) return proven;

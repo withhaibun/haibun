@@ -93,7 +93,7 @@ describe("composeDisplayLabel priority: headline → body → weak → id", () =
 		const topologyOf = (d: { topology: unknown }) => d.topology as THypermediaTopology;
 		expect(topologyOf(textQuoteSelectorDomainDefinition).displayLabel).toBe("exact");
 		expect(topologyOf(specificResourceDomainDefinition).displayLabel).toBe("hasSelector");
-		// A Comment says what it is by its own note text (as:name / content): it doesn't need a vocabulary-specific title.
+		// A Comment states what it is by its own note text (as:name / content): it doesn't need a vocabulary-specific title.
 		expect(topologyOf(commentDomainDefinition).displayLabel).toBeUndefined();
 		expect(topologyOf(principalDomainDefinition).displayLabel).toBeUndefined();
 	});

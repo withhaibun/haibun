@@ -45,7 +45,7 @@ export const features: TKirejiExport = {
 		'matches readingEarlier with "*A run to come back to*"',
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
 
-		"An execution no site is recording is finished, and reading it is not waiting on a site that could have it: what can be read of it is what this device holds, and the source of it says it has read it.",
+		"An execution no site is recording is finished, and reading it is not waiting on a site that could have it: what can be read of it is what this device holds, and the source of it states that it has read it.",
 		setAs({ what: SOURCE_LOADED, domain: "page-test-id", value: `"${SOURCE_LOADED}"` }),
 		waitFor({ target: SOURCE_LOADED }),
 	],

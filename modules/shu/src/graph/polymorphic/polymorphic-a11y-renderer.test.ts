@@ -26,7 +26,7 @@ function harness(over: Partial<TA11yRendererDeps> = {}) {
 }
 
 describe("A11yRenderer: the graph as an accessible document", () => {
-	it("reads as one script, in the order things were made, each line saying who it belongs to", () => {
+	it("reads as one script, in the order things were made, each line stating who it belongs to", () => {
 		// A reading is a script, not a filing: the same events grouped into piles left a reader to reassemble them, and
 		// what a reader wants is what happened, in order.
 		const dated: FGNode[] = [
@@ -49,7 +49,7 @@ describe("A11yRenderer: the graph as an accessible document", () => {
 		expect(edge?.querySelector("[data-node-id]")?.getAttribute("data-node-id"), "which is the way to that node: a reader follows the graph by its own relationships").toBe("p1");
 	});
 
-	it("summarises a fan instead of transcribing it, and says a repeated edge once with its count", () => {
+	it("summarises a fan instead of transcribing it, and reports a repeated edge once with its count", () => {
 		// A cluster stands for the records it holds and points at every one of them. Listed, that is hundreds of lines
 		// under one entry that a reader can't read.
 		const members = Array.from({ length: 9 }, (_, at) => ({ id: `m${at}`, name: `member ${at}`, type: "SeqPath" }) as FGNode);
@@ -61,7 +61,7 @@ describe("A11yRenderer: the graph as an accessible document", () => {
 		});
 		const under = [...(region.querySelector("li")?.querySelectorAll("ul li") ?? [])].map((li) => li.textContent);
 		expect(under.length, "six lines and what is left, rather than every one of them").toBe(7);
-		expect(under[0], "the same edge twice is said once, with how many times").toBe("clusterOf → member 0 (×2)");
+		expect(under[0], "the same edge twice is listed once, with how many times").toBe("clusterOf → member 0 (×2)");
 		expect(under.at(-1), "and a member isn't quietly dropped").toBe("… and 3 more");
 	});
 
@@ -73,8 +73,8 @@ describe("A11yRenderer: the graph as an accessible document", () => {
 		renderer.draw({ nodes: many, links: [] });
 		const readOn = () => region.querySelector<HTMLButtonElement>(`[data-testid="${SHU_TEST_IDS.POLYMORPHIC_VIEW.A11Y_READ_ON}"]`);
 		expect(region.querySelectorAll("ol > li").length, "two hundred lines, and the way on").toBe(201);
-		expect(readOn()?.textContent, "which says how much further it goes").toBe("read on: 260 more, in the same order");
-		expect(region.querySelector("ol")?.getAttribute("aria-label"), "and the list says where it has got to").toContain("200 of 460 so far");
+		expect(readOn()?.textContent, "which states how much further it goes").toBe("read on: 260 more, in the same order");
+		expect(region.querySelector("ol")?.getAttribute("aria-label"), "and the list states where it has got to").toContain("200 of 460 so far");
 		expect(region.querySelector('[role="status"]')?.textContent, "while the status line states the whole").toContain("460 nodes");
 
 		readOn()?.click();
@@ -85,7 +85,7 @@ describe("A11yRenderer: the graph as an accessible document", () => {
 		expect(readOn(), "the way on is gone once every member is listed").toBeNull();
 	});
 
-	it("says what can be opened: every node is an entry that acts, and the rest is text", () => {
+	it("reports what can be opened: every node is an entry that acts, and the rest is text", () => {
 		const { renderer, region } = harness();
 		renderer.draw({ nodes, links });
 		const acting = [...region.querySelectorAll("ol > li > button")];
@@ -95,7 +95,7 @@ describe("A11yRenderer: the graph as an accessible document", () => {
 		).toEqual(["a comment (Comment)", "a reply (Comment)", "the agent (Principal)"]);
 		expect(
 			acting.every((b) => b.hasAttribute("data-node-id")),
-			"and each says which node it opens",
+			"and each states which node it opens",
 		).toBe(true);
 		expect(region.querySelector("[data-testid='polymorphic-a11y-copy']"), "the region doesn't offer another control to press: the text is copied by selecting it").toBeNull();
 	});

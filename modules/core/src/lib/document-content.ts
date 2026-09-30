@@ -79,7 +79,7 @@ export function buildArtifactIndex(events: THaibunEvent[]): TArtifactIndex {
  *  before actuality exists: the block ids beside it are assigned while running. */
 /** The test id of a heading's block: this prefix and the heading's anchor. */
 /**
- * Text as text, wherever a run's own words are placed in markup. What a run says is arbitrary: a step's text quotes
+ * Text as text, wherever a run's own words are placed in markup. What a run logs is arbitrary: a step's text quotes
  * markup on purpose, and a failure's report quotes the elements it looked at. Placed unescaped, those words become
  * elements: one such report put a list item carrying a test id, and three canvases the rendering library then sized,
  * into the document, where the next run found them and pressed one.

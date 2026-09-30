@@ -51,7 +51,7 @@ describe("a drag ends once", () => {
 		expect(drag.ended()).toBe(1);
 	});
 
-	it("stops when its holder says so, without reporting an end it did not see", () => {
+	it("stops when stopped by its holder, without reporting an end it did not see", () => {
 		const drag = started();
 		drag.stop();
 		move(60);

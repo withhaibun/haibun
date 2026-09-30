@@ -159,7 +159,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 	/**
 	 * A feature's prose is a text like any other: its links are facts about the step that spoke them. That step is already
 	 * a record (its SeqPath, what the document and monitor views show), so a second record isn't made for the feature. The
-	 * id is the step's position, so re-running restates rather than accumulates, and the step's status says how it ended.
+	 * id is the step's position, so re-running restates rather than accumulates, and the step's status states how it ended.
 	 */
 	async readFeatureProse({ featureStep }: TBeforeStep): Promise<void> {
 		if (!featureStep.action.step.prose) return;
@@ -185,8 +185,8 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 
 	steps = {
 		checkCitations: {
-			// Every anchored passage a reading wrote, re-anchored against what its source says NOW. A quote that no longer
-			// matches means the text moved on and the statements about it are stale, which is a failure to say, not to hide.
+			// Every anchored passage a reading wrote, re-anchored against what its source states NOW. A quote that no longer
+			// matches means the text moved on and the statements about it are stale, which is a failure to report, not to hide.
 			gwta: `check citations resolve`,
 			productsDomain: DOMAIN_CITATIONS_CHECKED,
 			action: async () => {
@@ -207,7 +207,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 					const text = await markdownOf(store, sourceLabel, sourceId);
 					const said = describeAnchor(selector);
 					if (text === undefined) unresolved.push(`${sourceLabel} "${sourceId}" doesn't hold text to anchor ${said} (anchor ${anchor.id})`);
-					else if (!anchorResolves(text, selector)) unresolved.push(`${sourceLabel} "${sourceId}" no longer says ${said} (anchor ${anchor.id})`);
+					else if (!anchorResolves(text, selector)) unresolved.push(`${sourceLabel} "${sourceId}" no longer states ${said} (anchor ${anchor.id})`);
 				}
 				if (unresolved.length > 0) return actionNotOK(`${unresolved.length} of ${checked} citations no longer resolve:\n${unresolved.join("\n")}`);
 				return actionOKWithProducts({ checked });

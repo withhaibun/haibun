@@ -33,7 +33,7 @@ import { RelSchema, getJsonLdContext, buildConcernCatalog } from "./hypermedia.j
 import { mapDefinitionsToDomains } from "./domains.js";
 
 describe("LinkRelations extensions", () => {
-	// The vocabulary is not restated here. A copy of it made every addition a two-file edit and said only that the
+	// The vocabulary is not restated here. A copy of it made every addition a two-file edit and stated only that the
 	// copy matched, so what is asserted is what must hold of EVERY entry, including ones not written yet.
 	it("every rel parses as a rel", () => {
 		for (const entry of Object.values(LinkRelations)) expect(() => RelSchema.parse(entry.rel)).not.toThrow();
@@ -51,7 +51,7 @@ describe("LinkRelations extensions", () => {
 	it("two rels don't claim the same name, and two don't share a uri except where the standard has one term for both", () => {
 		const rels = Object.values(LinkRelations).map((e) => e.rel);
 		expect(new Set(rels).size).toBe(rels.length);
-		// Web Annotation says `oa:hasBody` both for a note's content and for what a linking annotation refers to, so
+		// Web Annotation states `oa:hasBody` both for a note's content and for what a linking annotation refers to, so
 		// `content`/`hasBody` and `linksTo` land on one term. Every other shared uri is two names for one thing.
 		const byUri = new Map<string, string[]>();
 		for (const e of Object.values(LinkRelations)) byUri.set(e.uri, [...(byUri.get(e.uri) ?? []), e.rel]);

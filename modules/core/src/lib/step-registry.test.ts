@@ -146,7 +146,7 @@ describe("what a read of actuality's declarations shows", () => {
 				_links: { steps: { method: SHOW_STEPS_METHOD, params: { text: "ManySteps-", detail: "summary" } } },
 			},
 		]);
-		expect(byStepper.steps[0], "a summary names the step, says what it does and links its definition").toEqual({
+		expect(byStepper.steps[0], "a summary names the step, states what it does and links its definition").toEqual({
 			method: "ManySteps-readRecord",
 			stepperName: "ManySteps",
 			pattern: "read record {id: record-key}",
@@ -208,7 +208,7 @@ describe("a call by name of another host's step", () => {
 	});
 });
 
-describe("what the manifest says about a domain", () => {
+describe("what the manifest states about a domain", () => {
 	// A domain that presents a component names where its source is served from; the source itself stays on the server,
 	// where the standalone report inlines it. A manifest that carried it would send a bundle to every caller, on every boot.
 	it("carries the component and its URL, never the component's source", () => {

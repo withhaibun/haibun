@@ -111,7 +111,7 @@ describe("one individual with its edges, from the store this instance holds", ()
 		expect(answer.incomingCount).toBe(1);
 	});
 
-	it("says so where it doesn't hold the individual, rather than answering with an empty one", async () => {
+	it("reports so where it doesn't hold the individual, rather than answering with an empty one", async () => {
 		const stepper = await held();
 		const result = await stepper.steps.getIndividualWithEdges.action({ label: EMAIL, id: "nobody@test.com" });
 		expect(result.ok).toBe(false);

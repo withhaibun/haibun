@@ -80,7 +80,7 @@ describe("the state of what a run depends on", () => {
 		expect(dependencyState([repo]), "the link points elsewhere, which is a change").not.toBe(before);
 	});
 
-	it("says so when git cannot be asked, rather than treating the failure as a missing repository", () => {
+	it("reports so when git cannot be asked, rather than treating the failure as a missing repository", () => {
 		const repo = aRepository({ "a.feature": "Feature: a\n" });
 		const gone = path.join(repo, "gone");
 		expect(() => dependencyState([gone])).toThrow(/could not ask git about/);
@@ -138,7 +138,7 @@ describe("what a run depends on", () => {
 		expect(dependencyState(roots), "a source is").not.toBe(before);
 	});
 
-	it("says so when a module's build configuration cannot be read, rather than guessing what the module is built from", () => {
+	it("reports so when a module's build configuration cannot be read, rather than guessing what the module is built from", () => {
 		const repo = aRepository({ "package.json": "{}", "tsconfig.json": "{ not json", "build/x-stepper.js": "", "tests/config.json": "{}" });
 		const configDir = path.join(repo, "tests");
 		expect(() => dependencyRoots({ steppers: ["../build/x-stepper"] }, [configDir], configDir, configDir)).toThrow(/tsconfig\.json could not be read/);

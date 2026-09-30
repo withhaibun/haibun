@@ -2,7 +2,7 @@
  * <shu-index-summary>: what the index is showing, in one line, for the spine it collapses to.
  *
  * The index is a search: a type, some text, some conditions, an access level, and a number of results. Collapsed,
- * the strip doesn't have room for the results, but there is room to say which search they came from and how many there are, so
+ * the strip doesn't have room for the results, but there is room to state which search they came from and how many there are, so
  * the strip still answers what is behind it.
  *
  * The search itself is the shared `viewQuery`, read in render: ShuElement is a SignalWatcher, so reading it there
@@ -24,8 +24,8 @@ import { viewQuery } from "../view-query.js";
 
 const EmptySchema = z.object({});
 
-/** What the strip says the column is. The index pane doesn't carry a label, and an open index doesn't show a header, so the strip
- *  would otherwise be the only column that does not say what it is. */
+/** What the strip shows the column is. The index pane doesn't carry a label, and an open index doesn't show a header, so the strip
+ *  would otherwise be the only column that does not show what it is. */
 const INDEX_NAME = "Index";
 
 export class ShuIndexSummary extends ShuElement<typeof EmptySchema> {
@@ -51,7 +51,7 @@ export class ShuIndexSummary extends ShuElement<typeof EmptySchema> {
 	`,
 	];
 
-	/** How many the index found. Not in the query: the query says what was asked, this says what came back. */
+	/** How many the index found. Not in the query: the query states what was asked, this states what came back. */
 	@state() private accessor found: number | null = null;
 
 	constructor() {
@@ -70,7 +70,7 @@ export class ShuIndexSummary extends ShuElement<typeof EmptySchema> {
 
 	render(): TemplateResult {
 		// Which column, then which search, then how many it found, in that order, so the strip answers what it is
-		// before it answers what is in it, and still says what it is before any search has been made.
+		// before it answers what is in it, and still shows what it is before any search has been made.
 		const said = [INDEX_NAME, describeSearch(viewQuery.current)].filter(Boolean).join(" · ");
 		return html`<span data-testid=${SHU_TEST_IDS.INDEX_SUMMARY.ROOT}
 			>${said}${this.found === null ? "" : html` · <span class="count">${this.found}</span>`}</span

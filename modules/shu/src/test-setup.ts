@@ -113,7 +113,7 @@ import { STEPS_CHANGED } from "@haibun/core/schema/protocol.js";
 type TShuTestConfig = {
 	/** Optional dispatch for in-test RPCs. Default throws on every call, naming the unconfigured method, tests opt in by supplying a function that returns wire results for the methods they exercise. */
 	dispatch?: TDispatch;
-	/** What actuality answers a read of one of its artifacts with, given the read as the page sent it: an empty image unless a test says otherwise. */
+	/** What actuality answers a read of one of its artifacts with, given the read as the page sent it: an empty image unless a test specifies otherwise. */
 	artifact?: (url: string, init?: RequestInit) => Response;
 };
 

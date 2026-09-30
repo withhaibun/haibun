@@ -76,14 +76,14 @@ describe("subject valid times: an object places by when it happened, not when it
 		expect(times.get("e1")).toEqual({ ms: Date.parse("2025-04-05T10:00:00.000Z"), field: "dateReceived" });
 		expect(times.get("e2")).toEqual({ ms: Date.parse("2026-07-04T00:00:00.000Z"), field: "generatedAtTime" });
 		expect(times.get("c1")).toEqual({ ms: Date.parse("2026-01-01T00:00:00.000Z"), field: "generatedAtTime" });
-		expect(indexed.get("e1"), "the one pass also says when each was written down, which a valid time can precede or follow").toEqual({
+		expect(indexed.get("e1"), "the one pass also reports when each was written down, which a valid time can precede or follow").toEqual({
 			ms: Date.parse("2026-07-04T00:00:00.000Z"),
 			field: "generatedAtTime",
 		});
 		// Most types don't declare a valid field of their own, so generatedAtTime is BOTH their valid time and their
 		// written-down time: one quad, two answers. Routed to one map only, every such subject was missing from
 		// `indexed`, and a reading ordered by creation fell back to name order.
-		expect(indexed.get("c1"), "a type whose valid field IS generatedAtTime still says when it was written down").toEqual({
+		expect(indexed.get("c1"), "a type whose valid field IS generatedAtTime still reports when it was written down").toEqual({
 			ms: Date.parse("2026-01-01T00:00:00.000Z"),
 			field: "generatedAtTime",
 		});

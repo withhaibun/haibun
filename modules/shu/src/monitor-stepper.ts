@@ -95,14 +95,14 @@ const DOMAIN_SHU_REPORT = "shu-report";
 
 /** A batch of fine-grained occurrences the SPA recorded and handed over together, since one request each is not
  *  sustainable at the rate they happen. `recorded` is everything the page has recorded, so a batch a full buffer
- *  truncated says so rather than reading as the whole. */
+ *  truncated reports so rather than reading as the whole. */
 const ClientBlipsSchema = z.object({
 	blips: z.array(z.object({ name: z.string(), value: z.number().optional(), attributes: z.record(z.string(), z.unknown()).optional(), at: z.number() })),
 	recorded: z.number().optional(),
 });
 type TClientBlips = z.infer<typeof ClientBlipsSchema>;
 
-/** The step an event happened in, as the path the run walks: what a run says or produces names itself for that step,
+/** The step an event happened in, as the path the run walks: what a run logs or produces names itself for that step,
  *  and what isn't named for a step doesn't have one. */
 const stepOf = (e: THaibunEvent): number[] => {
 	const path = extractSeqPathPrefix(e.id);
@@ -119,7 +119,7 @@ const underStep = (tag: TTag, e: THaibunEvent): string => {
 const recordId = (tag: TTag, e: THaibunEvent, ordinal: number): string => formatRecordName({ execution: executionOf(tag), path: stepOf(e), ordinal });
 
 export default class MonitorStepper extends AStepper implements IHasCycles, IHasOptions {
-	description = "Records what a run says and produces, and serves the shu views what it holds";
+	description = "Records what a run logs and produces, and serves the shu views what it holds";
 	/** The type a reader is looking at: the last one a graph query named, so a record of this run opens where the run
 	 *  left off. Per feature, like everything else a report carries. */
 	private queriedLabel = "";
@@ -127,7 +127,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	private clientBlipsReceived = 0;
 	private storage!: AStorage;
 	private outputPath?: string;
-	// A record write ends before the stepper that owns the store closes it, so what a feature said is written while the
+	// A record write ends before the stepper that owns the store closes it, so what a feature logged is written while the
 	// store still accepts writes.
 	cyclesWhen = { startFeature: CycleWhen.LAST, endFeature: CycleWhen.LAST - 1 };
 
@@ -200,11 +200,11 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	 * once more so the final state always reflects the full run.
 	 */
 	/**
-	 * What a run said, written as a record under the step it was said during. A reader is told it by the run saying it,
+	 * What a run logged, written as a record under the step it was logged during. A reader is told it by the run logging it,
 	 * over the stream; this is the durable copy of that same statement, which is what a reader asks for when they were
-	 * not there to hear it. The type declares that writing it is not announced, so saying it once is saying it once.
+	 * not there to hear it. The type declares that writing it is not announced, so logging it once is logging it once.
 	 */
-	/** How many statements have been recorded, so two said in one millisecond are two records rather than one written
+	/** How many statements have been recorded, so two logged in one millisecond are two records rather than one written
 	 *  over the other. A record's identity cannot rest on a clock a run can outpace. */
 	private saidCount = 0;
 	/** The same, for what a run produced. */
@@ -244,11 +244,11 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		await this.getWorld()
 			.shared.getStore()
 			.upsertIndividual(LOG_MESSAGE_LABEL, record)
-			.catch((err) => this.getWorld().eventLogger.warn(`[monitor] what actuality said was not recorded: ${errorDetail(err)}`));
+			.catch((err) => this.getWorld().eventLogger.warn(`[monitor] what actuality logged was not recorded: ${errorDetail(err)}`));
 	}
 
 	/**
-	 * What a run produced, written as a record under the step that produced it. The record says where the artifact is
+	 * What a run produced, written as a record under the step that produced it. The record states where the artifact is
 	 * and what it is, not what it holds: an artifact is a file, and a record of it is a pointer to that file.
 	 *
 	 * A trace of actuality's own machinery doesn't state where a file is, because it is not a file actuality produced. The graph
@@ -287,7 +287,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		// A report carries actuality and the view state it was left in, never the answers a live page happened to receive:
 		// actuality rides in the client cache (its events, the graph as quads, the site's declarations), and every read a
 		// view makes of those is answered from what the page holds. What is left is what a view SHOWED and actuality does
-		// not say, which is produced here.
+		// not record, which is produced here.
 		const viewProducts: Record<string, unknown> = {};
 		// The view toggles: parameterless steps with a `.view` product, run once so the page opens where the reader left it.
 		const candidates = Object.entries(this.steps).filter(([, step]) => !step.gwta.includes("{"));

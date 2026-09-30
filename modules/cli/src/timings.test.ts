@@ -1,4 +1,4 @@
-// What a run took, feature by feature, as the file kept with the code says it.
+// What a run took, feature by feature, as the file kept with the code holds it.
 import { describe, it, expect } from "vitest";
 import nodeFS from "node:fs";
 import os from "node:os";
@@ -20,7 +20,7 @@ const writtenIn = (dir: string) => JSON.parse(nodeFS.readFileSync(path.join(dir,
 const timing = (seconds: number, steps: number, declaredStepTextHash = "declared") => ({ seconds, steps, declaredStepTextHash });
 
 describe("what a run took", () => {
-	it("says how long each feature took from its first step's start to its last step's end, to a tenth of a second, with its steps and declared step text hash", () => {
+	it("reports how long each feature took from its first step's start to its last step's end, to a tenth of a second, with its steps and declared step text hash", () => {
 		expect(timingsOf(result)).toEqual({
 			features: { "/features/quick.feature": timing(0.1, 2, "declared /features/quick.feature"), "/features/slow.feature": timing(2.3, 1, "declared /features/slow.feature") },
 			steps: 3,
@@ -69,7 +69,7 @@ describe("what a run took", () => {
 		).toEqual(["/a.feature"]);
 	});
 
-	it("says whether a feature that took longer declares other steps than it did", () => {
+	it("reports whether a feature that took longer declares other steps than it did", () => {
 		const recorded: TTimings = { features: { "/a.feature": timing(10, 5), "/b.feature": timing(10, 5) }, steps: 10, seconds: 20 };
 		const now: TTimings = { features: { "/a.feature": timing(20, 5, "declared other steps"), "/b.feature": timing(20, 5) }, steps: 10, seconds: 40 };
 		expect(variancesBetween(recorded, now).map((v) => [v.feature, v.declaredStepsChanged])).toEqual([

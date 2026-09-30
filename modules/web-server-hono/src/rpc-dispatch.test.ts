@@ -179,7 +179,7 @@ class RpcVerifyStepper extends AStepper {
 				});
 				const data = (await res.json()) as { error?: string };
 				if (res.status !== 422) return actionNotOK(`answered a read of a step that declares none: HTTP ${res.status}`);
-				return typeof data.error === "string" && data.error.includes("does not declare itself one") ? OK : actionNotOK(`refused without saying why: ${JSON.stringify(data)}`);
+				return typeof data.error === "string" && data.error.includes("does not declare itself one") ? OK : actionNotOK(`refused without stating why: ${JSON.stringify(data)}`);
 			},
 		},
 		rpcReadOfStepAnswered: {
@@ -206,7 +206,7 @@ class RpcVerifyStepper extends AStepper {
 				const data = await res.json();
 				if (res.status !== 401) return actionNotOK(`Expected HTTP 401, got ${res.status}: ${JSON.stringify(data)}`);
 				if (data.pong !== undefined) return actionNotOK(`the step ran: ${JSON.stringify(data)}`);
-				return String(data.error).includes("a verifier isn't registered to check it") ? OK : actionNotOK(`Expected the refusal to say why, got ${JSON.stringify(data)}`);
+				return String(data.error).includes("a verifier isn't registered to check it") ? OK : actionNotOK(`Expected the refusal to state why, got ${JSON.stringify(data)}`);
 			},
 		},
 		rpcCallSucceedsSigned: {
@@ -564,7 +564,7 @@ event stream at "${url}" signed by "owner" for "Read:private" is sent the events
 		expect(result.ok).toBe(true);
 	});
 
-	it("ends a follower's event stream and a streamed call once the authority each was opened under is withdrawn, saying why", async () => {
+	it("ends a follower's event stream and a streamed call once the authority each was opened under is withdrawn, stating why", async () => {
 		const port = await freePort();
 		const base = `http://localhost:${port}`;
 		const feature = {

@@ -128,7 +128,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		await pane.restate(restating);
 	}
 
-	/** Say something on the page strip. */
+	/** Report something on the page strip. */
 	setStatus(message: string): void {
 		pageStatus.set(message);
 	}

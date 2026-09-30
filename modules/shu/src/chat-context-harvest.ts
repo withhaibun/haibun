@@ -80,7 +80,7 @@ export function harvestChatViewLd(root: ParentNode = document): TLinkedData[] {
 			blocks.push(harvested(summary));
 		} catch (err) {
 			// A summary the collection refuses is a fault in the view stating it: name the view, so the refusal is
-			// actionable rather than a page that says the reader hasn't selected a view.
+			// actionable rather than a page that reports the reader hasn't selected a view.
 			throw new Error(`${el.tagName.toLowerCase()}: ${err instanceof Error ? err.message : String(err)}`);
 		}
 	}

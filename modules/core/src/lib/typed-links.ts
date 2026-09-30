@@ -21,7 +21,7 @@ import MarkdownIt from "markdown-it";
 import { LinkRelations, type TQuoteAnchor, type TRelRange } from "./resources.js";
 
 /**
- * What a reference denotes: one persisted individual, or a type. Every surface that tells those two apart says it
+ * What a reference denotes: one persisted individual, or a type. Every surface that tells those two apart states it
  * with these words, so a link, a pane, a statement and an ask name the same distinction the same way.
  */
 export const DENOTES = { individual: "individual", type: "type" } as const;
@@ -51,7 +51,7 @@ type TLinkTarget = TAddressableTarget | { kind: typeof DENOTES.type; persistedAs
 export type TTypedLinkFact = { rel: string; typed?: true; linkText?: string; target: TAddressableTarget };
 
 /**
- * What the declared ontology says, as the grammar needs it: whether a name is a rel (and its range), and whether a
+ * What the declared ontology states, as the grammar needs it: whether a name is a rel (and its range), and whether a
  * name is a persisted type. Built from the registered domains (`linkVocabularyFromDomains`), so a consumer's own
  * rels and types are usable in links without this module knowing them.
  */
@@ -148,7 +148,7 @@ export function parseRefHref(href: string | null | undefined, isType: (name: str
 
 /**
  * The rel and link text of a typed link, or null for an untyped one. Only the colon form is typed; a rel the ontology
- * does not declare is an error, since the colon says a rel was meant.
+ * does not declare is an error, since the colon indicates a rel was meant.
  */
 export function classifyLinkText(text: string, vocab: TLinkVocabulary): { rel: string; linkText?: string } | null {
 	const trimmed = text.trim();

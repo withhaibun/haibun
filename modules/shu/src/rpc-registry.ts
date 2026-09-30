@@ -29,7 +29,7 @@ const DOMAIN_GROUP = { declared: "Declared", builtIn: "Built-in" } as const;
 
 type TStepList = Pick<TStepDefinitions, "steps" | "domains" | "concerns">;
 
-// What the server said it offers, pinned to the page rather than cached per bundle: a page is more than one bundle, and a
+// What the server reports it offers, pinned to the page rather than cached per bundle: a page is more than one bundle, and a
 // panel a deployment adds requests the same server as the app. Stored per bundle, a panel would discover the server again, and
 // would not know what a step it calls requires. The catalog the server declares is not cached here: rels-cache owns it,
 // pinned the same way, so one thing has one home.

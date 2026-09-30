@@ -2,7 +2,7 @@
  * What a run holds, counted rather than read: one mark per division of a span that holds something.
  *
  * A division is counted, so a rail carrying a year takes what its divisions take rather than what actuality did. The
- * store counts; this module doesn't read a row. Each type a run records is counted by the field that says how its records
+ * store counts; this module doesn't read a row. Each type a run records is counted by the field that states how its records
  * turned out, and the divisions are merged, so a step that failed and a message reporting an error both mark their
  * division as a failure.
  */
@@ -18,7 +18,7 @@ import type { TRunGraph } from "./run-graph.js";
  *  marks draw on a rail of any scale. */
 export type TRunMark = TEventMarkerStyle & { at: number };
 
-/** What a type of record is counted by, the values that field takes, and the event shape that says how one of its
+/** What a type of record is counted by, the values that field takes, and the event shape that shows how one of its
  *  groups turned out. A group's appearance is `eventMarkerStyle`'s to decide, so a division and a row can never
  *  disagree about a failure, and a reading that asks for the failures themselves asks these types for the values whose
  *  mark is a fault. */

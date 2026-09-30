@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * The models the ask pane offers follow actuality: a pane opened before actuality had models says it doesn't have one, and offers
+ * The models the ask pane offers follow actuality: a pane opened before actuality had models reports it doesn't have one, and offers
  * the ones actuality records after, as discovery writes them.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";

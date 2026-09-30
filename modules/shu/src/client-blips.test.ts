@@ -66,7 +66,7 @@ describe("recording in the browser: hold it, hand it over in batches", () => {
 		expect(sent).toEqual([]);
 	});
 
-	it("keeps the most recent occurrences when the buffer fills, and says how many it saw", async () => {
+	it("keeps the most recent occurrences when the buffer fills, and reports how many it saw", async () => {
 		const over = CLIENT_RING + 30;
 		for (let i = 0; i < over; i++) recordClientBlip("haibun.shu.view.scroll", i, { view: "a" });
 		await vi.runAllTimersAsync();

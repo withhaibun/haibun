@@ -103,7 +103,7 @@ export function derivePredicates(quads: Iterable<TQuad>): Array<{ predicate: str
 	return [...counts].sort(([a], [b]) => a.localeCompare(b)).map(([predicate, count]) => ({ predicate, count }));
 }
 
-/** The facets a reader explicitly turned OFF: the entries whose override says "hidden". The counterpart of
+/** The facets a reader explicitly turned OFF: the entries whose override states "hidden". The counterpart of
  *  `effectiveHiddenTypes` for facets without a declared default: a predicate is shown unless it was unticked. */
 export function explicitlyHidden(overrides: Record<string, boolean>): string[] {
 	return Object.entries(overrides)

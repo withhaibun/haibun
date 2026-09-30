@@ -17,7 +17,7 @@ class SpeculationStepper extends AStepper {
 			exact: "refuses",
 			action: async () => Promise.resolve(actionNotOK("refused")),
 		},
-		/** Runs the refusal without saying anything about intent, as a stepper that just runs what it was given does. */
+		/** Runs the refusal without stating anything about intent, as a stepper that just runs what it was given does. */
 		runs: {
 			exact: "runs the refusal",
 			action: async (_args: TStepArgs, featureStep: TFeatureStep) => {
@@ -52,7 +52,7 @@ describe("a step actuality is trying, not claiming", () => {
 		expect(refusal?.intent?.mode, "and everything under the trying is marked as tried, not claimed").toBe("speculative");
 	});
 
-	it("is what the trying says, not what each step under it remembered to say", async () => {
+	it("is what the trying produces, not what each step under it remembered to produce", async () => {
 		const steps = await ranSteps("tries the refusal");
 		const ran = steps.find((s) => s.in === "runs the refusal");
 		expect(ran?.intent?.mode, "a step that doesn't state an intent takes its parent's").toBe("speculative");

@@ -69,7 +69,7 @@ describe("the shape of a run, by division", () => {
 		expect(shape.marks[0].color).toBe(MARK_COLOUR.fault);
 	});
 
-	it("marks a division by what it holds most of, counting what actuality said as well as what it did", async () => {
+	it("marks a division by what it holds most of, counting what actuality logged as well as what it did", async () => {
 		const { graph } = await aRun(
 			[{ at: 1000, status: "passed" }],
 			[

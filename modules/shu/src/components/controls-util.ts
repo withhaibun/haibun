@@ -66,7 +66,7 @@ export async function comesToHold<E extends HTMLElement, A>(locator: Locator, te
 }
 
 /** Wait until `test` holds of the element `locator` finds. A wait that times out is refused naming `state`, the state it
- *  waited for, so a failure says which of a step's waits the page didn't reach. */
+ *  waited for, so a failure names which of a step's waits the page didn't reach. */
 export async function until<E extends HTMLElement, A>(locator: Locator, state: string, test: (on: { el: E; arg: A }) => boolean, arg: A, timeout = SETTLES_MS): Promise<void> {
 	if (!(await comesToHold(locator, test, arg, timeout))) throw new Error(`waited ${timeout}ms for ${state}, and the page didn't reach it`);
 }

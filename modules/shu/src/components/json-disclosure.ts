@@ -2,10 +2,10 @@
  * A JSON value as nested disclosures: the whole of it, shown with its structure.
  *
  * Everything the value holds is shown, and opened, with one exception a reader can undo in a press: the `@context` a
- * record is written in starts closed, since a reader reads what a record says before asking what its terms mean. It is
+ * record is written in starts closed, since a reader reads what a record holds before asking what its terms mean. It is
  * there in full either way. Every other disclosure starts open, and every part of the value is shown.
  *
- * What this adds over printing the JSON is structure: each object and array is named, says what it holds, and indents
+ * What this adds over printing the JSON is structure: each object and array is named, states what it holds, and indents
  * under what it belongs to, so a reader can follow it and can collapse the parts they are done with. The disclosure is
  * the browser's own, as every other disclosure here is.
  */
@@ -13,10 +13,10 @@ import { esc, escAttr } from "../util.js";
 import { jsonCarried } from "@haibun/core/lib/json-text.js";
 
 /** The vocabulary a record is written in. It is there in full, under a disclosure that starts closed: a reader reads
- *  what a record says first, and opens what its terms mean when that is the question. */
+ *  what a record holds first, and opens what its terms mean when that is the question. */
 const WRITTEN_IN = "@context";
 
-/** What a value holds, said in as few words as a summary can carry it. */
+/** What a value holds, stated in as few words as a summary can carry it. */
 function holds(value: object): string {
 	if (Array.isArray(value)) return value.length === 1 ? "1 item" : `${value.length} items`;
 	const keys = Object.keys(value);
@@ -56,13 +56,13 @@ export function jsonDisclosure(value: unknown, name = ""): string {
 /**
  * A literal that carries JSON, shown as what it is: the words before it as words, and the JSON as disclosures.
  *
- * A run says things like `RPC: {"jsonrpc":"2.0",…}`: a few words naming what happened, then the thing itself. Shown as
+ * A run logs messages like `RPC: {"jsonrpc":"2.0",…}`: a few words naming what happened, then the thing itself. Shown as
  * one string it is a line a reader scrolls past; shown this way the words stay readable and what they carry is opened.
  * A literal that doesn't carry JSON is returned as it reads.
  */
 export function literalWithJson(text: string): string {
 	const at = text.search(/[[{]/);
-	// Braces that don't open JSON are part of what was said.
+	// Braces that don't open JSON are part of what was provided.
 	const carried = at >= 0 ? jsonCarried(text.slice(at)) : undefined;
 	if (carried !== undefined) {
 		const said = text.slice(0, at).trim();

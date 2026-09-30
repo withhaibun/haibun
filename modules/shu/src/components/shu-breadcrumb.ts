@@ -82,7 +82,7 @@ class ShuBreadcrumb extends ShuElement<typeof BreadcrumbSchema> {
 	render(): TemplateResult {
 		const { queryLabel, columns, activeIndex, hasSync } = this.state;
 		const crumbs = [queryLabel, ...columns.map((c) => c.replace(/^Email:/, ""))];
-		// The search's entry holds what its holder puts in it, a control that says the search and changes it, and says the
+		// The search's entry holds what its holder puts in it, a control that shows the search and changes it, and shows the
 		// search itself where its holder leaves the entry empty.
 		return html`${crumbs.map((label, i) => html`${i > 0 ? html`<span class="crumb-sep">›</span>` : ""}<span class=${i === activeIndex ? "crumb active" : "crumb"} data-index=${i} title=${label} @click=${this.onCrumb(i)}>${i === 0 && hasSync ? html`<button class="sync-btn" title="New data available, click to refresh" @click=${this.onSync}>⟳</button>` : ""}${i === 0 ? html`<slot name=${SEARCH_SLOT}>${label}</slot>` : label}</span>`)}`;
 	}

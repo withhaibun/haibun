@@ -106,12 +106,12 @@ describe("harvestChatViewLd: the active pane's linked data plus the pane manifes
 });
 
 /**
- * Reported: the Ask pane says a pane isn't selected while a column view is plainly selected on screen.
+ * Reported: the Ask pane reports a pane isn't selected while a column view is plainly selected on screen.
  *
  * The harvester resolves the active pane by matching `activePane` against each pane's key. When the signal holds a key
  * that the open panes don't have, never set for this strip, or naming a pane that has since closed, the panes don't match it.
  * Harvesting anyway produced a manifest with every pane inactive and without content, which is what the model reported. With panes
- * open one of them is the pane you are on, so this is a fault in the signal and it says so, naming what it holds and
+ * open one of them is the pane you are on, so this is a fault in the signal and it reports so, naming what it holds and
  * what was open.
  */
 

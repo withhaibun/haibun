@@ -116,7 +116,7 @@ describe("the client cache view", () => {
 		await view.updateComplete;
 		expect(value(view, IDS.CURSOR)).toContain("00:00:01.010");
 		expect(value(view, `${IDS.SOURCE}info-cursor`), "the cursor at 1010 sits on row 10, shown without waiting for the device").toBe("10");
-		handle.emit({ id: "0.1", timestamp: 2000, kind: "log", level: "info", message: "actuality says something" });
+		handle.emit({ id: "0.1", timestamp: 2000, kind: "log", level: "info", message: "actuality logs something" });
 		handle.emit({ id: "0.2", timestamp: 2000, kind: "log", level: "debug", message: "below every open view's level" });
 		await flush();
 		expect(value(view, `${IDS.LIVE}info`), "the live stream by level: one at info").toBe("1");
@@ -129,7 +129,7 @@ describe("the client cache view", () => {
 		await settle();
 		const row = (view.shadowRoot as ShadowRoot).querySelector(`[data-testid="${IDS.RUN}${EARLIER}"]`) as HTMLElement;
 		expect(row, "the earlier execution is listed").not.toBeNull();
-		expect(value(view, `${IDS.RUN}${RUN}-reading`), "the execution the sources read says so").toBe("reading");
+		expect(value(view, `${IDS.RUN}${RUN}-reading`), "the execution the sources read shows it").toBe("reading");
 		(row.querySelector(`[data-testid="${IDS.RUN}${EARLIER}-read"]`) as HTMLButtonElement).click();
 		await flush();
 		await settle();

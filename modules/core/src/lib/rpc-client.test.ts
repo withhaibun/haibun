@@ -200,7 +200,7 @@ describe("RpcClient.stream", () => {
 });
 
 describe("what a caller is told when a call's answer didn't come from actuality", () => {
-	it("says what answered in front of it, and to sign in where a sign-in was refused", () => {
+	it("reports what answered in front of it, and to sign in where a sign-in was refused", () => {
 		expect(notFromActuality("Stepper-echo", 401, "text/plain", "401 Unauthorized\n")).toBe(
 			"Stepper-echo: this call didn't reach actuality. Something in front of it answered 401 (text/plain): 401 Unauthorized. Sign in to the site, then reload this page.",
 		);

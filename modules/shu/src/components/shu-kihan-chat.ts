@@ -99,7 +99,7 @@ function sessionOptionLabel(s: TChatSession): string {
 
 /** What the chat remembers between visits: which model to ask, how many chained tool calls it may make, and who reads
  *  the records a turn is about. `contextReadBy` is unset until a reader states it, and unset means the model's own
- *  profile says which. The conversation is addressed in the view hash, not remembered here. */
+ *  profile states which. The conversation is addressed in the view hash, not remembered here. */
 /** The source the ask pane reports what it couldn't show under. */
 const KIHAN_CHAT_SOURCE = "shu-kihan-chat";
 
@@ -245,7 +245,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		// A turn any page asks changes what a session holds, so the list is read again on actuality's reports rather than on
 		// this page's own turns alone.
 		this.autoTeardown(followReportedTurns(() => void this.refreshSessionList()));
-		// What this page has read of a session decides what the list says each gained, so opening one states the list again.
+		// What this page has read of a session decides what the list shows each gained, so opening one states the list again.
 		this.watchSignal(sessionsRead);
 		this.watchSignal(turnAllowance);
 		this.watchSignal(embeddedPageView);

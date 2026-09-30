@@ -134,7 +134,7 @@ export class StreamListeners<E> {
 		this.notify(this.reconnectListeners, "reconnection");
 	}
 
-	/** The stream broke. The break is announced once, when it happens: a page that cannot hear actuality cannot say its
+	/** The stream broke. The break is announced once, when it happens: a page that cannot hear actuality cannot state its
 	 *  reading is current, and that is a fact of the reading rather than something to infer from the silence. */
 	broke(): void {
 		const wasOpen = !this.broken;

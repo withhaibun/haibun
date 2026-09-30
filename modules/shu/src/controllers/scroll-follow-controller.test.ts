@@ -77,7 +77,7 @@ describe("ScrollFollowController: the follow decision, wired to a host jump-to-e
 		const { c } = mount(undefined, () => PAST);
 		expect(timeCursor.get(), "the page is at the live edge, where its cursor doesn't state an instant").toBe(null);
 		c.setAtBottom(false);
-		expect(c.view.cursor, "the view holds where the host says the reader is").toBe(PAST);
+		expect(c.view.cursor, "the view holds where the host states the reader is").toBe(PAST);
 		expect(c.view.tracking).toBe(false);
 		c.setAtBottom(true);
 		expect(c.view.tracking, "and the reader reaching the end reads the page again").toBe(true);

@@ -44,7 +44,7 @@ describe("the questions the site answers, asked of the graph this page caches", 
 		expect((await store.getClusteredQuads({ ...access, types: ["Comment"] })).clusters.map((c) => c.type)).toEqual(["Comment"]);
 	});
 
-	it("keeps a type's sample within the limit, and says how many it left out", async () => {
+	it("keeps a type's sample within the limit, and reports how many it left out", async () => {
 		const one = (await store.getClusteredQuads({ ...access, perTypeLimit: 1, types: ["Email"] })).clusters[0];
 		expect(one.sampledCount).toBe(1);
 		expect(one.omittedCount).toBe(1);

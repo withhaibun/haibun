@@ -61,8 +61,8 @@ export const IDX_QUAD_NAMED_GRAPH = "by-named-graph";
 export const IDX_QUAD_OBJECT = "by-object";
 const REGISTRY_KEY = "registry";
 const SHAPE_KEY = "shape";
-/** What the cached data means, apart from the database's structure. The schema version says which stores and indexes
- *  exist and upgrades additively; this says how what is in them is written and read. Change it whenever data written by
+/** What the cached data means, apart from the database's structure. The schema version states which stores and indexes
+ *  exist and upgrades additively; this states how what is in them is written and read. Change it whenever data written by
  *  an earlier build would be read wrongly by this one: the store then forgets what it cached rather than serving it. */
 export const CACHE_SHAPE = "run-records/1";
 

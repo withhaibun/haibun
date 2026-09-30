@@ -141,7 +141,7 @@ export function createStepUI(wp: WebPlaywright) {
 	const enterSearchMode: TKirejiStep[] = [...expandActionsBar, selectionOption({ option: '"Search"', field: IDS.APP.MODE_SELECT }), waitFor({ target: IDS.APP.TEXT_SEARCH })];
 
 	/** Show the settings of the view in the actions pane, which its pane's settings control holds. `marker` is a control
-	 *  those settings hold, which says whether they are shown: the press is skipped where it is already on the page. */
+	 *  those settings hold, which states whether they are shown: the press is skipped where it is already on the page. */
 	const showPaneSettings = (marker: string): TKirejiStep[] => [
 		`where not has test id ${marker}, in "${ACTIONS_PANE}", click ${IDS.COLUMN_PANE.CONTROLS_TOGGLE}`,
 		waitFor({ target: marker }),

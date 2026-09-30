@@ -44,12 +44,12 @@
 			"/features/counter.feature": {
 				"seconds": 1,
 				"steps": 19,
-				"declaredStepTextHash": "d6ff8e9cc2161764983ce4e28a1502b19cfa3d10bfc647a3dd2be3be69443b97"
+				"declaredStepTextHash": "37c58d5784e80fb1590fa37dc9ab9fde541140ae177a9d6b34e8a5757d134af1"
 			},
 			"/features/counter.feature.ts": {
-				"seconds": 0.6,
+				"seconds": 0.9,
 				"steps": 19,
-				"declaredStepTextHash": "4d0b24a55920c2bd34f8edc6eaded30349e86b4bf51fa6ee2136199d12256942"
+				"declaredStepTextHash": "5c6fea35d68432b035bbca7445c03e6a962a0290efe7ec893c0b8065156906e0"
 			},
 			"/features/counts.feature.ts": {
 				"seconds": 0.4,
@@ -57,7 +57,7 @@
 				"declaredStepTextHash": "044398785f4c4e310f5a6db9af3f898b2ebd3f751ce6e65d63b9da9e1172d860"
 			},
 			"/features/elements.feature": {
-				"seconds": 0.3,
+				"seconds": 0.4,
 				"steps": 6,
 				"declaredStepTextHash": "f25538464d6291400a6bd6369ba30578b1498e8bde57dfc1a7033ddab3d87054"
 			},
@@ -72,7 +72,7 @@
 				"declaredStepTextHash": "f567c83cdc9db224634e851624576d77db1cdec635c722eabde2b3a633fd9b50"
 			},
 			"/features/identity-and-capability.feature.ts": {
-				"seconds": 0.1,
+				"seconds": 0,
 				"steps": 28,
 				"declaredStepTextHash": "6fc19779ac042d64dd1bf8fa1850899f3c719e5a5d1014c54aefd6fe4a39ef16"
 			},
@@ -97,7 +97,7 @@
 				"declaredStepTextHash": "5b6da41bba88c02e5712937690a3488ac6a9a3acbe100e54afe7848ebbcc2a67"
 			},
 			"/features/qrcode.feature": {
-				"seconds": 2.5,
+				"seconds": 2.6,
 				"steps": 18,
 				"declaredStepTextHash": "a027c3737b57ea7afadfa35619c47435fee5194b15576809f74720279f71096a"
 			},
@@ -107,7 +107,7 @@
 				"declaredStepTextHash": "973f020efebbbef86f06cda006feef3d98d079e5ecdc0fa7be02b881b43fbe33"
 			},
 			"/features/trauma_center.feature": {
-				"seconds": 0.1,
+				"seconds": 0,
 				"steps": 93,
 				"declaredStepTextHash": "70c4ba0a91793061edb72e073dc62e1fcb3940bac2e90550ab3b2a54ade3f5a6"
 			},
@@ -127,7 +127,7 @@
 				"declaredStepTextHash": "423b87fb62e3b26879565f24459e8474ab76e2eb6ff85bc3a5e49704ea336e08"
 			},
 			"/features/wikipedia.feature.ts": {
-				"seconds": 0.9,
+				"seconds": 1,
 				"steps": 143,
 				"declaredStepTextHash": "b162c447aa4626651d8e903bcce16dc77fdff6ddf5cdcb3dd48ed79db2d59972"
 			},
@@ -143,6 +143,6 @@
 			}
 		},
 		"steps": 1130,
-		"seconds": 12.2
+		"seconds": 12.6
 	}
 }

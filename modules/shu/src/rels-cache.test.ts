@@ -39,7 +39,7 @@ describe("dropdowns learning from the quads a batch carries", () => {
 	// itself, since the question is dispatched as a step and the step is recorded as another change to answer.
 	beforeEach(() => setSelectValues("Email", { folder: ["INBOX"], status: [] }));
 
-	it("adds a value the batch announced, and says it changed", () => {
+	it("adds a value the batch announced, and reports it changed", () => {
 		expect(addObservedSelectValues("Email", [quad("Email", "folder", "Archive")])).toBe(true);
 		expect(getSelectValues("Email").folder).toEqual(["Archive", "INBOX"]);
 	});
@@ -49,7 +49,7 @@ describe("dropdowns learning from the quads a batch carries", () => {
 		expect(getSelectValues("Email").status).toEqual(["read"]);
 	});
 
-	it("says the dropdowns didn't change when the value is already offered, so a view does not re-render without a change", () => {
+	it("reports the dropdowns didn't change when the value is already offered, so a view does not re-render without a change", () => {
 		expect(addObservedSelectValues("Email", [quad("Email", "folder", "INBOX")])).toBe(false);
 	});
 
@@ -75,7 +75,7 @@ describe("dropdowns learning from the quads a batch carries", () => {
 });
 
 describe("the types an exchange is between", () => {
-	// A hidden type is not fetched, so the quads don't say its edges point at it. The declaration says so
+	// A hidden type is not fetched, so the quads don't state its edges point at it. The declaration states so
 	// regardless, which is what lets a view that needs actors bring them back rather than draw bars without a participant on them.
 	it("names a shown type's actor edges' targets, whether or not anything of those types has been read", () => {
 		const catalog = ConcernCatalogSchema.parse({

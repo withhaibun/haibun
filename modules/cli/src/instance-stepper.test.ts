@@ -36,7 +36,7 @@ class SupervisorWithHeldRun extends InstanceStepper {
 			if (!wasFinished && outcome.finished) for (const wake of waiters.splice(0)) wake();
 		};
 		take(said);
-		// A held run stands in for a forked one, so it says when it ends the way a child does.
+		// A held run stands in for a forked one, so it reports when it ends the way a child does.
 		const child = Object.assign(new EventEmitter(), { kill: () => true }) as unknown as ChildProcess;
 		this.runs.set(run, { child, where: "/where", filter: "some-feature", tail, outcome, ended, waiters });
 		return { say: take, end: (code: number) => this.endHeld(run, code) };
@@ -64,7 +64,7 @@ describe("a run's tail", () => {
 		const one = tail.since(0);
 		expect(one.output).toBe("first line\n");
 		tail.append("second line\n");
-		expect(tail.since(one.cursor).output, "only what was said since the last read").toBe("second line\n");
+		expect(tail.since(one.cursor).output, "only what was logged since the last read").toBe("second line\n");
 	});
 
 	it("counts what fell out of the tail, so a reader that missed some of it is told rather than shown a gap", () => {
@@ -101,14 +101,14 @@ describe("the instances and runs a process started", () => {
 });
 
 describe("watching a run", () => {
-	it("answers with what the run has said since the cursor it was given", async () => {
+	it("answers with what the run has logged since the cursor it was given", async () => {
 		const s = stepper();
 		const { say } = s.hold("a-run", "first line\n");
 		const one = await read(s, "a-run", 0);
 		expect(one.products?.output).toBe("first line\n");
 		say("second line\n");
 		const two = await read(s, "a-run", one.products?.cursor ?? 0);
-		expect(two.products?.output, "only what was said since the last read").toBe("second line\n");
+		expect(two.products?.output, "only what was logged since the last read").toBe("second line\n");
 		expect(two.products?.status).toBe("running");
 	});
 
@@ -239,7 +239,7 @@ describe("what a run is started with", () => {
 		const perProcess = ["HAIBUN_O_WEBSERVERSTEPPER_PORT"];
 		const supervisorEnv = { HAIBUN_O_WEBSERVERSTEPPER_PORT: "8290", HAIBUN_STAY: "always", HAIBUN_HOST_ID: "1", HAIBUN_ONCE: "true", HAIBUN_KEY: "kept" };
 		const reported = { HAIBUN_KEY: "kept", HAIBUN_NDJSON: "true" };
-		expect(runEnvironment(supervisorEnv, 0, false, undefined, perProcess), "a run that ends with its features serves where its features say").toEqual(reported);
+		expect(runEnvironment(supervisorEnv, 0, false, undefined, perProcess), "a run that ends with its features serves where its features declare").toEqual(reported);
 		expect(runEnvironment(supervisorEnv, 8331, false, undefined, perProcess), "a port of its own is not a reason to keep it running").toEqual({
 			...reported,
 			HAIBUN_O_WEBSERVERSTEPPER_PORT: "8331",
@@ -294,7 +294,7 @@ describe("a run left standing", () => {
 		const waited = (s.steps.waitRun.action as (a: { run: string; seconds: number; cursor: number }) => Promise<TRead>)({ run: "standing-run", seconds: 30, cursor: 0 });
 		setTimeout(() => say('{"kind":"lifecycle","stage":"end","status":"completed","type":"execution"}\n'), 5);
 		const result = await waited;
-		expect(result.products?.finished, "the run said its features were over, and went on serving").toBe(true);
+		expect(result.products?.finished, "the run reported its features were over, and went on serving").toBe(true);
 		expect(result.products?.status, "the process didn't exit, so it is still running").toBe("running");
 	});
 });

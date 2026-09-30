@@ -36,7 +36,7 @@ type TStatementStore = Pick<TDiscourseStore, "query" | "getIndividual"> & {
 /** A quad as the stores return it: the subject's type is its named graph, and an edge names its target's type. */
 type TEdgeQuad = { subject: string; predicate: string; object: unknown; namedGraph?: string; objectType?: string };
 
-/** Which reading asserted which statement, keyed by what the statement says: the readings' own record, read back. */
+/** Which reading asserted which statement, keyed by what the statement states: the readings' own record, read back. */
 async function readingsByStatement(store: TStatementStore): Promise<Map<string, string>> {
 	const byStatement = new Map<string, string>();
 	for (const reading of await store.queryIndividuals<{ id: string; stated?: unknown }>(READING_LABEL)) {

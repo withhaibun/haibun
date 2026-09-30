@@ -27,7 +27,7 @@ describe("a count a read answers with", () => {
 		expect(counted(1000).total, "and the two state the same number, so a reader reads the marker rather than the total").toBe(countedTo(1000, 1000).total);
 	});
 
-	it("refuses a count that says how many without saying whether it reached the end", () => {
+	it("refuses a count that states how many without stating whether it reached the end", () => {
 		expect(() => CountedSchema.parse({ total: 12 })).toThrow();
 		expect(() => CountedSchema.parse({ total: -1, saturated: false }), "a count below zero isn't a count").toThrow();
 	});

@@ -14,7 +14,7 @@ const registry = (deps: Partial<RenderTypeDeps> = {}, seq: Partial<SeqRenderDeps
 	buildRenderTypeRegistry({ ganttTarget: () => undefined, ganttPlacement: () => ({ count: 0 }), ...deps }, { seqNodes: () => [], seqEdges: () => [], labelOf: (id) => id, ...seq });
 
 describe("what each view type declares about its own drawing", () => {
-	it("only the sequence draws in one plane, and it says which", () => {
+	it("only the sequence draws in one plane, and it shows which", () => {
 		const r = registry();
 		expect(r.get(VIEW.sequence)?.lanePlaneX).toBe(0);
 		for (const v of [VIEW.force, VIEW.td, VIEW.lr, VIEW.gantt]) expect(r.get(v)?.lanePlaneX).toBeUndefined();
@@ -60,7 +60,7 @@ describe("the axis legend names what the axes mean, and only gantt's do", () => 
 	});
 });
 
-describe("a layered view says which way its ranks read", () => {
+describe("a layered view shows which way its ranks read", () => {
 	it("top-down advances along y and left-right along x", () => {
 		const r = registry();
 		expect(r.get(VIEW.td)?.layeredFlow()).toEqual({ direction: "td", flowAxis: "y" });

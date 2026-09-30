@@ -12,12 +12,12 @@ export type THaibunLogLevel = z.infer<typeof HaibunLogLevel>;
 /**
  * Marks, as one related set. Two things vary, and each is carried by one visual property.
  *
- * WEIGHT says how much a line should interrupt a reader. Emoji-weight marks are for what a reader must not scroll
+ * WEIGHT indicates how much a line should interrupt a reader. Emoji-weight marks are for what a reader must not scroll
  * past: an outcome, a warning, a stop. Thin glyphs are for what is frequent and unremarkable, so a log of ordinary
  * activity stays quiet and the exceptional line stands out of it. A thin glyph for something exceptional is the fault
  * this rule exists to prevent.
  *
- * SHAPE says what kind of statement the mark makes. A run's verdicts are the check and cross. A claim the run merely
+ * SHAPE indicates what kind of statement the mark makes. A run's verdicts are the check and cross. A claim the run merely
  * tried carries the modal-logic diamond, which reads as possibility rather than as right or broken: filled where it
  * held, hollow where it did not. A call actuality handed to something else and got an answer from carries the return
  * arrow: the call did not succeed, but actuality is not broken and its caller is expected to act on it. Containers and
@@ -62,7 +62,7 @@ export function isHandedOutEvent(event: { id?: string }): boolean {
 export const ICON_STEP_COMPLETED = CHECK_YES;
 
 // Log Levels: info is frequent, so it stays thin; a warning and an error are exceptional, so they carry weight. The
-// error mark is distinct from the failure verdict, so a line does not say failure twice in two different hands.
+// error mark is distinct from the failure verdict, so a line does not show failure twice in two different hands.
 export const ICON_LOG_INFO = "⊳"; // Data signal/pointer
 export const ICON_LOG_WARN = "⚠️";
 export const ICON_LOG_ERROR = "⛔";
@@ -81,13 +81,13 @@ export type TOrigin = keyof typeof Origin;
 
 export type TDebugSignal = "fail" | "step" | "continue" | "retry" | "next";
 
-/** The level a hidden substep reports at. It is below every level a view shows, so what a substep says, produces and
+/** The level a hidden substep reports at. It is below every level a view shows, so what a substep logs, produces and
  *  shows is infrastructure rather than something a reader asked for. */
 export const SUBSTEP_LEVEL: THaibunLogLevel = "trace";
 /** The level an ordinary step reports at. */
 const STEP_LEVEL: THaibunLogLevel = "info";
 
-/** The level a step reports at. One derivation, so the record of a step, what it says and what it produces all agree. */
+/** The level a step reports at. One derivation, so the record of a step, what it logs and what it produces all agree. */
 export const stepLevel = (isSubStep?: boolean): THaibunLogLevel => (isSubStep ? SUBSTEP_LEVEL : STEP_LEVEL);
 
 export const SCENARIO_START = "scenario";
@@ -96,14 +96,14 @@ export const FEATURE_START = "feature";
 /** How a run's own prose declares a feature and a scenario, which is how a reader of it reads their names back. */
 export const DECLARES = { feature: "Feature:", scenario: "Scenario:" } as const;
 
-/** Whether a step declared a feature or a scenario: what it called says which, whichever stepper carried it out. */
+/** Whether a step declared a feature or a scenario: what it called states which, whichever stepper carried it out. */
 export const declaresFeature = (called: string | undefined): boolean => called?.endsWith(`.${FEATURE_START}`) === true;
 export const declaresScenario = (called: string | undefined): boolean => called?.endsWith(`.${SCENARIO_START}`) === true;
 
 /** The name a declaring step gives, which is its own words without the word that declares them. */
 export const declaredName = (text: string, of: keyof typeof DECLARES): string => text.replace(new RegExp(`^${DECLARES[of]}\\s*`), "").trim();
 
-/** How a lifecycle event says a step, feature or execution ended. */
+/** How a lifecycle event indicates a step, feature or execution ended. */
 /** How a lifecycle ends or stands. `stopped` is a step its caller stopped: a reader's decision, not a fault, so it
  *  isn't a failure or a pass. */
 export const LIFECYCLE_STATUS = { running: "running", completed: "completed", failed: "failed", stopped: "stopped", skipped: "skipped" } as const;
@@ -115,7 +115,7 @@ export const STAY_ALWAYS = "always";
 export const STAY_FAILURE = "failure";
 export const STAY = "STAY";
 /** Report events as NDJSON on stdout. Declared here so the option, the env name a launcher writes, and the logger
- *  that reads it all say it once. */
+ *  that reads it all name it once. */
 export const NDJSON = "NDJSON";
 /** Run a group only when a dependency changed since it last passed: a choice about the chain a script runs, so a run
  *  started by another does not inherit it. */
@@ -544,7 +544,7 @@ export const LogEvent = BaseEvent.extend({
 const BaseArtifact = BaseEvent.extend({
 	kind: z.literal("artifact"),
 	/** How prominently the run reports it. What a run produced is read at every level, since the row of the step that
-	 *  produced it is what shows it, so this says where it reports rather than whether a reader is shown it. */
+	 *  produced it is what shows it, so this states where it reports rather than whether a reader is shown it. */
 	level: HaibunLogLevel.default("info"),
 	// Path relative to the feature dir (e.g. "./image/x.png"). The serialized report's shu.html lives in that dir, so it
 	// references artifacts by this short relative path; `path` carries the base-relative form for the live /artifacts route.

@@ -4,7 +4,7 @@
  * A hidden trace-level substep (isSubStep → level "trace", the same level the log view hides) is infrastructure. A
  * hidden substep or a view's own refetch of its data can carry view markers in its products without anyone asking for
  * that view, so only the steps a reader can see in the log act as view commands. A reader's own invocation of a step
- * opens its view from the response it asked for (`affordance-dispatch`), which is the one thing that can say a reader
+ * opens its view from the response it asked for (`affordance-dispatch`), which is the one thing that can state a reader
  * asked, while the SPA cannot write to the graph.
  *
  * The stream announces what happens from here on and doesn't replay what it sent before, so every event here is a live occurrence: a view

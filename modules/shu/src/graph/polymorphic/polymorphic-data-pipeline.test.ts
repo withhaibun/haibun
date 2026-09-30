@@ -50,7 +50,7 @@ describe("polymorphic valid-time placement from snapshot quads", () => {
 		expect(times.get("c1")).toEqual({ ms: Date.parse(TODAY), field: GENERATED });
 	});
 
-	it("says when EVERY subject was written down, including one whose valid field is generatedAtTime itself", () => {
+	it("reports when EVERY subject was written down, including one whose valid field is generatedAtTime itself", () => {
 		// The guide reads in creation order from this map. A comment's one time quad answers both questions: its valid
 		// time and its written-down time, and dropping it from `indexed` left the reading ordered only by the names.
 		const { indexed } = pipelineWith("valid").extractTimes();

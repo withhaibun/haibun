@@ -28,7 +28,7 @@ const FEATURE_HEADING = `${SHU_TEST_IDS.DOCUMENT.HEADING}${headingAnchor("Shu SP
 const CACHE_LOG_CACHED = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-cached`;
 const CACHE_LOG_EVENTS = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-events`;
 const CACHE_LOG_LOADED = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-loaded`;
-/** The same source cut off from actuality: it has read, and the stream is down, so it cannot say it is current. */
+/** The same source cut off from actuality: it has read, and the stream is down, so it cannot report it is current. */
 const CACHE_LOG_DISCONNECTED = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-disconnected`;
 /** The globs that cover everything this page reads from its server: every remote call and the event stream. */
 const RPC_GLOB = "**/rpc/**";
@@ -247,13 +247,13 @@ export const features: TKirejiExport = {
 		"An uncompressed copy carries the same content as plain text, so a reader can confirm secrets are redacted in the output without unpacking it.",
 		'saves shu uncompressed to "/tmp/shu-audit.html"',
 
-		"The affordances panel has been open since the reader showed it, and it has read the affordances on offer after every step since, to stay current. Reading is not an act of actuality: actuality's records name the step that showed the panel, and don't name the panel's own reading. The report carries actuality's records, so it says which.",
+		"The affordances panel has been open since the reader showed it, and it has read the affordances on offer after every step since, to stay current. Reading is not an act of actuality: actuality's records name the step that showed the panel, and don't name the panel's own reading. The report carries actuality's records, so it states which.",
 		'text at "/tmp/shu-audit.html" contains "GoalResolutionStepper.showAffordances"',
 		'not text at "/tmp/shu-audit.html" contains "GoalResolutionStepper.affordancesOnOffer"',
 
 		scenario({ scenario: "A reload with the server unreachable reads actuality from the device" }),
 
-		"A page whose calls all fail says the site has not responded to it, and reads the run from what this device holds. Everything this page has read of the run is held there as the records the run wrote, along with the site's registry. Blocking every remote call and the event stream leaves the page with the device alone, which is what a reader has when their network drops. Reloading then must still produce a run: the registry comes from the device, the source at log reads what is held and says so, its spans starting at the run's first row, and the monitor renders rows.",
+		"A page whose calls all fail reports the site has not responded to it, and reads the run from what this device holds. Everything this page has read of the run is held there as the records the run wrote, along with the site's registry. Blocking every remote call and the event stream leaves the page with the device alone, which is what a reader has when their network drops. Reloading then must still produce a run: the registry comes from the device, the source at log reads what is held and reports so, its spans starting at the run's first row, and the monitor renders rows.",
 		`requests matching "${RPC_GLOB}" are "blocked"`,
 		`requests matching "${STREAM_GLOB}" are "blocked"`,
 		reloadPage({}),
@@ -303,7 +303,7 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "A page without a stream reads actuality and doesn't receive events" }),
 
-		"The stream announces; the run is read from records. A page that reloads with the stream blocked reads the run it holds and doesn't receive an event after that, which is a reader whose connection dropped rather than one whose server is gone: every other call still works. This page has been without its server altogether and holds the whole run on the device, which is the page that once stopped catching up. What the reading holds is what it read on the way in, and it stops there. The reading says so itself: a source cut off from the stream cannot claim to be current, and the client cache shows it as cut off rather than as read.",
+		"The stream announces; the run is read from records. A page that reloads with the stream blocked reads the run it holds and doesn't receive an event after that, which is a reader whose connection dropped rather than one whose server is gone: every other call still works. This page has been without its server altogether and holds the whole run on the device, which is the page that once stopped catching up. What the reading holds is what it read on the way in, and it stops there. The reading reports so itself: a source cut off from the stream cannot claim to be current, and the client cache shows it as cut off rather than as read.",
 		`requests matching "${STREAM_GLOB}" are "blocked"`,
 		reloadPage({}),
 		waitFor({ target: IDS.CLIENT_CACHE.ROOT }),
@@ -318,7 +318,7 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "The stream coming back is what a view catches up on" }),
 
-		"Allowing the stream is the only thing that happens: the page is not reloaded or clicked. The stream coming back is itself the announcement that there is something to read again for, so the reading is behind from that moment until a read begun after it has finished, and current after that. Catching up is not a second path beside following: it is the same one. A feature waits for the reading to say it is current rather than for a length of time, since a page reconnects on its own schedule and reads on its own, and what it then holds is what actuality recorded while the page wasn't reading the stream.",
+		"Allowing the stream is the only thing that happens: the page is not reloaded or clicked. The stream coming back is itself the announcement that there is something to read again for, so the reading is behind from that moment until a read begun after it has finished, and current after that. Catching up is not a second path beside following: it is the same one. A feature waits for the reading to report it is current rather than for a length of time, since a page reconnects on its own schedule and reads on its own, and what it then holds is what actuality recorded while the page wasn't reading the stream.",
 		`requests matching "${STREAM_GLOB}" are "allowed"`,
 		waitFor({ target: CACHE_LOG_LOADED }),
 		`save text from ${CACHE_LOG_EVENTS} to eventsCaughtUp`,
@@ -339,7 +339,7 @@ export const features: TKirejiExport = {
 		`matches freshUri with "*col=${SHU_TAG.CLIENT_CACHE_COLUMN}*"`,
 		`matches freshUri with "*col=${SHU_TAG.AFFORDANCES_PANEL}*"`,
 
-		"A view that the steps of this run didn't show is not among them. The thread column is one this deployment declares and this run never opened, so an address that named it would be naming something other than what the records say.",
+		"A view that the steps of this run didn't show is not among them. The thread column is one this deployment declares and this run never opened, so an address that named it would be naming something other than what the records state.",
 		`not matches freshUri with "*${SHU_TAG.THREAD_COLUMN}*"`,
 
 		scenario({ scenario: "The views on offer are read from what the deployment declares" }),

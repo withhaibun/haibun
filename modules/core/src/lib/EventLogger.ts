@@ -195,7 +195,7 @@ export class EventLogger implements IEventLogger {
 		this.emit(LogEvent.parse({ id, timestamp: Date.now(), kind: "log", level: this.reportedAt(level), message, attributes }));
 	}
 
-	/** The level a statement reports at: its own, held to the level of the step it is said during. A warning and a
+	/** The level a statement reports at: its own, held to the level of the step it is logged during. A warning and a
 	 *  fault report as themselves, since a step reporting quietly is not a reason to be quiet about a fault, and a call
 	 *  made into a running instance does not put the caller's own narration into actuality's history. */
 	private reportedAt(level: THaibunLogLevel): THaibunLogLevel {
@@ -246,7 +246,7 @@ export class EventLogger implements IEventLogger {
 		stepValuesMap: Record<string, unknown> | undefined,
 		products: Record<string, unknown> | undefined,
 	): void {
-		// A step that did not fail doesn't have an error, and saying so is leaving the field out. Describing `undefined` produces
+		// A step that did not fail doesn't have an error, and stating so is leaving the field out. Describing `undefined` produces
 		// the string "undefined", which reads as an error to anything that shows one.
 		const errorMessage = error === undefined ? undefined : errorDetail(error);
 		const safeStepValuesMap = stepValuesMap ? sanitizeObjectSecrets(stepValuesMap, this.isSecretFn) : undefined;

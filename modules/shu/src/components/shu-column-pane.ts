@@ -180,7 +180,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		.pane-content { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
 		.pane-content ::slotted(*) { flex: 1; min-height: 0; overflow: auto; }
 		/* A spine is the width of the strip and no wider: its view sizes to that rather than scrolling inside it, or a
-		   few pixels of spill, a slider knob's label, say, become native scrollbars in a strip too narrow to use them. */
+		   few pixels of spill, a slider knob's label for example, become native scrollbars in a strip too narrow to use them. */
 		.pane-spine ::slotted(*) { flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
 		/* A declared spine view is a line down the strip, so it keeps its own width and the box centres it. A column
 		   serving as its OWN spine keeps the stretch above: its rail must stay exactly where it is when the column is
@@ -252,7 +252,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		return this.hasAttribute(SHU_ATTR.DOCKED);
 	}
 
-	/** Dock the pane or return it to the strip, open where `open` says: a pane the reader docks opens, and a pane docked by
+	/** Dock the pane or return it to the strip, open where `open` indicates: a pane the reader docks opens, and a pane docked by
 	 *  an address opens only where it is pinned. A change of placement ends a maximize, which fills the axis the pane
 	 *  leaves. */
 	setDocked(docked: boolean, open = this.state.pinned): void {
@@ -286,7 +286,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 	}
 
 	protected override onConnected(): void {
-		// A pane docked before it attached opens where its restored pin says, since a pinned pane keeps its state.
+		// A pane docked before it attached opens where its restored pin indicates, since a pinned pane keeps its state.
 		if (this.docked) this.#dockClosed = !this.state.pinned;
 		this.#reflectLayout(); // persisted width/minimized restored just before this, reflect synchronously so the strip's addPane sees the attributes
 		this.addEventListener("pointerdown", this.onPaneActivate, { capture: true });

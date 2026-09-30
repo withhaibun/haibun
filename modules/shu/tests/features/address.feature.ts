@@ -32,7 +32,7 @@ export const features: TKirejiExport = {
 		'webserver is listening for "address-test"',
 
 		scenario({ scenario: "An address names a type this run doesn't hold" }),
-		"An address can name a type the run it was made in held and this run doesn't. The page keeps the address, says which type this run doesn't hold, and offers the types it does.",
+		"An address can name a type the run it was made in held and this run doesn't. The page keeps the address, names which type this run doesn't hold, and offers the types it does.",
 		gotoPage({ name: `"${host}/spa#?label=${NOT_HELD}"` }),
 		setAs({ what: "notHeld", domain: "page-locator", value: `".error-banner:has-text('${typeNotHeld(NOT_HELD)}')"` }),
 		waitFor({ target: "notHeld" }),

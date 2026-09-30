@@ -157,7 +157,7 @@ export async function requestBody(label: string, id: string, bodyId: string): Pr
 	const s = getStore();
 	const entry = s.entries.get(keyOf(label, id));
 	if (!entry?.view.entity || entry.view.bodies[bodyId] !== undefined) return;
-	// A body that cannot be read leaves the area waiting, so what went wrong is said where a reader's diagnostics go
+	// A body that cannot be read leaves the area waiting, so what went wrong is reported where a reader's diagnostics go
 	// rather than being dropped here.
 	const read = await readIndividual(BODY_LABEL, bodyId, appAccessLevel()).catch((err: unknown) => {
 		reportToRun("warn", "entity-store", `the body ${bodyId} of ${label}:${id} could not be read: ${errorDetail(err)}`);
@@ -173,7 +173,7 @@ export async function requestBody(label: string, id: string, bodyId: string): Pr
 export type TAnnotationDraft = { exact: string; prefix?: string; suffix?: string; text: string };
 
 /** Write a note anchored to a passage of a held individual, then re-resolve so it reads back anchored. Returns the
- *  failure so the caller can drop its optimistic placeholder and say why. */
+ *  failure so the caller can drop its optimistic placeholder and state why. */
 export async function annotateIndividual(label: string, id: string, draft: TAnnotationDraft): Promise<{ ok: true } | { ok: false; error: string }> {
 	const res = await callStep("annotate", { label, id, ...draft }, `entity-store: annotate ${label}:${id}`);
 	if (!res.ok) return { ok: false, error: res.error };

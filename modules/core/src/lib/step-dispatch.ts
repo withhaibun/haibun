@@ -155,7 +155,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 		world.eventLogger.stepStart(featureStep, action.stepperName, action.actionName, {}, featureStep.action.stepValuesMap, tool.isAsync);
 		await emitSeqPathStart(world, featureStep, authorization, { ranVia: tool.transport, ranOn: tool.descriptor.remoteOrigin });
 	}
-	// What is said while this step runs reports no more prominently than the step does, so a call made into a running
+	// What is logged while this step runs reports no more prominently than the step does, so a call made into a running
 	// instance leaves the caller's own narration out of actuality's history rather than among its steps.
 	const step = { seqPath: featureStep.seqPath.join("."), reportsAt: featureStep.isSubStep ? SUBSTEP_LEVEL : undefined };
 	let actionResult: TActionResult | undefined;
@@ -296,7 +296,7 @@ async function autoAssertProducts(world: TWorld, seqPathKey: string, step: TStep
  * updated by `emitSeqPathEnd` after the action completes.
  */
 /** What a step required and what allowed it, for the step's own record. A step actuality takes as itself holds
- *  every action, so its record doesn't gain a field; a caller's says what it required, what it held and who proved it. */
+ *  every action, so its record doesn't gain a field; a caller's states what it required, what it held and who proved it. */
 type TStepAuthorization = { required?: string; held?: string; controller?: string };
 
 async function emitSeqPathStart(world: TWorld, featureStep: TFeatureStep, authorization: TStepAuthorization, ran: { ranVia: string; ranOn?: string }): Promise<void> {
@@ -313,12 +313,12 @@ async function emitSeqPathStart(world: TWorld, featureStep: TFeatureStep, author
 		[SEQ_PATH_FIELD.execution]: execution,
 		[SEQ_PATH_FIELD.recordedAtTime]: new Date().toISOString(),
 		[SEQ_PATH_FIELD.stepText]: featureStep.in,
-		// What ran, beside what was asked for: a step's own record otherwise says only the words of the line.
+		// What ran, beside what was asked for: a step's own record otherwise states only the words of the line.
 		[SEQ_PATH_FIELD.called]: calledOf(featureStep.action.stepperName, featureStep.action.actionName),
 		[SEQ_PATH_FIELD.actionStatus]: SEQ_PATH_STATUS.running,
 		[SEQ_PATH_FIELD.generatedAtTime]: new Date().toISOString(),
 		// Written for every step, the default included: a reader asking for the steps that were NOT speculative can only
-		// be answered if the ordinary ones say so as well.
+		// be answered if the ordinary ones state so as well.
 		[SEQ_PATH_FIELD.mode]: featureStep.intent?.mode ?? "authoritative",
 		[SEQ_PATH_FIELD.ranVia]: ran.ranVia,
 		// A call made into a running instance is a step actuality records, and reports as its events do: under actuality's own
@@ -341,7 +341,7 @@ async function emitSeqPathStart(world: TWorld, featureStep: TFeatureStep, author
 }
 
 /** The view a step showed, where it showed one: the name the site declares it under, which is what the step's products
- *  carry as `view`. What that view looks like is the declaration's to say. */
+ *  carry as `view`. What that view looks like is the declaration's to state. */
 function viewShown(products: Record<string, unknown> | undefined): string | undefined {
 	const view = products?.view;
 	return typeof view === "string" ? view : undefined;

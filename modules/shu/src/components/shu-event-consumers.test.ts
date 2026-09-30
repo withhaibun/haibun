@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The views of a run, over the records it wrote. A run is in the graph: a step is one record carrying how it went, and
-// what it said and produced point back at it. So a step is one row rather than a start paired with an end, and a
+// what it logged and produced point back at it. So a step is one row rather than a start paired with an end, and a
 // heading is the step that declared the feature or the scenario.
 import { describe, it, expect, beforeEach, afterEach, onTestFinished } from "vitest";
 import { ShuMonitorColumn } from "./shu-monitor-column.js";
@@ -143,11 +143,11 @@ describe("the views of a run, over the records it wrote", () => {
 		const mon = await open(ShuMonitorColumn);
 		const glyphs = new Map(mon.rows.map((row) => [row.step || row.message, row.icon]));
 		expect(glyphs.get("step 1"), "a step that passed").toBe(ICON_STEP_COMPLETED);
-		expect(glyphs.get("step 2"), "a step that failed says so rather than repeating the level every step reports at").not.toBe(ICON_LOG_INFO);
+		expect(glyphs.get("step 2"), "a step that failed shows it rather than repeating the level every step reports at").not.toBe(ICON_LOG_INFO);
 		expect(glyphs.get("something to note"), "a message carries the level it reports at").toBe(ICON_LOG_WARN);
 		expect(
 			mon.rows.every((row) => !row.message.startsWith(row.icon)),
-			"and the row does not say it twice",
+			"and the row does not show it twice",
 		).toBe(true);
 	});
 
@@ -161,7 +161,7 @@ describe("the views of a run, over the records it wrote", () => {
 		expect(mon.rows[0]).toMatchObject({ status: "passed", ranVia: "local" });
 	});
 
-	it("shows what a step said as its own row, under the step it was said during", async () => {
+	it("shows what a step logged as its own row, under the step it was logged during", async () => {
 		await aRun([stepRecord(1)], [{ id: "0.1@said", message: "it said this", level: "warn", generatedAtTime: iso(1), isPartOf: "0.1" }]);
 		const mon = await open(ShuMonitorColumn);
 		expect(mon.rows.map((r) => r.message)).toContain("it said this");

@@ -1,5 +1,5 @@
 /**
- * What a browser says a painted colour's alpha is. It writes one in two shapes, and a mixed colour comes back in the
+ * What a browser reports a painted colour's alpha is. It writes one in two shapes, and a mixed colour comes back in the
  * one a plain rgba parse misses, which read as opaque, and failed a translucent guide for being translucent.
  */
 import { describe, expect, it } from "vitest";

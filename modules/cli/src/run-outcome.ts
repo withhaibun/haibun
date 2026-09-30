@@ -1,5 +1,5 @@
 /**
- * What a supervised run says about itself, accrued from its output as that output arrives.
+ * What a supervised run reports about itself, accrued from its output as that output arrives.
  *
  * A run reports its lifecycle as one JSON object per line: the same events a serving instance offers over SSE,
  * carrying seqPaths, outcomes and artifact paths, which console prose does not. The accrual happens where every
@@ -52,21 +52,21 @@ export function runEvents(output: string): TRunEvent[] {
 	});
 }
 
-/** A step the run reported as failed: where it was, what it was, and what it said. */
+/** A step the run reported as failed: where it was, what it was, and what it logged. */
 type TRunFailure = { seqPath: string; step: string; message: string };
 
 /** One feature of a run: what it was, and what became of it. A run's story is its features, not its total. */
 type TRunFeature = { id: string; name: string; path: string; steps: number; failed: number };
 
 /**
- * What a run says about itself: how it ended, what failed, and where it wrote its report. All of it comes from the
+ * What a run reports about itself: how it ended, what failed, and where it wrote its report. All of it comes from the
  * run's own events, which it reports because it was started to be read (see `runEnvironment`).
  *
  * The outcome is the run's `execution` end event, which is the run's own verdict on the whole of itself. The failures
  * are its `step` end events that did not complete, each carrying the seqPath it failed at. The report is the HTML
  * artifact it wrote, named by the event that wrote it.
  */
-/** What a run has said about itself so far. Reduced from its output as that arrives, since a long run's earliest
+/** What a run has logged about itself so far. Reduced from its output as that arrives, since a long run's earliest
  *  lines fall out of the tail before it ends, and a count taken at the end would be a count of what was left. */
 export type TRunOutcome = {
 	features: Map<string, TRunFeature>;
@@ -76,10 +76,10 @@ export type TRunOutcome = {
 	summary: string;
 	pending: string;
 	current?: string;
-	/** Whether the run has reported that its features are over. A run left standing says this and then keeps serving,
+	/** Whether the run has reported that its features are over. A run left standing reports this and then keeps serving,
 	 *  so it is what "the run is done" means for a run that will not exit. */
 	finished: boolean;
-	/** Whether it said they were over having completed. */
+	/** Whether it reported they were over having completed. */
 	succeeded: boolean;
 };
 
@@ -95,7 +95,7 @@ export const emptyOutcome = (): TRunOutcome => ({
 });
 
 /**
- * Reduce a stretch of a run's output into what it has said so far.
+ * Reduce a stretch of a run's output into what it has logged so far.
  *
  * A read ends wherever the run had got to, which is usually mid-line, so the unfinished line is held and joined to
  * the next read. Without that, every event straddling a read boundary is lost, and what is lost is invisible.
@@ -134,7 +134,7 @@ export function accrueRunOutcome(outcome: TRunOutcome, output: string): TRunOutc
 		if (feature) feature.failed += 1;
 		outcome.failures.push({ seqPath: formatSeqPath(event.seqPath ?? []), step: String(event.in ?? ""), message: String(event.message ?? event.error ?? "") });
 	}
-	// A run whose report is only announced in its log, rather than emitted as an artifact, still says where it is.
+	// A run whose report is only announced in its log, rather than emitted as an artifact, still records where it is.
 	const announced = output.match(/(file:\/\/\S+\.html)/g);
 	const report = announced?.at(-1);
 	if (report) outcome.report = report;

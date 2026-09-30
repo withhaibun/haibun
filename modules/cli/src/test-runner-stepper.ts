@@ -1,6 +1,6 @@
 /**
  * TestRunnerStepper is the development-flow agent: it runs a named test, watches it, examines what came out, probes
- * the run while it stands, and says what it found in the discourse where a person answers it.
+ * the run while it stands, and reports what it found in the discourse where a person answers it.
  *
  * THE RULE THIS FOLLOWS: the agent's tool surface IS the step surface. Every tool it has is a step here, callable
  * the same three ways everything else is (a feature line, an RPC call, another agent), gated by the same
@@ -9,10 +9,10 @@
  *
  * WHAT IT WILL NOT DO, by construction rather than by hope:
  *   - run two tests at once: one run is in flight per agent, and asking again while one is live answers with the
- *     live one, since a second run of the same features leaves two runs without a way to say which one failed;
+ *     live one, since a second run of the same features leaves two runs without a way to report which one failed;
  *   - re-run the same features while their state hasn't changed: a re-run is refused unless something was applied since, or the
  *     asker asked for it in as many words;
- *   - run past its limits: they come from the environment, and reaching one ends the loop with a record saying which
+ *   - run past its limits: they come from the environment, and reaching one ends the loop with a record stating which
  *     limit was reached and where it stood, rather than stopping quietly;
  *   - leave runs standing without limit: a run given a port holds that port until it is stopped, so starting one past
  *     the standing limit is refused, naming the runs to stop.
@@ -58,7 +58,7 @@ const SUPERVISOR = { start: "InstanceStepper-startRun", read: "InstanceStepper-r
 /** What a run answered, as much of it as an answer can carry: the whole of a small one, and a large one's own
  *  summary fields with a note of what was left, since a listing of a busy run is longer than a model's window. */
 export function answerOfRun(products: Record<string, unknown>): { text: string; answer: string } {
-	// What the run says about itself comes first. An answer that states how many it holds has its listings counted rather
+	// What the run reports about itself comes first. An answer that states how many it holds has its listings counted rather
 	// than repeated: a reader asking how many reads the front of an answer, and a listing pushes the count past where it
 	// stops. An answer that doesn't state a count, as a listing of steps, is its entries, so they are handed on. The whole of it
 	// is there for a caller that wants the entries.
@@ -69,7 +69,7 @@ export function answerOfRun(products: Record<string, unknown>): { text: string; 
 	return { text: bounded(JSON.stringify(Object.fromEntries(counted))), answer: bounded(JSON.stringify(Object.fromEntries(ordered))) };
 }
 
-/** As much of an answer as one can carry, saying how much was left: a busy run's listing is longer than a window. */
+/** As much of an answer as one can carry, reporting how much was left: a busy run's listing is longer than a window. */
 function bounded(answer: string): string {
 	return answer.length <= ANSWER_LIMIT ? answer : `${answer.slice(0, ANSWER_LIMIT)} ... (${answer.length} characters in all)`;
 }
@@ -99,13 +99,13 @@ function recipeAtRun(atRun: TStepDescriptor[]): string {
 	return listing.length > 0 ? `To count or list what it holds of a type, ask ${listing.slice(0, 3).join(" or ")}. ` : "";
 }
 
-/** How a step says it lists what a run holds: its own description, in the words it declares itself with. */
+/** How a step declares it lists what a run holds: its own description, in the words it declares itself with. */
 const LISTS_WHAT_IT_HOLDS = /\blists?\b/i;
 
 /**
  * The parameters of a question put to a run, as a feature line or a model can write them: `name=value` pairs, or
  * JSON from a caller that can write it. A quoted feature-line argument doesn't hold double quotes, so pairs are what a
- * line can say. A step that takes one parameter also accepts the bare value, since naming it is redundant, and an object
+ * line can hold. A step that takes one parameter also accepts the bare value, since naming it is redundant, and an object
  * is a bare value too: JSON that doesn't name a parameter of such a step is its value. A parameter the step takes as an object
  * or a list is accepted as its JSON text, as a feature line writes one.
  */
@@ -149,7 +149,7 @@ const RUN_ANSWER_CHARS = 8_000;
 const lastOf = (output: string): string => (output.length <= RUN_ANSWER_CHARS ? output : output.slice(-RUN_ANSWER_CHARS));
 
 /** The agent's own Principal: one standing author per instance, so a session's findings read as one voice and an
- *  attribution reaches a record rather than a string. Its name says which agent, since a graph may hold several. */
+ *  attribution reaches a record rather than a string. Its name shows which agent, since a graph may hold several. */
 export const TEST_RUNNER_AUTHOR = "agent:test-runner";
 
 /** What the environment decides. Every one has a default that is a limit rather than a preference, so an agent without
@@ -175,10 +175,10 @@ type TTrackedRun = {
 	reported?: z.infer<typeof runReadSchema>;
 };
 
-/** What reading a test run answers with: what it said since it was last read, and how it stands. */
+/** What reading a test run answers with: what it logged since it was last read, and how it stands. */
 const TestRunReadSchema = z.object({ run: z.string(), status: z.string(), exitCode: z.number().nullable(), output: z.string() });
-/** What a test run reported: how it said it ended, each step that failed, where its report is, and how many features and
- *  steps it ran, where it said. */
+/** What a test run reported: how it reported it ended, each step that failed, where its report is, and how many features and
+ *  steps it ran, where it recorded. */
 const TestRunExaminedSchema = z.object({
 	run: z.string(),
 	summary: z.string(),
@@ -204,7 +204,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			domains: [
 				featureExecutionDomainDefinition,
 				featureFilterDomainDefinition,
-				{ selectors: [DOMAIN_TEST_RUN_READ], schema: TestRunReadSchema, description: "What a test run said since it was last read, and how it stands" },
+				{ selectors: [DOMAIN_TEST_RUN_READ], schema: TestRunReadSchema, description: "What a test run logged since it was last read, and how it stands" },
 				{ selectors: [DOMAIN_TEST_RUN_EXAMINED], schema: TestRunExaminedSchema, description: "What a test run reported: how it ended, what failed, and where its report is" },
 				{ selectors: [DOMAIN_TEST_RUN_ANSWER], schema: TestRunAnswerSchema, description: "What a standing test run answered a step asked of it" },
 				{
@@ -249,14 +249,14 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 	};
 
 	/** The run in flight, if any. One at a time: a second run started while this one is live would leave two runs
-	 *  without a way to say which of them a finding is about. */
+	 *  without a way to report which of them a finding is about. */
 	private inFlight: TTrackedRun | undefined;
 	/** Every run started while answering the current ask, so a cap is counted against the ask rather than for ever. */
 	private runsThisAsk: TTrackedRun[] = [];
 	/** The last run this agent started, whichever ask started it. An operator asks about a test after the exchange that
-	 *  ran it, so a question in a later ask is about that run, and an answer saying a run wasn't started is false. */
+	 *  ran it, so a question in a later ask is about that run, and an answer stating a run wasn't started is false. */
 	private lastRun: TTrackedRun | undefined;
-	/** The record of the last attempt to start a run, where it did not start, so a step that doesn't find a run says what
+	/** The record of the last attempt to start a run, where it did not start, so a step that doesn't find a run reports what
 	 *  became of it. */
 	private notStarted: TFeatureExecution | undefined;
 	/** Runs given a port, which stand after their features finish and hold that port until they are stopped. */
@@ -275,7 +275,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			gwta: `run the tests in {where: ${DOMAIN_FILE_PATH}} matching {filter: ${RUN_DOMAIN.featureFilter}}`,
 			capability: SUPERVISOR_CAPABILITIES.run,
 			description:
-				"Start a run of the named features and record it, so what happens next can be said to be about it. The products are that record: its id, and its endpoint and host where it stands. One run at a time: asking while a run is live answers with the live run rather than starting a second, and features that have run against the present state of what they depend on are not run again until that state changes or a change is noted.",
+				"Start a run of the named features and record it, so what happens next can be stated to be about it. The products are that record: its id, and its endpoint and host where it stands. One run at a time: asking while a run is live answers with the live run rather than starting a second, and features that have run against the present state of what they depend on are not run again until that state changes or a change is noted.",
 			// The record the run starts as is the products, so `feature-execution` is a GOAL: resolve it and this step
 			// is the michi, and running a remote test is something the resolver can offer rather than only prose can.
 			productsDomain: FEATURE_EXECUTION_DOMAIN,
@@ -293,7 +293,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			gwta: `read the test run`,
 			capability: SUPERVISOR_CAPABILITIES.read,
 			description:
-				"What the run in flight has said since this was last asked, and whether it is still going. When the run has ended, its record is closed with what its exit code says, which is what releases the next run.",
+				"What the run in flight has logged since this was last asked, and whether it is still going. When the run has ended, its record is closed with what its exit code shows, which is what releases the next run.",
 			productsDomain: DOMAIN_TEST_RUN_READ,
 			action: async () => {
 				const tracked = this.inFlight;
@@ -327,12 +327,12 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 				tracked.reported = seen;
 				const said = lastOf(seen.output);
 				// A run that was left standing reports that its features are over and goes on serving, so it is done
-				// without having exited; how it went is then what it said about itself rather than an exit code.
+				// without having exited; how it went is then what it logged about itself rather than an exit code.
 				if (seen.status !== "ended" && !seen.finished)
 					return actionNotOK(`the run "${tracked.filter}" had not ended after ${seconds} seconds; read it, or stop it, rather than waiting again`);
 				const status = seen.status === "ended" ? statusOfExit(seen.exitCode) : seen.failed > 0 ? RUN_STATUS.failed : RUN_STATUS.passed;
 				// A run that reported its features over without exiting doesn't have an exit code to read the outcome from, so
-				// what it said about itself is the outcome.
+				// what it logged about itself is the outcome.
 				await this.finishRun(seen.exitCode, seen.status === "ended" ? undefined : status);
 				await this.recordOutcome(tracked);
 				// A run that failed is a failed step. Answering ok for it would report a passing suite from a run that
@@ -345,7 +345,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			gwta: `examine the test run`,
 			capability: SUPERVISOR_CAPABILITIES.read,
 			description:
-				"What the run reported: how it said it ended, every step it recorded as failed with the seqPath it failed at, and where it wrote its report. All of it is the run's own words. A run whose output is formatted for a person doesn't carry step events, and then the step count is absent rather than zero; the summary and the report say how it went. The report path is recorded on the run, so a later reader reaches it from the record.",
+				"What the run reported: how it reported it ended, every step it recorded as failed with the seqPath it failed at, and where it wrote its report. All of it is the run's own words. A run whose output is formatted for a person doesn't carry step events, and then the step count is absent rather than zero; the summary and the report show how it went. The report path is recorded on the run, so a later reader reaches it from the record.",
 			productsDomain: DOMAIN_TEST_RUN_EXAMINED,
 			action: async () => {
 				const tracked = this.inFlight ?? this.runsThisAsk.at(-1);
@@ -355,7 +355,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 				const { output } = read.products;
 				tracked.reported = read.products;
 				await this.recordOutcome(tracked);
-				// The failing steps in detail come from the tail, which holds what the run last said; the counts come
+				// The failing steps in detail come from the tail, which holds what the run last logged; the counts come
 				// from the run's whole output, which the supervisor accrued as it arrived.
 				const { failures } = examineRun(output);
 				return actionOKWithProducts({
@@ -386,7 +386,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 						"a test run hasn't been started here, so this step doesn't have a run to ask; start one first, with TestRunnerStepper-runTest or TestRunnerStepper-runAllTests",
 					);
 				// A run that is gone still has a record here, and that is what an operator asking about it after the fact
-				// is answered from; saying a run wasn't started, or leaving a model to guess where the run went, is false.
+				// is answered from; stating a run wasn't started, or leaving a model to guess where the run went, is false.
 				if (!tracked.host || (!this.inFlight && !this.standing.has(tracked.id)))
 					return actionNotOK(
 						`the run "${tracked.filter}" in "${tracked.where}" is no longer up, so it doesn't answer now; what is left of it is its record here, which TestRunnerStepper-examineTestRun and a list of "${FEATURE_EXECUTION_LABEL}" report`,
@@ -404,14 +404,14 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 				const takes = Object.keys(target?.inputSchema.properties ?? {});
 				const given = askParams(params, target?.inputSchema.properties);
 				// A step called without what it takes fails inside the run with a message about a parameter, which reads as
-				// a fault of the run. Said here, it names the step's own parameters, which is what a caller has to correct.
+				// a fault of the run. Reported here, it names the step's own parameters, which is what a caller has to correct.
 				const missing = (target?.inputSchema.required ?? takes).filter((name) => given[name] === undefined);
 				if (missing.length)
 					return actionNotOK(
 						`${method} at host ${tracked.host} takes ${takes.join(", ")}, and ${Object.keys(given).length > 0 ? `was given ${Object.keys(given).join(", ")}` : "wasn't given a parameter"}: ${missing.map((name) => `${name}${whatItTakes(target?.inputSchema.properties[name])}`).join(", ")} missing`,
 					);
 				const asked = await this.callSupervisor(z.object({}).passthrough(), scoped, given);
-				// A refusal IS an answer: the run is up and said why it would not. Left as a bare failure, a reader took
+				// A refusal IS an answer: the run is up and reported why it would not. Left as a bare failure, a reader took
 				// "was asked X: not a declared type" for an unreachable run and answered from the wrong instance.
 				if (asked.ok === false) return actionNotOK(`the test run at host ${tracked.host} answered ${method} with a refusal, so it is up: ${asked.why}`);
 				return actionOKWithProducts({ run: tracked.id, host: String(tracked.host), method, ...answerOfRun(asked.products) });
@@ -420,7 +420,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 		noteSourceChanged: {
 			gwta: `note that {filter: ${RUN_DOMAIN.featureFilter}} in {where: ${DOMAIN_FILE_PATH}} has changed`,
 			description:
-				"Say that something was applied to the features named, so they run again whatever their dependencies show. A run of features that have run against their present state answers what that run answered, whether it passed or failed, so it is refused until their state changes or this is said.",
+				"State that something was applied to the features named, so they run again whatever their dependencies show. A run of features that have run against their present state answers what that run answered, whether it passed or failed, so it is refused until their state changes or this is stated.",
 			action: ({ filter, where }: { filter: string; where: string }) => {
 				this.noteApplied(filter, where);
 				return Promise.resolve(actionOK());
@@ -463,7 +463,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 		if (this.runStands() && this.standing.size >= standingCap)
 			return actionNotOK(`${this.standing.size} runs are already standing, which is the limit: stop one of ${[...this.standing.keys()].join(", ")} before starting another`);
 		if (this.runsThisAsk.length >= this.cap("MAX_RUNS", RUNNER_DEFAULTS.maxRuns))
-			return actionNotOK(`the run limit for this ask is used (${this.runsThisAsk.length} runs); say what was found rather than running again`);
+			return actionNotOK(`the run limit for this ask is used (${this.runsThisAsk.length} runs); report what was found rather than running again`);
 		// A run of features that have passed against their present state is refused where it would be started: the
 		// supervisor keeps the record, so what was applied since is read from the features' own dependencies rather
 		// than remembered here.
@@ -486,7 +486,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 	/**
 	 * One call of a supervisor step, answered by the schema that step declares, so the products are parsed rather than
 	 * asserted and a wrong shape fails here. The missing-supervisor case is named: the agent cannot run a test in a
-	 * process where run supervision was never registered, and saying so is more use than a step that is absent.
+	 * process where run supervision was never registered, and stating so is more use than a step that is absent.
 	 */
 	/** Why this agent doesn't have a run to work with: the failure that stopped the last one from starting, where there was one, so a
 	 *  caller is answered with what happened rather than with its consequence. */
@@ -633,13 +633,13 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 	}
 
 	/** Forget how the features named last ran against their state, so they run again whatever it is: what a caller
-	 *  says when something was applied that their dependencies do not show, or when the run is wanted regardless. An empty
+	 *  states when something was applied that their dependencies do not show, or when the run is wanted regardless. An empty
 	 *  filter is every feature of the base. */
 	noteApplied(filter: string, where = ""): void {
 		forgetOutcomes(path.resolve(where || "."), filter || undefined);
 	}
 
-	/** Close out the run in flight with what its exit code says, and let the next run start. A run ended by the agent
+	/** Close out the run in flight with what its exit code shows, and let the next run start. A run ended by the agent
 	 *  rather than by its own features carries that as its status, since its exit code doesn't state how it went. */
 	async finishRun(exitCode: number | null, ended?: TRunStatus): Promise<void> {
 		const run = this.inFlight;

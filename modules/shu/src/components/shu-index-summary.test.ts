@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * What the index says about itself once it is collapsed to a spine.
+ * What the index reports about itself once it is collapsed to a spine.
  *
  * The spine has room for one line, and the line has to be of use in the room: which search produced what is behind the
  * strip, and how much of it there is. The context it reads is the one the index already publishes, and other columns
@@ -52,7 +52,7 @@ describe("the index's spine summary", () => {
 			.map((node) => node.textContent ?? "")
 			.join("");
 
-	it("says which column it is before any search has been made, since the strip is all a reader has to go on", () => {
+	it("shows which column it is before any search has been made, since the strip is all a reader has to go on", () => {
 		expect(shown().trim()).toBe("Index");
 	});
 

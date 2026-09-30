@@ -211,7 +211,7 @@ variable second.finding is "satisfied"`,
 
 		it("a walk runs the very path pursue refuses, one step at a time, with what that step needs", async () => {
 			// The auth session's producer takes an argument that a fact doesn't supply, which is why pursue refuses it. A walk is how
-			// such a path is run: it is begun, it says what it still needs, and it is advanced with that.
+			// such a path is run: it is begun, it reports what it still needs, and it is advanced with that.
 			const feature = {
 				path: "/features/walk-with-an-argument.feature",
 				content: `set walk from walk toward "${DOMAIN_AUTH_SESSION}"

@@ -69,7 +69,7 @@ export class KnownSizeFlowLayout extends FlowLayout {
 	}
 }
 
-/** The layout for a virtual column whose source can say which rows are empty: the flow layout's own defaults, with
+/** The layout for a virtual column whose source can state which rows are empty: the flow layout's own defaults, with
  *  this class and the source's response in place. */
 export function knownSizeFlow(rowSize: TRowSize): ReturnType<typeof flow> & { rowSize: TRowSize } {
 	return { ...flow(), type: KnownSizeFlowLayout, rowSize };

@@ -12,4 +12,4 @@ Scenario: Check against URI xss exploit
     compose exploit with {xss}?;alert('hi')
     go to the exploit webpage
     Playwright auto accepts dialogs, so we cannot check this.
-    ;; dialog "clicked" message says "hi"
+    ;; dialog "clicked" message states "hi"

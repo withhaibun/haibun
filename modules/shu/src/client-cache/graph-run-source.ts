@@ -1,14 +1,14 @@
 /**
  * The actuality a view reads, over the records actuality wrote.
  *
- * A run is in the graph: a step is a `SeqPath` individual, what it said and what it produced point back at it. This
+ * A run is in the graph: a step is a `SeqPath` individual, what it logged and what it produced point back at it. This
  * serves a view the window of that run a reader is looking at, through the same interface a view already reads a run
  * by, so what changes is where the rows come from rather than how a view asks for them.
  *
- * A step is one row. It began, it ended and it says how it went, all on one record, where a stream of occurrences had
- * to say those separately and a view had to pair them up again.
+ * A step is one row. It began, it ended and it states how it went, all on one record, where a stream of occurrences had
+ * to log those separately and a view had to pair them up again.
  *
- * The window re-reads when actuality says something changed, and a view following the newest asks only for what has
+ * The window re-reads when actuality reports something changed, and a view following the newest asks only for what has
  * happened since it last read. A view therefore holds what a reader is looking at rather than everything that has
  * happened, and following takes what has changed rather than what the run holds, which is what keeps a run of years
  * readable.
@@ -48,12 +48,12 @@ function declared(row: TRunRow): Record<string, unknown> {
 	return { type: "step" };
 }
 
-/** Which record a rendered row is: its type and its own name. A row shows a step's path, and what was said under a step
- *  shows that step's, so without this a row of what a run said cannot be told from the step it was said during, and a
+/** Which record a rendered row is: its type and its own name. A row shows a step's path, and what was logged under a step
+ *  shows that step's, so without this a row of what a run logged cannot be told from the step it was logged during, and a
  *  reader pressing it doesn't have a record to open. */
 const recordOf = (row: TRunRow): { persistedAs: string; id: string } => ({ persistedAs: row.label, id: row.id });
 
-/** A row as a view renders it. A step carries how it went and how long it took; what was said carries its own level. */
+/** A row as a view renders it. A step carries how it went and how long it took; what was logged carries its own level. */
 function asRendered(row: TRunRow): TEventRecord {
 	// The step path a view shows and navigates by is the path within the execution: the execution is how records of
 	// different runs are told apart, not something a reader of one run is shown on every row.
@@ -89,7 +89,7 @@ function stepRecord(row: TRunRow, seqPath: number[] | undefined): TEventRecord {
 		kind: "lifecycle",
 		...declared(row),
 		level: row.level,
-		// What was asked for, and what ran: a view shows the step's own words and says which action carried them out.
+		// What was asked for, and what ran: a view shows the step's own words and states which action carried them out.
 		in: row.text,
 		...(row.called === undefined ? {} : { called: row.called, actionName: row.called }),
 		status: row.status,
@@ -163,7 +163,7 @@ function makeGraphRunSource(
 	let reading: Promise<void> | null = null;
 	let due: ReturnType<typeof setTimeout> | null = null;
 	// How current the reading is, as facts of the reading rather than inferences from what arrives: each announcement
-	// this source shows (or the stream coming back, which says the same) is numbered, a read that begins has read for
+	// this source shows (or the stream coming back, which reports the same) is numbered, a read that begins has read for
 	// every announcement numbered so far once it finishes, and the stream is down or not. Numbers rather than clocks,
 	// so an announcement and a read in the same instant are still ordered. A view waits on these, never on time.
 	let announced = 0;
@@ -177,9 +177,9 @@ function makeGraphRunSource(
 	// A row a re-read finds again is the same row: a view holds its place, and what it built from that row, by the row
 	// being the same object. Re-reading is how a window stays current, so re-reading must not look like every row changing.
 	const held = new Map<string, TEventRecord>();
-	/** What the store said about a row: what a re-read compares, so a row read again is the same row. */
+	/** What the store reported about a row: what a re-read compares, so a row read again is the same row. */
 	const keyOf = (row: TRunRow): string => `${row.kind}|${row.step}|${row.at}|${row.text}|${row.status ?? ""}|${row.endedAt ?? ""}`;
-	/** What a view renders from a row, which is what the store said and what the window claims it carries. */
+	/** What a view renders from a row, which is what the store reported and what the window claims it carries. */
 	const renderKey = (row: TRunRow): string => `${keyOf(row)}|${row.produced?.length ?? 0}|${row.carriedBy ?? ""}`;
 	const same = (row: TRunRow): TEventRecord => {
 		const key = renderKey(row);
@@ -190,14 +190,14 @@ function makeGraphRunSource(
 		return made;
 	};
 	/** Hold what a window read, in one write. Where the device is full, what it holds of another run makes room; where
-	 *  it could not be held at all, that is said rather than left for a reader to find missing later. */
+	 *  it could not be held at all, that is reported rather than left for a reader to find missing later. */
 	const hold = (rows: TRunRow[]): Promise<void> => {
 		if (rows.length === 0) return Promise.resolve();
 		return holdOnDevice(rows.flatMap((row) => individualAsQuads(row.label, row.record)[1]));
 	};
 
 	/** The newest recording the window holds: what a following read asks for what happened since by. A row that does
-	 *  not say when it was recorded asks for everything recorded since records began to say. */
+	 *  not state when it was recorded asks for everything recorded since records began to state. */
 	const recordedThrough = (rows: TRunRow[]): number => Math.max(0, ...rows.map((row) => row.recordedAt ?? 0));
 
 	/** The rows the window holds, oldest first, and what they span: what every view of this source reads. */
@@ -256,13 +256,13 @@ function makeGraphRunSource(
 		// hold. A rail read that fails leaves the rail as it was rather than emptying it under a reader.
 		await readRail().catch((err: unknown) => reportFailure(RUN_SOURCE, "actuality's rail could not be read", err));
 		notify();
-		// Last of all: saying which run this window is of can be what says the run being read has changed, and what
+		// Last of all: recording which run this window is of can be what reports the run being read has changed, and what
 		// reads a run again on hearing that is this same source. A read that announced before it had finished would be
 		// answering with the window it was told to leave.
 		if (newest) noteExecution(newest.execution);
 	};
 
-	// What actuality says has changed is what makes the window stale, and a burst of changes reads it once. Only a change
+	// What actuality reports has changed is what makes the window stale, and a burst of changes reads it once. Only a change
 	// this view would show counts. What keeps a view from reading for its own reading is that serving a read is not
 	// announced at all, which is stated where a call is served: a view reading at the lowest level would otherwise
 	// announce, read, be served, and announce again without end.
@@ -271,7 +271,7 @@ function makeGraphRunSource(
 		if (due) return;
 		due = setTimeout(() => {
 			due = null;
-			// A read that a caller doesn't await still says when it failed: a view left showing an older window without a
+			// A read that a caller doesn't await still reports when it failed: a view left showing an older window without a
 			// report of why is a view a reader cannot tell apart from one that is current.
 			read().catch((err: unknown) => reportFailure(RUN_SOURCE, "actuality could not be read again", err));
 		}, reReadAfterMs);

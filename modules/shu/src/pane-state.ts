@@ -529,7 +529,7 @@ class PaneStateImpl {
 		await customElements.whenDefined(tag);
 		customElements.upgrade(child);
 		// The hook is about to call the child's own methods. If the upgrade did not take, it fails inside the hook as
-		// "child.open is not a function", which doesn't name the pane or the tag. Say it here, where both are known.
+		// "child.open is not a function", which doesn't name the pane or the tag. State it here, where both are known.
 		const definition = customElements.get(tag);
 		if (definition && !(child instanceof definition))
 			throw new Error(`pane ${id}: <${tag}> is defined but this element did not upgrade to it, so the ${d.paneType} pane doesn't have its own methods`);

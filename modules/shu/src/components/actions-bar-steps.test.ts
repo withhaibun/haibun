@@ -78,7 +78,7 @@ describe("the actions bar's step mode", () => {
 		expect(steps.offersAsk).toBe(true);
 	});
 
-	it("says what a step takes and gives, by domain", () => {
+	it("states what a step takes and gives, by domain", () => {
 		expect(stepSecondary(SHOW)).toBe("string → graph");
 		expect(stepSecondary(LIST)).toBe("");
 		expect(stepDetails(SHOW)).toBe("inputs:\n  name: string\noutputs: graph");

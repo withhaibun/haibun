@@ -14,7 +14,7 @@ type TWrapperDef = { type?: string; innerType?: z.ZodType; in?: z.ZodType; out?:
 /** The wrapper definition zod holds for a type, or undefined where the type is not a wrapper. */
 const wrapperDef = (t: z.ZodType): TWrapperDef | undefined => (t as { _zod?: { def?: TWrapperDef } })._zod?.def;
 
-/** Strip optional / nullable / default / preprocess wrappers to reveal the underlying type, saying whether any made it
+/** Strip optional / nullable / default / preprocess wrappers to reveal the underlying type, returning whether any made it
  *  optional. A preprocess is a pipe from a transform into the type its value takes. */
 export function unwrap(zodType: z.ZodType): { inner: z.ZodType; optional: boolean } {
 	let current: z.ZodType = zodType;

@@ -96,7 +96,7 @@ export async function createChainInstance(world: TWorld, goal: string, michi: TM
 	const id = newChainInstanceId();
 	const createdAt = nowMs();
 	// A walk is begun by whoever is acting, and it records that rather than being handed it: a caller that had to
-	// remember to say who it was could forget, and an unowned walk is one anyone may advance.
+	// remember to state who it was could forget, and an unowned walk is one anyone may advance.
 	const owner = actingAs();
 	const inst: TChainInstance = {
 		id,

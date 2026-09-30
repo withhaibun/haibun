@@ -43,7 +43,7 @@ export function describeStorage(name: string, make: () => AStorage, root: string
 			expect(storage.exists(location)).toBe(true);
 		});
 
-		it("creates a directory, with its parents where they are named, and says which exist", () => {
+		it("creates a directory, with its parents where they are named, and shows which exist", () => {
 			const storage = make();
 			expect(storage.exists(at("made")), "the directory doesn't exist before it is made").toBe(false);
 			storage.mkdir(at("made"));
@@ -65,7 +65,7 @@ export function describeStorage(name: string, make: () => AStorage, root: string
 			expect(await storage.readdir(at("listed"))).toEqual(["within"]);
 		});
 
-		it("says of a path whether it is a directory or a file, listing or on its own", async () => {
+		it("reports of a path whether it is a directory or a file, listing or on its own", async () => {
 			const storage = make();
 			storage.mkdirp(at("walked/within"));
 			storage.writeFileBuffer(at("walked/one.txt"), Buffer.from("a file"), EMediaTypes.json);

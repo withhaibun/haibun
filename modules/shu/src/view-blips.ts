@@ -10,7 +10,7 @@ import { z } from "zod";
 import { declareBlips, type TBlipDeclaration } from "@haibun/core/lib/blips.js";
 
 /** A view measured its own scroll geometry and the raw answer moved, before any quantisation. `value` is the thumb's
- *  size as a fraction of the rail; `rendered` says whether the change was big enough to redraw the thumb, so the
+ *  size as a fraction of the rail; `rendered` states whether the change was big enough to redraw the thumb, so the
  *  revisions quantisation absorbs are visible too, which is the micro-movement a smoothness problem is made of. */
 export const VIEW_THUMB_BLIP = "haibun.shu.view.thumb_resize";
 
@@ -57,7 +57,7 @@ const VIEW_BLIPS: TBlipDeclaration[] = [
 		name: VIEW_SCROLL_BLIP,
 		instrument: "span-event",
 		description:
-			"A view's scroll position moved, by `value` pixels, signed. `reason` says whether the reader moved it or the system did, so a move the reader didn't request can be read as one and placed in order against what else happened.",
+			"A view's scroll position moved, by `value` pixels, signed. `reason` states whether the reader moved it or the system did, so a move the reader didn't request can be read as one and placed in order against what else happened.",
 		unit: "px",
 		attributes: viewAttributes.extend({ reason: z.enum(SCROLL_REASONS) }),
 		dimensions: ["view", "reason"],

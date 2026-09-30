@@ -33,7 +33,7 @@ describe("a graph observation is announced by what writes it", () => {
 		const unexpected = emitters.filter((f) => !ANNOUNCE.includes(f));
 		expect(
 			unexpected,
-			`${unexpected.join(", ")} announces a graph observation. An announcement says a fact reached the graph, so it is made where that fact is written; a reader reloading doesn't find a fact behind an announcement made anywhere else.`,
+			`${unexpected.join(", ")} announces a graph observation. An announcement states a fact reached the graph, so it is made where that fact is written; a reader reloading doesn't find a fact behind an announcement made anywhere else.`,
 		).toEqual([]);
 	});
 });

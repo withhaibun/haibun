@@ -198,7 +198,7 @@ export const ResultTableSchema = z.object({
 /**
  * An individual is named by the type it is persisted as and its own id, the pair every surface names one by, so
  * whoever resolves it reads it directly. A type names its members, narrowed by the conditions given. `kind` tells the
- * two apart in the words core already names them by, so a surface holding only a type can't say more.
+ * two apart in the words core already names them by, so a surface holding only a type can't state more.
  */
 const ContextIndividualSchema = z.object({
 	kind: z.literal(DENOTES.individual),

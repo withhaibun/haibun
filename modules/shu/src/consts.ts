@@ -100,7 +100,7 @@ export const ACTION_BAR_ASK_SLOT = "action-bar-ask";
  *  asking, which belongs with the permissions it decides under rather than beside the conversation. */
 export const PERMISSIONS_SLOT = "permissions";
 
-/** An extension in the permissions area says how many items await the reader's decision, and where to read them, so
+/** An extension in the permissions area shows how many items await the reader's decision, and where to read them, so
  *  the access indicator can mark that something is waiting without knowing what kind of thing it is. The mark is a
  *  reference, since a notification that does not lead to its cause leaves the reader to go looking.
  *  Detail: `{ count, kind, target }`: the reference kind and link target a `shu-ref` takes. */
@@ -178,7 +178,7 @@ export const INDEX_PANE_KEY = "query";
  *  collapsed pane renders this slot and not the default one, so only one of the two views is ever rendered. */
 export const SPINE_SLOT = "spine";
 
-/** The slot the breadcrumb's search entry holds, where the page strip puts the control that says the search. */
+/** The slot the breadcrumb's search entry holds, where the page strip puts the control that names the search. */
 export const SEARCH_SLOT = "search";
 
 export const SHU_ATTR = {

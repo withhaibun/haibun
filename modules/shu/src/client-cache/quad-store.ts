@@ -198,7 +198,7 @@ export function individualAsQuads(label: string, individual: Record<string, unkn
 	return [id, quads];
 }
 
-/** The access level a subject states, from the quads describing it: what it was recorded at, where it says. */
+/** The access level a subject states, from the quads describing it: what it was recorded at, where it states. */
 function levelOf(quads: TQuad[], of: TQuad): unknown {
 	return quads.find((q) => q.subject === of.subject && q.namedGraph === of.namedGraph && q.predicate === LinkRelations.ACCESS_LEVEL.rel)?.object;
 }

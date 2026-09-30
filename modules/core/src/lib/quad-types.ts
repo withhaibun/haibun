@@ -65,7 +65,7 @@ export type TGraphQuery = z.infer<typeof GraphQuerySchema>;
  * How many records fall in each division of a span of time, by how each turned out.
  *
  * A reader looking at a run of any length is shown its shape rather than its rows: the span divides into a fixed
- * number of buckets, and each bucket says how many records of each group it holds. The answer is that many buckets
+ * number of buckets, and each bucket states how many records of each group it holds. The answer is that many buckets
  * whatever the span, so reading an hour and reading a decade take the same and return the same size.
  */
 export const DOMAIN_DENSITY_QUERY = "density-query";

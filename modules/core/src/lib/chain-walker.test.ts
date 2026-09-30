@@ -136,7 +136,7 @@ describe("chain-walker", () => {
 
 describe("a walk belongs to whoever began it", () => {
 	// A walk is one reader's: the arguments each step runs with are theirs, so a handle to a walk is not authority over
-	// it. What the walker holds to is who is acting, not who says they are.
+	// it. What the walker holds to is who is acting, not what they claim.
 	let world: TWorld;
 	beforeEach(() => {
 		world = getDefaultWorld();

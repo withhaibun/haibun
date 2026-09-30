@@ -48,7 +48,7 @@ describe("SseSubscriber delivery", () => {
 		host.connections[0].end();
 		await vi.waitFor(() => expect(host.connections).toHaveLength(2));
 		expect(host.connections.map((c) => c.headers["capability-invocation"])).toEqual(["/sse 1", "/sse 2"]);
-		expect(host.connections[0].headers.accept, "and says what it reads").toBe("text/event-stream");
+		expect(host.connections[0].headers.accept, "and states what it reads").toBe("text/event-stream");
 		sub.close();
 	});
 });

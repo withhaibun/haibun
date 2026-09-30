@@ -6,7 +6,7 @@ import { Origin } from "@haibun/core/schema/protocol.js";
 /**
  * What an editor paints, asserted against the classification itself. It used to be asserted through a mocked language
  * server: forty lines of connection stubs to reach a call that took a line and some resolved steps, and the assertions
- * that survived the trip could only say "some tokens came back".
+ * that survived the trip could only report "some tokens came back".
  */
 const arg = (term: string, domain: string) => ({ term, value: term, domain, origin: Origin.quoted });
 

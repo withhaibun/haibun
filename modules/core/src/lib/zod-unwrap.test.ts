@@ -24,7 +24,7 @@ describe("unwrap", () => {
 	])("reaches the underlying type through %s", (_name, schema, optional) => {
 		const got = unwrap(schema as z.ZodType);
 		expect(got.inner.constructor.name, "the wrapper is gone").toBe(z.string().constructor.name);
-		expect(got.optional, "and it says whether a wrapper made the field optional").toBe(optional);
+		expect(got.optional, "and it states whether a wrapper made the field optional").toBe(optional);
 	});
 
 	it("leaves an object alone, since an object is not a wrapper", () => {

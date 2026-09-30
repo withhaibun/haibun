@@ -37,7 +37,7 @@ type TPartialEvent = {
 	intent?: { mode?: string };
 };
 
-/** The mark palette, named by what a mark says rather than by its hue, so every surface that marks an event reads from
+/** The mark palette, named by what a mark shows rather than by its hue, so every surface that marks an event reads from
  *  one place. UNDECIDED isn't a fault or a success: a speculative try, or a call actuality handed out. */
 export const MARK_COLOUR = {
 	feature: "#c084fc",
@@ -117,7 +117,7 @@ function shouldMarkEvent(event: unknown): boolean {
  * A reader looking at a run of any length is shown its divisions rather than its records, so each division marks as
  * one thing. It marks as a failure where it holds one, which is what keeps a single failure from being averaged away
  * by the successes around it; otherwise it marks as whatever it holds most of. What a failure looks like, and which
- * failures count as one, are `eventMarkerStyle`'s to say, so a division and a row can never disagree.
+ * failures count as one, are `eventMarkerStyle`'s to state, so a division and a row can never disagree.
  *
  * Undefined for a division that doesn't hold an event, so an empty stretch of actuality draws as empty.
  */

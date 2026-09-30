@@ -334,7 +334,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		this.cursorToRow(rawTime);
 	}
 
-	/** Go to the heading a link names, and say whether the cached part of this document has one. The heading's own name is
+	/** Go to the heading a link names, and return whether the cached part of this document has one. The heading's own name is
 	 *  the handle, stamped on its block when the page was built (headingAnchor), so a feature can link to its own scenarios. */
 	#goToHeading(anchor: string): boolean {
 		if (anchor === "") return false;

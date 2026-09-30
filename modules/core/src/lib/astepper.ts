@@ -155,7 +155,7 @@ type TStepperStepBase = {
 	answersTheTurn?: boolean;
 	/** Offer this step to a model before it discovers anything. A model is offered a small set at first, so that a
 	 *  request doesn't carry the whole manifest; a step marked here joins that set, because the question it answers is one
-	 *  an operator can open with. Reserve it for steps that are the only way to do what they do. A predicate says
+	 *  an operator can open with. Reserve it for steps that are the only way to do what they do. A predicate reports
 	 *  whether there is anything for it to answer right now: a step offered when it can only refuse is among the few a
 	 *  model can see, so it is what the model reaches for, and the turn goes on refusing. */
 	offeredBeforeDiscovery?: boolean | (() => boolean);

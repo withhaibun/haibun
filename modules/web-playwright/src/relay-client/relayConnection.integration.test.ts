@@ -1,7 +1,7 @@
 /**
  * The extension's side of the relay attaches the debugger only to the tabs the person gave it: the tab they chose, a
  * tab opened from an attached tab, and a tab the relay created. A command naming any other tab they have open is
- * refused, saying which tab and why. Run against a real Chromium through the chrome.* fake, over an in-memory channel.
+ * refused, stating which tab and why. Run against a real Chromium through the chrome.* fake, over an in-memory channel.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { TRelayMessage } from "../relay/relay-wire.js";

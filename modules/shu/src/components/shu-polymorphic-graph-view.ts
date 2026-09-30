@@ -266,7 +266,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	private onApplyScene = (name: string): void => void this.applySavedScene(name);
 
 	/** Save this view under a name, through the same step RPC every write goes through, then re-offer the saved scenes.
-	 *  A write that does not land is SAID so, beside the control that asked for it: a save that quietly didn't write looks
+	 *  A write that does not land is shown, beside the control that asked for it: a save that quietly didn't write looks
 	 *  exactly like a save that worked until the reader comes back for the scene. */
 	private async saveSceneAs(name: string): Promise<void> {
 		const written = await saveScene(name, this.captureScene(), "polymorphic: save this view as a scene");
@@ -275,7 +275,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		this.requestUpdate();
 	}
 
-	/** Return this view to the scene saved under a name. The view then says which scene it is showing, so a reader (or a
+	/** Return this view to the scene saved under a name. The view then shows which scene it is showing, so a reader (or a
 	 *  step) can tell the return has landed rather than guess at a moment. */
 	private async applySavedScene(name: string): Promise<void> {
 		if (!name) return;

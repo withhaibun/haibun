@@ -144,7 +144,7 @@ export const pageTypes = new SharedSignal<TPageTypes>("pageTypes", { options: []
 /** What the page's breadcrumb names first: the search the query surface describes. The actions bar's search writes it. */
 export const pageTrail = new SharedSignal<string>("pageTrail", NOTHING_SELECTED_LABEL);
 
-/** What the page says about itself, which the page strip shows: a failure, a server that didn't answer. */
+/** What the page reports about itself, which the page strip shows: a failure, a server that didn't answer. */
 export const pageStatus = new SharedSignal<string>("pageStatus", "");
 
 /** The panes the column strip holds, in its order. The strip is its only writer. */

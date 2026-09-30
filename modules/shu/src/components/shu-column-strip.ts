@@ -301,7 +301,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 			if (target !== -1) this.activatePane(target);
 		}
 		// A minimize always changes which pane can grow. updateAccordion decides that too, but it returns early when
-		// the strip doesn't have width to share (one pane, a maximized strip, the wrapped narrow layout), so it is said here.
+		// the strip doesn't have width to share (one pane, a maximized strip, the wrapped narrow layout), so it is stated here.
 		this.updateAccordion();
 		this.updateEdges();
 		this.publishPanes();

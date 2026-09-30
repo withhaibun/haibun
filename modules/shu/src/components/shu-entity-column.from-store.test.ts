@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /** A reader should be able to tell a stored copy from a fresh one: an individual served from the session copy or, when
- *  the server cannot be reached, the persisted browser store says so; a freshly fetched one doesn't carry such a claim. */
+ *  the server cannot be reached, the persisted browser store carries such a claim; a freshly fetched one doesn't. */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ShuEntityColumn } from "./shu-entity-column.js";
 
@@ -32,7 +32,7 @@ describe("shu-entity-column stored-copy indication", () => {
 		expect(badge(el)).toBeUndefined();
 	});
 
-	it("says so when the individual is served from the copy already held, rather than fetched again", async () => {
+	it("indicates it when the individual is served from the copy already held, rather than fetched again", async () => {
 		await open(); // resolves and holds it
 		const second = await open(); // a second view of the same individual is served from that copy
 		expect(badge(second)).toContain("copy held this session");

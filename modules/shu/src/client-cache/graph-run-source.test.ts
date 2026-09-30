@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // A view reads actuality through the records it wrote. A step is one row carrying how it went and how long it took,
-// where a stream of occurrences said those separately and a view had to pair them up; what a step said is its own row.
+// where a stream of occurrences logged those separately and a view had to pair them up; what a step logged is its own row.
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
@@ -82,7 +82,7 @@ describe("the actuality a view reads, over the records it wrote", () => {
 		await source.ready();
 		expect(source.count()).toBe(4);
 		expect(source.rowAt(0)).toMatchObject({ id: `${RUN}.0.1`, kind: "lifecycle", type: "step", in: "a step", status: "passed", timestamp: 1000, endedAt: 1300, durationMs: 300 });
-		expect(source.rowAt(1), "a statement is shown under the step it was said during, which is what names its row").toMatchObject({
+		expect(source.rowAt(1), "a statement is shown under the step it was logged during, which is what names its row").toMatchObject({
 			id: `${RUN}.0.1`,
 			kind: "log",
 			level: "warn",
@@ -92,7 +92,7 @@ describe("the actuality a view reads, over the records it wrote", () => {
 		expect(source.rowAt(3)).toMatchObject({ id: `${RUN}.0.2`, status: "failed" });
 	});
 
-	it("says what actuality spans, so a view places its rows in time", async () => {
+	it("reports what actuality spans, so a view places its rows in time", async () => {
 		const source = graphRunSource("debug");
 		await source.ready();
 		expect(source.extent()).toMatchObject({ total: 4, first: 1000, last: 1400 });
@@ -203,7 +203,7 @@ describe("the actuality a view reads, over the records it wrote", () => {
 		expect(next.count(), "and actuality reads the same either way").toBe(held);
 	});
 
-	it("reads a step again while it is still running, so its row says how it went once it ends", async () => {
+	it("reads a step again while it is still running, so its row shows how it went once it ends", async () => {
 		await store.upsertIndividual(SEQ_PATH_LABEL, {
 			execution: RUN,
 			id: `${RUN}.0.3`,
@@ -256,14 +256,14 @@ describe("the actuality a view reads, over the records it wrote", () => {
 		const source = graphRunSource("debug", { reReadAfterMs: 0 });
 		await source.ready();
 		expect(source.behind, "read once and a record hasn't been announced since").toBe(false);
-		handle.eventStream.emit({ level: "info", kind: "log", message: "something actuality said", timestamp: 1600 } as never);
+		handle.eventStream.emit({ level: "info", kind: "log", message: "a message actuality logged", timestamp: 1600 } as never);
 		await new Promise((r) => requestAnimationFrame(() => r(undefined)));
 		expect(source.behind, "announced, and the read for it has not finished").toBe(true);
 		await new Promise((r) => setTimeout(r, 5));
 		expect(source.behind, "the read the announcement scheduled has finished").toBe(false);
 	});
 
-	it("says it is cut off while the stream is down, and behind from the stream's return until it has read again", async () => {
+	it("reports it is cut off while the stream is down, and behind from the stream's return until it has read again", async () => {
 		const source = graphRunSource("debug", { reReadAfterMs: 0 });
 		await source.ready();
 		expect(source.disconnected).toBe(false);
@@ -271,7 +271,7 @@ describe("the actuality a view reads, over the records it wrote", () => {
 		expect(source.disconnected, "what actuality does now no longer reaches this page").toBe(true);
 		handle.eventStream.reconnect();
 		expect(source.disconnected).toBe(false);
-		expect(source.behind, "the stream coming back says there may be something to read again for").toBe(true);
+		expect(source.behind, "the stream coming back reports there may be something to read again for").toBe(true);
 		await new Promise((r) => setTimeout(r, 5));
 		expect(source.behind, "read again since the stream came back").toBe(false);
 	});
@@ -283,7 +283,7 @@ describe("the actuality a view reads, over the records it wrote", () => {
 		expect(source.disconnected).toBe(true);
 	});
 
-	it("says every row it holds is readable, so a view marks and scrolls without asking for more", async () => {
+	it("reports every row it holds is readable, so a view marks and scrolls without asking for more", async () => {
 		const source = graphRunSource("debug");
 		await source.ready();
 		expect(source.cachedRanges()).toEqual([{ from: 0, to: 4 }]);
@@ -315,7 +315,7 @@ describe("the actuality a view reads, over the records it wrote", () => {
 			}
 		});
 
-		it("reads actuality around the moment a press names, and says so through the shared cursor", async () => {
+		it("reads actuality around the moment a press names, and states so through the shared cursor", async () => {
 			const source = graphRunSource("debug");
 			await source.ready();
 			source.rail?.goTo(0);

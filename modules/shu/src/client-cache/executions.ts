@@ -34,7 +34,7 @@ export function currentExecution(): string | undefined {
 
 /** The execution whose records a window last read: what the page is looking at when a reader hasn't chosen one. A run
  *  that has started while a page was following the one before it is the execution being read from that moment, so this
- *  says so the way a reader choosing one does: what is drawn of a run and what is read of it are of the same run. */
+ *  reports so the way a reader choosing one does: what is drawn of a run and what is read of it are of the same run. */
 export function noteExecution(execution: string): void {
 	const held = reading();
 	if (held.observed === execution) return;
@@ -161,7 +161,7 @@ function storageIsFull(err: unknown): boolean {
  * What a device holds is the runs a reader can come back to, and it holds them until the browser doesn't have room left. At
  * that point the oldest run the reader is not reading is forgotten and the write is tried once more, so what is kept
  * is the runs nearest to what a reader is looking at rather than whichever ones were written first. A device that
- * doesn't hold a run it can forget says so: reading carries on against the site, and a reader who loses the site loses what this
+ * doesn't hold a run it can forget reports so: reading carries on against the site, and a reader who loses the site loses what this
  * write would have held.
  */
 export async function holdOnDevice(quads: TQuad[]): Promise<void> {
@@ -174,7 +174,7 @@ export async function holdOnDevice(quads: TQuad[]): Promise<void> {
 		const oldest = held.filter((one) => one.execution !== readingExecution()).pop();
 		if (oldest === undefined) return reportFailure(EXECUTIONS, "this device is full and doesn't hold a run it could forget", err);
 		const gone = await forgetExecution(oldest.execution);
-		// Making room is what a full device does rather than a failure of the page, so it is said rather than thrown:
+		// Making room is what a full device does rather than a failure of the page, so it is reported rather than thrown:
 		// a reader whose earlier run is no longer here is told why it went.
 		reportToRun("warn", EXECUTIONS, `this device is full, so actuality ${oldest.execution} and its ${gone} records were forgotten`);
 		await cachedGraphStore()

@@ -1,5 +1,5 @@
 /**
- * What each mark says, as one related set: a verdict, a claim merely tried, or a call handed out and answered.
+ * What each mark indicates, as one related set: a verdict, a claim merely tried, or a call handed out and answered.
  *
  * Reported from a real log: a tool call a model got wrong was marked as actuality failing, and the error mark beside it
  * was too small to see next to the marks around it.
@@ -12,7 +12,7 @@ const step = (over: Record<string, unknown>) =>
 		kind: "lifecycle";
 	};
 
-describe("what a mark says", () => {
+describe("what a mark indicates", () => {
 	it("marks a run's own outcome with a verdict", () => {
 		expect(EventFormatter.getStatusIcon(step({ status: "completed" }))).toContain(CHECK_YES);
 		expect(EventFormatter.getStatusIcon(step({ status: "failed" }))).toContain(CHECK_NO);
@@ -37,7 +37,7 @@ describe("what a mark says", () => {
 		// Info is on every ordinary line, so it stays thin; an error must not be thinner than what surrounds it.
 		expect(ICON_LOG_INFO.length).toBeLessThanOrEqual(2);
 		expect(ICON_LOG_ERROR).not.toBe("⊦");
-		// The error mark is distinct from the failure verdict, so a line never says failure twice in two hands.
+		// The error mark is distinct from the failure verdict, so a line never shows failure twice in two hands.
 		expect(ICON_LOG_ERROR).not.toBe(CHECK_NO);
 	});
 });

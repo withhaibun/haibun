@@ -1,5 +1,5 @@
 /**
- * A graph states itself to a reader who is not looking at it. Which statements come first is the scene's to say, since
+ * A graph states itself to a reader who is not looking at it. Which statements come first is the scene's to decide, since
  * it is the only thing that knows what the reader is on; how many of them travel, and how many a window holds, are
  * decided after this and keep what arrives first.
  */

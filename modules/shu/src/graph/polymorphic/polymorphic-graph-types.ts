@@ -80,7 +80,7 @@ export type FGNode = {
 	__sprite?: TSprite; // === __visual.object; kept typed for the magnifier, which drives scale/renderOrder/fontSize directly
 	__baseScale?: { x: number; y: number }; // the sprite's intrinsic scale (SpriteText derives it from textHeight); magnify multiplies it
 	__k?: number; // current magnify multiplier
-	__chipText?: string; // what the chip the factory built says: the label-as-depth read, and the observable inspect reports
+	__chipText?: string; // what the chip the factory built shows: the label-as-depth read, and the observable inspect reports
 	properties?: Record<string, unknown>; // carried from the model node, including the merged HypermediaRole that groupKeyOf(n, "role") reads
 };
 

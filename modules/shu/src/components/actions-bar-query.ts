@@ -29,7 +29,7 @@ import { readSlashCommand } from "../slash-command.js";
 /** How long typing rests before the search text is committed. */
 export const SEARCH_DEBOUNCE_MS = 300;
 
-/** What a view says about the context it offers the bar: its total, the label the query surface can use, and the
+/** What a view states about the context it offers the bar: its total, the label the query surface can use, and the
  *  conditions it was opened with. */
 type TQueryContextExtra = TContextExtra & { textQuery?: string; conditions?: TSearchCondition[] };
 
@@ -231,7 +231,7 @@ export class ActionsBarQuery implements ReactiveController {
 	}
 
 	/** The selected type's key, from its label, or the first type where a type isn't selected. A label the types don't carry stays
-	 *  selected without a key, and the bar says actuality doesn't hold such a type. */
+	 *  selected without a key, and the bar reports that actuality doesn't hold such a type. */
 	#syncSelectedDomainKey(): void {
 		// A view can state its context before the types are read, when the bar connects after it: the label is held, and
 		// reading the types settles it.
@@ -262,7 +262,7 @@ export class ActionsBarQuery implements ReactiveController {
 		});
 	}
 
-	/** Announce the search the bar now describes. `asked` says a reader changed it. */
+	/** Emit the search the bar now describes. `asked` states that a reader changed it. */
 	#announce(asked = true): void {
 		this.#trailLabel = contextLabel(this.#contextPatterns, { label: this.#selectedLabel, ...this.#selectFilters });
 		this.#deps.onTrailChange();

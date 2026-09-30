@@ -105,7 +105,7 @@ describe("the actions bar's search mode", () => {
 		expect(changes).toEqual([{ asked: false, accessLevel: query.accessLevel, label: "File", conditions: [{ predicate: "folder", operator: "eq", value: "Drafts" }] }]);
 	});
 
-	it("reads the first type where the address doesn't name one, and keeps a label that the types don't carry, saying actuality doesn't hold such a type", async () => {
+	it("reads the first type where the address doesn't name one, and keeps a label that the types don't carry, stating that actuality doesn't hold such a type", async () => {
 		const { query, statuses } = await aQueryPage();
 		expect(query.selectedLabel).toBe("Email");
 		query.setContext([], query.accessLevel, { label: NOT_HELD });

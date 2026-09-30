@@ -102,7 +102,7 @@ describe("what names a record of a run", () => {
 	it("is one form: the execution it belongs to, the step path within it, and which of that step's it is", () => {
 		expect(formatRecordName({ execution: "1700000000000-4", path: [0, 1, 2] })).toBe("1700000000000-4.0.1.2");
 		expect(formatRecordName({ execution: "1700000000000-4", path: [0, 1, 2], ordinal: 3 })).toBe("1700000000000-4.0.1.2@3");
-		expect(formatRecordName({ execution: "1700000000000-4", path: [] }), "what a run said outside every step").toBe("1700000000000-4");
+		expect(formatRecordName({ execution: "1700000000000-4", path: [] }), "what a run logged outside every step").toBe("1700000000000-4");
 	});
 
 	it("reads back exactly what was written", () => {

@@ -59,8 +59,8 @@ describe("the fields a text search reads", () => {
 	});
 
 	it("leaves out a value that is only a value, whatever it holds", () => {
-		// `tag` is the rel for a count, a flag, a duration or an error string: it says a record carries something and doesn't
-		// say more, so naming its value doesn't name a record in particular.
+		// `tag` is the rel for a count, a flag, a duration or an error string: it states a record carries something and doesn't
+		// state more, so naming its value doesn't name a record in particular.
 		const schema = z.object({ subject: z.string(), unread: z.boolean(), size: z.number(), state: z.string() });
 		const topology: THypermediaTopology = {
 			persistedAs: "Message",

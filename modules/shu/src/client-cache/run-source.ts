@@ -90,7 +90,7 @@ export async function readRunAt(at: number | null): Promise<void> {
 	);
 }
 
-/** Report a source a view is reading by; the returned function says it has stopped. */
+/** Report a source a view is reading by; the returned function reports it has stopped. */
 export function readingBy(source: RunSource): () => void {
 	reading().add(source);
 	for (const fn of made()) fn(source);

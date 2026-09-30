@@ -126,7 +126,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 	}
 
 	protected override onConnected(): void {
-		// A step still running reaches its end while this pane is open, and its record then says so. A step that has
+		// A step still running reaches its end while this pane is open, and its record then shows it. A step that has
 		// ended will not change again, so it is read once: a pane that re-read on every announcement would never settle,
 		// since reading actuality is itself something actuality announces. In snapshot mode actuality doesn't change.
 		if (this.hasAttribute("data-snapshot-time")) return;

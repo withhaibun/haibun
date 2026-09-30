@@ -319,7 +319,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 				const pathError = validateMountPath(path);
 				if (pathError) return actionNotOK(pathError);
 				// The page boots with an empty payload: it keeps its own key, and reads what was delegated to it here. What it
-				// may do without a delegation is the web server's to say, and whether a delegation verifies here is actuality's
+				// may do without a delegation is the web server's to decide, and whether a delegation verifies here is actuality's
 				// authority's, read for each page served, since a verifier may be registered after the app is.
 				const settings = (): TDeploymentSettings => ({
 					...this.settings,

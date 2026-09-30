@@ -27,7 +27,7 @@ export type TOutcome = "passed" | "failed";
  *  only when what it records does. */
 type TVerifiedRecord = Record<string, { state: string; outcome: TOutcome; features: number; filter: string }>;
 
-/** Everything that decides what a run of a group is: where its configuration is and what it says, the directory the
+/** Everything that decides what a run of a group is: where its configuration is and what it states, the directory the
  *  run is made from, the features it is narrowed to, the options it is given, the policy it runs under and the
  *  steppers added beyond its configuration. Two runs alike in all of these would answer alike. */
 type TRunConditions = {
@@ -96,7 +96,7 @@ function readRecord(file: string): TVerifiedRecord {
 const writeRecord = (file: string, record: TVerifiedRecord): void => nodeFS.writeFileSync(file, `${JSON.stringify(record, null, "\t")}\n`);
 
 /** How this group last ran against its present state under these conditions, if it has run against it. A record that
- *  does not say how the run went isn't a record of a run. */
+ *  does not state how the run went isn't a record of a run. */
 export function outcomeAgainst(v: TVerification): { outcome: TOutcome; features: number } | undefined {
 	const held = readRecord(v.file)[v.conditions];
 	if (!held || held.state !== v.state || (held.outcome !== "passed" && held.outcome !== "failed")) return undefined;

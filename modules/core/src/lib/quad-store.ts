@@ -331,7 +331,7 @@ export class QuadStore implements IQuadStore {
 		};
 
 		// Federated peers and REMOTE backing stores merge alongside local backing stores; each stamps its subjects with
-		// its own site principal (TCluster.sites), so a merged cluster still says which site served each subject. Under
+		// its own site principal (TCluster.sites), so a merged cluster still states which site served each subject. Under
 		// scope "own" (this instance's authoritative record) both are skipped, their records are the serving site's own.
 		const own = opts.scope === "own";
 		const backing = own ? this.allStores.filter((s) => !s.isRemote) : this.allStores;
@@ -437,7 +437,7 @@ export class QuadStore implements IQuadStore {
 
 /**
  * The rows a graph query names, answered by a store that holds quads: one type at a time, equality filters, windowed.
- * A store with a query engine answers richer queries itself; this is what a store of quads can say, and it is the same
+ * A store with a query engine answers richer queries itself; this is what a store of quads can answer, and it is the same
  * answer whether the store is the site's or the copy a page caches, which is why both ask it here.
  */
 export async function queryQuadStore(store: IQuadStore, query: TGraphQuery): Promise<TGraphQueryResult> {
@@ -631,7 +631,7 @@ async function targetOf(store: IQuadStore, label: string, id: string): Promise<R
 }
 
 /** How many edges pointing at one individual are read as records at a time. A hub has more edges than a reader reads,
- *  and each edge read is a read of the record it names, so a reading takes a page of them and says how many there are. */
+ *  and each edge read is a read of the record it names, so a reading takes a page of them and returns how many there are. */
 const INCOMING_EDGE_PAGE = 100;
 
 /** The edges pointing at an individual, over any store: how many there are, and the page of them asked for, each read

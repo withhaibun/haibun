@@ -25,7 +25,7 @@ type TCorner = (typeof CORNERS)[number];
  *  which it is. */
 const CORNER_DISMISS: Record<TCorner, "click-away" | "panel"> = { settings: "click-away", access: "click-away", playback: "panel", status: "click-away" };
 
-/** What an extension in the permissions area says awaits the reader's decision: how many, and the reference that leads
+/** What an extension in the permissions area reports awaits the reader's decision: how many, and the reference that leads
  *  to them. */
 type TAwaiting = { count: number; ref: { kind: TRefKind; target: Record<string, unknown> } | null };
 
@@ -45,7 +45,7 @@ const spanLabel = (ms: number): { n: number; unit: "s" | "m" } => {
 
 /**
  * How far along a run the time cursor sits: the moment it is at, out of how long the run is, "11/40s". A bare "11s"
- * doesn't say whether that is near the beginning or the end, which is the thing a reader wants from a readout
+ * doesn't show whether that is near the beginning or the end, which is the thing a reader wants from a readout
  * this small. "now" at the latest moment seen, since actuality doesn't have an upper bound for the fraction.
  */
 export function timeOffsetLabel(cursor: number | null, firstEventTime: number, latestEventTime: number): string {
@@ -77,7 +77,7 @@ type TPageStripCornersDeps = {
 export class PageStripCorners implements ReactiveController {
 	readonly #host: TControllerHost;
 	readonly #deps: TPageStripCornersDeps;
-	/** What this reader holds and how many principals this deployment knows: the access indicator says both beside the level. */
+	/** What this reader holds and how many principals this deployment knows: the access indicator shows both beside the level. */
 	readonly #authority: AuthorityController;
 	#open: TCorner | null = null;
 	#status = "";
@@ -116,7 +116,7 @@ export class PageStripCorners implements ReactiveController {
 		return this.#open;
 	}
 
-	/** Say something on the strip, in full in the status popover. */
+	/** Display something on the strip, in full in the status popover. */
 	setStatus(message: string): void {
 		this.#status = message;
 		this.#host.requestUpdate();
@@ -159,7 +159,7 @@ export class PageStripCorners implements ReactiveController {
 	};
 
 	/** The one popover the corners share, its content that of the corner open. The permissions extensions are mounted
-	 *  whether or not it is open, since an extension that exists only once the panel opens cannot say there is something
+	 *  whether or not it is open, since an extension that exists only once the panel opens cannot indicate there is something
 	 *  in it to open it for; they are shown with the access panel. */
 	popoverTemplate(): TemplateResult {
 		const prefix = this.#deps.testIdPrefix();
@@ -195,7 +195,7 @@ export class PageStripCorners implements ReactiveController {
 	/** The status on the strip, shown while there is one, which opens its full text. */
 	statusTemplate(): TemplateResult {
 		return html`<button class="status-area" style=${this.#status ? "" : "display:none"} aria-expanded=${this.#open === "status"}
-			title="what this says, in full" data-testid=${`${this.#deps.testIdPrefix()}status`} @click=${this.toggle("status")}>${this.#status}</button>`;
+			title="what this shows, in full" data-testid=${`${this.#deps.testIdPrefix()}status`} @click=${this.toggle("status")}>${this.#status}</button>`;
 	}
 
 	/** The access indicator with what the reader holds and what awaits them, the settings, and the time offset. */

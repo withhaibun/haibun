@@ -62,7 +62,7 @@ describe("the key a page controls", () => {
 		);
 	});
 
-	it("says why where the browser withholds its key store, which is how a page served over plain http is reached", async () => {
+	it("reports why where the browser withholds its key store, which is how a page served over plain http is reached", async () => {
 		const held = globalThis.crypto;
 		Object.defineProperty(globalThis, "crypto", { value: {}, configurable: true });
 		try {

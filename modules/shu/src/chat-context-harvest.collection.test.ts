@@ -39,7 +39,7 @@ describe("what a page sends of a view that states many members", () => {
 			"the view states the order it wants them read",
 		).toEqual(Array.from({ length: HARVEST_MEMBERS }, (_, at) => at));
 		expect(carried.totalItems, "the count the view stated stands, so a reader is told how many the view holds").toBe(HARVEST_MEMBERS + 50);
-		expect("membersCarried" in carried, "what arrived is what items carries; the count standing against it says so").toBe(false);
+		expect("membersCarried" in carried, "what arrived is what items carries; the count standing against it states so").toBe(false);
 		expect(carried["@type"], "a context payload doesn't claim a resource type; the claim belongs to the boundary").toBeUndefined();
 	});
 

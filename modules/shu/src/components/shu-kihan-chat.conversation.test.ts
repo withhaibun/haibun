@@ -118,7 +118,7 @@ function respond(step: string, params: Record<string, unknown>): unknown {
 		return KEPT_IMAGE;
 	}
 	if (step === CHAT_STEP.sessions) return { sessions: [{ session: RESTORED, label: "an earlier conversation", generatedAtTime: "2026-05-17T05:00:00.000Z", turns: 1 }] };
-	// A read held open, answered when a case says the store got back to the page.
+	// A read held open, answered when a case reports the store got back to the page.
 	if (step === CHAT_STEP.session)
 		return new Promise((resolve, reject) => {
 			sessionReads.push((failure) => (failure ? reject(new Error(failure)) : resolve({ turns: sessionTurns })));
@@ -225,7 +225,7 @@ async function answerTheSessionRead(failure?: string): Promise<void> {
 }
 
 describe("a question refused", () => {
-	it("while a turn is in flight, says so beside the input, keeps the question, and offers Stop rather than Send", async () => {
+	it("while a turn is in flight, shows it beside the input, keeps the question, and offers Stop rather than Send", async () => {
 		const { pane, history } = await aPage();
 		await submit(pane, "what do these have in common");
 		await submit(pane, "which one mentions the crumb");
@@ -239,7 +239,7 @@ describe("a question refused", () => {
 		expect(hidden(pane, ".stop-btn")).toBe(false);
 	});
 
-	it("while the conversation opens, says so beside the input and doesn't send a question", async () => {
+	it("while the conversation opens, shows it beside the input and doesn't send a question", async () => {
 		const { pane } = await aPage();
 		pickSession(pane, RESTORED);
 		await submit(pane, "and what came of it");
@@ -294,7 +294,7 @@ describe("a question not asked", () => {
 		expect(refusalOn(pane)).toBe(CONVERSATION_OPENING);
 	});
 
-	it("because the model catalog cannot be read, keeps the question and says why", async () => {
+	it("because the model catalog cannot be read, keeps the question and reports why", async () => {
 		catalog = () => Promise.reject(new Error("the store is unreachable"));
 		const { pane } = await aPage();
 		await submit(pane, "what do these have in common");
@@ -328,7 +328,7 @@ describe("a question not asked", () => {
 });
 
 describe("a turn that ends before it answered", () => {
-	it("says what went wrong on its answer, and doesn't leave a spinner running", async () => {
+	it("shows what went wrong on its answer, and doesn't leave a spinner running", async () => {
 		streamFails = "the model did not answer: connection reset";
 		const { pane, history } = await aPage();
 		await submit(pane, "what do these have in common");
@@ -779,7 +779,7 @@ describe("a question from the history asked again", () => {
 		const { pane } = await aPage();
 		await pane.restate({ prompt: "what is this", patterns: EMAIL.bundle.patterns, inReplyTo: RESTORED, send: false });
 		expect(chatInput(pane).value).toBe("what is this");
-		expect(pane.shadowRoot?.querySelector('[data-testid$="chat-restating"]'), "it says the question replies where the earlier one did").not.toBeNull();
+		expect(pane.shadowRoot?.querySelector('[data-testid$="chat-restating"]'), "it shows the question replies where the earlier one did").not.toBeNull();
 		await submit(pane, "what is this, briefly");
 		expect(sent.at(-1)).toMatchObject({ inReplyTo: RESTORED, patterns: EMAIL.bundle.patterns });
 	});

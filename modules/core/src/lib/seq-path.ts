@@ -30,10 +30,10 @@ export function parseSeqPath(id: string): number[] | null {
 	return id.split(".").map((p) => Number.parseInt(p, 10));
 }
 
-/** What a step's record says it called: the stepper and the action within it. */
+/** What a step's record states it called: the stepper and the action within it. */
 export const calledOf = (stepperName: string, actionName: string): string => `${stepperName}.${actionName}`;
 
-/** The stepper and the action a step's record says it called. */
+/** The stepper and the action a step's record states it called. */
 export function calledParts(called: string): { stepperName: string; actionName: string } {
 	const at = called.indexOf(".");
 	if (at < 1 || at === called.length - 1) throw new Error(`"${called}" doesn't name a stepper and action`);
@@ -93,7 +93,7 @@ export function executionOf(tag: { key: string; featureNum: number }): string {
 }
 
 /**
- * What names a record of a run: the execution it belongs to, the step path within it, and, for what a step said or
+ * What names a record of a run: the execution it belongs to, the step path within it, and, for what a step logged or
  *  produced, which of those it is. One form, wherever a record is named, so reading a name is parsing rather than
  *  string surgery over several shapes.
  */
@@ -101,9 +101,9 @@ export const RecordNameSchema = z
 	.object({
 		/** When the process began and which feature of it this run is. */
 		execution: z.string().regex(/^\d+--?\d+$/),
-		/** The step within that execution, empty for what actuality said outside every step. */
+		/** The step within that execution, empty for what actuality logged outside every step. */
 		path: z.array(z.number().int()),
-		/** Which of the things one step said or produced this is; absent on the step's own record. */
+		/** Which of the things one step logged or produced this is; absent on the step's own record. */
 		ordinal: z.number().int().nonnegative().optional(),
 	})
 	.strict();
@@ -148,13 +148,13 @@ export function compareSeqPath(a: number[], b: number[]): number {
 export const SEQ_PATH_FIELD = {
 	id: "id",
 	stepText: "stepText",
-	/** What the step called: the stepper and the action within it, as `Stepper.action`. The step's TEXT says what was asked for; this says what ran. */
+	/** What the step called: the stepper and the action within it, as `Stepper.action`. The step's TEXT states what was asked for; this states what ran. */
 	called: "called",
 	actionStatus: "actionStatus",
 	/** Why a step failed, written only where one did: what went wrong is a fact about the step, so it is on the step. */
 	error: "error",
 	/** The view this step showed, by the name the site declares it under. How that view looks is the site's
-	 *  declaration, so a record says which view rather than carrying a copy of what the declaration already says. */
+	 *  declaration, so a record states which view rather than carrying a copy of what the declaration already states. */
 	showed: "showed",
 	/** The capability this step declares, written only where it declares one: what had to be held to run it. */
 	capabilityAction: "capabilityAction",
@@ -166,8 +166,8 @@ export const SEQ_PATH_FIELD = {
 	path: "path",
 	/** How the statement's outcome is to be taken. A speculative step's failure is expected, so a reader looking for
 	 *  what went wrong wants the authoritative ones, and that is a distinction they can draw only if each step
-	 *  says which it was. Written for every step, the ordinary case included, since "not speculative" is only
-	 *  answerable when an authoritative step says so too. */
+	 *  states which it was. Written for every step, the ordinary case included, since "not speculative" is only
+	 *  answerable when an authoritative step states so too. */
 	mode: "mode",
 	/** How the step reached what ran it: in this process, in another host, or in a subprocess. Where a step ran is a
 	 *  fact about that step, so it is written on it rather than traced beside it. */

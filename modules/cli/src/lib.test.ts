@@ -67,12 +67,12 @@ describe("processEnv", () => {
 	it("errors for non-boolean value ", () => {
 		expect(() => lib.processBaseEnvToOptionsAndErrors({ HAIBUN_TRACE: "wtw" }, NO_CONFIG)).toThrow();
 	});
-	it("runs once where the environment says so, as the command line option does, for every run a script chains", () => {
+	it("runs once where the environment states so, as the command line option does, for every run a script chains", () => {
 		const { options } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_ONCE: "true" }, NO_CONFIG);
 		expect(lib.runsOnce({ once: false }, options), "the environment alone").toBe(true);
 		expect(lib.runsOnce({ once: true }, lib.processBaseEnvToOptionsAndErrors({}, NO_CONFIG).options), "the command line alone").toBe(true);
 		expect(lib.runsOnce({ once: false }, lib.processBaseEnvToOptionsAndErrors({}, NO_CONFIG).options), "without either").toBe(false);
-		expect(lib.runsOnce({ once: false }, lib.processBaseEnvToOptionsAndErrors({ HAIBUN_ONCE: "false" }, NO_CONFIG).options), "the environment saying no").toBe(false);
+		expect(lib.runsOnce({ once: false }, lib.processBaseEnvToOptionsAndErrors({ HAIBUN_ONCE: "false" }, NO_CONFIG).options), "the environment stating no").toBe(false);
 		expect(() => lib.processBaseEnvToOptionsAndErrors({ HAIBUN_ONCE: "yes" }, NO_CONFIG), "a value that is not true or false").toThrow();
 	});
 	it("assigns int", () => {

@@ -336,7 +336,7 @@ export function mergeQuadsIntoSnapshot(quads: TQuad[]): void {
 
 /**
  * One individual with its edges: what the site answers, and when the site doesn't answer, the individual as the page holds it.
- * Undefined only when the site answered that such an individual doesn't exist; anything else the site said is reported.
+ * Undefined only when the site answered that such an individual doesn't exist; anything else the site reported is returned.
  */
 export function readIndividual(label: string, id: string, accessLevel: string): Promise<TIndividualWithEdges> {
 	return askElseHeld(

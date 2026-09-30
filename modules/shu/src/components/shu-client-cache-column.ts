@@ -309,7 +309,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 		const sources = runSources();
 		const cursor = this.timeCursor;
 		// The moment every source reads around, which is the cursor once a reader has moved it: what is read is what a
-		// reader is looking at, and this says so rather than leaving it to be inferred from the rows.
+		// reader is looking at, and this shows it rather than leaving it to be inferred from the rows.
 		const readingMoment = runReadingAt();
 		// The execution being read: the one a reader chose, else the newest this device holds, which is the one being
 		// recorded while a site is recording one.

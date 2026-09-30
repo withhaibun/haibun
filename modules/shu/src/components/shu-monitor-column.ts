@@ -41,10 +41,10 @@ const MonitorColumnSchema = z.object({
 /**
  * What pressing a row opens: the record that row is.
  *
- * Every row of the log is a record of actuality: a step, something actuality said, or something it produced. A step has a
+ * Every row of the log is a record of actuality: a step, something actuality logged, or something it produced. A step has a
  * view of its own; every other record is opened the way any record of the graph is. Opened only where a row carried a
  * step, a reader learned that some rows answer a press and others don't, and the row didn't show
- * which: what a run said over a connection is as much a record as the step it was said during.
+ * which: what a run logged over a connection is as much a record as the step it was logged during.
  *
  * A row that doesn't name a record doesn't open a view: it is a row of something actuality never wrote down.
  */
@@ -53,7 +53,7 @@ export function opens(row: TLogRow): DesiredPane | undefined {
 	return row.record ? { paneType: "entity", persistedAs: row.record.persistedAs, id: row.record.id } : undefined;
 }
 
-/** A step's outcome, how long it took, where it ran, and what it had to hold to run: what its own record says, and what a
+/** A step's outcome, how long it took, where it ran, and what it had to hold to run: what its own record holds, and what a
  *  row carries beside its words. */
 const RowOutcomeSchema = z.object({
 	status: z.string().optional(),
@@ -265,14 +265,14 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		const ts = (e.timestamp as number) || 0;
 		const first = this.#run.extent().first ?? ts;
 		const level = String(e.level || "info");
-		// The step's own words. What was said during a step, or produced by one, doesn't have its own words: the path beside it says which
+		// The step's own words. What was logged during a step, or produced by one, doesn't have its own words: the path beside it indicates which
 		// step it belongs to, and a raw id in its place isn't readable to a reader.
 		const step = String(e.in ?? "");
-		// What a row says beside the step it names: what was said, what was produced, or how the step it names turned out.
+		// What a row shows beside the step it names: what was logged, what was produced, or how the step it names turned out.
 		const isOf = producedName(e);
 		const said = e.kind === "artifact" ? isOf : String(e.called || e.type || "");
 		const message = e.kind === "log" ? String((e as { message?: string }).message || "") : said;
-		// One glyph per row, and the one that says something: how a step went, and the level a message reports at. Every
+		// One glyph per row, and the one that indicates something: how a step went, and the level a message reports at. Every
 		// step of a run reports at the same level, so a level glyph on a step row doesn't separate the rows.
 		const icon = e.kind === "log" ? (LEVEL_ICONS[level] ?? ICON_DEFAULT) : eventMarkerStyle(e).icon;
 		let seqPath = Array.isArray(e.seqPath) ? (e.seqPath as number[]) : undefined;
@@ -416,7 +416,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			if (this.isFuture(r.timestamp)) cls += ` ${TIME_SYNC_CLASS.FUTURE}`;
 			if (index === this.#currentIdx) cls += ` ${TIME_SYNC_CLASS.CURRENT}`;
 		}
-		// Where the step ran, how long it took, and what it had to hold to run: its own record says all of it, so a row
+		// Where the step ran, how long it took, and what it had to hold to run: its own record states all of it, so a row
 		// states it rather than being paired with a separate account of the same act. A step that doesn't require a capability
 		// doesn't state one, so the rows mentioning a capability are exactly the acts that needed one.
 		const dispatchText = r.ranVia ? html`${r.ranVia}${r.ranOn ? html` ${originLink(r.ranOn)}` : ""}${r.durationMs === undefined ? "" : ` ${r.durationMs}ms`}` : "";
@@ -429,7 +429,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		const produced = r.produced?.length
 			? html`<span class="produced" data-testid=${SHU_TEST_IDS.MONITOR.PRODUCED}>${r.produced.map((one) => html`<a href=${artifactAt(one.url, MONITOR_SOURCE)} target="_blank" rel="noreferrer" title=${one.what}><img src=${artifactAt(one.url, MONITOR_SOURCE)} alt=${one.what} loading="lazy" decoding="async" /></a>`)}</span>`
 			: "";
-		// A substep says which step it was run to carry out, and reading that step from here is the same act as reading
+		// A substep names which step it was run to carry out, and reading that step from here is the same act as reading
 		// its own row: a reader shown a step of the machinery is one press from the step of the feature that ran it.
 		const seqPath = r.partOf
 			? html`<span class="seqpath">[<span class="established-by" title="the step this was run to carry out">${refTpl("seqPath", { seqPath: r.partOf }, r.partOf.join("."), SHU_TEST_IDS.MONITOR.ESTABLISHED_BY)}</span>${(r.seqPath ?? []).slice(r.partOf.length).map((n) => `.${n}`)}] </span>`

@@ -43,7 +43,7 @@ const FeatureExecutionSchema = z.object({
 	features: z.number().optional(),
 	steps: z.number().optional(),
 	failed: z.number().optional(),
-	/** The first step that failed, as the seqPath it failed at and what it said. Absent when the run's steps didn't fail. */
+	/** The first step that failed, as the seqPath it failed at and what it logged. Absent when the run's steps didn't fail. */
 	firstFailure: z.string().optional(),
 	/** The principal that started the run, which is the controller of the capability it ran under. */
 	attributedTo: z.string().optional(),
@@ -98,5 +98,5 @@ export const featureExecutionDomainDefinition: TDomainDefinition = {
 	},
 };
 
-/** What a run's exit code says about it. A null code means it is still running. */
+/** What a run's exit code shows about it. A null code means it is still running. */
 export const statusOfExit = (exitCode: number | null): TRunStatus => (exitCode === null ? RUN_STATUS.running : exitCode === 0 ? RUN_STATUS.passed : RUN_STATUS.failed);

@@ -222,7 +222,7 @@ describe("the answer a store of quads gives a graph query", () => {
 		expect((await queryQuadStore(times, oldest)).vertices.map((v) => v.id)).toEqual(["a", "b"]);
 	});
 
-	it("says what it cannot answer rather than answering wrongly", async () => {
+	it("states what it cannot answer rather than answering wrongly", async () => {
 		await expect(queryQuadStore(store, GraphQuerySchema.parse({}))).rejects.toThrow(/one type at a time/);
 		await expect(queryQuadStore(store, GraphQuerySchema.parse({ label: "Email", textQuery: "inbox" }))).rejects.toThrow(/query engine/);
 		await expect(
@@ -242,7 +242,7 @@ describe("which division of a span an instant falls in", () => {
 		expect(bucketOf(10, 0, 10, 3)).toBe(2);
 	});
 
-	it("says an instant outside the span isn't in a bucket", () => {
+	it("returns an instant outside the span isn't in a bucket", () => {
 		expect(bucketOf(-1, 0, 10, 3)).toBe(-1);
 		expect(bucketOf(11, 0, 10, 3)).toBe(-1);
 	});

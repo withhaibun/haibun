@@ -2,7 +2,7 @@
  * <shu-permissions>: what this reader may do here, and the authority behind it.
  *
  * A reader who is refused something needs to see why, and an operator deciding on an agent's request needs to see what
- * they themselves hold. Three things say that: the key this page signs as, the actions delegated to it, and the
+ * they themselves hold. Three things show that: the key this page signs as, the actions delegated to it, and the
  * principals this deployment knows.
  *
  * Shown from the access indicator, beside the level a read is bounded by: a capability decides whether a question may
@@ -21,7 +21,7 @@ import { actionRef, refTpl } from "./shu-ref.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import type { TRefKind } from "./ref-navigation.js";
 
-/** What the access indicator says beside the level, and the event carrying it: one count per thing this panel lists. */
+/** What the access indicator shows beside the level, and the event carrying it: one count per thing this panel lists. */
 export const PERMISSIONS_SUMMARY = "permissions-summary";
 export type TPermissionsSummary = { holds: number; principals: number };
 export const summaryOf = (held: TAuthority): TPermissionsSummary => ({ holds: held.holds.length, principals: held.principals.length });
@@ -69,7 +69,7 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 		.holds { list-style: none; padding-left: 0; }
 		.action { border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); padding: 0 var(--shu-space-2); font: inherit; font-size: var(--shu-font-sm); color: inherit; background: none; cursor: pointer; }
 		.action:hover { background: var(--shu-bg-hover); }
-		/* The level reads on one line with what it bounds, since it is the first thing this panel says. */
+		/* The level reads on one line with what it bounds, since it is the first thing this panel shows. */
 		.level { display: flex; align-items: center; gap: var(--shu-space-2); }
 		.level label { color: var(--shu-fg-muted); }
 		/* An alert a reader cannot miss: the accent as its ground rather than its text, so it reads as a state of the
@@ -87,7 +87,7 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 		void this.read();
 	}
 
-	/** What the deployment says about itself: what this reader holds and its principals. Said upward each time it is
+	/** What the deployment holds about itself: what this reader holds and its principals. Reported upward each time it is
 	 *  read, so the indicator that summarises this panel counts what the panel is showing rather than what it found once. */
 	private async read(): Promise<void> {
 		try {

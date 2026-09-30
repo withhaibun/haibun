@@ -49,7 +49,7 @@ export const stepRef = (method: string, text?: string, testId?: string): Templat
 /** An action a caller holds or a step requires, as a link to what it allows. */
 export const actionRef = (action: string, testId?: string): TemplateResult => refTpl("action", { action }, action, testId);
 
-/** What a step's record says it called, as a link to that step. */
+/** What a step's record names it called, as a link to that step. */
 export const calledRef = (called: string): TemplateResult => {
 	const { stepperName, actionName } = calledParts(called);
 	return stepRef(stepMethodName(stepperName, actionName), called);

@@ -504,7 +504,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 						.join("")}</div>`
 				: "";
 		// Text this view was HANDED (a step's products carry their own body) doesn't need a request; otherwise it is the text
-		// read on request, and until that lands the body area says it is reading rather than showing an empty frame.
+		// read on request, and until that lands the body area shows it is reading rather than showing an empty frame.
 		const raw = active.content ?? this.bodyText[activeId];
 		if (raw === undefined)
 			return `<div class="body-container"><div class="content-toolbar">${switcherHtml}</div><div class="body-reading" data-testid="body-reading">Reading ${esc(String(active.mediaType))}…</div></div>`;
@@ -615,7 +615,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	}
 
 	/** The record's governance fields: who may see it, what it allows, whether it is revoked. The field table drops them
-	 *  (their rel says they belong here), so without this they don't render. */
+	 *  (their rel indicates they belong here), so without this they don't render. */
 	private renderGovernance(persistedAs: string): string {
 		if (!this.vertex) return "";
 		const fields = governanceFields(this.vertex, persistedAs);

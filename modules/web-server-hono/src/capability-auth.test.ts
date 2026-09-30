@@ -1,8 +1,8 @@
 /**
  * What a request is allowed to do here, and who it proved itself to be. The proof itself is a specification's
  * business and a consumer registers what reads it; what is checked here is what the boundary does with the answer:
- * that a failed or unverifiable proof refuses the request, that a proof says who acted, and that a request not presenting
- * authority holds what the deployment allows without a delegation, which is empty unless it says otherwise.
+ * that a failed or unverifiable proof refuses the request, that a proof states who acted, and that a request not presenting
+ * authority holds what the deployment allows without a delegation, which is empty unless it states otherwise.
  */
 import { describe, it, expect } from "vitest";
 import { Hono } from "hono";
@@ -43,7 +43,7 @@ const signedRequest = (action: string) => ({
 });
 
 describe("what a request carries to a boundary", () => {
-	it("grants what a proof allows, and says who proved it, so what is done under it can name them", async () => {
+	it("grants what a proof allows, and states who proved it, so what is done under it can name them", async () => {
 		const authority = new SessionAuthority();
 		authority.registerVerifier(new StubVerifier());
 		const carried = await grantedCapabilityForRequest(signedRequest(ACTION), runtimeWith(authority), NOBODY);

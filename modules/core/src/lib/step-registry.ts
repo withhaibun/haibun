@@ -271,7 +271,7 @@ export function createStepHandler(stepperName: string, stepName: string, stepDef
 			const productsError = result.ok ? validateProducts(stepperName, stepName, stepDef, world, result.products, args) : undefined;
 			return productsError ? actionNotOK(productsError) : result;
 		} catch (caught) {
-			// A step that throws fails as a step that refuses does: with what it said. Whoever presents the failure names the
+			// A step that throws fails as a step that refuses does: with what it returned. Whoever presents the failure names the
 			// step, as an RPC answer names its method.
 			return actionNotOK(caught instanceof Error ? caught.message : String(caught));
 		}

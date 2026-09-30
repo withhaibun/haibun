@@ -1,4 +1,4 @@
-The files in this directory whose header says so are derived from Playwright
+The files in this directory whose header states so are derived from Playwright
 (https://github.com/microsoft/playwright), at commit 7b4b3b0828, and are
 licensed under the Apache License, Version 2.0, a copy of which is in
 LICENSE-playwright. Each such file states what was changed.

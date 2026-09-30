@@ -4,7 +4,7 @@ import { ServerHono } from "./server-hono.js";
 import type { IEventLogger } from "@haibun/core/lib/EventLogger.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { EndpointLabels } from "./defs.js";
-import { basicAuthUsers } from "./auth.js";
+import { basicAuthUsers, whyNotSignedInOnly } from "./auth.js";
 
 const mockLogger: IEventLogger = {
 	subscribe: () => {
@@ -239,6 +239,19 @@ describe("a server that admits people by basic auth", () => {
 		const server = new ServerHono(mockLogger, "/tmp", () => new QuadStore(), [], basicAuthUsers(ADMITTED));
 		server.clearMounted();
 		expect((await server.app.request("/held")).status).toBe(401);
+	});
+
+	it("passes the check that an address asks every visitor to sign in, which a server that doesn't ask fails with what to change", async () => {
+		const asking = serving();
+		expect(await whyNotSignedInOnly("https://site.test/held", (at) => Promise.resolve(asking.request(at)))).toBeUndefined();
+		const open = new ServerHono(mockLogger, "/tmp", () => new QuadStore(), []);
+		open.addRoute("get", "/held", { description: "a route anyone reaches" }, (c) => c.text("held"));
+		expect(await whyNotSignedInOnly("https://site.test/held", (at) => Promise.resolve(open.app.request(at)))).toBe(
+			"https://site.test/held answered 200 to a request that didn't sign in. It must answer 401, so nobody reaches this actuality without signing in. Put basic auth on the proxy in front of it, or set the web server's BASIC_AUTH option.",
+		);
+		expect(await whyNotSignedInOnly("https://site.test/held", () => Promise.reject(new Error("getaddrinfo ENOTFOUND site.test")))).toBe(
+			"https://site.test/held couldn't be reached to check that it asks visitors to sign in: getaddrinfo ENOTFOUND site.test. Check that the address is right and that the proxy in front of this actuality is running.",
+		);
 	});
 
 	it("names people by user:password entries, and refuses an entry that isn't one without repeating it", () => {

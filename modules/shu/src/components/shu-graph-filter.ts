@@ -146,7 +146,7 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 	/**
 	 * A scene's remembered choices, announced as every other change to them is. The host derives what the graph shows
 	 * from the filter's report rather than by reading its state, so choices restored silently would leave the legend
-	 * saying one thing and the graph showing another.
+	 * stating one thing and the graph showing another.
 	 */
 	override applySceneState(fields: Record<string, unknown>): void {
 		super.applySceneState(fields);

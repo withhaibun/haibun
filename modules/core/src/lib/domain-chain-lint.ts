@@ -29,7 +29,7 @@ export const LINT_FINDING = {
 	UNSUPPLIED_STEP: "unsupplied-step",
 	UNREACHABLE_DOMAIN: "unreachable-domain",
 	UNPRODUCED_DOMAIN: "unproduced-domain",
-	/** A parameter whose domain is `string`, or a union with it, which doesn't say what the value is. */
+	/** A parameter whose domain is `string`, or a union with it, which doesn't name what the value is. */
 	STRING_PARAM: "string-param",
 } as const;
 

@@ -192,7 +192,7 @@ import { ellipsize } from "./util/index.js";
 import { itemAt } from "./util/item-at.js";
 
 /** A domain's JSON Schema for the catalog. The show steps step builds the catalog on every call, and the conversion is held
- *  for the process by `jsonSchemaOf`; a schema that cannot be converted doesn't have a shape to report, and says so once. */
+ *  for the process by `jsonSchemaOf`; a schema that cannot be converted doesn't have a shape to report, and reports so once. */
 function toJsonSchemaCached(schema: z.ZodType): Record<string, unknown> {
 	return jsonSchemaOf(schema, "concern", () => {
 		try {
@@ -837,7 +837,7 @@ function curiePrefix(term: string): string {
 
 /**
  * A type may not claim a term in a vocabulary it has not bound. Every CURIE a topology uses: its class (`type`), the
- * classes it says it is a kind of (`subClassOf`), and the genuine IRIs its properties/edges declare, must resolve
+ * classes it states it is a kind of (`subClassOf`), and the genuine IRIs its properties/edges declare, must resolve
  * through a prefix core binds (STANDARD_NAMESPACES + hbn) or one the type declares itself (`topology.namespaces`).
  *
  * Unbound, the prefix still serves: `getJsonLdContext` emits the term and the reader's JSON-LD doesn't resolve it to an IRI:

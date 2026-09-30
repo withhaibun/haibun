@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
  * The page strip stands along the bottom of the page whatever is docked above it. It names the search and the columns in
- * its breadcrumb, says the page's status, opens, closes and pins the docked pane, and changes the read access level.
+ * its breadcrumb, shows the page's status, opens, closes and pins the docked pane, and changes the read access level.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { Access } from "@haibun/core/lib/resources.js";
@@ -107,7 +107,7 @@ describe("the page strip", () => {
 		// The combobox holds its own test id inside its root, so the strip's control is addressed by its class here.
 		const types = strip.shadowRoot?.querySelector(".type-select") as HTMLElement & { options: Array<{ value: string }>; value: string; shown: string };
 		expect(types.getAttribute("testid"), "a feature addresses it by the page's type select").toBe(`${PREFIX}type-select`);
-		expect(types.getAttribute("slot"), "it stands in the breadcrumb's search entry, the entry that says what the search found").toBe("search");
+		expect(types.getAttribute("slot"), "it stands in the breadcrumb's search entry, the entry that shows what the search found").toBe("search");
 		expect(types.shown, "and shows the search and its count").toBe("Email: 3");
 		expect(types.options.map((o) => o.value)).toEqual(["email-domain", "file-domain"]);
 		expect(types.value, "the type the search reads").toBe("email-domain");
@@ -117,7 +117,7 @@ describe("the page strip", () => {
 		expect(chosen).toHaveBeenCalledWith({ key: "file-domain" });
 	});
 
-	it("says the page's status", async () => {
+	it("shows the page's status", async () => {
 		const strip = await mountStrip();
 		pageStatus.set("3 results");
 		await strip.updateComplete;

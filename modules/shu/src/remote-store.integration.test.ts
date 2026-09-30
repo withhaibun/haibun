@@ -88,7 +88,7 @@ probe the delegated store surface
 		expect(readBack?.controller).toBe("did:site:0.1");
 		// The main itself holds the record, asked directly under the satellite's delegation.
 		expect(heldByMain).toHaveLength(1);
-		// Without a grant a caller doesn't have access: reads and writes are refused a caller that doesn't present one, and the refusal doesn't say more.
+		// Without a grant a caller doesn't have access: reads and writes are refused a caller that doesn't present one, and the refusal doesn't state more.
 		expect(deniedRead).toBe(refusal("store.queryIndividuals", undefined, undefined));
 		expect(deniedWrite).toBe(refusal("store.upsertIndividual", undefined, undefined));
 	});

@@ -45,7 +45,7 @@ export function subjectValidTimes(quads: TQuad[], validTimeFieldFor: (type: stri
 	return { times, indexed: fallback };
 }
 
-/** What one pass over the quads says about time per subject: the valid times, and when each was written down. */
+/** What one pass over the quads reports about time per subject: the valid times, and when each was written down. */
 export type TSubjectTimes = { times: Map<string, TSubjectTime>; indexed: Map<string, TSubjectTime> };
 
 /** Compute the sqrt-age scale for one reference `now` over all record times: the raw-value scale over each age

@@ -1,4 +1,4 @@
-// What a run says becomes a record under the step that said it, so a reader who was not there to hear it asks for it
+// What a run logs becomes a record under the step that logged it, so a reader who was not there to hear it asks for it
 // the way they ask for anything else. The record is the durable copy of a statement the reader was already told over
 // the stream, which is why writing it isn't announced.
 import { describe, it, expect, beforeEach } from "vitest";
@@ -33,7 +33,7 @@ function monitorOver(store: QuadStore): { onEvent: (e: THaibunEvent) => void; en
 	return { onEvent: (e) => stepper.cycles.onEvent?.(e), ended: () => stepper.cycles.endFeature({ shouldClose: true }) };
 }
 
-describe("what a run said, as a record", () => {
+describe("what a run logged, as a record", () => {
 	let store: QuadStore;
 	beforeEach(() => {
 		store = new QuadStore();
@@ -59,7 +59,7 @@ describe("what a run said, as a record", () => {
 		expect(records.map((r) => r[LOG_MESSAGE_FIELD.message]).sort()).toEqual(["first", "second"]);
 	});
 
-	it("doesn't record an event that is not something actuality said", async () => {
+	it("doesn't record an event that is not something actuality logged", async () => {
 		const monitor = monitorOver(store);
 		monitor.onEvent({ id: "0.1", timestamp: 1700, kind: "lifecycle", level: "info", stage: "end" } as unknown as THaibunEvent);
 		await monitor.ended();
@@ -73,7 +73,7 @@ describe("what a run said, as a record", () => {
 		await monitor.ended();
 		const [record] = await store.queryIndividuals<Record<string, unknown>>(LOG_MESSAGE_LABEL);
 		expect(record?.isPartOf).toBe(formatRecordName({ execution: executionOf(TAG), path: [0, -1, 525] }));
-		expect(record?.id, "its own name is that step's, and which of what it said this is").toBe(formatRecordName({ execution: executionOf(TAG), path: [0, -1, 525], ordinal: 0 }));
+		expect(record?.id, "its own name is that step's, and which of what it logged this is").toBe(formatRecordName({ execution: executionOf(TAG), path: [0, -1, 525], ordinal: 0 }));
 	});
 
 	it("ends the feature with every record written, since the store closes as the feature ends", async () => {
@@ -101,13 +101,13 @@ describe("what a run said, as a record", () => {
 		expect((await store.queryIndividuals(LOG_MESSAGE_LABEL)).length, "the record the feature waited for").toBe(1);
 	});
 
-	it("declares that writing it isn't announced, since actuality saying it was the announcement", () => {
+	it("declares that writing it isn't announced, since actuality logging it was the announcement", () => {
 		expect(logMessageDomainDefinition.topology).toMatchObject({ announceWrites: false });
 	});
 });
 
 describe("what a run produced, as a record", () => {
-	// An artifact is a file; the record of it says where it is and what it is, and points at the step that produced it.
+	// An artifact is a file; the record of it states where it is and what it is, and points at the step that produced it.
 	let store: QuadStore;
 	beforeEach(() => {
 		store = new QuadStore();

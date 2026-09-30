@@ -6,7 +6,7 @@
  *
  * What is specified is what a subscriber is told: the events, in order, including those that arrived before it
  * subscribed; what a filter narrows; what an unsubscribed handler stops receiving; how many events were recorded; and
- * what says the stream broke and came back. How events reach the stream is its own: a wire message for the live one,
+ * what reports that the stream broke and came back. How events reach the stream is its own: a wire message for the live one,
  * `emit` for the serialized one, which is what `TStreamUnderTest` supplies.
  */
 import { describe, it, expect, beforeEach } from "vitest";

@@ -3,9 +3,9 @@
  *
  * A run's steppers name the modules it exercises, so a group's dependencies are derived from the configuration it
  * already has rather than declared a second time: each stepper resolves to a file, the file to the module holding it,
- * a module to the directory its own build configuration says it is built from, and a module to the modules it depends
+ * a module to the directory its own build configuration states it is built from, and a module to the modules it depends
  * on in turn. An application's configuration names the framework's modules beside its own, so its dependencies span
- * both without saying so. A group adds paths of its own through `dependsOn`, and names the external environments it
+ * both without declaring so. A group adds paths of its own through `dependsOn`, and names the external environments it
  * uses.
  *
  * The state is a digest of the content of every file under those paths that its repository tracks or would track:
@@ -76,7 +76,7 @@ function dependedModules(moduleDir: string): string[] {
 	return found;
 }
 
-/** What a module is built from, where its own build configuration says: a change to the module reaches its sources,
+/** What a module is built from, where its own build configuration states: a change to the module reaches its sources,
  *  and its tests, its documents and the groups of features it holds are not what a stepper of it runs. A module that
  *  doesn't declare such a directory is depended on whole. */
 function sourcesOf(moduleDir: string): string {
@@ -91,7 +91,7 @@ function sourcesOf(moduleDir: string): string {
 	const rootDir = declared.compilerOptions?.rootDir;
 	if (!rootDir) return moduleDir;
 	const sources = path.resolve(moduleDir, rootDir);
-	if (!nodeFS.existsSync(sources)) throw new Error(`${tsconfig} says the module is built from ${rootDir}, and ${sources} doesn't exist`);
+	if (!nodeFS.existsSync(sources)) throw new Error(`${tsconfig} states the module is built from ${rootDir}, and ${sources} doesn't exist`);
 	return nodeFS.realpathSync(sources);
 }
 
@@ -125,12 +125,12 @@ export function dependencyRoots(specl: TSpecl, bases: readonly string[], configD
 	return [...roots].sort();
 }
 
-/** Ask git something in a directory. What it says on failure is kept, since the failure is what is reported. */
+/** Ask git something in a directory. What it returns on failure is kept, since the failure is what is reported. */
 const git = (dir: string, args: string[], input?: string): string =>
 	execFileSync("git", args, { cwd: dir, encoding: "utf-8", maxBuffer: 64 * 1024 * 1024, stdio: ["pipe", "pipe", "pipe"], ...(input === undefined ? {} : { input }) });
 
 /** The top of the repository a directory is in, or undefined where it isn't in one. Any other failure to ask is a
- *  failure and is said: a state read with git absent or refused would run every group unverified without a word. */
+ *  failure and is reported: a state read with git absent or refused would run every group unverified without a word. */
 function repositoryTop(dir: string): string | undefined {
 	try {
 		return git(dir, ["rev-parse", "--show-toplevel"]).trim();

@@ -32,7 +32,7 @@ function scenarioEvent(scenarioName: string): THaibunEvent {
 	} as unknown as THaibunEvent;
 }
 
-describe("what a run said is text", () => {
+describe("what a run logged is text", () => {
 	const said = (message: string): THaibunEvent => ({ id: "feat-1.1", timestamp: 3000, source: "haibun", level: "info", kind: "log", message }) as unknown as THaibunEvent;
 	const ran = (text: string): THaibunEvent =>
 		({

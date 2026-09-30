@@ -21,9 +21,9 @@ describe("interactionToStep", () => {
 		expect(interactionToStep(interaction)).toBe(step);
 	});
 
-	// An element that doesn't offer a name cannot be written as a step, so the recording says so rather than emitting a step
+	// An element that doesn't offer a name cannot be written as a step, so the recording records so rather than emitting a step
 	// that would match the wrong element.
-	it("says so when an element doesn't offer a name", () => {
+	it("reports so when an element doesn't offer a name", () => {
 		expect(interactionToStep({ type: "click", tagName: "DIV" })).toContain("# Could not identify");
 	});
 });

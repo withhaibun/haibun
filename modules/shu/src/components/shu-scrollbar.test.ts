@@ -38,20 +38,20 @@ describe("shu-scrollbar interaction", () => {
 		provideLayout();
 	});
 
-	it("a press on a marker past the last window says that row, which doesn't begin a window", async () => {
+	it("a press on a marker past the last window returns that row, which doesn't begin a window", async () => {
 		const RAIL = 200;
 		const { el, seeks } = await mount(1000, { first: 990, visible: 20 }, [{ index: 999, id: "z", icon: "📝", color: "#000" }]);
 		railBox(el, 0, RAIL);
 		expect(el.shadowRoot?.querySelector("[data-testid=scrollbar-marker]"), "the mark is drawn").toBeTruthy();
 		// Pressed where that mark sits on a rail of this height. The mark does not take the press itself: the rail does,
-		// and says which ROW was picked. Row 999 doesn't begin a window (the last starts at 980), and saying 980 instead would
+		// and returns which ROW was picked. Row 999 doesn't begin a window (the last starts at 980), and returning 980 instead would
 		// mean the last twenty rows could never be pointed at.
 		const at = markerTopPx(999, 1000, RAIL);
 		pointerdown(el.shadowRoot?.querySelector("[data-testid=scrollbar-rail]") as Element, at);
 		expect(seeks).toEqual([999]);
 	});
 
-	it("never says a row the log does not have", async () => {
+	it("never returns a row the log does not have", async () => {
 		const RAIL = 200;
 		const { el, seeks } = await mount(1000, { first: 0, visible: 20 });
 		railBox(el, 0, RAIL);
@@ -99,7 +99,7 @@ describe("shu-scrollbar interaction", () => {
 });
 
 describe("showing which moment is being shown", () => {
-	// The thumb says what is ON SCREEN; the cursor says WHEN. They are different questions, so the rail answers them
+	// The thumb shows what is ON SCREEN; the cursor shows WHEN. They are different questions, so the rail answers them
 	// with different marks, and the cursor is drawn on the same scale as the event marks, so it lines up with the one
 	// it is sitting on rather than being a few pixels off it.
 	const cursorEl = (el: ShuScrollbar) => el.shadowRoot?.querySelector('[data-testid="scrollbar-cursor"]') as HTMLElement | null;

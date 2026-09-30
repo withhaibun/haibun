@@ -227,7 +227,7 @@ describe("shu-column-pane buttons", () => {
 
 	it("resizing a maximized pane takes it out of maximize and applies the width, rather than discarding the drag", () => {
 		// A maximized pane renders flex:1, so a drag that only set a width was silently dropped: the handle was there, the
-		// cursor said col-resize, and the pane didn't resize.
+		// cursor showed col-resize, and the pane didn't resize.
 		stripWidth(pane.parentElement as HTMLElement, 1000);
 		let maximizeEvent: { maximized: boolean } | null = null;
 		pane.addEventListener(SHU_EVENT.COLUMN_MAXIMIZE, (e) => {
@@ -360,7 +360,7 @@ describe("what a pane renders when it collapses", () => {
 		expect(pane.children.length, "and the spine view stayed put, keeping whatever state it had").toBe(2);
 	});
 
-	it("says it has a spine, which is what widens the collapsed strip enough to show one", async () => {
+	it("indicates it has a spine, which is what widens the collapsed strip enough to show one", async () => {
 		pane.setMinimized(true);
 		await nextFrame(pane);
 		expect(pane.hasAttribute(SHU_ATTR.HAS_SPINE)).toBe(true);
@@ -370,7 +370,7 @@ describe("what a pane renders when it collapses", () => {
 		expect(pane.columnView?.tagName).toBe("DIV");
 	});
 
-	it("opens the column when the strip is clicked, since a spine says what is behind it", async () => {
+	it("opens the column when the strip is clicked, since a spine shows what is behind it", async () => {
 		pane.setMinimized(true);
 		await nextFrame(pane);
 		let expanded = 0;
@@ -439,7 +439,7 @@ describe("a column whose spine is a narrow form of itself", () => {
 		expect(pane.columnView?.hasAttribute(SHU_ATTR.SPINE)).toBe(true);
 		pane.setMinimized(false);
 		await nextFrame(pane);
-		expect(pane.columnView?.hasAttribute(SHU_ATTR.SPINE), "and stops saying so once there is room again").toBe(false);
+		expect(pane.columnView?.hasAttribute(SHU_ATTR.SPINE), "and stops indicating it once there is room again").toBe(false);
 	});
 
 	it("does not open the column when its strip is clicked, since that click was for the strip", async () => {
@@ -466,7 +466,7 @@ describe("a column whose spine is a narrow form of itself", () => {
 		const pane = await spined();
 		const restore = pane.shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.COLUMN_PANE.MINIMIZE}"]`) as HTMLButtonElement | null;
 		if (!restore) throw new Error("a collapsed pane rendered no control to open it with");
-		expect(restore.title, "and says which way it goes").toBe("Restore");
+		expect(restore.title, "and shows which way it goes").toBe("Restore");
 		restore.click();
 		await nextFrame(pane);
 		expect(pane.isCollapsed, "the column is back").toBe(false);

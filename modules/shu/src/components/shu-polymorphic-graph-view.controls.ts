@@ -653,7 +653,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				if (!canvas) return actionNotOK(NO_CANVAS);
 				if (at.x < canvas.x || at.x > canvas.x + canvas.width || at.y < canvas.y || at.y > canvas.y + canvas.height)
 					return actionNotOK(`active node "${id}" projects (${at.x.toFixed(0)},${at.y.toFixed(0)}) off the ${canvas.width}×${canvas.height} canvas at (${canvas.x},${canvas.y})`);
-				// What covers the view, read the way the scene reads it: the guide of this graph, and every panel saying so.
+				// What covers the view, read the way the scene reads it: the guide of this graph, and every panel showing it.
 				const covers = await page.evaluate((guideId) => {
 					const guide = document.querySelector<HTMLElement>(`[data-testid="${guideId}"]`);
 					const showing = guide && (guide.hasAttribute("data-shown") || guide.matches(":focus-within")) ? [guide] : [];
@@ -1093,10 +1093,24 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			action: async ({ typeName }: { typeName: string }) => {
 				const page = await this.page();
 				const scene = page.locator(CLASS_BROWSER_SCENE);
-				// Both views boot from a fresh navigation; wait for each to hold its own nodes before measuring.
-				await until(scene, "the class browser's first nodes", ({ el }: { el: ShuGraphScene }) => el.nodeMap.size > 0, null);
+				// Both views boot from a fresh navigation; wait for each to hold its own nodes before measuring. A scene empties
+				// and refills its nodes on a repaint, so the class browser is counted at rest: holding nodes, its engine frozen and
+				// without a repaint owed.
+				const atRest = () =>
+					until(
+						scene,
+						"the class browser at rest with its nodes",
+						({ el }: { el: ShuGraphScene }) => {
+							const i = el.inspect();
+							return el.nodeMap.size > 0 && !!i && i.engineMode === "frozen" && !i.repaintPending;
+						},
+						null,
+					);
+				const count = async () => {
+					await atRest();
+					return await scene.evaluate((el: ShuGraphScene) => el.nodeMap.size);
+				};
 				await this.waitForNodes(page, 1);
-				const count = () => scene.evaluate((el: ShuGraphScene) => el.nodeMap.size);
 				const before = await count();
 				const filtered = await this.showOnlyType(page, typeName);
 				if (!filtered.ok) return filtered;
@@ -1154,7 +1168,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				await this.openSettings(page, SETTINGS_GROUP.scenes);
 				if ((await this.sceneOption(page, name).count()) === 0) return actionNotOK(`the view doesn't offer a scene saved as "${name}"`);
 				await this.view(page).getByTestId(POLYMORPHIC_IDS.SCENE_PICKER).selectOption(name);
-				// Reading the scene back is a round trip; the view says which scene it is showing once the return has landed.
+				// Reading the scene back is a round trip; the view shows which scene it is showing once the return has landed.
 				await this.untilGraph(page, `the view showing scene "${name}"`, ({ el, arg }) => el.getAttribute("data-scene") === arg, name, ROUND_TRIP_MS);
 				await this.settle(page);
 				return actionOK();
@@ -1322,7 +1336,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		graphChipsShowDepth: {
 			// Turning "label as depth" on re-labels every chip with the value that places its depth, and turning it off
 			// puts the names back: each taking effect on its own, without another change to force a redraw. Reads what the
-			// chips say and compares the three states, so it doesn't need to know this fixture's names.
+			// chips show and compares the three states, so it doesn't need to know this fixture's names.
 			gwta: "graph chips re-label by depth and back",
 			action: async () => {
 				const page = await this.page();
@@ -1546,7 +1560,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	}
 
 	/** Frame the graph, then press the first node the view reports DRAGGABLE (an un-occluded pixel), returning it + the
-	 *  pressed pixel with the pointer left DOWN on it. On failure `target` is null and `diag` says why: the aim, the
+	 *  pressed pixel with the pointer left DOWN on it. On failure `target` is null and `diag` states why: the aim, the
 	 *  pick target's own state, and whether the camera frames the graph at all. */
 	private async pressFirstDraggable(page: Page): Promise<{ target: { id: string; x: number; y: number } | null; diag: string }> {
 		// Settle BEFORE framing: an owed repaint re-places every node (a depth-basis switch re-derives z), so a fit taken

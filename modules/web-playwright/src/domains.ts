@@ -92,7 +92,7 @@ export const DOMAIN_FIND_WAY = "page-find-way";
 /** What the requests a page makes to a URL are: refused, left without an answer, or answered. */
 export const REQUEST_STATE = { blocked: "blocked", unanswered: "unanswered", allowed: "allowed" } as const;
 export const DOMAIN_REQUEST_STATE = "request-state";
-/** What a dialog a page opened says, as the step that accepts it keeps it. */
+/** What a dialog a page opened holds, as the step that accepts it keeps it. */
 export const DialogSaysSchema = z.object({ defaultValue: z.string(), message: z.string(), type: z.string() });
 const DIALOG_FIELDS = DialogSaysSchema.keyof().options;
 export type TDialogField = (typeof DIALOG_FIELDS)[number];
@@ -116,7 +116,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 	createEnumDomainDefinition({
 		name: DOMAIN_DIALOG_FIELD,
 		values: [...DIALOG_FIELDS],
-		description: "What a dialog a page opened says: its default value, its message or its type",
+		description: "What a dialog a page opened holds: its default value, its message or its type",
 	}),
 	createEnumDomainDefinition({ name: DOMAIN_BROWSER_TYPE, values: [...BROWSER_TYPES], description: "A browser a run drives" }),
 	{ selectors: [DOMAIN_URL_GLOB], schema: NameSchema, description: "A URL pattern as a page routes requests by it: * within a path segment, ** across segments" },

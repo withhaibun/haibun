@@ -47,7 +47,7 @@ class TestStepper extends AStepper {
 						throw Error("a step injected into actuality is not listed after the client was told the list changed");
 					const instructions = client.getInstructions() ?? "";
 					if (instructions.includes("TestStepper")) throw Error(`the instructions, set before any caller connects, name a stepper: ${instructions}`);
-					if (!instructions.includes(SHOW_STEPS_METHOD)) throw Error(`the instructions don't say how to find a step: ${instructions}`);
+					if (!instructions.includes(SHOW_STEPS_METHOD)) throw Error(`the instructions don't state how to find a step: ${instructions}`);
 					const shown = (await client.callTool({ name: SHOW_STEPS_METHOD, arguments: { text: "TestStepper-", detail: STEP_DETAIL.summary } })) as {
 						content: Array<{ text: string }>;
 					};
@@ -66,7 +66,7 @@ class TestStepper extends AStepper {
 }
 
 describe("McpStepper tools", () => {
-	it("says in its instructions how to find a step without naming a stepper, lists the caller's steps as tools, show steps among them, tells a client when the list changes, and calls one", async () => {
+	it("states in its instructions how to find a step without naming a stepper, lists the caller's steps as tools, show steps among them, tells a client when the list changes, and calls one", async () => {
 		const port = 8130;
 		const feature = {
 			path: "/features/tools.feature",

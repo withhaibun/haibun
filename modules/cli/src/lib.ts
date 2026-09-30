@@ -170,7 +170,7 @@ export function resolveRunPolicy(cliPolicyConfig: TRunPolicyConfig | undefined, 
 	return policyConfig;
 }
 
-/** Says the pass and exits as one, for a group that passed and whose dependencies haven't changed since then. */
+/** Reports the pass and exits as one, for a group that passed and whose dependencies haven't changed since then. */
 function verifiedExit(bases: TBase): never {
 	console.info(`\n${CHECK_YES} ${bases.join(",")} passed, and its dependencies haven't changed since then, so it did not run. Run without ${OPTION_ONCE} to run it anyway.\n`);
 	process.exit(0);

@@ -120,7 +120,7 @@ const b = (id: string, rawTime: number): TDocBlock => ({ html: `<div class="log-
 
 describe("withHeadingAnchors", () => {
 	// A prose block's own markdown headings get the same link-by-name handle the scenario headings carry, so a feature
-	// whose introduction says "skip to [the contents](#contents)" can land on its own "## Contents" heading.
+	// whose introduction states "skip to [the contents](#contents)" can land on its own "## Contents" heading.
 	it("stamps a rendered markdown heading with its name as an anchor", async () => {
 		const { default: MarkdownIt } = await import("markdown-it");
 		const md = new MarkdownIt();

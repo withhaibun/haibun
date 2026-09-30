@@ -48,7 +48,7 @@ const P256_PUBLIC = [0x80, 0x24];
 async function pageKey(): Promise<TSigningKey> {
 	// A browser gives a page its key store only in a secure context: over https, or from localhost. Served otherwise
 	// the page doesn't have a key for a reader to control or a proof it could make, which is a fact about how the deployment is
-	// reached rather than a fault in the page, so it is said as that.
+	// reached rather than a fault in the page, so it is reported as that.
 	if (!globalThis.crypto?.subtle) {
 		throw new Error(
 			`a reader can only make a key it controls in a secure context (https, or localhost); this page was served from ${globalThis.location?.origin ?? "an origin"}, where the browser withholds its key store`,

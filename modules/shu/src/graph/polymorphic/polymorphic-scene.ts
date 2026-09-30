@@ -1016,7 +1016,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			// "Label as z factor" labels each chip with the value that places its depth: the date under a time basis, the
 			// connection count under connections, so the z factor reads straight off the graph. Off (or without a value), the usual label.
 			const chipLabel = (this.labelAsZ ? this.zFactor(n).chip : undefined) ?? mark.label;
-			n.__chipText = chipLabel; // what the chip says, so a reader of inspect() sees what was drawn
+			n.__chipText = chipLabel; // what the chip shows, so a reader of inspect() sees what was drawn
 			// Every mark is built highlight-capable and the FOCUS pass glows the active node (visual.setHighlighted), so
 			// the highlight follows the selection without rebuilding a single object. A drag-pin doesn't carry a highlight: a
 			// pin is a position the reader chose, not a state to advertise, and the pin set persists across queries, so
@@ -1102,7 +1102,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 				const sprite = obj as TSprite;
 				// The lib sets the link GROUP's renderOrder to 10, and three.js uses a group's renderOrder as the
 				// children's groupOrder, the PRIMARY sort key, so links would always paint over the node chips
-				// (groupOrder 0) whatever the sprites' own flags say. Zero it; the secondary renderOrder then
+				// (groupOrder 0) whatever the sprites' own flags state. Zero it; the secondary renderOrder then
 				// layers line (0) → edge label (15) → node chip (20), back to front.
 				if (sprite.parent && sprite.parent.renderOrder !== 0) sprite.parent.renderOrder = 0;
 				if (sprite.parent?.children) link.__lineObj = sprite.parent.children[0]; // refresh every tick, read-only handle for inspect()/tests; never cached-once, so never stale

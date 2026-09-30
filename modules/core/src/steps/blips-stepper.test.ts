@@ -98,7 +98,7 @@ describe("a watch: which occurrences, in what order", () => {
 		expect(blipWatch.occurrences().map((b) => b.value)).toEqual([2]);
 	});
 
-	it("says so plainly when the watch didn't record an occurrence", () => {
+	it("reports so plainly when the watch didn't record an occurrence", () => {
 		expect(renderWatch([], 0, [])).toMatch(/didn't record an occurrence/);
 	});
 

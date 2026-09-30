@@ -260,7 +260,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		const label = this.qLabel;
 		const textQuery = this.qText;
 		// The server rejects a query that doesn't name a type or text, or a type actuality doesn't hold; asking anyway fails
-		// identically on every retrigger (each SSE batch fires one), flooding the server and actuality log. Say why once
+		// identically on every retrigger (each SSE batch fires one), flooding the server and actuality log. Report why once
 		// instead. An address outlives the actuality it was made in, so it keeps the type it names.
 		if (!label && !textQuery?.trim()) return this.#refuse("a query needs a record type or search text");
 		if (label && !this.labels.includes(label)) return this.#refuse(typeNotHeld(label));

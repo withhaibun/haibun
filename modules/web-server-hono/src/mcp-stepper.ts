@@ -43,7 +43,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 		this.currentRegistry = registry;
 		this.stopListening = registry.onChange(() => {
 			if (!this.mcpServer?.isConnected()) return;
-			// A client whose stream closed is not told; actuality goes on, and says so.
+			// A client whose stream closed is not told; actuality goes on, and reports so.
 			void this.mcpServer.server.sendToolListChanged().catch((err: unknown) => this.getWorld().eventLogger.warn(`[MCP] the tool list change was not sent: ${errorDetail(err)}`));
 		});
 	}

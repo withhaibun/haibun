@@ -12,7 +12,7 @@ import type { AccessLevel } from "./resources.js";
 
 /**
  * What a caller presents to act with authority it holds. In this process, that is the document carrying the authority,
- * and what the caller says it lets them do where it names one action; a document presented without one is checked for
+ * and what the caller states it lets them do where it names one action; a document presented without one is checked for
  * everything it allows. Over HTTP, the request itself is the presentation: it names what is being
  * asked of what, and carries the proof that the caller may ask it. The verifier registered for the specification the
  * evidence is written in reads it; the framework never reads inside it.
@@ -52,7 +52,7 @@ export type TRestsOn = { capabilities: string[]; expires?: string };
 export type TVerdict = { ok: true; principal?: string; allowedAction?: string[]; restsOn?: TRestsOn } | { ok: false; error: string };
 
 /**
- * Decides whether evidence supports what it claims, and says what it supports: for a request, everything the delegation
+ * Decides whether evidence supports what it claims, and states what it supports: for a request, everything the delegation
  * it presents allows, the action it invokes among them. It also answers what this deployment delegated to a key and
  * hasn't revoked, which the framework asks only for the key a call proved it holds. A consumer registers one for the specification its
  * deployment uses; the framework doesn't hold a signing key or read a proof itself.

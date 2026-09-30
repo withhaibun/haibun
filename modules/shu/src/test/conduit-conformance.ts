@@ -52,7 +52,7 @@ export function describeConduit(name: string, make: () => TConduitUnderTest | Pr
 			expect(held.asked().filter((call) => call.method === METHOD)).toEqual([{ method: METHOD, params: { label: "Email", id: "a" } }]);
 		});
 
-		it("fails a follow the step refused, and says what it said", async () => {
+		it("fails a follow the step refused, and gives the reason the step returned", async () => {
 			held.fails(METHOD, "the step would not answer");
 			await expect(conduit.follow(reads(METHOD, {}), "read the rows")).rejects.toThrow(/the step would not answer/);
 		});

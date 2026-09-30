@@ -1,5 +1,5 @@
 /**
- * What a mark on a rail or a slider says, which must be what the log says.
+ * What a mark on a rail or a slider shows, which must be what the log shows.
  *
  * A rail that chooses its own glyph announces a failure the log does not: a passing run showed two red failure marks,
  * for a call it handed out and a statement it merely tried.
@@ -10,7 +10,7 @@ import { MARK_COLOUR, bucketMarkerStyle, eventMarkerStyle } from "./event-marker
 
 const step = (over: Record<string, unknown>) => ({ kind: "lifecycle", type: "step", id: "1700000000000-1.0.1.2", ...over });
 
-describe("what a mark says about a step", () => {
+describe("what a mark shows about a step", () => {
 	it("marks a run's own failure as a failure", () => {
 		const mark = eventMarkerStyle(step({ status: "failed" }));
 		expect(mark.icon).toBe(CHECK_NO);

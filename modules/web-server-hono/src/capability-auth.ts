@@ -10,7 +10,7 @@ import type { IWebServer } from "./defs.js";
 
 type TRequestHeaders = Record<string, string | undefined>;
 
-/** What a request says about itself: a signed presentation covers the method and the address as well as the headers. */
+/** What a request carries about itself: a signed presentation covers the method and the address as well as the headers. */
 type TAuthorizedRequest = { method?: string; url?: string; headers?: TRequestHeaders; body?: string };
 
 /** The header a caller presenting proven authority carries, rather than a secret to be looked up. */
@@ -19,7 +19,7 @@ const PRESENTED_AUTHORITY_HEADER = "capability-invocation";
 /** The headers a request presenting authority carries: its signature, the capability it invokes, and its body's digest. */
 export const PRESENTED_REQUEST_HEADERS = [SIGNATURE_HEADER, PRESENTED_AUTHORITY_HEADER, "digest"] as const;
 
-/** What a request carries: what its caller may do, who they proved themselves to be where a proof said so, and what that
+/** What a request carries: what its caller may do, who they proved themselves to be where a proof stated so, and what that
  *  proof rests on. A presented proof that fails, or that the runtime can't check, is `refused`, and a refused request doesn't run
  *  a step. */
 /** What a server states about its callers: what each may do without a delegation. */
@@ -29,10 +29,10 @@ type TRequestAuthority = { granted: string[]; principal?: string; restsOn?: TRes
 
 /**
  * What the caller of this request may do: the actions this deployment allows without a delegation, which form an empty list
- * unless it says otherwise, and what proof it presents of authority it holds, which whatever is registered to read that proof decides.
+ * unless it states otherwise, and what proof it presents of authority it holds, which whatever is registered to read that proof decides.
  * A request presenting proof is asked about as a whole, since a signed request's proof covers what it asks and of what.
  *
- * A proof also says who made it, and that is answered here as well: what is done under a proof is done by whoever
+ * A proof also states who made it, and that is answered here as well: what is done under a proof is done by whoever
  * proved it, so a record of the doing can name them rather than the process that carried it out.
  */
 export async function grantedCapabilityForRequest(request: TAuthorizedRequest | undefined, runtime: TRuntime, served: TServed): Promise<TRequestAuthority> {

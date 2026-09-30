@@ -16,7 +16,7 @@
  * Derived from Playwright 7b4b3b0828, packages/extension/src/relayConnection.ts. Changed: formatted to haibun's style;
  * the connection talks through a `TRelayChannel` (the `relay.attach` and `relay.send` calls) where upstream takes a
  * WebSocket; the chrome.* API is the one it is given, where upstream reads the global; it attaches the debugger only to
- * a tab the person chose and the tabs opened from those, where upstream attaches any tab the relay names; its close says
+ * a tab the person chose and the tabs opened from those, where upstream attaches any tab the relay names; its close states
  * why it closed; `debugLog` is the log it is given; `any` is typed as `unknown` or the shape read.
  */
 

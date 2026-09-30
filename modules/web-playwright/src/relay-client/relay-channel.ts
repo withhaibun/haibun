@@ -1,6 +1,6 @@
 /**
  * A channel to an instance's browser relay over its `/rpc`: `relay.attach` is held open as a streamed call, and its
- * stream carries the relay's commands; `relay.send` carries what the extension says back, the messages of one turn in
+ * stream carries the relay's commands; `relay.send` carries what the extension returns back, the messages of one turn in
  * one call, after the calls before it. Each call is signed by `sign`, which is the extension's key signing under its
  * delegation. The channel opens once the relay states it holds the extension, and a refused attachment throws its
  * refusal, as does an attachment the relay doesn't open within `RELAY_OPEN_MS`.

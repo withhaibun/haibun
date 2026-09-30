@@ -6,7 +6,7 @@
  * built for transport, and dispatch. Doing them here means one place decides what a data-borne call looks like, so
  * such a call is indistinguishable from a written one to the step's own gate, cycles and record.
  *
- * A name that is not registered is answered, not thrown: each caller says what the missing step means in its own
+ * A name that is not registered is answered, not thrown: each caller defines what the missing step means in its own
  * terms, and the seqPath is returned because a caller that records what it ran needs the identity of the call.
  */
 import { buildFeatureStepForTransport, runRegistry } from "./step-registry.js";

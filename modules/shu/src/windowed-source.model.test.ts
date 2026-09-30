@@ -14,7 +14,7 @@ const rowFor = (index: number): number => index;
 
 type TPending = { start: number; end: number; resolve: () => void };
 
-/** A source whose fetches complete when this harness says so, over data of a known extent. */
+/** A source whose fetches complete when this harness completes them, over data of a known extent. */
 function harness(opts: { pageSize: number; maxResidentPages?: number; dataEnd: number }) {
 	const pending: TPending[] = [];
 	const fetches: Array<[number, number]> = [];

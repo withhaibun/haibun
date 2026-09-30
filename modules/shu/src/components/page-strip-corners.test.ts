@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
  * The page strip's corners, held apart from the strip: one popover open at a time, how each corner's popover closes, what
- * the access indicator says a reader holds and what awaits them, and the status on the strip. jsdom doesn't have a top layer, so
+ * the access indicator reports a reader holds and what awaits them, and the status on the strip. jsdom doesn't have a top layer, so
  * the popover's show and hide are stated by each case.
  */
 import { describe, expect, it, vi } from "vitest";
@@ -124,8 +124,8 @@ describe("how far along a run the cursor sits", () => {
 	const first = 1_000_000;
 	const latest = first + 600_000;
 
-	it("says the moment out of the whole run, so a reader can tell near-the-start from near-the-end", () => {
-		// A ten minute run: two minutes in reads as two of ten. On its own, "2m" doesn't say where in the actuality that
+	it("shows the moment out of the whole run, so a reader can tell near-the-start from near-the-end", () => {
+		// A ten minute run: two minutes in reads as two of ten. On its own, "2m" doesn't show where in the actuality that
 		// is, which is the one thing that matters from a readout this small.
 		expect(timeOffsetLabel(first + 120_000, first, latest)).toBe("2/10m");
 		expect(timeOffsetLabel(first + 540_000, first, latest)).toBe("9/10m");

@@ -1,4 +1,4 @@
-// Reading a run is a query over the records it wrote: a step and what it said while it ran. What a reader is shown is
+// Reading a run is a query over the records it wrote: a step and what it logged while it ran. What a reader is shown is
 // a window of a stated size around where they are, so looking takes the same whether actuality has lasted an hour or a
 // decade. These pin where a window sits, what it holds and what a level narrows it to.
 import { describe, it, expect } from "vitest";
@@ -12,7 +12,7 @@ import { runGraphOf } from "./run-graph.js";
 const RUN = "1700000000000-1";
 const iso = (n: number): string => new Date(n).toISOString();
 
-/** A run of `steps` steps a second apart, each saying one thing at the level given. */
+/** A run of `steps` steps a second apart, each logging one thing at the level given. */
 async function aRunOf(steps: number, saying: string = "info"): Promise<QuadStore> {
 	const store = new QuadStore();
 	for (let i = 0; i < steps; i++) {
@@ -38,7 +38,7 @@ async function aRunOf(steps: number, saying: string = "info"): Promise<QuadStore
 }
 
 describe("the window of a run a reader is looking at", () => {
-	it("holds the steps and what they said, oldest first, and says what it spans", async () => {
+	it("holds the steps and what they logged, oldest first, and reports what it spans", async () => {
 		const graph = runGraphOf(await aRunOf(3));
 		const window = await runWindow(graph, { size: 10 });
 		expect(window.rows.map((r) => r.text)).toEqual(["step 0", "said 0", "step 1", "said 1", "step 2", "said 2"]);
@@ -84,7 +84,7 @@ describe("the window of a run a reader is looking at", () => {
 		const stepsOnly = await runWindow(graph, { size: 10, minLevel: "info" });
 		expect(
 			stepsOnly.rows.map((r) => r.text),
-			"a step is at info, and what it said was under it",
+			"a step is at info, and what it logged was under it",
 		).toEqual(["step 0", "step 1", "step 2"]);
 	});
 
@@ -111,8 +111,8 @@ describe("the order a run put its records in", () => {
 	});
 });
 
-describe("what a run says outside every step", () => {
-	// A step that fails is reported after it ends, so what actuality says about it doesn't belong to a step. Such a statement
+describe("what a run reports outside every step", () => {
+	// A step that fails is reported after it ends, so what actuality reports about it doesn't belong to a step. Such a statement
 	// must not decide which run a window is of, or a reader watching a step fail loses the run they were reading.
 	it("keeps the actuality it is read with, rather than emptying the window", async () => {
 		const store = new QuadStore();
@@ -129,7 +129,7 @@ describe("what a run says outside every step", () => {
 		const window = await runWindow(graph, { size: 10 });
 		expect(
 			window.rows.map((r) => r.text),
-			"actuality's steps, and what it said about the one that failed",
+			"actuality's steps, and what it logged about the one that failed",
 		).toEqual(["step 1", "step 2", "step 3", 'create: "ee" is not a declared type']);
 	});
 
@@ -173,7 +173,7 @@ describe("following a run that is still happening", () => {
 	});
 
 	it("finds a record of an earlier moment than the newest row held, when it was recorded after the last read", async () => {
-		// A record is written after the moment it is of. What a run said or produced during a step is announced at
+		// A record is written after the moment it is of. What a run logged or produced during a step is announced at
 		// once and recorded a moment later, and the next step can begin in between: asking for what is of a later
 		// moment than the newest row would pass such a record over for good.
 		const store = new QuadStore();
@@ -237,7 +237,7 @@ describe("following a run that is still happening", () => {
 		expect(carried?.carriedBy, "the step a reader is shown claims the shot the machinery under it took").toBe(`${RUN}.0.1`);
 		expect(
 			window.rows.find((r) => r.kind === "step" && r.text === "a step of the feature")?.produced?.map((one) => one.path),
-			"and that step's row says which shot it carries",
+			"and that step's row shows which shot it carries",
 		).toEqual(["./image/shot.png"]);
 	});
 

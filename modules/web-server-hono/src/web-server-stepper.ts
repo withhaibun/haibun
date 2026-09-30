@@ -10,7 +10,7 @@ import { ANSWERED_WITHOUT_PRODUCTS, parseRpcRequest, RPC_REFUSED } from "@haibun
 import { runWithRequestContext, requestBaseIri } from "@haibun/core/lib/request-context.js";
 import { buildFeatureStepForTransport, refusal, runRegistry, type StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { actionList, lackedAction, mayCall } from "@haibun/core/lib/actions.js";
-import { DOMAIN_TEXT, DOMAIN_FILE_PATH, DOMAIN_ROUTE } from "@haibun/core/lib/domains.js";
+import { DOMAIN_TEXT, DOMAIN_FILE_PATH, DOMAIN_ROUTE, DOMAIN_LINK } from "@haibun/core/lib/domains.js";
 import { STORE_METHOD_PREFIX, storeMethods } from "@haibun/core/lib/store-protocol.js";
 import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
 import { activeSitePrincipal, allocateSyntheticSeqPath, resolveHostId, syntheticSeqPath } from "@haibun/core/lib/host-id.js";
@@ -22,7 +22,7 @@ import { fromJsonText } from "@haibun/core/lib/json-text.js";
 
 import { type IWebServer, WEBSERVER, DOMAIN_ENDPOINT, EndpointLabels, EndpointSchema } from "./defs.js";
 import { endWhenLapsed, grantedCapabilityForRequest } from "./capability-auth.js";
-import { basicAuthUsers, type TBasicAuthUser } from "./auth.js";
+import { basicAuthUsers, whyNotSignedInOnly, type TBasicAuthUser } from "./auth.js";
 import { ServerHono, DEFAULT_PORT } from "./server-hono.js";
 import { SSETransport, TRANSPORT, type ITransport } from "./sse-transport.js";
 import type { IStepTransport } from "./step-transport.js";
@@ -173,13 +173,21 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		stopInstance: {
 			gwta: `stop this instance because {reason: ${DOMAIN_TEXT}}`,
 			capability: WEB_SERVER_CAPABILITIES.stop,
-			description: "End this instance's process, stating why, so its log says what stopped it.",
+			description: "End this instance's process, stating why, so its log records what stopped it.",
 			action: ({ reason }: { reason: string }) => {
 				this.getWorld().eventLogger.info(`stopping this instance: ${reason}`);
 				// The signal is deferred so the answer is sent first, and SIGTERM rather than exit, so every shutdown handler
 				// runs: a persistent store flushing its write-ahead log would be corrupted by an exit that skipped it.
 				setTimeout(() => process.kill(process.pid, "SIGTERM"), 100);
 				return OK;
+			},
+		},
+		asksToSignIn: {
+			gwta: `every visitor to {address: ${DOMAIN_LINK}} is asked to sign in`,
+			description: "Check that an address refuses a request that doesn't sign in, as a site behind basic auth does. It fails with what the address answered and what to change.",
+			action: async ({ address }: { address: string }) => {
+				const why = await whyNotSignedInOnly(address);
+				return why ? actionNotOK(why) : OK;
 			},
 		},
 		showPorts: {

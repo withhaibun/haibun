@@ -18,7 +18,7 @@ describe("SessionAuthority", () => {
 			expect(result.error).toBe("a verifier isn't registered to decide this evidence");
 		});
 
-		it("hands it to the registered verifier, and says who it proved was acting", async () => {
+		it("hands it to the registered verifier, and states who it proved was acting", async () => {
 			const authority = new SessionAuthority();
 			const stub: IAuthorityVerifier = { verify: async () => ({ ok: true, principal: "did:example:holder" }), delegationsTo: async () => ({ delegations: [] }) };
 			authority.registerVerifier(stub);
@@ -84,7 +84,7 @@ describe("SessionAuthority", () => {
 	describe("a call held open", () => {
 		afterEach(() => vi.useRealTimers());
 
-		it("ends when a capability it rests on is revoked, saying which, and a call resting on others holds", () => {
+		it("ends when a capability it rests on is revoked, stating which, and a call resting on others holds", () => {
 			const authority = new SessionAuthority();
 			const delegated = authority.holdWhile({ capabilities: ["urn:root", "urn:cap:extension"] });
 			const other = authority.holdWhile({ capabilities: ["urn:root", "urn:cap:page"] });

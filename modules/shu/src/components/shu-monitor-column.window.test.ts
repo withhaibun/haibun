@@ -34,7 +34,7 @@ describe("what a log marks on its rail", () => {
 		]);
 		expect(marks[0].label).toBe("check the total it went wrong");
 		expect(marks[1].label, "every feature boundary would read the same without the step").toBe("a-feature ▸ feature");
-		expect(marks[2].label, "a row without a step is labelled by what it says").toBe("saved");
+		expect(marks[2].label, "a row without a step is labelled by what it shows").toBe("saved");
 	});
 
 	it("places a mark at the row's index in the RUN when the rows are the resident part of a longer run", () => {
@@ -74,13 +74,13 @@ describe("the rail marks what the timeline marks", () => {
 
 describe("what pressing a row of the log opens", () => {
 	// Every row is a record of actuality, so every row answers a press with the record it is. Pressed only where a row
-	// carried a step, a reader met rows that didn't open a record, what a run said over a connection among them, and the
+	// carried a step, a reader met rows that didn't open a record, what a run logged over a connection among them, and the
 	// row didn't show which would answer.
 	it("opens a step at its own place in actuality", () => {
 		expect(opens(row({ seqPath: [0, 1, 2], record: { persistedAs: "SeqPath", id: "a-step" } }))).toEqual({ paneType: "step-detail", seqPath: [0, 1, 2] });
 	});
 
-	it("opens what actuality said as the record it is, which a step row is not the only kind of", () => {
+	it("opens what actuality logged as the record it is, which a step row is not the only kind of", () => {
 		expect(opens(row({ record: { persistedAs: "LogMessage", id: "0.1.2#3" }, message: 'RPC: {"jsonrpc":"2.0"}' }))).toEqual({
 			paneType: "entity",
 			persistedAs: "LogMessage",

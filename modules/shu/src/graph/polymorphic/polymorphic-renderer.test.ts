@@ -14,7 +14,7 @@ const nodes = (places: Array<[string, number, number, number]>): FGNode[] => pla
 const links = (pairs: Array<[string, string]>): FGLink[] => pairs.map(([source, target]) => ({ source, target, predicate: "narrate" }));
 
 describe("what a renderer was given", () => {
-	it("says a view change placed the nodes differently, which is what a redraw is", () => {
+	it("reports a view change placed the nodes differently, which is what a redraw is", () => {
 		const r = new RecordingRenderer();
 		r.draw({
 			nodes: nodes([
@@ -35,7 +35,7 @@ describe("what a renderer was given", () => {
 		expect(r.placements).toHaveLength(2);
 	});
 
-	it("says a repaint that didn't change the graph placed the nodes identically, so a repaint that should be skipped is visible as one", () => {
+	it("reports a repaint that didn't change the graph placed the nodes identically, so a repaint that should be skipped is visible as one", () => {
 		const r = new RecordingRenderer();
 		const same = () => ({ nodes: nodes([["a", 5, 5, 5]]), links: links([]) });
 		r.draw(same());

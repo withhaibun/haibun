@@ -146,7 +146,7 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 		// axis for a record of a type that does not exist.
 		this.setState({ persistedAs, loading: true, error: undefined });
 		// An ask from here is about the type: its members. This column holds a type without an id, so `aType` is the
-		// only thing it can say, and it doesn't offer a query-surface label, since a schema view doesn't have one to give.
+		// only thing it can show, and it doesn't offer a query-surface label, since a schema view doesn't have one to give.
 		this.dispatchEvent(
 			new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, {
 				detail: { patterns: [aType(persistedAs)], accessLevel: appAccessLevel() },

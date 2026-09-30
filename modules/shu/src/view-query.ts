@@ -39,7 +39,7 @@ export type TViewQuery = z.infer<typeof ViewQuerySchema>;
 
 const QUERY_PARAMS = ["label", "q", "sort", "order", "offset", "access", "f"] as const;
 
-/** What a page says of an address naming a type actuality doesn't hold: an address outlives the actuality it was made in, so it
+/** What a page shows for an address naming a type actuality doesn't hold: an address outlives the actuality it was made in, so it
  *  keeps the type, and the page offers actuality's own. */
 export const typeNotHeld = (label: string): string => `This run does not hold the type ${label}. Choose one of its types.`;
 

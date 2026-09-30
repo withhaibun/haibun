@@ -1,5 +1,5 @@
 /**
- * What a run keeps of the steps it has finished. A verdict names a failed step and quotes what it said; everything else
+ * What a run keeps of the steps it has finished. A verdict names a failed step and quotes the message it returned; everything else
  * a reader follows through the event stream. Keeping every passing step's products as well means a run holds every
  * graph slice, response body and rendered document it ever produced, which is how a nineteen-feature run exhausted the
  * heap and was killed rather than failing. A feature that services requests for weeks never reaches an end at which to
@@ -73,7 +73,7 @@ describe("what a run keeps of the steps it has finished", () => {
 	it("keeps everything a failed step carried, since that is what the verdict is made of", async () => {
 		const result = await failWithDefaults([{ path: "/features/test.feature", content: "refuse with a large answer" }], [ProducingStepper]);
 		const failed = (result.featureResults?.[0].stepResults ?? []).find((s) => !s.ok);
-		expect(failed?.message ?? failed?.errorMessage, "the verdict quotes what the step said").toContain("it refused");
+		expect(failed?.message ?? failed?.errorMessage, "the verdict quotes what the step returned").toContain("it refused");
 	});
 
 	it("lets go of every passing step's payload once actuality has moved past the feature", () => {

@@ -1,7 +1,7 @@
 /**
  * An unpacked extension loaded into the browser a run launches: its page opens at the origin the step derives from the
  * key its manifest pins, which is the id Chromium gives it. An extension that doesn't pin a key, and one named after a page is
- * open, are refused, saying why.
+ * open, are refused, stating why.
  */
 import { afterAll, describe, expect, it } from "vitest";
 import path from "node:path";

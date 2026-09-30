@@ -38,7 +38,7 @@ import { SHOW_STEPS_ACTION, SHOW_STEPS_METHOD } from "@haibun/core/lib/step-disc
  * records what it did. A link states which it asks for, and actuality holds that statement to the step's own
  * declaration, refusing to answer as a read a step that does not declare itself one. Stated on the link rather than
  * inferred at the far end, a page cannot read through a step whose answer actuality would record, and cannot forget to
- * say which it wants: `asks` is required, so `reads` and `acts` are the only ways to make a link.
+ * state which it wants: `asks` is required, so `reads` and `acts` are the only ways to make a link.
  */
 type TAsks = "read" | "act";
 
@@ -138,7 +138,7 @@ function provingFor(method: string): TProveRequest {
 		// Discovery is how the page learns the steps, so what it requires is the one action the page knows without asking.
 		const required = method === SHOW_STEPS_METHOD ? SHOW_STEPS_ACTION : findStep(method)?.capability;
 		if (!required) return request.headers;
-		// A call waits for what the page holds, which the page reads while it boots, and says so there if it could not.
+		// A call waits for what the page holds, which the page reads while it boots, and states so there if it could not.
 		await pageAuthorityReady();
 		return (await signedHeaders({ ...request, action: required })) ?? request.headers;
 	};
@@ -232,10 +232,13 @@ export class LiveConduit implements Conduit {
 		const bounded = awaited ? AbortSignal.timeout(responseTimeoutMs()) : signal;
 		try {
 			const res = await fetch(call.url, { ...call.init, signal: bounded });
+			// The timeout bounds the whole response. A body still arriving when it fires is a server that didn't respond in
+			// time, so an awaited request's body is read here, where that is reported as one.
+			const answered = awaited ? new Response(await res.arrayBuffer(), { status: res.status, statusText: res.statusText, headers: res.headers }) : res;
 			const state = responded();
 			state.at = Date.now();
 			state.unreachableUntil = 0;
-			return res;
+			return answered;
 		} catch (err) {
 			if (signal?.aborted) throw err; // the caller stopped this request; the server's reachability is not in question
 			// Only a timeout withholds later requests. A request the network refuses fails immediately, so issuing the next read

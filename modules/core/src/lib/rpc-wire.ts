@@ -67,7 +67,7 @@ export function notFromActuality(method: string, status: number, mediaType: stri
 
 /**
  * Read a host's answer to a call by the media type the answer states. A host answers every call it serves as JSON, and
- * one it did not serve with its refusal and a status that says so. An answer that is not JSON did not come from the
+ * one it did not serve with its refusal and a status that states so. An answer that is not JSON did not come from the
  * host's RPC, as a path a server does not serve answers as text, and is refused with its status and what it sent.
  */
 export async function readRpcAnswer(method: string, res: Response): Promise<TRpcAnswer> {

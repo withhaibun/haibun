@@ -12,7 +12,7 @@
  * standing when its features finish so what it produced can still be asked about.
  *
  * A run's own events are read here as it produces them: its output arrives as NDJSON, and each chunk accrues into the
- * outcome a caller reads, which features ran, how many steps, what failed first, and whether the run says it is
+ * outcome a caller reads, which features ran, how many steps, what failed first, and whether the run reports it is
  * finished. Beside that outcome the child's PROCESS output is kept as a bounded tail read from a cursor, since a run
  * that fails before it serves doesn't write other output, and a long run cannot be allowed to grow without limit.
  * `SseSubscriber` subscribes to a serving run this process did not fork.
@@ -62,7 +62,7 @@ const BEGIN_TIMEOUT_MS = 1_500;
 const READY_POLL_MS = 300;
 const STDERR_TAIL_CHARS = 4_000;
 /** How much of a run's output is kept for reading back. Older output is dropped, and a read that starts before what
- *  is kept says so, rather than silently returning a gap as if it were the whole story. */
+ *  is kept reports so, rather than silently returning a gap as if it were the whole story. */
 const RUN_TAIL_CHARS = 200_000;
 
 /** The run variable a launched instance reads to address its launcher: `use store at $LAUNCHED_FROM$ …`. */
@@ -82,9 +82,9 @@ const LAUNCHED_FROM = "LAUNCHED_FROM";
 export const SUPERVISOR_CAPABILITIES = {
 	/** Start a serving instance from a directory of features. */
 	launch: "Instance:launch",
-	/** Start a run of features, which carries out what those features say on this machine. */
+	/** Start a run of features, which carries out what those features declare on this machine. */
 	run: "Instance:run",
-	/** Read what a run has said, which is its output verbatim. */
+	/** Read what a run has logged, which is its output verbatim. */
 	read: "Instance:read",
 	/** End a run or an instance this process started. */
 	stop: "Instance:stop",
@@ -101,7 +101,7 @@ export const runReadSchema = z.object({
 	output: z.string(),
 	dropped: z.number(),
 	// What the run has reported about itself so far, counted from every chunk it wrote rather than from the tail that
-	// is still kept: a run that says more than the tail holds is still counted in full.
+	// is still kept: a run that reports more than the tail holds is still counted in full.
 	features: z.number(),
 	steps: z.number(),
 	/** Whether the run's features are over. A run left standing reports this and then keeps serving, so a caller
@@ -141,7 +141,7 @@ export class RunTail {
 		}
 	}
 
-	/** What was said after `cursor`, where to read from next, and how much of what was asked for is gone. */
+	/** What was logged after `cursor`, where to read from next, and how much of what was asked for is gone. */
 	since(cursor: number): { output: string; cursor: number; dropped: number } {
 		const from = Math.max(0, cursor - this.droppedChars);
 		return { output: this.chunks.join("").slice(from), cursor: this.droppedChars + this.keptChars, dropped: Math.max(0, this.droppedChars - cursor) };
@@ -156,7 +156,7 @@ export class RunTail {
  */
 export function runEnvironment(inherited: NodeJS.ProcessEnv, port: number, standing: boolean, hostId?: number, perProcess: string[] = []): NodeJS.ProcessEnv {
 	const env = { ...inherited };
-	// What one process holds, a process it starts does not inherit: each option says so itself.
+	// What one process holds, a process it starts does not inherit: each option declares so itself.
 	for (const name of perProcess) delete env[name];
 	delete env[STAY_ENV];
 	delete env[ONCE_ENV];
@@ -166,7 +166,7 @@ export function runEnvironment(inherited: NodeJS.ProcessEnv, port: number, stand
 		env[INSTANCE_PORT_ENV] = String(port);
 	}
 	if (standing) env[STAY_ENV] = STAY_ALWAYS;
-	// A run that stays is a host of its own: it takes an id, so its seqPaths say whose work they are and its steps
+	// A run that stays is a host of its own: it takes an id, so its seqPaths show whose work they are and its steps
 	// register under it here.
 	if (hostId !== undefined) env[HAIBUN_HOST_ID_ENV] = String(hostId);
 	// The child is read by this process, not watched by a person, so it reports its events rather than only its
@@ -237,7 +237,7 @@ export const runDomainDefinitions: TDomainDefinition[] = [
 	},
 	featureFilterDomainDefinition,
 	{ selectors: [RUN_DOMAIN.started], schema: runStartedSchema, description: "A run a process started, and what it runs" },
-	{ selectors: [RUN_DOMAIN.read], schema: runReadSchema, description: "What a run said since a cursor, and how it stands" },
+	{ selectors: [RUN_DOMAIN.read], schema: runReadSchema, description: "What a run logged since a cursor, and how it stands" },
 	{ selectors: [RUN_DOMAIN.stopped], schema: z.object({ run: z.string() }), description: "A run a process ended" },
 ];
 /** The instances and runs this process started, which it supervises until they end. */
@@ -248,7 +248,7 @@ const InstancesSchema = z.object({
 	runs: z.array(z.object({ run: z.string(), status: z.string() })).describe("Each run this process started, and whether it is running or ended."),
 });
 
-/** What an instance says when it begins, or undefined while it doesn't take the call yet: a starting instance refuses or
+/** What an instance reports when it begins, or undefined while it doesn't take the call yet: a starting instance refuses or
  *  doesn't answer until it serves, and a caller waiting for it asks again. */
 async function begins(rpc: RpcClient): Promise<{ hostId?: number; site?: string; serving?: boolean } | undefined> {
 	return await rpc.call<{ hostId?: number; site?: string; serving?: boolean }>("action.begin", {}, []).catch((e: unknown) => {
@@ -397,7 +397,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			gwta: `wait for the haibun run {run: ${RUN_DOMAIN.name}} to end within {seconds: number} seconds`,
 			capability: SUPERVISOR_CAPABILITIES.read,
 			description:
-				"Wait for the run to end, then answer, instead of the caller asking repeatedly. This process supervises the child directly and is told the moment it exits, so it answers as soon as that happens. The answer has the same shape as readRun: everything the run said since the given cursor, and whether it is still running. Reaching the timeout answers the same way, with the run still running; that is not a failure, and the caller decides whether to wait again or stop it.",
+				"Wait for the run to end, then answer, instead of the caller asking repeatedly. This process supervises the child directly and is told the moment it exits, so it answers as soon as that happens. The answer has the same shape as readRun: everything the run logged since the given cursor, and whether it is still running. Reaching the timeout answers the same way, with the run still running; that is not a failure, and the caller decides whether to wait again or stop it.",
 			productsDomain: RUN_DOMAIN.read,
 			action: ({ run, seconds, cursor }: { run: string; seconds: number; cursor: number }) => this.waitRun(run, seconds, cursor),
 		},
@@ -450,7 +450,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		// A run that would answer what an earlier run answered is not started. The child records what it passed
 		// against under the conditions it is run with, so those same conditions, computed from the environment it
 		// would be given, are what a pass is looked for under.
-		// Where a run is started from decides what its relative paths mean, so the caller says it rather than inheriting
+		// Where a run is started from decides what its relative paths mean, so the caller passes it rather than inheriting
 		// this process's directory by accident.
 		const cwd = from ? path.resolve(from) : process.cwd();
 		if (!existsSync(cwd)) return actionNotOK(`start run: the directory ${cwd} to run from doesn't exist`);
@@ -467,7 +467,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			held.tail.append(text);
 			const wasFinished = held.outcome.finished;
 			accrueRunOutcome(held.outcome, text);
-			// A run that says its features are over is done, whether or not it goes on serving.
+			// A run that reports its features are over is done, whether or not it goes on serving.
 			if (!wasFinished && held.outcome.finished) for (const wake of held.waiters.splice(0)) wake();
 		};
 		child.stdout?.on("data", take);
@@ -529,14 +529,14 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 				};
 				const timer = setTimeout(done, seconds * 1000);
 				held.child.once("exit", done);
-				// A standing run never exits, so it is also woken by the run saying its features are over.
+				// A standing run never exits, so it is also woken by the run reporting its features are over.
 				held.waiters.push(done);
 			});
 		}
 		return this.readRun(run, cursor);
 	}
 
-	/** What a run has said since `cursor`, and whether it is still going. */
+	/** What a run has logged since `cursor`, and whether it is still going. */
 	private readRun(run: string, cursor: number) {
 		const held = this.startedRun("read run", run);
 		const [first] = held.outcome.failures;
@@ -566,7 +566,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		const passed = [process.env.HAIBUN_ENV, launcherPort ? `${LAUNCHED_FROM}=${localOrigin(Number(launcherPort))}` : ""].filter(Boolean).join(",");
 		const env = { ...runEnvironment(process.env, port, false, hostId, perProcessOptionNames(this.steppers)), ...(passed ? { HAIBUN_ENV: passed } : {}) };
 		// execArgv: [] keeps the child plain node running the built CLI; it must not inherit a test runner's loader flags.
-		// The child runs in the base it was started from, since what a base's config says is relative to that base: a
+		// The child runs in the base it was started from, since what a base's config states is relative to that base: a
 		// launched instance whose steppers resolved against the launcher's directory could not name its own.
 		const child = fork(cliEntry, ["-c", config, dir], { env, cwd: dir, silent: true, execArgv: [] });
 		superviseChild(child); // owned for the life of THIS process: a staying session that ends by signal takes its children with it
@@ -575,7 +575,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			process.stderr.write(`[instance:${hostId}] ${data.toString()}`);
 			stderrTail.append(data.toString());
 		});
-		// An instance that never becomes ready has usually said why on its own output rather than to its error stream,
+		// An instance that never becomes ready has usually logged why on its own output rather than to its error stream,
 		// and a caller told only that it timed out has to go and start it by hand to find out. The tail is kept, not
 		// echoed: it is the instance's event stream, and only its last words are of interest here.
 		const saidTail = new RunTail(STDERR_TAIL_CHARS);

@@ -29,7 +29,7 @@ export class Drawing {
 		else this.loop.stop();
 	}
 
-	/** The scene is going away: stop drawing whatever the last frame said. */
+	/** The scene is going away: stop drawing whatever the last frame rendered. */
 	end(): void {
 		if (!this.#drawing) return;
 		this.#drawing = false;

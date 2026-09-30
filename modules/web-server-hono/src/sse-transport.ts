@@ -46,7 +46,7 @@ export class SSETransport implements ITransport, IStepTransport {
 	private eventLogger: IEventLogger;
 	private messageHandlers: TMessageHandler[] = [];
 
-	/** The registry this transport dispatches through, which says which methods are reads. */
+	/** The registry this transport dispatches through, which states which methods are reads. */
 	private registry?: StepRegistry;
 
 	constructor(
