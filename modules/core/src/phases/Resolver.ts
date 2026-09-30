@@ -193,7 +193,8 @@ export class Resolver {
 	 */
 	private withStatementsAsWritten(action: TStepAction): TStepAction {
 		for (const value of Object.values(action.stepValuesMap ?? {})) {
-			if (value.domain !== DOMAIN_STATEMENT || value.origin !== Origin.quoted || !value.term) continue;
+			// Only a statement with a quote inside it can have lost the quotes of its own terms, so others aren't matched again.
+			if (value.domain !== DOMAIN_STATEMENT || value.origin !== Origin.quoted || !value.term?.includes('"')) continue;
 			const written = `"${value.term}"`;
 			if (this.findActionableSteps(value.term).length === 0 && this.findActionableSteps(written).length > 0) value.term = written;
 		}
