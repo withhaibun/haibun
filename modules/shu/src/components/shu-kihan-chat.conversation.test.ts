@@ -43,11 +43,11 @@ const VIEW_DATA = [VIEW, expect.objectContaining({ "@id": "view:panes" })];
 let onScreen: Record<string, unknown> | null = VIEW;
 /** What the turn states about itself before it writes anything. */
 const stated: string[] = [];
-/** What the stream fails with after the run recorded the question, where it does; unset leaves it open. */
+/** What the stream fails with after actuality recorded the question, where it does; unset leaves it open. */
 let streamFails: string | undefined;
-/** What the run refuses the turn with before it records anything, as a server refuses a target it does not hold. */
+/** What actuality refuses the turn with before it records anything, as a server refuses a target it does not hold. */
 let refusedBeforeRecording: string | undefined;
-/** What the run waits on between starting the turn's step and recording its question, where a case holds it there. */
+/** What actuality waits on between starting the turn's step and recording its question, where a case holds it there. */
 let recording: Promise<void> | undefined;
 /** The context envelope each turn was sent with, so a case reads what the pane asked for. */
 const sent: Array<{
@@ -60,10 +60,10 @@ const sent: Array<{
 	accessLevel?: string;
 	images?: unknown[];
 }> = [];
-/** The image the run keeps for a question, and each image the pane asked it to keep. */
+/** The image actuality keeps for a question, and each image the pane asked it to keep. */
 const KEPT_IMAGE = { contentUrl: "/artifacts/featn-1/image/question-1.png", encodingFormat: "image/png" };
 const keptImages: string[] = [];
-/** The seqPath each turn the stream starts is given, in order; a turn beyond them is given 0.1.2. The run records the
+/** The seqPath each turn the stream starts is given, in order; a turn beyond them is given 0.1.2. Actuality records the
  *  turn's question as the step starts and its answer when it finishes, each named by the turn. */
 const turnSeqPaths: number[][] = [];
 /** What a read of the model catalog answers with, given the page it asks for, or a promise a case holds open or rejects. */
@@ -84,7 +84,7 @@ const RESTORED_RECORD = anIndividual("Email", "restored@bakery.test");
 let sessionTurns: unknown[] = [];
 const sessionReads: Array<(failure?: string) => void> = [];
 
-/** A turn the run streams: it records the question once `recording` lets it, states what `stated` holds, and answers
+/** A turn actuality streams: it records the question once `recording` lets it, states what `stated` holds, and answers
  *  when a case finishes it, each record named by the turn. */
 function aTurn(params: Record<string, unknown>): DrivenStream {
 	const seqPath = turnSeqPaths.shift() ?? [0, 1, 2];
@@ -109,7 +109,7 @@ function aTurn(params: Record<string, unknown>): DrivenStream {
 	});
 }
 
-/** What the run answers each step the pane calls. */
+/** What actuality answers each step the pane calls. */
 function respond(step: string, params: Record<string, unknown>): unknown {
 	// The registry as the server holds it: a model states who reads its context, which the pane shows on the default.
 	if (step === CHAT_STEP.catalog) return catalog(params);
@@ -349,7 +349,7 @@ describe("a turn that ends before it answered", () => {
 	});
 });
 
-describe("a turn stopped before the run records its question", () => {
+describe("a turn stopped before actuality records its question", () => {
 	it("is aborted once the question is recorded, so the question opens its session and is not put back to ask again", async () => {
 		let recorded = (): void => undefined;
 		recording = new Promise<void>((resolve) => (recorded = resolve));
@@ -376,7 +376,7 @@ describe("the model a question is sent to", () => {
 		expect(sent.at(-1)?.target).toBe("openai:model-117");
 	});
 
-	it("is one the run offers: a remembered model it no longer offers, as one stored under a provider since renamed, is replaced by the first offered", async () => {
+	it("is one actuality offers: a remembered model it no longer offers, as one stored under a provider since renamed, is replaced by the first offered", async () => {
 		const { pane } = await aPage();
 		pane.setState({ model: "llama:thinker" });
 		await submit(pane, "what is this");
@@ -384,7 +384,7 @@ describe("the model a question is sent to", () => {
 		expect(inside<HTMLElement & { value?: string }>(pane.shadowRoot, ".model-select").value, "and the selector shows the model the question went to").toBe("openai:a-model");
 	});
 
-	it("is the run's standing default where the reader hasn't chosen a model the run offers, before a model that doesn't think", async () => {
+	it("is actuality's standing default where the reader hasn't chosen a model actuality offers, before a model that doesn't think", async () => {
 		catalog = () => ({
 			vertices: [
 				{ id: "openai:quick", capabilities: { tools: true, thinking: false } },
@@ -509,7 +509,7 @@ describe("the ask and the active record", () => {
 		Object.defineProperty(control, "files", { value: [new File(["png"], "door.png", { type: "image/png" })], configurable: true });
 		control.dispatchEvent(new Event("change"));
 		await vi.waitFor(() => expect(keptImages).toHaveLength(1));
-		expect(keptImages[0], "the file, as the run keeps it").toMatch(/^data:image\/png;base64,/);
+		expect(keptImages[0], "the file, as actuality keeps it").toMatch(/^data:image\/png;base64,/);
 		await pane.updateComplete;
 		expect(pane.shadowRoot?.querySelectorAll(".ask-images img"), "the image the question shows").toHaveLength(1);
 		await submit(pane, "what is in the picture");
@@ -631,7 +631,7 @@ describe("a conversation", () => {
 		expect(turnsShown(history), "and its transcript is the picked session's").toEqual([RESTORED]);
 	});
 
-	it("isn't named by a session on a first turn the run refused before it recorded anything, whose question returns to the input", async () => {
+	it("isn't named by a session on a first turn actuality refused before it recorded anything, whose question returns to the input", async () => {
 		refusedBeforeRecording = 'a Kihan isn\'t registered for target "openai:gone"';
 		const { pane } = await aPage();
 		await submit(pane, "what do these have in common");

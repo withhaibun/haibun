@@ -218,7 +218,7 @@ export const restSteps = (webPlaywright: WebPlaywright) =>
 const JsonResponseSchema = z.union([RecordSchema, RecordsSchema]);
 export type TJsonResponse = z.infer<typeof JsonResponseSchema>;
 
-/** A response as a step captured it, which the run keeps as JSON text in a variable. */
+/** A response as a step captured it, which actuality keeps as JSON text in a variable. */
 export const CapturedResponseSchema = z.object({
 	status: z.number(),
 	statusText: z.string(),

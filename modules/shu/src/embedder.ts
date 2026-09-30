@@ -76,7 +76,7 @@ type TFrameWindow = Pick<Window, "parent" | "addEventListener" | "removeEventLis
 
 /**
  * Receives what the embedding page posts. A message from the embedding window at another origin is refused and reported
- * to the run, and a message from any other window isn't addressed to shu. Returns the function that stops receiving.
+ * to actuality, and a message from any other window isn't addressed to shu. Returns the function that stops receiving.
  */
 export function receiveFromEmbedder(embedderOrigin: string, frame: TFrameWindow = window): () => void {
 	const onMessage = (e: MessageEvent): void => {
@@ -99,7 +99,7 @@ export function receiveFromEmbedder(embedderOrigin: string, frame: TFrameWindow 
 
 /**
  * Ask the embedding page to delegate to the key shu signs as, by posting the key, and wait until shu holds the delegation.
- * A page that isn't given one within `waitMs` goes on with what it holds, and the run is told.
+ * A page that isn't given one within `waitMs` goes on with what it holds, and actuality is told.
  */
 export function askEmbedderToDelegate(embedderOrigin: string, controller: string, frame: Pick<Window, "parent"> = window, waitMs = responseTimeoutMs()): Promise<void> {
 	return new Promise((resolve) => {

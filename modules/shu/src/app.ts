@@ -122,7 +122,7 @@ function showPageKey(appRoot: HTMLElement, authority: TPageAuthority): void {
 const main = async (): Promise<void> => {
 	// What the reader's address says, before anything writes to it. An address naming views is the reader's own
 	// arrangement, which is what lets two addresses show different views of one run; an address that doesn't name a view is a
-	// reader without an arrangement, and the run's own views are what they are shown.
+	// reader without an arrangement, and actuality's own views are what they are shown.
 	const arrivedWithAddress = getHash().length > 1;
 	hydrateFromDom();
 	// A page embedding shu at the origin this deployment names posts it the page the reader is on, and delegates to its key.
@@ -132,7 +132,7 @@ const main = async (): Promise<void> => {
 	// doesn't reach a server, which every read already answers from what the page holds. Installed before anything else, since
 	// every component reads through the accessor and would otherwise throw on first use.
 	setConduit(new LiveConduit(""));
-	// A page that carries its run fills the client cache with it before anything reads the run: every view then reads it
+	// A page that carries its run fills the client cache with it before anything reads actuality: every view then reads it
 	// through the sources it uses against a server, and the reads that would have gone to a server find it cached.
 	const carried = hydratedCache();
 	if (carried) {
@@ -154,7 +154,7 @@ const main = async (): Promise<void> => {
 	if (!appRoot) return;
 
 	try {
-		// What the reader holds is read first, since every call after it is signed with it, reading the run's steps included.
+		// What the reader holds is read first, since every call after it is signed with it, reading actuality's steps included.
 		if (!carried) {
 			const authority = await openReaderAuthority();
 			if (embedder && deploymentVerifiesDelegations()) await askEmbedderToDelegate(embedder, authority.controller);
@@ -166,14 +166,14 @@ const main = async (): Promise<void> => {
 		await getAvailableSteps();
 	} catch (err) {
 		if (!isOffline()) {
-			appRoot.innerHTML = `<div style="padding:20px;color:#c00;font-family:monospace"><strong>SPA initialization failed:</strong> ${errorDetail(err)}</div>`;
+			appRoot.innerHTML = `<div style="padding:20px;color:#c00;font-family:monospace"><strong>This page didn't start.</strong> ${errorDetail(err)}</div>`;
 			return;
 		}
 	}
 	if (!carried) {
-		// Opened before anything reads the run: the server announces from the moment a page connects, so a page that waited
-		// until its first view was ready would lose what the run said while it booted. A page that didn't reach a server opens
-		// it too, and is told at once that it is down; a page that may not follow the run is refused it, and reads without
+		// Opened before anything reads actuality: the server announces from the moment a page connects, so a page that waited
+		// until its first view was ready would lose what actuality said while it booted. A page that didn't reach a server opens
+		// it too, and is told at once that it is down; a page that may not follow actuality is refused it, and reads without
 		// following.
 		eventStream().connect();
 		followRunningTurns();
@@ -268,7 +268,7 @@ const main = async (): Promise<void> => {
 		SHU_EVENT.PANE_DISMISS,
 		((e: CustomEvent) => {
 			const paneId = e.detail?.paneId;
-			// The close is in the address at once: a reader who has closed a view has an arrangement, so the run's views don't reseed it.
+			// The close is in the address at once: a reader who has closed a view has an arrangement, so actuality's views don't reseed it.
 			if (typeof paneId === "string" && paneId !== "query") PaneState.dismiss(paneId);
 		}) as EventListener,
 		{ signal },
@@ -383,14 +383,14 @@ const main = async (): Promise<void> => {
 		{ signal },
 	);
 
-	// The cursor names the moment the run is read at. A window holds a few thousand records, so the window doesn't hold a moment far from the
+	// The cursor names the moment actuality is read at. A window holds a few thousand records, so the window doesn't hold a moment far from the
 	// newest records: without this a reader who moved there would be shown the records they
 	// had left. One rule for every way the cursor moves, so a press on the rail, a click on a row and scrubbing all read
-	// the run the same way.
+	// actuality the same way.
 	eventsController.signal.addEventListener(
 		"abort",
 		timeCursor.subscribe((at) => {
-			void readRunAt(at).catch((err: unknown) => reportFailure("shu-app", "the run could not be read at the moment the cursor names", err));
+			void readRunAt(at).catch((err: unknown) => reportFailure("shu-app", "actuality could not be read at the moment the cursor names", err));
 		}),
 	);
 	// Filter change from actions bar
@@ -400,7 +400,7 @@ const main = async (): Promise<void> => {
 			const query = getQuery();
 			query?.setFilters?.(e.detail || {});
 			// A reader searching is asking to see what it finds, so the index comes back from its spine, whether it
-			// minimized to give the run's views room or the reader put it there. The bar restoring its own search at
+			// minimized to give actuality's views room or the reader put it there. The bar restoring its own search at
 			// load didn't ask to see what it finds, and leaves the index where it is.
 			if (e.detail?.asked) getIndexPane()?.setMinimized(false);
 		}) as EventListener,
@@ -513,12 +513,12 @@ const main = async (): Promise<void> => {
 		// not leaves the column that is on screen as the active pane rather than leaving `activePane` null.
 		if (activePane.get() === null) activePane.set("query");
 		PaneState.fromHash();
-		// The index gives the run's views the room: a reader shown them didn't ask for a view, so the search that is on
+		// The index gives actuality's views the room: a reader shown them didn't ask for a view, so the search that is on
 		// screen minimizes to its spine, where it still says which search is behind it. A reader who arrived with an
 		// arrangement of their own keeps the index as they left it.
 		if (shown.length > 0) {
 			const index = getIndexPane();
-			if (!index) throw new Error("the page started on the run's views without an index pane to minimize: the app builds one at boot and doesn't remove it");
+			if (!index) throw new Error("the page started on actuality's views without an index pane to minimize: the app builds one at boot and doesn't remove it");
 			index.setMinimized(true);
 		}
 	}

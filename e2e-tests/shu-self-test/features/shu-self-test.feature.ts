@@ -24,11 +24,11 @@ const DOC_CONTAINER = SHU_TAG.DOCUMENT_COLUMN;
 const MONITOR_CONTAINER = SHU_TAG.MONITOR_COLUMN;
 /** The block of this feature's own heading in the document, named from the feature's name the way the document names it. */
 const FEATURE_HEADING = `${SHU_TEST_IDS.DOCUMENT.HEADING}${headingAnchor("Shu SPA Self-Test")}`;
-// The client cache view's readings of the run source at log (the document's level): its cached spans and its extent.
+// The client cache view's readings of actuality source at log (the document's level): its cached spans and its extent.
 const CACHE_LOG_CACHED = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-cached`;
 const CACHE_LOG_EVENTS = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-events`;
 const CACHE_LOG_LOADED = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-loaded`;
-/** The same source cut off from the run: it has read, and the stream is down, so it cannot say it is current. */
+/** The same source cut off from actuality: it has read, and the stream is down, so it cannot say it is current. */
 const CACHE_LOG_DISCONNECTED = `${SHU_TEST_IDS.CLIENT_CACHE.SOURCE}log-disconnected`;
 /** The globs that cover everything this page reads from its server: every remote call and the event stream. */
 const RPC_GLOB = "**/rpc/**";
@@ -40,7 +40,7 @@ const MAIN_GRAPH_PANE = `shu-column-pane:has(${SHU_TAG.POLYMORPHIC_GRAPH_VIEW}:n
 /** The canvas the chain's graph draws on: the graph view mounted in the chain view's slot. */
 const CHAIN_GRAPH_CANVAS = "chain-graph-canvas";
 const CHAIN_GRAPH_CANVAS_SELECTOR = `${SHU_TAG.DOMAIN_CHAIN_VIEW} > [slot='${IDS.DOMAIN_CHAIN.GRAPH}'] [data-testid='${IDS.POLYMORPHIC_VIEW.SCENE}'] canvas`;
-/** The list of views the deployment declares, and the row in it that opens the run's own log. */
+/** The list of views the deployment declares, and the row in it that opens actuality's own log. */
 const VIEWS_PICKER = SHU_TEST_IDS.VIEWS_PICKER.ROOT;
 const VIEWS_PICKER_MONITOR = `${SHU_TEST_IDS.VIEWS_PICKER.ROW}${SHU_TAG.MONITOR_COLUMN}`;
 const testIdSetup = flattenTestIds(IDS).map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
@@ -58,7 +58,7 @@ export const features: TKirejiExport = {
 		feature({ feature: "Shu SPA Self-Test" }),
 
 		"This feature drives the shu SPA end-to-end as a real user would: open every view, exercise affordances, trigger goal resolution, then reload the page and verify everything reappears. Each scenario narrates why it exists so a reader can follow the system without consulting the implementation.",
-		"Every step's screenshot is what the document view builds its manual of the run from, so the run captures one after each.",
+		"Every step's screenshot is what the document view builds its manual of actuality from, so actuality captures one after each.",
 		"This deployment doesn't register a delegation verifier, so it allows every action without one: the page doesn't sign its calls, and every call it makes is allowed.",
 		"after every WebPlaywright, take a screenshot",
 		...testIdSetup,
@@ -91,7 +91,7 @@ export const features: TKirejiExport = {
 		"show monitor",
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
 
-		"A screenshot taken during a step is shown on that step's own row rather than as a row of its own, so what a step did and what it produced are read together. The run takes a screenshot after every WebPlaywright step, so the navigation that opened this page produced one.",
+		"A screenshot taken during a step is shown on that step's own row rather than as a row of its own, so what a step did and what it produced are read together. Actuality takes a screenshot after every WebPlaywright step, so the navigation that opened this page produced one.",
 		waitFor({ target: IDS.MONITOR.PRODUCED }),
 
 		"A column's settings are its own, and the pane shows them when a reader asks for them. They carry what the log reads: the level it reads at, and whether the steps run to carry other steps out are shown. A step run to carry another one out reports under it, so a reader reading what the feature did is not shown the machinery. Asking for those steps shows them, and each names the step it was run to carry out, which a reader reads that step from. The screenshot this run takes after every browser step is such a step, so asking for them shows it.",
@@ -99,12 +99,12 @@ export const features: TKirejiExport = {
 		inElement({ container: `"${MONITOR_PANE}"`, what: `click ${IDS.MONITOR.SUBSTEPS}` }),
 		waitFor({ target: IDS.MONITOR.ESTABLISHED_BY }),
 
-		"A reader who stops asking reads the run again as the feature ran it, with what its steps produced still on their rows.",
+		"A reader who stops asking reads actuality again as the feature ran it, with what its steps produced still on their rows.",
 		inElement({ container: `"${MONITOR_PANE}"`, what: `click ${IDS.MONITOR.SUBSTEPS}` }),
 		waitFor({ target: IDS.MONITOR.PRODUCED }),
 		inElement({ container: `"${MONITOR_PANE}"`, what: `click ${IDS.COLUMN_PANE.CONTROLS_TOGGLE}` }),
 
-		"The log's own scroll rail is where the shared cursor is shown and picked, so the page doesn't have a separate range control. The moment being shown is always somewhere on the run, so its mark is on the rail from the start: at the live edge, before the cursor is scrubbed.",
+		"The log's own scroll rail is where the shared cursor is shown and picked, so the page doesn't have a separate range control. The moment being shown is always somewhere on actuality, so its mark is on the rail from the start: at the live edge, before the cursor is scrubbed.",
 		waitFor({ target: IDS.SCROLLBAR.RAIL }),
 		waitFor({ target: IDS.SCROLLBAR.CURSOR }),
 
@@ -122,7 +122,7 @@ export const features: TKirejiExport = {
 		click({ target: IDS.PLAYBACK.RESTART }),
 		click({ target: IDS.PLAYBACK.PLAY }),
 		click({ target: IDS.PLAYBACK.PLAY }),
-		"Back to now, so the later scenarios read a page that is showing everything rather than a moment part-way through the run.",
+		"Back to now, so the later scenarios read a page that is showing everything rather than a moment part-way through actuality.",
 		click({ target: IDS.PLAYBACK.LIVE }),
 		"Close the popover so it does not float over the controls the later scenarios click.",
 		click({ target: IDS.APP.TIME_OFFSET }),
@@ -242,16 +242,16 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "Write the standalone HTML report mid-feature" }),
 
-		"`saves shu to` writes a self-contained HTML report: the SPA bundle plus a snapshot of every RPC response and SSE event captured during the run. Running it mid-feature verifies the writer doesn't depend on endFeature timing.",
+		"`saves shu to` writes a self-contained HTML report: the SPA bundle plus a snapshot of every RPC response and SSE event captured during actuality. Running it mid-feature verifies the writer doesn't depend on endFeature timing.",
 		'saves shu to "/tmp/shu.html"',
 		"An uncompressed copy carries the same content as plain text, so a reader can confirm secrets are redacted in the output without unpacking it.",
 		'saves shu uncompressed to "/tmp/shu-audit.html"',
 
-		"The affordances panel has been open since the reader showed it, and it has read the affordances on offer after every step since, to stay current. Reading is not an act of the run: the run's records name the step that showed the panel, and don't name the panel's own reading. The report carries the run's records, so it says which.",
+		"The affordances panel has been open since the reader showed it, and it has read the affordances on offer after every step since, to stay current. Reading is not an act of actuality: actuality's records name the step that showed the panel, and don't name the panel's own reading. The report carries actuality's records, so it says which.",
 		'text at "/tmp/shu-audit.html" contains "GoalResolutionStepper.showAffordances"',
 		'not text at "/tmp/shu-audit.html" contains "GoalResolutionStepper.affordancesOnOffer"',
 
-		scenario({ scenario: "A reload with the server unreachable reads the run from the device" }),
+		scenario({ scenario: "A reload with the server unreachable reads actuality from the device" }),
 
 		"A page whose calls all fail says the site has not responded to it, and reads the run from what this device holds. Everything this page has read of the run is held there as the records the run wrote, along with the site's registry. Blocking every remote call and the event stream leaves the page with the device alone, which is what a reader has when their network drops. Reloading then must still produce a run: the registry comes from the device, the source at log reads what is held and says so, its spans starting at the run's first row, and the monitor renders rows.",
 		`requests matching "${RPC_GLOB}" are "blocked"`,
@@ -271,7 +271,7 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "The server responding again returns the page to it" }),
 
-		"A network that comes back is the same page reading the same stores, with the server available again: the registry is the server's once more, and the run source is loaded from it. The views don't change between the two states, which is the reason for reading everything through the one cache.",
+		"A network that comes back is the same page reading the same stores, with the server available again: the registry is the server's once more, and actuality source is loaded from it. The views don't change between the two states, which is the reason for reading everything through the one cache.",
 		`requests matching "${RPC_GLOB}" are "allowed"`,
 		`requests matching "${STREAM_GLOB}" are "allowed"`,
 		reloadPage({}),
@@ -293,7 +293,7 @@ export const features: TKirejiExport = {
 		`save text from ${IDS.CLIENT_CACHE.REGISTRY} to unansweredRegistry`,
 		'matches unansweredRegistry with "from the device*"',
 
-		"A page issues one request per read, so a reader with several views open issues many concurrently. The request that times out stands for the reads that follow it within the retry interval, so the page falls back rather than running each read to the timeout separately. What the page then reads of the run is stated by the scenario above, which reads it with the requests refused instead.",
+		"A page issues one request per read, so a reader with several views open issues many concurrently. The request that times out stands for the reads that follow it within the retry interval, so the page falls back rather than running each read to the timeout separately. What the page then reads of actuality is stated by the scenario above, which reads it with the requests refused instead.",
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
 
 		"The server responds again, so the page queries it again.",
@@ -301,7 +301,7 @@ export const features: TKirejiExport = {
 		reloadPage({}),
 		waitFor({ target: CACHE_LOG_LOADED }),
 
-		scenario({ scenario: "A page without a stream reads the run and doesn't receive events" }),
+		scenario({ scenario: "A page without a stream reads actuality and doesn't receive events" }),
 
 		"The stream announces; the run is read from records. A page that reloads with the stream blocked reads the run it holds and doesn't receive an event after that, which is a reader whose connection dropped rather than one whose server is gone: every other call still works. This page has been without its server altogether and holds the whole run on the device, which is the page that once stopped catching up. What the reading holds is what it read on the way in, and it stops there. The reading says so itself: a source cut off from the stream cannot claim to be current, and the client cache shows it as cut off rather than as read.",
 		`requests matching "${STREAM_GLOB}" are "blocked"`,
@@ -310,7 +310,7 @@ export const features: TKirejiExport = {
 		waitFor({ target: CACHE_LOG_DISCONNECTED }),
 		`save text from ${CACHE_LOG_EVENTS} to eventsUnheard`,
 
-		"The run goes on recording while the page doesn't receive its events: these steps are the records the reading has to catch up on. What each one does is beside the point; that each one is recorded is not.",
+		"Actuality goes on recording while the page doesn't receive its events: these steps are the records the reading has to catch up on. What each one does is beside the point; that each one is recorded is not.",
 		set({ what: "unheard-1", value: '"recorded while the page was not listening"' }),
 		set({ what: "unheard-2", value: '"recorded while the page was not listening"' }),
 		set({ what: "unheard-3", value: '"recorded while the page was not listening"' }),
@@ -318,13 +318,13 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "The stream coming back is what a view catches up on" }),
 
-		"Allowing the stream is the only thing that happens: the page is not reloaded or clicked. The stream coming back is itself the announcement that there is something to read again for, so the reading is behind from that moment until a read begun after it has finished, and current after that. Catching up is not a second path beside following: it is the same one. A feature waits for the reading to say it is current rather than for a length of time, since a page reconnects on its own schedule and reads on its own, and what it then holds is what the run recorded while the page wasn't reading the stream.",
+		"Allowing the stream is the only thing that happens: the page is not reloaded or clicked. The stream coming back is itself the announcement that there is something to read again for, so the reading is behind from that moment until a read begun after it has finished, and current after that. Catching up is not a second path beside following: it is the same one. A feature waits for the reading to say it is current rather than for a length of time, since a page reconnects on its own schedule and reads on its own, and what it then holds is what actuality recorded while the page wasn't reading the stream.",
 		`requests matching "${STREAM_GLOB}" are "allowed"`,
 		waitFor({ target: CACHE_LOG_LOADED }),
 		`save text from ${CACHE_LOG_EVENTS} to eventsCaughtUp`,
 		"not variable eventsCaughtUp is eventsUnheard",
 
-		scenario({ scenario: "A page without a layout of its own starts on the views the run showed" }),
+		scenario({ scenario: "A page without a layout of its own starts on the views actuality showed" }),
 
 		"An address that names views is a reader's own arrangement, which is what lets two addresses show different views of one run. An address that doesn't name one is a reader without an arrangement, and they are shown the views this run has shown, read from its records. The run doesn't replay events to the page: it reads the run, as it reads everything else. The address it arrives at then names every view a step of this run showed, the monitor, the graph, the document, the client cache and the affordances panel among them, in the order the site declares them. Only the records state which views those are, so an address naming them was built from the records.",
 		gotoPage({ name: `"${host}/haibun"` }),

@@ -18,7 +18,7 @@ export class FlowRunner {
 		this.resolver = new Resolver(steppers);
 	}
 
-	/** Read at dispatch time: Executor assigns the run's registry after the steppers' setWorld. */
+	/** Read at dispatch time: Executor assigns actuality's registry after the steppers' setWorld. */
 	private get registry(): StepRegistry {
 		return runRegistry(this.world);
 	}
@@ -27,7 +27,7 @@ export class FlowRunner {
 		statement: string | TStepInput,
 		options: { args?: Record<string, string>; intent?: ExecutionIntent; parentStep?: TFeatureStep; seqPath?: TSeqPath } = {},
 	): Promise<TActionResult> {
-		// A statement run under a speculative step is part of what that step is trying, not a claim of the run's own, so
+		// A statement run under a speculative step is part of what that step is trying, not a claim of actuality's own, so
 		// speculation is inherited: a caller that means otherwise passes an intent of its own.
 		const intent = options.intent ?? options.parentStep?.intent ?? { mode: "authoritative" };
 

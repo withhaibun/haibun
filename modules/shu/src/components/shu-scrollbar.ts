@@ -30,7 +30,7 @@ export const SCROLL_TO_INDEX = "scroll-to-index";
  *  reading, the same as wheeling the rows. A view that acts on more than scrolling, moving the shared time cursor,
  *  say: cares which, and would otherwise drag every other view along with a scroll gesture. */
 export type TSeekBy = "press" | "wheel";
-/** A press on one of the rail's position glyphs: the top one asks for the START of the run, the bottom one for its live
+/** A press on one of the rail's position glyphs: the top one asks for the START of actuality, the bottom one for its live
  *  END: beyond what the rail's rows hold, which a host that pages its data answers by loading to that edge. */
 type TSeekEdge = "start" | "end";
 

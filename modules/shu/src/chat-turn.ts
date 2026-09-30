@@ -1,9 +1,9 @@
 /**
  * The request a turn this page asks runs on, as the adapter that raises the conversation's events for it.
  *
- * The run records the question first, and that record names the turn. A stop is an event like any other, and its
+ * Actuality records the question first, and that record names the turn. A stop is an event like any other, and its
  * request's rejection ends the turn as stopped. A turn stopped before its request is sent is aborted at once. A turn
- * stopped after is aborted once the run has recorded its question: aborted between, the run can record a question the
+ * stopped after is aborted once actuality has recorded its question: aborted between, actuality can record a question the
  * page never hears of, which asking again would record a second time.
  */
 import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
@@ -70,7 +70,7 @@ class ChunkEvents {
 
 /**
  * Ask a turn over the request stream, or throw the refusal where the conversation refuses a question now. The promise
- * resolves with the turn as it ended. A turn that does not complete is reported to the run, so the run's log holds the
+ * resolves with the turn as it ended. A turn that does not complete is reported to actuality, so actuality's log holds the
  * error it shows. A turn is asked at the level the page reads at now, which the address may have narrowed since the
  * records it is about were activated.
  */

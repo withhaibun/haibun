@@ -41,7 +41,7 @@ describe("statementsWith", () => {
 		expect(row.object["@type"]).toBe(SPECIFIC_RESOURCE_LABEL);
 	});
 
-	it("says which reading asserted it, and how the run that made it ended", async () => {
+	it("says which reading asserted it, and how the actuality that made it ended", async () => {
 		const [row] = await statementsWith(store, LinkRelations.CITES_AS_EVIDENCE.rel);
 		expect(row.reading).toEqual({ "@id": "reading:SeqPath:0.1", "@type": "Reading" });
 		expect(row.assertedBy).toEqual({ "@id": "0", "@type": SEQ_PATH_LABEL });

@@ -1,5 +1,5 @@
 // Reading a run is a query over the records it wrote: a step and what it said while it ran. What a reader is shown is
-// a window of a stated size around where they are, so looking takes the same whether the run has lasted an hour or a
+// a window of a stated size around where they are, so looking takes the same whether actuality has lasted an hour or a
 // decade. These pin where a window sits, what it holds and what a level narrows it to.
 import { describe, it, expect } from "vitest";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
@@ -71,7 +71,7 @@ describe("the window of a run a reader is looking at", () => {
 		expect(atTheEnd.rows, "one record at the end, so five before it").toHaveLength(6);
 	});
 
-	it("doesn't hold more than the run does", async () => {
+	it("doesn't hold more than actuality does", async () => {
 		const graph = runGraphOf(await aRunOf(2));
 		expect((await runWindow(graph, { size: 100 })).rows).toHaveLength(4);
 		expect((await runWindow(graph, { at: 1002, size: 100 })).rows).toHaveLength(4);
@@ -88,7 +88,7 @@ describe("the window of a run a reader is looking at", () => {
 		).toEqual(["step 0", "step 1", "step 2"]);
 	});
 
-	it("is empty when the run hasn't written a record, rather than failing", async () => {
+	it("is empty when actuality hasn't written a record, rather than failing", async () => {
 		const graph = runGraphOf(new QuadStore());
 		expect(await runWindow(graph, { size: 10 })).toEqual({ rows: [] });
 	});
@@ -96,8 +96,8 @@ describe("the window of a run a reader is looking at", () => {
 
 describe("the order a run put its records in", () => {
 	// A run outpaces a millisecond, so a clock alone leaves the records of one instant in whatever order they were read.
-	// Where a clock cannot tell two apart, their place in the run does.
-	it("puts the records of one instant in the order the run made them", async () => {
+	// Where a clock cannot tell two apart, their place in actuality does.
+	it("puts the records of one instant in the order actuality made them", async () => {
 		const store = new QuadStore();
 		// Written newest first, as a store reading the newest of a run returns them, and all within one millisecond.
 		for (const i of [30, 29, 28, 27, 26])
@@ -106,15 +106,15 @@ describe("the order a run put its records in", () => {
 		const window = await runWindow(graph, { size: 10 });
 		expect(
 			window.rows.map((r) => r.text),
-			"the newest of them is the last row, which is where a reader following the run is looking",
+			"the newest of them is the last row, which is where a reader following actuality is looking",
 		).toEqual(["step 26", "step 27", "step 28", "step 29", "step 30"]);
 	});
 });
 
 describe("what a run says outside every step", () => {
-	// A step that fails is reported after it ends, so what the run says about it doesn't belong to a step. Such a statement
+	// A step that fails is reported after it ends, so what actuality says about it doesn't belong to a step. Such a statement
 	// must not decide which run a window is of, or a reader watching a step fail loses the run they were reading.
-	it("keeps the run it is read with, rather than emptying the window", async () => {
+	it("keeps the actuality it is read with, rather than emptying the window", async () => {
 		const store = new QuadStore();
 		const execution = RUN;
 		for (const i of [1, 2, 3])
@@ -129,7 +129,7 @@ describe("what a run says outside every step", () => {
 		const window = await runWindow(graph, { size: 10 });
 		expect(
 			window.rows.map((r) => r.text),
-			"the run's steps, and what it said about the one that failed",
+			"actuality's steps, and what it said about the one that failed",
 		).toEqual(["step 1", "step 2", "step 3", 'create: "ee" is not a declared type']);
 	});
 

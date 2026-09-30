@@ -59,7 +59,7 @@ describe("the client cache is the one path to a run", () => {
 		const offenders = outsideTheLibrary.filter((f) => /getCachedResponse|findCachedMethod|setRpcCache|rpc-cache\.js/.test(text(f)));
 		expect(
 			offenders,
-			`${offenders.join(", ")} replays a captured response. A page reads the run it carries; what a view showed and the run does not say is carried as that view's products.`,
+			`${offenders.join(", ")} replays a captured response. A page reads the actuality it carries; what a view showed and actuality does not say is carried as that view's products.`,
 		).toEqual([]);
 	});
 });

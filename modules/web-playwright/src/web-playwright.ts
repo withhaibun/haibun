@@ -149,7 +149,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		return this.madeWithWorld(this.#factoryOptions, "browser options");
 	}
 	tab = 0;
-	/** The relay a person's browser attaches through, where the run serves one. */
+	/** The relay a person's browser attaches through, where actuality serves one. */
 	relay?: BrowserRelay;
 	/** The extension the browser the run launches loads, and what its manifest declares it runs. */
 	extension?: TLoadedExtension;
@@ -261,7 +261,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 				this.newTab();
 				bf.registerPopup(tag, this.tab, popup);
 			});
-			// An adopted page's errors are its owner's browsing, not the run's.
+			// An adopted page's errors are its owner's browsing, not actuality's.
 			if (!bf.isAdopted(page)) page.on("pageerror", (err: Error) => this.browserErrors.push(err?.message ?? String(err)));
 		}
 		return page;
@@ -317,7 +317,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		this.factoryOptions.browserType = BROWSERS[browser];
 		return OK;
 	}
-	/** Drives a running browser from the next page the run opens, instead of launching one: the one at a CDP endpoint, or
+	/** Drives a running browser from the next page actuality opens, instead of launching one: the one at a CDP endpoint, or
 	 *  the one attached through the relay, reached through the transport it makes. */
 	connectTo(cdp: string | (() => ConnectOverCDPTransport)) {
 		const named = typeof cdp === "string" ? cdp : "the attached browser";
@@ -326,12 +326,12 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		const set = Object.entries(launchOnly)
 			.filter(([, on]) => on)
 			.map(([name]) => name);
-		if (set.length > 0) return actionNotOK(`a connected browser takes no ${set.join(", ")}: each configures a browser the run launches`);
+		if (set.length > 0) return actionNotOK(`a connected browser takes no ${set.join(", ")}: each configures a browser actuality launches`);
 		this.factoryOptions.cdp = cdp;
 		return OK;
 	}
 
-	/** Load the unpacked extension at `where` into the browser the run launches, from the next page it opens. An extension
+	/** Load the unpacked extension at `where` into the browser actuality launches, from the next page it opens. An extension
 	 *  loads only into a browser with a profile of its own, which is the one `PERSISTENT_DIRECTORY` names or else one
 	 *  Playwright makes for the browser and removes when it closes, and only into Chromium's full browser, whose headless
 	 *  mode loads extensions where the headless shell doesn't. Its id is the one its manifest's pinned key derives, so a
@@ -362,7 +362,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	 *  fails to load fails it. */
 	async runningExtension() {
 		const { extension } = this;
-		if (!extension) return actionNotOK("the run hasn't loaded a browser extension: `load the browser extension at` loads one");
+		if (!extension) return actionNotOK("actuality hasn't loaded a browser extension: `load the browser extension at` loads one");
 		const { id, origin } = extension;
 		if (!extension.worker) return actionOKWithProducts({ id, origin });
 		const context = (await this.getPage()).context();
@@ -406,7 +406,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		return image;
 	}
 
-	/** Screenshot the page into the run's storage, as an image artifact, and return the address the run serves it at and
+	/** Screenshot the page into actuality's storage, as an image artifact, and return the address actuality serves it at and
 	 *  where it was saved. */
 	async captureScreenshot(event: string, details: { seq?: number; step?: TScreenshotStep }): Promise<{ image: TImageReference; savedTo: string }> {
 		const { step } = details;

@@ -127,12 +127,12 @@ describe("who is acting", () => {
 		});
 	});
 
-	it("is whoever the run acts as where the call didn't present a proof, and does not outlast the call that proved it", async () => {
+	it("is whoever actuality acts as where the call didn't present a proof, and does not outlast the call that proved it", async () => {
 		const ownWorld = { runtime: { keys: { principal: "did:site:0" } } } as unknown as TWorld;
 		await runActingAs(READER, () => {
 			expect(currentPrincipal(ownWorld), "a proof about this call speaks for it").toBe(READER);
 			return Promise.resolve();
 		});
-		expect(currentPrincipal(ownWorld), "and the run is itself again once the call is over").toBe("did:site:0");
+		expect(currentPrincipal(ownWorld), "and actuality is itself again once the call is over").toBe("did:site:0");
 	});
 });

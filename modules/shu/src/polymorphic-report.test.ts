@@ -1,6 +1,6 @@
 // @vitest-environment node
 // What a report carries, driven through the real writer and read back out of the compressed payload it embeds.
-// A report is the page with the run it reports held inside it: the run in the client cache, the site's declarations
+// A report is the page with the actuality it reports held inside it: actuality in the client cache, the site's declarations
 // beside it, and the component bundles of the views that were open. It doesn't carry the answers a live page happened to
 // receive, since every read a view makes is answered from what the page holds.
 import { describe, it, expect } from "vitest";
@@ -31,7 +31,7 @@ function reportScripts(html: string): string[] {
 	return scripts;
 }
 
-/** What the report holds of the run, read back out of the payload: the client cache and the replay beside it. */
+/** What the report holds of actuality, read back out of the payload: the client cache and the replay beside it. */
 function reportHydration(html: string): { cache: { registry?: { steps?: unknown[] } }; viewProducts: Record<string, unknown> } {
 	const b64 = html.match(/<script[^>]*id="shu-payload"[^>]*>([^<]+)<\/script>/)?.[1];
 	if (!b64) throw new Error("shu-payload script not found in report HTML");
@@ -39,7 +39,7 @@ function reportHydration(html: string): { cache: { registry?: { steps?: unknown[
 	return JSON.parse(hydration);
 }
 
-/** A step that ran a graph query, as the run records one: the argument it took carries the graph-query domain and the
+/** A step that ran a graph query, as actuality records one: the argument it took carries the graph-query domain and the
  *  type the query named, whichever step a deployment answers queries with. */
 const queryEvent = (stepperName: string, label: string) => ({
 	id: "0.2",
@@ -66,14 +66,14 @@ async function generateReport(finalView: string | undefined, writes = 1, queries
 		world,
 		steppers.map((s) => (s as { cycles?: IStepperCycles }).cycles?.getConcerns?.().domains ?? []).filter((d) => d.length > 0),
 	);
-	// The run's records are where the report reads what its views showed; secrets are irrelevant to that rule.
+	// Actuality's records are where the report reads what its views showed; secrets are irrelevant to that rule.
 	const store = new QuadStore();
 	(world.shared as unknown as { getStore: () => unknown }).getStore = () => store;
 	(world.shared as unknown as { getSecrets: () => Promise<Record<string, string>> }).getSecrets = async () => ({});
 	for (const s of steppers) await s.setWorld(world, steppers);
 	world.runtime.steppers = steppers;
 	openRunRegistry(world, steppers);
-	// The step that showed the view, as the run records it: what the report reads to know which column was open.
+	// The step that showed the view, as actuality records it: what the report reads to know which column was open.
 	if (finalView)
 		await store.upsertIndividual(SEQ_PATH_LABEL, {
 			id: "1700000000000-1.0.1",
@@ -85,7 +85,7 @@ async function generateReport(finalView: string | undefined, writes = 1, queries
 		});
 	for (const q of queries) await monitor.cycles.onEvent?.(q as unknown as Parameters<NonNullable<typeof monitor.cycles.onEvent>>[0]);
 	const out = join(tmpdir(), `polymorphic-report-${process.pid}-${finalView ?? "none"}.html`);
-	// The run writes its report as itself, as its feature line and its end do.
+	// Actuality writes its report as itself, as its feature line and its end do.
 	for (let i = 0; i < writes; i++) await runAuthorizedWith(RUN_AUTHORITY, () => (monitor.steps.savesShuTo.action as (a: { where: string }) => Promise<unknown>)({ where: out }));
 	return readFileSync(out, "utf-8");
 }
@@ -104,11 +104,11 @@ describe("serialized report bundles an external component's JS iff its view is u
 	});
 });
 
-describe("a report carries the run and the site's declarations, and doesn't carry a captured answer", () => {
+describe("a report carries actuality and the site's declarations, and doesn't carry a captured answer", () => {
 	it("carries the run's declarations, as a page reads them, and still does when the same run writes a second report", async () => {
 		const declared = (html: string) => (reportHydration(html).cache.registry as { steps: Array<{ method: string }> }).steps.map((step) => step.method);
 		expect(declared(await generateReport(undefined)), "the first report").toContain("MonitorStepper-savesShuTo");
-		expect(declared(await generateReport(undefined, 2)), "and the one written when the run ends").toContain("MonitorStepper-savesShuTo");
+		expect(declared(await generateReport(undefined, 2)), "and the one written when actuality ends").toContain("MonitorStepper-savesShuTo");
 	});
 
 	it("carries what its views showed, and doesn't carry an answer a live page received", async () => {
@@ -135,7 +135,7 @@ describe("a report opens on the type the reader was looking at", () => {
 		expect(viewHash(await generateReport(undefined, 1, [queryEvent("GraphStepper", "Email"), queryEvent("GraphStepper", "Person")]))).toContain("label=Person");
 	});
 
-	it("doesn't name a type when the run never queried one", async () => {
+	it("doesn't name a type when actuality never queried one", async () => {
 		expect(viewHash(await generateReport(undefined))).not.toContain("label=");
 	});
 });

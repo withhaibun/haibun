@@ -28,7 +28,7 @@ const PAGE_BLIPS: TBlipDeclaration[] = [
 	},
 ];
 
-// Declared where the vocabulary lives, so an origin names this module: the run side imports this module and the
+// Declared where the vocabulary lives, so an origin names this module: actuality side imports this module and the
 // declarations are in place before any batch arrives.
 declareBlips(...PAGE_BLIPS);
 

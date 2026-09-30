@@ -18,7 +18,7 @@ import { SHU_EVENT, SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
 import { runSpan } from "../client-cache/index.js";
 
-/** Playback rates. The two below 1 run slower than the run did, for a dense burst to watch as it plays. */
+/** Playback rates. The two below 1 run slower than actuality did, for a dense burst to watch as it plays. */
 const SPEED_OPTIONS = [0.02, 0.05, 1, 2];
 const formatSpeed = (s: number): string => (s < 1 ? `-${Math.round(1 / s)}×` : `${s}×`);
 
@@ -60,12 +60,12 @@ export class ShuPlayback extends ShuElement<typeof StateSchema> {
 	}
 
 	/** What playing runs between: the shared log's span, read without asking for a window of it. This control doesn't keep
-	 *  running bounds of its own, and doesn't register a subscription that would hold the run in memory after it is put away. */
+	 *  running bounds of its own, and doesn't register a subscription that would hold actuality in memory after it is put away. */
 	get #span(): { first: number; last: number } {
 		return runSpan();
 	}
 
-	/** Whether the cursor has reached the end of the run. Derived rather than kept: every place that would have written
+	/** Whether the cursor has reached the end of actuality. Derived rather than kept: every place that would have written
 	 *  it is this same comparison, and the template doesn't render from it. */
 	get #atEnd(): boolean {
 		return this.#currentTime >= this.#span.last;
@@ -105,7 +105,7 @@ export class ShuPlayback extends ShuElement<typeof StateSchema> {
 	private onPlay = (): void => {
 		if (this.state.playing) return this.#stop();
 		const { first, last } = this.#span;
-		if (last === 0) return; // the run doesn't have an event yet, so playback doesn't have a span to play through
+		if (last === 0) return; // actuality doesn't have an event yet, so playback doesn't have a span to play through
 		this.#lastFrame = performance.now();
 		if (this.#currentTime >= last) this.#currentTime = first;
 		this.setState({ playing: true });

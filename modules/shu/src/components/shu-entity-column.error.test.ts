@@ -13,7 +13,7 @@ describe("shu-entity-column error surfacing", () => {
 	beforeEach(() => {
 		endPage();
 		document.body.innerHTML = "";
-		// LiveConduit honours the stubbed `fetch` below; SerializedEventStream replaces the run's stream, which this case doesn't follow.
+		// LiveConduit honours the stubbed `fetch` below; SerializedEventStream replaces actuality's stream, which this case doesn't follow.
 		setConduit(new LiveConduit(""));
 		setEventStream(new SerializedEventStream());
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});

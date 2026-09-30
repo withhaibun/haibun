@@ -21,7 +21,7 @@ import { endPage } from "../page-pinned.js";
 
 const FIRST = 1_000_000;
 const LAST = 1_000_500;
-/** The run this control plays through: two steps, the first and the last of it. */
+/** The actuality this control plays through: two steps, the first and the last of it. */
 async function aRun(): Promise<void> {
 	const store = new QuadStore();
 	for (const [i, at] of [FIRST, LAST].entries())
@@ -45,7 +45,7 @@ async function playing(): Promise<ShuPlayback> {
 	const el = new ShuPlayback();
 	document.body.appendChild(el);
 	await el.updateComplete;
-	// The run's span comes from the run sources the open views read: so the run is read at a level (as an open monitor or
+	// Actuality's span comes from actuality sources the open views read: so actuality is read at a level (as an open monitor or
 	// document would read it), and its extent is what the control plays between.
 	await graphRunSource("info").ready();
 	await el.updateComplete;
@@ -94,7 +94,7 @@ describe("playing through a run", () => {
 		// The sources are one per page, so a run read by the last test is still being read by the next unless forgotten.
 		shu = setupShuTest({
 			dispatch: () => {
-				throw new Error("the run is read from its records");
+				throw new Error("actuality is read from its records");
 			},
 		});
 		await aRun();
@@ -109,7 +109,7 @@ describe("playing through a run", () => {
 		}
 	});
 
-	it("puts the cursor at the start of the run when asked to go back", async () => {
+	it("puts the cursor at the start of actuality when asked to go back", async () => {
 		const el = await playing();
 		await click(el, "playback-restart");
 		expect(timeCursor.get(), "just before the first event, so that event is still ahead").toBe(FIRST - 1);
@@ -161,7 +161,7 @@ describe("going back to now", () => {
 		shu?.teardown();
 		shu = setupShuTest({
 			dispatch: () => {
-				throw new Error("the run is read from its records");
+				throw new Error("actuality is read from its records");
 			},
 		});
 		await aRun();

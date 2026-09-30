@@ -1,10 +1,10 @@
 /**
- * The run as a reader is looking at it: the records around a moment, in order.
+ * Actuality as a reader is looking at it: the records around a moment, in order.
  *
  * A run is in the graph. A step is a `SeqPath` individual and what it said is a `LogMessage` individual pointing back
- * at it, so reading the run is a query over those two types by time, not a second history to keep. What a reader sees
+ * at it, so reading actuality is a query over those two types by time, not a second history to keep. What a reader sees
  * is a window of a stated number of records around where they are, which is what keeps the time of looking the same
- * whether the run has lasted an hour or a decade: the window is read by time, and within it a page is an offset that
+ * whether actuality has lasted an hour or a decade: the window is read by time, and within it a page is an offset that
  * can never exceed the window.
  *
  * A window at the live edge is the newest records; one around a moment is half before it and half after, and where a
@@ -34,14 +34,14 @@ export type TRunRow = {
 	text: string;
 	/** What the step called: the stepper and the action within it. The text says what was asked for; this says what ran. */
 	called?: string;
-	/** When this record was written, or last written again: what a reader following the run asks for what happened
+	/** When this record was written, or last written again: what a reader following actuality asks for what happened
 	 *  since by. Absent on a record written before it was declared. */
 	recordedAt?: number;
 	/** What this step produced, named on the row a reader sees rather than on rows of its own: a run records a
 	 *  produced thing under the step that made it, and that step can be part of the machinery a reader is not reading. */
 	produced?: TRunRow[];
 	/** The step whose row carries this produced thing, where one in the window claims it. A view showing rows of steps
-	 *  draws it there and doesn't give this row room; a view reading the run's own document places it by its own reading. */
+	 *  draws it there and doesn't give this row room; a view reading actuality's own document places it by its own reading. */
 	carriedBy?: string;
 	/** The step this one was run to carry out, on a substep: the step that established it, as its path within the
 	 *  execution. A reader shown a substep is shown which step ran it, and reads that step from here. */
@@ -80,11 +80,11 @@ export type TRunWindow = { rows: TRunRow[]; from?: number; to?: number };
 const KIND_ORDER: Record<TRunRow["kind"], number> = { step: 0, said: 1, produced: 2 };
 
 /**
- * Two rows in the order the run put them: by when; where a clock cannot tell them apart, by their place in the run;
+ * Two rows in the order actuality put them: by when; where a clock cannot tell them apart, by their place in actuality;
  * within one step, by what the row is and which of those it is.
  *
  * A run outpaces a millisecond, so time alone leaves the rows of one instant in whatever order they were read, and a
- * reader watching the run would see them settle into a different order on the next reading. Every part of a name is
+ * reader watching actuality would see them settle into a different order on the next reading. Every part of a name is
  * compared, so the order is the same however the records were read.
  */
 export function inRunOrder(a: TRunRow, b: TRunRow): number {
@@ -192,7 +192,7 @@ function rowOfRecord(label: string, record: Record<string, unknown>): TRunRow {
 	return stepRow(record);
 }
 
-/** Each record once, in the order the run put them: two readings of one record are one row. */
+/** Each record once, in the order actuality put them: two readings of one record are one row. */
 function oneEach(rows: TRunRow[]): TRunRow[] {
 	return [...new Map(rows.map((r) => [r.id, r])).values()].sort(inRunOrder);
 }
@@ -203,8 +203,8 @@ function oneEach(rows: TRunRow[]): TRunRow[] {
  * A run records a produced thing under the step that made it, and that step is often part of the machinery: a
  * screenshot taken after every step is recorded under a step of its own. A reader reads the step they wrote, so the
  * shot is claimed by the nearest step among the rows of the window, and that step's row says it carries it. The row
- * itself stays in the window, because a window is one reading that every view reads: a view of the run's steps draws
- * the shot on the step's row, and the run's document places it where its own reading puts it. A produced thing whose
+ * itself stays in the window, because a window is one reading that every view reads: a view of actuality's steps draws
+ * the shot on the step's row, and actuality's document places it where its own reading puts it. A produced thing whose
  * step is not among the rows is unclaimed and is read as the row it is.
  */
 export function producedUnderSteps(rows: TRunRow[]): TRunRow[] {
@@ -236,7 +236,7 @@ function windowOf(rows: TRunRow[]): TRunWindow {
 	return { rows, ...(rows.length ? { from: rows[0].at, to: rows[rows.length - 1].at } : {}) };
 }
 
-/** The execution of the newest row that names one, which is the run a window of these rows is of. */
+/** The execution of the newest row that names one, which is the actuality a window of these rows is of. */
 function newestExecution(rows: TRunRow[]): string | undefined {
 	for (let i = rows.length - 1; i >= 0; i--) if (rows[i].name) return rows[i].name?.execution;
 	return undefined;
@@ -319,7 +319,7 @@ async function side(
  * Read rather than inferred from the part of it a reader holds. A window is a few thousand records however long the
  * run is, so a span taken from the window is the window's span; a bar drawn over that would show a decade's run as the
  * few minutes a reader happens to be looking at. Two records are read per type, each the first or last of its own
- * order, so the time does not grow with the run.
+ * order, so the time does not grow with actuality.
  *
  * Both zero for a run that hasn't written a record, which is a run without a span rather than a failure.
  */
@@ -366,7 +366,7 @@ export async function runWindow(
 	const shown = atOrAbove(minLevel);
 	// A window is of one execution. Records are read by time, and a device holds the records of more than one run, so
 	// what makes a window one run is the execution its ids name: the one asked for, else the one the newest record read
-	// belongs to, which is the run a reader following the newest is following. A row that doesn't name an execution is a row of
+	// belongs to, which is the actuality a reader following the newest is following. A row that doesn't name an execution is a row of
 	// whatever run is being read: it is kept, and it never decides which run that is.
 	let ofOne = execution;
 	const boundToOne = (rows: TRunRow[]): TRunRow[] => {

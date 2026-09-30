@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
- * The models the ask pane offers follow the run: a pane opened before the run had models says it doesn't have one, and offers
- * the ones the run records after, as discovery writes them.
+ * The models the ask pane offers follow actuality: a pane opened before actuality had models says it doesn't have one, and offers
+ * the ones actuality records after, as discovery writes them.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
@@ -13,13 +13,13 @@ import "./shu-combobox.js";
 import { ShuKihanChat } from "./shu-kihan-chat.js";
 import { SHU_ATTR } from "../consts.js";
 
-/** The models the run holds, which a read of the catalog lists. */
+/** The models actuality holds, which a read of the catalog lists. */
 let models: Array<{ id: string; displayName: string }> = [];
-/** The type the run's models are grouped under, the records of it discovery wrote, and the step that lists them. */
+/** The type actuality's models are grouped under, the records of it discovery wrote, and the step that lists them. */
 const PROVIDER = "ModelProvider";
 let providers: Array<{ id: string; answered: boolean; models: number; why?: string }> = [];
 const PROVIDERS_STEP = `show${PROVIDER}s`;
-/** The type the run's models are records of, each grouped under the provider it is called through. */
+/** The type actuality's models are records of, each grouped under the provider it is called through. */
 const KIHAN = "Kihan";
 const GROUPED = LinkRelations.CONTEXT.rel;
 const MODELS_BY_PROVIDER = buildConcernCatalog(
@@ -42,7 +42,7 @@ const MODEL = { id: "openai:a-model", displayName: "a model" };
 const flush = () => new Promise((resolve) => setTimeout(resolve, 20));
 
 describe("the models the ask pane offers", () => {
-	it("don't include a model where the run doesn't have one, and are the ones the run records after the pane opened", async () => {
+	it("don't include a model where actuality doesn't have one, and are the ones actuality records after the pane opened", async () => {
 		const pane = new ShuKihanChat() as unknown as TDriven;
 		pane.setAttribute(SHU_ATTR.SHOW_CONTROLS, "");
 		document.body.appendChild(pane);
@@ -60,12 +60,12 @@ describe("the models the ask pane offers", () => {
 		await flush();
 		await pane.updateComplete;
 		expect(pane.shadowRoot?.querySelector('[data-testid$="no-models"]')).toBeNull();
-		expect(pane.shadowRoot?.querySelector(".model-select"), "the model the run recorded is offered").not.toBeNull();
+		expect(pane.shadowRoot?.querySelector(".model-select"), "the model actuality recorded is offered").not.toBeNull();
 	});
 });
 
 describe("the providers the ask pane lists", () => {
-	it("names each provider that doesn't have a model registered in the run, linked to its record, with why", async () => {
+	it("names each provider that doesn't have a model registered in actuality, linked to its record, with why", async () => {
 		models = [MODEL];
 		providers = [
 			{ id: "openai", answered: true, models: 1 },

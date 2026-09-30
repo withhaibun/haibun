@@ -44,7 +44,7 @@ describe("the shape of a run, by division", () => {
 		).toEqual([shape.beginningOf(0), shape.beginningOf(2)]);
 	});
 
-	it("draws in the divisions asked for whatever the run's length, since the answer's size is the divisions", async () => {
+	it("draws in the divisions asked for whatever actuality's length, since the answer's size is the divisions", async () => {
 		const anHour = await aRun([
 			{ at: 1000, status: "passed" },
 			{ at: 1000 + 3600_000, status: "passed" },
@@ -69,7 +69,7 @@ describe("the shape of a run, by division", () => {
 		expect(shape.marks[0].color).toBe(MARK_COLOUR.fault);
 	});
 
-	it("marks a division by what it holds most of, counting what the run said as well as what it did", async () => {
+	it("marks a division by what it holds most of, counting what actuality said as well as what it did", async () => {
 		const { graph } = await aRun(
 			[{ at: 1000, status: "passed" }],
 			[
@@ -83,7 +83,7 @@ describe("the shape of a run, by division", () => {
 		expect(shape.marks[0].color).toBe(MARK_COLOUR.pending);
 	});
 
-	it("doesn't mark a division where the run doesn't hold a record, and doesn't count one either", async () => {
+	it("doesn't mark a division where actuality doesn't hold a record, and doesn't count one either", async () => {
 		const { graph, counted } = await aRun([]);
 		const shape = runShape(graph, { divisions: 4 });
 		await shape.update(2000);
@@ -128,7 +128,7 @@ describe("the shape of a run, by division", () => {
 		).toEqual([shape.beginningOf(0), shape.beginningOf(2)]);
 	});
 
-	it("counts only what the run has recorded since the last count", async () => {
+	it("counts only what actuality has recorded since the last count", async () => {
 		const { graph, counted, step } = await aRun([
 			{ at: 1000, status: "passed" },
 			{ at: 1100, status: "passed" },
@@ -141,14 +141,14 @@ describe("the shape of a run, by division", () => {
 		await step(1350, "passed");
 		await shape.update(1350);
 		const since = counted.slice(first);
-		expect(since.length, "one read per type counted, over the stretch the run has grown by").toBe(first);
+		expect(since.length, "one read per type counted, over the stretch actuality has grown by").toBe(first);
 		expect(
 			since.every((q) => Date.parse(q.from) > 1000),
 			"the divisions already counted are not read again",
 		).toBe(true);
 	});
 
-	it("doesn't read the store again where the run has not moved since it was counted", async () => {
+	it("doesn't read the store again where actuality has not moved since it was counted", async () => {
 		const { graph, counted } = await aRun([
 			{ at: 1000, status: "passed" },
 			{ at: 1300, status: "passed" },
@@ -160,7 +160,7 @@ describe("the shape of a run, by division", () => {
 		expect(counted.length).toBe(first);
 	});
 
-	it("doubles the division when the run outgrows the grid, adding the counts either side of each new boundary rather than reading them again", async () => {
+	it("doubles the division when actuality outgrows the grid, adding the counts either side of each new boundary rather than reading them again", async () => {
 		const { graph, counted, step } = await aRun([
 			{ at: 1000, status: "failed" },
 			{ at: 1100, status: "failed" },

@@ -76,7 +76,7 @@ describe("activeSitePrincipal / adoptSitePrincipal", () => {
 		expect(hasDefaultSitePrincipal(world, { [HAIBUN_SITE_KEY_ENV]: "remote" })).toBe(false);
 	});
 
-	it("an adopted principal (peer-assigned at federation) overrides the default for the run", () => {
+	it("an adopted principal (peer-assigned at federation) overrides the default for actuality", () => {
 		const world = worldWith();
 		adoptSitePrincipal(world, "did:site:main.1");
 		expect(activeSitePrincipal(world, {})).toBe("did:site:main.1");

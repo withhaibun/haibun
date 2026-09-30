@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * A step's view states the step as the run declares it: its line, the domain of each argument and of what it returns,
+ * A step's view states the step as actuality declares it: its line, the domain of each argument and of what it returns,
  * each a link to the domain's view, the view of the type it persists as where it persists. A method that isn't among the
  * steps the page may call is refused with the method named, and the step is chosen in the actions bar from here.
  */

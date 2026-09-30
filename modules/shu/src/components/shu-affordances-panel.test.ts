@@ -11,7 +11,7 @@ import { readingExecution } from "../client-cache/executions.js";
 import { declareFakeGraphPresenter, mountedPresenter } from "../graph-presenter.test-fake.js";
 import { presenterIn } from "../graph-presenter.js";
 
-/** The run a snapshot says its facts are of. */
+/** The actuality a snapshot says its facts are of. */
 const EXECUTION = "1790000000000-1";
 
 /** `products` applies synchronously (app.ts coalesces the replay upstream), so just await the lit render. */

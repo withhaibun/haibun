@@ -81,7 +81,7 @@ export const BaseOptionsSchema = z.strictObject({
 	/** Run a group only when one of its dependencies changed since it last passed. */
 	ONCE: z.boolean().optional(),
 	[CONTINUE_AFTER_ERROR]: z.boolean().optional(),
-	/** Report the run's events as NDJSON on stdout. */
+	/** Report actuality's events as NDJSON on stdout. */
 	[NDJSON]: z.boolean().optional(),
 	HOST_ID: z.number().optional(),
 	PWDEBUG: z.string().optional(),

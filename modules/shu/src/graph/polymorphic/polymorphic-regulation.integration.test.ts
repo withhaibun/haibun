@@ -3,7 +3,7 @@
  * where a frame of a modest scene takes tens of milliseconds, so this is the environment that needs the regulator.
  *
  * The invariant: with a selected node at rest, a scene whose frames are slow measures that time, rests the
- * breath, and doesn't draw a frame, so the run that opened the page doesn't draw on it after that.
+ * breath, and doesn't draw a frame, so the actuality that opened the page doesn't draw on it after that.
  */
 import { afterAll, beforeAll, expect, test } from "vitest";
 import { DEFAULT_REGULATION_THRESHOLDS } from "./polymorphic-regulator.js";

@@ -33,7 +33,7 @@ import { validateStep } from "../lib/step-validation.js";
 const StepValidationSchema = z.discriminatedUnion("valid", [z.object({ valid: z.literal(true), method: z.string() }), z.object({ valid: z.literal(false), error: z.string() })]);
 /** The store a run reads and writes through: the site it answers for, and the types it holds. */
 const StoreInUseSchema = z.object({ site: z.string(), types: z.array(z.string()) });
-/** The domains of what the run's own steps answer with. */
+/** The domains of what actuality's own steps answer with. */
 const DOMAIN_STEP_DISCOVERY = "step-discovery";
 const DOMAIN_STEP_VALIDATION = "step-validation";
 const DOMAIN_STORE_IN_USE = "store-in-use";
@@ -117,7 +117,7 @@ class Haibun extends AStepper implements IHasCycles {
 			// Mount another instance's store for the given types: writes route through and reads come back over the
 			// capability-gated store surface, so this instance keeps those records in the serving site's store instead
 			// of its own: one store, one custodian. Each call is signed under a delegation the serving site gave this
-			// process, which the run's invoker presents.
+			// process, which actuality's invoker presents.
 			action: async ({ where, types: graphs }: { where: string; types: string[] }) => {
 				const store = this.getWorld().shared.getStore();
 				if (!(store instanceof QuadStore)) return actionNotOK("use store at: the world store does not support backing registration");

@@ -39,11 +39,11 @@ type TRegistry = {
 	byName: Map<string, TStepDefinition> | null;
 	domains: Record<string, TDomainDiscoveryInfo> | null;
 	pending: Promise<TStepList> | null;
-	/** Stops reading the steps again on the run's stream; null until the page first reads them. */
+	/** Stops reading the steps again on actuality's stream; null until the page first reads them. */
 	unfollow: (() => void) | null;
 	/** A read again waits for the read under way to end. */
 	rereadQueued: boolean;
-	/** What is told each time the page has read the run's steps again. */
+	/** What is told each time the page has read actuality's steps again. */
 	listeners: Set<() => Promise<void> | void>;
 };
 const registry = (): TRegistry =>
@@ -102,7 +102,7 @@ async function getStepList(): Promise<TStepList> {
 	return r.pending ?? (await readSteps(r));
 }
 
-/** Read what the run declares. The page holds what it read before until this read answers, so a step the page looks up
+/** Read what actuality declares. The page holds what it read before until this read answers, so a step the page looks up
  *  while the read is under way is found. */
 async function readSteps(r: TRegistry): Promise<TStepList> {
 	const discovery = discover();
@@ -116,13 +116,13 @@ async function readSteps(r: TRegistry): Promise<TStepList> {
 
 /** What a record of a run carries in its own page: the run, what its views showed, and the address it opens at. */
 interface ShuHydration {
-	/** What a view showed, by the step that produces it. A view whose products cannot be read from the run is given
+	/** What a view showed, by the step that produces it. A view whose products cannot be read from actuality is given
 	 *  what it showed when the record was written, rather than asking a server that is not there. */
 	viewProducts?: Record<string, unknown>;
 	/** The address this run opens at: the type its query column was showing, which the records of the run don't state. Which
 	 *  views were open it never names, since the page reads those from the records it carries. */
 	viewHash?: string;
-	/** The run this page carries, for a page without a server: filled into the client cache at boot. */
+	/** The actuality this page carries, for a page without a server: filled into the client cache at boot. */
 	cache?: TCachePayload;
 	/** What this deployment set for the page, written by the step that serves it. */
 	settings?: TDeploymentSettings;
@@ -165,7 +165,7 @@ function readHydration(): ShuHydration | null {
 	try {
 		return JSON.parse(text) as ShuHydration;
 	} catch (err) {
-		reportFailure(REGISTRY, "the run the page carries isn't JSON", err);
+		reportFailure(REGISTRY, "actuality the page carries isn't JSON", err);
 		return null;
 	}
 }
@@ -243,7 +243,7 @@ export function responseTimeoutMs(): number {
 	return deploymentMs("responseTimeoutMs") ?? RESPONSE_TIMEOUT_MS;
 }
 
-/** The run this page carries, when it carries one. */
+/** The actuality this page carries, when it carries one. */
 export function hydratedCache(): TCachePayload | undefined {
 	return cachedHydration().data?.cache;
 }
@@ -257,7 +257,7 @@ export function registryOrigin(): TRegistryOrigin | null {
 	return origin().value;
 }
 
-/** Be told each time the page has read the run's steps again. Returns the unsubscribe. */
+/** Be told each time the page has read actuality's steps again. Returns the unsubscribe. */
 export function onStepsChanged(listener: () => Promise<void> | void): () => void {
 	const { listeners } = registry();
 	listeners.add(listener);
@@ -265,8 +265,8 @@ export function onStepsChanged(listener: () => Promise<void> | void): () => void
 }
 
 /**
- * The page reads the run's steps again each time the run signals they changed, and each time the stream opens after the
- * page's first read began, since a change the run signals while the stream is closed doesn't reach a page. The page
+ * The page reads actuality's steps again each time actuality signals they changed, and each time the stream opens after the
+ * page's first read began, since a change actuality signals while the stream is closed doesn't reach a page. The page
  * subscribes as its first read begins. A stream that is open then is one that read follows, so the stream's call at
  * subscription doesn't add a read.
  */
@@ -287,7 +287,7 @@ function followRun(r: TRegistry): () => void {
 	};
 }
 
-/** Read the run's steps again once the read under way ends, since that read may have begun before the change, then tell
+/** Read actuality's steps again once the read under way ends, since that read may have begun before the change, then tell
  *  the listeners. Signals that arrive before the read again begins don't add a read. */
 function readAgain(r: TRegistry): void {
 	if (r.rereadQueued) return;
@@ -300,7 +300,7 @@ function readAgain(r: TRegistry): void {
 			await Promise.all([...r.listeners].map(async (listener) => listener()));
 		})
 		// A server that doesn't answer leaves the page on the steps it holds, as every read does; any other failure is a fault.
-		.catch((err) => (isServerUnreachable(err) ? undefined : reportFailure(REGISTRY, "the run's steps were not read again", err)));
+		.catch((err) => (isServerUnreachable(err) ? undefined : reportFailure(REGISTRY, "actuality's steps were not read again", err)));
 }
 
 /** Ask the server what it offers this page. Its response is cached on the device; when the server does not respond, the
@@ -355,7 +355,7 @@ async function discover(): Promise<TStepList> {
  *
  * A caller that chooses a method as it runs: a person picking a step, a panel following an affordance it was offered
  * cannot state what the step is, so the step states it: the registry the page loaded carries each step's own
- * declaration. A method the loaded steppers don't provide asks the run to act, which is what naming an unknown step is.
+ * declaration. A method the loaded steppers don't provide asks actuality to act, which is what naming an unknown step is.
  */
 export function linkTo(method: string, params?: Record<string, unknown>, summary?: string): TLink {
 	return findStep(method)?.read === true ? reads(method, params, summary) : acts(method, params, summary);
@@ -366,7 +366,7 @@ export function findStep(name: string): TStepDefinition | undefined {
 	return registry().byName?.get(name);
 }
 
-/** A domain as the run declares it, by its key. */
+/** A domain as actuality declares it, by its key. */
 export function findDomain(key: string): TDomainDiscoveryInfo | undefined {
 	return registry().domains?.[key];
 }
@@ -375,7 +375,7 @@ export function findDomain(key: string): TDomainDiscoveryInfo | undefined {
  *  as. A step taking a union takes each of its parts. */
 export function stepsJoining(name: string): { taking: TStepDefinition[]; returning: TStepDefinition[] } {
 	const { steps, domains } = registry();
-	if (!steps || !domains) throw new Error(`the steps joining ${name} are read after the run's steps: call getAvailableSteps() first`);
+	if (!steps || !domains) throw new Error(`the steps joining ${name} are read after actuality's steps: call getAvailableSteps() first`);
 	const keys = new Set(Object.entries(domains).flatMap(([key, info]) => (key === name || info.persistedAs === name ? [key] : [])));
 	return {
 		taking: steps.filter((step) => Object.values(step.paramDomains).some((domain) => domainParts(domain).some((part) => keys.has(part)))),
@@ -387,7 +387,7 @@ export function stepsJoining(name: string): { taking: TStepDefinition[]; returni
  *  reading every gate on a call uses. */
 export function stepsAllowedBy(action: string): TStepDefinition[] {
 	const { steps } = registry();
-	if (!steps) throw new Error(`the steps ${action} allows are read after the run's steps: call getAvailableSteps() first`);
+	if (!steps) throw new Error(`the steps ${action} allows are read after actuality's steps: call getAvailableSteps() first`);
 	return steps.filter((step) => capabilityAllows(action, step.capability));
 }
 

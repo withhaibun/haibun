@@ -25,7 +25,7 @@ async function aHistory(turns: number): Promise<ShuActivityHistory> {
 	return history;
 }
 
-/** The turns the run holds, as a session read states them. */
+/** The turns actuality holds, as a session read states them. */
 function alsoAsked(at: number): void {
 	const turns = [...conversationState.get().turns.map((turn) => ({ ...turn, askId: turn.askId ?? "" })), readBack(`0.1.${at}`, `0.1.${at - 1}`)];
 	dispatchConversationEvent({ type: "read", session: SESSION, turns });

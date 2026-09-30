@@ -254,7 +254,7 @@ export function selectValuesFor(label: string): Promise<Record<string, string[]>
 }
 
 /**
- * The run as this page reads it: the site's answer, and what the page holds when the site doesn't answer. The one reading a
+ * Actuality as this page reads it: the site's answer, and what the page holds when the site doesn't answer. The one reading a
  * live page uses, stated rather than reached for, so what a view reads a run through is visible where the view is made.
  */
 export function pageRunGraph(): TRunGraph {

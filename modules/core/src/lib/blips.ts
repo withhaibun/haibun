@@ -1,5 +1,5 @@
 /**
- * Blips: fine-grained occurrences, recorded for observation and never retained by the run.
+ * Blips: fine-grained occurrences, recorded for observation and never retained by actuality.
  *
  * The event log is retained (the monitor, the document, the report and an agent all read it), so anything recorded per
  * frame or per row would grow it without bound.
@@ -103,7 +103,7 @@ export function blipDeclarations(): readonly THeldBlipDeclaration[] {
 
 /**
  * Counts occurrences per name, for callers that cannot consume blips at their recorded rate: a feature assertion, the
- * monitor, an agent. Memory is one counter per declared name. `blips-stepper` attaches it for the run, clears it per
+ * monitor, an agent. Memory is one counter per declared name. `blips-stepper` attaches it for actuality, clears it per
  * feature, and serves it as the `blips` observation source, read with `observed in`.
  */
 export class BlipRollup {
@@ -167,7 +167,7 @@ function seriesOf(blip: TBlipEvent): { key: string; name: string; labels: Record
  * the window to read: a single per-frame name would otherwise flood out everything else it holds.
  *
  * This is what an agent asked to watch something receives. It is bounded, so handing it to a model or a feature takes
- * a known amount however long the run goes on.
+ * a known amount however long actuality goes on.
  */
 class BlipWatch {
 	private ring: TBlipEvent[] = [];

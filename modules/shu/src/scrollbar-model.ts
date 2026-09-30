@@ -54,7 +54,7 @@ export const MARK_INSET_PX = 8;
  * mark would land inside the window the thumb would then show, but a press picks a row directly now, and the scroller
  * works out what to show from it. The inset only did harm: a viewport holding a third of a short log makes a thumb a
  * third of the rail, which squeezed every mark into the middle two thirds and left the ends of the rail dead. What the
- * viewport happens to be showing doesn't affect where a row sits in the run.
+ * viewport happens to be showing doesn't affect where a row sits in actuality.
  */
 export function markerTopPx(index: number, total: number, railPx: number): number {
 	if (total <= 1 || railPx <= 0) return 0;
@@ -102,7 +102,7 @@ export function indexAtMarkerPx(pointerPx: number, total: number, railPx: number
  * attempts to point anywhere near it.
  */
 export function pressTarget(pressedPx: number, marks: ReadonlyArray<{ index: number; topPx: number }>, total: number, railPx: number): number {
-	// The head and foot of the rail are the start and end of the run, whatever is drawn there. A mark now sits at each
+	// The head and foot of the rail are the start and end of actuality, whatever is drawn there. A mark now sits at each
 	// end, and letting it take these presses would mean the first and last rows could only be reached when a mark
 	// didn't happen to be near them: the ends going missing again, by a different route.
 	if (pressedPx <= MARK_INSET_PX) return 0;

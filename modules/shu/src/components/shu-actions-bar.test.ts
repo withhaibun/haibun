@@ -64,7 +64,7 @@ describe("the actions bar reads the page's state", () => {
 	let teardown: () => void;
 	beforeEach(() => {
 		teardown = setupShuTest({ dispatch: AN_ASK_AND_A_TYPE }).teardown;
-		// The page is a record of the run, so what the bar reports doesn't go to a server.
+		// The page is a record of actuality, so what the bar reports doesn't go to a server.
 		carryARun();
 		document.body.innerHTML = "";
 		pageContext.set(null);

@@ -19,12 +19,12 @@ export type THaibunLogLevel = z.infer<typeof HaibunLogLevel>;
  *
  * SHAPE says what kind of statement the mark makes. A run's verdicts are the check and cross. A claim the run merely
  * tried carries the modal-logic diamond, which reads as possibility rather than as right or broken: filled where it
- * held, hollow where it did not. A call the run handed to something else and got an answer from carries the return
- * arrow: the call did not succeed, but the run is not broken and its caller is expected to act on it. Containers and
+ * held, hollow where it did not. A call actuality handed to something else and got an answer from carries the return
+ * arrow: the call did not succeed, but actuality is not broken and its caller is expected to act on it. Containers and
  * flow are geometric, since they state structure rather than outcome.
  */
 
-// Verdicts: what the run concluded. Emoji weight, because a verdict is what a reader is looking for.
+// Verdicts: what actuality concluded. Emoji weight, because a verdict is what a reader is looking for.
 export const CHECK_YES = "✅";
 export const CHECK_NO = "❌";
 export const CHECK_YIELD = "🔀";
@@ -35,7 +35,7 @@ export const MAYBE_CHECK_YES = "◆";
 export const MAYBE_CHECK_NO = "◇";
 
 // Handed out and answered: a tool call a model made, an RPC. A failure here is returned to its caller to act on, and
-// is not the run failing, so it isn't a verdict or silent.
+// is not actuality failing, so it isn't a verdict or silent.
 export const RETURNED_TO_CALLER = "↩️";
 
 // BDD Structure (Geometric Containers)
@@ -47,13 +47,13 @@ export const ICON_STEP_RUNNING = "⫸"; // Active flow (Clear direction)
 export const ICON_STEP_FAILED = CHECK_NO;
 export const ICON_STEP_STOPPED = "◼";
 
-/** A statement the run tried speculatively (`maybe`): its failure is the run trying something, not a fault. */
+/** A statement actuality tried speculatively (`maybe`): its failure is actuality trying something, not a fault. */
 export function isSpeculativeEvent(event: { intent?: { mode?: string } }): boolean {
 	return event.intent?.mode === "speculative";
 }
 
-/** A call the run handed out, a model's tool call, an RPC, carried by a negative seqPath segment. Its failure is
- *  returned to that caller, which is expected to act on it, so it is not the run failing. */
+/** A call actuality handed out, a model's tool call, an RPC, carried by a negative seqPath segment. Its failure is
+ *  returned to that caller, which is expected to act on it, so it is not actuality failing. */
 export function isHandedOutEvent(event: { id?: string }): boolean {
 	return String(event.id ?? "")
 		.split(".")
@@ -267,8 +267,8 @@ export class EventFormatter {
 // ============================================================================
 
 /**
- * How a statement's outcome is to be taken: the run asserting something, or a try whose failure is expected and is
- * therefore not the run failing. One axis with two ends, which is why every reader of it asks only which of the two.
+ * How a statement's outcome is to be taken: actuality asserting something, or a try whose failure is expected and is
+ * therefore not actuality failing. One axis with two ends, which is why every reader of it asks only which of the two.
  *
  * Whether a line is prose at all is a different question, about what the line IS rather than how its outcome counts,
  * and it is answered where that belongs (document-content classifies a line as prose or technical). A prose line doesn't run
@@ -407,7 +407,7 @@ export type TFeatureSteps = {
 	firstStart?: number;
 	lastEnd?: number;
 	/**
-	 * The step the run reports as having failed. A synthetic dispatch (a negative seqPath segment: a model's tool call,
+	 * The step actuality reports as having failed. A synthetic dispatch (a negative seqPath segment: a model's tool call,
 	 * an RPC) can fail and be recovered from inside the step that made it, and a speculative statement's failure is
 	 * expected, so a feature step that failed is reported ahead of either. Without either, the first failure is what
 	 * there is to report.
@@ -474,7 +474,7 @@ const BaseEvent = z.object({
 	emitter: z.string().optional().describe("Code location that emitted the event (e.g. Executor:238)"),
 	level: HaibunLogLevel.default("info").describe("Log level for filtering"),
 	accessLevel: AccessLevelSchema.optional().describe(
-		"The level of what the event may reveal: the read level of the call that emitted it, stated as it is emitted. A follower of the run is sent it only where it may read at this level.",
+		"The level of what the event may reveal: the read level of the call that emitted it, stated as it is emitted. A follower of actuality is sent it only where it may read at this level.",
 	),
 });
 
@@ -673,13 +673,13 @@ export const ControlEvent = BaseEvent.extend({
 	args: z.record(z.string(), z.unknown()).optional(),
 });
 
-// Blip Events: one fine-grained occurrence, recorded where it happens and never retained by the run. A blip shares the
+// Blip Events: one fine-grained occurrence, recorded where it happens and never retained by actuality. A blip shares the
 // event transport but not the audience: it is delivered only to a subscriber that asked for its kind, and it is never
 // narrated (it doesn't write a console line or reach a bare subscriber). Declarations live in lib/blips.ts.
 export const BlipEvent = BaseEvent.extend({
 	kind: z.literal("blip"),
 	name: z.string().describe("Declared blip name, dotted and namespaced, e.g. haibun.http.request"),
-	seqPath: z.string().optional().describe("The step the run was executing, so an exporter attaches this to that step's span"),
+	seqPath: z.string().optional().describe("The step actuality was executing, so an exporter attaches this to that step's span"),
 	value: z.number().optional().describe("The measured value, in the declaration's unit"),
 	attributes: z.record(z.string(), z.unknown()).optional(),
 });

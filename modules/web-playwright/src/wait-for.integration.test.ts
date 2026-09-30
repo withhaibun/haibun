@@ -24,7 +24,7 @@ const moduleOptions = {
 };
 
 describe("wait for", () => {
-	it("waits for a test id as long as the run's timeout states, and names that bound when the element doesn't appear", { timeout: 20_000 }, async () => {
+	it("waits for a test id as long as actuality's timeout states, and names that bound when the element doesn't appear", { timeout: 20_000 }, async () => {
 		const features = [{ path: "/features/wait.feature", content: `set absent as page-test-id to "absent"\nwait for absent\n` }];
 		const res = await failWithDefaults(features, [WebPlaywright, VariablesStepper, StorageMem], { options: { DEST: DEFAULT_DEST }, moduleOptions });
 		const failed = res.featureResults?.[0]?.stepResults.find((step) => !step.ok);
@@ -40,7 +40,10 @@ describe("wait for", () => {
 		const inPage = "wait for framed";
 		const content = [`go to the "http://127.0.0.1:${port}/" webpage`, `set framed as page-test-id to "framed"`, inFrame, inPage].join("\n");
 		try {
-			const res = await failWithDefaults([{ path: "/features/frame.feature", content }], [WebPlaywright, VariablesStepper, StorageMem], { options: { DEST: DEFAULT_DEST }, moduleOptions });
+			const res = await failWithDefaults([{ path: "/features/frame.feature", content }], [WebPlaywright, VariablesStepper, StorageMem], {
+				options: { DEST: DEFAULT_DEST },
+				moduleOptions,
+			});
 			const outcome = (line: string) => res.featureResults?.[0]?.stepResults.findLast((step) => step.in === line)?.ok;
 			expect(outcome(inFrame), "found in the frame").toBe(true);
 			expect(outcome(inPage), "and not in the page that frames it").toBe(false);

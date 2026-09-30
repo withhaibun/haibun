@@ -51,7 +51,7 @@ export const DesiredPaneSchema = z.discriminatedUnion("paneType", [
 	z.object({ paneType: z.literal("filter-incoming"), persistedAs: z.string(), subject: z.string(), ...PLACEMENT }),
 	z.object({ paneType: z.literal("thread"), persistedAs: z.string(), subject: z.string(), ...PLACEMENT }),
 	z.object({ paneType: z.literal("step-detail"), seqPath: z.array(z.number()), ...PLACEMENT }),
-	/** A step as the run declares it, by its method. */
+	/** A step as actuality declares it, by its method. */
 	z.object({ paneType: z.literal("step"), method: z.string().min(1), ...PLACEMENT }),
 	/** An action a caller holds, by what it allows. */
 	z.object({ paneType: z.literal("action"), action: z.string().min(1), ...PLACEMENT }),

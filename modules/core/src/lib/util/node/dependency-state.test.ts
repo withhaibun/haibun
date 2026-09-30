@@ -106,7 +106,7 @@ describe("what a run depends on", () => {
 		expect(roots, "in a stable order").toEqual([...roots].sort());
 	});
 
-	it("resolves a stepper named by a relative path from the directory the run is made from, and through a link to where it is", () => {
+	it("resolves a stepper named by a relative path from the directory actuality is made from, and through a link to where it is", () => {
 		const repo = aRepository({ "package.json": "{}", "build/x-stepper.js": "", "tests/config.json": "{}" });
 		nodeFS.symlinkSync("build", path.join(repo, "linked"));
 		const configDir = path.join(repo, "tests");

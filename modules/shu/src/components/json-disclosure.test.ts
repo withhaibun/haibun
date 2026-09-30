@@ -6,8 +6,8 @@ import { jsonDisclosure, literalWithJson } from "./json-disclosure.js";
 
 describe("a JSON value as disclosures", () => {
 	it("shows a scalar as it reads, without a disclosure to open", () => {
-		expect(jsonDisclosure("what the run said", "message")).toContain("what the run said");
-		expect(jsonDisclosure("what the run said", "message")).not.toContain("<details");
+		expect(jsonDisclosure("what actuality said", "message")).toContain("what actuality said");
+		expect(jsonDisclosure("what actuality said", "message")).not.toContain("<details");
 	});
 
 	it('writes a value so its type is visible, since a record holding "3" is not one holding 3', () => {
@@ -72,7 +72,7 @@ describe("a literal that carries JSON", () => {
 	});
 
 	it("returns a literal that doesn't carry JSON as it reads", () => {
-		expect(literalWithJson("what the run said")).toBe("what the run said");
+		expect(literalWithJson("what actuality said")).toBe("what actuality said");
 	});
 
 	it("treats braces that are part of what was said as what was said", () => {

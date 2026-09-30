@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * splitDocumentBlocks + finalizeBlocks: the pure transform that lets the run document virtualize. Verifies the split is
+ * splitDocumentBlocks + finalizeBlocks: the pure transform that lets actuality document virtualize. Verifies the split is
  * one block per top-level element with its id/time, that finalize fills artifacts, adds the reader classes, and collapses
  * consecutive thumbnails into a strip while leaving lone thumbnails and thumbnail runs broken by other content alone.
  */
@@ -105,7 +105,7 @@ describe("finalizeBlocks", () => {
 		expect(out[0].html).toContain("feature-artifacts");
 	});
 	it("drops an artifact block that renders an empty string, so it cannot split a run of screenshots", () => {
-		// A dispatch trace (or any artifact resolving to "") sat between two screenshots as an invisible block: the run
+		// A dispatch trace (or any artifact resolving to "") sat between two screenshots as an invisible block: actuality
 		// broke there and every tile stacked alone instead of flowing. Empty artifact blocks must not exist at all.
 		const silent: TArtifactResolver = (id) => (id.startsWith("img") ? thumb(id) : "");
 		const html = `<div class="standalone-artifact" data-id="img1"></div><div class="standalone-artifact" data-id="dispatch.1"></div><div class="standalone-artifact" data-id="img2"></div>`;
@@ -132,7 +132,7 @@ describe("withHeadingAnchors", () => {
 
 describe("blockIndexForHeading", () => {
 	// A feature that lists its own scenarios links to them by name. The name is stamped on the heading's block when the
-	// document is built, and it is the only handle the author has: block ids are assigned while the run happens.
+	// document is built, and it is the only handle the author has: block ids are assigned while actuality happens.
 	const heading = (anchor: string, rawTime: number): TDocBlock => ({ html: `<div class="header-block" data-heading="${anchor}"><h2>x</h2></div>`, id: "", rawTime });
 	const blocks = [b("intro", 0), heading("4-the-authority-issues-the-permit", 10), b("body", 20), heading("9-the-authority-revokes-the-permit", 30)];
 
@@ -172,7 +172,7 @@ describe("blocksByEvent", () => {
 });
 
 describe("finalizeBlocks frame ordinals", () => {
-	it("stamps frames in order under the caller's prefix, so a page of the run names its own frames", () => {
+	it("stamps frames in order under the caller's prefix, so a page of actuality names its own frames", () => {
 		const resolver: TArtifactResolver = (id) => `<shu-artifact-frame class="thumb"><img src="${id}.png" /></shu-artifact-frame>`;
 		const out = finalizeBlocks(splitDocumentBlocks(`<div class="feature-artifacts" data-ids="a,b"></div>`), resolver, "3:");
 		expect(out[0].html).toContain('data-frame-ordinal="3:0"');

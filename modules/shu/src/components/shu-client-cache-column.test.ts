@@ -41,14 +41,14 @@ describe("the client cache view", () => {
 		endPage();
 		handle = setupShuTest({
 			dispatch: () => {
-				throw new Error("the views read the run's records");
+				throw new Error("the views read actuality's records");
 			},
 		});
 		setSiteMetadata({ types: [SEQ_PATH_LABEL], rels: { [SEQ_PATH_LABEL]: {} }, edgeRanges: {} } as unknown as SiteMetadata);
 		// The execution being recorded, and an earlier one this device still holds, each named by the feature it ran.
 		const store = new QuadStore();
 		await store.upsertIndividual(SEQ_PATH_LABEL, step(EARLIER, 0, { stepText: "Feature: An earlier run", called: "Haibun.feature", generatedAtTime: iso(500) }));
-		await store.upsertIndividual(SEQ_PATH_LABEL, step(RUN, 0, { stepText: "Feature: The run being recorded", called: "Haibun.feature" }));
+		await store.upsertIndividual(SEQ_PATH_LABEL, step(RUN, 0, { stepText: "Feature: The actuality being recorded", called: "Haibun.feature" }));
 		for (let i = 1; i < STEPS; i++) await store.upsertIndividual(SEQ_PATH_LABEL, step(RUN, i));
 		setGraphStore(store);
 	});
@@ -58,7 +58,7 @@ describe("the client cache view", () => {
 		document.body.innerHTML = "";
 	});
 
-	/** A view reading the run at info, which is what this view reports on: the source, not whoever opened it. */
+	/** A view reading actuality at info, which is what this view reports on: the source, not whoever opened it. */
 	const readingTheRun = async (): Promise<void> => {
 		await graphRunSource("info").ready();
 		await flush();
@@ -84,9 +84,9 @@ describe("the client cache view", () => {
 		expect(text(view), "read, and now empty").toContain("This device doesn't hold an execution");
 	});
 
-	it("doesn't list a source until a view has read the run, and doesn't make one itself", async () => {
+	it("doesn't list a source until a view has read actuality, and doesn't make one itself", async () => {
 		const view = await open();
-		expect(text(view)).toContain("A view hasn't read the run yet");
+		expect(text(view)).toContain("A view hasn't read actuality yet");
 		expect(value(view, IDS.CURSOR)).toBe("live edge");
 		expect(value(view, IDS.REGISTRY), "a step list hasn't been requested in this page").toBe("not known yet");
 	});
@@ -95,7 +95,7 @@ describe("the client cache view", () => {
 		await readingTheRun();
 		const view = await open();
 		await settle();
-		expect(value(view, `${IDS.SOURCE}info-events`), "the run's extent at info").toBe(String(STEPS));
+		expect(value(view, `${IDS.SOURCE}info-events`), "actuality's extent at info").toBe(String(STEPS));
 		expect(value(view, `${IDS.SOURCE}info-cached`), "the window a reader is looking at").toBe(`0..${STEPS - 1}`);
 		expect(value(view, `${IDS.SOURCE}info-cached-rows`)).toBe(String(STEPS));
 		expect(value(view, `${IDS.SOURCE}info-cursor`), "the source doesn't have a cursor: it reads the live edge rather than a row").toBe("");
@@ -116,7 +116,7 @@ describe("the client cache view", () => {
 		await view.updateComplete;
 		expect(value(view, IDS.CURSOR)).toContain("00:00:01.010");
 		expect(value(view, `${IDS.SOURCE}info-cursor`), "the cursor at 1010 sits on row 10, shown without waiting for the device").toBe("10");
-		handle.emit({ id: "0.1", timestamp: 2000, kind: "log", level: "info", message: "the run says something" });
+		handle.emit({ id: "0.1", timestamp: 2000, kind: "log", level: "info", message: "actuality says something" });
 		handle.emit({ id: "0.2", timestamp: 2000, kind: "log", level: "debug", message: "below every open view's level" });
 		await flush();
 		expect(value(view, `${IDS.LIVE}info`), "the live stream by level: one at info").toBe("1");
@@ -143,9 +143,9 @@ describe("the client cache view", () => {
 		const view = await open();
 		await settle();
 		const button = (id: string): HTMLButtonElement | null => (view.shadowRoot as ShadowRoot).querySelector(`[data-testid="${id}"] button`);
-		expect(button(`${IDS.SOURCE}info-first`), "the run's first instant is a control").not.toBeNull();
+		expect(button(`${IDS.SOURCE}info-first`), "actuality's first instant is a control").not.toBeNull();
 		button(`${IDS.SOURCE}info-first`)?.click();
-		expect(timeCursor.get(), "the first instant of the run being read, which is not the earlier one this device also holds").toBe(1000);
+		expect(timeCursor.get(), "the first instant of the actuality being read, which is not the earlier one this device also holds").toBe(1000);
 		await view.updateComplete;
 		button(`${IDS.SOURCE}info-newest`)?.click();
 		expect(timeCursor.get(), "its newest instant is the live edge, so every view follows again").toBeNull();

@@ -59,7 +59,7 @@ describe("what a run keeps of the steps it has finished", () => {
 		foldStep(steps, ran({ ok: false, in: "the step that failed" }));
 		for (let i = 0; i < RESULTS_READ_IN_FULL + 5; i++) foldStep(steps, ran({}));
 		expect(steps.count, "every step is counted").toBe(RESULTS_READ_IN_FULL + 6);
-		expect(steps.failed?.in, "and the failure is still what the run reports").toBe("the step that failed");
+		expect(steps.failed?.in, "and the failure is still what actuality reports").toBe("the step that failed");
 	});
 
 	it("reports a feature step that failed ahead of a synthetic dispatch that failed before it", () => {
@@ -76,7 +76,7 @@ describe("what a run keeps of the steps it has finished", () => {
 		expect(failed?.message ?? failed?.errorMessage, "the verdict quotes what the step said").toContain("it refused");
 	});
 
-	it("lets go of every passing step's payload once the run has moved past the feature", () => {
+	it("lets go of every passing step's payload once actuality has moved past the feature", () => {
 		const step = { name: "s", in: "a step", path: "/f", seqPath: [0, 1, 1], ok: true, products: { big: "x" } } as unknown as TStepResult;
 		const failed = { ...step, ok: false, products: { big: "y" } } as TStepResult;
 		releasePayloads({ path: "/f", ok: false, stepResults: [step, failed] });

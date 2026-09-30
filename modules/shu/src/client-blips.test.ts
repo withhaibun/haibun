@@ -8,9 +8,9 @@ import { carryARun, openReportingPage, setupShuTest, type TShuTestHandle } from 
 import { CLIENT_LOG_METHOD } from "./client-log.js";
 
 type TBatch = { blips: { name: string; value?: number }[]; recorded: number };
-/** Each batch the page handed the run, by the link it followed. */
+/** Each batch the page handed actuality, by the link it followed. */
 const sent: TLink[] = [];
-/** What the run answers a call with, which a case makes a failure. */
+/** What actuality answers a call with, which a case makes a failure. */
 let delivered: (link: TLink) => unknown = () => ({});
 const sentBatch = (): TBatch => {
 	const last = sent.at(-1);
@@ -46,7 +46,7 @@ describe("recording in the browser: hold it, hand it over in batches", () => {
 		expect(sentBatch().blips).toHaveLength(60);
 	});
 
-	it("hands a batch over as a read: the run doesn't retain a blip, so it doesn't record the batch either", async () => {
+	it("hands a batch over as a read: actuality doesn't retain a blip, so it doesn't record the batch either", async () => {
 		recordClientBlip("haibun.shu.view.scroll", 1, { view: "a" });
 		await vi.runAllTimersAsync();
 		const link = sent.at(-1);
@@ -104,7 +104,7 @@ describe("recording in the browser: hold it, hand it over in batches", () => {
 		expect(clientBlipsRecorded()).toBe(1);
 	});
 
-	it("keeps the page working when a batch cannot be delivered, and tells the run it wasn't", async () => {
+	it("keeps the page working when a batch cannot be delivered, and tells the actuality it wasn't", async () => {
 		delivered = (link) => {
 			if (link.method === CLIENT_LOG_METHOD) return {};
 			throw new Error("no route");

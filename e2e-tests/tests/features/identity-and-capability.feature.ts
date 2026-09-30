@@ -16,7 +16,7 @@ export const features: TKirejiExport = {
 
 		A caller holds a capability by presenting proof of it with the request: a signature over the request made with a key a delegation names. The instance does not verify that proof itself. Verifying signatures, resolving identifiers to keys, and validating a delegation chain are handed to a single verifier a consumer registers, so the core doesn't hold a key. A request that doesn't present a proof doesn't hold a capability, and a request whose proof fails is refused before it runs. Here a stand-in takes the consumer's place: it accepts a named holder's request for the actions it was told to, and checks the request's body against the digest the holder sent. The consumer's credential and delegation features exercise the real signatures and chains.`,
 
-		scenario({ scenario: "A statement can hold less than the run, and never more" }),
+		scenario({ scenario: "A statement can hold less than actuality, and never more" }),
 		`A feature runs with the run's own authority. A statement narrowed to some actions holds only those, so a caller holding one action and not another is stated in the feature itself: narrowed to the protected action, the protected step runs and the admin step is refused.`,
 		'holding only "TestServer:protected", protected rpc ping',
 		'not holding only "TestServer:protected", protected admin rpc ping',

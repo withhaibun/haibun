@@ -76,7 +76,7 @@ export function readCeilingOf(granted: string | string[] | undefined): AccessLev
  *  reveal, and a follower is sent those it may read at that level. */
 export const FOLLOWS_THE_RUN = readAction(Access.public);
 
-/** What reading the run's artifacts requires: a private read, since a capture shows what the run's steps saw, such as a
+/** What reading actuality's artifacts requires: a private read, since a capture shows what actuality's steps saw, such as a
  *  person's own page. */
 export const READS_THE_RUNS_ARTIFACTS = readAction(Access.private);
 
@@ -97,7 +97,7 @@ export function seenAt(asked: AccessLevel, ceiling: AccessLevel | undefined): Ac
  * The level a record is written at, which every store writes by: the level the record states, or else the narrower of the
  * level its type declares and the writer's ceiling, so a writer reads back what it wrote. What a writer read reaches what
  * it writes, so a level more public than its ceiling requires `writeAction` of that level: a stated level is refused
- * without it, and a declared one gives way to the ceiling. A write that a ceiling doesn't bound is the run's own and takes the
+ * without it, and a declared one gives way to the ceiling. A write that a ceiling doesn't bound is actuality's own and takes the
  * level stated or declared.
  */
 export function writtenAt(stated: AccessLevel | undefined, declared: AccessLevel, bound: TAccessBound): AccessLevel {
@@ -122,7 +122,7 @@ function mayWriteAt(level: AccessLevel, { ceiling, held }: TAccessBound): boolea
 /** A delegation as its holder presents it: what it lets the holder do, over what, and until when. */
 export type TDelegation = Record<string, unknown> & { allowedAction?: unknown; invocationTarget?: unknown; expires?: unknown };
 
-/** Every action: what the run holds, and what a delegation that doesn't restrict an action allows. */
+/** Every action: what actuality holds, and what a delegation that doesn't restrict an action allows. */
 export const EVERY_ACTION = "*";
 
 /** The actions a delegation allows: those it lists, or every action where it doesn't list one, which is how zcap-LD writes a

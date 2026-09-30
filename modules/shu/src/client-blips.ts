@@ -9,7 +9,7 @@ import { isOffline } from "./rpc-registry.js";
  *
  * Occurrences leave in batches over the one bridge that exists, `MonitorStepper`, rather than one request each, which
  * is the only way a per-frame recording is sustainable. A batch is sent only when there is something to send, so a page
- * without occurrences doesn't send a batch. On the run's side each occurrence lands in the same channel a server-side
+ * without occurrences doesn't send a batch. On actuality's side each occurrence lands in the same channel a server-side
  * recording does, where it is one check while the channel doesn't have a subscriber.
  */
 import { conduit, hasConduit, reads } from "./hypermedia.js";
@@ -55,7 +55,7 @@ export function clientBlipsRecorded(): number {
 	return buffer().recorded;
 }
 
-/** Occurrences handed to the run so far. */
+/** Occurrences handed to actuality so far. */
 export function clientBlipsSent(): number {
 	return buffer().sent;
 }
@@ -69,15 +69,15 @@ function scheduleFlush(held: TBlipBuffer): void {
 	}, FLUSH_DELAY_MS);
 }
 
-/** Hand everything held to the run as one batch. Exported so a test can flush without waiting for the timer. */
+/** Hand everything held to actuality as one batch. Exported so a test can flush without waiting for the timer. */
 export async function flushClientBlips(): Promise<void> {
 	const held = buffer();
 	const batch = takeHeld(held);
 	if (batch.length === 0) return;
 	held.sent += batch.length;
-	// A dropped batch is a lost observation, never a broken page: the run keeps its own count of what it received, and
-	// the occurrence was by definition one the run does not retain.
-	// A read, not an act: the run doesn't retain a blip, so a batch's arrival is not recorded as a step. A recorded
+	// A dropped batch is a lost observation, never a broken page: actuality keeps its own count of what it received, and
+	// the occurrence was by definition one actuality does not retain.
+	// A read, not an act: actuality doesn't retain a blip, so a batch's arrival is not recorded as a step. A recorded
 	// batch would be a step whose events reach the page and repaint a scene that then records what it drew.
 	await conduit()
 		.follow(reads("MonitorStepper-recordClientBlips", { batch: { blips: batch, recorded: held.recorded } }), `blips: ${batch.length} occurrence(s)`)

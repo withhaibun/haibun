@@ -1,7 +1,7 @@
 /**
  * Inspection steps for shu-monitor-column, kept beside the element (the polymorphic view's controls pattern). Counts the
  * rendered log rows so a feature can assert the monitor VIRTUALIZES: the DOM holds only the rows in view (plus the
- * virtualizer's small overscan), not every buffered event, however long the run is. Waits, since the backfill and
+ * virtualizer's small overscan), not every buffered event, however long actuality is. Waits, since the backfill and
  * re-render land asynchronously.
  *
  * Steps never lead with the article "the", haibun treats such lines as narrative prose, not matchable steps.
@@ -48,7 +48,7 @@ export default class ShuMonitorColumnControls extends AStepper implements IHasCy
 		return controlledPage(this);
 	}
 
-	/** The run's document column. */
+	/** Actuality's document column. */
 	private document(page: Page) {
 		return page.locator(SHU_TAG.DOCUMENT_COLUMN).first();
 	}
@@ -119,7 +119,7 @@ export default class ShuMonitorColumnControls extends AStepper implements IHasCy
 			},
 		},
 		documentThumbnailsFlow: {
-			// Measure the run's REAL screenshot thumbnails (frames the document built from its own artifact events, images
+			// Measure actuality's REAL screenshot thumbnails (frames the document built from its own artifact events, images
 			// served from /artifacts): every frame sits in a .thumb-row grid, sized as a TILE (a track's width, never the tiny
 			// natural-size shrink-wrap and never the whole column), and its image loaded and fills the frame.
 			gwta: "document thumbnails flow as tiles sized to the column grid",
@@ -157,7 +157,7 @@ export default class ShuMonitorColumnControls extends AStepper implements IHasCy
 				const tileSized = (f: { w: number }): boolean => f.w >= MIN_TILE_PX && f.w <= MAX_TILE_PX;
 				const v = await pollUntil(page, read, (s) => s.frames.length >= 3 && s.frames.every((f) => f.imgLoaded && tileSized(f)) && s.overlapping === 0, 40, 250);
 				const { frames } = v;
-				if (frames.length < 3) return actionNotOK(`only ${frames.length} real thumbnails rendered, expected the run's screenshots (the artifact placeholders were not filled)`);
+				if (frames.length < 3) return actionNotOK(`only ${frames.length} real thumbnails rendered, expected actuality's screenshots (the artifact placeholders were not filled)`);
 				const offRow = frames.filter((f) => !f.inRow).length;
 				if (offRow > 0) return actionNotOK(`${offRow} thumbnails render outside a .thumb-row grid (holders were not extracted into tiles)`);
 				if (frames.some((f) => !tileSized(f)))
@@ -228,7 +228,7 @@ export default class ShuMonitorColumnControls extends AStepper implements IHasCy
 			},
 		},
 		expandedThumbnailNavigates: {
-			// ←/→ on the expanded thumbnail must reach the run's OTHER screenshots: the document column navigates its block
+			// ←/→ on the expanded thumbnail must reach actuality's OTHER screenshots: the document column navigates its block
 			// list (a frame cannot see off-window siblings under virtualization). Asserts the expanded image changes.
 			gwta: "arrow keys move the expanded thumbnail to the next screenshot",
 			action: async () => {
@@ -244,11 +244,11 @@ export default class ShuMonitorColumnControls extends AStepper implements IHasCy
 			},
 		},
 		monitorHoldsRows: {
-			gwta: `monitor holds at least {n: ${DOMAIN_NUMBER}} rows of the run`,
+			gwta: `monitor holds at least {n: ${DOMAIN_NUMBER}} rows of actuality`,
 			action: async ({ n }: { n: number }) => {
 				const count = (await this.page()).locator(MONITOR_COUNT).first();
 				if (await comesToHold(count, ({ el, arg }) => (Number(el.textContent?.replace(/[^0-9]/g, "")) || 0) >= arg, n, STATE_MS)) return actionOK();
-				return actionNotOK(`the monitor holds ${await count.textContent()} rows, expected at least ${n} (what the run recorded did not reach the view)`);
+				return actionNotOK(`the monitor holds ${await count.textContent()} rows, expected at least ${n} (what actuality recorded did not reach the view)`);
 			},
 		},
 		monitorShowsRowContaining: {

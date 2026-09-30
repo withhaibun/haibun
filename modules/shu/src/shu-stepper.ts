@@ -123,7 +123,7 @@ ${scriptsHtml}
 }
 
 // What the served page's hydration carries: only the timings this deployment set. A record of a run
-// carries the run itself and writes its own hydration element (buildReportHtml).
+// carries actuality itself and writes its own hydration element (buildReportHtml).
 export function buildSpaHtml(basePath: string, bundle: string, settings: TDeploymentSettings = {}): string {
 	const scripts = `  <script type="application/json" id="${HYDRATION_ID}">${JSON.stringify({ settings })}</script>\n\n  <script>${bundle}\n//# sourceMappingURL=${SPA_SOURCE_MAP}</script>`;
 	return spaDocument(basePath, scripts);
@@ -319,7 +319,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 				const pathError = validateMountPath(path);
 				if (pathError) return actionNotOK(pathError);
 				// The page boots with an empty payload: it keeps its own key, and reads what was delegated to it here. What it
-				// may do without a delegation is the web server's to say, and whether a delegation verifies here is the run's
+				// may do without a delegation is the web server's to say, and whether a delegation verifies here is actuality's
 				// authority's, read for each page served, since a verifier may be registered after the app is.
 				const settings = (): TDeploymentSettings => ({
 					...this.settings,

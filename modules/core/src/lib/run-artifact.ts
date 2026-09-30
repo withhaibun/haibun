@@ -13,28 +13,28 @@ import { LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefin
 
 const RUN_ARTIFACT_DOMAIN = "run-artifact";
 
-/** Where the run serves the artifacts its steps captured: an artifact's path is under it. */
+/** Where actuality serves the artifacts its steps captured: an artifact's path is under it. */
 export const ARTIFACTS_ROUTE = "/artifacts";
 
-/** The address the run serves an artifact at, from its path under the run's artifacts. */
+/** The address actuality serves an artifact at, from its path under actuality's artifacts. */
 export const artifactAddress = (path: string): string => `${ARTIFACTS_ROUTE}/${path}`;
 export const RUN_ARTIFACT_LABEL = "Artifact";
 
 /** Artifact field names, shared by the schema, the topology and whatever writes one. */
 export const RUN_ARTIFACT_FIELD = {
 	id: "id",
-	/** What kind of thing it is, as the run named it: an image, a recording, a trace. */
+	/** What kind of thing it is, as actuality named it: an image, a recording, a trace. */
 	artifactType: "artifactType",
-	/** Where it is, as the run serves it. */
+	/** Where it is, as actuality serves it. */
 	path: "path",
-	/** Where it is relative to the feature's own directory, which is how a saved record of the run reaches it. */
+	/** Where it is relative to the feature's own directory, which is how a saved record of actuality reaches it. */
 	featureRelativePath: "featureRelativePath",
 	mediaType: "mediaType",
 	/** How prominently it reports: what a run produced as its work is shown where its steps are, a trace of the run's
 	 *  own machinery under them. */
 	level: "level",
 	generatedAtTime: "generatedAtTime",
-	/** The run that produced it. */
+	/** The actuality that produced it. */
 	execution: EXECUTION_FIELD,
 	/** When this record was written. */
 	recordedAtTime: RECORDED_AT_TIME_FIELD,

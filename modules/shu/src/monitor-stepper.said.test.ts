@@ -12,7 +12,7 @@ import MonitorStepper from "./monitor-stepper.js";
 const said = (over: Partial<THaibunEvent> = {}): THaibunEvent =>
 	({ id: "0.1.2", timestamp: 1700, kind: "log", level: "warn", message: "what it said", ...over }) as unknown as THaibunEvent;
 
-/** The run these records belong to: one feature of one process, which is what an execution is. */
+/** The actuality these records belong to: one feature of one process, which is what an execution is. */
 const TAG = { key: "1700000000000", featureNum: 1 };
 
 /** The monitor with a store to write to, its event hook reachable, and the end of a feature to wait on. Recording is
@@ -59,14 +59,14 @@ describe("what a run said, as a record", () => {
 		expect(records.map((r) => r[LOG_MESSAGE_FIELD.message]).sort()).toEqual(["first", "second"]);
 	});
 
-	it("doesn't record an event that is not something the run said", async () => {
+	it("doesn't record an event that is not something actuality said", async () => {
 		const monitor = monitorOver(store);
 		monitor.onEvent({ id: "0.1", timestamp: 1700, kind: "lifecycle", level: "info", stage: "end" } as unknown as THaibunEvent);
 		await monitor.ended();
 		expect(await store.queryIndividuals(LOG_MESSAGE_LABEL)).toEqual([]);
 	});
 
-	it("belongs to the step it was said during, named as any record of the run is named", async () => {
+	it("belongs to the step it was said during, named as any record of actuality is named", async () => {
 		const store = new QuadStore();
 		const monitor = monitorOver(store);
 		monitor.onEvent(said({ id: "0.-1.525", message: "what went wrong" }));
@@ -77,7 +77,7 @@ describe("what a run said, as a record", () => {
 	});
 
 	it("ends the feature with every record written, since the store closes as the feature ends", async () => {
-		// A write that has not reached the store when the feature ends is a statement the run made and does not hold.
+		// A write that has not reached the store when the feature ends is a statement actuality made and does not hold.
 		// This store holds its write open until the case lets it finish, so the feature can only end after it.
 		let finish: () => void = () => undefined;
 		const held = new Promise<void>((release) => {
@@ -101,7 +101,7 @@ describe("what a run said, as a record", () => {
 		expect((await store.queryIndividuals(LOG_MESSAGE_LABEL)).length, "the record the feature waited for").toBe(1);
 	});
 
-	it("declares that writing it isn't announced, since the run saying it was the announcement", () => {
+	it("declares that writing it isn't announced, since actuality saying it was the announcement", () => {
 		expect(logMessageDomainDefinition.topology).toMatchObject({ announceWrites: false });
 	});
 });
@@ -145,7 +145,7 @@ describe("what a run produced, as a record", () => {
 		expect((await store.queryIndividuals(RUN_ARTIFACT_LABEL)).length).toBe(2);
 	});
 
-	it("doesn't record an artifact that doesn't name a file: a quad a store announces, or a trace of the run's own machinery", async () => {
+	it("doesn't record an artifact that doesn't name a file: a quad a store announces, or a trace of actuality's own machinery", async () => {
 		const monitor = monitorOver(store);
 		monitor.onEvent({ id: "0.1", timestamp: 1700, kind: "artifact", level: "debug", artifactType: "json", json: {} } as unknown as THaibunEvent);
 		monitor.onEvent({ id: "http-trace-1", timestamp: 1700, kind: "artifact", level: "debug", artifactType: "http-trace", trace: {} } as unknown as THaibunEvent);
@@ -155,7 +155,7 @@ describe("what a run produced, as a record", () => {
 });
 
 describe("what the bridge carries", () => {
-	it("receives a blip batch as a read, so the run doesn't record what it never retains", () => {
+	it("receives a blip batch as a read, so actuality doesn't record what it never retains", () => {
 		const steps = (new MonitorStepper() as unknown as { steps: Record<string, { read?: boolean }> }).steps;
 		expect(steps.recordClientBlips.read, "a recorded batch is a step whose events reach the page and repaint a scene that then records what it drew").toBe(true);
 	});

@@ -88,7 +88,7 @@ export const ANNOTATION_GLYPH = "✎";
  *  serves a step and a question alike. The bar owns the slot, so its name is declared here and consumers import it
  *  rather than restating it. */
 export const ACTION_BAR_CHAT_SLOT = "action-bar-chat";
-/** The address key the chat writes the place its reader holds on the run's timeline under, beside the session. */
+/** The address key the chat writes the place its reader holds on actuality's timeline under, beside the session. */
 export const CHAT_VIEW_PARAM = "ask-at";
 
 /** The ask's own extension slot: mounted in the bar's input line under ask mode alone. For anything about the ask
@@ -117,7 +117,7 @@ export const isMarkerType = (component: string): boolean => (Object.values(SHU_T
 /** Every built-in shu element, by its tag: what the registry defines, a step opens (`productsDomain`), a domain
  *  declares (`ui.component`), a component looks for in its tree and a test looks for on the page. One name each, here,
  *  so a file doesn't spell a tag again; a component that is also a domain exposes its own as `static domainSelector`. */
-/** The element a page carries its hydration in: its settings, and the run a record of one carries. */
+/** The element a page carries its hydration in: its settings, and the actuality a record of one carries. */
 export const HYDRATION_ID = "shu-hydration";
 
 export const SHU_TAG = {
@@ -183,7 +183,7 @@ export const SEARCH_SLOT = "search";
 
 export const SHU_ATTR = {
 	DATA_MINIMIZED: "data-minimized",
-	/** On an image or frame an artifact frame holds: the address of the run's artifact it shows once the page has read it. */
+	/** On an image or frame an artifact frame holds: the address of actuality's artifact it shows once the page has read it. */
 	DATA_ARTIFACT: "data-artifact",
 	/** Declared by an overlay while it covers the views beneath it. A framing aims what it frames clear of everything
 	 *  carrying this, and re-aims when one appears or goes, so a reader is never shown a node under a panel. */

@@ -55,7 +55,7 @@ describe("connect to the browser at {endpoint}", () => {
 		expect(ownersPage.isClosed(), "the owner's page is still open after the feature ends").toBe(false);
 		expect(await ownersPage.textContent("button"), "the click landed on the owner's page").toBe("pressed");
 
-		expect(await queryFacts(res.world, "name", VISITED_PAGE_LABEL), "the owner's navigation is not the run's visit").toEqual([]);
+		expect(await queryFacts(res.world, "name", VISITED_PAGE_LABEL), "the owner's navigation is not actuality's visit").toEqual([]);
 		expect(await queryFacts(res.world, "url", HTTP_REQUEST_LABEL), "the owner's requests are not traced").toEqual([]);
 
 		const snapshot = res.featureResults?.[0]?.stepResults.find((step) => step.in === "take an accessibility snapshot")?.products as {
@@ -76,7 +76,7 @@ describe("connect to the browser at {endpoint}", () => {
 		).toBe(true);
 	});
 
-	it("connects again when the connection ends outside the run, rather than keeping the ended one", { timeout: 30_000 }, async () => {
+	it("connects again when the connection ends outside actuality, rather than keeping the ended one", { timeout: 30_000 }, async () => {
 		const factory = BrowserFactory.getBrowserFactory(getDefaultWorld(), { options: {}, browserType: chromium, launchOptions: {}, cdp: endpoint });
 		const ended = await factory.getBrowser();
 		await ended.close();
@@ -86,7 +86,7 @@ describe("connect to the browser at {endpoint}", () => {
 		expect(ownersPage.isClosed(), "ending a connection doesn't close the owner's page").toBe(false);
 	});
 
-	it("connects again in the next feature, after the run disconnected at the end of the first", { timeout: 30_000 }, async () => {
+	it("connects again in the next feature, after actuality disconnected at the end of the first", { timeout: 30_000 }, async () => {
 		const feature = `connect to the browser at "${endpoint}"\ngo to the "${siteUrl}" webpage\nclick "press me"\n`;
 		const features = [
 			{ path: "/features/first.feature", content: feature },
@@ -98,7 +98,7 @@ describe("connect to the browser at {endpoint}", () => {
 		expect(ownersPage.isClosed()).toBe(false);
 	});
 
-	it("refuses an option that configures a browser the run launches", { timeout: 30_000 }, async () => {
+	it("refuses an option that configures a browser actuality launches", { timeout: 30_000 }, async () => {
 		const options = { ...moduleOptions, [getStepperOptionName(WebPlaywright, WebPlaywright.PERSISTENT_DIRECTORY)]: profile };
 		const res = await failWithDefaults([{ path: "/features/refused.feature", content: `connect to the browser at "${endpoint}"\n` }], steppers, {
 			options: { DEST: DEFAULT_DEST },

@@ -20,7 +20,7 @@ export const StepperKinds = {
 type TStepperKind = keyof typeof StepperKinds;
 
 export abstract class AStepper {
-	/** What the stepper's steps do, as a caller discovering the run reads it beside the stepper's name. */
+	/** What the stepper's steps do, as a caller discovering actuality reads it beside the stepper's name. */
 	abstract description: string;
 	world?: TWorld;
 	kind?: TStepperKind;
@@ -138,7 +138,7 @@ type TStepperStepBase = {
 	precludes?: string[];
 	unique?: boolean;
 	fallback?: boolean;
-	/** A step that reads the run's records and doesn't change one. Invoked from outside the run, through
+	/** A step that reads actuality's records and doesn't change one. Invoked from outside actuality, through
 	 *  a call into a running instance, it is answered and not recorded: it doesn't leave a step record, an announcement, a usage
 	 *  count or a kept result. Reading a run is not an act of the run, and an instance read for a year is not made to
 	 *  write a year of records of being read. From within a feature it is a step like any other. */

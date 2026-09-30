@@ -78,12 +78,12 @@ const remoteTool = (stepName: string, pattern: string, capability = `RemoteSteps
 	handler: async () => actionOK(),
 });
 
-/** What the run shows its own feature, which holds everything, or a caller holding `held`. */
+/** What actuality shows its own feature, which holds everything, or a caller holding `held`. */
 const definitionsOf = (world: TWorld, registry: StepRegistry, text: string, held: string[] = RUN_AUTHORITY) =>
 	discoverSteps(world, registry, { text, detail: STEP_DETAIL.definition }, held);
 const summariesOf = (world: TWorld, registry: StepRegistry, text: string) => discoverSteps(world, registry, { text, detail: STEP_DETAIL.summary }, RUN_AUTHORITY);
 
-describe("what a read of the run's declarations shows", () => {
+describe("what a read of actuality's declarations shows", () => {
 	const emptyWorld = { domains: {}, runtime: {} } as unknown as TWorld;
 
 	it("shows a step another host injected under its host-scoped name, with the host it runs at and a stepper that names the host", () => {
@@ -112,7 +112,7 @@ describe("what a read of the run's declarations shows", () => {
 		expect(definitionsOf(emptyWorld, registry, "", []).steps, "and a caller that doesn't hold an action isn't shown a step").toEqual([]);
 		expect(
 			definitionsOf(emptyWorld, registry, "").steppers.map((entry) => entry.stepper),
-			"the run is shown every step",
+			"actuality is shown every step",
 		).toEqual(["LocalSteps", "host9_RemoteSteps"]);
 	});
 
@@ -165,7 +165,7 @@ describe("what a read of the run's declarations shows", () => {
 		expect(Object.keys(summariesOf(world, registry, "record").domains), "a domain is matched by its name or description").toEqual(["record-key"]);
 		expect(
 			steppersOf(registry.descriptors()).map((entry) => [entry.stepper, entry.steps]),
-			"and the run's steppers are every stepper with every step",
+			"and actuality's steppers are every stepper with every step",
 		).toEqual([
 			["ManySteps", 2],
 			["LocalSteps", 1],
@@ -228,7 +228,7 @@ describe("what the manifest says about a domain", () => {
 	});
 });
 
-describe("what a refused caller from outside the run is told", () => {
+describe("what a refused caller from outside actuality is told", () => {
 	it("tells a caller that didn't prove a key only that it may not make the call, alike whether the step exists", () => {
 		expect(refusal("Pool-drain", "Pool:drain", undefined)).toBe(refusal("Pool-nowhere", undefined, undefined).replace("Pool-nowhere", "Pool-drain"));
 		expect(refusal("Pool-drain", "Pool:drain", undefined), "and doesn't name an action it could ask for").not.toContain("Pool:drain");

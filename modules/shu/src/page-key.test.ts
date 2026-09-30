@@ -82,7 +82,7 @@ describe("what a page sends", () => {
 		expect(headers?.digest, "which covers the body as well, so what was asked cannot be swapped").toBeTruthy();
 	});
 
-	it("signs a request that doesn't have a body without a digest, as the page asks for the run's stream", async () => {
+	it("signs a request that doesn't have a body without a digest, as the page asks for actuality's stream", async () => {
 		await opened([delegatedReading]);
 		const headers = await signedHeaders(call("Read:private", "GET"));
 		expect(headers?.["capability-invocation"]).toContain('action="Read:private"');

@@ -70,7 +70,7 @@ export const StepDescriptorSchema = z
 		capability: z.string(),
 		/** The level of what the step reads, which a caller's read must reach, where the step states one. */
 		readsAt: AccessLevelSchema.optional(),
-		/** Whether the step is a read: a caller that names it asks to read, and the run answers without recording the reading. */
+		/** Whether the step is a read: a caller that names it asks to read, and actuality answers without recording the reading. */
 		read: z.boolean(),
 		/** Whether the step answers only when the other steps don't answer to its name. */
 		fallback: z.boolean(),
@@ -169,7 +169,7 @@ export const domainSummary = (domain: string, description: string | undefined): 
 export const stepDefinition = (step: TStepDescriptor): TStepDefinition => ({ ...step, [HYPERMEDIA.LINKS]: { call: { method: step.method } } });
 
 /** What a call to show steps returned at the detail it asked for. A dispatched step's products carry the seqPath it ran
- *  at, which is the call's trace and not what the run declares, so the reading drops it. */
+ *  at, which is the call's trace and not what actuality declares, so the reading drops it. */
 export function readShownSteps(products: unknown, detail: typeof STEP_DETAIL.summary): TStepSummaries;
 export function readShownSteps(products: unknown, detail: typeof STEP_DETAIL.definition): TStepDefinitions;
 export function readShownSteps(products: unknown, detail: TStepDetail): TStepDiscovery {

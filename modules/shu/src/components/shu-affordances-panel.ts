@@ -38,15 +38,15 @@ import { noteExecution } from "../client-cache/executions.js";
 
 /** The panel's read-projection of the affordances wire blob: forward steps + goal verdicts (+ optional waypoints). forward/goals reuse the core element types; the panel ignores composites/satisfied* that the chain view consumes. */
 type TAffordances = {
-	/** The run whose facts these are, which is where a fact's step is: a fact's id is that step's seqPath. */
+	/** The actuality whose facts these are, which is where a fact's step is: a fact's id is that step's seqPath. */
 	execution: string;
 	forward: TForwardAffordance[];
 	goals: TGoalAffordance[];
 	waypoints?: TWaypointEntry[];
 };
 
-/** A snapshot of the run's affordances, as a step's products or a read of them give it; refused where the forward
- *  steps, the goals or the run they are of is missing. */
+/** A snapshot of actuality's affordances, as a step's products or a read of them give it; refused where the forward
+ *  steps, the goals or the actuality they are of is missing. */
 function snapshotOf(p: Record<string, unknown>): TAffordances {
 	if (!Array.isArray(p.forward) || !Array.isArray(p.goals) || typeof p.execution !== "string") {
 		throw new Error(`shu-affordances-panel takes \`forward\` and \`goals\` arrays and the \`execution\` they are of. Received keys: [${Object.keys(p).join(", ")}].`);
@@ -235,8 +235,8 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		const asOf = this.getAttribute("as-of");
 		const params = asOf ? { asOf } : {};
 		// The affordances on offer, read rather than shown: the whole snapshot (forward + goals + waypoints), asked of
-		// the run without being recorded as an act of it. The as-of replay variant doesn't carry waypoints: waypoint
-		// ensure-state is current run state, so the run doesn't hold a waypoint history to replay.
+		// actuality without being recorded as an act of it. The as-of replay variant doesn't carry waypoints: waypoint
+		// ensure-state is current run state, so actuality doesn't hold a waypoint history to replay.
 		const candidates = asOf ? [RPC_METHOD.AFFORDANCES_ON_OFFER_AS_OF] : [RPC_METHOD.AFFORDANCES_ON_OFFER];
 
 		let lastError = "";

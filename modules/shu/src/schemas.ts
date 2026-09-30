@@ -244,7 +244,7 @@ export type TBundle = z.infer<typeof BundleSchema>;
 
 /**
  * A turn of a session as the store reads it back. A turn is named by its question's record, which is what a page is
- * told the run recorded, so a page addresses a turn, the turn it replies to and the session it is in without knowing
+ * told actuality recorded, so a page addresses a turn, the turn it replies to and the session it is in without knowing
  * how a run names what it records.
  */
 const SessionTurnSchema = z
@@ -281,7 +281,7 @@ export const SessionListSchema = z.object({
 	),
 });
 
-/** Who reads a turn's records: the run, which sends them, or the model, which is sent the calls that read them. */
+/** Who reads a turn's records: actuality, which sends them, or the model, which is sent the calls that read them. */
 export const ContextReadBySchema = z.enum(["run", "model"]);
 
 /** What a turn sends beside its question: the patterns of the records it is about, the page's view, how many calls its
@@ -297,7 +297,7 @@ export const TurnEnvelopeSchema = z
 		inReplyTo: z.string().optional(),
 		/** The delegation the asker signed to the turn's key: what the turn may do, which an ask from a key carries. */
 		delegation: z.record(z.string(), z.unknown()).optional(),
-		/** The images the person added to the question, kept by the run, which the question shows its model. */
+		/** The images the person added to the question, kept by actuality, which the question shows its model. */
 		images: z.array(ImageReferenceSchema).optional(),
 	})
 	.strict()
@@ -318,7 +318,7 @@ export const aType = (persistedAs: string, conditions: readonly TSearchCondition
 // --- Actions bar ---
 
 /** The actions bar's modes. search browses and filters the graph, and is the default. step runs a haibun step. ask chats
- *  with a model, and the mode control offers it only where the run registers an ask-capable step. */
+ *  with a model, and the mode control offers it only where actuality registers an ask-capable step. */
 export const BAR_MODES = ["search", "ask", "step"] as const;
 export const ActionsBarSchema = z.object({ mode: z.enum(BAR_MODES).default("search") });
 

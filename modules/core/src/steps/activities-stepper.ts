@@ -140,7 +140,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	readonly baseSteps = {
 		saveWaypoint: {
 			description:
-				"Registers a waypoint whose activity is these lines, as a step the run offers from then on. A line that doesn't resolve to one step, and an outcome already registered, are refused before anything is registered.",
+				"Registers a waypoint whose activity is these lines, as a step actuality offers from then on. A line that doesn't resolve to one step, and an outcome already registered, are refused before anything is registered.",
 			gwta: `save waypoint {outcome: ${DOMAIN_TITLE}} doing {statements: ${DOMAIN_STATEMENT_LINES}}`,
 			action: ({ outcome, statements }: { outcome: string; statements: string[] }, featureStep: TFeatureStep) => {
 				this.saveWaypoint(outcome, statements, featureStep.source?.path ?? SAVED_WAYPOINT_SOURCE);
@@ -398,7 +398,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 
 	/**
 	 * Register a waypoint whose activity is `lines`, for the whole run, as a feature's waypoint is registered, and refresh
-	 * the run's registry, which announces the new step. `source` names where it was saved from.
+	 * actuality's registry, which announces the new step. `source` names where it was saved from.
 	 */
 	saveWaypoint(outcome: string, lines: string[], source: string): void {
 		const world = this.getWorld();

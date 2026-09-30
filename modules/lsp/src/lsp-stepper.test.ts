@@ -18,7 +18,7 @@ class SampleStepper extends AStepper {
 const completions = () => [...buildStepRegistry([new SampleStepper()], getDefaultWorld()).values()].map((tool) => completionItem(tool.descriptor));
 
 describe("LSP completion", () => {
-	it("offers each step of the run by its pattern, as a snippet, with its stepper and step", () => {
+	it("offers each step of actuality by its pattern, as a snippet, with its stepper and step", () => {
 		expect(completions().map((item) => item.label)).toEqual(["navigate to {url}", "set {name} to {value}", "wait {seconds: number} seconds", "click the submit button"]);
 		expect(completions()[0]).toMatchObject({ insertText: "navigate to ${1:url}", insertTextFormat: 2, detail: "From SampleStepper", documentation: "Internal Name: navigateTo" });
 	});

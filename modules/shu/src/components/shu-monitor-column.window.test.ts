@@ -39,7 +39,7 @@ describe("what a log marks on its rail", () => {
 
 	it("places a mark at the row's index in the RUN when the rows are the resident part of a longer run", () => {
 		// The monitor's rail spans the whole run; what it holds is a resident window of it, so a mark on a resident row sits
-		// at that row's index in the run, not at its position in the resident list.
+		// at that row's index in actuality, not at its position in the resident list.
 		const marks = railMarkers([row(), row({ mark: { icon: "❌", color: MARK_COLOUR.fault } })], [4000, 4001]);
 		expect(marks.map((m) => m.index)).toEqual([4001]);
 	});
@@ -73,14 +73,14 @@ describe("the rail marks what the timeline marks", () => {
 });
 
 describe("what pressing a row of the log opens", () => {
-	// Every row is a record of the run, so every row answers a press with the record it is. Pressed only where a row
+	// Every row is a record of actuality, so every row answers a press with the record it is. Pressed only where a row
 	// carried a step, a reader met rows that didn't open a record, what a run said over a connection among them, and the
 	// row didn't show which would answer.
-	it("opens a step at its own place in the run", () => {
+	it("opens a step at its own place in actuality", () => {
 		expect(opens(row({ seqPath: [0, 1, 2], record: { persistedAs: "SeqPath", id: "a-step" } }))).toEqual({ paneType: "step-detail", seqPath: [0, 1, 2] });
 	});
 
-	it("opens what the run said as the record it is, which a step row is not the only kind of", () => {
+	it("opens what actuality said as the record it is, which a step row is not the only kind of", () => {
 		expect(opens(row({ record: { persistedAs: "LogMessage", id: "0.1.2#3" }, message: 'RPC: {"jsonrpc":"2.0"}' }))).toEqual({
 			paneType: "entity",
 			persistedAs: "LogMessage",
@@ -88,11 +88,11 @@ describe("what pressing a row of the log opens", () => {
 		});
 	});
 
-	it("opens what the run produced the same way", () => {
+	it("opens what actuality produced the same way", () => {
 		expect(opens(row({ record: { persistedAs: "RunArtifact", id: "0.1.2#0" } }))).toEqual({ paneType: "entity", persistedAs: "RunArtifact", id: "0.1.2#0" });
 	});
 
-	it("doesn't open a record for a row that doesn't name one, which is a row of what the run never wrote down", () => {
+	it("doesn't open a record for a row that doesn't name one, which is a row of what actuality never wrote down", () => {
 		expect(opens(row())).toBeUndefined();
 	});
 });

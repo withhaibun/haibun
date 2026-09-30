@@ -63,7 +63,7 @@ describe("the page strip", () => {
 	let teardown: () => void;
 	beforeEach(() => {
 		teardown = setupShuTest().teardown;
-		// The page is a record of the run, and the run doesn't declare an extension for the strip.
+		// The page is a record of actuality, and actuality doesn't declare an extension for the strip.
 		carryARun();
 		setConcernCatalog(buildConcernCatalog(mapDefinitionsToDomains([])));
 		document.body.innerHTML = "";

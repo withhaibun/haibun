@@ -53,7 +53,7 @@ describe("a run carried in a page", () => {
 		await hydrateClientCache(payload({ registry: undefined }));
 		// A page carrying a run reads it through the page's own graph, which this case asserts.
 		const window = await runWindow(pageRunGraph(), { execution: EXECUTION });
-		expect(window.rows.length, "the run the page carries").toBe(12);
+		expect(window.rows.length, "actuality the page carries").toBe(12);
 		expect(window.rows[0].text).toBe("step 0");
 		expect(window.rows[11].text).toBe("step 11");
 		expect(currentExecution(), "the execution the page carries is the one being read").toBe(EXECUTION);

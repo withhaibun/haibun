@@ -1,6 +1,6 @@
 /**
  * The named graphs the engine emits to record its own execution that aren't persisted types: the `observation/*`
- * family, the facts and the shared variables. A persisted type that records the run's own execution declares
+ * family, the facts and the shared variables. A persisted type that records actuality's own execution declares
  * `topology.instrumentation` instead, so this list holds only the graphs without a topology to declare it.
  *
  * Separate from quad-types.ts to avoid a cycle: it imports working-memory, which imports quad-types.

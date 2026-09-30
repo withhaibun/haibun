@@ -30,7 +30,7 @@
  * --- Reconnection ---
  * The server doesn't replay events on connect: what happened is in the graph.
  * A stream that breaks and re-opens announces the re-open through
- * `reconnected()`, which is how a consumer following the run knows to
+ * `reconnected()`, which is how a consumer following actuality knows to
  * read again for what happened while the stream didn't deliver an event.
  */
 
@@ -79,7 +79,7 @@ export class StreamListeners<E> {
 	private readonly reconnectListeners = new Set<() => void>();
 	private readonly disconnectListeners = new Set<() => void>();
 	/** The stream has dropped and not yet re-opened. What happened meanwhile didn't reach a listener, so the re-open is
-	 *  announced to whoever follows the run: that is when they have something to read again for. */
+	 *  announced to whoever follows actuality: that is when they have something to read again for. */
 	private broken = false;
 	private readonly buffer: ReplayBuffer<E>;
 
@@ -111,7 +111,7 @@ export class StreamListeners<E> {
 	}
 
 	/** Be told the stream has re-opened after a break in it. What happened during the break doesn't arrive in a dispatch, so a
-	 *  consumer following the run reads again on this. Never fires on the first open, which doesn't follow a break. */
+	 *  consumer following actuality reads again on this. Never fires on the first open, which doesn't follow a break. */
 	reconnected(fn: () => void): () => void {
 		this.reconnectListeners.add(fn);
 		return () => this.reconnectListeners.delete(fn);
@@ -134,7 +134,7 @@ export class StreamListeners<E> {
 		this.notify(this.reconnectListeners, "reconnection");
 	}
 
-	/** The stream broke. The break is announced once, when it happens: a page that cannot hear the run cannot say its
+	/** The stream broke. The break is announced once, when it happens: a page that cannot hear actuality cannot say its
 	 *  reading is current, and that is a fact of the reading rather than something to infer from the silence. */
 	broke(): void {
 		const wasOpen = !this.broken;

@@ -7,6 +7,7 @@
  * and in-memory surface so regressions in the contract fail immediately and
  * unambiguously.
  */
+import { notFromActuality } from "@haibun/core/lib/rpc-wire.js";
 import { describe, it, expect, beforeEach } from "vitest";
 import {
 	reads,
@@ -49,7 +50,7 @@ describe("what a link asks of a run", () => {
 	it("states reading, and states acting, and cannot be made without stating one", () => {
 		expect(reads("SomeStepper-showThings")).toEqual({ method: "SomeStepper-showThings", params: undefined, summary: undefined, asks: "read" });
 		expect(acts("SomeStepper-doThing", { id: "a" })).toMatchObject({ method: "SomeStepper-doThing", params: { id: "a" }, asks: "act" });
-		// @ts-expect-error a bare method is not a link: it doesn't say what it asks of the run
+		// @ts-expect-error a bare method is not a link: it doesn't say what it asks of actuality
 		const unstated: TLink = { method: "SomeStepper-showThings" };
 		expect(unstated.asks).toBeUndefined();
 	});
@@ -161,12 +162,12 @@ describe("a server that does not respond", () => {
 		expect(isServerUnreachable(new Error("refused"))).toBe(false);
 	});
 
-	it("fails a call a path the server does not serve answered as text, with the status and what it sent, and reads a refusal the run states", async () => {
+	it("fails a call a path the server does not serve answered as text, with the status and what it sent, and reads a refusal actuality states", async () => {
 		const fetchWas = globalThis.fetch;
 		try {
 			globalThis.fetch = () => Promise.resolve(new Response("404 Not Found", { status: 404, headers: { "Content-Type": "text/plain; charset=UTF-8" } }));
 			await expect(new LiveConduit("").follow(reads(SHOW_STEPS_METHOD), "test")).rejects.toThrow(
-				`${SHOW_STEPS_METHOD}: the server answered 404 with text/plain; charset=UTF-8, not the run's JSON: 404 Not Found`,
+				notFromActuality(SHOW_STEPS_METHOD, 404, "text/plain; charset=UTF-8", "404 Not Found"),
 			);
 			globalThis.fetch = () => Promise.resolve(rpcAnswer({ ok: false, error: "no such step" }, 422));
 			await expect(new LiveConduit("").follow(reads(SHOW_STEPS_METHOD), "test")).rejects.toThrow("no such step");
@@ -223,7 +224,7 @@ describe("a server that does not respond", () => {
 		}
 	});
 
-	it("applies the timeout to a request the page awaits and doesn't apply one to a stream, which stays open while the run writes to it", async () => {
+	it("applies the timeout to a request the page awaits and doesn't apply one to a stream, which stays open while actuality writes to it", async () => {
 		const fetchWas = globalThis.fetch;
 		setHydration({ settings: { responseTimeoutMs: 30 } });
 		hydrateFromDom();
@@ -239,7 +240,7 @@ describe("a server that does not respond", () => {
 			// The call that opens an action is a call like any other, so this is about a page that has not just found the
 			// site silent.
 			endPage();
-			const streaming = new LiveConduit("").followStream(acts(SHOW_STEPS_METHOD), () => undefined, { why: "the run's own stream" }).catch(() => undefined);
+			const streaming = new LiveConduit("").followStream(acts(SHOW_STEPS_METHOD), () => undefined, { why: "actuality's own stream" }).catch(() => undefined);
 			await new Promise((r) => setTimeout(r, 60));
 			expect(bounds.at(-1), "and a stream doesn't carry one, so it is not closed under a run still writing to it").toBe(false);
 			void streaming;
@@ -319,7 +320,7 @@ describe("a server that does not respond", () => {
 			await conduit.follow(reads(SHOW_STEPS_METHOD), "a view reading").catch(() => undefined);
 			const afterRead = asked.length;
 			await conduit.follow(acts("chatWithContext"), "what the reader asked for").catch(() => undefined);
-			expect(asked.slice(afterRead), "the act was carried to the server, beginning with its place in the run").toContain("/rpc/action.begin");
+			expect(asked.slice(afterRead), "the act was carried to the server, beginning with its place in actuality").toContain("/rpc/action.begin");
 			expect(asked.slice(afterRead), "and then the act itself").toContain("/rpc/chatWithContext");
 		} finally {
 			globalThis.fetch = fetchWas;

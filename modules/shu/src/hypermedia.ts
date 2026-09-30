@@ -35,9 +35,9 @@ import { SHOW_STEPS_ACTION, SHOW_STEPS_METHOD } from "@haibun/core/lib/step-disc
  * What a call asks of a run: to be answered, or to act.
  *
  * A run answers a read and doesn't record it, since reading a run is not an act of the run. A run asked to act
- * records what it did. A link states which it asks for, and the run holds that statement to the step's own
+ * records what it did. A link states which it asks for, and actuality holds that statement to the step's own
  * declaration, refusing to answer as a read a step that does not declare itself one. Stated on the link rather than
- * inferred at the far end, a page cannot read through a step whose answer the run would record, and cannot forget to
+ * inferred at the far end, a page cannot read through a step whose answer actuality would record, and cannot forget to
  * say which it wants: `asks` is required, so `reads` and `acts` are the only ways to make a link.
  */
 type TAsks = "read" | "act";
@@ -116,10 +116,10 @@ function nextRpcId(): string {
 	return `rpc-${issued.count}-${Date.now().toString(36)}`;
 }
 
-/** What the run answers `action.begin` with: the place in its sequence the act is recorded at. */
+/** What actuality answers `action.begin` with: the place in its sequence the act is recorded at. */
 const ActionBeganSchema = z.object({ seqPath: z.array(z.number()).min(1) });
 
-/** The run's answer to a call, or the refusal it stated, thrown. */
+/** Actuality's answer to a call, or the refusal it stated, thrown. */
 async function answerOf(method: string, res: Response): Promise<unknown> {
 	const answer = await readRpcAnswer(method, res);
 	if (answer.kind === "refused") throw new Error(answer.error);
@@ -175,7 +175,7 @@ export class LiveConduit implements Conduit {
 
 	async follow<T = TRepresentation>(link: TLink, why: string): Promise<T> {
 		// Reading a run does not begin an action of it: a read doesn't carry a place in the run's own sequence, and asking for
-		// one is a call of its own, made per read, by every page following the run. Acting does begin one, since what the
+		// one is a call of its own, made per read, by every page following actuality. Acting does begin one, since what the
 		// run then does belongs in the sequence at that place.
 		const seqPath = link.asks === "read" ? undefined : await this.allocateSeqPath(why);
 		const res = await this.post(link.method, { method: link.method, params: link.params ?? {}, seqPath, asks: link.asks });
@@ -190,7 +190,7 @@ export class LiveConduit implements Conduit {
 		const seqPath = await this.allocateSeqPath(opts.why);
 		opts.onStart?.(seqPath);
 		const res = await this.post(link.method, { method: link.method, params: link.params ?? {}, seqPath, stream: true, asks: link.asks }, opts.signal);
-		// A stream the run refused answers with its refusal, as any call does.
+		// A stream actuality refused answers with its refusal, as any call does.
 		if (!res.ok) await answerOf(link.method, res);
 		if (!res.body) throw new Error(`${link.method}: stream RPC didn't return a body`);
 		for await (const chunk of readNdjson<TStreamChunk>(res.body)) {
@@ -220,7 +220,7 @@ export class LiveConduit implements Conduit {
 		const base = new URL(`${this.basePath}/`, location.origin).href;
 		// A request the server accepts without responding to is indistinguishable from an unreachable server, so a
 		// request the page awaits carries a timeout. A caller that supplied a signal governs its own request, and a
-		// stream stays open for as long as the run writes to it, so this timeout doesn't apply to either.
+		// stream stays open for as long as actuality writes to it, so this timeout doesn't apply to either.
 		const awaited = signal === undefined && envelope.stream !== true;
 		// Within the retry interval of a timed-out read, a further read isn't issued: the previous timeout is the result,
 		// since a page with several views open would otherwise run each read to the timeout separately. An act is issued
@@ -246,7 +246,7 @@ export class LiveConduit implements Conduit {
 	}
 
 	private async beginAction(why: string): Promise<number[]> {
-		// Beginning an action is part of acting: it allocates the place in the run's sequence the act is recorded at.
+		// Beginning an action is part of acting: it allocates the place in actuality's sequence the act is recorded at.
 		const res = await this.post("action.begin", { method: "action.begin", params: { why }, asks: "act" });
 		return ActionBeganSchema.parse(await answerOf("action.begin", res)).seqPath;
 	}

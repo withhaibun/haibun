@@ -20,7 +20,7 @@ type TSubscribeOptions = {
 	names?: readonly string[];
 };
 
-/** The run's own story: what the console prints and what a bare subscribe(cb) receives. A blip is not narration; only a
+/** Actuality's own story: what the console prints and what a bare subscribe(cb) receives. A blip is not narration; only a
  *  subscriber that names its kind receives it, so a per-frame channel cannot reach the monitor's buffer or SSE by accident. */
 const NARRATED_KINDS: ReadonlySet<TEventKind> = new Set<TEventKind>(["lifecycle", "log", "artifact", "control"]);
 
@@ -99,7 +99,7 @@ export class EventLogger implements IEventLogger {
 		public readonly ndjsonForced = false,
 	) {}
 
-	/** Without options, delivers everything the run narrates and never blips; `{ kinds }` delivers exactly those kinds
+	/** Without options, delivers everything actuality narrates and never blips; `{ kinds }` delivers exactly those kinds
 	 *  and is the only way to receive `"blip"`; `{ names }` narrows the blips to a declared name or dotted namespace. */
 	subscribe(callback: TEventSubscriber, options?: TSubscribeOptions): void {
 		if (options?.names && !options.kinds?.includes("blip")) throw new Error(`subscribe: names filters blips; include kinds: ["blip"]`);
@@ -135,7 +135,7 @@ export class EventLogger implements IEventLogger {
 		if (!narrated && !this.kindCounts.has(event.kind)) return;
 		const name = event.kind === "blip" ? event.name : undefined;
 		// Every event states the level of what it may reveal, so a follower is sent only what it may read. An event is
-		// written as a record is, and one that doesn't state a level is the run's own and private.
+		// written as a record is, and one that doesn't state a level is actuality's own and private.
 		const eventWithEmitter = {
 			...event,
 			emitter: event.emitter || getEmitter(),
@@ -197,7 +197,7 @@ export class EventLogger implements IEventLogger {
 
 	/** The level a statement reports at: its own, held to the level of the step it is said during. A warning and a
 	 *  fault report as themselves, since a step reporting quietly is not a reason to be quiet about a fault, and a call
-	 *  made into a running instance does not put the caller's own narration into the run's history. */
+	 *  made into a running instance does not put the caller's own narration into actuality's history. */
 	private reportedAt(level: THaibunLogLevel): THaibunLogLevel {
 		const ceiling = stepInFlight()?.reportsAt;
 		if (ceiling === undefined || HAIBUN_LOG_LEVELS.indexOf(level) >= HAIBUN_LOG_LEVELS.indexOf("warn")) return level;

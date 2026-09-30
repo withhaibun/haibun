@@ -135,7 +135,7 @@ variable affordances exists`,
 		const stepper = new GoalResolutionStepper();
 		expect(stepper.steps.affordancesOnOffer.read).toBe(true);
 		expect(stepper.steps.affordancesOnOfferAsOf.read).toBe(true);
-		expect(stepper.steps.showAffordances.read, "showing the panel is an act of the run").toBeUndefined();
+		expect(stepper.steps.showAffordances.read, "showing the panel is an act of actuality").toBeUndefined();
 		const feature = { path: "/features/test.feature", content: `show affordances\naffordances on offer` };
 		const result = await passWithDefaults([feature], steppers);
 		expect(result.ok).toBe(true);
@@ -145,12 +145,12 @@ variable affordances exists`,
 		expect(offered.goals).toEqual(shown.goals);
 	});
 
-	it("names the run whose facts it shows, where the step a fact names ran: the affordances and the chain lint alike", async () => {
+	it("names the actuality whose facts it shows, where the step a fact names ran: the affordances and the chain lint alike", async () => {
 		const feature = { path: "/features/test.feature", content: "show affordances\nshow chain lint" };
 		const result = await passWithDefaults([feature], steppers);
 		expect(result.ok).toBe(true);
 		const named = (result.featureResults?.[0].stepResults ?? []).map((r) => (r.products as { execution: string }).execution);
-		// The one feature is the run's first, whose steps' records name its execution.
+		// The one feature is actuality's first, whose steps' records name its execution.
 		const firstFeature = executionOf({ key: result.world.tag.key, featureNum: 1 });
 		expect(named).toEqual([firstFeature, firstFeature]);
 	});

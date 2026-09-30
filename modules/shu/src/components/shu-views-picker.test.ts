@@ -11,7 +11,7 @@ import { ShuViewsPicker } from "./shu-views-picker.js";
 
 const IDS = SHU_TEST_IDS.VIEWS_PICKER;
 const views = [
-	{ id: "run", description: "the run as it happens", component: SHU_TAG.MONITOR_COLUMN },
+	{ id: "run", description: "actuality as it happens", component: SHU_TAG.MONITOR_COLUMN },
 	{ id: "cache", description: "what this page holds", component: SHU_TAG.CLIENT_CACHE_COLUMN },
 ];
 

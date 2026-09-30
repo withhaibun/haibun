@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * A view's place on the run's timeline: it tracks the page's cursor until its reader holds a place of its own, and a
+ * A view's place on actuality's timeline: it tracks the page's cursor until its reader holds a place of its own, and a
  * view that states a name writes the place it holds to the address.
  */
 import { describe, it, expect, beforeEach } from "vitest";
@@ -25,7 +25,7 @@ describe("a view's place on the timeline", () => {
 		timeCursor.set(null);
 	});
 
-	it("tracks the page's cursor, so scrubbing the run moves it", () => {
+	it("tracks the page's cursor, so scrubbing actuality moves it", () => {
 		const view = mount();
 		expect(view.cursor).toBe(null);
 		expect(view.atLiveEdge).toBe(true);

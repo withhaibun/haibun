@@ -108,7 +108,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 
 	/** Called by the pane afterAttach hook with the step's seqPath; setting the state re-keys the load task. Awaits the
 	 *  settle so the caller's attach sequence still completes after the data lands (an error surfaces in render). */
-	/** The step this pane reads, as the record it is: named only once the run being read is known. */
+	/** The step this pane reads, as the record it is: named only once the actuality being read is known. */
 	override paneSubject(): TContextPattern[] | null {
 		const id = stepRecordId(this.state.seqPath, readingExecution());
 		return id === undefined ? null : [anIndividual(SEQ_PATH_LABEL, id)];
@@ -117,7 +117,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 	async open(seqPath: number[]): Promise<void> {
 		this.setState({ seqPath });
 		// Opening a step is a reader's move to it, stated as a record column states its record. The load below runs again
-		// whenever the run being read moves on, which isn't a move of the reader's, so it doesn't state the subject.
+		// whenever the actuality being read moves on, which isn't a move of the reader's, so it doesn't state the subject.
 		const patterns = this.paneSubject();
 		if (patterns)
 			this.dispatchEvent(new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, { detail: { patterns, accessLevel: appAccessLevel(), label: SEQ_PATH_LABEL }, bubbles: true, composed: true }));
@@ -128,7 +128,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 	protected override onConnected(): void {
 		// A step still running reaches its end while this pane is open, and its record then says so. A step that has
 		// ended will not change again, so it is read once: a pane that re-read on every announcement would never settle,
-		// since reading the run is itself something the run announces. In snapshot mode the run doesn't change.
+		// since reading actuality is itself something actuality announces. In snapshot mode actuality doesn't change.
 		if (this.hasAttribute("data-snapshot-time")) return;
 		let due: ReturnType<typeof setTimeout> | null = null;
 		const unsubscribe = subscribeBatchedEvents({
@@ -171,7 +171,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 
 	private renderContent(key: string, data: TStepData): TemplateResult {
 		const { step, variablesSet } = data;
-		if (!step && variablesSet.length === 0) return html`<div class="empty">The run doesn't hold a record of step [${key}]</div>`;
+		if (!step && variablesSet.length === 0) return html`<div class="empty">Actuality doesn't hold a record of step [${key}]</div>`;
 		const field = (name: string): string => (step && typeof step[name] === "string" ? String(step[name]) : "");
 		// The same glyph the log and the rail use, so a speculative try or a handed-out call is not shown as a fault.
 		const status = field(SEQ_PATH_FIELD.actionStatus) ? eventMarkerStyle({ status: field(SEQ_PATH_FIELD.actionStatus), kind: "lifecycle", type: "step" }).icon : "";

@@ -71,6 +71,6 @@ const GRAPH_BLIPS: TBlipDeclaration[] = [
 	},
 ];
 
-// Declared where the vocabulary lives, as the view vocabulary is: the run side imports this module and the declarations
+// Declared where the vocabulary lives, as the view vocabulary is: actuality side imports this module and the declarations
 // are in place before any batch arrives.
 declareBlips(...GRAPH_BLIPS);

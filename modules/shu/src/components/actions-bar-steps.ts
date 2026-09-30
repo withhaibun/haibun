@@ -1,5 +1,5 @@
 /**
- * The actions bar's step mode: the steps the run offers, the step input line, and a caller for the step a reader picks,
+ * The actions bar's step mode: the steps actuality offers, the step input line, and a caller for the step a reader picks,
  * opened in the bar's history. The steps for the selected type come first, marked. A reader who picks another step
  * before running the last caller replaces that caller rather than adding a second, and each caller is numbered among
  * the callers of its method, so its test ids stay unique across repeated calls.
@@ -95,7 +95,7 @@ export class ActionsBarSteps implements ReactiveController {
 		return this.#steps.some((step) => step.stepName === ASK_STEP);
 	}
 
-	/** Read the steps the run offers, and render with them. */
+	/** Read the steps actuality offers, and render with them. */
 	async load(): Promise<void> {
 		this.#steps = await getAvailableSteps();
 		this.#host.requestUpdate();
@@ -129,7 +129,7 @@ export class ActionsBarSteps implements ReactiveController {
 		history.append(caller);
 	}
 
-	/** The step mode's input line: the mode toggle, and the step selector once the run offers steps, those for the selected
+	/** The step mode's input line: the mode toggle, and the step selector once actuality offers steps, those for the selected
 	 *  type first. */
 	template(modeToggle: TemplateResult): TemplateResult {
 		const label = this.#deps.selectedLabel();
@@ -152,7 +152,7 @@ export class ActionsBarSteps implements ReactiveController {
 	/** Filters the steps by `text`, as the reader typing it in the step selector does. */
 	enter(text: string): void {
 		const selector = this.#host.renderRoot.querySelector<ShuCombobox>(".step-combo");
-		if (!selector) throw new Error("step mode doesn't show a step selector until the run offers steps");
+		if (!selector) throw new Error("step mode doesn't show a step selector until actuality offers steps");
 		selector.enter(text);
 	}
 

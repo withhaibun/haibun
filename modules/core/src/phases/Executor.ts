@@ -31,9 +31,9 @@ import { basename } from "path";
 
 /**
  * What a run keeps of a feature it has moved on from. A passing step's products, artifacts and traces are read while
- * that feature is the one running, and by a caller that has just received its result; once the run has moved to
+ * that feature is the one running, and by a caller that has just received its result; once actuality has moved to
  * another feature, a reader doesn't read them again, and holding them holds every graph slice, response body and rendered
- * document the run has produced. That is what made a nineteen-feature run exhaust the heap and be killed rather than
+ * document actuality has produced. That is what made a nineteen-feature run exhaust the heap and be killed rather than
  * fail. A failed step keeps everything, since the verdict is made of it.
  */
 export function releasePayloads(featureResult: TFeatureResult): void {
@@ -103,7 +103,7 @@ export class Executor {
 
 		// The verdict names an accountable feature step. A synthetic dispatch (a negative seqPath segment: a model's
 		// tool call, an RPC) can fail and be recovered from inside its parent step; naming it here reported a recovered
-		// tool call as the run's failure while the step that failed the feature went unmentioned.
+		// tool call as actuality's failure while the step that failed the feature went unmentioned.
 		const failedStep = firstFailedFeature.steps.failed;
 		if (!failedStep) return undefined;
 
@@ -122,7 +122,7 @@ export class Executor {
 		};
 	}
 
-	/** Run the features as the run itself: every line, cycle and finalizer is the instance's own act, and holds its authority.
+	/** Run the features as actuality itself: every line, cycle and finalizer is the instance's own act, and holds its authority.
 	 *  A caller from outside reaches a step only through a transport, which states what that caller holds. */
 	static executeFeatures(steppers: AStepper[], world: TWorld, features: TResolvedFeature[]): Promise<TExecutorResult> {
 		return runAuthorizedWith(RUN_AUTHORITY, () => Executor.runFeatures(steppers, world, features));
@@ -132,7 +132,7 @@ export class Executor {
 		initExecutionRuntime(world);
 		world.runtime.steppers = steppers;
 		const stepRegistry = openRunRegistry(world, steppers);
-		// Every transport attaches to the run's one registry now: a remote proxy injects its host's steps, and MCP reads the
+		// Every transport attaches to actuality's one registry now: a remote proxy injects its host's steps, and MCP reads the
 		// registry each time it lists or dispatches.
 		attachTransportsToRegistry(steppers, stepRegistry);
 
@@ -197,7 +197,7 @@ export class Executor {
 			}
 			okSoFar = okSoFar && thisFeatureOK;
 			// The feature just finished keeps what it produced for whoever receives this result; the one before it
-			// doesn't have a reader left, so the run stops holding what that one produced.
+			// doesn't have a reader left, so actuality stops holding what that one produced.
 			const previous = featureResults[featureResults.length - 1];
 			if (previous) releasePayloads(previous);
 			featureResults.push(featureResult);

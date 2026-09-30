@@ -154,7 +154,7 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 	}
 
 	/** Record one fine-grained occurrence of this view's behaviour, at whatever rate it happens: held in the page's
-	 *  fixed ring and handed to the run in batches, which doesn't retain them. The view attribution is this element's
+	 *  fixed ring and handed to actuality in batches, which doesn't retain them. The view attribution is this element's
 	 *  hosting column (or the element itself when unhosted), so any control emits with one call and without plumbing of its
 	 *  own. The name must be declared in `view-blips.ts`, where the vocabulary lives. */
 	protected recordBlip(name: string, value?: number, attributes?: Record<string, unknown>): void {

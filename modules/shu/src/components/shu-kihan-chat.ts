@@ -66,19 +66,19 @@ const KihanVertexSchema = z.looseObject({
 	id: z.string(),
 	displayName: z.string().optional(),
 	capabilities: z.looseObject({ tools: z.boolean().optional(), thinking: z.boolean().optional() }).optional(),
-	/** Whether this is the run's standing default, the model a call outside any turn is sent to. */
+	/** Whether this is actuality's standing default, the model a call outside any turn is sent to. */
 	standing: z.boolean().optional(),
 	options: z.looseObject({ contextReadBy: ContextReadBySchema.optional() }).optional(),
 });
 type TKihanVertex = z.infer<typeof KihanVertexSchema>;
-/** A page of the model catalog, and how many models the run offers; an answer without a list is a failed read. */
+/** A page of the model catalog, and how many models actuality offers; an answer without a list is a failed read. */
 const CatalogPageSchema = GraphQueryResultSchema.extend({ vertices: z.array(KihanVertexSchema) });
-/** The type the run's models are records of, and the read that lists them. */
+/** The type actuality's models are records of, and the read that lists them. */
 const KIHAN = "Kihan";
 const CATALOG_STEP = `show${KIHAN}s`;
 /** How many models a read of the catalog asks for at a time. */
 const CATALOG_PAGE = 50;
-/** A provider the run's models are grouped under, as discovery recorded what it answered. */
+/** A provider actuality's models are grouped under, as discovery recorded what it answered. */
 const ProviderSchema = z.looseObject({ id: z.string(), answered: z.boolean(), models: z.number(), why: z.string().optional() });
 type TProvider = z.infer<typeof ProviderSchema>;
 const ProviderPageSchema = GraphQueryResultSchema.extend({ vertices: z.array(ProviderSchema) });
@@ -189,7 +189,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	static persistFields = ["model", "toolLimit", "contextReadBy"] as const;
 
 	private _models: TKihanVertex[] = [];
-	/** The providers whose models the run didn't register, and why, as their records state it. */
+	/** The providers whose models actuality didn't register, and why, as their records state it. */
 	#providersWithout: { type: string; providers: TProvider[] } | undefined;
 	/** Whether the model catalog was read, so the view states that a run doesn't offer a model, rather than showing an empty list. */
 	#modelsRead = false;
@@ -197,13 +197,13 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	 *  another. A read that fails is left for the next question to make again. */
 	#catalog: Promise<void> | undefined;
 	#modelOptions: TComboboxOption[] = [];
-	/** The sessions the run lists, as data: what each is called is derived where it renders, so what a session gained
+	/** The sessions actuality lists, as data: what each is called is derived where it renders, so what a session gained
 	 *  goes as soon as this page reads it. */
 	#sessions: TChatSession[] = [];
 	/** Why the reader's last question was not asked. It shows beside the input until the turn or the conversation moves,
 	 *  so a refusal is never shown for a question the reader did not submit. */
 	#refusal: string | null = null;
-	/** The images the reader added to the question being written, kept by the run, which the question shows its model. */
+	/** The images the reader added to the question being written, kept by actuality, which the question shows its model. */
 	#images: TImageReference[] = [];
 	/** A question from the history put in the input to edit: the records it was about and the turn it replied to, which
 	 *  the edited question is sent with in place of the active record and the bar's turn. */
@@ -228,8 +228,8 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 
 	protected override onConnected(): void {
 		this.#readModels();
-		// The run's models are its Kihan records, which discovery and a new profile write, and discovery records each
-		// provider it asked, so the catalog is read again when the run records either.
+		// Actuality's models are its Kihan records, which discovery and a new profile write, and discovery records each
+		// provider it asked, so the catalog is read again when actuality records either.
 		if (hasEventStream())
 			this.autoTeardown(
 				subscribeBatchedEvents({
@@ -242,7 +242,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 				}),
 			);
 		void this.refreshSessionList();
-		// A turn any page asks changes what a session holds, so the list is read again on the run's reports rather than on
+		// A turn any page asks changes what a session holds, so the list is read again on actuality's reports rather than on
 		// this page's own turns alone.
 		this.autoTeardown(followReportedTurns(() => void this.refreshSessionList()));
 		// What this page has read of a session decides what the list says each gained, so opening one states the list again.
@@ -252,7 +252,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		readTurnAllowance().catch((err: unknown) => reportToRun("error", "shu-kihan-chat", `what this page allows its turns was not read: ${errorDetail(err)}`));
 	}
 
-	/** What the selector offers: a new conversation, then each session the run lists. */
+	/** What the selector offers: a new conversation, then each session actuality lists. */
 	private sessionOptions(): TComboboxOption[] {
 		return [NEW_CONVERSATION, ...this.#sessions.map((session) => ({ value: session.session, label: sessionOptionLabel(session) }))];
 	}
@@ -290,7 +290,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 				if (typeof maybeSpeak === "function") maybeSpeak.call(el, turn.response);
 			});
 		}
-		// The run writes the turn whether or not its stream announced a seqPath, so the session list changes in both cases.
+		// Actuality writes the turn whether or not its stream announced a seqPath, so the session list changes in both cases.
 		void this.refreshSessionList();
 	}
 
@@ -300,7 +300,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		else void openConversation(value, "activate");
 	};
 
-	/** Read the model catalog, reporting a read that fails to the run. */
+	/** Read the model catalog, reporting a read that fails to actuality. */
 	#readModels(): void {
 		this.loadModels().catch((err: unknown) => reportToRun("error", "shu-kihan-chat", `the model catalog was not read: ${errorDetail(err)}`));
 	}
@@ -313,7 +313,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		return this.#catalog;
 	}
 
-	/** Every model the run offers, read a page at a time until the pages hold as many as the listing states. */
+	/** Every model actuality offers, read a page at a time until the pages hold as many as the listing states. */
 	private async readCatalog(): Promise<void> {
 		await getAvailableSteps();
 		if (!findStep(CATALOG_STEP)) return;
@@ -333,7 +333,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		this.requestUpdate();
 	}
 
-	/** The providers whose models the run didn't register, read from the records of the type its models are grouped under. */
+	/** The providers whose models actuality didn't register, read from the records of the type its models are grouped under. */
 	private async readProvidersWithout(): Promise<{ type: string; providers: TProvider[] } | undefined> {
 		const type = providerType();
 		const listing = `show${type}s`;
@@ -342,7 +342,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		return { type, providers: page.vertices.filter((provider) => provider.models === 0) };
 	}
 
-	/** The providers whose models the run didn't register, each linked to its record, with why. */
+	/** The providers whose models actuality didn't register, each linked to its record, with why. */
 	private providersWithoutTemplate(): TemplateResult | typeof nothing {
 		const without = this.#providersWithout;
 		if (!without || without.providers.length === 0) return nothing;
@@ -351,8 +351,8 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		)}</span>`;
 	}
 
-	/** The model a question is sent to, which is one the run offers. A remembered model the run no longer offers, as one
-	 *  stored under a provider since renamed, is replaced by the run's standing default. Where the run doesn't state a default, it is
+	/** The model a question is sent to, which is one actuality offers. A remembered model actuality no longer offers, as one
+	 *  stored under a provider since renamed, is replaced by actuality's standing default. Where actuality doesn't state a default, it is
 	 *  replaced by a model that states it does not think, since a thinking model's answer can spend the turn's token budget
 	 *  on reasoning and return without text. Without a catalog, the remembered one stands. */
 	private offeredModel(): string {
@@ -549,7 +549,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	 * Ask the question in the conversation, or show why it cannot be asked. Send is hidden while a turn is in flight, and
 	 * the refusal covers the Enter key and a conversation still opening, stated once the catalog read in flight has
 	 * answered, so what it reads is what the question would be sent with. A question not asked stays in the input, and a
-	 * turn that ended before the run recorded its question puts it back.
+	 * turn that ended before actuality recorded its question puts it back.
 	 *
 	 * The question carries the active record's bundle, and replies to the actions bar's turn where the scope holds one:
 	 * the latest answer, or the message the reader selected, where the conversation branches.
@@ -600,7 +600,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		});
 	}
 
-	/** Keep each image the reader chose in the run, which the question then names. */
+	/** Keep each image the reader chose in actuality, which the question then names. */
 	private readonly onImageChosen = async (e: Event): Promise<void> => {
 		const input = e.target as HTMLInputElement;
 		try {

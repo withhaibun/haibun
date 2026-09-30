@@ -27,7 +27,7 @@ describe("the steps a page holds", () => {
 		handle?.teardown();
 	});
 
-	it("are read again when the run signals its steps changed, and a view is told once they are read", async () => {
+	it("are read again when actuality signals its steps changed, and a view is told once they are read", async () => {
 		let declared = [aStep("passes")];
 		handle = setupShuTest({ dispatch: (method) => (method === SHOW_STEPS_METHOD ? stepsShown(declared) : undefined) });
 		expect(await methodsOf()).toEqual(["RunSteps-passes"]);
@@ -48,7 +48,7 @@ describe("the steps a page holds", () => {
 		expect(await held).toEqual(["RunSteps-passes", "RunSteps-fails"]);
 	});
 
-	it("are read again after a read under way when the run signals a change during that read", async () => {
+	it("are read again after a read under way when actuality signals a change during that read", async () => {
 		let declared = [aStep("passes")];
 		let release = (): void => undefined;
 		let reads = 0;
@@ -56,7 +56,7 @@ describe("the steps a page holds", () => {
 			dispatch: (method) => {
 				if (method !== SHOW_STEPS_METHOD) return undefined;
 				const answer = stepsShown(declared);
-				// The second read is held until the test releases it, so the run changes its steps while it is under way.
+				// The second read is held until the test releases it, so actuality changes its steps while it is under way.
 				if (++reads !== 2) return answer;
 				return new Promise((resolve) => (release = () => resolve(answer)));
 			},
@@ -72,7 +72,7 @@ describe("the steps a page holds", () => {
 		expect(await held).toEqual(["RunSteps-passes", "RunSteps-fails"]);
 	});
 
-	it("are read once when the stream is open before the page first reads them, and again only when the run signals they changed", async () => {
+	it("are read once when the stream is open before the page first reads them, and again only when actuality signals they changed", async () => {
 		let reads = 0;
 		handle = setupShuTest({
 			dispatch: (method) => {

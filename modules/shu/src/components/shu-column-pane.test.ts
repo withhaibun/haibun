@@ -403,7 +403,7 @@ describe("what a pane renders when it collapses", () => {
 });
 
 describe("a column whose spine is a narrow form of itself", () => {
-	// Its strip is the column's own control surface, the log's rail is dragged and clicked to move through the run, so
+	// Its strip is the column's own control surface, the log's rail is dragged and clicked to move through actuality, so
 	// a click there is the reader using it, not asking for the rows back.
 	beforeAll(() => {
 		if (!customElements.get("shu-self-spine-column"))

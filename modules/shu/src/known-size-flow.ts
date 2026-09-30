@@ -2,7 +2,7 @@
  * A flow layout for lit-virtualizer that knows the size of some rows without measuring them.
  *
  * The flow layout positions the rows it has not measured by the average of the ones it has. A column whose rows
- * include many that are empty (the run document: an event that didn't produce a block at its level) measures ever more
+ * include many that are empty (actuality document: an event that didn't produce a block at its level) measures ever more
  * empty rows as it goes, the average caches falling, every position above the viewport is estimated again on each row,
  * and the reader sees the document jitter and its scroll range never settle. Here the source reports which rows are known
  * empty (`rowSize` responds 0): they take zero room without being measured, the average is over rows with content only,

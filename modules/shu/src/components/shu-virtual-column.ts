@@ -380,11 +380,11 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 			return;
 		}
 		// The strip doesn't show rows to scroll, so the rail moves the window itself. That is what makes the strip a
-		// control rather than a picture: the reader drags it to a place in the run, and expanding puts the rows there.
+		// control rather than a picture: the reader drags it to a place in actuality, and expanding puts the rows there.
 		if (this.spine) {
 			// The rail reports which ROW; a window cannot start past the last one, so what the strip shows is clamped even
 			// though what the reader picked is not. The rows of that window are requested as they would be by scrolling,
-			// so a source that pages the run in caches what the strip points at when the column is opened there.
+			// so a source that pages actuality in caches what the strip points at when the column is opened there.
 			const count = this.source?.count() ?? 0;
 			const last = Math.max(0, count - this.#window.visible);
 			this.#window = { first: Math.min(index, last), visible: this.#window.visible };
@@ -420,7 +420,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
 		const last = rail.placeOf(Math.max(shown.first, shown.first + shown.visible - 1));
 		const runs = rail.marks();
 		if (this.#placed?.of !== own || this.#placed.on !== runs) {
-			// A row's mark sits where the run has that row, so what this column holds is marked in the run's own places.
+			// A row's mark sits where actuality has that row, so what this column holds is marked in actuality's own places.
 			this.#placed = { of: own, on: runs, marks: [...runs, ...own.map((mark) => ({ ...mark, index: rail.placeOf(mark.index) }))] };
 		}
 		return { total: rail.places, window: { first, visible: Math.max(1, last - first + 1) }, markers: this.#placed.marks };

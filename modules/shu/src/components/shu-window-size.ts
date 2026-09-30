@@ -1,6 +1,6 @@
 /**
  * <shu-window-size>: the window-size picker, bound to the ONE global `windowSizeSetting` (window-size-setting.ts, the
- * setting's home, read by the run sources and the graph query). The current value is read reactively from the shared
+ * setting's home, read by actuality sources and the graph query). The current value is read reactively from the shared
  * signal, so every mounted picker stays in step.
  */
 import { html, css, type TemplateResult } from "lit";

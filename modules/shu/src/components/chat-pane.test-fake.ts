@@ -22,7 +22,7 @@ export const CHAT_STEP = { ask: ASK_STEP, keepImage: KEEP_IMAGE_STEP, sessions: 
 
 /**
  * A dispatch answering the pane as a run that offers the steps named: the show steps step lists them with the types the
- * catalog declares, a call to one of them is answered by `respond` under the step's name, the page's reports to the run are
+ * catalog declares, a call to one of them is answered by `respond` under the step's name, the page's reports to actuality are
  * taken as the monitor takes them, and any other call throws.
  */
 export function chatDispatch(

@@ -8,7 +8,7 @@ import { itemAt } from "../lib/util/item-at.js";
 /** CLI option name for run-policy */
 export const OPTION_RUN_POLICY = "--run-policy";
 
-/** CLI option for dry-run mode (preview which features pass/fail the run policy) */
+/** CLI option for dry-run mode (preview which features pass/fail actuality policy) */
 export const OPTION_DRY_RUN = "--dry-run";
 
 /** Environment variable for run-policy (format: "place dir:access[,dir:access]") */

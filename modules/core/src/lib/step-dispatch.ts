@@ -72,19 +72,19 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	// following a run asks it what it holds on every announcement, and each such call recorded as a step would write a
 	// record, announce it to every page and keep a result in this process for as long as it runs.
 	//
-	// What the run did not ask for is what arrives over a transport, which every transport marks programmatic. A read a
-	// feature states in its own body is the run reading and stays a step of it, whether the line reads directly or a
+	// What actuality did not ask for is what arrives over a transport, which every transport marks programmatic. A read a
+	// feature states in its own body is actuality reading and stays a step of it, whether the line reads directly or a
 	// combinator runs the read beneath it: `set x from <a read>` is the feature reading, and its answer is the step's.
 	// Written as substep instead, this rule never reached the page it was written for, whose reads arrive programmatic:
 	// a run left following by a page recorded one step per read, for as long as the page followed.
 	const recorded = !(action.step.read === true && featureStep.programmatic === true);
-	// What the run holds of the steps a feature has finished. What a reader asks of them is how many ran, when they
+	// What actuality holds of the steps a feature has finished. What a reader asks of them is how many ran, when they
 	// began and ended, and which one failed, so each is answered as the feature runs. Beyond that, the most recent are
 	// held in full, since a reader of the result reads what those produced; a step further back doesn't have a reader left, and
-	// holding it holds every graph slice, response body and rendered document the run has produced. A feature that
+	// holding it holds every graph slice, response body and rendered document actuality has produced. A feature that
 	// services requests for weeks would otherwise hold every step it ever ran.
 	// A step's result takes its place among the results when it is first known, so a step reads before the steps its
-	// cycles run, and its outcome is counted into the run once the cycles decide it, in that same place.
+	// cycles run, and its outcome is counted into actuality once the cycles decide it, in that same place.
 	const place = (result: TStepResult): void => {
 		if (!recorded) return;
 		const held = world.runtime.stepResults;
@@ -136,7 +136,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	const statedAt = readingAt();
 	authorizeToolCapability(tool.descriptor, grantedCapability, statedAt);
 	// What got through the gate, on the step's own record: which action it required and what the caller held, where the
-	// caller is not the run acting as itself, and the principal that proved itself, where one did. A refusal throws above,
+	// caller is not actuality acting as itself, and the principal that proved itself, where one did. A refusal throws above,
 	// so a record with these fields is a record of an allowed call.
 	const authorization: TStepAuthorization = {
 		...(!capabilityAllows(grantedCapability, "*")
@@ -156,7 +156,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 		await emitSeqPathStart(world, featureStep, authorization, { ranVia: tool.transport, ranOn: tool.descriptor.remoteOrigin });
 	}
 	// What is said while this step runs reports no more prominently than the step does, so a call made into a running
-	// instance leaves the caller's own narration out of the run's history rather than among its steps.
+	// instance leaves the caller's own narration out of actuality's history rather than among its steps.
 	const step = { seqPath: featureStep.seqPath.join("."), reportsAt: featureStep.isSubStep ? SUBSTEP_LEVEL : undefined };
 	let actionResult: TActionResult | undefined;
 	let lastStepResult: TStepResult | undefined;
@@ -181,7 +181,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 						if (actionResult.ok) {
 							if (actionResult.products) actionResult = { ...actionResult, products: { ...actionResult.products, [TRACE_SEQ_PATH]: featureStep.seqPath } };
 							actionResult = augmentViewHypermedia(world, action.step, actionResult, steppers);
-							// A fact is a record of the run, so a read the run did not ask for doesn't assert one, as it doesn't record a step.
+							// A fact is a record of actuality, so a read actuality did not ask for doesn't assert one, as it doesn't record a step.
 							if (recorded) await autoAssertProducts(world, step.seqPath, action.step, actionResult);
 						}
 						if (!actionResult.ok && featureStep.intent?.mode !== "speculative") {
@@ -191,7 +191,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 						place(placed);
 						const instructions: Array<TAfterStepResult | undefined> = await doStepperCycle(steppers, "afterStep", <TAfterStep>{ featureStep, actionResult }, action.actionName);
 						doAction = instructions.some((i) => i?.rerunStep);
-						// A cycle can fail a step that passed, so the outcome counted into the run is the one the cycles decide.
+						// A cycle can fail a step that passed, so the outcome counted into actuality is the one the cycles decide.
 						actionResult = afterStepOutcome(actionResult, instructions);
 						lastStepResult = stepResultFromActionResult(actionResult, action, start, placed.end ?? Timer.since(), featureStep);
 						settle(placed, lastStepResult);
@@ -295,7 +295,7 @@ async function autoAssertProducts(world: TWorld, seqPathKey: string, step: TStep
  * step can link back to it as a real graph edge. Status and endedAtTime are
  * updated by `emitSeqPathEnd` after the action completes.
  */
-/** What a step required and what allowed it, for the step's own record. A step the run takes as itself holds
+/** What a step required and what allowed it, for the step's own record. A step actuality takes as itself holds
  *  every action, so its record doesn't gain a field; a caller's says what it required, what it held and who proved it. */
 type TStepAuthorization = { required?: string; held?: string; controller?: string };
 
@@ -308,7 +308,7 @@ async function emitSeqPathStart(world: TWorld, featureStep: TFeatureStep, author
 	// generatedAtTime and trip the SeqPathSchema invariant.
 	const record: Record<string, unknown> = {
 		[SEQ_PATH_FIELD.id]: id,
-		// The run this step belongs to, as a field rather than only as the leading part of its id: a store filters on a
+		// The actuality this step belongs to, as a field rather than only as the leading part of its id: a store filters on a
 		// field, so a run can be read, counted and spanned as one run.
 		[SEQ_PATH_FIELD.execution]: execution,
 		[SEQ_PATH_FIELD.recordedAtTime]: new Date().toISOString(),
@@ -321,8 +321,8 @@ async function emitSeqPathStart(world: TWorld, featureStep: TFeatureStep, author
 		// be answered if the ordinary ones say so as well.
 		[SEQ_PATH_FIELD.mode]: featureStep.intent?.mode ?? "authoritative",
 		[SEQ_PATH_FIELD.ranVia]: ran.ranVia,
-		// A call made into a running instance is a step the run records, and reports as its events do: under the run's own
-		// steps, so a reader of the run is not shown the traffic of whoever is reading it.
+		// A call made into a running instance is a step actuality records, and reports as its events do: under actuality's own
+		// steps, so a reader of actuality is not shown the traffic of whoever is reading it.
 		[SEQ_PATH_FIELD.level]: stepLevel(featureStep.isSubStep),
 		...(ran.ranOn === undefined ? {} : { [SEQ_PATH_FIELD.ranOn]: ran.ranOn }),
 	};

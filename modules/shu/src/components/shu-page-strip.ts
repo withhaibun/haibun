@@ -1,7 +1,7 @@
 /**
  * <shu-page-strip> renders the strip along the bottom of the page, under whatever is docked. It holds the control that
  * opens and closes the docked pane, the page's status, the breadcrumb of the search and the columns, and the corner
- * controls. The corner controls hold the read access level, the run's time and playback,
+ * controls. The corner controls hold the read access level, actuality's time and playback,
  * and the settings.
  */
 import { html, type CSSResultGroup, type TemplateResult } from "lit";
@@ -74,11 +74,11 @@ export class ShuPageStrip extends ShuElement<typeof PageStripSchema> {
 		void loadSlotExtensions(SHU_TAG.PAGE_STRIP, [PERMISSIONS_SLOT], this.getAttribute("api-base") || "", () => this.requestUpdate()).catch((err) =>
 			reportToRun("warn", SHU_TAG.PAGE_STRIP, "optional UI extensions failed to load", { error: errorDetail(err) }),
 		);
-		// The run moving on changes where the cursor sits in it.
+		// Actuality moving on changes where the cursor sits in it.
 		if (!isOffline()) this.autoTeardown(this.subscribeBatched({ onBatch: () => this.#corners.showTime(this.timeCursor) }));
 	}
 
-	/** Says where the cursor sits in the run. It reads `now` while every view shows now, and an offset once a reader pins a moment. */
+	/** Says where the cursor sits in actuality. It reads `now` while every view shows now, and an offset once a reader pins a moment. */
 	protected onTimeSync(cursor: number | null): void {
 		this.#corners.showTime(cursor);
 	}

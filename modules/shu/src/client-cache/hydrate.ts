@@ -1,6 +1,6 @@
 /**
  * A run carried in a page rather than read from a site: the standalone report embeds the graph of the run it reports,
- * and this fills a memory-backed store with it at boot. Every view then reads the run through the same window it reads
+ * and this fills a memory-backed store with it at boot. Every view then reads actuality through the same window it reads
  * a live one by; a report doesn't add a second read path.
  *
  * Memory, not IndexedDB: a report is opened from a file, where every report shares one origin, so a report that
@@ -12,7 +12,7 @@ import { setGraphStore } from "../quads-snapshot.js";
 import { CACHE_SHAPE, MemoryDeviceStore, setDeviceStore } from "./device-store.js";
 import { readExecution } from "./executions.js";
 
-/** What a report carries of the run it reports: the graph the run wrote, which is the run, and the site's registry as
+/** What a report carries of the actuality it reports: the graph actuality wrote, which is actuality, and the site's registry as
  *  it stood. `shape` names the rule the payload was written to. */
 export type TCachePayload = {
 	shape: string;
@@ -33,6 +33,6 @@ export async function hydrateClientCache(cache: TCachePayload): Promise<void> {
 	const graph = new QuadStore();
 	if (cache.quads?.length) await graph.setMany(cache.quads);
 	setGraphStore(graph);
-	// The run this page carries is the run it reads: a site doesn't record another one.
+	// The actuality this page carries is the actuality it reads: a site doesn't record another one.
 	readExecution(cache.execution);
 }

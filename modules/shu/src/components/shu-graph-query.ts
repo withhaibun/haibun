@@ -47,7 +47,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	private results: VertexRow[] = [];
 	private sortableFields: string[] = [];
 	private labels: string[] = [];
-	/** The read of the run's types, which a query waits on: a type is asked for only where the run holds it. */
+	/** The read of actuality's types, which a query waits on: a type is asked for only where actuality holds it. */
 	#metadata: Promise<void> = Promise.resolve();
 	private total = 0;
 	#source: WindowedSource<VertexRow> = arrayWindowedSource<VertexRow>([]);
@@ -259,9 +259,9 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		await this.#metadata;
 		const label = this.qLabel;
 		const textQuery = this.qText;
-		// The server rejects a query that doesn't name a type or text, or a type the run doesn't hold; asking anyway fails
-		// identically on every retrigger (each SSE batch fires one), flooding the server and the run log. Say why once
-		// instead. An address outlives the run it was made in, so it keeps the type it names.
+		// The server rejects a query that doesn't name a type or text, or a type actuality doesn't hold; asking anyway fails
+		// identically on every retrigger (each SSE batch fires one), flooding the server and actuality log. Say why once
+		// instead. An address outlives the actuality it was made in, so it keeps the type it names.
 		if (!label && !textQuery?.trim()) return this.#refuse("a query needs a record type or search text");
 		if (label && !this.labels.includes(label)) return this.#refuse(typeNotHeld(label));
 		const sortBy = this.qSort;
@@ -347,7 +347,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	 * Apply what a live batch carries to the rows on screen, instead of asking the server again.
 	 *
 	 * A change arrives AS the quads that changed, so a row already shown is brought up to date from them. Answering a
-	 * change with a fresh query is what made a view of the run's own records feed itself: the query is dispatched as a
+	 * change with a fresh query is what made a view of actuality's own records feed itself: the query is dispatched as a
 	 * step, the step is recorded in the graph, and that recording is another change to answer, without end. Rows past
 	 * the ones on screen are read when a reader reaches them, which is what the windowed source already does.
 	 */

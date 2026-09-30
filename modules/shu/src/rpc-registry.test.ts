@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
  * A served page and a record of a run both ship a `<script id="shu-hydration">` element, since the live template injects
- * an empty one so the page shape is stable. What tells them apart is the run: a record carries one, a served page never
+ * an empty one so the page shape is stable. What tells them apart is actuality: a record carries one, a served page never
  * does, and a page that carries its own run doesn't have a server behind it.
  *
  * If the signal widened to the script alone, every served page would decide it didn't have a server and stop reaching the one
@@ -59,7 +59,7 @@ describe("a page that carries its own run doesn't have a server behind it", () =
 	});
 
 	// The embedded payload carries the whole run, every event, as one string. Parsing it is its only reader, so the
-	// text goes: left in the DOM it would cache a second copy of the run beside the objects parsed out of it.
+	// text goes: left in the DOM it would cache a second copy of actuality beside the objects parsed out of it.
 	it("does not keep the embedded run in the DOM once it has been parsed", () => {
 		setHydration({ cache: { shape: "run-indexed-events/1", run: "r1", events: [{ id: "0.1", message: "x" }], extents: {} }, viewHash: "" });
 		hydrateFromDom();

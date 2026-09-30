@@ -44,7 +44,7 @@ import { DOMAIN_GRAPH_QUERY } from "@haibun/core/lib/quad-types.js";
 import { CACHE_SHAPE, type TCachePayload } from "./client-cache/index.js";
 import { DOMAIN_FILE_PATH } from "@haibun/core/lib/domains.js";
 
-// The in-memory buffers hold a recent WINDOW, never the run: over months, an unbounded buffer is the process's heap
+// The in-memory buffers hold a recent WINDOW, never actuality: over months, an unbounded buffer is the process's heap
 // death (a first-time index of a large mailbox OOMed the daemon at ~4GB). The store is canonical for graph data and
 // the disk log for event history; these buffers only serve live backfill and the live cluster extension.
 
@@ -164,9 +164,9 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			const webserver = this.getWorld().runtime[WEBSERVER] as IWebServer;
 			const artifactDir = resolve(this.storage.getArtifactBasePath());
 			this.storage.ensureDirExists(artifactDir);
-			// A capture shows what the run's steps saw, so only a caller holding a private read is served one.
+			// A capture shows what actuality's steps saw, so only a caller holding a private read is served one.
 			const privately = requiring(READS_THE_RUNS_ARTIFACTS, this.getWorld().runtime, webserver);
-			webserver.addKnownStaticFolder(artifactDir, ARTIFACTS_ROUTE, { description: "What the run's steps captured, such as screenshots and videos" }, privately);
+			webserver.addKnownStaticFolder(artifactDir, ARTIFACTS_ROUTE, { description: "What actuality's steps captured, such as screenshots and videos" }, privately);
 		},
 		onEvent: (event: THaibunEvent) => {
 			this.queriedLabel = queriedLabelOf(event) ?? this.queriedLabel;
@@ -244,14 +244,14 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		await this.getWorld()
 			.shared.getStore()
 			.upsertIndividual(LOG_MESSAGE_LABEL, record)
-			.catch((err) => this.getWorld().eventLogger.warn(`[monitor] what the run said was not recorded: ${errorDetail(err)}`));
+			.catch((err) => this.getWorld().eventLogger.warn(`[monitor] what actuality said was not recorded: ${errorDetail(err)}`));
 	}
 
 	/**
 	 * What a run produced, written as a record under the step that produced it. The record says where the artifact is
 	 * and what it is, not what it holds: an artifact is a file, and a record of it is a pointer to that file.
 	 *
-	 * A trace of the run's own machinery doesn't state where a file is, because it is not a file the run produced. The graph
+	 * A trace of actuality's own machinery doesn't state where a file is, because it is not a file actuality produced. The graph
 	 * holds such a trace as what it is instead: a request is an HttpRequest, and a record of it here would be a second
 	 * copy of the same fact.
 	 */
@@ -274,19 +274,19 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		await this.getWorld()
 			.shared.getStore()
 			.upsertIndividual(RUN_ARTIFACT_LABEL, record)
-			.catch((err) => this.getWorld().eventLogger.warn(`[monitor] what the run produced was not recorded: ${errorDetail(err)}`));
+			.catch((err) => this.getWorld().eventLogger.warn(`[monitor] what actuality produced was not recorded: ${errorDetail(err)}`));
 	}
 
-	/** The run as the page holds it, for a page without a site to read it from: the graph the run wrote, which is the run,
+	/** Actuality as the page holds it, for a page without a site to read it from: the graph actuality wrote, which is actuality,
 	 *  and the site's registry as it stood. */
 	private cacheForReport(registry: unknown, quads: TQuad[]): TCachePayload {
 		return { shape: CACHE_SHAPE, execution: executionOf(this.getWorld().tag), registry, quads };
 	}
 
 	private async writeStandaloneReport({ fixedPath, compressed }: { fixedPath?: string; compressed: boolean }): Promise<string> {
-		// A report carries the run and the view state it was left in, never the answers a live page happened to receive:
-		// the run rides in the client cache (its events, the graph as quads, the site's declarations), and every read a
-		// view makes of those is answered from what the page holds. What is left is what a view SHOWED and the run does
+		// A report carries actuality and the view state it was left in, never the answers a live page happened to receive:
+		// actuality rides in the client cache (its events, the graph as quads, the site's declarations), and every read a
+		// view makes of those is answered from what the page holds. What is left is what a view SHOWED and actuality does
 		// not say, which is produced here.
 		const viewProducts: Record<string, unknown> = {};
 		// The view toggles: parameterless steps with a `.view` product, run once so the page opens where the reader left it.
@@ -303,10 +303,10 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				}
 			}),
 		);
-		// The run's declarations ride in the cache as the registry, where a page without a server reads them, read as every
-		// caller reads them: the steps the report's writer holds, which for the run's own report is every step.
+		// Actuality's declarations ride in the cache as the registry, where a page without a server reads them, read as every
+		// caller reads them: the steps the report's writer holds, which for actuality's own report is every step.
 		const world = this.getWorld();
-		if (!world.runtime.steppers) throw new Error("a report reads the run's steppers, and the run doesn't hold them");
+		if (!world.runtime.steppers) throw new Error("a report reads actuality's steppers, and actuality doesn't hold them");
 		const registry = discoverSteps(world, runRegistry(world), EVERY_DEFINITION, shownTo());
 		// 3. End-of-run snapshots for the affordances panel. Earlier RPC calls cached
 		// the early empty-graph state; the panel's offline render uses the cache, so the
@@ -331,7 +331,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		// itself, so what a reader sees of the graph is what the views would have painted from the site's own answer.
 		const built = await buildGraphSource(this.getWorld());
 		if (!built) logger.warn("[shu writeStandaloneReport] the graph was not captured: this store does not cluster, so a page reading this report doesn't show a graph");
-		// The address a report opens at names the type the query column was showing, which the records of the run don't state.
+		// The address a report opens at names the type the query column was showing, which the records of actuality don't state.
 		// Which views were open it does not name: the page reads those from the records it carries, by the same read a
 		// page with a server makes. What is inlined is the code those views need, so the views are still read for that.
 		const shown = await this.getWorld().shared.getStore().query({ predicate: SEQ_PATH_FIELD.showed, namedGraph: SEQ_PATH_LABEL });
@@ -405,12 +405,12 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		recordClientBlips: {
 			gwta: `record client blips {batch: ${DOMAIN_CLIENT_BLIPS}}`,
 			description:
-				"Receive a batch of fine-grained occurrences the SPA recorded and put each into the run's blip channel, in the order the browser recorded them. A read: the run doesn't retain a blip, so it doesn't record a batch's arrival either. A recorded batch would be a step whose events reach the page and repaint a scene that then records what it drew.",
+				"Receive a batch of fine-grained occurrences the SPA recorded and put each into actuality's blip channel, in the order the browser recorded them. A read: actuality doesn't retain a blip, so it doesn't record a batch's arrival either. A recorded batch would be a step whose events reach the page and repaint a scene that then records what it drew.",
 			read: true,
 			action: ({ batch }: { batch: TClientBlips }) => {
 				const world = this.getWorld();
 				for (const blip of batch.blips) recordBlip(world, blip.name, blip.value, { ...blip.attributes, at: blip.at });
-				// A browser buffer that overflowed between batches would otherwise be invisible: the run holds what it was
+				// A browser buffer that overflowed between batches would otherwise be invisible: actuality holds what it was
 				// given, and the page holds the truth about what it saw.
 				const missed = (batch.recorded ?? 0) - (this.clientBlipsReceived += batch.blips.length);
 				if (missed > 0) world.eventLogger.debug(`[shu] ${missed} client occurrence(s) recorded but not delivered; the page's buffer filled between batches`);

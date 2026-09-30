@@ -2,7 +2,7 @@
  * LogMessage: what a run said, as a graph individual.
  *
  * A step writes itself as a SeqPath individual; what it said while it ran is written here, under the same seqPath it
- * happened during. So one query over these and the SeqPath individuals is the run, ordered by time and filtered by
+ * happened during. So one query over these and the SeqPath individuals is actuality, ordered by time and filtered by
  * level, and a second record of it doesn't exist to keep in step.
  *
  * The level is declared as context, which is what makes it one of the filters offered beside the type rather than a
@@ -22,7 +22,7 @@ export const LOG_MESSAGE_FIELD = {
 	message: "message",
 	level: "level",
 	generatedAtTime: "generatedAtTime",
-	/** The run this was said during. */
+	/** The actuality this was said during. */
 	execution: EXECUTION_FIELD,
 	/** When this record was written. */
 	recordedAtTime: RECORDED_AT_TIME_FIELD,

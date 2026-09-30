@@ -39,7 +39,7 @@ export const features: TKirejiExport = {
 		monitorHoldsRows({ n: "8" }),
 		`saves shu to "${REPORT}"`,
 
-		"The same page, opened as a file: nothing it asks of a site is answered, and the run is still there to read. The views it had open come back with it, and what the page carries is what they read.",
+		"The same page, opened as a file: nothing it asks of a site is answered, and actuality is still there to read. The views it had open come back with it, and what the page carries is what they read.",
 		gotoPage({ name: `"file://${REPORT}"` }),
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
 		monitorHoldsRows({ n: "8" }),

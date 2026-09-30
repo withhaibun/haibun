@@ -4,7 +4,7 @@
  * A rail is a few hundred pixels and a run is however long it ran, so one scale cannot serve both: a year spread evenly
  * over a rail gives a reader a day per pixel, and a record they are reading can't be picked out of it. The scale is
  * focused instead. The window a page holds around where a reader is takes the middle share of the rail and maps
- * linearly, so a press near the focus picks the moment it points at. What the run did before that window and after it
+ * linearly, so a press near the focus picks the moment it points at. What actuality did before that window and after it
  * compresses into the ends, by the logarithm of how far away it is, so a failure a year back still has a place on the
  * rail and sits further out than one from an hour back.
  *
@@ -15,13 +15,13 @@
  */
 import { clamp } from "./util.js";
 
-/** What the run spans: the instants of its first and last records. */
+/** What actuality spans: the instants of its first and last records. */
 export type TRunSpan = { first: number; last: number };
 
 /** Where the rail is focused: the moment a reader is reading around, and the window the page holds around it. */
 export type TRunFocus = { at: number; from: number; to: number };
 
-/** The share of the rail the held window takes. The rest carries what the run did outside it, at both ends. */
+/** The share of the rail the held window takes. The rest carries what actuality did outside it, at both ends. */
 export const FOCUS_SHARE = 0.6;
 
 /** A fraction of the rail, which is what a place on it is. */
@@ -41,7 +41,7 @@ function ends(span: TRunSpan, focus: TRunFocus): { before: number; after: number
 /** Whether the window the page holds covers the whole run, which is every short run. */
 const holdsItAll = (span: TRunSpan, focus: TRunFocus): boolean => focus.from <= span.first && focus.to >= span.last;
 
-/** Where a moment sits on the rail, as a fraction of it from the run's first record to its last. */
+/** Where a moment sits on the rail, as a fraction of it from actuality's first record to its last. */
 export function railAt(moment: number, span: TRunSpan, focus: TRunFocus): number {
 	const reach = span.last - span.first;
 	if (reach <= 0) return 0;
@@ -53,7 +53,7 @@ export function railAt(moment: number, span: TRunSpan, focus: TRunFocus): number
 	return onRail(before + (held <= 0 ? 0 : (FOCUS_SHARE * (moment - focus.from)) / held));
 }
 
-/** The moment a fraction of the rail names, which is what a press on the rail asks the run for. */
+/** The moment a fraction of the rail names, which is what a press on the rail asks actuality for. */
 export function momentAt(fraction: number, span: TRunSpan, focus: TRunFocus): number {
 	const reach = span.last - span.first;
 	if (reach <= 0) return span.first;

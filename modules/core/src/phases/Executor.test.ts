@@ -165,7 +165,7 @@ describe("calculateShouldClose", () => {
 
 describe("createExecutionFailure", () => {
 	const step = (seqPath: number[], ok: boolean, errorMessage?: string) => ({ ok, errorMessage, in: `step ${seqPath.join(".")}`, seqPath }) as unknown as TStepResult;
-	// A feature's steps come to a verdict as they run, which is how the run itself arrives at one.
+	// A feature's steps come to a verdict as they run, which is how actuality itself arrives at one.
 	const feature = (stepResults: TStepResult[]) => {
 		const steps: TFeatureSteps = { count: 0 };
 		for (const result of stepResults) foldStep(steps, result);
@@ -174,7 +174,7 @@ describe("createExecutionFailure", () => {
 
 	it("names the feature step that failed, not a synthetic dispatch the step recovered from", () => {
 		// A model's tool call and an RPC dispatch carry a negative seqPath segment; either can fail and be handled
-		// inside the step that made it, so they don't fail the run.
+		// inside the step that made it, so they don't fail actuality.
 		const failure = Executor.createExecutionFailure(feature([step([0, -1, 1], false, "tool call failed"), step([0, 2, 4], false, "the real failure")]));
 		expect(failure?.error.message).toBe("the real failure");
 		expect(failure?.error.details.seqPath).toEqual([0, 2, 4]);

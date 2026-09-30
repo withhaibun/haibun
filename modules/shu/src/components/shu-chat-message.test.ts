@@ -120,7 +120,7 @@ describe("the records a message names", () => {
 		});
 	});
 
-	it("links the Comment the run recorded for it from its label", async () => {
+	it("links the Comment actuality recorded for it from its label", async () => {
 		const el = await rendered({ id: "q1", role: "user", text: "what is this", recordId: "ask-1" });
 		const label = el.querySelector(`[data-testid="${SHU_TEST_IDS.APP.CHAT_RECORD}"]`);
 		expect(label && JSON.parse(label.getAttribute("linkTarget") ?? "{}")).toEqual({ persistedAs: COMMENT_LABEL, id: "ask-1" });

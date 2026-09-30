@@ -8,7 +8,7 @@
  * activated before it, and opening it again returns to its own entry unless another scope was activated since.
  *
  * Only these events change the state, and each is a reader's act or a record of the reader's own turn. Anything else
- * that happens on the page (a data arrival, the run being read moving on, a replay, a pane opened by a trace, a resize,
+ * that happens on the page (a data arrival, the actuality being read moving on, a replay, a pane opened by a trace, a resize,
  * a layout coming to rest) is not an event here, so it cannot move the active record. The graph's follow and highlight,
  * the ask and the context status each read an output of the state rather than holding a piece of it.
  */

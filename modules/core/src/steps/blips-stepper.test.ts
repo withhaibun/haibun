@@ -67,7 +67,7 @@ describe("a watch: which occurrences, in what order", () => {
 		expect(renderWatch(held, blipWatch.seen, blipWatch.totals())).toContain(`showing the most recent ${WATCH_WINDOW}`);
 	});
 
-	it("carries the step each occurrence happened under, which is what ties it back to the run", () => {
+	it("carries the step each occurrence happened under, which is what ties it back to actuality", () => {
 		declareBlips(SCROLL);
 		const { world, eventLogger } = make();
 		blipWatch.start(eventLogger, [SCROLL.name]);

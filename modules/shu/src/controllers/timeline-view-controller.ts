@@ -1,8 +1,8 @@
 /**
- * TimelineViewController: a view's own place on the run's timeline.
+ * TimelineViewController: a view's own place on actuality's timeline.
  *
  * The page has one cursor, `timeCursor`: null at the live edge, or an instant the reader scrubbed to. A view tracks
- * that cursor, so playing and scrubbing the run move the view with the page. A view whose reader scrolls away from the
+ * that cursor, so playing and scrubbing actuality move the view with the page. A view whose reader scrolls away from the
  * live edge holds the instant it was showing, and keeps it while the rest of the page moves, until the reader returns
  * to the live edge.
  *

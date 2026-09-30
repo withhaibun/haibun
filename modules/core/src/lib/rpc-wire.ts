@@ -22,9 +22,9 @@ export const RpcRequestSchema = z.object({
 	/** The most this caller may see. A server bounds a call to the narrower of this and its own ceiling, so a caller
 	 *  can ask to see less than it is allowed but never more. */
 	readingAt: AccessLevelSchema.optional(),
-	/** What the caller asks of the run: to be answered, or to act. A call asking to read is answered and doesn't leave a
+	/** What the caller asks of actuality: to be answered, or to act. A call asking to read is answered and doesn't leave a
 	 *  record of the reading, and is refused where the step does not declare itself a read. A call that doesn't state it
-	 *  asks the run to act, which is what a caller that doesn't send this field can only be doing. */
+	 *  asks actuality to act, which is what a caller that doesn't send this field can only be doing. */
 	asks: z.enum(["read", "act"]).optional(),
 });
 type TRpcRequest = z.infer<typeof RpcRequestSchema>;
@@ -58,6 +58,13 @@ export const RpcRefusalSchema = z.object({ error: z.string().min(1) });
 /** A host's answer to a call: what it answered, or why it did not. */
 type TRpcAnswer = { kind: "answered"; body: unknown } | { kind: "refused"; error: string };
 
+/** What a caller is told when a call's answer didn't come from actuality: a call is always answered as JSON, so an answer
+ *  of another type came from a proxy or server in front of it. A sign-in that was refused is named as one. */
+export function notFromActuality(method: string, status: number, mediaType: string, said: string): string {
+	const signIn = status === 401 || status === 407 ? " Sign in to the site, then reload this page." : "";
+	return `${method}: this call didn't reach actuality. Something in front of it answered ${status} (${mediaType}): ${said.trim()}.${signIn}`;
+}
+
 /**
  * Read a host's answer to a call by the media type the answer states. A host answers every call it serves as JSON, and
  * one it did not serve with its refusal and a status that says so. An answer that is not JSON did not come from the
@@ -65,8 +72,7 @@ type TRpcAnswer = { kind: "answered"; body: unknown } | { kind: "refused"; error
  */
 export async function readRpcAnswer(method: string, res: Response): Promise<TRpcAnswer> {
 	const mediaType = res.headers.get("content-type") ?? "a body that doesn't state its media type";
-	if (!mediaType.startsWith("application/json"))
-		return { kind: "refused", error: `${method}: the server answered ${res.status} with ${mediaType}, not the run's JSON: ${(await res.text()).slice(0, 200)}` };
+	if (!mediaType.startsWith("application/json")) return { kind: "refused", error: notFromActuality(method, res.status, mediaType, (await res.text()).slice(0, 200)) };
 	const body: unknown = await res.json();
 	return res.ok ? { kind: "answered", body } : { kind: "refused", error: RpcRefusalSchema.parse(body).error };
 }

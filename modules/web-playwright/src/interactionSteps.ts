@@ -353,7 +353,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		loadBrowserExtension: {
 			gwta: `load the browser extension at {where: ${DOMAIN_FILE_PATH}}`,
 			description:
-				"Loads the unpacked extension in the directory `where` into the browser the run launches, from the next page it opens, and answers the extension's id and origin, derived from the key its manifest pins, so a step can open its pages.",
+				"Loads the unpacked extension in the directory `where` into the browser actuality launches, from the next page it opens, and answers the extension's id and origin, derived from the key its manifest pins, so a step can open its pages.",
 			productsDomain: DOMAIN_BROWSER_EXTENSION,
 			action: ({ where }: { where: string }) => wp.loadExtension(where),
 		},
@@ -371,14 +371,14 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			read: true,
 			capability: readAction(Access.private),
 			gwta: "show the browser relay",
-			description: "Whether a person's browser is attached through the relay, the key that attached it, and its tabs, each with whether the run drives it.",
+			description: "Whether a person's browser is attached through the relay, the key that attached it, and its tabs, each with whether actuality drives it.",
 			productsDomain: DOMAIN_RELAY_ATTACHMENT,
 			action: () => Promise.resolve(wp.relay ? actionOKWithProducts(wp.relay.attachment()) : actionNotOK("the browser relay is not served: `serve the browser relay` serves it")),
 		},
 		serveBrowserRelay: {
 			gwta: "serve the browser relay",
 			description:
-				"Serves the relay a person's extension attaches their browser through, over `/rpc` as `relay.attach` and `relay.send`, which require `WebPlaywright:attach`, and drives that browser from the next page the run opens. The run never closes the attached browser's pages or context. A step that needs the browser is refused while a browser isn't attached, and the refusal says so.",
+				"Serves the relay a person's extension attaches their browser through, over `/rpc` as `relay.attach` and `relay.send`, which require `WebPlaywright:attach`, and drives that browser from the next page actuality opens. Actuality never closes the attached browser's pages or context. A step that needs the browser is refused while a browser isn't attached, and the refusal says so.",
 			action: () => wp.serveRelay(),
 		},
 
@@ -505,7 +505,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		takeScreenshot: {
 			...PAGE_READ,
 			gwta: "take a screenshot",
-			description: "Screenshots the page into the run's storage, and returns where the image's bytes are kept and their media type.",
+			description: "Screenshots the page into actuality's storage, and returns where the image's bytes are kept and their media type.",
 			productsDomain: DOMAIN_IMAGE_REFERENCE,
 			action: async (_args, featureStep: TFeatureStep) => {
 				// Create a minimal step result for artifact tracking

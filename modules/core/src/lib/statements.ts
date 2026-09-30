@@ -4,7 +4,7 @@
  * A statement is a subject, a predicate, and an object. This reads them back for a given predicate and answers, for
  * each, which reading asserted it, in which run step, and how that step ended. Every party in a row is a REFERENCE
  * (`@id` + `@type`), never a copied display string, so a view renders each cell as something to open: the subject,
- * the passage, the reading, the run.
+ * the passage, the reading, actuality.
  *
  * This module doesn't store a record: this is a projection of what the store already holds, shaped as RDF reification
  * (`rdf:Statement`, subject / predicate / object) plus provenance. A coverage table, which requirements a run
@@ -17,7 +17,7 @@ import { SEQ_PATH_FIELD, SEQ_PATH_EDGE, type TSeqPath } from "./seq-path.js";
 /** A reference to an individual, as JSON-LD names one: what to open, and what kind of thing it is. */
 export type TReference = { "@id": string; "@type": string };
 
-/** One statement and its provenance. `assertedBy` is the run step that made it; `outcome` is how that step's run ended. */
+/** One statement and its provenance. `assertedBy` is actuality step that made it; `outcome` is how that step's run ended. */
 export type TStatementRow = {
 	"@type": "rdf:Statement";
 	subject: TReference;
@@ -48,7 +48,7 @@ async function readingsByStatement(store: TStatementStore): Promise<Map<string, 
 	return byStatement;
 }
 
-/** The run a step belongs to: its outermost ancestor, whose status is the run's own. One walk, cycle-guarded by depth. */
+/** The actuality a step belongs to: its outermost ancestor, whose status is actuality's own. One walk, cycle-guarded by depth. */
 async function runOf(store: TStatementStore, seqPathId: string): Promise<TSeqPath | undefined> {
 	let current = await store.getIndividual<TSeqPath>(SEQ_PATH_LABEL, seqPathId);
 	for (let depth = 0; current && depth < 100; depth++) {

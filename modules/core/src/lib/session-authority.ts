@@ -1,5 +1,5 @@
 /**
- * SessionAuthority: the run's one capability authority. It holds what a consumer registers for the specification its
+ * SessionAuthority: actuality's one capability authority. It holds what a consumer registers for the specification its
  * deployment uses: a verifier for evidence presented to this run, and an invoker for authority this run presents
  * elsewhere. haibun-core stays crypto-free, so it doesn't read a proof or sign a request itself.
  */
@@ -124,11 +124,11 @@ export function getAuthority(runtime: TRuntime): IAuthority | undefined {
 /** The run's authority, which `need` requires. A run that doesn't hold one is refused, naming what required it. */
 export function heldAuthority(runtime: TRuntime, need: string): IAuthority {
 	const authority = getAuthority(runtime);
-	if (!authority) throw new Error(`the run doesn't hold an authority, which ${need} requires`);
+	if (!authority) throw new Error(`actuality doesn't hold an authority, which ${need} requires`);
 	return authority;
 }
 
-/** How a client in this process signs what it invokes elsewhere: through whatever invoker the run's authority holds when
+/** How a client in this process signs what it invokes elsewhere: through whatever invoker actuality's authority holds when
  *  the call is made, so a client made before the invoker was registered still signs with it. */
 export function requestSigner(runtime: TRuntime): TRequestSigner {
 	return (request, action) => heldAuthority(runtime, `invoking ${action} at ${request.url}`).signRequest(request, action);

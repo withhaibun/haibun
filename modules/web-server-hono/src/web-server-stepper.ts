@@ -233,8 +233,8 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		enableRpc: {
 			gwta: "enable rpc",
 			action: () => {
-				// The run's own registry, which holds what the run's transports injected, so a caller reaching the run by RPC
-				// dispatches and discovers the same steps as every other caller of the run.
+				// Actuality's own registry, which holds what actuality's transports injected, so a caller reaching actuality by RPC
+				// dispatches and discovers the same steps as every other caller of actuality.
 				this.stepRegistry = runRegistry(this.getWorld());
 
 				const transport = getFromRuntime(this.getWorld().runtime, TRANSPORT) as ITransport;
@@ -300,13 +300,13 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 						const validatedParams = validateToolInput(seqPath, tool, params, world);
 						const featureStep = buildFeatureStepForTransport(tool, validatedParams, seqPath);
 						// RPC dispatches are SPA-initiated (constant polling like getClusteredQuads), not feature steps;
-						// log them at trace so they don't bury the run's own steps in the timeline. Still visible at debug.
+						// log them at trace so they don't bury actuality's own steps in the timeline. Still visible at debug.
 						featureStep.isSubStep = true;
 						// Whoever proved themselves at this boundary is who acts inside it, so what a step records names the
 						// reader who asked for it rather than the process that carried it out. What it reads is bounded by the read it
 						// holds, in dispatch, and by the level the call asked to read at, which can only be narrower.
 						const hr = await runWithRequestContext({ baseIri: requestBaseIri(requestInfo?.headers) }, () =>
-							// A request holds only what it presented: the server was started inside a step of the run, and
+							// A request holds only what it presented: the server was started inside a step of actuality, and
 							// a caller doesn't hold what that step held.
 							runActingAs(principal, () => runReadingAt(msg.readingAt, () => dispatchStep({ registry, world, steppers: this.steppers, grantedCapability: granted }, featureStep))),
 						);

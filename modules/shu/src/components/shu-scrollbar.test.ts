@@ -69,7 +69,7 @@ describe("shu-scrollbar interaction", () => {
 		el.showPosition = false;
 		document.body.appendChild(el);
 		await el.updateComplete;
-		// Without the numbers the glyphs still read as what they are: presses to the start and the end of the run.
+		// Without the numbers the glyphs still read as what they are: presses to the start and the end of actuality.
 		expect((el.shadowRoot?.querySelector("[data-testid=scrollbar-pos-top]")?.textContent ?? "").trim()).toBe("⤒");
 		expect((el.shadowRoot?.querySelector("[data-testid=scrollbar-pos-bottom]")?.textContent ?? "").trim()).toBe("⤓");
 		expect(el.shadowRoot?.querySelector("[data-testid=scrollbar-marker]")).toBeTruthy(); // marks stay
@@ -207,8 +207,8 @@ describe("a press on the thumb that never moves", () => {
 	});
 });
 
-describe("the position glyphs are presses to the run's edges", () => {
-	// The rail's rows are what a view holds; the top glyph asks for the START of the run and the bottom one for its live
+describe("the position glyphs are presses to actuality's edges", () => {
+	// The rail's rows are what a view holds; the top glyph asks for the START of actuality and the bottom one for its live
 	// END, beyond what is held, which a host that pages its data answers by loading to that edge.
 	beforeAll(() => {
 		provideLayout();

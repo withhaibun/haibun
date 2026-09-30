@@ -145,8 +145,8 @@ export class ActionsBarQuery implements ReactiveController {
 		this.#announce(false);
 	}
 
-	/** Read the types the query surface offers and the fields of the selected type. The bar reads them again when the run's
-	 *  steps change, which changes what the run declares and not the search a reader chose, so the bar doesn't announce a search. */
+	/** Read the types the query surface offers and the fields of the selected type. The bar reads them again when actuality's
+	 *  steps change, which changes what actuality declares and not the search a reader chose, so the bar doesn't announce a search. */
 	async readTypes(): Promise<void> {
 		await getAvailableSteps(); // the concern catalog the domains are read from arrives with the steps
 		this.#domainOptions = buildDomainOptions(await getAvailableDomains());
@@ -231,13 +231,13 @@ export class ActionsBarQuery implements ReactiveController {
 	}
 
 	/** The selected type's key, from its label, or the first type where a type isn't selected. A label the types don't carry stays
-	 *  selected without a key, and the bar says the run doesn't hold such a type. */
+	 *  selected without a key, and the bar says actuality doesn't hold such a type. */
 	#syncSelectedDomainKey(): void {
 		// A view can state its context before the types are read, when the bar connects after it: the label is held, and
 		// reading the types settles it.
 		if (!this.#typesRead) return;
 		if (this.#selectedLabel) {
-			// A type the run doesn't hold stays chosen, as the address names it, and the page offers the run's types.
+			// A type actuality doesn't hold stays chosen, as the address names it, and the page offers actuality's types.
 			const matching = this.#domainOptions.find((option) => option.queryLabel === this.#selectedLabel);
 			this.#selectedDomainKey = matching?.key ?? "";
 			this.#statePageTypes();

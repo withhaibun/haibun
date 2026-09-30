@@ -22,7 +22,7 @@ const testIdSetup = flattenTestIds(SHU_TEST_IDS).map((id) => setAs({ what: id, d
 
 export const features: TKirejiExport = {
 	"An address names a type": [
-		feature({ feature: "An address outlives the run it was made in" }),
+		feature({ feature: "An address outlives the actuality it was made in" }),
 
 		...testIdSetup,
 

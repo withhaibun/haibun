@@ -13,7 +13,7 @@ import { aControllerHost } from "./controller-host.test-fake.js";
 import { SHU_EVENT, SHU_TAG } from "../consts.js";
 import { declaringSteps, setupShuTest, stepsChanged, stepsReadAgain, stepsShown, type TShuTestHandle } from "../test-setup.js";
 
-/** The steps the run offers. */
+/** The steps actuality offers. */
 const offered: TStepDefinition[] = [];
 /** A page on a run that offers the steps `offered` holds when the page reads them. */
 const aRun = () => setupShuTest({ dispatch: declaringSteps(() => stepsShown(offered)) });
@@ -58,7 +58,7 @@ describe("the actions bar's step mode", () => {
 	});
 	afterEach(() => t.teardown());
 
-	it("offers the steps the run holds once the page has read them again", async () => {
+	it("offers the steps actuality holds once the page has read them again", async () => {
 		const { host, steps } = await aStepsPage();
 		expect(steps.offersAsk).toBe(false);
 		offered.push(ASK);
@@ -67,7 +67,7 @@ describe("the actions bar's step mode", () => {
 		stepsChanged(t, 1);
 		await added;
 		expect(host.updatesAsked).toBeGreaterThan(asked);
-		expect(steps.offersAsk, "the step the run added is one the bar offers").toBe(true);
+		expect(steps.offersAsk, "the step actuality added is one the bar offers").toBe(true);
 		host.disconnect();
 		const shown = host.updatesAsked;
 		offered.pop();

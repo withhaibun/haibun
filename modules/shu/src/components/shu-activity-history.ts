@@ -41,14 +41,14 @@ export class ShuActivityHistory extends ShuElement<typeof EmptySchema> {
 
 	/** Each message of the transcript by its key, with the message it was last given. */
 	#messages = new Map<string, { el: ShuChatMessage; given: string }>();
-	/** The chat's place on the run's timeline, written to the address beside the session so a reload opens where the
+	/** The chat's place on actuality's timeline, written to the address beside the session so a reload opens where the
 	 *  reader was reading. */
 	#view = new TimelineViewController(this, { name: CHAT_VIEW_PARAM, onMove: () => this.syncTranscript() });
 	#follow = new ScrollFollowController(this, () => this.#jumpToEnd(), {
 		view: this.#view,
 		arrivedAfter: () => this.#turnsAfterThePlace,
 		// The reader's place is the newest turn they have been shown, so a turn asked after they stopped following is one
-		// they haven't read. The page's cursor is null while the run is live, which wouldn't hold a place.
+		// they haven't read. The page's cursor is null while actuality is live, which wouldn't hold a place.
 		placeNow: () => this.#newestShown,
 	});
 	/** When the newest turn this view shows was asked. */

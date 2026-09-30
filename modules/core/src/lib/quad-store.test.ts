@@ -263,16 +263,16 @@ describe("the level each quad a run holds is written and read at", () => {
 		store = new QuadStore(undefined, undefined, levels);
 	});
 
-	it("doesn't return the run's own facts to a public reader", async () => {
+	it("doesn't return actuality's own facts to a public reader", async () => {
 		await store.set("fact-1", "says", "kept", FACTS);
 		expect(await as(publicReader, () => store.query({ namedGraph: FACTS }))).toEqual([]);
 		expect((await store.getClusteredQuads({ perTypeLimit: 10, accessLevel: Access.public })).quads, "nor to a read asking for public").toEqual([]);
 		expect(await as(reader, () => store.get("fact-1", "says", FACTS)), "and to a private reader").toBe("kept");
 	});
 
-	it("writes at private a record whose level a private reader doesn't state, where its type is public, and the run's at public", async () => {
+	it("writes at private a record whose level a private reader doesn't state, where its type is public, and actuality's at public", async () => {
 		await as(reader, () => store.upsertIndividual(NOTICE, { id: "notice-1", text: "read privately" }));
-		await store.upsertIndividual(NOTICE, { id: "notice-2", text: "the run's" });
+		await store.upsertIndividual(NOTICE, { id: "notice-2", text: "actuality's" });
 		const read = await as(publicReader, () => store.queryIndividuals<{ id: string; accessLevel: string }>(NOTICE));
 		expect(read.map(({ id, accessLevel }) => [id, accessLevel])).toEqual([["notice-2", Access.public]]);
 	});

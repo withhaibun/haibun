@@ -1,6 +1,6 @@
 /**
  * The corner controls on the page strip and the one popover they open: the settings, the read access level with the
- * authority a reader holds, the time offset with the run's playback, and the full text of the page's status. One corner
+ * authority a reader holds, the time offset with actuality's playback, and the full text of the page's status. One corner
  * is open at a time. The popover floats in the top layer above the strip, so it doesn't cover a docked pane's input line.
  */
 import { html, nothing, type ReactiveController, type TemplateResult } from "lit";
@@ -46,7 +46,7 @@ const spanLabel = (ms: number): { n: number; unit: "s" | "m" } => {
 /**
  * How far along a run the time cursor sits: the moment it is at, out of how long the run is, "11/40s". A bare "11s"
  * doesn't say whether that is near the beginning or the end, which is the thing a reader wants from a readout
- * this small. "now" at the latest moment seen, since the run doesn't have an upper bound for the fraction.
+ * this small. "now" at the latest moment seen, since actuality doesn't have an upper bound for the fraction.
  */
 export function timeOffsetLabel(cursor: number | null, firstEventTime: number, latestEventTime: number): string {
 	if (cursor == null || cursor <= 0 || cursor >= latestEventTime) return "now";
@@ -56,8 +56,8 @@ export function timeOffsetLabel(cursor: number | null, firstEventTime: number, l
 	return at.unit === whole.unit ? `${at.n}/${whole.n}${whole.unit}` : `${Math.round((cursor - firstEventTime) / 1000)}/${whole.n * 60}s`;
 }
 
-/** The time offset the strip shows for a cursor: `now` at the live edge, and how far along the run it sits otherwise.
- *  The run's span is read off the shared event log without registering a window, since the strip is mounted for the whole
+/** The time offset the strip shows for a cursor: `now` at the live edge, and how far along the actuality it sits otherwise.
+ *  Actuality's span is read off the shared event log without registering a window, since the strip is mounted for the whole
  *  session and a window it held would page the entire run in and pin it there. */
 function timeOffsetOf(cursor: number | null): string {
 	if (cursor === null || cursor <= 0) return "now";
@@ -122,7 +122,7 @@ export class PageStripCorners implements ReactiveController {
 		this.#host.requestUpdate();
 	}
 
-	/** Show how far along the run the time cursor is. */
+	/** Show how far along actuality the time cursor is. */
 	showTime(cursor: number | null): void {
 		const label = timeOffsetOf(cursor);
 		if (label === this.#timeOffset) return;
@@ -150,7 +150,7 @@ export class PageStripCorners implements ReactiveController {
 		this.#host.requestUpdate();
 	}
 
-	/** The time offset opens the log, whose rail is where a reader moves through the run: minimized where it is not open,
+	/** The time offset opens the log, whose rail is where a reader moves through actuality: minimized where it is not open,
 	 *  and left as the reader has it where it is. It also opens playback, the controls a rail cannot offer. */
 	onTimeOffsetClick = (e: Event): void => {
 		const tag = SHU_TAG.MONITOR_COLUMN;
@@ -213,7 +213,7 @@ export class PageStripCorners implements ReactiveController {
 			<button class="pane-icon settings-button" aria-label="Settings" aria-expanded=${this.#open === "settings"} data-testid=${`${prefix}settings-button`}
 				@click=${this.toggle("settings")}>⚙</button>
 			<button class="pane-icon corner-toggle time-offset" aria-label="Open the log" aria-expanded=${this.#open === "playback"}
-				title="where the run is; opens the log, whose rail is where you move it from"
+				title="where actuality is; opens the log, whose rail is where you move it from"
 				data-testid=${`${prefix}time-offset`} @click=${this.onTimeOffsetClick}>${this.#timeOffset}</button>
 		</span>`;
 	}

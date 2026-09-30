@@ -1,9 +1,9 @@
 /**
- * <shu-step-definition>: one step as the run declares it. Its line, what it does, the stepper that declares it, the
+ * <shu-step-definition>: one step as actuality declares it. Its line, what it does, the stepper that declares it, the
  * domain of each argument and of what it returns, the action a caller holds to call it, and the host it runs at. Each
  * domain links to its view, so a reader follows a step to the domains it joins and from a domain to the steps that
  * take and make it. The step can be chosen in the actions bar from here. The steps a page reads are the steps it may
- * call, so a step the run declares for other callers only is refused here, named.
+ * call, so a step actuality declares for other callers only is refused here, named.
  */
 import { html, css, type TemplateResult } from "lit";
 import { Task } from "@lit/task";
@@ -55,7 +55,7 @@ export class ShuStepDefinition extends ShuElement<typeof StateSchema> {
 		super(StateSchema, { method: "" });
 	}
 
-	/** The step the run declares under this pane's method. A method that the steps don't declare is refused, with the method named. */
+	/** The step actuality declares under this pane's method. A method that the steps don't declare is refused, with the method named. */
 	#load = new Task(this, {
 		args: () => [this.state.method] as const,
 		task: async ([method]): Promise<TStepDefinition | undefined> => {
@@ -101,7 +101,7 @@ export class ShuStepDefinition extends ShuElement<typeof StateSchema> {
 				${step.productsDomain ? html`<dt>Returns</dt><dd data-testid=${IDS.PRODUCTS}>${domainRef(step.productsDomain)}</dd>` : ""}
 				${step.productsOf ? html`<dt>Returns</dt><dd data-testid=${IDS.PRODUCTS}>what its <code>{${step.productsOf}}</code> returns</dd>` : ""}
 				<dt>Requires</dt><dd>${actionRef(step.capability)}</dd>
-				<dt>Does</dt><dd>${step.read ? "reads, and the run doesn't record the reading" : "acts, and the run records it"}</dd>
+				<dt>Does</dt><dd>${step.read ? "reads, and actuality doesn't record the reading" : "acts, and actuality records it"}</dd>
 				${step.remoteOrigin ? html`<dt>Runs at</dt><dd>${originLink(step.remoteOrigin)}</dd>` : ""}
 			</dl>
 			<button type="button" class="primary" data-testid=${IDS.CHOOSE} @click=${this.onChoose}>Choose this step</button>

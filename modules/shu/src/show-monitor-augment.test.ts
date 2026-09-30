@@ -32,7 +32,7 @@ describe("show monitor markers → parser", () => {
 			descriptor: {
 				method: "MonitorStepper-showMonitor",
 				stepperName: "MonitorStepper",
-				stepperDescription: "Shows the run's monitor.",
+				stepperDescription: "Shows actuality's monitor.",
 				stepName: "showMonitor",
 				pattern: "show monitor",
 				paramDomains: {},

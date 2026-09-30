@@ -1541,8 +1541,8 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.applyFocus();
 	}
 
-	/** One measured frame time: recorded for the run, kept in the window, and evaluated against the breath's limit.
-	 *  A signal is acted on here (the next beat holds or breathes) and recorded, so the run can observe the regulation
+	/** One measured frame time: recorded for actuality, kept in the window, and evaluated against the breath's limit.
+	 *  A signal is acted on here (the next beat holds or breathes) and recorded, so actuality can observe the regulation
 	 *  and the time behind it. */
 	private regulate(timeMs: number, now: number, drew: { calls: number }): void {
 		recordFrameTime(this.regulation, timeMs, DEFAULT_REGULATION_THRESHOLDS.windowSamples);

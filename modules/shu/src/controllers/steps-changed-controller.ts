@@ -1,8 +1,8 @@
 import type { ReactiveController, ReactiveControllerHost } from "lit";
 import { onStepsChanged } from "../rpc-registry.js";
 
-/** A view's handle on the run's steps: the view reads them again each time the page has read them again, which the page
- *  does when the run's steps change. */
+/** A view's handle on actuality's steps: the view reads them again each time the page has read them again, which the page
+ *  does when actuality's steps change. */
 export class StepsChangedController implements ReactiveController {
 	private stop: (() => void) | undefined;
 

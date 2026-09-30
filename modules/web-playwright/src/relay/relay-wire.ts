@@ -39,7 +39,7 @@ export const RelayAttachmentSchema = z.object({
 	attached: z.boolean().describe("Whether a browser is attached."),
 	holder: z.string().optional().describe("The key that attached it, where it proved one."),
 	tabs: z
-		.array(z.object({ id: z.number(), title: z.string().optional(), url: z.string().optional(), attached: z.boolean().describe("Whether the run drives the tab.") }))
+		.array(z.object({ id: z.number(), title: z.string().optional(), url: z.string().optional(), attached: z.boolean().describe("Whether actuality drives the tab.") }))
 		.describe("The tabs the extension reported."),
 });
 export type TRelayAttachment = z.infer<typeof RelayAttachmentSchema>;

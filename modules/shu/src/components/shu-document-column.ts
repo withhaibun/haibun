@@ -1,6 +1,6 @@
 /**
- * <shu-document-column>: the run as an academic-paper document: execution events rendered as headings, step lines,
- * prose, and embedded artifacts. It reads the run the way every event view does (event-source): one source per level,
+ * <shu-document-column>: actuality as an academic-paper document: execution events rendered as headings, step lines,
+ * prose, and embedded artifacts. It reads actuality the way every event view does (event-source): one source per level,
  * spanning the whole run by index, paged in as the reader reaches for a region, bounded in what it caches, live events
  * taking their place at the edge. One row per event. An event's blocks (document-blocks) are generated a page at a time
  * from the cached events of that page and given to the events they came from, so only what is cached is rendered and an
@@ -71,9 +71,9 @@ const SANITIZE_OPTS = {
 	ADD_TAGS: ["div", "shu-ref"],
 };
 
-/** One row of the document: an event of the run at its index, and the blocks it produced. */
+/** One row of the document: an event of actuality at its index, and the blocks it produced. */
 type TDocRow = { index: number; event: TEventRecord; blocks: TDocBlock[] };
-/** The rows of one page of the run, with what they were built from: how many events of the page were cached, and the first
+/** The rows of one page of actuality, with what they were built from: how many events of the page were cached, and the first
  *  and last of them, so a page that grew (the live edge) or changed (another run's, fetched again) is built again and an
  *  unchanged one never is, distinguished in constant time. */
 type TPageRows = { cached: number; first: TEventRecord; last: TEventRecord; rows: TDocRow[] };
@@ -90,7 +90,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	// run's extent, any region of it pages in on demand, the cached pages are bounded, and live events take their place
 	// as they arrive. One source per level, shared across views, swapped when the level changes.
 	/** The reading this view reads, made when it connects: a view constructed and never connected would otherwise
-	 *  leave a reading of the run that a view doesn't read. */
+	 *  leave a reading of the actuality that a view doesn't read. */
 	#run!: RunSource;
 	#unsubscribeRun?: () => void;
 	#source: WindowedSource<TDocRow> = this.#rowsOver(this.#run);
@@ -146,17 +146,17 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		super(DocumentColumnSchema, { level: "log" });
 	}
 
-	/** When the run began, as the run source knows it: the epoch every row's raw time is measured from. */
+	/** When actuality began, as actuality source knows it: the epoch every row's raw time is measured from. */
 	get #first(): number {
 		return this.#run.extent().first ?? 0;
 	}
 
-	/** The run document as an as:Document, with what is cached rendered to markdown (mirrors what the column shows). */
+	/** Actuality document as an as:Document, with what is cached rendered to markdown (mirrors what the column shows). */
 	summarizeForKihan(): TLinkedData | null {
 		const events = this.#windowRows.map((r) => r.event) as unknown as THaibunEvent[];
 		if (events.length === 0) return null;
 		const { md } = generateDocumentMarkdown(events, buildArtifactIndex(events).artifactsByStep, this.state.level as THaibunLogLevel, this.#first);
-		return { "@id": "view:document-log", "@type": "as:Document", name: "the run document shown in this column, as markdown", content: md };
+		return { "@id": "view:document-log", "@type": "as:Document", name: "actuality document shown in this column, as markdown", content: md };
 	}
 
 	protected override onConnected(): void {
@@ -172,7 +172,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		this.requestUpdate(); // renderRow recomputes each row's past/current/future class
 	}
 
-	/** Read the run at the level now shown: one source per level, shared across views, swapped when the level changes. */
+	/** Read actuality at the level now shown: one source per level, shared across views, swapped when the level changes. */
 	#readRun(): void {
 		this.#unsubscribeRun?.();
 		this.#run = graphRunSource(this.state.level);
@@ -182,7 +182,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		void this.#run.ready().then(() => this.requestUpdate());
 	}
 
-	/** A WindowedSource of rows over the run source: the run's extent, each cached event as a row, the rest undefined
+	/** A WindowedSource of rows over actuality source: actuality's extent, each cached event as a row, the rest undefined
 	 *  until their page lands. The rail marks come from the cached rows. */
 	#rowsOver(run: RunSource): WindowedSource<TDocRow> {
 		return {
@@ -244,7 +244,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 
 	/** One page of events as rows: the document markdown of those events (headings, step lines, prose, artifact holders),
 	 *  rendered, sanitized, split into blocks, finalized (artifacts filled, reader classes, thumbnail strips stamped with
-	 *  this page's name), and each block given to its own event. Raw times are from the run's start, so rows of
+	 *  this page's name), and each block given to its own event. Raw times are from actuality's start, so rows of
 	 *  every page share one epoch. */
 	#buildRows(p: number, start: number, events: TEventRecord[]): TDocRow[] {
 		const typed = events as unknown as THaibunEvent[];
@@ -289,7 +289,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	/** A mark on the rail for every step that failed, so a reader jumps to it in a long run without scrolling for it.
 	 *  The mark sits on the step's own row (its start, which carries its blocks), found from the end that failed. Its
 	 *  glyph comes from the shared marker vocabulary, so a speculative try and a handed-out call are marked as what
-	 *  they are rather than as the run failing. */
+	 *  they are rather than as actuality failing. */
 	#markers(): TScrollMarker[] {
 		const markers: TScrollMarker[] = [];
 		for (const { index, event } of this.#windowRows) {
@@ -302,7 +302,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	}
 
 	protected willUpdate(): void {
-		// The window, its marks and the cursor's row, derived when the run changes rather than when the rail draws: the
+		// The window, its marks and the cursor's row, derived when actuality changes rather than when the rail draws: the
 		// rail asks for its marks on every frame a reader scrolls, and a cursor at the live edge doesn't sit on a row.
 		this.#windowRows = this.#window();
 		this.#marks = this.#markers();
@@ -326,7 +326,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	}
 
 	/** A click in a row scrubs to that row. A click on a link to a heading of this document goes to that heading
-	 *  instead: the reader requested somewhere else in the run, not for the moment they clicked in. A link naming
+	 *  instead: the reader requested somewhere else in actuality, not for the moment they clicked in. A link naming
 	 *  anything else is left alone, so a link out of the document still leads out of it. */
 	private onBlockClick(e: Event, rawTime: number): void {
 		const href = (e.composedPath().find((n) => n instanceof HTMLAnchorElement) as HTMLAnchorElement | undefined)?.getAttribute("href") ?? "";
@@ -390,7 +390,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		let frames = this.#framesOf(p);
 		for (let hops = 0; (n < 0 || n >= frames.length) && hops < MAX_FRAME_HOPS; hops++) {
 			p += dir;
-			if (p < 0 || p * size >= this.#run.count()) return; // at the run's first/last thumbnail, so the view doesn't move
+			if (p < 0 || p * size >= this.#run.count()) return; // at actuality's first/last thumbnail, so the view doesn't move
 			await this.#run.ensureRange(p * size, Math.min((p + 1) * size, this.#run.count()));
 			frames = this.#framesOf(p);
 			n = dir < 0 ? frames.length - 1 : 0;
@@ -420,7 +420,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	}
 
 	/** One event's row: its blocks as rendered; a skeleton while its page is not cached; an event that didn't produce a block at
-	 *  this level (a step's end, a trace) is an empty row, so the run's index space is the column's. */
+	 *  this level (a step's end, a trace) is an empty row, so actuality's index space is the column's. */
 	#renderRow = (i: number, row: unknown): TemplateResult => {
 		const r = row as TDocRow | undefined;
 		if (!r) return html`<div class="doc-block doc-skeleton" aria-hidden="true"></div>`;

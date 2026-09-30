@@ -125,7 +125,7 @@ describe("how far along a run the cursor sits", () => {
 	const latest = first + 600_000;
 
 	it("says the moment out of the whole run, so a reader can tell near-the-start from near-the-end", () => {
-		// A ten minute run: two minutes in reads as two of ten. On its own, "2m" doesn't say where in the run that
+		// A ten minute run: two minutes in reads as two of ten. On its own, "2m" doesn't say where in the actuality that
 		// is, which is the one thing that matters from a readout this small.
 		expect(timeOffsetLabel(first + 120_000, first, latest)).toBe("2/10m");
 		expect(timeOffsetLabel(first + 540_000, first, latest)).toBe("9/10m");

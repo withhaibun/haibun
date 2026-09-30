@@ -45,7 +45,7 @@ export interface SiteMetadata {
 	classIris?: Record<string, string>;
 	/** Per label, the property or edge that titles it, `topology.displayLabel`, where declared. */
 	titledBy?: Record<string, TTitledBy>;
-	/** The types that record the run's own execution, `topology.instrumentation`. */
+	/** The types that record actuality's own execution, `topology.instrumentation`. */
 	instrumentationTypes?: string[];
 }
 
@@ -120,7 +120,7 @@ export function getTitledBy(label: string): TTitledBy | undefined {
 	return metadata?.titledBy?.[label];
 }
 
-/** Whether a type records the run's own execution, as its topology declares. */
+/** Whether a type records actuality's own execution, as its topology declares. */
 export function isInstrumentationType(label: string): boolean {
 	return metadata?.instrumentationTypes?.includes(label) === true;
 }
@@ -199,7 +199,7 @@ export function getUiByType(label: string): Record<string, unknown> | undefined 
 }
 
 /** The views the site declares: every domain whose ui names an element a column can hold. A step's record names the
- *  view it showed by this name, so this is what a page asks the run's records for. */
+ *  view it showed by this name, so this is what a page asks actuality's records for. */
 export function declaredViews(): string[] {
 	return Object.entries(metadata?.ui ?? {})
 		.filter(([, ui]) => typeof ui.component === "string" && !isMarkerType(ui.component))

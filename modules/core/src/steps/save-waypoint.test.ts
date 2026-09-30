@@ -14,7 +14,7 @@ import VariablesStepper from "./variables-stepper.js";
 const OUTCOME = "Knock twice";
 const SAVE = `save waypoint "${OUTCOME}" doing ["set knocks to \\"2\\""]`;
 
-/** Whether the run offered the saved waypoint, and whether calling it as a transport does succeeded. */
+/** Whether actuality offered the saved waypoint, and whether calling it as a transport does succeeded. */
 const seen = { offered: false, ran: false };
 
 /** Calls the saved waypoint as a transport does. */
@@ -42,7 +42,7 @@ const STEPPERS = [ActivitiesStepper, VariablesStepper, SavedWaypointProbe];
 describe("a waypoint saved during a run", () => {
 	it("is offered as a step at once, and runs the lines it was saved with", async () => {
 		await passWithDefaults(`${SAVE}\ncall the saved waypoint\nvariable knocks is "2"\n`, STEPPERS);
-		expect(seen.offered, "the run offers the outcome without a restart").toBe(true);
+		expect(seen.offered, "actuality offers the outcome without a restart").toBe(true);
 		expect(seen.ran).toBe(true);
 	});
 

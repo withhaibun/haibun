@@ -63,7 +63,7 @@ export function producingStep(factId: string): number[] {
 
 /**
  * The leading dot-joined integer seqPath of an id, discarding any suffix; null where the id does not begin with one.
- * This reads an id an event carries, which names a step of the run announcing it.
+ * This reads an id an event carries, which names a step of actuality announcing it.
  *
  * Examples: "0.1.5.3" → "0.1.5.3"; "0.1.5.3.artifact.0" → "0.1.5.3"; "foo.bar" → null.
  */
@@ -101,7 +101,7 @@ export const RecordNameSchema = z
 	.object({
 		/** When the process began and which feature of it this run is. */
 		execution: z.string().regex(/^\d+--?\d+$/),
-		/** The step within that execution, empty for what the run said outside every step. */
+		/** The step within that execution, empty for what actuality said outside every step. */
 		path: z.array(z.number().int()),
 		/** Which of the things one step said or produced this is; absent on the step's own record. */
 		ordinal: z.number().int().nonnegative().optional(),
@@ -178,7 +178,7 @@ export const SEQ_PATH_FIELD = {
 	 *  Written on the record because a reader filtering by level filters records, and a page's own calls are steps the
 	 *  run records exactly like any other. */
 	level: "level",
-	/** The run this step belongs to. Written by every writer; a record without one was written before the field was
+	/** The actuality this step belongs to. Written by every writer; a record without one was written before the field was
 	 *  declared, and isn't part of a run a reader can ask for by name. */
 	execution: EXECUTION_FIELD,
 	/** When this record was written, and written again at the step's end. */
@@ -260,7 +260,7 @@ export const seqPathDomainDefinition: TDomainDefinition = {
 			[SEQ_PATH_EDGE.performedBy]: { rel: LinkRelations.PERFORMED_BY.rel, range: PRINCIPAL_LABEL },
 		},
 		// The step's end beside its start, as a moment a store orders by; and when the record was written, which a
-		// reader following the run asks for what happened since their last read by.
+		// reader following actuality asks for what happened since their last read by.
 		sortColumns: { [SEQ_PATH_FIELD.endedAtTime]: "TIMESTAMPTZ", [SEQ_PATH_FIELD.recordedAtTime]: "TIMESTAMPTZ", [SEQ_PATH_FIELD.execution]: "TEXT" },
 	},
 };

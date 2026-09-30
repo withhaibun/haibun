@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import "fake-indexeddb/auto";
 /**
- * The page's diagnostic channel to the run. A failure the page catches is reported to the run, and in development it also
+ * The page's diagnostic channel to actuality. A failure the page catches is reported to actuality, and in development it also
  * fails fast; a page without a run to report to doesn't report.
  */
 import { afterEach, describe, expect, it } from "vitest";
@@ -12,14 +12,14 @@ import { openPageAuthority } from "./page-key.js";
 
 const SOURCE = "a view";
 
-describe("the page's reports to the run", () => {
+describe("the page's reports to actuality", () => {
 	let t: TShuTestHandle | undefined;
 	afterEach(() => {
 		t?.teardown();
 		carryNothing();
 	});
 
-	it("reports a caught failure to the run, and fails fast in development", async () => {
+	it("reports a caught failure to actuality, and fails fast in development", async () => {
 		const reported: TReportedToRun[] = [];
 		t = setupShuTest({ dispatch: reportingTo(reported) });
 		await openReportingPage();

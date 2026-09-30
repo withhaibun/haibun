@@ -8,7 +8,7 @@ import type { AStepper } from "@haibun/core/lib/astepper.js";
 
 /** How long a control waits for a state the page reaches soon after it acts: a render, a debounced repaint. */
 export const STATE_MS = 5_000;
-/** How long a control waits for a state that takes a round trip through the run: a save, a read back. */
+/** How long a control waits for a state that takes a round trip through actuality: a save, a read back. */
 export const ROUND_TRIP_MS = 10_000;
 /** How long a control waits for a layout or a stream to come to rest. */
 export const SETTLES_MS = 15_000;

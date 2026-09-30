@@ -1,5 +1,5 @@
 /**
- * The run a view reads, over the records the run wrote.
+ * The actuality a view reads, over the records actuality wrote.
  *
  * A run is in the graph: a step is a `SeqPath` individual, what it said and what it produced point back at it. This
  * serves a view the window of that run a reader is looking at, through the same interface a view already reads a run
@@ -8,7 +8,7 @@
  * A step is one row. It began, it ended and it says how it went, all on one record, where a stream of occurrences had
  * to say those separately and a view had to pair them up again.
  *
- * The window re-reads when the run says something changed, and a view following the newest asks only for what has
+ * The window re-reads when actuality says something changed, and a view following the newest asks only for what has
  * happened since it last read. A view therefore holds what a reader is looking at rather than everything that has
  * happened, and following takes what has changed rather than what the run holds, which is what keeps a run of years
  * readable.
@@ -30,14 +30,14 @@ import { railAt, momentAt, type TRunFocus, type TRunSpan } from "../run-scale.js
 import { timeCursor } from "../signals.js";
 import { atLiveEdge, noteRunSpan, readingBy, runReadingAt, type RunSource, type TEventRecord, type TRunExtent } from "./run-source.js";
 
-/** The source the run's window reports under. */
+/** The source actuality's window reports under. */
 const RUN_SOURCE = "graph-run-source";
 
 /** How long a burst of changes is collected before the window is read again. */
 const RE_READ_AFTER_MS = 250;
 
 /** How many places a rail has: what a mark sits at and what a press names. A rail is a few hundred pixels, so this is
- *  finer than a reader can point at, and the same however long the run is. */
+ *  finer than a reader can point at, and the same however long actuality is. */
 const RAIL_PLACES = 1000;
 
 /** What a step declared, where it declared one: a feature or a scenario is the step that named it, and a view titles it
@@ -111,7 +111,7 @@ function stepRecord(row: TRunRow, seqPath: number[] | undefined): TEventRecord {
 	};
 }
 
-/** The run as a view reads it, at one level. `at` moves the window; absent, it follows the newest records. */
+/** Actuality as a view reads it, at one level. `at` moves the window; absent, it follows the newest records. */
 /** The sources a page reads by, one per level: every view at a level reads the same window, so a level is read once
  *  however many views show it, and a view of what this page holds lists one source per level rather than one per view. */
 const SOURCES_KEY = "__SHU_GRAPH_RUN_SOURCES__";
@@ -157,7 +157,7 @@ function makeGraphRunSource(
 	let rows: TEventRecord[] = [];
 	let extent: TRunExtent = { total: 0 };
 	let loaded = false;
-	// The moment the page reads the run around: a source made while a reader is reading the past starts where they are
+	// The moment the page reads actuality around: a source made while a reader is reading the past starts where they are
 	// rather than at the newest records, so two views of one run cannot show two moments of it.
 	let at: number | undefined = runReadingAt();
 	let reading: Promise<void> | null = null;
@@ -204,7 +204,7 @@ function makeGraphRunSource(
 	let window: TRunRow[] = [];
 
 	/**
-	 * Read the run. Following the live edge, a view already holding rows asks only for what changed after its last
+	 * Read actuality. Following the live edge, a view already holding rows asks only for what changed after its last
 	 * read: the records that began after its newest row, and the steps that ended after it. Reading the whole window
 	 * again to find a few new records is what makes following a long run take what the run takes. Anywhere else, the
 	 * window is read around where the reader is.
@@ -224,7 +224,7 @@ function makeGraphRunSource(
 		const answer = await runWindow(pageRunGraph(), following ? { ...of, since: recordedThrough(window) } : { ...of, ...(at === undefined ? {} : { at }) });
 		if (following) {
 			// A record read again replaces the one held under its name; one not held before is new. Either way the
-			// window is what it held and what has changed, in the order the run put them.
+			// window is what it held and what has changed, in the order actuality put them.
 			const byName = new Map(window.map((row) => [row.id, row]));
 			const changed = answer.rows.filter((row) => byName.get(row.id) === undefined || keyOf(byName.get(row.id) as TRunRow) !== keyOf(row));
 			if (changed.length === 0) {
@@ -254,7 +254,7 @@ function makeGraphRunSource(
 		done();
 		// The rail carries the whole run, so it is read where the window is: what the run reaches, and what its divisions
 		// hold. A rail read that fails leaves the rail as it was rather than emptying it under a reader.
-		await readRail().catch((err: unknown) => reportFailure(RUN_SOURCE, "the run's rail could not be read", err));
+		await readRail().catch((err: unknown) => reportFailure(RUN_SOURCE, "actuality's rail could not be read", err));
 		notify();
 		// Last of all: saying which run this window is of can be what says the run being read has changed, and what
 		// reads a run again on hearing that is this same source. A read that announced before it had finished would be
@@ -262,7 +262,7 @@ function makeGraphRunSource(
 		if (newest) noteExecution(newest.execution);
 	};
 
-	// What the run says has changed is what makes the window stale, and a burst of changes reads it once. Only a change
+	// What actuality says has changed is what makes the window stale, and a burst of changes reads it once. Only a change
 	// this view would show counts. What keeps a view from reading for its own reading is that serving a read is not
 	// announced at all, which is stated where a call is served: a view reading at the lowest level would otherwise
 	// announce, read, be served, and announce again without end.
@@ -273,7 +273,7 @@ function makeGraphRunSource(
 			due = null;
 			// A read that a caller doesn't await still says when it failed: a view left showing an older window without a
 			// report of why is a view a reader cannot tell apart from one that is current.
-			read().catch((err: unknown) => reportFailure(RUN_SOURCE, "the run could not be read again", err));
+			read().catch((err: unknown) => reportFailure(RUN_SOURCE, "actuality could not be read again", err));
 		}, reReadAfterMs);
 	};
 	const announce = (): void => {
@@ -285,7 +285,7 @@ function makeGraphRunSource(
 		onBatch: (events) => {
 			if (events.some((e) => shows.has((e as { level?: THaibunLogLevel }).level ?? "info"))) announce();
 		},
-		// What the run recorded while the stream was down didn't arrive in a batch: the stream coming back is the same
+		// What actuality recorded while the stream was down didn't arrive in a batch: the stream coming back is the same
 		// reason to read again, on the same schedule, and until that read has finished the reading is behind.
 		onReconnect: () => {
 			disconnected = false;
@@ -297,8 +297,8 @@ function makeGraphRunSource(
 		},
 	});
 
-	// What the run reaches, and what it holds along the way, counted rather than read: a rail carrying a year takes its
-	// divisions rather than the run. Both are read where the window is read, so they move with it.
+	// What actuality reaches, and what it holds along the way, counted rather than read: a rail carrying a year takes its
+	// divisions rather than actuality. Both are read where the window is read, so they move with it.
 	let reach: TRunSpan = { first: 0, last: 0 };
 	let railMarks: TScrollMarker[] = [];
 	/** The graph of the run being read. A device holds more than one run, so a rail over every record it holds would
@@ -320,7 +320,7 @@ function makeGraphRunSource(
 		}
 		// The rail spans the whole run, so what it reaches is what every view scrubbing the run reads.
 		noteRunSpan(reach.first, reach.last);
-		// The counting is of the run, so it is held across reads and only the stretch the run has grown by is counted.
+		// The counting is of actuality, so it is held across reads and only the stretch actuality has grown by is counted.
 		// Where it is drawn is of the reader, so the places are computed again on every read: a reader who moves changes
 		// the scale under the same marks.
 		await shape.update(reach.last);
@@ -340,10 +340,10 @@ function makeGraphRunSource(
 
 	const source: TGraphRunSource = {
 		level,
-		// The rail this window's rows sit on: the run's whole reach, focused where the reader is reading. A window holds
+		// The rail this window's rows sit on: actuality's whole reach, focused where the reader is reading. A window holds
 		// a few thousand records and a run can hold a year of them, so a rail spread over the window alone wouldn't
-		// count the rest of the run. The reach and the marks are read where the window is read, so a rail of a
-		// year takes the counts its divisions take rather than what the run did.
+		// count the rest of actuality. The reach and the marks are read where the window is read, so a rail of a
+		// year takes the counts its divisions take rather than what actuality did.
 		rail: {
 			places: RAIL_PLACES,
 			placeOf: (index: number) => placeFor(Number(rows[index]?.timestamp) || reach.first),

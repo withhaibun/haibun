@@ -17,7 +17,7 @@ describe("what a mark says about a step", () => {
 		expect(mark.color).toBe(MARK_COLOUR.fault);
 	});
 
-	it("marks a statement the run merely tried with the diamond, in a colour that is not a fault", () => {
+	it("marks a statement actuality merely tried with the diamond, in a colour that is not a fault", () => {
 		const mark = eventMarkerStyle(step({ status: "failed", intent: { mode: "speculative" } }));
 		expect(mark.icon).toBe(MAYBE_CHECK_NO);
 		expect(mark.color).not.toBe(MARK_COLOUR.fault);
@@ -35,7 +35,7 @@ describe("what a mark says about a step", () => {
 	});
 });
 
-describe("the mark a division of the run gets", () => {
+describe("the mark a division of actuality gets", () => {
 	const step = (status: string) => ({ kind: "lifecycle", type: "step", stage: "end", status });
 	const said = (level: string) => ({ kind: "log", level });
 
@@ -64,7 +64,7 @@ describe("the mark a division of the run gets", () => {
 		expect(bucketMarkerStyle(held)?.color).toBe(MARK_COLOUR.pending);
 	});
 
-	it("doesn't mark an empty division, so an empty stretch of the run draws as empty", () => {
+	it("doesn't mark an empty division, so an empty stretch of actuality draws as empty", () => {
 		expect(bucketMarkerStyle([])).toBeUndefined();
 		expect(bucketMarkerStyle([{ event: step("passed"), count: 0 }])).toBeUndefined();
 	});

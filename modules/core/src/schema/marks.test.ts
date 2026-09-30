@@ -1,7 +1,7 @@
 /**
  * What each mark says, as one related set: a verdict, a claim merely tried, or a call handed out and answered.
  *
- * Reported from a real log: a tool call a model got wrong was marked as the run failing, and the error mark beside it
+ * Reported from a real log: a tool call a model got wrong was marked as actuality failing, and the error mark beside it
  * was too small to see next to the marks around it.
  */
 import { describe, expect, it } from "vitest";
@@ -18,7 +18,7 @@ describe("what a mark says", () => {
 		expect(EventFormatter.getStatusIcon(step({ status: "failed" }))).toContain(CHECK_NO);
 	});
 
-	it("marks a claim the run merely tried with the diamond, never a verdict", () => {
+	it("marks a claim actuality merely tried with the diamond, never a verdict", () => {
 		const tried = { intent: { mode: "speculative" } };
 		expect(EventFormatter.getStatusIcon(step({ status: "completed", ...tried }))).toContain(MAYBE_CHECK_YES);
 		const notHeld = EventFormatter.getStatusIcon(step({ status: "failed", ...tried }));
@@ -26,8 +26,8 @@ describe("what a mark says", () => {
 		expect(notHeld).not.toContain(CHECK_NO);
 	});
 
-	it("marks a call handed out and answered as returned, not as the run failing", () => {
-		// A negative seqPath segment is a call the run handed out: a model's tool call, an RPC.
+	it("marks a call handed out and answered as returned, not as actuality failing", () => {
+		// A negative seqPath segment is a call actuality handed out: a model's tool call, an RPC.
 		const handedOut = EventFormatter.getStatusIcon(step({ status: "failed", id: "0.-1.2" }));
 		expect(handedOut).toBe(RETURNED_TO_CALLER);
 		expect(handedOut).not.toContain(CHECK_NO);

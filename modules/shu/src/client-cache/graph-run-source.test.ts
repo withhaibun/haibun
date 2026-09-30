@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// A view reads the run through the records it wrote. A step is one row carrying how it went and how long it took,
+// A view reads actuality through the records it wrote. A step is one row carrying how it went and how long it took,
 // where a stream of occurrences said those separately and a view had to pair them up; what a step said is its own row.
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
@@ -18,7 +18,7 @@ import { endPage } from "../page-pinned.js";
 const iso = (n: number): string => new Date(n).toISOString();
 const RUN = "1700000000000-1";
 
-describe("the run a view reads, over the records it wrote", () => {
+describe("the actuality a view reads, over the records it wrote", () => {
 	let handle: TShuTestHandle;
 	let store: QuadStore;
 	beforeEach(async () => {
@@ -92,7 +92,7 @@ describe("the run a view reads, over the records it wrote", () => {
 		expect(source.rowAt(3)).toMatchObject({ id: `${RUN}.0.2`, status: "failed" });
 	});
 
-	it("says what the run spans, so a view places its rows in time", async () => {
+	it("says what actuality spans, so a view places its rows in time", async () => {
 		const source = graphRunSource("debug");
 		await source.ready();
 		expect(source.extent()).toMatchObject({ total: 4, first: 1000, last: 1400 });
@@ -112,20 +112,20 @@ describe("the run a view reads, over the records it wrote", () => {
 		expect(source.rowAt(0)).toMatchObject({ timestamp: 1000 });
 	});
 
-	it("reads every source at the moment the run is read around, and follows the newest records again when a moment isn't named", async () => {
+	it("reads every source at the moment actuality is read around, and follows the newest records again when a moment isn't named", async () => {
 		const info = graphRunSource("info", { size: 2 });
 		const debug = graphRunSource("debug", { size: 2 });
 		await Promise.all([info.ready(), debug.ready()]);
 		await readRunAt(1000);
-		expect(runReadingAt(), "the moment is the page's, so every view of the run reads the same one").toBe(1000);
+		expect(runReadingAt(), "the moment is the page's, so every view of actuality reads the same one").toBe(1000);
 		expect(info.rowAt(0)).toMatchObject({ timestamp: 1000 });
 		expect(debug.rowAt(0)).toMatchObject({ timestamp: 1000 });
 		await readRunAt(null);
 		expect(runReadingAt()).toBeUndefined();
-		expect(debug.rowAt(1), "the newest records the run holds").toMatchObject({ timestamp: 1400 });
+		expect(debug.rowAt(1), "the newest records actuality holds").toMatchObject({ timestamp: 1400 });
 	});
 
-	it("makes a source at the moment the run is read around, so a view opened while a reader reads the past reads it too", async () => {
+	it("makes a source at the moment actuality is read around, so a view opened while a reader reads the past reads it too", async () => {
 		await readRunAt(1000);
 		const source = graphRunSource("debug", { size: 2 });
 		await source.ready();
@@ -134,7 +134,7 @@ describe("the run a view reads, over the records it wrote", () => {
 
 	it("reads a run past the window at the window's size, wherever in it the reader is", async () => {
 		// A run of more records than a window holds is the case the window exists for: what it takes to read must be the
-		// window's size and not the run's, and where a reader moves must be read rather than assumed to be held already.
+		// window's size and not actuality's, and where a reader moves must be read rather than assumed to be held already.
 		const PAST_THE_WINDOW = 600;
 		const size = 50;
 		const began = 10000;
@@ -152,7 +152,7 @@ describe("the run a view reads, over the records it wrote", () => {
 		}
 		const source = graphRunSource("info", { size });
 		await source.ready();
-		expect(source.count(), "the newest of the run, at the window's size").toBe(size);
+		expect(source.count(), "the newest of actuality, at the window's size").toBe(size);
 		const early = began + 100 * each;
 		await readRunAt(early);
 		const times = Array.from({ length: source.count() }, (_, i) => (source.rowAt(i) as { timestamp: number }).timestamp);
@@ -168,7 +168,7 @@ describe("the run a view reads, over the records it wrote", () => {
 		expect(after, "a moment the window already holds is read from the window rather than read again").toEqual(times);
 	});
 
-	it("adds what has happened since it last read, rather than reading the run again", async () => {
+	it("adds what has happened since it last read, rather than reading actuality again", async () => {
 		const source = graphRunSource("debug");
 		await source.ready();
 		expect(source.count()).toBe(4);
@@ -184,7 +184,7 @@ describe("the run a view reads, over the records it wrote", () => {
 		const first = source.rowAt(0);
 		await source.readAt(undefined);
 		await new Promise((r) => setTimeout(r, 0));
-		expect(source.count(), "the run it held, and what happened since").toBe(5);
+		expect(source.count(), "the actuality it held, and what happened since").toBe(5);
 		expect(source.rowAt(4)).toMatchObject({ in: "a later step" });
 		expect(source.rowAt(0), "a row it already held is the same row").toBe(first);
 	});
@@ -193,14 +193,14 @@ describe("the run a view reads, over the records it wrote", () => {
 		const source = graphRunSource("debug");
 		await source.ready();
 		const held = source.count();
-		expect(held, "the run it read").toBeGreaterThan(0);
+		expect(held, "the actuality it read").toBeGreaterThan(0);
 		const release = source.subscribe(() => undefined);
 		release();
 		// A source that a view doesn't hold is reading a run that a reader isn't shown. The next view at this level is given a new one.
 		const next = graphRunSource("debug");
 		expect(next, "a source that a view didn't hold was let go rather than left reading").not.toBe(source);
 		await next.ready();
-		expect(next.count(), "and the run reads the same either way").toBe(held);
+		expect(next.count(), "and actuality reads the same either way").toBe(held);
 	});
 
 	it("reads a step again while it is still running, so its row says how it went once it ends", async () => {
@@ -248,7 +248,7 @@ describe("the run a view reads, over the records it wrote", () => {
 		handle.eventStream.disconnect();
 		handle.eventStream.reconnect();
 		await new Promise((r) => setTimeout(r, 5));
-		expect(source.count(), "the run it held, and what happened while it was not being told").toBe(5);
+		expect(source.count(), "the actuality it held, and what happened while it was not being told").toBe(5);
 		expect(source.rowAt(4)).toMatchObject({ in: "a step nobody was told about" });
 	});
 
@@ -256,7 +256,7 @@ describe("the run a view reads, over the records it wrote", () => {
 		const source = graphRunSource("debug", { reReadAfterMs: 0 });
 		await source.ready();
 		expect(source.behind, "read once and a record hasn't been announced since").toBe(false);
-		handle.eventStream.emit({ level: "info", kind: "log", message: "something the run said", timestamp: 1600 } as never);
+		handle.eventStream.emit({ level: "info", kind: "log", message: "something actuality said", timestamp: 1600 } as never);
 		await new Promise((r) => requestAnimationFrame(() => r(undefined)));
 		expect(source.behind, "announced, and the read for it has not finished").toBe(true);
 		await new Promise((r) => setTimeout(r, 5));
@@ -268,7 +268,7 @@ describe("the run a view reads, over the records it wrote", () => {
 		await source.ready();
 		expect(source.disconnected).toBe(false);
 		handle.eventStream.disconnect();
-		expect(source.disconnected, "what the run does now no longer reaches this page").toBe(true);
+		expect(source.disconnected, "what actuality does now no longer reaches this page").toBe(true);
 		handle.eventStream.reconnect();
 		expect(source.disconnected).toBe(false);
 		expect(source.behind, "the stream coming back says there may be something to read again for").toBe(true);
@@ -291,7 +291,7 @@ describe("the run a view reads, over the records it wrote", () => {
 		expect(source.unavailable).toBeNull();
 	});
 
-	describe("the rail the run's rows sit on", () => {
+	describe("the rail actuality's rows sit on", () => {
 		it("carries the whole run, so a place on it names a moment the window does not hold", async () => {
 			const source = graphRunSource("debug");
 			await source.ready();
@@ -304,22 +304,22 @@ describe("the run a view reads, over the records it wrote", () => {
 			expect(last).toBeGreaterThanOrEqual(first);
 		});
 
-		it("marks what the run holds, counted rather than read, so a rail of any length takes the same", async () => {
+		it("marks what actuality holds, counted rather than read, so a rail of any length takes the same", async () => {
 			const source = graphRunSource("debug");
 			await source.ready();
 			const marks = source.rail?.marks() ?? [];
-			expect(marks.length, "the run's divisions that hold something").toBeGreaterThan(0);
+			expect(marks.length, "actuality's divisions that hold something").toBeGreaterThan(0);
 			for (const mark of marks) {
 				expect(mark.index).toBeGreaterThanOrEqual(0);
 				expect(mark.index).toBeLessThan(source.rail?.places ?? 0);
 			}
 		});
 
-		it("reads the run around the moment a press names, and says so through the shared cursor", async () => {
+		it("reads actuality around the moment a press names, and says so through the shared cursor", async () => {
 			const source = graphRunSource("debug");
 			await source.ready();
 			source.rail?.goTo(0);
-			expect(timeCursor.get(), "the earliest place names the run's first moment, which is not the live edge").not.toBeNull();
+			expect(timeCursor.get(), "the earliest place names actuality's first moment, which is not the live edge").not.toBeNull();
 		});
 	});
 });

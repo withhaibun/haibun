@@ -1,7 +1,7 @@
 /**
  * What is announced is what was stored.
  *
- * A reader is told a fact by the run announcing it and reads it back from the graph, so an announcement without a write
+ * A reader is told a fact by actuality announcing it and reads it back from the graph, so an announcement without a write
  * behind it is a fact that exists until the page reloads and then does not. This fails the build when a new emitter
  * announces a graph observation from somewhere that does not write one, which is how the two drifted apart before.
  */

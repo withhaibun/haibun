@@ -35,7 +35,7 @@ const quad = (namedGraph: string, predicate: string, object: unknown): TQuad => 
 
 describe("dropdowns learning from the quads a batch carries", () => {
 	// A value that has newly appeared is IN the quad that announced it. Taking it from there is what lets a view stay
-	// current without asking the server again, and asking again is what made a view of the run's own records feed
+	// current without asking the server again, and asking again is what made a view of actuality's own records feed
 	// itself, since the question is dispatched as a step and the step is recorded as another change to answer.
 	beforeEach(() => setSelectValues("Email", { folder: ["INBOX"], status: [] }));
 

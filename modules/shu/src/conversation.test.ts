@@ -38,7 +38,7 @@ const FIRST = "0.1.1";
 const SESSION = question(FIRST);
 const EMAIL = anIndividual("Email", "a@test.com");
 const LEVEL = "private";
-/** The records the run states for the page's turn: its question, then its answer. */
+/** The records actuality states for the page's turn: its question, then its answer. */
 const QUESTION: TRecord = { id: question("0.1.2"), label: COMMENT_LABEL };
 const ANSWER: TRecord = { id: answer("0.1.2"), label: COMMENT_LABEL };
 
@@ -73,7 +73,7 @@ const on = (...types: TConversationEventType[]): TConversationState => run(...ty
 const staying = <S extends string>(status: S, moves: Partial<Record<TConversationEventType, S>>): Record<TConversationEventType, S> =>
 	Object.fromEntries(CONVERSATION_EVENTS.map((type) => [type, moves[type] ?? status])) as Record<TConversationEventType, S>;
 const askedStatus = (conversation: TConversationState): TTurnStatus => conversation.asked?.status ?? "idle";
-/** A conversation holding a turn at a status the run recorded, which the page's events don't move a turn to. */
+/** A conversation holding a turn at a status actuality recorded, which the page's events don't move a turn to. */
 const holdingTurnAt = (status: TChatStatus): TConversationState => {
 	const running = on("open", "read", "ask", "started");
 	return { ...running, asked: { ...(running.asked as NonNullable<TConversationState["asked"]>), status } };
@@ -97,7 +97,7 @@ const TURN_AT: Record<TTurnStatus, TConversationState> = {
 	completed: on("open", "read", "ask", "started", "ended"),
 	failed: on("open", "read", "ask", "started", "erred"),
 	stopped: on("open", "read", "ask", "started", "stop", "erred"),
-	// A turn ends unverified where it stated a handle what it was sent doesn't hold. The run decides that when it records
+	// A turn ends unverified where it stated a handle what it was sent doesn't hold. Actuality decides that when it records
 	// the turn, so the page's events don't reach it: the page holds a turn read back at that status.
 	unverified: holdingTurnAt("unverified"),
 };
@@ -182,7 +182,7 @@ describe("each move of the conversation", () => {
 		expect(recorded.turns.map((turn) => turn.askId)).toEqual([QUESTION.id]);
 	});
 
-	it("ask replaces the turn the run never recorded, and is refused while a turn is in flight or the conversation opens", () => {
+	it("ask replaces the turn actuality never recorded, and is refused while a turn is in flight or the conversation opens", () => {
 		const refused = run(EVENT.open, EVENT.read, EVENT.ask, EVENT.erred);
 		expect(refused.turns.map((turn) => [turn.askId, turn.status])).toEqual([
 			[SESSION, "completed"],
@@ -208,7 +208,7 @@ describe("each move of the page's turn", () => {
 			response: "",
 			bundle: [EMAIL],
 			inReplyTo: SESSION,
-			// The run states when the turn was asked once it records it; a turn this page is still asking doesn't state one.
+			// Actuality states when the turn was asked once it records it; a turn this page is still asking doesn't state one.
 			generatedAtTime: "",
 			status: "asking",
 			error: "",
@@ -356,7 +356,7 @@ describe("the transcript", () => {
 	it("states when each turn was asked, which is what a reader's place on the timeline reads", () => {
 		const entries = transcript(BRANCHED, undefined, LEVEL);
 		const askedAt = (turn: string) => entries.find((entry) => entry.message.turn === turn)?.askedAt;
-		expect(askedAt(SESSION), "the instant the run recorded the question at").toBe(Date.parse(readBack(FIRST).generatedAtTime));
+		expect(askedAt(SESSION), "the instant actuality recorded the question at").toBe(Date.parse(readBack(FIRST).generatedAtTime));
 		expect(askedAt(question("0.1.5")) ?? 0, "and a later turn was asked later").toBeGreaterThan(askedAt(SESSION) ?? 0);
 	});
 
@@ -367,7 +367,7 @@ describe("the transcript", () => {
 		expect(shownTurns(transcript(BRANCHED, SESSION, LEVEL)), "an earlier turn shows its newest continuation").toEqual([SESSION, question("0.1.5")]);
 	});
 
-	it("shows the page's turn before the run records its question on the branch it replies to, sending, with both earlier branches offered", () => {
+	it("shows the page's turn before actuality records its question on the branch it replies to, sending, with both earlier branches offered", () => {
 		const entries = transcript(transition(BRANCHED, EVENT.ask), SESSION, LEVEL);
 		expect(shownTurns(entries)).toEqual([SESSION, "pending"]);
 		expect(entries.at(-1)?.message).toMatchObject({ role: "llm", status: "asking", spinnerStatus: SENDING, spinnerVisible: true });

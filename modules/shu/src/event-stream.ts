@@ -5,7 +5,7 @@
  * via `eventStream()`; other code doesn't touch `SseSubscriber`.
  *
  * `LiveEventStream` wraps the shared `SseSubscriber` connection, which the
- * page asks for signed, since following the run takes a private read.
+ * page asks for signed, since following actuality takes a private read.
  * Subscribers registered after connect receive what the page received before
  * they subscribed, then live events.
  *
@@ -35,16 +35,16 @@ export interface EventStream {
 	 *  what arrives before a view subscribes is held for it. */
 	connect(): void;
 
-	/** Be told the stream is open: at once for a stream open now, and each time it opens after. From then on, what the run
+	/** Be told the stream is open: at once for a stream open now, and each time it opens after. From then on, what actuality
 	 *  announces reaches the handlers. Returns an unsubscribe. */
 	opened(fn: () => void): () => void;
 
 	/** Be told the stream has come back after a break in it. What happened during the break doesn't reach a handler, so a
-	 *  view following the run reads again on this through the path it already reads on. Returns an unsubscribe. */
+	 *  view following actuality reads again on this through the path it already reads on. Returns an unsubscribe. */
 	reconnected(fn: () => void): () => void;
 
-	/** Be told the stream has broken: from then until it comes back, a view following the run cannot say its reading
-	 *  is current, since what the run does reaches it no more. A stream already down says so at once, as `subscribe`
+	/** Be told the stream has broken: from then until it comes back, a view following actuality cannot say its reading
+	 *  is current, since what actuality does reaches it no more. A stream already down says so at once, as `subscribe`
 	 *  replays what it holds, so a view that starts listening after the break is not left believing it is current.
 	 *  Returns an unsubscribe. */
 	disconnected(fn: () => void): () => void;
@@ -58,10 +58,10 @@ export interface EventStream {
 
 // ─── LiveEventStream ─────────────────────────────────────────────────────────
 
-/** What the page asks for the run's stream with: signed under a delegation that allows following the run. */
+/** What the page asks for actuality's stream with: signed under a delegation that allows following actuality. */
 const followingHeaders = (url: string): Promise<Record<string, string>> => readingHeaders(url, FOLLOWS_THE_RUN);
 
-/** `EventStream` over a real `/sse` connection. One shared `SseSubscriber` regardless of how many `LiveEventStream` instances exist; constructed lazily on first `subscribe`, and opened only by `connect`, once the page knows it may follow the run. */
+/** `EventStream` over a real `/sse` connection. One shared `SseSubscriber` regardless of how many `LiveEventStream` instances exist; constructed lazily on first `subscribe`, and opened only by `connect`, once the page knows it may follow actuality. */
 export class LiveEventStream implements EventStream {
 	private subscriber: SseSubscriber | null = null;
 

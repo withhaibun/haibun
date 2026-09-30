@@ -37,7 +37,7 @@ describe("thumb size and position", () => {
 	});
 
 	it("places a mark by the rows and the rail alone, never by how much happens to be on screen", () => {
-		// A mark says where a row sits in the run. The thumb says how much of the run is on screen: a different question,
+		// A mark says where a row sits in actuality. The thumb says how much of actuality is on screen: a different question,
 		// and once it was allowed into this answer a viewport holding a third of a short log squeezed every mark into the
 		// middle third of the rail and left its ends dead. Both ends stay reachable whatever the thumb is doing.
 		const total = 300;
@@ -214,7 +214,7 @@ describe("what a press on the rail means", () => {
 		expect(indexAtMarkerPx(RAIL + 50, 100, RAIL), "below it is the last").toBe(99);
 	});
 
-	it("gives the head and foot of the rail to the start and end of the run, whatever is drawn there", () => {
+	it("gives the head and foot of the rail to the start and end of actuality, whatever is drawn there", () => {
 		// A mark sits at each end of the rail now. If it took these presses, the first and last rows could be reached
 		// only when a mark didn't happen to sit near them: the ends going missing again, by another route.
 		const marks = [

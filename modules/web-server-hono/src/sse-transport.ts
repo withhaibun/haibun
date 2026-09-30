@@ -68,7 +68,7 @@ export class SSETransport implements ITransport, IStepTransport {
 			return await streamSSE(c, async (sseStream) => {
 				// The stream announces what happens from here on. What happened before is in the graph, which a
 				// connecting page reads; the stream doesn't replay events to it. Each announcement goes to a follower that may read at
-				// its level, so one holding a public read follows the public part of the run.
+				// its level, so one holding a public read follows the public part of actuality.
 				const handler = (data: string, level: AccessLevel) => {
 					if (!capabilityAllows(granted, readAction(level))) return;
 					sseStream.writeSSE({ data, event: "message" }).catch((e) => {
@@ -131,9 +131,9 @@ export class SSETransport implements ITransport, IStepTransport {
 				});
 			}
 
-			// A call states what it asks of the run, and the run holds it to the step's own declaration: asked to answer a
+			// A call states what it asks of actuality, and actuality holds it to the step's own declaration: asked to answer a
 			// step that does not declare itself a read, it refuses rather than answering and recording the reading as
-			// something the run did. A step declared a read is answered without a line of its own here, since a page
+			// something actuality did. A step declared a read is answered without a line of its own here, since a page
 			// following a run reads it on every announcement.
 			const method = envelope.method ?? "unknown";
 			const servesARead = this.servesARead(envelope.method);
@@ -190,7 +190,7 @@ export class SSETransport implements ITransport, IStepTransport {
 			payload = JSON.stringify(fallback);
 			this.eventLogger.error(`SSE event dropped (payload too large to serialize): ${fallback.droppedReason}`);
 		}
-		// Every event of the run states its level as it is emitted, and an event that doesn't state one is taken as private.
+		// Every event of actuality states its level as it is emitted, and an event that doesn't state one is taken as private.
 		this.hub.emit("event", payload, AccessLevelSchema.parse(data?.event?.accessLevel ?? Access.private));
 	}
 
@@ -199,17 +199,17 @@ export class SSETransport implements ITransport, IStepTransport {
 	}
 
 	/** IStepTransport: register the step registry (routes already set up at construction). What the registry answers is
-	 *  which methods are reads, so serving one is not narrated as an act of the run. */
+	 *  which methods are reads, so serving one is not narrated as an act of actuality. */
 	attach(registry: StepRegistry, _webserver: IWebServer): void {
 		this.registry = registry;
 	}
 
 	/**
-	 * Whether a call asks the run a question rather than acting on it.
+	 * Whether a call asks the actuality a question rather than acting on it.
 	 *
 	 * Reading a run is not an act of the run, which is why a read invoked into a running instance doesn't write a record and
 	 * doesn't announce a step. Narrating that a read was served is the same fact by another route: a view reading at a level
-	 * that carried the line would read the run again for its own reading, and each such read would be served, narrated
+	 * that carried the line would read actuality again for its own reading, and each such read would be served, narrated
 	 * and read again without end.
 	 */
 	private servesARead(method: string | undefined): boolean {

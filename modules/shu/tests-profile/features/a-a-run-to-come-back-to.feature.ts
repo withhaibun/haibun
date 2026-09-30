@@ -21,7 +21,7 @@ export const features: TKirejiExport = {
 		feature({ feature: "A run to come back to" }),
 		...testIdSetup,
 
-		scenario({ scenario: "A reader opens the run while it is happening" }),
+		scenario({ scenario: "A reader opens actuality while it is happening" }),
 
 		"A reader's browser keeps one profile across the runs it watches, which is what makes a finished run readable later. This run is the one they will come back to: the page reads it while it happens, and what a page reads it holds, so this device holds the records of this execution.",
 		"enable rpc",

@@ -24,7 +24,7 @@ export class TwinPage {
 		private twinPage: Page,
 	) {}
 
-	/** A twin of the run's pages, drawn in a browser of its own. */
+	/** A twin of actuality's pages, drawn in a browser of its own. */
 	static async create(wp: WebPlaywright, storage: AStorage, headless: boolean): Promise<TwinPage> {
 		const browser = await chromium.launch({ headless });
 		const twin = new TwinPage(wp, storage, await (await browser.newContext()).newPage());

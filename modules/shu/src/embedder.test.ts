@@ -51,7 +51,7 @@ describe("what the page embedding shu posts", () => {
 		stop();
 	});
 
-	it("refuses a message from the embedding window at another origin, and reports it to the run", () => {
+	it("refuses a message from the embedding window at another origin, and reports it to actuality", () => {
 		const frame = aFrame(window);
 		const stop = receiveFromEmbedder(EMBEDDER, frame);
 		post(frame, { kind: "page-view", view: PAGE }, "https://elsewhere.example", window);

@@ -459,7 +459,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 	 *
 	 *  Two presses leave it collapsed. A control the view offers takes its own press. The spine of a column that renders a
 	 *  narrow form of ITSELF takes its presses too, since that spine is the view's own control surface: the log's rail
-	 *  moves through the run, and opening the column would replace the rail with the rows. Such a column opens from its
+	 *  moves through actuality, and opening the column would replace the rail with the rows. Such a column opens from its
 	 *  header. */
 	private onPaneClick = (e: Event): void => {
 		if (!this.isCollapsed) return;

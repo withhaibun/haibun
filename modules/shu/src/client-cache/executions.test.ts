@@ -69,12 +69,12 @@ describe("what a device holds of the runs it has read", () => {
 		stop();
 	});
 
-	it("leaves the run being read alone while a reader has chosen one, whatever the newest records belong to", () => {
+	it("leaves the actuality being read alone while a reader has chosen one, whatever the newest records belong to", () => {
 		readExecution(OLDER);
 		let told = 0;
 		const stop = subscribeExecutionSwitch(() => told++);
 		noteExecution(NEWER);
-		expect(readingExecution(), "the run the reader chose").toBe(OLDER);
+		expect(readingExecution(), "actuality the reader chose").toBe(OLDER);
 		expect(told, "a reader who is reading a run of their own choosing isn't told of a change").toBe(0);
 		stop();
 	});
@@ -82,8 +82,8 @@ describe("what a device holds of the runs it has read", () => {
 	it("forgets one run entirely and holds the rest of what it has read", async () => {
 		const store = await aDevice();
 		expect(await forgetExecution(OLDER)).toBe(3);
-		expect(await heldOf(store, OLDER), "it doesn't hold a record of the run it forgot").toBe(0);
-		expect(await heldOf(store, NEWER), "every record of the run it kept").toBe(3);
+		expect(await heldOf(store, OLDER), "it doesn't hold a record of the actuality it forgot").toBe(0);
+		expect(await heldOf(store, NEWER), "every record of the actuality it kept").toBe(3);
 	});
 
 	it("makes room by forgetting the oldest run it is not reading, and holds what it was given", async () => {
@@ -99,7 +99,7 @@ describe("what a device holds of the runs it has read", () => {
 			generatedAtTime: iso(20000),
 		});
 		await holdOnDevice(quads);
-		expect(await heldOf(store, OLDER), "the run it was not reading is what made room").toBe(0);
+		expect(await heldOf(store, OLDER), "the actuality it was not reading is what made room").toBe(0);
 		expect(setMany, "what it was given is written once the room is there").toHaveBeenCalledTimes(2);
 		expect(await heldOf(store, NEWER)).toBe(4);
 	});

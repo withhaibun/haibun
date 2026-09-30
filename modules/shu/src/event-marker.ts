@@ -2,7 +2,7 @@
  * How a row of a run marks a timeline: an emoji icon and a colour. The shared vocabulary every view marks by, so a rail
  * and a timeline never disagree about which rows matter or what they look like.
  *
- * A row states what the run recorded, so an outcome here is the outcome a step's record states. Only the fields this
+ * A row states what actuality recorded, so an outcome here is the outcome a step's record states. Only the fields this
  * understands are read; anything else takes the default.
  */
 import {
@@ -38,7 +38,7 @@ type TPartialEvent = {
 };
 
 /** The mark palette, named by what a mark says rather than by its hue, so every surface that marks an event reads from
- *  one place. UNDECIDED isn't a fault or a success: a speculative try, or a call the run handed out. */
+ *  one place. UNDECIDED isn't a fault or a success: a speculative try, or a call actuality handed out. */
 export const MARK_COLOUR = {
 	feature: "#c084fc",
 	scenario: "#60a5fa",
@@ -57,7 +57,7 @@ export function eventMarkerStyle(event: unknown): TEventMarkerStyle {
 		if (e.type === "scenario") return { color: MARK_COLOUR.scenario, icon: ICON_SCENARIO };
 		if (e.type === "step") {
 			// A speculative statement's failure is expected and a handed-out call's failure belongs to its caller: the
-			// same rule the log renders by (EventFormatter.getStatusIcon), so a mark never reports the run as failing
+			// same rule the log renders by (EventFormatter.getStatusIcon), so a mark never reports actuality as failing
 			// where the log does not.
 			if (e.status === SEQ_PATH_STATUS.running) return { color: MARK_COLOUR.pending, icon: ICON_STEP_RUNNING };
 			if (isSpeculativeEvent(e)) return { color: MARK_COLOUR.undecided, icon: e.status === SEQ_PATH_STATUS.failed ? MAYBE_CHECK_NO : MAYBE_CHECK_YES };
@@ -112,21 +112,21 @@ function shouldMarkEvent(event: unknown): boolean {
 }
 
 /**
- * The mark a division of the run gets, given what it holds and how much of each.
+ * The mark a division of actuality gets, given what it holds and how much of each.
  *
  * A reader looking at a run of any length is shown its divisions rather than its records, so each division marks as
  * one thing. It marks as a failure where it holds one, which is what keeps a single failure from being averaged away
  * by the successes around it; otherwise it marks as whatever it holds most of. What a failure looks like, and which
  * failures count as one, are `eventMarkerStyle`'s to say, so a division and a row can never disagree.
  *
- * Undefined for a division that doesn't hold an event, so an empty stretch of the run draws as empty.
+ * Undefined for a division that doesn't hold an event, so an empty stretch of actuality draws as empty.
  */
 export function bucketMarkerStyle(held: ReadonlyArray<{ event: unknown; count: number }>): TEventMarkerStyle | undefined {
 	const styled = held.filter(({ count }) => count > 0).map(({ event, count }) => ({ style: eventMarkerStyle(event), count }));
 	if (styled.length === 0) return undefined;
 	const failing = styled.filter(({ style }) => style.color === MARK_COLOUR.fault);
 	const among = failing.length > 0 ? failing : styled;
-	// Most of what it holds, and where two hold as much, the one the run's own rule draws first: the same counts mark
+	// Most of what it holds, and where two hold as much, the one actuality's own rule draws first: the same counts mark
 	// the same way whatever order they were read in.
 	return among.reduce((most, one) => (one.count > most.count || (one.count === most.count && one.style.icon < most.style.icon) ? one : most)).style;
 }

@@ -54,7 +54,7 @@ const RestJsonCountSchema = z.object({ summary: z.string(), details: z.object({ 
 export const DOMAIN_PAGE_CONTENTS = "page-contents";
 export const DOMAIN_ACCESSIBILITY_SNAPSHOT = "accessibility-snapshot";
 export const DOMAIN_JSON_RESPONSE_COUNT = "json-response-count";
-/** The domain of an extension loaded into the browser the run launches: its id and the origin its pages are at. */
+/** The domain of an extension loaded into the browser actuality launches: its id and the origin its pages are at. */
 export const DOMAIN_BROWSER_EXTENSION = "browser-extension";
 const BrowserExtensionSchema = z.object({ id: z.string(), origin: z.string() });
 /** The domain of an extension the browser runs: its worker, where it declares one, and the side panel its toolbar button
@@ -123,7 +123,11 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 	{ selectors: [DOMAIN_PAGE_CONTENTS], schema: PageContentsSchema, description: "A page's markup, as the browser holds it" },
 	{ selectors: [DOMAIN_ACCESSIBILITY_SNAPSHOT], schema: AccessibilitySnapshotSchema, description: "A page as its accessibility tree reads, with the steps that act on it" },
 	{ selectors: [DOMAIN_JSON_RESPONSE_COUNT], schema: RestJsonCountSchema, description: "How many entries the last JSON response held" },
-	{ selectors: [DOMAIN_BROWSER_EXTENSION], schema: BrowserExtensionSchema, description: "An extension loaded into the browser the run launches, and the origin its pages are at" },
+	{
+		selectors: [DOMAIN_BROWSER_EXTENSION],
+		schema: BrowserExtensionSchema,
+		description: "An extension loaded into the browser actuality launches, and the origin its pages are at",
+	},
 	{
 		selectors: [DOMAIN_RUNNING_BROWSER_EXTENSION],
 		schema: RunningBrowserExtensionSchema,
@@ -187,7 +191,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 	{
 		selectors: [VISITED_PAGE_LABEL],
 		schema: visitedPageSchema,
-		description: "A page the browser navigated to during the run, keyed by a per-navigation synthetic id; its name is the page URL.",
+		description: "A page the browser navigated to during actuality, keyed by a per-navigation synthetic id; its name is the page URL.",
 		topology: {
 			persistedAs: VISITED_PAGE_LABEL,
 			instrumentation: true,

@@ -124,7 +124,7 @@ interface TAffordancesInputs {
 	/**
 	 * Replay the affordances at a historical point. When set, only typed facts
 	 * whose seqPath subject is `≤ asOfSeqPath` enter the projection, facts
-	 * asserted later in the run are dropped. Lets the panel reconstruct
+	 * asserted later in actuality are dropped. Lets the panel reconstruct
 	 * mid-flight state from any prior seqPath.
 	 */
 	asOfSeqPath?: number[];

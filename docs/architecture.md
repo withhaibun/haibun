@@ -2,7 +2,7 @@
 
 This document explains how Haibun processes feature files, grounded in a practical example: logging into a site, verifying all requests stay within allowed domains, and checking that the requests don't return 4xx/5xx or take longer than 5 seconds.
 
-The following concepts will be introduced: phases, steppers, domains, observations, quantifiers, activities, waypoints and proofs, and monitors.
+The following concepts will be introduced: actuality, phases, steppers, domains, observations, quantifiers, activities, waypoints and proofs, and monitors.
 
 ## Design Philosophy
 
@@ -10,6 +10,12 @@ Haibun offers value by extending behavior-driven development with literary progr
 1. Define expected behavior
 2. Verify systems match that specification
 3. Explain the system to readers with up-to-date proof (screenshots, videos, network diagrams, etc)
+
+### Actuality
+
+A feature states what is expected. **Actuality** is the live system and its results. It is the process that carries the features out, the instance that acts and holds its authority while it does, and what that produces: a record of each step in the order it was performed, with how it went and what it produced.
+
+A feature is verified against actuality, and a reader is shown actuality as the proof. A page reads actuality, a monitor follows it, and a report carries it. Code, messages and docs say "actuality" for this, and do not say "the run". "A run" counts one execution among several, such as a test run an agent starts and supervises.
 
 Haibun includes first-order logic to provide a grounded and consistent way to reason about third-party behaviors (like ensuring every request in a trace meets a performance threshold) without the brittle complexity and error-prone loops of general-purpose programming.
 
@@ -153,7 +159,7 @@ Waypoints are registered during resolution. When the resolver encounters an `Act
 
 ## Phase 4: Executor
 
-The Executor runs resolved features through stepper lifecycle methods. Steppers that implement `IStepperCycles` can hook into execution at various points:
+The Executor runs resolved features through stepper lifecycle methods. Actuality starts here: from this phase on there is a live system, and each step it performs adds to its results. Steppers that implement `IStepperCycles` can hook into execution at various points:
 
 ```
 startExecution(features)     

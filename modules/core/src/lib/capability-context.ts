@@ -84,7 +84,7 @@ export function actingAs(): string | undefined {
 	return actingStore.getStore();
 }
 
-/** Who an act of the authority is done for: the root, where the call holds every action, as the run's own features and
+/** Who an act of the authority is done for: the root, where the call holds every action, as actuality's own features and
  *  its owner do; else the key the caller proved, which acts only within what it was delegated; else undefined. */
 export function actingFor(): TActingFor | undefined {
 	if (capabilityAllows(authorizedWith(), EVERY_ACTION)) return { root: true };
@@ -137,7 +137,7 @@ export function readingAt(): AccessLevel | undefined {
 	return readCeilingStore.getStore();
 }
 
-/** The level of what the call in progress may have read: its ceiling, or private for the run's own statements, which
+/** The level of what the call in progress may have read: its ceiling, or private for actuality's own statements, which
  *  read without one. */
 export function readLevel(): AccessLevel {
 	return readingAt() ?? Access.private;

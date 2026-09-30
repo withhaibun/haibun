@@ -193,7 +193,7 @@ export const affordancesSchema = z
 					.strict(),
 			)
 			.optional(),
-		// The run whose facts these are, which is where a fact's step is: a fact's id is that step's seqPath.
+		// The actuality whose facts these are, which is where a fact's step is: a fact's id is that step's seqPath.
 		execution: z.string(),
 	})
 	.strict();
@@ -207,7 +207,7 @@ export const chainLintSchema = z
 		forward: z.array(z.unknown()).optional(),
 		goals: z.array(z.unknown()).optional(),
 		composites: z.record(z.string(), z.record(z.string(), z.string())).optional(),
-		// The run whose facts these are, which is where a fact's step is: a fact's id is that step's seqPath.
+		// The actuality whose facts these are, which is where a fact's step is: a fact's id is that step's seqPath.
 		execution: z.string(),
 	})
 	.strict();
@@ -224,7 +224,7 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		description: "Free text a person writes: a note, a question, a reason or a passage quoted, read as written.",
 	},
 	{ selectors: [DOMAIN_VARIABLE_NAME], schema: NameSchema, written: true, description: "The name of a variable, as the line writes it." },
-	{ selectors: [DOMAIN_IMAGE_REFERENCE], schema: ImageReferenceSchema, description: "An image: where the run keeps its bytes, and their media type." },
+	{ selectors: [DOMAIN_IMAGE_REFERENCE], schema: ImageReferenceSchema, description: "An image: where actuality keeps its bytes, and their media type." },
 	{ selectors: [DOMAIN_IMAGE_DATA], schema: ImageDataSchema, description: "An image's bytes, as a data: URL a page reads a file into." },
 	{ selectors: [DOMAIN_DOMAIN_NAME], schema: NameSchema, written: true, description: "The name a declaration gives a new domain, as the line writes it." },
 	{ selectors: [DOMAIN_GLOB], schema: NameSchema, description: "A pattern in which * stands for any run of characters." },
@@ -242,7 +242,7 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		selectors: [DOMAIN_LINE_COMMENT],
 		schema: z.string(),
 		written: true,
-		description: "The text of a line comment, after `;;`, as the feature writes it. The run doesn't act on it.",
+		description: "The text of a line comment, after `;;`, as the feature writes it. Actuality doesn't act on it.",
 	},
 	{ selectors: [DOMAIN_ROUTE], schema: NameSchema, description: "The path a web server serves something at, such as /shu." },
 	{
@@ -261,7 +261,7 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 	{
 		selectors: [DOMAIN_STEP_PATH],
 		schema: stepPathSchema,
-		description: "A step's place in the run: its dot-joined sequence path, such as 0.1.5.3, or an id that begins with one, as an event's does.",
+		description: "A step's place in actuality: its dot-joined sequence path, such as 0.1.5.3, or an id that begins with one, as an event's does.",
 	},
 	{ selectors: [DOMAIN_DURATION], schema: durationSchema, description: "A length of time, given as seconds or milliseconds, such as 2s or 30 ms, read as milliseconds." },
 	{

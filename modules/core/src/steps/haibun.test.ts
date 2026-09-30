@@ -229,10 +229,10 @@ Prose sections are indicated by the presence of punctuation at the end of paragr
 });
 
 describe("the steps a run holds", () => {
-	it("are announced to the run's subscribers when a transport adds to them", async () => {
+	it("are announced to actuality's subscribers when a transport adds to them", async () => {
 		const signals: string[] = [];
 		class AddsAStep extends AStepper {
-			description = "Adds a step to the run's registry, as a transport adds another host's steps, and records the run's signals.";
+			description = "Adds a step to actuality's registry, as a transport adds another host's steps, and records actuality's signals.";
 			cycles = { onEvent: (event: THaibunEvent) => void (event.kind === "control" && signals.push(event.signal)) };
 			steps = {
 				addsAStep: {
@@ -254,7 +254,7 @@ describe("the steps a run holds", () => {
 });
 
 describe("show steps", () => {
-	it("shows the run's steps whose text contains the text, as a feature line reads them", async () => {
+	it("shows actuality's steps whose text contains the text, as a feature line reads them", async () => {
 		const feature = { path: "/features/test.feature", content: 'show steps matching "testsTEPS-passes" as "definition"' };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);

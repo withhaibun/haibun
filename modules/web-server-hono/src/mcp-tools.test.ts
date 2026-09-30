@@ -44,7 +44,7 @@ class TestStepper extends AStepper {
 					registry.inject([{ ...passes, descriptor: { ...passes.descriptor, method: "Injected-testA", stepperName: "Injected" } }]);
 					await toldOfChange;
 					if (!(await client.listTools()).tools.some((tool) => tool.name === "Injected-testA"))
-						throw Error("a step injected into the run is not listed after the client was told the list changed");
+						throw Error("a step injected into actuality is not listed after the client was told the list changed");
 					const instructions = client.getInstructions() ?? "";
 					if (instructions.includes("TestStepper")) throw Error(`the instructions, set before any caller connects, name a stepper: ${instructions}`);
 					if (!instructions.includes(SHOW_STEPS_METHOD)) throw Error(`the instructions don't say how to find a step: ${instructions}`);
@@ -76,7 +76,7 @@ verify mcp tools on port ${port}
 `,
 		};
 
-		// The run can't verify a delegation, so the deployment allows every action without one, as a haibun-only run does.
+		// Actuality can't verify a delegation, so the deployment allows every action without one, as a haibun-only run does.
 		const moduleOptions = {
 			[getStepperOptionName(WebServerStepper, "PORT")]: String(port),
 			[getStepperOptionName(McpStepper, "PORT")]: String(port),

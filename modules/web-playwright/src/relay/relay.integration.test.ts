@@ -1,7 +1,7 @@
 /**
  * A person's browser, attached through their extension and driven by a run's steps. The extension's side is the relay
  * client running against a real Chromium through the chrome.* fake, calling the relay over the instance's `/rpc` and
- * signing as a key that holds what attaching a browser requires. The run clicks and enters text in the person's tab;
+ * signing as a key that holds what attaching a browser requires. Actuality clicks and enters text in the person's tab;
  * a caller that may not attach, a second extension, and a step without a browser attached are each refused, saying why.
  * The person attaches again after ending an attachment, and withdrawing what the extension holds ends its attachment.
  */

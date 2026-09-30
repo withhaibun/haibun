@@ -1,5 +1,5 @@
 /**
- * Where an artifact of the run is read from. A served page reads it from the run's artifact route; a page opened as a
+ * Where an artifact of actuality is read from. A served page reads it from actuality's artifact route; a page opened as a
  * file reads it beside itself, since the report is written into the feature's own directory. One rule, so a view that
  * shows an artifact states what to show and not where a page came from.
  */
@@ -12,7 +12,7 @@ import { ARTIFACTS_ROUTE, artifactAddress } from "@haibun/core/lib/run-artifact.
 import { reportToRun } from "./client-log.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 
-/** The address of one artifact, from what the event recorded of it: its own URL, its path under the run, or the path
+/** The address of one artifact, from what the event recorded of it: its own URL, its path under actuality, or the path
  *  relative to the feature's directory that a report is written into. */
 export function artifactUrl(artifact: { url?: unknown; path?: unknown; featureRelativePath?: unknown }): string | undefined {
 	const url = typeof artifact.url === "string" ? artifact.url : undefined;
@@ -24,12 +24,12 @@ export function artifactUrl(artifact: { url?: unknown; path?: unknown; featureRe
 	return url ?? (base ? artifactAddress(base) : undefined);
 }
 
-/** The run's artifacts this page has read, by address, as the object URLs a view shows them at. */
+/** Actuality's artifacts this page has read, by address, as the object URLs a view shows them at. */
 const shown = new Map<string, Promise<string>>();
 
 /**
- * The address a view shows an artifact at. The run serves its artifacts only to a caller holding a private read, so an
- * artifact the run serves is read under the page's delegation and shown at an object URL of what it read. A page opened
+ * The address a view shows an artifact at. Actuality serves its artifacts only to a caller holding a private read, so an
+ * artifact actuality serves is read under the page's delegation and shown at an object URL of what it read. A page opened
  * as a file reads its artifacts beside itself, and any other address is shown as it is.
  */
 export function shownArtifact(url: string): Promise<string> {
@@ -41,7 +41,7 @@ export function shownArtifact(url: string): Promise<string> {
 	return reading;
 }
 
-/** The address a view shows an artifact at, or undefined once the run is told why the artifact couldn't be read. */
+/** The address a view shows an artifact at, or undefined once actuality is told why the artifact couldn't be read. */
 export const shownOrReported = (url: string, source: string): Promise<string | undefined> =>
 	shownArtifact(url).catch((err: unknown) => {
 		reportToRun("warn", source, `an artifact couldn't be shown: ${errorDetail(err)}`, { url });
@@ -57,6 +57,6 @@ export const artifactAt = (url: string, source: string) =>
 
 async function readArtifact(url: string): Promise<string> {
 	const response = await fetch(url, { headers: await readingHeaders(url, READS_THE_RUNS_ARTIFACTS) });
-	if (!response.ok) throw new Error(`the run refused its artifact ${url}: ${response.status} ${await response.text()}`);
+	if (!response.ok) throw new Error(`actuality refused its artifact ${url}: ${response.status} ${await response.text()}`);
 	return URL.createObjectURL(await response.blob());
 }

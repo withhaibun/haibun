@@ -19,7 +19,7 @@ export const SHU_TEST_IDS = {
 		CHAT_OUTPUT: "app-chat-output",
 		CHAT_TEXT: "app-chat-text",
 		CHAT_ACTIVITY: "app-chat-activity",
-		/** A message's link to the Comment the run recorded for it. */
+		/** A message's link to the Comment actuality recorded for it. */
 		CHAT_RECORD: "app-chat-record",
 		/** On a view whose reader scrolled away from the end: the control that states what arrived and returns them to it. */
 		CHAT_ARRIVED: "app-chat-arrived",
@@ -42,7 +42,7 @@ export const SHU_TEST_IDS = {
 		STEP_SELECT: "app-step-select",
 		MODE_SELECT: "app-mode-select",
 		MODEL_SELECT: "app-model-select",
-		/** In the chat's settings where the run doesn't offer a model: that it doesn't offer one. */
+		/** In the chat's settings where actuality doesn't offer a model: that it doesn't offer one. */
 		NO_MODELS: "app-no-models",
 		TYPE_SELECT: "app-type-select",
 		FOLDER_SELECT: "app-folder-select",
@@ -124,7 +124,7 @@ export const SHU_TEST_IDS = {
 		ESTABLISHED_BY: "monitor-established-by",
 		LOG_STREAM: "monitor-log-stream",
 		LOG_ROW: "monitor-log-row",
-		/** The run's first row: on the page only once the start of the run has been reached and paged in. */
+		/** Actuality's first row: on the page only once the start of actuality has been reached and paged in. */
 		FIRST_ROW: "monitor-log-row-first",
 	},
 	/** The scroll rail every virtualized column and the annotated body share. */
@@ -161,7 +161,7 @@ export const SHU_TEST_IDS = {
 		ROOT: "action-column",
 		STEP: "action-column-step",
 	},
-	/** A step as the run declares it: its line, the domain of each argument and of what it returns, and its choice. */
+	/** A step as actuality declares it: its line, the domain of each argument and of what it returns, and its choice. */
 	STEP_DEFINITION: {
 		ROOT: "step-definition",
 		PATTERN: "step-definition-pattern",
@@ -196,7 +196,7 @@ export const SHU_TEST_IDS = {
 	INDEX_SUMMARY: {
 		ROOT: "index-summary",
 	},
-	/** The client cache view: what the page caches of the run. Every value has its own id, so a feature asserts cache facts
+	/** The client cache view: what the page caches of actuality. Every value has its own id, so a feature asserts cache facts
 	 *  through the generic steps (`save text from {id} to {var}`, `variable {var} is …`, `matches`) rather than a probe of
 	 *  its own: a source's value is `${SOURCE}${level}-${field}` (fields: events, first, newest, page, cached, cached-rows,
 	 *  cursor, state); the live count at a level `${LIVE}${level}`; what the device stores of the last run at a level
@@ -204,7 +204,7 @@ export const SHU_TEST_IDS = {
 	CLIENT_CACHE: {
 		ROOT: "client-cache-view",
 		CURSOR: "client-cache-cursor",
-		/** The moment the run is read around, or that its newest records are being followed. */
+		/** The moment actuality is read around, or that its newest records are being followed. */
 		READING_AT: "client-cache-reading-at",
 		/** When the server last responded to this page, or that it has not. */
 		SERVER: "client-cache-server",
@@ -226,7 +226,7 @@ export const SHU_TEST_IDS = {
 		READING: "client-cache-reading",
 		/** Read the newest execution this device holds other than the one being read. */
 		READ_EARLIER: "client-cache-read-earlier",
-		/** What the last forget removed: the run and how many of its records went. It is there once a reader has forgotten a
+		/** What the last forget removed: actuality and how many of its records went. It is there once a reader has forgotten a
 		 *  run and the executions have been read again, so it is the state that says the list no longer holds that run. */
 		FORGOTTEN: "client-cache-forgotten",
 		IDB: "client-cache-idb-",

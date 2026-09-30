@@ -58,7 +58,7 @@ class PingStepper extends AStepper {
 }
 
 /** The steps a caller is shown, read as a page reads them. */
-/** The steps a read of the run's declarations at `url` shows, signed by `holder` where one is named. */
+/** The steps a read of actuality's declarations at `url` shows, signed by `holder` where one is named. */
 async function shownSteps(url: string, holder?: string): Promise<TStepDefinition[]> {
 	const body = JSON.stringify({ jsonrpc: "2.0", id: "1", method: SHOW_STEPS_METHOD, params: EVERY_DEFINITION, asks: "read" });
 	const headers = { "content-type": "application/json" };
@@ -82,7 +82,7 @@ async function readAtLevel(res: Response): Promise<string> {
 	return String(data.at);
 }
 
-/** Open the run's event stream at `url`, signed by `holder` for `action` where a holder is named, and answer its status. */
+/** Open actuality's event stream at `url`, signed by `holder` for `action` where a holder is named, and answer its status. */
 async function openStream(url: string, signer?: { holder: string; action: string }): Promise<number> {
 	const headers = signer ? await new FakeInvoker(signer.holder).sign({ method: "GET", url, headers: {} }, signer.action) : {};
 	const stopped = new AbortController();
@@ -98,7 +98,7 @@ const FOLLOWED_TO_HERE = "followed-to-here";
 const SENT_LEVELS = [Access.public, Access.opened, Access.private];
 
 /**
- * Follow the run's event stream at `url` as `signer`, send an event at each access level through `transport` and then
+ * Follow actuality's event stream at `url` as `signer`, send an event at each access level through `transport` and then
  * the end marker, and answer the levels of the events the follower was sent. The stream subscribes before it answers,
  * so what is sent after the answer arrives reaches it.
  */
@@ -365,11 +365,11 @@ function makeOptions(port: number, allowedWithoutDelegation?: string) {
 	};
 }
 
-/** What the run narrated about the calls it served, so a case can state which of them it narrates. */
+/** What actuality narrated about the calls it served, so a case can state which of them it narrates. */
 const narrated: string[] = [];
 
 class ReadStepper extends AStepper {
-	description = "A step that declares itself a read, and a step that checks which RPC calls the run narrated.";
+	description = "A step that declares itself a read, and a step that checks which RPC calls actuality narrated.";
 	override async setWorld(world: Parameters<AStepper["setWorld"]>[0], steppers: Parameters<AStepper["setWorld"]>[1]) {
 		await super.setWorld(world, steppers);
 		narrated.length = 0;
@@ -404,7 +404,7 @@ const steppers = [WebServerStepper, PingStepper, RpcVerifyStepper, ReadStepper, 
 const signedSteppers = [AuthorityStepper, FakeAuthorityStepper, ...steppers];
 
 describe("RPC dispatch via WebServerStepper", () => {
-	it("does not narrate serving a read, since a page reading the run would read again for its own reading", async () => {
+	it("does not narrate serving a read, since a page reading actuality would read again for its own reading", async () => {
 		const port = 8244;
 		const feature = {
 			path: "/features/test.feature",
@@ -422,7 +422,7 @@ run narrated the call that acted on it and not the call that read it
 
 	it("answers a read of a step that declares itself one, and refuses to answer a read of a step that does not", async () => {
 		// A read is answered and doesn't leave a record of the reading, so what may be read that way is what the step itself
-		// declares. Asked to read a step that doesn't declare itself a read, the run refuses rather than answering and recording the
+		// declares. Asked to read a step that doesn't declare itself a read, actuality refuses rather than answering and recording the
 		// reading as something it did, which is a run that writes about being read for as long as a page follows it.
 		const port = 8246;
 		const feature = {
@@ -438,7 +438,7 @@ rpc read at "http://localhost:${port}/rpc/PingStepper-ping" of "PingStepper-ping
 		expect(result.ok).toBe(true);
 	});
 
-	it("refuses a call presenting authority that the run can't verify, as unauthenticated, and doesn't run a step", async () => {
+	it("refuses a call presenting authority that actuality can't verify, as unauthenticated, and doesn't run a step", async () => {
 		// A proof that isn't checked doesn't grant an action, and a request running with an empty grant would still run every
 		// step that doesn't ask for a capability, so a request presenting one is refused whole.
 		const port = 8248;
@@ -489,7 +489,7 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-ping" with method "PingSte
 		expect(result.ok).toBe(true);
 	});
 
-	it("refuses a caller that doesn't present authority every step, alike whether the step exists, so a refusal doesn't map the run", async () => {
+	it("refuses a caller that doesn't present authority every step, alike whether the step exists, so a refusal doesn't map actuality", async () => {
 		const port = 8255;
 		const feature = {
 			path: "/features/test.feature",
@@ -541,7 +541,7 @@ rpc read asking for "public" at "${url}" signed by "owner" for "Read:private" re
 		expect(result.ok).toBe(true);
 	});
 
-	it("opens the run's event stream to a caller holding a read, and sends each follower the events it may read at their level", async () => {
+	it("opens actuality's event stream to a caller holding a read, and sends each follower the events it may read at their level", async () => {
 		const port = 8258;
 		const url = `http://localhost:${port}/sse`;
 		const feature = {
@@ -617,17 +617,17 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "Pi
 		expect(result.ok).toBe(true);
 	});
 
-	it("shows and dispatches a step injected into the run's registry after rpc is enabled, as every other caller of the run does", async () => {
+	it("shows and dispatches a step injected into actuality's registry after rpc is enabled, as every other caller of actuality does", async () => {
 		const port = 8238;
 		class Injects extends AStepper {
-			description = "A step that copies a step into the run's registry under another name, as a transport injects one.";
+			description = "A step that copies a step into actuality's registry under another name, as a transport injects one.";
 			steps = {
 				injectAStep: {
-					gwta: "inject a step into the run's registry",
+					gwta: "inject a step into actuality's registry",
 					action: () => {
 						const registry = this.getWorld().runtime.stepRegistry;
 						const ping = registry?.get("PingStepper-ping");
-						if (!registry || !ping) return Promise.resolve(actionNotOK("the run holds no ping to copy"));
+						if (!registry || !ping) return Promise.resolve(actionNotOK("actuality holds no ping to copy"));
 						registry.inject([{ ...ping, descriptor: { ...ping.descriptor, method: "Injected-ping", stepperName: "Injected", stepName: "ping" } }]);
 						return Promise.resolve(OK);
 					},
@@ -639,7 +639,7 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "Pi
 			content: `
 enable rpc
 webserver is listening for "rpc-injected"
-inject a step into the run's registry
+inject a step into actuality's registry
 steps shown at "http://localhost:${port}/rpc/${SHOW_STEPS_METHOD}" presenting nothing include "Injected-ping"
 rpc call to "http://localhost:${port}/rpc/Injected-ping" with method "Injected-ping" succeeds
 `,

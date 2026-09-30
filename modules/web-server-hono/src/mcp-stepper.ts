@@ -37,13 +37,13 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 	description = "Expose all Haibun steps as callable MCP tools for LLM agents";
 	readonly name = "McpStepper";
 
-	/** IStepTransport: list the run's registry, and tell connected clients each time its steps change. */
+	/** IStepTransport: list actuality's registry, and tell connected clients each time its steps change. */
 	attach(registry: StepRegistry, _webserver: IWebServer): void {
 		this.stopListening?.();
 		this.currentRegistry = registry;
 		this.stopListening = registry.onChange(() => {
 			if (!this.mcpServer?.isConnected()) return;
-			// A client whose stream closed is not told; the run goes on, and says so.
+			// A client whose stream closed is not told; actuality goes on, and says so.
 			void this.mcpServer.server.sendToolListChanged().catch((err: unknown) => this.getWorld().eventLogger.warn(`[MCP] the tool list change was not sent: ${errorDetail(err)}`));
 		});
 	}
@@ -83,7 +83,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 	private steppers: AStepper[] = [];
 	private currentRegistry?: StepRegistry;
 
-	/** The run's registry, which the run attaches this transport to before any feature starts. */
+	/** Actuality's registry, which actuality attaches this transport to before any feature starts. */
 	private registry(): StepRegistry {
 		if (!this.currentRegistry) throw new Error("McpStepper: a step registry isn't attached");
 		return this.currentRegistry;
@@ -209,7 +209,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 
 			// 2. Auth. What the request presents is verified over the whole request, the body its digest covers included, and
 			// every call it carries runs under that and what the deployment allows without a delegation, and only those: the
-			// server was started inside a step of the run, and a caller doesn't hold what that step held.
+			// server was started inside a step of actuality, and a caller doesn't hold what that step held.
 			const body = c.req.method === "POST" ? await c.req.raw.clone().text() : undefined;
 			const { granted, principal, refused } = await grantedCapabilityForRequest(
 				{ method: c.req.method, url: c.req.url, headers: c.req.header(), body },

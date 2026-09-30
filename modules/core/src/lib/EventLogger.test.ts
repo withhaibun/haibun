@@ -258,11 +258,11 @@ describe("EventLogger", () => {
 
 		it("reports at its own level while a step reports at its own", () => {
 			const heard = said();
-			logger.info("the run says something");
+			logger.info("actuality says something");
 			expect(heard[0].level).toBe("info");
 		});
 
-		it("reports no more prominently than the step it is said during, so a call into a running instance stays out of the run's history", () => {
+		it("reports no more prominently than the step it is said during, so a call into a running instance stays out of actuality's history", () => {
 			const heard = said();
 			runInStep(DURING_A_TRACE_STEP, () => logger.info("what the caller's own step said"));
 			expect(heard[0].level, "said during a step that reports at trace").toBe("trace");
@@ -306,15 +306,15 @@ describe("what a produced thing reports at", () => {
 describe("the level an event states", () => {
 	const said = (message: string) => LogEvent.parse({ id: message, timestamp: 0, kind: "log", level: "info", message });
 
-	it("is the read level of the call that emitted it: a call bounded to public reads announces at public, the run's own at private", async () => {
+	it("is the read level of the call that emitted it: a call bounded to public reads announces at public, actuality's own at private", async () => {
 		const logger = new EventLogger();
 		logger.suppressConsole = true;
 		const levels: Record<string, unknown> = {};
 		logger.subscribe((event: THaibunEvent) => void (levels[event.id] = event.accessLevel));
 		await runReadingAt(Access.public, () => Promise.resolve(logger.emit(said("bounded"))));
-		logger.emit(said("the run's own"));
+		logger.emit(said("actuality's own"));
 		logger.emit({ ...said("stated"), accessLevel: Access.opened });
-		expect(levels).toEqual({ bounded: Access.public, "the run's own": Access.private, stated: Access.opened });
+		expect(levels).toEqual({ bounded: Access.public, "actuality's own": Access.private, stated: Access.opened });
 	});
 
 	it("is refused where it is more public than what the call read, and the call doesn't hold a write at that level", async () => {

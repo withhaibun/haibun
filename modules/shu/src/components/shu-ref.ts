@@ -43,7 +43,7 @@ export const originLink = (origin: string): TemplateResult => html`<a href=${ori
 /** A domain, by its key, as a link to its view: the view of the type it persists as, or of the domain itself. */
 export const domainRef = (key: string, testId?: string): TemplateResult => refTpl(REF_DENOTES.type, { domain: findDomain(key)?.persistedAs ?? key }, key, testId);
 
-/** A step, by its method, as a link to the step as the run declares it. */
+/** A step, by its method, as a link to the step as actuality declares it. */
 export const stepRef = (method: string, text?: string, testId?: string): TemplateResult => refTpl("step", { method }, text ?? method, testId);
 
 /** An action a caller holds or a step requires, as a link to what it allows. */

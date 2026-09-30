@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * The open conversation follows the run: a turn any page asks in it reaches every page reading it, when the run reports
+ * The open conversation follows actuality: a turn any page asks in it reaches every page reading it, when actuality reports
  * that turn's step starting and when it reports it ending.
  */
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
@@ -13,7 +13,7 @@ import type { TSessionTurn } from "./schemas.js";
 const read: { turns: TSessionTurn[]; reads: number } = { turns: [], reads: 0 };
 
 const SESSION = question("0.1.1");
-/** What the run reports for a turn's step, which is what this page hears of a turn another page asked. */
+/** What actuality reports for a turn's step, which is what this page hears of a turn another page asked. */
 const reportOf = (stage: "start" | "end") => ({ kind: "lifecycle", type: "step", stage, actionName: ASK_STEP });
 /** The stream delivers what it was given as a batch in the next frame, and what the batch starts settles before the task after it. */
 const batchSettled = async () => {
@@ -21,7 +21,7 @@ const batchSettled = async () => {
 	await new Promise((resolve) => setTimeout(resolve, 0));
 };
 
-describe("the open conversation follows the run's turns", () => {
+describe("the open conversation follows actuality's turns", () => {
 	let t: TShuTestHandle;
 	beforeEach(() => {
 		t = setupShuTest({
@@ -40,14 +40,14 @@ describe("the open conversation follows the run's turns", () => {
 	});
 	afterEach(() => t.teardown());
 
-	it("reads the session again when the run reports a turn starting, so a turn another page asks reaches this one", async () => {
+	it("reads the session again when actuality reports a turn starting, so a turn another page asks reaches this one", async () => {
 		followRunningTurns();
 		read.turns = [aReadBack("0.1.1"), aReadBack("0.1.2", SESSION)];
 		t.emit(reportOf("start"));
 		await vi.waitFor(() => expect(conversationState.get().turns).toHaveLength(2));
 	});
 
-	it("reads it again when the run reports a turn ending", async () => {
+	it("reads it again when actuality reports a turn ending", async () => {
 		followRunningTurns();
 		read.turns = [aReadBack("0.1.1"), aReadBack("0.1.2", SESSION)];
 		t.emit(reportOf("end"));

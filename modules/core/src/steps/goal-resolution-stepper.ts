@@ -101,7 +101,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 					.filter((s: string) => s.length > 0);
 				const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
 				const smokeFindings = goals.map((goal: string) => {
-					// The run's own check, made as the run: what it may reach is everything its steps offer.
+					// Actuality's own check, made as actuality: what it may reach is everything its steps offer.
 					const resolution = resolveGoal(goal, { graph, facts, held: RUN_AUTHORITY, ...this.compositeOptions() });
 					return { goal, finding: resolution.finding };
 				});
@@ -181,7 +181,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 	/**
 	 * Shared affordances builder for the live and as-of variants. When `asOf`
 	 * is set, the projection drops facts asserted after that seqPath so the
-	 * panel reconstructs the run state at that point.
+	 * panel reconstructs actuality state at that point.
 	 *
 	 * Every registered stepper with the ProvidesWaypoints capability contributes waypoint entries to the same
 	 * snapshot. Live only, waypoint ensure-state is current run state, so an as-of projection doesn't carry waypoint entries.
@@ -295,7 +295,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		},
 
 		// The same snapshot the showing steps produce, as a read: what a page showing the panel asks for after every
-		// step to stay current. Showing the panel is an act of the run and is recorded as one; asking what is on offer
+		// step to stay current. Showing the panel is an act of actuality and is recorded as one; asking what is on offer
 		// isn't shown and isn't recorded.
 		affordancesOnOffer: {
 			gwta: "affordances on offer",

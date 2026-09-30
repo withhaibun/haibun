@@ -39,7 +39,7 @@ export const features: TKirejiExport = {
 		`save text from ${IDS.CLIENT_CACHE.READING} to readingNow`,
 		'matches readingNow with "*Reading an execution this device holds*"',
 
-		"Reading the execution before it makes every view of the run read that one instead. It is not the execution this site is recording, so its rows come from the records this device holds, and the monitor shows them.",
+		"Reading the execution before it makes every view of actuality read that one instead. It is not the execution this site is recording, so its rows come from the records this device holds, and the monitor shows them.",
 		click({ target: IDS.CLIENT_CACHE.READ_EARLIER }),
 		`save text from ${IDS.CLIENT_CACHE.READING} to readingEarlier`,
 		'matches readingEarlier with "*A run to come back to*"',

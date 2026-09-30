@@ -55,7 +55,7 @@ const DEVICE_READ_DELAY_MS = 150;
 
 const at = (t: number | undefined): string => (t === undefined || !Number.isFinite(t) ? "" : new Date(t).toISOString().slice(11, 23));
 /** The feature the run being read declared, from the first rows of it a view has read. A run declares its feature at
- *  its start, so this reads the first rows rather than the run. */
+ *  its start, so this reads the first rows rather than actuality. */
 function featureBeingRead(sources: RunSource[]): string {
 	for (const source of sources) {
 		for (const { from, to } of source.cachedRanges()) {
@@ -73,7 +73,7 @@ const FEATURE_WITHIN_ROWS = 20;
 
 /** What a source is doing, as the one word a reader reads it by. It is the cell's own id as well, so what a reader
  *  waits for is the state itself rather than a cell that may still be about to change. */
-/** What a source is doing, one word a reader waits for: not yet read, cut off from the run, behind what the run has
+/** What a source is doing, one word a reader waits for: not yet read, cut off from actuality, behind what actuality has
  *  announced, or read and current. Each is a fact of the reading, so a state isn't inferred from what happens to arrive. */
 const stateOf = (source: RunSource): string =>
 	source.unavailable ? "unavailable" : source.ended ? "ended" : !source.loaded ? "loading" : source.disconnected ? "disconnected" : source.behind ? "behind" : "loaded";
@@ -161,7 +161,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 		return {
 			"@id": "view:client-cache",
 			"@type": "as:Note",
-			name: "what this page caches of the run",
+			name: "what this page caches of actuality",
 			cursor: this.timeCursor,
 			registry: registryOrigin(),
 			sources: runSources().map((s) => ({ level: s.level, ...s.extent(), cached: spans(s.cachedRanges()), cursorRow: this.#cursorRowIn(s) })),
@@ -318,7 +318,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 		const registry = registryOrigin();
 		const respondedAt = serverLastRespondedAt();
 		const cached = this.#registry;
-		// What the execution being read ran, from the run being read rather than from what the device has been asked for:
+		// What the execution being read ran, from the actuality being read rather than from what the device has been asked for:
 		// a page names what it is reading as soon as it has read it.
 		const named = (execution: string | undefined): string => this.#held.find((e) => e.execution === execution)?.features.join(", ") || featureBeingRead(sources) || execution || "";
 		const cell = (id: string, value: unknown): TemplateResult => html`<td data-testid=${id}>${value}</td>`;
@@ -333,7 +333,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 			<div data-testid=${IDS.CURSOR}>
 				${cursor === null ? "live edge" : html`${at(cursor)} <button class="link" title="back to the live edge" @click=${() => (this.timeCursor = null)}>to the live edge</button>`}
 			</div>
-			<div data-testid=${IDS.READING_AT}>${readingMoment === undefined ? "following the newest records" : `the run is read around ${at(readingMoment)}`}</div>
+			<div data-testid=${IDS.READING_AT}>${readingMoment === undefined ? "following the newest records" : `actuality is read around ${at(readingMoment)}`}</div>
 			<h4>Live stream since this view opened (device time ${at(this.#openedAt)})</h4>
 			${
 				this.#liveByLevel.size === 0
@@ -356,7 +356,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 			<h4>Run sources</h4>
 			${
 				sources.length === 0
-					? html`<div class="empty">A view hasn't read the run yet.</div>`
+					? html`<div class="empty">A view hasn't read actuality yet.</div>`
 					: html`<table>
 							<tr>
 								<th>level</th>
@@ -415,7 +415,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 							})}
 						</table>`
 			}
-			${this.#forgotten === undefined ? "" : html`<div data-testid=${IDS.FORGOTTEN}>the run ${this.#forgotten.execution} and its ${this.#forgotten.records} records are forgotten</div>`}
+			${this.#forgotten === undefined ? "" : html`<div data-testid=${IDS.FORGOTTEN}>actuality ${this.#forgotten.execution} and its ${this.#forgotten.records} records are forgotten</div>`}
 			<h4>IndexedDB <small>(this build reads ${CACHE_SHAPE}; a cache written to another rule is forgotten on open)</small></h4>
 			${
 				this.#databases.length === 0

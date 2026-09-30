@@ -90,7 +90,7 @@ export const features: TKirejiExport = {
 		monitorShowsRowContaining({ text: '"burstEvent29"' }),
 
 		scenario({ scenario: "The custom scroll rail drives the virtualized viewport" }),
-		"Ask to be informed what the views do, before touching the rail. A view records its own scroll geometry as it changes, at whatever rate it changes, and the run doesn't cache it: asking is what makes it readable at all.",
+		"Ask to be informed what the views do, before touching the rail. A view records its own scroll geometry as it changes, at whatever rate it changes, and actuality doesn't cache it: asking is what makes it readable at all.",
 		watchBlips({ names: '"haibun.shu.view"' }),
 
 		"The rail is not decoration: seeking it moves the window. Seek to the bottom and the first visible row is no longer row one; seek back to the top and it is row one again, proving a drag or click on the rail scrolls the virtualizer (a holey placeholder items array once made every seek a silent no-op).",
@@ -113,7 +113,7 @@ export const features: TKirejiExport = {
 		"The rail thumb states how much of the column is on screen, so it caches its size as the reader scrolls and travels with them. Rows here are uniform lines of log.",
 		railThumbHoldsSize({ host: `"${SHU_TAG.MONITOR_COLUMN}"` }),
 
-		"Everything the views did through all that scrolling reached the run as fine-grained occurrences, recorded in the browser at the rate they happened and handed over in batches, since one request each would not be sustainable. The run doesn't cache them; the watch caches them in order, which is what reports whether a size changed while a reader was scrolling rather than only that it changed.",
+		"Everything the views did through all that scrolling reached actuality as fine-grained occurrences, recorded in the browser at the rate they happened and handed over in batches, since one request each would not be sustainable. Actuality doesn't cache them; the watch caches them in order, which is what reports whether a size changed while a reader was scrolling rather than only that it changed.",
 		'some occurrence observed in watched blips is "variable occurrence/name is "haibun.shu.view.thumb_resize""',
 
 		scenario({ scenario: "The run document reads the same run as prose" }),
@@ -128,17 +128,17 @@ export const features: TKirejiExport = {
 		takeScreenshot({}),
 		documentAtLiveEdge({}),
 
-		scenario({ scenario: "The run's screenshots render as tiles that flow in the column" }),
+		scenario({ scenario: "Actuality's screenshots render as tiles that flow in the column" }),
 		"The screenshots this very run just took stream in as artifact events and render as thumbnail tiles in the document: each frame sits in a thumbnail grid row, sized as a tile of the column's grid (never shrink-wrapped small, never blown up to the whole column), with the real image served and filling its frame. Grouping a run of screenshots into one strip is covered by the document-blocks unit tests; this measures the real rendered result.",
 		documentThumbnailsFlow({}),
 		"The same caches where the blocks differ in height: a screen of prose and a screen of screenshots put very different numbers of blocks on screen, and the thumb must not resize between them.",
 		railThumbHoldsSize({ host: `"${SHU_TAG.DOCUMENT_COLUMN}"` }),
 
-		"The document column's own micro-movement reached the run: every raw change of its thumb measurement, including the ones too small to redraw, recorded from the browser and cached in order. This is the record a smoothness problem is diagnosed from.",
+		"The document column's own micro-movement reached actuality: every raw change of its thumb measurement, including the ones too small to redraw, recorded from the browser and cached in order. This is the record a smoothness problem is diagnosed from.",
 		`some occurrence observed in watched blips is "variable occurrence/view is "${SHU_TAG.DOCUMENT_COLUMN}""`,
 
-		scenario({ scenario: "A thumbnail expands with its step caption and arrows walk the run's screenshots" }),
-		"Clicking a thumbnail expands it over the column and captions it with the step that took it; the caption rides a stamp the document build put on the frame, since under virtualization the step's own row may not be in the reading window at all. Arrow keys then move between the run's screenshots through the document column, which is the only party that can reach frames outside the rendered window; the time cursor follows each expanded screenshot's step, dimming everything recorded after it.",
+		scenario({ scenario: "A thumbnail expands with its step caption and arrows walk actuality's screenshots" }),
+		"Clicking a thumbnail expands it over the column and captions it with the step that took it; the caption rides a stamp the document build put on the frame, since under virtualization the step's own row may not be in the reading window at all. Arrow keys then move between actuality's screenshots through the document column, which is the only party that can reach frames outside the rendered window; the time cursor follows each expanded screenshot's step, dimming everything recorded after it.",
 		expandFirstThumbnail({}),
 		documentFutureRowsAtLeast({ min: "1" }),
 		expandedThumbnailNavigates({}),

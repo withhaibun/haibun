@@ -255,7 +255,7 @@ const HypermediaConcernSchema = z.object({
 	displayLabel: z.string().optional(),
 	/** True when declared at runtime (`set of {domain} by …`) vs by a compiled stepper. */
 	declared: z.boolean().default(false),
-	/** True when the type records the run's own execution (`topology.instrumentation`), which a view hides by default. */
+	/** True when the type records actuality's own execution (`topology.instrumentation`), which a view hides by default. */
 	instrumentation: z.boolean().default(false),
 	/** UI metadata: slot, component, JS source, etc. */
 	ui: z.record(z.string(), z.unknown()).optional(),
@@ -555,7 +555,7 @@ export type ResourceRels = {
 	contentField(type: string): string | undefined;
 	/** The property or edge that titles this type, where it declares one. */
 	titledBy(type: string): TTitledBy | undefined;
-	/** Whether the type records the run's own execution (`topology.instrumentation`). */
+	/** Whether the type records actuality's own execution (`topology.instrumentation`). */
 	instrumentation(type: string): boolean;
 	fields(type: string): Record<string, string>;
 	schema(type: string): z.ZodType;

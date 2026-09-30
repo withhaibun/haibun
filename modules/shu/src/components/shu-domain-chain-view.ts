@@ -108,7 +108,7 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 	}
 
 	/** A snapshot of the run's affordances, as a step's products or a read of them give it. Its facts are that run's, so
-	 *  the run it names is the one the page reads, and a fact's step opens there. */
+	 *  the actuality it names is the one the page reads, and a fact's step opens there. */
 	private ingest(p: Record<string, unknown>): void {
 		if (!Array.isArray(p.forward) || !Array.isArray(p.goals) || typeof p.execution !== "string") {
 			throw new Error(`shu-domain-chain-view takes \`forward\` and \`goals\` arrays and the \`execution\` they are of. Received keys: [${Object.keys(p).join(", ")}].`);

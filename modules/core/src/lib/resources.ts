@@ -169,7 +169,7 @@ export const HAS_BODY_EDGE = "hasBody";
 
 /**
  * Reading: one reading of a text, asserting what its links state (`prov:Activity`). One per source. It names the
- * source it read (`prov:used`), the run step that read it, and the statements it made, so reading a rewritten text
+ * source it read (`prov:used`), actuality step that read it, and the statements it made, so reading a rewritten text
  * retracts exactly what the previous reading asserted and doesn't retract a statement a person asserted by hand.
  */
 export const READING_LABEL = "Reading";
@@ -676,7 +676,7 @@ export type THypermediaTopology = {
 	 */
 	announceWrites?: boolean;
 	/**
-	 * Whether the type records the run's own execution rather than a feature's data, as a step path, a log line or an
+	 * Whether the type records actuality's own execution rather than a feature's data, as a step path, a log line or an
 	 * HTTP exchange does. A search for a reader's records doesn't read the type, a conversation isn't about its records,
 	 * and a view hides it until a reader shows it. Absent means a feature's data.
 	 */
@@ -814,7 +814,7 @@ export const CommentSchema = PersistedVertexSchema.extend({
 	/** The handles the note states that the records it was made from don't hold, as an answer names records it was not
 	 *  sent. A reader of the note reads those records as the note's own rather than as records the graph holds. */
 	unverified: z.array(z.string()).optional(),
-	/** The images the note shows, by the addresses the run serves them at, as a question a person asked with an image. */
+	/** The images the note shows, by the addresses actuality serves them at, as a question a person asked with an image. */
 	image: z.array(z.string()).optional(),
 });
 

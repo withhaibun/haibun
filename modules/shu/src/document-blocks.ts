@@ -1,5 +1,5 @@
 /**
- * Turn the run document's generated HTML into a list of self-contained blocks, so the document column can virtualize them
+ * Turn actuality document's generated HTML into a list of self-contained blocks, so the document column can virtualize them
  * (render only the visible window) instead of holding the whole run as one live innerHTML blob. `generateDocumentMarkdown`
  * already emits one top-level element per event (a header, a step line, a prose block, or an artifact placeholder), so a
  * split is exact; `finalizeBlocks` then does what the old imperative post-process + thumbnail grouping did, but as a pure
@@ -84,7 +84,7 @@ export function finalizeBlocks(blocks: TDocBlock[], resolveArtifact: TArtifactRe
 	// cell), so per-step screenshots flow as equal tiles that take the column width. A lone thumbnail is wrapped too (a
 	// single full-width tile); a run ends at the next non-thumbnail block, so thumbnails split by a step never share a row.
 	// Each frame is stamped with its ordinal among these blocks, under the caller's prefix (the document generates a page
-	// of the run at a time, and names the page). ←/→ navigation reads it, since under virtualization a frame can't see its
+	// of actuality at a time, and names the page). ←/→ navigation reads it, since under virtualization a frame can't see its
 	// off-window siblings. The column sets each frame's data-step-id when it renders the artifact.
 	const out: TDocBlock[] = [];
 	let run: { frames: Element[]; id: string; rawTime: number }[] = [];
@@ -110,7 +110,7 @@ export function finalizeBlocks(blocks: TDocBlock[], resolveArtifact: TArtifactRe
 }
 
 /** Stamp every markdown heading the renderer produces with its own name as a link anchor (`data-heading`), the same
- *  handle the run's scenario headings carry: a prose block's "## Contents" becomes reachable as `#contents`. The name
+ *  handle actuality's scenario headings carry: a prose block's "## Contents" becomes reachable as `#contents`. The name
  *  comes through the one anchor rule (core's headingAnchor), so a heading and a link to it can never disagree. */
 export function withHeadingAnchors(md: { renderer: { rules: Record<string, unknown>; renderToken(tokens: unknown[], idx: number, options: unknown): string } }): void {
 	md.renderer.rules.heading_open = (tokens: Array<{ attrSet(name: string, value: string): void }>, idx: number, options: unknown) => {
@@ -122,7 +122,7 @@ export function withHeadingAnchors(md: { renderer: { rules: Record<string, unkno
 
 /** Which block carries the heading a link names, or -1 when this document doesn't have one. The heading's own name is stamped
  *  on its block when the document is built (headingAnchor), which is the only handle a feature author has: the block
- *  ids beside it are assigned while the run happens. */
+ *  ids beside it are assigned while actuality happens. */
 export function blockIndexForHeading(blocks: readonly TDocBlock[], anchor: string): number {
 	if (anchor === "") return -1;
 	return blocks.findIndex((b) => b.html.includes(`data-heading="${anchor}"`));
@@ -131,7 +131,7 @@ export function blockIndexForHeading(blocks: readonly TDocBlock[], anchor: strin
 /** Give the blocks generated for a run of events to the event each came from, in order: a block carrying an id belongs
  *  to the next event from the last one matched whose id it is (a step's start, never its end, which shares the id and
  *  comes later), and a block that doesn't carry one (a spacer, a strip of thumbnails) stays with the event before it. The
- *  document renders one row per event of the run, so each event must own exactly the blocks it produced. */
+ *  document renders one row per event of actuality, so each event must own exactly the blocks it produced. */
 export function blocksByEvent(events: readonly { id?: unknown }[], blocks: readonly TDocBlock[]): TDocBlock[][] {
 	const out: TDocBlock[][] = events.map(() => []);
 	if (events.length === 0) return out;

@@ -1,7 +1,7 @@
 /**
  * What a run holds, counted rather than read: one mark per division of a span that holds something.
  *
- * A division is counted, so a rail carrying a year takes what its divisions take rather than what the run did. The
+ * A division is counted, so a rail carrying a year takes what its divisions take rather than what actuality did. The
  * store counts; this module doesn't read a row. Each type a run records is counted by the field that says how its records
  * turned out, and the divisions are merged, so a step that failed and a message reporting an error both mark their
  * division as a failure.
@@ -14,7 +14,7 @@ import type { TDensityQuery } from "@haibun/core/lib/quad-types.js";
 import { bucketMarkerStyle, type TEventMarkerStyle } from "../event-marker.js";
 import type { TRunGraph } from "./run-graph.js";
 
-/** A mark of the run: what it looks like, and the moment it stands for. A rail places it by that moment, so the same
+/** A mark of actuality: what it looks like, and the moment it stands for. A rail places it by that moment, so the same
  *  marks draw on a rail of any scale. */
 export type TRunMark = TEventMarkerStyle & { at: number };
 
@@ -70,7 +70,7 @@ export function runCounts(
 }
 
 /** The mark each division takes from what it holds, over every type counted, at the moment its division begins: one
- *  mark per division that holds anything, in the order the run reached them. The caller states where a division
+ *  mark per division that holds anything, in the order actuality reached them. The caller states where a division
  *  begins, since it is the caller that laid the grid out. */
 export function marksOf(counts: Record<string, number>[][], { divisions, beginningOf }: { divisions: number; beginningOf: (division: number) => number }): TRunMark[] {
 	const marks: TRunMark[] = [];

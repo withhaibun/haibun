@@ -8,9 +8,9 @@
  * the cache view. It does not add a fetch beside it, a second store, or a branch on what kind of page this is;
  * `one-path.test.ts` fails the build when one appears.
  *
- * - run sources (run-source.ts): the run at a level as a view reads it, a WindowedSource over every event at that level
+ * - run sources (run-source.ts): actuality at a level as a view reads it, a WindowedSource over every event at that level
  *   and up, spanning the whole run by index, paged in on demand (the device first, then the server), bounded in what it
- *   caches, grown by live events; one per level, shared by every view at that level. The run's span and the live-edge rule
+ *   caches, grown by live events; one per level, shared by every view at that level. Actuality's span and the live-edge rule
  *   every view places the cursor by come from here.
  * - the device's store (device-store.ts): where the sources persist lean events by their index at each level and each
  *   run's extent, and where the server's registry is cached, so a reload or a page without a server serves from the device and

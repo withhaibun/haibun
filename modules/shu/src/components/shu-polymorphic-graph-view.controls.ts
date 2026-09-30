@@ -718,7 +718,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			// Click the active node with the real pointer on the canvas. The click event reaches the whole page, so an
 			// actions bar that closes on a click elsewhere closes. `open graph node` calls the view directly and doesn't dispatch
 			// a click. The follow keeps the active node in clear view, and the step reads its id from the view, because
-			// the run assigns the id of a conversation's comment. The step reads the active node again until its projection
+			// actuality assigns the id of a conversation's comment. The step reads the active node again until its projection
 			// is still and a pixel picks it, because a record arriving can move it. The phrase avoids "click", which
 			// web-playwright's "click {target}" matches.
 			gwta: "pick the active graph node with the pointer",
@@ -1231,9 +1231,9 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		},
 		saveGraphStill: {
 			// The graph as a self-contained SVG, saved as an artifact the way a screenshot is: it rides the artifact
-			// stream into the run's report, and stands alone as an image. The markup comes from the view's still():
+			// stream into actuality's report, and stands alone as an image. The markup comes from the view's still():
 			// the SAME placed nodes the WebGL renderer displays, drawn by the SVG renderer, so a still in a report
-			// always matches what the run's reader saw.
+			// always matches what actuality's reader saw.
 			gwta: "save a graph still",
 			productsDomain: DOMAIN_GRAPH_STILL,
 			action: async (_: unknown, featureStep: TFeatureStep) => {

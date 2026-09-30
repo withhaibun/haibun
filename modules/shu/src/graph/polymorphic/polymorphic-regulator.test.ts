@@ -1,4 +1,4 @@
-// The scene regulates its own decorative motion the way the run's health monitor regulates the run: a rolling window,
+// The scene regulates its own decorative motion the way actuality's health monitor regulates actuality: a rolling window,
 // a threshold, a signal under cooldown. These cases hold the arithmetic and the discipline.
 import { describe, expect, it } from "vitest";
 import {

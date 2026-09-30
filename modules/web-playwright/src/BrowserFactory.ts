@@ -11,7 +11,7 @@ export const BROWSERS: Record<TBrowserTypes, BrowserType> = { firefox, chromium,
 
 export type TTaggedBrowserFactoryOptions = {
 	options: BrowserContextOptions;
-	/** The profile a persistent context keeps, where the run keeps one; empty for one Playwright makes for the browser and
+	/** The profile a persistent context keeps, where actuality keeps one; empty for one Playwright makes for the browser and
 	 *  removes when it closes. */
 	persistentDirectory?: string;
 	browserType: BrowserType;
@@ -35,8 +35,8 @@ export const DEFAULT_CONFIG_TAG = "_default";
 const cdpName = (cdp: string | (() => ConnectOverCDPTransport)): string => (typeof cdp === "string" ? `the browser at ${cdp}` : "the attached browser");
 
 /**
- * Obtains the run's browser, its contexts and its pages, by launching a browser or by connecting to a running one.
- * The run closes, traces, binds errors to and answers dialogs on only what it opened: a connected browser's own
+ * Obtains actuality's browser, its contexts and its pages, by launching a browser or by connecting to a running one.
+ * Actuality closes, traces, binds errors to and answers dialogs on only what it opened: a connected browser's own
  * context and the page tab 0 adopts from it belong to whoever runs that browser.
  */
 export class BrowserFactory {
@@ -92,7 +92,7 @@ export class BrowserFactory {
 		}
 	}
 
-	/** Whether the page belongs to the connected browser's owner rather than to the run. */
+	/** Whether the page belongs to the connected browser's owner rather than to actuality. */
 	public isAdopted(page: Page) {
 		return this.adoptedPages.has(page);
 	}
@@ -169,7 +169,7 @@ export class BrowserFactory {
 		return page;
 	}
 
-	/** Tab 0 of a connected browser is the one page its owner holds open in the context the run adopted. */
+	/** Tab 0 of a connected browser is the one page its owner holds open in the context actuality adopted. */
 	private adoptPage(context: BrowserContext): Page {
 		const pages = context.pages();
 		const [page] = pages;

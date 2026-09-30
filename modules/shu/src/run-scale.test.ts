@@ -1,5 +1,5 @@
 // A rail carries the whole run, however long it ran: the window a reader holds is where they pick a moment, and what
-// the run did outside it still has a place at the ends.
+// actuality did outside it still has a place at the ends.
 import { describe, it, expect } from "vitest";
 import { FOCUS_SHARE, momentAt, railAt, type TRunFocus, type TRunSpan } from "./run-scale.js";
 
@@ -40,7 +40,7 @@ describe("where a moment of a run sits on a rail", () => {
 		expect(at[at.length - 1]).toBe(1);
 	});
 
-	it("answers with the moment a place on the rail names, which is what a press asks the run for", () => {
+	it("answers with the moment a place on the rail names, which is what a press asks actuality for", () => {
 		const span: TRunSpan = { first: 0, last: YEAR };
 		const focus: TRunFocus = { at: YEAR - HOUR, from: YEAR - 2 * HOUR, to: YEAR };
 		for (const moment of [0, YEAR / 4, YEAR - 3 * HOUR, YEAR - HOUR, YEAR]) {

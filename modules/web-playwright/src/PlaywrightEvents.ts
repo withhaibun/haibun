@@ -27,7 +27,7 @@ export class PlaywrightEvents {
 	private readonly onResponse = (response: Response) => this.logResponse(response);
 	private readonly onFrameNavigated = (frame: Frame) => this.framenavigated(frame);
 
-	/** `pageKey` names the page among the run's pages, so each page's visits carry ids that other pages' visits don't carry. */
+	/** `pageKey` names the page among actuality's pages, so each page's visits carry ids that other pages' visits don't carry. */
 	constructor(
 		private world: TWorld,
 		private page: Page,
@@ -141,8 +141,8 @@ export class PlaywrightEvents {
 }
 
 /**
- * Whether a request asks the run to read rather than act: a JSON-RPC call stating `asks: "read"`. A read doesn't leave a
- * record: the run doesn't record or narrate it, and the page's observer doesn't trace or observe it. An observed
+ * Whether a request asks actuality to read rather than act: a JSON-RPC call stating `asks: "read"`. A read doesn't leave a
+ * record: actuality doesn't record or narrate it, and the page's observer doesn't trace or observe it. An observed
  * read returns to the page as a request individual and a host count, and a page that records what it draws then draws
  * what it recorded.
  */

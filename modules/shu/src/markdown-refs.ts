@@ -109,7 +109,7 @@ export function refsInContent(html: string, isType: (name: string) => boolean): 
 export const refSanitizeOptions = { ADD_TAGS: ["shu-ref"], ADD_ATTR: ["kind", "linktarget", "text"] };
 
 /** The renderer for what a model answers: block markdown with its in-app references live, shown as the model wrote it,
- *  without raw HTML, since a model's text is not the run's. Built once, like the others. */
+ *  without raw HTML, since a model's text is not actuality's. Built once, like the others. */
 let answerRenderer: MarkdownIt | undefined;
 
 /** Render a model's answer with its `#Type` / `#Type:id` links live. Sanitized, because a model writes it. */
@@ -132,7 +132,7 @@ export function proseText(text: string, isType: (name: string) => boolean): stri
  * Render a SHORT piece of prose, a type's description, a step's, with its `#Type` / `#Type:id` links live, so a
  * description names another type by linking to it rather than re-explaining it wherever it comes up. Inline-only: a
  * description is a sentence, so it doesn't get paragraphs, headings, lists or raw HTML, unlike a document body,
- * whose author is the run. Sanitized, because a description travels from the served concern catalog.
+ * whose author is actuality. Sanitized, because a description travels from the served concern catalog.
  */
 export function renderRefProse(text: string, isType: (name: string) => boolean): string {
 	if (!proseRenderer) {

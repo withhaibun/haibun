@@ -57,7 +57,7 @@ class BrokenStepper extends AStepper {
 	};
 }
 
-/** A walk advanced by the run itself, which holds what every step requires; who began it is a separate question. */
+/** A walk advanced by actuality itself, which holds what every step requires; who began it is a separate question. */
 function buildContext(world: TWorld, steppers: AStepper[]): { registry: StepRegistry; world: TWorld; steppers: AStepper[]; grantedCapability: string[] } {
 	registerDomains(world, [
 		[

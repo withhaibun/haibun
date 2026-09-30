@@ -57,7 +57,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		setStatus: (message) => this.setStatus(message),
 		onTrailChange: () => pageTrail.set(this.#query.trailLabel),
 	});
-	/** Step mode: the steps the run offers, the step input line, and the callers opened in the history. */
+	/** Step mode: the steps actuality offers, the step input line, and the callers opened in the history. */
 	#steps = new ActionsBarSteps(this, { testIdPrefix: () => this.testIdPrefix, selectedLabel: () => this.#query.selectedLabel, history: this._history });
 	/** The page's context, which the search describes, read wherever the bar is placed. */
 	#context = new SignalController(this, pageContext, (context) => {
@@ -124,7 +124,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this.openPane();
 		await this.updateComplete;
 		const pane = this.renderRoot.querySelector<ShuKihanChat>(SHU_TAG.KIHAN_CHAT);
-		if (!pane) this.failFast("a question can be asked again only where the run offers asking");
+		if (!pane) this.failFast("a question can be asked again only where actuality offers asking");
 		await pane.restate(restating);
 	}
 
@@ -296,7 +296,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		if (mode === "search") return this.#query;
 		if (mode === "step") return this.#steps;
 		const pane = this.renderRoot.querySelector<ShuKihanChat>(SHU_TAG.KIHAN_CHAT);
-		if (!pane) this.failFast("a question can be asked only where the run offers asking");
+		if (!pane) this.failFast("a question can be asked only where actuality offers asking");
 		return pane;
 	}
 }

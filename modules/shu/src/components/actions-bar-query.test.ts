@@ -22,14 +22,14 @@ import { declaringSteps, persistedTypeDefinition, setupShuTest, stepsChanged, st
 
 /** The fields each type takes as filters: the folder a record is filed in, whose values the search offers, and its subject. */
 const FILED = { folder: LinkRelations.CONTEXT.rel, subject: LinkRelations.NAME.rel };
-/** The types the run declares, which a case adds to. */
+/** The types actuality declares, which a case adds to. */
 const declaredTypes = [
 	persistedTypeDefinition("Email", { selector: "email-domain", properties: FILED, declared: true }),
 	persistedTypeDefinition("File", { selector: "file-domain", properties: FILED, declared: true }),
 ];
 /** The one email the page caches, filed in the one folder the search offers until a batch brings another. */
 const CACHED = [{ subject: "m0", predicate: "folder", object: "INBOX", namedGraph: "Email", timestamp: 1 }];
-/** A type the address names that the run doesn't hold. */
+/** A type the address names that actuality doesn't hold. */
 const NOT_HELD = "Nothing";
 
 type TFilterChange = { asked: boolean; label: string; accessLevel: string; conditions: TSearchCondition[] };
@@ -80,7 +80,7 @@ describe("the actions bar's search mode", () => {
 		expect(searchConditions({ folder: "INBOX", account: "" }, rows)).toEqual([{ predicate: "folder", operator: "eq", value: "INBOX" }, rows[0]]);
 	});
 
-	it("states the types the run declares once the page has read the run's steps again, and doesn't announce a search", async () => {
+	it("states the types actuality declares once the page has read actuality's steps again, and doesn't announce a search", async () => {
 		const { host, changes } = await aQueryPage();
 		declaredTypes.push(persistedTypeDefinition("Note", { selector: "note-domain", declared: true }));
 		const asked = host.updatesAsked;
@@ -105,13 +105,13 @@ describe("the actions bar's search mode", () => {
 		expect(changes).toEqual([{ asked: false, accessLevel: query.accessLevel, label: "File", conditions: [{ predicate: "folder", operator: "eq", value: "Drafts" }] }]);
 	});
 
-	it("reads the first type where the address doesn't name one, and keeps a label that the types don't carry, saying the run doesn't hold such a type", async () => {
+	it("reads the first type where the address doesn't name one, and keeps a label that the types don't carry, saying actuality doesn't hold such a type", async () => {
 		const { query, statuses } = await aQueryPage();
 		expect(query.selectedLabel).toBe("Email");
 		query.setContext([], query.accessLevel, { label: NOT_HELD });
 		expect(query.selectedLabel, "the label stays as it was named").toBe(NOT_HELD);
-		expect(pageTypes.get().selected, "the types the run holds aren't chosen for it").toBe("");
-		expect(pageTypes.get().options.length, "and the run's types are all offered").toBeGreaterThan(0);
+		expect(pageTypes.get().selected, "the types actuality holds aren't chosen for it").toBe("");
+		expect(pageTypes.get().options.length, "and actuality's types are all offered").toBeGreaterThan(0);
 		expect(statuses).toContain(typeNotHeld(NOT_HELD));
 	});
 

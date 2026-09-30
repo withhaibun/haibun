@@ -26,7 +26,7 @@ describe("blips: fine-grained occurrences, never retained", () => {
 		declareBlips(SCROLL);
 		const { world, eventLogger } = make();
 		const narrated: THaibunEvent[] = [];
-		// A bare subscriber narrates the run; it is not a blip audience, so recording still returns before any lookup.
+		// A bare subscriber narrates actuality; it is not a blip audience, so recording still returns before any lookup.
 		eventLogger.subscribe((e) => narrated.push(e));
 		expect(() => recordBlip(world, "haibun.test.never.declared", 1)).not.toThrow();
 		expect(narrated).toHaveLength(0);

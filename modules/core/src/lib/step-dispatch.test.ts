@@ -558,23 +558,23 @@ describe("step-dispatch", () => {
 				const { call } = held();
 				expect((await call("readsAtCeiling", ["Held:readsAtCeiling"], [0, 21, 1])).products?.at).toBe("public");
 				expect((await call("readsAtCeiling", ["Held:readsAtCeiling", "Read:opened"], [0, 21, 2])).products?.at).toBe("opened");
-				expect((await call("readsAtCeiling", RUN_AUTHORITY, [0, 21, 3])).products?.at, "the run reads everything it holds").toBe("private");
+				expect((await call("readsAtCeiling", RUN_AUTHORITY, [0, 21, 3])).products?.at, "actuality reads everything it holds").toBe("private");
 				expect((await runReadingAt("public", () => call("readsAtCeiling", RUN_AUTHORITY, [0, 21, 4]))).products?.at, "and never above a ceiling already in force").toBe("public");
 			});
 
-			it("records what a caller's step required and held and who proved it, and doesn't record authority for the run's own", async () => {
+			it("records what a caller's step required and held and who proved it, and doesn't record authority for actuality's own", async () => {
 				const { call, fieldOf } = held();
 				await runActingAs("did:example:alice", () => call("readsAtCeiling", ["Held:readsAtCeiling"], [0, 22, 1]));
 				expect(await fieldOf([0, 22, 1], SEQ_PATH_FIELD.capabilityAction)).toBe("Held:readsAtCeiling");
 				expect(await fieldOf([0, 22, 1], SEQ_PATH_FIELD.allowedAction)).toBe("Held:readsAtCeiling");
 				expect(await fieldOf([0, 22, 1], LinkRelations.PERFORMED_BY.rel)).toBe("did:example:alice");
 				await call("readsAtCeiling", RUN_AUTHORITY, [0, 22, 2]);
-				expect(await fieldOf([0, 22, 2], SEQ_PATH_FIELD.capabilityAction), "the run holds every capability, and its step doesn't record one").toBeUndefined();
+				expect(await fieldOf([0, 22, 2], SEQ_PATH_FIELD.capabilityAction), "actuality holds every capability, and its step doesn't record one").toBeUndefined();
 				expect(await fieldOf([0, 22, 2], SEQ_PATH_FIELD.allowedAction)).toBeUndefined();
 			});
 		});
 
-		it("answers a read the run did not ask for without recording it, however that read arrived, and records the read a feature states in its own body", async () => {
+		it("answers a read actuality did not ask for without recording it, however that read arrived, and records the read a feature states in its own body", async () => {
 			const stepper = new (class extends AStepper {
 				steps = {
 					howMany: { gwta: "how many", read: true, productsDomain: TEST_DOMAIN.count, action: async () => actionOKWithProducts({ count: 3 }) },
@@ -589,34 +589,34 @@ describe("step-dispatch", () => {
 
 			// Over a transport, which is how a page reads a run it follows. Every transport marks its step programmatic.
 			const overATransport = buildFeatureStepForTransport(tool, {}, [0, 9, 1]);
-			expect(overATransport.programmatic, "a transport states that the run did not ask").toBe(true);
+			expect(overATransport.programmatic, "a transport states that actuality did not ask").toBe(true);
 			let kept = world.runtime.stepResults?.length ?? 0;
 			const answered = await dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, overATransport);
 			expect(answered.ok).toBe(true);
 			expect(answered.products, "the question is answered").toMatchObject({ count: 3 });
-			expect(await recordOf([0, 9, 1]), "the run being read over a transport doesn't leave a record").toEqual([]);
+			expect(await recordOf([0, 9, 1]), "the actuality being read over a transport doesn't leave a record").toEqual([]);
 			expect(await getFact(world, TEST_DOMAIN.count, factIdOf("0.9.1"), FACT_GRAPH), "and doesn't leave a fact of what it returned").toBeUndefined();
 			expect(world.runtime.stepResults?.length ?? 0, "the process doesn't keep a step result for it").toBe(kept);
 
 			// Beneath a step the feature states, which is the feature reading through a combinator: `set x from <a read>`
-			// answers from the read's own result, so the read is a step of the run like the line that stated it.
+			// answers from the read's own result, so the read is a step of actuality like the line that stated it.
 			const beneathAStep = buildFeatureStepForTransport(tool, {}, [0, 9, 2]);
 			beneathAStep.programmatic = undefined;
 			beneathAStep.isSubStep = true;
 			kept = world.runtime.stepResults?.length ?? 0;
 			await dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, beneathAStep);
-			expect((await recordOf([0, 9, 2])).length, "a read the feature stated through a combinator is the run reading").toBeGreaterThan(0);
+			expect((await recordOf([0, 9, 2])).length, "a read the feature stated through a combinator is actuality reading").toBeGreaterThan(0);
 			expect(world.runtime.stepResults?.length ?? 0, "and its result is the one the line reads").toBe(kept + 1);
 
-			// The same read written in a feature's own body: the run reading is a step of the run.
+			// The same read written in a feature's own body: actuality reading is a step of actuality.
 			const inTheFeature = buildFeatureStepForTransport(tool, {}, [0, 9, 3]);
 			inTheFeature.programmatic = undefined;
 			kept = world.runtime.stepResults?.length ?? 0;
 			const run = await dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, inTheFeature);
 			expect(run.ok).toBe(true);
-			expect((await recordOf([0, 9, 3])).length, "a read a feature states is a step of the run").toBeGreaterThan(0);
-			expect(await getFact(world, TEST_DOMAIN.count, factIdOf("0.9.3"), FACT_GRAPH), "whose answer is a fact of the run").toMatchObject({ count: 3 });
-			expect(world.runtime.stepResults?.length ?? 0, "and is kept with the run's other steps").toBe(kept + 1);
+			expect((await recordOf([0, 9, 3])).length, "a read a feature states is a step of actuality").toBeGreaterThan(0);
+			expect(await getFact(world, TEST_DOMAIN.count, factIdOf("0.9.3"), FACT_GRAPH), "whose answer is a fact of actuality").toMatchObject({ count: 3 });
+			expect(world.runtime.stepResults?.length ?? 0, "and is kept with actuality's other steps").toBe(kept + 1);
 		});
 
 		it("states a step its caller stopped as stopped, in its record and its end event, where a step that fails unstopped failed", async () => {
@@ -685,7 +685,7 @@ describe("step-dispatch", () => {
 
 			const store = world.shared.getStore();
 			const mode = await store.get(formatRecordName({ execution: executionOf(world.tag), path: [0, 4, 1] }), SEQ_PATH_FIELD.mode, SEQ_PATH_LABEL);
-			expect(mode, "a try whose failure is expected is not the run failing, and its record says which it was").toBe("speculative");
+			expect(mode, "a try whose failure is expected is not actuality failing, and its record says which it was").toBe("speculative");
 		});
 
 		it("emits SeqPath quads with status=failed for a failing step", async () => {

@@ -52,7 +52,7 @@ type TDomainChainLintReport = {
 };
 
 /** The kinds of finding a run refuses to start with: a parameter whose domain doesn't state what its value is. A step's
- *  declaration decides it, whatever else the run loads. An unsupplied step and an unproduced domain depend on the
+ *  declaration decides it, whatever else actuality loads. An unsupplied step and an unproduced domain depend on the
  *  steppers a run loads and on records written outside steps, such as the site's Principal, so a run reports them, and
  *  each module's step graph test holds them to its baseline with every stepper the module declares. */
 const BLOCKING_FINDINGS: readonly TLintKind[] = [LINT_FINDING.STRING_PARAM];

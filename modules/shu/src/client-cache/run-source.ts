@@ -1,6 +1,6 @@
 /**
  * What every view of a run shares, whichever window of it they are reading: the interface a source answers, the sources
- * being read, and the span the run covers.
+ * being read, and the span actuality covers.
  *
  * A run is read one way, over the records the run wrote (`graph-run-source`). This holds what is true of any reading of
  * it: the rows a view asks for by index, the extent it spans, and the live edge every view places the shared cursor by.
@@ -12,13 +12,13 @@ import type { Range } from "../ranges.js";
 
 export type TEventRecord = Record<string, unknown>;
 
-/** What the run spans at one level: how many rows, when it began, and the instant of its newest. */
+/** What actuality spans at one level: how many rows, when it began, and the instant of its newest. */
 export type TRunExtent = { total: number; first?: number; last?: number };
 
 export interface RunSource extends WindowedSource<TEventRecord> {
 	/** The level this source reads at (its rows are at this level and up). */
 	readonly level: THaibunLogLevel;
-	/** The run's extent as known: how many rows at this level, when the run began, and the instant of its newest. */
+	/** Actuality's extent as known: how many rows at this level, when actuality began, and the instant of its newest. */
 	extent(): TRunExtent;
 	/** The index spans held, in order: what a view derives its marks and cursor from, never a scan of the extent. */
 	cachedRanges(): Range[];
@@ -26,28 +26,28 @@ export interface RunSource extends WindowedSource<TEventRecord> {
 	readonly pageSize: number;
 	/** Whether the extent has been read. */
 	readonly loaded: boolean;
-	/** Why the run could not be read, or null. */
+	/** Why actuality could not be read, or null. */
 	readonly unavailable: string | null;
-	/** Whether the run is finished. */
+	/** Whether actuality is finished. */
 	readonly ended: boolean;
-	/** Whether the stream is down, so what the run has done since the last read is not known to this page. */
+	/** Whether the stream is down, so what actuality has done since the last read is not known to this page. */
 	readonly disconnected: boolean;
-	/** Whether the run has announced something this reading has not yet read for: true from the announcement, or from
+	/** Whether actuality has announced something this reading has not yet read for: true from the announcement, or from
 	 *  the stream coming back, until a read begun after it has finished. */
 	readonly behind: boolean;
 	/** Learn the extent if not yet known: the first thing a view awaits. */
 	ready(): Promise<void>;
-	/** Read the run around a moment, or follow its newest records where a moment isn't named. */
+	/** Read actuality around a moment, or follow its newest records where a moment isn't named. */
 	readAt(at?: number): Promise<void>;
 }
 
-/** The sources a view is reading the run by, so a view of what this page holds lists what is being read. */
+/** The sources a view is reading actuality by, so a view of what this page holds lists what is being read. */
 const READING_KEY = "__SHU_RUN_SOURCES_READING__";
 const reading = (): Set<RunSource> => pagePinned(READING_KEY, () => new Set<RunSource>());
 const MADE_KEY = "__SHU_RUN_SOURCES_MADE__";
 const made = (): Set<(source: RunSource) => void> => pagePinned(MADE_KEY, () => new Set<(source: RunSource) => void>());
 
-/** The run sources being read, in level order: what a view of the page's own caches reads, without making one. */
+/** Actuality sources being read, in level order: what a view of the page's own caches reads, without making one. */
 export function runSources(): RunSource[] {
 	return [...reading()].sort((a, b) => HAIBUN_LOG_LEVELS.indexOf(a.level) - HAIBUN_LOG_LEVELS.indexOf(b.level));
 }
@@ -58,13 +58,13 @@ export function runSources(): RunSource[] {
 const READING_AT_KEY = "__SHU_RUN_READING_AT__";
 const readingAt = (): { at?: number } => pagePinned(READING_AT_KEY, () => ({}));
 
-/** The moment the run is read around, or undefined while the newest records are being followed. */
+/** The moment actuality is read around, or undefined while the newest records are being followed. */
 export function runReadingAt(): number | undefined {
 	return readingAt().at;
 }
 
 /** Whether a source's window already holds a moment, so reading it there would read the records it holds. Following
- *  the newest records is holding them: a window whose newest row is the newest the page has seen of the run is already
+ *  the newest records is holding them: a window whose newest row is the newest the page has seen of actuality is already
  *  where a reader returning to the live edge is going. A source that hasn't read a record doesn't hold one. */
 function alreadyHolds(source: RunSource, moment: number | undefined): boolean {
 	const { first, last } = source.extent();
@@ -72,7 +72,7 @@ function alreadyHolds(source: RunSource, moment: number | undefined): boolean {
 	return moment === undefined ? last >= runSpan().last : moment >= first && moment <= last;
 }
 
-/** Read the run around a moment, on every source a view is reading by; `null` follows the newest records again.
+/** Read actuality around a moment, on every source a view is reading by; `null` follows the newest records again.
  *
  * What a reader is looking at is what is read. A window holds a few thousand records, so the window doesn't hold a moment far from the
  * newest, and a reader moving there without a new read would be shown the records they had left
@@ -109,16 +109,16 @@ export function subscribeRunSources(fn: (source: RunSource) => void): () => void
 const SPAN_KEY = "__SHU_RUN_SPAN__";
 const span = (): { first?: number; last?: number } => pagePinned(SPAN_KEY, () => ({}));
 
-/** Report what a source has seen of the run's extent. */
+/** Report what a source has seen of actuality's extent. */
 export function noteRunSpan(first?: number, last?: number): void {
 	const held = span();
 	if (first !== undefined && (held.first === undefined || first < held.first)) held.first = first;
 	if (last !== undefined && (held.last === undefined || last > held.last)) held.last = last;
 }
 
-/** When the run the page reads starts and ends, over every level read: the earliest start and the newest row. It doesn't
+/** When actuality the page reads starts and ends, over every level read: the earliest start and the newest row. It doesn't
  *  send a request or hold a record, so a control that only places the cursor (playback, the actions bar) reads it without
- *  reading the run in. Both 0 before any view has read the run. */
+ *  reading actuality in. Both 0 before any view has read actuality. */
 export function runSpan(): { first: number; last: number } {
 	const held = span();
 	let first = held.first ?? Number.POSITIVE_INFINITY;
@@ -131,7 +131,7 @@ export function runSpan(): { first: number; last: number } {
 	return Number.isFinite(first) ? { first, last } : { first: 0, last: 0 };
 }
 
-/** Whether an instant is the run's live edge: at or past its newest row, as the sources know it. The ONE rule every
+/** Whether an instant is actuality's live edge: at or past its newest row, as the sources know it. The ONE rule every
  *  view places the cursor by: a row that is the newest is the live edge, and the cursor there is null (the slider at its
  *  end, every view following), never a cutoff that excludes what comes next. */
 export function atLiveEdge(instant: number): boolean {

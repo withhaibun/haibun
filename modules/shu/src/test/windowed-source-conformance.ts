@@ -6,7 +6,7 @@
  *
  * What is specified is the reading: how many rows there are, what the row at an index is, what a range that has been
  * read holds, and what arrives at a subscriber. How a source gets its rows is its own, and each states that where it
- * is implemented: eviction and coalescing for the paged one, currency and levels for the run's.
+ * is implemented: eviction and coalescing for the paged one, currency and levels for actuality's.
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import type { WindowedSource } from "../windowed-source.js";

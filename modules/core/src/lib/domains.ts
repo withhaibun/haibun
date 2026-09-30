@@ -54,7 +54,7 @@ export const DOMAIN_LINE_COMMENT = "line-comment";
 export const DOMAIN_FILE_PATH = "file-path";
 /** The path a web server serves something at, such as `/shu`. */
 export const DOMAIN_ROUTE = "route";
-/** A step's place in the run: its dot-joined sequence path, such as `0.1.5.3`, or an id that begins with one. */
+/** A step's place in actuality: its dot-joined sequence path, such as `0.1.5.3`, or an id that begins with one. */
 export const DOMAIN_STEP_PATH = "step-path";
 /** A length of time, given as seconds or milliseconds, such as `2s` or `30 ms`, read as milliseconds. */
 export const DOMAIN_DURATION = "duration";

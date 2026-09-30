@@ -29,7 +29,7 @@ import { endPage } from "../page-pinned.js";
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 30));
 const iso = (n: number): string => new Date(n).toISOString();
 
-/** A step the run recorded: what it asked for, what it called, how it went, and when. */
+/** A step actuality recorded: what it asked for, what it called, how it went, and when. */
 const stepRecord = (i: number, over: Record<string, unknown> = {}): Record<string, unknown> => ({
 	id: `0.${i}`,
 	stepText: `step ${i}`,
@@ -55,7 +55,7 @@ const producedRecord = (i: number, over: Record<string, unknown> = {}): Record<s
 	...over,
 });
 
-/** The run in the graph, without a server to ask: the views read the records. */
+/** Actuality in the graph, without a server to ask: the views read the records. */
 async function aRun(records: Array<Record<string, unknown>>, said: Array<Record<string, unknown>> = [], produced: Array<Record<string, unknown>> = []): Promise<void> {
 	const store = new QuadStore();
 	for (const record of records) await store.upsertIndividual(SEQ_PATH_LABEL, record);
@@ -77,7 +77,7 @@ describe("the views of a run, over the records it wrote", () => {
 		forgetElementPrefs(SHU_TAG.MONITOR_COLUMN, "");
 		handle = setupShuTest({
 			dispatch: () => {
-				throw new Error("the views read the run's records, not a server");
+				throw new Error("the views read actuality's records, not a server");
 			},
 		});
 		await aRun([stepRecord(1), stepRecord(2)]);
@@ -104,7 +104,7 @@ describe("the views of a run, over the records it wrote", () => {
 		const mon = await open(ShuMonitorColumn);
 		expect(
 			mon.rows.map((row) => row.step),
-			"the run's steps, without a row for what one of them produced",
+			"actuality's steps, without a row for what one of them produced",
 		).toEqual(["step 1"]);
 		const shown = mon.rows[0].produced ?? [];
 		expect(
@@ -167,12 +167,12 @@ describe("the views of a run, over the records it wrote", () => {
 		expect(mon.rows.map((r) => r.message)).toContain("it said this");
 	});
 
-	it("does not show a reader the traffic of whoever is reading the run", async () => {
+	it("does not show a reader the traffic of whoever is reading actuality", async () => {
 		await aRun([stepRecord(1), stepRecord(2, { stepText: "graph query", called: "MonitorStepper.graphQuery", level: "trace" })]);
 		const mon = await open(ShuMonitorColumn);
 		expect(
 			mon.rows.map((r) => r.step),
-			"a call made into the instance reports under the run's own steps",
+			"a call made into the instance reports under actuality's own steps",
 		).toEqual(["step 1"]);
 	});
 
@@ -187,7 +187,7 @@ describe("the views of a run, over the records it wrote", () => {
 		expect(timeCursor.get(), "the newest row: the live edge").toBeNull();
 	});
 
-	it("renders the run as blocks, and an update about something else re-renders the same ones", async () => {
+	it("renders actuality as blocks, and an update about something else re-renders the same ones", async () => {
 		const doc = await open(ShuDocumentColumn);
 		const count = () => doc.shadowRoot?.querySelectorAll(".doc-row").length ?? 0;
 		const before = count();
@@ -232,7 +232,7 @@ describe("the views of a run, over the records it wrote", () => {
 		} as unknown as SiteMetadata);
 		const doc = await open(ShuDocumentColumn);
 		expect(doc.shadowRoot?.textContent).toContain("show the graph");
-		expect(doc.shadowRoot?.querySelector("shu-product-view"), "a manual records what a step showed; what that view looked like is the run's own screenshot").toBeNull();
+		expect(doc.shadowRoot?.querySelector("shu-product-view"), "a manual records what a step showed; what that view looked like is actuality's own screenshot").toBeNull();
 	});
 
 	it("captions an expanded screenshot with the text of the step that produced it, when that step's row is on the previous page", async () => {
@@ -263,7 +263,7 @@ describe("the views of a run, over the records it wrote", () => {
 		expect(captions).toEqual(["take a screenshot", "take a screenshot"]);
 	});
 
-	it("doesn't show a row when the run hasn't recorded a step, rather than a false one", async () => {
+	it("doesn't show a row when actuality hasn't recorded a step, rather than a false one", async () => {
 		await aRun([]);
 		const doc = await open(ShuDocumentColumn);
 		expect(doc.shadowRoot?.querySelectorAll(".doc-row").length ?? 0).toBe(0);
@@ -271,7 +271,7 @@ describe("the views of a run, over the records it wrote", () => {
 });
 
 describe("the virtual column over a paged source", () => {
-	// A source that pages the run in is requested the rows the column shows: every row in the headless fallback (which
+	// A source that pages actuality in is requested the rows the column shows: every row in the headless fallback (which
 	// renders them all), and, as a strip, the rows the rail is dragged to, and the strip reports where its window went.
 	type TSpy = WindowedSource<number> & { requested: Array<[number, number]> };
 	const spy = (total: number): TSpy => {

@@ -71,7 +71,7 @@ export const ChatMessageSchema = z.object({
 	error: z.string().default(""),
 	/** The handles the answer states that what its turn was sent doesn't hold, where the turn is unverified. */
 	unverified: z.array(z.string()).default([]),
-	/** The id of the comment the run recorded for this message. Selecting the message selects that comment. */
+	/** The id of the comment actuality recorded for this message. Selecting the message selects that comment. */
 	recordId: z.string().optional(),
 	/** The context the turn was sent with, which selecting the message makes active again. */
 	bundle: BundleSchema.optional(),

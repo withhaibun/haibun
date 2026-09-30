@@ -104,7 +104,7 @@ export class StepRegistry {
 		return this.tools.get(name);
 	}
 
-	/** The step `name` names. A step the run doesn't register is refused. */
+	/** The step `name` names. A step actuality doesn't register is refused. */
 	named(name: string): StepTool {
 		const tool = this.tools.get(name);
 		if (!tool) throw new Error(`"${name}" isn't a step this run registers; show steps lists the method names it does`);
@@ -134,7 +134,7 @@ export class StepRegistry {
 	}
 }
 
-/** Open the run's step registry over the run's steppers. The run signals on its stream each time the registry's steps
+/** Open actuality's step registry over actuality's steppers. Actuality signals on its stream each time the registry's steps
  *  change, and a page that read them reads them again. */
 export function openRunRegistry(world: TWorld, steppers: AStepper[]): StepRegistry {
 	const registry = new StepRegistry(steppers, world);
@@ -146,10 +146,10 @@ export function openRunRegistry(world: TWorld, steppers: AStepper[]): StepRegist
 	return registry;
 }
 
-/** The run's step registry, which holds every step the run declares and every step its transports injected. Every caller
- *  of the run dispatches and discovers against it. */
+/** Actuality's step registry, which holds every step actuality declares and every step its transports injected. Every caller
+ *  of actuality dispatches and discovers against it. */
 export function runRegistry(world: TWorld): StepRegistry {
-	if (!world.runtime.stepRegistry) throw new Error("the run doesn't hold a step registry");
+	if (!world.runtime.stepRegistry) throw new Error("actuality doesn't hold a step registry");
 	return world.runtime.stepRegistry;
 }
 
@@ -383,9 +383,9 @@ export function authorizeToolCapability(step: Pick<TStepDescriptor, "method" | "
 const namedRefusal = (method: string, required: string): string => `${method}: capability ${required} required`;
 
 /**
- * What a caller from outside the run is told when its call is refused. A caller that proved a key is told the action the
+ * What a caller from outside actuality is told when its call is refused. A caller that proved a key is told the action the
  * step requires, or that such a step doesn't exist, since it can ask a holder for what it lacks. A caller that didn't prove one is
- * told only that it may not make the call, alike whether the step exists or not, so a refusal doesn't map the run for it.
+ * told only that it may not make the call, alike whether the step exists or not, so a refusal doesn't map actuality for it.
  */
 export function refusal(method: string, required: string | undefined, principal: string | undefined): string {
 	if (!principal) return `${method}: not a call this caller may make`;
@@ -394,7 +394,7 @@ export function refusal(method: string, required: string | undefined, principal:
 
 /** Each stepper the steps name, in the order the steps name them, with its description, the number of its steps among
  *  them and the read of the summaries of its steps. A stepper another host declares is named with that host's prefix.
- *  Every step of a registry names every stepper of the run, which a caller is told before it asks for anything. */
+ *  Every step of a registry names every stepper of actuality, which a caller is told before it asks for anything. */
 export function steppersOf(steps: TStepDescriptor[]): TStepperSummary[] {
 	const byStepper = new Map<string, TStepperSummary>();
 	for (const step of steps) {
@@ -414,7 +414,7 @@ export function steppersOf(steps: TStepDescriptor[]): TStepperSummary[] {
  * description.
  *
  * A step is shown only to a caller holding what it requires, so a caller learns what it may call and doesn't learn a step it may not.
- * Every domain is shown, since a record can't be read without the declaration of its type. The registry is the run's,
+ * Every domain is shown, since a record can't be read without the declaration of its type. The registry is actuality's,
  * which holds the steps a transport injected.
  */
 export function discoverSteps(

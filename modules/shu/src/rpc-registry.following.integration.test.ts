@@ -26,10 +26,10 @@ const ADDED = hostScopedMethodName(9, "Haibun-validateStep");
 let holdsAdded: Promise<void> | undefined;
 
 class StepsPage extends AStepper {
-	description = "Opens a page on the run that follows the run's steps, adds a step as a transport does, and checks what the page holds.";
+	description = "Opens a page on the actuality that follows actuality's steps, adds a step as a transport does, and checks what the page holds.";
 	steps = {
 		opens: {
-			gwta: `page at {base: ${DOMAIN_LINK}} reads the run's steps`,
+			gwta: `page at {base: ${DOMAIN_LINK}} reads actuality's steps`,
 			action: async ({ base }: { base: string }) => {
 				endPage();
 				setConduit(new LiveConduit(base));
@@ -65,7 +65,7 @@ class StepsPage extends AStepper {
 		holds: {
 			gwta: "page holds the added step",
 			action: async () => {
-				if (!holdsAdded) throw new Error("a page doesn't follow the run's steps: a scenario opens one with `page at {base} reads the run's steps` first");
+				if (!holdsAdded) throw new Error("a page doesn't follow actuality's steps: a scenario opens one with `page at {base} reads actuality's steps` first");
 				await holdsAdded;
 				eventStream().close();
 				endPage();
@@ -76,7 +76,7 @@ class StepsPage extends AStepper {
 }
 
 describe("a page open on a run", () => {
-	it("holds a step the run adds while it is open, read again when the run signals its steps changed", { timeout: 60_000 }, async () => {
+	it("holds a step actuality adds while it is open, read again when actuality signals its steps changed", { timeout: 60_000 }, async () => {
 		const port = await freePort();
 		const base = `http://localhost:${port}`;
 		const world = getTestWorldWithOptions({
@@ -90,7 +90,7 @@ describe("a page open on a run", () => {
 		});
 		const feature = {
 			path: "/features/rpc-registry-following.feature",
-			content: `enable rpc\nwebserver is listening for "a page following the run's steps"\npage at "${base}" reads the run's steps\nrun adds another host's step\npage holds the added step\n`,
+			content: `enable rpc\nwebserver is listening for "a page following actuality's steps"\npage at "${base}" reads actuality's steps\nrun adds another host's step\npage holds the added step\n`,
 		};
 		const result = await testWithWorld(world, [feature], [WebServerStepper, ShuStepper, MonitorStepper, StorageFS, Haibun, StepsPage]);
 		if (!result.ok)

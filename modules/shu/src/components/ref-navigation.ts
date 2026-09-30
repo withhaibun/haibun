@@ -36,7 +36,7 @@ export function desiredPaneFor(kind: TRefKind, linkTarget: Record<string, unknow
 	}
 	// A type reference opens the type column: its description, schema graph, and individuals.
 	if (kind === REF_DENOTES.type && typeof linkTarget.domain === "string") return { paneType: "type", persistedAs: linkTarget.domain };
-	// A step reference opens the step as the run declares it.
+	// A step reference opens the step as actuality declares it.
 	if (kind === "step" && typeof linkTarget.method === "string") return { paneType: "step", method: linkTarget.method };
 	// An action reference opens what the action allows.
 	if (kind === "action" && typeof linkTarget.action === "string") return { paneType: "action", action: linkTarget.action };

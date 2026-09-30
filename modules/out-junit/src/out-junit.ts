@@ -89,7 +89,7 @@ export default class OutJUnit extends AStepper implements IHasOptions, IHasCycle
 			};
 
 			if (!t.ok) {
-				// The step the run reports as having failed, which a feature longer than the steps it holds still names.
+				// The step actuality reports as having failed, which a feature longer than the steps it holds still names.
 				testCase.failure = this.getFailResult(t.steps.failed);
 			}
 

@@ -39,7 +39,7 @@ const URAKATA_ERROR_PERSIST_EVERY = 10;
 export const UrakataSchema = PersistedVertexSchema.extend({
 	id: z.string(),
 	description: z.string(),
-	/** The run instance this task ran in (world.tag.key). A view says "running" only when this equals the current instance and it doesn't have a stoppedAt; a persisted row from another instance can never claim the present. */
+	/** Actuality instance this task ran in (world.tag.key). A view says "running" only when this equals the current instance and it doesn't have a stoppedAt; a persisted row from another instance can never claim the present. */
 	execution: z.string(),
 	seqPath: z.array(z.number()),
 	startedAt: z.string(),

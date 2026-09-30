@@ -20,7 +20,7 @@ function singleProducerGraph(input: string, output: string, capability = "S:make
 	};
 }
 
-/** What the resolver is given: a caller that holds what the run holds, where the case isn't about what it holds. */
+/** What the resolver is given: a caller that holds what actuality holds, where the case isn't about what it holds. */
 function inputs(graph: TDomainChainGraph, facts: TQuad[] = [], held: string[] = RUN_AUTHORITY): TResolverInputs {
 	return { graph, facts, held };
 }

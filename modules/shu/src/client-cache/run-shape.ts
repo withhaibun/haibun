@@ -2,11 +2,11 @@
  * What a run holds, counted as it grows: counts held per division, and only the stretch recorded since the last count.
  *
  * Counting a run's whole span again whenever the window is read is a read proportional to the run, made repeatedly. A
- * count of a stretch of the run that has passed cannot change, so it is counted once and held.
+ * count of a stretch of the actuality that has passed cannot change, so it is counted once and held.
  *
- * A division is a fixed stretch of time rather than a share of the run's reach, which is what makes a held count still
- * true after the run grows: were divisions a share of the reach, every division would cover a different stretch after
- * every count and a count couldn't be held. The grid is as long as the run needs; when the run outgrows it the division
+ * A division is a fixed stretch of time rather than a share of actuality's reach, which is what makes a held count still
+ * true after actuality grows: were divisions a share of the reach, every division would cover a different stretch after
+ * every count and a count couldn't be held. The grid is as long as actuality needs; when actuality outgrows it the division
  * doubles and the counts either side of each new boundary are added together, so growth takes an addition rather than
  * a read. A mark carries the moment its division begins, so a rail places it by that moment whatever scale the rail
  * draws at, and the grid the counting uses is independent of the scale the marks are drawn on.
@@ -25,7 +25,7 @@ type TRunShape = {
 	readonly marks: TRunMark[];
 	/** The instant a division begins, which is the moment a mark of it carries. */
 	beginningOf(division: number): number;
-	/** Count what the run has recorded since the last count, up to the moment given. */
+	/** Count what actuality has recorded since the last count, up to the moment given. */
 	update(to: number): Promise<void>;
 };
 
@@ -61,7 +61,7 @@ export function runShape(graph: TRunGraph, { divisions = RUN_DIVISIONS, minLevel
 			if (first === undefined) {
 				// The run's first record, read once: where a run begins does not change while it runs.
 				const reach = await runExtent(graph, minLevel);
-				if (reach.last === 0) return; // the run hasn't recorded at this level, so it doesn't have a record to count
+				if (reach.last === 0) return; // actuality hasn't recorded at this level, so it doesn't have a record to count
 				first = reach.first;
 			}
 			if (to < first) return;
@@ -70,7 +70,7 @@ export function runShape(graph: TRunGraph, { divisions = RUN_DIVISIONS, minLevel
 				divisionMs *= 2;
 				held = held.map((perType) => pairsMerged(perType, divisions));
 			}
-			// The division holding the last counted moment is counted again, since the run has written in it since; the
+			// The division holding the last counted moment is counted again, since actuality has written in it since; the
 			// divisions before it are counted already and cannot change.
 			const from = countedThrough === undefined ? 0 : divisionOf(countedThrough);
 			const through = divisionOf(to);

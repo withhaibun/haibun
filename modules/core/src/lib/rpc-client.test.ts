@@ -1,3 +1,4 @@
+import { notFromActuality } from "./rpc-wire.js";
 import { describe, it, expect } from "vitest";
 import { RpcCallFailed, RpcClient } from "./rpc-client.js";
 import type { TOutgoingRequest, TRequestSigner } from "./authority-types.js";
@@ -93,7 +94,7 @@ describe("RpcClient.call", () => {
 		const fetchImpl: typeof fetch = () => Promise.resolve(new Response("404 Not Found", { status: 404, headers: { "Content-Type": "text/plain" } }));
 		const client = new RpcClient({ baseUrl: "http://host", fetchImpl });
 		await expect(client.call("Stepper-echo", {}, [0])).rejects.toThrow(
-			new RpcCallFailed("Stepper-echo", "http://host", "Stepper-echo: the server answered 404 with text/plain, not the run's JSON: 404 Not Found"),
+			new RpcCallFailed("Stepper-echo", "http://host", notFromActuality("Stepper-echo", 404, "text/plain", "404 Not Found")),
 		);
 	});
 
@@ -195,5 +196,16 @@ describe("RpcClient.stream", () => {
 			for await (const chunk of client.stream("m", {}, [0])) out.push(chunk);
 		}).rejects.toThrow(/not JSON: not-json/);
 		expect(out).toEqual([{ ok: 1 }]);
+	});
+});
+
+describe("what a caller is told when a call's answer didn't come from actuality", () => {
+	it("says what answered in front of it, and to sign in where a sign-in was refused", () => {
+		expect(notFromActuality("Stepper-echo", 401, "text/plain", "401 Unauthorized\n")).toBe(
+			"Stepper-echo: this call didn't reach actuality. Something in front of it answered 401 (text/plain): 401 Unauthorized. Sign in to the site, then reload this page.",
+		);
+		expect(notFromActuality("Stepper-echo", 502, "text/html", "Bad Gateway")).toBe(
+			"Stepper-echo: this call didn't reach actuality. Something in front of it answered 502 (text/html): Bad Gateway.",
+		);
 	});
 });

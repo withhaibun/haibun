@@ -37,14 +37,14 @@ class PingStepper extends AStepper {
 			exact: "holds a call",
 			action: () => {
 				const authority = getAuthority(this.getWorld().runtime);
-				if (!authority) return Promise.resolve(actionNotOK("the run doesn't hold an authority"));
+				if (!authority) return Promise.resolve(actionNotOK("actuality doesn't hold an authority"));
 				authority.holdWhile({ capabilities: [HELD_ON] });
 				return Promise.resolve(OK);
 			},
 		},
 		readsKept: {
 			exact: "reads kept",
-			action: async () => ((await this.getWorld().shared.get(KEPT_NAME)) === undefined ? OK : actionNotOK("read the run's variable above its ceiling")),
+			action: async () => ((await this.getWorld().shared.get(KEPT_NAME)) === undefined ? OK : actionNotOK("read actuality's variable above its ceiling")),
 		},
 	};
 }
@@ -52,8 +52,8 @@ class PingStepper extends AStepper {
 /** The capability a held call rests on. */
 const HELD_ON = "urn:uuid:held-on";
 
-/** A variable the run sets, which a statement it narrows names. */
-const [KEPT_NAME, KEPT] = ["kept", "the run's"];
+/** A variable actuality sets, which a statement it narrows names. */
+const [KEPT_NAME, KEPT] = ["kept", "actuality's"];
 
 const holds = async (content: string) =>
 	(await passWithDefaults([{ path: "/features/holding.feature", content }], [AuthorityStepper, LogicStepper, VariablesStepper, PingStepper])).ok;
@@ -76,12 +76,12 @@ describe("holding only", () => {
 describe("holding only a read", () => {
 	it("bounds what the statement reads to the level listed", async () => {
 		expect(await holds(`holding only "PingStepper:readsPublicOnly,Read:public", reads public only`)).toBe(true);
-		expect(await holds(`reads public only`), "where the run itself reads everything").toBe(false);
+		expect(await holds(`reads public only`), "where actuality itself reads everything").toBe(false);
 	});
 });
 
 describe("what a narrowed statement reads", () => {
-	it("reads its arguments as the run that stated them, and the step reads only within what it holds", async () => {
+	it("reads its arguments as the actuality that stated them, and the step reads only within what it holds", async () => {
 		expect(await holds(`set ${KEPT_NAME} to "${KEPT}"\nholding only "PingStepper:repeats", repeats ${KEPT_NAME}`)).toBe(true);
 		expect(await holds(`set ${KEPT_NAME} to "${KEPT}"\nholding only "PingStepper:readsKept", reads kept`)).toBe(true);
 	});

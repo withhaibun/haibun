@@ -26,7 +26,7 @@ export type TDispatch = (method: string, params: Record<string, unknown>, link: 
 /** What a stream rejects with once its caller aborts it, as the fetch that carries one rejects. */
 export const STREAM_ABORTED = "the stream was aborted";
 
-/** A stream a case drives, one form a dispatch answers a streamed call with: the seqPath the run announces, or null where
+/** A stream a case drives, one form a dispatch answers a streamed call with: the seqPath actuality announces, or null where
  *  it doesn't announce one, and `run`, which sends chunks until it resolves, given the caller's abort signal. */
 export class DrivenStream {
 	constructor(
@@ -113,11 +113,11 @@ import { STEPS_CHANGED } from "@haibun/core/schema/protocol.js";
 type TShuTestConfig = {
 	/** Optional dispatch for in-test RPCs. Default throws on every call, naming the unconfigured method, tests opt in by supplying a function that returns wire results for the methods they exercise. */
 	dispatch?: TDispatch;
-	/** What the run answers a read of one of its artifacts with, given the read as the page sent it: an empty image unless a test says otherwise. */
+	/** What actuality answers a read of one of its artifacts with, given the read as the page sent it: an empty image unless a test says otherwise. */
 	artifact?: (url: string, init?: RequestInit) => Response;
 };
 
-/** Answer a view's reads of the run's artifacts as the run's artifact route does, and show what it read at an object URL
+/** Answer a view's reads of actuality's artifacts as actuality's artifact route does, and show what it read at an object URL
  *  a test page can hold, until the returned function restores both. */
 function servingArtifacts(answer: (url: string, init?: RequestInit) => Response): () => void {
 	const through = globalThis.fetch;
@@ -142,12 +142,12 @@ export type TShuTestHandle = {
 	eventStream: SerializedEventStream;
 };
 
-/** Signal on the run's stream that its steps changed, as the run does when a feature declares a step; `n` tells one
+/** Signal on actuality's stream that its steps changed, as actuality does when a feature declares a step; `n` tells one
  *  signal from another. */
 export const stepsChanged = (handle: TShuTestHandle, n: number): void =>
 	handle.emit({ id: `${STEPS_CHANGED}-${n}`, timestamp: Date.now(), kind: "control", level: "debug", signal: STEPS_CHANGED });
 
-/** Resolves once the page has read the run's steps again, and what that read told has settled. */
+/** Resolves once the page has read actuality's steps again, and what that read told has settled. */
 export const stepsReadAgain = (): Promise<void> =>
 	new Promise((resolve) => {
 		const stop = onStepsChanged(() => {
@@ -241,15 +241,15 @@ export function makeEntityDispatch(over: { entity: () => unknown; annotations?: 
 	};
 }
 
-/** A report the page sent the run through the monitor's client-log step. */
+/** A report the page sent actuality through the monitor's client-log step. */
 export type TReportedToRun = { level: TClientLogLevel; source: string; message: string; attributes?: Record<string, unknown> };
 
-/** Open the page's authority as a page the run lets report to it: it holds what reporting requires, beside
+/** Open the page's authority as a page actuality lets report to it: it holds what reporting requires, beside
  *  `withoutDelegation` and what `read` delegates. A test that opens one needs an IndexedDB for the page's key. */
 export const openReportingPage = (read?: () => Promise<TDelegations>, withoutDelegation: string[] = []): Promise<TPageAuthority> =>
 	openPageAuthority(read, [CLIENT_LOG_ACTION, ...withoutDelegation]);
 
-/** A dispatch answering the page's reports to the run as the monitor's client-log step does, holding each in `reported`;
+/** A dispatch answering the page's reports to actuality as the monitor's client-log step does, holding each in `reported`;
  *  any other call throws. */
 export function reportingTo(reported: TReportedToRun[]): TDispatch {
 	return (method, params) => {
@@ -278,7 +278,7 @@ export function installTestMediaQueries(): void {
 	});
 }
 
-/** The run a test page carries. */
+/** The actuality a test page carries. */
 const CARRIED_RUN = { shape: CACHE_SHAPE, execution: "r1", quads: [] };
 
 /** Give the page the hydration a deployment writes, in place of any it carried. The page reads it at `hydrateFromDom`. */

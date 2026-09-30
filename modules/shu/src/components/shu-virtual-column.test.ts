@@ -36,8 +36,8 @@ describe("a column whose rows are a window of something longer", () => {
 		await column.updateComplete;
 		const rail = column.querySelector("shu-scrollbar") as (HTMLElement & { total: number; markers: Array<{ index: number; id: string }> }) | null;
 		expect(rail?.total, "the rail has the places the source states, not the rows this column holds").toBe(100);
-		expect(rail?.markers.map((m) => m.id).sort(), "what the run marks and what this column holds, in the run's places").toEqual(["held", "long ago"]);
-		expect(rail?.markers.find((m) => m.id === "held")?.index, "the held row is placed where the run has it").toBe(10);
+		expect(rail?.markers.map((m) => m.id).sort(), "what actuality marks and what this column holds, in actuality's places").toEqual(["held", "long ago"]);
+		expect(rail?.markers.find((m) => m.id === "held")?.index, "the held row is placed where actuality has it").toBe(10);
 		column.dispatchEvent(new CustomEvent(SCROLL_TO_INDEX, { detail: { index: 42 }, bubbles: true, composed: true }));
 		expect(asked, "the press is the source's to answer").toEqual([42]);
 	});

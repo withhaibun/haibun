@@ -99,7 +99,7 @@ function sourcesOf(moduleDir: string): string {
  * The directories a group's features depend on: the bases the features are read from, the sources of the module of
  * every stepper the configuration names, the sources of every framework module those modules depend on, and the
  * paths the configuration adds. Each once, absolute and real, in a stable order. A stepper named by a relative path is
- * resolved from the directory the run is made from, as the run resolves it, so a process deciding for another
+ * resolved from the directory actuality is made from, as actuality resolves it, so a process deciding for another
  * computes what that other would.
  */
 export function dependencyRoots(specl: TSpecl, bases: readonly string[], configDir: string, cwd: string): string[] {

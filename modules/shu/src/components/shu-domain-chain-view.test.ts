@@ -19,7 +19,7 @@ import { declareFakeGraphPresenter, mountedPresenter } from "../graph-presenter.
 import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
 import { NODE_KIND, type TGraphNode } from "../graph/types.js";
 
-/** The run a snapshot says its facts are of. */
+/** The actuality a snapshot says its facts are of. */
 const EXECUTION = "1790000000000-1";
 const GRAPH = SHU_TEST_IDS.DOMAIN_CHAIN.GRAPH;
 

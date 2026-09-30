@@ -38,8 +38,8 @@ export function currentRowIndex(rows: Iterable<TTimedRow>, cursor: number | null
 	return idx;
 }
 
-/** Where the rail marks the moment being shown. It is always somewhere on the run: without an upper bound it is the newest
- *  row, and it moves as newer ones arrive; before the run began it is the top. That is not the same question as which
+/** Where the rail marks the moment being shown. It is always somewhere on actuality: without an upper bound it is the newest
+ *  row, and it moves as newer ones arrive; before actuality began it is the top. That is not the same question as which
  *  row is current, a row isn't current before the first one, so a run with rows always has a mark, and only an empty
  *  one doesn't have one. */
 export function cursorMark(currentIdx: number, rows: number, cursor: number | null): number {

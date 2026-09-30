@@ -124,7 +124,7 @@ export class ShuArtifactFrame extends HTMLElement {
 		});
 		document.addEventListener("keydown", this.onKeydown);
 		window.addEventListener("resize", this.onReposition);
-		// The run serves an artifact only to a reader holding a private read, so what the frame holds shows what the page read.
+		// Actuality serves an artifact only to a reader holding a private read, so what the frame holds shows what the page read.
 		for (const media of this.querySelectorAll(`[${SHU_ATTR.DATA_ARTIFACT}]`)) {
 			void shownOrReported(media.getAttribute(SHU_ATTR.DATA_ARTIFACT) ?? "", "shu-artifact-frame").then((at) => at && media.setAttribute("src", at));
 		}
@@ -142,7 +142,7 @@ export class ShuArtifactFrame extends HTMLElement {
 		if (stepEl) stepEl.textContent = text;
 	}
 
-	/** Expand or collapse this frame. Public: the document column drives it for ←/→ navigation across the run. */
+	/** Expand or collapse this frame. Public: the document column drives it for ←/→ navigation across actuality. */
 	setFullscreen(on: boolean): void {
 		this.classList.toggle("fullscreen", on);
 		// The expanded overlay renders in the TOP LAYER (popover): the frame sits inside a transform-positioned virtualizer
