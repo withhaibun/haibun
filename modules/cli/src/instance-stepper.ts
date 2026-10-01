@@ -30,9 +30,10 @@ import { z } from "zod";
 import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import type { TDomainDefinition } from "@haibun/core/lib/resources.js";
-import { actionNotOK, actionOKWithProducts, perProcessOptionNames } from "@haibun/core/lib/util/index.js";
+import { actionNotOK, actionOKWithProducts, getStepperOption, perProcessOptionNames } from "@haibun/core/lib/util/index.js";
 import { localOrigin } from "@haibun/core/lib/local-origin.js";
 import { RpcCallFailed, RpcClient } from "@haibun/core/lib/rpc-client.js";
+import { holdSignIn, releaseSignIn } from "@haibun/core/lib/rpc-wire.js";
 import { RemoteStepperProxy } from "@haibun/core/lib/remote-stepper-proxy.js";
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
 import { MODULE_OPTION_PREFIX, BASE_PREFIX, NDJSON, OK, ONCE, STAY, STAY_ALWAYS } from "@haibun/core/schema/protocol.js";
@@ -268,12 +269,24 @@ function configIn(doing: string, where: string): { dir: string; config: string }
 export default class InstanceStepper extends AStepper implements IHasCycles {
 	description = "Start and supervise sibling haibun instances (forked cli.js, readiness via action.begin, terminated at endFeature)";
 
+	options = {
+		SIGN_IN: {
+			desc: "The user:password the instances and runs this run starts ask a visitor for, where their web server's BASIC_AUTH asks for one, as it does where they inherit it. This run signs in with it to reach them.",
+			parse: (input: string) => (input.indexOf(":") > 0 ? { result: input } : { parseError: "SIGN_IN is user:password" }),
+		},
+	};
+
 	/** The steppers this run was set up with: what a child must not inherit is read from their own declarations. */
 	private steppers: AStepper[] = [];
+	/** The user:password the instances this run starts ask for, where they ask for one. */
+	private signIn: string | undefined;
+	/** The addresses this run holds that sign-in for, let go of when what answers there ends. */
+	private readonly signedInAt = new Set<string>();
 
 	async setWorld(world: TWorld, steppers: AStepper[]): Promise<void> {
 		await super.setWorld(world, steppers);
 		this.steppers = steppers;
+		this.signIn = getStepperOption(this, "SIGN_IN", world.moduleOptions);
 	}
 
 	private children: Array<{ child: ChildProcess; label: string; launch: TLaunch }> = [];
@@ -306,6 +319,8 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		endFeature: async (endFeature?: TEndFeature) => {
 			if (!endFeature?.shouldClose) return;
 			await Promise.all([...this.children.map(({ child }) => terminate(child)), ...[...this.runs.values()].map((r) => terminate(r.child))]);
+			for (const origin of this.signedInAt) releaseSignIn(origin);
+			this.signedInAt.clear();
 			this.children = [];
 			this.runs.clear();
 		},
@@ -488,11 +503,21 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 	 * as a local step is. A run that never serves doesn't register steps, since it doesn't answer a call.
 	 */
 	private async registerRunHost(run: string, port: number): Promise<boolean> {
-		const url = localOrigin(port);
+		const url = this.signedInTo(port);
 		const answered = await this.awaitBegin(url, () => this.runs.get(run)?.ended !== null);
 		if (!answered) return false;
 		await this.registerHost(url);
 		return true;
+	}
+
+	/** The address of what this run starts on `port`, holding the sign-in it asks for where SIGN_IN names one. */
+	private signedInTo(port: number): string {
+		const url = localOrigin(port);
+		if (this.signIn) {
+			holdSignIn(url, this.signIn);
+			this.signedInAt.add(url);
+		}
+		return url;
 	}
 
 	/** Register the steps the host at `url` offers this run, under the host id it answers with. */
@@ -582,7 +607,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		child.stdout?.on("data", (data: Buffer) => saidTail.append(data.toString()));
 		this.children.push({ child, label: `${dir} host ${hostId}`, launch: { dir, config, port, hostId } });
 
-		const url = localOrigin(port);
+		const url = this.signedInTo(port);
 		const rpc = new RpcClient({ baseUrl: url, timeoutMs: 1_500, retry: { maxAttempts: 1 } });
 		const deadline = Date.now() + READY_DEADLINE_MS;
 		while (Date.now() < deadline) {

@@ -106,6 +106,26 @@ export type TRpcEnvelope = Parameters<typeof rpcEnvelope>[0];
  *  when asked. A process doesn't hold one, and the setting doesn't change its request. */
 export const WITH_THE_SITES_SIGN_IN = "include" satisfies RequestCredentials;
 
+/** The sign-ins this process holds, by origin, as a browser holds one for a site a person signed in to: every call to that
+ *  origin carries its sign-in beside the call's own proof, which the `Signature` header carries. */
+const heldSignIns = new Map<string, Record<string, string>>();
+
+/** Hold the `user:password` the basic auth at `origin` asks for, so each call this process makes there signs in with it. */
+export function holdSignIn(origin: string, userPassword: string): void {
+	heldSignIns.set(new URL(origin).origin, basicSignIn(userPassword));
+}
+
+/** Let go of the sign-in held for `origin`, once what answers there has ended. */
+export function releaseSignIn(origin: string): void {
+	heldSignIns.delete(new URL(origin).origin);
+}
+
+/** The header that signs in to basic auth as the `user:password` named. */
+function basicSignIn(userPassword: string): Record<string, string> {
+	if (userPassword.indexOf(":") < 1) throw new Error("a sign-in is user:password");
+	return { authorization: `Basic ${btoa(String.fromCharCode(...new TextEncoder().encode(userPassword)))}` };
+}
+
 type TRpcCall = { url: string; init: { method: "POST"; headers: Record<string, string>; body: string; credentials: typeof WITH_THE_SITES_SIGN_IN } };
 
 /** `provesNothing`: a call that doesn't invoke an action is sent with its headers as they are. */
@@ -120,7 +140,8 @@ export async function buildRpcCall(base: string, envelope: TRpcEnvelope, prove: 
 	const url = `${stripTrailingSlash(base)}/rpc/${encodeURIComponent(envelope.method)}`;
 	const body = rpcEnvelope(envelope);
 	const headers = { "content-type": "application/json", host: new URL(url).host };
-	return { url, init: { method: "POST", headers: await prove({ url, method: "POST", headers, body }), body, credentials: WITH_THE_SITES_SIGN_IN } };
+	const signedIn = heldSignIns.get(new URL(url).origin);
+	return { url, init: { method: "POST", headers: { ...(await prove({ url, method: "POST", headers, body })), ...signedIn }, body, credentials: WITH_THE_SITES_SIGN_IN } };
 }
 
 /** Post one call to `method` at the `/rpc` of the host at `base`, proven by `prove`. A streamed call is answered as NDJSON
