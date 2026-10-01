@@ -73,10 +73,12 @@ const actingStore = new AsyncLocalStorage<{ principal: string | undefined; rests
  *
  * A boundary that checks a proof learns who made it, and what is done under that proof is done by them. Held here
  * rather than on the world for the reason the capability is: the world has one value for the whole process, so two
- * requests in flight would be recorded as each other, and this belongs to the call that proved it.
+ * requests in flight would be recorded as each other, and this belongs to the call that proved it. The call is one of its
+ * own, not part of the step it arrived during, as a request a server receives isn't part of the step that started the
+ * server, so the steps it runs begin a chain of their own.
  */
 export function runActingAs<T>(principal: string | undefined, within: () => Promise<T>, restsOn?: TRestsOn): Promise<T> {
-	return actingStore.run({ principal, restsOn }, within);
+	return actingStore.run({ principal, restsOn }, () => stepStore.exit(within));
 }
 
 /** Who proved themselves at the boundary this call came through, or undefined where a caller didn't. */
@@ -98,8 +100,9 @@ export function actingFor(): TActingFor | undefined {
 	return controller ? { root: false, controller } : undefined;
 }
 
-/** The step running: its seqPath, and how prominently what is logged while it runs reports. */
-type TStepInFlight = { seqPath: string; reportsAt: THaibunLogLevel | undefined };
+/** The step running: its seqPath, how prominently what is logged while it runs reports, and the seqPath of the outermost
+ *  step of the call it is part of, which is its own where no step dispatched it. */
+type TStepInFlight = { seqPath: string; reportsAt: THaibunLogLevel | undefined; outermost: string };
 
 const stepStore = new AsyncLocalStorage<TStepInFlight | undefined>();
 
@@ -110,8 +113,8 @@ const stepStore = new AsyncLocalStorage<TStepInFlight | undefined>();
  * whole process: two steps in flight, as two readers' calls into one run are, each named the step dispatched last, and a
  * step that dispatched another named the inner step until it ended. Held here, each call reads the step it belongs to.
  */
-export function runInStep<T>(step: TStepInFlight, within: () => T): T {
-	return stepStore.run(step, within);
+export function runInStep<T>(step: Omit<TStepInFlight, "outermost">, within: () => T): T {
+	return stepStore.run({ ...step, outermost: stepStore.getStore()?.outermost ?? step.seqPath }, within);
 }
 
 /** The step this call is part of, or undefined outside any dispatch. */

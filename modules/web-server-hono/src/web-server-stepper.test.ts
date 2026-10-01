@@ -7,6 +7,7 @@ import { AStepper } from "@haibun/core/lib/astepper.js";
 import { OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
 import { getStepperOptionName, actionNotOK } from "@haibun/core/lib/util/index.js";
 import WebServerStepper from "./web-server-stepper.js";
+import { BASIC_AUTH_OPTION } from "@haibun/core/lib/basic-auth.js";
 import { DOMAIN_LINK, DOMAIN_TEXT } from "@haibun/core/lib/domains.js";
 
 // WebServerStepper expects a 'files' directory in cwd
@@ -49,6 +50,12 @@ class VerifyStepper extends AStepper {
 		},
 	};
 }
+
+describe("the web server's basic auth option", () => {
+	it("is the one core names, which a launched instance inherits and its launcher signs in with", () => {
+		expect(getStepperOptionName(WebServerStepper, "BASIC_AUTH")).toBe(BASIC_AUTH_OPTION);
+	});
+});
 
 describe("WebServerStepper Integration", () => {
 	it("serves files from a directory", async () => {

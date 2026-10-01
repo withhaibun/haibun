@@ -69,16 +69,14 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 			await wp.captureFailureScreenshot("failure", failedStep);
 		}
 	},
-	beforeStep({ featureStep }: TBeforeStep): Promise<void> {
+	beforeStep(_args: TBeforeStep): Promise<void> {
 		wp.errorMark = wp.browserErrors.length;
-		if (featureStep.action.stepperName === constructorName(wp)) wp.acting++;
 		return Promise.resolve();
 	},
 	async afterStep({ featureStep }: TAfterStep): Promise<TAfterStepResult> {
+		await wp.releaseAfter();
 		// A page error fails the step that acted on the page, never another stepper's step dispatched meanwhile.
 		if (featureStep.action.stepperName !== constructorName(wp)) return {};
-		// The attached browser is driven only while this stepper's steps act in it.
-		if (--wp.acting === 0) await wp.releaseAttachedBrowser();
 		const newErrors = wp.browserErrors.slice(wp.errorMark);
 		if (newErrors.length === 0) return {};
 		// A browser-side uncaught exception during this step is a real failure, surface it loudly instead of

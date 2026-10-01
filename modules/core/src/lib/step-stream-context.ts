@@ -19,13 +19,11 @@
 
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { TIndividualAddress } from "./typed-links.js";
+import type { TCalled } from "./called.js";
 
 /** A call a step made for its caller that what the step holds did not allow: the step it named, and the action that step
  *  requires, which the caller may hold and allow. */
 export type TRefusedCall = { step: string; action: string };
-
-/** A call a step made for its caller: the step it named, whether that step answered, and the record of the call. */
-export type TCalled = { name: string; ok: boolean; record: TIndividualAddress };
 
 /** One streamed step chunk: how the step is progressing, a line of what it sends on its caller's behalf, a call it made, a
  *  text fragment, an individual the step just recorded, a call it was refused, a message in the protocol the call carries

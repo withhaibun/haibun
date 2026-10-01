@@ -7,8 +7,9 @@
  * page never hears of, which asking again would record a second time.
  */
 import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
+import type { TCalled } from "@haibun/core/lib/called.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
-import { SCOPE, activeEntry, scopeEntry, type TEntry, type TSubjectState } from "./current-subject.js";
+import { SCOPE, activeEntry, recordOf, scopeEntry, type TEntry, type TSubjectState } from "./current-subject.js";
 import { acts, conduit } from "./hypermedia.js";
 import { deploymentVerifiesDelegations, requireStep } from "./rpc-registry.js";
 import { delegateFromPage } from "./page-delegation.js";
@@ -45,26 +46,37 @@ async function turnDelegation(): Promise<Record<string, unknown> | undefined> {
 	return await delegateFromPage({ controller: turn.controller, wanted: [readAction(reads), ...given], expires: turn.expires, target: location.origin });
 }
 
-/** The events a turn's streamed chunks carry. Text is raised at most once a frame, so a stream faster than the page draws
- *  moves the turn once per drawn frame, and `flush` raises what is held before the turn ends. */
+/** The events a turn's streamed chunks carry. Text, context lines and calls are raised at most once a frame, so a stream
+ *  faster than the page draws moves the turn once per drawn frame. Any other chunk raises the context lines and calls held
+ *  first, so a record the turn reached is activated in the order the stream carried, and `flush` raises what is held
+ *  before the turn ends. */
 class ChunkEvents {
 	#text = "";
+	#context: string[] = [];
+	#calls: TCalled[] = [];
 	#frame: number | undefined;
 
 	raise = (chunk: TStreamChunk): void => {
-		if (chunk.recorded) dispatchConversationEvent({ type: "recorded", record: { id: chunk.recorded.id, label: chunk.recorded.persistedAs } });
+		if (chunk.recorded || chunk.status || chunk.refused) this.raiseStated();
+		if (chunk.recorded) dispatchConversationEvent({ type: "recorded", record: recordOf(chunk.recorded) });
 		if (chunk.status) dispatchConversationEvent({ type: "status", line: chunk.status });
-		if (chunk.context) dispatchConversationEvent({ type: "context", line: chunk.context });
-		if (chunk.called) dispatchConversationEvent({ type: "called", call: chunk.called });
 		if (chunk.refused) dispatchConversationEvent({ type: "refused", call: chunk.refused });
-		if (!chunk.text) return;
-		this.#text += chunk.text;
-		this.#frame ??= requestAnimationFrame(this.flush);
+		if (chunk.text) this.#text += chunk.text;
+		if (chunk.context) this.#context.push(chunk.context);
+		if (chunk.called) this.#calls.push(chunk.called);
+		if (chunk.text || chunk.context || chunk.called) this.#frame ??= requestAnimationFrame(this.flush);
 	};
+
+	/** Raise the context lines and calls held. */
+	private raiseStated(): void {
+		if (this.#context.length) dispatchConversationEvent({ type: "context", lines: this.#context.splice(0) });
+		if (this.#calls.length) dispatchConversationEvent({ type: "called", calls: this.#calls.splice(0) });
+	}
 
 	flush = (): void => {
 		if (this.#frame !== undefined) cancelAnimationFrame(this.#frame);
 		this.#frame = undefined;
+		this.raiseStated();
 		if (this.#text) dispatchConversationEvent({ type: "text", piece: this.#text });
 		this.#text = "";
 	};

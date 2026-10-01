@@ -18,12 +18,13 @@
  * turn records in the open conversation. `transcript` states the messages a view shows.
  */
 import { COMMENT_LABEL, type AccessQueryLevel } from "@haibun/core/lib/resources.js";
-import type { TCalled, TRefusedCall } from "@haibun/core/lib/step-stream-context.js";
+import type { TRefusedCall } from "@haibun/core/lib/step-stream-context.js";
+import type { TCalled } from "@haibun/core/lib/called.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import type { TChatMessage } from "./components/shu-chat-message.js";
 import { reportToRun } from "./client-log.js";
 import { CONVERSATION_PARAM } from "./consts.js";
-import { SCOPE, dispatchSubjectEvent, type TRecord } from "./current-subject.js";
+import { SCOPE, dispatchSubjectEvent, recordOf, type TRecord } from "./current-subject.js";
 import { hasEventStream, subscribeBatchedEvents, type TEvent } from "./event-stream.js";
 import { conduit, reads } from "./hypermedia.js";
 import { getAvailableSteps, requireStep } from "./rpc-registry.js";
@@ -39,9 +40,10 @@ export const OPEN_TURN_STEP = "openTurn";
 /** The step that keeps a file a person adds to a question, which the question then names. */
 export const KEEP_FILE_STEP = "keepFile";
 
-/** What a turn stated while it ran: how it progressed, the lines of what it sent, and the calls it made. */
-export type TTurnStated = { activity: string[]; context: string[]; calls: TCalled[] };
-const NOTHING_STATED: TTurnStated = { activity: [], context: [], calls: [] };
+/** What a turn stated while it ran: the latest line of how it progresses, which its spinner shows while it runs, the
+ *  lines of what it sent, and the calls it made. */
+export type TTurnStated = { progress: string; context: string[]; calls: TCalled[] };
+const NOTHING_STATED: TTurnStated = { progress: "", context: [], calls: [] };
 
 /** A turn: as the store reads it back, or as this page asks it, with what it stated while it ran. Its question's record
  *  names it, and a turn this page asks isn't named until actuality records that question. */
@@ -69,8 +71,8 @@ export type TConversationEvent =
 	| { type: "started" }
 	| { type: "text"; piece: string }
 	| { type: "status"; line: string }
-	| { type: "context"; line: string }
-	| { type: "called"; call: TCalled }
+	| { type: "context"; lines: string[] }
+	| { type: "called"; calls: TCalled[] }
 	| { type: "recorded"; record: TRecord }
 	| { type: "refused"; call: TRefusedCall }
 	| { type: "stop"; reason: string }
@@ -167,11 +169,11 @@ function movedAsked(asked: TAskedTurn, event: TRequestEvent): TAskedTurn {
 		case "text":
 			return running ? { ...asked, response: asked.response + event.piece } : asked;
 		case "status":
-			return running ? { ...asked, activity: [...asked.activity, event.line] } : asked;
+			return running ? { ...asked, progress: event.line } : asked;
 		case "context":
-			return running ? { ...asked, context: [...asked.context, event.line] } : asked;
+			return running ? { ...asked, context: [...asked.context, ...event.lines] } : asked;
 		case "called":
-			return running ? { ...asked, calls: [...asked.calls, event.call] } : asked;
+			return running ? { ...asked, calls: [...asked.calls, ...event.calls] } : asked;
 		case "recorded":
 			// Actuality records the question first, which names the turn, and the answer after it.
 			if (!running) return asked;
@@ -207,8 +209,8 @@ export function transition(conversation: TConversationState, event: TConversatio
 			if (conversation.status === "closed" || conversation.session !== event.session) return conversation;
 			const held = new Map(conversation.turns.map((turn) => [turn.askId, turn]));
 			const turns = event.turns.map((turn) => {
-				const { activity, context, calls } = held.get(turn.askId) ?? NOTHING_STATED;
-				return { ...turn, error: turn.error ?? "", activity, context, calls };
+				const { context, calls } = held.get(turn.askId) ?? NOTHING_STATED;
+				return { ...turn, error: turn.error ?? "", progress: "", context, calls };
 			});
 			const read = { ...conversation, status: "open" as const, turns };
 			// The store's copy of the page's turn is the newer once the turn has ended, and until then the page's is.
@@ -312,7 +314,7 @@ export function transcript(conversation: TConversationState, onTurn: string | un
 	const { onPath, first, others } = branch(turns, onTurn);
 	const otherFirst = others.get(START);
 	return turns.flatMap((turn): TTranscriptEntry[] => {
-		const { key, askId, inReplyTo, status, activity, context, calls } = turn;
+		const { key, askId, inReplyTo, status, progress, context, calls } = turn;
 		const shown = onPath.has(key);
 		const asked = Date.parse(turn.generatedAtTime);
 		const askedAt = Number.isFinite(asked) ? asked : undefined;
@@ -349,7 +351,7 @@ export function transcript(conversation: TConversationState, onTurn: string | un
 					recordId: turn.sayId,
 					context,
 					calls,
-					spinnerStatus: activity.at(-1) ?? SENDING,
+					spinnerStatus: progress || SENDING,
 					spinnerVisible: running,
 					error: turn.error,
 					unverified: turn.unverified ?? [],
@@ -412,9 +414,9 @@ export async function openConversation(session: string, answer: "activate" | "up
 		const turns = await readSession(session);
 		readTurnsOf(session, turns.length);
 		const before = conversationState.get();
-		const latest = latestRecord(dispatchConversationEvent({ type: "read", session, turns }));
+		const latest = latestEntry(dispatchConversationEvent({ type: "read", session, turns }));
 		if (before.status !== "opening" || before.session !== session || !latest) return;
-		dispatchSubjectEvent({ type: answer, scope: SCOPE.actionsBar, entry: entryIn(latest.record, latest.turn) });
+		dispatchSubjectEvent({ type: answer, scope: SCOPE.actionsBar, entry: latest });
 	} catch (err) {
 		dispatchConversationEvent({ type: "failed", session });
 		reportToRun("error", "conversation", `the conversation ${session} was not read back: ${errorDetail(err)}`);
@@ -477,13 +479,13 @@ export function followRunningTurns(): () => void {
 	return followReportedTurns(readAgain);
 }
 
-/** The actions bar's entry for a record of a turn, with the records that turn was asked about. */
-const entryIn = (record: TRecord, turn: TTurn & { askId: string }) => ({ record, turn: turn.askId, bundle: { patterns: turn.bundle, accessLevel: appAccessLevel() } });
+/** The actions bar's entry for a record of the turn `askId` names, with the records that turn was asked about. */
+const entryIn = (record: TRecord, askId: string, patterns: TContextPattern[]) => ({ record, turn: askId, bundle: { patterns, accessLevel: appAccessLevel() } });
 
-/** The newest record of a conversation's latest turn: its answer where it has one, else its question. */
-function latestRecord(conversation: TConversationState): { record: TRecord; turn: TTurn & { askId: string } } | null {
+/** The entry for the newest record of a conversation's latest turn: its answer where it has one, else its question. */
+function latestEntry(conversation: TConversationState) {
 	const latest = conversation.turns.at(-1);
-	return latest?.askId ? { record: { id: latest.sayId ?? latest.askId, label: COMMENT_LABEL }, turn: { ...latest, askId: latest.askId } } : null;
+	return latest?.askId ? entryIn({ id: latest.sayId ?? latest.askId, label: COMMENT_LABEL }, latest.askId, latest.bundle) : null;
 }
 
 /** Follow each move, so the actions bar's scope holds the conversation's newest record as the conversation moves: each
@@ -492,16 +494,12 @@ function latestRecord(conversation: TConversationState): { record: TRecord; turn
  *  by its turn's records: the read that opens it activates its latest turn. */
 conversationMachine.follow(({ event, before, after }) => {
 	const { asked } = after;
-	const askedHere = asked?.askId && asked !== before.asked && asksIn(after) ? { ...asked, askId: asked.askId } : null;
-	if (askedHere && event.type === "recorded") dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry: entryIn(event.record, askedHere) });
-	if (askedHere && event.type === "called") {
-		const { persistedAs, id } = event.call.record;
-		dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry: entryIn({ id, label: persistedAs }, askedHere) });
-	}
+	const reached = event.type === "recorded" ? event.record : event.type === "called" ? event.calls.map((call) => recordOf(call.record)).at(-1) : undefined;
+	if (reached && asked?.askId && asked !== before.asked && asksIn(after))
+		dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry: entryIn(reached, asked.askId, asked.bundle) });
 	if (event.type === "read" && before.status === "open" && before.session === after.session) {
-		const [was, now] = [latestRecord(before), latestRecord(after)];
-		if (now && now.turn.askId !== asked?.askId && now.record.id !== was?.record.id)
-			dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry: entryIn(now.record, now.turn) });
+		const [was, now] = [latestEntry(before), latestEntry(after)];
+		if (now && now.turn !== asked?.askId && now.record.id !== was?.record.id) dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry: now });
 	}
 	if (after.session !== before.session) mergeHashParams({ [CONVERSATION_PARAM]: after.session ?? "" });
 });

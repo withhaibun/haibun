@@ -30,7 +30,7 @@ describe("a call to a host's rpc", () => {
 	it("carries the sign-in this process holds for the host beside its proof, which doesn't cover it, until it lets it go", async () => {
 		const proven: Parameters<TProveRequest>[0][] = [];
 		const prove: TProveRequest = (request) => (proven.push(request), Promise.resolve({ ...request.headers, proof: "signed" }));
-		holdSignIn(BASE, "reader:a password");
+		holdSignIn(BASE, { username: "reader", password: "a password" });
 		const signedIn = await buildRpcCall(BASE, { id: "call-3", method: METHOD, params: {} }, prove);
 		releaseSignIn(BASE);
 		expect(proven[0]?.headers, "the proof covers the call, not the sign-in").toEqual({ "content-type": "application/json", host: "site.test:8123" });

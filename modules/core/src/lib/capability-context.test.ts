@@ -6,7 +6,7 @@
  * running, so work that ticks on its own runs without one.
  */
 import { describe, expect, it } from "vitest";
-import { authorizedWith, readingAt, runAuthorizedWith, runReadingAt, runShowing, shownTo } from "./capability-context.js";
+import { authorizedWith, readingAt, runActingAs, runAuthorizedWith, runInStep, runReadingAt, runShowing, shownTo, stepInFlight } from "./capability-context.js";
 
 describe("the capability a step runs under", () => {
 	it("is undefined outside a dispatch", () => {
@@ -85,5 +85,19 @@ describe("the ceiling a read runs under", () => {
 				expect(readingAt(), "not stating a level keeps the ceiling in force").toBe("opened");
 			});
 		});
+	});
+});
+
+describe("the outermost step of a call", () => {
+	const step = (seqPath: string) => ({ seqPath, reportsAt: undefined });
+
+	it("is the step a call began with, for each step it runs within it", () => {
+		const inner = runInStep(step("0.1"), () => runInStep(step("0.1.1"), () => stepInFlight()));
+		expect(inner).toEqual({ seqPath: "0.1.1", reportsAt: undefined, outermost: "0.1" });
+	});
+
+	it("begins again where a call proves who it is, which isn't part of the step it arrived during", async () => {
+		const arrived = await runInStep(step("0.1"), () => runActingAs("did:example:caller", () => Promise.resolve(runInStep(step("0.9"), () => stepInFlight()))));
+		expect(arrived?.outermost).toBe("0.9");
 	});
 });

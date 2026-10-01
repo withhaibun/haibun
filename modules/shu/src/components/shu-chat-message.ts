@@ -6,6 +6,7 @@
 import { css, html, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
+import { guard } from "lit/directives/guard.js";
 import { z } from "zod";
 import { proseText, renderRefAnswer, renderRefProse } from "../markdown-refs.js";
 import { isKnownType } from "../rels-cache.js";
@@ -17,7 +18,7 @@ import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { patternRef, recordRef } from "./shu-ref.js";
-import { IndividualAddressSchema } from "@haibun/core/lib/typed-links.js";
+import { CalledSchema } from "@haibun/core/lib/called.js";
 import { BundleSchema, ChatRoleSchema, ChatStatusSchema, UNVERIFIED_TURN, type TBundle, type TChatRole, type TQuestionFork } from "../schemas.js";
 
 /** Styles for a light-DOM chat message, exported for the shadow scope that hosts the activity history: the message
@@ -66,7 +67,7 @@ export const ChatMessageSchema = z.object({
 	/** The lines of what the turn sent: its model and window, the records it carried and the context it read. */
 	context: z.array(z.string()).default([]),
 	/** The calls the turn made, each with the record of the call. */
-	calls: z.array(z.object({ name: z.string(), ok: z.boolean(), record: IndividualAddressSchema })).default([]),
+	calls: z.array(CalledSchema).default([]),
 	spinnerVisible: z.boolean().default(false),
 	spinnerSpinning: z.boolean().default(true),
 	error: z.string().default(""),
@@ -193,7 +194,7 @@ export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
 						m.context.length > 0
 							? html`<details class="chat-made-of" data-testid=${SHU_TEST_IDS.APP.CHAT_CONTEXT}>
 								<summary>context sent (${m.context.length} lines)</summary>
-								<ol>${m.context.map((line) => html`<li>${unsafeHTML(renderRefProse(line, isKnownType))}</li>`)}</ol>
+								<ol>${guard([m.context.join("\n")], () => m.context.map((line) => html`<li>${unsafeHTML(renderRefProse(line, isKnownType))}</li>`))}</ol>
 							</details>`
 							: ""
 					}

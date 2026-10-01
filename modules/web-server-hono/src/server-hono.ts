@@ -11,7 +11,8 @@ import { describePortOccupant } from "@haibun/core/lib/port-occupant.js";
 import { ENDPOINT_CLASS, isServicePath } from "@haibun/core/lib/http-observations.js";
 import type { IQuadStore } from "@haibun/core/lib/quad-types.js";
 import type { TRpcMethod } from "@haibun/core/lib/rpc-wire.js";
-import { basicAuth, type TBasicAuthUser } from "./auth.js";
+import { basicAuth } from "./auth.js";
+import type { TBasicAuthUser } from "@haibun/core/lib/basic-auth.js";
 import { type IWebServer, type TRouteMap, type TRouteTypes, type TRoutePurpose, type TRequestHandler, ROUTE_TYPES, EndpointLabels } from "./defs.js";
 
 const DEFAULT_MOUNTED = (): TRouteMap => ROUTE_TYPES.reduce((acc, type) => ({ ...acc, [type]: {} }), {} as TRouteMap);

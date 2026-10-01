@@ -62,6 +62,9 @@ type ProtocolCommand = {
 	params?: unknown;
 };
 
+/** Whether a chrome.* method is the debugger's, which reaches only a tab the relay may attach. */
+const isDebuggerMethod = (method: string): boolean => method.startsWith("chrome.debugger.");
+
 // Allow-listed chrome.* commands the relay may invoke. They are resolved
 // reflectively and the positional params are spread into the call.
 const ALLOWED_CHROME_COMMANDS = new Set([
@@ -100,12 +103,6 @@ export class RelayConnection {
 	private _recentReattach = new Set<number>();
 
 	onclose?: (reason: string) => void;
-	ontabattached?: (tabId: number) => void;
-	ontabdetached?: (tabId: number) => void;
-
-	get attachedTabs(): ReadonlySet<number> {
-		return this._attachedTabs;
-	}
 
 	constructor(channel: TRelayChannel, chrome: TChromeApi, log: (...args: unknown[]) => void) {
 		this._channel = channel;
@@ -132,42 +129,22 @@ export class RelayConnection {
 	}
 
 	// Called when the person chooses a tab to hand to the relay. Simulates a
-	// "new tab opened" event; the relay responds by calling
-	// chrome.debugger.attach, which flows through _handleCommand and fires
-	// ontabattached.
+	// "new tab opened" event; the relay attaches the debugger to it while its
+	// steps act in it, through _handleCommand.
 	attachTab(tab: Tab): void {
 		if (tab.id === undefined || this._closed || this._attachedTabs.has(tab.id)) return;
 		this._permittedTabs.add(tab.id);
 		this._sendMessage({ method: "chrome.tabs.onCreated", params: [tab] });
 	}
 
-	// Called when the person takes a tab back. We detach the debugger and
-	// update bookkeeping. chrome.debugger.detach does not fire onDetach for the
-	// caller, so we synthesize one so the relay notices the tab is gone.
-	detachTab(tabId: number): void {
-		if (this._closed || !this._attachedTabs.has(tabId)) return;
-		this._permittedTabs.delete(tabId);
-		this._chrome.debugger.detach({ tabId }).catch((error) => {
-			this._log("Error detaching tab:", error);
-		});
-		this._notifyTabDetached(tabId);
-		this._sendMessage({
-			method: "chrome.debugger.onDetach",
-			params: [{ tabId }, "target_closed"],
-		});
-		this._checkLastTabDetached();
-	}
-
 	private _notifyTabAttached(tabId: number): void {
 		this._attachedTabs.add(tabId);
 		this._hasEverAttached = true;
 		this._pendingReattach.delete(tabId);
-		this.ontabattached?.(tabId);
 	}
 
 	private _notifyTabDetached(tabId: number): void {
 		this._attachedTabs.delete(tabId);
-		this.ontabdetached?.(tabId);
 	}
 
 	private _installEventForwarders(): void {
@@ -200,13 +177,13 @@ export class RelayConnection {
 		if (this._hasEverAttached && this._attachedTabs.size === 0 && this._pendingReattach.size === 0) this.close("All controlled tabs detached");
 	}
 
-	// Forwards chrome.* events concerning attached tabs to the relay, then runs
-	// shared detach bookkeeping.
+	// Forwards chrome.* events concerning the tabs the relay may use to the relay,
+	// then runs shared detach bookkeeping.
 	private _onChromeEvent(fullMethod: string, args: unknown[]): void {
 		const tabId = this._tabIdForEventArgs(fullMethod, args);
 		// The debugger's events come from a tab it is attached to; a tab's own events come from any tab the relay may use,
 		// since the relay attaches the debugger only while actuality's steps act in it.
-		const followed = fullMethod.startsWith("chrome.debugger.") ? this._attachedTabs : this._permittedTabs;
+		const followed = isDebuggerMethod(fullMethod) ? this._attachedTabs : this._permittedTabs;
 		if (tabId === undefined || !followed.has(tabId)) return;
 		// A tab opened from an attached tab is one the relay may attach.
 		if (fullMethod === "chrome.tabs.onCreated") {
@@ -277,8 +254,7 @@ export class RelayConnection {
 				return (args[0] as Debuggee | undefined)?.tabId;
 			case "chrome.tabs.onCreated": {
 				const tab = args[0] as Tab;
-				// Forward only popups opened by an attached tab; report the opener so cdpRelay
-				// can filter / decide. We use the openerTabId for the attached-tab check.
+				// Forward only a tab opened from a tab the relay may use, whose opener decides it.
 				return tab.openerTabId;
 			}
 			case "chrome.tabs.onRemoved":
@@ -333,7 +309,7 @@ export class RelayConnection {
 	/** The debugger attaches only to a tab the relay may use: one the person chose, one opened from it, or one the relay
 	 *  created. Listing, opening and closing a tab reach any tab: the instance's action for each decides whether a step may. */
 	private _checkPermitted(method: string, args: unknown[]): void {
-		if (!method.startsWith("chrome.debugger.")) return;
+		if (!isDebuggerMethod(method)) return;
 		const tabId = (args[0] as Debuggee | undefined)?.tabId;
 		if (typeof tabId !== "number" || !this._permittedTabs.has(tabId))
 			throw new Error(`${method}: tab ${String(tabId)} is not a tab the person attached, one opened from an attached tab, or one the relay created`);

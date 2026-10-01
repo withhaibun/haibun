@@ -554,6 +554,7 @@ describe("the ask and the active record", () => {
 		stated.push({ called: call });
 		const { pane } = await aPage();
 		await submit(pane, "what does this say");
+		await new Promise((resolve) => requestAnimationFrame(resolve));
 		expect(scopeEntry(currentSubjectState.get(), SCOPE.actionsBar)).toMatchObject({ record: { id: "tcall-1", label: "ToolCall" }, turn: "cmt-ask-0.1.2" });
 	});
 

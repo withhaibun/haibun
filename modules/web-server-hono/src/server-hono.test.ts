@@ -4,7 +4,8 @@ import { ServerHono } from "./server-hono.js";
 import type { IEventLogger } from "@haibun/core/lib/EventLogger.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { EndpointLabels } from "./defs.js";
-import { basicAuthUsers, whyNotSignedInOnly } from "./auth.js";
+import { whyNotSignedInOnly } from "./auth.js";
+import { basicAuthUsers } from "@haibun/core/lib/basic-auth.js";
 
 const mockLogger: IEventLogger = {
 	subscribe: () => {

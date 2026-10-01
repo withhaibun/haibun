@@ -42,12 +42,12 @@
 				"declaredStepTextHash": "b7ae3ef23e1d45290cd9e8d3d5e3fa2db5b70bc5872aef2b6ff06a25a454b083"
 			},
 			"/features/counter.feature": {
-				"seconds": 0.7,
+				"seconds": 0.6,
 				"steps": 19,
 				"declaredStepTextHash": "8c1b3b909e28bc05dac4eb957c9b1384d55393a5d3d4ed26b0910d3774bc4b95"
 			},
 			"/features/counter.feature.ts": {
-				"seconds": 0.9,
+				"seconds": 1.1,
 				"steps": 19,
 				"declaredStepTextHash": "2e43d35e8ca54dcf3b65f4bc5319e4e4d535aae75e236687ecdeb7357c80e33b"
 			},
@@ -72,7 +72,7 @@
 				"declaredStepTextHash": "f567c83cdc9db224634e851624576d77db1cdec635c722eabde2b3a633fd9b50"
 			},
 			"/features/identity-and-capability.feature.ts": {
-				"seconds": 0.1,
+				"seconds": 0,
 				"steps": 28,
 				"declaredStepTextHash": "c346576dbe366f5a9b046756da87b8613b679e774b64f5c2920e049db35ab58e"
 			},
@@ -97,7 +97,7 @@
 				"declaredStepTextHash": "f012b7fcf7b2484d728938eb62dc6457a9f0fec686fc8d0b3dbe3dc38e088aa9"
 			},
 			"/features/qrcode.feature": {
-				"seconds": 2.5,
+				"seconds": 2.6,
 				"steps": 18,
 				"declaredStepTextHash": "6c1cf006da48f78142e2c23c167266634114bcea223a400f8b4967a9a1f9c156"
 			},
@@ -107,7 +107,7 @@
 				"declaredStepTextHash": "973f020efebbbef86f06cda006feef3d98d079e5ecdc0fa7be02b881b43fbe33"
 			},
 			"/features/trauma_center.feature": {
-				"seconds": 0,
+				"seconds": 0.1,
 				"steps": 93,
 				"declaredStepTextHash": "19c0adac1ab1fc1bcc8c49465f48fbc0886af4e86d908dd4fc091297e4689a7c"
 			},
@@ -143,6 +143,6 @@
 			}
 		},
 		"steps": 1133,
-		"seconds": 12.4
+		"seconds": 12.6
 	}
 }

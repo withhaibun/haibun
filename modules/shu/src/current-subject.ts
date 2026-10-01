@@ -20,6 +20,9 @@ import { SharedMachine } from "./signals.js";
 /** A record: what a pane shows, or a comment of a conversation. */
 export type TRecord = { id: string; label: string };
 
+/** The record an individual's address names. */
+export const recordOf = ({ persistedAs, id }: { persistedAs: string; id: string }): TRecord => ({ id, label: persistedAs });
+
 /** What a scope has active. An entry without a record is a scope whose reader didn't choose a record, or chose a type. */
 export type TEntry = { record: TRecord | null; turn?: string; bundle: TBundle };
 
@@ -51,7 +54,7 @@ export const INITIAL_SUBJECT: TSubjectState = { scopes: {}, open: [SCOPE.page], 
  *  as its bundle. A type doesn't name a record. */
 export function entryOf(patterns: TContextPattern[], accessLevel: AccessQueryLevel): TEntry {
 	const first = patterns[0];
-	const record = first && first.kind === DENOTES.individual ? { id: first.id, label: first.persistedAs } : null;
+	const record = first && first.kind === DENOTES.individual ? recordOf(first) : null;
 	return { record, bundle: { patterns, accessLevel } };
 }
 

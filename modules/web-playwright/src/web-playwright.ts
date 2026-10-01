@@ -51,6 +51,7 @@ import { RELAY_METHOD_PREFIX } from "./relay/relay-wire.js";
 import { WEB_PLAYWRIGHT_ACTIONS } from "./actions.js";
 
 import { TStepperSteps } from "@haibun/core/lib/astepper.js";
+import { stepInFlight } from "@haibun/core/lib/capability-context.js";
 
 export const WEB_PAGE = "webpage";
 /** The media type a screenshot is saved in. */
@@ -162,9 +163,8 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	browserErrors: string[] = [];
 	/** Count of browserErrors at the start of the current step (set by the beforeStep cycle). */
 	errorMark = 0;
-	/** The steps of this stepper running now, a step and the steps it runs within it each counted, so the attached
-	 *  browser is let go only when the outermost one ends. */
-	acting = 0;
+	/** The outermost steps whose calls drove the browser attached through the relay, held until the last of them ends. */
+	#drivingFor = new Set<string>();
 	#boundPages = new WeakSet<Page>();
 	/** The pages the current call chain holds, so an action nested in another doesn't wait behind it. */
 	#holding = new AsyncLocalStorage<Set<Page>>();
@@ -231,6 +231,8 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	}
 
 	async getPage() {
+		const driving = this.relay && stepInFlight()?.outermost;
+		if (driving) this.#drivingFor.add(driving);
 		const world = this.getWorld();
 		const { tag } = world;
 		const isFirstPage = !this.bf?.hasPage(tag, this.tab);
@@ -394,10 +396,12 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		return this.relay ? use(this.relay) : Promise.resolve(actionNotOK("the browser relay is not served: `serve the browser relay` serves it"));
 	}
 
-	/** End the steps' use of the browser attached through the relay: the debugger leaves its tabs, and with it Chrome's
-	 *  debugging infobar, until the next step acts in it. */
-	async releaseAttachedBrowser(): Promise<void> {
-		if (this.relay && this.bf) await this.bf.disconnect();
+	/** Let go of the browser attached through the relay once the outermost step of the last call that drove it ends: the
+	 *  debugger leaves its tabs, and with it Chrome's debugging infobar, until a step drives it again. A turn's calls run
+	 *  within its step, so they drive it on one connection. */
+	async releaseAfter(step = stepInFlight()): Promise<void> {
+		if (!step || step.outermost !== step.seqPath || !this.#drivingFor.delete(step.seqPath) || this.#drivingFor.size > 0) return;
+		if (this.bf) await this.bf.disconnect();
 	}
 	newTab() {
 		this.tab = this.tab + 1;

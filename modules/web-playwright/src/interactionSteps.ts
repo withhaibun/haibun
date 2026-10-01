@@ -405,11 +405,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			capability: WEB_PLAYWRIGHT_ACTIONS.closeTab,
 			gwta: `close the attached browser's tab {tabId: ${DOMAIN_NUMBER}}`,
 			description: "Closes a tab of the browser a person attached through the relay. Closing the last tab the relay may act in ends the attachment.",
-			action: ({ tabId }: { tabId: number }) =>
-				wp.withRelay(async (relay) => {
-					await relay.closeTab(tabId);
-					return OK;
-				}),
+			action: ({ tabId }: { tabId: number }) => wp.withRelay((relay) => relay.closeTab(tabId).then(() => OK)),
 		},
 		serveBrowserRelay: {
 			gwta: "serve the browser relay",

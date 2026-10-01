@@ -22,7 +22,8 @@ import { fromJsonText } from "@haibun/core/lib/json-text.js";
 
 import { type IWebServer, WEBSERVER, DOMAIN_ENDPOINT, EndpointLabels, EndpointSchema } from "./defs.js";
 import { endWhenLapsed, grantedCapabilityForRequest } from "./capability-auth.js";
-import { basicAuthUsers, whyNotSignedInOnly, type TBasicAuthUser } from "./auth.js";
+import { whyNotSignedInOnly } from "./auth.js";
+import { basicAuthUsers, type TBasicAuthUser } from "@haibun/core/lib/basic-auth.js";
 import { ServerHono, DEFAULT_PORT } from "./server-hono.js";
 import { SSETransport, TRANSPORT, type ITransport } from "./sse-transport.js";
 import type { IStepTransport } from "./step-transport.js";

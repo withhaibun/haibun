@@ -15,13 +15,12 @@ import {
 	DOMAIN_MEDIA_TYPE,
 	HTTP_METHODS_WITH_BODY,
 } from "./domains.js";
+import { basicAuthorization } from "@haibun/core/lib/basic-auth.js";
 
 const AUTHORIZATION = "Authorization";
 const ACCESS_TOKEN = "access_token";
 
 const HTTP = "HTTP";
-
-const base64Encode = ({ username, password }: { username: string; password: string }) => Buffer.from(`${username}:${password}`).toString("base64");
 
 export const restSteps = (webPlaywright: WebPlaywright) =>
 	({
@@ -37,7 +36,7 @@ export const restSteps = (webPlaywright: WebPlaywright) =>
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
 			gwta: `use Authorization Basic header with {username: ${DOMAIN_USER_NAME}}, {password: ${DOMAIN_PASSWORD}}`,
 			action: async ({ username, password }: { username: string; password: string }) => {
-				await webPlaywright.setExtraHTTPHeaders({ [AUTHORIZATION]: `Basic ${base64Encode({ username, password })}` });
+				await webPlaywright.setExtraHTTPHeaders({ [AUTHORIZATION]: basicAuthorization({ username, password }) });
 				return OK;
 			},
 		},

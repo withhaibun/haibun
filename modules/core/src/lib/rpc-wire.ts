@@ -8,6 +8,7 @@
 import { stripTrailingSlash } from "./local-origin.js";
 import { z } from "zod";
 import { AccessLevelSchema } from "./resources.js";
+import { basicAuthorization, type TBasicAuthUser } from "./basic-auth.js";
 
 /** Incoming JSON-RPC 2.0 request from client (POST /rpc/:method). */
 export const RpcRequestSchema = z.object({
@@ -100,19 +101,19 @@ export type TProveRequest = (request: { url: string; method: string; headers: Re
 /** The fields of a call's envelope, as its caller states them. */
 export type TRpcEnvelope = Parameters<typeof rpcEnvelope>[0];
 
-/** A call as it is sent: its address, and the POST carrying its envelope under the headers made over it. */
 /** A call carries the sign-in the browser holds for the site it is sent to, such as a proxy's basic auth, beside its own
  *  proof. A page sends its site's sign-in anyway. An extension calls from another origin, where a browser sends it only
- *  when asked. A process doesn't hold one, and the setting doesn't change its request. */
+ *  when asked. A process sends the sign-in it holds for the site (`holdSignIn`), and this setting doesn't change its
+ *  request. */
 export const WITH_THE_SITES_SIGN_IN = "include" satisfies RequestCredentials;
 
 /** The sign-ins this process holds, by origin, as a browser holds one for a site a person signed in to: every call to that
  *  origin carries its sign-in beside the call's own proof, which the `Signature` header carries. */
 const heldSignIns = new Map<string, Record<string, string>>();
 
-/** Hold the `user:password` the basic auth at `origin` asks for, so each call this process makes there signs in with it. */
-export function holdSignIn(origin: string, userPassword: string): void {
-	heldSignIns.set(new URL(origin).origin, basicSignIn(userPassword));
+/** Hold the sign-in the basic auth at `origin` asks for, so each call this process makes there signs in with it. */
+export function holdSignIn(origin: string, user: TBasicAuthUser): void {
+	heldSignIns.set(new URL(origin).origin, { authorization: basicAuthorization(user) });
 }
 
 /** Let go of the sign-in held for `origin`, once what answers there has ended. */
@@ -120,12 +121,7 @@ export function releaseSignIn(origin: string): void {
 	heldSignIns.delete(new URL(origin).origin);
 }
 
-/** The header that signs in to basic auth as the `user:password` named. */
-function basicSignIn(userPassword: string): Record<string, string> {
-	if (userPassword.indexOf(":") < 1) throw new Error("a sign-in is user:password");
-	return { authorization: `Basic ${btoa(String.fromCharCode(...new TextEncoder().encode(userPassword)))}` };
-}
-
+/** A call as it is sent: its address, and the POST carrying its envelope under the headers made over it. */
 type TRpcCall = { url: string; init: { method: "POST"; headers: Record<string, string>; body: string; credentials: typeof WITH_THE_SITES_SIGN_IN } };
 
 /** `provesNothing`: a call that doesn't invoke an action is sent with its headers as they are. */

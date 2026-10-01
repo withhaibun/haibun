@@ -63,10 +63,15 @@ export class BrowserFactory {
 		return config;
 	}
 
+	/** The name a tag's browser is held by: the browser it connects to, or the type it launches. */
+	private static browserKey(config: TTaggedBrowserFactoryOptions): string {
+		return config.cdp === undefined ? config.browserType.name() : cdpName(config.cdp);
+	}
+
 	/** The tag's browser: the one it connects to, or the one it launches, by the browser's name. */
 	public async getBrowser(tag = DEFAULT_CONFIG_TAG): Promise<Browser> {
 		const config = BrowserFactory.configFor(tag);
-		const key = config.cdp === undefined ? config.browserType.name() : cdpName(config.cdp);
+		const key = BrowserFactory.browserKey(config);
 		const held = BrowserFactory.browsers[key];
 		if (held) return held;
 		const browserOptions: LaunchOptions = { ...config.options, ...config.launchOptions };
@@ -131,9 +136,9 @@ export class BrowserFactory {
 	/** Let go of the browser the tag connects to, leaving it running: its pages and contexts are dropped as its
 	 *  disconnection drops them, and the next page actuality opens connects again. */
 	public async disconnect(tag = DEFAULT_CONFIG_TAG): Promise<void> {
-		const { cdp } = BrowserFactory.configFor(tag);
-		if (cdp === undefined) throw new Error("actuality launched this browser: it is closed, not disconnected");
-		await BrowserFactory.browsers[cdpName(cdp)]?.close();
+		const config = BrowserFactory.configFor(tag);
+		if (config.cdp === undefined) throw new Error("actuality launched this browser: it is closed, not disconnected");
+		await BrowserFactory.browsers[BrowserFactory.browserKey(config)]?.close();
 	}
 
 	static async closeBrowsers() {

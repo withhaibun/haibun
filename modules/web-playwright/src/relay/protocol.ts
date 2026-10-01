@@ -20,6 +20,7 @@
 // The protocol version defined in this file. Bumped whenever the
 // commands/events change. Sent to the extension, which rejects clients
 // requesting a version it does not support.
+import { EXTENSION_COMMAND, type TBrowserTabText } from "./relay-wire.js";
 export const VERSION = 2;
 
 // Structural mirrors of @types/chrome shapes used over the wire. The extension
@@ -80,9 +81,9 @@ export type ExtensionCommandV2 = {
 		result: Tab[];
 	};
 	// A tab's title, address and the text its page shows, read by a function the extension holds.
-	"extension.readTab": {
+	[EXTENSION_COMMAND.readTab]: {
 		params: [tabId: number];
-		result: { id: number; title?: string; url?: string; text: string };
+		result: TBrowserTabText;
 	};
 };
 

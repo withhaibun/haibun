@@ -59,7 +59,7 @@ export class BrowserRelay {
 		return { attached: true, ...(extension.holder ? { holder: extension.holder } : {}), tabs: extension.protocol.tabs() };
 	}
 
-	/** Hold one extension, attached by `holder`, until `signal` aborts or Playwright's client closes: each command for it
+	/** Hold one extension, attached by `holder`, until `signal` aborts or the extension ends it: each command for it
 	 *  goes out through `emit`, and `held` is told once the relay holds it. Another holder's extension is refused while
 	 *  one is held. */
 	async attach(emit: (message: TRelayMessage) => void, signal: AbortSignal, held: () => void, holder: string | undefined): Promise<void> {
@@ -125,7 +125,7 @@ export class BrowserRelay {
 	/** Every tab open in the attached browser, as the extension lists it. */
 	async listTabs(): Promise<TBrowserTab[]> {
 		const tabs = (await this.command("chrome.tabs.query", [{}])) as Tab[];
-		return tabs.flatMap(({ id, title, url }) => (id === undefined ? [] : [BrowserTabSchema.parse({ id, title, url })]));
+		return tabs.filter((tab) => tab.id !== undefined).map((tab) => BrowserTabSchema.parse(tab));
 	}
 
 	/** A tab's title, its address and the text its page shows, read by the extension without the debugger. */
@@ -137,7 +137,7 @@ export class BrowserRelay {
 	async openTab(url: string): Promise<TBrowserTab> {
 		const tab = (await this.command("chrome.tabs.create", [{ url }])) as Tab;
 		this.extension?.protocol.rememberTab(tab);
-		return BrowserTabSchema.parse({ id: tab.id, title: tab.title, url: tab.url });
+		return BrowserTabSchema.parse(tab);
 	}
 
 	/** Close a tab of the attached browser. */
@@ -190,13 +190,11 @@ export class BrowserRelay {
 					userAgent: "CDP-Bridge-Server/1.0.0",
 				};
 			}
-			case "Browser.setDownloadBehavior": {
+			// The person's browser keeps its own downloads, and closing the connected browser ends Playwright's client, never
+			// the person's browser.
+			case "Browser.setDownloadBehavior":
+			case "Browser.close":
 				return {};
-			}
-			// Closing the connected browser ends Playwright's client, never the person's browser.
-			case "Browser.close": {
-				return {};
-			}
 		}
 		const handled = await extension.protocol.handleCDPCommand(method, params, sessionId);
 		if (handled) return handled.result;

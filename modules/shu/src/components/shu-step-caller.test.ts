@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach } from "vitest";
 import "./shu-step-caller.js";
 
 /**
@@ -21,6 +21,7 @@ import { endPage } from "../page-pinned.js";
 import { provideLayout } from "../test/jsdom-layout.js";
 
 describe("shu-step-caller", () => {
+	beforeAll(provideLayout);
 	beforeEach(() => {
 		endPage();
 		document.body.innerHTML = "";
@@ -148,7 +149,6 @@ describe("shu-step-caller", () => {
 			paramDomains: { credential: "string" },
 			inputSchema: { properties: { credential: { type: "object" } }, required: ["credential"] },
 		};
-		provideLayout();
 		const realFetch = globalThis.fetch;
 		// The web-server-stepper returns HTTP 422 for action results carrying
 		// an `error` field, mirroring the SPA's wire contract. The SSE client
@@ -188,7 +188,6 @@ describe("shu-step-caller", () => {
 			inputSchema: { properties: {}, required: [] },
 			outputSchema: { type: "object", properties: { goals: { type: "array", items: { type: "object" } } } },
 		};
-		provideLayout();
 		const realFetch = globalThis.fetch;
 		globalThis.fetch = (input: unknown): Promise<Response> => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
@@ -222,7 +221,6 @@ describe("shu-step-caller", () => {
 			paramDomains: { query: "string" },
 			inputSchema: { properties: { query: { type: "object" } }, required: ["query"] },
 		};
-		provideLayout();
 		const realFetch = globalThis.fetch;
 		globalThis.fetch = (input: unknown): Promise<Response> => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
