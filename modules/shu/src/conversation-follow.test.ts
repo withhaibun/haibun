@@ -4,7 +4,9 @@
  * that turn's step starting and when it reports it ending.
  */
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { CHAT_STEP, chatDispatch, question, readBack as aReadBack } from "./components/chat-pane.test-fake.js";
+import { CHAT_STEP, answer, chatDispatch, question, readBack as aReadBack } from "./components/chat-pane.test-fake.js";
+import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
+import { INITIAL_SUBJECT, SCOPE, currentSubjectState, scopeEntry } from "./current-subject.js";
 import { carryARun, setupShuTest, type TShuTestHandle } from "./test-setup.js";
 import { ASK_STEP, conversationState, dispatchConversationEvent, followRunningTurns, gainedSince, openConversation } from "./conversation.js";
 import type { TSessionTurn } from "./schemas.js";
@@ -34,6 +36,7 @@ describe("the open conversation follows actuality's turns", () => {
 		carryARun();
 		read.reads = 0;
 		read.turns = [aReadBack("0.1.1")];
+		currentSubjectState.set(INITIAL_SUBJECT);
 		dispatchConversationEvent({ type: "close" });
 		dispatchConversationEvent({ type: "open", session: SESSION });
 		dispatchConversationEvent({ type: "read", session: SESSION, turns: read.turns });
@@ -52,6 +55,14 @@ describe("the open conversation follows actuality's turns", () => {
 		read.turns = [aReadBack("0.1.1"), aReadBack("0.1.2", SESSION)];
 		t.emit(reportOf("end"));
 		await vi.waitFor(() => expect(conversationState.get().turns).toHaveLength(2));
+	});
+
+	it("makes the newest comment of a turn another page asked the active record once a read brings it, as each comment of the page's own turn is", async () => {
+		followRunningTurns();
+		read.turns = [aReadBack("0.1.1"), aReadBack("0.1.2", SESSION)];
+		t.emit(reportOf("end"));
+		await vi.waitFor(() => expect(scopeEntry(currentSubjectState.get(), SCOPE.actionsBar)?.record).toEqual({ id: answer("0.1.2"), label: COMMENT_LABEL }));
+		expect(scopeEntry(currentSubjectState.get(), SCOPE.actionsBar)?.turn, "with the turn it is a record of").toBe(question("0.1.2"));
 	});
 
 	it("names what a session gained since this page read it, and names zero once the reader opens it", async () => {

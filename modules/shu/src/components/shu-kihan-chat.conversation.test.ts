@@ -548,6 +548,15 @@ describe("the ask and the active record", () => {
 		expect(currentSubject(currentSubjectState.get()), "the bar closed: the page's record again").toEqual(EMAIL.record);
 	});
 
+	it("activates each call its turn makes after its question, so the record the turn reached last leads", async () => {
+		dispatchSubjectEvent({ type: "open", scope: SCOPE.actionsBar });
+		const call = { name: "GraphStepper-getIndividual", ok: true, record: { persistedAs: "ToolCall", id: "tcall-1" } };
+		stated.push({ called: call });
+		const { pane } = await aPage();
+		await submit(pane, "what does this say");
+		expect(scopeEntry(currentSubjectState.get(), SCOPE.actionsBar)).toMatchObject({ record: { id: "tcall-1", label: "ToolCall" }, turn: "cmt-ask-0.1.2" });
+	});
+
 	it("is asked at the level the address reads at, narrowed since the record was activated, and its comments activate at that level", async () => {
 		dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: EMAIL });
 		dispatchSubjectEvent({ type: "open", scope: SCOPE.actionsBar });

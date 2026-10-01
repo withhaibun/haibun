@@ -412,10 +412,9 @@ export async function openConversation(session: string, answer: "activate" | "up
 		const turns = await readSession(session);
 		readTurnsOf(session, turns.length);
 		const before = conversationState.get();
-		const latest = dispatchConversationEvent({ type: "read", session, turns }).turns.at(-1);
-		if (before.status !== "opening" || before.session !== session || !latest?.askId) return;
-		const entry = { record: { id: latest.sayId ?? latest.askId, label: COMMENT_LABEL }, turn: latest.askId, bundle: { patterns: latest.bundle, accessLevel: appAccessLevel() } };
-		dispatchSubjectEvent({ type: answer, scope: SCOPE.actionsBar, entry });
+		const latest = latestRecord(dispatchConversationEvent({ type: "read", session, turns }));
+		if (before.status !== "opening" || before.session !== session || !latest) return;
+		dispatchSubjectEvent({ type: answer, scope: SCOPE.actionsBar, entry: entryIn(latest.record, latest.turn) });
 	} catch (err) {
 		dispatchConversationEvent({ type: "failed", session });
 		reportToRun("error", "conversation", `the conversation ${session} was not read back: ${errorDetail(err)}`);
@@ -478,13 +477,31 @@ export function followRunningTurns(): () => void {
 	return followReportedTurns(readAgain);
 }
 
-/** Follow each move: a comment the page's turn records in the open conversation activates the actions bar's scope, and
- *  the session is written to the view hash. A conversation still opening is not activated by its turn's comments: the
- *  read that opens it activates its latest turn. */
+/** The actions bar's entry for a record of a turn, with the records that turn was asked about. */
+const entryIn = (record: TRecord, turn: TTurn & { askId: string }) => ({ record, turn: turn.askId, bundle: { patterns: turn.bundle, accessLevel: appAccessLevel() } });
+
+/** The newest record of a conversation's latest turn: its answer where it has one, else its question. */
+function latestRecord(conversation: TConversationState): { record: TRecord; turn: TTurn & { askId: string } } | null {
+	const latest = conversation.turns.at(-1);
+	return latest?.askId ? { record: { id: latest.sayId ?? latest.askId, label: COMMENT_LABEL }, turn: { ...latest, askId: latest.askId } } : null;
+}
+
+/** Follow each move, so the actions bar's scope holds the conversation's newest record as the conversation moves: each
+ *  comment and each call the page's turn records in the open conversation, and the newest comment of a turn another page
+ *  asked, once a read brings it. The session is written to the view hash. A conversation still opening is not activated
+ *  by its turn's records: the read that opens it activates its latest turn. */
 conversationMachine.follow(({ event, before, after }) => {
-	if (event.type === "recorded" && after.asked?.askId && after.asked !== before.asked && asksIn(after)) {
-		const entry = { record: event.record, turn: after.asked.askId, bundle: { patterns: after.asked.bundle, accessLevel: appAccessLevel() } };
-		dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry });
+	const { asked } = after;
+	const askedHere = asked?.askId && asked !== before.asked && asksIn(after) ? { ...asked, askId: asked.askId } : null;
+	if (askedHere && event.type === "recorded") dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry: entryIn(event.record, askedHere) });
+	if (askedHere && event.type === "called") {
+		const { persistedAs, id } = event.call.record;
+		dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry: entryIn({ id, label: persistedAs }, askedHere) });
+	}
+	if (event.type === "read" && before.status === "open" && before.session === after.session) {
+		const [was, now] = [latestRecord(before), latestRecord(after)];
+		if (now && now.turn.askId !== asked?.askId && now.record.id !== was?.record.id)
+			dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry: entryIn(now.record, now.turn) });
 	}
 	if (after.session !== before.session) mergeHashParams({ [CONVERSATION_PARAM]: after.session ?? "" });
 });
