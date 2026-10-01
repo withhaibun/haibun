@@ -162,6 +162,9 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	browserErrors: string[] = [];
 	/** Count of browserErrors at the start of the current step (set by the beforeStep cycle). */
 	errorMark = 0;
+	/** The steps of this stepper running now, a step and the steps it runs within it each counted, so the attached
+	 *  browser is let go only when the outermost one ends. */
+	acting = 0;
 	#boundPages = new WeakSet<Page>();
 	/** The pages the current call chain holds, so an action nested in another doesn't wait behind it. */
 	#holding = new AsyncLocalStorage<Set<Page>>();
@@ -385,6 +388,11 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			relayMethods(relay, WEB_PLAYWRIGHT_ACTIONS.attach),
 		);
 		return this.connectTo(() => relay.transport());
+	}
+	/** End the steps' use of the browser attached through the relay: the debugger leaves its tabs, and with it Chrome's
+	 *  debugging infobar, until the next step acts in it. */
+	async releaseAttachedBrowser(): Promise<void> {
+		if (this.relay && this.bf) await this.bf.disconnect();
 	}
 	newTab() {
 		this.tab = this.tab + 1;

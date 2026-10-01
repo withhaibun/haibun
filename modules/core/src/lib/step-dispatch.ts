@@ -174,6 +174,8 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 							actionResult = actionNotOK(preconditionError);
 							lastStepResult = stepResultFromActionResult(actionResult, action, start, Timer.since(), stated);
 							keep(lastStepResult);
+							// Each step a beforeStep cycle saw ends with an afterStep cycle, so what a stepper opened for it is closed.
+							await doStepperCycle(steppers, "afterStep", <TAfterStep>{ featureStep, actionResult }, action.actionName);
 							doAction = false;
 							continue;
 						}

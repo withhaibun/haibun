@@ -128,6 +128,14 @@ export class BrowserFactory {
 		this.world.eventLogger.debug(`video stats for ${featureNum}: duration ${this.contextStats[featureNum].duration}`);
 	}
 
+	/** Let go of the browser the tag connects to, leaving it running: its pages and contexts are dropped as its
+	 *  disconnection drops them, and the next page actuality opens connects again. */
+	public async disconnect(tag = DEFAULT_CONFIG_TAG): Promise<void> {
+		const { cdp } = BrowserFactory.configFor(tag);
+		if (cdp === undefined) throw new Error("actuality launched this browser: it is closed, not disconnected");
+		await BrowserFactory.browsers[cdpName(cdp)]?.close();
+	}
+
 	static async closeBrowsers() {
 		for (const [name, browser] of Object.entries(BrowserFactory.browsers)) {
 			await browser.close();

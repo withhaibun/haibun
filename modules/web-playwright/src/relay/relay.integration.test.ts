@@ -109,7 +109,7 @@ afterAll(async () => {
 });
 
 describe("the browser relay", () => {
-	it("drives the tab a person attached, refuses a caller that may not attach and a second extension, and ends the attachment when its grant is withdrawn", {
+	it("drives the tab a person attached only while a step acts in it, refuses a caller that may not attach and a second extension, and ends the attachment when its grant is withdrawn", {
 		timeout: 60_000,
 	}, async () => {
 		const port = await freePort();
@@ -131,6 +131,8 @@ describe("the browser relay", () => {
 			`set note as page-locator to "input[aria-label='note']"`,
 			'enter "a note" into note',
 			'see "a note"',
+			'set "relay" from show the browser relay',
+			'variable "relay.tabs.0.attached" is "false"',
 			"the person's extension ends its attachment",
 			`the person's extension attaches their tab at "${base}", signed by "extension"`,
 			`go to the "${siteUrl}" webpage`,

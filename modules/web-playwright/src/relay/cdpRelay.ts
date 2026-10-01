@@ -105,15 +105,15 @@ export class BrowserRelay {
 		const extension = this.extension;
 		if (!extension) throw new Error("a browser isn't attached: the relay doesn't hold an extension, so it doesn't have a browser to drive");
 		if (this.cdpClient) throw new Error("the attached browser is already driven: the relay takes one CDP client");
-		// Playwright's client closing ends the attachment, as upstream closes the extension's connection with it: the
-		// extension is told, and takes the debugger off its tabs.
+		// Playwright's client is held while actuality's steps act in the attached browser. Its closing takes the debugger
+		// off the tabs and keeps the attachment, so the next client drives them again.
 		const client: ConnectOverCDPTransport = {
 			send: (message) => void this.handlePlaywrightMessage(extension, message as CDPCommand),
 			close: () => {
 				if (this.cdpClient !== client) return;
 				this.cdpClient = undefined;
 				client.onclose?.("Playwright's client closed");
-				extension.end("Playwright's client closed");
+				void extension.protocol.disconnectOverCDP();
 			},
 		};
 		this.cdpClient = client;
@@ -167,6 +167,10 @@ export class BrowserRelay {
 				};
 			}
 			case "Browser.setDownloadBehavior": {
+				return {};
+			}
+			// Closing the connected browser ends Playwright's client, never the person's browser.
+			case "Browser.close": {
 				return {};
 			}
 		}

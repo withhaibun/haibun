@@ -63,6 +63,10 @@ export class ExtensionProtocolV2 {
 		this._model.connectOverCDP(sendToCDPClient);
 	}
 
+	disconnectOverCDP(): Promise<void> {
+		return this._model.disconnectOverCDP();
+	}
+
 	// Called when the extension WebSocket closes. Rejects a pending `ready()`
 	// promise so a blocked `establishExtensionConnection` bails out instead of
 	// hanging forever.

@@ -170,14 +170,34 @@ describe("the browser relay", () => {
 		await again.held;
 	});
 
-	it("ends the attachment when Playwright's client closes, telling the extension to take the debugger off its tabs", async () => {
+	it("keeps the attachment when Playwright's client closes, telling the extension to take the debugger off the tab it drove", async () => {
 		const relay = new BrowserRelay(() => undefined);
 		const extension = attached(relay);
 		const playwright = driven(relay);
-		relay.receive([{ method: "extension.initialized", params: [] }], HOLDER);
+		relay.receive(
+			[
+				{ method: "chrome.tabs.onCreated", params: [TAB] },
+				{ method: "extension.initialized", params: [] },
+			],
+			HOLDER,
+		);
+		playwright.send(1, "Target.setAutoAttach", { autoAttach: true });
+		await settle();
+		relay.receive([{ id: 1, result: {} }], HOLDER);
+		await settle();
+		relay.receive([{ id: 2, result: { targetInfo: { targetId: "T7", type: "page" } } }], HOLDER);
+		await settle();
 		playwright.close();
-		await extension.held;
+		await settle();
 		expect(playwright.closed(), "Playwright's side is told it closed").toBe("Playwright's client closed");
-		expect(() => relay.transport(), "and a browser isn't attached").toThrow(/a browser isn't attached/);
+		expect(extension.sent.at(-1), "the debugger leaves the tab").toEqual({ id: 3, method: "chrome.debugger.detach", params: [{ tabId: TAB.id }] });
+		expect(relay.attachment(), "and the extension stays attached, its tab known").toEqual({
+			attached: true,
+			holder: HOLDER,
+			tabs: [{ id: TAB.id, url: TAB.url, attached: false }],
+		});
+		expect(() => driven(relay), "so the next client drives it").not.toThrow();
+		extension.end();
+		await extension.held;
 	});
 });

@@ -190,13 +190,22 @@ export class RelayConnection {
 	// shared detach bookkeeping.
 	private _onChromeEvent(fullMethod: string, args: unknown[]): void {
 		const tabId = this._tabIdForEventArgs(fullMethod, args);
-		if (tabId === undefined || !this._attachedTabs.has(tabId)) return;
+		// The debugger's events come from a tab it is attached to; a tab's own events come from any tab the relay may use,
+		// since the relay attaches the debugger only while actuality's steps act in it.
+		const followed = fullMethod.startsWith("chrome.debugger.") ? this._attachedTabs : this._permittedTabs;
+		if (tabId === undefined || !followed.has(tabId)) return;
 		// A tab opened from an attached tab is one the relay may attach.
 		if (fullMethod === "chrome.tabs.onCreated") {
 			const opened = (args[0] as Tab).id;
 			if (opened !== undefined) this._permittedTabs.add(opened);
 		}
 		this._sendMessage({ method: fullMethod, params: args });
+		// The attachment ends with the last tab the relay may use.
+		if (fullMethod === "chrome.tabs.onRemoved") {
+			this._permittedTabs.delete(tabId);
+			if (this._permittedTabs.size === 0) this.close("The tabs the person attached were closed");
+			return;
+		}
 		// chrome.debugger.onDetach is the single source of truth for detach bookkeeping.
 		if (fullMethod === "chrome.debugger.onDetach") {
 			const reason = args[1] as string | undefined;
@@ -246,7 +255,7 @@ export class RelayConnection {
 		}, REATTACH_VERIFY_MS);
 	}
 
-	// Returns the tabId an event refers to, for filtering by _attachedTabs.
+	// Returns the tabId an event refers to, for filtering by the tabs the extension follows.
 	private _tabIdForEventArgs(fullMethod: string, args: unknown[]): number | undefined {
 		switch (fullMethod) {
 			case "chrome.debugger.onEvent":
@@ -286,11 +295,11 @@ export class RelayConnection {
 		const args = (message.params ?? []) as unknown[];
 		this._checkPermitted(message.method, args);
 		const result = await invokeChromeMethod(this._chrome, message.method, args);
-		// Attach bookkeeping; detach flows through the chrome.debugger.onDetach event.
-		if (message.method === "chrome.debugger.attach") {
-			const target = args[0] as Debuggee | undefined;
-			if (target?.tabId !== undefined) this._notifyTabAttached(target.tabId);
-		}
+		// Attach bookkeeping. The relay detaches a tab when the steps acting in it end, and the tab stays the person's to
+		// attach again, so the attachment holds; Chrome's own detach flows through the chrome.debugger.onDetach event.
+		const target = args[0] as Debuggee | undefined;
+		if (message.method === "chrome.debugger.attach" && target?.tabId !== undefined) this._notifyTabAttached(target.tabId);
+		if (message.method === "chrome.debugger.detach" && target?.tabId !== undefined) this._notifyTabDetached(target.tabId);
 		// A tab the relay created is one it may attach.
 		if (message.method === "chrome.tabs.create") {
 			const created = (result as Tab | undefined)?.id;

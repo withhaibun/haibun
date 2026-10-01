@@ -97,6 +97,16 @@ export class BrowserModel {
 		this._sendToCDPClient = sendToCDPClient;
 	}
 
+	// Playwright's client closed: take the debugger off every tab it attached to and keep the tabs known, so the next
+	// client attaches them again. Chrome shows its debugging infobar only while a client drives a tab.
+	async disconnectOverCDP(): Promise<void> {
+		this._sendToCDPClient = null;
+		this._autoAttach = false;
+		const attached = [...this._tabSessions.keys()];
+		this._tabSessions.clear();
+		await Promise.all(attached.map((tabId) => this._sendToExtension("chrome.debugger.detach", [{ tabId }]).catch(this.onError)));
+	}
+
 	private _emit(message: CDPMessage): void {
 		this._sendToCDPClient?.(message);
 	}

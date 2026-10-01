@@ -60,7 +60,9 @@ export class ChromeOverCdp implements TChromeApi {
 			detach: async ({ tabId }) => {
 				const sessionId = this.sessionOfTab.get(this.known(tabId));
 				if (!sessionId) throw new Error(`Debugger is not attached to the tab with id: ${tabId}.`);
+				// Chrome doesn't fire onDetach for a detach the extension asked for, so the session is forgotten before it ends.
 				this.sessionOfTab.delete(this.known(tabId));
+				this.tabOfSession.delete(sessionId);
 				await this.cdp("Target.detachFromTarget", { sessionId });
 			},
 			sendCommand: async ({ tabId, sessionId }, method, commandParams) => {
