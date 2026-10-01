@@ -3,7 +3,16 @@ import { z } from "zod";
 import { ENDPOINT_LABEL, HTTP_CLIENT_LABEL, HTTP_HOST_LABEL, HTTP_REQUEST_LABEL, LinkRelations, PersistedVertexSchema, TDomainDefinition } from "@haibun/core/lib/resources.js";
 import { asDomainKey, createEnumDomainDefinition, NameSchema } from "@haibun/core/lib/domains.js";
 import { ENDPOINT_CLASS } from "@haibun/core/lib/http-observations.js";
-import { DOMAIN_RELAY_ATTACHMENT, RelayAttachmentSchema } from "./relay/relay-wire.js";
+import {
+	BrowserTabSchema,
+	BrowserTabTextSchema,
+	BrowserTabsSchema,
+	DOMAIN_BROWSER_TAB,
+	DOMAIN_BROWSER_TABS,
+	DOMAIN_BROWSER_TAB_TEXT,
+	DOMAIN_RELAY_ATTACHMENT,
+	RelayAttachmentSchema,
+} from "./relay/relay-wire.js";
 
 /** A page the browser navigated to. */
 export const VISITED_PAGE_LABEL = "VisitedPage";
@@ -134,6 +143,9 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 		description: "An extension the browser runs: its worker, and the side panel its toolbar button opens",
 	},
 	{ selectors: [DOMAIN_RELAY_ATTACHMENT], schema: RelayAttachmentSchema, description: "What the browser relay holds: a person's attached browser, its holder and its tabs" },
+	{ selectors: [DOMAIN_BROWSER_TAB], schema: BrowserTabSchema, description: "A tab open in the attached browser: its id, title and address" },
+	{ selectors: [DOMAIN_BROWSER_TABS], schema: BrowserTabsSchema, description: "Every tab open in the attached browser" },
+	{ selectors: [DOMAIN_BROWSER_TAB_TEXT], schema: BrowserTabTextSchema, description: "A tab of the attached browser and the text its page shows" },
 	{
 		selectors: [HTTP_REQUEST_LABEL],
 		schema: httpRequestSchema,

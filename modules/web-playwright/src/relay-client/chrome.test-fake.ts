@@ -41,6 +41,7 @@ export class ChromeOverCdp implements TChromeApi {
 
 	readonly debugger: TChromeApi["debugger"];
 	readonly tabs: TChromeApi["tabs"];
+	readonly scripting: TChromeApi["scripting"];
 
 	private constructor(
 		private readonly socket: WebSocket,
@@ -82,8 +83,18 @@ export class ChromeOverCdp implements TChromeApi {
 				for (const tabId of [tabIds].flat()) await this.cdp("Target.closeTarget", { targetId: this.target(tabId).targetId });
 			},
 			get: (tabId) => Promise.resolve(this.tab(this.known(tabId))),
+			query: () => Promise.resolve([...this.pages.keys()].map((tabId) => this.tab(tabId))),
 			onCreated,
 			onRemoved,
+		};
+		this.scripting = {
+			// A function runs in the tab's page through a session of its own, as Chrome runs an extension's script.
+			executeScript: async <R>({ target, func }: { target: { tabId: number }; func: () => R }) => {
+				const { sessionId } = (await this.cdp("Target.attachToTarget", { targetId: this.target(target.tabId).targetId, flatten: true })) as { sessionId: string };
+				const evaluated = (await this.cdp("Runtime.evaluate", { expression: `(${func.toString()})()`, returnByValue: true }, sessionId)) as { result: { value: R } };
+				await this.cdp("Target.detachFromTarget", { sessionId });
+				return [{ result: evaluated.result.value }];
+			},
 		};
 		socket.addEventListener("message", (event) => this.receive(JSON.parse(String(event.data)) as TCdpMessage));
 	}

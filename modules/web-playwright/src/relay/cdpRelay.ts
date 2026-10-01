@@ -24,7 +24,8 @@
 import type { ConnectOverCDPTransport } from "playwright";
 import { ExtensionProtocolV2 } from "./cdpRelayV2.js";
 import type { CDPMessage } from "./browserModel.js";
-import type { TRelayAttachment, TRelayMessage } from "./relay-wire.js";
+import { BrowserTabSchema, BrowserTabTextSchema, EXTENSION_COMMAND, type TBrowserTab, type TBrowserTabText, type TRelayAttachment, type TRelayMessage } from "./relay-wire.js";
+import type { Tab } from "./protocol.js";
 
 type CDPCommand = { id: number; sessionId?: string; method: string; params?: unknown };
 
@@ -121,9 +122,32 @@ export class BrowserRelay {
 		return client;
 	}
 
+	/** Every tab open in the attached browser, as the extension lists it. */
+	async listTabs(): Promise<TBrowserTab[]> {
+		const tabs = (await this.command("chrome.tabs.query", [{}])) as Tab[];
+		return tabs.flatMap(({ id, title, url }) => (id === undefined ? [] : [BrowserTabSchema.parse({ id, title, url })]));
+	}
+
+	/** A tab's title, its address and the text its page shows, read by the extension without the debugger. */
+	async readTab(tabId: number): Promise<TBrowserTabText> {
+		return BrowserTabTextSchema.parse(await this.command(EXTENSION_COMMAND.readTab, [tabId]));
+	}
+
+	/** Open a tab at `url`, which the relay may then drive as it drives a tab it creates. */
+	async openTab(url: string): Promise<TBrowserTab> {
+		const tab = (await this.command("chrome.tabs.create", [{ url }])) as Tab;
+		this.extension?.protocol.rememberTab(tab);
+		return BrowserTabSchema.parse({ id: tab.id, title: tab.title, url: tab.url });
+	}
+
+	/** Close a tab of the attached browser. */
+	async closeTab(tabId: number): Promise<void> {
+		await this.command("chrome.tabs.remove", [tabId]);
+	}
+
 	private command(method: string, params: unknown): Promise<unknown> {
 		const extension = this.extension;
-		if (!extension) throw new Error("Extension not connected");
+		if (!extension) throw new Error("a browser isn't attached: the relay doesn't hold an extension to carry the command");
 		const id = ++extension.lastId;
 		extension.emit({ id, method, params });
 		const error = new Error(`Protocol error: ${method}`);

@@ -32,6 +32,24 @@ export type TRelayMessage = z.infer<typeof RelayMessageSchema>;
 export const RelayBatchSchema = z.object({ messages: z.array(RelayMessageSchema) });
 export type TRelayBatch = z.infer<typeof RelayBatchSchema>;
 
+/** The commands the relay sends that the extension carries out itself, where a chrome.* call doesn't carry it: reading a
+ *  tab's text runs a function the extension holds in the tab. */
+export const EXTENSION_COMMAND = { readTab: "extension.readTab" } as const;
+
+/** A tab open in the attached browser, as the extension lists it. */
+export const BrowserTabSchema = z.object({ id: z.number(), title: z.string().optional(), url: z.string().optional() });
+export type TBrowserTab = z.infer<typeof BrowserTabSchema>;
+
+export const DOMAIN_BROWSER_TAB = "browser-tab";
+export const DOMAIN_BROWSER_TABS = "browser-tabs";
+/** Every tab open in the attached browser. */
+export const BrowserTabsSchema = z.object({ tabs: z.array(BrowserTabSchema) });
+
+export const DOMAIN_BROWSER_TAB_TEXT = "browser-tab-text";
+/** A tab's title, its address and the text its page shows. */
+export const BrowserTabTextSchema = BrowserTabSchema.extend({ text: z.string() });
+export type TBrowserTabText = z.infer<typeof BrowserTabTextSchema>;
+
 /** The domain of what the relay holds. */
 export const DOMAIN_RELAY_ATTACHMENT = "relay-attachment";
 /** What the relay holds: whether a person's browser is attached, the key that attached it, and its tabs. */

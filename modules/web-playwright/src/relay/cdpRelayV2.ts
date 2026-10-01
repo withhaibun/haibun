@@ -33,7 +33,7 @@
 import { BrowserModel } from "./browserModel.js";
 
 import type { SendCommand, SendToCDPClient } from "./browserModel.js";
-import type { ExtensionEventsV2 } from "./protocol.js";
+import type { ExtensionEventsV2, Tab } from "./protocol.js";
 import type { TRelayAttachment } from "./relay-wire.js";
 
 export class ExtensionProtocolV2 {
@@ -61,6 +61,11 @@ export class ExtensionProtocolV2 {
 
 	connectOverCDP(sendToCDPClient: SendToCDPClient): void {
 		this._model.connectOverCDP(sendToCDPClient);
+	}
+
+	/** A tab the relay opened, which it may drive from now on. */
+	rememberTab(tab: Tab): void {
+		this._model.onTabCreated(tab);
 	}
 
 	disconnectOverCDP(): Promise<void> {

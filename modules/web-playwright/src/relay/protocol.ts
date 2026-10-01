@@ -74,6 +74,16 @@ export type ExtensionCommandV2 = {
 		params: [tabIds: number | number[]];
 		result: void;
 	};
+	// chrome.tabs.query(queryInfo)
+	"chrome.tabs.query": {
+		params: [queryInfo: object];
+		result: Tab[];
+	};
+	// A tab's title, address and the text its page shows, read by a function the extension holds.
+	"extension.readTab": {
+		params: [tabId: number];
+		result: { id: number; title?: string; url?: string; text: string };
+	};
 };
 
 // Protocol v2 events mirror chrome.<api>.<event>.addListener callback signatures.

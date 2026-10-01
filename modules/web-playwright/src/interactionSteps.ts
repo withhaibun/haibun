@@ -41,7 +41,7 @@ import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { locatorDomainOf } from "./web-playwright.js";
 import { WEB_PAGE, WebPlaywright, type TPageScope } from "./web-playwright.js";
 import { PAGE_READ, WEB_PLAYWRIGHT_ACTIONS } from "./actions.js";
-import { DOMAIN_RELAY_ATTACHMENT } from "./relay/relay-wire.js";
+import { DOMAIN_BROWSER_TAB, DOMAIN_BROWSER_TABS, DOMAIN_BROWSER_TAB_TEXT, DOMAIN_RELAY_ATTACHMENT } from "./relay/relay-wire.js";
 import { readAction } from "@haibun/core/lib/actions.js";
 import { Access } from "@haibun/core/lib/resources.js";
 import type { TBrowserTypes } from "./BrowserFactory.js";
@@ -373,7 +373,43 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			gwta: "show the browser relay",
 			description: "Whether a person's browser is attached through the relay, the key that attached it, and its tabs, each with whether actuality drives it.",
 			productsDomain: DOMAIN_RELAY_ATTACHMENT,
-			action: () => Promise.resolve(wp.relay ? actionOKWithProducts(wp.relay.attachment()) : actionNotOK("the browser relay is not served: `serve the browser relay` serves it")),
+			action: () => wp.withRelay((relay) => Promise.resolve(actionOKWithProducts(relay.attachment()))),
+		},
+		listBrowserTabs: {
+			read: true,
+			capability: WEB_PLAYWRIGHT_ACTIONS.listTabs,
+			readsAt: Access.private,
+			gwta: "list the attached browser's tabs",
+			description: "Every tab open in the browser a person attached through the relay, attached or not: its id, title and address.",
+			productsDomain: DOMAIN_BROWSER_TABS,
+			action: () => wp.withRelay(async (relay) => actionOKWithProducts({ tabs: await relay.listTabs() })),
+		},
+		readBrowserTab: {
+			read: true,
+			capability: WEB_PLAYWRIGHT_ACTIONS.readTab,
+			readsAt: Access.private,
+			gwta: `read the attached browser's tab {tabId: ${DOMAIN_NUMBER}}`,
+			description:
+				"The title, address and text of the page a tab of the attached browser shows, read by the extension without the debugger, so Chrome doesn't show its debugging infobar.",
+			productsDomain: DOMAIN_BROWSER_TAB_TEXT,
+			action: ({ tabId }: { tabId: number }) => wp.withRelay(async (relay) => actionOKWithProducts(await relay.readTab(tabId))),
+		},
+		openBrowserTab: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.openTab,
+			gwta: `open a tab in the attached browser at {url: ${DOMAIN_LINK}}`,
+			description: "Opens a tab in the browser a person attached through the relay, which actuality's steps may then act in as they act in the tab the person attached.",
+			productsDomain: DOMAIN_BROWSER_TAB,
+			action: ({ url }: { url: string }) => wp.withRelay(async (relay) => actionOKWithProducts(await relay.openTab(url))),
+		},
+		closeBrowserTab: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.closeTab,
+			gwta: `close the attached browser's tab {tabId: ${DOMAIN_NUMBER}}`,
+			description: "Closes a tab of the browser a person attached through the relay. Closing the last tab the relay may act in ends the attachment.",
+			action: ({ tabId }: { tabId: number }) =>
+				wp.withRelay(async (relay) => {
+					await relay.closeTab(tabId);
+					return OK;
+				}),
 		},
 		serveBrowserRelay: {
 			gwta: "serve the browser relay",

@@ -20,7 +20,7 @@
  * why it closed; `debugLog` is the log it is given; `any` is typed as `unknown` or the shape read.
  */
 
-import type { TRelayMessage } from "../relay/relay-wire.js";
+import { EXTENSION_COMMAND, type TBrowserTabText, type TRelayMessage } from "../relay/relay-wire.js";
 import type { Debuggee, DebuggerSession, Tab } from "../relay/protocol.js";
 
 /** A channel to the relay: messages out, messages in, and its end, with why it ended. */
@@ -47,8 +47,12 @@ export type TChromeApi = {
 		create(createProperties: { url?: string }): Promise<Tab>;
 		remove(tabIds: number | number[]): Promise<void>;
 		get(tabId: number): Promise<Tab>;
+		query(queryInfo: object): Promise<Tab[]>;
 		onCreated: TChromeEvent<[tab: Tab]>;
 		onRemoved: TChromeEvent<[tabId: number, removeInfo: { windowId: number; isWindowClosing: boolean }]>;
+	};
+	scripting: {
+		executeScript<R>(injection: { target: { tabId: number }; func: () => R }): Promise<Array<{ result?: R }>>;
 	};
 };
 
@@ -60,7 +64,17 @@ type ProtocolCommand = {
 
 // Allow-listed chrome.* commands the relay may invoke. They are resolved
 // reflectively and the positional params are spread into the call.
-const ALLOWED_CHROME_COMMANDS = new Set(["chrome.debugger.attach", "chrome.debugger.detach", "chrome.debugger.sendCommand", "chrome.tabs.create", "chrome.tabs.remove"]);
+const ALLOWED_CHROME_COMMANDS = new Set([
+	"chrome.debugger.attach",
+	"chrome.debugger.detach",
+	"chrome.debugger.sendCommand",
+	"chrome.tabs.create",
+	"chrome.tabs.remove",
+	"chrome.tabs.query",
+]);
+
+/** What a tab's page shows, read in the tab: its title, its address and its text. */
+const readThePage = () => ({ title: document.title, url: location.href, text: document.body?.innerText ?? "" });
 
 // chrome.* events the extension forwards to the relay (positional params).
 const CHROME_EVENT_METHODS = ["chrome.debugger.onEvent", "chrome.debugger.onDetach", "chrome.tabs.onCreated", "chrome.tabs.onRemoved"];
@@ -291,8 +305,9 @@ export class RelayConnection {
 	}
 
 	private async _handleCommand(message: ProtocolCommand): Promise<unknown> {
-		if (!ALLOWED_CHROME_COMMANDS.has(message.method)) throw new Error(`Unknown method: ${message.method}`);
 		const args = (message.params ?? []) as unknown[];
+		if (message.method === EXTENSION_COMMAND.readTab) return await this._readTab(Number(args[0]));
+		if (!ALLOWED_CHROME_COMMANDS.has(message.method)) throw new Error(`Unknown method: ${message.method}`);
 		this._checkPermitted(message.method, args);
 		const result = await invokeChromeMethod(this._chrome, message.method, args);
 		// Attach bookkeeping. The relay detaches a tab when the steps acting in it end, and the tab stays the person's to
@@ -308,13 +323,20 @@ export class RelayConnection {
 		return result ?? {};
 	}
 
-	/** A command names only a tab the relay may use: one the person chose, one opened from it, or one the relay created. */
+	/** A tab's text, read by a function the extension runs in the tab, without the debugger. */
+	private async _readTab(tabId: number): Promise<TBrowserTabText> {
+		const [injected] = await this._chrome.scripting.executeScript({ target: { tabId }, func: readThePage });
+		if (!injected?.result) throw new Error(`${EXTENSION_COMMAND.readTab}: tab ${tabId} didn't return its page`);
+		return { id: tabId, ...injected.result };
+	}
+
+	/** The debugger attaches only to a tab the relay may use: one the person chose, one opened from it, or one the relay
+	 *  created. Listing, opening and closing a tab reach any tab: the instance's action for each decides whether a step may. */
 	private _checkPermitted(method: string, args: unknown[]): void {
-		if (method === "chrome.tabs.create") return;
-		const named = method === "chrome.tabs.remove" ? [args[0]].flat() : [(args[0] as Debuggee | undefined)?.tabId];
-		for (const tabId of named)
-			if (typeof tabId !== "number" || !this._permittedTabs.has(tabId))
-				throw new Error(`${method}: tab ${String(tabId)} is not a tab the person attached, one opened from an attached tab, or one the relay created`);
+		if (!method.startsWith("chrome.debugger.")) return;
+		const tabId = (args[0] as Debuggee | undefined)?.tabId;
+		if (typeof tabId !== "number" || !this._permittedTabs.has(tabId))
+			throw new Error(`${method}: tab ${String(tabId)} is not a tab the person attached, one opened from an attached tab, or one the relay created`);
 	}
 
 	private _sendMessage(message: TRelayMessage): void {

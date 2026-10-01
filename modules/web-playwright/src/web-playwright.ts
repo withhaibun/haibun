@@ -7,7 +7,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { TFeatureStep, CycleWhen, TStepAction } from "@haibun/core/lib/astepper.js";
-import { OK, TStepResult, Origin, type TStepValue } from "@haibun/core/schema/protocol.js";
+import { OK, TStepResult, Origin, type TActionResult, type TStepValue } from "@haibun/core/schema/protocol.js";
 import { BrowserFactory, TTaggedBrowserFactoryOptions, TBrowserTypes, BROWSERS } from "./BrowserFactory.js";
 import {
 	actionNotOK,
@@ -389,6 +389,11 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		);
 		return this.connectTo(() => relay.transport());
 	}
+	/** Answer `use` with the relay a person's browser attaches through, or refuse where actuality doesn't serve one. */
+	withRelay(use: (relay: BrowserRelay) => Promise<TActionResult>): Promise<TActionResult> {
+		return this.relay ? use(this.relay) : Promise.resolve(actionNotOK("the browser relay is not served: `serve the browser relay` serves it"));
+	}
+
 	/** End the steps' use of the browser attached through the relay: the debugger leaves its tabs, and with it Chrome's
 	 *  debugging infobar, until the next step acts in it. */
 	async releaseAttachedBrowser(): Promise<void> {
