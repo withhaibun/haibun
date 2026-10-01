@@ -81,10 +81,12 @@ export class BrowserRelay {
 		this.detach(extension, await ended.promise);
 	}
 
-	/** What the attached extension sends: the answer to each command it was sent, and the chrome events of its tabs. */
-	receive(messages: readonly TRelayMessage[]): void {
+	/** What the attached extension sends: the answer to each command it was sent, and the chrome events of its tabs. Only the
+	 *  holder that attached it sends them, so another key that may attach doesn't answer for its extension. */
+	receive(messages: readonly TRelayMessage[], sender: string | undefined): void {
 		const extension = this.extension;
 		if (!extension) throw new Error("a browser isn't attached to answer the relay");
+		if (sender !== extension.holder) throw new Error(`${sender ?? "an unsigned call"} didn't attach the browser the relay holds, so it doesn't answer for it`);
 		for (const message of messages) {
 			if (message.id !== undefined) {
 				const pending = extension.pending.get(message.id);

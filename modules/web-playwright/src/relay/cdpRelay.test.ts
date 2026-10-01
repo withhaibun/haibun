@@ -76,20 +76,23 @@ describe("the browser relay", () => {
 		playwright.send(1, "Browser.getVersion");
 		await settle();
 		expect(playwright.received, "the relay doesn't return a result before the handshake").toEqual([]);
-		relay.receive([
-			{ method: "chrome.tabs.onCreated", params: [TAB] },
-			{ method: "extension.initialized", params: [] },
-		]);
+		relay.receive(
+			[
+				{ method: "chrome.tabs.onCreated", params: [TAB] },
+				{ method: "extension.initialized", params: [] },
+			],
+			HOLDER,
+		);
 		await settle();
 		expect(playwright.received[0]).toMatchObject({ id: 1, result: { protocolVersion: "1.3" } });
 
 		playwright.send(2, "Target.setAutoAttach", { autoAttach: true });
 		await settle();
 		expect(extension.sent[0], "the relay attaches the tab it knows").toEqual({ id: 1, method: "chrome.debugger.attach", params: [{ tabId: 7 }, "1.3"] });
-		relay.receive([{ id: 1, result: {} }]);
+		relay.receive([{ id: 1, result: {} }], HOLDER);
 		await settle();
 		expect(extension.sent[1]).toEqual({ id: 2, method: "chrome.debugger.sendCommand", params: [{ tabId: 7 }, "Target.getTargetInfo"] });
-		relay.receive([{ id: 2, result: { targetInfo: { targetId: "T7", type: "page" } } }]);
+		relay.receive([{ id: 2, result: { targetInfo: { targetId: "T7", type: "page" } } }], HOLDER);
 		await settle();
 		expect(playwright.received).toContainEqual({
 			method: "Target.attachedToTarget",
@@ -109,10 +112,13 @@ describe("the browser relay", () => {
 			method: "chrome.debugger.sendCommand",
 			params: [{ tabId: 7 }, "Runtime.evaluate", { expression: "1+1" }],
 		});
-		relay.receive([
-			{ id: 3, result: { result: { value: 2 } } },
-			{ method: "chrome.debugger.onEvent", params: [{ tabId: 7 }, "Page.loadEventFired", { timestamp: 1 }] },
-		]);
+		relay.receive(
+			[
+				{ id: 3, result: { result: { value: 2 } } },
+				{ method: "chrome.debugger.onEvent", params: [{ tabId: 7 }, "Page.loadEventFired", { timestamp: 1 }] },
+			],
+			HOLDER,
+		);
 		await settle();
 		expect(playwright.received).toContainEqual({ id: 3, sessionId: "pw-tab-1", result: { result: { value: 2 } } });
 		expect(playwright.received, "a tab's event reaches Playwright on the tab's session").toContainEqual({
@@ -130,15 +136,18 @@ describe("the browser relay", () => {
 		const relay = new BrowserRelay((e) => void reported.push(e));
 		const extension = attached(relay);
 		const playwright = driven(relay);
-		relay.receive([{ method: "extension.initialized", params: [] }]);
+		relay.receive([{ method: "extension.initialized", params: [] }], HOLDER);
 		playwright.send(1, "Storage.getCookies");
 		await settle();
 		expect(playwright.received[0], "a browser command without an attached tab is refused").toMatchObject({ id: 1, error: { message: expect.stringMatching(/No attached tab/) } });
-		expect(() => relay.receive([{ id: 99, result: {} }]), "an answer to a command never sent").toThrow(/didn't send command 99/);
+		expect(() => relay.receive([{ id: 99, result: {} }], HOLDER), "an answer to a command never sent").toThrow(/didn't send command 99/);
+		expect(() => relay.receive([{ method: "extension.initialized", params: [] }], "did:key:zAnother"), "another key that may attach doesn't answer for it").toThrow(
+			/did:key:zAnother didn't attach the browser/,
+		);
 		extension.end();
 		await extension.held;
 		expect(playwright.closed(), "Playwright is told the extension went").toMatch(/Extension disconnected/);
-		expect(() => relay.receive([{ method: "extension.initialized", params: [] }]), "and a browser isn't attached to answer").toThrow(/a browser isn't attached/);
+		expect(() => relay.receive([{ method: "extension.initialized", params: [] }], HOLDER), "and a browser isn't attached to answer").toThrow(/a browser isn't attached/);
 	});
 
 	it("ends a holder's attachment when that holder attaches again, and refuses a caller that didn't prove a key", async () => {
@@ -165,7 +174,7 @@ describe("the browser relay", () => {
 		const relay = new BrowserRelay(() => undefined);
 		const extension = attached(relay);
 		const playwright = driven(relay);
-		relay.receive([{ method: "extension.initialized", params: [] }]);
+		relay.receive([{ method: "extension.initialized", params: [] }], HOLDER);
 		playwright.close();
 		await extension.held;
 		expect(playwright.closed(), "Playwright's side is told it closed").toBe("Playwright's client closed");
