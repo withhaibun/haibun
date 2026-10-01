@@ -34,6 +34,7 @@
  * read again for what happened while the stream didn't deliver an event.
  */
 
+import { ACTUALITY_HEADER, type TActualityId } from "./rpc-wire.js";
 import type { THaibunEvent } from "../schema/protocol.js";
 import { failFastOrLog } from "./dev-mode.js";
 
@@ -185,6 +186,8 @@ export class StreamListeners<E> {
 type SseSubscriberConfig = {
 	/** Full URL of the SSE endpoint, absolute for remote hosts, relative for same-origin. */
 	url: string;
+	/** The actuality the stream is followed in, as the host's handshake answers it. */
+	actualityId: TActualityId;
 	/** Reconnect delay on error, in ms. Default 2000. */
 	reconnectDelayMs?: number;
 	/** The headers each connection is asked for with, made anew for each, since a proof covers the one request it is sent
@@ -200,6 +203,7 @@ type SseSubscriberConfig = {
 
 export class SseSubscriber {
 	private readonly url: string;
+	private readonly actualityId: TActualityId;
 	private readonly reconnectDelayMs: number;
 	private readonly headers?: (url: string) => Promise<Record<string, string>>;
 	private readonly fetchImpl: typeof fetch;
@@ -214,6 +218,7 @@ export class SseSubscriber {
 
 	constructor(config: SseSubscriberConfig) {
 		this.url = config.url;
+		this.actualityId = config.actualityId;
 		this.reconnectDelayMs = config.reconnectDelayMs ?? 2000;
 		this.headers = config.headers;
 		this.fetchImpl = config.fetchImpl ?? ((input, init) => globalThis.fetch(input, init));
@@ -233,11 +238,11 @@ export class SseSubscriber {
 	/** Read one connection until it ends, then treat its end as a break: a host's stream stays open while the host runs. */
 	private async read(reading: AbortController): Promise<void> {
 		try {
-			const headers = { accept: "text/event-stream", ...(await this.headers?.(this.url)) };
+			const headers = { accept: "text/event-stream", [ACTUALITY_HEADER]: this.actualityId, ...(await this.headers?.(this.url)) };
 			const res = await this.fetchImpl(this.url, { headers, signal: reading.signal });
 			// A refusal is the host's answer about this caller, which asking again will not change: the stream is down, and
-			// stays down until whoever follows it holds what following it takes.
-			if (res.status === 401 || res.status === 403) {
+			// stays down until whoever follows it holds what following it takes, or follows the actuality the host holds.
+			if (res.status === 400 || res.status === 401 || res.status === 403) {
 				this.broke(false);
 				return;
 			}

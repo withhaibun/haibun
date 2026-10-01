@@ -28,6 +28,7 @@ const declaredTypes = [
 	persistedTypeDefinition("File", { selector: "file-domain", properties: FILED, declared: true }),
 ];
 /** The one email the page caches, filed in the one folder the search offers until a batch brings another. */
+const SELECT_VALUES = { method: "GraphSourceStepper-getSelectValues", stepperName: "GraphSourceStepper", stepName: "getSelectValues", pattern: "getSelectValues" };
 const CACHED = [{ subject: "m0", predicate: "folder", object: "INBOX", namedGraph: "Email", timestamp: 1 }];
 /** A type the address names that actuality doesn't hold. */
 const NOT_HELD = "Nothing";
@@ -61,7 +62,9 @@ const recorded = (searches: HTMLElement) => searches.querySelectorAll(SHU_TAG.SE
 describe("the actions bar's search mode", () => {
 	let t: TShuTestHandle;
 	beforeEach(async () => {
-		t = setupShuTest({ dispatch: declaringSteps(() => stepsShown([], {}, buildConcernCatalog(mapDefinitionsToDomains(declaredTypes)))) });
+		// The site offers the values its records hold for each context field, as a site that declares the types does.
+		const shown = declaringSteps(() => stepsShown([SELECT_VALUES], {}, buildConcernCatalog(mapDefinitionsToDomains(declaredTypes))));
+		t = setupShuTest({ dispatch: (method, params, link) => (method === SELECT_VALUES.method ? { values: { folder: ["INBOX"] } } : shown(method, params, link)) });
 		const cached = new QuadStore();
 		await cached.setMany(CACHED);
 		setGraphStore(cached);

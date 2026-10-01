@@ -12,6 +12,7 @@
  * import of the module in a new module-graph context (achieved here by
  * deleting the cached module) sees the same singleton store.
  */
+import { serveThePage, setupShuTest, stepsShown } from "./test-setup.js";
 import { describe, it, expect, beforeEach } from "vitest";
 import {
 	subscribeSnapshot,
@@ -26,13 +27,16 @@ import {
 	selectValuesFor,
 	cachedGraphStore,
 	queryGraph,
+	readIndividual,
 } from "./quads-snapshot.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { BODY_LABEL } from "@haibun/core/lib/resources.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { setSiteMetadata, type SiteMetadata } from "./rels-cache.js";
-import { setConduit, LiveConduit } from "./hypermedia.js";
+import { setConduit, LiveConduit, ServerUnreachable } from "./hypermedia.js";
+import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
+import { SerializedEventStream, setEventStream } from "./event-stream.js";
 import { endPage, pagePinned } from "./page-pinned.js";
 
 const STORE_KEY = "__SHU_QUADS_SNAPSHOT_STORE__";
@@ -47,6 +51,7 @@ function feedSubject(type: string, subject: string, props: number): void {
 describe("quads-snapshot store singleton", () => {
 	beforeEach(() => {
 		endPage();
+		serveThePage();
 	});
 
 	it("holds the store on the page, where another bundle's copy of this module finds it", () => {
@@ -95,6 +100,7 @@ describe("quads-snapshot store singleton", () => {
 describe("mergeQuadsIntoSnapshot is bounded by the limit (the OOM fix)", () => {
 	beforeEach(() => {
 		endPage();
+		serveThePage();
 	});
 
 	it("caps retained quads at the per-type limit regardless of how many subjects stream in", () => {
@@ -161,6 +167,7 @@ describe("mergeQuadsIntoSnapshot is bounded by the limit (the OOM fix)", () => {
 describe("per-scope snapshots, independent data sources over one store", () => {
 	beforeEach(() => {
 		endPage();
+		serveThePage();
 	});
 
 	it("a merge extends every scope that holds a cache, each notified with ITS OWN snapshot", () => {
@@ -195,7 +202,10 @@ describe("the graph a page caches, without a server to ask", () => {
 	// site's own answer would have been, rather than a captured copy of that answer riding in the page.
 	beforeEach(() => {
 		endPage();
+		serveThePage();
 		setConduit(new LiveConduit(""));
+		serveThePage();
+		setEventStream(new SerializedEventStream());
 		globalThis.fetch = () => Promise.reject(new TypeError("this page has no server"));
 	});
 
@@ -230,7 +240,10 @@ describe("the dropdown values a reader is offered, without a server to ask", () 
 	// over the graph it caches, so the reader is offered the same fields narrowed to the values there.
 	beforeEach(() => {
 		endPage();
+		serveThePage();
 		setConduit(new LiveConduit(""));
+		serveThePage();
+		setEventStream(new SerializedEventStream());
 		globalThis.fetch = () => Promise.reject(new TypeError("this page has no server"));
 		setSiteMetadata({ types: ["Email"], rels: { Email: { folder: LinkRelations.CONTEXT.rel, subject: "name" } }, edgeRanges: {} } as unknown as SiteMetadata);
 	});
@@ -258,7 +271,10 @@ describe("the rows a graph query names, without a server to ask", () => {
 	// The page answers with the same function the site's own inherent query uses, over the graph it caches.
 	beforeEach(() => {
 		endPage();
+		serveThePage();
 		setConduit(new LiveConduit(""));
+		serveThePage();
+		setEventStream(new SerializedEventStream());
 		globalThis.fetch = () => Promise.reject(new TypeError("this page has no server"));
 		setSiteMetadata({ types: ["Email"], rels: { Email: { folder: LinkRelations.CONTEXT.rel } }, edgeRanges: {} } as unknown as SiteMetadata);
 	});
@@ -280,5 +296,41 @@ describe("the rows a graph query names, without a server to ask", () => {
 	it("reports the failure for a type the site never declared, rather than an empty list", async () => {
 		setGraphStore(new QuadStore());
 		await expect(queryGraph({ label: "NeverDeclared" })).rejects.toThrow();
+	});
+});
+
+describe("an individual the page holds a copy of", () => {
+	const READ = {
+		method: "GraphSourceStepper-getIndividualWithEdges",
+		stepperName: "GraphSourceStepper",
+		stepName: "getIndividualWithEdges",
+		pattern: "getIndividualWithEdges",
+		read: true,
+	};
+	const NOT_HELD = "Email a isn't held here";
+	const pageHolding = async (answer: () => unknown) => {
+		setupShuTest({ dispatch: (method) => (method === SHOW_STEPS_METHOD ? stepsShown([READ]) : answer()) });
+		const store = new QuadStore();
+		await store.upsertIndividual("Email", { id: "a", folder: "INBOX" });
+		setGraphStore(store);
+		setSiteMetadata({ types: ["Email"], rels: { Email: { folder: LinkRelations.CONTEXT.rel } }, edgeRanges: {} } as unknown as SiteMetadata);
+	};
+	beforeEach(() => {
+		endPage();
+		serveThePage();
+	});
+
+	it("is the site's answer where the site responds, a record it doesn't hold among them, since the copy may be of records it no longer holds", async () => {
+		await pageHolding(() => {
+			throw new Error(NOT_HELD);
+		});
+		await expect(readIndividual("Email", "a", "private")).rejects.toThrow(NOT_HELD);
+	});
+
+	it("is the page's copy where the site doesn't respond", async () => {
+		await pageHolding(() => {
+			throw new ServerUnreachable(READ.method, new TypeError("the site doesn't respond"));
+		});
+		expect((await readIndividual("Email", "a", "private")).vertex).toMatchObject({ folder: "INBOX" });
 	});
 });

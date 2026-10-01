@@ -15,6 +15,7 @@
  * what was missed.
  */
 
+import { actualityAt } from "@haibun/core/lib/rpc-wire.js";
 import { HYDRATION_ID } from "./consts.js";
 import { setConduit, type Conduit, type TLink, type TRepresentation, type TStreamChunk } from "./hypermedia.js";
 
@@ -292,15 +293,24 @@ export function hydrate(payload: unknown): HTMLScriptElement {
 	return script;
 }
 
+/** The actuality whose records a test page reads. */
+export const PAGE_ACTUALITY = crypto.randomUUID();
+
 /** Make this page a record of a run: it carries one, so it doesn't have a server behind it. */
 export function carryARun(): void {
-	hydrate({ cache: CARRIED_RUN });
+	hydrate({ actualityId: PAGE_ACTUALITY, cache: CARRIED_RUN });
 	hydrateFromDom();
 }
 
-/** Make it a served page again. */
-export function carryNothing(): void {
-	document.getElementById(HYDRATION_ID)?.remove();
+/** Make it a page the instance at `base` served, with the actualityId of the records that instance holds. */
+export async function serveThePageFrom(base: string): Promise<void> {
+	hydrate({ actualityId: await actualityAt(base), settings: {} });
+	hydrateFromDom();
+}
+
+/** Make it a page a server served, with the hydration the server writes. */
+export function serveThePage(): void {
+	hydrate({ actualityId: PAGE_ACTUALITY, settings: {} });
 	hydrateFromDom();
 }
 
@@ -319,6 +329,7 @@ export function setupShuTest(config: TShuTestConfig = {}): TShuTestHandle {
 	setConduit(conduit);
 	setEventStream(eventStream);
 	setDeviceStore(new MemoryDeviceStore());
+	serveThePage();
 	return {
 		emit: (event) => eventStream.emit(event),
 		// A test stands in for a page: tearing it down ends the page, so what the page held is made afresh by the next.

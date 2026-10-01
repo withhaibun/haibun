@@ -8,7 +8,7 @@ import { truncateForLog, errorDetail } from "@haibun/core/lib/util/index.js";
 import type { StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { streamContext, streamOver, type TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import type { IStepTransport } from "./step-transport.js";
-import { RPC_REFUSED, RpcRefusalSchema, RpcRequestSchema } from "@haibun/core/lib/rpc-wire.js";
+import { ACTUALITY_HEADER, heldActuality, SSE_ROUTE, RPC_REFUSED, RpcRefusalSchema, RpcEnvelopeSchema } from "@haibun/core/lib/rpc-wire.js";
 import type { TRuntime } from "@haibun/core/lib/world.js";
 import { capabilityAllows, FOLLOWS_THE_RUN, readAction } from "@haibun/core/lib/actions.js";
 import { Access, AccessLevelSchema, type AccessLevel } from "@haibun/core/lib/resources.js";
@@ -27,7 +27,7 @@ type TTransportRequestInfo = {
 type TMessageHandler = (data: unknown, requestInfo?: TTransportRequestInfo) => unknown | Promise<unknown>;
 
 /** What the transport reads of a call before a handler reads all of it: its method, whether it streams, and what it asks. */
-const RpcEnvelopeSchema = RpcRequestSchema.pick({ method: true, stream: true, asks: true }).partial().loose();
+const RpcRouteSchema = RpcEnvelopeSchema.pick({ method: true, stream: true, asks: true }).partial().loose();
 
 /** The reason an answer states for refusing its call, where it states one. */
 const refusalReason = (answer: unknown): string | undefined => RpcRefusalSchema.safeParse(answer).data?.error;
@@ -60,25 +60,29 @@ export class SSETransport implements ITransport, IStepTransport {
 	}
 
 	private setupRoutes(): void {
-		this.webserver.addRoute("get", "/sse", { description: "Server-Sent Events stream for live framework events" }, async (c) => {
+		this.webserver.addRoute("get", SSE_ROUTE, { description: "Server-Sent Events stream for live framework events" }, async (c) => {
 			const authority = await authorityAllowing(c, FOLLOWS_THE_RUN, this.runtime, this.webserver);
 			if (authority instanceof Response) return authority;
 			const { granted } = authority;
+			// A follower states the actuality it follows, and the stream ends once this instance holds another.
+			const following = heldActuality(this.runtime.actualityId).safeParse(c.req.header(ACTUALITY_HEADER));
+			if (!following.success) return c.json({ error: z.prettifyError(following.error) }, 400);
 			this.eventLogger.debug("SSE Client connected");
 			return await streamSSE(c, async (sseStream) => {
 				// The stream announces what happens from here on. What happened before is in the graph, which a
 				// connecting page reads; the stream doesn't replay events to it. Each announcement goes to a follower that may read at
 				// its level, so one holding a public read follows the public part of actuality.
+				// The stream is open until its follower leaves the authority it follows under lapses, or this instance holds another actuality; a follower whose
+				// delegation was revoked or expired isn't sent further events, and connecting again is refused.
+				const followed = new AbortController();
 				const handler = (data: string, level: AccessLevel) => {
+					if (this.runtime.actualityId !== following.data) return followed.abort(`this instance holds actuality ${this.runtime.actualityId}`);
 					if (!capabilityAllows(granted, readAction(level))) return;
 					sseStream.writeSSE({ data, event: "message" }).catch((e) => {
 						this.eventLogger.error(`Error writing to SSE stream: ${e}`);
 					});
 				};
 				this.hub.on("event", handler);
-				// The stream is open until its follower leaves or the authority it follows under lapses; a follower whose
-				// delegation was revoked or expired isn't sent further events, and connecting again is refused.
-				const followed = new AbortController();
 				sseStream.onAbort(() => followed.abort("the follower left"));
 				endWhenLapsed(this.runtime, authority, followed.signal, (reason) => followed.abort(reason));
 				await new Promise((resolve) => followed.signal.addEventListener("abort", resolve, { once: true }));
@@ -93,11 +97,11 @@ export class SSETransport implements ITransport, IStepTransport {
 			// is dispatched two different things.
 			let body: string;
 			let data: unknown;
-			let envelope: z.infer<typeof RpcEnvelopeSchema>;
+			let envelope: z.infer<typeof RpcRouteSchema>;
 			try {
 				body = await c.req.text();
 				data = JSON.parse(body);
-				envelope = RpcEnvelopeSchema.parse(data);
+				envelope = RpcRouteSchema.parse(data);
 			} catch (e) {
 				this.eventLogger.error(`Error parsing RPC POST message: ${e}`);
 				return c.json({ ok: false, error: String(e) }, 400);

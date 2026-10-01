@@ -22,8 +22,8 @@ import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import { z } from "zod";
 import { pagePinned } from "./page-pinned.js";
 // The wire itself: envelope and stream reader, shared with every other caller of a haibun host. Free of node imports.
-import { buildRpcCall, readNdjson, readRpcAnswer, type TProveRequest, type TRpcEnvelope } from "@haibun/core/lib/rpc-wire.js";
-import { findStep, responseTimeoutMs } from "./rpc-registry.js";
+import { ACTION_BEGIN, buildRpcCall, readNdjson, readRpcAnswer, type TProveRequest, RpcEnvelopeSchema } from "@haibun/core/lib/rpc-wire.js";
+import { findStep, hydratedActualityId, responseTimeoutMs } from "./rpc-registry.js";
 import { keyHeaders, pageAuthorityReady, signedHeaders } from "./page-key.js";
 import { DELEGATIONS_READ_METHOD } from "@haibun/core/lib/authority-types.js";
 import { SHOW_STEPS_ACTION, SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
@@ -214,7 +214,7 @@ export class LiveConduit implements Conduit {
 	}
 
 	// The one wire write: envelope, headers (signed where the step requires authority), POST. Every request above rides it.
-	private async post(method: string, envelope: Omit<TRpcEnvelope, "id">, signal?: AbortSignal): Promise<Response> {
+	private async post(method: string, envelope: Omit<z.infer<typeof RpcEnvelopeSchema>, "jsonrpc" | "id">, signal?: AbortSignal): Promise<Response> {
 		// What is signed is the address the request is made to: a proof over a relative path doesn't prove where
 		// it was sent, and the boundary checks the absolute one it received.
 		const base = new URL(`${this.basePath}/`, location.origin).href;
@@ -228,7 +228,7 @@ export class LiveConduit implements Conduit {
 		// that timed out a moment ago. The timeout is allocated after this, so a request that is not issued doesn't allocate a
 		// timer.
 		if (awaited && envelope.asks !== "act" && isUnreachable()) throw new ServerUnreachable(base, new Error("a read of this server timed out within the last interval"));
-		const call = await buildRpcCall(base, { id: nextRpcId(), ...envelope }, provingFor(method));
+		const call = await buildRpcCall(base, { ...envelope, id: nextRpcId(), actualityId: hydratedActualityId() }, provingFor(method));
 		const bounded = awaited ? AbortSignal.timeout(responseTimeoutMs()) : signal;
 		try {
 			const res = await fetch(call.url, { ...call.init, signal: bounded });
@@ -250,8 +250,8 @@ export class LiveConduit implements Conduit {
 
 	private async beginAction(why: string): Promise<number[]> {
 		// Beginning an action is part of acting: it allocates the place in actuality's sequence the act is recorded at.
-		const res = await this.post("action.begin", { method: "action.begin", params: { why }, asks: "act" });
-		return ActionBeganSchema.parse(await answerOf("action.begin", res)).seqPath;
+		const res = await this.post(ACTION_BEGIN, { method: ACTION_BEGIN, params: { why }, asks: "act" });
+		return ActionBeganSchema.parse(await answerOf(ACTION_BEGIN, res)).seqPath;
 	}
 }
 

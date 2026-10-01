@@ -8,17 +8,17 @@
  */
 
 import { localOrigin } from "./local-origin.js";
-import { rpcEnvelope } from "./rpc-wire.js";
+import { ACTION_BEGIN, RPC_ROUTE, rpcEnvelope } from "./rpc-wire.js";
 
 const PROBE_TIMEOUT_MS = 1_500;
 
 export async function describePortOccupant(port: number, timeoutMs = PROBE_TIMEOUT_MS): Promise<string | undefined> {
 	let res: Response;
 	try {
-		res = await fetch(`${localOrigin(port)}/rpc/${encodeURIComponent("action.begin")}`, {
+		res = await fetch(`${localOrigin(port)}${RPC_ROUTE}${encodeURIComponent(ACTION_BEGIN)}`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: rpcEnvelope({ id: "port-probe", method: "action.begin", params: {}, seqPath: [] }),
+			body: rpcEnvelope({ id: "port-probe", method: ACTION_BEGIN, params: {}, seqPath: [] }),
 			signal: AbortSignal.timeout(timeoutMs),
 		});
 	} catch {

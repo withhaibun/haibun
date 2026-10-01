@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { serveThePage } from "../test-setup.js";
 import { describe, it, expect, beforeAll, beforeEach } from "vitest";
 import "./shu-step-caller.js";
 
@@ -16,7 +17,7 @@ import "./shu-step-caller.js";
 
 import { setConduit, LiveConduit } from "../hypermedia.js";
 import { setEventStream, SerializedEventStream } from "../event-stream.js";
-import { rpcAnswer } from "@haibun/core/lib/test/rpc-answer.js";
+import { rpcAnswer, HANDSHAKE_PATH } from "@haibun/core/lib/test/rpc-answer.js";
 import { endPage } from "../page-pinned.js";
 import { provideLayout } from "../test/jsdom-layout.js";
 
@@ -27,6 +28,7 @@ describe("shu-step-caller", () => {
 		document.body.innerHTML = "";
 		// LiveConduit goes through the stubbed `fetch` set in each test; SerializedEventStream stands in for the SSE source.
 		setConduit(new LiveConduit(""));
+		serveThePage();
 		setEventStream(new SerializedEventStream());
 	});
 
@@ -156,7 +158,7 @@ describe("shu-step-caller", () => {
 		// branch fires regardless of which trigger the runtime sees first.
 		globalThis.fetch = (input: unknown): Promise<Response> => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
-			if (url.endsWith("/rpc/action.begin")) return Promise.resolve(rpcAnswer({ seqPath: [0, -1, 1] }, 200));
+			if (url.endsWith(HANDSHAKE_PATH)) return Promise.resolve(rpcAnswer({ seqPath: [0, -1, 1] }, 200));
 			if (url.endsWith("/rpc/IssueStepper-issueCredential")) {
 				return Promise.resolve(rpcAnswer({ error: 'IssueStepper-issueCredential: "type" must include `VerifiableCredential`.' }, 422));
 			}
@@ -191,7 +193,7 @@ describe("shu-step-caller", () => {
 		const realFetch = globalThis.fetch;
 		globalThis.fetch = (input: unknown): Promise<Response> => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
-			if (url.endsWith("/rpc/action.begin")) return Promise.resolve(rpcAnswer({ seqPath: [0, -1, 1] }, 200));
+			if (url.endsWith(HANDSHAKE_PATH)) return Promise.resolve(rpcAnswer({ seqPath: [0, -1, 1] }, 200));
 			return Promise.resolve(rpcAnswer({ goals: [{ goal: "issued", factIds: ["f1"] }, { goal: "revoked" }, { goal: "suspended", michi: 2 }] }, 200));
 		};
 		try {
@@ -224,7 +226,7 @@ describe("shu-step-caller", () => {
 		const realFetch = globalThis.fetch;
 		globalThis.fetch = (input: unknown): Promise<Response> => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
-			if (url.endsWith("/rpc/action.begin")) return Promise.resolve(rpcAnswer({ seqPath: [0, -1, 1] }, 200));
+			if (url.endsWith(HANDSHAKE_PATH)) return Promise.resolve(rpcAnswer({ seqPath: [0, -1, 1] }, 200));
 			if (url.endsWith("/rpc/GraphStepper-graphQuery")) {
 				return Promise.resolve(
 					rpcAnswer({ ok: false, error: "GraphStepper-graphQuery: response too large to serialize (Invalid string length). Narrow the query or return a summary." }, 413),

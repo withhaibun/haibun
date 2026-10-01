@@ -1,3 +1,4 @@
+import { answeringTheHandshake } from "./test/rpc-answer.js";
 import { notFromActuality } from "./rpc-wire.js";
 import { describe, it, expect } from "vitest";
 import { RpcCallFailed, RpcClient } from "./rpc-client.js";
@@ -32,7 +33,7 @@ function makeFakeFetch(responses: Scripted[]): { fetchImpl: typeof fetch; calls:
 			: (spec.bodyText ?? "{}");
 		return new Response(body, { status, headers: { "Content-Type": spec.bodyStream ? "application/x-ndjson" : "application/json" } });
 	};
-	return { fetchImpl, calls };
+	return { fetchImpl: answeringTheHandshake(fetchImpl), calls };
 }
 
 describe("RpcClient.call", () => {
@@ -92,7 +93,7 @@ describe("RpcClient.call", () => {
 
 	it("refuses an answer that is not JSON with its status and what the server sent, as a path it does not serve answers", async () => {
 		const fetchImpl: typeof fetch = () => Promise.resolve(new Response("404 Not Found", { status: 404, headers: { "Content-Type": "text/plain" } }));
-		const client = new RpcClient({ baseUrl: "http://host", fetchImpl });
+		const client = new RpcClient({ baseUrl: "http://host", fetchImpl: answeringTheHandshake(fetchImpl) });
 		await expect(client.call("Stepper-echo", {}, [0])).rejects.toThrow(
 			new RpcCallFailed("Stepper-echo", "http://host", notFromActuality("Stepper-echo", 404, "text/plain", "404 Not Found")),
 		);

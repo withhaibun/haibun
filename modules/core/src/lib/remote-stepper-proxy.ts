@@ -18,7 +18,7 @@ import { actionNotOK } from "./util/index.js";
 import { type StepTool, type StepRegistry, hostScopedMethodName } from "./step-registry.js";
 import { callInput } from "./populateActionArgs.js";
 import { EVERY_DEFINITION, SHOW_STEPS_ACTION, SHOW_STEPS_METHOD, readShownSteps, type TStepDescriptor } from "./step-discovery.js";
-import { RpcCallFailed, RpcClient, discoverInstance } from "./rpc-client.js";
+import { RpcCallFailed, RpcClient } from "./rpc-client.js";
 import { requestSigner } from "./session-authority.js";
 
 export class RemoteStepperProxy extends AStepper {
@@ -49,7 +49,7 @@ export class RemoteStepperProxy extends AStepper {
 
 	/** Read the host id through the handshake every remote surface begins with, so injected tools carry its prefix. */
 	private async discoverHostId(): Promise<void> {
-		this.hostId = (await discoverInstance(this.rpc, this.remoteUrl)).hostId;
+		this.hostId = (await this.rpc.handshake()).hostId;
 	}
 
 	/** The remote host's hostId. Undefined before setWorld completes. */

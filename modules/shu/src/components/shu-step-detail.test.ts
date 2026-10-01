@@ -4,6 +4,7 @@
  * step, so switching steps cancels the stale read and the previous step's data never lingers. The record is read from
  * the graph; the quads come from a stubbed RPC behind LiveConduit.
  */
+import { serveThePage } from "../test-setup.js";
 import { describe, it, expect, beforeEach } from "vitest";
 import "./shu-step-detail.js"; // side-effect import so the module runs (registration is via component-registry in the app)
 import { ShuStepDetail, stepRecordId } from "./shu-step-detail.js";
@@ -14,7 +15,7 @@ import { setEventStream, SerializedEventStream } from "../event-stream.js";
 import { setGraphStore } from "../quads-snapshot.js";
 import { setSiteMetadata, type SiteMetadata } from "../rels-cache.js";
 import { noteExecution } from "../client-cache/index.js";
-import { rpcAnswer } from "@haibun/core/lib/test/rpc-answer.js";
+import { rpcAnswer, HANDSHAKE_PATH } from "@haibun/core/lib/test/rpc-answer.js";
 import { endPage } from "../page-pinned.js";
 
 const EXECUTION = "1700000000000-1";
@@ -24,6 +25,7 @@ describe("shu-step-detail", () => {
 		endPage();
 		document.body.innerHTML = "";
 		setConduit(new LiveConduit(""));
+		serveThePage();
 		setEventStream(new SerializedEventStream());
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});
 		// One step of the execution being read: what it asked for, what ran, how it went and where.
@@ -43,12 +45,13 @@ describe("shu-step-detail", () => {
 		noteExecution(EXECUTION);
 		globalThis.fetch = (input: unknown): Promise<Response> => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
-			if (url.endsWith("/rpc/action.begin")) return Promise.resolve(rpcAnswer({ seqPath: [0, -1, 1] }, 200));
+			if (url.endsWith(HANDSHAKE_PATH)) return Promise.resolve(rpcAnswer({ seqPath: [0, -1, 1] }, 200));
 			if (url.includes("getClusteredQuads"))
 				return Promise.resolve(
 					rpcAnswer({ quads: [{ subject: "myVar", predicate: "set", object: "42", namedGraph: "vars", timestamp: 1, properties: { provenance: [[0, 1]] } }] }, 200),
 				);
-			return Promise.resolve(rpcAnswer({}, 200));
+			// The page reads the step's record from what it holds, as it does where the site doesn't respond.
+			return Promise.reject(new TypeError("the step's record is read from the page"));
 		};
 	});
 
@@ -83,7 +86,7 @@ describe("shu-step-detail", () => {
 	it("surfaces a failed read instead of spinning forever", async () => {
 		globalThis.fetch = (input: unknown): Promise<Response> => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
-			if (url.endsWith("/rpc/action.begin")) return Promise.resolve(rpcAnswer({ seqPath: [0, -1, 1] }, 200));
+			if (url.endsWith(HANDSHAKE_PATH)) return Promise.resolve(rpcAnswer({ seqPath: [0, -1, 1] }, 200));
 			return Promise.resolve(rpcAnswer({ error: "boom" }, 422));
 		};
 		const el = document.createElement("shu-step-detail") as ShuStepDetail;

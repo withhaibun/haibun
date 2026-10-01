@@ -3,6 +3,7 @@
  * A page open on a run reads the run's steps again when the run adds to them: the run signals the change on its stream,
  * and the page reads its steps again over RPC. A run adds steps while a page is open when it stands up another host.
  */
+import { SSE_ROUTE } from "@haibun/core/lib/rpc-wire.js";
 import { describe, it } from "vitest";
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { actionOK, getStepperOptionName } from "@haibun/core/lib/util/index.js";
@@ -16,6 +17,7 @@ import ShuStepper from "./shu-stepper.js";
 import { LiveConduit, setConduit } from "./hypermedia.js";
 import { LiveEventStream, eventStream, setEventStream } from "./event-stream.js";
 import { getAvailableSteps, onStepsChanged } from "./rpc-registry.js";
+import { serveThePageFrom } from "./test-setup.js";
 import { DOMAIN_LINK } from "@haibun/core/lib/domains.js";
 import { endPage } from "./page-pinned.js";
 
@@ -32,8 +34,9 @@ class StepsPage extends AStepper {
 			gwta: `page at {base: ${DOMAIN_LINK}} reads actuality's steps`,
 			action: async ({ base }: { base: string }) => {
 				endPage();
+				await serveThePageFrom(base);
 				setConduit(new LiveConduit(base));
-				setEventStream(new LiveEventStream(`${base}/sse`));
+				setEventStream(new LiveEventStream(`${base}${SSE_ROUTE}`));
 				// The stream is open before the page reads, so the page reads its steps once and then once for the change.
 				await new Promise<void>((resolve) => {
 					const stop = eventStream().opened(() => {

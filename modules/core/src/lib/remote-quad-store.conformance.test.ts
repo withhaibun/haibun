@@ -1,10 +1,11 @@
 // The store another instance serves, held to the same specification as the store it serves from: a satellite keeps its
 // records in the main instance's store, so what a reader is given must not depend on which side holds them.
+import { ACTION_BEGIN } from "./rpc-wire.js";
 import { QuadStore } from "./quad-store.js";
 import { RemoteQuadStore } from "./remote-quad-store.js";
 import { handleStoreCall, isStoreMethod } from "./store-protocol.js";
 import { describeQuadStore } from "./test/quad-store-conformance.js";
-import { rpcAnswer } from "./test/rpc-answer.js";
+import { hostHandshake, rpcAnswer } from "./test/rpc-answer.js";
 import { FakeInvoker } from "./test/fake-authority.js";
 
 const graphs = { first: "ConformanceFirst", second: "ConformanceSecond" };
@@ -13,7 +14,7 @@ const graphs = { first: "ConformanceFirst", second: "ConformanceSecond" };
 function servedBy(store: QuadStore): typeof fetch {
 	return (async (url: string, init: { body: string }) => {
 		const { method, params } = JSON.parse(init.body) as { method: string; params: Record<string, unknown> };
-		if (method === "action.begin") return rpcAnswer({ hostId: 1, site: "did:example:serving" }, 200);
+		if (method === ACTION_BEGIN) return rpcAnswer(hostHandshake(1, "did:example:serving"), 200);
 		if (!isStoreMethod(method)) return rpcAnswer({ error: `no such method ${method} at ${url}` }, 404);
 		const answer = await handleStoreCall(store, method, params);
 		return rpcAnswer(answer, 200);

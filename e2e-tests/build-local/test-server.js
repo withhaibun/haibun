@@ -1,4 +1,5 @@
 import { rmSync, writeFileSync, readFileSync } from "fs";
+import { actualityAt } from "@haibun/core/lib/rpc-wire.js";
 import { setCookie } from "@haibun/web-server-hono/cookie.js";
 import { actionNotOK, actionOK, actionOKWithProducts, getFromRuntime, sleep } from "@haibun/core/lib/util/index.js";
 import { createEnumDomainDefinition, DOMAIN_BEARER_TOKEN, DOMAIN_STRING, DOMAIN_LINK, DOMAIN_TEXT, DOMAIN_STEP_METHOD, DOMAIN_ROUTE } from "@haibun/core/lib/domains.js";
@@ -18,6 +19,8 @@ const setTally = (value) => ({
     domain: DOMAIN_STRING,
     origin: Origin.var,
 });
+/** A call of `method` at `url`, stating the actuality the host at `url` holds. */
+const rpcCall = async (url, id, method) => ({ id, method, params: {}, actualityId: await actualityAt(new URL(url).origin) });
 /** A JSON-RPC call to `url`, signed by the stand-in authority where a signer is named. */
 async function post(url, message, signer) {
     const body = JSON.stringify({ jsonrpc: "2.0", ...message });
@@ -247,7 +250,7 @@ class TestServer extends AStepper {
         rpcRefused: {
             gwta: `rpc call to {url: ${DOMAIN_LINK}} with method {method: ${DOMAIN_STEP_METHOD}} presenting nothing is refused`,
             action: async ({ url, method }) => {
-                const response = await post(String(url), { id: "rpc-refused", method: String(method), params: {} }, undefined);
+                const response = await post(String(url), await rpcCall(String(url), "rpc-refused", String(method)), undefined);
                 const error = (await response.json()).error;
                 const expected = refusal(String(method), undefined, undefined);
                 return response.status === 422 && error === expected ? actionOK() : actionNotOK(`Expected "${expected}", got ${response.status} ${String(error)}`);
@@ -256,7 +259,7 @@ class TestServer extends AStepper {
         rpcAllowedSigned: {
             gwta: `rpc call to {url: ${DOMAIN_LINK}} with method {method: ${DOMAIN_STEP_METHOD}} succeeds when signed by {holder: ${DOMAIN_FAKE_HOLDER}} for {action: ${TEST_DOMAIN.action}}`,
             action: async ({ url, method, holder, action }) => {
-                const response = await post(String(url), { id: "rpc-allowed", method: String(method), params: {} }, { holder: String(holder), action: String(action) });
+                const response = await post(String(url), await rpcCall(String(url), "rpc-allowed", String(method)), { holder: String(holder), action: String(action) });
                 if (!response.ok)
                     return actionNotOK(`HTTP ${response.status}: ${await response.text()}`);
                 const data = (await response.json());
@@ -266,14 +269,14 @@ class TestServer extends AStepper {
         rpcDeniedSigned: {
             gwta: `rpc call to {url: ${DOMAIN_LINK}} with method {method: ${DOMAIN_STEP_METHOD}} is denied for capability {capability: ${TEST_DOMAIN.action}} when signed by {holder: ${DOMAIN_FAKE_HOLDER}} for {action: ${TEST_DOMAIN.action}}`,
             action: async ({ url, method, capability, holder, action }) => {
-                const response = await post(String(url), { id: "rpc-denied", method: String(method), params: {} }, { holder: String(holder), action: String(action) });
+                const response = await post(String(url), await rpcCall(String(url), "rpc-denied", String(method)), { holder: String(holder), action: String(action) });
                 return deniedFor(response.status, (await response.json()).error, String(capability));
             },
         },
         rpcRefusedSigned: {
             gwta: `rpc call to {url: ${DOMAIN_LINK}} with method {method: ${DOMAIN_STEP_METHOD}} is refused when signed by {holder: ${DOMAIN_FAKE_HOLDER}} for {action: ${TEST_DOMAIN.action}}`,
             action: async ({ url, method, holder, action }) => {
-                const response = await post(String(url), { id: "rpc-refused", method: String(method), params: {} }, { holder: String(holder), action: String(action) });
+                const response = await post(String(url), await rpcCall(String(url), "rpc-refused", String(method)), { holder: String(holder), action: String(action) });
                 const data = (await response.json());
                 return response.status === 401 ? actionOK() : actionNotOK(`Expected the call refused with 401, got ${response.status} ${JSON.stringify(data)}`);
             },

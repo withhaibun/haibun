@@ -6,6 +6,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RELAY_OPEN_MS } from "../relay/relay-wire.js";
 import { openRelayChannel } from "./relay-channel.js";
+import { answeringTheHandshake } from "@haibun/core/lib/test/rpc-answer.js";
 
 const BASE = "http://instance.test:8123";
 const sign = (request: { headers: Record<string, string> }): Promise<Record<string, string>> => Promise.resolve(request.headers);
@@ -30,7 +31,7 @@ describe("opening a relay channel", () => {
 		["the relay doesn't respond to the attach call", unansweredFetch],
 		["the relay's stream doesn't carry its opening message", silentStreamFetch],
 	])("refuses an attach at the bound where %s", async (_, fetch) => {
-		vi.stubGlobal("fetch", fetch);
+		vi.stubGlobal("fetch", answeringTheHandshake(fetch as typeof globalThis.fetch));
 		const opening = openRelayChannel({ base: BASE, sign });
 		const refused = expect(opening).rejects.toThrow(UNOPENED);
 		await vi.advanceTimersByTimeAsync(RELAY_OPEN_MS);

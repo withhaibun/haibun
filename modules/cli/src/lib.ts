@@ -1,4 +1,5 @@
 import nodeFS from "fs";
+import { newActualityId } from "@haibun/core/lib/rpc-wire.js";
 import path from "node:path";
 
 import { type TSpecl, SpeclSchema } from "@haibun/core/lib/execution.js";
@@ -227,7 +228,7 @@ function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 
 	const world: Partial<TWorld> = {
 		tag,
-		runtime: { stepResults: [], observations: new Map<string, TAnyFixme>(), keys: { principal: resolveSitePrincipal() } },
+		runtime: { actualityId: newActualityId(), stepResults: [], observations: new Map<string, TAnyFixme>(), keys: { principal: resolveSitePrincipal() } },
 		eventLogger,
 		prompter: new Prompter(),
 		...protoOptions,

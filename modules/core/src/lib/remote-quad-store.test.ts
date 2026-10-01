@@ -1,3 +1,5 @@
+import { ACTION_BEGIN } from "./rpc-wire.js";
+import { hostHandshake } from "./test/rpc-answer.js";
 import { describe, expect, it } from "vitest";
 import { QuadStore } from "./quad-store.js";
 import { handleStoreCall, isStoreMethod } from "./store-protocol.js";
@@ -14,7 +16,7 @@ function servingPeer(store: QuadStore) {
 		const headers = init?.headers as Record<string, string>;
 		calls.push({ method: body.method, params: body.params, invoked: headers["capability-invocation"]?.match(/action="([^"]+)"/)?.[1] });
 		const json = (v: unknown, status = 200) => new Response(JSON.stringify(v), { status, headers: { "Content-Type": "application/json" } });
-		if (body.method === "action.begin") return json({ seqPath: [7, -1, 1], hostId: 7, site: "did:site:main" });
+		if (body.method === ACTION_BEGIN) return json(hostHandshake(7, "did:site:main"));
 		if (!isStoreMethod(body.method)) return json({ error: `unexpected ${body.method}` }, 422);
 		try {
 			return json(await handleStoreCall(store, body.method, body.params));
@@ -36,7 +38,7 @@ describe("RemoteQuadStore", () => {
 		expect(await remote.getIndividual("Widget", "w-1")).toEqual({ id: "w-1", name: "One" });
 		expect(await backing.getIndividual("Widget", "w-1")).toEqual({ id: "w-1", name: "One" });
 		expect(peer.calls.map((c) => [c.method, c.invoked])).toEqual([
-			["action.begin", undefined],
+			[ACTION_BEGIN, undefined],
 			["store.upsertIndividual", "store.write"],
 			["store.getIndividual", "store.read"],
 		]);
@@ -71,7 +73,7 @@ describe("RemoteQuadStore", () => {
 		const denyingFetch = ((_input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
 			const body = JSON.parse(String(init?.body)) as { method: string };
 			const json = (v: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(v), { status, headers: { "Content-Type": "application/json" } }));
-			if (body.method === "action.begin") return json({ seqPath: [7, -1, 1], hostId: 7, site: "did:site:main" });
+			if (body.method === ACTION_BEGIN) return json(hostHandshake(7, "did:site:main"));
 			return json({ error: `${body.method}: capability store.write required` }, 422);
 		}) as typeof fetch;
 		const denied = new RemoteQuadStore({ url: "http://main:1", sign, graphs: ["Widget"], fetchImpl: denyingFetch });

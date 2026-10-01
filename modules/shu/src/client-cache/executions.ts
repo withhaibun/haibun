@@ -12,7 +12,7 @@ import { SEQ_PATH_FIELD, parseRecordName } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { queryQuadStore } from "@haibun/core/lib/quad-store.js";
 import { GraphQuerySchema, type TQuad } from "@haibun/core/lib/quad-types.js";
-import { cachedGraphStore, selectValuesFor } from "../quads-snapshot.js";
+import { heldGraphStores, readHeldStore, selectValuesFor, servedGraphStore, type TCachedGraphStore } from "../quads-snapshot.js";
 import { RUN_TYPES } from "./run-window.js";
 import { componentOfView, declaredViews } from "../rels-cache.js";
 import { pagePinned } from "../page-pinned.js";
@@ -20,8 +20,8 @@ import { pagePinned } from "../page-pinned.js";
 /** The source the device's runs report under. */
 const EXECUTIONS = "executions";
 
-/** An execution as this device holds it: what it ran, and the moments its features span. */
-export type THeldExecution = { execution: string; features: string[]; first?: number; last?: number };
+/** An execution as this device holds it: the store of its actuality's records, what it ran, and the moments its features span. */
+export type THeldExecution = { execution: string; store: TCachedGraphStore; features: string[]; first?: number; last?: number };
 
 const READING_KEY = "__SHU_READING_EXECUTION__";
 type TReading = { chosen?: string; observed?: string; switched: Set<() => void> };
@@ -71,10 +71,22 @@ export function subscribeExecutionSwitch(fn: () => void): () => void {
 /** How many feature declarations the listing reads: what names the executions a reader is offered. */
 export const EXECUTIONS_READ = 500;
 
-/** The executions this device holds, newest first, each named by the features it ran. */
+/** Read a held execution, in the records of its actuality. */
+export function readHeldExecution(held: THeldExecution): void {
+	readHeldStore(held.store);
+	readExecution(held.execution);
+}
+
+/** The executions this device holds of every actuality, newest first, each named by the features it ran. */
 export async function executionsHeld(): Promise<THeldExecution[]> {
+	const held = await Promise.all((await heldGraphStores()).map(executionsIn));
+	return held.flat().sort((a, b) => (b.first ?? 0) - (a.first ?? 0));
+}
+
+/** The executions one actuality's store holds. */
+async function executionsIn(store: TCachedGraphStore): Promise<THeldExecution[]> {
 	const { vertices } = await queryQuadStore(
-		cachedGraphStore(),
+		store,
 		GraphQuerySchema.parse({
 			label: SEQ_PATH_LABEL,
 			filters: [{ predicate: SEQ_PATH_FIELD.called, operator: "contains", value: `.${FEATURE_START}` }],
@@ -89,7 +101,7 @@ export async function executionsHeld(): Promise<THeldExecution[]> {
 		const execution = parseRecordName(String(record[SEQ_PATH_FIELD.id] ?? ""))?.execution;
 		if (!execution) continue;
 		const at = Date.parse(String(record[SEQ_PATH_FIELD.generatedAtTime] ?? ""));
-		const held = byExecution.get(execution) ?? { execution, features: [] };
+		const held = byExecution.get(execution) ?? { execution, store, features: [] };
 		const name = declaredName(String(record[SEQ_PATH_FIELD.stepText] ?? ""), "feature");
 		if (name && !held.features.includes(name)) held.features.push(name);
 		if (!Number.isNaN(at)) {
@@ -98,7 +110,7 @@ export async function executionsHeld(): Promise<THeldExecution[]> {
 		}
 		byExecution.set(execution, held);
 	}
-	return [...byExecution.values()].sort((a, b) => (b.first ?? 0) - (a.first ?? 0));
+	return [...byExecution.values()];
 }
 
 /**
@@ -125,8 +137,7 @@ const FORGET_PAGE = 1000;
 
 /** Forget every record of one run this device holds, and answer how many went. A record's id names the run it belongs
  *  to, so what to forget is asked of the records themselves rather than of a second index beside them. */
-export async function forgetExecution(execution: string): Promise<number> {
-	const store = cachedGraphStore();
+export async function forgetExecution({ execution, store }: THeldExecution): Promise<number> {
 	let gone = 0;
 	for (const type of RUN_TYPES) {
 		for (;;) {
@@ -167,17 +178,17 @@ function storageIsFull(err: unknown): boolean {
 export async function holdOnDevice(quads: TQuad[]): Promise<void> {
 	if (quads.length === 0) return;
 	try {
-		await cachedGraphStore().setMany(quads);
+		await servedGraphStore().setMany(quads);
 	} catch (err: unknown) {
 		if (!storageIsFull(err)) return reportFailure(EXECUTIONS, "actuality's records could not be held on this device", err);
 		const held = await executionsHeld();
 		const oldest = held.filter((one) => one.execution !== readingExecution()).pop();
 		if (oldest === undefined) return reportFailure(EXECUTIONS, "this device is full and doesn't hold a run it could forget", err);
-		const gone = await forgetExecution(oldest.execution);
+		const gone = await forgetExecution(oldest);
 		// Making room is what a full device does rather than a failure of the page, so it is reported rather than thrown:
 		// a reader whose earlier run is no longer here is told why it went.
 		reportToRun("warn", EXECUTIONS, `this device is full, so actuality ${oldest.execution} and its ${gone} records were forgotten`);
-		await cachedGraphStore()
+		await servedGraphStore()
 			.setMany(quads)
 			.catch((again: unknown) => reportFailure(EXECUTIONS, "the run's records could not be held on this device after forgetting a run", again));
 	}

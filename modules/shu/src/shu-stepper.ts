@@ -2,6 +2,7 @@
  * ShuStepper: serves the @haibun/shu hypermedia SPA.
  * Any application that loads this stepper gets a UI driven entirely by stepper concerns.
  */
+import type { TActualityId } from "@haibun/core/lib/rpc-wire.js";
 import { readFileSync, statSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -130,10 +131,10 @@ ${scriptsHtml}
 </html>`;
 }
 
-// What the served page's hydration carries: only the timings this deployment set. A record of a run
-// carries actuality itself and writes its own hydration element (buildReportHtml).
-export function buildSpaHtml(basePath: string, bundle: string, settings: TDeploymentSettings = {}): string {
-	const scripts = `  <script type="application/json" id="${HYDRATION_ID}">${JSON.stringify({ settings })}</script>\n\n  <script>${bundle}\n//# sourceMappingURL=${SPA_SOURCE_MAP}</script>`;
+// What the served page's hydration carries: the actuality whose records it reads, and the timings this deployment set.
+// A record of a run carries actuality itself and writes its own hydration element (buildReportHtml).
+export function buildSpaHtml(basePath: string, bundle: string, hydration: TServedHydration): string {
+	const scripts = `  <script type="application/json" id="${HYDRATION_ID}">${JSON.stringify(hydration)}</script>\n\n  <script>${bundle}\n//# sourceMappingURL=${SPA_SOURCE_MAP}</script>`;
 	return spaDocument(basePath, scripts);
 }
 
@@ -167,7 +168,10 @@ export function buildReportHtml(basePath: string, payload: string, compressed: b
 	return spaDocument(basePath, loader);
 }
 
-function createSpaHandler(basePath: string, settings: () => TDeploymentSettings) {
+/** What a served page's hydration carries. */
+type TServedHydration = { actualityId: TActualityId; settings: TDeploymentSettings };
+
+function createSpaHandler(basePath: string, hydration: () => TServedHydration) {
 	// Read the bundle from disk on every request rather than caching it at
 	// handler construction, so a rebuilt shu-bundle.js is served after
 	// `npm run build` + reload without a service restart. The ~3.7MB readFileSync
@@ -176,10 +180,10 @@ function createSpaHandler(basePath: string, settings: () => TDeploymentSettings)
 	// `no-cache` still permits cached storage with revalidation, so a soft reload
 	// could keep serving a stale bundle; `no-store` forbids caching entirely.
 	return (c: Context) => {
-		const served = settings();
+		const served = hydration();
 		c.header("Cache-Control", "no-store, must-revalidate");
 		c.header("Pragma", "no-cache");
-		c.header("Content-Security-Policy", frameAncestors(served.embedderOrigin));
+		c.header("Content-Security-Policy", frameAncestors(served.settings.embedderOrigin));
 		return c.html(buildSpaHtml(basePath, loadBundle(), served));
 	};
 }
@@ -323,16 +327,19 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 				if (!webserver) return actionNotOK("webserver not available, load web-server-stepper before shu");
 				const pathError = validateMountPath(path);
 				if (pathError) return actionNotOK(pathError);
-				// The page boots with an empty payload: it keeps its own key, and reads what was delegated to it here. What it
-				// may do without a delegation is the web server's to decide, and whether a delegation verifies here is actuality's
-				// authority's, read for each page served, since a verifier may be registered after the app is.
-				const settings = (): TDeploymentSettings => ({
-					...this.settings,
-					build: servedBuild(),
-					allowedWithoutDelegation: [...webserver.allowedWithoutDelegation],
-					verifiesDelegations: getAuthority(this.getWorld().runtime)?.hasVerifier() === true,
+				// The page boots with the actualityId of the records it reads and what this deployment set: it keeps its own key, and
+				// reads what was delegated to it here. Whether a delegation verifies here is read for each page served, since a
+				// verifier may be registered after the app is.
+				const hydration = (): TServedHydration => ({
+					actualityId: this.getWorld().runtime.actualityId,
+					settings: {
+						...this.settings,
+						build: servedBuild(),
+						allowedWithoutDelegation: [...webserver.allowedWithoutDelegation],
+						verifiesDelegations: getAuthority(this.getWorld().runtime)?.hasVerifier() === true,
+					},
 				});
-				webserver.addRoute("get", path, { description: `Shu SPA mounted at ${path}` }, createSpaHandler(path, settings));
+				webserver.addRoute("get", path, { description: `Shu SPA mounted at ${path}` }, createSpaHandler(path, hydration));
 				this.appPaths.add(path);
 				const domains = this.getWorld().domains;
 				// The context varies only by serving host, drawn from a tiny set of origins, build it once per host.

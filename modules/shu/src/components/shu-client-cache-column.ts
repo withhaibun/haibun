@@ -38,7 +38,7 @@ import {
 	executionsHeld,
 	forgetExecution,
 	currentExecution,
-	readExecution,
+	readHeldExecution,
 	subscribeExecutionSwitch,
 	EXECUTIONS_READ,
 	type THeldExecution,
@@ -260,8 +260,9 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 	/** Forget one run this device holds, and report what went. The run being read doesn't have a control for it: a reader reads
 	 *  another run first, so a run isn't deleted under a view drawing it. The executions are read again here rather than on
 	 *  the ordinary cadence, so the list a reader sees after the deletion is the list the device holds. */
-	async #forget(execution: string): Promise<void> {
-		const records = await forgetExecution(execution);
+	async #forget(held: THeldExecution): Promise<void> {
+		const { execution } = held;
+		const records = await forgetExecution(held);
 		this.#forgets += 1;
 		this.#held = await executionsHeld();
 		this.#forgotten = { execution, records };
@@ -314,7 +315,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 		// The execution being read: the one a reader chose, else the newest this device holds, which is the one being
 		// recorded while a site is recording one.
 		const reading = currentExecution() ?? this.#held[0]?.execution;
-		const earlier = this.#held.find((e) => e.execution !== reading)?.execution;
+		const earlier = this.#held.find((e) => e.execution !== reading);
 		const registry = registryOrigin();
 		const respondedAt = serverLastRespondedAt();
 		const cached = this.#registry;
@@ -386,7 +387,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 			<div>
 				reading
 				<span data-testid=${IDS.READING}>${named(reading) || "not reading an execution yet"}</span>
-				${earlier === undefined ? "" : html` <button data-testid=${IDS.READ_EARLIER} @click=${() => readExecution(earlier)}>read the execution before it</button>`}
+				${earlier === undefined ? "" : html` <button data-testid=${IDS.READ_EARLIER} @click=${() => readHeldExecution(earlier)}>read the execution before it</button>`}
 			</div>
 			${
 				this.#held.length === 0
@@ -404,12 +405,12 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 								const id = (field: string): string => `${IDS.RUN}${e.execution}-${field}`;
 								return html`<tr data-testid=${`${IDS.RUN}${e.execution}`} class=${e.execution === reading ? "reading" : ""}>
 								<td>
-									${e.execution === reading ? e.execution : html`<button class="link" data-testid=${id("read")} title="read this execution" @click=${() => readExecution(e.execution)}>${e.execution}</button>`}
+									${e.execution === reading ? e.execution : html`<button class="link" data-testid=${id("read")} title="read this execution" @click=${() => readHeldExecution(e)}>${e.execution}</button>`}
 								</td>
 								${cell(id("features"), e.features.join(", "))}${cell(id("reading"), e.execution === reading ? "reading" : "")}
 								${this.#instant(id("began"), e.first)}${this.#instant(id("newest"), e.last)}
 								<td>
-									${e.execution === reading ? "" : html`<button class="link" data-testid=${id("forget")} title="forget this run on this device" @click=${() => void this.#forget(e.execution)}>forget</button>`}
+									${e.execution === reading ? "" : html`<button class="link" data-testid=${id("forget")} title="forget this run on this device" @click=${() => void this.#forget(e)}>forget</button>`}
 								</td>
 							</tr>`;
 							})}

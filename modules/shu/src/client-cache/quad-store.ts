@@ -13,21 +13,25 @@ import { RecordSchema } from "@haibun/core/lib/json-text.js";
 import { LinkRelations, withinAccess, type AccessLevel } from "@haibun/core/lib/resources.js";
 import { matchesQuadPattern, type IQuadStore, type TClusteredQuads, type TDensityQuery, type TDensityResult, type TQuad, type TQuadPattern } from "@haibun/core/lib/quad-types.js";
 import { densityOverQuadStore, sliceQuadsPerType } from "@haibun/core/lib/quad-store.js";
-import { QUADS, IDX_QUAD_SPG, IDX_QUAD_SUBJECT, IDX_QUAD_NAMED_GRAPH, IDX_QUAD_OBJECT, done, withStores as withClientCacheStores } from "./device-store.js";
+import { QUADS, IDX_QUAD_SPG, IDX_QUAD_SUBJECT, IDX_QUAD_NAMED_GRAPH, IDX_QUAD_OBJECT, done, servedDatabase, withStores as withClientCacheStores } from "./device-store.js";
 
 /** A stored quad carries a derived `spg` (namedGraph|subject|predicate) key so `set`/`get` can upsert without a scan. */
 type StoredQuad = TQuad & { spg: string };
 const spgKey = (namedGraph: string, subject: string, predicate: string): string => `${namedGraph}|${subject}|${predicate}`;
 const strip = ({ spg, ...quad }: StoredQuad): TQuad => quad;
 
-/** Run `fn` in one transaction over the quads, and resolve once it commits; `undefined` when IndexedDB is unavailable. */
-const withStore = <T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => T | Promise<T>): Promise<T | undefined> =>
-	withClientCacheStores(mode, [QUADS], (tx) => fn(tx.objectStore(QUADS)));
-
 export class IndexedDbQuadStore implements IQuadStore {
+	/** `database` holds the records of one actuality: the one the page reads where it isn't named. */
+	constructor(readonly database = servedDatabase()) {}
+
+	/** Run `fn` in one transaction over the quads, and resolve once it commits; `undefined` when IndexedDB is unavailable. */
+	private withStore<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => T | Promise<T>): Promise<T | undefined> {
+		return withClientCacheStores(mode, [QUADS], (tx) => fn(tx.objectStore(QUADS)), this.database);
+	}
+
 	async set(subject: string, predicate: string, object: unknown, namedGraph: string, properties?: Record<string, unknown>): Promise<void> {
 		const spg = spgKey(namedGraph, subject, predicate);
-		await withStore("readwrite", async (store) => {
+		await this.withStore("readwrite", async (store) => {
 			for (const key of await done(store.index(IDX_QUAD_SPG).getAllKeys(spg))) store.delete(key);
 			store.add({ subject, predicate, object, namedGraph, timestamp: Date.now(), properties, spg } satisfies StoredQuad);
 		});
@@ -39,13 +43,13 @@ export class IndexedDbQuadStore implements IQuadStore {
 	}
 
 	async add(quad: Omit<TQuad, "timestamp">): Promise<void> {
-		await withStore("readwrite", (store) => {
+		await this.withStore("readwrite", (store) => {
 			store.add({ ...quad, timestamp: Date.now(), spg: spgKey(quad.namedGraph, quad.subject, quad.predicate) } satisfies StoredQuad);
 		});
 	}
 
 	async query(pattern: TQuadPattern): Promise<TQuad[]> {
-		const rows = await withStore("readonly", async (store) => {
+		const rows = await this.withStore("readonly", async (store) => {
 			// Narrow with the most selective index the pattern names, then filter the remaining fields. An object is an
 			// index key where it names an individual (an id); any other value is matched after the widest read.
 			const keyed = typeof pattern.object === "string" || typeof pattern.object === "number";
@@ -64,7 +68,7 @@ export class IndexedDbQuadStore implements IQuadStore {
 	}
 
 	async clear(namedGraph?: string): Promise<void> {
-		await withStore("readwrite", async (store) => {
+		await this.withStore("readwrite", async (store) => {
 			if (namedGraph === undefined) {
 				store.clear();
 				return;
@@ -74,7 +78,7 @@ export class IndexedDbQuadStore implements IQuadStore {
 	}
 
 	async remove(pattern: TQuadPattern): Promise<void> {
-		await withStore("readwrite", async (store) => {
+		await this.withStore("readwrite", async (store) => {
 			await new Promise<void>((resolve, reject) => {
 				const req = store.openCursor();
 				req.onsuccess = () => {
@@ -92,7 +96,7 @@ export class IndexedDbQuadStore implements IQuadStore {
 	}
 
 	async all(): Promise<TQuad[]> {
-		const rows = await withStore("readonly", async (store) => ((await done(store.getAll())) as StoredQuad[]).map(strip));
+		const rows = await this.withStore("readonly", async (store) => ((await done(store.getAll())) as StoredQuad[]).map(strip));
 		return rows ?? [];
 	}
 
@@ -104,7 +108,7 @@ export class IndexedDbQuadStore implements IQuadStore {
 	async setMany(quads: TQuad[]): Promise<void> {
 		const changed = await this.notHeld(quads);
 		if (changed.length === 0) return;
-		await withStore("readwrite", async (store) => {
+		await this.withStore("readwrite", async (store) => {
 			for (const quad of changed) {
 				const spg = spgKey(quad.namedGraph, quad.subject, quad.predicate);
 				for (const key of await done(store.index(IDX_QUAD_SPG).getAllKeys(spg))) store.delete(key);
@@ -117,7 +121,7 @@ export class IndexedDbQuadStore implements IQuadStore {
 	 *  same object, is held, whenever it was held. Without IndexedDB a fact isn't held, and isn't written either. */
 	private async notHeld(quads: TQuad[]): Promise<TQuad[]> {
 		if (quads.length === 0) return [];
-		const held = await withStore("readonly", (store) =>
+		const held = await this.withStore("readonly", (store) =>
 			Promise.all(quads.map((quad) => done(store.index(IDX_QUAD_SPG).getAll(spgKey(quad.namedGraph, quad.subject, quad.predicate))) as Promise<StoredQuad[]>)),
 		);
 		if (!held) return quads;
@@ -211,6 +215,5 @@ function individualFrom(label: string, subject: string, quads: TQuad[]): Record<
 	return individual;
 }
 
-/** The store this page caches the graph in, on a served origin: one per page, beside the events and the registry. A page
- *  that carries its own graph (a report) installs one of its own through `setGraphStore`. */
-export const originGraphStore = new IndexedDbQuadStore();
+/** The store of the device's records of the actuality `database` holds, or of the one the page reads where it isn't named. */
+export const deviceGraphStore = (database?: string): IndexedDbQuadStore => new IndexedDbQuadStore(database);

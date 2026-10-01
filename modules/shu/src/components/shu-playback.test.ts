@@ -6,6 +6,7 @@
  * publishes: a concrete time while it is playing through the past, and null at the end, "now, without an upper bound", so a
  * record written after the newest event this page has seen is not read as future before its own event arrives.
  */
+import { ServerUnreachable } from "../hypermedia.js";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ShuPlayback } from "./shu-playback.js";
 import { timeCursor } from "../signals.js";
@@ -94,7 +95,7 @@ describe("playing through a run", () => {
 		// The sources are one per page, so a run read by the last test is still being read by the next unless forgotten.
 		shu = setupShuTest({
 			dispatch: () => {
-				throw new Error("actuality is read from its records");
+				throw new ServerUnreachable("/rpc", new Error("actuality is read from its records"));
 			},
 		});
 		await aRun();
@@ -161,7 +162,7 @@ describe("going back to now", () => {
 		shu?.teardown();
 		shu = setupShuTest({
 			dispatch: () => {
-				throw new Error("actuality is read from its records");
+				throw new ServerUnreachable("/rpc", new Error("actuality is read from its records"));
 			},
 		});
 		await aRun();

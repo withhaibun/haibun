@@ -1,10 +1,17 @@
+// @vitest-environment jsdom
 // The client IQuadStore answers every read over what this page caches, its query surface included: without a server to
 // ask, a view is offered what the reader holds rather than an empty result. The quad primitives are covered by the conformance
 // specification both stores answer; these are the questions the site is otherwise asked.
+import { hydrate, serveThePage } from "../test-setup.js";
+import { hydrateFromDom } from "../rpc-registry.js";
+import { heldDatabases } from "./device-store.js";
 import "fake-indexeddb/auto";
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach } from "vitest";
 import type { AccessLevel } from "@haibun/core/lib/resources.js";
-import { IndexedDbQuadStore } from "./quad-store.js";
+import { IndexedDbQuadStore, deviceGraphStore } from "./quad-store.js";
+
+// The page is served, so its device store is the database of the actuality the page reads.
+beforeAll(serveThePage);
 
 describe("the questions the site answers, asked of the graph this page caches", () => {
 	const access = { perTypeLimit: 10, accessLevel: "private" as AccessLevel };
@@ -97,5 +104,20 @@ describe("an individual in the page's cache", () => {
 		const store = new IndexedDbQuadStore();
 		expect(await store.upsertIndividual("Comment", { "@id": "c1", content: "served" }), "what a site serves names itself @id").toBe("c1");
 		expect(await store.upsertIndividual("SeqPath", { id: "1700000000000-1.0.1", stepText: "a step" }), "what a run records names itself id").toBe("1700000000000-1.0.1");
+	});
+});
+
+describe("the records of another actuality", () => {
+	it("aren't read by a page served for another actuality, and the device holds each actuality's records apart", async () => {
+		serveThePage();
+		const first = deviceGraphStore();
+		await first.upsertIndividual("SeqPath", { "@id": "s1", stepText: "a step of the first actuality" });
+		hydrate({ actualityId: crypto.randomUUID() });
+		hydrateFromDom();
+		const second = deviceGraphStore();
+		expect(await second.getIndividual("SeqPath", "s1"), "the other actuality's record").toBeUndefined();
+		expect(await first.getIndividual("SeqPath", "s1"), "still held in its own").toMatchObject({ stepText: "a step of the first actuality" });
+		await second.upsertIndividual("SeqPath", { "@id": "s2", stepText: "a step of the second actuality" });
+		expect(await heldDatabases()).toEqual(expect.arrayContaining([first.database, second.database]));
 	});
 });

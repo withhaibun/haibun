@@ -1,7 +1,7 @@
 import { stripTrailingSlash } from "./local-origin.js";
 import { errorDetail } from "./util/index.js";
 import { readingAt } from "./capability-context.js";
-import { buildRpcCall, provesNothing, readNdjson, readRpcAnswer, type TProveRequest } from "./rpc-wire.js";
+import { buildRpcCall, handshakeAt, provesNothing, readNdjson, readRpcAnswer, type TActualityId, type THandshake, type TProveRequest } from "./rpc-wire.js";
 import type { TRequestSigner } from "./authority-types.js";
 
 /**
@@ -62,6 +62,7 @@ export class RpcClient {
 	private readonly maxAttempts: number;
 	private readonly baseDelayMs: number;
 	private readonly fetchImpl: typeof fetch;
+	private actuality?: Promise<TActualityId>;
 
 	constructor(config: RpcClientConfig) {
 		this.baseUrl = stripTrailingSlash(config.baseUrl);
@@ -78,7 +79,8 @@ export class RpcClient {
 		// What this caller may see travels with the call, so a host answers no wider than whoever is reading it: the far side
 		// takes the narrower of this and its own ceiling. The call is signed once, before anything is sent: a refusal to sign
 		// is this process's answer, not a fault the network might not repeat, so only sending is retried.
-		const call = await buildRpcCall(this.baseUrl, { id: `rpc-${Date.now()}`, method, params, seqPath, readingAt: readingAt() }, this.proving(opts.action));
+		const envelope = { id: `rpc-${Date.now()}`, method, params, seqPath, readingAt: readingAt(), actualityId: await this.actualityId() };
+		const call = await buildRpcCall(this.baseUrl, envelope, this.proving(opts.action));
 		const outcome = await this.withRetry(async (signal): Promise<{ answered: T } | RpcError> => {
 			const res = await this.fetchImpl(call.url, { ...call.init, signal });
 			const answer = await readRpcAnswer(method, res);
@@ -86,6 +88,25 @@ export class RpcClient {
 		}, opts.signal);
 		if ("error" in outcome) throw new RpcCallFailed(method, this.baseUrl, outcome.error);
 		return outcome.answered;
+	}
+
+	/** The instance's handshake: its hostId, site principal and actualityId, which every call after it states. */
+	async handshake(): Promise<THandshake> {
+		const answered = await handshakeAt(this.baseUrl, this.fetchImpl);
+		this.actuality = Promise.resolve(answered.actualityId);
+		return answered;
+	}
+
+	/** The actuality this client's calls state: what the instance's last handshake answered, asked where it hasn't answered one. */
+	private actualityId(): Promise<TActualityId> {
+		this.actuality ??= this.handshake().then(
+			({ actualityId }) => actualityId,
+			(err: unknown) => {
+				this.actuality = undefined;
+				throw err;
+			},
+		);
+		return this.actuality;
 	}
 
 	/**
@@ -102,7 +123,11 @@ export class RpcClient {
 		}
 		const timeoutHandle = setTimeout(() => controller.abort(), this.timeoutMs);
 		try {
-			const call = await buildRpcCall(this.baseUrl, { id: `rpc-stream-${Date.now()}`, method, params, seqPath, stream: true, readingAt: readingAt() }, prove);
+			const call = await buildRpcCall(
+				this.baseUrl,
+				{ id: `rpc-stream-${Date.now()}`, method, params, seqPath, stream: true, readingAt: readingAt(), actualityId: await this.actualityId() },
+				prove,
+			);
 			const res = await this.fetchImpl(call.url, { ...call.init, signal: controller.signal });
 			if (!res.ok || !res.body) {
 				const text = res.body ? await res.text().catch(() => "") : "";
@@ -164,17 +189,6 @@ export class RpcClient {
 	}
 }
 
-/**
- * The instance handshake, shared by every remote surface (federated reads, remote stores): `action.begin`
- * self-reports the peer's hostId and site principal. Fails fast on a peer that predates the site handshake.
- */
-export async function discoverInstance(rpc: RpcClient, url: string): Promise<{ hostId: number; site: string }> {
-	const { hostId, site } = await rpc.call<{ hostId?: number; site?: string }>("action.begin", {}, []);
-	if (typeof hostId !== "number") throw new Error(`discoverInstance: ${url} did not report a hostId`);
-	if (typeof site !== "string" || site.length === 0) throw new Error(`discoverInstance: ${url} did not report a site principal: the peer predates federation`);
-	return { hostId, site };
-}
-
 /** A connection to another instance: the client that signs each call there, and the site principal the instance reports
  *  when the connection is made. The site is refused before `connect` completes. */
 export class RemoteInstance {
@@ -191,7 +205,7 @@ export class RemoteInstance {
 
 	/** The handshake: the instance reports its site principal, which a call made through this connection is made to. */
 	async connect(): Promise<string> {
-		this.reported = (await discoverInstance(this.rpc, this.url)).site;
+		this.reported = (await this.rpc.handshake()).site;
 		return this.reported;
 	}
 

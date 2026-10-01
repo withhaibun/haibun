@@ -42,7 +42,7 @@
 				"declaredStepTextHash": "b7ae3ef23e1d45290cd9e8d3d5e3fa2db5b70bc5872aef2b6ff06a25a454b083"
 			},
 			"/features/counter.feature": {
-				"seconds": 0.9,
+				"seconds": 2.2,
 				"steps": 19,
 				"declaredStepTextHash": "8c1b3b909e28bc05dac4eb957c9b1384d55393a5d3d4ed26b0910d3774bc4b95"
 			},
@@ -57,7 +57,7 @@
 				"declaredStepTextHash": "044398785f4c4e310f5a6db9af3f898b2ebd3f751ce6e65d63b9da9e1172d860"
 			},
 			"/features/elements.feature": {
-				"seconds": 0.3,
+				"seconds": 0.4,
 				"steps": 6,
 				"declaredStepTextHash": "4aa63ec07d25bb61c89c944e52b73fead49300b7c5cc8d44cd055cda7c316e87"
 			},
@@ -87,7 +87,7 @@
 				"declaredStepTextHash": "3d27dc08904c292a29f48133a4d137092f93786968c318fe7f44b34851066027"
 			},
 			"/features/once.feature.ts": {
-				"seconds": 0.5,
+				"seconds": 0.6,
 				"steps": 20,
 				"declaredStepTextHash": "006f43f7b774933fc9bebe65cc0bd082a8b856b21c34e008e1c61ffbf7ac8354"
 			},
@@ -128,7 +128,7 @@
 			},
 			"/features/wikipedia.feature.ts": {
 				"seconds": 1,
-				"steps": 163,
+				"steps": 145,
 				"declaredStepTextHash": "fac79a2c47a1620dac9bee4f4664f6ce4c5a85f1d5f473fae00cce100256949c"
 			},
 			"/features/workflow.feature.ts": {
@@ -142,7 +142,7 @@
 				"declaredStepTextHash": "435eb21ce6beca35c72e9cae34f8fa3c5a95dbc4b627e6ca3338ae97b207bd20"
 			}
 		},
-		"steps": 1153,
-		"seconds": 12.2
+		"steps": 1135,
+		"seconds": 13.7
 	}
 }

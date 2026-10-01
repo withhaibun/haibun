@@ -23,7 +23,7 @@ import {
 	isServerUnreachable,
 	serverLastRespondedAt,
 } from "./hypermedia.js";
-import { TestConduit, hydrate } from "./test-setup.js";
+import { PAGE_ACTUALITY, TestConduit, hydrate, serveThePage } from "./test-setup.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 
 beforeEach(() => {
@@ -31,13 +31,13 @@ beforeEach(() => {
 });
 
 /** The page's own hydration, as a deployment serves it. */
-function setHydration(payload: unknown): void {
+function setHydration(payload: Record<string, unknown>): void {
 	document.head.innerHTML = "";
-	hydrate(payload);
+	hydrate({ actualityId: PAGE_ACTUALITY, ...payload });
 }
 
 import { hydrateFromDom } from "./rpc-registry.js";
-import { rpcAnswer } from "@haibun/core/lib/test/rpc-answer.js";
+import { rpcAnswer, HANDSHAKE_PATH } from "@haibun/core/lib/test/rpc-answer.js";
 import { endPage, pagePinned } from "./page-pinned.js";
 
 /** The copy of this module another bundle on the page loads. */
@@ -132,6 +132,7 @@ describe("a server that does not respond", () => {
 	beforeEach(() => {
 		endPage();
 		document.head.innerHTML = "";
+		serveThePage();
 	});
 
 	// A request that never gets a response doesn't indicate a fault in what it asked: the page reports it and reads what it caches.
@@ -148,7 +149,7 @@ describe("a server that does not respond", () => {
 			expect(err).toBeInstanceOf(ServerUnreachable);
 			expect(isServerUnreachable(err)).toBe(true);
 			expect(isServerUnreachable(new Error("wrapped", { cause: err }))).toBe(true);
-			expect(String((err as Error).message)).toContain("/rpc/action.begin");
+			expect(String((err as Error).message)).toContain(HANDSHAKE_PATH);
 		} finally {
 			globalThis.fetch = fetchWas;
 		}
@@ -158,7 +159,7 @@ describe("a server that does not respond", () => {
 		// A second bundle loads its own copy of this module, so its conduit fails with its own ServerUnreachable class.
 		const otherBundle: typeof import("./hypermedia.js") = await import(/* @vite-ignore */ BUNDLE_COPY);
 		expect(otherBundle.ServerUnreachable).not.toBe(ServerUnreachable);
-		expect(isServerUnreachable(new Error("wrapped", { cause: new otherBundle.ServerUnreachable("/rpc/action.begin", new TypeError("Failed to fetch")) }))).toBe(true);
+		expect(isServerUnreachable(new Error("wrapped", { cause: new otherBundle.ServerUnreachable(HANDSHAKE_PATH, new TypeError("Failed to fetch")) }))).toBe(true);
 		expect(isServerUnreachable(new Error("refused"))).toBe(false);
 	});
 
@@ -179,6 +180,7 @@ describe("a server that does not respond", () => {
 	it("records when the server last responded, and doesn't record a time when it never did", async () => {
 		const fetchWas = globalThis.fetch;
 		endPage();
+		serveThePage();
 		globalThis.fetch = () => Promise.reject(new TypeError("Failed to fetch"));
 		try {
 			await new LiveConduit("").follow(acts(SHOW_STEPS_METHOD), "test").catch(() => undefined);
@@ -186,6 +188,7 @@ describe("a server that does not respond", () => {
 			// A page that has just found the site silent reads what it holds instead of calling again, and this is about
 			// the call after that span rather than within it.
 			endPage();
+			serveThePage();
 			// An error the server returns is still the server responding: what a reader is told is that it was reached.
 			globalThis.fetch = () => Promise.resolve(rpcAnswer({ error: "no such step" }, 422));
 			const before = Date.now();
@@ -254,7 +257,7 @@ describe("a server that does not respond", () => {
 		hydrateFromDom();
 		const bounds: Array<boolean> = [];
 		globalThis.fetch = ((url: string, init?: { signal?: AbortSignal; body?: string }) => {
-			if (String(url).endsWith("/rpc/action.begin")) return Promise.resolve(rpcAnswer({ seqPath: [0, 1] }, 200));
+			if (String(url).endsWith(HANDSHAKE_PATH)) return Promise.resolve(rpcAnswer({ seqPath: [0, 1] }, 200));
 			bounds.push(init?.signal !== undefined);
 			return new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("timed out", "TimeoutError")), { once: true }));
 		}) as unknown as typeof globalThis.fetch;
@@ -264,6 +267,7 @@ describe("a server that does not respond", () => {
 			// The call that opens an action is a call like any other, so this is about a page that has not just found the
 			// site silent.
 			endPage();
+			serveThePage();
 			const streaming = new LiveConduit("").followStream(acts(SHOW_STEPS_METHOD), () => undefined, { why: "actuality's own stream" }).catch(() => undefined);
 			await new Promise((r) => setTimeout(r, 60));
 			expect(bounds.at(-1), "and a stream doesn't carry one, so it is not closed under a run still writing to it").toBe(false);
@@ -336,7 +340,7 @@ describe("a server that does not respond", () => {
 		const asked: string[] = [];
 		globalThis.fetch = ((url: string, init?: { signal?: AbortSignal }) => {
 			asked.push(new URL(String(url)).pathname);
-			if (String(url).endsWith("/rpc/action.begin")) return Promise.resolve(rpcAnswer({ seqPath: [0, 1] }, 200));
+			if (String(url).endsWith(HANDSHAKE_PATH)) return Promise.resolve(rpcAnswer({ seqPath: [0, 1] }, 200));
 			return new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("timed out", "TimeoutError")), { once: true }));
 		}) as unknown as typeof globalThis.fetch;
 		try {
@@ -344,7 +348,7 @@ describe("a server that does not respond", () => {
 			await conduit.follow(reads(SHOW_STEPS_METHOD), "a view reading").catch(() => undefined);
 			const afterRead = asked.length;
 			await conduit.follow(acts("chatWithContext"), "what the reader asked for").catch(() => undefined);
-			expect(asked.slice(afterRead), "the act was carried to the server, beginning with its place in actuality").toContain("/rpc/action.begin");
+			expect(asked.slice(afterRead), "the act was carried to the server, beginning with its place in actuality").toContain(HANDSHAKE_PATH);
 			expect(asked.slice(afterRead), "and then the act itself").toContain("/rpc/chatWithContext");
 		} finally {
 			globalThis.fetch = fetchWas;
@@ -378,7 +382,7 @@ describe("a server that does not respond", () => {
 		globalThis.fetch = ((url: string, init?: { signal?: AbortSignal }) => {
 			// The site answers the call that opens an action, and takes the streamed read without answering it, so what
 			// settles that read is the reader stopping it.
-			if (String(url).endsWith("/rpc/action.begin")) return Promise.resolve(rpcAnswer({ seqPath: [0, 1] }, 200));
+			if (String(url).endsWith(HANDSHAKE_PATH)) return Promise.resolve(rpcAnswer({ seqPath: [0, 1] }, 200));
 			return new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("stopped", "AbortError")), { once: true }));
 		}) as unknown as typeof globalThis.fetch;
 		try {

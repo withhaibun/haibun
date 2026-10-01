@@ -4,6 +4,7 @@
  * is not told them by the app through its place in the page. It is a pane's view, so it opens its pane for a chosen
  * step, and its scope of the active record follows its pane. What its search describes goes to the page strip.
  */
+import { ServerUnreachable } from "../hypermedia.js";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { Access } from "@haibun/core/lib/resources.js";
 import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
@@ -26,11 +27,14 @@ provideLayout();
 
 /** The run the bar reads: it offers the step an ask runs, so a chosen Ask mode renders, declares one type to search, and
  *  doesn't declare an extension for the bar. */
+/** The page's site declares the values its records hold for a context field, and doesn't respond, as a report's doesn't. */
+const SELECT_VALUES = "getSelectValues";
 const AN_ASK_AND_A_TYPE = chatDispatch(
 	(step) => {
+		if (step === SELECT_VALUES) throw new ServerUnreachable(step, new TypeError("a record of actuality doesn't have a server"));
 		throw new Error(`unexpected ${step}`);
 	},
-	{ steps: [CHAT_STEP.ask], concerns: buildConcernCatalog(mapDefinitionsToDomains([persistedTypeDefinition("Email", { declared: true })])) },
+	{ steps: [CHAT_STEP.ask, SELECT_VALUES], concerns: buildConcernCatalog(mapDefinitionsToDomains([persistedTypeDefinition("Email", { declared: true })])) },
 );
 
 type TBar = HTMLElement & { updateComplete: Promise<unknown>; state: { mode: string }; setState: (partial: { mode: string }) => void };

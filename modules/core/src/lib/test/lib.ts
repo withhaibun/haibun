@@ -1,4 +1,5 @@
 import type { TWorld, TProtoOptions } from "../world.js";
+import { newActualityId } from "../rpc-wire.js";
 import { CStepper } from "../astepper.js";
 import { DEFAULT_DEST, TExecutorResult, TEST_BASE } from "../../schema/protocol.js";
 import { createSteppers } from "./../util/index.js";
@@ -98,7 +99,7 @@ export function getDefaultWorld(env: NodeJS.ProcessEnv = process.env): TWorld {
 		timer: new Timer(),
 		tag: getRunTag(0),
 		prompter: new Prompter(),
-		runtime: { stepResults: [], steppers: [], feature: "test-feature", stepUsage: new Map(), keys: { principal: resolveSitePrincipal() } },
+		runtime: { actualityId: newActualityId(), stepResults: [], steppers: [], feature: "test-feature", stepUsage: new Map(), keys: { principal: resolveSitePrincipal() } },
 		options: { DEST: DEFAULT_DEST, envVariables: Object.fromEntries(Object.entries(env).flatMap(([name, value]) => (value === undefined ? [] : [[name, value]]))) },
 		moduleOptions: {},
 		bases: ["/features/"],

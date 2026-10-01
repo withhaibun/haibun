@@ -5,6 +5,7 @@
  * request the instance itself makes.
  */
 
+import { RPC_ROUTE, SSE_ROUTE } from "./rpc-wire.js";
 import { z } from "zod";
 import type { TWorld } from "./world.js";
 import { ENDPOINT_LABEL, HTTP_CLIENT_LABEL, HTTP_HOST_LABEL, HTTP_REQUEST_LABEL, LinkRelations, writeEdge, writeReferenceEdge } from "./resources.js";
@@ -36,7 +37,7 @@ const SITE_NAME = "This site";
  *  itself for requests it MAKES outbound. Fixes the sequence message's source lifeline so it reads with true direction. */
 type THttpOrigin = "client" | "site";
 
-const SERVICE_PATH_PREFIXES = ["/sse", "/rpc/"] as const;
+const SERVICE_PATH_PREFIXES = [SSE_ROUTE, RPC_ROUTE] as const;
 
 /** Whether a path is the app's own service plumbing (/rpc, /sse) rather than a page route. */
 export const isServicePath = (path: string): boolean => SERVICE_PATH_PREFIXES.some((p) => path === p || path.startsWith(p));

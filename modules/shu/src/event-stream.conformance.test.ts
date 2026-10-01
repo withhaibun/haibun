@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 // Both implementations of the page's event stream, held to one specification: the live one over the host's stream, and
 // the serialized one a report and a scripted scenario drive.
-import { hydrate } from "./test-setup.js";
+import { PAGE_ACTUALITY, hydrate } from "./test-setup.js";
 import { vi, expect } from "vitest";
 import { LiveEventStream, SerializedEventStream, type TEvent } from "./event-stream.js";
 import { hydrateFromDom } from "./rpc-registry.js";
+import { SSE_ROUTE } from "@haibun/core/lib/rpc-wire.js";
 import { describeEventStream } from "./test/event-stream-conformance.js";
 
 describeEventStream("a log the page carries", () => {
@@ -19,7 +20,7 @@ describeEventStream("a log the page carries", () => {
  * the stream, so a case can look at the stream while it is down.
  */
 describeEventStream("a live connection", async () => {
-	const hydration = hydrate({ settings: { streamReconnectAfterMs: 1 } });
+	const hydration = hydrate({ actualityId: PAGE_ACTUALITY, settings: { streamReconnectAfterMs: 1 } });
 	hydrateFromDom();
 	const bodies: Array<{ body: ReadableStreamDefaultController<Uint8Array>; read: boolean }> = [];
 	const held: Array<() => void> = [];
@@ -34,7 +35,7 @@ describeEventStream("a live connection", async () => {
 		};
 		return bodies.length === 0 ? Promise.resolve(answer()) : new Promise<Response>((resolve) => held.push(() => resolve(answer())));
 	});
-	const stream = new LiveEventStream("/sse");
+	const stream = new LiveEventStream(SSE_ROUTE);
 	let opens = 0;
 	let breaks = 0;
 	stream.opened(() => opens++);

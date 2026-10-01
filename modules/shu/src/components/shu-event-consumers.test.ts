@@ -2,6 +2,7 @@
 // The views of a run, over the records it wrote. A run is in the graph: a step is one record carrying how it went, and
 // what it logged and produced point back at it. So a step is one row rather than a start paired with an end, and a
 // heading is the step that declared the feature or the scenario.
+import { ServerUnreachable } from "../hypermedia.js";
 import { describe, it, expect, beforeEach, afterEach, onTestFinished } from "vitest";
 import { ShuMonitorColumn } from "./shu-monitor-column.js";
 import { ShuDocumentColumn } from "./shu-document-column.js";
@@ -77,7 +78,7 @@ describe("the views of a run, over the records it wrote", () => {
 		forgetElementPrefs(SHU_TAG.MONITOR_COLUMN, "");
 		handle = setupShuTest({
 			dispatch: () => {
-				throw new Error("the views read actuality's records, not a server");
+				throw new ServerUnreachable("/rpc", new Error("the views read actuality's records, not a server"));
 			},
 		});
 		await aRun([stepRecord(1), stepRecord(2)]);

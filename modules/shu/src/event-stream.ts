@@ -17,7 +17,7 @@
 
 import { SseSubscriber, StreamListeners } from "@haibun/core/lib/sse-subscriber.js";
 import { FOLLOWS_THE_RUN } from "@haibun/core/lib/actions.js";
-import { deploymentMs } from "./rpc-registry.js";
+import { deploymentMs, hydratedActualityId } from "./rpc-registry.js";
 import { readingHeaders } from "./page-key.js";
 import { pagePinned } from "./page-pinned.js";
 
@@ -65,7 +65,7 @@ const followingHeaders = (url: string): Promise<Record<string, string>> => readi
 export class LiveEventStream implements EventStream {
 	private subscriber: SseSubscriber | null = null;
 
-	constructor(private readonly url: string = "/sse") {}
+	constructor(private readonly url: string) {}
 
 	subscribe(handler: TEventHandler, filter?: TEventFilter): () => void {
 		return this.ensure().subscribe(handler, filter);
@@ -100,7 +100,12 @@ export class LiveEventStream implements EventStream {
 		if (!this.subscriber) {
 			// How long after a break the connection opens again: what the deployment set, else the subscriber's own.
 			const reconnectDelayMs = deploymentMs("streamReconnectAfterMs");
-			this.subscriber = new SseSubscriber({ url: this.url, headers: followingHeaders, ...(reconnectDelayMs === undefined ? {} : { reconnectDelayMs }) });
+			this.subscriber = new SseSubscriber({
+				url: this.url,
+				actualityId: hydratedActualityId(),
+				headers: followingHeaders,
+				...(reconnectDelayMs === undefined ? {} : { reconnectDelayMs }),
+			});
 		}
 		return this.subscriber;
 	}

@@ -7,7 +7,7 @@ import "fake-indexeddb/auto";
 import { afterEach, describe, expect, it } from "vitest";
 import { reportFailure, reportToRun } from "./client-log.js";
 import { endPage } from "./page-pinned.js";
-import { carryARun, carryNothing, openReportingPage, reportingTo, setupShuTest, type TReportedToRun, type TShuTestHandle } from "./test-setup.js";
+import { carryARun, serveThePage, openReportingPage, reportingTo, setupShuTest, type TReportedToRun, type TShuTestHandle } from "./test-setup.js";
 import { openPageAuthority } from "./page-key.js";
 
 const SOURCE = "a view";
@@ -16,7 +16,7 @@ describe("the page's reports to actuality", () => {
 	let t: TShuTestHandle | undefined;
 	afterEach(() => {
 		t?.teardown();
-		carryNothing();
+		serveThePage();
 	});
 
 	it("reports a caught failure to actuality, and fails fast in development", async () => {

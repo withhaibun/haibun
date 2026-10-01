@@ -19,6 +19,7 @@
  *
  * Runs are supervised by the same list and torn down by the same rule as instances.
  */
+import type { THandshake } from "@haibun/core/lib/rpc-wire.js";
 import { fork, type ChildProcess } from "child_process";
 import { createRequire } from "module";
 import { superviseChild, terminate } from "@haibun/core/lib/owned-children.js";
@@ -32,7 +33,7 @@ import type { TWorld } from "@haibun/core/lib/world.js";
 import type { TDomainDefinition } from "@haibun/core/lib/resources.js";
 import { actionNotOK, actionOKWithProducts, perProcessOptionNames } from "@haibun/core/lib/util/index.js";
 import { localOrigin } from "@haibun/core/lib/local-origin.js";
-import { RpcCallFailed, RpcClient } from "@haibun/core/lib/rpc-client.js";
+import { RpcClient } from "@haibun/core/lib/rpc-client.js";
 import { holdSignIn, releaseSignIn } from "@haibun/core/lib/rpc-wire.js";
 import { BASIC_AUTH_OPTION, basicAuthUsers, type TBasicAuthUser } from "@haibun/core/lib/basic-auth.js";
 import { RemoteStepperProxy } from "@haibun/core/lib/remote-stepper-proxy.js";
@@ -261,10 +262,11 @@ const InstancesSchema = z.object({
 
 /** What an instance reports when it begins, or undefined while it doesn't take the call yet: a starting instance refuses or
  *  doesn't answer until it serves, and a caller waiting for it asks again. */
-async function begins(rpc: RpcClient): Promise<{ hostId?: number; site?: string; serving?: boolean } | undefined> {
-	return await rpc.call<{ hostId?: number; site?: string; serving?: boolean }>("action.begin", {}, []).catch((e: unknown) => {
-		if (e instanceof RpcCallFailed) return undefined;
-		throw e;
+async function begins(rpc: RpcClient): Promise<THandshake | undefined> {
+	// An answer that isn't a handshake is a fault; one that doesn't come is an instance that doesn't serve yet.
+	return await rpc.handshake().catch((e: unknown) => {
+		if (e instanceof z.ZodError) throw e;
+		return undefined;
 	});
 }
 

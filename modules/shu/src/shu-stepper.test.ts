@@ -1,4 +1,5 @@
 import { currentVersion } from "@haibun/core/currentVersion.js";
+import { PAGE_ACTUALITY } from "./test-setup.js";
 import { HYDRATION_ID } from "./consts.js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
@@ -89,12 +90,12 @@ describe("the app a deployment serves", () => {
 
 describe("the page a deployment serves", () => {
 	it("carries the timings the deployment set, so the page applies them from its first paint", () => {
-		const page = buildSpaHtml("/spa", "/* bundle */", { streamReconnectAfterMs: 500 });
+		const page = buildSpaHtml("/spa", "/* bundle */", { actualityId: PAGE_ACTUALITY, settings: { streamReconnectAfterMs: 500 } });
 		expect(page).toContain(`id="${HYDRATION_ID}"`);
-		expect(page).toContain(JSON.stringify({ settings: { streamReconnectAfterMs: 500 } }));
+		expect(page).toContain(JSON.stringify({ actualityId: PAGE_ACTUALITY, settings: { streamReconnectAfterMs: 500 } }));
 	});
 
 	it("doesn't carry a timing where the deployment didn't set one", () => {
-		expect(buildSpaHtml("/spa", "/* bundle */")).toContain(JSON.stringify({ settings: {} }));
+		expect(buildSpaHtml("/spa", "/* bundle */", { actualityId: PAGE_ACTUALITY, settings: {} })).toContain(JSON.stringify({ actualityId: PAGE_ACTUALITY, settings: {} }));
 	});
 });

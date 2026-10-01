@@ -7,7 +7,7 @@ import { registeredPaths, type IRouteRegistry } from "@haibun/core/lib/execution
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { DOMAIN_LINK, DOMAIN_NUMBER } from "@haibun/core/lib/domains.js";
 import { trackHttpRequest } from "@haibun/core/lib/http-observations.js";
-import { RpcRequestSchema } from "@haibun/core/lib/rpc-wire.js";
+import { RpcEnvelopeSchema } from "@haibun/core/lib/rpc-wire.js";
 import { VISITED_PAGE_LABEL } from "./domains.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 
@@ -148,5 +148,5 @@ export class PlaywrightEvents {
  */
 export function asksToRead(method: string, postData: string | null | undefined): boolean {
 	if (method !== "POST" || !postData) return false;
-	return fromJsonText(RpcRequestSchema).safeParse(postData).data?.asks === "read";
+	return fromJsonText(RpcEnvelopeSchema).safeParse(postData).data?.asks === "read";
 }

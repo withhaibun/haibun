@@ -52,11 +52,12 @@ export {
 	readingExecution,
 	noteExecution,
 	readExecution,
+	readHeldExecution,
 	subscribeExecutionSwitch,
 	EXECUTIONS_READ,
 	type THeldExecution,
 } from "./executions.js";
-export { IndexedDbQuadStore, originGraphStore } from "./quad-store.js";
+export { IndexedDbQuadStore } from "./quad-store.js";
 export { graphRunSource } from "./graph-run-source.js";
 export { runWindow, runExtent, RUN_WINDOW_SIZE, type TRunRow, type TRunWindow } from "./run-window.js";
 export { runGraphOf, ofExecution, type TRunGraph } from "./run-graph.js";

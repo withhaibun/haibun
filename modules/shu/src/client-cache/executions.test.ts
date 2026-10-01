@@ -7,7 +7,7 @@ import { SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { individualAsQuads } from "./quad-store.js";
 import { setGraphStore } from "../quads-snapshot.js";
-import { executionsHeld, forgetExecution, holdOnDevice, noteExecution, readExecution, readingExecution, subscribeExecutionSwitch } from "./executions.js";
+import { executionsHeld, forgetExecution, holdOnDevice, noteExecution, readExecution, readingExecution, subscribeExecutionSwitch, type THeldExecution } from "./executions.js";
 import { endPage } from "../page-pinned.js";
 
 const OLDER = "1700000000000-1";
@@ -38,6 +38,13 @@ const aDevice = async (): Promise<QuadStore> => {
 	}
 	setGraphStore(store);
 	return store;
+};
+
+/** One run as the device lists it. */
+const held = async (execution: string): Promise<THeldExecution> => {
+	const found = (await executionsHeld()).find((one) => one.execution === execution);
+	if (!found) throw new Error(`the device doesn't list ${execution}`);
+	return found;
 };
 
 /** The records of one run the device still holds, over every type a run writes to. */
@@ -81,7 +88,7 @@ describe("what a device holds of the runs it has read", () => {
 
 	it("forgets one run entirely and holds the rest of what it has read", async () => {
 		const store = await aDevice();
-		expect(await forgetExecution(OLDER)).toBe(3);
+		expect(await forgetExecution(await held(OLDER))).toBe(3);
 		expect(await heldOf(store, OLDER), "it doesn't hold a record of the actuality it forgot").toBe(0);
 		expect(await heldOf(store, NEWER), "every record of the actuality it kept").toBe(3);
 	});
@@ -106,7 +113,7 @@ describe("what a device holds of the runs it has read", () => {
 
 	it("reports a device is full when it can't free a record there, and goes on reading", async () => {
 		const store = await aDevice();
-		await forgetExecution(OLDER);
+		await forgetExecution(await held(OLDER));
 		readExecution(NEWER);
 		vi.spyOn(store, "setMany").mockRejectedValue(new DOMException("the device is full", "QuotaExceededError"));
 		const [, quads] = individualAsQuads(SEQ_PATH_LABEL, {

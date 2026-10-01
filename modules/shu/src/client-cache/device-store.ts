@@ -8,6 +8,7 @@
  * write is a no-op. Browser-only (IndexedDB is absent in jsdom/node) → exercised by the e2e suites, with an in-memory
  * stand-in for the unit tests. It uses raw IndexedDB, promisified, without a dependency.
  */
+import { hydratedActualityId } from "../rpc-registry.js";
 import { reportFailure, reportToRun } from "../client-log.js";
 import { pagePinned } from "../page-pinned.js";
 
@@ -44,9 +45,16 @@ function wrote(): void {
 	for (const fn of writeListeners()) fn();
 }
 
-const DB_NAME = "shu-client-cache";
-/** The databases this one replaces, dropped once on open so a device does not keep them beside it. */
-const FORMER_DB_NAMES = ["shu-events", "shu-graph"];
+/** The device keeps each actuality's records in a database of its own, named by its actualityId, so a page never reads one
+ *  actuality's records as another's. */
+const DB_PREFIX = "shu-client-cache/";
+/** The database of the actuality whose records the page reads. */
+export const servedDatabase = (): string => `${DB_PREFIX}${hydratedActualityId()}`;
+/** The databases of every actuality this device holds records of. */
+export const heldDatabases = async (): Promise<string[]> =>
+	typeof indexedDB === "undefined" ? [] : (await indexedDB.databases()).flatMap(({ name }) => (name?.startsWith(DB_PREFIX) ? [name] : []));
+/** The databases these replace, dropped once on open so a device does not keep them beside them. */
+const FORMER_DB_NAMES = ["shu-events", "shu-graph", "shu-client-cache"];
 /** Bumped when the shape changes. An upgrade creates what is missing and keeps what is cached, and a page holding an
  *  earlier version closes its connection as soon as another page upgrades, so a page doesn't wait on another. */
 const VERSION = 6;
@@ -66,19 +74,19 @@ const SHAPE_KEY = "shape";
  *  an earlier build would be read wrongly by this one: the store then forgets what it cached rather than serving it. */
 export const CACHE_SHAPE = "run-records/1";
 
-/** The page's one connection to the device's database, which every bundle on the page opens through. */
+/** The page's one connection to each database it reads, which every bundle on the page opens through. */
 const DEVICE_DB_KEY = "__SHU_DEVICE_DB__";
-const deviceDb = (): { opening: Promise<IDBDatabase | null> | null } => pagePinned(DEVICE_DB_KEY, () => ({ opening: null }));
+const deviceDbs = (): Map<string, Promise<IDBDatabase | null>> => pagePinned(DEVICE_DB_KEY, () => new Map());
 
-function openDb(): Promise<IDBDatabase | null> {
-	const held = deviceDb();
-	if (held.opening) return held.opening;
-	held.opening = new Promise((resolve) => {
+function openDb(name: string): Promise<IDBDatabase | null> {
+	const opened = deviceDbs().get(name);
+	if (opened) return opened;
+	const opening = new Promise<IDBDatabase | null>((resolve) => {
 		if (typeof indexedDB === "undefined") {
 			resolve(null); // IndexedDB doesn't exist here → reads stub, writes drop, and a view reads what the site answers
 			return;
 		}
-		const req = indexedDB.open(DB_NAME, VERSION);
+		const req = indexedDB.open(name, VERSION);
 		// Additive: a version that adds a store or an index creates what is missing and keeps what a reader already
 		// holds. Deleting the stores would drop every run on this device for a change that only extends the shape.
 		req.onupgradeneeded = () => {
@@ -104,9 +112,9 @@ function openDb(): Promise<IDBDatabase | null> {
 			const db = req.result;
 			db.onversionchange = () => {
 				db.close();
-				held.opening = null;
+				deviceDbs().delete(name);
 			};
-			for (const former of FORMER_DB_NAMES) indexedDB.deleteDatabase(former); // the databases this one replaces
+			if (name === servedDatabase()) for (const former of FORMER_DB_NAMES) indexedDB.deleteDatabase(former); // the databases these replace
 			void forgetIfIncompatible(db).then(() => resolve(db));
 		};
 		req.onerror = () => {
@@ -114,7 +122,8 @@ function openDb(): Promise<IDBDatabase | null> {
 			reportFailure(DEVICE_STORE, "the device's store didn't open, so the client cache doesn't persist", req.error);
 		};
 	});
-	return held.opening;
+	deviceDbs().set(name, opening);
+	return opening;
 }
 
 /** Forget what was cached under a different shape, and record the shape this build reads. What is forgotten is a cache:
@@ -144,8 +153,8 @@ export const done = <T>(req: IDBRequest<T>): Promise<T> =>
 	});
 
 /** Run `fn` in one transaction over the named stores and resolve once it commits; `undefined` when IndexedDB is unavailable. */
-export async function withStores<T>(mode: IDBTransactionMode, names: string[], fn: (tx: IDBTransaction) => T | Promise<T>): Promise<T | undefined> {
-	const db = await openDb();
+export async function withStores<T>(mode: IDBTransactionMode, names: string[], fn: (tx: IDBTransaction) => T | Promise<T>, database: string): Promise<T | undefined> {
+	const db = await openDb(database);
 	if (!db) return undefined;
 	const tx = db.transaction(names, mode);
 	const result = await fn(tx);
@@ -158,23 +167,26 @@ export async function withStores<T>(mode: IDBTransactionMode, names: string[], f
 
 export class IndexedDbDeviceStore implements DeviceStore {
 	async registry(): Promise<TStoredRegistry | undefined> {
-		const found = await withStores("readonly", [META], (tx) => done(tx.objectStore(META).get(REGISTRY_KEY)));
+		const found = await withStores("readonly", [META], (tx) => done(tx.objectStore(META).get(REGISTRY_KEY)), servedDatabase());
 		return found && typeof found === "object" ? (found as TStoredRegistry) : undefined;
 	}
 
 	async setRegistry(response: unknown): Promise<void> {
 		const cached: TStoredRegistry = { savedAt: Date.now(), response };
-		await withStores("readwrite", [META], (tx) => {
-			tx.objectStore(META).put(cached, REGISTRY_KEY);
-		});
+		await withStores("readwrite", [META], (tx) => tx.objectStore(META).put(cached, REGISTRY_KEY), servedDatabase());
 		wrote();
 	}
 
 	async clear(): Promise<void> {
-		await withStores("readwrite", [META, QUADS], (tx) => {
-			tx.objectStore(META).clear();
-			tx.objectStore(QUADS).clear();
-		});
+		await withStores(
+			"readwrite",
+			[META, QUADS],
+			(tx) => {
+				tx.objectStore(META).clear();
+				tx.objectStore(QUADS).clear();
+			},
+			servedDatabase(),
+		);
 		wrote();
 	}
 }

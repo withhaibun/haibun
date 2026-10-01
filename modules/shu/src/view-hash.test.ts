@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { canonicalizeArrival, hashParam, hashParams, mergeHashParams, onHashChanged, pageAddress, pushHash } from "./view-hash.js";
-import { carryARun, carryNothing } from "./test-setup.js";
+import { carryARun, serveThePage } from "./test-setup.js";
 
 describe("canonicalizeArrival", () => {
 	const base = "#?label=File&sort=dateModified&col=shu-monitor-column&active=shu-monitor-column";
@@ -49,11 +49,11 @@ describe("canonicalizeArrival", () => {
 
 describe("pageAddress", () => {
 	it("is the page address without its fragment when a server serves it, and empty when the page carries its own run", () => {
-		carryNothing();
+		serveThePage();
 		expect(pageAddress()).toBe(location.origin + location.pathname + location.search);
 		carryARun();
 		expect(pageAddress(), "a record of a run doesn't have an address to serve").toBe("");
-		carryNothing();
+		serveThePage();
 	});
 });
 
@@ -90,7 +90,7 @@ describe("params a view writes into the hash", () => {
 		expect(hashParam("aff-goal"), "the report keeps its own view state").toBe("vc");
 		expect(announced, "and its views hear the deep link the same way").toBe(1);
 		heard();
-		carryNothing();
+		serveThePage();
 	});
 });
 
@@ -112,6 +112,6 @@ describe("the page's hash, across its bundles", () => {
 		carryARun();
 		pushHash("#?aff-goal=offline");
 		expect(other.hashParam("aff-goal"), "a record of a run holds one hash for the page").toBe("offline");
-		carryNothing();
+		serveThePage();
 	});
 });

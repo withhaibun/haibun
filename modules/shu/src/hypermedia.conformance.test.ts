@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
 // Both implementations of the page's conduit, held to one specification: the live one over /rpc, and the one a test
 // installs to answer from its own function.
+import { ACTION_BEGIN } from "@haibun/core/lib/rpc-wire.js";
+import { hostHandshake } from "@haibun/core/lib/test/rpc-answer.js";
 import { LiveConduit, type TStreamChunk } from "./hypermedia.js";
-import { TestConduit } from "./test-setup.js";
+import { TestConduit, PAGE_ACTUALITY, serveThePage } from "./test-setup.js";
 import { describeConduit, type TConduitUnderTest } from "./test/conduit-conformance.js";
 import { rpcAnswer } from "@haibun/core/lib/test/rpc-answer.js";
 
@@ -46,9 +48,10 @@ const line = (chunk: unknown): Uint8Array => new TextEncoder().encode(`${JSON.st
 describeConduit("over a running service", () => {
 	const arranged = arrangements();
 	const fetchWas = globalThis.fetch;
+	serveThePage();
 	globalThis.fetch = ((url: string, init: { body: string }) => {
 		const envelope = JSON.parse(init.body) as { method: string; params: Record<string, unknown> };
-		if (envelope.method === "action.begin") return Promise.resolve(rpcAnswer({ seqPath: [1] }, 200));
+		if (envelope.method === ACTION_BEGIN) return Promise.resolve(rpcAnswer({ ...hostHandshake(1, "did:site:1"), actualityId: PAGE_ACTUALITY }, 200));
 		arranged.record(envelope.method, envelope.params);
 		const one = arranged.of(envelope.method);
 		if (one.failure !== undefined) return Promise.resolve(rpcAnswer({ error: one.failure }, 422));

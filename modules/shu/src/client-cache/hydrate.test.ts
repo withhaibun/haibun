@@ -4,6 +4,7 @@
  * own at boot, and the window then reads that run exactly as it reads one a site is recording. A payload written to
  * another rule is refused rather than read wrongly.
  */
+import { ServerUnreachable } from "../hypermedia.js";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { CACHE_SHAPE, deviceStore } from "./device-store.js";
@@ -38,7 +39,7 @@ describe("a run carried in a page", () => {
 		// A page without a site: every request fails, as it does for a report opened from a file.
 		handle = setupShuTest({
 			dispatch: () => {
-				throw new Error("this page has no site");
+				throw new ServerUnreachable("/rpc", new Error("this page has no site"));
 			},
 		});
 		// What the site declared, which a report carries as its registry: a type the page does not know is a type whose

@@ -1,4 +1,5 @@
 import { HYDRATION_ID } from "./consts.js";
+import { ActualityIdSchema, type TActualityId } from "@haibun/core/lib/rpc-wire.js";
 import { reads, acts, conduit, isServerUnreachable, type TLink } from "./hypermedia.js";
 import { getConcernCatalog, cachedConcernCatalog, setConcernCatalog } from "./rels-cache.js";
 import { pagePinned } from "./page-pinned.js";
@@ -124,6 +125,8 @@ interface ShuHydration {
 	viewHash?: string;
 	/** The actuality this page carries, for a page without a server: filled into the client cache at boot. */
 	cache?: TCachePayload;
+	/** The actuality whose records this page reads, which every call it makes states. */
+	actualityId?: TActualityId;
 	/** What this deployment set for the page, written by the step that serves it. */
 	settings?: TDeploymentSettings;
 }
@@ -179,6 +182,10 @@ function readHydration(): ShuHydration | null {
 export function hydrateFromDom(): void {
 	cachedHydration().data = readHydration();
 }
+
+/** The actuality whose records this page reads, as the page was served with it. */
+export const hydratedActualityId = (): TActualityId =>
+	ActualityIdSchema.parse(cachedHydration().data?.actualityId, { error: () => "this page wasn't served with the actualityId of the records it reads, so it doesn't make a call" });
 
 /** The address a carried run opens at, or "" for a page with a server. */
 export function getHydratedViewHash(): string {

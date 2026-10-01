@@ -15,7 +15,8 @@ import type { TWorld } from "./world.js";
 import { SITE_DID_PREFIX } from "./host-id.js";
 import { DOMAIN_STRING, asDomainKey, DOMAIN_TEXT } from "./domains.js";
 import { OK, Origin, type TStepValue } from "../schema/protocol.js";
-import { ANSWERED_WITHOUT_PRODUCTS } from "./rpc-wire.js";
+import { ACTION_BEGIN, ANSWERED_WITHOUT_PRODUCTS } from "./rpc-wire.js";
+import { hostHandshake } from "./test/rpc-answer.js";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import type { Server } from "http";
@@ -90,8 +91,8 @@ describe("RemoteStepperProxy", () => {
 		app.post("/rpc/:_method", async (c) => {
 			const data = (await c.req.json()) as { method: string; params?: Record<string, unknown> };
 			presented.set(data.method, c.req.header("capability-invocation"));
-			if (data.method === "action.begin") {
-				return c.json({ seqPath: [7, -1, 1], hostId: 7, site: `${SITE_DID_PREFIX}7` });
+			if (data.method === ACTION_BEGIN) {
+				return c.json(hostHandshake(7, `${SITE_DID_PREFIX}7`));
 			}
 			const tool = localRegistry.get(data.method);
 			if (!tool) return c.json({ error: `not found: ${data.method}` }, 422);
@@ -236,6 +237,6 @@ describe("RemoteStepperProxy", () => {
 		expect(presented.get("EchoStepper-protectedPing")).toBe('fake action="EchoStepper:admin"');
 		expect(presented.get("EchoStepper-echo")).toBe('fake action="EchoStepper:echo"');
 		expect(presented.get("Haibun-showSteps"), "the host shows the steps the proxy holds there").toBe('fake action="Read:public"');
-		expect(presented.get("action.begin"), "and the handshake doesn't require an action").toBeUndefined();
+		expect(presented.get(ACTION_BEGIN), "and the handshake doesn't require an action").toBeUndefined();
 	});
 });

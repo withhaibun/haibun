@@ -16,10 +16,11 @@ import { QuadGraphModel } from "@haibun/core/lib/quad-graph-model.js";
 import { queryQuadStore } from "@haibun/core/lib/quad-store.js";
 import { reportFailure } from "./client-log.js";
 import { appAccessLevel } from "./util.js";
-import { reads, conduit } from "./hypermedia.js";
+import { reads, conduit, isServerUnreachable } from "./hypermedia.js";
 import { getRels, getTitledBy, getSelectFields } from "./rels-cache.js";
-import { getAvailableSteps, requireStep } from "./rpc-registry.js";
-import { originGraphStore } from "./client-cache/index.js";
+import { findStep, getAvailableSteps, isOffline, requireStep } from "./rpc-registry.js";
+import { IndexedDbQuadStore, deviceGraphStore } from "./client-cache/quad-store.js";
+import { heldDatabases } from "./client-cache/device-store.js";
 import { pagePinned } from "./page-pinned.js";
 import type { AccessLevel } from "@haibun/core/lib/resources.js";
 
@@ -32,18 +33,40 @@ export const MAX_PER_TYPE_LIMIT = 1000;
 /** The graph this page caches. The client's own store on a served origin; a report installs a memory-backed one holding
  *  the graph it carries, so the same reads serve both. Held by the page, not by a bundle: the app installs it and a
  *  view a deployment adds reads the same one, which is how a report's graph reaches a view in its own bundle. */
-type TCachedGraphStore = IQuadStore & { setMany(quads: TQuad[]): Promise<void> };
+export type TCachedGraphStore = IQuadStore & { setMany(quads: TQuad[]): Promise<void> };
 const GRAPH_STORE_KEY = "__SHU_CACHED_GRAPH_STORE__";
-const graphStoreSlot = (): { store: TCachedGraphStore } => pagePinned(GRAPH_STORE_KEY, () => ({ store: originGraphStore }));
+/** `store` holds what the site serves, made when first read unless a report installs its own; `reading` is another
+ *  actuality's store this device holds, while a reader reads it. */
+const graphStoreSlot = (): { store?: TCachedGraphStore; reading?: TCachedGraphStore } => pagePinned(GRAPH_STORE_KEY, () => ({}));
 
 /** Install the store the graph is cached in (a report: memory, holding what the report carries). */
 export function setGraphStore(store: TCachedGraphStore): void {
 	graphStoreSlot().store = store;
 }
 
+/** Read the records `store` holds, or the site's again where it is the store of what the site serves. */
+export function readHeldStore(store: TCachedGraphStore): void {
+	graphStoreSlot().reading = store === servedGraphStore() ? undefined : store;
+}
+
+/** The store of each actuality this device holds records of, the one of what the site serves first. A report holds only what
+ *  it carries. */
+export async function heldGraphStores(): Promise<TCachedGraphStore[]> {
+	const store = servedGraphStore();
+	if (!(store instanceof IndexedDbQuadStore)) return [store];
+	return [store, ...(await heldDatabases()).filter((database) => database !== store.database).map(deviceGraphStore)];
+}
+
+/** The store what the site serves is held in. */
+export function servedGraphStore(): TCachedGraphStore {
+	const slot = graphStoreSlot();
+	slot.store ??= deviceGraphStore();
+	return slot.store;
+}
+
 /** The store the graph is cached in. */
 export function cachedGraphStore(): TCachedGraphStore {
-	return graphStoreSlot().store;
+	return graphStoreSlot().reading ?? servedGraphStore();
 }
 
 /** The client-held graph snapshot IS the wire shape (quads + clusters + the responding site): one type, so the shapes don't drift. */
@@ -196,7 +219,7 @@ export async function getGraphSnapshot(opts: { perTypeLimit?: number; types?: st
 			model.seed({ quads: data.quads, clusters: data.clusters ?? [], site: data.site });
 			if (priorPinned) model.pin(priorPinned);
 			st.cache = { model, perTypeLimit, typesKey: tk, accessLevel };
-			void cachedGraphStore().setMany(data.quads); // persist the fresh snapshot off-heap (fire-and-forget; online path unchanged)
+			void servedGraphStore().setMany(data.quads); // persist the fresh snapshot off-heap (fire-and-forget; online path unchanged)
 			notify(s, scope);
 			return model.snapshot;
 		} catch (err) {
@@ -219,19 +242,25 @@ export async function getGraphSnapshot(opts: { perTypeLimit?: number; types?: st
 }
 
 /**
- * The one rule for reading the graph: ask the site, and when the site doesn't answer, give the answer from what this page
- * holds. `held` returns undefined when the page cannot answer either, and then the site's own failure is what the
+ * The one rule for reading the graph: ask the site, and when the site doesn't respond, give the answer from what this page
+ * holds. A site's refusal is its answer, a record it doesn't hold among them. `held` returns undefined when the page cannot answer either, and then the site's own failure is what the
  * caller is told, since a question this page cannot answer is not one to be quiet about.
  */
 async function askElseHeld<T>(ask: () => Promise<T>, held: () => Promise<T | undefined>): Promise<T> {
-	try {
-		await getAvailableSteps();
-		return await ask();
-	} catch (err) {
-		const own = await held();
-		if (own === undefined) throw err;
-		return own;
+	// A page reading another actuality's records, or a report, reads what it holds: the site doesn't hold those records.
+	let failure: unknown = new Error("this page doesn't hold that record of the actuality it reads");
+	if (!isOffline() && !graphStoreSlot().reading) {
+		try {
+			await getAvailableSteps();
+			return await ask();
+		} catch (err) {
+			if (!isServerUnreachable(err)) throw err;
+			failure = err;
+		}
 	}
+	const own = await held();
+	if (own === undefined) throw failure;
+	return own;
 }
 
 /**
@@ -239,9 +268,16 @@ async function askElseHeld<T>(ask: () => Promise<T>, held: () => Promise<T | und
  * hold in the graph this page caches. The site derives its answer from the same declaration over the same fields, so a
  * reader without a server offered the values in the graph they hold is offered the same fields, narrowed to what is there.
  */
+/** The step a site offers a label's dropdown values by. */
+const SELECT_VALUES_STEP = "getSelectValues";
+
 export function selectValuesFor(label: string): Promise<Record<string, string[]>> {
 	return askElseHeld(
-		async () => (await conduit().follow<{ values: Record<string, string[]> }>(reads(requireStep("getSelectValues"), { label }), `select values for ${label}`)).values ?? {},
+		// The values are an affordance: a page whose key the site doesn't offer them to is offered none, and the reader types.
+		async () =>
+			findStep(SELECT_VALUES_STEP)
+				? ((await conduit().follow<{ values: Record<string, string[]> }>(reads(requireStep(SELECT_VALUES_STEP), { label }), `select values for ${label}`)).values ?? {})
+				: {},
 		async () => {
 			// A type the site never declared is a question this page cannot answer at all; a declared type without a context
 			// field doesn't have dropdowns, which is an answer.
@@ -331,12 +367,11 @@ export function mergeQuadsIntoSnapshot(quads: TQuad[]): void {
 		st.cache.model.merge(quads);
 		notify(s, scope);
 	}
-	void cachedGraphStore().setMany(quads); // persist live observations off-heap for the next reload
+	void servedGraphStore().setMany(quads); // persist live observations off-heap for the next reload
 }
 
 /**
- * One individual with its edges: what the site answers, and when the site doesn't answer, the individual as the page holds it.
- * Undefined only when the site answered that such an individual doesn't exist; anything else the site reported is returned.
+ * One individual with its edges: what the site answers, and when the site doesn't respond, the individual as the page holds it.
  */
 export function readIndividual(label: string, id: string, accessLevel: string): Promise<TIndividualWithEdges> {
 	return askElseHeld(

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { TActualityId } from "./rpc-wire.js";
 import type { TAnyFixme } from "./fixme.js";
 import type { TTag } from "./ttag.js";
 import type { FeatureVariables } from "./feature-variables.js";
@@ -25,6 +26,9 @@ export type TWorld = {
 };
 
 export type TRuntime = {
+	/** The actuality the records actuality's store holds belong to, which every call to this instance states. A store
+	 *  that keeps its records across processes replaces it with the one it keeps them under. */
+	actualityId: TActualityId;
 	/** Generic keyed store for subsystem runtime state. */
 	keys?: Record<string, unknown>;
 	backgrounds?: TFeature[];

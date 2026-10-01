@@ -25,6 +25,7 @@ import { Access } from "@haibun/core/lib/resources.js";
 import { ShuElement } from "./components/shu-element.js";
 import { registerComponents } from "./component-registry.js";
 import { conduit, reads, setConduit, LiveConduit } from "./hypermedia.js";
+import { SSE_ROUTE } from "@haibun/core/lib/rpc-wire.js";
 import { installShuTokens } from "./components/styles.js";
 import { applyShuPreferences } from "./components/shu-theme-switch.js";
 import { eventStream, setEventStream, LiveEventStream, SerializedEventStream, subscribeBatchedEvents } from "./event-stream.js";
@@ -142,7 +143,7 @@ const main = async (): Promise<void> => {
 		await hydrateClientCache(carried);
 		ShuElement.pushHash(getHydratedViewHash());
 	} else {
-		setEventStream(new LiveEventStream("/sse"));
+		setEventStream(new LiveEventStream(SSE_ROUTE));
 	}
 	// What holds the page's main thread is recorded from the start, the frames before this included.
 	observeLongFrames();

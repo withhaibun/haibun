@@ -1,4 +1,5 @@
 import path from "path";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { z } from "zod";
 
 import type { TWorld } from "@haibun/core/lib/world.js";
@@ -6,7 +7,7 @@ import { OK } from "@haibun/core/schema/protocol.js";
 import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption, intOrError, errorDetail } from "@haibun/core/lib/util/index.js";
 import { AStepper, type IHasCycles, type IHasOptions, type TEndFeature, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { dispatchStep } from "@haibun/core/lib/step-dispatch.js";
-import { ANSWERED_WITHOUT_PRODUCTS, parseRpcRequest, RPC_REFUSED } from "@haibun/core/lib/rpc-wire.js";
+import { ACTION_BEGIN, ANSWERED_WITHOUT_PRODUCTS, parseRpcRequest, RPC_REFUSED, type THandshake } from "@haibun/core/lib/rpc-wire.js";
 import { runWithRequestContext, requestBaseIri } from "@haibun/core/lib/request-context.js";
 import { buildFeatureStepForTransport, refusal, runRegistry, type StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { actionList, lackedAction, mayCall } from "@haibun/core/lib/actions.js";
@@ -253,15 +254,17 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 				const logger = this.getWorld().eventLogger;
 
 				transport.onMessage(async (raw: unknown, requestInfo) => {
-					const msg = parseRpcRequest(raw);
-					if (!msg) return;
+					// A call states the actuality whose records it reads, and one stating another actuality doesn't parse.
+					const parsed = parseRpcRequest(raw, this.getWorld().runtime.actualityId);
+					if (!parsed.success) return { error: z.prettifyError(parsed.error) };
+					const msg = parsed.data;
 					const { method, params } = msg;
 
 					// Action bootstrap: client asks for a globally-unique seqPath
 					// root before issuing any state-changing RPC. Returns the
 					// root; client appends monotonic sub-seqs for each call
 					// within the action scope.
-					if (method === "action.begin") {
+					if (method === ACTION_BEGIN) {
 						const seqPath = this.allocateSessionSeqPath();
 						// seqPath[0] is the hostId; returning it explicitly saves remote
 						// callers from having to reach into the seqPath to learn which
@@ -270,7 +273,14 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 						// de-collide merged reads.
 						// `serving` reports whether this instance's feature has finished setting up (see the SERVING runtime key), so a
 						// caller can wait for the instance rather than for its port.
-						return { seqPath, hostId: seqPath[0], site: activeSitePrincipal(this.getWorld()), serving: this.getWorld().runtime[SERVING] === true };
+						const { runtime } = this.getWorld();
+						const handshake: THandshake = {
+							hostId: itemAt(seqPath, 0),
+							site: activeSitePrincipal(this.getWorld()),
+							actualityId: runtime.actualityId,
+							serving: runtime[SERVING] === true,
+						};
+						return { seqPath, ...handshake };
 					}
 
 					const authority = await grantedCapabilityForRequest(requestInfo, this.getWorld().runtime, this);

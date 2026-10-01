@@ -6,15 +6,17 @@
  * refusal, as does an attachment the relay doesn't open within `RELAY_OPEN_MS`.
  */
 import { errorDetail } from "@haibun/core/lib/util/index.js";
-import { postRpc, readNdjson, type TProveRequest } from "@haibun/core/lib/rpc-wire.js";
+import { actualityAt, postRpc, readNdjson, type TProveRequest } from "@haibun/core/lib/rpc-wire.js";
 import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import { RELAY_ATTACHED, RELAY_METHOD_PREFIX, RELAY_OPEN_MS, type TRelayBatch, type TRelayCall, type TRelayMessage } from "../relay/relay-wire.js";
 import type { TRelayChannel } from "./relayConnection.js";
 
 export async function openRelayChannel({ base, sign }: { base: string; sign: TProveRequest }): Promise<TRelayChannel> {
+	// The channel drives the actuality the instance holds as it opens, and its calls are refused once that changes.
+	const actualityId = await actualityAt(base);
 	const call = async (relayCall: TRelayCall, params: Record<string, unknown>, stream?: { signal: AbortSignal }): Promise<Response> => {
 		const method = `${RELAY_METHOD_PREFIX}${relayCall}`;
-		const answer = await postRpc(base, method, params, sign, stream);
+		const answer = await postRpc(base, actualityId, method, params, sign, stream);
 		if (!answer.ok) throw new Error(`${method} was refused (${answer.status}): ${await answer.text()}`);
 		return answer;
 	};

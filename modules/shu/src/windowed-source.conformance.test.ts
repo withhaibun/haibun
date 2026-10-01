@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 // Every implementation of the page's paging contract, held to one specification: a list already in memory, pages
 // fetched as a reader reaches them, and the window of a run over the records it wrote.
+import { ServerUnreachable } from "./hypermedia.js";
 import { beforeEach } from "vitest";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
@@ -49,7 +50,7 @@ describeWindowedSource("the window of a run", async () => {
 	endPage();
 	const handle = setupShuTest({
 		dispatch: () => {
-			throw new Error("this specification reads the records, not a server");
+			throw new ServerUnreachable("/rpc", new Error("this specification reads the records, not a server"));
 		},
 	});
 	setSiteMetadata({
