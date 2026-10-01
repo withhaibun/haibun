@@ -3,7 +3,6 @@
  * Fetches individual+edges via RPC on open. Renders once per navigation.
  * HATEOAS rel-based links, each addressing the pane it opens. Fully type-agnostic, driven by schema metadata.
  */
-import { ellipsize } from "@haibun/core/lib/util/index.js";
 import {
 	appAccessLevel,
 	defaultLabel,
@@ -22,7 +21,7 @@ import {
 } from "../util.js";
 import { html, css, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
-import { jsonDisclosure, literalWithJson } from "./json-disclosure.js";
+import { jsonDisclosure, literalWithJson, recordJson } from "./json-disclosure.js";
 import { jsonCarried, RecordsSchema, isRecord } from "@haibun/core/lib/json-text.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { ShuElement, TIME_SYNC_CLASS, type TLinkedData } from "./shu-element.js";
@@ -125,7 +124,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		.content-switch-btn[aria-pressed="true"] { background: var(--shu-accent); border-color: var(--shu-accent); color: var(--shu-accent-fg); }
 		.hidden { display: none; }
 		.detail-table { width: 100%; border-collapse: collapse; }
-		.detail-table td { padding: 1px var(--shu-space-2); vertical-align: top; }
+		.detail-table td { padding: 1px var(--shu-space-2); vertical-align: top; overflow-wrap: anywhere; }
 		.fields-table { margin: var(--shu-space-1) 0 var(--shu-space-2); }
 		/* The field table folded behind a disclosure: the summary line names how many fields it holds, and the table
 		   opens on demand. A reader reads the summary first and opens the table when a field is the question. */
@@ -339,7 +338,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			contentHtml = `${typeLine}${summaryHtml}${this.renderRoles()}${fieldsHtml}${this.renderItemsTable()}${this.renderReferences()}${governance}${bodyLiterals}`;
 		}
 
-		return html`${unsafeHTML(this.emitHypermediaScript(this.products))}${this.renderColumnSettings()}<div class="entity-content">${this.renderFromStore()}${unsafeHTML(contentHtml)}${this.renderBodyArea(contentIframe)}</div>`;
+		return html`${unsafeHTML(this.emitHypermediaScript(this.products))}${this.renderColumnSettings()}<div class="entity-content">${this.renderFromStore()}${unsafeHTML(`${contentHtml}${recordJson(this.vertex, false)}`)}${this.renderBodyArea(contentIframe)}</div>`;
 	}
 
 	protected updated(): void {
@@ -398,7 +397,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const display = String(target.name ?? target.email ?? target.filename ?? target.subject ?? idOf(target));
 		const testId = this.edgeTargetCount === 0 ? ` data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.EDGE_TARGET_FIRST}"` : "";
 		this.edgeTargetCount++;
-		return linkHtml(this.edgeTargetHref(edgeType, target), ellipsize(display, 60), testId);
+		return linkHtml(this.edgeTargetHref(edgeType, target), display, testId);
 	}
 
 	/** The address of an edge's target, typed by the edge's range where it names one type and by the target otherwise. */
@@ -652,9 +651,9 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	 *  filter), an edge-valued or queryable field links through valueLink, and anything else is text. */
 	private fieldValueHtml(value: string, propertyName: string): string {
 		const label = this.state.persistedAs;
-		if (propertyName === getIdField(label)) return linkHtml(refHref(REF_DENOTES.individual, { persistedAs: label, id: idOf(this.vertex ?? {}) }), ellipsize(value, 80));
+		if (propertyName === getIdField(label)) return linkHtml(refHref(REF_DENOTES.individual, { persistedAs: label, id: idOf(this.vertex ?? {}) }), value);
 		if (getRelSync(label, propertyName) === "item" || getQueryableFields(label).includes(propertyName)) return this.valueLink(value, propertyName);
-		return esc(ellipsize(value, 80));
+		return esc(value);
 	}
 
 	/** The type's scoped @context (field → {@id, @type?}) from the served hypermedia: the server resolves each field to
@@ -707,10 +706,9 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	/** A field's value as a link: to the record an edge of that relation points at, or else to the records whose field
 	 *  holds the same value. */
 	private valueLink(value: string, propertyName: string): string {
-		const text = ellipsize(value, 80);
 		const target = getRelSync(this.state.persistedAs, propertyName) === "item" ? this.edges.find((e) => e.type === propertyName && e.direction === "out")?.target : undefined;
-		if (target) return linkHtml(this.edgeTargetHref(propertyName, target), text);
-		return linkHtml(paneHref({ paneType: "filter-eq", persistedAs: this.state.persistedAs, predicate: propertyName, value }), text);
+		if (target) return linkHtml(this.edgeTargetHref(propertyName, target), value);
+		return linkHtml(paneHref({ paneType: "filter-eq", persistedAs: this.state.persistedAs, predicate: propertyName, value }), value);
 	}
 
 	/** A field's name as a link to the records of this type, ordered by that field. */

@@ -8,7 +8,7 @@
  */
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
-import { jsonDisclosure } from "./json-disclosure.js";
+import { recordJson } from "./json-disclosure.js";
 import { html, css, type TemplateResult } from "lit";
 import { Task, TaskStatus } from "@lit/task";
 import { z } from "zod";
@@ -203,7 +203,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 			`
 					: ""
 			}
-			${step ? html`<details class="section" open><summary class="label">Data</summary>${unsafeHTML(jsonDisclosure(step))}</details>` : ""}
+			${step ? unsafeHTML(recordJson(step, true)) : ""}
 		</div>`;
 	}
 }

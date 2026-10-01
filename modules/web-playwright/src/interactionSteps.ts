@@ -291,7 +291,10 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			gwta: `go to the {name: ${DOMAIN_LINK}} ${WEB_PAGE}`,
 			action: async ({ name }: { name: string }) => {
 				const response = await wp.withPage<Response | null>(async (page: Page) => {
-					const res = await page.goto(name, { waitUntil: "domcontentloaded" });
+					// A relative link, as a page's own links are written, is resolved against the page it was read from.
+					const address = URL.parse(name, page.url());
+					if (!address) throw new Error(`"${name}" isn't an address, and doesn't resolve against the page's address ${page.url()}`);
+					const res = await page.goto(address.href, { waitUntil: "domcontentloaded" });
 					await wp.waitForLoaded(page, "navigation");
 					return res;
 				});

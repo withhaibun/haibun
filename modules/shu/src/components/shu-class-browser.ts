@@ -25,13 +25,15 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
 import { ShuClusteredGraphView, clusteredGraphStateShape } from "./shu-clustered-graph-view.js";
 import { fetchIndividuals } from "../pane-fetch.js";
-import { idOf, instanceLabel } from "../util.js";
+import { esc, idOf, instanceLabel } from "../util.js";
+import { jsonDisclosure } from "./json-disclosure.js";
 import { renderRef } from "./ref-navigation.js";
 import { scopeSchemaToType, scopeSchemaToConnected } from "../graph/ontology-projection.js";
 import { prefixesReferencedBy } from "../graph/jsonld-context-scope.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { VIEW } from "../graph/polymorphic/polymorphic-views.js";
 import { viewHeadCss, viewActions } from "./view-head.js";
+import { JSON_DISCLOSURE_CSS } from "./styles.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import "@haibun/shu/graph/polymorphic/polymorphic-scene.js";
 import { type ShuGraphScene, type GraphSceneModel } from "../graph/polymorphic/polymorphic-scene.js";
@@ -61,11 +63,12 @@ const BROWSER_CSS = `
 	shu-class-browser { display: block; height: 100%; background: var(--shu-bg); }
 	${viewHeadCss("shu-class-browser")}
 	shu-class-browser shu-graph-filter { flex: 0 0 auto; }
-	shu-class-browser .context-view { flex: 1 1 auto; min-height: 0; margin: 0; overflow: auto; padding: var(--shu-space-4); font-family: var(--shu-mono, ui-monospace, monospace); font-size: var(--shu-font-sm); white-space: pre-wrap; color: var(--shu-fg); background: var(--shu-bg); }
+	shu-class-browser .context-view { flex: 1 1 auto; min-height: 0; margin: 0; overflow: auto; padding: var(--shu-space-4); font-size: var(--shu-font-sm); color: var(--shu-fg); background: var(--shu-bg); }
 	shu-class-browser .individuals-view { flex: 1 1 auto; min-height: 0; overflow: auto; padding: var(--shu-space-3) var(--shu-space-4); }
 	shu-class-browser .individuals-view ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--shu-space-1); }
 	shu-class-browser .individuals-view .empty { color: var(--shu-fg-muted); font-size: var(--shu-font-sm); }
 	shu-class-browser .hidden { display: none; }
+	${JSON_DISCLOSURE_CSS}
 `;
 
 class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSchema> {
@@ -78,7 +81,8 @@ class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSchema> {
 	}
 
 	/** The focus type's JSON-LD @context, fetched from the served context document for the context view (null until loaded). */
-	private contextJson: string | null = null;
+	/** The focus type's context as HTML: its JSON as disclosures, or why it couldn't be fetched. */
+	private contextHtml: string | null = null;
 
 	/** The focus type's individuals for the individuals view (null until fetched), and the focus they were fetched for. */
 	private individuals: VertexData[] | null = null;
@@ -152,9 +156,9 @@ class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSchema> {
 			const typeNode = ctx[this.focusType];
 			const used = prefixesReferencedBy(typeNode);
 			const prefixes = Object.fromEntries(Object.entries(ctx).filter(([k, v]) => (typeof v === "string" && used.has(k)) || k === "@version"));
-			this.contextJson = JSON.stringify(typeNode === undefined ? prefixes : { ...prefixes, [this.focusType]: typeNode }, null, 2);
+			this.contextHtml = jsonDisclosure(typeNode === undefined ? prefixes : { ...prefixes, [this.focusType]: typeNode });
 		} catch (err) {
-			this.contextJson = `Could not fetch ${CONTEXT_DOCUMENT.namespace}: ${errorDetail(err)}`;
+			this.contextHtml = esc(`Could not fetch ${CONTEXT_DOCUMENT.namespace}: ${errorDetail(err)}`);
 		}
 		this.requestUpdate();
 	}
@@ -199,7 +203,7 @@ class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSchema> {
 			<shu-graph-filter class=${graphHidden ? "hidden" : ""} data-schema-only data-persist-scope=${FILTER_SCOPE}></shu-graph-filter>
 			<!-- The scene is mounted only on a graph tab (not CSS-hidden) so its render loop never runs on a text tab. -->
 			${!graphHidden ? html`<div class="graph-area"><shu-graph-scene></shu-graph-scene></div>` : ""}
-			${mode === "context" ? html`<pre class="context-view" data-testid=${SHU_TEST_IDS.CLASS_BROWSER.CONTEXT_VIEW}>${this.contextJson ?? "Loading context…"}</pre>` : ""}
+			${mode === "context" ? html`<div class="context-view" data-testid=${SHU_TEST_IDS.CLASS_BROWSER.CONTEXT_VIEW}>${this.contextHtml === null ? "Loading context…" : unsafeHTML(this.contextHtml)}</div>` : ""}
 			${mode === "individuals" ? this.renderIndividuals() : ""}
 			</div>
 		`;

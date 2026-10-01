@@ -19,6 +19,7 @@ import { defineElement } from "../define-element.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { patternRef, recordRef } from "./shu-ref.js";
 import { CalledSchema } from "@haibun/core/lib/called.js";
+import { ICON_STEP_COMPLETED, RETURNED_TO_CALLER } from "@haibun/core/schema/protocol.js";
 import { BundleSchema, ChatRoleSchema, ChatStatusSchema, UNVERIFIED_TURN, type TBundle, type TChatRole, type TQuestionFork } from "../schemas.js";
 
 /** Styles for a light-DOM chat message, exported for the shadow scope that hosts the activity history: the message
@@ -202,7 +203,7 @@ export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
 						m.calls.length > 0
 							? html`<details class="chat-made-of" data-testid=${SHU_TEST_IDS.APP.CHAT_CALLS}>
 								<summary>calls (${m.calls.length})</summary>
-								<ol>${m.calls.map(({ name, ok, record }) => html`<li>${recordRef(record.persistedAs, record.id, `${name} ${ok ? "answered" : "failed"}`)}</li>`)}</ol>
+								<ol>${m.calls.map(({ name, ok, record }) => html`<li>${recordRef(record.persistedAs, record.id, `${ok ? ICON_STEP_COMPLETED : RETURNED_TO_CALLER} ${name}`)}</li>`)}</ol>
 							</details>`
 							: ""
 					}

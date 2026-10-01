@@ -167,6 +167,20 @@ ${LIGHT_PALETTE}
 `;
 
 /** Base reset + element defaults reused by every shu component. Tokens must be in scope (i.e. `${SHU_TOKENS}` precedes this in the template). */
+/** A JSON value as disclosures: what holds parts indents under what it belongs to, and a name reads before its value. The
+ *  disclosure itself is the browser's, styled only with the indent that shows what belongs to what. A view that renders
+ *  in light DOM, outside the base sheet, includes these rules itself. */
+export const JSON_DISCLOSURE_CSS = `
+	.json-disclosure { margin: 0 0 0 var(--shu-space-2); }
+	.json-line { margin: 0 0 0 var(--shu-space-3); }
+	.json-name { color: var(--shu-fg-faded); }
+	.json-holds { color: var(--shu-fg-faded); font-size: 0.85em; }
+	.json-value { white-space: pre-wrap; overflow-wrap: anywhere; }
+	.json-said { margin-bottom: var(--shu-space-1); }
+	.record-json { border-top: var(--shu-border-w) solid var(--shu-border); padding-top: var(--shu-space-3); margin-top: var(--shu-space-4); }
+	.record-json > summary { font-weight: 600; color: var(--shu-fg-muted); }
+`;
+
 export const SHU_BASE = `
 	* { box-sizing: border-box; }
 	:host {
@@ -273,14 +287,7 @@ export const SHU_BASE = `
 	.card.error { border-left: calc(var(--shu-border-w) * 4) solid var(--shu-error); }
 	.card.info { border-left: calc(var(--shu-border-w) * 4) solid var(--shu-info); }
 	.future-event { opacity: 0.4; }
-	/* A JSON value as disclosures: what holds parts indents under what it belongs to, and a name reads before its value.
-	   The disclosure itself is the browser's, styled only with the indent that shows what belongs to what. */
-	.json-disclosure { margin: 0 0 0 var(--shu-space-2); }
-	.json-line { margin: 0 0 0 var(--shu-space-3); }
-	.json-name { color: var(--shu-fg-faded); }
-	.json-holds { color: var(--shu-fg-faded); font-size: 0.85em; }
-	.json-value { white-space: pre-wrap; overflow-wrap: anywhere; }
-	.json-said { margin-bottom: var(--shu-space-1); }
+	${JSON_DISCLOSURE_CSS}
 	.time-current { background: var(--shu-accent-soft); border-left: calc(var(--shu-border-w) * 3) solid var(--shu-accent); }
 `;
 

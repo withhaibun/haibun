@@ -34,6 +34,7 @@ import { SEQ_PATH_STATUS } from "@haibun/core/lib/resources.js";
 import { eventMarkerStyle } from "../event-marker.js";
 import { HAIBUN_LOG_LEVELS } from "@haibun/core/schema/protocol.js";
 import { esc } from "../util.js";
+import { jsonDisclosure } from "./json-disclosure.js";
 import { isKnownType } from "../rels-cache.js";
 import { artifactUrl } from "../artifact-url.js";
 import { refLinksPlugin } from "../markdown-refs.js";
@@ -126,7 +127,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 			.prose-block { font-size: 15px; }
 			.header-block { margin-top: 0.5rem; }
 			.artifact { margin: var(--shu-space-4) 0 var(--shu-space-4) 32px; }
-			.json-block { font-family: "Source Code Pro", monospace; font-size: var(--shu-font-sm); background: var(--shu-bg-soft); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); padding: var(--shu-space-4) var(--shu-space-5); overflow-x: auto; white-space: pre-wrap; max-height: 300px; overflow-y: auto; }
+			.json-block { font-family: "Source Code Pro", monospace; font-size: var(--shu-font-sm); background: var(--shu-bg-soft); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); padding: var(--shu-space-4) var(--shu-space-5); overflow-x: auto; max-height: 300px; overflow-y: auto; }
 			img { display: block; }
 			.feature-artifacts, .standalone-artifact { margin-left: 32px; }
 			/* A run of per-step screenshots flows as a grid of TILE-SIZED thumbnails across the column width: fixed ~160px
@@ -446,7 +447,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		}
 		if (type === "html")
 			return `<shu-artifact-frame ${step}><iframe ${SHU_ATTR.DATA_ARTIFACT}="${esc(String(artifactPath))}" loading="lazy" sandbox="allow-scripts allow-same-origin" style="width:100%;min-height:80vh;border:none;"></iframe></shu-artifact-frame>`;
-		if (type === "json") return `<shu-artifact-frame ${step}><pre class="json-block">${esc(JSON.stringify(artifact.json, null, 2))}</pre></shu-artifact-frame>`;
+		if (type === "json") return `<shu-artifact-frame ${step}><div class="json-block">${jsonDisclosure(artifact.json)}</div></shu-artifact-frame>`;
 		if (type === "file")
 			return `<shu-artifact-frame ${step} caption="${esc(String(artifact.path))}"><a href="${esc(String(artifact.path))}">${esc(String(artifact.path))}</a></shu-artifact-frame>`;
 		return "";

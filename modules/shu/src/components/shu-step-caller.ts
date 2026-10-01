@@ -1,4 +1,5 @@
 import { SHU_BASE } from "./styles.js";
+import { jsonDisclosure } from "./json-disclosure.js";
 import { conduit } from "../hypermedia.js";
 import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import { getAvailableSteps, findStep } from "../rpc-registry.js";
@@ -312,7 +313,7 @@ class StepCaller extends HTMLElement {
 		const data = this.result;
 		const schema = this.descriptor?.outputSchema;
 		if (!schema) {
-			return data != null ? `<pre>${esc(JSON.stringify(data, null, 2))}</pre>` : "";
+			return data != null ? jsonDisclosure(data) : "";
 		}
 		return this.renderBySchema(data, schema);
 	}
@@ -353,7 +354,7 @@ class StepCaller extends HTMLElement {
 			return `<span>${esc(String(data))}</span>`;
 		}
 
-		return `<pre>${esc(JSON.stringify(data, null, 2))}</pre>`;
+		return jsonDisclosure(data);
 	}
 
 	/** Rows as one table, its columns every field a row has, since a field one row states another may leave out. */

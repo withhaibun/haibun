@@ -12,6 +12,9 @@
 import { esc, escAttr } from "../util.js";
 import { jsonCarried } from "@haibun/core/lib/json-text.js";
 
+/** The test id of the whole record as JSON. */
+export const RECORD_JSON = "record-json";
+
 /** The vocabulary a record is written in. It is there in full, under a disclosure that starts closed: a reader reads
  *  what a record holds first, and opens what its terms mean when that is the question. */
 const WRITTEN_IN = "@context";
@@ -52,6 +55,10 @@ export function jsonDisclosure(value: unknown, name = ""): string {
 	const open = name === WRITTEN_IN ? "" : " open";
 	return `<details class="json-disclosure"${open} data-testid="${escAttr(`json-${name || "root"}`)}"><summary>${named}<span class="json-holds">${esc(holds(value))}</span></summary>${parts}</details>`;
 }
+
+/** The whole of a record as JSON, last in the view that shows it, so what the view's fields leave out reads there. It starts
+ *  closed where a body follows it, so the body keeps the height it reads in. */
+export const recordJson = (value: unknown, open: boolean): string => `<details class="record-json"${open ? " open" : ""} data-testid="${RECORD_JSON}"><summary>Data</summary>${jsonDisclosure(value)}</details>`;
 
 /**
  * A literal that carries JSON, shown as what it is: the words before it as words, and the JSON as disclosures.

@@ -9,6 +9,7 @@ import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { refHref } from "./ref-navigation.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
+import { RECORD_JSON } from "./json-disclosure.js";
 import { persistedTypeDefinition } from "../test-setup.js";
 
 /** The href of a link to a type's view, as the column's markup serializes it. */
@@ -56,6 +57,17 @@ describe("shu-entity-column type and fields", () => {
 		expect(html).toContain("what it was invoked for");
 		// an object-valued field renders as formatted JSON
 		expect(html).toContain('data-testid="field-json-meta"');
+	});
+
+	it("shows each field's value in full, and the whole record last, as JSON in disclosures", async () => {
+		const error = `page.goto: Protocol error (Page.navigate): ${"a reason that runs well past any line ".repeat(4)}ends here`;
+		const el = document.createElement("shu-entity-column") as ShuEntityColumn;
+		document.body.appendChild(el);
+		el.openProducts({ _type: "Widget", id: "x1", name: "Example", note: error });
+		await el.updateComplete;
+		expect(el.shadowRoot?.querySelector('[data-testid="entity-field-note"]')?.textContent, "the value isn't cut").toContain(error);
+		const record = el.shadowRoot?.querySelector(`.entity-content > [data-testid="${RECORD_JSON}"]:last-child`);
+		expect(record?.querySelector(".json-disclosure")?.textContent, "the record is last, as JSON").toContain(`"${error}"`);
 	});
 
 	it("folds a field table that holds many fields behind a summary naming how many, and leaves a small one open", async () => {

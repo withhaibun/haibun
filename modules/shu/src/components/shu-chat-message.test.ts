@@ -14,6 +14,7 @@ import { SHU_EVENT } from "../consts.js";
 import "./shu-ref-element.js";
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
 import { REF_DENOTES, markdownRef } from "@haibun/core/lib/typed-links.js";
+import { ICON_STEP_COMPLETED, RETURNED_TO_CALLER } from "@haibun/core/schema/protocol.js";
 import { setSiteMetadata } from "../rels-cache.js";
 
 const BUNDLE = { patterns: [anIndividual("Email", "a@test.com"), aType("Email")], accessLevel: "private" };
@@ -110,7 +111,7 @@ describe("a question's controls", () => {
 
 describe("the records a message names", () => {
 	const TOOL_CALL = "ToolCall";
-	const [CALL_ID, CALLED] = ["tcall-1", "GraphStepper-getIndividualWithEdges answered"];
+	const [CALL_ID, CALLED] = ["tcall-1", "GraphStepper-getIndividualWithEdges"];
 	const refs = (root: ParentNode) => [...root.querySelectorAll("shu-ref")].map((ref) => [ref.getAttribute("kind"), JSON.parse(ref.getAttribute("linkTarget") ?? "{}")]);
 
 	beforeEach(() => {
@@ -134,13 +135,17 @@ describe("the records a message names", () => {
 		expect(label && JSON.parse(label.getAttribute("linkTarget") ?? "{}")).toEqual({ persistedAs: COMMENT_LABEL, id: "ask-1" });
 	});
 
-	it("links each call to its record and each context line to what it is about, and its spinner shows the words that name a record", async () => {
+	it("links each call to its record, marked as a handed-out call is, and each context line to what it is about, and its spinner shows the words that name a record", async () => {
 		const line = markdownRef(CALLED, TOOL_CALL, CALL_ID);
-		const calls = [{ name: CALLED, ok: true, record: { persistedAs: TOOL_CALL, id: CALL_ID } }];
+		const calls = [true, false].map((ok) => ({ name: CALLED, ok, record: { persistedAs: TOOL_CALL, id: CALL_ID } }));
 		const context = [markdownRef("ask-1 -> self -> the question", COMMENT_LABEL, "ask-1")];
 		const el = await rendered({ id: "a1", role: "llm", status: "running", context, calls, spinnerStatus: line, spinnerVisible: true });
 		const within = (id: string) => el.querySelector(`[data-testid="${id}"]`) as ParentNode;
-		expect(refs(within(SHU_TEST_IDS.APP.CHAT_CALLS))).toEqual([[REF_DENOTES.individual, { persistedAs: TOOL_CALL, id: CALL_ID }]]);
+		expect(refs(within(SHU_TEST_IDS.APP.CHAT_CALLS))).toEqual(calls.map(() => [REF_DENOTES.individual, { persistedAs: TOOL_CALL, id: CALL_ID }]));
+		expect([...within(SHU_TEST_IDS.APP.CHAT_CALLS).querySelectorAll("shu-ref")].map((ref) => ref.textContent)).toEqual([
+			`${ICON_STEP_COMPLETED} ${CALLED}`,
+			`${RETURNED_TO_CALLER} ${CALLED}`,
+		]);
 		expect(refs(within(SHU_TEST_IDS.APP.CHAT_CONTEXT))).toEqual([[REF_DENOTES.individual, { persistedAs: COMMENT_LABEL, id: "ask-1" }]]);
 		expect((el.querySelector("shu-spinner") as HTMLElement & { status?: string }).status).toBe(CALLED);
 	});
