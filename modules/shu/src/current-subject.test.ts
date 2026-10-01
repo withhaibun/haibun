@@ -10,7 +10,7 @@
 import { describe, expect, it } from "vitest";
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
 import { anIndividual, aType } from "./schemas.js";
-import { pickWith, seededRandom } from "./test/seeded-random.js";
+import { pickWith, runSequences } from "@haibun/core/lib/test/machine-table.js";
 import {
 	INITIAL_SUBJECT,
 	SCOPE,
@@ -137,21 +137,17 @@ describe("any sequence of events", () => {
 	const ENTRIES = [EMAIL, OTHER, QUESTION, ANSWER, NOTHING];
 
 	it("keeps the active entry that of the open scope activated last, else the open scope updated", () => {
-		for (let seed = 1; seed <= 200; seed++) {
-			const random = seededRandom(seed);
-			let state = INITIAL_SUBJECT;
-			// The rule stated again: the open scopes, the order scopes were activated in, and each scope's latest entry.
-			let opened = new Set<string>([SCOPE.page]);
-			const activations: string[] = [];
-			const entries = new Map<string, TEntry>();
-			const path: string[] = [];
-			for (let step = 0; step < 40; step++) {
+		// The rule stated again: the open scopes, the order scopes were activated in, and each scope's latest entry.
+		runSequences(
+			() => ({ state: INITIAL_SUBJECT, opened: new Set<string>([SCOPE.page]), activations: [] as string[], entries: new Map<string, TEntry>() }),
+			(context, random, label) => {
 				const scope = pickWith(random, SCOPES);
 				const entry = pickWith(random, ENTRIES);
 				const type = pickWith(random, SUBJECT_EVENTS);
 				const event: TSubjectEvent = type === "activate" || type === "update" ? { type, scope, entry } : { type, scope };
-				path.push(`${type}:${scope}`);
-				state = transition(state, event);
+				const named = label(`${type}:${scope}`);
+				context.state = transition(context.state, event);
+				const { activations, entries } = context;
 				if (type === "activate" || type === "clear") {
 					const at = activations.indexOf(scope);
 					if (at >= 0) activations.splice(at, 1);
@@ -162,15 +158,14 @@ describe("any sequence of events", () => {
 				}
 				if (type === "update") entries.set(scope, entry);
 				if (type === "clear") entries.delete(scope);
-				if (type === "open") opened.add(scope);
-				if (type === "close") opened = new Set([...opened].filter((s) => s !== scope));
-				const lastActivated = [...activations].reverse().find((s) => opened.has(s));
-				const updatedOnly = [...opened].filter((s) => entries.has(s) && !activations.includes(s));
+				if (type === "open") context.opened.add(scope);
+				if (type === "close") context.opened.delete(scope);
+				const lastActivated = [...activations].reverse().find((s) => context.opened.has(s));
+				const updatedOnly = [...context.opened].filter((s) => entries.has(s) && !activations.includes(s));
 				const expected = lastActivated ?? updatedOnly[0] ?? null;
-				const label = `seed ${seed}: ${path.join(" ")}`;
-				expect(activeScope(state), label).toBe(expected);
-				expect(activeEntry(state), label).toEqual(expected === null ? null : entries.get(expected));
-			}
-		}
+				expect(activeScope(context.state), named).toBe(expected);
+				expect(activeEntry(context.state), named).toEqual(expected === null ? null : entries.get(expected));
+			},
+		);
 	});
 });

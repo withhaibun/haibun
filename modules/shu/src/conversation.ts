@@ -93,21 +93,8 @@ export const REQUEST_EVENTS = [
 	"erred",
 ] as const satisfies readonly TConversationEventType[];
 type TRequestEvent = Extract<TConversationEvent, { type: (typeof REQUEST_EVENTS)[number] }>;
-export const CONVERSATION_EVENTS = [
-	"open",
-	"read",
-	"failed",
-	"close",
-	"ask",
-	"started",
-	"text",
-	"status",
-	"recorded",
-	"refused",
-	"stop",
-	"ended",
-	"erred",
-] as const satisfies readonly TConversationEventType[];
+/** Every event: the conversation's own, and its turn's request's. */
+export const CONVERSATION_EVENTS = ["open", "read", "failed", "close", "ask", ...REQUEST_EVENTS] as const satisfies readonly TConversationEventType[];
 
 export const CLOSED_CONVERSATION: TConversationState = { status: "closed", session: null, turns: [], asked: null };
 

@@ -31,7 +31,7 @@ import {
 	type TConversationEventType,
 	type TConversationState,
 } from "./conversation.js";
-import { pickWith, seededRandom } from "./test/seeded-random.js";
+import { assertTable, pickWith, runSequences, staying as stayingOn } from "@haibun/core/lib/test/machine-table.js";
 
 /** A session, named by its first turn. */
 const FIRST = "0.1.1";
@@ -74,8 +74,7 @@ const after = (conversation: TConversationState, ...events: TConversationEvent[]
 const run = (...events: TConversationEvent[]): TConversationState => after(CLOSED_CONVERSATION, ...events);
 const on = (...types: TConversationEventType[]): TConversationState => run(...types.map((type) => EVENT[type]));
 /** The same status for every event but the ones named. */
-const staying = <S extends string>(status: S, moves: Partial<Record<TConversationEventType, S>>): Record<TConversationEventType, S> =>
-	Object.fromEntries(CONVERSATION_EVENTS.map((type) => [type, moves[type] ?? status])) as Record<TConversationEventType, S>;
+const staying = <S extends string>(status: S, moves: Partial<Record<TConversationEventType, S>>) => stayingOn(CONVERSATION_EVENTS, status, moves);
 const askedStatus = (conversation: TConversationState): TTurnStatus => conversation.asked?.status ?? "idle";
 /** A conversation holding a turn at a status actuality recorded, which the page's events don't move a turn to. */
 const holdingTurnAt = (status: TChatStatus): TConversationState => {
@@ -128,19 +127,9 @@ const expectedStatus = (conversation: TConversationState, type: TConversationEve
 };
 
 describe("every status and every event", () => {
-	for (const status of Object.keys(TABLE) as TConversationState["status"][]) {
-		it(`moves a conversation ${status} as the table states`, () => {
-			expect(AT[status].status).toBe(status);
-			for (const type of CONVERSATION_EVENTS) expect(transition(AT[status], EVENT[type]).status, `${status} + ${type}`).toBe(TABLE[status][type]);
-		});
-	}
-
-	for (const status of Object.keys(TURN_TABLE) as TTurnStatus[]) {
-		it(`moves the page's turn ${status} as the table states`, () => {
-			expect(askedStatus(TURN_AT[status])).toBe(status);
-			for (const type of CONVERSATION_EVENTS) expect(askedStatus(transition(TURN_AT[status], EVENT[type])), `${status} + ${type}`).toBe(TURN_TABLE[status][type]);
-		});
-	}
+	const byType = { events: CONVERSATION_EVENTS, event: (type: TConversationEventType) => EVENT[type], transition };
+	it("moves a conversation as the table states", () => assertTable(TABLE, AT, { ...byType, statusOf: (conversation) => conversation.status }));
+	it("moves the page's turn as the table states", () => assertTable(TURN_TABLE, TURN_AT, { ...byType, statusOf: askedStatus }));
 
 	it("leaves a conversation whose turn is not in flight unchanged by every event of a request", () => {
 		for (const status of ["idle", "completed", "failed", "stopped"] as const) {
@@ -301,30 +290,28 @@ describe("each move of the page's turn", () => {
 
 describe("any sequence of events", () => {
 	it("moves the page's turn only as its table states, it holds what its events delivered since it was asked, and the conversation it was asked in holds it once", () => {
-		for (let seed = 1; seed <= 200; seed++) {
-			const random = seededRandom(seed);
-			let conversation = CLOSED_CONVERSATION;
-			// What the page's turn holds, stated again from the events since the last question the conversation took.
-			const unasked = () => ({
-				askId: null as string | null,
-				sayId: undefined as string | undefined,
-				response: "",
-				progress: "",
-				context: [] as string[],
-				calls: [] as (typeof CALL)[],
-				stoppedBy: "",
-				refused: [] as (typeof REFUSED)[],
-			});
-			let held = unasked();
-			const path: string[] = [];
-			for (let step = 0; step < 40; step++) {
+		// What the page's turn holds, stated again from the events since the last question the conversation took.
+		const unasked = () => ({
+			askId: null as string | null,
+			sayId: undefined as string | undefined,
+			response: "",
+			progress: "",
+			context: [] as string[],
+			calls: [] as (typeof CALL)[],
+			stoppedBy: "",
+			refused: [] as (typeof REFUSED)[],
+		});
+		runSequences(
+			() => ({ conversation: CLOSED_CONVERSATION, held: unasked() }),
+			(at, random, named) => {
 				const type = pickWith(random, CONVERSATION_EVENTS);
 				const event = EVENT[type];
-				path.push(type);
-				const label = `seed ${seed}: ${path.join(" ")}`;
+				const label = named(type);
+				const { conversation } = at;
 				const wanted = expectedStatus(conversation, type);
 				const running = conversation.asked?.status === "running";
-				if (event.type === "ask" && !askRefusal(conversation)) held = unasked();
+				if (event.type === "ask" && !askRefusal(conversation)) at.held = unasked();
+				const { held } = at;
 				if (event.type === "text" && running) held.response += event.piece;
 				if (event.type === "status" && running) held.progress = event.line;
 				if (event.type === "context" && running) held.context = [...held.context, ...event.lines];
@@ -335,19 +322,20 @@ describe("any sequence of events", () => {
 				}
 				if (event.type === "stop" && inFlight(conversation.asked?.status) && !held.stoppedBy) held.stoppedBy = event.reason;
 				if (event.type === "refused" && running && !held.refused.some((refused) => refused.action === event.call.action)) held.refused = [...held.refused, event.call];
-				conversation = transition(conversation, event);
-				expect(askedStatus(conversation), label).toBe(wanted);
-				expect(conversation.turns.filter((turn) => turn.askId === null).length, `${label}: at most one turn that a question doesn't name`).toBeLessThanOrEqual(1);
-				const { asked } = conversation;
-				if (!asked) continue;
+				at.conversation = transition(conversation, event);
+				const moved = at.conversation;
+				expect(askedStatus(moved), label).toBe(wanted);
+				expect(moved.turns.filter((turn) => turn.askId === null).length, `${label}: at most one turn that a question doesn't name`).toBeLessThanOrEqual(1);
+				const { asked } = moved;
+				if (!asked) return;
 				const { askId, sayId, response, progress, context, calls, stoppedBy, refused } = asked;
 				expect({ askId, sayId, response, progress, context, calls, stoppedBy, refused }, label).toEqual(held);
-				if (conversation.status !== "open" || asked.session !== conversation.session) continue;
-				const holds = conversation.turns.filter((turn) => turn.askId === asked.askId);
+				if (moved.status !== "open" || asked.session !== moved.session) return;
+				const holds = moved.turns.filter((turn) => turn.askId === asked.askId);
 				expect(holds, `${label}: the conversation holds the page's turn once`).toHaveLength(1);
 				if (inFlight(asked.status)) expect(holds, `${label}: as the page holds it while it runs`).toEqual([turnOf(asked)]);
-			}
-		}
+			},
+		);
 	});
 });
 

@@ -17,6 +17,8 @@
  * signals mirror it for ergonomic auto-rerender of main-bundle lit components.
  */
 import { Signal } from "@lit-labs/signals";
+import type { ICell } from "@haibun/core/lib/cell.js";
+import { Machine, type TTransition, type TMove } from "@haibun/core/lib/machine.js";
 import { pagePinned } from "./page-pinned.js";
 import { NOTHING_SELECTED_LABEL, type TComboboxOption, type TPageContext } from "./schemas.js";
 
@@ -50,7 +52,7 @@ function getSharedCell<T>(key: string, initial: T): SharedCell<T> {
  * same way in any bundle via `ShuElement.watchSignal` (which calls `subscribe` here), cross-bundle views must NOT
  * rely on reading `get()` in render() for reactivity; only `subscribe` reaches them.
  */
-export class SharedSignal<T> {
+export class SharedSignal<T> implements ICell<T> {
 	readonly #signal: Signal.State<T>;
 	readonly #subs: Set<(v: T, before: T) => void>;
 	constructor(key: string, initial: T) {
@@ -77,37 +79,14 @@ export class SharedSignal<T> {
 	}
 }
 
-/** One move of a machine: the event, and the state before and after it. */
-type TMove<S, E> = { event: E; before: S; after: S };
-
 /**
- * A page-level machine: one state, moved only by events through one pure transition. Its state is a shared cell every
- * component and bundle reads, and each move is told to its followers with the event that made it, so a follower acts
- * on what happened rather than working it out from two states.
+ * A page-level machine: core's machine with its state and its moves held in shared cells, so every component and bundle
+ * reads the state and follows the moves.
  */
-export class SharedMachine<S, E> {
-	readonly state: SharedSignal<S>;
-	readonly #moves: SharedSignal<TMove<S, E> | null>;
-	readonly #transition: (state: S, event: E) => S;
-	constructor(key: string, initial: S, transition: (state: S, event: E) => S) {
-		this.state = new SharedSignal(key, initial);
-		this.#moves = new SharedSignal<TMove<S, E> | null>(`${key}:moves`, null);
-		this.#transition = transition;
-	}
-	/** The only writer: raise an event, and every reader sees the next state and every follower the move. An event that
-	 *  doesn't move the state doesn't tell a follower. */
-	dispatch(event: E): S {
-		const before = this.state.get();
-		const after = this.#transition(before, event);
-		this.state.set(after);
-		if (after !== before) this.#moves.set({ event, before, after });
-		return after;
-	}
-	/** Follow each move for as long as the returned function is not called. */
-	follow(onMove: (move: TMove<S, E>) => void): () => void {
-		return this.#moves.subscribe((move) => {
-			if (move) onMove(move);
-		});
+export class SharedMachine<S, E> extends Machine<S, E> {
+	declare readonly state: SharedSignal<S>;
+	constructor(key: string, initial: S, transition: TTransition<S, E>) {
+		super(new SharedSignal(key, initial), new SharedSignal<TMove<S, E> | null>(`${key}:moves`, null), transition);
 	}
 }
 

@@ -7,7 +7,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { lazyWindowedSource } from "./windowed-source.js";
-import { seededRandom } from "./test/seeded-random.js";
+import { seededRandom } from "@haibun/core/lib/test/machine-table.js";
 
 /** A row's value is its index, so a wrong row is detectable by inspection. */
 const rowFor = (index: number): number => index;
