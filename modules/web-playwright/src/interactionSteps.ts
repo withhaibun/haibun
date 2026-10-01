@@ -40,7 +40,7 @@ import {
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { locatorDomainOf } from "./web-playwright.js";
 import { WEB_PAGE, WebPlaywright, type TPageScope } from "./web-playwright.js";
-import { PAGE_READ, WEB_PLAYWRIGHT_ACTIONS } from "./actions.js";
+import { PAGE_READ, READS_THE_PAGE, WEB_PLAYWRIGHT_ACTIONS } from "./actions.js";
 import { DOMAIN_BROWSER_TAB, DOMAIN_BROWSER_TABS, DOMAIN_BROWSER_TAB_TEXT, DOMAIN_RELAY_ATTACHMENT } from "./relay/relay-wire.js";
 import { readAction } from "@haibun/core/lib/actions.js";
 import { Access } from "@haibun/core/lib/resources.js";
@@ -52,7 +52,20 @@ import { provenanceFromFeatureStep } from "@haibun/core/steps/variables-stepper.
 import { FlowRunner } from "@haibun/core/lib/core/flow-runner.js";
 
 /** The steps that act on what an accessibility snapshot reads, which the snapshot links. */
-const SNAPSHOT_ACTIONS = ["click", "setValue", "press", "selectionOption", "gotoPage", "goBack", "takeScreenshot"] as const;
+const SNAPSHOT_ACTIONS = ["click", "clickBy", "setValue", "press", "selectionOption", "gotoPage", "goBack", "takeScreenshot"] as const;
+
+/** The page as a snapshot reads it: its address, its title, and its aria snapshot in Playwright's AI mode, which names each
+ *  element with the reference `click … by "reference"` takes, with links to the steps that act on it. */
+async function readThePage(wp: WebPlaywright) {
+	const read = await wp.withScope(async (target) => {
+		const page = "page" in target ? target.page() : target;
+		return { url: page.url(), title: await page.title(), snapshot: await target.ariaSnapshot({ mode: "ai" }) };
+	});
+	return { ...read, [HYPERMEDIA.LINKS]: Object.fromEntries(SNAPSHOT_ACTIONS.map((step) => [step, { method: stepMethodName(wp, step) }])) };
+}
+
+/** What an action names as the read that answers a caller who reads the page it changed. */
+const ANSWERED_BY_THE_PAGE = { answeredBy: READS_THE_PAGE };
 
 /** What a dialog kept in a variable holds in `field`. A variable that doesn't keep a record doesn't keep a dialog. */
 const dialogSays = (kept: unknown, field: TDialogField) => (typeof kept === "object" && kept !== null ? DialogSaysSchema.parse(kept)[field] : undefined);
@@ -63,6 +76,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		press: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: `press {key: ${DOMAIN_KEYBOARD_KEY}}`,
+			...ANSWERED_BY_THE_PAGE,
 			action: async ({ key }: { key: string }) => {
 				await wp.withPage(async (page: Page) => await page.keyboard.press(key));
 				return OK;
@@ -79,6 +93,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		setValue: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: `enter {what: ${DOMAIN_TEXT}} into {field: ${DOMAIN_PAGE_TARGET}}`,
+			...ANSWERED_BY_THE_PAGE,
 			action: async ({ what, field }: { what: string; field: TStepValue }) => {
 				await wp.withScope(async (scope) => {
 					const locator = wp.locateByDomain(scope, field);
@@ -97,6 +112,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		selectionOption: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: `select {option: ${DOMAIN_PAGE_TEXT}} for {field: ${DOMAIN_PAGE_TARGET}}`,
+			...ANSWERED_BY_THE_PAGE,
 			action: async ({ option, field }: { option: string; field: TStepValue }) => {
 				await wp.withScope(async (scope) => await wp.locateByDomain(scope, field).selectOption({ label: option }));
 				return OK;
@@ -241,6 +257,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		click: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: `click( invisible)? {target: ${DOMAIN_PAGE_TARGET}}( with force)?`,
+			...ANSWERED_BY_THE_PAGE,
 			action: async ({ target }: { target: TStepValue }, featureStep) => {
 				const forced = featureStep.in.match(/ with force$/) || featureStep.in.match(/^click invisible/) ? { force: true } : {};
 				await wp.withScope(async (scope) => await wp.locateByDomain(scope, target).click(forced));
@@ -269,6 +286,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		clickBy: {
 			precludes: [`${wp.constructor.name}.click`],
 			gwta: `click {target: ${DOMAIN_PAGE_TARGET}} by {method: ${DOMAIN_FIND_WAY}}`,
+			...ANSWERED_BY_THE_PAGE,
 			action: async ({ target: { value }, method }: { target: TStepValue; method: TFindWay }) => {
 				const target = String(value);
 				const bys: Record<TFindWay, (scope: TPageScope) => Locator> = {
@@ -279,6 +297,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 					label: (scope) => scope.getByLabel(target),
 					title: (scope) => scope.getByTitle(target),
 					text: (scope) => scope.getByText(target),
+					reference: (scope) => scope.locator(`aria-ref=${target}`),
 				};
 				await wp.withScope(async (scope) => await bys[method](scope).click());
 				return OK;
@@ -289,6 +308,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		gotoPage: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: `go to the {name: ${DOMAIN_LINK}} ${WEB_PAGE}`,
+			...ANSWERED_BY_THE_PAGE,
 			action: async ({ name }: { name: string }) => {
 				const response = await wp.withPage<Response | null>(async (page: Page) => {
 					// A relative link, as a page's own links are written, is resolved against the page it was read from.
@@ -327,6 +347,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		goBack: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: "go back",
+			...ANSWERED_BY_THE_PAGE,
 			action: async () => {
 				await wp.withPage(async (page: Page) => await page.goBack());
 				return OK;
@@ -563,16 +584,10 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			...PAGE_READ,
 			gwta: "take an accessibility snapshot",
 			description:
-				"Reads the page as Playwright's aria snapshot: YAML naming each element's role and accessible name, which are what the role, label and text locators address. Its links name the steps that act on what it read.",
+				'Reads the page as Playwright\'s aria snapshot in its AI mode: YAML naming each element\'s role and accessible name, and its reference, such as [ref=e2], which `click "e2" by "reference"` clicks. Its links name the steps that act on what it read, and a caller of each of those is answered with this read.',
 			read: true,
 			productsDomain: DOMAIN_ACCESSIBILITY_SNAPSHOT,
-			action: async () => {
-				const read = await wp.withScope(async (target) => {
-					const page = "page" in target ? target.page() : target;
-					return { url: page.url(), title: await page.title(), snapshot: await target.ariaSnapshot() };
-				});
-				return actionOKWithProducts({ ...read, [HYPERMEDIA.LINKS]: Object.fromEntries(SNAPSHOT_ACTIONS.map((step) => [step, { method: stepMethodName(wp, step) }])) });
-			},
+			action: async () => actionOKWithProducts(await readThePage(wp)),
 		},
 		saveURI: {
 			...PAGE_READ,

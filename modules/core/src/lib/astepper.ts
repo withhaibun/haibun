@@ -153,6 +153,9 @@ type TStepperStepBase = {
 	/** A step whose result answers the turn that called it, so that turn ends with it rather than asking its model
 	 *  again. A caller reads this from the step's definition, so which steps end a turn is known without running one. */
 	answersTheTurn?: boolean;
+	/** The read, a step of the same stepper, that answers a caller who reads what this step changed: a model's tool call is
+	 *  answered with it once the step passes, so it doesn't make that read next. */
+	answeredBy?: string;
 	/** Offer this step to a model before it discovers anything. A model is offered a small set at first, so that a
 	 *  request doesn't carry the whole manifest; a step marked here joins that set, because the question it answers is one
 	 *  an operator can open with. Reserve it for steps that are the only way to do what they do. A predicate reports

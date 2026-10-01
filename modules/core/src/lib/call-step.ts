@@ -9,7 +9,7 @@
  * A name that is not registered is answered, not thrown: each caller defines what the missing step means in its own
  * terms, and the seqPath is returned because a caller that records what it ran needs the identity of the call.
  */
-import { buildFeatureStepForTransport, runRegistry } from "./step-registry.js";
+import { buildFeatureStepForTransport, runRegistry, stepMethodName, type StepTool } from "./step-registry.js";
 import { dispatchStep, type DispatchContext } from "./step-dispatch.js";
 import { allocateSyntheticSeqPath } from "./host-id.js";
 import type { TSeqPath, TStepResult } from "../schema/protocol.js";
@@ -38,4 +38,13 @@ export async function callStepFrom(
 	const steppers = from.steppers ?? [];
 	const registry = runRegistry(world);
 	return await callStepByName({ registry, world, steppers }, method, input);
+}
+
+/** What a call to `tool` answers a caller who reads what the step changed: the read its step names, once the step passed. A
+ *  read that doesn't pass leaves the step's own answer, since the step did what it was asked. */
+export async function answeredFor(ctx: DispatchContext, tool: StepTool, result: TStepResult): Promise<TStepResult> {
+	const { answeredBy, stepperName } = tool.descriptor;
+	if (!result.ok || !answeredBy) return result;
+	const { result: read } = await callStepByName(ctx, stepMethodName(stepperName, answeredBy));
+	return read.ok ? read : result;
 }

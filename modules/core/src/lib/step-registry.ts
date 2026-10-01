@@ -217,6 +217,7 @@ export function createStepTool(stepper: AStepper, stepName: string, stepDef: TSt
 			read: stepDef.read === true,
 			fallback: stepDef.fallback === true,
 			answersTheTurn: stepDef.answersTheTurn === true,
+			...(stepDef.answeredBy ? { answeredBy: stepDef.answeredBy } : {}),
 			inputSchema,
 			outputSchema,
 		},

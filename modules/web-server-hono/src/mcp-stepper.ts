@@ -1,4 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { answeredFor } from "@haibun/core/lib/call-step.js";
 import { StreamableHTTPTransport } from "@hono/mcp";
 import {
 	ListToolsRequestSchema,
@@ -117,7 +118,11 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 			// A caller holds only what it presented, not what the step that started this server held.
 			const result = await runActingAs(
 				principal,
-				() => dispatchStep({ registry: this.registry(), world, steppers: this.steppers, grantedCapability: grantedCapability ?? [] }, featureStep),
+				async () => {
+					// A model reads what its call changed next, so a call whose step names the read that answers it is answered with it.
+					const dispatched = { registry: this.registry(), world, steppers: this.steppers, grantedCapability: grantedCapability ?? [] };
+					return answeredFor(dispatched, tool, await dispatchStep(dispatched, featureStep));
+				},
 				restingOn(),
 			);
 			if (!result.ok) return { isError: true, content: [{ type: "text", text: result.errorMessage ?? "Step failed" }] };

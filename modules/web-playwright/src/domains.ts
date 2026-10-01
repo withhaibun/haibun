@@ -55,7 +55,7 @@ const PageContentsSchema = z.object({ html: z.string() });
 const AccessibilitySnapshotSchema = z.object({
 	url: z.string(),
 	title: z.string(),
-	snapshot: z.string().describe("The page's aria snapshot, in YAML."),
+	snapshot: z.string().describe("The page's aria snapshot, in YAML, each element with its reference, such as [ref=e2]."),
 	[HYPERMEDIA.LINKS]: z.record(z.string(), z.object({ method: z.string() }).strict()),
 });
 const RestJsonCountSchema = z.object({ summary: z.string(), details: z.object({ count: z.number() }) });
@@ -95,7 +95,7 @@ export const DOMAIN_HTTP_METHOD = "http-method";
 export const DOMAIN_HTTP_METHOD_WITH_BODY = "http-method-with-body";
 export const DOMAIN_HTTP_METHOD_WITHOUT_BODY = "http-method-without-body";
 /** The ways to find what a click presses, each a way the page is read by. */
-const FIND_WAYS = ["alt text", "test id", "placeholder", "role", "label", "title", "text"] as const;
+const FIND_WAYS = ["alt text", "test id", "placeholder", "role", "label", "title", "text", "reference"] as const;
 export type TFindWay = (typeof FIND_WAYS)[number];
 export const DOMAIN_FIND_WAY = "page-find-way";
 /** What the requests a page makes to a URL are: refused, left without an answer, or answered. */
@@ -116,7 +116,11 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 	createEnumDomainDefinition({ name: DOMAIN_HTTP_METHOD, values: [...HTTP_METHODS_WITHOUT_BODY, ...HTTP_METHODS_WITH_BODY], description: "An HTTP method a request is made with" }),
 	createEnumDomainDefinition({ name: DOMAIN_HTTP_METHOD_WITH_BODY, values: [...HTTP_METHODS_WITH_BODY], description: "An HTTP method whose request sends a body" }),
 	createEnumDomainDefinition({ name: DOMAIN_HTTP_METHOD_WITHOUT_BODY, values: [...HTTP_METHODS_WITHOUT_BODY], description: "An HTTP method whose request doesn't send a body" }),
-	createEnumDomainDefinition({ name: DOMAIN_FIND_WAY, values: [...FIND_WAYS], description: "A way to find what a click presses" }),
+	createEnumDomainDefinition({
+		name: DOMAIN_FIND_WAY,
+		values: [...FIND_WAYS],
+		description: "A way to find what a click presses; a reference is one an accessibility snapshot names, such as e2",
+	}),
 	createEnumDomainDefinition({
 		name: DOMAIN_REQUEST_STATE,
 		values: Object.values(REQUEST_STATE),

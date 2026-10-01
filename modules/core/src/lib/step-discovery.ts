@@ -76,6 +76,8 @@ export const StepDescriptorSchema = z
 		fallback: z.boolean(),
 		/** Whether the step's result answers the turn that called it, so that turn ends with it rather than asking its model again. */
 		answersTheTurn: z.boolean(),
+		/** The read that answers a caller who reads what the step changed, where the step names one. */
+		answeredBy: z.string().optional(),
 		/** The origin of the instance a transport calls the step at, where the step runs at another instance. */
 		remoteOrigin: z.string().optional(),
 		inputSchema: InputSchemaSchema,
