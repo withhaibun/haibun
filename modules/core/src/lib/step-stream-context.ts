@@ -24,10 +24,23 @@ import type { TIndividualAddress } from "./typed-links.js";
  *  requires, which the caller may hold and allow. */
 export type TRefusedCall = { step: string; action: string };
 
-/** One streamed step chunk: a status update, a text fragment, an individual the step just recorded, a call it was
- *  refused, a message in the protocol the call carries for its caller to act on, and/or a terminal error. The same shape
- *  is serialized to NDJSON/SSE by the transport and consumed by the shu client. */
-export type TStreamChunk = { status?: string; text?: string; recorded?: TIndividualAddress; refused?: TRefusedCall; message?: unknown; error?: string };
+/** A call a step made for its caller: the step it named, whether that step answered, and the record of the call. */
+export type TCalled = { name: string; ok: boolean; record: TIndividualAddress };
+
+/** One streamed step chunk: how the step is progressing, a line of what it sends on its caller's behalf, a call it made, a
+ *  text fragment, an individual the step just recorded, a call it was refused, a message in the protocol the call carries
+ *  for its caller to act on, and/or a terminal error. The same shape is serialized to NDJSON/SSE by the transport and
+ *  consumed by the shu client. */
+export type TStreamChunk = {
+	status?: string;
+	context?: string;
+	called?: TCalled;
+	text?: string;
+	recorded?: TIndividualAddress;
+	refused?: TRefusedCall;
+	message?: unknown;
+	error?: string;
+};
 
 type TStreamCtx = {
 	emit: (chunk: TStreamChunk) => void;

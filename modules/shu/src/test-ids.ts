@@ -18,7 +18,8 @@ export const SHU_TEST_IDS = {
 		ASK_FILE_SHOWN: "app-ask-file-shown",
 		CHAT_OUTPUT: "app-chat-output",
 		CHAT_TEXT: "app-chat-text",
-		CHAT_ACTIVITY: "app-chat-activity",
+		CHAT_CONTEXT: "app-chat-context",
+		CHAT_CALLS: "app-chat-calls",
 		/** A message's link to the Comment actuality recorded for it. */
 		CHAT_RECORD: "app-chat-record",
 		/** On a view whose reader scrolled away from the end: the control that states what arrived and returns them to it. */

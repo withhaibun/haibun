@@ -54,6 +54,8 @@ class ChunkEvents {
 	raise = (chunk: TStreamChunk): void => {
 		if (chunk.recorded) dispatchConversationEvent({ type: "recorded", record: { id: chunk.recorded.id, label: chunk.recorded.persistedAs } });
 		if (chunk.status) dispatchConversationEvent({ type: "status", line: chunk.status });
+		if (chunk.context) dispatchConversationEvent({ type: "context", line: chunk.context });
+		if (chunk.called) dispatchConversationEvent({ type: "called", call: chunk.called });
 		if (chunk.refused) dispatchConversationEvent({ type: "refused", call: chunk.refused });
 		if (!chunk.text) return;
 		this.#text += chunk.text;

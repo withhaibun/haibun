@@ -10,6 +10,7 @@
  */
 import { fileDataParts } from "@haibun/core/lib/media-object.js";
 import { DENOTES } from "@haibun/core/lib/typed-links.js";
+import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import type { TChatMessage } from "./shu-chat-message.js";
 import { anIndividual } from "../schemas.js";
@@ -44,7 +45,7 @@ const VIEW_DATA = [VIEW, expect.objectContaining({ "@id": "view:panes" })];
 /** What the view the reader is on states, or null where the reader is on the bar alone, so a case reads whether a turn sent it. */
 let onScreen: Record<string, unknown> | null = VIEW;
 /** What the turn states about itself before it writes anything. */
-const stated: string[] = [];
+const stated: TStreamChunk[] = [];
 /** What the stream fails with after actuality recorded the question, where it does; unset leaves it open. */
 let streamFails: string | undefined;
 /** What actuality refuses the turn with before it records anything, as a server refuses a target it does not hold. */
@@ -99,7 +100,7 @@ function aTurn(params: Record<string, unknown>): DrivenStream {
 		if (refusedBeforeRecording) return send({ error: refusedBeforeRecording });
 		await recording;
 		send({ recorded: { persistedAs: "Comment", id: question(turn) } });
-		for (const status of stated) send({ status });
+		for (const chunk of stated) send(chunk);
 		if (streamFails) return send({ error: streamFails });
 		// A case finishes the stream with the reply text.
 		await new Promise<void>((resolve) => {
@@ -460,12 +461,15 @@ describe("who reads the context", () => {
 });
 
 describe("what a turn states about itself", () => {
-	it("is kept on its answer in order, and the spinner shows the latest", async () => {
-		stated.push("context sent:\nEmail -> total -> 2", "dispatching GraphStepper-graphQuery, reading the emails", "generated 40 chars");
+	it("keeps the context it sent and the calls it made on its answer, each in order, and the spinner shows its latest progress", async () => {
+		const call = { name: "GraphStepper-graphQuery", ok: true, record: { persistedAs: "ToolCall", id: "tcall-1" } };
+		stated.push({ context: "Email -> total -> 2" }, { status: "dispatching GraphStepper-graphQuery, reading the emails" }, { called: call }, { status: "generated 40 chars" });
 		const { pane, history } = await aPage();
 		await submit(pane, "what do these have in common");
-		expect(answers(history)[0].message.activity).toEqual(stated);
-		expect(answers(history)[0].message.spinnerStatus).toBe("generated 40 chars");
+		const { message } = answers(history)[0];
+		expect(message.context).toEqual(["Email -> total -> 2"]);
+		expect(message.calls).toEqual([call]);
+		expect(message.spinnerStatus).toBe("generated 40 chars");
 	});
 
 	it("moves its answer once for the pieces the stream brings within a frame, and keeps what the stream ends on", async () => {

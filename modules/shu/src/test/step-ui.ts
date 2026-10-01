@@ -187,11 +187,11 @@ export function createStepUI(wp: WebPlaywright) {
 		return [setAs({ what: ASK_LOCATOR.TURNS_SHOWN, domain: "page-locator", value }), waitFor({ target: ASK_LOCATOR.TURNS_SHOWN })];
 	}
 
-	/** Wait until a turn states `statement` among the context it sent, the conversation it followed from and the calls it
-	 *  made. The statement is embedded in a single-quoted selector, so it may not hold a single quote. */
+	/** Wait until a turn states `statement` among the context it sent and the conversation it followed from. The
+	 *  statement is embedded in a single-quoted selector, so it may not hold a single quote. */
 	function askStates(statement: string): TKirejiStep[] {
 		if (statement.includes("'")) throw new Error(`askStates: "${statement}" holds a single quote, which ends the selector it is embedded in`);
-		const value = `"[data-testid='${IDS.APP.CHAT_ACTIVITY}']:has-text('${statement}')"`;
+		const value = `"[data-testid='${IDS.APP.CHAT_CONTEXT}']:has-text('${statement}')"`;
 		return [setAs({ what: ASK_LOCATOR.STATED, domain: "page-locator", value }), waitFor({ target: ASK_LOCATOR.STATED })];
 	}
 

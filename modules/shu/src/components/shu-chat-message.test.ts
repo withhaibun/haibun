@@ -40,13 +40,15 @@ beforeEach(() => {
 afterEach(() => document.removeEventListener("click", followPaneLink, { capture: true }));
 
 describe("the order a chat message reads in", () => {
-	it("puts the context and calls above the answer", async () => {
-		const el = await rendered({ id: "m1", role: "llm", text: "an answer", status: "completed", activity: ["context sent: 1 record", "call: GraphStepper-getIndividual"] });
-		const activity = el.querySelector(".chat-activity");
+	it("puts the context sent and the calls made above the answer, each closed until a reader opens it", async () => {
+		const calls = [{ name: "GraphStepper-getIndividual", ok: true, record: { persistedAs: "ToolCall", id: "tcall-1" } }];
+		const el = await rendered({ id: "m1", role: "llm", text: "an answer", status: "completed", context: ["Email -> total -> 1"], calls });
+		const [context, called] = [SHU_TEST_IDS.APP.CHAT_CONTEXT, SHU_TEST_IDS.APP.CHAT_CALLS].map((id) => el.querySelector<HTMLDetailsElement>(`[data-testid="${id}"]`));
 		const answer = el.querySelector(".chat-text");
-		expect(activity, "the activity is rendered").not.toBeNull();
-		expect(answer, "and so is the answer").not.toBeNull();
-		expect(activity?.compareDocumentPosition(answer as Node) ?? 0, "the activity precedes the answer").toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+		expect(context?.querySelector("summary")?.textContent, "the context counts its lines").toBe("context sent (1 lines)");
+		expect(called?.querySelector("summary")?.textContent, "and the calls count apart from it").toBe("calls (1)");
+		expect([context?.open, called?.open], "each closed").toEqual([false, false]);
+		expect(called?.compareDocumentPosition(answer as Node) ?? 0, "they precede the answer").toBe(Node.DOCUMENT_POSITION_FOLLOWING);
 	});
 });
 
@@ -132,11 +134,14 @@ describe("the records a message names", () => {
 		expect(label && JSON.parse(label.getAttribute("linkTarget") ?? "{}")).toEqual({ persistedAs: COMMENT_LABEL, id: "ask-1" });
 	});
 
-	it("links the record of a call its activity names, and its spinner shows the words that name it", async () => {
+	it("links each call to its record and each context line to what it is about, and its spinner shows the words that name a record", async () => {
 		const line = markdownRef(CALLED, TOOL_CALL, CALL_ID);
-		const el = await rendered({ id: "a1", role: "llm", status: "running", activity: [line], spinnerStatus: line, spinnerVisible: true });
-		const activity = el.querySelector(`[data-testid="${SHU_TEST_IDS.APP.CHAT_ACTIVITY}"]`) as ParentNode;
-		expect(refs(activity)).toEqual([[REF_DENOTES.individual, { persistedAs: TOOL_CALL, id: CALL_ID }]]);
+		const calls = [{ name: CALLED, ok: true, record: { persistedAs: TOOL_CALL, id: CALL_ID } }];
+		const context = [markdownRef("ask-1 -> self -> the question", COMMENT_LABEL, "ask-1")];
+		const el = await rendered({ id: "a1", role: "llm", status: "running", context, calls, spinnerStatus: line, spinnerVisible: true });
+		const within = (id: string) => el.querySelector(`[data-testid="${id}"]`) as ParentNode;
+		expect(refs(within(SHU_TEST_IDS.APP.CHAT_CALLS))).toEqual([[REF_DENOTES.individual, { persistedAs: TOOL_CALL, id: CALL_ID }]]);
+		expect(refs(within(SHU_TEST_IDS.APP.CHAT_CONTEXT))).toEqual([[REF_DENOTES.individual, { persistedAs: COMMENT_LABEL, id: "ask-1" }]]);
 		expect((el.querySelector("shu-spinner") as HTMLElement & { status?: string }).status).toBe(CALLED);
 	});
 });

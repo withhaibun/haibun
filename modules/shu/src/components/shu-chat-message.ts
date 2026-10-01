@@ -17,6 +17,7 @@ import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { patternRef, recordRef } from "./shu-ref.js";
+import { IndividualAddressSchema } from "@haibun/core/lib/typed-links.js";
 import { BundleSchema, ChatRoleSchema, ChatStatusSchema, UNVERIFIED_TURN, type TBundle, type TChatRole, type TQuestionFork } from "../schemas.js";
 
 /** Styles for a light-DOM chat message, exported for the shadow scope that hosts the activity history: the message
@@ -47,11 +48,11 @@ export const chatMessageStyles = css`
 	}
 	shu-chat-message .chat-text pre { padding: var(--shu-space-2) var(--shu-space-3); overflow-x: auto; }
 	shu-chat-message .chat-error { color: var(--shu-error); font-size: inherit; white-space: pre-wrap; padding: var(--shu-space-2) 0; }
-	/* What the turn was made of, closed until a reader opens it: the context it sent and every call it made. */
-	shu-chat-message .chat-activity { font-size: var(--shu-font-sm); color: var(--shu-fg-muted); }
-	shu-chat-message .chat-activity summary { cursor: pointer; }
-	shu-chat-message .chat-activity ol { margin: var(--shu-space-1) 0; padding-inline-start: var(--shu-space-4); }
-	shu-chat-message .chat-activity li { white-space: pre-wrap; overflow-wrap: anywhere; }
+	/* What the turn was made of, each closed until a reader opens it: the context it sent, and the calls it made. */
+	shu-chat-message .chat-made-of { font-size: var(--shu-font-sm); color: var(--shu-fg-muted); }
+	shu-chat-message .chat-made-of summary { cursor: pointer; }
+	shu-chat-message .chat-made-of ol { margin: var(--shu-space-1) 0; padding-inline-start: var(--shu-space-4); }
+	shu-chat-message .chat-made-of li { white-space: pre-wrap; overflow-wrap: anywhere; }
 `;
 
 /** One half of a conversation turn. `turn` names the turn by its question's record. `id` is the keyed-render identity (never reused). Spinner/status/error are llm-only UI state. */
@@ -62,9 +63,10 @@ export const ChatMessageSchema = z.object({
 	status: ChatStatusSchema.optional(),
 	turn: z.string().optional(),
 	spinnerStatus: z.string().default(""),
-	/** Everything the turn stated about itself, in order: the context it sent, each tool it dispatched, what it took.
-	 *  The spinner shows the latest of these; this keeps them, so a reader can read what the answer was made of. */
-	activity: z.array(z.string()).default([]),
+	/** The lines of what the turn sent: its model and window, the records it carried and the context it read. */
+	context: z.array(z.string()).default([]),
+	/** The calls the turn made, each with the record of the call. */
+	calls: z.array(z.object({ name: z.string(), ok: z.boolean(), record: IndividualAddressSchema })).default([]),
 	spinnerVisible: z.boolean().default(false),
 	spinnerSpinning: z.boolean().default(true),
 	error: z.string().default(""),
@@ -188,10 +190,18 @@ export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
 					${
 						// What the answer was made of reads before the answer: the context it was sent and the calls it made
 						// come first in time, and a reader weighing the answer reads them first.
-						m.activity.length > 0
-							? html`<details class="chat-activity" data-testid=${SHU_TEST_IDS.APP.CHAT_ACTIVITY}>
-								<summary>context and calls (${m.activity.length})</summary>
-								<ol>${m.activity.map((line) => html`<li>${unsafeHTML(renderRefProse(line, isKnownType))}</li>`)}</ol>
+						m.context.length > 0
+							? html`<details class="chat-made-of" data-testid=${SHU_TEST_IDS.APP.CHAT_CONTEXT}>
+								<summary>context sent (${m.context.length} lines)</summary>
+								<ol>${m.context.map((line) => html`<li>${unsafeHTML(renderRefProse(line, isKnownType))}</li>`)}</ol>
+							</details>`
+							: ""
+					}
+					${
+						m.calls.length > 0
+							? html`<details class="chat-made-of" data-testid=${SHU_TEST_IDS.APP.CHAT_CALLS}>
+								<summary>calls (${m.calls.length})</summary>
+								<ol>${m.calls.map(({ name, ok, record }) => html`<li>${recordRef(record.persistedAs, record.id, `${name} ${ok ? "answered" : "failed"}`)}</li>`)}</ol>
 							</details>`
 							: ""
 					}
