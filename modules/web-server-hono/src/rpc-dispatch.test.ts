@@ -40,6 +40,7 @@ class PingStepper extends AStepper {
 		readsAt: {
 			gwta: "level this reads at",
 			read: true,
+			readsAt: Access.public,
 			productsDomain: TEST_DOMAIN.readAt,
 			action: async () => actionOKWithProducts({ at: readingAt() ?? "unbounded" }),
 		},
@@ -386,6 +387,7 @@ class ReadStepper extends AStepper {
 		asked: {
 			gwta: "run is asked what it holds",
 			read: true,
+			readsAt: Access.public,
 			action: () => Promise.resolve(OK),
 		},
 		narratedCalls: {

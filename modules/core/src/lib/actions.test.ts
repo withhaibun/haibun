@@ -27,8 +27,9 @@ describe("what a step requires", () => {
 		expect(requiredAction("Pool", "swim", { capability: "Pool:enter" })).toBe("Pool:enter");
 	});
 
-	it("is a public read for a step that declares itself a read", () => {
-		expect(requiredAction("Pool", "hours", { read: true })).toBe("Read:public");
+	it("is a read at the level a read states, and at private for a read that doesn't state one, so it doesn't answer a public reader by default", () => {
+		expect(requiredAction("Pool", "hours", { read: true, readsAt: Access.public })).toBe("Read:public");
+		expect(requiredAction("Pool", "hours", { read: true })).toBe("Read:private");
 	});
 
 	it("is the step's own name for a step that doesn't declare a requirement, so omitting a declaration doesn't leave it open", () => {

@@ -13,6 +13,7 @@ import FakeAuthorityStepper, { DOMAIN_FAKE_HOLDER, FakeInvoker } from "@haibun/c
 import McpStepper from "./mcp-stepper.js";
 import WebServerStepper from "./web-server-stepper.js";
 import { DOMAIN_NUMBER } from "@haibun/core/lib/domains.js";
+import { Access } from "@haibun/core/lib/resources.js";
 
 class ProtectedStepper extends AStepper {
 	description = "Steps gated by a protected and an admin capability, for tests of MCP authorization.";
@@ -31,6 +32,7 @@ class ProtectedStepper extends AStepper {
 		readsAt: {
 			exact: "mcp read level",
 			read: true,
+			readsAt: Access.public,
 			productsDomain: TEST_DOMAIN.readAt,
 			action: async () => actionOKWithProducts({ at: readingAt() ?? "unbounded" }),
 		},

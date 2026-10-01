@@ -49,6 +49,7 @@ import { buildAffordances, providesWaypoints, AFFORDANCE_EVENT_PREFIX, type TWay
 import { FACT_GRAPH } from "../lib/working-memory.js";
 import { executionOf } from "../lib/seq-path.js";
 import { authorizedWith, RUN_AUTHORITY, stepInFlight } from "../lib/capability-context.js";
+import { Access } from "../lib/resources.js";
 
 const SMOKE_GOALS = "SMOKE_GOALS";
 const COMPOSITE_DECOMPOSITION = "COMPOSITE_DECOMPOSITION";
@@ -300,6 +301,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		affordancesOnOffer: {
 			gwta: "affordances on offer",
 			read: true,
+			readsAt: Access.public,
 			productsDomain: DOMAIN_AFFORDANCES,
 			action: async (_args, featureStep) => this.computeAffordances(undefined, featureStep),
 		},
@@ -307,6 +309,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		affordancesOnOfferAsOf: {
 			gwta: `affordances on offer as of {asOf: ${DOMAIN_STEP_PATH}}`,
 			read: true,
+			readsAt: Access.public,
 			productsDomain: DOMAIN_AFFORDANCES,
 			action: ({ asOf }: { asOf: number[] }, featureStep) => this.computeAffordances(asOf, featureStep),
 		},

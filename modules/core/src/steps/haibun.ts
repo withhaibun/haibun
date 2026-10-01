@@ -28,6 +28,7 @@ import { discoverSteps, runRegistry, stepMethodName } from "../lib/step-registry
 import { DOMAIN_STEP_DETAIL, SHOW_STEPS_ACTION, SHOW_STEPS_DESCRIPTION, StepDetailSchema, StepDiscoverySchema, type TStepsQuery } from "../lib/step-discovery.js";
 import { shownTo } from "../lib/capability-context.js";
 import { validateStep } from "../lib/step-validation.js";
+import { Access } from "../lib/resources.js";
 
 /** Whether a line resolves to one step, and the method of that step or why it doesn't resolve to exactly one. */
 const StepValidationSchema = z.discriminatedUnion("valid", [z.object({ valid: z.literal(true), method: z.string() }), z.object({ valid: z.literal(false), error: z.string() })]);
@@ -151,6 +152,7 @@ class Haibun extends AStepper implements IHasCycles {
 
 		validateStep: {
 			read: true,
+			readsAt: Access.public,
 			gwta: `validate step {text: ${DOMAIN_TEXT}}`,
 			description:
 				"Whether a line resolves to exactly one of the steps the caller may call, and which method that step is; otherwise why the line doesn't resolve to one of them or resolves to more than one.",

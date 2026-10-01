@@ -550,7 +550,9 @@ describe("step-dispatch", () => {
 			it("refuses a step that doesn't declare a capability to a caller not holding its name, and a read to a caller that doesn't hold a read", async () => {
 				const { call } = held();
 				await expect(call("readsAtCeiling", [], [0, 20, 1])).rejects.toThrow(/capability Held:readsAtCeiling required/);
-				await expect(call("describesItself", [], [0, 20, 2]), "a step isn't open to a caller that doesn't hold a capability").rejects.toThrow(/capability Read:public required/);
+				await expect(call("describesItself", [], [0, 20, 2]), "a read that doesn't state its level isn't open to a caller that doesn't read private").rejects.toThrow(
+					/capability Read:private required/,
+				);
 				expect((await call("describesItself", ["Read:private"], [0, 20, 3])).ok, "a broader read allows it").toBe(true);
 			});
 

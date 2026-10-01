@@ -43,6 +43,7 @@ import {
 	MEDIA_TYPE,
 	QuoteAnchorSchema,
 	type TQuoteAnchor,
+	Access,
 } from "../lib/resources.js";
 import { DOMAIN_LINK_REL, DOMAIN_RECORD_ID, DOMAIN_TEXT, linkVocabularyFor } from "../lib/domains.js";
 import { executionOf, formatRecordName, formatSeqPath, seqPathDomainDefinition } from "../lib/seq-path.js";
@@ -290,6 +291,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 		},
 		annotations: {
 			read: true,
+			readsAt: Access.public,
 			gwta: `get annotations for {label: ${DOMAIN_PERSISTED_TYPE}} {id: ${DOMAIN_RECORD_ID}}`,
 			recordIds: { id: "label" },
 			productsDomain: DOMAIN_ANNOTATIONS,

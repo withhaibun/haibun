@@ -27,7 +27,7 @@ import { WEBSERVER, type IWebServer } from "@haibun/web-server-hono/defs.js";
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
 import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
 import type { TTag } from "@haibun/core/lib/ttag.js";
-import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
+import { Access, SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { SEQ_PATH_FIELD, executionOf, extractSeqPathPrefix, formatRecordName, parseSeqPath } from "@haibun/core/lib/seq-path.js";
 import { SHU_TAG } from "./consts.js";
 import { READS_THE_RUNS_ARTIFACTS } from "@haibun/core/lib/actions.js";
@@ -407,6 +407,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			description:
 				"Receive a batch of fine-grained occurrences the SPA recorded and put each into actuality's blip channel, in the order the browser recorded them. A read: actuality doesn't retain a blip, so it doesn't record a batch's arrival either. A recorded batch would be a step whose events reach the page and repaint a scene that then records what it drew.",
 			read: true,
+			readsAt: Access.public,
 			action: ({ batch }: { batch: TClientBlips }) => {
 				const world = this.getWorld();
 				for (const blip of batch.blips) recordBlip(world, blip.name, blip.value, { ...blip.attributes, at: blip.at });

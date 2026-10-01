@@ -60,11 +60,13 @@ describe("a step as a tool", () => {
 			description: "wait {seconds: number} seconds\n\nRequires capability DescribedSteps:wait.",
 			inputSchema: step.inputSchema,
 		});
-		expect(toolDefinition(describedAs("gwtaStep")).description, "a read requires a public read").toBe("set {name} to {value}\n\nSets a value.\n\nRequires capability Read:public.");
+		expect(toolDefinition(describedAs("gwtaStep")).description, "a read that doesn't state its level requires a private read").toBe(
+			"set {name} to {value}\n\nSets a value.\n\nRequires capability Read:private.",
+		);
 		expect(describedAs("matchStep").capability, "and a step that doesn't declare an action requires its own name").toBe("DescribedSteps:matchStep");
 		expect(
 			toolDefinition({ ...describedAs("gwtaStep"), remoteOrigin: "http://localhost:8331" }).description,
 			"and the instance it runs at, for a step another instance declares",
-		).toBe("set {name} to {value}\n\nSets a value.\n\nRequires capability Read:public.\n\nRuns at http://localhost:8331.");
+		).toBe("set {name} to {value}\n\nSets a value.\n\nRequires capability Read:private.\n\nRuns at http://localhost:8331.");
 	});
 });

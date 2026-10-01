@@ -110,6 +110,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 	steps = {
 		getIndividualWithEdges: {
 			read: true,
+			readsAt: Access.public,
 			gwta: `get individual {label: ${DOMAIN_PERSISTED_TYPE}} {id: ${DOMAIN_RECORD_ID}} with edges`,
 			recordIds: { id: "label" },
 			fallback: true,
@@ -124,6 +125,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 		},
 		getSelectValues: {
 			read: true,
+			readsAt: Access.public,
 			gwta: `get select values for {label: ${DOMAIN_PERSISTED_TYPE}}`,
 			productsDomain: DOMAIN_SELECT_VALUES,
 			action: async ({ label }: { label: string }) => {
@@ -138,6 +140,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 		},
 		getClusteredQuads: {
 			read: true,
+			readsAt: Access.public,
 			gwta: "get clustered quads",
 			productsDomain: DOMAIN_CLUSTERED_QUADS,
 			// The sampled graph is the RPC response; keeping it on the event too holds a second copy of it per call.
@@ -226,6 +229,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 		},
 		density: {
 			read: true,
+			readsAt: Access.public,
 			gwta: `run shape {query: ${DOMAIN_DENSITY_QUERY}}`,
 			fallback: true,
 			productsDomain: DOMAIN_DENSITY,
@@ -237,6 +241,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 
 		graphQuery: {
 			read: true,
+			readsAt: Access.public,
 			gwta: `graph query {query: ${DOMAIN_GRAPH_QUERY}}`,
 			fallback: true,
 			productsDomain: DOMAIN_GRAPH_ROWS,

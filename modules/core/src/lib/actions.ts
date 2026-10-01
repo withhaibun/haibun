@@ -27,12 +27,13 @@ function readLevelOf(action: string): AccessLevel | undefined {
 }
 
 /**
- * The action a step requires: the one it declares; `Read:public` for a step that declares itself a read, since reading at
- * any level allows a public read; and for any other, the step's own name, so a step that doesn't declare a requirement is
- * refused to every caller not given it by name.
+ * The action a step requires: the one it declares; for a step that declares itself a read, a read at the level it states it
+ * reads at, or else at private, so a read that doesn't state its level answers only a caller who reads everything; and for
+ * any other, the step's own name, so a step that doesn't declare a requirement is refused to every caller not given it by
+ * name.
  */
-export function requiredAction(stepperName: string, stepName: string, step: { capability?: string; read?: boolean }): string {
-	return step.capability ?? (step.read ? readAction(Access.public) : `${stepperName}:${stepName}`);
+export function requiredAction(stepperName: string, stepName: string, step: { capability?: string; read?: boolean; readsAt?: AccessLevel }): string {
+	return step.capability ?? (step.read ? readAction(step.readsAt ?? Access.private) : `${stepperName}:${stepName}`);
 }
 
 /** The step a gate or a listing weighs: the action it requires, and the level of what it reads where it states one. */
