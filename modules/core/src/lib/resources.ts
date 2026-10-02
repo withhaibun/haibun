@@ -701,7 +701,16 @@ export type THypermediaTopology = {
 	 * An explicit rdfs:label on an individual still wins: this is the type's title, not an override of the reader's.
 	 */
 	displayLabel?: string;
+	/**
+	 * The calls each record of this type offers, by the rel a reader names each by: the step's method, the parameter that
+	 * takes the record, and what the call does. The store attaches each to every record it reads as a link, which a reader
+	 * follows as it follows the record's `self`, and offers by what it does.
+	 */
+	links?: Record<string, TOfferedCall>;
 };
+
+/** A call each record of a type offers: the step's method, the parameter that takes the record, and what the call does. */
+export type TOfferedCall = { method: string; param: string; summary: string };
 
 /**
  * Lightweight topology for non-persisted domains, schemas that aren't themselves

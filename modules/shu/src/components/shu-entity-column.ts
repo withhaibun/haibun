@@ -53,6 +53,15 @@ import { refsInContent } from "../markdown-refs.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { pageAddress } from "../view-hash.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
+import { z } from "zod";
+import { CallLinkSchema, type TCallLink } from "@haibun/core/lib/hypermedia.js";
+import { FileDataSchema, fileDataBlob } from "@haibun/core/lib/media-object.js";
+import { reportFailure } from "../client-log.js";
+
+/** The links a record carries, by rel. */
+const OfferedLinksSchema = z.record(z.string(), CallLinkSchema);
+/** What a call that sends a file answers with: the file's bytes as a data: address. */
+const FileAnswerSchema = z.object({ file: FileDataSchema }).loose();
 
 type VertexData = Record<string, unknown>;
 type EdgeData = { type: string; target: VertexData; direction?: "out" | "in" };
@@ -338,12 +347,36 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			contentHtml = `${typeLine}${summaryHtml}${this.renderRoles()}${fieldsHtml}${this.renderItemsTable()}${this.renderReferences()}${governance}${bodyLiterals}`;
 		}
 
-		return html`${unsafeHTML(this.emitHypermediaScript(this.products))}${this.renderColumnSettings()}<div class="entity-content">${this.renderFromStore()}${unsafeHTML(`${contentHtml}${recordJson(this.vertex, false)}`)}${this.renderBodyArea(contentIframe)}</div>`;
+		return html`${unsafeHTML(this.emitHypermediaScript(this.products))}${this.renderColumnSettings()}<div class="entity-content">${this.renderFromStore()}${this.renderOffers()}${unsafeHTML(`${contentHtml}${recordJson(this.vertex, false)}`)}${this.renderBodyArea(contentIframe)}</div>`;
 	}
 
 	protected updated(): void {
 		if (!this.state.loading && !this.state.error && this.vertex) this.bindEvents();
 	}
+
+	/** The calls the record offers, each a control that states what it does: a link that doesn't state it, as the record's
+	 *  own read, isn't offered. The record's links are its own, apart from the links of the step that read it. */
+	private renderOffers(): TemplateResult {
+		const offered = Object.entries(OfferedLinksSchema.parse(this.vertex?._links ?? {})).filter(([, link]) => link.summary);
+		return html`${offered.map(
+			([rel, link]) =>
+				html`<button type="button" class="entity-offer" data-testid=${`${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_OFFER}-${rel}`} @click=${() => this.followOffer(link)}>${link.summary}</button>`,
+		)}`;
+	}
+
+	/** Follow a call the record offers. A call that answers with a file opens it in a tab of its own, where the browser shows
+	 *  it as it shows any file of its kind: a PDF in its own viewer. The tab is opened in the click, which the browser allows. */
+	private readonly followOffer = async (link: TCallLink): Promise<void> => {
+		const opened = window.open("", "_blank");
+		try {
+			if (!opened) throw new Error("the browser didn't open a tab for what the call answers");
+			const { file } = FileAnswerSchema.parse(await this.entity.follow(link));
+			opened.location.href = URL.createObjectURL(fileDataBlob(file));
+		} catch (err) {
+			opened?.close();
+			reportFailure(SHU_TAG.ENTITY_COLUMN, `following "${link.summary}"`, err);
+		}
+	};
 
 	/** Where the view came from when it was not fetched: a copy held this session, or the browser store when offline.
 	 *  Absent for a live fetch, so its presence tells a reader why the view appeared without one. */

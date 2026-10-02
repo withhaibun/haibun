@@ -3,6 +3,7 @@ import { conduit } from "./hypermedia.js";
 import { linkTo, getAvailableSteps, requireStep, carriedProducts } from "./rpc-registry.js";
 import { appAccessLevel } from "./util.js";
 import { queryGraph } from "./quads-snapshot.js";
+import type { TCallLink } from "@haibun/core/lib/hypermedia.js";
 
 type FetchOutcome<T> = { ok: true; value: T } | { ok: false; error: string };
 
@@ -31,4 +32,11 @@ export async function fetchIndividuals(label: string, why: string): Promise<Fetc
 	} catch (err) {
 		return { ok: false, error: `${why}: ${errorDetail(err)}` };
 	}
+}
+
+/** Follow a call a record offers, as its link names it, and answer with what the call answered. A call that doesn't
+ *  answer throws why, so the reader that followed it states the failure. */
+export async function followCall<T>(link: TCallLink, why: string): Promise<T> {
+	await getAvailableSteps();
+	return await conduit().follow<T>(linkTo(link.method, link.params ?? {}, link.summary), why);
 }

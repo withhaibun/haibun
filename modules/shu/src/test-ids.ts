@@ -95,6 +95,8 @@ export const SHU_TEST_IDS = {
 		ENTITY_DETAILS: "entity-details",
 		/** The record's type, a link to the type's view. */
 		ENTITY_TYPE_LINK: "entity-type-link",
+		/** A call the record offers, by its rel: `entity-offer-{rel}`. */
+		ENTITY_OFFER: "entity-offer",
 		/** One of the classes an `@type` field names, a link to that class's view. */
 		TYPE_VALUE: "type-value",
 		PREDICATE_LINK: "predicate-link",

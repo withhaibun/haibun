@@ -448,7 +448,12 @@ export const PAGE_TERMS = { partOf: "partOf", next: "next" } as const;
 
 /** A call a link names: the step it runs, by method, and the parameters it takes. A view's `next` is one, and so is the
  *  link a record offers to read it. */
-export const CallLinkSchema = z.object({ method: z.string(), params: z.record(z.string(), z.unknown()).optional() });
+export const CallLinkSchema = z.object({
+	method: z.string(),
+	params: z.record(z.string(), z.unknown()).optional(),
+	/** What following the link does, where a reader is offered it: a link that states it is one a page offers as a control. */
+	summary: z.string().optional(),
+});
 export type TCallLink = z.infer<typeof CallLinkSchema>;
 
 /**

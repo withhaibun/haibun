@@ -1,5 +1,7 @@
 import type { ReactiveController, ReactiveControllerHost } from "lit";
 import { openEntity, refreshAnnotations, requestBody, annotateIndividual, getEntityView, subscribeEntities, type TEntityView, type TAnnotationDraft } from "../entity-store.js";
+import { followCall } from "../pane-fetch.js";
+import type { TCallLink } from "@haibun/core/lib/hypermedia.js";
 
 /**
  * EntityController: the per-view handle to ONE individual's data: its entity, the annotations anchored in it, and how
@@ -62,6 +64,11 @@ export class EntityController implements ReactiveController {
 	annotate(draft: TAnnotationDraft): Promise<{ ok: true } | { ok: false; error: string }> {
 		if (!this.id) return Promise.resolve({ ok: false as const, error: "an individual isn't open to annotate" });
 		return annotateIndividual(this.label, this.id, draft);
+	}
+
+	/** Follow a call the opened individual offers, and answer with what the call answered. */
+	follow<T>(link: TCallLink): Promise<T> {
+		return followCall<T>(link, `${this.label} ${this.id}: ${link.summary ?? link.method}`);
 	}
 
 	/** Stop tracking the opened individual. A host that shows something else (arbitrary products rather than a resolved

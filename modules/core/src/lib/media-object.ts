@@ -31,6 +31,12 @@ export const recordedFileData = (value: unknown): string => {
 	return `a ${encodingFormat} file of ${Math.floor((base64.length * 3) / 4 - (base64.match(/=+$/)?.[0].length ?? 0))} bytes`;
 };
 
+/** A file's bytes as a Blob of its media type, from its data: URL, as a page opens a file it was sent. */
+export function fileDataBlob(data: string): Blob {
+	const { encodingFormat, base64 } = fileDataParts(data);
+	return new Blob([Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))], { type: encodingFormat });
+}
+
 /** A file's media type and its bytes in base64, from its data: URL. */
 export function fileDataParts(data: string): { encodingFormat: string; base64: string } {
 	const [, encodingFormat, base64] = FILE_DATA.exec(data) ?? [];
