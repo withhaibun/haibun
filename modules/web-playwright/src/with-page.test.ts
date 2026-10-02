@@ -3,12 +3,14 @@ import type { Page } from "playwright";
 
 import WebPlaywright from "./web-playwright.js";
 
-/** A stepper whose page is a stand-in, so the order of the actions run on it is all that is observed. */
+/** A stepper whose page is a stand-in, so the order of the actions run on it, and each time it is brought to the front, is
+ *  all that is observed. */
 function stepperOnOnePage() {
 	const wp = new WebPlaywright();
-	const page = {} as Page;
+	const fronted: string[] = [];
+	const page = { bringToFront: () => Promise.resolve(void fronted.push("in front")) } as unknown as Page;
 	wp.getPage = () => Promise.resolve(page);
-	return wp;
+	return Object.assign(wp, { fronted });
 }
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
@@ -25,6 +27,13 @@ describe("withPage", () => {
 			});
 		await Promise.all([act("first"), act("second")]);
 		expect(order).toEqual(["first starts", "first ends", "second starts", "second ends"]);
+	});
+
+	it("brings the page to the front for each action, since a browser doesn't draw a page in a background tab", async () => {
+		const wp = stepperOnOnePage();
+		await wp.withPage(() => "first");
+		await wp.withPage(() => "second");
+		expect(wp.fronted).toEqual(["in front", "in front"]);
 	});
 
 	it("runs an action nested in another at once, rather than behind it", async () => {

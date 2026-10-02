@@ -40,11 +40,14 @@ export async function callStepFrom(
 	return await callStepByName({ registry, world, steppers }, method, input);
 }
 
-/** What a call to `tool` answers a caller who reads what the step changed: the read its step names, once the step passed. A
- *  read that doesn't pass leaves the step's own answer, since the step did what it was asked. */
+/** What a call to `tool` answers a caller who reads what the step changed: the read its step names, whether the step passed
+ *  or failed, since a step that fails may have changed what it acted on, as a navigation that reaches its page and fails
+ *  waiting for it. A failed step's answer keeps its failure and carries the read's products. A read that doesn't pass
+ *  leaves the step's own answer. */
 export async function answeredFor(ctx: DispatchContext, tool: StepTool, result: TStepResult): Promise<TStepResult> {
 	const { answeredBy, stepperName } = tool.descriptor;
-	if (!result.ok || !answeredBy) return result;
+	if (!answeredBy) return result;
 	const { result: read } = await callStepByName(ctx, stepMethodName(stepperName, answeredBy));
-	return read.ok ? read : result;
+	if (!read.ok) return result;
+	return result.ok ? read : { ...result, products: read.products };
 }

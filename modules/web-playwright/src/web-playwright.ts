@@ -295,7 +295,11 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		return await this.withPage((page) => f(this.inContainer ?? page));
 	}
 
+	/** Runs one action on the page with its tab in front, since a browser doesn't draw a page in a background tab, and an action
+	 *  such as a click waits for the page to draw. The person may switch tabs between a turn's calls, so each action brings
+	 *  its page to the front. */
 	async #act<TReturn>(page: Page, f: TWithPageCallback<TReturn>): Promise<TReturn> {
+		await page.bringToFront();
 		if (!this.inContainer && this.twinPage) await this.twinPage.patchPage(page);
 		return await f(page);
 	}

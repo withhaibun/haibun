@@ -1,7 +1,7 @@
 import { Page, Response, type Locator } from "playwright";
 
 import { TFeatureStep } from "@haibun/core/lib/astepper.js";
-import { HYPERMEDIA, OK, Origin, type TStepValue } from "@haibun/core/schema/protocol.js";
+import { HYPERMEDIA, OK, Origin, type TActionResult, type TStepValue } from "@haibun/core/schema/protocol.js";
 import {
 	DOMAIN_GLOB,
 	DOMAIN_NUMBER,
@@ -67,6 +67,17 @@ async function readThePage(wp: WebPlaywright) {
 /** What an action names as the read that answers a caller who reads the page it changed. */
 const ANSWERED_BY_THE_PAGE = { answeredBy: READS_THE_PAGE };
 
+/** Run an action on the page, and where it throws, state what it attempted before the browser's reason, as `Did not click
+ *  "Knock": …`, so a reader of the failure sees the action and the reason together. An action that returns its own result
+ *  is answered with it. */
+async function attempted(what: string, act: () => Promise<TActionResult | void>): Promise<TActionResult> {
+	try {
+		return (await act()) ?? OK;
+	} catch (e) {
+		return actionNotOK(`Did not ${what}: ${errorDetail(e)}`);
+	}
+}
+
 /** What a dialog kept in a variable holds in `field`. A variable that doesn't keep a record doesn't keep a dialog. */
 const dialogSays = (kept: unknown, field: TDialogField) => (typeof kept === "object" && kept !== null ? DialogSaysSchema.parse(kept)[field] : undefined);
 
@@ -77,10 +88,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: `press {key: ${DOMAIN_KEYBOARD_KEY}}`,
 			...ANSWERED_BY_THE_PAGE,
-			action: async ({ key }: { key: string }) => {
-				await wp.withPage(async (page: Page) => await page.keyboard.press(key));
-				return OK;
-			},
+			action: async ({ key }: { key: string }) => await attempted(`press "${key}"`, () => wp.withPage(async (page: Page) => await page.keyboard.press(key))),
 		},
 		type: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
@@ -94,29 +102,27 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: `enter {what: ${DOMAIN_TEXT}} into {field: ${DOMAIN_PAGE_TARGET}}`,
 			...ANSWERED_BY_THE_PAGE,
-			action: async ({ what, field }: { what: string; field: TStepValue }) => {
-				await wp.withScope(async (scope) => {
-					const locator = wp.locateByDomain(scope, field);
-					const tag = await locator.evaluate((el) => el.tagName.toLowerCase());
-					if (tag === "select") {
-						await locator.selectOption({ value: what }).catch(async () => {
-							await locator.selectOption({ label: what });
-						});
-					} else {
-						await locator.fill(what);
-					}
-				});
-				return OK;
-			},
+			action: async ({ what, field }: { what: string; field: TStepValue }) =>
+				await attempted(`enter "${what}" into ${String(field.value)}`, () =>
+					wp.withScope(async (scope) => {
+						const locator = wp.locateByDomain(scope, field);
+						const tag = await locator.evaluate((el) => el.tagName.toLowerCase());
+						if (tag === "select") {
+							await locator.selectOption({ value: what }).catch(async () => {
+								await locator.selectOption({ label: what });
+							});
+						} else {
+							await locator.fill(what);
+						}
+					}),
+				),
 		},
 		selectionOption: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: `select {option: ${DOMAIN_PAGE_TEXT}} for {field: ${DOMAIN_PAGE_TARGET}}`,
 			...ANSWERED_BY_THE_PAGE,
-			action: async ({ option, field }: { option: string; field: TStepValue }) => {
-				await wp.withScope(async (scope) => await wp.locateByDomain(scope, field).selectOption({ label: option }));
-				return OK;
-			},
+			action: async ({ option, field }: { option: string; field: TStepValue }) =>
+				await attempted(`select "${option}" for ${String(field.value)}`, () => wp.withScope(async (scope) => void (await wp.locateByDomain(scope, field).selectOption({ label: option })))),
 		},
 		dialogIs: {
 			...PAGE_READ,
@@ -259,8 +265,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			...ANSWERED_BY_THE_PAGE,
 			action: async ({ target }: { target: TStepValue }, featureStep) => {
 				const forced = featureStep.in.match(/ with force$/) || featureStep.in.match(/^click invisible/) ? { force: true } : {};
-				await wp.withScope(async (scope) => await wp.locateByDomain(scope, target).click(forced));
-				return OK;
+				return await attempted(`click ${String(target.value)}`, () => wp.withScope(async (scope) => await wp.locateByDomain(scope, target).click(forced)));
 			},
 		},
 		inElement: {
@@ -298,8 +303,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 					text: (scope) => scope.getByText(target),
 					reference: (scope) => scope.locator(`aria-ref=${target}`),
 				};
-				await wp.withScope(async (scope) => await bys[method](scope).click());
-				return OK;
+				return await attempted(`click "${target}" by ${method}`, () => wp.withScope(async (scope) => await bys[method](scope).click()));
 			},
 		},
 		//                          NAVIGATION
@@ -308,19 +312,20 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: `go to the {name: ${DOMAIN_LINK}} ${WEB_PAGE}`,
 			...ANSWERED_BY_THE_PAGE,
-			action: async ({ name }: { name: string }) => {
-				const response = await wp.withPage<Response | null>(async (page: Page) => {
-					// A relative link, as a page's own links are written, is resolved against the page it was read from.
-					const address = URL.parse(name, page.url());
-					if (!address) throw new Error(`"${name}" isn't an address, and doesn't resolve against the page's address ${page.url()}`);
-					return await wp.navigate(page, (options) => page.goto(address.href, options));
-				});
-				if (response?.ok()) return OK;
-				const headers = (await response?.allHeaders().catch(() => ({}))) || {};
-				return actionNotOK(`response not ok: ${response?.statusText()}`, {
-					artifact: jsonArtifact({ statusText: response?.statusText() || "", headers }),
-				});
-			},
+			action: async ({ name }: { name: string }) =>
+				await attempted(`go to ${name}`, async () => {
+					const response = await wp.withPage<Response | null>(async (page: Page) => {
+						// A relative link, as a page's own links are written, is resolved against the page it was read from.
+						const address = URL.parse(name, page.url());
+						if (!address) throw new Error(`"${name}" isn't an address, and doesn't resolve against the page's address ${page.url()}`);
+						return await wp.navigate(page, (options) => page.goto(address.href, options));
+					});
+					if (response?.ok()) return OK;
+					const headers = (await response?.allHeaders().catch(() => ({}))) || {};
+					return actionNotOK(`Did not go to ${name}: the response was ${response?.status()} ${response?.statusText()}`, {
+						artifact: jsonArtifact({ statusText: response?.statusText() || "", headers }),
+					});
+				}),
 		},
 		pageHasSettled: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.read,
@@ -335,20 +340,14 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		reloadPage: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: "reload page",
-			action: async () => {
-				await wp.withPage(async (page: Page) => await wp.navigate(page, (options) => page.reload(options)));
-				return OK;
-			},
+			action: async () => await attempted("reload the page", () => wp.withPage(async (page: Page) => void (await wp.navigate(page, (options) => page.reload(options))))),
 		},
 
 		goBack: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: "go back",
 			...ANSWERED_BY_THE_PAGE,
-			action: async () => {
-				await wp.withPage(async (page: Page) => await wp.navigate(page, (options) => page.goBack(options)));
-				return OK;
-			},
+			action: async () => await attempted("go back", () => wp.withPage(async (page: Page) => void (await wp.navigate(page, (options) => page.goBack(options))))),
 		},
 
 		blur: {
