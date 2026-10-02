@@ -8,7 +8,7 @@ import { AUTHORITY_KEY, SessionAuthority } from "../lib/session-authority.js";
 import { DELEGATIONS_READ_ACTION, DOMAIN_HELD_CALLS, HeldCallsSchema, type IAuthority } from "../lib/authority-types.js";
 import { DOMAIN_ACTIONS, DOMAIN_JSON, DOMAIN_LINK, DOMAIN_PRINCIPAL_REF } from "../lib/domains.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
-import { actingAs, authorizedWith, runActingAs, runAuthorizedWith } from "../lib/capability-context.js";
+import { actingAs, actingFor, authorizedWith, runActingAs, runAuthorizedWith } from "../lib/capability-context.js";
 import { capabilityAllows, delegatedActions, readAction } from "../lib/actions.js";
 import { activeSitePrincipal, SITE_DID_PREFIX } from "../lib/host-id.js";
 import { Access, AccessLevelSchema, PRINCIPAL_LABEL, principalDomainDefinition } from "../lib/resources.js";
@@ -159,7 +159,10 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 		const capability = parsed.data;
 		// The document goes to whoever knows how to read it, checked for everything it allows. This code doesn't read inside
 		// it: the framework doesn't hold a key or implement a specification.
-		const verified = await this.getAuthority().verifyEvidence({ kind: "document", document: capability, target });
+		// Who presents the document, which the verifier holds to its controller: a copy of a document doesn't carry the key it names.
+		const presenter = actingFor();
+		if (!presenter) return actionNotOK("holding capability: a capability is presented by a caller that proves who it is, and this caller doesn't");
+		const verified = await this.getAuthority().verifyEvidence({ kind: "document", document: capability, target, presenter });
 		if (!verified.ok) {
 			return actionNotOK(`holding capability: the evidence was refused, ${verified.error}`);
 		}

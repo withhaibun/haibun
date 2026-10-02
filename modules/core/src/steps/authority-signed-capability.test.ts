@@ -89,6 +89,8 @@ holding capability cap at "urn:res:1", comment on "${TEST_NODE_LABEL}" "node-1" 
 		expect(verifierState.lastEvidence?.action, "the verifier checks the document for everything it allows, since a single action isn't asked").toBeUndefined();
 		expect(verifierState.lastEvidence?.target, "and what it was asked of").toBe("urn:res:1");
 		expect(verifierState.lastEvidence?.document.id, "and is handed the document itself to read").toBe("urn:zcap:alice-comment");
+		const presented = verifierState.lastEvidence?.kind === "document" ? verifierState.lastEvidence.presenter : undefined;
+		expect(presented, "and who presents it, the root here, which the verifier holds to the document's controller").toEqual({ root: true });
 	});
 
 	it("fails the step (and doesn't write a record) when the registered verifier rejects the signed capability", async () => {

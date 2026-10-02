@@ -9,7 +9,7 @@ import type { IAuthorityVerifier, TActingFor, TAuthorityEvidence, TOutgoingReque
 
 describe("SessionAuthority", () => {
 	describe("evidence from outside this process", () => {
-		const evidence: TAuthorityEvidence = { kind: "document", document: { id: "urn:cap:1" }, action: "read", target: "urn:res:1" };
+		const evidence: TAuthorityEvidence = { kind: "document", document: { id: "urn:cap:1" }, action: "read", target: "urn:res:1", presenter: { root: true } };
 
 		it("refuses it when a verifier isn't registered to decide it, rather than deciding it here", async () => {
 			const authority = new SessionAuthority();

@@ -131,6 +131,7 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 			</div>
 
 			<h3>this page signs as</h3>
+			<p class="none">its public key, which a holder delegates to; the private key stays in this browser and isn't sent</p>
 			${controller ? html`<shu-page-key controller=${controller}></shu-page-key>` : html`<p class="none">this page doesn't hold a key, so it holds only what doesn't need a delegation here</p>`}
 
 			<h3>what this page may do</h3>
