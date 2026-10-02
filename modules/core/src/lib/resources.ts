@@ -251,6 +251,8 @@ type TRelPresentation = "summary" | "body" | "governance";
 
 export const LinkRelations = {
 	NAME: { rel: "name", uri: "as:name", range: "literal", presentation: "summary" as TRelPresentation },
+	// schema.org: the steps of a HowTo, in order, as a saved waypoint's activity holds the lines it runs.
+	STEP: { rel: "step", uri: "schema:step", range: "container" },
 	PUBLISHED: { rel: "published", uri: "as:published", range: "literal", subPropertyOf: "ganttStart" },
 	ATTRIBUTED_TO: { rel: "attributedTo", uri: "as:attributedTo", range: "iri", subPropertyOf: "fromActor", rolePriority: 10 },
 	// The addressee of an act: a message's recipients, a question's asked party, a decision's answered party. A

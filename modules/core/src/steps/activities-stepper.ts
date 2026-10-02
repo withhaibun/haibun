@@ -16,10 +16,13 @@ import { runRegistry, stepMethodName } from "../lib/step-registry.js";
 import { WAYPOINT_KIND, type TWaypointEntry, type TWaypointKind } from "../lib/affordances.js";
 import { namedInterpolation } from "../lib/namedVars.js";
 import { authorizedWith } from "../lib/capability-context.js";
+import { z } from "zod";
+import { LinkRelations, PersistedVertexSchema, type TDomainDefinition } from "../lib/resources.js";
 
 // need this type because some steps are dynamically generated (e.g. waypoints)
 type TActivitiesFixedSteps = {
 	saveWaypoint: TStepperStep;
+	registerSavedWaypoints: TStepperStep;
 	activity: TStepperStep;
 	waypointWithProof: TStepperStep;
 	waypointLabel: TStepperStep;
@@ -30,6 +33,36 @@ type TActivitiesStepperSteps = TStepperSteps & TActivitiesFixedSteps;
 
 /** Where a waypoint saved outside any feature line was saved from. */
 const SAVED_WAYPOINT_SOURCE = "a saved waypoint";
+
+export const SAVED_WAYPOINT_LABEL = "SavedWaypoint";
+const SavedWaypointSchema = PersistedVertexSchema.extend({
+	/** The waypoint's outcome, which names it. */
+	id: z.string(),
+	lines: z.array(z.string()),
+	source: z.string(),
+	generatedAtTime: z.string(),
+});
+type TSavedWaypoint = z.infer<typeof SavedWaypointSchema>;
+/** A waypoint saved while actuality ran, as a record: its outcome, which names it, the lines of its activity in order, and
+ *  where it was saved from, so actuality offers it again after a restart. A schema.org HowTo, whose steps are the lines. */
+export const savedWaypointDomainDefinition: TDomainDefinition = {
+	selectors: ["saved-waypoint"],
+	schema: SavedWaypointSchema,
+	description: "A waypoint saved while actuality ran: its outcome and the lines its activity runs, offered again after a restart.",
+	topology: {
+		persistedAs: SAVED_WAYPOINT_LABEL,
+		type: "schema:HowTo",
+		id: "id",
+		properties: {
+			id: LinkRelations.IDENTIFIER.rel,
+			lines: LinkRelations.STEP.rel,
+			source: LinkRelations.SOURCE_PATH.rel,
+			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
+		},
+		displayLabel: "id",
+		sortColumns: { generatedAtTime: "TIMESTAMPTZ" },
+	},
+};
 
 /**
  * Stepper that dynamically builds virtual steps from `waypoint` statements.
@@ -59,6 +92,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	private inActivityBlock = false;
 
 	cycles: IStepperCycles = {
+		getConcerns: () => ({ domains: [savedWaypointDomainDefinition] }),
 		startExecution: () => {
 			this.sendGraphLinkMessages();
 		},
@@ -142,8 +176,17 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			description:
 				"Registers a waypoint whose activity is these lines, as a step actuality offers from then on. A line that doesn't resolve to one step, and an outcome already registered, are refused before anything is registered.",
 			gwta: `save waypoint {outcome: ${DOMAIN_TITLE}} doing {statements: ${DOMAIN_STATEMENT_LINES}}`,
-			action: ({ outcome, statements }: { outcome: string; statements: string[] }, featureStep: TFeatureStep) => {
-				this.saveWaypoint(outcome, statements, featureStep.source?.path ?? SAVED_WAYPOINT_SOURCE);
+			action: async ({ outcome, statements }: { outcome: string; statements: string[] }, featureStep: TFeatureStep) => {
+				await this.saveWaypoint(outcome, statements, featureStep.source?.path ?? SAVED_WAYPOINT_SOURCE);
+				return OK;
+			},
+		},
+		registerSavedWaypoints: {
+			description: "Registers each waypoint saved before, as its record holds it, so a waypoint saved before a restart is offered again.",
+			gwta: "register the saved waypoints",
+			action: async () => {
+				const saved = await this.getWorld().shared.getStore().queryIndividuals(SAVED_WAYPOINT_LABEL);
+				for (const { id, lines, source } of saved.map((record) => SavedWaypointSchema.parse(record))) this.registerSavedWaypoint(id, lines, source);
 				return OK;
 			},
 		},
@@ -397,10 +440,19 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	}
 
 	/**
-	 * Register a waypoint whose activity is `lines`, for the whole run, as a feature's waypoint is registered, and refresh
-	 * actuality's registry, which announces the new step. `source` names where it was saved from.
+	 * Register a waypoint whose activity is `lines`, for the whole of actuality, as a feature's waypoint is registered, keep it
+	 * as a record, and refresh actuality's registry, which announces the new step. `source` names where it was saved from.
 	 */
-	saveWaypoint(outcome: string, lines: string[], source: string): void {
+	async saveWaypoint(outcome: string, lines: string[], source: string): Promise<void> {
+		// Saving a waypoint saved already, with the same lines, keeps it; another under the same outcome is refused.
+		if (JSON.stringify(this.getRegisteredOutcomes()[outcome]?.activityBlockSteps) === JSON.stringify(lines)) return;
+		this.registerSavedWaypoint(outcome, lines, source);
+		const saved: TSavedWaypoint = { id: outcome, lines, source, generatedAtTime: new Date().toISOString() };
+		await this.getWorld().shared.getStore().upsertIndividual(SAVED_WAYPOINT_LABEL, saved);
+	}
+
+	/** Register a saved waypoint, as `saveWaypoint` does, without keeping it again. */
+	private registerSavedWaypoint(outcome: string, lines: string[], source: string): void {
 		const world = this.getWorld();
 		const steppers = runSteppers(world);
 		if (this.steps[outcome]) throw new Error(`the outcome "${outcome}" is already registered`);

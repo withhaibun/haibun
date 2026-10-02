@@ -7,7 +7,7 @@
 				"declaredStepTextHash": "2f81c0c9ae35982bdf3f8a9b56a62e10bd7f80a7340e1ce0797ad7bbaece5cc0"
 			},
 			"/features/a11y-pass.feature": {
-				"seconds": 0.5,
+				"seconds": 0.4,
 				"steps": 11,
 				"declaredStepTextHash": "09cc25e61c080ca316fccb7e6a2bec04f811e90fc05becc626c61a7fabda8655"
 			},
@@ -37,17 +37,17 @@
 				"declaredStepTextHash": "0d26c0a9d2e709649eb496c3ae4f657c9f065a65d9b22fc86967e33a2a6fefba"
 			},
 			"/features/auth-form.feature": {
-				"seconds": 0.8,
+				"seconds": 0.7,
 				"steps": 23,
 				"declaredStepTextHash": "b7ae3ef23e1d45290cd9e8d3d5e3fa2db5b70bc5872aef2b6ff06a25a454b083"
 			},
 			"/features/counter.feature": {
-				"seconds": 1.6,
+				"seconds": 1,
 				"steps": 19,
 				"declaredStepTextHash": "8c1b3b909e28bc05dac4eb957c9b1384d55393a5d3d4ed26b0910d3774bc4b95"
 			},
 			"/features/counter.feature.ts": {
-				"seconds": 2.1,
+				"seconds": 2.3,
 				"steps": 19,
 				"declaredStepTextHash": "2e43d35e8ca54dcf3b65f4bc5319e4e4d535aae75e236687ecdeb7357c80e33b"
 			},
@@ -127,7 +127,7 @@
 				"declaredStepTextHash": "423b87fb62e3b26879565f24459e8474ab76e2eb6ff85bc3a5e49704ea336e08"
 			},
 			"/features/wikipedia.feature.ts": {
-				"seconds": 1,
+				"seconds": 0.9,
 				"steps": 148,
 				"declaredStepTextHash": "fac79a2c47a1620dac9bee4f4664f6ce4c5a85f1d5f473fae00cce100256949c"
 			},
@@ -143,6 +143,6 @@
 			}
 		},
 		"steps": 1138,
-		"seconds": 14.5
+		"seconds": 13.8
 	}
 }
