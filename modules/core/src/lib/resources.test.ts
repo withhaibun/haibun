@@ -20,6 +20,7 @@ import {
 	TextQuoteSelectorSchema,
 	SPECIFIC_RESOURCE_LABEL,
 	TEXT_QUOTE_SELECTOR_LABEL,
+	FRAGMENT_SELECTOR_LABEL,
 	roleRels,
 	fromActorRels,
 	toActorRels,
@@ -532,7 +533,7 @@ describe("Web Annotation domain definitions", () => {
 		expect(t.persistedAs).toBe(SPECIFIC_RESOURCE_LABEL);
 		expect(t.type).toBe("oa:SpecificResource");
 		expect(t.edges?.hasSource).toEqual({ rel: LinkRelations.HAS_SOURCE.rel, range: "Resource" });
-		expect(t.edges?.hasSelector).toEqual({ rel: LinkRelations.HAS_SELECTOR.rel, range: TEXT_QUOTE_SELECTOR_LABEL });
+		expect(t.edges?.hasSelector, "a passage it quotes, or a fragment of its media").toEqual({ rel: LinkRelations.HAS_SELECTOR.rel, range: [TEXT_QUOTE_SELECTOR_LABEL, FRAGMENT_SELECTOR_LABEL] });
 	});
 
 	it("TextQuoteSelector is typed oa:TextQuoteSelector with the quote fields on the selector node, not the target", () => {

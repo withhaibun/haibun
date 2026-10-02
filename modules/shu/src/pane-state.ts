@@ -13,8 +13,8 @@
  * derives the dedup id, the child tag, and the display label from the variant
  * via `paneIdOf` / `tagOf` / `labelOf`. It doesn't hold redundant fields, so the fields don't drift.
  */
-import { QuoteAnchorSchema, type TQuoteAnchor } from "@haibun/core/lib/resources.js";
-import { TEXT_DIRECTIVE, splitTextDirective, textDirectiveFor } from "@haibun/core/lib/typed-links.js";
+import { PartSchema, type TPart } from "@haibun/core/lib/resources.js";
+import { PART_DIRECTIVE, partDirectiveFor, splitPart } from "@haibun/core/lib/typed-links.js";
 import { z } from "zod";
 import * as ViewHash from "./view-hash.js";
 import { objectId } from "./object-id.js";
@@ -40,9 +40,9 @@ export const DesiredPaneSchema = z.discriminatedUnion("paneType", [
 		id: z.string(),
 		persistedAs: z.string(),
 		label: z.string().optional(),
-		// A quoted passage to reveal inside the individual (TextQuoteSelector shape). Not part of the pane's identity:
+		// A part of the individual to show: a quoted passage, or a fragment of its media. Not part of the pane's identity:
 		// the pane is the individual, and a second reference into the same document reuses its column.
-		selector: QuoteAnchorSchema.optional(),
+		selector: PartSchema.optional(),
 		...PLACEMENT,
 	}),
 	z.object({ paneType: z.literal("type"), persistedAs: z.string(), ...PLACEMENT }),
@@ -100,9 +100,9 @@ export function paneIdOf(d: DesiredPane): string {
 	}
 }
 
-/** The column entry that addresses a pane: its id, and for an individual opened at a passage, the passage it reveals. */
+/** The column entry that addresses a pane: its id, and for an individual opened at a part, the part it shows. */
 export function columnEntryOf(d: DesiredPane): string {
-	return d.paneType === "entity" && d.selector ? `${paneIdOf(d)}${TEXT_DIRECTIVE}${textDirectiveFor(d.selector)}` : paneIdOf(d);
+	return d.paneType === "entity" && d.selector ? `${paneIdOf(d)}${PART_DIRECTIVE}${partDirectiveFor(d.selector)}` : paneIdOf(d);
 }
 
 export function tagOf(d: DesiredPane): string {
@@ -329,11 +329,11 @@ class PaneStateImpl {
 			const live = this.findLiveChild(id);
 			if (live) (live as HTMLElement & { products?: Record<string, unknown> }).products = d.data;
 		}
-		// Re-request of an open individual with a passage selector: the pane already shows the document, so hand the
-		// selector to the live column to reveal, attach hooks only fire for new panes.
+		// Re-request of an open individual with a part: the pane already shows the document, so hand the part to the live
+		// column to show, attach hooks only fire for new panes.
 		if (existing && d.paneType === "entity" && d.selector) {
-			const live = this.findLiveChild(id) as (HTMLElement & { revealPassage?: (s: TQuoteAnchor) => void }) | undefined;
-			live?.revealPassage?.(d.selector);
+			const live = this.findLiveChild(id) as (HTMLElement & { revealPart?: (s: TPart) => void }) | undefined;
+			live?.revealPart?.(d.selector);
 		}
 		this.held.desired.set(id, d);
 		this.activePaneId = id;
@@ -602,7 +602,7 @@ export function parseColEntry(raw: string): DesiredPane | null {
 		return i < 0 ? null : ([s.slice(0, i), s.slice(i + 1)] as const);
 	};
 	if (body.startsWith("e:")) {
-		const { base, anchor } = splitTextDirective(body.slice(2));
+		const { base, anchor } = splitPart(body.slice(2));
 		const split = colon(base);
 		if (!split) return null;
 		return safe({ paneType: "entity", persistedAs: split[0], id: split[1], ...(anchor ? { selector: anchor } : {}), ...placement });

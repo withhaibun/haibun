@@ -33,7 +33,8 @@ import { anIndividual, EntityColumnSchema, type TContextPattern } from "../schem
 import { EntityController } from "../controllers/index.js";
 import type { TEntityResult, TEntityView, TAnnotationDraft } from "../entity-store.js";
 import type { AnnotationView } from "../annotation-resolver.js";
-import type { TQuoteAnchor } from "@haibun/core/lib/resources.js";
+import type { TPart, TQuoteAnchor } from "@haibun/core/lib/resources.js";
+import { assertFragmentReads, isFragment, type TFragment } from "@haibun/core/lib/media-fragments.js";
 import "./shu-annotated-body.js";
 import {
 	edgeRecordType,
@@ -171,6 +172,8 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	private annotationsList: AnnotationView[] = [];
 	/** A passage to reveal once the body renders, set by a Text Fragment reference into this individual. */
 	private revealTarget: TQuoteAnchor | null = null;
+	/** A part of the individual's media a reference names, as a PDF's page, which a file the individual offers opens at. */
+	private fragment: TFragment | null = null;
 	/** The text of each body that has been read, by body id, projected from the entity view. A body the reader has not
 	 *  opened is absent, so the body area reads as loading rather than empty. */
 	private bodyText: Record<string, string> = {};
@@ -256,17 +259,24 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		this.products = result;
 	}
 
-	/** Reveal a quoted passage in the already-open individual: the re-request path of a Text Fragment reference. */
-	revealPassage(selector: TQuoteAnchor): void {
-		this.revealTarget = selector;
+	/** Show the part of the open individual a reference names: a quoted passage is revealed in its body, and a fragment of
+	 *  its media is where a file it offers opens. The re-request path of a reference to a part. */
+	revealPart(part: TPart): void {
+		if (isFragment(part)) {
+			this.fragment = part;
+			this.requestUpdate();
+			return;
+		}
+		this.revealTarget = part;
 		this.setState({ showAnnotations: true });
 	}
 
 	/** Open an individual by ID through the entity handle: it serves a cached copy at once, else fetches (then falls back
 	 *  to the persisted browser store when offline), and resolves the annotations anchored in it: one path, one shared
 	 *  copy and one live subscription per individual. `applyView` projects each resolved state onto the render fields. */
-	async open(id: string, label: string = defaultLabel(), selector?: TQuoteAnchor): Promise<void> {
-		if (selector) this.revealPassage(selector);
+	async open(id: string, label: string = defaultLabel(), selector?: TPart): Promise<void> {
+		this.fragment = null;
+		if (selector) this.revealPart(selector);
 		this.setState({ individualId: id, persistedAs: label, error: undefined });
 		const accessLevel = appAccessLevel();
 		await this.entity.open(label, id, accessLevel);
@@ -360,18 +370,21 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const offered = Object.entries(OfferedLinksSchema.parse(this.vertex?._links ?? {})).filter(([, link]) => link.summary);
 		return html`${offered.map(
 			([rel, link]) =>
-				html`<button type="button" class="entity-offer" data-testid=${`${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_OFFER}-${rel}`} @click=${() => this.followOffer(link)}>${link.summary}</button>`,
+				html`<button type="button" class="entity-offer" data-testid=${`${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_OFFER}-${rel}`} @click=${() => this.followOffer(link)}>${link.summary}${this.fragment ? ` at ${this.fragment.value}` : ""}</button>`,
 		)}`;
 	}
 
 	/** Follow a call the record offers. A call that answers with a file opens it in a tab of its own, where the browser shows
-	 *  it as it shows any file of its kind: a PDF in its own viewer. The tab is opened in the click, which the browser allows. */
+	 *  it as it shows any file of its kind: a PDF in its own viewer, at the fragment a reference named, as its page. The tab is
+	 *  opened in the click, which the browser allows. */
 	private readonly followOffer = async (link: TCallLink): Promise<void> => {
 		const opened = window.open("", "_blank");
 		try {
 			if (!opened) throw new Error("the browser didn't open a tab for what the call answers");
 			const { file } = FileAnswerSchema.parse(await this.entity.follow(link));
-			opened.location.href = URL.createObjectURL(fileDataBlob(file));
+			const blob = fileDataBlob(file);
+			if (this.fragment) assertFragmentReads(this.fragment, blob.type);
+			opened.location.href = `${URL.createObjectURL(blob)}${this.fragment ? `#${this.fragment.value}` : ""}`;
 		} catch (err) {
 			opened?.close();
 			reportFailure(SHU_TAG.ENTITY_COLUMN, `following "${link.summary}"`, err);

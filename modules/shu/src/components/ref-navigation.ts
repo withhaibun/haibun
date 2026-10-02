@@ -10,7 +10,7 @@ import { esc, escAttr } from "../util.js";
 import { PaneState, addsToSelection, columnEntryOf, parseColEntry, type DesiredPane } from "../pane-state.js";
 import { ACTIVE_PARAM, COLUMN_PARAM, hashParams, hashWithColumns, mergeHashParams } from "../view-hash.js";
 import { DEEP_LINK_PREFIX } from "../consts.js";
-import { QuoteAnchorSchema } from "@haibun/core/lib/resources.js";
+import { PartSchema } from "@haibun/core/lib/resources.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { JsonObjectTextSchema } from "@haibun/core/lib/json-text.js";
 
@@ -28,9 +28,9 @@ export function desiredPaneFor(kind: TRefKind, linkTarget: Record<string, unknow
 	// emitted at that seqPath (including the fact), drillable into individual quads from there.
 	if (kind === "seqPath" && Array.isArray(linkTarget.seqPath)) return { paneType: "step-detail", seqPath: linkTarget.seqPath as number[] };
 	if (kind === REF_DENOTES.individual && typeof linkTarget.persistedAs === "string" && typeof linkTarget.id === "string") {
-		// A quote selector addresses a passage INSIDE the individual (a Text Fragment ref); the pane identity stays the
-		// individual: same document, same column, and the selector rides along for the column to reveal.
-		const parsed = QuoteAnchorSchema.safeParse(linkTarget.selector);
+		// A part addresses a passage or a fragment of media INSIDE the individual; the pane identity stays the individual:
+		// same document, same column, and the part rides along for the column to show.
+		const parsed = PartSchema.safeParse(linkTarget.selector);
 		const selector = parsed.success ? parsed.data : undefined;
 		return { paneType: "entity", persistedAs: linkTarget.persistedAs, id: linkTarget.id, ...(selector ? { selector } : {}) };
 	}

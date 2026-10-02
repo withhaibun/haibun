@@ -6,11 +6,15 @@ import {
 	parseTextDirective,
 	resolveLinkTarget,
 	textDirectiveFor,
+	splitPart,
+	partDirectiveFor,
+	PART_DIRECTIVE,
 	typedHref,
 	typedLinkFacts,
 	type TLinkVocabulary,
 } from "./typed-links.js";
 import { LinkRelations } from "./resources.js";
+import { FRAGMENT_SPEC, assertFragmentReads } from "./media-fragments.js";
 
 const TYPES = new Set(["Document", "Comment", "FieldReport"]);
 /** The declared ontology as a consumer's registration would supply it: core rels plus one consumer edge. */
@@ -52,12 +56,40 @@ describe("resolveLinkTarget", () => {
 			anchor: { exact: "holder binding" },
 		});
 	});
+	it("resolves a fragment of an individual's media: a PDF's page, a span of audio or video, a region of an image", () => {
+		for (const [value, conformsTo] of [
+			["page=2", FRAGMENT_SPEC.pdf],
+			["t=30,60", FRAGMENT_SPEC.media],
+			["t=,60", FRAGMENT_SPEC.media],
+			["xywh=percent:0,0,50,50", FRAGMENT_SPEC.media],
+		] as const)
+			expect(resolveLinkTarget(`#Document:docs/a.pdf:~:${value}`, isType), value).toEqual({ kind: "individual", persistedAs: "Document", id: "docs/a.pdf", anchor: { conformsTo, value } });
+	});
+	it("refuses a part it doesn't locate: a fragment not in its key's form, or a key a part isn't written with", () => {
+		expect(() => resolveLinkTarget("#Document:docs/a.pdf:~:page=0", isType)).toThrow('"page=0" isn\'t a page fragment of a PDF');
+		expect(() => resolveLinkTarget("#Document:docs/a.pdf:~:line=3", isType)).toThrow("a part is written as text=, page=, t=, xywh=");
+	});
+	it("doesn't read the directive of an address on the web, which may carry one of its own", () => {
+		expect(resolveLinkTarget("https://example.com/page#:~:selector(type=CssSelector)", isType)).toBeNull();
+	});
 	it("doesn't name a target for a path, an address on the web, an in-page anchor, an unknown type, or an empty href", () => {
 		expect(resolveLinkTarget("./architecture.md", isType)).toBeNull();
 		expect(resolveLinkTarget("https://www.w3.org/TR/annotation-model/", isType)).toBeNull();
 		expect(resolveLinkTarget("#introduction", isType)).toBeNull();
 		expect(resolveLinkTarget("#Unknown:x", isType)).toBeNull();
 		expect(resolveLinkTarget("", isType)).toBeNull();
+	});
+});
+
+describe("a part of a record", () => {
+	it("is written as the directive it is read from", () => {
+		for (const part of [{ exact: "holder binding", prefix: "the" }, { conformsTo: FRAGMENT_SPEC.pdf, value: "page=12" }])
+			expect(splitPart(`#Document:a${PART_DIRECTIVE}${partDirectiveFor(part)}`).anchor).toEqual(part);
+	});
+	it("is a fragment read only for its kind of media, so a reader isn't shown the whole file as the part", () => {
+		expect(() => assertFragmentReads({ conformsTo: FRAGMENT_SPEC.pdf, value: "page=2" }, "application/pdf")).not.toThrow();
+		expect(() => assertFragmentReads({ conformsTo: FRAGMENT_SPEC.media, value: "xywh=0,0,1,1" }, "image/png")).not.toThrow();
+		expect(() => assertFragmentReads({ conformsTo: FRAGMENT_SPEC.pdf, value: "page=2" }, "image/png")).toThrow('"page=2" is a fragment of a PDF, and the file is image/png');
 	});
 });
 

@@ -117,6 +117,10 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			desc: "run browsers without a window (true, false)",
 			parse: (input: string) => boolOrError(input),
 		},
+		CHANNEL: {
+			desc: "the browser channel to launch, as chromium for Chromium's full browser without a window, which shows a PDF where the headless shell downloads it",
+			parse: (input: string) => stringOrError(input),
+		},
 		DEVTOOLS: {
 			desc: `show browser devtools (true or false)`,
 			parse: (input: string) => boolOrError(input),
@@ -204,10 +208,12 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			};
 		}
 
+		const channel = getStepperOption(this, "CHANNEL", world.moduleOptions);
 		const launchOptions = {
 			headless: this.headless,
 			args,
 			devtools,
+			...(channel ? { channel } : {}),
 		};
 		this.#factoryOptions = {
 			options: { recordVideo },
@@ -410,8 +416,12 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		if (!step || step.outermost !== step.seqPath || !this.#drivingFor.delete(step.seqPath) || this.#drivingFor.size > 0) return;
 		if (this.bf) await this.bf.disconnect();
 	}
+	/** Make a new tab current: the first after the current one that actuality doesn't hold open, so a tab opened from an
+	 *  earlier one, as a page's popup, doesn't take the place of one opened after it. */
 	newTab() {
-		this.tab = this.tab + 1;
+		let tab = this.tab + 1;
+		while (this.bf?.hasPage(this.getWorld().tag, tab)) tab++;
+		this.tab = tab;
 	}
 	resetVideoStartEmitted() {
 		this.videoStartEmitted = false;

@@ -19,6 +19,7 @@
 import { stripTrailingSlash } from "./local-origin.js";
 import { z } from "zod";
 import { typedLinkFacts, type TLinkVocabulary, type TTypedLinkFact } from "./typed-links.js";
+import { FragmentSchema, isFragment } from "./media-fragments.js";
 import { fromJsonText } from "./json-text.js";
 
 // ============================================================================
@@ -146,6 +147,7 @@ export const COMMENT_DOMAIN = "comment";
  *  the Comment topology can carry a `linksTo` edge to a SpecificResource; the schemas + domain definitions are below. */
 export const SPECIFIC_RESOURCE_LABEL = "SpecificResource";
 export const TEXT_QUOTE_SELECTOR_LABEL = "TextQuoteSelector";
+export const FRAGMENT_SELECTOR_LABEL = "FragmentSelector";
 
 /** Body: opaque content (text, JSON, anything) typed by `mediaType`. */
 export const BODY_LABEL = "Body";
@@ -282,6 +284,10 @@ export const LinkRelations = {
 	EXACT: { rel: "exact", uri: "oa:exact", range: "literal", presentation: "summary" as TRelPresentation },
 	PREFIX: { rel: "prefix", uri: "oa:prefix", range: "literal" },
 	SUFFIX: { rel: "suffix", uri: "oa:suffix", range: "literal" },
+	// A FragmentSelector locates a part of a document or media by a fragment of its address (rdf:value), in the form the
+	// specification it names (dcterms:conformsTo) defines: a PDF's page, a span of audio or video, a region of an image.
+	VALUE: { rel: "value", uri: "rdf:value", range: "literal", presentation: "summary" as TRelPresentation },
+	CONFORMS_TO: { rel: "conformsTo", uri: "dcterms:conformsTo", range: "iri" },
 	// A linking annotation (oa:motivation oa:linking): the note anchored at one passage points at another spot in the
 	// same source: a cross-reference. Modeled as an edge from the annotating Comment to the linked SpecificResource, so
 	// a reader following the note jumps to the section it references.
@@ -1090,6 +1096,10 @@ export const QuoteAnchorSchema = z.object({
 });
 export type TQuoteAnchor = z.infer<typeof QuoteAnchorSchema>;
 
+/** A part of a record: a passage it quotes, or a fragment of its media. */
+export const PartSchema = z.union([FragmentSchema, QuoteAnchorSchema]);
+export type TPart = z.infer<typeof PartSchema>;
+
 export const TextQuoteSelectorSchema = QuoteAnchorSchema.extend({
 	...PersistedVertexSchema.shape,
 	id: z.string(),
@@ -1114,6 +1124,31 @@ export const textQuoteSelectorDomainDefinition: TDomainDefinition = {
 		// quote as its content would serialize a false claim.
 		displayLabel: "exact",
 		sortColumns: { exact: "TEXT" },
+	},
+};
+
+const FRAGMENT_SELECTOR_DOMAIN = "fragment-selector";
+export const FragmentSelectorSchema = FragmentSchema.extend({
+	...PersistedVertexSchema.shape,
+	id: z.string(),
+	generatedAtTime: z.string(),
+});
+export const fragmentSelectorDomainDefinition: TDomainDefinition = {
+	selectors: [FRAGMENT_SELECTOR_DOMAIN],
+	schema: FragmentSelectorSchema,
+	description: "The fragment of a document's or media's address that locates a part of it: a PDF's page, a span of audio or video, a region of an image.",
+	topology: {
+		persistedAs: FRAGMENT_SELECTOR_LABEL,
+		type: "oa:FragmentSelector",
+		id: "id",
+		properties: {
+			id: LinkRelations.IDENTIFIER.rel,
+			value: LinkRelations.VALUE.rel,
+			conformsTo: LinkRelations.CONFORMS_TO.rel,
+			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
+		},
+		displayLabel: "value",
+		sortColumns: { value: "TEXT" },
 	},
 };
 
@@ -1154,7 +1189,7 @@ export const specificResourceDomainDefinition: TDomainDefinition = {
 		},
 		edges: {
 			hasSource: { rel: LinkRelations.HAS_SOURCE.rel, range: RESOURCE_LABEL },
-			hasSelector: { rel: LinkRelations.HAS_SELECTOR.rel, range: TEXT_QUOTE_SELECTOR_LABEL },
+			hasSelector: { rel: LinkRelations.HAS_SELECTOR.rel, range: [TEXT_QUOTE_SELECTOR_LABEL, FRAGMENT_SELECTOR_LABEL] },
 		},
 		// Titled through its selector: the proxy doesn't carry a property of its own a reader could be shown.
 		displayLabel: "hasSelector",
@@ -1348,36 +1383,42 @@ export async function createComment(
 	return commentId;
 }
 
-/** Anchor a passage inside (sourceLabel, sourceId): a TextQuoteSelector for the quote (its optional prefix/suffix context
+/** The selector record that locates a part: a TextQuoteSelector for a passage it quotes, a FragmentSelector for a fragment
+ *  of its media, and what the part reads as. */
+const selectorOf = (part: TPart): { label: string; fields: Record<string, string>; reads: string } =>
+	isFragment(part)
+		? { label: FRAGMENT_SELECTOR_LABEL, fields: { conformsTo: part.conformsTo, value: part.value }, reads: part.value }
+		: {
+				label: TEXT_QUOTE_SELECTOR_LABEL,
+				fields: { exact: part.exact, ...(part.prefix !== undefined ? { prefix: part.prefix } : {}), ...(part.suffix !== undefined ? { suffix: part.suffix } : {}) },
+				reads: part.exact,
+			};
+
+/** Anchor a part inside (sourceLabel, sourceId): the selector that locates it (a quote's optional prefix/suffix context
  *  making a short or repeated quote resolve reliably) plus a SpecificResource naming the source and the selector. Returns
- *  both ids it wrote. The SpecificResource is what a Comment's oa:hasTarget (anchor) or oa:hasBody linksTo (cross-reference)
- *  points at; the selector id lets a caller that owns the anchor retract the pair. */
-async function anchorPassage(
+ *  the ids it wrote and the selector's type. The SpecificResource is what a Comment's oa:hasTarget (anchor) or oa:hasBody
+ *  linksTo (cross-reference) points at; the selector id lets a caller that owns the anchor retract the pair. */
+async function anchorPart(
 	store: TDiscourseStore,
 	sourceLabel: string,
 	sourceId: string,
-	quote: TQuoteAnchor,
+	part: TPart,
 	now: string,
 	/** `sourceMayBeAbsent`: a text can quote a document that hasn't been read (annotating a record in hand does not need it).
-	 *  `label`: what a reader called this passage where it was referred to, so it reads as more than the text it quotes. */
+	 *  `label`: what a reader called this part where it was referred to, so it reads as more than its selector. */
 	opts?: { sourceMayBeAbsent?: boolean; label?: string },
-): Promise<{ specificResourceId: string; selectorId: string }> {
+): Promise<{ specificResourceId: string; selectorId: string; selectorLabel: string }> {
+	const selector = selectorOf(part);
 	const selectorId = crypto.randomUUID();
-	await store.upsertIndividual(TEXT_QUOTE_SELECTOR_LABEL, {
-		id: selectorId,
-		exact: quote.exact,
-		...(quote.prefix !== undefined ? { prefix: quote.prefix } : {}),
-		...(quote.suffix !== undefined ? { suffix: quote.suffix } : {}),
-		generatedAtTime: now,
-	});
+	await store.upsertIndividual(selector.label, { id: selectorId, ...selector.fields, generatedAtTime: now });
 	const specificResourceId = crypto.randomUUID();
-	// An anchor reads as the passage it stands for. Its id is a generated string, and resolving the title through its
+	// An anchor reads as the part it stands for. Its id is a generated string, and resolving the title through its
 	// selector is a hop through a second proxy, which stops at the id: without a label the node reads as that string.
-	await store.upsertIndividual(SPECIFIC_RESOURCE_LABEL, { id: specificResourceId, generatedAtTime: now, label: opts?.label ?? quote.exact });
+	await store.upsertIndividual(SPECIFIC_RESOURCE_LABEL, { id: specificResourceId, generatedAtTime: now, label: opts?.label ?? selector.reads });
 	const writeSourceEdge = opts?.sourceMayBeAbsent ? writeReferenceEdge : writeEdge;
 	await writeSourceEdge(store, SPECIFIC_RESOURCE_LABEL, specificResourceId, LinkRelations.HAS_SOURCE.rel, sourceLabel, sourceId);
-	await writeEdge(store, SPECIFIC_RESOURCE_LABEL, specificResourceId, LinkRelations.HAS_SELECTOR.rel, TEXT_QUOTE_SELECTOR_LABEL, selectorId);
-	return { specificResourceId, selectorId };
+	await writeEdge(store, SPECIFIC_RESOURCE_LABEL, specificResourceId, LinkRelations.HAS_SELECTOR.rel, selector.label, selectorId);
+	return { specificResourceId, selectorId, selectorLabel: selector.label };
 }
 
 /** Rels that ground a Comment in what it concerns: an oa:hasTarget subject or an attachment. Reply-family rels
@@ -1433,12 +1474,12 @@ export async function writeAnnotation(
 	const now = new Date().toISOString();
 	// The pinned passage is titled by what the note STATES about it (the same rule Comment titles itself by), so in any
 	// view the anchor reads as the statement made there, never as the bare quote it happens to pin.
-	const { specificResourceId } = await anchorPassage(store, a.label, a.id, a, now, { label: commentName(a.text) });
+	const { specificResourceId } = await anchorPart(store, a.label, a.id, a, now, { label: commentName(a.text) });
 	const commentId = await createComment(store, vocab, author, a.text, now, { start: a.at, end: a.until });
 	await writeEdge(store, COMMENT_LABEL, commentId, LinkRelations.TARGET.rel, SPECIFIC_RESOURCE_LABEL, specificResourceId);
 	const linkedSpecificResourceIds: string[] = [];
 	for (const link of a.links ?? []) {
-		const linked = await anchorPassage(store, a.label, a.id, link, now);
+		const linked = await anchorPart(store, a.label, a.id, link, now);
 		await writeEdge(store, COMMENT_LABEL, commentId, LinkRelations.LINKS_TO.rel, SPECIFIC_RESOURCE_LABEL, linked.specificResourceId);
 		linkedSpecificResourceIds.push(linked.specificResourceId);
 	}
@@ -1485,7 +1526,8 @@ async function retractReading(store: TDiscourseStore, readingId: string): Promis
  * Every statement connects two records of REGISTERED types: the text (already a record, whatever its type) and the
  * individual its link names by `#Type:id`. The persisted-type registry is the articulation, so a receiving type
  * doesn't exist for anything else; a link to something without a record here is prose, or an error when it stated a term.
- * A typed link's passage target is anchored on the W3C Web Annotation types (`anchorPassage`), labelled by its link text.
+ * A typed link's part, a passage or a fragment of media, is anchored on the W3C Web Annotation types (`anchorPart`), labelled
+ * by its link text.
  *
  * A `Derivation` records the reading: what it read (`prov:used`), the step that read it, and every statement it made,
  * so re-reading a rewritten text undoes exactly the previous reading and leaves anything asserted by hand alone.
@@ -1506,11 +1548,11 @@ export async function readTypedLinks(
 	const stated: TStatedRecord[] = [];
 	// Written first: everything below points back at it, and a strict store needs the target to exist. Its `stated` list is filled in at the end.
 	await store.upsertIndividual(READING_LABEL, { id: readingId, generatedAtTime: now, ...(provenance?.seqPath ? { seqPath: provenance.seqPath } : {}), stated: [] });
-	/** The passage inside a record, as an individual an edge can point at: the anchor pair this reading owns. */
-	const anchored = async (base: { label: string; id: string }, anchor: TQuoteAnchor, linkText?: string): Promise<{ label: string; id: string }> => {
-		const { specificResourceId, selectorId } = await anchorPassage(store, base.label, base.id, anchor, now, linkText ? { label: linkText } : undefined);
+	/** The part inside a record, as an individual an edge can point at: the anchor pair this reading owns. */
+	const anchored = async (base: { label: string; id: string }, part: TPart, linkText?: string): Promise<{ label: string; id: string }> => {
+		const { specificResourceId, selectorId, selectorLabel } = await anchorPart(store, base.label, base.id, part, now, linkText ? { label: linkText } : undefined);
 		for (const written of [
-			{ label: TEXT_QUOTE_SELECTOR_LABEL, id: selectorId },
+			{ label: selectorLabel, id: selectorId },
 			{ label: SPECIFIC_RESOURCE_LABEL, id: specificResourceId },
 		]) {
 			await writeEdge(store, written.label, written.id, LinkRelations.WAS_GENERATED_BY.rel, READING_LABEL, readingId);

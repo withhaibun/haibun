@@ -1,6 +1,17 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { QuadStore } from "./quad-store.js";
-import { COMMENT_LABEL, READING_LABEL, LinkRelations, SPECIFIC_RESOURCE_LABEL, TEXT_QUOTE_SELECTOR_LABEL, createComment, readTypedLinks, readingIdFor } from "./resources.js";
+import {
+	COMMENT_LABEL,
+	FRAGMENT_SELECTOR_LABEL,
+	READING_LABEL,
+	LinkRelations,
+	SPECIFIC_RESOURCE_LABEL,
+	TEXT_QUOTE_SELECTOR_LABEL,
+	createComment,
+	readTypedLinks,
+	readingIdFor,
+} from "./resources.js";
+import { FRAGMENT_SPEC, type TFragment } from "./media-fragments.js";
 import type { TLinkVocabulary } from "./typed-links.js";
 
 // A registered fixture type, as a consumer would declare one. Statements connect records of registered types only.
@@ -39,6 +50,15 @@ describe("readTypedLinks", () => {
 		const selector = await store.getIndividual<{ exact: string }>(TEXT_QUOTE_SELECTOR_LABEL, selectorIds[0]);
 		expect(selector?.exact).toBe("shall be signed");
 		expect(await edgesOf(store, cited[0], LinkRelations.HAS_SOURCE.rel)).toEqual(["spec-1"]);
+	});
+
+	it("makes a typed citation of a page an edge to the page's anchor, located by a FragmentSelector", async () => {
+		await readTypedLinks(store, vocab, source, "This [the table:cites](#FieldReport:spec-1:~:page=12).");
+		const [cited] = await edgesOf(store, source.id, LinkRelations.CITES.rel);
+		const [selectorId] = await edgesOf(store, String(cited), LinkRelations.HAS_SELECTOR.rel);
+		const selector = await store.getIndividual<TFragment>(FRAGMENT_SELECTOR_LABEL, String(selectorId));
+		expect(selector, "the page, as RFC 8118 writes it").toMatchObject({ conformsTo: FRAGMENT_SPEC.pdf, value: "page=12" });
+		expect(await edgesOf(store, String(cited), LinkRelations.HAS_SOURCE.rel)).toEqual(["spec-1"]);
 	});
 
 	it("records the reading, what it read, and the step that read it", async () => {

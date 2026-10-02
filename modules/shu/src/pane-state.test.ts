@@ -6,7 +6,8 @@
  * malformed col= entries are skipped (never crashed-on).
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import { PaneState, parseColEntry, DesiredPaneSchema, paneIdOf, tagOf, labelOf } from "./pane-state.js";
+import { PaneState, parseColEntry, columnEntryOf, DesiredPaneSchema, paneIdOf, tagOf, labelOf } from "./pane-state.js";
+import { FRAGMENT_SPEC } from "@haibun/core/lib/media-fragments.js";
 import { ShuElement } from "./components/shu-element.js";
 import { setSiteMetadata, type SiteMetadata } from "./rels-cache.js";
 import * as ViewHash from "./view-hash.js";
@@ -88,6 +89,15 @@ describe("parseColEntry", () => {
 		expect(d?.paneType).toBe("entity");
 		expect(d?.flag).toBe("max");
 		expect(d && paneIdOf(d)).toBe("e:Email:msg-1");
+	});
+
+	it("round-trips an entity pane at a part: a passage it quotes, or a page of its media", () => {
+		for (const selector of [{ exact: "the back door" }, { conformsTo: FRAGMENT_SPEC.pdf, value: "page=2" }]) {
+			const entry = columnEntryOf({ paneType: "entity", persistedAs: "File", id: "f-1", selector });
+			const d = parseColEntry(entry);
+			expect(d?.paneType === "entity" && d.selector, entry).toEqual(selector);
+			expect(d && paneIdOf(d), "the part isn't the pane's identity").toBe("e:File:f-1");
+		}
 	});
 
 	it("reads where a pane stands from its entry's endings, in either order", () => {
