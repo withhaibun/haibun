@@ -7,7 +7,7 @@ import { OK } from "@haibun/core/schema/protocol.js";
 import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption, intOrError, errorDetail } from "@haibun/core/lib/util/index.js";
 import { AStepper, type IHasCycles, type IHasOptions, type TEndFeature, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { dispatchStep } from "@haibun/core/lib/step-dispatch.js";
-import { ACTION_BEGIN, ANSWERED_WITHOUT_PRODUCTS, parseRpcRequest, RPC_REFUSED, type THandshake } from "@haibun/core/lib/rpc-wire.js";
+import { ACTION_BEGIN, ANSWERED_WITHOUT_PRODUCTS, parseRpcRequest, READ_AUTHORITY_AGAIN, type THandshake } from "@haibun/core/lib/rpc-wire.js";
 import { runWithRequestContext, requestBaseIri } from "@haibun/core/lib/request-context.js";
 import { buildFeatureStepForTransport, refusal, runRegistry, type StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { actionList, lackedAction, mayCall } from "@haibun/core/lib/actions.js";
@@ -256,7 +256,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 				transport.onMessage(async (raw: unknown, requestInfo) => {
 					// A call states the actuality whose records it reads, and one stating another actuality doesn't parse.
 					const parsed = parseRpcRequest(raw, this.getWorld().runtime.actualityId);
-					if (!parsed.success) return { error: z.prettifyError(parsed.error) };
+					if (!parsed.success) return parsed.refusal;
 					const msg = parsed.data;
 					const { method, params } = msg;
 
@@ -285,7 +285,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 
 					const authority = await grantedCapabilityForRequest(requestInfo, this.getWorld().runtime, this);
 					const { granted, principal, refused, restsOn } = authority;
-					if (refused) return { error: `${method}: ${refused}`, [RPC_REFUSED]: true };
+					if (refused) return { error: `${method}: ${refused}`, remedy: READ_AUTHORITY_AGAIN };
 					// A streamed call is held open only while the authority it was allowed under holds.
 					const stream = streamContext.getStore();
 					if (stream) endWhenLapsed(this.getWorld().runtime, authority, stream.signal, stream.end);

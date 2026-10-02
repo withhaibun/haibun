@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ACTION_BEGIN, RpcRequestSchema, RpcResponseSchema, RpcStreamSchema, heldActuality, parseRpcRequest } from "./rpc-wire.js";
+import { ACTION_BEGIN, RpcRequestSchema, RpcResponseSchema, RpcStreamSchema, parseRpcRequest } from "./rpc-wire.js";
 
 const ACTUALITY = crypto.randomUUID();
 
@@ -38,14 +38,15 @@ describe("JSON-RPC 2.0 schema compliance", () => {
 	});
 
 	it("parses a call stating the actuality the host holds, and the handshake, which states none", () => {
-		expect(parseRpcRequest({ jsonrpc: "2.0", id: "1", method: "test", actualityId: ACTUALITY }, ACTUALITY).data?.method).toBe("test");
+		const parsed = parseRpcRequest({ jsonrpc: "2.0", id: "1", method: "test", actualityId: ACTUALITY }, ACTUALITY);
+		expect(parsed.success && parsed.data.method).toBe("test");
 		expect(parseRpcRequest({ jsonrpc: "2.0", id: "1", method: ACTION_BEGIN }, ACTUALITY).success).toBe(true);
 	});
 
 	it("refuses a call that doesn't state the actuality the host holds, naming the one it holds", () => {
 		expect(parseRpcRequest({ jsonrpc: "2.0", id: "1", method: "test" }, ACTUALITY).success, "a call that doesn't state one").toBe(false);
 		const other = parseRpcRequest({ jsonrpc: "2.0", id: "1", method: "test", actualityId: crypto.randomUUID() }, ACTUALITY);
-		expect(other.error?.issues.map((issue) => issue.message)).toContain(heldActuality(ACTUALITY).safeParse("").error?.issues[0].message);
+		expect(other.success ? undefined : other.refusal.error).toContain(`this instance holds actuality ${ACTUALITY}`);
 	});
 
 	it("accepts request with stream flag", () => {

@@ -22,7 +22,7 @@ import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import { z } from "zod";
 import { pagePinned } from "./page-pinned.js";
 // The wire itself: envelope and stream reader, shared with every other caller of a haibun host. Free of node imports.
-import { ACTION_BEGIN, buildRpcCall, readNdjson, readRpcAnswer, type TProveRequest, RpcEnvelopeSchema } from "@haibun/core/lib/rpc-wire.js";
+import { ACTION_BEGIN, buildRpcCall, readNdjson, readRpcAnswer, RefusedCall, type TProveRequest, RpcEnvelopeSchema } from "@haibun/core/lib/rpc-wire.js";
 import { findStep, hydratedActualityId, responseTimeoutMs } from "./rpc-registry.js";
 import { keyHeaders, pageAuthorityReady, signedHeaders } from "./page-key.js";
 import { DELEGATIONS_READ_METHOD } from "@haibun/core/lib/authority-types.js";
@@ -122,7 +122,7 @@ const ActionBeganSchema = z.object({ seqPath: z.array(z.number()).min(1) });
 /** Actuality's answer to a call, or the refusal it stated, thrown. */
 async function answerOf(method: string, res: Response): Promise<unknown> {
 	const answer = await readRpcAnswer(method, res);
-	if (answer.kind === "refused") throw new Error(answer.error);
+	if (answer.kind === "refused") throw new RefusedCall(answer);
 	return answer.body;
 }
 

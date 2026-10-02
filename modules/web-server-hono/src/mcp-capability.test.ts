@@ -14,6 +14,7 @@ import McpStepper from "./mcp-stepper.js";
 import WebServerStepper from "./web-server-stepper.js";
 import { DOMAIN_NUMBER } from "@haibun/core/lib/domains.js";
 import { Access } from "@haibun/core/lib/resources.js";
+import { REFUSED_INVOCATION } from "./capability-auth.js";
 
 class ProtectedStepper extends AStepper {
 	description = "Steps gated by a protected and an admin capability, for tests of MCP authorization.";
@@ -78,7 +79,8 @@ class ProtectedStepper extends AStepper {
 				const sent = JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "ProtectedStepper-adminAction", arguments: {} } });
 				const response = await fetch(url, { method: "POST", headers, body: sent });
 				const text = await response.text();
-				if (response.status !== 401 || !text.includes("the presented digest is not of this request's body")) throw new Error(`Expected refusal, got ${response.status} ${text}`);
+				if (response.status !== REFUSED_INVOCATION || !text.includes("the presented digest is not of this request's body"))
+					throw new Error(`Expected refusal, got ${response.status} ${text}`);
 				return OK;
 			},
 		},

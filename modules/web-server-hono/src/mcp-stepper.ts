@@ -1,4 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { READ_AUTHORITY_AGAIN } from "@haibun/core/lib/rpc-wire.js";
 import { answeredFor } from "@haibun/core/lib/call-step.js";
 import { StreamableHTTPTransport } from "@hono/mcp";
 import {
@@ -28,7 +29,7 @@ import { WEBSERVER } from "./defs.js";
 import { ServerHono } from "./server-hono.js";
 import WebServerStepper from "./web-server-stepper.js";
 import type { IStepTransport } from "./step-transport.js";
-import { grantedCapabilityForRequest, PRESENTED_REQUEST_HEADERS } from "./capability-auth.js";
+import { grantedCapabilityForRequest, PRESENTED_REQUEST_HEADERS, REFUSED_INVOCATION } from "./capability-auth.js";
 import { actingAs, authorizedWith, restingOn, runActingAs, runAuthorizedWith, shownTo } from "@haibun/core/lib/capability-context.js";
 import { DOMAIN_ROUTE } from "@haibun/core/lib/domains.js";
 /** The port the MCP endpoint listens on where neither it nor the web server states one. */
@@ -223,7 +224,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 				this.getWorld().runtime,
 				webserver,
 			);
-			if (refused) return c.json({ error: refused }, 401);
+			if (refused) return c.json({ error: refused, remedy: READ_AUTHORITY_AGAIN }, REFUSED_INVOCATION);
 
 			// 3. Disable Compression (Critical for SSE)
 			c.header("Cache-Control", "no-transform");

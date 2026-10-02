@@ -15,6 +15,7 @@ import { createDynamicAuthMiddleware, authSchemes, type TSchemeType, type AuthSc
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { FakeInvoker, DOMAIN_FAKE_HOLDER } from "@haibun/core/lib/test/fake-authority.js";
 import { TEST_DOMAIN, testDomainDefinitions } from "@haibun/core/lib/test/test-domains.js";
+import { REFUSED_INVOCATION } from "@haibun/web-server-hono/capability-auth.js";
 
 const TALLY = "tally";
 
@@ -320,7 +321,9 @@ class TestServer extends AStepper {
 			action: async ({ url, method, holder, action }: TStepArgs) => {
 				const response = await post(String(url), await rpcCall(String(url), "rpc-refused", String(method)), { holder: String(holder), action: String(action) });
 				const data = (await response.json()) as { error?: unknown };
-				return response.status === 401 ? actionOK() : actionNotOK(`Expected the call refused with 401, got ${response.status} ${JSON.stringify(data)}`);
+				return response.status === REFUSED_INVOCATION
+					? actionOK()
+					: actionNotOK(`Expected the call refused with ${REFUSED_INVOCATION}, got ${response.status} ${JSON.stringify(data)}`);
 			},
 		},
 		addTallyRoute: {

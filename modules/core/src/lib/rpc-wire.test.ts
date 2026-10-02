@@ -4,7 +4,19 @@
  * sent with those headers as they are.
  */
 import { describe, expect, it } from "vitest";
-import { buildRpcCall, holdSignIn, provesNothing, releaseSignIn, type TProveRequest } from "./rpc-wire.js";
+import {
+	buildRpcCall,
+	holdSignIn,
+	newActualityId,
+	parseRpcRequest,
+	provesNothing,
+	READ_AUTHORITY_AGAIN,
+	RefusedCall,
+	refusalCarried,
+	authorityFailed,
+	releaseSignIn,
+	type TProveRequest,
+} from "./rpc-wire.js";
 
 const BASE = "http://site.test:8123/instance/";
 const METHOD = "Stepper-act";
@@ -42,5 +54,44 @@ describe("a call to a host's rpc", () => {
 		expect((await buildRpcCall(BASE, { id: "call-5", method: METHOD, params: {} }, provesNothing)).init.headers, "nor this host once it is let go").not.toHaveProperty(
 			"authorization",
 		);
+	});
+});
+
+describe("a call a host parses", () => {
+	const held = newActualityId();
+	const refusal = (raw: Record<string, unknown>) => {
+		const parsed = parseRpcRequest({ jsonrpc: "2.0", id: "call", method: METHOD, params: {}, ...raw }, held);
+		return parsed.success ? undefined : parsed.refusal;
+	};
+
+	it("is read where it states the actuality the host holds", () => {
+		expect(refusal({ actualityId: held })).toBeUndefined();
+	});
+
+	it("is refused where it states another actuality, and offers reading the actuality the host holds", () => {
+		const other = newActualityId();
+		const refused = refusal({ actualityId: other });
+		expect(refused?.error).toContain(`this instance holds actuality ${held}, and the call states ${other}, whose records it doesn't hold`);
+		expect(refused?.remedy).toEqual({ do: "reload", what: "actuality" });
+	});
+
+	it("is refused where it doesn't state an actuality, as a client older than the host doesn't, and offers reloading the client", () => {
+		const refused = refusal({});
+		expect(refused?.error).toContain("the call doesn't state the actuality whose records it reads, as a client older than this instance doesn't");
+		expect(refused?.remedy).toEqual({ do: "reload", what: "client" });
+	});
+
+	it("is refused for another reason without a remedy where it states the actuality the host holds", () => {
+		expect(refusal({ actualityId: held, params: "not an object" })).not.toHaveProperty("remedy");
+	});
+
+	it("carries its refusal through a throw, and reads with its remedy where it isn't offered as a control", () => {
+		const refused = new RefusedCall({ error: "refused", remedy: { do: "sign-in", at: "https://site.example" } });
+		expect(refused.refusal.remedy).toEqual({ do: "sign-in", at: "https://site.example" });
+		expect(refused.message).toBe("refused (sign in at https://site.example)");
+		expect(refusalCarried(refused), "read by its name, as another bundle's copy of the class is").toEqual(refused.refusal);
+		expect(refusalCarried(new Error("refused")), "a failure that isn't a refused call doesn't carry one").toBeUndefined();
+		expect(authorityFailed({ error: "revoked", remedy: READ_AUTHORITY_AGAIN })).toBe(true);
+		expect(authorityFailed(refused.refusal)).toBe(false);
 	});
 });

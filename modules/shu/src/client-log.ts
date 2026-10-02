@@ -1,4 +1,5 @@
 import { isOffline } from "./rpc-registry.js";
+import { authorityFailed, refusalCarried } from "@haibun/core/lib/rpc-wire.js";
 /**
  * The page's diagnostic channel to actuality: one call, one behaviour. A diagnostic is reported to actuality through the
  * monitor's client-log step; a page without a server (a report) or without a conduit to one doesn't report it; a server that cannot be reached doesn't
@@ -13,7 +14,7 @@ import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { requiredAction } from "@haibun/core/lib/actions.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { acts, conduit, hasConduit, isServerUnreachable } from "./hypermedia.js";
-import { pageMay } from "./page-key.js";
+import { forgetPageAuthority, pageMay } from "./page-key.js";
 
 /** The monitor's step a page reports a diagnostic through. */
 const CLIENT_LOG = { stepper: "MonitorStepper", step: "logClient" } as const;
@@ -39,6 +40,11 @@ export function reportToRun(level: TClientLogLevel, source: string, message: str
 		.follow(acts(CLIENT_LOG_METHOD, { event: { level, source, message, attributes } }), `${source}: ${level}`)
 		.catch((err: unknown) => {
 			if (isServerUnreachable(err)) return console.warn(`[${source}] not reported to actuality: ${errorDetail(err)}`, { level, message });
+			// Authority revoked or lapsed isn't the page's to hold any longer, so later reports go to the console until it holds more.
+			if (authorityFailed(refusalCarried(err))) {
+				forgetPageAuthority();
+				return console.warn(`[${source}] not reported to actuality, since the page's authority failed verification: ${errorDetail(err)}`, { level, message });
+			}
 			failFastOrLog(`[${source}] reporting to actuality failed: ${errorDetail(err)}`, err);
 		});
 }

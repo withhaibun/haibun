@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { ACTION_BEGIN, ACTUALITY_HEADER, SSE_ROUTE, actualityAt, heldActuality } from "@haibun/core/lib/rpc-wire.js";
+import { ACTION_BEGIN, ACTUALITY_HEADER, SSE_ROUTE, actualityAt, RpcRefusalSchema } from "@haibun/core/lib/rpc-wire.js";
 import { FOLLOWS_THE_RUN } from "@haibun/core/lib/actions.js";
 import { passWithDefaults, DEF_PROTO_OPTIONS, freePort } from "@haibun/core/lib/test/lib.js";
 import { TEST_DOMAIN, declaresTestDomains } from "@haibun/core/lib/test/test-domains.js";
@@ -18,6 +18,7 @@ import { readingAt } from "@haibun/core/lib/capability-context.js";
 import { Access } from "@haibun/core/lib/resources.js";
 import { TRANSPORT, type ITransport } from "./sse-transport.js";
 import { DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_STEP_METHOD, DOMAIN_TEXT } from "@haibun/core/lib/domains.js";
+import { REFUSED_INVOCATION } from "./capability-auth.js";
 
 class PingStepper extends AStepper {
 	description = "Steps that answer a ping, one of them protected and one gated by an admin capability.";
@@ -185,16 +186,15 @@ class RpcVerifyStepper extends AStepper {
 			gwta: `rpc call to {url: ${DOMAIN_LINK}} and its event stream are refused for another actuality, naming the one it holds`,
 			action: async ({ url }: TStepArgs) => {
 				const base = new URL(String(url)).origin;
-				const held = heldActuality(await actualityAt(base)).safeParse("").error?.issues[0].message;
 				const other = crypto.randomUUID();
+				const held = `this instance holds actuality ${await actualityAt(base)}, and the call states ${other}`;
 				const body = JSON.stringify({ jsonrpc: "2.0", id: "1", method: "PingStepper-ping", params: {}, actualityId: other });
-				const called = (await (await fetch(String(url), { method: "POST", headers: { "Content-Type": "application/json" }, body })).json()) as { error?: string };
+				const called = RpcRefusalSchema.parse(await (await fetch(String(url), { method: "POST", headers: { "Content-Type": "application/json" }, body })).json());
 				const streamed = await fetch(`${base}${SSE_ROUTE}`, { headers: { [ACTUALITY_HEADER]: other } });
 				const streamRefusal = (await streamed.json()) as { error?: string };
-				if (!called.error?.includes(String(held))) return actionNotOK(`the call wasn't refused naming the actuality held: ${JSON.stringify(called)}`);
-				return streamed.status === 400 && streamRefusal.error?.includes(String(held))
-					? OK
-					: actionNotOK(`the stream answered ${streamed.status}: ${JSON.stringify(streamRefusal)}`);
+				if (!called.error.includes(held) || called.remedy?.do !== "reload" || called.remedy.what !== "actuality")
+					return actionNotOK(`the call wasn't refused naming the actuality held, offering to read it again: ${JSON.stringify(called)}`);
+				return streamed.status === 400 && streamRefusal.error?.includes(held) ? OK : actionNotOK(`the stream answered ${streamed.status}: ${JSON.stringify(streamRefusal)}`);
 			},
 		},
 		rpcReadOfStepRefused: {
@@ -232,7 +232,7 @@ class RpcVerifyStepper extends AStepper {
 					body: await rpcBody(String(url), { method: String(method), seqPath: [0, 1, 1, 1] }),
 				});
 				const data = await res.json();
-				if (res.status !== 401) return actionNotOK(`Expected HTTP 401, got ${res.status}: ${JSON.stringify(data)}`);
+				if (res.status !== REFUSED_INVOCATION) return actionNotOK(`Expected HTTP ${REFUSED_INVOCATION}, got ${res.status}: ${JSON.stringify(data)}`);
 				if (data.pong !== undefined) return actionNotOK(`the step ran: ${JSON.stringify(data)}`);
 				return String(data.error).includes("a verifier isn't registered to check it") ? OK : actionNotOK(`Expected the refusal to state why, got ${JSON.stringify(data)}`);
 			},
@@ -621,7 +621,7 @@ event stream at "${base}" signed by "owner" for "Read:private" is held open
 streamed call at "${base}/rpc/PingStepper-holdOpen" to "PingStepper-holdOpen" signed by "agent" for "PingStepper:protected" is held open
 withdraw authority from "owner"
 held event stream ends
-event stream at "${base}" signed by "owner" for "Read:private" answers 401
+event stream at "${base}" signed by "owner" for "Read:private" answers ${REFUSED_INVOCATION}
 withdraw authority from "agent"
 held streamed call ends with "${fakeGrant("agent")} was revoked"
 `,

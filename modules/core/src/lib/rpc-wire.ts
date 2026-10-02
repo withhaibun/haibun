@@ -61,11 +61,35 @@ type TRpcRequest = z.infer<typeof RpcRequestSchema>;
 export const HandshakeSchema = z.object({ hostId: z.number(), site: z.string().min(1), actualityId: ActualityIdSchema, serving: z.boolean() });
 export type THandshake = z.infer<typeof HandshakeSchema>;
 
-/** The actualityId of a host whose records are of `actualityId`: a call stating another one doesn't parse. */
-export const heldActuality = (actualityId: TActualityId) => z.literal(actualityId, { error: `this instance holds actuality ${actualityId}: reload to read its records` });
+/** What the person can do about a refused call, which a page offers as a control: sign in at the site that answered in
+ *  front of the instance, or reload, which reads what the instance holds now. A client older than the instance reloads
+ *  itself, a caller that read an earlier actuality reads the instance's actuality again, and a caller whose presented
+ *  authority failed verification, as one revoked or lapsed, reads again what its key holds. */
+export const RemedySchema = z.discriminatedUnion("do", [
+	z.object({ do: z.literal("sign-in"), at: z.url() }),
+	z.object({ do: z.literal("reload"), what: z.enum(["client", "actuality", "authority"]) }),
+]);
+export type TRemedy = z.infer<typeof RemedySchema>;
 
-/** Marks an answer to a request whose presented authority failed verification, which a transport states as unauthenticated. */
-export const RPC_REFUSED = "refused";
+/** The remedy for a call whose presented authority failed verification: read again what the key holds. */
+export const READ_AUTHORITY_AGAIN = { do: "reload", what: "authority" } as const satisfies TRemedy;
+
+/** The remedy for a call stating `stated` to a host whose records are of `held`, where it doesn't state that actuality.
+ *  A call that doesn't state one comes from a client built before calls stated one. */
+export function actualityRemedy(stated: unknown, held: TActualityId): Extract<TRemedy, { do: "reload" }> | undefined {
+	if (stated === held) return undefined;
+	return { do: "reload", what: stated === undefined ? "client" : "actuality" };
+}
+
+/** The actualityId of a host whose records are of `actualityId`: a call that doesn't state it doesn't parse. */
+export const heldActuality = (actualityId: TActualityId) =>
+	z.literal(actualityId, {
+		error: ({ input }) =>
+			actualityRemedy(input, actualityId)?.what === "client"
+				? "the call doesn't state the actuality whose records it reads, as a client older than this instance doesn't"
+				: `this instance holds actuality ${actualityId}, and the call states ${String(input)}, whose records it doesn't hold`,
+	});
+
 /** What a call answers where its step succeeded without products. A caller reads the step's declaration, not this, to know
  *  whether it answers with products. */
 export const ANSWERED_WITHOUT_PRODUCTS = { ok: true } as const;
@@ -87,17 +111,44 @@ export const RpcStreamSchema = z.object({
 	stream: z.literal(true),
 	data: z.unknown(),
 });
-/** What a host answers a call it did not serve with. */
-export const RpcRefusalSchema = z.object({ error: z.string().min(1) });
+/** What a host answers a call it did not serve with: why, and what the person can do about it, where they can. */
+export const RpcRefusalSchema = z.object({ error: z.string().min(1), remedy: RemedySchema.optional() });
+export type TRpcRefusal = z.infer<typeof RpcRefusalSchema>;
 
 /** A host's answer to a call: what it answered, or why it did not. */
-type TRpcAnswer = { kind: "answered"; body: unknown } | { kind: "refused"; error: string };
+type TRpcAnswer = { kind: "answered"; body: unknown } | ({ kind: "refused" } & TRpcRefusal);
 
-/** What a caller is told when a call's answer didn't come from actuality: a call is always answered as JSON, so an answer
- *  of another type came from a proxy or server in front of it. A sign-in that was refused is named as one. */
-export function notFromActuality(method: string, status: number, mediaType: string, answered: string, site?: string): string {
-	const signIn = status === 401 || status === 407 ? ` Sign in ${site ? `at ${site}` : "to the site"} in this browser, then try again.` : "";
-	return `${method}: this call didn't reach actuality. Something in front of it answered ${status} (${mediaType}): ${answered.trim()}.${signIn}`;
+/** How a remedy reads where it can't be offered as a control, such as in a log. */
+const remedySaid = (remedy: TRemedy): string =>
+	remedy.do === "sign-in" ? `sign in at ${remedy.at}` : remedy.what === "client" ? "reload the client" : `read the ${remedy.what} again`;
+
+const REFUSED_CALL = "RefusedCall";
+
+/** A call that was refused, carrying the refusal, so whoever shows it offers its remedy as a control. */
+export class RefusedCall extends Error {
+	readonly refusal: TRpcRefusal;
+	/** Made from a refusal, or from an answer that refused, of which it keeps the reason and the remedy. */
+	constructor({ error, remedy }: TRpcRefusal) {
+		super(remedy ? `${error} (${remedySaid(remedy)})` : error);
+		this.name = REFUSED_CALL;
+		this.refusal = remedy ? { error, remedy } : { error };
+	}
+}
+
+const RefusedCallSchema = z.object({ name: z.literal(REFUSED_CALL), refusal: RpcRefusalSchema });
+/** The refusal a failure carries, where it is a refused call. It is read by the failure's name, since each page bundle has
+ *  its own copy of the class. */
+export const refusalCarried = (err: unknown): TRpcRefusal | undefined => RefusedCallSchema.safeParse(err).data?.refusal;
+
+/** Whether a refusal is of presented authority that failed verification. */
+export const authorityFailed = (refusal: TRpcRefusal | undefined): boolean => refusal?.remedy?.do === "reload" && refusal.remedy.what === "authority";
+
+/** The refusal of a call the answer to which didn't come from actuality: a call is always answered as JSON, so an answer
+ *  of another type came from a proxy or server in front of it. A refused sign-in is remedied by signing in at the site
+ *  that answered, where the answer states it. */
+export function notFromActuality(method: string, status: number, mediaType: string, answered: string, site?: string): TRpcRefusal {
+	const error = `${method}: this call didn't reach actuality. Something in front of it answered ${status} (${mediaType}): ${answered.trim()}.`;
+	return site && (status === 401 || status === 407) ? { error, remedy: { do: "sign-in", at: site } } : { error };
 }
 
 /**
@@ -109,17 +160,24 @@ export async function readRpcAnswer(method: string, res: Response): Promise<TRpc
 	const mediaType = res.headers.get("content-type") ?? "a body that doesn't state its media type";
 	if (!mediaType.startsWith("application/json")) {
 		const site = URL.canParse(res.url) ? new URL(res.url).origin : undefined;
-		return { kind: "refused", error: notFromActuality(method, res.status, mediaType, (await res.text()).slice(0, 200), site) };
+		return { kind: "refused", ...notFromActuality(method, res.status, mediaType, (await res.text()).slice(0, 200), site) };
 	}
 	const body: unknown = await res.json();
-	return res.ok ? { kind: "answered", body } : { kind: "refused", error: RpcRefusalSchema.parse(body).error };
+	return res.ok ? { kind: "answered", body } : { kind: "refused", ...RpcRefusalSchema.parse(body) };
 }
 
-/** Parse an incoming RPC request, by a host whose records are of `actualityId`. */
-export function parseRpcRequest(raw: unknown, actualityId: TActualityId) {
+/** What a call states of the actuality it reads, read before the rest of it, so a refusal names the remedy. */
+const StatedActualitySchema = z.object({ method: z.string(), actualityId: z.unknown() }).partial().loose();
+
+/** Parse an incoming RPC request, by a host whose records are of `actualityId`, or refuse it with what a caller can do. */
+export function parseRpcRequest(raw: unknown, actualityId: TActualityId): { success: true; data: TRpcRequest } | { success: false; refusal: TRpcRefusal } {
 	// The schema is made once for the actuality a host holds, which changes only when its records are replaced.
 	if (held?.actualityId !== actualityId) held = { actualityId, schema: rpcRequestSchema(heldActuality(actualityId)) };
-	return held.schema.safeParse(raw);
+	const parsed = held.schema.safeParse(raw);
+	if (parsed.success) return { success: true, data: parsed.data };
+	const stated = StatedActualitySchema.safeParse(raw).data;
+	const remedy = stated?.method === ACTION_BEGIN ? undefined : actualityRemedy(stated?.actualityId, actualityId);
+	return { success: false, refusal: { error: z.prettifyError(parsed.error), ...(remedy ? { remedy } : {}) } };
 }
 let held: { actualityId: TActualityId; schema: ReturnType<typeof rpcRequestSchema> } | undefined;
 
@@ -191,7 +249,7 @@ export async function postRpc(
 export async function handshakeAt(base: string, fetchImpl: typeof fetch = fetch): Promise<THandshake> {
 	const call = await buildRpcCall(base, { id: `${ACTION_BEGIN}-${Date.now()}`, method: ACTION_BEGIN, params: {} }, provesNothing);
 	const answer = await readRpcAnswer(ACTION_BEGIN, await fetchImpl(call.url, call.init));
-	if (answer.kind === "refused") throw new Error(answer.error);
+	if (answer.kind === "refused") throw new RefusedCall(answer);
 	return HandshakeSchema.parse(answer.body);
 }
 

@@ -8,11 +8,11 @@ import { truncateForLog, errorDetail } from "@haibun/core/lib/util/index.js";
 import type { StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { streamContext, streamOver, type TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import type { IStepTransport } from "./step-transport.js";
-import { ACTUALITY_HEADER, heldActuality, SSE_ROUTE, RPC_REFUSED, RpcRefusalSchema, RpcEnvelopeSchema } from "@haibun/core/lib/rpc-wire.js";
+import { ACTUALITY_HEADER, authorityFailed, heldActuality, SSE_ROUTE, RpcRefusalSchema, RpcEnvelopeSchema } from "@haibun/core/lib/rpc-wire.js";
 import type { TRuntime } from "@haibun/core/lib/world.js";
 import { capabilityAllows, FOLLOWS_THE_RUN, readAction } from "@haibun/core/lib/actions.js";
 import { Access, AccessLevelSchema, type AccessLevel } from "@haibun/core/lib/resources.js";
-import { authorityAllowing, endWhenLapsed } from "./capability-auth.js";
+import { authorityAllowing, endWhenLapsed, REFUSED_INVOCATION } from "./capability-auth.js";
 
 type TTransportRequestInfo = {
 	headers?: Record<string, string | undefined>;
@@ -29,8 +29,8 @@ type TMessageHandler = (data: unknown, requestInfo?: TTransportRequestInfo) => u
 /** What the transport reads of a call before a handler reads all of it: its method, whether it streams, and what it asks. */
 const RpcRouteSchema = RpcEnvelopeSchema.pick({ method: true, stream: true, asks: true }).partial().loose();
 
-/** The reason an answer states for refusing its call, where it states one. */
-const refusalReason = (answer: unknown): string | undefined => RpcRefusalSchema.safeParse(answer).data?.error;
+/** The refusal an answer states, where it refuses its call. */
+const refusalOf = (answer: unknown) => RpcRefusalSchema.safeParse(answer).data;
 
 export interface ITransport {
 	send(data: unknown): void;
@@ -129,7 +129,7 @@ export class SSETransport implements ITransport, IStepTransport {
 							return;
 						}
 						// Successful dispatch already pushed its content via streamContext.emit; emitting the products again would duplicate the stream. On refusal, emit the error as a terminating record so the client surfaces it. The lifecycle stepEnd event already fired on the seqPath via dispatchStep, seq-bound consumers see the canonical record there.
-						const refusal = refusalReason(result);
+						const refusal = refusalOf(result)?.error;
 						if (refusal) await writeChunk({ error: refusal });
 					});
 				});
@@ -155,10 +155,10 @@ export class SSETransport implements ITransport, IStepTransport {
 			if (result === undefined) {
 				return c.json({ ok: false, error: `RPC method ${method} doesn't have a handler` }, 404);
 			}
-			// A request whose presented authority failed is unauthenticated, which is a different answer from a call refused
+			// A request whose presented authority failed is refused as forbidden, which is a different answer from a call refused
 			// for want of a capability it didn't present.
-			const unauthenticated = typeof result === "object" && result !== null && RPC_REFUSED in result && result[RPC_REFUSED];
-			const status = unauthenticated ? 401 : refusalReason(result) ? 422 : 200;
+			const refusal = refusalOf(result);
+			const status = !refusal ? 200 : authorityFailed(refusal) ? REFUSED_INVOCATION : 422;
 			try {
 				return c.json(result, status);
 			} catch (serializeErr) {
