@@ -310,16 +310,10 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		return await f(page);
 	}
 
+	/** Whether the element a selector finds holds the text, read once, waiting for the element as long as a step waits. */
 	async sees(text: string, selector: string) {
-		let textContent: string | null = null;
-		// FIXME retry sometimes required?
-		for (let a = 0; a < 2; a++) {
-			textContent = await this.withPage(async (page: Page) => await page.textContent(selector, { timeout: 1e9 }));
-			if (textContent?.toString().includes(text)) {
-				return OK;
-			}
-		}
-		return actionNotOK(`Did not find text "${text}" in ${selector} (${textContent?.length} characters)`);
+		const textContent = await this.withPage(async (page: Page) => await page.textContent(selector));
+		return textContent?.includes(text) ? OK : actionNotOK(`Did not find text "${text}" in ${selector} (${textContent?.length ?? 0} characters)`);
 	}
 	async getCookies() {
 		const browserContext = await this.getExistingBrowserContext();
