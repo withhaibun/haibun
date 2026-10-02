@@ -115,11 +115,8 @@ function openReaderAuthority(): Promise<TPageAuthority> {
 function showPageKey(appRoot: HTMLElement, authority: TPageAuthority): void {
 	const origin = esc(location.origin);
 	appRoot.innerHTML = `<div style="padding:20px;max-width:48rem">
-		<p>No access yet. This page made a key pair in this browser. Its private key stays in this browser's key store, where
-		no script can read it, and is never sent: the page signs each request with it.</p>
-		<p>Below is the page's public key, a did:key. It isn't a secret. Give it to whoever owns this actuality, who delegates
-		to it, for example by naming it in the actuality's configuration, then reload. A delegation to it lets only this
-		browser act, since only this browser holds the private key.</p>
+		<p>No access yet. Give the key below to whoever owns this actuality, who delegates to it, for example by naming it in
+		the actuality's configuration, then reload.</p>
 		<shu-page-key></shu-page-key>
 		<p>This browser keeps the key for ${origin}. Clearing this site's data removes it, and a delegation to it then
 		doesn't apply here.</p>

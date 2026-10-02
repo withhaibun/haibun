@@ -157,9 +157,8 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 			return actionNotOK(`holding capability: invalid signed capability, ${parsed.error.issues.map((i) => i.message).join("; ")}`);
 		}
 		const capability = parsed.data;
-		// The document goes to whoever knows how to read it, checked for everything it allows. This code doesn't read inside
-		// it: the framework doesn't hold a key or implement a specification.
-		// Who presents the document, which the verifier holds to its controller: a copy of a document doesn't carry the key it names.
+		// The registered verifier reads the document, checked for everything it allows, and holds its presenter to its
+		// controller, since a copy doesn't carry the key it names. The framework doesn't hold a key or implement a specification.
 		const presenter = actingFor();
 		if (!presenter) return actionNotOK("holding capability: a capability is presented by a caller that proves who it is, and this caller doesn't");
 		const verified = await this.getAuthority().verifyEvidence({ kind: "document", document: capability, target, presenter });

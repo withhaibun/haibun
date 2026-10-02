@@ -1,6 +1,6 @@
 /**
- * <shu-page-key>: the public key this page signs with, as the did:key a holder delegates to, and a way to take it away.
- * The private key stays in the browser's key store, so the public key shown here isn't a secret.
+ * <shu-page-key>: the public key this page signs with, as the did:key a holder delegates to, what it is, and a way to
+ * take it away. The private key stays in the browser's key store, so the public key shown here isn't a secret.
  *
  * A page holds only what was delegated to its key here, so the key is what a reader hands to whoever may delegate to
  * it: shown alone while the page doesn't hold a read, and in the permissions panel after.
@@ -30,7 +30,8 @@ export class ShuPageKey extends ShuElement<typeof PageKeySchema> {
 	static styles = [
 		shuBaseStyles,
 		css`
-			:host { display: flex; align-items: center; gap: var(--shu-space-2); min-width: 0; }
+			:host { display: block; min-width: 0; }
+			.key { display: flex; align-items: center; gap: var(--shu-space-2); }
 			code { overflow-wrap: anywhere; user-select: all; }
 		`,
 	];
@@ -38,7 +39,8 @@ export class ShuPageKey extends ShuElement<typeof PageKeySchema> {
 	render(): TemplateResult {
 		const { controller } = this.state;
 		// The key a delegation names is recorded as the Principal it is, so it opens as that record.
-		return html`<code data-testid=${SHU_TEST_IDS.APP.PAGE_KEY}>${recordRef(PRINCIPAL_LABEL, controller)}</code><shu-copy-button label="copy" title="copy this page's public key, which a holder delegates to" .source=${controller}></shu-copy-button>`;
+		return html`<p>This is the page's public key, which a holder delegates to. It isn't a secret: the private key stays in this browser and isn't sent.</p>
+			<div class="key"><code data-testid=${SHU_TEST_IDS.APP.PAGE_KEY}>${recordRef(PRINCIPAL_LABEL, controller)}</code><shu-copy-button label="copy" title="copy this page's public key, which a holder delegates to" .source=${controller}></shu-copy-button></div>`;
 	}
 }
 
