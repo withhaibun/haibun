@@ -7,6 +7,7 @@
  * (`file://` serialized report) via the same reverse walk over the off-heap quad snapshot. `toW3CAnnotations` shapes
  * the result for the annotator library, which anchors each TextQuoteSelector against the rendered body.
  */
+import { locateQuoteOffsets } from "@haibun/core/lib/quote-anchor.js";
 import { COMMENT_LABEL, BODY_LABEL, SPECIFIC_RESOURCE_LABEL, TEXT_QUOTE_SELECTOR_LABEL, LinkRelations, MEDIA_TYPE } from "@haibun/core/lib/resources.js";
 import { callStep } from "./pane-fetch.js";
 import { queryStoredQuads } from "./quads-snapshot.js";
@@ -142,21 +143,6 @@ function objectOf(quads: Quad[], predicate: string): string | undefined {
 function literalOf(quads: Quad[], predicate: string): string | undefined {
 	const q = quads.find((x) => x.predicate === predicate && x.objectType === undefined);
 	return q ? String(q.object) : undefined;
-}
-
-/** Locate a quote within the rendered text, honouring an optional prefix/suffix to pick the right occurrence when the
- *  quote repeats. Null when the quote is not present: the annotator anchors against the text it can see, so a quote
- *  that does not appear in this rendering cannot be highlighted (its note is not shown against the text). */
-export function locateQuoteOffsets(text: string, exact: string, prefix?: string, suffix?: string): { start: number; end: number } | null {
-	let from = 0;
-	for (;;) {
-		const idx = text.indexOf(exact, from);
-		if (idx < 0) return null;
-		const okPrefix = !prefix || text.slice(Math.max(0, idx - prefix.length), idx).endsWith(prefix);
-		const okSuffix = !suffix || text.slice(idx + exact.length, idx + exact.length + suffix.length).startsWith(suffix);
-		if (okPrefix && okSuffix) return { start: idx, end: idx + exact.length };
-		from = idx + 1;
-	}
 }
 
 /** Shape resolved annotations for the annotator library, anchored against `containerText` (the rendered body text).

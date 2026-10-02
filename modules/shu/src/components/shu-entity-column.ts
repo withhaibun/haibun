@@ -34,7 +34,7 @@ import { EntityController } from "../controllers/index.js";
 import type { TEntityResult, TEntityView, TAnnotationDraft } from "../entity-store.js";
 import type { AnnotationView } from "../annotation-resolver.js";
 import type { TPart, TQuoteAnchor } from "@haibun/core/lib/resources.js";
-import { assertFragmentReads, isFragment, type TFragment } from "@haibun/core/lib/media-fragments.js";
+import { assertFragmentReads, fragmentReads, isFragment, pageOfPassage, pdfPage, type TFragment } from "@haibun/core/lib/media-fragments.js";
 import "./shu-annotated-body.js";
 import {
 	edgeRecordType,
@@ -267,6 +267,8 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			this.requestUpdate();
 			return;
 		}
+		// The latest reference decides where a file the record offers opens: at the page of the passage it quotes.
+		this.fragment = null;
 		this.revealTarget = part;
 		this.setState({ showAnnotations: true });
 	}
@@ -383,13 +385,23 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			if (!opened) throw new Error("the browser didn't open a tab for what the call answers");
 			const { file } = FileAnswerSchema.parse(await this.entity.follow(link));
 			const blob = fileDataBlob(file);
-			if (this.fragment) assertFragmentReads(this.fragment, blob.type);
-			opened.location.href = `${URL.createObjectURL(blob)}${this.fragment ? `#${this.fragment.value}` : ""}`;
+			const at = this.fragment ?? this.pageOfRevealedPassage(blob.type);
+			if (at) assertFragmentReads(at, blob.type);
+			opened.location.href = `${URL.createObjectURL(blob)}${at ? `#${at.value}` : ""}`;
 		} catch (err) {
 			opened?.close();
 			reportFailure(SHU_TAG.ENTITY_COLUMN, `following "${link.summary}"`, err);
 		}
 	};
+
+	/** The page of a PDF the passage a reference quoted is on, as the record's text marks each page's beginning: where a file
+	 *  the record offers opens, so the passage is in view. */
+	private pageOfRevealedPassage(mediaType: string): TFragment | undefined {
+		const body = this.annotatableBody();
+		const page = this.revealTarget && body ? pageOfPassage(body.content, this.revealTarget) : undefined;
+		const at = page === undefined ? undefined : pdfPage(page);
+		return at && fragmentReads(at, mediaType) ? at : undefined;
+	}
 
 	/** Where the view came from when it was not fetched: a copy held this session, or the browser store when offline.
 	 *  Absent for a live fetch, so its presence tells a reader why the view appeared without one. */

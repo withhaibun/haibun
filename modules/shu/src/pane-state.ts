@@ -329,9 +329,10 @@ class PaneStateImpl {
 			const live = this.findLiveChild(id);
 			if (live) (live as HTMLElement & { products?: Record<string, unknown> }).products = d.data;
 		}
-		// Re-request of an open individual with a part: the pane already shows the document, so hand the part to the live
-		// column to show, attach hooks only fire for new panes.
-		if (existing && d.paneType === "entity" && d.selector) {
+		// A request for an individual with a part, whose column is live: the column already shows the document, so it is handed
+		// the part to show, since attach hooks only fire for new panes. A request that follows a link prunes the panes after
+		// the one it was followed from, which may be this one, and its column stays live under the same key.
+		if (d.paneType === "entity" && d.selector) {
 			const live = this.findLiveChild(id) as (HTMLElement & { revealPart?: (s: TPart) => void }) | undefined;
 			live?.revealPart?.(d.selector);
 		}

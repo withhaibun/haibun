@@ -3,6 +3,7 @@
  * FragmentSelector holds it. A PDF's page (RFC 8118), a span of audio or video and a region of an image (Media Fragments).
  */
 import { z } from "zod";
+import { locateQuoteOffsets } from "./quote-anchor.js";
 
 /** The specifications a FragmentSelector's value conforms to, as the Web Annotation model names them: RFC 8118 for a PDF's
  *  page, Media Fragments for a span of audio or video and a region of an image. */
@@ -36,9 +37,32 @@ export const MEDIA_FRAGMENTS = [
 	{ key: "xywh", conformsTo: FRAGMENT_SPEC.media, form: /^(pixel:|percent:)?\d+,\d+,\d+,\d+$/, of: "an image", reads: (mediaType: string) => mediaType.startsWith("image/") },
 ] as const;
 
-/** Whether a fragment is read for a media type, as a PDF's page is for a PDF; a fragment of another kind of media fails, so
- *  a reader isn't shown the whole file as though it were the part. */
+/** The kind of fragment a fragment is, by the key it is written with. */
+const specOf = (fragment: TFragment) => MEDIA_FRAGMENTS.find(({ key }) => fragment.value.startsWith(`${key}=`));
+
+/** Whether a fragment is read for a media type, as a PDF's page is for a PDF. */
+export const fragmentReads = (fragment: TFragment, mediaType: string): boolean => specOf(fragment)?.reads(mediaType) ?? false;
+
+/** A fragment read for a media type; a fragment of another kind of media fails, so a reader isn't shown the whole file as
+ *  though it were the part. */
 export function assertFragmentReads(fragment: TFragment, mediaType: string): void {
-	const spec = MEDIA_FRAGMENTS.find(({ key }) => fragment.value.startsWith(`${key}=`));
-	if (!spec?.reads(mediaType)) throw new Error(`"${fragment.value}" is a fragment of ${spec?.of ?? "unknown media"}, and the file is ${mediaType}`);
+	if (!fragmentReads(fragment, mediaType)) throw new Error(`"${fragment.value}" is a fragment of ${specOf(fragment)?.of ?? "unknown media"}, and the file is ${mediaType}`);
+}
+
+/** The mark extraction writes into a document's text where each page begins, in the form the extractor takes, its page's
+ *  number in place of `{page_num}`. An HTML comment, so the text reads and renders as it would without it. */
+export const PAGE_MARKER_FORMAT = "\n\n<!-- page {page_num} -->\n\n";
+const PAGE_MARKER = /<!-- page (\d+) -->/g;
+
+/** The fragment that names a page of a PDF. */
+export const pdfPage = (page: number): TFragment => ({ conformsTo: FRAGMENT_SPEC.pdf, value: `page=${page}` });
+
+/** The page of a document a passage is on, as its text marks each page's beginning: the page the last mark before the
+ *  passage begins. Undefined where the text doesn't hold the passage, or doesn't mark its pages. */
+export function pageOfPassage(text: string, quote: { exact: string; prefix?: string; suffix?: string }): number | undefined {
+	const at = locateQuoteOffsets(text, quote.exact, quote.prefix, quote.suffix);
+	if (!at) return undefined;
+	const marks = [...text.slice(0, at.start).matchAll(PAGE_MARKER)];
+	const last = marks[marks.length - 1];
+	return last ? Number(last[1]) : undefined;
 }
