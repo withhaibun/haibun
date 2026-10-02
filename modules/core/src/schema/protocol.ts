@@ -8,6 +8,12 @@ import { AccessLevelSchema } from "../lib/resources.js";
 export const HAIBUN_LOG_LEVELS = ["debug", "trace", "log", "info", "warn", "error"] as const;
 const HaibunLogLevel = z.enum(HAIBUN_LOG_LEVELS);
 export type THaibunLogLevel = z.infer<typeof HaibunLogLevel>;
+/** The levels from which a monitor shows events: an event's level, or none, which shows no events. */
+export const SHOWN_LOG_LEVELS = [...HAIBUN_LOG_LEVELS, "none"] as const;
+const ShownLogLevel = z.enum(SHOWN_LOG_LEVELS);
+export type TShownLogLevel = z.infer<typeof ShownLogLevel>;
+/** The level from which a monitor shows events, as actuality's `LOG_LEVEL` option states it, or info where it isn't set. */
+export const shownLogLevel = (options: { LOG_LEVEL?: string }): TShownLogLevel => ShownLogLevel.parse(options.LOG_LEVEL ?? "info");
 
 /**
  * Marks, as one related set. Two things vary, and each is carried by one visual property.
@@ -164,8 +170,8 @@ export function shortenURI(uri: string): string {
 export type TIndication = "success" | "failure" | "speculative-failure" | "pending" | "neutral";
 
 export class EventFormatter {
-	static shouldDisplay(event: THaibunEvent, minLevel: THaibunLogLevel = "info"): boolean {
-		const minLevelIndex = HAIBUN_LOG_LEVELS.indexOf(minLevel);
+	static shouldDisplay(event: THaibunEvent, minLevel: TShownLogLevel): boolean {
+		const minLevelIndex = SHOWN_LOG_LEVELS.indexOf(minLevel);
 		const eventLevelIndex = HAIBUN_LOG_LEVELS.indexOf(event.level);
 
 		if (eventLevelIndex < minLevelIndex) {

@@ -6,8 +6,8 @@ import { useState } from "react";
 import { render, Text, Box, Static, useInput } from "ink";
 import { AStepper, IHasCycles, StepperKinds, TStartFeature } from "@haibun/core/lib/astepper.js";
 import { TWorld } from "@haibun/core/lib/world.js";
-import type { THaibunEvent } from "@haibun/core/schema/protocol.js";
-import { EventFormatter, THaibunLogLevel } from "@haibun/core/monitor/index.js";
+import { shownLogLevel, type THaibunEvent } from "@haibun/core/schema/protocol.js";
+import { EventFormatter } from "@haibun/core/monitor/index.js";
 import { IPrompter, TPrompt, TPromptResponse } from "@haibun/core/lib/prompter.js";
 
 const EventLine = ({ line }: { line: string }) => <Text>{line}</Text>;
@@ -166,8 +166,7 @@ export default class TuiMonitorStepper extends AStepper implements IHasCycles, I
 		},
 
 		onEvent: (event: THaibunEvent): void => {
-			const minLevel = (process.env.HAIBUN_LOG_LEVEL as unknown as THaibunLogLevel) || "info";
-			if (EventFormatter.shouldDisplay(event, minLevel)) {
+			if (EventFormatter.shouldDisplay(event, shownLogLevel(this.getWorld().options))) {
 				const line = EventFormatter.formatLine(event, this.lastLevel);
 				this.lastLevel = EventFormatter.getDisplayLevel(event);
 				if (!this.terminal) {

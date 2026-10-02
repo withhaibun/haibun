@@ -1,6 +1,6 @@
 import { AStepper, IHasCycles, StepperKinds } from "../lib/astepper.js";
 import { getStepperOption } from "../lib/util/index.js";
-import { THaibunEvent, THaibunLogLevel } from "../schema/protocol.js";
+import { shownLogLevel, type THaibunEvent, type TShownLogLevel } from "../schema/protocol.js";
 import { EventFormatter } from "../monitor/index.js";
 
 /**
@@ -31,7 +31,7 @@ export default class ConsoleMonitorStepper extends AStepper implements IHasCycle
 	private showLogEvents: boolean = true;
 	private showLifecycleEvents: boolean = true;
 	private lastLevel: string = "";
-	private minLevel: string = "info";
+	private minLevel: TShownLogLevel = "info";
 
 	cycles = {
 		startExecution: () => {
@@ -39,7 +39,7 @@ export default class ConsoleMonitorStepper extends AStepper implements IHasCycle
 			this.verbose = getStepperOption(this, "CONSOLE_MONITOR_VERBOSE", moduleOptions) === "true";
 			this.showLogEvents = getStepperOption(this, "CONSOLE_MONITOR_LOGS", moduleOptions) !== "false";
 			this.showLifecycleEvents = getStepperOption(this, "CONSOLE_MONITOR_LIFECYCLE", moduleOptions) !== "false";
-			this.minLevel = options.LOG_LEVEL ?? "info";
+			this.minLevel = shownLogLevel(options);
 		},
 
 		onEvent: (event: THaibunEvent): void => {
@@ -49,7 +49,7 @@ export default class ConsoleMonitorStepper extends AStepper implements IHasCycle
 
 	private handleEvent(event: THaibunEvent): void {
 		// Determine visibility
-		let visible = EventFormatter.shouldDisplay(event, this.minLevel as THaibunLogLevel);
+		let visible = EventFormatter.shouldDisplay(event, this.minLevel);
 
 		// allow verbose to override hidden start steps
 		if (this.verbose && event.kind === "lifecycle" && !visible) {
