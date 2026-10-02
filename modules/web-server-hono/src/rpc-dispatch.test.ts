@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { ACTION_BEGIN, ACTUALITY_HEADER, SSE_ROUTE, actualityAt, actualityRefusal, RELOAD, RpcRefusalSchema } from "@haibun/core/lib/rpc-wire.js";
+import { ACTION_BEGIN, ACTUALITY_HEADER, SSE_ROUTE, actualityAt, actualityRefusal, readNdjson, REFUSED_INVOCATION, RELOAD, RPC_PROTOCOL, RpcRefusalSchema, rpcEnvelope } from "@haibun/core/lib/rpc-wire.js";
 import { FOLLOWS_THE_RUN } from "@haibun/core/lib/actions.js";
 import { passWithDefaults, DEF_PROTO_OPTIONS, freePort } from "@haibun/core/lib/test/lib.js";
 import { TEST_DOMAIN, declaresTestDomains } from "@haibun/core/lib/test/test-domains.js";
@@ -8,7 +8,6 @@ import { OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
 import { actionNotOK, actionOKWithProducts, getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import FakeAuthorityStepper, { DOMAIN_FAKE_HOLDER, FakeInvoker, fakeGrant } from "@haibun/core/lib/test/fake-authority.js";
-import { readNdjson } from "@haibun/core/lib/rpc-wire.js";
 import WebServerStepper from "./web-server-stepper.js";
 import Haibun from "@haibun/core/steps/haibun.js";
 import { EVERY_DEFINITION, SHOW_STEPS_ACTION, SHOW_STEPS_METHOD, readShownSteps, type TStepDefinition } from "@haibun/core/lib/step-discovery.js";
@@ -18,7 +17,6 @@ import { readingAt } from "@haibun/core/lib/capability-context.js";
 import { Access } from "@haibun/core/lib/resources.js";
 import { TRANSPORT, type ITransport } from "./sse-transport.js";
 import { DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_STEP_METHOD, DOMAIN_TEXT } from "@haibun/core/lib/domains.js";
-import { REFUSED_INVOCATION } from "@haibun/core/lib/rpc-wire.js";
 
 class PingStepper extends AStepper {
 	description = "Steps that answer a ping, one of them protected and one gated by an admin capability.";
@@ -66,7 +64,7 @@ const following = async (base: string): Promise<Record<string, string>> => ({ [A
 
 /** A call's envelope to `url`, stating the actuality the host at `url` answers its handshake with. */
 async function rpcBody(url: string, fields: { method: string } & Record<string, unknown>): Promise<string> {
-	return JSON.stringify({ jsonrpc: "2.0", id: "1", params: {}, ...fields, actualityId: await actualityAt(new URL(url).origin) });
+	return JSON.stringify({ jsonrpc: "2.0", protocol: RPC_PROTOCOL, id: "1", params: {}, ...fields, actualityId: await actualityAt(new URL(url).origin) });
 }
 
 /** The steps a read of actuality's declarations at `url` shows, signed by `holder` where one is named. */
@@ -188,7 +186,7 @@ class RpcVerifyStepper extends AStepper {
 				const base = new URL(String(url)).origin;
 				const other = crypto.randomUUID();
 				const refused = actualityRefusal(other, await actualityAt(base));
-				const body = JSON.stringify({ jsonrpc: "2.0", id: "1", method: "PingStepper-ping", params: {}, actualityId: other });
+				const body = rpcEnvelope({ id: "1", method: "PingStepper-ping", params: {}, actualityId: other });
 				const called = RpcRefusalSchema.parse(await (await fetch(String(url), { method: "POST", headers: { "Content-Type": "application/json" }, body })).json());
 				const streamed = await fetch(`${base}${SSE_ROUTE}`, { headers: { [ACTUALITY_HEADER]: other } });
 				const streamRefusal = RpcRefusalSchema.parse(await streamed.json());
@@ -704,7 +702,7 @@ rpc call to "http://localhost:${port}/rpc/Injected-ping" with method "Injected-p
 					gwta: `begin action twice at {url: ${DOMAIN_LINK}}`,
 					action: async ({ url }: { url: string }) => {
 						const u = String(url);
-						const body = JSON.stringify({ jsonrpc: "2.0", id: "1", method: ACTION_BEGIN, params: {} });
+						const body = rpcEnvelope({ id: "1", method: ACTION_BEGIN, params: {} });
 						const headers = { "Content-Type": "application/json" };
 						const r1 = (await (await fetch(u, { method: "POST", headers, body })).json()) as Record<string, unknown>;
 						const r2 = (await (await fetch(u, { method: "POST", headers, body })).json()) as Record<string, unknown>;

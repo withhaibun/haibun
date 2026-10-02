@@ -1,4 +1,4 @@
-import { ACTION_BEGIN, RPC_ROUTE, newActualityId, type THandshake } from "../rpc-wire.js";
+import { ACTION_BEGIN, RPC_PROTOCOL, RPC_ROUTE, newActualityId, type THandshake } from "../rpc-wire.js";
 
 /** A host's answer as actuality sends one: JSON, with the status that states whether it served the call. */
 export const rpcAnswer = (body: unknown, status: number): Response => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -9,6 +9,7 @@ export const HANDSHAKE_PATH = `${RPC_ROUTE}${ACTION_BEGIN}`;
 /** What a host a test stands in for answers the handshake with, as host `hostId` of `site`. */
 export const hostHandshake = (hostId: number, site: string): THandshake & { seqPath: number[] } => ({
 	seqPath: [hostId, -1, 1],
+	protocol: RPC_PROTOCOL,
 	hostId,
 	site,
 	actualityId: HOST_ACTUALITY,

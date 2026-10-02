@@ -42,12 +42,12 @@
 				"declaredStepTextHash": "b7ae3ef23e1d45290cd9e8d3d5e3fa2db5b70bc5872aef2b6ff06a25a454b083"
 			},
 			"/features/counter.feature": {
-				"seconds": 1.6,
+				"seconds": 2.3,
 				"steps": 19,
 				"declaredStepTextHash": "8c1b3b909e28bc05dac4eb957c9b1384d55393a5d3d4ed26b0910d3774bc4b95"
 			},
 			"/features/counter.feature.ts": {
-				"seconds": 1.4,
+				"seconds": 0.6,
 				"steps": 19,
 				"declaredStepTextHash": "2e43d35e8ca54dcf3b65f4bc5319e4e4d535aae75e236687ecdeb7357c80e33b"
 			},
@@ -137,12 +137,12 @@
 				"declaredStepTextHash": "8921eb0d4feec384de1b2b0475c85c9023c7c93dedd28b8c214e9862015b948c"
 			},
 			"/features/xss.feature": {
-				"seconds": 0.6,
+				"seconds": 0.5,
 				"steps": 10,
 				"declaredStepTextHash": "435eb21ce6beca35c72e9cae34f8fa3c5a95dbc4b627e6ca3338ae97b207bd20"
 			}
 		},
 		"steps": 1138,
-		"seconds": 13.8
+		"seconds": 13.6
 	}
 }

@@ -17,7 +17,18 @@ import {
 	authorityFailed,
 	releaseSignIn,
 	type TProveRequest,
+	RPC_PROTOCOL,
+	protocolRefusal,
+	handshakeAt,
+	HandshakeSchema,
+	RpcRequestSchema,
+	RpcRefusalSchema,
+	RpcResponseSchema,
+	RpcStreamSchema,
 } from "./rpc-wire.js";
+import { createHash } from "node:crypto";
+import { z } from "zod";
+import { hostHandshake, rpcAnswer } from "./test/rpc-answer.js";
 
 const BASE = "http://site.test:8123/instance/";
 const METHOD = "Stepper-act";
@@ -28,7 +39,7 @@ describe("a call to a host's rpc", () => {
 		const prove: TProveRequest = (request) => (proven.push(request), Promise.resolve({ ...request.headers, proof: "signed" }));
 		const call = await buildRpcCall(BASE, { id: "call-1", method: METHOD, params: { what: 1 }, seqPath: [0, 1] }, prove);
 		expect(call.url).toBe(`${BASE}rpc/${METHOD}`);
-		expect(JSON.parse(call.init.body)).toEqual({ jsonrpc: "2.0", id: "call-1", method: METHOD, params: { what: 1 }, seqPath: [0, 1] });
+		expect(JSON.parse(call.init.body)).toEqual({ jsonrpc: "2.0", protocol: RPC_PROTOCOL, id: "call-1", method: METHOD, params: { what: 1 }, seqPath: [0, 1] });
 		expect(proven, "the proof covers the request as it is sent, its host included").toEqual([
 			{ url: call.url, method: "POST", headers: { "content-type": "application/json", host: "site.test:8123" }, body: call.init.body },
 		]);
@@ -61,7 +72,7 @@ describe("a call to a host's rpc", () => {
 describe("a call a host parses", () => {
 	const held = newActualityId();
 	const refusal = (raw: Record<string, unknown>) => {
-		const parsed = parseRpcRequest({ jsonrpc: "2.0", id: "call", method: METHOD, params: {}, ...raw }, held);
+		const parsed = parseRpcRequest({ jsonrpc: "2.0", protocol: RPC_PROTOCOL, id: "call", method: METHOD, params: {}, ...raw }, held);
 		return parsed.success ? undefined : parsed.refusal;
 	};
 
@@ -77,10 +88,12 @@ describe("a call a host parses", () => {
 		expect(refused?.remedy).toEqual(RELOAD.actuality);
 	});
 
-	it("is refused where it doesn't state an actuality, as a client older than the host doesn't, and offers reloading the client", () => {
-		const refused = refusal({});
-		expect(refused?.error).toContain(actualityRefusal(undefined, held)?.error);
-		expect(refused?.remedy).toEqual(RELOAD.client);
+	it("is refused where its client speaks another version of the protocol, before anything else of it is read", () => {
+		expect(refusal({ protocol: undefined }), "a client from before versions were stated").toEqual(protocolRefusal(undefined, RPC_PROTOCOL));
+		expect(refusal({ protocol: RPC_PROTOCOL - 1, actualityId: newActualityId() }), "an older client, whatever actuality it reads").toEqual(
+			protocolRefusal(RPC_PROTOCOL - 1, RPC_PROTOCOL),
+		);
+		expect(refusal({})?.remedy, "a call at this version that doesn't name an actuality is malformed").toBeUndefined();
 	});
 
 	it("is refused for another reason without a remedy where it states the actuality the host holds", () => {
@@ -95,5 +108,46 @@ describe("a call a host parses", () => {
 		expect(refusalCarried(new Error("refused")), "a failure that isn't a refused call doesn't carry one").toBeUndefined();
 		expect(authorityFailed({ error: "revoked", remedy: RELOAD.authority })).toBe(true);
 		expect(authorityFailed(refused.refusal)).toBe(false);
+	});
+});
+
+/** The wire's shape at each version of the protocol: a change to what a call, the handshake or an answer holds raises
+ *  RPC_PROTOCOL, and records the shape it has at the new version here. */
+const WIRE_AT: Record<number, string> = { 1: "8779e89c5a24b9f7" };
+const wireShape = (): string =>
+	createHash("sha256")
+		.update(
+			JSON.stringify(
+				[RpcRequestSchema, HandshakeSchema, RpcRefusalSchema, RpcResponseSchema, RpcStreamSchema].map((schema) => z.toJSONSchema(schema, { io: "input", unrepresentable: "any" })),
+			),
+		)
+		.digest("hex")
+		.slice(0, 16);
+
+describe("the RPC protocol", () => {
+	it("is at the version the wire's shape was recorded at", () => {
+		expect(wireShape(), "the wire changed: raise RPC_PROTOCOL and record the shape it has at the new version").toBe(WIRE_AT[RPC_PROTOCOL]);
+	});
+
+	it("tells a client and an instance which of them is older, and offers reloading a client that is", () => {
+		expect(protocolRefusal(RPC_PROTOCOL, RPC_PROTOCOL)).toBeUndefined();
+		expect(protocolRefusal(undefined, 2)).toEqual({
+			error: "This client is older than the instance: the client speaks the RPC protocol at a version from before versions were stated, and the instance at version 2.",
+			remedy: RELOAD.client,
+		});
+		expect(protocolRefusal(2, 1)).toEqual({
+			error: "The instance is older than this client: the client speaks the RPC protocol at version 2, and the instance at version 1.",
+			remedy: undefined,
+		});
+	});
+
+	it("refuses, at the handshake, an instance that speaks another version", async () => {
+		const answering =
+			(protocol: unknown): typeof fetch =>
+			() =>
+				Promise.resolve(rpcAnswer({ ...hostHandshake(0, "did:site:0"), protocol }, 200));
+		await expect(handshakeAt(BASE, answering(RPC_PROTOCOL - 1))).rejects.toThrow(protocolRefusal(RPC_PROTOCOL, RPC_PROTOCOL - 1)?.error);
+		await expect(handshakeAt(BASE, answering(undefined))).rejects.toThrow(protocolRefusal(RPC_PROTOCOL, undefined)?.error);
+		expect((await handshakeAt(BASE, answering(RPC_PROTOCOL))).protocol).toBe(RPC_PROTOCOL);
 	});
 });

@@ -227,7 +227,7 @@ export class LiveConduit implements Conduit {
 	}
 
 	// The one wire write: envelope, headers (signed where the step requires authority), POST. Every request above rides it.
-	private async post(method: string, envelope: Omit<z.infer<typeof RpcEnvelopeSchema>, "jsonrpc" | "id">, signal?: AbortSignal): Promise<Response> {
+	private async post(method: string, envelope: Omit<z.infer<typeof RpcEnvelopeSchema>, "jsonrpc" | "protocol" | "id">, signal?: AbortSignal): Promise<Response> {
 		// What is signed is the address the request is made to: a proof over a relative path doesn't prove where
 		// it was sent, and the boundary checks the absolute one it received.
 		const base = new URL(`${this.basePath}/`, location.origin).href;

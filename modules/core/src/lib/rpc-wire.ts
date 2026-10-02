@@ -28,9 +28,15 @@ export const ACTUALITY_HEADER = "actuality-id";
 /** The handshake, answered with the host's hostId, site and the actualityId every other call states. */
 export const ACTION_BEGIN = "action.begin";
 
+/** The version of the RPC protocol this code speaks: every call states it, the handshake answers it, and a client and an
+ *  instance that speak different versions don't call each other. It rises with each change to the wire, which a test
+ *  holds to the wire's recorded shape. */
+export const RPC_PROTOCOL = 1;
+
 /** What every call's envelope holds. */
 export const RpcEnvelopeSchema = z.object({
 	jsonrpc: z.literal("2.0"),
+	protocol: z.literal(RPC_PROTOCOL),
 	id: z.string(),
 	params: z.record(z.string(), z.unknown()).optional().default({}),
 	capability: z.string().optional(),
@@ -58,7 +64,13 @@ export const RpcRequestSchema = rpcRequestSchema(ActualityIdSchema);
 type TRpcRequest = z.infer<typeof RpcRequestSchema>;
 
 /** What a host answers the handshake with. */
-export const HandshakeSchema = z.object({ hostId: z.number(), site: z.string().min(1), actualityId: ActualityIdSchema, serving: z.boolean() });
+export const HandshakeSchema = z.object({
+	protocol: z.literal(RPC_PROTOCOL),
+	hostId: z.number(),
+	site: z.string().min(1),
+	actualityId: ActualityIdSchema,
+	serving: z.boolean(),
+});
 export type THandshake = z.infer<typeof HandshakeSchema>;
 
 /** What the person can do about a refused call, which a page offers as a control: sign in at the site that answered in
@@ -78,12 +90,27 @@ export const RELOAD = {
 	authority: { do: "reload", what: "authority" },
 } as const satisfies Record<string, TRemedy>;
 
-/** Why a host whose records are of `held` refuses a call stating `stated`, and its remedy, where the call doesn't state that
- *  actuality. A call that doesn't state one comes from a client built before calls stated one. */
+/** How a version reads in a refusal. */
+const versionSaid = (version: unknown) => (typeof version === "number" ? `version ${version}` : "a version from before versions were stated");
+
+/** Why a client speaking RPC protocol `client` and an instance speaking `instance` don't call each other, where the two
+ *  differ, and its remedy: a client older than the instance reloads, where its current build is installed, and an instance
+ *  older than the client is updated where it is deployed. A side that doesn't state a version is the older. */
+export function protocolRefusal(client: unknown, instance: unknown): TRpcRefusal | undefined {
+	if (client === instance) return undefined;
+	const clientOlder = typeof client !== "number" || (typeof instance === "number" && client < instance);
+	const older = clientOlder ? "This client is older than the instance" : "The instance is older than this client";
+	return {
+		error: `${older}: the client speaks the RPC protocol at ${versionSaid(client)}, and the instance at ${versionSaid(instance)}.`,
+		remedy: clientOlder ? RELOAD.client : undefined,
+	};
+}
+
+/** Why a host whose records are of `held` refuses a call that reads `stated`, and its remedy, where the call names another
+ *  actuality: the instance holds new records since the caller read it, as after a restart. */
 export function actualityRefusal(stated: unknown, held: TActualityId): TRpcRefusal | undefined {
-	if (stated === held) return undefined;
-	if (stated === undefined) return { error: "the call doesn't state the actuality whose records it reads, as a client older than this instance doesn't", remedy: RELOAD.client };
-	return { error: `this instance holds actuality ${held}, and the call states ${String(stated)}, whose records it doesn't hold`, remedy: RELOAD.actuality };
+	if (stated === held || stated === undefined) return undefined;
+	return { error: `This instance holds actuality ${held}, and the call reads actuality ${String(stated)}, whose records it no longer holds.`, remedy: RELOAD.actuality };
 }
 
 /** The actualityId of a host whose records are of `actualityId`: a call that doesn't state it doesn't parse. */
@@ -180,31 +207,35 @@ export async function answerBody(method: string, res: Response): Promise<unknown
 	return answer.body;
 }
 
-/** What a call states of the actuality it reads, read before the rest of it, so a refusal names the remedy. */
-const StatedActualitySchema = z.object({ method: z.string(), actualityId: z.unknown() }).partial().loose();
+/** What a call states of the protocol it speaks and the actuality it reads, read before the rest of it, so a refusal of
+ *  either names its remedy. */
+const StatedSchema = z.object({ method: z.unknown(), protocol: z.unknown(), actualityId: z.unknown() }).partial().loose();
 
 /** Parse an incoming RPC request, by a host whose records are of `actualityId`, or refuse it with what a caller can do. */
 export function parseRpcRequest(raw: unknown, actualityId: TActualityId): { success: true; data: TRpcRequest } | { success: false; refusal: TRpcRefusal } {
+	// A client that speaks another version of the protocol is refused as that, before anything else of its call is read.
+	const stated = StatedSchema.safeParse(raw).data;
+	const otherProtocol = protocolRefusal(stated?.protocol, RPC_PROTOCOL);
+	if (otherProtocol) return { success: false, refusal: otherProtocol };
 	// The schema is made once for the actuality a host holds, which changes only when its records are replaced.
 	if (held?.actualityId !== actualityId) held = { actualityId, schema: rpcRequestSchema(heldActuality(actualityId)) };
 	const parsed = held.schema.safeParse(raw);
 	if (parsed.success) return { success: true, data: parsed.data };
-	const stated = StatedActualitySchema.safeParse(raw).data;
-	const remedy = stated?.method === ACTION_BEGIN ? undefined : actualityRefusal(stated?.actualityId, actualityId)?.remedy;
-	return { success: false, refusal: { error: z.prettifyError(parsed.error), remedy } };
+	const notHeld = stated?.method === ACTION_BEGIN ? undefined : actualityRefusal(stated?.actualityId, actualityId);
+	return { success: false, refusal: notHeld ?? { error: z.prettifyError(parsed.error) } };
 }
 let held: { actualityId: TActualityId; schema: ReturnType<typeof rpcRequestSchema> } | undefined;
 
 /** A JSON-RPC request body, ready to send: the same shape the server parses. Undefined fields are dropped, so an envelope carries only what its caller stated. */
 export function rpcEnvelope(e: TRpcEnvelope): string {
-	return JSON.stringify({ jsonrpc: "2.0", ...e });
+	return JSON.stringify({ jsonrpc: "2.0", protocol: RPC_PROTOCOL, ...e });
 }
 
 /** The headers that prove a call, made over the request as it is sent: its address, method, headers and body. */
 export type TProveRequest = (request: { url: string; method: string; headers: Record<string, string>; body: string }) => Promise<Record<string, string>>;
 
 /** The fields of a call's envelope, as its caller states them. */
-export type TRpcEnvelope = TRpcRequest extends infer R ? (R extends unknown ? Omit<R, "jsonrpc"> : never) : never;
+export type TRpcEnvelope = TRpcRequest extends infer R ? (R extends unknown ? Omit<R, "jsonrpc" | "protocol"> : never) : never;
 
 /** A call carries the sign-in the browser holds for the site it is sent to, such as a proxy's basic auth, beside its own
  *  proof. A page sends its site's sign-in anyway. An extension calls from another origin, where a browser sends it only
@@ -262,7 +293,11 @@ export async function postRpc(
 /** What the host at `base` answers the handshake with. */
 export async function handshakeAt(base: string, fetchImpl: typeof fetch = fetch): Promise<THandshake> {
 	const call = await buildRpcCall(base, { id: `${ACTION_BEGIN}-${Date.now()}`, method: ACTION_BEGIN, params: {} }, provesNothing);
-	return HandshakeSchema.parse(await answerBody(ACTION_BEGIN, await fetchImpl(call.url, call.init)));
+	const answered = await answerBody(ACTION_BEGIN, await fetchImpl(call.url, call.init));
+	// An instance that speaks another version of the protocol is refused as that, before the rest of its answer is read.
+	const otherProtocol = protocolRefusal(RPC_PROTOCOL, StatedSchema.safeParse(answered).data?.protocol);
+	if (otherProtocol) throw new RefusedCall(otherProtocol);
+	return HandshakeSchema.parse(answered);
 }
 
 /** The actualityId of the records the host at `base` holds. */

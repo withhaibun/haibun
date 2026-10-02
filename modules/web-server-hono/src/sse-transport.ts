@@ -66,6 +66,7 @@ export class SSETransport implements ITransport, IStepTransport {
 			const { granted } = authority;
 			// A follower states the actuality it follows, and the stream ends once this instance holds another.
 			const following = c.req.header(ACTUALITY_HEADER);
+			if (!following) return c.json({ error: `The event stream request doesn't name the actuality it follows in its ${ACTUALITY_HEADER} header.` }, 400);
 			const notFollowing = actualityRefusal(following, this.runtime.actualityId);
 			if (notFollowing) return c.json(notFollowing, 400);
 			this.eventLogger.debug("SSE Client connected");

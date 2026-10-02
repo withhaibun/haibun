@@ -15,7 +15,7 @@ import { createDynamicAuthMiddleware, authSchemes, type TSchemeType, type AuthSc
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { FakeInvoker, DOMAIN_FAKE_HOLDER } from "@haibun/core/lib/test/fake-authority.js";
 import { TEST_DOMAIN, testDomainDefinitions } from "@haibun/core/lib/test/test-domains.js";
-import { REFUSED_INVOCATION } from "@haibun/core/lib/rpc-wire.js";
+import { REFUSED_INVOCATION, RPC_PROTOCOL } from "@haibun/core/lib/rpc-wire.js";
 
 const TALLY = "tally";
 
@@ -30,7 +30,7 @@ const setTally = (value: number) => ({
 type TSigner = { holder: string; action: string } | undefined;
 
 /** A call of `method` at `url`, stating the actuality the host at `url` holds. */
-const rpcCall = async (url: string, id: string, method: string) => ({ id, method, params: {}, actualityId: await actualityAt(new URL(url).origin) });
+const rpcCall = async (url: string, id: string, method: string) => ({ protocol: RPC_PROTOCOL, id, method, params: {}, actualityId: await actualityAt(new URL(url).origin) });
 
 /** A JSON-RPC call to `url`, signed by the stand-in authority where a signer is named. */
 async function post(url: string, message: Record<string, unknown>, signer: TSigner): Promise<Response> {

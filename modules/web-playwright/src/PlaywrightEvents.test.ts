@@ -3,9 +3,10 @@
 // and a page that records what it draws then draws what it recorded.
 import { describe, expect, it } from "vitest";
 import { asksToRead } from "./PlaywrightEvents.js";
+import { newActualityId, rpcEnvelope } from "@haibun/core/lib/rpc-wire.js";
 
 const call = (asks?: "read" | "act") =>
-	JSON.stringify({ jsonrpc: "2.0", id: "rpc-1", method: "MonitorStepper-recordClientBlips", params: { batch: {} }, ...(asks ? { asks } : {}) });
+	rpcEnvelope({ id: "rpc-1", method: "MonitorStepper-recordClientBlips", params: { batch: {} }, actualityId: newActualityId(), ...(asks ? { asks } : {}) });
 
 describe("what the browser observer leaves unrecorded", () => {
 	it("a call that asks to read", () => {
