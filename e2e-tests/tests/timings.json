@@ -7,7 +7,7 @@
 				"declaredStepTextHash": "2f81c0c9ae35982bdf3f8a9b56a62e10bd7f80a7340e1ce0797ad7bbaece5cc0"
 			},
 			"/features/a11y-pass.feature": {
-				"seconds": 0.4,
+				"seconds": 0.5,
 				"steps": 11,
 				"declaredStepTextHash": "09cc25e61c080ca316fccb7e6a2bec04f811e90fc05becc626c61a7fabda8655"
 			},
@@ -37,12 +37,12 @@
 				"declaredStepTextHash": "0d26c0a9d2e709649eb496c3ae4f657c9f065a65d9b22fc86967e33a2a6fefba"
 			},
 			"/features/auth-form.feature": {
-				"seconds": 0.7,
+				"seconds": 0.8,
 				"steps": 23,
 				"declaredStepTextHash": "b7ae3ef23e1d45290cd9e8d3d5e3fa2db5b70bc5872aef2b6ff06a25a454b083"
 			},
 			"/features/counter.feature": {
-				"seconds": 1.9,
+				"seconds": 1.6,
 				"steps": 19,
 				"declaredStepTextHash": "8c1b3b909e28bc05dac4eb957c9b1384d55393a5d3d4ed26b0910d3774bc4b95"
 			},
@@ -97,7 +97,7 @@
 				"declaredStepTextHash": "f012b7fcf7b2484d728938eb62dc6457a9f0fec686fc8d0b3dbe3dc38e088aa9"
 			},
 			"/features/qrcode.feature": {
-				"seconds": 2.6,
+				"seconds": 2.5,
 				"steps": 18,
 				"declaredStepTextHash": "6c1cf006da48f78142e2c23c167266634114bcea223a400f8b4967a9a1f9c156"
 			},
@@ -143,6 +143,6 @@
 			}
 		},
 		"steps": 1138,
-		"seconds": 14.7
+		"seconds": 14.5
 	}
 }

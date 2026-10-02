@@ -11,6 +11,7 @@ import {
 	PART_DIRECTIVE,
 	typedHref,
 	typedLinkFacts,
+	linkMentions,
 	type TLinkVocabulary,
 } from "./typed-links.js";
 import { LinkRelations } from "./resources.js";
@@ -138,6 +139,14 @@ describe("classifyLinkText", () => {
 	});
 	it("rejects an abstract upper concept, which is never a written rel", () => {
 		expect(() => classifyLinkText("a role:inRoleOf", vocab)).toThrow(/not a declared rel/);
+	});
+});
+
+describe("linkMentions", () => {
+	it("reads each link as a mention and its text as text, a colon in it included", () => {
+		expect(linkMentions("[LlmProvider:openai](#Document:a) and [a note](https://example.com/n) and [the type](#Document)", vocab)).toEqual([
+			{ rel: LinkRelations.MENTIONS.rel, target: { kind: "individual", persistedAs: "Document", id: "a" } },
+		]);
 	});
 });
 

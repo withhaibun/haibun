@@ -255,3 +255,12 @@ export function typedLinkFacts(markdown: string, vocab: TLinkVocabulary): TTyped
 	}
 	return facts;
 }
+
+/** The records a text's links name, each link read as a mention and its text as text: for a text whose writer wasn't given the
+ *  typed form, as a model's answer, whose link text may hold a colon as prose does. */
+export function linkMentions(markdown: string, vocab: TLinkVocabulary): TTypedLinkFact[] {
+	return markdownLinks(markdown).flatMap(({ href }) => {
+		const target = resolveLinkTarget(href, vocab.isType);
+		return target?.kind === DENOTES.individual ? [{ rel: LinkRelations.MENTIONS.rel, target }] : [];
+	});
+}
