@@ -15,7 +15,7 @@ import { createDynamicAuthMiddleware, authSchemes, type TSchemeType, type AuthSc
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { FakeInvoker, DOMAIN_FAKE_HOLDER } from "@haibun/core/lib/test/fake-authority.js";
 import { TEST_DOMAIN, testDomainDefinitions } from "@haibun/core/lib/test/test-domains.js";
-import { REFUSED_INVOCATION } from "@haibun/web-server-hono/capability-auth.js";
+import { REFUSED_INVOCATION } from "@haibun/core/lib/rpc-wire.js";
 
 const TALLY = "tally";
 

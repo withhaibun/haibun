@@ -22,9 +22,18 @@ import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import { z } from "zod";
 import { pagePinned } from "./page-pinned.js";
 // The wire itself: envelope and stream reader, shared with every other caller of a haibun host. Free of node imports.
-import { ACTION_BEGIN, buildRpcCall, readNdjson, readRpcAnswer, RefusedCall, type TProveRequest, RpcEnvelopeSchema } from "@haibun/core/lib/rpc-wire.js";
+import {
+	ACTION_BEGIN,
+	buildRpcCall,
+	readNdjson,
+	type TProveRequest,
+	RpcEnvelopeSchema,
+	answerBody,
+	authorityFailed,
+	refusalCarried,
+} from "@haibun/core/lib/rpc-wire.js";
 import { findStep, hydratedActualityId, responseTimeoutMs } from "./rpc-registry.js";
-import { keyHeaders, pageAuthorityReady, signedHeaders } from "./page-key.js";
+import { forgetPageAuthority, keyHeaders, pageAuthorityReady, signedHeaders } from "./page-key.js";
 import { DELEGATIONS_READ_METHOD } from "@haibun/core/lib/authority-types.js";
 import { SHOW_STEPS_ACTION, SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 
@@ -119,11 +128,15 @@ function nextRpcId(): string {
 /** What actuality answers `action.begin` with: the place in its sequence the act is recorded at. */
 const ActionBeganSchema = z.object({ seqPath: z.array(z.number()).min(1) });
 
-/** Actuality's answer to a call, or the refusal it stated, thrown. */
+/** Actuality's answer to a call, or the refusal it stated, thrown. Authority refused as failing verification, as one revoked
+ *  or lapsed, isn't the page's to hold any longer, so the page lets go of it and every later call is made without it. */
 async function answerOf(method: string, res: Response): Promise<unknown> {
-	const answer = await readRpcAnswer(method, res);
-	if (answer.kind === "refused") throw new RefusedCall(answer);
-	return answer.body;
+	try {
+		return await answerBody(method, res);
+	} catch (err) {
+		if (authorityFailed(refusalCarried(err))) forgetPageAuthority();
+		throw err;
+	}
 }
 
 /**

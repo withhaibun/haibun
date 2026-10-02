@@ -14,7 +14,7 @@ import McpStepper from "./mcp-stepper.js";
 import WebServerStepper from "./web-server-stepper.js";
 import { DOMAIN_NUMBER } from "@haibun/core/lib/domains.js";
 import { Access } from "@haibun/core/lib/resources.js";
-import { REFUSED_INVOCATION } from "./capability-auth.js";
+import { REFUSED_INVOCATION } from "@haibun/core/lib/rpc-wire.js";
 
 class ProtectedStepper extends AStepper {
 	description = "Steps gated by a protected and an admin capability, for tests of MCP authorization.";

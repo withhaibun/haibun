@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ACTION_BEGIN, RpcRequestSchema, RpcResponseSchema, RpcStreamSchema, parseRpcRequest } from "./rpc-wire.js";
+import { ACTION_BEGIN, RpcRequestSchema, RpcResponseSchema, RpcStreamSchema, actualityRefusal, parseRpcRequest } from "./rpc-wire.js";
 
 const ACTUALITY = crypto.randomUUID();
 
@@ -45,8 +45,9 @@ describe("JSON-RPC 2.0 schema compliance", () => {
 
 	it("refuses a call that doesn't state the actuality the host holds, naming the one it holds", () => {
 		expect(parseRpcRequest({ jsonrpc: "2.0", id: "1", method: "test" }, ACTUALITY).success, "a call that doesn't state one").toBe(false);
-		const other = parseRpcRequest({ jsonrpc: "2.0", id: "1", method: "test", actualityId: crypto.randomUUID() }, ACTUALITY);
-		expect(other.success ? undefined : other.refusal.error).toContain(`this instance holds actuality ${ACTUALITY}`);
+		const stated = crypto.randomUUID();
+		const other = parseRpcRequest({ jsonrpc: "2.0", id: "1", method: "test", actualityId: stated }, ACTUALITY);
+		expect(other.success ? undefined : other.refusal.error).toContain(actualityRefusal(stated, ACTUALITY)?.error);
 	});
 
 	it("accepts request with stream flag", () => {

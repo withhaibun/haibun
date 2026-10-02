@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { ACTION_BEGIN, ACTUALITY_HEADER, SSE_ROUTE, actualityAt, RpcRefusalSchema } from "@haibun/core/lib/rpc-wire.js";
+import { ACTION_BEGIN, ACTUALITY_HEADER, SSE_ROUTE, actualityAt, actualityRefusal, RELOAD, RpcRefusalSchema } from "@haibun/core/lib/rpc-wire.js";
 import { FOLLOWS_THE_RUN } from "@haibun/core/lib/actions.js";
 import { passWithDefaults, DEF_PROTO_OPTIONS, freePort } from "@haibun/core/lib/test/lib.js";
 import { TEST_DOMAIN, declaresTestDomains } from "@haibun/core/lib/test/test-domains.js";
@@ -18,7 +18,7 @@ import { readingAt } from "@haibun/core/lib/capability-context.js";
 import { Access } from "@haibun/core/lib/resources.js";
 import { TRANSPORT, type ITransport } from "./sse-transport.js";
 import { DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_STEP_METHOD, DOMAIN_TEXT } from "@haibun/core/lib/domains.js";
-import { REFUSED_INVOCATION } from "./capability-auth.js";
+import { REFUSED_INVOCATION } from "@haibun/core/lib/rpc-wire.js";
 
 class PingStepper extends AStepper {
 	description = "Steps that answer a ping, one of them protected and one gated by an admin capability.";
@@ -187,14 +187,16 @@ class RpcVerifyStepper extends AStepper {
 			action: async ({ url }: TStepArgs) => {
 				const base = new URL(String(url)).origin;
 				const other = crypto.randomUUID();
-				const held = `this instance holds actuality ${await actualityAt(base)}, and the call states ${other}`;
+				const refused = actualityRefusal(other, await actualityAt(base));
 				const body = JSON.stringify({ jsonrpc: "2.0", id: "1", method: "PingStepper-ping", params: {}, actualityId: other });
 				const called = RpcRefusalSchema.parse(await (await fetch(String(url), { method: "POST", headers: { "Content-Type": "application/json" }, body })).json());
 				const streamed = await fetch(`${base}${SSE_ROUTE}`, { headers: { [ACTUALITY_HEADER]: other } });
-				const streamRefusal = (await streamed.json()) as { error?: string };
-				if (!called.error.includes(held) || called.remedy?.do !== "reload" || called.remedy.what !== "actuality")
+				const streamRefusal = RpcRefusalSchema.parse(await streamed.json());
+				if (!refused || !called.error.includes(refused.error) || JSON.stringify(called.remedy) !== JSON.stringify(RELOAD.actuality))
 					return actionNotOK(`the call wasn't refused naming the actuality held, offering to read it again: ${JSON.stringify(called)}`);
-				return streamed.status === 400 && streamRefusal.error?.includes(held) ? OK : actionNotOK(`the stream answered ${streamed.status}: ${JSON.stringify(streamRefusal)}`);
+				return streamed.status === 400 && JSON.stringify(streamRefusal) === JSON.stringify(refused)
+					? OK
+					: actionNotOK(`the stream answered ${streamed.status}: ${JSON.stringify(streamRefusal)}`);
 			},
 		},
 		rpcReadOfStepRefused: {

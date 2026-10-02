@@ -8,11 +8,11 @@ import { truncateForLog, errorDetail } from "@haibun/core/lib/util/index.js";
 import type { StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { streamContext, streamOver, type TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import type { IStepTransport } from "./step-transport.js";
-import { ACTUALITY_HEADER, authorityFailed, heldActuality, SSE_ROUTE, RpcRefusalSchema, RpcEnvelopeSchema } from "@haibun/core/lib/rpc-wire.js";
+import { ACTUALITY_HEADER, actualityRefusal, authorityFailed, REFUSED_INVOCATION, SSE_ROUTE, RpcRefusalSchema, RpcEnvelopeSchema } from "@haibun/core/lib/rpc-wire.js";
 import type { TRuntime } from "@haibun/core/lib/world.js";
 import { capabilityAllows, FOLLOWS_THE_RUN, readAction } from "@haibun/core/lib/actions.js";
 import { Access, AccessLevelSchema, type AccessLevel } from "@haibun/core/lib/resources.js";
-import { authorityAllowing, endWhenLapsed, REFUSED_INVOCATION } from "./capability-auth.js";
+import { authorityAllowing, endWhenLapsed } from "./capability-auth.js";
 
 type TTransportRequestInfo = {
 	headers?: Record<string, string | undefined>;
@@ -30,7 +30,7 @@ type TMessageHandler = (data: unknown, requestInfo?: TTransportRequestInfo) => u
 const RpcRouteSchema = RpcEnvelopeSchema.pick({ method: true, stream: true, asks: true }).partial().loose();
 
 /** The refusal an answer states, where it refuses its call. */
-const refusalOf = (answer: unknown) => RpcRefusalSchema.safeParse(answer).data;
+const answerRefusal = (answer: unknown) => RpcRefusalSchema.safeParse(answer).data;
 
 export interface ITransport {
 	send(data: unknown): void;
@@ -65,8 +65,9 @@ export class SSETransport implements ITransport, IStepTransport {
 			if (authority instanceof Response) return authority;
 			const { granted } = authority;
 			// A follower states the actuality it follows, and the stream ends once this instance holds another.
-			const following = heldActuality(this.runtime.actualityId).safeParse(c.req.header(ACTUALITY_HEADER));
-			if (!following.success) return c.json({ error: z.prettifyError(following.error) }, 400);
+			const following = c.req.header(ACTUALITY_HEADER);
+			const notFollowing = actualityRefusal(following, this.runtime.actualityId);
+			if (notFollowing) return c.json(notFollowing, 400);
 			this.eventLogger.debug("SSE Client connected");
 			return await streamSSE(c, async (sseStream) => {
 				// The stream announces what happens from here on. What happened before is in the graph, which a
@@ -76,7 +77,7 @@ export class SSETransport implements ITransport, IStepTransport {
 				// delegation was revoked or expired isn't sent further events, and connecting again is refused.
 				const followed = new AbortController();
 				const handler = (data: string, level: AccessLevel) => {
-					if (this.runtime.actualityId !== following.data) return followed.abort(`this instance holds actuality ${this.runtime.actualityId}`);
+					if (this.runtime.actualityId !== following) return followed.abort(`this instance holds actuality ${this.runtime.actualityId}`);
 					if (!capabilityAllows(granted, readAction(level))) return;
 					sseStream.writeSSE({ data, event: "message" }).catch((e) => {
 						this.eventLogger.error(`Error writing to SSE stream: ${e}`);
@@ -129,7 +130,7 @@ export class SSETransport implements ITransport, IStepTransport {
 							return;
 						}
 						// Successful dispatch already pushed its content via streamContext.emit; emitting the products again would duplicate the stream. On refusal, emit the error as a terminating record so the client surfaces it. The lifecycle stepEnd event already fired on the seqPath via dispatchStep, seq-bound consumers see the canonical record there.
-						const refusal = refusalOf(result)?.error;
+						const refusal = answerRefusal(result)?.error;
 						if (refusal) await writeChunk({ error: refusal });
 					});
 				});
@@ -157,7 +158,7 @@ export class SSETransport implements ITransport, IStepTransport {
 			}
 			// A request whose presented authority failed is refused as forbidden, which is a different answer from a call refused
 			// for want of a capability it didn't present.
-			const refusal = refusalOf(result);
+			const refusal = answerRefusal(result);
 			const status = !refusal ? 200 : authorityFailed(refusal) ? REFUSED_INVOCATION : 422;
 			try {
 				return c.json(result, status);

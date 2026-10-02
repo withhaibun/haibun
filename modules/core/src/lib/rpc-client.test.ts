@@ -206,7 +206,7 @@ describe("what a caller is told when a call's answer didn't come from actuality"
 			error: "Stepper-echo: this call didn't reach actuality. Something in front of it answered 401 (text/plain): 401 Unauthorized.",
 			remedy: { do: "sign-in", at: "https://site.example" },
 		});
-		expect(notFromActuality("Stepper-echo", 401, "text/plain", "401 Unauthorized"), "where the answer doesn't state the site, it isn't offered").not.toHaveProperty("remedy");
+		expect(notFromActuality("Stepper-echo", 401, "text/plain", "401 Unauthorized").remedy, "where the answer doesn't state the site, it isn't offered").toBeUndefined();
 		expect(notFromActuality("Stepper-echo", 502, "text/html", "Bad Gateway", "https://site.example")).toEqual({
 			error: "Stepper-echo: this call didn't reach actuality. Something in front of it answered 502 (text/html): Bad Gateway.",
 		});

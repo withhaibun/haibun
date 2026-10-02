@@ -14,7 +14,7 @@ import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { requiredAction } from "@haibun/core/lib/actions.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { acts, conduit, hasConduit, isServerUnreachable } from "./hypermedia.js";
-import { forgetPageAuthority, pageMay } from "./page-key.js";
+import { pageMay } from "./page-key.js";
 
 /** The monitor's step a page reports a diagnostic through. */
 const CLIENT_LOG = { stepper: "MonitorStepper", step: "logClient" } as const;
@@ -40,9 +40,8 @@ export function reportToRun(level: TClientLogLevel, source: string, message: str
 		.follow(acts(CLIENT_LOG_METHOD, { event: { level, source, message, attributes } }), `${source}: ${level}`)
 		.catch((err: unknown) => {
 			if (isServerUnreachable(err)) return console.warn(`[${source}] not reported to actuality: ${errorDetail(err)}`, { level, message });
-			// Authority revoked or lapsed isn't the page's to hold any longer, so later reports go to the console until it holds more.
+			// The conduit let go of authority revoked or lapsed, so this report and later ones go to the console.
 			if (authorityFailed(refusalCarried(err))) {
-				forgetPageAuthority();
 				return console.warn(`[${source}] not reported to actuality, since the page's authority failed verification: ${errorDetail(err)}`, { level, message });
 			}
 			failFastOrLog(`[${source}] reporting to actuality failed: ${errorDetail(err)}`, err);

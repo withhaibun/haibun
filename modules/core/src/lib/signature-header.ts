@@ -11,7 +11,7 @@ type THeaders = Record<string, string | undefined>;
 
 export const SIGNATURE_HEADER = "signature";
 const AUTHORIZATION_HEADER = "authorization";
-const SIGNATURE_SCHEME = "Signature ";
+export const SIGNATURE_SCHEME = "Signature ";
 
 /** Signed headers as a request sends them: the signature a signing library wrote to `Authorization`, carried in `Signature`. */
 export function carriedInSignature(signed: Record<string, string>): Record<string, string> {

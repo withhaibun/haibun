@@ -5,11 +5,11 @@ import "fake-indexeddb/auto";
  * fails fast; a page without a run to report to doesn't report.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { CLIENT_LOG_ACTION, reportFailure, reportToRun } from "./client-log.js";
-import { READ_AUTHORITY_AGAIN, RefusedCall } from "@haibun/core/lib/rpc-wire.js";
+import { reportFailure, reportToRun } from "./client-log.js";
+import { authorityRefusal, RefusedCall } from "@haibun/core/lib/rpc-wire.js";
 import { endPage } from "./page-pinned.js";
 import { carryARun, serveThePage, openReportingPage, reportingTo, setupShuTest, type TReportedToRun, type TShuTestHandle } from "./test-setup.js";
-import { openPageAuthority, pageMay } from "./page-key.js";
+import { openPageAuthority } from "./page-key.js";
 
 const SOURCE = "a view";
 
@@ -29,19 +29,15 @@ describe("the page's reports to actuality", () => {
 		expect(reported).toEqual([{ level: "error", source: SOURCE, message: "the view could not be read: the read was refused" }]);
 	});
 
-	it("lets go of authority that failed verification, as one revoked, and reports to the console from then on", async () => {
-		let asked = 0;
-		t = setupShuTest({
-			dispatch: () => {
-				asked += 1;
-				throw new RefusedCall({ error: "the presented authority failed verification: revoked", remedy: READ_AUTHORITY_AGAIN });
-			},
-		});
+	it("writes a report refused for authority that failed verification, as one revoked, to the console, and doesn't fail fast", async () => {
+		const warned: unknown[][] = [];
+		const warn = vi.spyOn(console, "warn").mockImplementation((...said: unknown[]) => void warned.push(said));
+		t = setupShuTest({ dispatch: () => Promise.reject(new RefusedCall(authorityRefusal("the presented authority failed verification: revoked"))) });
 		await openReportingPage();
 		reportToRun("warn", SOURCE, "under revoked authority");
-		await vi.waitFor(() => expect(pageMay(CLIENT_LOG_ACTION), "the page doesn't hold what it was refused").toBe(false));
-		reportToRun("warn", SOURCE, "after it let go");
-		expect(asked, "a later report isn't sent").toBe(1);
+		await vi.waitFor(() => expect(warned).toHaveLength(1));
+		warn.mockRestore();
+		expect(String(warned[0]?.[0])).toContain("since the page's authority failed verification");
 	});
 
 	it("doesn't report where the page doesn't have a run to report to, or doesn't hold what reporting requires", async () => {

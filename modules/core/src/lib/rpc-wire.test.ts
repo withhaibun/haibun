@@ -10,7 +10,8 @@ import {
 	newActualityId,
 	parseRpcRequest,
 	provesNothing,
-	READ_AUTHORITY_AGAIN,
+	RELOAD,
+	actualityRefusal,
 	RefusedCall,
 	refusalCarried,
 	authorityFailed,
@@ -71,18 +72,19 @@ describe("a call a host parses", () => {
 	it("is refused where it states another actuality, and offers reading the actuality the host holds", () => {
 		const other = newActualityId();
 		const refused = refusal({ actualityId: other });
-		expect(refused?.error).toContain(`this instance holds actuality ${held}, and the call states ${other}, whose records it doesn't hold`);
-		expect(refused?.remedy).toEqual({ do: "reload", what: "actuality" });
+		const expected = actualityRefusal(other, held);
+		expect(refused?.error).toContain(expected?.error);
+		expect(refused?.remedy).toEqual(RELOAD.actuality);
 	});
 
 	it("is refused where it doesn't state an actuality, as a client older than the host doesn't, and offers reloading the client", () => {
 		const refused = refusal({});
-		expect(refused?.error).toContain("the call doesn't state the actuality whose records it reads, as a client older than this instance doesn't");
-		expect(refused?.remedy).toEqual({ do: "reload", what: "client" });
+		expect(refused?.error).toContain(actualityRefusal(undefined, held)?.error);
+		expect(refused?.remedy).toEqual(RELOAD.client);
 	});
 
 	it("is refused for another reason without a remedy where it states the actuality the host holds", () => {
-		expect(refusal({ actualityId: held, params: "not an object" })).not.toHaveProperty("remedy");
+		expect(refusal({ actualityId: held, params: "not an object" })?.remedy).toBeUndefined();
 	});
 
 	it("carries its refusal through a throw, and reads with its remedy where it isn't offered as a control", () => {
@@ -91,7 +93,7 @@ describe("a call a host parses", () => {
 		expect(refused.message).toBe("refused (sign in at https://site.example)");
 		expect(refusalCarried(refused), "read by its name, as another bundle's copy of the class is").toEqual(refused.refusal);
 		expect(refusalCarried(new Error("refused")), "a failure that isn't a refused call doesn't carry one").toBeUndefined();
-		expect(authorityFailed({ error: "revoked", remedy: READ_AUTHORITY_AGAIN })).toBe(true);
+		expect(authorityFailed({ error: "revoked", remedy: RELOAD.authority })).toBe(true);
 		expect(authorityFailed(refused.refusal)).toBe(false);
 	});
 });

@@ -7,7 +7,9 @@
  * and in-memory surface so regressions in the contract fail immediately and
  * unambiguously.
  */
-import { notFromActuality } from "@haibun/core/lib/rpc-wire.js";
+import "fake-indexeddb/auto";
+import { authorityRefusal, notFromActuality, REFUSED_INVOCATION } from "@haibun/core/lib/rpc-wire.js";
+import { openPageAuthority, pageMay } from "./page-key.js";
 import { describe, it, expect, beforeEach } from "vitest";
 import {
 	reads,
@@ -172,6 +174,19 @@ describe("a server that does not respond", () => {
 			);
 			globalThis.fetch = () => Promise.resolve(rpcAnswer({ ok: false, error: "no such step" }, 422));
 			await expect(new LiveConduit("").follow(reads(SHOW_STEPS_METHOD), "test")).rejects.toThrow("no such step");
+		} finally {
+			globalThis.fetch = fetchWas;
+		}
+	});
+
+	it("lets go of the page's authority where actuality refuses it as failing verification, as one revoked", async () => {
+		const fetchWas = globalThis.fetch;
+		const HELD = "Stepper:held";
+		await openPageAuthority(undefined, [HELD]);
+		try {
+			globalThis.fetch = () => Promise.resolve(rpcAnswer(authorityRefusal("the presented authority failed verification: revoked"), REFUSED_INVOCATION));
+			await expect(new LiveConduit("").follow(reads(SHOW_STEPS_METHOD), "test")).rejects.toThrow("revoked");
+			expect(pageMay(HELD), "the page doesn't hold what it was refused").toBe(false);
 		} finally {
 			globalThis.fetch = fetchWas;
 		}

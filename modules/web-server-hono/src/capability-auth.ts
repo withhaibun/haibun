@@ -1,5 +1,5 @@
 import { SIGNATURE_HEADER } from "@haibun/core/lib/signature-header.js";
-import { READ_AUTHORITY_AGAIN } from "@haibun/core/lib/rpc-wire.js";
+import { authorityRefusal, REFUSED_INVOCATION } from "@haibun/core/lib/rpc-wire.js";
 import { sentByAnotherSite } from "@haibun/core/lib/request-context.js";
 import type { Context, MiddlewareHandler } from "hono";
 import type { TRuntime } from "@haibun/core/lib/world.js";
@@ -49,17 +49,16 @@ export async function grantedCapabilityForRequest(request: TAuthorizedRequest | 
 	return { granted: [...allowedWithoutDelegation, ...(verdict.allowedAction ?? [])], principal: verdict.principal, restsOn: verdict.restsOn };
 }
 
-/** The status a request whose presented authority fails verification is refused with: 403, not 401. A 401 asks for HTTP
- *  authentication (RFC 9110 §15.5.2), and a browser that sent the sign-in it holds for the site, such as a proxy's basic
- *  auth, drops that sign-in on a 401, so each later call to the site would be refused in front of the instance. */
-export const REFUSED_INVOCATION = 403;
+/** The answer to a request whose presented authority failed verification, naming why and offering to read again what the
+ *  key holds. */
+export const refuseInvocation = (c: Context, error: string): Response => c.json(authorityRefusal(error), REFUSED_INVOCATION);
 
 /** A request's authority where it allows `action`, or else the answer that refuses it, 403 whether its proof fails or its
  *  authority doesn't allow the action, each naming why. */
 export async function authorityAllowing(c: Context, action: string, runtime: TRuntime, served: TServed): Promise<TRequestAuthority | Response> {
 	const authority = await grantedCapabilityForRequest({ method: c.req.method, url: c.req.url, headers: c.req.header() }, runtime, served);
-	if (authority.refused) return c.json({ error: `${c.req.path}: ${authority.refused}`, remedy: READ_AUTHORITY_AGAIN }, REFUSED_INVOCATION);
-	if (!capabilityAllows(authority.granted, action)) return c.json({ error: refusal(c.req.path, action, authority.principal) }, 403);
+	if (authority.refused) return refuseInvocation(c, `${c.req.path}: ${authority.refused}`);
+	if (!capabilityAllows(authority.granted, action)) return c.json({ error: refusal(c.req.path, action, authority.principal) }, REFUSED_INVOCATION);
 	return authority;
 }
 

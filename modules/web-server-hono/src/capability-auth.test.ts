@@ -6,13 +6,13 @@
  */
 import { describe, it, expect } from "vitest";
 import { Hono } from "hono";
-import { grantedCapabilityForRequest, REFUSED_INVOCATION, requiring } from "./capability-auth.js";
+import { grantedCapabilityForRequest, requiring } from "./capability-auth.js";
+import { REFUSED_INVOCATION, RELOAD } from "@haibun/core/lib/rpc-wire.js";
 import { SessionAuthority, AUTHORITY_KEY } from "@haibun/core/lib/session-authority.js";
 import { runActingAs } from "@haibun/core/lib/capability-context.js";
 import { currentPrincipal } from "@haibun/core/lib/principal.js";
 import type { TRuntime, TWorld } from "@haibun/core/lib/world.js";
 import type { IAuthorityVerifier, TAuthorityEvidence, TDelegations } from "@haibun/core/lib/authority-types.js";
-import { READ_AUTHORITY_AGAIN } from "@haibun/core/lib/rpc-wire.js";
 
 const READER = "did:key:zReader";
 const ACTION = "comment.grant";
@@ -114,7 +114,7 @@ describe("a route that requires an action", () => {
 		expect(await unproven.json()).toEqual({ error: "/held/one: not a call this caller may make" });
 		const failed = await held([])(signedRequest("comment.revoke").headers);
 		expect(failed.status).toBe(REFUSED_INVOCATION);
-		expect(await failed.json()).toEqual({ error: "/held/one: the presented authority failed verification: not this one", remedy: READ_AUTHORITY_AGAIN });
+		expect(await failed.json()).toEqual({ error: "/held/one: the presented authority failed verification: not this one", remedy: RELOAD.authority });
 	});
 });
 
