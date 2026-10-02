@@ -1,4 +1,4 @@
-import { Page, Download, Locator, type ConnectOverCDPTransport, type Worker } from "playwright";
+import { Page, Download, Locator, type ConnectOverCDPTransport, type Response, type Worker } from "playwright";
 import { pathToFileURL } from "url";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
@@ -83,18 +83,21 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	private static readonly DOM_READY_TIMEOUT_MS = 1900;
 	private static readonly RENDER_SETTLE_MS = 200;
 
-	private async waitForDocumentReady(page: Page): Promise<void> {
-		await page.waitForFunction(() => document.readyState === "interactive" || document.readyState === "complete", undefined, {
-			timeout: WebPlaywright.DOM_READY_TIMEOUT_MS,
-		});
+	/** Wait for the page's document to be parsed, then give it `RENDER_SETTLE_MS` to render: the grace a check that a view
+	 *  doesn't appear relies on. A page that isn't parsed in time fails the step. The browser reports the document's state
+	 *  whether or not it draws the page, so a page in a covered window or a background tab, which draws no frames, is
+	 *  waited for as one in view. */
+	async waitForLoaded(page: Page) {
+		await page.waitForLoadState("domcontentloaded", { timeout: WebPlaywright.DOM_READY_TIMEOUT_MS });
+		await page.waitForTimeout(WebPlaywright.RENDER_SETTLE_MS);
 	}
 
-	/** Wait for the page's document to be ready, then give it `RENDER_SETTLE_MS` to render: the grace a check that a view
-	 *  doesn't appear relies on. A page that doesn't become ready in time fails the step. */
-	async waitForLoaded(page: Page, mode: "navigation" | "settled" = "navigation") {
-		if (mode === "navigation") await page.waitForLoadState("domcontentloaded", { timeout: WebPlaywright.DOM_READY_TIMEOUT_MS });
-		await this.waitForDocumentReady(page);
-		await page.waitForTimeout(WebPlaywright.RENDER_SETTLE_MS);
+	/** Navigate the page, as `go` does with the options given, and wait for it as `waitForLoaded` does. A navigation waits
+	 *  for the document, never its `load` event, which a page that keeps loading resources doesn't fire in time. */
+	async navigate(page: Page, go: (options: { waitUntil: "domcontentloaded" }) => Promise<Response | null>): Promise<Response | null> {
+		const response = await go({ waitUntil: "domcontentloaded" });
+		await this.waitForLoaded(page);
+		return response;
 	}
 	description = "Navigate pages, click elements, fill forms, capture screenshots, and make REST API calls";
 

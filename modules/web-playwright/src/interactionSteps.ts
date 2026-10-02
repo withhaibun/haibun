@@ -240,14 +240,13 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			...PAGE_READ,
 			gwta: `wait until URI matches {pattern: ${DOMAIN_GLOB}}`,
 			action: async ({ pattern }: { pattern: string }) => {
-				// The glob as a regular expression's source once, so the polled predicate only tests location.href.
-				const source = globSource(pattern);
 				const page = await wp.getPage();
+				// The address the browser reports for each navigation, a change within the document included, so a page that
+				// draws no frames is waited for as one in view.
 				try {
-					await page.waitForFunction((s: string) => new RegExp(s, "s").test(location.href), source);
+					await page.waitForURL(new RegExp(globSource(pattern), "s"), { waitUntil: "commit" });
 				} catch {
-					const actual = await page.evaluate(() => location.href).catch(() => "(unavailable)");
-					return actionNotOK(`URI never matched "${pattern}"; actual URI was: ${actual}`);
+					return actionNotOK(`URI never matched "${pattern}"; actual URI was: ${page.url()}`);
 				}
 				return OK;
 			},
@@ -314,9 +313,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 					// A relative link, as a page's own links are written, is resolved against the page it was read from.
 					const address = URL.parse(name, page.url());
 					if (!address) throw new Error(`"${name}" isn't an address, and doesn't resolve against the page's address ${page.url()}`);
-					const res = await page.goto(address.href, { waitUntil: "domcontentloaded" });
-					await wp.waitForLoaded(page, "navigation");
-					return res;
+					return await wp.navigate(page, (options) => page.goto(address.href, options));
 				});
 				if (response?.ok()) return OK;
 				const headers = (await response?.allHeaders().catch(() => ({}))) || {};
@@ -330,7 +327,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			gwta: "page has settled",
 			action: async () => {
 				await wp.withPage(async (page: Page) => {
-					await wp.waitForLoaded(page, "settled");
+					await wp.waitForLoaded(page);
 				});
 				return OK;
 			},
@@ -339,7 +336,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: "reload page",
 			action: async () => {
-				await wp.withPage(async (page: Page) => await page.reload());
+				await wp.withPage(async (page: Page) => await wp.navigate(page, (options) => page.reload(options)));
 				return OK;
 			},
 		},
@@ -349,7 +346,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			gwta: "go back",
 			...ANSWERED_BY_THE_PAGE,
 			action: async () => {
-				await wp.withPage(async (page: Page) => await page.goBack());
+				await wp.withPage(async (page: Page) => await wp.navigate(page, (options) => page.goBack(options)));
 				return OK;
 			},
 		},
