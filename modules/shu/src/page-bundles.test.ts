@@ -12,6 +12,8 @@ import { fileURLToPath } from "node:url";
  * builds it, so the import that reaches the page is named where it was made.
  */
 const source = dirname(fileURLToPath(import.meta.url));
+/** The condition haibun's packages export their TypeScript source under, which the page's bundles build from. */
+const HAIBUN_SOURCE = "haibun-source";
 const PAGE_ENTRIES = ["app.ts", "components/polymorphic-bundle.ts"];
 
 describe("the page's bundles", () => {
@@ -23,7 +25,7 @@ describe("the page's bundles", () => {
 			format: "iife",
 			platform: "browser",
 			target: "es2022",
-			conditions: ["development"],
+			conditions: [HAIBUN_SOURCE],
 			logLevel: "silent",
 		}).then(
 			() => [],

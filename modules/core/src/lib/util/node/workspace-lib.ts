@@ -81,9 +81,9 @@ export function getModuleLocation(name: string) {
 		pkgJsonCache.set(pkgJsonPath, pkg);
 		const exports = pkg.exports as Record<string, string | Record<string, string>> | undefined;
 		if (!exports) throw new Error(`package ${pkgName} doesn't have an exports map, so subpath ${subpath} doesn't resolve`);
-		// A conditional export (e.g. "./*": { development: "./src/*", default: "./build/*" }) is an object, not a string.
+		// A conditional export (e.g. "./*": { "haibun-source": "./src/*", default: "./build/*" }) is an object, not a string.
 		// The Node-side stepper loader runs compiled output, so resolve to the `default` (build) branch, mirroring plain
-		// Node resolution where the custom `development` condition is inactive unless --conditions=development is passed.
+		// Node resolution where the custom `haibun-source` condition is inactive unless --conditions=haibun-source is passed.
 		const condTarget = (t: string | Record<string, string>): string => {
 			const target = typeof t === "string" ? t : (t.default ?? t.node ?? t.require ?? t.import ?? Object.values(t)[0]);
 			if (target === undefined) throw new Error(`package ${pkgName} exports a condition map without a target for subpath ${subpath}`);

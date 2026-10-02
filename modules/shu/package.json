@@ -8,7 +8,7 @@
 	"exports": {
 		".": "./build/index.js",
 		"./*": {
-			"development": "./src/*",
+			"haibun-source": "./src/*",
 			"default": "./build/*"
 		},
 		"./bundle": "./build/shu-bundle.js"
@@ -22,10 +22,10 @@
 		"format": "biome format --write .",
 		"check": "biome check .",
 		"build:watch": "tsc -b . --watch --preserveWatchOutput & npm run bundle:watch & wait",
-		"bundle:app": "esbuild src/app.ts --bundle --outfile=build/shu-bundle.js --format=iife --platform=browser --target=es2022 --sourcemap=external --conditions=development",
+		"bundle:app": "esbuild src/app.ts --bundle --outfile=build/shu-bundle.js --format=iife --platform=browser --target=es2022 --sourcemap=external --conditions=haibun-source",
 		"bundle:report": "esbuild src/app.ts --bundle --outfile=build/shu-report-bundle.js --format=iife --platform=browser --target=es2022 --minify --conditions=production",
 		"bundle:watch": "npm run bundle:app -- --watch=forever & npm run bundle:report -- --watch=forever & wait",
-		"bundle:polymorphic": "esbuild src/components/polymorphic-bundle.ts --bundle --outfile=build/assets/shu-polymorphic-graph-view.js --format=iife --platform=browser --target=es2022 --conditions=development --minify",
+		"bundle:polymorphic": "esbuild src/components/polymorphic-bundle.ts --bundle --outfile=build/assets/shu-polymorphic-graph-view.js --format=iife --platform=browser --target=es2022 --conditions=haibun-source --minify",
 		"test:e2e:profile": "rm -rf /tmp/haibun-shu-reader-profile && HAIBUN_O_WEBSERVERSTEPPER_PORT=8241 HAIBUN_O_WEBSERVERSTEPPER_ALLOW_WITHOUT_DELEGATION=* HAIBUN_O_WEBPLAYWRIGHT_PERSISTENT_DIRECTORY=/tmp/haibun-shu-reader-profile HAIBUN_O_WEBPLAYWRIGHT_STORAGE=StorageFS haibun-cli -c ./tests-profile/config.json ./tests-profile"
 	},
 	"dependencies": {

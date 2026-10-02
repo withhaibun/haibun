@@ -2,22 +2,22 @@
 	"darwin-arm64-12x-apple-m4-pro": {
 		"features": {
 			"/features/a-a-run-to-come-back-to.feature.ts": {
-				"seconds": 1.7,
+				"seconds": 1.6,
 				"steps": 205,
 				"declaredStepTextHash": "46a374f15f4897c6571e8c7895a922c16ef4b7c460c14f69ddbf9ddc5f987b36"
 			},
 			"/features/b-reading-a-cached-run.feature.ts": {
-				"seconds": 1.8,
+				"seconds": 1.4,
 				"steps": 210,
 				"declaredStepTextHash": "496f1e392d8cc1d26dab711a407db81bc206052752d89155ba189c68443a2b52"
 			},
 			"/features/c-reading-a-report.feature.ts": {
-				"seconds": 1.7,
+				"seconds": 1.8,
 				"steps": 213,
 				"declaredStepTextHash": "4af05cc3fc61e8a1ba03f40d3786d967deadfa74e73a1836f6369f62bbcdab37"
 			},
 			"/features/d-two-origins.feature.ts": {
-				"seconds": 1.6,
+				"seconds": 1.5,
 				"steps": 215,
 				"declaredStepTextHash": "24cf73ee620e2059607b5432f29a1451ed53910dece9c3ce498d0d6229188b60"
 			},
@@ -28,6 +28,6 @@
 			}
 		},
 		"steps": 1048,
-		"seconds": 11.7
+		"seconds": 11.2
 	}
 }

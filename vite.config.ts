@@ -1,4 +1,4 @@
-import { defineConfig, UserConfig as ViteUserConfig } from "vite";
+import { defaultClientConditions, defineConfig, UserConfig as ViteUserConfig } from "vite";
 import type { UserConfig as VitestUserConfig } from "vitest/config";
 
 interface Config extends ViteUserConfig {
@@ -11,7 +11,15 @@ interface Config extends ViteUserConfig {
 const INTEGRATION_TESTS = "modules/**/*.integration.test.{ts,tsx}";
 const EXCLUDE = ["**/node_modules/**", "**/dist/**", "**/build/**"];
 
+/** haibun's packages export their TypeScript source under this condition, so a test reads a module as its source stands. */
+const HAIBUN_SOURCE = "haibun-source";
+/** The conditions a test run in Node resolves a package by, as Vitest's own are: without `module`, since a package's
+ *  `module` build may import paths without the extension Node requires (@opentelemetry/api). */
+const SERVER_CONDITIONS = ["node", "development|production"];
+
 const config: Config = {
+	resolve: { conditions: [HAIBUN_SOURCE, ...defaultClientConditions] },
+	ssr: { resolve: { conditions: [HAIBUN_SOURCE, ...SERVER_CONDITIONS] } },
 	test: {
 		globals: true,
 		environment: "node",
