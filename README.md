@@ -48,15 +48,17 @@ Easily add Haibun to an existing library using [scaffolding](modules/utils/READM
 
 ## Command line interface
 
-haibun runs as a library or through its command line, `haibun-cli`, which `@haibun/cli` provides.
-A run names one or more project bases.
-A base is a folder that holds a `config.json`, which lists the steppers it loads, and a `features` folder.
-`--help` with a base lists the command line's options.
-It also lists, as environment variables, the options of each stepper the base's `config.json` loads.
-Without a base that holds a `config.json`, `--help` lists only the command line's options.
+haibun runs as a library or from the command line, through the `haibun-cli` command that `@haibun/cli` provides.
+The command starts actuality from one or more folders of features. Actuality is haibun's name for the live system and
+the record of each step it performs. Each folder holds a `config.json` that lists the steppers actuality loads, and a
+`features` folder with the features actuality runs.
 
-This repository's end-to-end tests are such bases, in [e2e-tests](e2e-tests): `tests` and `shu-self-test`.
-From that folder, this command lists the options of the `tests` base:
+Adding `--help` to a folder lists the command's own options, followed by the options of every stepper that folder's
+`config.json` loads, each as the environment variable that sets it. A folder without a `config.json` lists only the
+command's own options.
+
+The end-to-end tests in [e2e-tests](e2e-tests) are folders of this kind, `tests` and `shu-self-test`. From that
+directory, this lists the options available to the `tests` features:
 
 `npx haibun-cli --help tests`
 
