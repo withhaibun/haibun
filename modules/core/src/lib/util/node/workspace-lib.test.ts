@@ -27,3 +27,9 @@ describe("getModuleLocation", () => {
 		expect(rel(TFileSystemJs.getModuleLocation("@haibun/test"))).toBe("node_modules/@haibun/test");
 	});
 });
+
+describe("getSteppers", () => {
+	it("loads a stepper once, however many entries name it", async () => {
+		expect(await TFileSystemJs.getSteppers(["variables-stepper", "variables-stepper"])).toHaveLength(1);
+	});
+});

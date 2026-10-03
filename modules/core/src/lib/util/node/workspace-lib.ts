@@ -14,8 +14,9 @@ export async function getSteppers(stepperEntries: TStepperEntry[]) {
 	for (const entry of stepperEntries) {
 		if (typeof entry === "string") {
 			try {
+				// A stepper is loaded once, however many entries name it: a run adds one with --with-steppers that its config may list.
 				const S = await getStepper(entry);
-				steppers.push(S);
+				if (!steppers.includes(S)) steppers.push(S);
 			} catch (e) {
 				console.error(`get ${entry} from "${getModuleLocation(entry)}" failed`, e);
 				throw e;

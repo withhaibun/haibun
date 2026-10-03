@@ -49,6 +49,11 @@ function releasePayload(step: TStepResult): void {
 	step.protocol = undefined;
 }
 
+/** Whether actuality keeps serving once its features end, as `HAIBUN_STAY` states: always, or after a failure. */
+export function staysAfterExecution(stay: unknown, ok: boolean): boolean {
+	return stay === STAY_ALWAYS || (stay === STAY_FAILURE && !ok);
+}
+
 export function calculateShouldClose({
 	thisFeatureOK,
 	isLast,
@@ -248,7 +253,7 @@ export class Executor {
 		await doStepperCycle(steppers, "endExecution", results);
 		// Stay mode keeps the process serving requests after execute() returns; unsubscribing here would stop
 		// routing events to live consumers while the server is still emitting them. Keep it while staying.
-		const willStay = stayAlways || (stayOnFailure && !okSoFar);
+		const willStay = staysAfterExecution(world.options[STAY], okSoFar);
 		if (!willStay) world.eventLogger.unsubscribe(onEventHandler);
 		return results;
 	}

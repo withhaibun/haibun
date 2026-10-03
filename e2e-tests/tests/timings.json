@@ -2,14 +2,14 @@
 	"darwin-arm64-12x-apple-m4-pro": {
 		"features": {
 			"/features/a11y-fail.feature": {
-				"seconds": 0.5,
-				"steps": 11,
-				"declaredStepTextHash": "2f81c0c9ae35982bdf3f8a9b56a62e10bd7f80a7340e1ce0797ad7bbaece5cc0"
+				"seconds": 0.7,
+				"steps": 12,
+				"declaredStepTextHash": "5a76c771445a220203a7eab76f27f428e25697d9a984395e5bc5ede0aa55ffef"
 			},
 			"/features/a11y-pass.feature": {
 				"seconds": 0.4,
-				"steps": 11,
-				"declaredStepTextHash": "09cc25e61c080ca316fccb7e6a2bec04f811e90fc05becc626c61a7fabda8655"
+				"steps": 12,
+				"declaredStepTextHash": "6a9d750f2df898305550c99f4d4a7c694d91b53adc2a5e5fb07e22b690c23f2c"
 			},
 			"/features/activities.feature": {
 				"seconds": 0,
@@ -22,34 +22,34 @@
 				"declaredStepTextHash": "b0eca8f53cdbc72079c3b13890aacf1b33a0fd50daccc93402e9d434c3b3338d"
 			},
 			"/features/agents-examples.feature": {
-				"seconds": 0.8,
+				"seconds": 0.9,
 				"steps": 354,
 				"declaredStepTextHash": "21975836a8d8dc1c98fd6751ebb98ed0eab60297e903e4b22845040245c6a8eb"
 			},
 			"/features/auth-basic.feature": {
-				"seconds": 0.5,
-				"steps": 41,
-				"declaredStepTextHash": "63861894e69f7ae771aa94485f0ae1a63257c94c7706d32afbc111490dd590c8"
+				"seconds": 0.6,
+				"steps": 42,
+				"declaredStepTextHash": "6a8788f30679ff0009508a4313b0895d2862e38b09df70793e7ea86ca1b6bb16"
 			},
 			"/features/auth-bearer.feature": {
 				"seconds": 0.4,
-				"steps": 64,
-				"declaredStepTextHash": "0d26c0a9d2e709649eb496c3ae4f657c9f065a65d9b22fc86967e33a2a6fefba"
+				"steps": 65,
+				"declaredStepTextHash": "696befdc9ac2a5bc6164b827c8ba63f012da9b2d5b5daa4d570fe7e33ad1d838"
 			},
 			"/features/auth-form.feature": {
-				"seconds": 0.7,
-				"steps": 23,
-				"declaredStepTextHash": "b7ae3ef23e1d45290cd9e8d3d5e3fa2db5b70bc5872aef2b6ff06a25a454b083"
+				"seconds": 0.8,
+				"steps": 24,
+				"declaredStepTextHash": "072620079179e9e5107f464049dff25238322ae72af9ff2ba115e09886cf2715"
 			},
 			"/features/counter.feature": {
 				"seconds": 1.2,
-				"steps": 19,
-				"declaredStepTextHash": "8c1b3b909e28bc05dac4eb957c9b1384d55393a5d3d4ed26b0910d3774bc4b95"
+				"steps": 20,
+				"declaredStepTextHash": "179f2a7919aa297e130229e22984568a4465c73dbdcc6f5e39a2727caad9eb0f"
 			},
 			"/features/counter.feature.ts": {
-				"seconds": 0.4,
-				"steps": 19,
-				"declaredStepTextHash": "2e43d35e8ca54dcf3b65f4bc5319e4e4d535aae75e236687ecdeb7357c80e33b"
+				"seconds": 1.7,
+				"steps": 20,
+				"declaredStepTextHash": "2dbaa6f8d7e5ced812a237be8252de1c768081154d89aeb79786ded0725bb453"
 			},
 			"/features/counts.feature.ts": {
 				"seconds": 0.4,
@@ -58,8 +58,8 @@
 			},
 			"/features/elements.feature": {
 				"seconds": 0.3,
-				"steps": 6,
-				"declaredStepTextHash": "4aa63ec07d25bb61c89c944e52b73fead49300b7c5cc8d44cd055cda7c316e87"
+				"steps": 8,
+				"declaredStepTextHash": "a6f7c8ba7695a91a26d5638c12d4542439cd090643058d1bfdf65115a1e6c275"
 			},
 			"/features/executor-rpc.feature.ts": {
 				"seconds": 0,
@@ -72,7 +72,7 @@
 				"declaredStepTextHash": "f567c83cdc9db224634e851624576d77db1cdec635c722eabde2b3a633fd9b50"
 			},
 			"/features/identity-and-capability.feature.ts": {
-				"seconds": 0,
+				"seconds": 0.1,
 				"steps": 28,
 				"declaredStepTextHash": "c346576dbe366f5a9b046756da87b8613b679e774b64f5c2920e049db35ab58e"
 			},
@@ -83,23 +83,23 @@
 			},
 			"/features/not.feature": {
 				"seconds": 0.4,
-				"steps": 7,
-				"declaredStepTextHash": "3d27dc08904c292a29f48133a4d137092f93786968c318fe7f44b34851066027"
+				"steps": 9,
+				"declaredStepTextHash": "19319d61d4aefc9cb0f31275a41584382b21cbc1439888a263facb9b6bbb362d"
 			},
 			"/features/once.feature.ts": {
-				"seconds": 0.4,
+				"seconds": 0.6,
 				"steps": 20,
 				"declaredStepTextHash": "006f43f7b774933fc9bebe65cc0bd082a8b856b21c34e008e1c61ffbf7ac8354"
 			},
 			"/features/popup.feature": {
 				"seconds": 0.5,
-				"steps": 12,
-				"declaredStepTextHash": "f012b7fcf7b2484d728938eb62dc6457a9f0fec686fc8d0b3dbe3dc38e088aa9"
+				"steps": 13,
+				"declaredStepTextHash": "94d2694ac524d72db66b5a093c77648ec1c808852fc3f4a11d761b77a0e8e0e6"
 			},
 			"/features/qrcode.feature": {
 				"seconds": 2.5,
 				"steps": 18,
-				"declaredStepTextHash": "6c1cf006da48f78142e2c23c167266634114bcea223a400f8b4967a9a1f9c156"
+				"declaredStepTextHash": "414d23a119d105d311d8e8a0496102881e35613d91a514f21985534ec401eeda"
 			},
 			"/features/recurse.feature": {
 				"seconds": 0,
@@ -113,13 +113,13 @@
 			},
 			"/features/upload-verify.feature": {
 				"seconds": 0.4,
-				"steps": 18,
-				"declaredStepTextHash": "df8801dd03cc6f67f2f5bdf94d21971c925f31d136b074c18880e0b7ac07fb80"
+				"steps": 19,
+				"declaredStepTextHash": "92f57a2dc38d79bda306ab924a8c55b05a7ce5afb76435288e861b57fcaf3a78"
 			},
 			"/features/visited-pages.feature": {
 				"seconds": 0.4,
-				"steps": 29,
-				"declaredStepTextHash": "2c00f16b3fc1c2191a0c36587f06f3817554b5ac4f90f24bcba4f184b9f3f89b"
+				"steps": 31,
+				"declaredStepTextHash": "21485ffc2897fe74f7c527be3720802c319fa5a7c86964d444068baed719dfcf"
 			},
 			"/features/walk-toward-a-goal.feature": {
 				"seconds": 0,
@@ -127,8 +127,8 @@
 				"declaredStepTextHash": "423b87fb62e3b26879565f24459e8474ab76e2eb6ff85bc3a5e49704ea336e08"
 			},
 			"/features/wikipedia.feature.ts": {
-				"seconds": 0.9,
-				"steps": 145,
+				"seconds": 1,
+				"steps": 159,
 				"declaredStepTextHash": "fac79a2c47a1620dac9bee4f4664f6ce4c5a85f1d5f473fae00cce100256949c"
 			},
 			"/features/workflow.feature.ts": {
@@ -138,11 +138,11 @@
 			},
 			"/features/xss.feature": {
 				"seconds": 0.5,
-				"steps": 10,
-				"declaredStepTextHash": "435eb21ce6beca35c72e9cae34f8fa3c5a95dbc4b627e6ca3338ae97b207bd20"
+				"steps": 11,
+				"declaredStepTextHash": "6b1f912dd867c79c8f6db6a77e01deaf12767802b905562b7c9a1bc75d7aef32"
 			}
 		},
-		"steps": 1135,
-		"seconds": 11.6
+		"steps": 1165,
+		"seconds": 13.8
 	}
 }

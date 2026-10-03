@@ -71,8 +71,7 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 		if (wss.webserver) {
 			wss.webserver.clearMounted();
 		} else {
-			const filesBase = path.join(process.cwd(), "files");
-			wss.webserver = new ServerHono(wss.getWorld().eventLogger, filesBase, () => wss.getWorld().shared.getStore(), wss.allowedWithoutDelegation, wss.admitted);
+			wss.webserver = wss.newServer();
 		}
 		// The delegated store surface: a sibling instance keeping its records in this instance's store. Reached only once RPC
 		// is enabled, since only the RPC transport calls a family's methods.
@@ -243,105 +242,8 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		enableRpc: {
 			gwta: "enable rpc",
 			action: () => {
-				// Actuality's own registry, which holds what actuality's transports injected, so a caller reaching actuality by RPC
-				// dispatches and discovers the same steps as every other caller of actuality.
-				this.stepRegistry = runRegistry(this.getWorld());
-
-				const transport = getFromRuntime(this.getWorld().runtime, TRANSPORT) as ITransport;
-				// What the registry answers is which methods are reads, which the transport asks before narrating that it
-				// served a call: reading a run is not an act of the run, so serving a read is not announced as one.
-				(transport as Partial<IStepTransport>).attach?.(this.stepRegistry, this.getWorld().runtime[WEBSERVER] as IWebServer);
-				const logger = this.getWorld().eventLogger;
-
-				transport.onMessage(async (raw: unknown, requestInfo) => {
-					// A call states the actuality whose records it reads, and one stating another actuality doesn't parse.
-					const parsed = parseRpcRequest(raw, this.getWorld().runtime.actualityId);
-					if (!parsed.success) return parsed.refusal;
-					const msg = parsed.data;
-					const { method, params } = msg;
-
-					// Action bootstrap: client asks for a globally-unique seqPath
-					// root before issuing any state-changing RPC. Returns the
-					// root; client appends monotonic sub-seqs for each call
-					// within the action scope.
-					if (method === ACTION_BEGIN) {
-						const seqPath = this.allocateSessionSeqPath();
-						// seqPath[0] is the hostId; returning it explicitly saves remote
-						// callers from having to reach into the seqPath to learn which
-						// host they're talking to. `site` is this instance's site
-						// principal: the federation handshake reads it to stamp and
-						// de-collide merged reads.
-						// `serving` reports whether this instance's feature has finished setting up (see the SERVING runtime key), so a
-						// caller can wait for the instance rather than for its port.
-						const { runtime } = this.getWorld();
-						const handshake: THandshake = {
-							protocol: RPC_PROTOCOL,
-							hostId: itemAt(seqPath, 0),
-							site: activeSitePrincipal(this.getWorld()),
-							actualityId: runtime.actualityId,
-							serving: runtime[SERVING] === true,
-						};
-						return { seqPath, ...handshake };
-					}
-
-					const authority = await grantedCapabilityForRequest(requestInfo, this.getWorld().runtime, this);
-					const { granted, principal, refused, restsOn } = authority;
-					if (refused) return authorityRefusal(`${method}: ${refused}`);
-					// A streamed call is held open only while the authority it was allowed under holds.
-					const stream = streamContext.getStore();
-					if (stream) endWhenLapsed(this.getWorld().runtime, authority, stream.signal, stream.end);
-
-					// A method of a served family: gated by the action it declares, verified through the path a step's capability
-					// is, without an ungated default.
-					const served = this.webserver?.rpcMethod(method);
-					if (served) {
-						if (!mayCall(granted, { capability: served.action })) return { error: refusal(method, served.action, principal) };
-						try {
-							// Whoever proved themselves at this boundary is who acts inside it, as in a dispatched step.
-							return await runActingAs(principal, () => served.handle(params), restsOn);
-						} catch (err) {
-							return callFailed(method, errorDetail(err));
-						}
-					}
-
-					const world = this.getWorld();
-					const registry = this.stepRegistry;
-					if (!registry) {
-						return callFailed(method, "RPC step registry is not initialized");
-					}
-
-					try {
-						// A call is refused before its input is read, and alike whether its step exists, so a refusal doesn't tell the caller
-						// about the steps it may not call.
-						const tool = registry.get(method);
-						if (!tool || !mayCall(granted, tool.descriptor)) return { error: refusal(method, tool && lackedAction(granted, tool.descriptor), principal) };
-						// External callers (without a feature-step context) get a server-synthesised seqPath, matching MCP.
-						const seqPath = msg.seqPath && msg.seqPath.length > 0 ? msg.seqPath : allocateSyntheticSeqPath(world);
-						const validatedParams = validateToolInput(seqPath, tool, params, world);
-						const featureStep = buildFeatureStepForTransport(tool, validatedParams, seqPath);
-						// RPC dispatches are SPA-initiated (constant polling like getClusteredQuads), not feature steps;
-						// log them at trace so they don't bury actuality's own steps in the timeline. Still visible at debug.
-						featureStep.isSubStep = true;
-						// Whoever proved themselves at this boundary is who acts inside it, so what a step records names the
-						// reader who asked for it rather than the process that carried it out. What it reads is bounded by the read it
-						// holds, in dispatch, and by the level the call asked to read at, which can only be narrower.
-						const hr = await runWithRequestContext({ baseIri: requestBaseIri(requestInfo?.headers) }, () =>
-							// A request holds only what it presented: the server was started inside a step of actuality, and
-							// a caller doesn't hold what that step held.
-							runActingAs(
-								principal,
-								() => runReadingAt(msg.readingAt, () => dispatchStep({ registry, world, steppers: this.steppers, grantedCapability: granted }, featureStep)),
-								restsOn,
-							),
-						);
-						if (hr.ok) return hr.products ?? ANSWERED_WITHOUT_PRODUCTS;
-						return callFailed(method, hr.errorMessage);
-					} catch (err) {
-						const detail = errorDetail(err);
-						logger.error(`[RPC] ${method}: ${detail}`);
-						return callFailed(method, detail);
-					}
-				});
+				const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER) as IWebServer;
+				this.stepRegistry = this.serveRpc(webserver, getFromRuntime(this.getWorld().runtime, TRANSPORT) as ITransport);
 				return OK;
 			},
 		},
@@ -355,6 +257,109 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			},
 		},
 	} as const satisfies TStepperSteps;
+
+	/** A server for this instance: its files, its store, and who it admits, as every server of this instance has them. */
+	newServer(): ServerHono {
+		return new ServerHono(this.getWorld().eventLogger, path.join(process.cwd(), "files"), () => this.getWorld().shared.getStore(), this.allowedWithoutDelegation, this.admitted);
+	}
+
+	/**
+	 * Answer RPC calls to actuality's steps on a server's transport, under the authority each request presents. Actuality's
+	 * own registry holds what actuality's transports injected, so a caller reaching actuality by RPC dispatches and discovers
+	 * the same steps as every other caller of actuality. Returns the registry the calls dispatch through.
+	 */
+	serveRpc(webserver: IWebServer, transport: ITransport): StepRegistry {
+		const registry = runRegistry(this.getWorld());
+		// What the registry answers is which methods are reads, which the transport asks before narrating that it served a
+		// call: reading a run is not an act of the run, so serving a read is not announced as one.
+		(transport as Partial<IStepTransport>).attach?.(registry, webserver);
+		const logger = this.getWorld().eventLogger;
+		transport.onMessage(async (raw: unknown, requestInfo) => {
+			// A call states the actuality whose records it reads, and one stating another actuality doesn't parse.
+			const parsed = parseRpcRequest(raw, this.getWorld().runtime.actualityId);
+			if (!parsed.success) return parsed.refusal;
+			const msg = parsed.data;
+			const { method, params } = msg;
+
+			// Action bootstrap: client asks for a globally-unique seqPath
+			// root before issuing any state-changing RPC. Returns the
+			// root; client appends monotonic sub-seqs for each call
+			// within the action scope.
+			if (method === ACTION_BEGIN) {
+				const seqPath = this.allocateSessionSeqPath();
+				// seqPath[0] is the hostId; returning it explicitly saves remote
+				// callers from having to reach into the seqPath to learn which
+				// host they're talking to. `site` is this instance's site
+				// principal: the federation handshake reads it to stamp and
+				// de-collide merged reads.
+				// `serving` reports whether this instance's feature has finished setting up (see the SERVING runtime key), so a
+				// caller can wait for the instance rather than for its port.
+				const { runtime } = this.getWorld();
+				const handshake: THandshake = {
+					protocol: RPC_PROTOCOL,
+					hostId: itemAt(seqPath, 0),
+					site: activeSitePrincipal(this.getWorld()),
+					actualityId: runtime.actualityId,
+					serving: runtime[SERVING] === true,
+				};
+				return { seqPath, ...handshake };
+			}
+
+			const authority = await grantedCapabilityForRequest(requestInfo, this.getWorld().runtime, this);
+			const { granted, principal, refused, restsOn } = authority;
+			if (refused) return authorityRefusal(`${method}: ${refused}`);
+			// A streamed call is held open only while the authority it was allowed under holds.
+			const stream = streamContext.getStore();
+			if (stream) endWhenLapsed(this.getWorld().runtime, authority, stream.signal, stream.end);
+
+			// A method of a served family: gated by the action it declares, verified through the path a step's capability
+			// is, without an ungated default.
+			const served = webserver.rpcMethod(method);
+			if (served) {
+				if (!mayCall(granted, { capability: served.action })) return { error: refusal(method, served.action, principal) };
+				try {
+					// Whoever proved themselves at this boundary is who acts inside it, as in a dispatched step.
+					return await runActingAs(principal, () => served.handle(params), restsOn);
+				} catch (err) {
+					return callFailed(method, errorDetail(err));
+				}
+			}
+
+			const world = this.getWorld();
+			try {
+				// A call is refused before its input is read, and alike whether its step exists, so a refusal doesn't tell the caller
+				// about the steps it may not call.
+				const tool = registry.get(method);
+				if (!tool || !mayCall(granted, tool.descriptor)) return { error: refusal(method, tool && lackedAction(granted, tool.descriptor), principal) };
+				// External callers (without a feature-step context) get a server-synthesised seqPath, matching MCP.
+				const seqPath = msg.seqPath && msg.seqPath.length > 0 ? msg.seqPath : allocateSyntheticSeqPath(world);
+				const validatedParams = validateToolInput(seqPath, tool, params, world);
+				const featureStep = buildFeatureStepForTransport(tool, validatedParams, seqPath);
+				// RPC dispatches are SPA-initiated (constant polling like getClusteredQuads), not feature steps;
+				// log them at trace so they don't bury actuality's own steps in the timeline. Still visible at debug.
+				featureStep.isSubStep = true;
+				// Whoever proved themselves at this boundary is who acts inside it, so what a step records names the
+				// reader who asked for it rather than the process that carried it out. What it reads is bounded by the read it
+				// holds, in dispatch, and by the level the call asked to read at, which can only be narrower.
+				const hr = await runWithRequestContext({ baseIri: requestBaseIri(requestInfo?.headers) }, () =>
+					// A request holds only what it presented: the server was started inside a step of actuality, and
+					// a caller doesn't hold what that step held.
+					runActingAs(
+						principal,
+						() => runReadingAt(msg.readingAt, () => dispatchStep({ registry, world, steppers: this.steppers, grantedCapability: granted }, featureStep)),
+						restsOn,
+					),
+				);
+				if (hr.ok) return hr.products ?? ANSWERED_WITHOUT_PRODUCTS;
+				return callFailed(method, hr.errorMessage);
+			} catch (err) {
+				const detail = errorDetail(err);
+				logger.error(`[RPC] ${method}: ${detail}`);
+				return callFailed(method, detail);
+			}
+		});
+		return registry;
+	}
 
 	async listen(why: string) {
 		if (!this.webserver) {

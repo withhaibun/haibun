@@ -219,8 +219,8 @@ function validateMountPath(path: string): string | undefined {
 }
 
 export default class ShuStepper extends AStepper implements IHasOptions {
-	/** One route per host for the view bundle, however many apps are mounted. */
-	private viewBundleServed = false;
+	/** The servers that serve the view bundle: one route per server, however many apps it mounts. */
+	private bundleServedOn = new WeakSet<IWebServer>();
 	/** The path of each app this feature's web server serves. */
 	private readonly appPaths = new Set<string>();
 	description = "Serves the @haibun/shu hypermedia SPA at a given path";
@@ -244,10 +244,10 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 	}
 
 	cycles = {
-		// A feature gets a fresh web server, so the route this stepper adds to the previous one is gone with it: the flag
-		// that stops a duplicate route within a feature must not outlive that feature, or the next one doesn't serve a bundle.
+		// A feature's web server starts without the routes the previous feature mounted, so which servers serve the bundle
+		// doesn't outlive the feature, or the next one doesn't serve a bundle.
 		startFeature: (): void => {
-			this.viewBundleServed = false;
+			this.bundleServedOn = new WeakSet();
 			this.appPaths.clear();
 		},
 		getConcerns: () => ({
@@ -332,52 +332,8 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 				if (!webserver) return actionNotOK("webserver not available, load web-server-stepper before shu");
 				const pathError = validateMountPath(path);
 				if (pathError) return actionNotOK(pathError);
-				// The page boots with the actualityId of the records it reads and what this deployment set: it keeps its own key, and
-				// reads what was delegated to it here. Whether a delegation verifies here is read for each page served, since a
-				// verifier may be registered after the app is.
-				const hydration = (): TServedHydration => ({
-					actualityId: this.getWorld().runtime.actualityId,
-					settings: {
-						...this.settings,
-						build: servedBuild(),
-						allowedWithoutDelegation: [...webserver.allowedWithoutDelegation],
-						verifiesDelegations: getAuthority(this.getWorld().runtime)?.hasVerifier() === true,
-					},
-				});
-				webserver.addRoute("get", path, { description: `Shu SPA mounted at ${path}` }, createSpaHandler(path, hydration));
+				this.serveApp(webserver, path);
 				this.appPaths.add(path);
-				const domains = this.getWorld().domains;
-				// The context varies only by serving host, drawn from a tiny set of origins, build it once per host.
-				const byHost = new Map<string, Record<string, unknown>>();
-				const jsonLdHandler = (c: Context) => {
-					const ns = haibunNsForHost(requestBaseIri(c.req.header()));
-					let ctx = byHost.get(ns);
-					if (!ctx) byHost.set(ns, (ctx = getJsonLdContext(domains, ns)));
-					return c.json(ctx);
-				};
-				// The graph view's bundle, served once per host: `no-cache` revalidates, so an unchanged bundle answers 304
-				// and a rebuilt one gets a fresh ETag and a full body.
-				if (!this.viewBundleServed) {
-					this.viewBundleServed = true;
-					webserver.addRoute("get", POLYMORPHIC_VIEW_JS, { description: "The polymorphic graph view and the class browser" }, (c: Context) => {
-						const { content, etag } = loadPolymorphicBundle();
-						c.header("ETag", etag);
-						c.header("Cache-Control", "no-cache");
-						if (c.req.header("if-none-match") === etag) return c.body(null, 304);
-						c.header("Content-Type", "application/javascript");
-						return c.body(content);
-					});
-					webserver.addRoute("get", SPA_SOURCE_MAP, { description: "Source map for the served shu bundle" }, (c: Context) => {
-						try {
-							c.header("Content-Type", "application/json");
-							return c.body(readFileSync(join(__dirname, "..", "build", "shu-bundle.js.map"), "utf-8"));
-						} catch {
-							return c.body("the source map is not built; run npm run build in @haibun/shu", 404);
-						}
-					});
-				}
-				webserver.addRoute("get", CONTEXT_DOCUMENT.wellKnown, { description: "JSON-LD @context for haibun domain vocabulary" }, jsonLdHandler);
-				webserver.addRoute("get", CONTEXT_DOCUMENT.namespace, { description: "JSON-LD @context (namespace alias of haibun-context.jsonld)" }, jsonLdHandler);
 				return actionOK();
 			},
 		},
@@ -430,4 +386,53 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 			},
 		},
 	} as const satisfies TStepperSteps;
+
+	/** Serve the app on a server at a path, with the view bundle, its source map and the JSON-LD context the page reads. */
+	serveApp(webserver: IWebServer, path: string): void {
+		// The page boots with the actualityId of the records it reads and what this deployment set: it keeps its own key, and
+		// reads what was delegated to it here. Whether a delegation verifies here is read for each page served, since a
+		// verifier may be registered after the app is.
+		const hydration = (): TServedHydration => ({
+			actualityId: this.getWorld().runtime.actualityId,
+			settings: {
+				...this.settings,
+				build: servedBuild(),
+				allowedWithoutDelegation: [...webserver.allowedWithoutDelegation],
+				verifiesDelegations: getAuthority(this.getWorld().runtime)?.hasVerifier() === true,
+			},
+		});
+		webserver.addRoute("get", path, { description: `Shu SPA mounted at ${path}` }, createSpaHandler(path, hydration));
+		const domains = this.getWorld().domains;
+		// The context varies only by serving host, drawn from a tiny set of origins, build it once per host.
+		const byHost = new Map<string, Record<string, unknown>>();
+		const jsonLdHandler = (c: Context) => {
+			const ns = haibunNsForHost(requestBaseIri(c.req.header()));
+			let ctx = byHost.get(ns);
+			if (!ctx) byHost.set(ns, (ctx = getJsonLdContext(domains, ns)));
+			return c.json(ctx);
+		};
+		// The graph view's bundle, served once per host: `no-cache` revalidates, so an unchanged bundle answers 304
+		// and a rebuilt one gets a fresh ETag and a full body.
+		if (!this.bundleServedOn.has(webserver)) {
+			this.bundleServedOn.add(webserver);
+			webserver.addRoute("get", POLYMORPHIC_VIEW_JS, { description: "The polymorphic graph view and the class browser" }, (c: Context) => {
+				const { content, etag } = loadPolymorphicBundle();
+				c.header("ETag", etag);
+				c.header("Cache-Control", "no-cache");
+				if (c.req.header("if-none-match") === etag) return c.body(null, 304);
+				c.header("Content-Type", "application/javascript");
+				return c.body(content);
+			});
+			webserver.addRoute("get", SPA_SOURCE_MAP, { description: "Source map for the served shu bundle" }, (c: Context) => {
+				try {
+					c.header("Content-Type", "application/json");
+					return c.body(readFileSync(join(__dirname, "..", "build", "shu-bundle.js.map"), "utf-8"));
+				} catch {
+					return c.body("the source map is not built; run npm run build in @haibun/shu", 404);
+				}
+			});
+		}
+		webserver.addRoute("get", CONTEXT_DOCUMENT.wellKnown, { description: "JSON-LD @context for haibun domain vocabulary" }, jsonLdHandler);
+		webserver.addRoute("get", CONTEXT_DOCUMENT.namespace, { description: "JSON-LD @context (namespace alias of haibun-context.jsonld)" }, jsonLdHandler);
+	}
 }

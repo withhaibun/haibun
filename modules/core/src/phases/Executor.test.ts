@@ -1,8 +1,17 @@
 import { describe, expect, it } from "vitest";
 
 import { foldStep } from "../lib/step-dispatch.js";
-import type { TFeatureSteps } from "../schema/protocol.js";
-import { Executor, advanceSyntheticSeqPath, featureSyntheticSeqPath, nextSeqPath, calculateShouldClose, syntheticBranchSeqPath, syntheticSeqPathDirection } from "./Executor.js";
+import { STAY_ALWAYS, STAY_FAILURE, type TFeatureSteps } from "../schema/protocol.js";
+import {
+	Executor,
+	advanceSyntheticSeqPath,
+	featureSyntheticSeqPath,
+	nextSeqPath,
+	calculateShouldClose,
+	staysAfterExecution,
+	syntheticBranchSeqPath,
+	syntheticSeqPathDirection,
+} from "./Executor.js";
 import type { TFeatureResult, TStepResult } from "../lib/defs.js";
 import { passWithDefaults, failWithDefaults } from "../lib/test/lib.js";
 import { AStepper } from "../lib/astepper.js";
@@ -89,6 +98,18 @@ describe("the path allocated under a parent step", () => {
 		const began = performance.now();
 		for (let i = 0; i < 1000; i++) nextSeqPath(world, [1, i % 50]);
 		expect(performance.now() - began, "a thousand allocations against twenty thousand already made").toBeLessThan(50);
+	});
+});
+
+describe("staysAfterExecution", () => {
+	it("stays always, and after a failure where it stays on failure", () => {
+		expect([
+			staysAfterExecution(STAY_ALWAYS, true),
+			staysAfterExecution(STAY_ALWAYS, false),
+			staysAfterExecution(STAY_FAILURE, false),
+			staysAfterExecution(STAY_FAILURE, true),
+			staysAfterExecution(undefined, false),
+		]).toEqual([true, true, true, false, false]);
 	});
 });
 
