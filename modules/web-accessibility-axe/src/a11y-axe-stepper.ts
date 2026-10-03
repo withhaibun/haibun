@@ -2,14 +2,14 @@ import { Page } from "playwright";
 
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { AStepper, IHasOptions, StepperKinds, TStepperSteps, TFeatureStep } from "@haibun/core/lib/astepper.js";
-import { TAnyFixme } from "@haibun/core/lib/fixme.js";
-// import { TArtifactHTML } from "@haibun/core/lib/interfaces/logger.js";
 import { stringOrError, findStepper, actionNotOK, actionOK, findStepperFromOptionOrKind } from "@haibun/core/lib/util/index.js";
 import { getAxeBrowserResult, evalSeverity } from "./lib/a11y-axe.js";
-import { generateHTMLAxeReportFromBrowserResult } from "./lib/report.js";
+import { axeReportHtml } from "./lib/report.js";
+import type { AxeResults } from "axe-core";
+import { MEDIA_TYPE } from "@haibun/core/lib/media-types.js";
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
 
-import { JsonArtifact, HtmlArtifact } from "@haibun/core/schema/protocol.js";
+import { HtmlArtifact } from "@haibun/core/schema/protocol.js";
 
 type TGetsPage = { getPage: () => Promise<Page> };
 
@@ -31,7 +31,6 @@ class A11yStepper extends AStepper implements IHasOptions {
 		this.storage = findStepperFromOptionOrKind(steppers, this, world.moduleOptions, StepperKinds.STORAGE);
 	}
 
-	asNumber = (value: string) => (value.match(/[^\d+]/) ? NaN : parseInt(value));
 	steps = {
 		checkA11yRuntime: {
 			gwta: `page is accessible accepting serious {serious:number} and moderate {moderate:number}`,
@@ -44,54 +43,35 @@ class A11yStepper extends AStepper implements IHasOptions {
 			},
 		},
 	} as const satisfies TStepperSteps;
+	/** Check the page with axe, save its report, and pass where the page's serious and moderate violations are within the
+	 *  counts accepted. A check that fails to run fails the step, stating why. */
 	async checkA11y(page: Page, serious: number, moderate: number, filename: string, featureStep?: TFeatureStep) {
-		try {
-			const axeReport = await getAxeBrowserResult(page);
-			const evaluation = evalSeverity(axeReport, { serious, moderate });
-			if (evaluation.ok) {
-				const artifact = await this.generateArtifact(axeReport, filename, featureStep);
-				return Promise.resolve(actionOK({ artifact }));
-			}
-			const message = `not acceptable`;
-			const artifact = await this.generateArtifact(axeReport, filename, featureStep);
-
-			return actionNotOK(message, { artifact });
-		} catch (e) {
-			console.error(e);
-			const { message } = { message: "test" };
-			const artifact = JsonArtifact.parse({
-				id: `error.artifact.json`,
-				timestamp: Date.now(),
-				kind: "artifact",
-				artifactType: "json",
-				json: { exception: { summary: message, details: e } },
-				mimetype: "application/json",
-			});
-			return actionNotOK(message, { artifact });
-		}
+		const results = await getAxeBrowserResult(page);
+		const evaluation = evalSeverity(results, { serious, moderate });
+		const artifact = await this.saveReport(results, filename, featureStep);
+		if (evaluation.ok) return actionOK({ artifact });
+		const { found } = evaluation;
+		return actionNotOK(`the page has ${found.serious} serious and ${found.moderate} moderate accessibility violations, where ${serious} and ${moderate} are accepted`, { artifact });
 	}
 
-	private async generateArtifact(axeReport: TAnyFixme, filename: string, featureStep?: TFeatureStep) {
-		const html = generateHTMLAxeReportFromBrowserResult(axeReport as object);
-		if (this.storage) {
-			const saved = await this.storage.saveArtifact(filename + ".html", html, "html");
-
-			if (featureStep && this.getWorld().eventLogger) {
-				const artifactEvent = HtmlArtifact.parse({
-					id: `${featureStep.seqPath.join(".")}.artifact.a11y`,
-					timestamp: Date.now(),
-					kind: "artifact",
-					artifactType: "html",
-					path: saved.baseRelativePath,
-					mimetype: "text/html",
-				});
-				this.getWorld().eventLogger.artifact(featureStep, artifactEvent);
-				return artifactEvent;
-			}
+	/** Save the check's report as an HTML artifact a reviewer reads, where a storage stepper keeps artifacts. */
+	private async saveReport(results: AxeResults, filename: string, featureStep?: TFeatureStep) {
+		if (!this.storage) {
+			this.getWorld().eventLogger.warn("a storage stepper isn't defined, so the accessibility report isn't saved");
+			return undefined;
 		}
-
-		this.getWorld().eventLogger.warn(`a storage stepper isn't defined, so the report is included inline and isn't saved as an artifact`);
-		return undefined;
+		const saved = await this.storage.saveArtifact(`${filename}.html`, axeReportHtml(results));
+		if (!featureStep) return undefined;
+		const artifactEvent = HtmlArtifact.parse({
+			id: `${featureStep.seqPath.join(".")}.artifact.a11y`,
+			timestamp: Date.now(),
+			kind: "artifact",
+			artifactType: "html",
+			path: saved.baseRelativePath,
+			mimetype: MEDIA_TYPE.html,
+		});
+		this.getWorld().eventLogger.artifact(featureStep, artifactEvent);
+		return artifactEvent;
 	}
 }
 

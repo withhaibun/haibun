@@ -445,8 +445,10 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 			// Decoded off the thread that draws the page: a strip holds many tiles, and each is a screenshot of a whole page.
 			return `<shu-artifact-frame class="thumb" ${step}><img ${SHU_ATTR.DATA_ARTIFACT}="${esc(String(artifactPath))}" loading="lazy" decoding="async" /></shu-artifact-frame>`;
 		}
+		// An HTML artifact holds what a step saved, which can carry the page it checked, so it shows as a static document:
+		// no script runs and it doesn't reach the app's origin. Its links open a tab outside the sandbox.
 		if (type === "html")
-			return `<shu-artifact-frame ${step}><iframe ${SHU_ATTR.DATA_ARTIFACT}="${esc(String(artifactPath))}" loading="lazy" sandbox="allow-scripts allow-same-origin" style="width:100%;min-height:80vh;border:none;"></iframe></shu-artifact-frame>`;
+			return `<shu-artifact-frame ${step}><iframe ${SHU_ATTR.DATA_ARTIFACT}="${esc(String(artifactPath))}" loading="lazy" sandbox="allow-popups allow-popups-to-escape-sandbox" style="width:100%;min-height:80vh;border:none;"></iframe></shu-artifact-frame>`;
 		if (type === "json") return `<shu-artifact-frame ${step}><div class="json-block">${jsonDisclosure(artifact.json)}</div></shu-artifact-frame>`;
 		if (type === "file")
 			return `<shu-artifact-frame ${step} caption="${esc(String(artifact.path))}"><a href="${esc(String(artifact.path))}">${esc(String(artifact.path))}</a></shu-artifact-frame>`;

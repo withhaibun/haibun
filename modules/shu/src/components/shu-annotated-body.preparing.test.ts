@@ -7,12 +7,15 @@
  * jsdom doesn't do layout, so this covers the lifecycle (what is shown, what is deferred, what is cancelled), not the
  * placement of highlights or cards: those need a real browser and are covered by the e2e suites.
  */
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { ShuAnnotatedBody } from "./shu-annotated-body.js";
 import { provideLayout } from "../test/jsdom-layout.js";
 
 const HEAVY = "a passage of prose. ".repeat(1200); // over the size that shows the indicator
-const frames = (): Promise<void> => new Promise((r) => setTimeout(r, 80)); // past both deferred frames
+/** Past both deferred frames. The timers are the test's own, so a frame runs when the test advances to it. */
+const frames = (): void => {
+	vi.advanceTimersByTime(80);
+};
 
 const preparing = (el: ShuAnnotatedBody): boolean => !!el.querySelector('[data-testid="annotation-preparing"]');
 const rendered = (el: ShuAnnotatedBody): string => el.querySelector('[data-testid="annotated-content"]')?.textContent ?? "";
@@ -31,10 +34,14 @@ describe("shu-annotated-body preparing indicator", () => {
 	let el: ShuAnnotatedBody | undefined;
 	beforeEach(() => {
 		provideLayout();
+		vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "requestAnimationFrame", "cancelAnimationFrame"] });
 	});
+	// The text annotator's destroy() leaves its debounced redraws pending, so they run here, while the document they draw in exists.
 	afterEach(() => {
 		el?.remove();
 		el = undefined;
+		vi.runAllTimers();
+		vi.useRealTimers();
 	});
 
 	it("renders a small body inline at once, without an indicator to flash", async () => {
@@ -54,7 +61,7 @@ describe("shu-annotated-body preparing indicator", () => {
 	it("replaces the indicator with the body once the deferred render runs", async () => {
 		el = mount(HEAVY);
 		await el.updateComplete;
-		await frames();
+		frames();
 		await el.updateComplete;
 		expect(preparing(el)).toBe(false);
 		expect(rendered(el)).toContain("a passage of prose");
@@ -65,7 +72,7 @@ describe("shu-annotated-body preparing indicator", () => {
 		await el.updateComplete;
 		const content = el.querySelector('[data-testid="annotated-content"]');
 		el.remove();
-		await frames();
+		frames();
 		expect(content?.textContent).toBe(""); // never mounted onto content the reader is no longer looking at
 	});
 });

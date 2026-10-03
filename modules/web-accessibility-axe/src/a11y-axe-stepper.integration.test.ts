@@ -43,7 +43,7 @@ page is accessible accepting serious "99" and moderate "90"
 
 		const res = await passWithDefaults(features, [A11yAxe, WebPlaywright, StorageMem], { options, moduleOptions });
 		expect(res.ok).toBe(true);
-		expect(res.featureResults?.[0]?.stepResults?.[0]?.artifact).toBeUndefined();
+		expect(res.featureResults?.[0]?.stepResults?.[1]?.artifact).toMatchObject({ artifactType: "html" });
 	});
 	it("fails", LAUNCHES_A_BROWSER, async () => {
 		const features = [
@@ -58,6 +58,6 @@ page is accessible accepting serious "0" and moderate "0"
 
 		const res = await failWithDefaults(features, [A11yAxe, WebPlaywright, StorageMem], { options, moduleOptions });
 		expect(res.ok).toBe(false);
-		expect(res.featureResults?.[0]?.stepResults?.[1]?.artifact).toBeDefined();
+		expect(res.featureResults?.[0]?.stepResults?.[1]?.artifact).toMatchObject({ artifactType: "html" });
 	});
 });
