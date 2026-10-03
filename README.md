@@ -62,20 +62,69 @@ directory, this lists the options available to the `tests` features:
 
 `npx haibun-cli --help tests`
 
-`--with-steppers` adds steppers to the ones a folder's `config.json` lists, and a stepper both name is loaded once. shu's
-monitor shows actuality as it runs: each feature and step, and what each step produced. Given a port in
-`HAIBUN_O_MONITORSTEPPER_PORT`, it serves shu at `/monitor` on that port, on a server of its own that lasts from the first
-feature to the last, apart from any server a feature starts. With `HAIBUN_STAY=always`, it keeps serving after the last
-feature. Its server admits a reader as the instance's web server does, so a reader of a local actuality that doesn't hold a
-delegation reads it where `HAIBUN_O_WEBSERVERSTEPPER_ALLOW_WITHOUT_DELEGATION` names every action. The page reads
-actuality through shu's stepper, its graph source and the monitor, and the client cache stepper adds the view that
-lists each feature the page has read, where a reader opens an earlier one. This shows the `tests` features at
-`http://localhost:7777/monitor`:
+### Adding steppers for one start
 
-`HAIBUN_STAY=always HAIBUN_O_MONITORSTEPPER_PORT=7777 HAIBUN_O_WEBSERVERSTEPPER_ALLOW_WITHOUT_DELEGATION='*' npx haibun-cli --with-steppers=@haibun/shu/shu-stepper,@haibun/shu/monitor-stepper,@haibun/shu/graph-source-stepper,@haibun/shu/client-cache-stepper tests`
+A stepper is a module that provides steps. A step is one line a feature can run, such as `go to the "…" webpage`,
+which the web-playwright stepper provides. A folder's `config.json` lists the steppers its features use.
 
-A feature the page reads while it runs stays on the device after the next feature starts: `show client cache` lists
-each one under "Executions this device holds", and a feature's name there opens it.
+`--with-steppers` adds steppers for one start of the command, and leaves `config.json` as it is. Several steppers are
+separated by commas. A stepper that `config.json` already lists is loaded once.
+
+This runs the feature `a11y-pass` from the `tests` folder with two more steppers, from the [e2e-tests](e2e-tests)
+directory. The steppers are shu's, which the next section describes. With them, the command also writes a report of
+the feature, and logs the report's address as `shu standalone report: file://…/shu.html`:
+
+`npx haibun-cli --with-steppers=@haibun/shu/shu-stepper,@haibun/shu/monitor-stepper tests a11y-pass`
+
+### Watching features run, in a browser
+
+shu is haibun's browser interface. It shows what the features did: each step and whether it passed, what each step
+saved (a screenshot, an accessibility report), and the records the steps wrote. The monitor is the stepper that
+serves shu for the features the command runs. The features themselves don't change.
+
+This runs the same feature and serves shu for it, from the same directory:
+
+```
+HAIBUN_STAY=always \
+HAIBUN_O_MONITORSTEPPER_PORT=7777 \
+HAIBUN_O_WEBSERVERSTEPPER_ALLOW_WITHOUT_DELEGATION='*' \
+npx haibun-cli --with-steppers=@haibun/shu/shu-stepper,@haibun/shu/monitor-stepper,@haibun/shu/graph-source-stepper,@haibun/shu/client-cache-stepper tests a11y-pass
+```
+
+The three settings:
+
+| Setting | What it does |
+|---|---|
+| `HAIBUN_O_MONITORSTEPPER_PORT=7777` | The port the monitor serves shu on. The page is `http://localhost:7777/monitor`. Without this setting, the monitor doesn't serve a page. |
+| `HAIBUN_STAY=always` | Keeps the command running after the last feature, so the page can still be read. Stop it with Ctrl-C. Without this setting, the command and the page end with the last feature. |
+| `HAIBUN_O_WEBSERVERSTEPPER_ALLOW_WITHOUT_DELEGATION='*'` | Lets any browser that reaches the port read the page and call its steps. Without it, shu refuses a browser that an owner hasn't given access. Use `'*'` only on a machine that other people can't reach. |
+
+The four steppers:
+
+| Stepper | What it adds |
+|---|---|
+| `@haibun/shu/monitor-stepper` | The monitor: it serves shu on its port and sends the page each step as it happens. |
+| `@haibun/shu/shu-stepper` | The shu page itself. |
+| `@haibun/shu/graph-source-stepper` | The page's reads of the records the steps wrote. |
+| `@haibun/shu/client-cache-stepper` | The list of the features the page has read, where an earlier feature is opened again. |
+
+As it starts, the command logs the page's address:
+
+`the monitor shows actuality at http://localhost:7777/monitor`
+
+Each view of the page has an address of its own:
+
+| Address | What it shows |
+|---|---|
+| `http://localhost:7777/monitor#?col=shu-monitor-column&col=shu-document-column` | The log of each step beside the document. This is the address to start with. |
+| `http://localhost:7777/monitor#?col=shu-document-column` | The feature as a document: its prose and steps in order, with what each step saved beneath the step. The accessibility report is shown there, under the step that checked the page. |
+| `http://localhost:7777/monitor#?col=shu-monitor-column` | The log: one line for each step, with its time and whether it passed. |
+| `http://localhost:7777/monitor#?label=TestResult` | The records of one type, here each accessibility result with its outcome. Another type's name in place of `TestResult` shows that type. |
+| `http://localhost:7777/monitor#?col=shu-client-cache-column` | "Executions this device holds": each feature the page has read. A feature's name there opens that feature again. |
+
+The page shows the feature that is running. With several features, the page moves to each feature as it starts, and
+the last address above opens an earlier one. `tests a11y` in place of `tests a11y-pass` runs two, `a11y-fail` and then
+`a11y-pass`. The page lists a feature only where the page was open while that feature ran.
 
 # Further Documentation
 
