@@ -14,6 +14,7 @@ type TClass = { new <T>(...args: unknown[]): T };
  * - Package names: @haibun/monitor-tui → resolves main from package.json
  * - Explicit paths: @haibun/monitor-tui/build/index → imports directly
  * - Relative paths: ./build-local/test-server → imports from cwd
+ * - A file named with its extension: ../updates/update-stepper.ts → imports it as named, as Node runs TypeScript source
  */
 export async function use(module: string): Promise<TClass> {
 	try {
@@ -30,6 +31,7 @@ export async function use(module: string): Promise<TClass> {
 function resolveModulePath(module: string): string {
 	// Check if this is a directory with package.json (package reference)
 	if (nodeFS.existsSync(module)) {
+		if (nodeFS.statSync(module).isFile()) return module;
 		const pkgPath = path.join(module, "package.json");
 		if (nodeFS.existsSync(pkgPath)) {
 			const pkg = JSON.parse(nodeFS.readFileSync(pkgPath, "utf-8"));
