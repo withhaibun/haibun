@@ -272,7 +272,7 @@ export interface IStepperCycles {
 	endScenario?(): Promise<void>;
 	endFeature?(endedWith: TEndFeature): Promise<void>;
 	onFailure?(result: TFailureArgs): Promise<void>;
-	endExecution?(results: TExecutorResult): Promise<void>;
+	endExecution?(results: TEndExecution): Promise<void>;
 	onEvent?(event: THaibunEvent): Promise<void> | void;
 }
 
@@ -283,9 +283,10 @@ export type TEndFeature = {
 	isLast: boolean;
 	okSoFar: boolean;
 	continueAfterError: boolean;
-	stayOnFailure: boolean;
 	thisFeatureOK: boolean;
 };
+/** Actuality's result as its features end, and whether it keeps serving after them, as `HAIBUN_STAY` states. */
+export type TEndExecution = TExecutorResult & { stays: boolean };
 export type TStartFeature = { resolvedFeature: TResolvedFeature; index: number };
 export type TStartScenario = { scopedVars: FeatureVariables };
 export type TBeforeStep = { featureStep: TFeatureStep };

@@ -25,6 +25,13 @@ export const frameAncestors = (embedderOrigin: string | undefined): string => ["
  */
 export const scriptSources = (nonce: string): string => ["script-src", `'nonce-${nonce}'`, "'strict-dynamic'", "'unsafe-eval'", "'wasm-unsafe-eval'"].join(" ");
 
+/** What an artifact a step saved may do wherever it is shown, since it can hold the page a step checked: run no script and
+ *  reach no origin, and open a link in a tab of its own. A frame states it as its sandbox. */
+export const ARTIFACT_SANDBOX = "allow-popups allow-popups-to-escape-sandbox";
+
+/** The policy every artifact is served with, so one opened by its address runs no script on this site's origin. */
+export const ARTIFACT_POLICY = `sandbox ${ARTIFACT_SANDBOX}`;
+
 /** The policy a page shu serves states: which pages may frame it, and which scripts it runs. */
 export const pagePolicy = (embedderOrigin: string | undefined, nonce: string): string => [frameAncestors(embedderOrigin), scriptSources(nonce)].join("; ");
 

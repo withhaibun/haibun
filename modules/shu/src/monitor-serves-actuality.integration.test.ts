@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import { getTestWorldWithOptions, testWithWorld, DEF_PROTO_OPTIONS } from "@haibun/core/lib/test/lib.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { OK } from "@haibun/core/schema/protocol.js";
-import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
-import { RPC_ROUTE, rpcEnvelope } from "@haibun/core/lib/rpc-wire.js";
-import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
+import { findStepper, getStepperOptionName } from "@haibun/core/lib/util/index.js";
+import type { TWorld } from "@haibun/core/lib/world.js";
+import { artifactAddress } from "@haibun/core/lib/run-artifact.js";
+import { RpcClient } from "@haibun/core/lib/rpc-client.js";
+import { localOrigin } from "@haibun/core/lib/local-origin.js";
+import { Access, SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { executionOf } from "@haibun/core/lib/seq-path.js";
 import type { TClusteredQuads } from "@haibun/core/lib/quad-types.js";
 import Haibun from "@haibun/core/steps/haibun.js";
@@ -15,31 +18,35 @@ import StorageFS from "@haibun/storage-fs/storage-fs.js";
 import MonitorStepper, { MONITOR_PATH } from "./monitor-stepper.js";
 import GraphSourceStepper from "./graph-source-stepper.js";
 import ShuStepper from "./shu-stepper.js";
+import { RPC_METHOD } from "./consts.js";
+import { ARTIFACT_POLICY } from "./content-security-policy.js";
 
 const PORT = 8254;
-const MONITOR = `http://localhost:${PORT}`;
-const CLUSTERED = "GraphSourceStepper-getClusteredQuads";
+const MONITOR = localOrigin(PORT);
 
 /** What the monitor answered while the second feature ran: its page, and the records it read. */
 let page: { status: number; body: string } | undefined;
 let read: TClusteredQuads | undefined;
+/** The policy an HTML artifact a step saved is served with, read by its address. */
+let artifactPolicy: string | null | undefined;
 
 class ReadsTheMonitorStepper extends AStepper {
 	description = "Reads the monitor's page and the records it serves, as a reader's browser does.";
+	private steppers: AStepper[] = [];
+	async setWorld(world: TWorld, steppers: AStepper[]): Promise<void> {
+		await super.setWorld(world, steppers);
+		this.steppers = steppers;
+	}
 	steps = {
 		readTheMonitor: {
 			gwta: "read the monitor",
 			action: async () => {
 				const response = await fetch(`${MONITOR}${MONITOR_PATH}`);
 				page = { status: response.status, body: await response.text() };
-				const body = rpcEnvelope({
-					id: "monitor-read",
-					method: CLUSTERED,
-					params: { perTypeLimit: 100, accessLevel: "private" },
-					actualityId: this.getWorld().runtime.actualityId,
-				});
-				const answer = await fetch(`${MONITOR}${RPC_ROUTE}${CLUSTERED}`, { method: "POST", headers: { "Content-Type": "application/json" }, body });
-				read = (await answer.json()) as TClusteredQuads;
+				const reader = new RpcClient({ baseUrl: MONITOR, timeoutMs: 5_000, retry: { maxAttempts: 1 } });
+				read = await reader.call<TClusteredQuads>(RPC_METHOD.CLUSTERED_QUADS, { perTypeLimit: 100, accessLevel: Access.private }, []);
+				const saved = await findStepper<StorageFS>(this.steppers, "StorageFS").saveArtifact("saved.html", "<script>document.title = 'ran'</script>");
+				artifactPolicy = (await fetch(`${MONITOR}${artifactAddress(saved.baseRelativePath)}`)).headers.get("Content-Security-Policy");
 				return OK;
 			},
 		},
@@ -75,6 +82,9 @@ describe("the monitor serves the shu views of actuality on its own port", () => 
 		// reads that feature's steps through it.
 		const steps = read?.quads.filter((quad) => quad.namedGraph === SEQ_PATH_LABEL).map((quad) => String(quad.subject)) ?? [];
 		expect(steps.some((id) => id.startsWith(`${executionOf({ ...world.tag, featureNum: 2 })}.`))).toBe(true);
+
+		// An artifact opened by its address runs no script here, as one in a frame of the page doesn't.
+		expect(artifactPolicy).toBe(ARTIFACT_POLICY);
 
 		await expect(fetch(`${MONITOR}${MONITOR_PATH}`)).rejects.toThrow();
 	});

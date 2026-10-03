@@ -20,19 +20,18 @@ import { OK, type TArtifactEvent, type THaibunEvent } from "@haibun/core/schema/
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { OBSCURED_VALUE } from "@haibun/core/lib/feature-variables.js";
 import { actionOKWithProducts, stringOrError, intOrError, findStepper, findStepperFromOptionOrKind, getStepperOption, errorDetail } from "@haibun/core/lib/util/index.js";
-import { staysAfterExecution } from "@haibun/core/phases/Executor.js";
-import { STAY, type TExecutorResult } from "@haibun/core/schema/protocol.js";
+import { localOrigin } from "@haibun/core/lib/local-origin.js";
 import { actualURI } from "@haibun/core/lib/util/node/actualURI.js";
 import { fromJsonText } from "@haibun/core/lib/json-text.js";
-import { SSETransport, TRANSPORT, type ITransport } from "@haibun/web-server-hono/sse-transport.js";
+import { TRANSPORT, type ITransport } from "@haibun/web-server-hono/sse-transport.js";
 import type WebServerStepper from "@haibun/web-server-hono/web-server-stepper.js";
-import type { ServerHono } from "@haibun/web-server-hono/server-hono.js";
-import { WEBSERVER, type IWebServer } from "@haibun/web-server-hono/defs.js";
+import { WEBSERVER, type IWebServer, type MiddlewareHandler } from "@haibun/web-server-hono/defs.js";
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
 import type { TTag } from "@haibun/core/lib/ttag.js";
 import { Access, SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { SEQ_PATH_FIELD, executionOf, extractSeqPathPrefix, formatRecordName, parseSeqPath } from "@haibun/core/lib/seq-path.js";
 import { SHU_TAG } from "./consts.js";
+import { ARTIFACT_POLICY } from "./content-security-policy.js";
 import { READS_THE_RUNS_ARTIFACTS } from "@haibun/core/lib/actions.js";
 import { requiring } from "@haibun/web-server-hono/capability-auth.js";
 import { LOG_MESSAGE_EDGE, LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
@@ -67,6 +66,12 @@ export function inlineScriptsForView(domains: Record<string, unknown>, finalView
 }
 
 const DOMAIN_LOG_EVENT = "shu-log-event";
+
+/** Serves a response under the artifact policy, which the response is given as it leaves. */
+const sandboxed: MiddlewareHandler = async (c, next) => {
+	await next();
+	c.res.headers.set("Content-Security-Policy", ARTIFACT_POLICY);
+};
 
 /** Where the monitor serves the shu views of actuality on its own port. */
 export const MONITOR_PATH = "/monitor";
@@ -141,13 +146,13 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		[StepperKinds.STORAGE]: { desc: "Storage for standalone HTML output", parse: stringOrError },
 		PORT: {
 			desc: `The port the monitor serves the shu views of actuality on, at ${MONITOR_PATH}, apart from any server a feature starts. Unset, the monitor doesn't serve them`,
-			parse: (input: string) => intOrError(input),
+			parse: intOrError,
 		},
 	};
 
 	private steppers: AStepper[] = [];
-	/** The monitor's own server and event stream, which last the whole of actuality, where a feature's server lasts the feature. */
-	private served?: { server: ServerHono; transport: ITransport };
+	/** The event stream of the monitor's own server, which lasts the whole of actuality, where a feature's lasts the feature. */
+	private monitorTransport?: ITransport;
 
 	private get transport(): ITransport | undefined {
 		return this.getWorld().runtime[TRANSPORT] as ITransport | undefined;
@@ -159,27 +164,26 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		this.storage = findStepperFromOptionOrKind(steppers, this, world.moduleOptions, StepperKinds.STORAGE);
 	}
 
-	/** Serve the shu views of actuality on the monitor's own port: the app, the steps by RPC, the event stream and what the
-	 *  steps captured, with the instance's interface and admission, for as long as actuality runs. */
+	/** Serve the shu views of actuality on the monitor's own port, on a server of the instance's that lasts the whole of
+	 *  actuality: the app and what the steps captured. */
 	private async serveMonitor(port: number): Promise<void> {
 		const webServer = findStepper<WebServerStepper>(this.steppers, "WebServerStepper");
-		const server = webServer.newServer();
-		const transport = new SSETransport(server, this.getWorld().eventLogger, this.getWorld().runtime);
-		webServer.serveRpc(server, transport);
-		findStepper<ShuStepper>(this.steppers, "ShuStepper").serveApp(server, MONITOR_PATH);
-		this.serveArtifacts(server);
-		await server.listen("monitor", port, webServer.hostname);
-		this.served = { server, transport };
-		this.getWorld().eventLogger.info(`the monitor shows actuality at http://${webServer.hostname ?? "localhost"}:${port}${MONITOR_PATH}`);
+		const shu = findStepper<ShuStepper>(this.steppers, "ShuStepper");
+		this.monitorTransport = await webServer.serveForExecution("monitor", port, (server) => {
+			shu.serveApp(server, MONITOR_PATH);
+			this.serveArtifacts(server);
+		});
+		const origin = webServer.hostname ? `http://${webServer.hostname}:${port}` : localOrigin(port);
+		this.getWorld().eventLogger.info(`the monitor shows actuality at ${origin}${MONITOR_PATH}`);
 	}
 
 	/** What actuality's steps captured, served on a server. A capture shows what the steps saw, so only a caller holding a
-	 *  private read is served one. */
+	 *  private read is served one, and each is served sandboxed, so one opened by its address runs no script here. */
 	private serveArtifacts(webserver: IWebServer): void {
 		const artifactDir = resolve(this.storage.getArtifactBasePath());
 		this.storage.ensureDirExists(artifactDir);
 		const privately = requiring(READS_THE_RUNS_ARTIFACTS, this.getWorld().runtime, webserver);
-		webserver.addKnownStaticFolder(artifactDir, ARTIFACTS_ROUTE, { description: "What actuality's steps captured, such as screenshots and videos" }, privately);
+		webserver.addKnownStaticFolder(artifactDir, ARTIFACTS_ROUTE, { description: "What actuality's steps captured, such as screenshots and videos" }, privately, sandboxed);
 	}
 
 	cycles: IStepperCycles = {
@@ -212,7 +216,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			if (event.kind === "log") this.beganWriting(this.recordSaid(event));
 			if (event.kind === "artifact") this.beganWriting(this.recordProduced(event));
 			this.transport?.send({ type: "event", event });
-			this.served?.transport.send({ type: "event", event });
+			this.monitorTransport?.send({ type: "event", event });
 		},
 		endFeature: async ({ shouldClose = true }: TEndFeature) => {
 			// An explicit `saves shu to <path>` step is honored regardless of HAIBUN_STAY (shouldClose=false).
@@ -228,12 +232,6 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			this.saidCount = 0;
 			this.producedCount = 0;
 			this.queriedLabel = "";
-		},
-		// The monitor's server lasts as long as actuality serves, so a reader of an actuality that stays can still read it.
-		endExecution: async (results: TExecutorResult) => {
-			if (!this.served || staysAfterExecution(this.getWorld().options[STAY], results.ok)) return;
-			await this.served.server.close();
-			this.served = undefined;
 		},
 	};
 

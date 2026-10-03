@@ -115,13 +115,7 @@ describe("staysAfterExecution", () => {
 
 describe("calculateShouldClose", () => {
 	// Default test values - feature OK, not last, without special flags
-	const defaults = {
-		thisFeatureOK: true,
-		isLast: false,
-		stayOnFailure: false,
-		continueAfterError: false,
-		stayAlways: false,
-	};
+	const defaults = { thisFeatureOK: true, isLast: false, continueAfterError: false, stay: undefined };
 
 	describe("non-last feature (more features to run)", () => {
 		it("closes after successful feature to start fresh for next", () => {
@@ -147,38 +141,32 @@ describe("calculateShouldClose", () => {
 			expect(result).toBe(true); // close by default
 		});
 
-		it("stays open on failed last feature when stayOnFailure is true", () => {
-			const result = calculateShouldClose({ ...defaults, thisFeatureOK: false, isLast: true, stayOnFailure: true });
+		it("stays open on failed last feature when actuality stays on failure", () => {
+			const result = calculateShouldClose({ ...defaults, thisFeatureOK: false, isLast: true, stay: STAY_FAILURE });
 			expect(result).toBe(false); // stay open for debugging
 		});
 
-		it("stays open on failed non-last feature when stayOnFailure is true and NOT continuing", () => {
+		it("stays open on failed non-last feature when actuality stays on failure and NOT continuing", () => {
 			// "Effectively last": execution stops on failure
-			const result = calculateShouldClose({
-				...defaults,
-				thisFeatureOK: false,
-				isLast: false,
-				continueAfterError: false,
-				stayOnFailure: true,
-			});
+			const result = calculateShouldClose({ ...defaults, thisFeatureOK: false, isLast: false, continueAfterError: false, stay: STAY_FAILURE });
 			expect(result).toBe(false); // stay open for debugging
 		});
 	});
 
-	describe("stayAlways flag", () => {
-		it("stays open on last successful feature when stayAlways is true", () => {
-			const result = calculateShouldClose({ ...defaults, thisFeatureOK: true, isLast: true, stayAlways: true });
+	describe("staying always", () => {
+		it("stays open on last successful feature when actuality always stays", () => {
+			const result = calculateShouldClose({ ...defaults, thisFeatureOK: true, isLast: true, stay: STAY_ALWAYS });
 			expect(result).toBe(false); // stay open
 		});
 
-		it("stays open on last failed feature when stayAlways is true", () => {
-			const result = calculateShouldClose({ ...defaults, thisFeatureOK: false, isLast: true, stayAlways: true });
+		it("stays open on last failed feature when actuality always stays", () => {
+			const result = calculateShouldClose({ ...defaults, thisFeatureOK: false, isLast: true, stay: STAY_ALWAYS });
 			expect(result).toBe(false); // stay open
 		});
 
-		it("closes non-last feature even when stayAlways is true", () => {
-			// stayAlways only applies to "effectively last" features
-			const result = calculateShouldClose({ ...defaults, thisFeatureOK: true, isLast: false, stayAlways: true });
+		it("closes non-last feature even when actuality always stays", () => {
+			// Staying applies only to "effectively last" features
+			const result = calculateShouldClose({ ...defaults, thisFeatureOK: true, isLast: false, stay: STAY_ALWAYS });
 			expect(result).toBe(true); // close - more features to run
 		});
 	});

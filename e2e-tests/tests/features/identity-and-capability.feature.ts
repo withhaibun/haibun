@@ -1,15 +1,16 @@
 import type { TKirejiExport } from "@haibun/core/kireji/withAction.js";
 import { withAction } from "@haibun/core/kireji/withAction.js";
 import Haibun from "@haibun/core/steps/haibun.js";
-import { serviceHost } from "@haibun/shu/test/step-ui.js";
-import { DEFAULT_PORT } from "@haibun/web-server-hono/server-hono.js";
+import { RPC_ROUTE } from "@haibun/core/lib/rpc-wire.js";
+import { localOrigin } from "@haibun/core/lib/local-origin.js";
+import { WEB_SERVER } from "../backgrounds/int/web-server.feature.ts";
 
 const { feature, scenario } = withAction(new Haibun());
 
-const RPC = `${serviceHost(String(DEFAULT_PORT))}/rpc`;
+const RPC = `${WEB_SERVER}${RPC_ROUTE}`;
 const MCP_PORT = process.env.HAIBUN_O_MCPSTEPPER_PORT;
 if (!MCP_PORT) throw new Error("HAIBUN_O_MCPSTEPPER_PORT names the port of the MCP endpoint this feature calls, and isn't set");
-const MCP = `http://localhost:${MCP_PORT}/mcp`;
+const MCP = `${localOrigin(Number(MCP_PORT))}/mcp`;
 
 export const features: TKirejiExport = {
 	"Identity and capability authorization": [
@@ -30,12 +31,12 @@ export const features: TKirejiExport = {
 		"enable rpc",
 		'webserver is listening for "capability over rpc"',
 		'accept authority from "ranger" for "TestServer:protected"',
-		`rpc call to "${RPC}/TestServer-protectedRpcPing" with method "TestServer-protectedRpcPing" presenting nothing is refused`,
-		`rpc call to "${RPC}/TestServer-rpcPing" with method "TestServer-rpcPing" presenting nothing is refused`,
-		`rpc call to "${RPC}/TestServer-nothing" with method "TestServer-nothing" presenting nothing is refused`,
-		`rpc call to "${RPC}/TestServer-protectedRpcPing" with method "TestServer-protectedRpcPing" succeeds when signed by "ranger" for "TestServer:protected"`,
-		`rpc call to "${RPC}/TestServer-protectedAdminRpcPing" with method "TestServer-protectedAdminRpcPing" is denied for capability "TestServer:admin" when signed by "ranger" for "TestServer:protected"`,
-		`rpc call to "${RPC}/TestServer-protectedRpcPing" with method "TestServer-protectedRpcPing" is refused when signed by "stranger" for "TestServer:protected"`,
+		`rpc call to "${RPC}TestServer-protectedRpcPing" with method "TestServer-protectedRpcPing" presenting nothing is refused`,
+		`rpc call to "${RPC}TestServer-rpcPing" with method "TestServer-rpcPing" presenting nothing is refused`,
+		`rpc call to "${RPC}TestServer-nothing" with method "TestServer-nothing" presenting nothing is refused`,
+		`rpc call to "${RPC}TestServer-protectedRpcPing" with method "TestServer-protectedRpcPing" succeeds when signed by "ranger" for "TestServer:protected"`,
+		`rpc call to "${RPC}TestServer-protectedAdminRpcPing" with method "TestServer-protectedAdminRpcPing" is denied for capability "TestServer:admin" when signed by "ranger" for "TestServer:protected"`,
+		`rpc call to "${RPC}TestServer-protectedRpcPing" with method "TestServer-protectedRpcPing" is refused when signed by "stranger" for "TestServer:protected"`,
 
 		scenario({ scenario: "The same gate enforces calls arriving over the Model Context Protocol (MCP)" }),
 		`The capability isn't transport-specific. The MCP endpoint, the tool interface an external agent uses, verifies what a request presents over the whole request and runs each tool call under it. The accepted holder, which holds a public read beside the protected action, finds the protected tool among the steps shown to it for a text; calling it without presenting a proof is refused, calling it signed by that holder runs it, and the admin tool stays refused to that holder.`,

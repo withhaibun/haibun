@@ -5,7 +5,7 @@ import { z } from "zod";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { OK } from "@haibun/core/schema/protocol.js";
 import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption, intOrError, errorDetail } from "@haibun/core/lib/util/index.js";
-import { AStepper, type IHasCycles, type IHasOptions, type TEndFeature, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
+import { AStepper, type IHasCycles, type IHasOptions, type TEndExecution, type TEndFeature, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { dispatchStep } from "@haibun/core/lib/step-dispatch.js";
 import { ACTION_BEGIN, ANSWERED_WITHOUT_PRODUCTS, parseRpcRequest, authorityRefusal, callFailed, RPC_PROTOCOL, type THandshake } from "@haibun/core/lib/rpc-wire.js";
 import { runWithRequestContext, requestBaseIri } from "@haibun/core/lib/request-context.js";
@@ -83,6 +83,12 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 		wss.getWorld().runtime[WEBSERVER] = wss.webserver;
 		wss.getWorld().runtime[TRANSPORT] = new SSETransport(wss.webserver, wss.getWorld().eventLogger, wss.getWorld().runtime);
 		await Promise.resolve();
+	},
+	// A server that lasts the whole of actuality closes as it ends, unless actuality stays.
+	async endExecution({ stays }: TEndExecution) {
+		if (stays) return;
+		await Promise.all(wss.executionServers.map((server) => server.close()));
+		wss.executionServers = [];
 	},
 	async endFeature(wtw: TEndFeature) {
 		if (wtw.shouldClose) {
@@ -261,6 +267,21 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 	/** A server for this instance: its files, its store, and who it admits, as every server of this instance has them. */
 	newServer(): ServerHono {
 		return new ServerHono(this.getWorld().eventLogger, path.join(process.cwd(), "files"), () => this.getWorld().shared.getStore(), this.allowedWithoutDelegation, this.admitted);
+	}
+
+	/** The servers that last the whole of actuality, apart from each feature's. */
+	executionServers: ServerHono[] = [];
+
+	/** A server of this instance that lasts the whole of actuality, apart from each feature's: it answers RPC, carries its
+	 *  own event stream, serves what `mount` adds, and closes as actuality ends unless actuality stays. */
+	async serveForExecution(why: string, port: number, mount: (server: IWebServer) => void): Promise<ITransport> {
+		const server = this.newServer();
+		const transport = new SSETransport(server, this.getWorld().eventLogger, this.getWorld().runtime);
+		this.serveRpc(server, transport);
+		mount(server);
+		await server.listen(why, port, this.hostname);
+		this.executionServers.push(server);
+		return transport;
 	}
 
 	/**

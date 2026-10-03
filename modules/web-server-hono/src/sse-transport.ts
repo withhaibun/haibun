@@ -174,6 +174,8 @@ export class SSETransport implements ITransport, IStepTransport {
 
 	// biome-ignore lint/suspicious/noExplicitAny: event payload
 	public send(data: any) {
+		// An event that a stream doesn't follow isn't serialized for it.
+		if (this.hub.listenerCount("event") === 0) return;
 		let payload: string;
 		try {
 			payload = JSON.stringify(data);

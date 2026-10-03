@@ -7,7 +7,7 @@ import { getAxeBrowserResult, evalSeverity } from "./lib/a11y-axe.js";
 import { axeReportHtml } from "./lib/report.js";
 import { axeAssertions } from "./lib/axe-earl.js";
 import { earlDomainDefinitions, writeEarlAssertions } from "./lib/earl.js";
-import { executionOf, formatRecordName } from "@haibun/core/lib/seq-path.js";
+import { executionOf, formatRecordName, formatSeqPath } from "@haibun/core/lib/seq-path.js";
 import type { AxeResults } from "axe-core";
 import { MEDIA_TYPE } from "@haibun/core/lib/media-types.js";
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
@@ -23,16 +23,14 @@ class A11yStepper extends AStepper implements IHasOptions, IHasCycles {
 	options = {
 		[StepperKinds.STORAGE]: {
 			desc: "Storage for results",
-			parse: (input: string) => stringOrError(input),
+			parse: stringOrError,
 		},
 	};
 	pageGetter?: TGetsPage;
-	steppers: AStepper[] = [];
 	storage?: AStorage;
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
 		this.pageGetter = findStepper<TGetsPage>(steppers, "WebPlaywright");
-		this.steppers = steppers;
 		this.storage = findStepperFromOptionOrKind(steppers, this, world.moduleOptions, StepperKinds.STORAGE);
 	}
 
@@ -68,9 +66,10 @@ class A11yStepper extends AStepper implements IHasOptions, IHasCycles {
 			this.getWorld().eventLogger.warn("a storage stepper isn't defined, so the accessibility report isn't saved");
 			return undefined;
 		}
-		const saved = await this.storage.saveArtifact(`a11y-check-${featureStep.seqPath.join(".")}.html`, axeReportHtml(results));
+		const seqPath = formatSeqPath(featureStep.seqPath);
+		const saved = await this.storage.saveArtifact(`a11y-check-${seqPath}.html`, axeReportHtml(results));
 		const artifactEvent = HtmlArtifact.parse({
-			id: `${featureStep.seqPath.join(".")}.artifact.a11y`,
+			id: `${seqPath}.artifact.a11y`,
 			timestamp: Date.now(),
 			kind: "artifact",
 			artifactType: "html",

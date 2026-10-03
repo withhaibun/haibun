@@ -1,7 +1,7 @@
 import { currentVersion } from "@haibun/core/currentVersion.js";
 import { PAGE_ACTUALITY } from "./test-setup.js";
 import { HYDRATION_ID } from "./consts.js";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
@@ -13,20 +13,33 @@ import { EMBEDDER_ORIGIN_OPTION, mayFrame } from "./content-security-policy.js";
 /** A page's script nonce, as a test states one. */
 const NONCE = "a-test-nonce";
 
+/** A web server as the stepper reaches it: each route added through `addRoute`, and a route already added left as it is. */
+/** A route added to a web server: its method, its path, and how it is described and handled. */
+type TAddRoute = Mock<(type: string, path: string, ...rest: unknown[]) => void>;
+
+const fakeServer = (addRoute: TAddRoute, allowedWithoutDelegation: string[]) => ({
+	addRoute,
+	addRouteIfAbsent: (type: string, path: string, ...rest: unknown[]) => {
+		if (!addRoute.mock.calls.some(([, added]) => added === path)) addRoute(type, path, ...rest);
+	},
+	mounted: { get: {} },
+	allowedWithoutDelegation,
+});
+
 describe("the app a deployment serves", () => {
 	let stepper: ShuStepper;
 	let world: TWorld;
-	let addRoute: ReturnType<typeof vi.fn>;
+	let addRoute: TAddRoute;
 
 	beforeEach(async () => {
 		stepper = new ShuStepper();
 		const mounted = new Set<string>();
-		addRoute = vi.fn((_type: string, path: string) => {
+		addRoute = vi.fn((_type: string, path: string, ..._rest: unknown[]) => {
 			if (mounted.has(path)) throw new Error(`already mounted at "${path}"`);
 			mounted.add(path);
 		});
 		world = getDefaultWorld();
-		world.runtime[WEBSERVER] = { addRoute, mounted: { get: {} }, allowedWithoutDelegation: ["Read:public"] };
+		world.runtime[WEBSERVER] = fakeServer(addRoute, ["Read:public"]);
 		await stepper.setWorld(world, []);
 	});
 
@@ -70,8 +83,8 @@ describe("the app a deployment serves", () => {
 			const served = new ShuStepper();
 			const w = getDefaultWorld();
 			w.moduleOptions = { ...w.moduleOptions, ...options };
-			const routes = vi.fn();
-			w.runtime[WEBSERVER] = { addRoute: routes, mounted: { get: {} }, allowedWithoutDelegation: [] };
+			const routes: TAddRoute = vi.fn();
+			w.runtime[WEBSERVER] = fakeServer(routes, []);
 			await served.setWorld(w, []);
 			await served.steps.serveShuApp.action({ path: "/spa" });
 			const serve = routes.mock.calls.find(([, path]) => path === "/spa")?.[3] as (c: unknown) => string;

@@ -6,7 +6,7 @@
  * escaped, since the page is the one under test.
  */
 import type { AxeResults, NodeResult, Result } from "axe-core";
-import { esc } from "@haibun/core/lib/document-content.js";
+import { esc, isWebAddress } from "@haibun/core/lib/document-content.js";
 
 /** The outcomes axe states, in the order a reviewer reads them, and whether each opens by default. */
 const OUTCOMES = [
@@ -23,6 +23,10 @@ details details { margin-left: 1.25rem; }
 pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #f4f4f4; padding: 0.5rem; }
 table { border-collapse: collapse; } td, th { border: 1px solid #ccc; padding: 0.25rem 0.5rem; text-align: left; }`;
 
+/** A link to an address in a tab of its own, where it is a web address; the address as text where it isn't, since the
+ *  checked page supplies what axe reports and an address of another scheme can run script. */
+const link = (address: string, text: string): string => (isWebAddress(address) ? `<a href="${esc(address)}" target="_blank" rel="noopener noreferrer">${text}</a>` : esc(address));
+
 /** One element a rule found: its selector, its HTML and what fails there. */
 const nodeHtml = (node: NodeResult): string =>
 	`<li><code>${esc(node.target.join(" "))}</code><pre>${esc(node.html)}</pre>${node.failureSummary ? `<pre>${esc(node.failureSummary)}</pre>` : ""}</li>`;
@@ -30,7 +34,7 @@ const nodeHtml = (node: NodeResult): string =>
 /** One rule: its impact, what it checks, the link to its guidance and the elements it found. */
 const ruleHtml = (rule: Result, open: boolean): string =>
 	`<details${open ? " open" : ""}><summary>${rule.impact ? `${esc(rule.impact)}: ` : ""}${esc(rule.help)} (${esc(rule.id)}, ${rule.nodes.length})</summary>
-<p>${esc(rule.description)} <a href="${esc(rule.helpUrl)}" target="_blank" rel="noopener noreferrer">Guidance</a></p>
+<p>${esc(rule.description)} ${link(rule.helpUrl, "Guidance")}</p>
 <ul>${rule.nodes.map(nodeHtml).join("")}</ul></details>`;
 
 /** The report of a check of one page, as a self-contained HTML document. */
@@ -42,7 +46,7 @@ export function axeReportHtml(results: AxeResults): string {
 	).join("\n");
 	return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Accessibility of ${esc(results.url)}</title><style>${STYLE}</style></head>
-<body><h1>Accessibility of <a href="${esc(results.url)}" target="_blank" rel="noopener noreferrer">${esc(results.url)}</a></h1>
+<body><h1>Accessibility of ${link(results.url, esc(results.url))}</h1>
 <p>Checked ${esc(results.timestamp)} with axe-core ${esc(results.testEngine.version)}.</p>
 <table>${counts}</table>
 ${sections}

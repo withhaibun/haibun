@@ -89,6 +89,12 @@ export function esc(s: string): string {
 	return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
+/** The schemes a link a page writes may lead to: a web address, never one that runs script as `javascript:` does. */
+const WEB_SCHEMES = new Set(["http:", "https:"]);
+
+/** Whether a value is a web address a page may link to. */
+export const isWebAddress = (value: string): boolean => URL.canParse(value) && WEB_SCHEMES.has(new URL(value).protocol);
+
 const DOC_HEADING_TEST_ID = "doc-heading-";
 
 export function headingAnchor(title: string): string {

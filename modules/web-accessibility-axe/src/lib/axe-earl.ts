@@ -6,6 +6,7 @@
  * that doesn't apply to the page states nothing about it, so it is listed in the report and isn't recorded.
  */
 import type { AxeResults, Result } from "axe-core";
+import { isWebAddress } from "@haibun/core/lib/document-content.js";
 import { EARL_MODE, EARL_OUTCOME, type TEarlAssertions } from "./earl.js";
 
 /** Each list of rules axe states that is recorded, by the EARL outcome it is, the most severe first. */
@@ -17,6 +18,9 @@ const testCaseId = (helpUrl: string): string => {
 	url.search = "";
 	return url.href;
 };
+
+/** An address the checked page supplied, as a record's link where it is a web address: an address of another scheme can run script. */
+const webAddress = (address: string): { url?: string } => (isWebAddress(address) ? { url: address } : {});
 
 /** One rule's result: where each element it found is, and what axe states fails there. */
 const resultOf = (rule: Result, outcome: (typeof OUTCOME_OF)[keyof typeof OUTCOME_OF]) => {
@@ -35,14 +39,14 @@ export function axeAssertions(results: AxeResults, step: string): TEarlAssertion
 	const { version } = results.testEngine;
 	return {
 		assertor: { id: `https://github.com/dequelabs/axe-core/releases/tag/v${version}`, name: `axe-core ${version}` },
-		subject: { id: results.url, url: results.url },
+		subject: { id: results.url, ...webAddress(results.url) },
 		mode: EARL_MODE.automatic,
 		step,
 		results: (Object.keys(OUTCOME_OF) as (keyof typeof OUTCOME_OF)[])
 			.flatMap((list) => results[list].map((rule) => ({ rule, outcome: OUTCOME_OF[list] })))
 			.filter(({ rule }, at, all) => all.findIndex((other) => other.rule.id === rule.id) === at)
 			.map(({ rule, outcome }) => ({
-				test: { id: testCaseId(rule.helpUrl), name: rule.help, description: rule.description, url: rule.helpUrl, tags: rule.tags },
+				test: { id: testCaseId(rule.helpUrl), name: rule.help, description: rule.description, ...webAddress(rule.helpUrl), tags: rule.tags },
 				result: resultOf(rule, outcome),
 			})),
 	};

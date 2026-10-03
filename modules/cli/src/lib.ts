@@ -4,7 +4,8 @@ import path from "node:path";
 
 import { type TSpecl, SpeclSchema } from "@haibun/core/lib/execution.js";
 import { BaseOptionsSchema, type TBase, type TBaseOptions, type TModuleOptions, type TProtoOptions, type TWorld } from "@haibun/core/lib/world.js";
-import { BASE_PREFIX, CHECK_NO, CHECK_YES, DEFAULT_DEST, MODULE_OPTION_PREFIX, NDJSON, STAY, STAY_ALWAYS, Timer, TExecutorResult } from "@haibun/core/schema/protocol.js";
+import { BASE_PREFIX, CHECK_NO, CHECK_YES, DEFAULT_DEST, MODULE_OPTION_PREFIX, NDJSON, STAY, Timer, TExecutorResult } from "@haibun/core/schema/protocol.js";
+import { staysAfterExecution } from "@haibun/core/phases/Executor.js";
 import { IHasOptions } from "@haibun/core/lib/astepper.js";
 import { getCreateSteppers, getDefaultTag } from "@haibun/core/lib/test/lib.js";
 import { resolveSitePrincipal } from "@haibun/core/lib/host-id.js";
@@ -210,12 +211,8 @@ async function reportAndExit(executorResult: TExecutorResult, world: TWorld, pro
 		}
 	}
 
-	if (protoOptions.options[STAY] === STAY_ALWAYS) {
-		await new Promise((resolve) => setTimeout(resolve, 1e9));
-	} else if (!executorResult.ok && !protoOptions.options[STAY]) {
-		process.exit(1);
-	}
-	process.exit(0);
+	if (staysAfterExecution(protoOptions.options[STAY], executorResult.ok)) await new Promise((resolve) => setTimeout(resolve, 1e9));
+	process.exit(executorResult.ok ? 0 : 1);
 }
 
 function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {

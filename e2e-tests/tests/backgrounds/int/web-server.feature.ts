@@ -6,6 +6,8 @@ import { DEFAULT_PORT } from "@haibun/web-server-hono/server-hono.js";
 const { set } = withAction(new VariablesStepper());
 
 /** The address a feature reaches its own web server at: the port actuality's web server option names, else its default. */
+export const WEB_SERVER = serviceHost(String(DEFAULT_PORT));
+
 export const backgrounds: TKirejiExport = {
-	"Web server": [set({ what: "Web Server", value: `"${serviceHost(String(DEFAULT_PORT))}"` })],
+	"Web server": [set({ what: "Web Server", value: `"${WEB_SERVER}"` })],
 };

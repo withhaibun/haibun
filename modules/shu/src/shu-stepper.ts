@@ -219,8 +219,6 @@ function validateMountPath(path: string): string | undefined {
 }
 
 export default class ShuStepper extends AStepper implements IHasOptions {
-	/** The servers that serve the view bundle: one route per server, however many apps it mounts. */
-	private bundleServedOn = new WeakSet<IWebServer>();
 	/** The path of each app this feature's web server serves. */
 	private readonly appPaths = new Set<string>();
 	description = "Serves the @haibun/shu hypermedia SPA at a given path";
@@ -244,10 +242,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 	}
 
 	cycles = {
-		// A feature's web server starts without the routes the previous feature mounted, so which servers serve the bundle
-		// doesn't outlive the feature, or the next one doesn't serve a bundle.
 		startFeature: (): void => {
-			this.bundleServedOn = new WeakSet();
 			this.appPaths.clear();
 		},
 		getConcerns: () => ({
@@ -411,27 +406,24 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 			if (!ctx) byHost.set(ns, (ctx = getJsonLdContext(domains, ns)));
 			return c.json(ctx);
 		};
-		// The graph view's bundle, served once per host: `no-cache` revalidates, so an unchanged bundle answers 304
-		// and a rebuilt one gets a fresh ETag and a full body.
-		if (!this.bundleServedOn.has(webserver)) {
-			this.bundleServedOn.add(webserver);
-			webserver.addRoute("get", POLYMORPHIC_VIEW_JS, { description: "The polymorphic graph view and the class browser" }, (c: Context) => {
-				const { content, etag } = loadPolymorphicBundle();
-				c.header("ETag", etag);
-				c.header("Cache-Control", "no-cache");
-				if (c.req.header("if-none-match") === etag) return c.body(null, 304);
-				c.header("Content-Type", "application/javascript");
-				return c.body(content);
-			});
-			webserver.addRoute("get", SPA_SOURCE_MAP, { description: "Source map for the served shu bundle" }, (c: Context) => {
-				try {
-					c.header("Content-Type", "application/json");
-					return c.body(readFileSync(join(__dirname, "..", "build", "shu-bundle.js.map"), "utf-8"));
-				} catch {
-					return c.body("the source map is not built; run npm run build in @haibun/shu", 404);
-				}
-			});
-		}
+		// The graph view's bundle, served once per server however many apps it mounts: `no-cache` revalidates, so an
+		// unchanged bundle answers 304 and a rebuilt one gets a fresh ETag and a full body.
+		webserver.addRouteIfAbsent("get", POLYMORPHIC_VIEW_JS, { description: "The polymorphic graph view and the class browser" }, (c: Context) => {
+			const { content, etag } = loadPolymorphicBundle();
+			c.header("ETag", etag);
+			c.header("Cache-Control", "no-cache");
+			if (c.req.header("if-none-match") === etag) return c.body(null, 304);
+			c.header("Content-Type", "application/javascript");
+			return c.body(content);
+		});
+		webserver.addRouteIfAbsent("get", SPA_SOURCE_MAP, { description: "Source map for the served shu bundle" }, (c: Context) => {
+			try {
+				c.header("Content-Type", "application/json");
+				return c.body(readFileSync(join(__dirname, "..", "build", "shu-bundle.js.map"), "utf-8"));
+			} catch {
+				return c.body("the source map is not built; run npm run build in @haibun/shu", 404);
+			}
+		});
 		webserver.addRoute("get", CONTEXT_DOCUMENT.wellKnown, { description: "JSON-LD @context for haibun domain vocabulary" }, jsonLdHandler);
 		webserver.addRoute("get", CONTEXT_DOCUMENT.namespace, { description: "JSON-LD @context (namespace alias of haibun-context.jsonld)" }, jsonLdHandler);
 	}

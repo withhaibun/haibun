@@ -1,32 +1,17 @@
 import { describe, it, expect } from "vitest";
-import type { AxeResults, Result } from "axe-core";
 import { axeReportHtml } from "./report.js";
+import { axeResults, axeRule } from "./axe-results.test-fake.js";
 
 /** Markup the checked page supplies, which the report shows as text. */
 const HOSTILE = `<img src=x onerror="alert(1)"><script src="https://example.com/x.js"></script>`;
 
-const rule = (id: string, impact: Result["impact"]): Result => ({
-	id,
-	impact,
-	tags: [],
-	description: `${id} description`,
-	help: `${id} help`,
-	helpUrl: `https://dequeuniversity.com/rules/axe/4.13/${id}`,
-	nodes: [{ html: HOSTILE, target: [`#${id}`], failureSummary: `Fix ${HOSTILE}`, impact, any: [], all: [], none: [] }],
-});
-
-const results: AxeResults = {
-	toolOptions: {},
-	testEngine: { name: "axe-core", version: "4.13.0" },
-	testRunner: { name: "axe" },
-	testEnvironment: { userAgent: "test", windowWidth: 800, windowHeight: 600 },
-	url: "https://example.com/?q=<b>",
-	timestamp: "2026-10-03T00:00:00.000Z",
-	violations: [rule("image-alt", "serious")],
-	incomplete: [rule("color-contrast", "moderate")],
-	passes: [rule("document-title", null)],
+const found = (id: string) => [{ target: `#${id}`, html: HOSTILE, failureSummary: `Fix ${HOSTILE}` }];
+const results = axeResults("https://example.com/?q=<b>", {
+	violations: [axeRule("image-alt", "serious", [], found("image-alt"))],
+	incomplete: [axeRule("color-contrast", "moderate", [], found("color-contrast"))],
+	passes: [axeRule("document-title", null, [], found("document-title"))],
 	inapplicable: [],
-};
+});
 
 describe("axeReportHtml", () => {
 	const html = axeReportHtml(results);
@@ -45,7 +30,13 @@ describe("axeReportHtml", () => {
 		expect(html).toMatch(/<details><summary>Passes \(1\)<\/summary><details><summary>document-title help/);
 		expect(html).toContain("<details><summary>Inapplicable (0)</summary></details>");
 	});
+	it("shows an address of a scheme other than the web's as text, since the checked page supplies it", () => {
+		const SCRIPT = "javascript:alert(1)";
+		const scripted = axeReportHtml(axeResults(SCRIPT, { violations: [{ ...axeRule("image-alt", "serious", [], found("image-alt")), helpUrl: SCRIPT }], incomplete: [], passes: [], inapplicable: [] }));
+		expect(scripted).not.toContain(`href="${SCRIPT}`);
+		expect(scripted).toContain(SCRIPT);
+	});
 	it("links each rule to its guidance in a tab of its own", () => {
-		expect(html).toContain(`<a href="https://dequeuniversity.com/rules/axe/4.13/image-alt" target="_blank" rel="noopener noreferrer">Guidance</a>`);
+		expect(html).toContain(`<a href="https://dequeuniversity.com/rules/axe/4.13/image-alt?application=axeAPI" target="_blank" rel="noopener noreferrer">Guidance</a>`);
 	});
 });

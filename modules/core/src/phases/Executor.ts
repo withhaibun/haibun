@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { RUN_AUTHORITY, runAuthorizedWith } from "../lib/capability-context.js";
 import type { TWorld } from "../lib/world.js";
-import { TResolvedFeature, TEndFeature, type TFeatureStep } from "../lib/astepper.js";
+import { TResolvedFeature, TEndFeature, type TEndExecution, type TFeatureStep } from "../lib/astepper.js";
 import {
 	TExecutorResult,
 	TFeatureResult,
@@ -54,24 +54,10 @@ export function staysAfterExecution(stay: unknown, ok: boolean): boolean {
 	return stay === STAY_ALWAYS || (stay === STAY_FAILURE && !ok);
 }
 
-export function calculateShouldClose({
-	thisFeatureOK,
-	isLast,
-	stayOnFailure,
-	continueAfterError,
-	stayAlways,
-}: {
-	thisFeatureOK: boolean;
-	isLast: boolean;
-	stayOnFailure: boolean;
-	continueAfterError: boolean;
-	stayAlways: boolean;
-}) {
+/** Whether a feature's server closes as it ends: it does unless it is the last to run and actuality stays. */
+export function calculateShouldClose({ thisFeatureOK, isLast, continueAfterError, stay }: { thisFeatureOK: boolean; isLast: boolean; continueAfterError: boolean; stay: unknown }) {
 	const effectivelyLast = isLast || (!thisFeatureOK && !continueAfterError);
-	if (!effectivelyLast) return true;
-	if (stayAlways) return false;
-	if (!thisFeatureOK && stayOnFailure) return false;
-	return true;
+	return !effectivelyLast || !staysAfterExecution(stay, thisFeatureOK);
 }
 
 function initExecutionRuntime(_world: TWorld): void {
@@ -162,8 +148,6 @@ export class Executor {
 
 		await doStepperCycle(steppers, "startExecution", features);
 		let okSoFar = true;
-		const stayOnFailure = world.options[STAY] === STAY_FAILURE;
-		const stayAlways = world.options[STAY] === STAY_ALWAYS;
 		const featureResults: TFeatureResult[] = [];
 		let featureNum = 0;
 		const continueAfterError = !!world.options[CONTINUE_AFTER_ERROR];
@@ -207,20 +191,13 @@ export class Executor {
 			if (previous) releasePayloads(previous);
 			featureResults.push(featureResult);
 
-			const shouldClose = calculateShouldClose({
-				thisFeatureOK: featureResult.ok,
-				isLast,
-				continueAfterError,
-				stayOnFailure,
-				stayAlways,
-			});
+			const shouldClose = calculateShouldClose({ thisFeatureOK: featureResult.ok, isLast, continueAfterError, stay: world.options[STAY] });
 			await doStepperCycle(steppers, "endFeature", <TEndFeature>{
 				featurePath: feature.path,
 				shouldClose,
 				isLast,
 				okSoFar,
 				continueAfterError,
-				stayOnFailure,
 				thisFeatureOK: featureResult.ok,
 			});
 			if (!okSoFar && !continueAfterError && !isLast) break;
@@ -250,11 +227,11 @@ export class Executor {
 			}),
 		);
 
-		await doStepperCycle(steppers, "endExecution", results);
 		// Stay mode keeps the process serving requests after execute() returns; unsubscribing here would stop
 		// routing events to live consumers while the server is still emitting them. Keep it while staying.
-		const willStay = staysAfterExecution(world.options[STAY], okSoFar);
-		if (!willStay) world.eventLogger.unsubscribe(onEventHandler);
+		const stays = staysAfterExecution(world.options[STAY], okSoFar);
+		await doStepperCycle(steppers, "endExecution", <TEndExecution>{ ...results, stays });
+		if (!stays) world.eventLogger.unsubscribe(onEventHandler);
 		return results;
 	}
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { generateDocumentMarkdown, buildArtifactIndex, headingAnchor, artifactStepId, stepAncestors } from "./document-content.js";
+import { generateDocumentMarkdown, buildArtifactIndex, headingAnchor, artifactStepId, stepAncestors, isWebAddress } from "./document-content.js";
 import type { THaibunEvent } from "../schema/protocol.js";
 import { LifecycleEvent } from "../schema/protocol.js";
 
@@ -284,5 +284,17 @@ describe("generateDocumentMarkdown", () => {
 			const { md } = generateDocumentMarkdown(events, buildArtifactIndex(events).artifactsByStep);
 			expect(holderOf(md, `${RUN}.0.3.12.5.-1@0`)).toBe(`${RUN}.0.3.12.5`);
 		});
+	});
+});
+
+describe("isWebAddress", () => {
+	it("is a web address over http or https, and not one that runs script, another scheme or a relative path", () => {
+		expect(["https://example.com/a", "http://localhost:8123/a11y.html", "javascript:alert(1)", "data:text/html,x", "/artifacts/a.html"].map(isWebAddress)).toEqual([
+			true,
+			true,
+			false,
+			false,
+			false,
+		]);
 	});
 });
