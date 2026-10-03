@@ -6,7 +6,6 @@ import { findStepperFromOptionOrKind, getStepperOption, stringOrError } from "@h
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { TExecutorResult, TStepResult } from "@haibun/core/schema/protocol.js";
 import { AStepper, IHasCycles, IHasOptions, StepperKinds, IStepperCycles } from "@haibun/core/lib/astepper.js";
-import { MEDIA_TYPES, TMediaType } from "@haibun/domain-storage/media-types.js";
 
 type TTestCase = {
 	"@name": string;
@@ -33,7 +32,7 @@ export default class OutJUnit extends AStepper implements IHasOptions, IHasCycle
 		endExecution: async (results: TExecutorResult) => {
 			const junit = await this.featureResultAsJunit(results);
 			if (this.storage && this.outputFile) {
-				await this.storage.writeFileBuffer(this.outputFile, Buffer.from(junit), <TMediaType>MEDIA_TYPES.xml);
+				await this.storage.writeFileBuffer(this.outputFile, Buffer.from(junit));
 			} else {
 				console.info(junit);
 			}

@@ -28,7 +28,7 @@ import { ShuElement, TIME_SYNC_CLASS, type TLinkedData } from "./shu-element.js"
 import { SHU_EVENT, ANNOTATION_GLYPH, SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
 import { bindCopyButtons, copyButtonHtml } from "../copy-util.js";
-import { isReplyEdge, MEDIA_TYPE } from "@haibun/core/lib/resources.js";
+import { isReplyEdge } from "@haibun/core/lib/resources.js";
 import { anIndividual, EntityColumnSchema, type TContextPattern } from "../schemas.js";
 import { EntityController } from "../controllers/index.js";
 import type { TEntityResult, TEntityView, TAnnotationDraft } from "../entity-store.js";
@@ -56,13 +56,20 @@ import { pageAddress } from "../view-hash.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { z } from "zod";
 import { CallLinkSchema, type TCallLink } from "@haibun/core/lib/hypermedia.js";
-import { FileDataSchema, fileDataBlob } from "@haibun/core/lib/media-object.js";
+import { SentFileSchema, fileDataBlob } from "@haibun/core/lib/media-object.js";
+import { MEDIA_TYPE, viewedInBrowser } from "@haibun/core/lib/media-types.js";
 import { reportFailure } from "../client-log.js";
 
 /** The links a record carries, by rel. */
 const OfferedLinksSchema = z.record(z.string(), CallLinkSchema);
-/** What a call that sends a file answers with: the file's bytes as a data: address. */
-const FileAnswerSchema = z.object({ file: FileDataSchema }).loose();
+/** A file saved rather than opened: its bytes, typed as bytes, under the name it was sent with. */
+function saveFile(blob: Blob, name: string): void {
+	const anchor = document.createElement("a");
+	anchor.href = URL.createObjectURL(new Blob([blob], { type: MEDIA_TYPE.bytes }));
+	anchor.download = name;
+	anchor.click();
+	URL.revokeObjectURL(anchor.href);
+}
 
 type VertexData = Record<string, unknown>;
 type EdgeData = { type: string; target: VertexData; direction?: "out" | "in" };
@@ -376,20 +383,23 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		)}`;
 	}
 
-	/** Follow a call the record offers. A call that answers with a file opens it in a tab of its own, where the browser shows
-	 *  it as it shows any file of its kind: a PDF in its own viewer, at the fragment a reference named, as its page. The tab is
-	 *  opened in the click, which the browser allows. */
+	/** Follow a call the record offers. A call that answers with a file of a type a browser shows as it is
+	 *  (`viewedInBrowser`) opens it in a tab of its own: a PDF in its own viewer, at the fragment a reference named, as its
+	 *  page. A file of any other type is saved under its name, since its sender chose its type, and a browser runs a page of
+	 *  that type, as HTML or SVG, with this page's origin. A browser opens a tab only shortly after a click, so a file read
+	 *  for longer is refused, stating so; the tab doesn't hold a reference to this page. */
 	private readonly followOffer = async (link: TCallLink): Promise<void> => {
-		const opened = window.open("", "_blank");
 		try {
-			if (!opened) throw new Error("the browser didn't open a tab for what the call answers");
-			const { file } = FileAnswerSchema.parse(await this.entity.follow(link));
+			const { name, file } = SentFileSchema.parse(await this.entity.follow(link));
 			const blob = fileDataBlob(file);
+			if (!viewedInBrowser(blob.type)) return saveFile(blob, name);
 			const at = this.fragment ?? this.pageOfRevealedPassage(blob.type);
 			if (at) assertFragmentReads(at, blob.type);
+			const opened = window.open("", "_blank");
+			if (!opened) throw new Error(`the browser didn't open a tab for ${name}: it opens one only shortly after a click, and reading the file took longer`);
+			opened.opener = null;
 			opened.location.href = `${URL.createObjectURL(blob)}${at ? `#${at.value}` : ""}`;
 		} catch (err) {
-			opened?.close();
 			reportFailure(SHU_TAG.ENTITY_COLUMN, `following "${link.summary}"`, err);
 		}
 	};

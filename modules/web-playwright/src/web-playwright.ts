@@ -22,8 +22,8 @@ import {
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
 import { saveImageArtifact } from "@haibun/domain-storage/image-artifact.js";
 import { VideoStartArtifact } from "@haibun/core/schema/protocol.js";
-import { EMediaTypes, MAPPED_MEDIA_TYPES } from "@haibun/domain-storage/media-types.js";
 import type { TImageReference } from "@haibun/core/lib/media-object.js";
+import { MEDIA_TYPE } from "@haibun/core/lib/media-types.js";
 import { artifactAddress } from "@haibun/core/lib/run-artifact.js";
 import { DOMAIN_STRING, domainParts } from "@haibun/core/lib/domains.js";
 import {
@@ -55,7 +55,7 @@ import { stepInFlight } from "@haibun/core/lib/capability-context.js";
 
 export const WEB_PAGE = "webpage";
 /** The media type a screenshot is saved in. */
-const SCREENSHOT_FORMAT = MAPPED_MEDIA_TYPES.png;
+const SCREENSHOT_FORMAT = MEDIA_TYPE.png;
 
 /**
  * This is the infrastructure for web-playwright.
@@ -224,7 +224,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		};
 	}
 	async getCaptureDir(type = "") {
-		const loc = { ...this.getWorld(), mediaType: EMediaTypes.video };
+		const loc = this.getWorld();
 		const dir = await this.storage.ensureCaptureLocation(loc, type);
 		return dir;
 	}

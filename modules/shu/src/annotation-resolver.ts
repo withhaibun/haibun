@@ -8,7 +8,8 @@
  * the result for the annotator library, which anchors each TextQuoteSelector against the rendered body.
  */
 import { locateQuoteOffsets } from "@haibun/core/lib/quote-anchor.js";
-import { COMMENT_LABEL, BODY_LABEL, SPECIFIC_RESOURCE_LABEL, TEXT_QUOTE_SELECTOR_LABEL, LinkRelations, MEDIA_TYPE } from "@haibun/core/lib/resources.js";
+import { COMMENT_LABEL, BODY_LABEL, SPECIFIC_RESOURCE_LABEL, TEXT_QUOTE_SELECTOR_LABEL, LinkRelations } from "@haibun/core/lib/resources.js";
+import { MEDIA_TYPE } from "@haibun/core/lib/media-types.js";
 import { callStep } from "./pane-fetch.js";
 import { queryStoredQuads } from "./quads-snapshot.js";
 

@@ -8,7 +8,10 @@ import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 import { AUTHORITY_KEY, SessionAuthority } from "@haibun/core/lib/session-authority.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import ShuStepper, { buildSpaHtml } from "./shu-stepper.js";
-import { EMBEDDER_ORIGIN_OPTION, mayFrame } from "./frame-ancestors.js";
+import { EMBEDDER_ORIGIN_OPTION, mayFrame } from "./content-security-policy.js";
+
+/** A page's script nonce, as a test states one. */
+const NONCE = "a-test-nonce";
 
 describe("the app a deployment serves", () => {
 	let stepper: ShuStepper;
@@ -77,25 +80,40 @@ describe("the app a deployment serves", () => {
 			return { headers, page };
 		};
 		const own = (await headersOf({})).headers["Content-Security-Policy"];
-		expect(own).toBe("frame-ancestors 'self'");
+		expect(own).toMatch(/^frame-ancestors 'self'; script-src /);
 		expect(mayFrame(own ?? null, EMBEDDER), "a page that embeds shu reads that it may not").toBe(false);
 		const embedded = await headersOf({ [getStepperOptionName(ShuStepper, "EMBEDDER_ORIGIN")]: EMBEDDER });
-		expect(embedded.headers["Content-Security-Policy"]).toBe(`frame-ancestors 'self' ${EMBEDDER}`);
+		expect(embedded.headers["Content-Security-Policy"]).toMatch(new RegExp(`^frame-ancestors 'self' ${EMBEDDER}; script-src `));
 		expect(mayFrame(embedded.headers["Content-Security-Policy"] ?? null, EMBEDDER), "and reads that it may once the deployment names it").toBe(true);
 		expect(embedded.page, "and the page reads the origin to accept messages from").toContain(`"embedderOrigin":"${EMBEDDER}"`);
 		expect(new ShuStepper().options.EMBEDDER_ORIGIN.parse("an origin").parseError).toMatch(/isn't an origin/);
 		expect(getStepperOptionName(ShuStepper, "EMBEDDER_ORIGIN"), "a page that can't frame shu names the option").toBe(EMBEDDER_ORIGIN_OPTION);
 	});
+
+	it("runs the script it serves with the response's nonce, which the response's policy names, and a nonce of its own for each response", async () => {
+		await stepper.steps.serveShuApp.action({ path: "/spa" });
+		const serve = addRoute.mock.calls.find(([, path]) => path === "/spa")?.[3] as (c: unknown) => string;
+		const respond = () => {
+			const headers: Record<string, string> = {};
+			const page = serve({ header: (name: string, value: string) => (headers[name] = value), html: (body: string) => body });
+			const nonce = /script-src 'nonce-([^']+)'/.exec(headers["Content-Security-Policy"] ?? "")?.[1];
+			return { page, nonce };
+		};
+		const first = respond();
+		expect(first.page, "the page's script carries the nonce its policy names").toContain(`<script nonce="${first.nonce}">`);
+		expect(first.page.match(/<script nonce=/g), "and only that script").toHaveLength(1);
+		expect(respond().nonce, "a second response names another").not.toBe(first.nonce);
+	});
 });
 
 describe("the page a deployment serves", () => {
 	it("carries the timings the deployment set, so the page applies them from its first paint", () => {
-		const page = buildSpaHtml("/spa", "/* bundle */", { actualityId: PAGE_ACTUALITY, settings: { streamReconnectAfterMs: 500 } });
+		const page = buildSpaHtml("/spa", "/* bundle */", { actualityId: PAGE_ACTUALITY, settings: { streamReconnectAfterMs: 500 } }, NONCE);
 		expect(page).toContain(`id="${HYDRATION_ID}"`);
 		expect(page).toContain(JSON.stringify({ actualityId: PAGE_ACTUALITY, settings: { streamReconnectAfterMs: 500 } }));
 	});
 
 	it("doesn't carry a timing where the deployment didn't set one", () => {
-		expect(buildSpaHtml("/spa", "/* bundle */", { actualityId: PAGE_ACTUALITY, settings: {} })).toContain(JSON.stringify({ actualityId: PAGE_ACTUALITY, settings: {} }));
+		expect(buildSpaHtml("/spa", "/* bundle */", { actualityId: PAGE_ACTUALITY, settings: {} }, NONCE)).toContain(JSON.stringify({ actualityId: PAGE_ACTUALITY, settings: {} }));
 	});
 });

@@ -18,6 +18,7 @@
  */
 import { stripTrailingSlash } from "./local-origin.js";
 import { z } from "zod";
+import { MEDIA_TYPE } from "./media-types.js";
 import { typedLinkFacts, type TLinkVocabulary, type TTypedLinkFact } from "./typed-links.js";
 import { FragmentSchema, isFragment } from "./media-fragments.js";
 import { fromJsonText } from "./json-text.js";
@@ -152,21 +153,6 @@ export const FRAGMENT_SELECTOR_LABEL = "FragmentSelector";
 /** Body: opaque content (text, JSON, anything) typed by `mediaType`. */
 export const BODY_LABEL = "Body";
 
-/**
- * The media types a body is written and matched by. One name each, because a body is FOUND by its media type: a
- * mistyped literal writes a body a reader doesn't ask for, and doesn't report the mismatch when it happens.
- *
- * These are for what a record carries. An HTTP `Content-Type` header keeps its literal: that is the wire's
- * vocabulary rather than this module's, and a wrong one there fails at the request.
- */
-export const MEDIA_TYPE = {
-	markdown: "text/markdown",
-	plain: "text/plain",
-	html: "text/html",
-	json: "application/json",
-	/** Bytes whose type isn't stated. */
-	bytes: "application/octet-stream",
-} as const;
 const BODY_DOMAIN = "body";
 /** Edge from any resource to a Body sub-resource. */
 export const HAS_BODY_EDGE = "hasBody";

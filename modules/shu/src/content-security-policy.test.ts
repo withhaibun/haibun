@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { frameAncestors, framingSources, mayFrame } from "./frame-ancestors.js";
+import { frameAncestors, framingSources, mayFrame } from "./content-security-policy.js";
 
 const EMBEDDER = "chrome-extension://abcdefghijklmnopabcdefghijklmnop";
 

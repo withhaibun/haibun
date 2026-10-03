@@ -3,12 +3,10 @@
  * actuality keeps its bytes, and their media type. A record holds the reference, and a turn reads the bytes when it sends them.
  */
 import { z } from "zod";
+import { isImageFormat } from "./media-types.js";
 
 /** A media type's form: a type and a subtype. */
 const MEDIA_TYPE_FORM = "[\\w.+-]+\\/[\\w.+-]+";
-
-/** Whether a media type is an image's. */
-export const isImageFormat = (encodingFormat: string): boolean => encodingFormat.startsWith("image/");
 
 export const DOMAIN_IMAGE_REFERENCE = "image-reference";
 
@@ -24,6 +22,9 @@ export const DOMAIN_FILE_DATA = "file-data";
 const FILE_DATA = new RegExp(`^data:(${MEDIA_TYPE_FORM})(?:;[\\w.+-]+=[^;,]*)*;base64,([A-Za-z0-9+/]*=*)$`);
 
 export const FileDataSchema = z.string().regex(FILE_DATA).describe("A file's bytes as a data: URL in base64.");
+
+/** A file as a call sends it to a page: its name, and its bytes as a data: address that states their media type. */
+export const SentFileSchema = z.object({ name: z.string(), file: FileDataSchema });
 
 /** What a record of a step states for a file's data: its media type and how many bytes it holds. */
 export const recordedFileData = (value: unknown): string => {

@@ -1,7 +1,8 @@
 /**
- * Which pages may frame shu, as the Content-Security-Policy of every page shu serves states it: this site's own, and the
+ * The Content-Security-Policy of every page shu serves. It states which pages may frame shu: this site's own, and the
  * embedding page's origin where the deployment names one. A page that embeds shu reads the same header to learn whether
- * it may.
+ * it may. It states which scripts run, so a document a page opens with its own origin, as a file a sender chose the type
+ * of, runs none of its own.
  */
 import { MODULE_OPTION_PREFIX } from "@haibun/core/schema/protocol.js";
 
@@ -13,6 +14,19 @@ export const EMBEDDER_ORIGIN_OPTION = `${MODULE_OPTION_PREFIX}SHUSTEPPER_EMBEDDE
 
 /** The policy that lets this site's pages, and `embedderOrigin` where a deployment names one, frame shu. */
 export const frameAncestors = (embedderOrigin: string | undefined): string => ["frame-ancestors", OWN_PAGES, ...(embedderOrigin ? [embedderOrigin] : [])].join(" ");
+
+/**
+ * The scripts a page runs, each source for what needs it: the script shu serves with the page, which carries the
+ * response's nonce, and what that script loads (`'strict-dynamic'`), as each component a concern declares by its `ui.js`;
+ * code the 3D graph's layout library builds from text (`'unsafe-eval'`); and WebAssembly, which the voice assistant's
+ * speech model compiles (`'wasm-unsafe-eval'`). An inline script without the nonce, an event handler attribute, and a
+ * script a page adds other than by loading it from a script that runs, don't run: the page reports each it refuses
+ * (`reportRefusedScripts`).
+ */
+export const scriptSources = (nonce: string): string => ["script-src", `'nonce-${nonce}'`, "'strict-dynamic'", "'unsafe-eval'", "'wasm-unsafe-eval'"].join(" ");
+
+/** The policy a page shu serves states: which pages may frame it, and which scripts it runs. */
+export const pagePolicy = (embedderOrigin: string | undefined, nonce: string): string => [frameAncestors(embedderOrigin), scriptSources(nonce)].join("; ");
 
 /** The sources each policy of a Content-Security-Policy header lets frame a page, for the policies that restrict framing.
  *  A header that carries several policies, as a proxy that adds its own sends, joins them with commas. */

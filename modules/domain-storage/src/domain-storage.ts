@@ -1,7 +1,5 @@
 import type { TModuleOptions, TBaseOptions } from "@haibun/core/lib/world.js";
 import { stringOrError } from "@haibun/core/lib/util/index.js";
-import { MEDIA_TYPE } from "@haibun/core/lib/resources.js";
-import { TMediaType, MEDIA_TYPES, MAPPED_MEDIA_TYPES, isMappedExtension } from "./media-types.js";
 import { AStepper, IHasOptions } from "@haibun/core/lib/astepper.js";
 import { TTag } from "@haibun/core/lib/ttag.js";
 
@@ -33,26 +31,4 @@ export type TLocationOptions = {
 	tag: TTag;
 	options: TBaseOptions;
 	moduleOptions: TModuleOptions;
-	mediaType: TMediaType;
 };
-
-/**
- * Normalize the extension. This should probably be reconsidered.
- */
-export function guessMediaExt(file: string) {
-	const ext = getExtension(file);
-	return MEDIA_TYPES[ext] || ext;
-}
-
-/**
- * Assign a mime type based on the extension
- */
-export function guessMediaType(file: string) {
-	const ext = getExtension(file);
-	const mediaType = isMappedExtension(ext) ? MAPPED_MEDIA_TYPES[ext] : MEDIA_TYPE.bytes;
-	return <TMediaType>mediaType;
-}
-
-function getExtension(file: string) {
-	return file.replace(/.*\./, "").toLowerCase();
-}

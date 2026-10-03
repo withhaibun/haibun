@@ -8,7 +8,6 @@ import { stringOrError, findStepper, actionNotOK, actionOK, findStepperFromOptio
 import { getAxeBrowserResult, evalSeverity } from "./lib/a11y-axe.js";
 import { generateHTMLAxeReportFromBrowserResult } from "./lib/report.js";
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
-import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
 
 import { JsonArtifact, HtmlArtifact } from "@haibun/core/schema/protocol.js";
 
@@ -75,7 +74,7 @@ class A11yStepper extends AStepper implements IHasOptions {
 	private async generateArtifact(axeReport: TAnyFixme, filename: string, featureStep?: TFeatureStep) {
 		const html = generateHTMLAxeReportFromBrowserResult(axeReport as object);
 		if (this.storage) {
-			const saved = await this.storage.saveArtifact(filename + ".html", html, EMediaTypes.html, "html");
+			const saved = await this.storage.saveArtifact(filename + ".html", html, "html");
 
 			if (featureStep && this.getWorld().eventLogger) {
 				const artifactEvent = HtmlArtifact.parse({

@@ -25,7 +25,6 @@ import { fromJsonText } from "@haibun/core/lib/json-text.js";
 import { TRANSPORT, type ITransport } from "@haibun/web-server-hono/sse-transport.js";
 import { WEBSERVER, type IWebServer } from "@haibun/web-server-hono/defs.js";
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
-import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
 import type { TTag } from "@haibun/core/lib/ttag.js";
 import { Access, SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { SEQ_PATH_FIELD, executionOf, extractSeqPathPrefix, formatRecordName, parseSeqPath } from "@haibun/core/lib/seq-path.js";
@@ -349,7 +348,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			logger.info(`shu standalone report: ${actualURI(fixedPath)}`);
 			return fixedPath;
 		}
-		const saved = await this.storage.saveArtifact("shu.html", html, EMediaTypes.html);
+		const saved = await this.storage.saveArtifact("shu.html", html);
 		logger.info(`shu standalone report: ${actualURI(saved.absolutePath)}`);
 		return saved.absolutePath;
 	}

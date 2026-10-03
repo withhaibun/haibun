@@ -4,6 +4,7 @@
  */
 import { z } from "zod";
 import { locateQuoteOffsets } from "./quote-anchor.js";
+import { MEDIA_TYPE, isImageFormat } from "./media-types.js";
 
 /** The specifications a FragmentSelector's value conforms to, as the Web Annotation model names them: RFC 8118 for a PDF's
  *  page, Media Fragments for a span of audio or video and a region of an image. */
@@ -26,7 +27,7 @@ export const isFragment = (part: object): part is TFragment => "conformsTo" in p
  * `xywh=0,0,100,100` of an image.
  */
 export const MEDIA_FRAGMENTS = [
-	{ key: "page", conformsTo: FRAGMENT_SPEC.pdf, form: /^[1-9]\d*$/, of: "a PDF", reads: (mediaType: string) => mediaType === "application/pdf" },
+	{ key: "page", conformsTo: FRAGMENT_SPEC.pdf, form: /^[1-9]\d*$/, of: "a PDF", reads: (mediaType: string) => mediaType === MEDIA_TYPE.pdf },
 	{
 		key: "t",
 		conformsTo: FRAGMENT_SPEC.media,
@@ -34,7 +35,7 @@ export const MEDIA_FRAGMENTS = [
 		of: "audio or video",
 		reads: (mediaType: string) => /^(audio|video)\//.test(mediaType),
 	},
-	{ key: "xywh", conformsTo: FRAGMENT_SPEC.media, form: /^(pixel:|percent:)?\d+,\d+,\d+,\d+$/, of: "an image", reads: (mediaType: string) => mediaType.startsWith("image/") },
+	{ key: "xywh", conformsTo: FRAGMENT_SPEC.media, form: /^(pixel:|percent:)?\d+,\d+,\d+,\d+$/, of: "an image", reads: isImageFormat },
 ] as const;
 
 /** The kind of fragment a fragment is, by the key it is written with. */

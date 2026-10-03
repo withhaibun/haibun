@@ -10,7 +10,6 @@
 import { describe, it, expect } from "vitest";
 import { CAPTURE, DEFAULT_DEST } from "@haibun/core/schema/protocol.js";
 import { getDefaultWorld, getTestWorldWithOptions } from "@haibun/core/lib/test/lib.js";
-import { EMediaTypes } from "../media-types.js";
 import type { AStorage } from "../AStorage.js";
 
 /**
@@ -24,19 +23,19 @@ export function describeStorage(name: string, make: () => AStorage, root: string
 		it("names the capture location a world asks for, and the same one whatever it is asked twice", async () => {
 			const storage = make();
 			const world = getDefaultWorld();
-			const asked = { ...world, mediaType: EMediaTypes.json };
+			const asked = world;
 			expect(await storage.getCaptureLocation(asked, "test")).toEqual(`./${CAPTURE}/default/${world.tag.key}/featn-0/test`);
 			expect(await storage.getCaptureLocation(asked, "test")).toEqual(await storage.getCaptureLocation(asked, "test"));
 		});
 
 		it("names the capture location under the destination a world's options state", async () => {
 			const world = getTestWorldWithOptions();
-			expect(await make().getCaptureLocation({ ...world, mediaType: EMediaTypes.json }, "test")).toEqual(`./${CAPTURE}/${DEFAULT_DEST}/${world.tag.key}/featn-0/test`);
+			expect(await make().getCaptureLocation(world, "test")).toEqual(`./${CAPTURE}/${DEFAULT_DEST}/${world.tag.key}/featn-0/test`);
 		});
 
 		it("makes the capture location exist when asked to ensure it", async () => {
 			const storage = make();
-			const world = { ...getDefaultWorld(), mediaType: EMediaTypes.json };
+			const world = getDefaultWorld();
 			const location = await storage.getCaptureLocation(world, "test");
 			const ensured = await storage.ensureCaptureLocation(world, "test");
 			expect(ensured, "the location it made is the one it named").toEqual(location);
@@ -55,7 +54,7 @@ export function describeStorage(name: string, make: () => AStorage, root: string
 		it("writes a file and reads back what was written", () => {
 			const storage = make();
 			storage.mkdirp(at("written"));
-			storage.writeFileBuffer(at("written/one.txt"), Buffer.from("what was written"), EMediaTypes.json);
+			storage.writeFileBuffer(at("written/one.txt"), Buffer.from("what was written"));
 			expect(storage.readFile(at("written/one.txt"), "utf-8")).toEqual("what was written");
 		});
 
@@ -76,7 +75,7 @@ export function describeStorage(name: string, make: () => AStorage, root: string
 		it("reports of a path whether it is a directory or a file, listing or on its own", async () => {
 			const storage = make();
 			storage.mkdirp(at("walked/within"));
-			storage.writeFileBuffer(at("walked/one.txt"), Buffer.from("a file"), EMediaTypes.json);
+			storage.writeFileBuffer(at("walked/one.txt"), Buffer.from("a file"));
 			const directory = await storage.lstatToIFile(at("walked/within"));
 			expect(directory.isDirectory).toBe(true);
 			const listed = await storage.readdirStat(at("walked"));

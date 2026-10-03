@@ -12,7 +12,7 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { acts, reads, conduit } from "../hypermedia.js";
-import { isImageFormat } from "@haibun/core/lib/media-object.js";
+import { isImageFormat } from "@haibun/core/lib/media-types.js";
 import { IndividualAddressSchema } from "@haibun/core/lib/typed-links.js";
 import { deploymentAskToolLimit, findStep, getAvailableSteps, requireStep } from "../rpc-registry.js";
 import { edgeRecordType, getActionBarAskExtensionTags, getActionBarChatExtensionTags, getEdgeRanges, getRelSync } from "../rels-cache.js";

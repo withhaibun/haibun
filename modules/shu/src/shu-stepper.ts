@@ -7,6 +7,7 @@ import { readFileSync, statSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { gzipSync } from "node:zlib";
+import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionOK, actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption, intOrError } from "@haibun/core/lib/util/index.js";
@@ -28,7 +29,7 @@ import { enumerateStandardVocab } from "./graph/standard-vocabulary.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import type { IHasOptions } from "@haibun/core/lib/astepper.js";
 import { DOMAIN_ROUTE } from "@haibun/core/lib/domains.js";
-import { frameAncestors } from "./frame-ancestors.js";
+import { pagePolicy } from "./content-security-policy.js";
 
 /**
  * Project the persisted quads into the renderer-agnostic graph model (nodes + typed-reference edges) the SPA also
@@ -133,8 +134,8 @@ ${scriptsHtml}
 
 // What the served page's hydration carries: the actuality whose records it reads, and the timings this deployment set.
 // A record of a run carries actuality itself and writes its own hydration element (buildReportHtml).
-export function buildSpaHtml(basePath: string, bundle: string, hydration: TServedHydration): string {
-	const scripts = `  <script type="application/json" id="${HYDRATION_ID}">${JSON.stringify(hydration)}</script>\n\n  <script>${bundle}\n//# sourceMappingURL=${SPA_SOURCE_MAP}</script>`;
+export function buildSpaHtml(basePath: string, bundle: string, hydration: TServedHydration, nonce: string): string {
+	const scripts = `  <script type="application/json" id="${HYDRATION_ID}">${JSON.stringify(hydration)}</script>\n\n  <script nonce="${nonce}">${bundle}\n//# sourceMappingURL=${SPA_SOURCE_MAP}</script>`;
 	return spaDocument(basePath, scripts);
 }
 
@@ -181,10 +182,12 @@ function createSpaHandler(basePath: string, hydration: () => TServedHydration) {
 	// could keep serving a stale bundle; `no-store` forbids caching entirely.
 	return (c: Context) => {
 		const served = hydration();
+		// A nonce per response, so a script a page's policy runs is one this response served.
+		const nonce = randomBytes(SCRIPT_NONCE_BYTES).toString("base64");
 		c.header("Cache-Control", "no-store, must-revalidate");
 		c.header("Pragma", "no-cache");
-		c.header("Content-Security-Policy", frameAncestors(served.settings.embedderOrigin));
-		return c.html(buildSpaHtml(basePath, loadBundle(), served));
+		c.header("Content-Security-Policy", pagePolicy(served.settings.embedderOrigin, nonce));
+		return c.html(buildSpaHtml(basePath, loadBundle(), served, nonce));
 	};
 }
 
@@ -198,6 +201,8 @@ const POLYMORPHIC_VIEW_JS = "/assets/shu-polymorphic-graph-view.js";
 /** Where the served page's source map is read from. The bundle is inlined in the page, so the map is addressed
  *  absolutely rather than beside a file that is never fetched; only a reader with developer tools open asks for it. */
 const SPA_SOURCE_MAP = "/assets/shu-bundle.js.map";
+/** How many random bytes a page's script nonce holds: 128 bits, as CSP3 asks of a nonce. */
+const SCRIPT_NONCE_BYTES = 16;
 const POLYMORPHIC_BUNDLE_PATH = join(__dirname, "..", "build", "assets", "shu-polymorphic-graph-view.js");
 let polymorphicBundleCache: { mtimeMs: number; content: string } | undefined;
 const loadPolymorphicBundle = (): { content: string; etag: string } => {

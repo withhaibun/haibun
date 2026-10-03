@@ -12,40 +12,8 @@ import { z } from "zod";
 import { AStepper, IHasCycles, TStepperSteps, IStepperCycles, type TBeforeStep } from "../lib/astepper.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/util/index.js";
 import { requirePrincipal } from "../lib/principal.js";
-import {
-	COMMENT_LABEL,
-	SEQ_PATH_LABEL,
-	DOMAIN_PERSISTED_TYPE,
-	LinkRelations,
-	SPECIFIC_RESOURCE_LABEL,
-	TEXT_QUOTE_SELECTOR_LABEL,
-	ANNOTATION_PLACEMENT_DOMAIN,
-	ANNOTATION_NOTE_DOMAIN,
-	type TAnnotationPlacement,
-	type TAnnotationNote,
-	annotationNoteDomainDefinition,
-	bodyDomainDefinition,
-	bodyByMediaType,
-	commentDomainDefinition,
-	readingDomainDefinition,
-	readTypedLinks,
-	markdownOf,
-	principalDomainDefinition,
-	sceneDomainDefinition,
-	specificResourceDomainDefinition,
-	textQuoteSelectorDomainDefinition,
-	fragmentSelectorDomainDefinition,
-	annotationPlacementDomainDefinition,
-	createComment,
-	writeAnnotation,
-	writeEdge,
-	conversationRoot,
-	assertCommentGrounded,
-	MEDIA_TYPE,
-	QuoteAnchorSchema,
-	type TQuoteAnchor,
-	Access,
-} from "../lib/resources.js";
+import { COMMENT_LABEL, SEQ_PATH_LABEL, DOMAIN_PERSISTED_TYPE, LinkRelations, SPECIFIC_RESOURCE_LABEL, TEXT_QUOTE_SELECTOR_LABEL, ANNOTATION_PLACEMENT_DOMAIN, ANNOTATION_NOTE_DOMAIN, type TAnnotationPlacement, type TAnnotationNote, annotationNoteDomainDefinition, bodyDomainDefinition, bodyByMediaType, commentDomainDefinition, readingDomainDefinition, readTypedLinks, markdownOf, principalDomainDefinition, sceneDomainDefinition, specificResourceDomainDefinition, textQuoteSelectorDomainDefinition, fragmentSelectorDomainDefinition, annotationPlacementDomainDefinition, createComment, writeAnnotation, writeEdge, conversationRoot, assertCommentGrounded, QuoteAnchorSchema, type TQuoteAnchor, Access } from "../lib/resources.js";
+import { MEDIA_TYPE } from "../lib/media-types.js";
 import { DOMAIN_LINK_REL, DOMAIN_RECORD_ID, DOMAIN_TEXT, linkVocabularyFor } from "../lib/domains.js";
 import { executionOf, formatRecordName, formatSeqPath, seqPathDomainDefinition } from "../lib/seq-path.js";
 import { logMessageDomainDefinition } from "../lib/log-message.js";

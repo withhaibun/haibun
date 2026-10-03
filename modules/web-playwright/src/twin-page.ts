@@ -3,7 +3,6 @@ import { chromium, type Locator, type Page } from "playwright";
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
 import { WebPlaywright } from "./web-playwright.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
-import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
 import { join } from "path";
 import { actualURI } from "@haibun/core/lib/util/node/actualURI.js";
 
@@ -73,14 +72,14 @@ export class TwinPage {
 		page.__instrumented = true;
 	}
 	async writePage() {
-		const twinLoc = await this.storage.getCaptureLocation({ ...this.world, mediaType: EMediaTypes.html });
+		const twinLoc = await this.storage.getCaptureLocation(this.world);
 		this.sequence++;
 		const content = await this.twinPage.content();
 		const fn = `twinned-${this.sequence}.html`;
 		const outHtmlFile = join(twinLoc, fn);
 
 		this.world.eventLogger.info(`Writing twin HTML to ${actualURI(outHtmlFile)}`);
-		await this.storage.writeFile(outHtmlFile, content, EMediaTypes.html);
+		await this.storage.writeFile(outHtmlFile, content);
 		void this.twinPage.evaluate(() => (document.body.innerHTML = ""));
 	}
 	duplicateTwinElement = async (locator: import("playwright").Locator) => {

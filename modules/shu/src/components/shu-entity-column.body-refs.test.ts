@@ -5,7 +5,7 @@
  */
 import { beforeEach, describe, expect, it } from "vitest";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
-import { MEDIA_TYPE } from "@haibun/core/lib/resources.js";
+import { MEDIA_TYPE } from "@haibun/core/lib/media-types.js";
 import { ShuEntityColumn } from "./shu-entity-column.js";
 import { setSiteMetadata, type SiteMetadata } from "../rels-cache.js";
 import { SHU_TEST_IDS } from "../test-ids.js";

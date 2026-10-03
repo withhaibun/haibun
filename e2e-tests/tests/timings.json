@@ -7,7 +7,7 @@
 				"declaredStepTextHash": "2f81c0c9ae35982bdf3f8a9b56a62e10bd7f80a7340e1ce0797ad7bbaece5cc0"
 			},
 			"/features/a11y-pass.feature": {
-				"seconds": 0.4,
+				"seconds": 0.5,
 				"steps": 11,
 				"declaredStepTextHash": "09cc25e61c080ca316fccb7e6a2bec04f811e90fc05becc626c61a7fabda8655"
 			},
@@ -42,12 +42,12 @@
 				"declaredStepTextHash": "b7ae3ef23e1d45290cd9e8d3d5e3fa2db5b70bc5872aef2b6ff06a25a454b083"
 			},
 			"/features/counter.feature": {
-				"seconds": 2,
+				"seconds": 0.7,
 				"steps": 19,
 				"declaredStepTextHash": "8c1b3b909e28bc05dac4eb957c9b1384d55393a5d3d4ed26b0910d3774bc4b95"
 			},
 			"/features/counter.feature.ts": {
-				"seconds": 0.9,
+				"seconds": 1,
 				"steps": 19,
 				"declaredStepTextHash": "2e43d35e8ca54dcf3b65f4bc5319e4e4d535aae75e236687ecdeb7357c80e33b"
 			},
@@ -87,17 +87,17 @@
 				"declaredStepTextHash": "3d27dc08904c292a29f48133a4d137092f93786968c318fe7f44b34851066027"
 			},
 			"/features/once.feature.ts": {
-				"seconds": 0.5,
+				"seconds": 0.6,
 				"steps": 20,
 				"declaredStepTextHash": "006f43f7b774933fc9bebe65cc0bd082a8b856b21c34e008e1c61ffbf7ac8354"
 			},
 			"/features/popup.feature": {
-				"seconds": 0.6,
+				"seconds": 0.5,
 				"steps": 12,
 				"declaredStepTextHash": "f012b7fcf7b2484d728938eb62dc6457a9f0fec686fc8d0b3dbe3dc38e088aa9"
 			},
 			"/features/qrcode.feature": {
-				"seconds": 2.7,
+				"seconds": 2.6,
 				"steps": 18,
 				"declaredStepTextHash": "6c1cf006da48f78142e2c23c167266634114bcea223a400f8b4967a9a1f9c156"
 			},
@@ -107,7 +107,7 @@
 				"declaredStepTextHash": "973f020efebbbef86f06cda006feef3d98d079e5ecdc0fa7be02b881b43fbe33"
 			},
 			"/features/trauma_center.feature": {
-				"seconds": 0.1,
+				"seconds": 0,
 				"steps": 93,
 				"declaredStepTextHash": "19c0adac1ab1fc1bcc8c49465f48fbc0886af4e86d908dd4fc091297e4689a7c"
 			},
@@ -127,8 +127,8 @@
 				"declaredStepTextHash": "423b87fb62e3b26879565f24459e8474ab76e2eb6ff85bc3a5e49704ea336e08"
 			},
 			"/features/wikipedia.feature.ts": {
-				"seconds": 1.1,
-				"steps": 145,
+				"seconds": 1,
+				"steps": 125,
 				"declaredStepTextHash": "fac79a2c47a1620dac9bee4f4664f6ce4c5a85f1d5f473fae00cce100256949c"
 			},
 			"/features/workflow.feature.ts": {
@@ -142,7 +142,7 @@
 				"declaredStepTextHash": "435eb21ce6beca35c72e9cae34f8fa3c5a95dbc4b627e6ca3338ae97b207bd20"
 			}
 		},
-		"steps": 1135,
-		"seconds": 13.8
+		"steps": 1115,
+		"seconds": 12.4
 	}
 }

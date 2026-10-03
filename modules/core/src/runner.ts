@@ -1,4 +1,5 @@
 import type { TWorld } from "./lib/world.js";
+import { MEDIA_TYPE } from "./lib/media-types.js";
 import { TExecutorResult } from "./schema/protocol.js";
 import { AStepper, StepperKinds, CStepper } from "./lib/astepper.js";
 import { expand } from "./lib/features.js";
@@ -34,7 +35,7 @@ export class Runner {
 					source: "haibun",
 					kind: "artifact",
 					artifactType: "json",
-					mimetype: "application/json",
+					mimetype: MEDIA_TYPE.json,
 					level: "debug",
 					json: { domainChainLint: report },
 				});

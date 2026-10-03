@@ -1,4 +1,5 @@
 import { SHU_TEST_IDS } from "./test-ids.js";
+import { reportRefusedScripts } from "./refused-scripts.js";
 import { appAccessLevel, defaultLabel, esc } from "./util.js";
 import { DOCK_FOOTPRINT, INDEX_PANE_KEY, SHU_EVENT, SHU_ATTR, SHU_TAG } from "./consts.js";
 import { getHash, hashOf, hashWithColumns } from "./view-hash.js";
@@ -531,6 +532,7 @@ const main = async (): Promise<void> => {
 	}
 };
 
+reportRefusedScripts();
 if (document.readyState === "loading") {
 	document.addEventListener("DOMContentLoaded", () => void main());
 } else {

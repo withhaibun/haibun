@@ -7,7 +7,6 @@ import { CAPTURE } from "@haibun/core/schema/protocol.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import StorageFS from "./storage-fs.js";
 import { describeStorage } from "@haibun/domain-storage/test/storage-conformance.js";
-import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
 
 // What this storage shares with every other is the specification below; what is here is its own: where an artifact
 // lands on a filesystem. The capture key is the WORLD's own tag.key (getCaptureLocation reads loc.tag.key), so assert
@@ -44,7 +43,7 @@ describe("saveArtifact", () => {
 		const storageFS = new StorageFS();
 		storageFS.world = getDefaultWorld();
 
-		const saved = await storageFS.saveArtifact("test.png", Buffer.from("fake-image"), EMediaTypes.image, "image");
+		const saved = await storageFS.saveArtifact("test.png", Buffer.from("fake-image"), "image");
 
 		// Feature-relative for serialized HTML
 		expect(saved.featureRelativePath).toEqual("./image/test.png");
@@ -63,7 +62,7 @@ describe("saveArtifact", () => {
 		const storageFS = new StorageFS();
 		storageFS.world = getDefaultWorld();
 
-		const saved = await storageFS.saveArtifact("report.html", "<html></html>", EMediaTypes.html);
+		const saved = await storageFS.saveArtifact("report.html", "<html></html>");
 
 		// Feature-relative for serialized HTML (without a subpath)
 		expect(saved.featureRelativePath).toEqual("./report.html");

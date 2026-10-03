@@ -4,7 +4,6 @@ import { z } from "zod";
 import { OK } from "@haibun/core/schema/protocol.js";
 import { captureLocator } from "@haibun/core/lib/capture-locator.js";
 import { IFile, TLocationOptions } from "./domain-storage.js";
-import { EMediaTypes, TMediaType } from "./media-types.js";
 import { AStepper, StepperKinds, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
 import { DOMAIN_NUMBER, DOMAIN_FILE_PATH, DOMAIN_TEXT } from "@haibun/core/lib/domains.js";
@@ -40,7 +39,7 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 	abstract rm(path: string): void;
 	abstract readdir(dir: string): Promise<string[]>;
 	abstract lstatToIFile(file: string): Promise<IFile>;
-	abstract writeFileBuffer(file: string, contents: Buffer, mediaType: TMediaType): void;
+	abstract writeFileBuffer(file: string, contents: Buffer): void;
 
 	async readdirStat(dir: string): Promise<IFile[]> {
 		const files = await this.readdir(dir);
@@ -51,11 +50,11 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 		}
 		return mapped;
 	}
-	async writeFile(file: string, contents: string | Buffer, mediaType: TMediaType) {
+	async writeFile(file: string, contents: string | Buffer) {
 		if (typeof contents === "string") {
-			await this.writeFileBuffer(file, Buffer.from(contents), mediaType);
+			await this.writeFileBuffer(file, Buffer.from(contents));
 		} else {
-			await this.writeFileBuffer(file, contents as Buffer, mediaType);
+			await this.writeFileBuffer(file, contents as Buffer);
 		}
 	}
 
@@ -65,14 +64,6 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 	abstract mkdir(dir: string): void;
 	abstract mkdirp(dir: string): void;
 	abstract exists(ntt: string): boolean;
-
-	/**
-	 * Returns a storage specific resolved path for a given media type.
-	 * Overload this where slash directory conventions aren't used.
-	 */
-	fromLocation(mediaType: TMediaType, ...where: string[]) {
-		return where.map((w) => w.replace(/\/$/, "")).join("/");
-	}
 
 	locator = captureLocator;
 
@@ -97,14 +88,12 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 	 * Uses this.world for tag/options - caller must ensure storage world is in sync.
 	 * @param filename - The filename to save as
 	 * @param contents - File contents (Buffer or string)
-	 * @param mediaType - Media type for proper handling
 	 * @param subpath - Optional subdirectory (e.g., 'image', 'video')
 	 */
-	async saveArtifact(filename: string, contents: string | Buffer, mediaType: TMediaType, subpath?: string): Promise<TSavedArtifact> {
-		const loc = { ...this.getWorld(), mediaType };
-		const dir = await this.ensureCaptureLocation(loc, subpath);
+	async saveArtifact(filename: string, contents: string | Buffer, subpath?: string): Promise<TSavedArtifact> {
+		const dir = await this.ensureCaptureLocation(this.getWorld(), subpath);
 		const absolutePath = resolve(dir, filename);
-		await this.writeFile(absolutePath, contents, mediaType);
+		await this.writeFile(absolutePath, contents);
 
 		// Feature-relative path for serialized HTML
 		const featureRelativePath = subpath ? `./${subpath}/${filename}` : `./${filename}`;
@@ -135,7 +124,7 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 		createFile: {
 			gwta: `create file at {where: ${DOMAIN_FILE_PATH}} with {what: ${DOMAIN_TEXT}}`,
 			action: async ({ where, what }: { where: string; what: string }) => {
-				await this.writeFile(where, what, EMediaTypes.html);
+				await this.writeFile(where, what);
 				return OK;
 			},
 		},

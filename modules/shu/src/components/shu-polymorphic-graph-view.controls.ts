@@ -18,6 +18,7 @@
  *
  * Steps never lead with the article "the", haibun treats such lines as narrative prose, not matchable steps.
  */
+import { MEDIA_TYPE } from "@haibun/core/lib/media-types.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { SHU_EVENT, SHU_TAG } from "../consts.js";
 import type { TPaneOpen } from "../pane-state.js";
@@ -1259,7 +1260,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				if (nodes !== sceneNodes) return actionNotOK(`the still drew ${nodes} node(s) but the scene holds ${sceneNodes}: a still must show exactly what is on screen`);
 				const wp = controlledBrowser(this);
 				if (!wp.storage) return actionNotOK("save a graph still: the world doesn't hold a storage stepper");
-				const saved = await saveImageArtifact(this.getWorld(), wp.storage, featureStep, `graph-still-${featureStep.seqPath.join(".")}.svg`, svg, "image/svg+xml");
+				const saved = await saveImageArtifact(this.getWorld(), wp.storage, featureStep, `graph-still-${featureStep.seqPath.join(".")}.svg`, svg, MEDIA_TYPE.svg);
 				return actionOKWithProducts({ path: saved.baseRelativePath, nodes });
 			},
 		},

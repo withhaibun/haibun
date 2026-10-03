@@ -20,7 +20,6 @@ import { featureAsData } from "@haibun/core/lib/features.js";
 import { HTTP_REQUEST_LABEL, HTTP_HOST_LABEL } from "@haibun/core/lib/resources.js";
 
 import { VideoArtifact } from "@haibun/core/schema/protocol.js";
-import { EMediaTypes } from "@haibun/domain-storage/media-types.js";
 import { WebPlaywright } from "./web-playwright.js";
 import { WebPlaywrightDomains, VISITED_PAGE_LABEL } from "./domains.js";
 
@@ -116,7 +115,7 @@ export const cycles = (wp: WebPlaywright): IStepperCycles => ({
 async function writeFeaturesArtifact(wp: WebPlaywright, type: string, resolvedFeatures: TResolvedFeature[]) {
 	const filename = `${type}.json`;
 	const contents = JSON.stringify(resolvedFeatures.map(featureAsData), null, 2);
-	await wp.storage.saveArtifact(filename, contents, EMediaTypes.json, "json");
+	await wp.storage.saveArtifact(filename, contents, "json");
 }
 
 async function closeAfterFeature(wp: WebPlaywright) {
