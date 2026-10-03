@@ -177,8 +177,8 @@ export const REFUSED_INVOCATION = 403;
 /** The refusal of a call whose presented authority failed verification, whose remedy is to read again what the key holds. */
 export const authorityRefusal = (error: string): TRpcRefusal => ({ error, remedy: RELOAD.authority });
 
-/** What a host answers a call whose step failed: the failure, naming the step it called, so a page shows which call failed. */
-export const stepFailed = (method: string, failure: string): TRpcRefusal => ({ error: `${method}: ${failure}` });
+/** What a host answers a call that failed: the failure, naming the method called, so a page shows which call failed. */
+export const callFailed = (method: string, failure: string): TRpcRefusal => ({ error: `${method}: ${failure}` });
 
 /** The refusal of a call the answer to which didn't come from actuality: a call is always answered as JSON, so an answer
  *  of another type came from a proxy or server in front of it. A refused sign-in is remedied by signing in at the site

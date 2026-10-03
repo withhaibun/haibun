@@ -76,8 +76,6 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	description = "Define and reuse activities with waypoints and proofs";
 
 	private held?: FlowRunner;
-	/** The outcomes of the waypoints saved while actuality ran, which `run the saved waypoint` runs. */
-	private readonly savedOutcomes = new Set<string>();
 	private get runner(): FlowRunner {
 		return this.madeWithWorld(this.held, "flow runner");
 	}
@@ -192,7 +190,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			gwta: "register the saved waypoints",
 			action: async () => {
 				const saved = await this.getWorld().shared.getStore().queryIndividuals(SAVED_WAYPOINT_LABEL);
-				for (const { id, lines, source } of saved.map((record) => SavedWaypointSchema.parse(record))) this.registerSavedWaypoint(id, lines, source);
+				this.registerSavedWaypoints(saved.map((record) => SavedWaypointSchema.parse(record)));
 				return OK;
 			},
 		},
@@ -202,7 +200,8 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			gwta: `run the saved waypoint {waypoint: ${refDomainKey(SAVED_WAYPOINT_DOMAIN)}}`,
 			capability: ACTIVITIES_ACTIONS.runSavedWaypoint,
 			action: async ({ waypoint }: { waypoint: TIndividualRef }, featureStep: TFeatureStep) => {
-				if (!this.savedOutcomes.has(waypoint.id)) return actionNotOK(`"${waypoint.id}" isn't a waypoint saved here`);
+				// A saved waypoint's step is the one an outcome registers with the action every saved waypoint requires.
+				if (this.steps[waypoint.id]?.capability !== ACTIVITIES_ACTIONS.runSavedWaypoint) return actionNotOK(`"${waypoint.id}" isn't a waypoint saved here`);
 				const ran = await this.runner.runStatements([{ in: waypoint.id, source: { path: SAVED_WAYPOINT_SOURCE } }], { parentStep: featureStep });
 				return ran.ok ? OK : actionNotOK(ran.errorMessage);
 			},
@@ -462,34 +461,42 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	 */
 	async saveWaypoint(outcome: string, lines: string[], source: string): Promise<TSavedWaypoint> {
 		const store = this.getWorld().shared.getStore();
-		// Saving a waypoint saved already, with the same lines, keeps it; another under the same outcome is refused.
-		if (JSON.stringify(this.getRegisteredOutcomes()[outcome]?.activityBlockSteps) === JSON.stringify(lines))
-			return SavedWaypointSchema.parse(await store.getIndividual(SAVED_WAYPOINT_LABEL, outcome));
-		this.registerSavedWaypoint(outcome, lines, source);
+		// The record makes a waypoint saved: one saved already with the same lines is kept, and any other outcome registered
+		// already is refused.
+		const kept = await store.getIndividual(SAVED_WAYPOINT_LABEL, outcome);
+		if (kept) {
+			const held = SavedWaypointSchema.parse(kept);
+			if (held.lines.length === lines.length && held.lines.every((line, at) => line === lines[at])) return held;
+		}
 		const saved: TSavedWaypoint = { id: outcome, lines, source, generatedAtTime: new Date().toISOString() };
+		this.registerSavedWaypoints([saved]);
 		await store.upsertIndividual(SAVED_WAYPOINT_LABEL, saved);
 		return saved;
 	}
 
-	/** Register a saved waypoint, as `saveWaypoint` does, without keeping it again. Its step requires the one action every
-	 *  saved waypoint requires, since a delegation is made before the waypoint is saved and can't name an action of its own. */
-	private registerSavedWaypoint(outcome: string, lines: string[], source: string): void {
+	/** Register saved waypoints, as `saveWaypoint` does, without keeping them again, and refresh actuality's registry once.
+	 *  Each step requires the one action every saved waypoint requires, since a delegation is made before the waypoint is
+	 *  saved and can't name an action of its own. A line that doesn't resolve to one step, and an outcome registered
+	 *  already, are refused before anything is registered. */
+	private registerSavedWaypoints(saved: Pick<TSavedWaypoint, "id" | "lines" | "source">[]): void {
 		const world = this.getWorld();
 		const steppers = runSteppers(world);
-		if (this.steps[outcome]) throw new Error(`the outcome "${outcome}" is already registered`);
 		const resolver = new Resolver(steppers);
-		const unresolved = lines.flatMap((line) => {
-			try {
-				resolver.findSingleStepAction(line);
-				return [];
-			} catch (err) {
-				return [errorDetail(err)];
-			}
-		});
-		if (unresolved.length > 0) throw new Error(`each line of a saved waypoint resolves to one step: ${unresolved.join("; ")}`);
-		this.registerOutcome(outcome, [], source, true, lines, undefined, undefined, undefined, ACTIVITIES_ACTIONS.runSavedWaypoint);
-		this.savedOutcomes.add(outcome);
-		runRegistry(world).refresh(steppers, world);
+		const refused = saved.flatMap(({ id, lines }) => [
+			...(this.steps[id] ? [`the outcome "${id}" is already registered`] : []),
+			...lines.flatMap((line) => {
+				try {
+					resolver.findSingleStepAction(line);
+					return [];
+				} catch (err) {
+					return [`each line of a saved waypoint resolves to one step: ${errorDetail(err)}`];
+				}
+			}),
+		]);
+		if (refused.length > 0) throw new Error(refused.join("; "));
+		for (const { id, lines, source } of saved)
+			this.registerOutcome(id, [], source, { isBackground: true, activityBlockSteps: lines, capability: ACTIVITIES_ACTIONS.runSavedWaypoint });
+		if (saved.length > 0) runRegistry(world).refresh(steppers, world);
 	}
 
 	/**
@@ -570,13 +577,22 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		outcome: string,
 		proofStatements: string[],
 		proofPath: string,
-		isBackground?: boolean,
-		activityBlockSteps?: (string | TStepInput)[],
-		lineNumber?: number,
-		actualSourcePath?: string,
-		resolvesDomain?: string,
-		/** The action the outcome's step requires, where it isn't the step's own name. */
-		capability?: string,
+		{
+			isBackground,
+			activityBlockSteps,
+			lineNumber,
+			actualSourcePath,
+			resolvesDomain,
+			capability,
+		}: {
+			isBackground?: boolean;
+			activityBlockSteps?: (string | TStepInput)[];
+			lineNumber?: number;
+			actualSourcePath?: string;
+			resolvesDomain?: string;
+			/** The action the outcome's step requires, where it isn't the step's own name. */
+			capability?: string;
+		} = {},
 	) {
 		if (this.steps[outcome]) {
 			const existing = this.steps[outcome];
@@ -777,7 +793,13 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				activityBlockSteps = blockLines;
 			}
 		}
-		this.registerOutcome(outcome, proofStatements, path, isBackground, activityBlockSteps, lineIndex !== undefined ? lineIndex + 1 : undefined, actualSourcePath, resolvesDomain);
+		this.registerOutcome(outcome, proofStatements, path, {
+			isBackground,
+			activityBlockSteps,
+			lineNumber: lineIndex !== undefined ? lineIndex + 1 : undefined,
+			actualSourcePath,
+			resolvesDomain,
+		});
 		return true;
 	}
 }

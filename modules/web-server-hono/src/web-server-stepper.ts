@@ -7,7 +7,7 @@ import { OK } from "@haibun/core/schema/protocol.js";
 import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption, intOrError, errorDetail } from "@haibun/core/lib/util/index.js";
 import { AStepper, type IHasCycles, type IHasOptions, type TEndFeature, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { dispatchStep } from "@haibun/core/lib/step-dispatch.js";
-import { ACTION_BEGIN, ANSWERED_WITHOUT_PRODUCTS, parseRpcRequest, authorityRefusal, stepFailed, RPC_PROTOCOL, type THandshake } from "@haibun/core/lib/rpc-wire.js";
+import { ACTION_BEGIN, ANSWERED_WITHOUT_PRODUCTS, parseRpcRequest, authorityRefusal, callFailed, RPC_PROTOCOL, type THandshake } from "@haibun/core/lib/rpc-wire.js";
 import { runWithRequestContext, requestBaseIri } from "@haibun/core/lib/request-context.js";
 import { buildFeatureStepForTransport, refusal, runRegistry, type StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { actionList, lackedAction, mayCall } from "@haibun/core/lib/actions.js";
@@ -300,14 +300,14 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 							// Whoever proved themselves at this boundary is who acts inside it, as in a dispatched step.
 							return await runActingAs(principal, () => served.handle(params), restsOn);
 						} catch (err) {
-							return { error: `${method}: ${errorDetail(err)}` };
+							return callFailed(method, errorDetail(err));
 						}
 					}
 
 					const world = this.getWorld();
 					const registry = this.stepRegistry;
 					if (!registry) {
-						return { error: `${method}: RPC step registry is not initialized` };
+						return callFailed(method, "RPC step registry is not initialized");
 					}
 
 					try {
@@ -335,11 +335,11 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 							),
 						);
 						if (hr.ok) return hr.products ?? ANSWERED_WITHOUT_PRODUCTS;
-						return stepFailed(method, hr.errorMessage);
+						return callFailed(method, hr.errorMessage);
 					} catch (err) {
 						const detail = errorDetail(err);
 						logger.error(`[RPC] ${method}: ${detail}`);
-						return stepFailed(method, detail);
+						return callFailed(method, detail);
 					}
 				});
 				return OK;

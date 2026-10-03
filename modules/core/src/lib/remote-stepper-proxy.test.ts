@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { z } from "zod";
 import { RemoteStepperProxy } from "./remote-stepper-proxy.js";
-import { buildFeatureStepForTransport, openRunRegistry, StepRegistry } from "./step-registry.js";
+import { buildFeatureStepForTransport, hostScopedMethodName, openRunRegistry, stepMethodName, StepRegistry } from "./step-registry.js";
 import Haibun from "../steps/haibun.js";
 import { AStepper } from "./astepper.js";
 import { actionNotOK, actionOKWithProducts, errorDetail } from "./util/index.js";
@@ -15,7 +15,7 @@ import type { TWorld } from "./world.js";
 import { SITE_DID_PREFIX } from "./host-id.js";
 import { DOMAIN_STRING, asDomainKey, DOMAIN_TEXT } from "./domains.js";
 import { OK, Origin, type TStepValue } from "../schema/protocol.js";
-import { ACTION_BEGIN, ANSWERED_WITHOUT_PRODUCTS, stepFailed } from "./rpc-wire.js";
+import { ACTION_BEGIN, ANSWERED_WITHOUT_PRODUCTS, callFailed } from "./rpc-wire.js";
 import { hostHandshake } from "./test/rpc-answer.js";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
@@ -26,6 +26,8 @@ const ECHOED_LABEL = "test-echoed-label";
 const PICKS = ["test-pick-by-name", "test-pick-by-id"];
 const DOMAIN_PICK = asDomainKey(PICKS);
 
+/** The id the host states for itself, which the proxy names its steps under. */
+const HOST = 7;
 /** What the host's refusing step states. */
 const REFUSED = "the host refused";
 
@@ -78,6 +80,16 @@ describe("RemoteStepperProxy", () => {
 	let server: Server;
 	let port: number;
 	let world: TWorld;
+	/** The host's step, by its name in the echo stepper, as the proxy registers it under the host's name for it. */
+	const hostTool = async (step: string) => {
+		const proxy = new RemoteStepperProxy(`http://localhost:${port}`);
+		await proxy.setWorld(world, []);
+		const registry = new StepRegistry([], world);
+		proxy.injectInto(registry);
+		const tool = registry.get(hostScopedMethodName(HOST, stepMethodName(EchoStepper.name, step)));
+		if (!tool) throw new Error(`the proxy doesn't hold the host's step ${step}`);
+		return tool;
+	};
 	/** What each call to the host presented, by the method it called. */
 	const presented = new Map<string, string | undefined>();
 
@@ -99,19 +111,18 @@ describe("RemoteStepperProxy", () => {
 			const data = (await c.req.json()) as { method: string; params?: Record<string, unknown> };
 			presented.set(data.method, c.req.header("capability-invocation"));
 			if (data.method === ACTION_BEGIN) {
-				return c.json(hostHandshake(7, `${SITE_DID_PREFIX}7`));
+				return c.json(hostHandshake(HOST, `${SITE_DID_PREFIX}${HOST}`));
 			}
 			const tool = localRegistry.get(data.method);
 			if (!tool) return c.json({ error: `not found: ${data.method}` }, 422);
 			try {
-				const { buildFeatureStepForTransport } = await import("./step-registry.js");
 				const featureStep = buildFeatureStepForTransport(tool, data.params ?? {}, [0, 1]);
 				// The host grants the proxy every step it serves, so what the proxy is shown and may call is all of it.
 				const result = await runAuthorizedWith(RUN_AUTHORITY, () => tool.handler(featureStep, world));
 				if (result.ok) return c.json(result.products ?? ANSWERED_WITHOUT_PRODUCTS);
-				return c.json(stepFailed(data.method, result.errorMessage), 422);
+				return c.json(callFailed(data.method, result.errorMessage), 422);
 			} catch (err) {
-				return c.json({ error: errorDetail(err) }, 422);
+				return c.json(callFailed(data.method, errorDetail(err)), 422);
 			}
 		});
 
@@ -133,7 +144,7 @@ describe("RemoteStepperProxy", () => {
 	it("injects proxy tools into registry under hostId-prefixed keys", async () => {
 		const proxy = new RemoteStepperProxy(`http://localhost:${port}`);
 		await proxy.setWorld(world, []);
-		expect(proxy.remoteHostId).toBe(7);
+		expect(proxy.remoteHostId).toBe(HOST);
 
 		const registry = new StepRegistry([], world);
 		proxy.injectInto(registry);
@@ -156,7 +167,6 @@ describe("RemoteStepperProxy", () => {
 		});
 		expect(tool.descriptor.inputSchema.required).toEqual(["message"]);
 
-		const { buildFeatureStepForTransport } = await import("./step-registry.js");
 		const featureStep = buildFeatureStepForTransport(tool, { message: "hello" }, [0, 1]);
 		const result = await tool.handler(featureStep, world);
 		expect(result.ok).toBe(true);
@@ -164,37 +174,19 @@ describe("RemoteStepperProxy", () => {
 	});
 
 	it("doesn't return products for a step that doesn't declare them, whatever the host's answer carries in their place", async () => {
-		const proxy = new RemoteStepperProxy(`http://localhost:${port}`);
-		await proxy.setWorld(world, []);
-		const registry = new StepRegistry([], world);
-		proxy.injectInto(registry);
-		const tool = registry.get("host7_EchoStepper-acts");
-		if (!tool) throw new Error("Expected the host's step to be registered");
-		const { buildFeatureStepForTransport } = await import("./step-registry.js");
+		const tool = await hostTool("acts");
 		expect(await tool.handler(buildFeatureStepForTransport(tool, {}, [0, 1]), world)).toEqual({ ok: true });
 	});
 
 	it("carries a call's object argument to the host as the object, not as its text", async () => {
-		const proxy = new RemoteStepperProxy(`http://localhost:${port}`);
-		await proxy.setWorld(world, []);
-		const registry = new StepRegistry([], world);
-		proxy.injectInto(registry);
-		const tool = registry.get("host7_EchoStepper-echoLabel");
-		if (!tool) throw new Error("Expected prefixed tool to be registered");
-		const { buildFeatureStepForTransport } = await import("./step-registry.js");
+		const tool = await hostTool("echoLabel");
 		const result = await tool.handler(buildFeatureStepForTransport(tool, { query: { label: "Comment" } }, [0, 1]), world);
 		expect(result.products).toMatchObject({ label: "Comment" });
 	});
 
 	it("sends the value a variable holds where the statement was written, not the variable's name", async () => {
-		const proxy = new RemoteStepperProxy(`http://localhost:${port}`);
-		await proxy.setWorld(world, []);
-		const registry = new StepRegistry([], world);
-		proxy.injectInto(registry);
-		const tool = registry.get("host7_EchoStepper-echo");
-		if (!tool) throw new Error("Expected prefixed tool to be registered");
+		const tool = await hostTool("echo");
 		await world.shared.set({ term: "greeting", value: "hello from the caller", domain: DOMAIN_STRING, origin: Origin.var }, { seq: [0], when: "test" });
-		const { buildFeatureStepForTransport } = await import("./step-registry.js");
 		const featureStep = buildFeatureStepForTransport(tool, {}, [0, 1]);
 		featureStep.action.stepValuesMap = { message: { term: "greeting", domain: DOMAIN_STRING, origin: Origin.defined } };
 		const result = await tool.handler(featureStep, world);
@@ -202,12 +194,7 @@ describe("RemoteStepperProxy", () => {
 	});
 
 	it("sends a union parameter's coerced value to the host, not the resolved TStepValue", async () => {
-		const proxy = new RemoteStepperProxy(`http://localhost:${port}`);
-		await proxy.setWorld(world, []);
-		const registry = new StepRegistry([], world);
-		proxy.injectInto(registry);
-		const tool = registry.get("host7_EchoStepper-echoPick");
-		if (!tool) throw new Error("the proxy doesn't hold the pick step");
+		const tool = await hostTool("echoPick");
 		const featureStep = buildFeatureStepForTransport(tool, {}, [0, 1]);
 		featureStep.action.stepValuesMap = { pick: { term: "alpha", domain: DOMAIN_PICK, origin: Origin.quoted } };
 		const result = await tool.handler(featureStep, world);
@@ -216,26 +203,13 @@ describe("RemoteStepperProxy", () => {
 	});
 
 	it("states a step's failure on the host as the host states it, naming the step once", async () => {
-		const proxy = new RemoteStepperProxy(`http://localhost:${port}`);
-		await proxy.setWorld(world, []);
-		const registry = new StepRegistry([], world);
-		proxy.injectInto(registry);
-		const tool = registry.get("host7_EchoStepper-refuses");
-		if (!tool) throw new Error("the proxy doesn't hold the refusing step");
-		const { buildFeatureStepForTransport } = await import("./step-registry.js");
+		const tool = await hostTool("refuses");
 		const result = await tool.handler(buildFeatureStepForTransport(tool, {}, [0, 1]), world);
-		expect(result.ok ? undefined : result.errorMessage).toBe(stepFailed("EchoStepper-refuses", REFUSED).error);
+		expect(result.ok ? undefined : result.errorMessage).toBe(callFailed(stepMethodName(EchoStepper.name, "refuses"), REFUSED).error);
 	});
 
 	it("preserves capability metadata from remote", async () => {
-		const proxy = new RemoteStepperProxy(`http://localhost:${port}`);
-		await proxy.setWorld(world, []);
-
-		const registry = new StepRegistry([], world);
-		proxy.injectInto(registry);
-
-		const tool = registry.get("host7_EchoStepper-protectedPing");
-		if (!tool) throw new Error("Expected prefixed tool to be registered");
+		const tool = await hostTool("protectedPing");
 		expect(tool.descriptor.capability).toBe("EchoStepper:admin");
 	});
 
@@ -244,7 +218,6 @@ describe("RemoteStepperProxy", () => {
 		await proxy.setWorld(world, []);
 		const registry = new StepRegistry([], world);
 		proxy.injectInto(registry);
-		const { buildFeatureStepForTransport } = await import("./step-registry.js");
 		for (const [method, input] of [
 			["host7_EchoStepper-protectedPing", {}],
 			["host7_EchoStepper-echo", { message: "hi" }],

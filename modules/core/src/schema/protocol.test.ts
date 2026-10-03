@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { EventFormatter, HaibunEvent, shownLogLevel, type THaibunEvent, type THaibunLogLevel } from "./protocol.js";
+import { BaseOptionsSchema } from "../lib/world.js";
 
 describe("Haibun Event Schemas", () => {
 	it("validates a correct LifecycleEvent", () => {
@@ -82,6 +83,6 @@ describe("the level a monitor shows events from", () => {
 
 	it("shows no events at none, and refuses a level it doesn't know", () => {
 		expect(EventFormatter.shouldDisplay(logged("error"), shownLogLevel({ LOG_LEVEL: "none" }))).toBe(false);
-		expect(() => shownLogLevel({ LOG_LEVEL: "inof" })).toThrow();
+		expect(BaseOptionsSchema.shape.LOG_LEVEL.safeParse("inof").success, "actuality's options refuse it").toBe(false);
 	});
 });

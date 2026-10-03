@@ -6,7 +6,7 @@ import type { FeatureVariables } from "./feature-variables.js";
 import type { Prompter } from "./prompter.js";
 import type { IEventLogger } from "./EventLogger.js";
 import type { TStepResult, Timer, TFeatureSteps } from "../schema/protocol.js";
-import { CONTINUE_AFTER_ERROR, NDJSON } from "../schema/protocol.js";
+import { CONTINUE_AFTER_ERROR, NDJSON, ShownLogLevelSchema } from "../schema/protocol.js";
 import type { TRegisteredDomain } from "./resources.js";
 import type { StepRegistry } from "./step-registry.js";
 import type { TFeature } from "./execution.js";
@@ -77,7 +77,7 @@ export const BaseOptionsSchema = z.strictObject({
 	DEST: z.string(),
 	KEY: z.string().optional(),
 	DESCRIPTION: z.string().optional(),
-	LOG_LEVEL: z.string().optional(),
+	LOG_LEVEL: ShownLogLevelSchema.optional(),
 	LOG_FOLLOW: z.string().optional(),
 	STAY: z.string().optional(),
 	SETTING: z.string().optional(),

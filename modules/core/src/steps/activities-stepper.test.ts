@@ -81,14 +81,11 @@ describe("ActivitiesStepper", () => {
 			const stepper = new ActivitiesStepper();
 			await stepper.setWorld(getDefaultWorld(), []);
 
-			stepper.registerOutcome(
-				'Test outcome with variable x is "1"',
-				['variable x is "1"'],
-				"/test/backgrounds/setup.feature",
-				false,
-				['set x to "1"'],
-				7, // lineNumber
-			);
+			stepper.registerOutcome('Test outcome with variable x is "1"', ['variable x is "1"'], "/test/backgrounds/setup.feature", {
+				isBackground: false,
+				activityBlockSteps: ['set x to "1"'],
+				lineNumber: 7,
+			});
 
 			const step = stepper.steps['Test outcome with variable x is "1"'];
 			expect(step).toBeDefined();

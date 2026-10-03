@@ -95,14 +95,16 @@ describe("RpcClient.call", () => {
 		const fetchImpl: typeof fetch = () => Promise.resolve(new Response("404 Not Found", { status: 404, headers: { "Content-Type": "text/plain" } }));
 		const client = new RpcClient({ baseUrl: "http://host", fetchImpl: answeringTheHandshake(fetchImpl) });
 		await expect(client.call("Stepper-echo", {}, [0])).rejects.toThrow(
-			new RpcCallFailed("Stepper-echo", "http://host", notFromActuality("Stepper-echo", 404, "text/plain", "404 Not Found").error),
+			new RpcCallFailed("Stepper-echo", "http://host", notFromActuality("Stepper-echo", 404, "text/plain", "404 Not Found").error, true),
 		);
 	});
 
 	it("surfaces application errors (HTTP 422 with error body) intact", async () => {
 		const { fetchImpl } = makeFakeFetch([{ ok: false, status: 422, bodyText: JSON.stringify({ error: "capability Foo required" }) }]);
 		const client = new RpcClient({ baseUrl: "http://host", fetchImpl, retry: { maxAttempts: 1 } });
-		await expect(client.call("m", {}, [0])).rejects.toThrow(new RpcCallFailed("m", "http://host", "capability Foo required"));
+		const refused = client.call("m", {}, [0]);
+		await expect(refused).rejects.toThrow(new RpcCallFailed("m", "http://host", "capability Foo required", true));
+		await expect(refused, "the host answered with the refusal").rejects.toMatchObject({ answered: true });
 	});
 
 	it("retries on network error and succeeds on a later attempt", async () => {
@@ -124,7 +126,9 @@ describe("RpcClient.call", () => {
 			fetchImpl,
 			retry: { maxAttempts: 2, baseDelayMs: 0 },
 		});
-		await expect(client.call("m", {}, [0])).rejects.toThrow(/m at http:\/\/host: rpc failed after 2 attempts/);
+		const failed = client.call("m", {}, [0]);
+		await expect(failed).rejects.toThrow(/m at http:\/\/host: rpc failed after 2 attempts/);
+		await expect(failed, "the far side didn't answer, so the message names the call and the host").rejects.toMatchObject({ answered: false });
 		expect(calls.length).toBe(2);
 	});
 

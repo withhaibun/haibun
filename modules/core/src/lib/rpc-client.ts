@@ -36,14 +36,19 @@ type RpcCallOptions = {
 	action?: string;
 };
 
-type RpcError = { error: string };
+/** Why a call failed, and whether the far side answered with it: an answer names the method it refused, and a failure
+ *  without an answer doesn't. */
+type RpcError = { error: string; answered: boolean };
 
-/** A call another instance refused, or that didn't reach it after every attempt. */
+/** A call another instance refused, or that didn't reach it after every attempt. `answered` states that the far side
+ *  returned the reason, which names the method; a reason the far side didn't return names neither the method nor the host,
+ *  which the message states. */
 export class RpcCallFailed extends Error {
 	constructor(
 		readonly method: string,
 		readonly url: string,
 		readonly reason: string,
+		readonly answered: boolean,
 	) {
 		super(`${method} at ${url}: ${reason}`);
 	}
@@ -84,9 +89,9 @@ export class RpcClient {
 		const outcome = await this.withRetry(async (signal): Promise<{ answered: T } | RpcError> => {
 			const res = await this.fetchImpl(call.url, { ...call.init, signal });
 			const answer = await readRpcAnswer(method, res);
-			return answer.kind === "answered" ? { answered: answer.body as T } : { error: answer.error };
+			return answer.kind === "answered" ? { answered: answer.body as T } : { error: answer.error, answered: true };
 		}, opts.signal);
-		if ("error" in outcome) throw new RpcCallFailed(method, this.baseUrl, outcome.error);
+		if ("error" in outcome) throw new RpcCallFailed(method, this.baseUrl, outcome.error, outcome.answered);
 		return outcome.answered;
 	}
 
@@ -185,7 +190,7 @@ export class RpcClient {
 				await new Promise((r) => setTimeout(r, backoff + jitter));
 			}
 		}
-		return { error: `rpc failed after ${this.maxAttempts} attempts: ${errorDetail(lastErr)}` };
+		return { error: `rpc failed after ${this.maxAttempts} attempts: ${errorDetail(lastErr)}`, answered: false };
 	}
 }
 

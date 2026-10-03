@@ -10,10 +10,11 @@ const HaibunLogLevel = z.enum(HAIBUN_LOG_LEVELS);
 export type THaibunLogLevel = z.infer<typeof HaibunLogLevel>;
 /** The levels from which a monitor shows events: an event's level, or none, which shows no events. */
 export const SHOWN_LOG_LEVELS = [...HAIBUN_LOG_LEVELS, "none"] as const;
-const ShownLogLevel = z.enum(SHOWN_LOG_LEVELS);
-export type TShownLogLevel = z.infer<typeof ShownLogLevel>;
+/** Actuality's `LOG_LEVEL` option, checked where actuality parses its options. */
+export const ShownLogLevelSchema = z.enum(SHOWN_LOG_LEVELS);
+export type TShownLogLevel = z.infer<typeof ShownLogLevelSchema>;
 /** The level from which a monitor shows events, as actuality's `LOG_LEVEL` option states it, or info where it isn't set. */
-export const shownLogLevel = (options: { LOG_LEVEL?: string }): TShownLogLevel => ShownLogLevel.parse(options.LOG_LEVEL ?? "info");
+export const shownLogLevel = (options: { LOG_LEVEL?: TShownLogLevel }): TShownLogLevel => options.LOG_LEVEL ?? "info";
 
 /**
  * Marks, as one related set. Two things vary, and each is carried by one visual property.

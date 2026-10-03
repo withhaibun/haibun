@@ -31,7 +31,7 @@ export default class ConsoleMonitorStepper extends AStepper implements IHasCycle
 	private showLogEvents: boolean = true;
 	private showLifecycleEvents: boolean = true;
 	private lastLevel: string = "";
-	private minLevel: TShownLogLevel = "info";
+	private minLevel: TShownLogLevel = shownLogLevel({});
 
 	cycles = {
 		startExecution: () => {

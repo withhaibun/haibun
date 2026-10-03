@@ -43,23 +43,7 @@ class SavedWaypointProbe extends AStepper {
 		},
 	};
 }
-/** The records of the waypoints actuality saved, as its store holds them. */
-const kept: Record<string, unknown>[] = [];
-
-/** Reads the records of the waypoints actuality saved. */
-class SavedRecordsProbe extends AStepper {
-	description = "Reads the records of the waypoints actuality saved.";
-	steps = {
-		readTheSavedWaypoints: {
-			gwta: "read the saved waypoints",
-			action: async () => {
-				kept.splice(0, kept.length, ...(await this.getWorld().shared.getStore().queryIndividuals(SAVED_WAYPOINT_LABEL)));
-				return actionOK();
-			},
-		},
-	};
-}
-const STEPPERS = [ActivitiesStepper, VariablesStepper, AuthorityStepper, SavedWaypointProbe, SavedRecordsProbe];
+const STEPPERS = [ActivitiesStepper, VariablesStepper, AuthorityStepper, SavedWaypointProbe];
 
 describe("a waypoint saved during a run", () => {
 	it("is offered as a step at once, and runs the lines it was saved with", async () => {
@@ -70,8 +54,8 @@ describe("a waypoint saved during a run", () => {
 	});
 
 	it("is kept as a record stating its outcome and its lines", async () => {
-		await passWithDefaults(`${SAVE}\nread the saved waypoints\n`, STEPPERS);
-		expect(kept).toMatchObject([{ id: OUTCOME, lines: [KNOCK_LINE] }]);
+		const { world } = await passWithDefaults(SAVE, STEPPERS);
+		expect(await world.shared.getStore().queryIndividuals(SAVED_WAYPOINT_LABEL)).toMatchObject([{ id: OUTCOME, lines: [KNOCK_LINE] }]);
 	});
 
 	it("requires the action every saved waypoint requires, and each of its lines requires its own", async () => {
