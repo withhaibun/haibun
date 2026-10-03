@@ -22,7 +22,7 @@ Conceptually, there are three "layers" to Haibun:
   with testable descriptions of flows in a project features in plain language
 * A domain layer,
   with abstract representations of functionality & data,
-  for example, the [Web](modules/domain-webpage)
+  for example, the [Web domains](modules/web-playwright/src/domains.ts)
 * An implementation layer,
   where specific testers are written,
   for example,
@@ -48,12 +48,17 @@ Easily add Haibun to an existing library using [scaffolding](modules/utils/READM
 
 ## Command line interface
 
-haibun can be used as a library or via the cli.
-To see a list of cli option for a particular set of features, use `--help` along with the feature folder (including config.json).
-For example, in [the haibun-e2e-tests repository](https://github.com/withhaibun/haibun-e2e-tests),
-use this command to see available options:
+haibun runs as a library or through its command line, `haibun-cli`, which `@haibun/cli` provides.
+A run names one or more project bases.
+A base is a folder that holds a `config.json`, which lists the steppers it loads, and a `features` folder.
+`--help` with a base lists the command line's options.
+It also lists, as environment variables, the options of each stepper the base's `config.json` loads.
+Without a base that holds a `config.json`, `--help` lists only the command line's options.
 
-`npx @haibun/cli --help local`
+This repository's end-to-end tests are such bases, in [e2e-tests](e2e-tests): `tests` and `shu-self-test`.
+From that folder, this command lists the options of the `tests` base:
+
+`npx haibun-cli --help tests`
 
 # Further Documentation
 
@@ -64,7 +69,7 @@ use this command to see available options:
 * [Developing new modules](docs/new_modules.md)
 * [Developing Haibun](docs/develop_haibun.md)
 * [Debugging steppers](docs/stepping.md)
-* [Use in Github Actions](docs/e2e-tests.yml)
+* [Use in Github Actions](docs/e2e_tests.yml)
 * [Run Policy and Permissions](docs/run-policy.md)
 * [Versioning and releases](VERSIONING.md)
 * [VSCode extension (LSP & MCP)](vscode-extension/README.md)
@@ -73,8 +78,10 @@ use this command to see available options:
 
 Every Haibun feature is the living specification for a behavior: prose describes it, executable steps prove it. The identity and authorization model is documented this way, end to end:
 
-* [Identity and capability authorization](e2e-tests/tests/features/identity-and-capability.feature.ts): the instance's self-issued site identity, subkey delegation, and the single capability gate that authorizes every protected action identically whether it arrives in-process, over RPC, or over MCP (the bearer path the core owns; the signed path is delegated to a consumer-supplied verifier).
-* [RPC capability dispatch](e2e-tests/tests/features/rpc-capability.feature.ts): the bearer-token capability gate layered on the shared RPC dispatch path, including a statically configured access token.
+* [Identity and capability authorization](e2e-tests/tests/features/identity-and-capability.feature.ts):
+  the instance's self-issued site identity, and the one capability gate every protected action passes, in-process, over
+  RPC and over MCP. A statement holds less authority than actuality and never more. A caller presents a signed proof with
+  its request, which a verifier the consumer supplies checks, and the proof grants only what it proves.
 
 # Development & Debugging help
 

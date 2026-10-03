@@ -165,7 +165,7 @@ Earlier versions referred to `type` on placeholders. This has been replaced with
 
 For an example module external to the main haibun project, please refer to [haibun sarif](https://github.com/withhaibun/haibun-sarif).
 
-It may be helpful to refer to the [haibun e2e-tests](https://github.com/withhaibun/haibun-e2e-tests) repository, which contains running examples of integration tests. For example, set up that repository, and run `npm run test-xss`.
-
-haibun-e2e-tests contains an example of adding a route to a runtime web server (_start test route at {loc}_)
-in its src directory.
+This repository's [e2e-tests](../e2e-tests) holds running examples of integration tests.
+From that folder, `npm run test:tests` runs the `tests` base, and `npx haibun-cli tests xss` runs its features whose
+names hold `xss`.
+Its [test server stepper](../e2e-tests/src/test-server.ts) adds routes to a running web server.

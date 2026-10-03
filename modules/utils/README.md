@@ -13,10 +13,9 @@ with the following options:
 This feature requires Docker Compose to be installed on the host system.
 
 ## Parameters
-`script` is the package.json script to run for the script,
-`folders` is individual folders that need to be mounted in the container to execute the tests (for example, `features assets`).
-
-See [Haibun e2e tests](https://github.com/withhaibun/haibun-e2e-tests/package.json) for an example.
+`run-vcapture [options] script folder ...` runs the package.json script `script` in a container.
+Each `folder` is mounted in the container, as the folders that hold the features and the files they read.
+`run-vcapture --help` lists the options.
 
 ## Options
 
