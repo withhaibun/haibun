@@ -67,10 +67,15 @@ monitor shows actuality as it runs: each feature and step, and what each step pr
 `HAIBUN_O_MONITORSTEPPER_PORT`, it serves shu at `/monitor` on that port, on a server of its own that lasts from the first
 feature to the last, apart from any server a feature starts. With `HAIBUN_STAY=always`, it keeps serving after the last
 feature. Its server admits a reader as the instance's web server does, so a reader of a local actuality that doesn't hold a
-delegation reads it where `HAIBUN_O_WEBSERVERSTEPPER_ALLOW_WITHOUT_DELEGATION` names every action. This shows the
-`tests` feature `a11y-pass` at `http://localhost:7777/monitor`:
+delegation reads it where `HAIBUN_O_WEBSERVERSTEPPER_ALLOW_WITHOUT_DELEGATION` names every action. The page reads
+actuality through shu's stepper, its graph source and the monitor, and the client cache stepper adds the view that
+lists each feature the page has read, where a reader opens an earlier one. This shows the `tests` features at
+`http://localhost:7777/monitor`:
 
-`HAIBUN_STAY=always HAIBUN_O_MONITORSTEPPER_PORT=7777 HAIBUN_O_WEBSERVERSTEPPER_ALLOW_WITHOUT_DELEGATION='*' npx haibun-cli --with-steppers=@haibun/shu/shu-stepper,@haibun/shu/monitor-stepper,@haibun/shu/graph-source-stepper tests a11y-pass`
+`HAIBUN_STAY=always HAIBUN_O_MONITORSTEPPER_PORT=7777 HAIBUN_O_WEBSERVERSTEPPER_ALLOW_WITHOUT_DELEGATION='*' npx haibun-cli --with-steppers=@haibun/shu/shu-stepper,@haibun/shu/monitor-stepper,@haibun/shu/graph-source-stepper,@haibun/shu/client-cache-stepper tests`
+
+A feature the page reads while it runs stays on the device after the next feature starts: `show client cache` lists
+each one under "Executions this device holds", and a feature's name there opens it.
 
 # Further Documentation
 
