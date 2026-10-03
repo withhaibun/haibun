@@ -1,7 +1,7 @@
 
 Scenario: Check against URI xss exploit
 
-    Backgrounds: service/xss
+    Backgrounds: int/web-server, service/xss
 
     serve files from "xss"
     webserver is listening for "xss"

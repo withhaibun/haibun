@@ -1,2 +1,2 @@
-set counter to "http://localhost:8123/static/counter.html"
+compose counter with {Web Server}/static/counter.html
 set empty a-browser to "chromium"

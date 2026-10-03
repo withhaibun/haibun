@@ -1,6 +1,6 @@
 
 Scenario: A form and counter
-    Backgrounds: service/counter, int/counter
+    Backgrounds: int/web-server, service/counter, int/counter
 
     This should pause eh.
     This scenario is written twice, here and as counter.feature.ts, so the two ways of writing a feature are shown to describe one run. The two copies aren't redundant: together they are the only proof that gherkin and kireji express the same thing.

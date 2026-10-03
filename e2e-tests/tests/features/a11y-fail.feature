@@ -1,6 +1,6 @@
 Scenario: Test accessibility pass
 
-Backgrounds: int/a11y
+Backgrounds: int/web-server, int/a11y
 
 Files for accessibility checks are served for the automated testing process.
 

@@ -1,5 +1,6 @@
 Feature: Auth-bearer Authentication
-    set Resource Server to "http://localhost:8123"
+    Backgrounds: int/web-server
+    set Resource Server to Web Server
     set Profile Path to "/me"
     set Token Path to "/token"
     set Resources Path to "/api/resources"
@@ -20,7 +21,7 @@ Feature: Auth-bearer Authentication
     compose Resources API with {Resource Server}{Resources Path}
     compose Resource API with {Resource Server}{Resource Path}
     compose Resource Delete API with {Resource Server}{Resource Delete Route}
-    compose Logout with {Resource Server}/logout?post_logout_redirect_uri=http://localhost:8123/static/loggedOut
+    compose Logout with {Resource Server}/logout?post_logout_redirect_uri={Web Server}/static/loggedOut
 
     set OK to 200
     set Unauthorized to 401

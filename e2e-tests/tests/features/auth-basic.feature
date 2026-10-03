@@ -1,6 +1,7 @@
 Feature: Auth-basic Authentication
 
-    set Resource Server to "http://localhost:8123"
+    Backgrounds: int/web-server
+    set Resource Server to Web Server
     set Resources Path to "/api/resources"
     set Resource Path to "/api/resource"
     compose Resources API with {Resource Server}{Resources Path}

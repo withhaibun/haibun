@@ -1,7 +1,7 @@
 
 Scenario: Handle popup window
 
-    Backgrounds: int/popup
+    Backgrounds: int/web-server, int/popup
 
     serve files from "popup"
     webserver is listening for "popup"

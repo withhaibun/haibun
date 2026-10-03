@@ -1,11 +1,15 @@
 import type { TKirejiExport } from "@haibun/core/kireji/withAction.js";
 import { withAction } from "@haibun/core/kireji/withAction.js";
 import Haibun from "@haibun/core/steps/haibun.js";
+import { serviceHost } from "@haibun/shu/test/step-ui.js";
+import { DEFAULT_PORT } from "@haibun/web-server-hono/server-hono.js";
 
 const { feature, scenario } = withAction(new Haibun());
 
-const RPC = "http://localhost:8123/rpc";
-const MCP = "http://localhost:8138/mcp";
+const RPC = `${serviceHost(String(DEFAULT_PORT))}/rpc`;
+const MCP_PORT = process.env.HAIBUN_O_MCPSTEPPER_PORT;
+if (!MCP_PORT) throw new Error("HAIBUN_O_MCPSTEPPER_PORT names the port of the MCP endpoint this feature calls, and isn't set");
+const MCP = `http://localhost:${MCP_PORT}/mcp`;
 
 export const features: TKirejiExport = {
 	"Identity and capability authorization": [

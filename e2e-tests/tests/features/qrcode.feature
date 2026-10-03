@@ -1,5 +1,5 @@
 Scenario: Generate and clear a QR code
-  backgrounds: int/qrcode
+  Backgrounds: int/web-server, int/qrcode
 
   This will serve the local qrcode static files and exercise the UI.
 
