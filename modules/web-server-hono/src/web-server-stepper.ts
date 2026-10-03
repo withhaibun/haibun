@@ -7,7 +7,7 @@ import { OK } from "@haibun/core/schema/protocol.js";
 import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption, intOrError, errorDetail } from "@haibun/core/lib/util/index.js";
 import { AStepper, type IHasCycles, type IHasOptions, type TEndFeature, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { dispatchStep } from "@haibun/core/lib/step-dispatch.js";
-import { ACTION_BEGIN, ANSWERED_WITHOUT_PRODUCTS, parseRpcRequest, authorityRefusal, RPC_PROTOCOL, type THandshake } from "@haibun/core/lib/rpc-wire.js";
+import { ACTION_BEGIN, ANSWERED_WITHOUT_PRODUCTS, parseRpcRequest, authorityRefusal, stepFailed, RPC_PROTOCOL, type THandshake } from "@haibun/core/lib/rpc-wire.js";
 import { runWithRequestContext, requestBaseIri } from "@haibun/core/lib/request-context.js";
 import { buildFeatureStepForTransport, refusal, runRegistry, type StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { actionList, lackedAction, mayCall } from "@haibun/core/lib/actions.js";
@@ -335,11 +335,11 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 							),
 						);
 						if (hr.ok) return hr.products ?? ANSWERED_WITHOUT_PRODUCTS;
-						return { error: `${method}: ${hr.errorMessage}` };
+						return stepFailed(method, hr.errorMessage);
 					} catch (err) {
 						const detail = errorDetail(err);
 						logger.error(`[RPC] ${method}: ${detail}`);
-						return { error: `${method}: ${detail}` };
+						return stepFailed(method, detail);
 					}
 				});
 				return OK;

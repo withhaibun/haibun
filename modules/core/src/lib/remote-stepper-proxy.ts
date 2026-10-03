@@ -92,12 +92,13 @@ export class RemoteStepperProxy extends AStepper {
 	 *  products doesn't return them, whatever the answer carries in their place. */
 	private async call(descriptor: TStepDescriptor, params: Record<string, unknown>, seqPath: number[]): Promise<TActionResult> {
 		const { method, capability } = descriptor;
-		// The remote step's refusal is this step's failure; a call that fails some other way is thrown.
+		// The remote step's refusal is this step's failure, as the host states it, which names the step where the step failed; a
+		// call that fails some other way is thrown.
 		const result = await this.rpc.call(method, params, seqPath, { action: capability }).catch((e: unknown) => {
 			if (e instanceof RpcCallFailed) return e;
 			throw e;
 		});
-		if (result instanceof RpcCallFailed) return actionNotOK(`${method}: ${result.reason}`);
+		if (result instanceof RpcCallFailed) return actionNotOK(result.reason);
 		const answersWithProducts = descriptor.outputSchema !== undefined || descriptor.productsOf !== undefined;
 		return answersWithProducts ? { ok: true, products: RecordSchema.parse(result) } : { ok: true };
 	}

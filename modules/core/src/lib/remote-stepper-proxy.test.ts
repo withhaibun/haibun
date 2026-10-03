@@ -4,7 +4,7 @@ import { RemoteStepperProxy } from "./remote-stepper-proxy.js";
 import { buildFeatureStepForTransport, openRunRegistry, StepRegistry } from "./step-registry.js";
 import Haibun from "../steps/haibun.js";
 import { AStepper } from "./astepper.js";
-import { actionOKWithProducts, errorDetail } from "./util/index.js";
+import { actionNotOK, actionOKWithProducts, errorDetail } from "./util/index.js";
 import { getDefaultWorld } from "./test/lib.js";
 import { TEST_DOMAIN, testDomainDefinitions } from "./test/test-domains.js";
 import { addStepperConcerns } from "../phases/Executor.js";
@@ -15,7 +15,7 @@ import type { TWorld } from "./world.js";
 import { SITE_DID_PREFIX } from "./host-id.js";
 import { DOMAIN_STRING, asDomainKey, DOMAIN_TEXT } from "./domains.js";
 import { OK, Origin, type TStepValue } from "../schema/protocol.js";
-import { ACTION_BEGIN, ANSWERED_WITHOUT_PRODUCTS } from "./rpc-wire.js";
+import { ACTION_BEGIN, ANSWERED_WITHOUT_PRODUCTS, stepFailed } from "./rpc-wire.js";
 import { hostHandshake } from "./test/rpc-answer.js";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
@@ -25,6 +25,9 @@ const ECHOED_LABEL = "test-echoed-label";
 /** Two domains, and their union, which a parameter takes. */
 const PICKS = ["test-pick-by-name", "test-pick-by-id"];
 const DOMAIN_PICK = asDomainKey(PICKS);
+
+/** What the host's refusing step states. */
+const REFUSED = "the host refused";
 
 class EchoStepper extends AStepper {
 	description = "Steps that echo a message and answer a protected ping, served by a remote host.";
@@ -53,6 +56,10 @@ class EchoStepper extends AStepper {
 		acts: {
 			gwta: "act",
 			action: async () => OK,
+		},
+		refuses: {
+			gwta: "refuse",
+			action: async () => actionNotOK(REFUSED),
 		},
 		echoPick: {
 			gwta: `echo the pick {pick: ${DOMAIN_PICK}}`,
@@ -102,7 +109,7 @@ describe("RemoteStepperProxy", () => {
 				// The host grants the proxy every step it serves, so what the proxy is shown and may call is all of it.
 				const result = await runAuthorizedWith(RUN_AUTHORITY, () => tool.handler(featureStep, world));
 				if (result.ok) return c.json(result.products ?? ANSWERED_WITHOUT_PRODUCTS);
-				return c.json({ error: result.errorMessage }, 422);
+				return c.json(stepFailed(data.method, result.errorMessage), 422);
 			} catch (err) {
 				return c.json({ error: errorDetail(err) }, 422);
 			}
@@ -206,6 +213,18 @@ describe("RemoteStepperProxy", () => {
 		const result = await tool.handler(featureStep, world);
 		expect(result.ok, result.errorMessage).toBe(true);
 		expect(result.products).toMatchObject({ echoed: "alpha" });
+	});
+
+	it("states a step's failure on the host as the host states it, naming the step once", async () => {
+		const proxy = new RemoteStepperProxy(`http://localhost:${port}`);
+		await proxy.setWorld(world, []);
+		const registry = new StepRegistry([], world);
+		proxy.injectInto(registry);
+		const tool = registry.get("host7_EchoStepper-refuses");
+		if (!tool) throw new Error("the proxy doesn't hold the refusing step");
+		const { buildFeatureStepForTransport } = await import("./step-registry.js");
+		const result = await tool.handler(buildFeatureStepForTransport(tool, {}, [0, 1]), world);
+		expect(result.ok ? undefined : result.errorMessage).toBe(stepFailed("EchoStepper-refuses", REFUSED).error);
 	});
 
 	it("preserves capability metadata from remote", async () => {
