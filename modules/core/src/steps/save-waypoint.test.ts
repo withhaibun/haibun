@@ -9,10 +9,16 @@ import { actionOK } from "../lib/util/index.js";
 import { buildFeatureStepForTransport, runRegistry, stepMethodName } from "../lib/step-registry.js";
 import { dispatchStep } from "../lib/step-dispatch.js";
 import ActivitiesStepper, { SAVED_WAYPOINT_LABEL } from "./activities-stepper.js";
+import AuthorityStepper from "./authority-stepper.js";
+import { ACTIVITIES_ACTIONS, ACTIVITIES_STEPPER } from "./activities-actions.js";
+import { requiredAction } from "../lib/actions.js";
 import VariablesStepper from "./variables-stepper.js";
 
 const OUTCOME = "Knock twice";
-const SAVE = `save waypoint "${OUTCOME}" doing ["set knocks to \\"2\\""]`;
+const KNOCK_LINE = 'set knocks to "2"';
+const SAVE = `save waypoint "${OUTCOME}" doing [${JSON.stringify(KNOCK_LINE)}]`;
+const RUN = ACTIVITIES_ACTIONS.runSavedWaypoint;
+const SET = requiredAction(VariablesStepper.name, "set", {});
 
 /** Whether actuality offered the saved waypoint, and whether calling it as a transport does succeeded. */
 const seen = { offered: false, ran: false };
@@ -37,47 +43,49 @@ class SavedWaypointProbe extends AStepper {
 		},
 	};
 }
-/** The records of the waypoints an actuality saved, as a store that outlasts it holds them. */
+/** The records of the waypoints actuality saved, as its store holds them. */
 const kept: Record<string, unknown>[] = [];
 
-/** Reads the saved waypoints' records an actuality wrote, and writes them into a later actuality's store, as a store that
- *  outlasts a restart holds them. */
-class KeptWaypointsProbe extends AStepper {
-	description = "Keeps the saved waypoints' records across actualities, as a store that outlasts a restart does.";
+/** Reads the records of the waypoints actuality saved. */
+class SavedRecordsProbe extends AStepper {
+	description = "Reads the records of the waypoints actuality saved.";
 	steps = {
-		keepTheSavedWaypoints: {
-			gwta: "keep the saved waypoints",
+		readTheSavedWaypoints: {
+			gwta: "read the saved waypoints",
 			action: async () => {
 				kept.splice(0, kept.length, ...(await this.getWorld().shared.getStore().queryIndividuals(SAVED_WAYPOINT_LABEL)));
 				return actionOK();
 			},
 		},
-		holdTheKeptWaypoints: {
-			gwta: "hold the kept waypoints",
-			action: async () => {
-				for (const record of kept) await this.getWorld().shared.getStore().upsertIndividual(SAVED_WAYPOINT_LABEL, record);
-				return actionOK();
-			},
-		},
 	};
 }
-const STEPPERS = [ActivitiesStepper, VariablesStepper, SavedWaypointProbe, KeptWaypointsProbe];
+const STEPPERS = [ActivitiesStepper, VariablesStepper, AuthorityStepper, SavedWaypointProbe, SavedRecordsProbe];
 
 describe("a waypoint saved during a run", () => {
 	it("is offered as a step at once, and runs the lines it was saved with", async () => {
+		expect(ActivitiesStepper.name, "the stepper is named as its actions name it").toBe(ACTIVITIES_STEPPER);
 		await passWithDefaults(`${SAVE}\ncall the saved waypoint\nvariable knocks is "2"\n`, STEPPERS);
 		expect(seen.offered, "actuality offers the outcome without a restart").toBe(true);
 		expect(seen.ran).toBe(true);
 	});
 
-	it("is kept as a record, and registered again from it after a restart", async () => {
-		await passWithDefaults(`${SAVE}\nkeep the saved waypoints\n`, STEPPERS);
-		expect(kept, "the record states the outcome and the lines").toMatchObject([{ id: OUTCOME, lines: ['set knocks to "2"'] }]);
-		seen.offered = false;
-		seen.ran = false;
-		await passWithDefaults("hold the kept waypoints\nregister the saved waypoints\ncall the saved waypoint\nvariable knocks is \"2\"\n", STEPPERS);
-		expect(seen.offered, "a later actuality offers the waypoint its store holds").toBe(true);
-		expect(seen.ran).toBe(true);
+	it("is kept as a record stating its outcome and its lines", async () => {
+		await passWithDefaults(`${SAVE}\nread the saved waypoints\n`, STEPPERS);
+		expect(kept).toMatchObject([{ id: OUTCOME, lines: [KNOCK_LINE] }]);
+	});
+
+	it("requires the action every saved waypoint requires, and each of its lines requires its own", async () => {
+		const holding = (actions: string[]) => `holding only "${actions.join(",")}", run the saved waypoint "${OUTCOME}"`;
+		expect((await passWithDefaults(`${SAVE}\n${holding([RUN, SET])}\nvariable knocks is "2"\n`, STEPPERS)).ok, "a caller holding both").toBe(true);
+		const withoutRun = await failWithDefaults(`${SAVE}\n${holding([SET])}\n`, STEPPERS);
+		expect(JSON.stringify(withoutRun.featureResults?.[0]?.stepResults), "a caller that doesn't hold running a saved waypoint").toContain(RUN);
+		const withoutLine = await failWithDefaults(`${SAVE}\n${holding([RUN])}\n`, STEPPERS);
+		expect(JSON.stringify(withoutLine.featureResults?.[0]?.stepResults), "a caller that doesn't hold a line's action").toContain(SET);
+	});
+
+	it("isn't run where the outcome isn't a waypoint saved here", async () => {
+		const unsaved = await failWithDefaults(`run the saved waypoint "${OUTCOME}"\n`, STEPPERS);
+		expect(JSON.stringify(unsaved.featureResults?.[0]?.stepResults)).toContain(`\\"${OUTCOME}\\" isn't a waypoint saved here`);
 	});
 
 	it("is kept where it is saved again with the same lines", async () => {

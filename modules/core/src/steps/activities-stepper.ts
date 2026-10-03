@@ -3,7 +3,7 @@ import type { TFeatures, TStepInput } from "../lib/execution.js";
 import { runSteppers, type TWorld } from "../lib/world.js";
 import { TStepArgs, TRegisteredOutcomeEntry, OK } from "../schema/protocol.js";
 import { formatSeqPath } from "../lib/seq-path.js";
-import { actionOK, actionNotOK, getActionable, errorDetail } from "../lib/util/index.js";
+import { actionOK, actionNotOK, actionOKWithProducts, getActionable, errorDetail } from "../lib/util/index.js";
 import { itemAt } from "../lib/util/item-at.js";
 import { DOMAIN_STATEMENT, DOMAIN_STATEMENT_LINES, DOMAIN_TITLE, DOMAIN_WAYPOINT_ARGUMENT } from "../lib/domains.js";
 import { Resolver } from "../phases/Resolver.js";
@@ -18,11 +18,14 @@ import { namedInterpolation } from "../lib/namedVars.js";
 import { authorizedWith } from "../lib/capability-context.js";
 import { z } from "zod";
 import { LinkRelations, PersistedVertexSchema, type TDomainDefinition } from "../lib/resources.js";
+import { refDomainKey, type TIndividualRef } from "../lib/domains.js";
+import { ACTIVITIES_ACTIONS } from "./activities-actions.js";
 
 // need this type because some steps are dynamically generated (e.g. waypoints)
 type TActivitiesFixedSteps = {
 	saveWaypoint: TStepperStep;
 	registerSavedWaypoints: TStepperStep;
+	runSavedWaypoint: TStepperStep;
 	activity: TStepperStep;
 	waypointWithProof: TStepperStep;
 	waypointLabel: TStepperStep;
@@ -35,6 +38,7 @@ type TActivitiesStepperSteps = TStepperSteps & TActivitiesFixedSteps;
 const SAVED_WAYPOINT_SOURCE = "a saved waypoint";
 
 export const SAVED_WAYPOINT_LABEL = "SavedWaypoint";
+const SAVED_WAYPOINT_DOMAIN = "saved-waypoint";
 const SavedWaypointSchema = PersistedVertexSchema.extend({
 	/** The waypoint's outcome, which names it. */
 	id: z.string(),
@@ -46,7 +50,7 @@ type TSavedWaypoint = z.infer<typeof SavedWaypointSchema>;
 /** A waypoint saved while actuality ran, as a record: its outcome, which names it, the lines of its activity in order, and
  *  where it was saved from, so actuality offers it again after a restart. A schema.org HowTo, whose steps are the lines. */
 export const savedWaypointDomainDefinition: TDomainDefinition = {
-	selectors: ["saved-waypoint"],
+	selectors: [SAVED_WAYPOINT_DOMAIN],
 	schema: SavedWaypointSchema,
 	description: "A waypoint saved while actuality ran: its outcome and the lines its activity runs, offered again after a restart.",
 	topology: {
@@ -72,6 +76,8 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	description = "Define and reuse activities with waypoints and proofs";
 
 	private held?: FlowRunner;
+	/** The outcomes of the waypoints saved while actuality ran, which `run the saved waypoint` runs. */
+	private readonly savedOutcomes = new Set<string>();
 	private get runner(): FlowRunner {
 		return this.madeWithWorld(this.held, "flow runner");
 	}
@@ -176,10 +182,10 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			description:
 				"Registers a waypoint whose activity is these lines, as a step actuality offers from then on. A line that doesn't resolve to one step, and an outcome already registered, are refused before anything is registered.",
 			gwta: `save waypoint {outcome: ${DOMAIN_TITLE}} doing {statements: ${DOMAIN_STATEMENT_LINES}}`,
-			action: async ({ outcome, statements }: { outcome: string; statements: string[] }, featureStep: TFeatureStep) => {
-				await this.saveWaypoint(outcome, statements, featureStep.source?.path ?? SAVED_WAYPOINT_SOURCE);
-				return OK;
-			},
+			capability: ACTIVITIES_ACTIONS.saveWaypoint,
+			productsDomain: SAVED_WAYPOINT_DOMAIN,
+			action: async ({ outcome, statements }: { outcome: string; statements: string[] }, featureStep: TFeatureStep) =>
+				actionOKWithProducts(await this.saveWaypoint(outcome, statements, featureStep.source?.path ?? SAVED_WAYPOINT_SOURCE)),
 		},
 		registerSavedWaypoints: {
 			description: "Registers each waypoint saved before, as its record holds it, so a waypoint saved before a restart is offered again.",
@@ -188,6 +194,17 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				const saved = await this.getWorld().shared.getStore().queryIndividuals(SAVED_WAYPOINT_LABEL);
 				for (const { id, lines, source } of saved.map((record) => SavedWaypointSchema.parse(record))) this.registerSavedWaypoint(id, lines, source);
 				return OK;
+			},
+		},
+		runSavedWaypoint: {
+			description:
+				"Runs a waypoint saved while actuality ran, by its outcome, as calling its step does: for a line written before the waypoint was saved, or resolved where it isn't registered, as a line another host runs.",
+			gwta: `run the saved waypoint {waypoint: ${refDomainKey(SAVED_WAYPOINT_DOMAIN)}}`,
+			capability: ACTIVITIES_ACTIONS.runSavedWaypoint,
+			action: async ({ waypoint }: { waypoint: TIndividualRef }, featureStep: TFeatureStep) => {
+				if (!this.savedOutcomes.has(waypoint.id)) return actionNotOK(`"${waypoint.id}" isn't a waypoint saved here`);
+				const ran = await this.runner.runStatements([{ in: waypoint.id, source: { path: SAVED_WAYPOINT_SOURCE } }], { parentStep: featureStep });
+				return ran.ok ? OK : actionNotOK(ran.errorMessage);
 			},
 		},
 		activity: {
@@ -443,15 +460,19 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	 * Register a waypoint whose activity is `lines`, for the whole of actuality, as a feature's waypoint is registered, keep it
 	 * as a record, and refresh actuality's registry, which announces the new step. `source` names where it was saved from.
 	 */
-	async saveWaypoint(outcome: string, lines: string[], source: string): Promise<void> {
+	async saveWaypoint(outcome: string, lines: string[], source: string): Promise<TSavedWaypoint> {
+		const store = this.getWorld().shared.getStore();
 		// Saving a waypoint saved already, with the same lines, keeps it; another under the same outcome is refused.
-		if (JSON.stringify(this.getRegisteredOutcomes()[outcome]?.activityBlockSteps) === JSON.stringify(lines)) return;
+		if (JSON.stringify(this.getRegisteredOutcomes()[outcome]?.activityBlockSteps) === JSON.stringify(lines))
+			return SavedWaypointSchema.parse(await store.getIndividual(SAVED_WAYPOINT_LABEL, outcome));
 		this.registerSavedWaypoint(outcome, lines, source);
 		const saved: TSavedWaypoint = { id: outcome, lines, source, generatedAtTime: new Date().toISOString() };
-		await this.getWorld().shared.getStore().upsertIndividual(SAVED_WAYPOINT_LABEL, saved);
+		await store.upsertIndividual(SAVED_WAYPOINT_LABEL, saved);
+		return saved;
 	}
 
-	/** Register a saved waypoint, as `saveWaypoint` does, without keeping it again. */
+	/** Register a saved waypoint, as `saveWaypoint` does, without keeping it again. Its step requires the one action every
+	 *  saved waypoint requires, since a delegation is made before the waypoint is saved and can't name an action of its own. */
 	private registerSavedWaypoint(outcome: string, lines: string[], source: string): void {
 		const world = this.getWorld();
 		const steppers = runSteppers(world);
@@ -466,7 +487,8 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			}
 		});
 		if (unresolved.length > 0) throw new Error(`each line of a saved waypoint resolves to one step: ${unresolved.join("; ")}`);
-		this.registerOutcome(outcome, [], source, true, lines);
+		this.registerOutcome(outcome, [], source, true, lines, undefined, undefined, undefined, ACTIVITIES_ACTIONS.runSavedWaypoint);
+		this.savedOutcomes.add(outcome);
 		runRegistry(world).refresh(steppers, world);
 	}
 
@@ -553,6 +575,8 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		lineNumber?: number,
 		actualSourcePath?: string,
 		resolvesDomain?: string,
+		/** The action the outcome's step requires, where it isn't the step's own name. */
+		capability?: string,
 	) {
 		if (this.steps[outcome]) {
 			const existing = this.steps[outcome];
@@ -596,6 +620,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			// Each placeholder in the outcome pattern takes a waypoint argument.
 			gwta: outcome.replace(/\{([^}:]+)\}/g, (_, name: string) => `{${name}: ${DOMAIN_WAYPOINT_ARGUMENT}}`),
 			virtual: true,
+			...(capability ? { capability } : {}),
 			source: {
 				lineNumber,
 				path: actualSourcePath || proofPath,
