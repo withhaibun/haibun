@@ -27,7 +27,7 @@ import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { ShuElement, TIME_SYNC_CLASS, type TLinkedData } from "./shu-element.js";
 import { SHU_EVENT, ANNOTATION_GLYPH, SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
-import { bindCopyButtons, copyButtonHtml } from "../copy-util.js";
+import { copyText } from "../copy-util.js";
 import { isReplyEdge } from "@haibun/core/lib/resources.js";
 import { anIndividual, EntityColumnSchema, type TContextPattern } from "../schemas.js";
 import { EntityController } from "../controllers/index.js";
@@ -101,6 +101,14 @@ export function foldedTargets(targets: readonly string[]): string {
 	const rest = targets.slice(TARGETS_FOLD_AT);
 	return `${targets.slice(0, TARGETS_FOLD_AT).join(", ")}<details class="ref-more"><summary class="ref-more-count">${rest.length} more</summary>${rest.join(", ")}</details>`;
 }
+
+/** The body toolbar's copy control, the same markup on every render, so the body frame beside it isn't rebuilt. A click
+ *  copies the body the column shows. */
+const COPY = "\u{1f4cb}";
+const COPIED = "\u2705";
+const NOT_COPIED = "\u274c";
+const COPY_RESULT_SHOWN_MS = 1500;
+const COPY_BODY_BUTTON = `<button class="copy-btn" title="Copy to clipboard">${COPY}</button>`;
 
 export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	static styles = [
@@ -581,9 +589,8 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const invertible = String(active.mediaType) !== "text/html" ? " invertible" : "";
 		const iframeHtml = `<iframe class="body-iframe${invertible}" data-body-id="${escAttr(activeId)}" sandbox="allow-same-origin allow-top-navigation-by-user-activation" src="data:text/html;base64,${encoded}" data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.BODY_IFRAME}"></iframe>`;
 
-		const copyBtn = copyButtonHtml(raw);
 		const annotateBtn = this.annotatableBody() ? this.annotateButtonHtml(false) : "";
-		const toolbar = `<div class="content-toolbar">${switcherHtml}${copyBtn}${annotateBtn}</div>`;
+		const toolbar = `<div class="content-toolbar">${switcherHtml}${COPY_BODY_BUTTON}${annotateBtn}</div>`;
 		// References don't work inside the sandbox, so the ones the body makes are listed beside it.
 		const refs = refsInContent(content, isKnownType);
 		const refsHtml = refs.length
@@ -645,7 +652,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const showInline = annBody && this.state.showAnnotations && (this.annotationsList.length > 0 || this.state.annotateMode || this.revealTarget !== null);
 		if (showInline && annBody) {
 			return html`<div class="content-toolbar">
-					${unsafeHTML(copyButtonHtml(annBody.content))}${unsafeHTML(this.annotateButtonHtml(true))}
+					${unsafeHTML(COPY_BODY_BUTTON)}${unsafeHTML(this.annotateButtonHtml(true))}
 				</div>
 				<shu-annotated-body
 					data-testid=${SHU_TEST_IDS.COLUMN_BROWSER.ANNOTATED_BODY}
@@ -792,9 +799,27 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	// the shadow root, which addEventListener dedups by identity, so re-binding every render is a no-op by spec. Links
 	// don't need one: the page follows their addresses.
 	private onShadowClick = (e: Event): void => {
-		const switchBtn = (e.target as Element | null)?.closest(".content-switch-btn") as HTMLElement | null;
+		const target = e.target as Element | null;
+		const switchBtn = target?.closest(".content-switch-btn") as HTMLElement | null;
 		if (switchBtn) this.switchBody(switchBtn);
+		const copyBtn = target?.closest(".copy-btn") as HTMLElement | null;
+		if (copyBtn) void this.copyShownBody(copyBtn);
 	};
+
+	/** Copy the text of the body the column shows, and state on the button whether the copy succeeded. */
+	private async copyShownBody(btn: HTMLElement): Promise<void> {
+		const shown = this.activeBodyId();
+		const body = this.linkedBodies().find((b) => String(b.id ?? "") === shown);
+		const text = body?.content ?? this.bodyText[shown];
+		if (!text) return;
+		const ok = await copyText(text);
+		btn.classList.toggle("copied", ok);
+		btn.textContent = ok ? COPIED : NOT_COPIED;
+		setTimeout(() => {
+			btn.classList.remove("copied");
+			btn.textContent = COPY;
+		}, COPY_RESULT_SHOWN_MS);
+	}
 
 	/** Show the reading a reader switched to, and read its text where it has not been read. */
 	private switchBody(btn: HTMLElement): void {
@@ -808,7 +833,6 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	private bindEvents(): void {
 		this.shadowRoot?.addEventListener("click", this.onShadowClick);
 
-		bindCopyButtons(this.shadowRoot as ShadowRoot);
 		// Both toolbars render the toggle the same string way (annotateButtonHtml), so one binding covers both: a click
 		// flips the gutter from whatever it is now. The `data-bound` guard stops a second listener attaching when a
 		// re-render leaves the button node in place (unsafeHTML only recreates it when its string changes).

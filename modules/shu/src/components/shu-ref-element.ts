@@ -26,7 +26,8 @@ class ShuRef extends HTMLElement {
 		this.render();
 	}
 
-	static observedHtmlAttributes = ["kind", "linkTarget", "text"];
+	/** A plain element is told of the attributes it names here, in the lower case HTML names them by. */
+	static observedAttributes = ["kind", "linktarget", "text"];
 
 	attributeChangedCallback(): void {
 		if (this.shadowRoot) this.render();

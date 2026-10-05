@@ -1,6 +1,7 @@
 import { SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
 import { copyText } from "../copy-util.js";
+import { esc } from "../util.js";
 
 /**
  * <shu-copy-button>: Standard "copy to clipboard" button used across shu views.
@@ -66,7 +67,7 @@ export class ShuCopyButton extends HTMLElement {
 	private render(): void {
 		if (!this.shadowRoot) return;
 		const text = this._copied ? "Copied" : this._label;
-		this.shadowRoot.innerHTML = `<style>${STYLES}</style><button title="${this._titleAttr}" type="button">${text}</button>`;
+		this.shadowRoot.innerHTML = `<style>${STYLES}</style><button title="${esc(this._titleAttr)}" type="button">${esc(text)}</button>`;
 		const btn = this.shadowRoot.querySelector("button");
 		btn?.addEventListener("click", () => void this.copy());
 	}

@@ -5,6 +5,7 @@
  */
 import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
+import { esc } from "../util.js";
 import { shownOrReported } from "../artifact-url.js";
 
 const STYLES = `
@@ -112,7 +113,7 @@ export class ShuArtifactFrame extends HTMLElement {
 
 	connectedCallback(): void {
 		const caption = this.getAttribute("caption") ?? "";
-		const captionHtml = caption ? `<span>${caption}</span>` : "";
+		const captionHtml = caption ? `<span>${esc(caption)}</span>` : "";
 		this.shadow.innerHTML = `<style>${STYLES}</style>
 			<div class="caption${caption ? "" : " bare"}">${captionHtml}<button class="fullscreen-btn" title="fullscreen">\u2922</button></div>
 			<div class="content"><slot></slot></div>

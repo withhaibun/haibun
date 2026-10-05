@@ -22,12 +22,12 @@
 				"declaredStepTextHash": "b0eca8f53cdbc72079c3b13890aacf1b33a0fd50daccc93402e9d434c3b3338d"
 			},
 			"/features/agents-examples.feature": {
-				"seconds": 1.1,
+				"seconds": 1.2,
 				"steps": 354,
 				"declaredStepTextHash": "21975836a8d8dc1c98fd6751ebb98ed0eab60297e903e4b22845040245c6a8eb"
 			},
 			"/features/auth-basic.feature": {
-				"seconds": 0.7,
+				"seconds": 0.9,
 				"steps": 42,
 				"declaredStepTextHash": "6a8788f30679ff0009508a4313b0895d2862e38b09df70793e7ea86ca1b6bb16"
 			},
@@ -42,12 +42,12 @@
 				"declaredStepTextHash": "072620079179e9e5107f464049dff25238322ae72af9ff2ba115e09886cf2715"
 			},
 			"/features/counter.feature": {
-				"seconds": 1.1,
+				"seconds": 2.3,
 				"steps": 20,
 				"declaredStepTextHash": "179f2a7919aa297e130229e22984568a4465c73dbdcc6f5e39a2727caad9eb0f"
 			},
 			"/features/counter.feature.ts": {
-				"seconds": 1.7,
+				"seconds": 0.5,
 				"steps": 20,
 				"declaredStepTextHash": "2dbaa6f8d7e5ced812a237be8252de1c768081154d89aeb79786ded0725bb453"
 			},
@@ -143,6 +143,6 @@
 			}
 		},
 		"steps": 1154,
-		"seconds": 14.4
+		"seconds": 14.7
 	}
 }

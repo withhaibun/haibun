@@ -11,7 +11,6 @@ import AuthorityStepper from "./steps/authority-stepper.js";
 import BlipsStepper from "./steps/blips-stepper.js";
 import ConsoleMonitorStepper from "./steps/console-monitor-stepper.js";
 import DebuggerStepper from "./steps/debugger-stepper.js";
-import FinalizerStepper from "./steps/finalizer-stepper.js";
 import GoalResolutionStepper from "./steps/goal-resolution-stepper.js";
 import Haibun from "./steps/haibun.js";
 import LogicStepper from "./steps/logic-stepper.js";
@@ -29,7 +28,6 @@ describe("the typed step graph of core's steppers", () => {
 				BlipsStepper,
 				ConsoleMonitorStepper,
 				DebuggerStepper,
-				FinalizerStepper,
 				GoalResolutionStepper,
 				Haibun,
 				LogicStepper,

@@ -1,5 +1,6 @@
 import { SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
+import { esc } from "../util.js";
 /**
  * <shu-spinner>: reusable spinner with status text for async UI operations.
  * Pulses on each status update to show aliveness.
@@ -93,7 +94,7 @@ export class ShuSpinner extends HTMLElement {
 </style>
 <div class="spinner-container">
   <div class="spinner-dot"></div>
-  <span class="spinner-status">${this._status}</span>
+  <span class="spinner-status">${esc(this._status)}</span>
 </div>`;
 	}
 }
