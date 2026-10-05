@@ -77,8 +77,9 @@ const sandboxed: MiddlewareHandler = async (c, next) => {
 /** Where the monitor serves the shu views of actuality on its own port. */
 export const MONITOR_PATH = "/monitor";
 
-/** What the monitor's page shows a reader who arrives without an address: the log of each step beside the document. */
-export const MONITOR_OPENS_AT = hashWithColumns([SHU_TAG.MONITOR_COLUMN, SHU_TAG.DOCUMENT_COLUMN]);
+/** What the monitor's page shows a reader who arrives without an address: the monitor, beside the executions this device
+ *  holds, where the reader opens an earlier feature. */
+export const MONITOR_OPENS_AT = hashWithColumns([SHU_TAG.MONITOR_COLUMN, SHU_TAG.CLIENT_CACHE_COLUMN]);
 
 /**
  * The type a graph query named, read off the step that ran it. The match is the argument's DOMAIN, not the step's name:

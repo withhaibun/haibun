@@ -78,7 +78,7 @@ describe("the monitor serves the shu views of actuality on its own port", () => 
 
 		expect(page?.status).toBe(200);
 		expect(page?.body).toContain(world.runtime.actualityId);
-		expect(page?.body, "a reader who arrives without an address is shown the log beside the document").toContain(`"viewHash":"${MONITOR_OPENS_AT}"`);
+		expect(page?.body, "a reader who arrives without an address is shown the monitor beside the executions this device holds").toContain(`"viewHash":"${MONITOR_OPENS_AT}"`);
 		// The monitor's server started before the first feature and outlasts it: the second feature's reader reaches it, and
 		// reads that feature's steps through it.
 		const steps = read?.quads.filter((quad) => quad.namedGraph === SEQ_PATH_LABEL).map((quad) => String(quad.subject)) ?? [];
