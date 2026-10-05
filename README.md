@@ -112,11 +112,10 @@ As it starts, the command logs the page's address:
 
 `the monitor shows actuality at http://localhost:7777/monitor`
 
-Each view of the page has an address of its own:
+That address shows the log of each step beside the document. Each view also has an address of its own:
 
 | Address | What it shows |
 |---|---|
-| `http://localhost:7777/monitor#?col=shu-monitor-column&col=shu-document-column` | The log of each step beside the document. This is the address to start with. |
 | `http://localhost:7777/monitor#?col=shu-document-column` | The feature as a document: its prose and steps in order, with what each step saved beneath the step. The accessibility report is shown there, under the step that checked the page. |
 | `http://localhost:7777/monitor#?col=shu-monitor-column` | The log: one line for each step, with its time and whether it passed. |
 | `http://localhost:7777/monitor#?label=TestResult` | The records of one type, here each accessibility result with its outcome. Another type's name in place of `TestResult` shows that type. |
@@ -124,7 +123,9 @@ Each view of the page has an address of its own:
 
 The page shows the feature that is running. With several features, the page moves to each feature as it starts, and
 the last address above opens an earlier one. `tests a11y` in place of `tests a11y-pass` runs two, `a11y-fail` and then
-`a11y-pass`. The page lists a feature only where the page was open while that feature ran.
+`a11y-pass`. The page lists a feature only where the page was open while that feature ran. To go back to the feature
+that is running, open the time control at the bottom right of the page, which reads `now`, and press "Back to now,
+and follow".
 
 # Further Documentation
 

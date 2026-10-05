@@ -245,6 +245,10 @@ describe("what a run is started with", () => {
 			HAIBUN_O_WEBSERVERSTEPPER_PORT: "8331",
 		});
 		expect(
+			runEnvironment({ ...supervisorEnv, HAIBUN_O_MONITORSTEPPER_PORT: "7777" }, 8331, false, undefined, [...perProcess, "HAIBUN_O_MONITORSTEPPER_PORT"]),
+			"another port the supervisor holds for itself, as its monitor's, isn't passed on or given the run's port",
+		).toEqual({ ...reported, HAIBUN_O_WEBSERVERSTEPPER_PORT: "8331" });
+		expect(
 			runEnvironment({}, 8331, false).HAIBUN_O_WEBSERVERSTEPPER_PORT,
 			"an instance serves on the port it was given, whether or not the launcher holds a web server of its own",
 		).toBe("8331");

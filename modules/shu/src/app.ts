@@ -209,6 +209,9 @@ const main = async (): Promise<void> => {
 	// carrying its own run reads the records it carries, by the same read, so a report doesn't need the views precomputed.
 	const shown = arrivedWithAddress ? [] : await viewsShown();
 	if (shown.length > 0) ShuElement.pushHash(hashWithColumns(shown));
+	// Where actuality hasn't shown a view, a page its server serves to open at an address opens there, as the monitor's
+	// page opens at the log and the document.
+	else if (!arrivedWithAddress && !carried && getHydratedViewHash()) ShuElement.pushHash(getHydratedViewHash());
 
 	const reportBootDiagnostic = (level: TClientLogLevel, msg: string, attrs?: Record<string, unknown>): void => reportToRun(level, "shu-app-boot", msg, attrs);
 	reportBootDiagnostic("debug", "shu-app boot reached pane-open wiring");

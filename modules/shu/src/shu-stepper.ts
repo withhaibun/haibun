@@ -169,8 +169,9 @@ export function buildReportHtml(basePath: string, payload: string, compressed: b
 	return spaDocument(basePath, loader);
 }
 
-/** What a served page's hydration carries. */
-type TServedHydration = { actualityId: TActualityId; settings: TDeploymentSettings };
+/** What a served page's hydration carries: the actuality it reads, what the deployment set, and the address it opens at
+ *  where its server states one. */
+type TServedHydration = { actualityId: TActualityId; settings: TDeploymentSettings; viewHash?: string };
 
 function createSpaHandler(basePath: string, hydration: () => TServedHydration) {
 	// Read the bundle from disk on every request rather than caching it at
@@ -382,8 +383,9 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 		},
 	} as const satisfies TStepperSteps;
 
-	/** Serve the app on a server at a path, with the view bundle, its source map and the JSON-LD context the page reads. */
-	serveApp(webserver: IWebServer, path: string): void {
+	/** Serve the app on a server at a path, with the view bundle, its source map and the JSON-LD context the page reads.
+	 *  `opensAt` is the address a reader who arrives without one is shown, where actuality hasn't shown a view of its own. */
+	serveApp(webserver: IWebServer, path: string, opensAt?: string): void {
 		// The page boots with the actualityId of the records it reads and what this deployment set: it keeps its own key, and
 		// reads what was delegated to it here. Whether a delegation verifies here is read for each page served, since a
 		// verifier may be registered after the app is.
@@ -395,6 +397,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 				allowedWithoutDelegation: [...webserver.allowedWithoutDelegation],
 				verifiesDelegations: getAuthority(this.getWorld().runtime)?.hasVerifier() === true,
 			},
+			...(opensAt ? { viewHash: opensAt } : {}),
 		});
 		webserver.addRoute("get", path, { description: `Shu SPA mounted at ${path}` }, createSpaHandler(path, hydration));
 		const domains = this.getWorld().domains;
@@ -406,8 +409,9 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 			if (!ctx) byHost.set(ns, (ctx = getJsonLdContext(domains, ns)));
 			return c.json(ctx);
 		};
-		// The graph view's bundle, served once per server however many apps it mounts: `no-cache` revalidates, so an
-		// unchanged bundle answers 304 and a rebuilt one gets a fresh ETag and a full body.
+		// What every app of a server shares is served once per server, however many apps it mounts: the graph view's bundle,
+		// its source map and the JSON-LD context. `no-cache` revalidates the bundle, so an unchanged one answers 304 and a
+		// rebuilt one gets a fresh ETag and a full body.
 		webserver.addRouteIfAbsent("get", POLYMORPHIC_VIEW_JS, { description: "The polymorphic graph view and the class browser" }, (c: Context) => {
 			const { content, etag } = loadPolymorphicBundle();
 			c.header("ETag", etag);
@@ -424,7 +428,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 				return c.body("the source map is not built; run npm run build in @haibun/shu", 404);
 			}
 		});
-		webserver.addRoute("get", CONTEXT_DOCUMENT.wellKnown, { description: "JSON-LD @context for haibun domain vocabulary" }, jsonLdHandler);
-		webserver.addRoute("get", CONTEXT_DOCUMENT.namespace, { description: "JSON-LD @context (namespace alias of haibun-context.jsonld)" }, jsonLdHandler);
+		webserver.addRouteIfAbsent("get", CONTEXT_DOCUMENT.wellKnown, { description: "JSON-LD @context for haibun domain vocabulary" }, jsonLdHandler);
+		webserver.addRouteIfAbsent("get", CONTEXT_DOCUMENT.namespace, { description: "JSON-LD @context (namespace alias of haibun-context.jsonld)" }, jsonLdHandler);
 	}
 }

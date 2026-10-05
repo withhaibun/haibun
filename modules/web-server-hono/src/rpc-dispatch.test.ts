@@ -1,5 +1,17 @@
 import { describe, it, expect, vi } from "vitest";
-import { ACTION_BEGIN, ACTUALITY_HEADER, SSE_ROUTE, actualityAt, actualityRefusal, readNdjson, REFUSED_INVOCATION, RELOAD, RPC_PROTOCOL, RpcRefusalSchema, rpcEnvelope } from "@haibun/core/lib/rpc-wire.js";
+import {
+	ACTION_BEGIN,
+	ACTUALITY_HEADER,
+	SSE_ROUTE,
+	actualityAt,
+	actualityRefusal,
+	readNdjson,
+	REFUSED_INVOCATION,
+	RELOAD,
+	RPC_PROTOCOL,
+	RpcRefusalSchema,
+	rpcEnvelope,
+} from "@haibun/core/lib/rpc-wire.js";
 import { FOLLOWS_THE_RUN } from "@haibun/core/lib/actions.js";
 import { passWithDefaults, DEF_PROTO_OPTIONS, freePort } from "@haibun/core/lib/test/lib.js";
 import { TEST_DOMAIN, declaresTestDomains } from "@haibun/core/lib/test/test-domains.js";
@@ -448,7 +460,7 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-ping" and its event stream
 	});
 
 	it("does not narrate serving a read, since a page reading actuality would read again for its own reading", async () => {
-		const port = 8244;
+		const port = await freePort();
 		const feature = {
 			path: "/features/test.feature",
 			content: `
@@ -467,7 +479,7 @@ run narrated the call that acted on it and not the call that read it
 		// A read is answered and doesn't leave a record of the reading, so what may be read that way is what the step itself
 		// declares. Asked to read a step that doesn't declare itself a read, actuality refuses rather than answering and recording the
 		// reading as something it did, which is a run that writes about being read for as long as a page follows it.
-		const port = 8246;
+		const port = await freePort();
 		const feature = {
 			path: "/features/test.feature",
 			content: `
@@ -484,7 +496,7 @@ rpc read at "http://localhost:${port}/rpc/PingStepper-ping" of "PingStepper-ping
 	it("refuses a call presenting authority that actuality can't verify, as unauthenticated, and doesn't run a step", async () => {
 		// A proof that isn't checked doesn't grant an action, and a request running with an empty grant would still run every
 		// step that doesn't ask for a capability, so a request presenting one is refused whole.
-		const port = 8248;
+		const port = await freePort();
 		const feature = {
 			path: "/features/test.feature",
 			content: `
@@ -500,7 +512,7 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-ping" with method "PingSte
 	it("refuses to end the instance for a caller that doesn't present authority, since ending it takes WebServer:stop", async () => {
 		const kill = vi.spyOn(process, "kill").mockImplementation(() => true);
 		try {
-			const port = 8254;
+			const port = await freePort();
 			const feature = {
 				path: "/features/test.feature",
 				content: `
@@ -519,7 +531,7 @@ rpc call to "http://localhost:${port}/rpc/WebServerStepper-stopInstance" with me
 	});
 
 	it("executes a step via RPC", async () => {
-		const port = 8235;
+		const port = await freePort();
 		const feature = {
 			path: "/features/test.feature",
 			content: `
@@ -533,7 +545,7 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-ping" with method "PingSte
 	});
 
 	it("refuses a caller that doesn't present authority every step, alike whether the step exists, so a refusal doesn't map actuality", async () => {
-		const port = 8255;
+		const port = await freePort();
 		const feature = {
 			path: "/features/test.feature",
 			content: `
@@ -550,7 +562,7 @@ rpc call to "http://localhost:${port}/rpc/${SHOW_STEPS_METHOD}" with method "${S
 	});
 
 	it("grants every caller what the deployment allows without a delegation, beside what it proves", async () => {
-		const port = 8256;
+		const port = await freePort();
 		const feature = {
 			path: "/features/test.feature",
 			content: `
@@ -567,7 +579,7 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "Pi
 	});
 
 	it("bounds what a caller reads by the broadest read it holds, and by the level it asks for, which can only be narrower", async () => {
-		const port = 8257;
+		const port = await freePort();
 		const url = `http://localhost:${port}/rpc/PingStepper-readsAt`;
 		const feature = {
 			path: "/features/test.feature",
@@ -585,7 +597,7 @@ rpc read asking for "public" at "${url}" signed by "owner" for "Read:private" re
 	});
 
 	it("opens actuality's event stream to a caller holding a read, and sends each follower the events it may read at their level", async () => {
-		const port = 8258;
+		const port = await freePort();
 		const url = `http://localhost:${port}`;
 		const feature = {
 			path: "/features/test.feature",
@@ -631,7 +643,7 @@ held streamed call ends with "${fakeGrant("agent")} was revoked"
 	});
 
 	it("rejects old-format RPC envelope", async () => {
-		const port = 8236;
+		const port = await freePort();
 		const feature = {
 			path: "/features/test.feature",
 			content: `
@@ -645,7 +657,7 @@ rpc old format to "http://localhost:${port}/rpc/${SHOW_STEPS_METHOD}" is not dis
 	});
 
 	it("shows a caller the steps it holds what they require for, and not the steps it may not call", async () => {
-		const port = 8237;
+		const port = await freePort();
 		const feature = {
 			path: "/features/shown-steps.feature",
 			content: `
@@ -661,7 +673,7 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "Pi
 	});
 
 	it("shows and dispatches a step injected into actuality's registry after rpc is enabled, as every other caller of actuality does", async () => {
-		const port = 8238;
+		const port = await freePort();
 		class Injects extends AStepper {
 			description = "A step that copies a step into actuality's registry under another name, as a transport injects one.";
 			steps = {
@@ -692,7 +704,7 @@ rpc call to "http://localhost:${port}/rpc/Injected-ping" with method "Injected-p
 	});
 
 	it("action.begin allocates a unique seqPath root per call", async () => {
-		const port = 8240;
+		const port = await freePort();
 		let first: number[] | undefined;
 		let second: number[] | undefined;
 
@@ -730,7 +742,7 @@ begin action twice at "http://localhost:${port}/rpc/${ACTION_BEGIN}"
 	});
 
 	it("synthesises a seqPath when the caller omits one", async () => {
-		const port = 8238;
+		const port = await freePort();
 		let rpcResponse: Record<string, unknown> | undefined;
 
 		class MissingSeqPathStepper extends AStepper {
@@ -766,7 +778,7 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-ping" without seqPath succ
 	});
 
 	it("denies protected RPC steps without capability and allows them with capability", async () => {
-		const port = 8239;
+		const port = await freePort();
 		const feature = {
 			path: "/features/protected-rpc.feature",
 			content: `
@@ -783,7 +795,7 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method
 	});
 
 	it("keeps what a signed caller may do least-privilege: a verified action opens only the steps that take it", async () => {
-		const port = 8241;
+		const port = await freePort();
 		const feature = {
 			path: "/features/rpc-least-privilege.feature",
 			content: `
@@ -799,7 +811,7 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "Pi
 	});
 
 	it("stream:true routes through dispatchStep, chunks flow via streamContext, errors land on seqPath", async () => {
-		const port = 8242;
+		const port = await freePort();
 		const collectedChunks: TStreamChunk[] = [];
 
 		class StreamingStepper extends AStepper {
@@ -868,7 +880,7 @@ stream rpc call to "http://localhost:${port}/rpc/StreamingStepper-stream3" metho
 	});
 
 	it("stream:true refusal emits a single terminating {error} record naming the step once, whether the step refused or threw", async () => {
-		const port = 8243;
+		const port = await freePort();
 		const collectedChunks: Record<string, unknown>[] = [];
 
 		class StreamingStepper extends AStepper {

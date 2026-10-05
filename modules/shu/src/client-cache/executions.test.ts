@@ -7,7 +7,7 @@ import { SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { individualAsQuads } from "./quad-store.js";
 import { setGraphStore } from "../quads-snapshot.js";
-import { executionsHeld, forgetExecution, holdOnDevice, noteExecution, readExecution, readingExecution, subscribeExecutionSwitch, type THeldExecution } from "./executions.js";
+import { executionsHeld, followRecordedExecution, forgetExecution, holdOnDevice, noteExecution, readExecution, readingExecution, subscribeExecutionSwitch, type THeldExecution } from "./executions.js";
 import { endPage } from "../page-pinned.js";
 
 const OLDER = "1700000000000-1";
@@ -83,6 +83,18 @@ describe("what a device holds of the runs it has read", () => {
 		noteExecution(NEWER);
 		expect(readingExecution(), "actuality the reader chose").toBe(OLDER);
 		expect(told, "a reader who is reading a run of their own choosing isn't told of a change").toBe(0);
+		stop();
+	});
+
+	it("follows the execution being recorded again when a reader who chose one asks for now", async () => {
+		await aDevice();
+		noteExecution(NEWER);
+		readExecution(OLDER);
+		let told = 0;
+		const stop = subscribeExecutionSwitch(() => told++);
+		followRecordedExecution();
+		expect(readingExecution(), "the execution being recorded").toBe(NEWER);
+		expect(told, "the views reading an execution are told it changed").toBe(1);
 		stop();
 	});
 

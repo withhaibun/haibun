@@ -32,6 +32,7 @@ import { Access, SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { SEQ_PATH_FIELD, executionOf, extractSeqPathPrefix, formatRecordName, parseSeqPath } from "@haibun/core/lib/seq-path.js";
 import { SHU_TAG } from "./consts.js";
 import { ARTIFACT_POLICY } from "./content-security-policy.js";
+import { hashWithColumns } from "./view-hash.js";
 import { READS_THE_RUNS_ARTIFACTS } from "@haibun/core/lib/actions.js";
 import { requiring } from "@haibun/web-server-hono/capability-auth.js";
 import { LOG_MESSAGE_EDGE, LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
@@ -75,6 +76,9 @@ const sandboxed: MiddlewareHandler = async (c, next) => {
 
 /** Where the monitor serves the shu views of actuality on its own port. */
 export const MONITOR_PATH = "/monitor";
+
+/** What the monitor's page shows a reader who arrives without an address: the log of each step beside the document. */
+export const MONITOR_OPENS_AT = hashWithColumns([SHU_TAG.MONITOR_COLUMN, SHU_TAG.DOCUMENT_COLUMN]);
 
 /**
  * The type a graph query named, read off the step that ran it. The match is the argument's DOMAIN, not the step's name:
@@ -146,6 +150,8 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		[StepperKinds.STORAGE]: { desc: "Storage for standalone HTML output", parse: stringOrError },
 		PORT: {
 			desc: `The port the monitor serves the shu views of actuality on, at ${MONITOR_PATH}, apart from any server a feature starts. Unset, the monitor doesn't serve them`,
+			// A port is one process's: a process that starts another doesn't hand the child its monitor's port.
+			perProcess: true,
 			parse: intOrError,
 		},
 	};
@@ -170,7 +176,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		const webServer = findStepper<WebServerStepper>(this.steppers, "WebServerStepper");
 		const shu = findStepper<ShuStepper>(this.steppers, "ShuStepper");
 		this.monitorTransport = await webServer.serveForExecution("monitor", port, (server) => {
-			shu.serveApp(server, MONITOR_PATH);
+			shu.serveApp(server, MONITOR_PATH, MONITOR_OPENS_AT);
 			this.serveArtifacts(server);
 		});
 		const origin = webServer.hostname ? `http://${webServer.hostname}:${port}` : localOrigin(port);

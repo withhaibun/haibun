@@ -16,7 +16,7 @@ import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { SHU_EVENT, SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
-import { runSpan } from "../client-cache/index.js";
+import { followRecordedExecution, runSpan } from "../client-cache/index.js";
 
 /** Playback rates. The two below 1 run slower than actuality did, for a dense burst to watch as it plays. */
 const SPEED_OPTIONS = [0.02, 0.05, 1, 2];
@@ -118,8 +118,9 @@ export class ShuPlayback extends ShuElement<typeof StateSchema> {
 	};
 
 	/** Back to the live edge, and tailing again. A press on a rail is meant to stay put, so this is what takes a reader
-	 *  off a moment they picked and back to whatever is happening now. */
+	 *  off a moment they picked, or an earlier execution they chose, and back to whatever is happening now. */
 	private onLive = (): void => {
+		followRecordedExecution();
 		this.timeCursor = null;
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.GO_LIVE, { bubbles: true, composed: true }));
 	};

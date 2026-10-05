@@ -53,6 +53,7 @@ export {
 	noteExecution,
 	readExecution,
 	readHeldExecution,
+	followRecordedExecution,
 	subscribeExecutionSwitch,
 	EXECUTIONS_READ,
 	type THeldExecution,

@@ -120,8 +120,9 @@ interface ShuHydration {
 	/** What a view showed, by the step that produces it. A view whose products cannot be read from actuality is given
 	 *  what it showed when the record was written, rather than asking a server that is not there. */
 	viewProducts?: Record<string, unknown>;
-	/** The address this run opens at: the type its query column was showing, which the records of the run don't state. Which
-	 *  views were open it never names, since the page reads those from the records it carries. */
+	/** The address the page opens at for a reader who arrives without one. A record of a run states the type its query
+	 *  column was showing, which the records of the run don't state. A page a server serves to open at its own views, as
+	 *  the monitor's is, states those views. */
 	viewHash?: string;
 	/** The actuality this page carries, for a page without a server: filled into the client cache at boot. */
 	cache?: TCachePayload;
@@ -187,7 +188,7 @@ export function hydrateFromDom(): void {
 export const hydratedActualityId = (): TActualityId =>
 	ActualityIdSchema.parse(cachedHydration().data?.actualityId, { error: () => "this page wasn't served with the actualityId of the records it reads, so it doesn't make a call" });
 
-/** The address a carried run opens at, or "" for a page with a server. */
+/** The address the page opens at, as it was served or as the run it carries states it, or "" where neither states one. */
 export function getHydratedViewHash(): string {
 	return cachedHydration().data?.viewHash ?? "";
 }

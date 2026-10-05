@@ -48,5 +48,13 @@ export const features: TKirejiExport = {
 		"An execution no site is recording is finished, and reading it is not waiting on a site that could have it: what can be read of it is what this device holds, and the source of it states that it has read it.",
 		setAs({ what: SOURCE_LOADED, domain: "page-test-id", value: `"${SOURCE_LOADED}"` }),
 		waitFor({ target: SOURCE_LOADED }),
+
+		scenario({ scenario: "The time control goes back to the execution being recorded" }),
+
+		"A reader who chose an earlier execution goes back to what is happening now through the page's time control. Its control for now releases the moment they picked and the execution they chose, so every view reads the execution this site is recording again.",
+		click({ target: IDS.APP.TIME_OFFSET }),
+		click({ target: IDS.PLAYBACK.LIVE }),
+		`save text from ${IDS.CLIENT_CACHE.READING} to readingAgain`,
+		'matches readingAgain with "*Reading an execution this device holds*"',
 	],
 };

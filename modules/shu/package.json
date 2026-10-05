@@ -16,7 +16,7 @@
 	"scripts": {
 		"build": "tsc -b . && npm run bundle:app && npm run bundle:report && npm run bundle:polymorphic",
 		"build:prod": "tsc -b . && esbuild src/app.ts --bundle --outfile=build/shu-bundle.js --format=iife --platform=browser --target=es2022 --minify --conditions=production",
-		"test:e2e": "HAIBUN_O_WEBSERVERSTEPPER_PORT=8237 HAIBUN_O_WEBPLAYWRIGHT_STORAGE=StorageFS HAIBUN_O_WEBSERVERSTEPPER_ALLOW_WITHOUT_DELEGATION=* haibun-cli -c ./tests/config.json ./tests && npm run test:e2e:profile",
+		"test:e2e": "HAIBUN_O_WEBSERVERSTEPPER_PORT=8237 HAIBUN_O_MONITORSTEPPER_PORT=8238 HAIBUN_O_WEBPLAYWRIGHT_STORAGE=StorageFS HAIBUN_O_WEBSERVERSTEPPER_ALLOW_WITHOUT_DELEGATION=* haibun-cli -c ./tests/config.json ./tests && npm run test:e2e:profile",
 		"test": "vitest run",
 		"lint": "biome lint .",
 		"format": "biome format --write .",

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getTestWorldWithOptions, testWithWorld, DEF_PROTO_OPTIONS } from "@haibun/core/lib/test/lib.js";
+import { freePort, getTestWorldWithOptions, testWithWorld, DEF_PROTO_OPTIONS } from "@haibun/core/lib/test/lib.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { OK } from "@haibun/core/schema/protocol.js";
 import { findStepper, getStepperOptionName } from "@haibun/core/lib/util/index.js";
@@ -15,13 +15,13 @@ import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import ResourcesStepper from "@haibun/core/steps/resources-stepper.js";
 import WebServerStepper from "@haibun/web-server-hono/web-server-stepper.js";
 import StorageFS from "@haibun/storage-fs/storage-fs.js";
-import MonitorStepper, { MONITOR_PATH } from "./monitor-stepper.js";
+import MonitorStepper, { MONITOR_OPENS_AT, MONITOR_PATH } from "./monitor-stepper.js";
 import GraphSourceStepper from "./graph-source-stepper.js";
 import ShuStepper from "./shu-stepper.js";
 import { RPC_METHOD } from "./consts.js";
 import { ARTIFACT_POLICY } from "./content-security-policy.js";
 
-const PORT = 8254;
+const PORT = await freePort();
 const MONITOR = localOrigin(PORT);
 
 /** What the monitor answered while the second feature ran: its page, and the records it read. */
@@ -78,6 +78,7 @@ describe("the monitor serves the shu views of actuality on its own port", () => 
 
 		expect(page?.status).toBe(200);
 		expect(page?.body).toContain(world.runtime.actualityId);
+		expect(page?.body, "a reader who arrives without an address is shown the log beside the document").toContain(`"viewHash":"${MONITOR_OPENS_AT}"`);
 		// The monitor's server started before the first feature and outlasts it: the second feature's reader reaches it, and
 		// reads that feature's steps through it.
 		const steps = read?.quads.filter((quad) => quad.namedGraph === SEQ_PATH_LABEL).map((quad) => String(quad.subject)) ?? [];

@@ -164,10 +164,9 @@ export function runEnvironment(inherited: NodeJS.ProcessEnv, port: number, stand
 	delete env[STAY_ENV];
 	delete env[ONCE_ENV];
 	delete env[HAIBUN_HOST_ID_ENV];
-	if (port > 0) {
-		for (const name of perProcess.filter((n) => n.endsWith("_PORT"))) env[name] = String(port);
-		env[INSTANCE_PORT_ENV] = String(port);
-	}
+	// The port given is the one the run serves on. Another port a process holds for itself, as a monitor's, stays unset,
+	// since two servers of one run can't share the port.
+	if (port > 0) env[INSTANCE_PORT_ENV] = String(port);
 	if (standing) env[STAY_ENV] = STAY_ALWAYS;
 	// A run that stays is a host of its own: it takes an id, so its seqPaths show whose work they are and its steps
 	// register under it here.

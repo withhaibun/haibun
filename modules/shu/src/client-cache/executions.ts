@@ -77,6 +77,13 @@ export function readHeldExecution(held: THeldExecution): void {
 	readExecution(held.execution);
 }
 
+/** Follow the execution being recorded again, in the records the site serves: what takes a reader off an execution
+ *  they chose and back to whatever is happening now. */
+export function followRecordedExecution(): void {
+	readHeldStore(servedGraphStore());
+	readExecution(undefined);
+}
+
 /** The executions this device holds of every actuality, newest first, each named by the features it ran. */
 export async function executionsHeld(): Promise<THeldExecution[]> {
 	const held = await Promise.all((await heldGraphStores()).map(executionsIn));

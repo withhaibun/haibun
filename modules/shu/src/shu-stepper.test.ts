@@ -57,6 +57,20 @@ describe("the app a deployment serves", () => {
 		expect(() => stepper.steps.serveShuApp.action({ path: "/spa" })).toThrow("already mounted");
 	});
 
+	it("serves a page with the address it opens at, where its server states one", () => {
+		const OPENS_AT = "#?col=shu-monitor-column";
+		const servedAt = (path: string): string => {
+			const route = addRoute.mock.calls.find(([, at]) => at === path);
+			if (!route) throw new Error(`the stepper didn't add a route at ${path}`);
+			return (route[3] as (c: unknown) => string)({ header: () => undefined, html: (body: string) => body });
+		};
+		const server = world.runtime[WEBSERVER] as Parameters<ShuStepper["serveApp"]>[0];
+		stepper.serveApp(server, "/monitor", OPENS_AT);
+		stepper.serveApp(server, "/spa");
+		expect(servedAt("/monitor")).toContain(`"viewHash":"${OPENS_AT}"`);
+		expect(servedAt("/spa"), "a page served without one opens as its reader or actuality arranges").not.toContain('"viewHash"');
+	});
+
 	it("tells the page what the deployment allows without a delegation, and whether a delegation verifies here, as each page is served", async () => {
 		await stepper.steps.serveShuApp.action({ path: "/spa" });
 		const serve = addRoute.mock.calls.find(([, path]) => path === "/spa")?.[3] as (c: unknown) => string;

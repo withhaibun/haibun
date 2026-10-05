@@ -13,7 +13,7 @@ import { timeCursor } from "../signals.js";
 import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
-import { graphRunSource } from "../client-cache/index.js";
+import { currentExecution, graphRunSource, readExecution } from "../client-cache/index.js";
 
 import { setGraphStore } from "../quads-snapshot.js";
 import { setSiteMetadata, type SiteMetadata } from "../rels-cache.js";
@@ -21,6 +21,8 @@ import { SHU_EVENT } from "../consts.js";
 import { endPage } from "../page-pinned.js";
 
 const FIRST = 1_000_000;
+/** An execution a reader chose over the one being recorded. */
+const EARLIER_EXECUTION = "1600000000000-1";
 const LAST = 1_000_500;
 /** The actuality this control plays through: two steps, the first and the last of it. */
 async function aRun(): Promise<void> {
@@ -179,5 +181,12 @@ describe("going back to now", () => {
 		await click(el, "playback-live");
 		expect(timeCursor.get(), "the cursor doesn't have an upper bound any more, which is what now means").toBeNull();
 		expect(asked, "and the views that tail are told").toEqual(["go-live"]);
+	});
+
+	it("takes a reader who chose an earlier execution back to the one being recorded", async () => {
+		const el = await playing();
+		readExecution(EARLIER_EXECUTION);
+		await click(el, "playback-live");
+		expect(currentExecution(), "the reader follows actuality again").toBeUndefined();
 	});
 });
