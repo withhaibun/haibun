@@ -1,12 +1,13 @@
 import { currentVersion } from "@haibun/core/currentVersion.js";
 import { PAGE_ACTUALITY } from "./test-setup.js";
-import { HYDRATION_ID } from "./consts.js";
+import { CONTEXT_DOCUMENT, HYDRATION_ID } from "./consts.js";
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 import { AUTHORITY_KEY, SessionAuthority } from "@haibun/core/lib/session-authority.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
+import { LinkRelations } from "@haibun/core/lib/resources.js";
 import ShuStepper, { buildSpaHtml } from "./shu-stepper.js";
 import { EMBEDDER_ORIGIN_OPTION, mayFrame } from "./content-security-policy.js";
 
@@ -89,6 +90,19 @@ describe("the app a deployment serves", () => {
 		});
 		(world.runtime.keys ??= {})[AUTHORITY_KEY] = authority;
 		expect(served(), "a verifier registered after the app was served").toContain('"verifiesDelegations":true');
+	});
+
+	it("serves the JSON-LD context of the domains as they stand, so a type declared after the app was served is in it", async () => {
+		await stepper.steps.serveShuApp.action({ path: "/spa" });
+		const route = addRoute.mock.calls.find(([, path]) => path === CONTEXT_DOCUMENT.wellKnown);
+		if (!route) throw new Error("the stepper didn't serve the JSON-LD context");
+		const served = () => JSON.stringify((route[3] as (c: unknown) => unknown)({ req: { header: () => ({ host: "site.test" }) }, json: (body: unknown) => body }));
+		expect(served()).not.toContain("exv:Declared");
+		world.domains = {
+			...world.domains,
+			declared: { topology: { persistedAs: "Declared", type: "exv:Declared", id: "id", namespaces: { exv: "https://vocab.example/ns#" }, properties: { id: LinkRelations.IDENTIFIER.rel } } },
+		} as unknown as TWorld["domains"];
+		expect(served()).toContain("exv:Declared");
 	});
 
 	it("lets only this site frame the page, and the embedding page's origin where the deployment names one", async () => {

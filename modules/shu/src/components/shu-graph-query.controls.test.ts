@@ -17,10 +17,10 @@ describe("view-query controls", () => {
 	let world: TWorld;
 	let stepper: ShuGraphQueryControls;
 
-	beforeEach(() => {
+	beforeEach(async () => {
 		world = getDefaultWorld();
 		stepper = new ShuGraphQueryControls();
-		stepper.setWorld?.(world, [stepper]);
+		await stepper.setWorld?.(world, [stepper]);
 		world.runtime.steppers = [stepper];
 		for (const d of stepper.cycles.getConcerns?.()?.domains ?? []) world.domains[d.selectors[0]] = { ...d, coerce: (p) => p.value };
 		world.domains[DOMAIN_PERSISTED_TYPE] = { selectors: [DOMAIN_PERSISTED_TYPE], schema: z.string().min(1), coerce: (p) => p.value, description: "persisted type" };

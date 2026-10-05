@@ -28,7 +28,7 @@ import { WEBSERVER } from "./defs.js";
 import { ServerHono } from "./server-hono.js";
 import WebServerStepper from "./web-server-stepper.js";
 import type { IStepTransport } from "./step-transport.js";
-import { grantedCapabilityForRequest, PRESENTED_REQUEST_HEADERS, refuseInvocation } from "./capability-auth.js";
+import { delegateOf, grantedCapabilityForRequest, PRESENTED_REQUEST_HEADERS, refuseInvocation } from "./capability-auth.js";
 import { actingAs, authorizedWith, restingOn, runActingAs, runAuthorizedWith, shownTo } from "@haibun/core/lib/capability-context.js";
 import { DOMAIN_ROUTE } from "@haibun/core/lib/domains.js";
 /** The port the MCP endpoint listens on where neither it nor the web server states one. */
@@ -38,26 +38,15 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 	description = "Expose all Haibun steps as callable MCP tools for LLM agents";
 	readonly name = "McpStepper";
 
-	/** IStepTransport: list actuality's registry, and tell connected clients each time its steps change. */
+	/** IStepTransport: list actuality's registry. A caller that keeps a stream open is told each time its steps change. */
 	attach(registry: StepRegistry, _webserver: IWebServer): void {
-		this.stopListening?.();
 		this.currentRegistry = registry;
-		this.stopListening = registry.onChange(() => {
-			if (!this.mcpServer?.isConnected()) return;
-			// A client whose stream closed is not told; actuality goes on, and reports so.
-			void this.mcpServer.server.sendToolListChanged().catch((err: unknown) => this.getWorld().eventLogger.warn(`[MCP] the tool list change was not sent: ${errorDetail(err)}`));
-		});
 	}
 
-	/** IStepTransport: close MCP server on teardown. */
+	/** IStepTransport: stop serving on teardown. */
 	detach(): void {
-		this.stopListening?.();
-		this.stopListening = undefined;
-		void this.close();
+		this.close();
 	}
-
-	/** Stops telling clients of changes to the registry this transport was last attached to. */
-	private stopListening?: () => void;
 
 	options = {
 		MCP_PATH: {
@@ -74,13 +63,11 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 		startFeature: async () => {
 			await this.setupMcp();
 		},
-		endFeature: async () => {
-			await this.close();
-		},
+		endFeature: () => Promise.resolve(this.close()),
 	};
 
-	private mcpServer?: McpServer;
-	private transport?: StreamableHTTPTransport;
+	/** Whether this feature's web server has the MCP routes. */
+	private serving = false;
 	private steppers: AStepper[] = [];
 	private currentRegistry?: StepRegistry;
 
@@ -109,7 +96,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 		const tool = this.registry().get(name);
 		// A call is refused before its input is read, and alike whether its step exists, as it is over RPC.
 		if (!tool || !mayCall(grantedCapability, tool.descriptor))
-			return { isError: true, content: [{ type: "text", text: refusal(name, tool && lackedAction(grantedCapability, tool.descriptor), principal) }] };
+			return { isError: true, content: [{ type: "text", text: refusal(name, tool && lackedAction(grantedCapability, tool.descriptor), delegateOf({ granted: [grantedCapability ?? []].flat(), principal }, this.webserver())) }] };
 		try {
 			const world = this.getWorld();
 			// MCP callers don't have a haibun seqPath; the server synthesises one.
@@ -132,31 +119,29 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 		}
 	}
 
-	private async setupMcp() {
-		if (this.mcpServer) return;
-
-		const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER) as IWebServer;
-		if (!webserver) throw new Error("McpStepper: the runtime doesn't hold a webserver.");
-
-		// A host places a server's instructions in its model's context. They are set before any caller connects, so they don't
-		// name a stepper: a caller finds the steps it holds in the tool list and by discovery.
-		const instructions = stepsInstructions([]);
-		this.mcpServer = new McpServer({ name: "haibun-mcp", version }, { capabilities: { tools: { listChanged: true }, resources: {} }, instructions });
-		this.transport = new StreamableHTTPTransport({ enableJsonResponse: true });
+	/**
+	 * The server one request is answered by. A server and its transport hold the requests in flight by the id each caller
+	 * chose, so one shared by callers answers one caller's request with another's result where both chose one id. Each
+	 * request has its own, as the MCP SDK's stateless server does, and a caller's session is the requests it signs.
+	 */
+	private newMcpServer(): McpServer {
+		// A host places a server's instructions in its model's context. They are set before a caller's steps are read, so they
+		// don't name a stepper: a caller finds the steps it holds in the tool list and by discovery.
+		const mcpServer = new McpServer({ name: "haibun-mcp", version }, { capabilities: { tools: { listChanged: true }, resources: {} }, instructions: stepsInstructions([]) });
 
 		// --- HANDLER 1: LIST TOOLS ---
 		// Each step the caller holds is a tool. Which of them a model is given at once is its host's choice, as the MCP client
 		// best practices place it; a host without a search of its own finds steps with the show steps step, which is a tool too.
-		this.mcpServer.server.setRequestHandler(ListToolsRequestSchema, () => ({ tools: this.getTools() }));
+		mcpServer.server.setRequestHandler(ListToolsRequestSchema, () => ({ tools: this.getTools() }));
 
 		// --- HANDLER 2: CALL TOOL ---
 		// A call runs under what its request presented, which the middleware verified over the whole request.
-		this.mcpServer.server.setRequestHandler(CallToolRequestSchema, (request) =>
+		mcpServer.server.setRequestHandler(CallToolRequestSchema, (request) =>
 			this.executeTool(request.params.name, request.params.arguments ?? {}, authorizedWith(), actingAs()),
 		);
 
 		// --- HANDLER 3: LIST RESOURCES ---
-		this.mcpServer.server.setRequestHandler(ListResourcesRequestSchema, (_request, _extra) => {
+		mcpServer.server.setRequestHandler(ListResourcesRequestSchema, (_request, _extra) => {
 			return {
 				resources: [
 					{
@@ -170,7 +155,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 		});
 
 		// --- HANDLER 4: READ RESOURCE ---
-		this.mcpServer.server.setRequestHandler(ReadResourceRequestSchema, (request, _extra) => {
+		mcpServer.server.setRequestHandler(ReadResourceRequestSchema, (request, _extra) => {
 			if (request.params.uri === `mcp://${this.mcpPath}/info`) {
 				return {
 					contents: [
@@ -188,8 +173,19 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 			}
 			throw new McpError(ErrorCode.InvalidRequest, `Resource not found: ${request.params.uri}`);
 		});
+		return mcpServer;
+	}
 
-		await this.mcpServer.connect(this.transport);
+	private webserver(): IWebServer {
+		const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER) as IWebServer;
+		if (!webserver) throw new Error("McpStepper: the runtime doesn't hold a webserver.");
+		return webserver;
+	}
+
+	private async setupMcp() {
+		if (this.serving) return;
+		const webserver = this.webserver();
+		this.serving = true;
 		this.setupMiddleware(webserver);
 		this.setupRoutes(webserver);
 		this.getWorld().eventLogger.info(`🔗 MCP endpoint registered at ${this.mcpPath}`);
@@ -237,6 +233,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 
 	private setupRoutes(webserver: IWebServer) {
 		const handleMcpRequest = async (c: Context) => {
+			if (c.req.method !== "POST" && c.req.method !== "GET") return c.body(null, 405, { Allow: "GET, POST" });
 			const strictAccept = "application/json, text/event-stream";
 			const newHeaders = new Headers(c.req.raw.headers);
 
@@ -297,25 +294,32 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 				},
 			});
 
-			const transport = this.transport;
-			if (!transport) throw new Error("Transport not initialized");
-			const response = await transport.handleRequest(proxyContext);
-
-			if (!response) {
-				this.getWorld().eventLogger.warn("[MCP] the transport didn't generate a response");
-				return c.notFound();
+			const mcpServer = this.newMcpServer();
+			const transport = new StreamableHTTPTransport({ enableJsonResponse: true });
+			await mcpServer.connect(transport);
+			if (c.req.method === "GET") {
+				// A stream its caller holds open is told each time the steps change, until the caller closes it.
+				const stopListening = this.registry().onChange(() => {
+					void mcpServer.server.sendToolListChanged().catch((err: unknown) => this.getWorld().eventLogger.warn(`[MCP] the tool list change was not sent: ${errorDetail(err)}`));
+				});
+				c.req.raw.signal.addEventListener("abort", () => (stopListening(), void mcpServer.close()), { once: true });
+				return transport.handleRequest(proxyContext);
 			}
-			return response;
+			try {
+				const response = await transport.handleRequest(proxyContext);
+				if (!response) throw new Error("[MCP] the transport didn't answer the request");
+				return response;
+			} finally {
+				await mcpServer.close();
+			}
 		};
 
 		webserver.app.all(this.mcpPath, handleMcpRequest);
 		webserver.app.all(`${this.mcpPath}/*`, handleMcpRequest);
 	}
 
-	async close() {
-		if (this.mcpServer) await this.mcpServer.close();
-		this.mcpServer = undefined;
-		this.transport = undefined;
+	close(): void {
+		this.serving = false;
 	}
 
 	steps = {

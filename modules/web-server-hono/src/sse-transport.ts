@@ -137,22 +137,10 @@ export class SSETransport implements ITransport, IStepTransport {
 				});
 			}
 
-			// A call states what it asks of actuality, and actuality holds it to the step's own declaration: asked to answer a
-			// step that does not declare itself a read, it refuses rather than answering and recording the reading as
-			// something actuality did. A step declared a read is answered without a line of its own here, since a page
-			// following a run reads it on every announcement.
+			// A step declared a read is answered without a line of its own here, since a page following a run reads it on every
+			// announcement.
 			const method = envelope.method ?? "unknown";
-			const servesARead = this.servesARead(envelope.method);
-			if (envelope.asks === "read" && !servesARead) {
-				return c.json(
-					{
-						ok: false,
-						error: `${method} was asked to answer a read, and does not declare itself one: a read is answered and doesn't leave a record, so a step read by a page declares read: true`,
-					},
-					422,
-				);
-			}
-			if (!servesARead) this.eventLogger.debug(`RPC: ${JSON.stringify(truncateForLog(data))}`);
+			if (!this.servesARead(envelope.method)) this.eventLogger.debug(`RPC: ${JSON.stringify(truncateForLog(data))}`);
 			const result = await this.handleMessage(data, requestInfo);
 			if (result === undefined) {
 				return c.json({ ok: false, error: `RPC method ${method} doesn't have a handler` }, 404);

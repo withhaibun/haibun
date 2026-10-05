@@ -32,7 +32,7 @@ import { loadSlotExtensions } from "./slot-extensions.js";
 import { isServerUnreachable } from "../hypermedia.js";
 import { closeConversation, conversationState, dispatchConversationEvent, openConversation, STOPPED_BY_THE_READER } from "../conversation.js";
 import { hashParam, onHashChanged } from "../view-hash.js";
-import { eventStream, type TEvent } from "../event-stream.js";
+import { eventsAffectLabel } from "@haibun/core/lib/quad-types.js";
 import { isOffline } from "../rpc-registry.js";
 import { getActionBarChatExtensionTags } from "../rels-cache.js";
 import { reportToRun } from "../client-log.js";
@@ -46,7 +46,6 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	static schema = ActionsBarSchema;
 	static domainSelector = SHU_TAG.ACTIONS_BAR;
 
-	private _unsubscribeSync?: () => void;
 	/** The shared output region: one node for the bar's lifetime, so accumulated activity survives mode switches
 	 *  and collapse/expand. */
 	private _history = new ShuActivityHistory();
@@ -180,24 +179,21 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			this.failFast(`ShuActionsBar initialization failed: ${errorDetail(err)}`);
 		});
 
-		this._unsubscribeSync = eventStream().subscribe(
-			(event: TEvent) => this.dispatchEvent(new CustomEvent(SHU_EVENT.SYNC_AVAILABLE, { detail: event, bubbles: true, composed: true })),
-			(event: TEvent) => event.kind === "imap-sync",
-		);
-
-		// Live filter values: a batch carrying a change in the selected type's named graph may add a distinct value (a new
-		// folder, a status), read out of the batch, so the menus stay current without a reload or a request.
+		// A batch carrying a change in the selected type's named graph may add a distinct value (a new folder, a status), read
+		// out of the batch so the menus stay current, and means the results shown are behind, which the page marks.
 		if (!isOffline()) {
 			this.autoTeardown(
 				this.subscribeBatched({
-					onBatch: (events) => this.#query.observe(events),
+					onBatch: (events) => {
+						this.#query.observe(events);
+						if (eventsAffectLabel(events, this.#query.selectedLabel)) this.dispatchEvent(new CustomEvent(SHU_EVENT.SYNC_AVAILABLE, { bubbles: true, composed: true }));
+					},
 				}),
 			);
 		}
 	}
 
 	protected override onDisconnected(): void {
-		this._unsubscribeSync?.();
 		this.#raiseScope();
 	}
 

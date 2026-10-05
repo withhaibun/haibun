@@ -35,7 +35,7 @@ describe("EntityController", () => {
 		annotationCalls = 0;
 		handle = setupShuTest({
 			dispatch: makeEntityDispatch({
-				entity: () => ({ vertex: { "@id": "e1", subject: "Hi" }, edges: [], incomingCount: 0 }),
+				entity: () => ({ vertex: { "@id": "e1", subject: "Hi" }, edges: [], incomingCount: { total: 0, saturated: false } }),
 				annotations: () => {
 					annotationCalls++;
 					return { annotations: [] };

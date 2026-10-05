@@ -16,7 +16,7 @@ import { endPage } from "./page-pinned.js";
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 20));
 
-const entity = (subject: string) => ({ vertex: { "@id": "e1", "@type": "Email", subject }, edges: [], incomingCount: 0 });
+const entity = (subject: string) => ({ vertex: { "@id": "e1", "@type": "Email", subject }, edges: [], incomingCount: { total: 0, saturated: false } });
 const note = (commentId: string, body: string) => ({ commentId, specificResourceId: `sr-${commentId}`, exact: "a passage", body });
 
 const quadEvent = (namedGraph: string, subject: string, predicate: string, object: unknown, objectType?: string): TEvent =>

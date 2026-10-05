@@ -37,7 +37,7 @@ describe("AStorage steppers", () => {
 	it("readFile returns contents as products", async () => {
 		const storageMem = new StorageMem();
 		const world = getDefaultWorld();
-		storageMem.setWorld(world, []);
+		await storageMem.setWorld(world, []);
 		storageMem.volume.writeFileSync("/test.txt", "hello world");
 		const res = await storageMem.steps.readFile?.action({ where: "/test.txt" } as TStepArgs);
 		expect(res.ok).toBe(true);
@@ -47,7 +47,7 @@ describe("AStorage steppers", () => {
 	it("fileIsRecent verifies file age", async () => {
 		const storageMem = new StorageMem();
 		const world = getDefaultWorld();
-		storageMem.setWorld(world, []);
+		await storageMem.setWorld(world, []);
 
 		storageMem.volume.writeFileSync("/recent.txt", "new");
 
@@ -71,7 +71,7 @@ describe("AStorage steppers", () => {
 	it("testContains and testNotContains verify file content", async () => {
 		const storageMem = new StorageMem();
 		const world = getDefaultWorld();
-		storageMem.setWorld(world, []);
+		await storageMem.setWorld(world, []);
 
 		storageMem.volume.writeFileSync("/test.txt", "hello world");
 

@@ -48,8 +48,7 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 	};
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
-		await Promise.resolve();
-		super.setWorld(world, steppers);
+		await super.setWorld(world, steppers);
 
 		// Subscribe to the event logger and forward each event as an OTel span.
 		world.eventLogger.subscribe((event: THaibunEvent) => {

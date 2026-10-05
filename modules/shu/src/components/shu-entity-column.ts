@@ -55,7 +55,7 @@ import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { pageAddress } from "../view-hash.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { z } from "zod";
-import { CallLinkSchema, type TCallLink } from "@haibun/core/lib/hypermedia.js";
+import { CallLinkSchema, counted, statedTotal, type TCallLink, type TCounted } from "@haibun/core/lib/hypermedia.js";
 import { SentFileSchema, fileDataBlob } from "@haibun/core/lib/media-object.js";
 import { MEDIA_TYPE, viewedInBrowser } from "@haibun/core/lib/media-types.js";
 import { reportFailure } from "../client-log.js";
@@ -172,7 +172,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 
 	private vertex: VertexData | null = null;
 	private edges: EdgeData[] = [];
-	private incomingCount = 0;
+	private incomingCount: TCounted = counted(0);
 	private predicateLinkCount = 0;
 	private edgeTargetCount = 0;
 	/** Annotations anchored in the open individual's body, projected from the entity view; empty until resolved. */
@@ -231,7 +231,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const { _type, _summary, _component, _links, _undo, _seqPath, ...data } = products;
 		this.vertex = data;
 		this.edges = [];
-		this.incomingCount = 0;
+		this.incomingCount = counted(0);
 		this.products = products;
 		this.annotationsList = [];
 		this.setState({ individualId: String(_summary || ""), persistedAs: label, loading: false, fromStore: undefined });
@@ -262,7 +262,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	private applyEntity(result: TEntityResult): void {
 		this.vertex = result.vertex;
 		this.edges = (result.edges as EdgeData[]) ?? [];
-		this.incomingCount = result.incomingCount ?? 0;
+		this.incomingCount = result.incomingCount;
 		this.products = result;
 	}
 
@@ -512,7 +512,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const roles = roleEdgeLabelSet();
 		const outgoing = this.edges.filter((e) => !summaryFields.has(e.type) && isReferenceEdge(e.type) && !roles.has(e.type));
 
-		if (outgoing.length === 0 && this.incomingCount === 0) return "";
+		if (outgoing.length === 0 && this.incomingCount.total === 0) return "";
 
 		// Deduplicate targets for display, inReplyTo takes priority over references
 		const seen = new Set<string>();
@@ -535,10 +535,10 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const { persistedAs, individualId: subject } = this.state;
 		const incoming = paneHref({ paneType: "filter-incoming", persistedAs, subject });
 		const inHtml =
-			this.incomingCount > 0
-				? `<a class="section-label links-here-link" href="${escAttr(incoming)}">What links here <span class="ref-count">(${this.incomingCount})</span></a>`
+			this.incomingCount.total > 0
+				? `<a class="section-label links-here-link" href="${escAttr(incoming)}">What links here <span class="ref-count">(${statedTotal(this.incomingCount)})</span></a>`
 				: "";
-		const hasReplies = this.edges.some((e) => isReplyEdge(e.type)) || this.incomingCount > 0;
+		const hasReplies = this.edges.some((e) => isReplyEdge(e.type)) || this.incomingCount.total > 0;
 		const replyHtml = hasReplies ? `<a class="section-label thread-link" href="${escAttr(paneHref({ paneType: "thread", persistedAs, subject }))}">View replies</a>` : "";
 
 		return `<div class="references" data-testid="ref-section">${outHtml}${inHtml}${replyHtml}</div>`;

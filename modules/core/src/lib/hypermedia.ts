@@ -474,6 +474,9 @@ export const counted = (total: number): TCounted => ({ total, saturated: false }
 /** A count read against the ceiling it was allowed. Reaching the ceiling states a floor rather than a total. */
 export const countedTo = (total: number, ceiling: number): TCounted => ({ total, saturated: total >= ceiling });
 
+/** A count as a reader is told it: "or more" where the count stopped at its ceiling, since a stopped count is a floor. */
+export const statedTotal = ({ total, saturated }: TCounted): string => (saturated ? `${total} or more` : String(total));
+
 /** A view's members, validated as the block is built, so every view states them the one way. `totalItems` counts the
  *  members given, unless the view states that it holds more. */
 export function viewCollection(states: { id: string; name: string; items: ReadonlyArray<unknown>; totalItems?: number; stated?: Record<string, unknown> }): TViewCollection {

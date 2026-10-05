@@ -22,7 +22,7 @@ import { runReadingAt, runActingAs } from "@haibun/core/lib/capability-context.j
 import { fromJsonText } from "@haibun/core/lib/json-text.js";
 
 import { type IWebServer, WEBSERVER, DOMAIN_ENDPOINT, EndpointLabels, EndpointSchema } from "./defs.js";
-import { endWhenLapsed, grantedCapabilityForRequest } from "./capability-auth.js";
+import { delegateOf, endWhenLapsed, grantedCapabilityForRequest } from "./capability-auth.js";
 import { whyNotSignedInOnly } from "./auth.js";
 import { basicAuthUsers, type TBasicAuthUser } from "@haibun/core/lib/basic-auth.js";
 import { ServerHono, DEFAULT_PORT } from "./server-hono.js";
@@ -31,6 +31,14 @@ import type { IStepTransport } from "./step-transport.js";
 
 /** What holding authority over this instance's web server means: ending the process that serves it. */
 const WEB_SERVER_CAPABILITIES = { stop: "WebServer:stop" } as const;
+/**
+ * A call that asks to read, refused where what it calls doesn't declare itself a read. Actuality holds a call to the step's
+ * own declaration, so a reading isn't recorded as something actuality did. It is checked after the gate, so a caller is told
+ * this only about a call it may make, on every transport.
+ */
+const notARead = (method: string): string =>
+	`${method} was asked to answer a read, and does not declare itself one: a read is answered and doesn't leave a record, so a step read by a page declares read: true`;
+
 /** The domain of the ports this process listens on, each with why it listens. */
 const DOMAIN_LISTENING_PORTS = "listening-ports";
 const ListeningPortsSchema = z.object({ ports: z.record(z.string(), z.string()) });
@@ -337,7 +345,8 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			// is, without an ungated default.
 			const served = webserver.rpcMethod(method);
 			if (served) {
-				if (!mayCall(granted, { capability: served.action })) return { error: refusal(method, served.action, principal) };
+				if (!mayCall(granted, { capability: served.action })) return { error: refusal(method, served.action, delegateOf(authority, this)) };
+				if (msg.asks === "read") return { error: notARead(method) };
 				try {
 					// Whoever proved themselves at this boundary is who acts inside it, as in a dispatched step.
 					return await runActingAs(principal, () => served.handle(params), restsOn);
@@ -351,7 +360,8 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 				// A call is refused before its input is read, and alike whether its step exists, so a refusal doesn't tell the caller
 				// about the steps it may not call.
 				const tool = registry.get(method);
-				if (!tool || !mayCall(granted, tool.descriptor)) return { error: refusal(method, tool && lackedAction(granted, tool.descriptor), principal) };
+				if (!tool || !mayCall(granted, tool.descriptor)) return { error: refusal(method, tool && lackedAction(granted, tool.descriptor), delegateOf(authority, this)) };
+				if (msg.asks === "read" && !tool.descriptor.read) return { error: notARead(method) };
 				// External callers (without a feature-step context) get a server-synthesised seqPath, matching MCP.
 				const seqPath = msg.seqPath && msg.seqPath.length > 0 ? msg.seqPath : allocateSyntheticSeqPath(world);
 				const validatedParams = validateToolInput(seqPath, tool, params, world);

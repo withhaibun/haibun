@@ -6,7 +6,7 @@ import type { TRuntime } from "@haibun/core/lib/world.js";
 import { capabilityAllows } from "@haibun/core/lib/actions.js";
 import { refusal } from "@haibun/core/lib/step-registry.js";
 import { getAuthority, heldAuthority } from "@haibun/core/lib/session-authority.js";
-import type { TRestsOn } from "@haibun/core/lib/authority-types.js";
+import { DELEGATIONS_READ_ACTION, type TRestsOn } from "@haibun/core/lib/authority-types.js";
 import type { IWebServer } from "./defs.js";
 
 type TRequestHeaders = Record<string, string | undefined>;
@@ -49,6 +49,16 @@ export async function grantedCapabilityForRequest(request: TAuthorizedRequest | 
 	return { granted: [...allowedWithoutDelegation, ...(verdict.allowedAction ?? [])], principal: verdict.principal, restsOn: verdict.restsOn };
 }
 
+/**
+ * Who a refusal names the lacked action to: a caller whose proof holds a delegation, which can ask its delegator for what it
+ * lacks. A key holds the read of its own delegations without being delegated anything, so a caller holding only that and
+ * what every caller holds is told what a caller that proved nothing is told, and a refusal doesn't map actuality for it.
+ */
+export function delegateOf({ granted, principal }: Pick<TRequestAuthority, "granted" | "principal">, served: TServed): string | undefined {
+	const everyCaller = new Set<string>([...served.allowedWithoutDelegation, DELEGATIONS_READ_ACTION]);
+	return granted.some((action) => !everyCaller.has(action)) ? principal : undefined;
+}
+
 /** The answer to a request whose presented authority failed verification, naming why and offering to read again what the
  *  key holds. */
 export const refuseInvocation = (c: Context, error: string): Response => c.json(authorityRefusal(error), REFUSED_INVOCATION);
@@ -58,7 +68,7 @@ export const refuseInvocation = (c: Context, error: string): Response => c.json(
 export async function authorityAllowing(c: Context, action: string, runtime: TRuntime, served: TServed): Promise<TRequestAuthority | Response> {
 	const authority = await grantedCapabilityForRequest({ method: c.req.method, url: c.req.url, headers: c.req.header() }, runtime, served);
 	if (authority.refused) return refuseInvocation(c, `${c.req.path}: ${authority.refused}`);
-	if (!capabilityAllows(authority.granted, action)) return c.json({ error: refusal(c.req.path, action, authority.principal) }, REFUSED_INVOCATION);
+	if (!capabilityAllows(authority.granted, action)) return c.json({ error: refusal(c.req.path, action, delegateOf(authority, served)) }, REFUSED_INVOCATION);
 	return authority;
 }
 

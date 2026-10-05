@@ -34,7 +34,7 @@ import {
 	type TIndividualWithEdges,
 	type TStoreLevels,
 } from "./quad-types.js";
-import { displayLabelForQuads } from "./hypermedia.js";
+import { counted, displayLabelForQuads } from "./hypermedia.js";
 import { Access, AccessLevelSchema, BODY_LABEL, LinkRelations, withinAccess, type AccessLevel } from "./resources.js";
 import { seenAt, writesAtEveryLevel, writtenAt } from "./actions.js";
 
@@ -116,8 +116,15 @@ export class QuadStore implements IQuadStore {
 		for (const ng of namedGraphs) {
 			this.routing.set(ng, store);
 		}
-		for (const { ng, record } of bySubject.values()) {
-			await store.upsertIndividual(ng, record);
+		// A store that refuses a record this one holds isn't registered: this one keeps every record it holds, so the
+		// next write of one of them reads it here, and the caller is given the store's refusal.
+		try {
+			for (const { ng, record } of bySubject.values()) {
+				await store.upsertIndividual(ng, record);
+			}
+		} catch (err) {
+			this.unregisterStore(store);
+			throw err;
 		}
 		this.quads = this.quads.filter((q) => !ngSet.has(q.namedGraph));
 	}
@@ -663,5 +670,5 @@ export async function individualWithEdges(store: IQuadStore, label: string, id: 
 		Promise.all(named.map(async (quad) => ({ type: quad.predicate, direction: "out" as const, target: await targetOf(store, String(quad.objectType), String(quad.object)) }))),
 		incomingEdgesOf(store, id),
 	]);
-	return { vertex, edges: [...outgoing, ...incoming.edges], incomingCount: incoming.total };
+	return { vertex, edges: [...outgoing, ...incoming.edges], incomingCount: counted(incoming.total) };
 }

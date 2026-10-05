@@ -278,14 +278,15 @@ async function checkInputPreconditions(world: TWorld, paramDomainKeys: ReadonlyM
  * see `isViewOnlyDomain` for why.
  */
 async function autoAssertProducts(world: TWorld, seqPathKey: string, step: TStepperStep, actionResult: TActionResult): Promise<void> {
-	if (!actionResult.products) return;
+	// A fact is held for as long as actuality runs, so it holds what the step retains, as the event that records it does.
+	const products = retainedProducts(actionResult.products, step.retainProducts);
+	if (!products) return;
 	if (step.productsDomain) {
 		if (isViewOnlyDomain(world, step.productsDomain)) return;
-		await assertFact(world, normalizeDomainKey(step.productsDomain), factIdOf(seqPathKey), actionResult.products, FACT_GRAPH);
+		await assertFact(world, normalizeDomainKey(step.productsDomain), factIdOf(seqPathKey), products, FACT_GRAPH);
 		return;
 	}
 	if (step.productsDomains) {
-		const products = actionResult.products;
 		for (const [field, domainKey] of Object.entries(step.productsDomains)) {
 			if (!(field in products)) continue;
 			if (isViewOnlyDomain(world, domainKey)) continue;

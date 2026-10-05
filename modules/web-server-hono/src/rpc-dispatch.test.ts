@@ -222,6 +222,19 @@ class RpcVerifyStepper extends AStepper {
 				return typeof data.error === "string" && data.error.includes("does not declare itself one") ? OK : actionNotOK(`refused without stating why: ${JSON.stringify(data)}`);
 			},
 		},
+		rpcReadOfUncallableRefusedAlike: {
+			gwta: `rpc read at {url: ${DOMAIN_LINK}} of {method: ${DOMAIN_STEP_METHOD}} presenting nothing is refused as a call it may not make`,
+			action: async ({ url, method }: TStepArgs) => {
+				const res = await fetch(String(url), {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: await rpcBody(String(url), { method: String(method), seqPath: [0, 1, 1, 1], asks: "read" }),
+				});
+				const data = (await res.json()) as { error?: string };
+				const expected = refusal(String(method), undefined, undefined);
+				return res.status === 422 && data.error === expected ? OK : actionNotOK(`Expected "${expected}", got ${res.status} ${JSON.stringify(data)}`);
+			},
+		},
 		rpcReadOfStepAnswered: {
 			gwta: `rpc read at {url: ${DOMAIN_LINK}} of {method: ${DOMAIN_STEP_METHOD}} is answered`,
 			action: async ({ url, method }: TStepArgs) => {
@@ -487,6 +500,8 @@ enable rpc
 webserver is listening for "rpc-asks-read"
 rpc read at "http://localhost:${port}/rpc/ReadStepper-asked" of "ReadStepper-asked" is answered
 rpc read at "http://localhost:${port}/rpc/PingStepper-ping" of "PingStepper-ping" is refused
+rpc read at "http://localhost:${port}/rpc/PingStepper-protectedRpcPing" of "PingStepper-protectedRpcPing" presenting nothing is refused as a call it may not make
+rpc read at "http://localhost:${port}/rpc/Nowhere-nothing" of "Nowhere-nothing" presenting nothing is refused as a call it may not make
 `,
 		};
 		const result = await passWithDefaults([feature], steppers, makeOptions(port, "PingStepper:ping,Read:public"));

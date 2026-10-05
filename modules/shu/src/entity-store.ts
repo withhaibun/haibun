@@ -1,4 +1,5 @@
 import { isOffline } from "./rpc-registry.js";
+import type { TCounted } from "@haibun/core/lib/hypermedia.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
 import { BODY_LABEL, LinkRelations } from "@haibun/core/lib/resources.js";
@@ -12,7 +13,7 @@ import { readIndividual } from "./quads-snapshot.js";
 import { resolveAnnotationsLive, resolveAnnotationsOffline, type AnnotationView } from "./annotation-resolver.js";
 
 /** The client's copy of one entity: the `getIndividualWithEdges` result, kept current by SSE. */
-export type TEntityResult = { vertex: Record<string, unknown>; edges: unknown[]; incomingCount: number };
+export type TEntityResult = { vertex: Record<string, unknown>; edges: unknown[]; incomingCount: TCounted };
 
 /** Where a served copy came from: a live fetch, the in-memory session cache, or the persisted browser store (offline). */
 type TProvenance = "live" | "cache" | "offline";

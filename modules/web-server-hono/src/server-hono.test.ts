@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { tmpdir } from "node:os";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { ServerHono } from "./server-hono.js";
 import type { IEventLogger } from "@haibun/core/lib/EventLogger.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
@@ -204,6 +206,20 @@ describe("ServerHono", () => {
 			expect(await store.getIndividual(EndpointLabels.Endpoint, "/files")).toMatchObject({ method: "GET", description: "files a test serves" });
 			expect(await store.getIndividual(EndpointLabels.Endpoint, "/listing")).toMatchObject({ method: "GET", description: "an index a test serves" });
 			expect(() => server.addKnownStaticFolder(tmpdir(), "/unstated", { description: "" })).toThrow("purpose.description is required");
+		});
+
+		it("serves only a folder its base holds, lists only what is under it, and lists a name as text", async () => {
+			const base = mkdtempSync(join(tmpdir(), "served-"));
+			mkdirSync(join(base, "shown"));
+			writeFileSync(join(base, "shown", "<b>named.txt"), "");
+			const held = new ServerHono(mockLogger, base, () => store, []);
+			expect(() => held.checkAddStaticFolder("../..", "/out", P)).toThrow(`ServerHono: ../.. leads out of ${base}`);
+			expect(() => held.checkAddIndexFolder("..", "/out", P)).toThrow(`ServerHono: .. leads out of ${base}`);
+			held.checkAddIndexFolder("shown", "/listing", P);
+			const listing = await (await held.app.request("/listing/")).text();
+			expect(listing).toContain("&lt;b&gt;named.txt");
+			expect(listing).not.toContain("<b>");
+			expect((await held.app.request("/listing/%2e%2e/%2e%2e/")).status, "a request that leads out of the folder").toBe(404);
 		});
 
 		it("answers a request for a folder it serves only once the folder's gates pass it", async () => {

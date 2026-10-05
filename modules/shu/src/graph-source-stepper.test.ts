@@ -108,7 +108,7 @@ describe("one individual with its edges, from the store this instance holds", ()
 		const answer = result.products as { vertex: Record<string, unknown>; edges: Array<{ type: string; direction: string }>; incomingCount: number };
 		expect(answer.vertex).toMatchObject({ "@id": "a@test.com", "@type": EMAIL, address: "a@test.com" });
 		expect(answer.edges.filter((edge) => edge.direction === "in").map((edge) => edge.type)).toEqual(["about"]);
-		expect(answer.incomingCount).toBe(1);
+		expect(answer.incomingCount).toEqual({ total: 1, saturated: false });
 	});
 
 	it("reports so where it doesn't hold the individual, rather than answering with an empty one", async () => {

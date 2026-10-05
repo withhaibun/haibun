@@ -106,10 +106,13 @@ export function narrowerAccess(inForce: AccessLevel, asked: AccessLevel): Access
 }
 
 /** Whether a record at `level` is within what a read at `asked` may see: the one rule every store reads by. A record
- *  that doesn't state a level of its own isn't something the reading can judge, and is left to whatever served it to decide. */
+ *  that doesn't state a level of its own isn't something the reading can judge, and is left to whatever served it to decide.
+ *  A level that isn't one of the levels is refused, since a reading can't tell how widely it was meant to be shared. */
 export function withinAccess(level: unknown, asked: AccessLevel): boolean {
-	const held = typeof level === "string" ? ACCESS_BREADTH[level as AccessLevel] : undefined;
-	return held === undefined || held <= ACCESS_BREADTH[asked];
+	if (level === undefined || level === null) return true;
+	const stated = AccessLevelSchema.safeParse(level);
+	if (!stated.success) throw new Error(`a record states the access level ${JSON.stringify(level)}, which isn't one of ${ACCESS_BROADEST_FIRST.join(", ")}`);
+	return ACCESS_BREADTH[stated.data] <= ACCESS_BREADTH[asked];
 }
 
 /** The levels a read at `seen` returns records at, for a store that states the rule as a query rather than a test. */

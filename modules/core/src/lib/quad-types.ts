@@ -10,6 +10,7 @@ import { z } from "zod";
 import type { AccessLevel } from "./resources.js";
 import type { TAccessBound } from "./actions.js";
 import { ellipsize } from "./util/index.js";
+import { CountedSchema } from "./hypermedia.js";
 
 /**
  * Named graph holding stepper variables (feature-variables projection of TStepValue).
@@ -115,7 +116,7 @@ export type TQuadEdge = z.infer<typeof QuadEdgeSchema>;
 
 /** An individual as a view reads it: the record, the edges either way, and how many edges point at it. One shape, so a
  *  site answering for its own store and a page reading what it holds answer alike. */
-export const IndividualWithEdgesSchema = z.object({ vertex: z.record(z.string(), z.unknown()), edges: z.array(QuadEdgeSchema), incomingCount: z.number() });
+export const IndividualWithEdgesSchema = z.object({ vertex: z.record(z.string(), z.unknown()), edges: z.array(QuadEdgeSchema), incomingCount: CountedSchema });
 export type TIndividualWithEdges = z.infer<typeof IndividualWithEdgesSchema>;
 
 export interface TQuad {

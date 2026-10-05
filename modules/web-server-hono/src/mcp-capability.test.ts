@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
 
-import { passWithDefaults, DEF_PROTO_OPTIONS } from "@haibun/core/lib/test/lib.js";
+import { passWithDefaults, DEF_PROTO_OPTIONS, freePort } from "@haibun/core/lib/test/lib.js";
 import { TEST_DOMAIN, declaresTestDomains } from "@haibun/core/lib/test/test-domains.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { actionOKWithProducts, getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import { OK } from "@haibun/core/schema/protocol.js";
-import { readingAt } from "@haibun/core/lib/capability-context.js";
+import { actingAs, readingAt } from "@haibun/core/lib/capability-context.js";
 import { refusal } from "@haibun/core/lib/step-registry.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import FakeAuthorityStepper, { DOMAIN_FAKE_HOLDER, FakeInvoker } from "@haibun/core/lib/test/fake-authority.js";
@@ -15,6 +15,11 @@ import WebServerStepper from "./web-server-stepper.js";
 import { DOMAIN_NUMBER } from "@haibun/core/lib/domains.js";
 import { Access } from "@haibun/core/lib/resources.js";
 import { REFUSED_INVOCATION } from "@haibun/core/lib/rpc-wire.js";
+
+/** Two calls in flight at once: each call that arrives waits until the other has arrived too. */
+const CALLS_IN_FLIGHT = 2;
+let arrived = 0;
+let allArrived = Promise.withResolvers<void>();
 
 class ProtectedStepper extends AStepper {
 	description = "Steps gated by a protected and an admin capability, for tests of MCP authorization.";
@@ -36,6 +41,29 @@ class ProtectedStepper extends AStepper {
 			readsAt: Access.public,
 			productsDomain: TEST_DOMAIN.readAt,
 			action: async () => actionOKWithProducts({ at: readingAt() ?? "unbounded" }),
+		},
+		echoesItsCaller: {
+			exact: "mcp call that waits for another",
+			capability: "ProtectedStepper:wait",
+			productsDomain: TEST_DOMAIN.echoed,
+			action: async () => {
+				if (++arrived === CALLS_IN_FLIGHT) allArrived.resolve();
+				await allArrived.promise;
+				return actionOKWithProducts({ echoed: actingAs() ?? "" });
+			},
+		},
+		verifyCallersAnsweredApart: {
+			gwta: `verify mcp calls by {first: ${DOMAIN_FAKE_HOLDER}} and {second: ${DOMAIN_FAKE_HOLDER}} with one id on port {port: ${DOMAIN_NUMBER}} are each answered with their own result`,
+			action: async ({ first, second, port }: { first: string; second: string; port: string }) => {
+				arrived = 0;
+				allArrived = Promise.withResolvers<void>();
+				const url = `http://localhost:${port}/mcp`;
+				const call = (holder: string) => rpc(url, 1, "tools/call", { name: "ProtectedStepper-echoesItsCaller", arguments: {} }, { holder, action: "ProtectedStepper:wait" });
+				const answered = await Promise.all([call(first), call(second)]);
+				const echoed = answered.map((result) => JSON.parse(getToolResult(result).content?.[0]?.text ?? "{}").echoed);
+				if (echoed[0] !== first || echoed[1] !== second) throw new Error(`Expected ${first} and ${second} each answered with their own result, got ${JSON.stringify(answered)}`);
+				return OK;
+			},
 		},
 		verifyMcpReadLevel: {
 			gwta: `verify mcp read signed by {holder: ${DOMAIN_FAKE_HOLDER}} for {action: ${TEST_DOMAIN.action}} on port {port: ${DOMAIN_NUMBER}} reads at {level: ${TEST_DOMAIN.accessLevel}}`,
@@ -153,6 +181,23 @@ accept authority from "reader" for "Read:public"
 accept authority from "owner" for "Read:private"
 verify mcp read signed by "reader" for "Read:public" on port ${port} reads at "public"
 verify mcp read signed by "owner" for "Read:private" on port ${port} reads at "private"
+`,
+		};
+		const result = await passWithDefaults([feature], signedSteppers, mcpOptions(port));
+		if (!result.ok) throw new Error(JSON.stringify(result.featureResults, null, 2));
+		expect(result.ok).toBe(true);
+	});
+
+	it("answers each caller with its own result where two callers chose one id", async () => {
+		const port = await freePort();
+		const feature = {
+			path: "/features/mcp-callers-apart.feature",
+			content: `
+serve mcp tools at "/mcp"
+webserver is listening for "mcp callers apart"
+accept authority from "first" for "ProtectedStepper:wait"
+accept authority from "second" for "ProtectedStepper:wait"
+verify mcp calls by "first" and "second" with one id on port ${port} are each answered with their own result
 `,
 		};
 		const result = await passWithDefaults([feature], signedSteppers, mcpOptions(port));

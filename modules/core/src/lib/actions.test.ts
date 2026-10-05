@@ -20,7 +20,7 @@ import {
 	writesAtEveryLevel,
 	writtenAt,
 } from "./actions.js";
-import { Access, levelsWithin } from "./resources.js";
+import { Access, levelsWithin, withinAccess } from "./resources.js";
 
 describe("what a step requires", () => {
 	it("is the action it declares", () => {
@@ -183,5 +183,10 @@ describe("what a read sees", () => {
 		expect(levelsWithin(Access.public)).toEqual([Access.public]);
 		expect(levelsWithin(Access.opened)).toEqual([Access.opened, Access.public]);
 		expect(levelsWithin(Access.private)).toEqual([Access.private, Access.opened, Access.public]);
+	});
+
+	it("refuses a record whose level isn't one of the levels, rather than reading it as within every read", () => {
+		expect(() => withinAccess("Private", Access.public)).toThrow(`a record states the access level "Private", which isn't one of private, opened, public`);
+		expect(withinAccess(undefined, Access.public), "a record that doesn't state a level is left to what served it").toBe(true);
 	});
 });

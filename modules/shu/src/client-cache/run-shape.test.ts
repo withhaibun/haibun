@@ -6,10 +6,11 @@ import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
-import type { TDensityQuery } from "@haibun/core/lib/quad-types.js";
+import { DensityQuerySchema, type TDensityQuery } from "@haibun/core/lib/quad-types.js";
 import { MARK_COLOUR } from "../event-marker.js";
 import { ofExecution, runGraphOf, type TRunGraph } from "./run-graph.js";
 import { runShape } from "./run-shape.js";
+import { RUN_TYPES } from "./run-window.js";
 
 const RUN = "1700000000000-1";
 const iso = (n: number): string => new Date(n).toISOString();
@@ -126,6 +127,29 @@ describe("the shape of a run, by division", () => {
 			shape.marks.map((m) => m.at),
 			"the divisions the other run wrote in don't hold a record of this one",
 		).toEqual([shape.beginningOf(0), shape.beginningOf(2)]);
+	});
+
+	it("takes counts in turn, so a count asked for while another awaits the store counts from what that one wrote", async () => {
+		const { graph, counted } = await aRun([
+			{ at: 1000, status: "passed" },
+			{ at: 2000, status: "passed" },
+			{ at: 3000, status: "failed" },
+		]);
+		const readsOfWhereActualityBegins = RUN_TYPES.length * 2;
+		let answer = (): void => undefined;
+		const answered = new Promise<void>((resolve) => {
+			answer = resolve;
+		});
+		let asked = 0;
+		const slowAtFirst: TRunGraph = { ...graph, query: (query) => (asked++ < readsOfWhereActualityBegins ? answered.then(() => graph.query(query)) : graph.query(query)) };
+		const shape = runShape(slowAtFirst, { divisions: 4 });
+		const earlier = shape.update(2000);
+		const later = shape.update(3000);
+		await new Promise((ran) => setImmediate(ran));
+		answer();
+		await Promise.all([earlier, later]);
+		for (const query of counted) expect(DensityQuerySchema.safeParse(query).success, `a count asks for one division or more, and one asked for ${query.buckets}`).toBe(true);
+		expect(shape.marks.at(-1)?.color, "the failure the later count reached is marked").toBe(MARK_COLOUR.fault);
 	});
 
 	it("counts only what actuality has recorded since the last count", async () => {

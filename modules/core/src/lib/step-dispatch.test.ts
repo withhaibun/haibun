@@ -621,6 +621,28 @@ describe("step-dispatch", () => {
 			expect(world.runtime.stepResults?.length ?? 0, "and is kept with actuality's other steps").toBe(kept + 1);
 		});
 
+		it("holds a fact of what a step retains, so a step that doesn't retain its products doesn't hold them for as long as actuality runs", async () => {
+			const stepper = new (class extends AStepper {
+				steps = {
+					counted: { gwta: "counted", productsDomain: TEST_DOMAIN.count, action: async () => actionOKWithProducts({ count: 4 }) },
+					notRetained: { gwta: "not retained", productsDomain: TEST_DOMAIN.count, retainProducts: false, action: async () => actionOKWithProducts({ count: 5 }) },
+				};
+			})();
+			const steppers = [stepper];
+			const registry = new StepRegistry(steppers, world);
+			const run = async (method: string, path: number[]) => {
+				const tool = registry.get(`${stepper.constructor.name}-${method}`);
+				if (!tool) throw new Error(`Expected ${method} to be registered`);
+				const featureStep = buildFeatureStepForTransport(tool, {}, path);
+				featureStep.programmatic = undefined;
+				expect((await dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, featureStep)).ok).toBe(true);
+			};
+			await run("counted", [0, 9, 4]);
+			await run("notRetained", [0, 9, 5]);
+			expect(await getFact(world, TEST_DOMAIN.count, factIdOf("0.9.4"), FACT_GRAPH)).toMatchObject({ count: 4 });
+			expect(await getFact(world, TEST_DOMAIN.count, factIdOf("0.9.5"), FACT_GRAPH)).toBeUndefined();
+		});
+
 		it("states a step its caller stopped as stopped, in its record and its end event, where a step that fails unstopped failed", async () => {
 			const stepper = new ProductStepper();
 			const steppers = [stepper];

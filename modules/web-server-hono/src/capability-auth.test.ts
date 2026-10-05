@@ -7,6 +7,7 @@
 import { describe, it, expect } from "vitest";
 import { Hono } from "hono";
 import { grantedCapabilityForRequest, requiring } from "./capability-auth.js";
+import { DELEGATIONS_READ_ACTION } from "@haibun/core/lib/authority-types.js";
 import { REFUSED_INVOCATION, RELOAD } from "@haibun/core/lib/rpc-wire.js";
 import { SessionAuthority, AUTHORITY_KEY } from "@haibun/core/lib/session-authority.js";
 import { runActingAs } from "@haibun/core/lib/capability-context.js";
@@ -20,8 +21,10 @@ const ACTION = "comment.grant";
 /** Stands for whatever a deployment registers: this one accepts a request naming the reader, and refuses the rest. */
 class StubVerifier implements IAuthorityVerifier {
 	verify(evidence: TAuthorityEvidence): Promise<{ ok: boolean; error?: string; principal?: string; allowedAction?: string[] }> {
-		const accepted = evidence.kind === "request" && evidence.headers["capability-invocation"]?.includes(ACTION);
-		return Promise.resolve(accepted ? { ok: true, principal: READER, allowedAction: [ACTION, "comment.deny"] } : { ok: false, error: "not this one" });
+		const invoked = evidence.kind === "request" ? evidence.headers["capability-invocation"] : undefined;
+		// A key invoking its own root holds the read of its own delegations and nothing it was delegated.
+		if (invoked?.includes(DELEGATIONS_READ_ACTION)) return Promise.resolve({ ok: true, principal: READER, allowedAction: [DELEGATIONS_READ_ACTION] });
+		return Promise.resolve(invoked?.includes(ACTION) ? { ok: true, principal: READER, allowedAction: [ACTION, "comment.deny"] } : { ok: false, error: "not this one" });
 	}
 
 	delegationsTo(): Promise<TDelegations> {
@@ -112,6 +115,10 @@ describe("a route that requires an action", () => {
 		const unproven = await held([])();
 		expect(unproven.status).toBe(403);
 		expect(await unproven.json()).toEqual({ error: "/held/one: not a call this caller may make" });
+		const ownKeyOnly = await held([])(signedRequest(DELEGATIONS_READ_ACTION).headers);
+		expect(await ownKeyOnly.json(), "a key that wasn't delegated anything is told what a caller that proved nothing is told").toEqual({
+			error: "/held/one: not a call this caller may make",
+		});
 		const failed = await held([])(signedRequest("comment.revoke").headers);
 		expect(failed.status).toBe(REFUSED_INVOCATION);
 		expect(await failed.json()).toEqual({ error: "/held/one: the presented authority failed verification: not this one", remedy: RELOAD.authority });

@@ -92,6 +92,15 @@ describe("backing routing is shared along the store chain, and a registration ne
 		expect(await first.query({ namedGraph: "Person" })).toHaveLength(1);
 	});
 
+	it("a backing that refuses a record isn't registered, and the records stay where they were", async () => {
+		const store = new QuadStore();
+		await store.set("e1", "subject", "hello", "Email");
+		const refusal = new Error("the backing's pages are unreadable");
+		const refusing = { upsertIndividual: async () => Promise.reject(refusal) } as unknown as import("./quad-types.js").IQuadStore;
+		await expect(store.registerStore(refusing, ["Email"])).rejects.toBe(refusal);
+		expect(await store.get("e1", "subject", "Email"), "the record is read where it was written").toBe("hello");
+	});
+
 	it("unregisterStore removes the backing from every store in the chain at once", async () => {
 		const { backing } = fakeBacking();
 		const first = new QuadStore();

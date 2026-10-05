@@ -350,33 +350,11 @@ const main = async (): Promise<void> => {
 		{ signal },
 	);
 
-	// The actions bar owns its own resize now (it overlays the bottom and grows upward); see shu-actions-bar.ts.
-
-	// Sync notifications, buffer rapid events into one consolidated message
-	let syncDebounce: ReturnType<typeof setTimeout> | null = null;
-	const syncBuffer: Map<string, number> = new Map(); // source → total indexed
-	const SYNC_DEBOUNCE_MS = 2000;
-
+	// The results shown are behind what actuality holds, so the total offers to read them again.
 	appRoot.addEventListener(
 		SHU_EVENT.SYNC_AVAILABLE,
-		((e: CustomEvent) => {
-			const total = appRoot.querySelector(".result-total") as HTMLElement | null;
-			if (total) total.classList.add("has-sync");
-			const detail = e.detail || {};
-			const desc = detail.folder ? `${detail.account}/${detail.folder}` : "mail";
-			const count = typeof detail.indexed === "number" ? detail.indexed : 1;
-			syncBuffer.set(desc, (syncBuffer.get(desc) || 0) + count);
-
-			if (syncDebounce) clearTimeout(syncDebounce);
-			syncDebounce = setTimeout(() => {
-				const parts: string[] = [];
-				for (const [source, n] of syncBuffer) {
-					parts.push(`${n} message${n === 1 ? "" : "s"} from ${source}`);
-				}
-				syncBuffer.clear();
-				syncDebounce = null;
-				reportClientLog("debug", `Synced ${parts.join(", ")}`);
-			}, SYNC_DEBOUNCE_MS);
+		(() => {
+			appRoot.querySelector(".result-total")?.classList.add("has-sync");
 		}) as EventListener,
 		{ signal },
 	);

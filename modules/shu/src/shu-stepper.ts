@@ -400,15 +400,9 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 			...(opensAt ? { viewHash: opensAt } : {}),
 		});
 		webserver.addRoute("get", path, { description: `Shu SPA mounted at ${path}` }, createSpaHandler(path, hydration));
-		const domains = this.getWorld().domains;
-		// The context varies only by serving host, drawn from a tiny set of origins, build it once per host.
-		const byHost = new Map<string, Record<string, unknown>>();
-		const jsonLdHandler = (c: Context) => {
-			const ns = haibunNsForHost(requestBaseIri(c.req.header()));
-			let ctx = byHost.get(ns);
-			if (!ctx) byHost.set(ns, (ctx = getJsonLdContext(domains, ns)));
-			return c.json(ctx);
-		};
+		// The context is built from the domains as they stand, so a type declared after the page was served is in it, and for
+		// the host the request names, which a caller writes, so nothing is kept per host.
+		const jsonLdHandler = (c: Context) => c.json(getJsonLdContext(this.getWorld().domains, haibunNsForHost(requestBaseIri(c.req.header()))));
 		// What every app of a server shares is served once per server, however many apps it mounts: the graph view's bundle,
 		// its source map and the JSON-LD context. `no-cache` revalidates the bundle, so an unchanged one answers 304 and a
 		// rebuilt one gets a fresh ETag and a full body.

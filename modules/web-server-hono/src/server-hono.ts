@@ -4,7 +4,8 @@ import { LinearRouter } from "hono/router/linear-router";
 import { serve, type ServerType } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { existsSync, statSync, readdirSync } from "fs";
-import { join } from "path";
+import { resolve, sep } from "path";
+import { esc } from "@haibun/core/lib/document-content.js";
 import type { MiddlewareHandler } from "hono";
 import type { IEventLogger } from "@haibun/core/lib/EventLogger.js";
 import { describePortOccupant } from "@haibun/core/lib/port-occupant.js";
@@ -151,7 +152,7 @@ export class ServerHono implements IWebServer {
 	checkAddStaticFolder(relativeFolder: string, mountAt: string, purpose: TRoutePurpose): void {
 		if (!relativeFolder) throw new Error("ServerHono.checkAddStaticFolder: relativeFolder is required");
 		if (!mountAt) throw new Error("ServerHono.checkAddStaticFolder: mountAt is required");
-		this.addStaticFolderInternal(join(this.base, relativeFolder), mountAt, purpose);
+		this.addStaticFolderInternal(withinFolder(this.base, relativeFolder), mountAt, purpose);
 	}
 
 	addKnownStaticFolder(folder: string, mountAt: string, purpose: TRoutePurpose, ...before: MiddlewareHandler[]): void {
@@ -164,7 +165,7 @@ export class ServerHono implements IWebServer {
 		if (!relativeFolder) throw new Error("ServerHono.checkAddIndexFolder: relativeFolder is required");
 		if (!mountAt) throw new Error("ServerHono.checkAddIndexFolder: mountAt is required");
 		this.validatePurpose(purpose);
-		const folder = join(this.base, relativeFolder);
+		const folder = withinFolder(this.base, relativeFolder);
 		this.ensureNotMounted("get", mountAt);
 		this.validateFolderExists(folder);
 		this.eventLogger.debug(`ServerHono: serving index from ${folder} at ${mountAt}`);
@@ -172,8 +173,8 @@ export class ServerHono implements IWebServer {
 		const indexPath = mountAt.endsWith("/") ? `${mountAt}*` : `${mountAt}/*`;
 		this._app.get(indexPath, async (c) => {
 			const requestPath = c.req.path.replace(mountAt, "").replace(/^\//, "");
-			const fullPath = join(folder, requestPath);
-			if (!existsSync(fullPath)) return c.notFound();
+			const fullPath = resolve(folder, requestPath);
+			if (!isWithin(folder, fullPath) || !existsSync(fullPath)) return c.notFound();
 			const stat = statSync(fullPath);
 			if (stat.isDirectory()) {
 				const files = readdirSync(fullPath);
@@ -260,11 +261,21 @@ export class ServerHono implements IWebServer {
 		const items = files
 			.map((file) => {
 				const href = `${mountAt}/${dirPath}/${file}`.replace(/\/+/g, "/");
-				return `<li><a href="${href}">${file}</a></li>`;
+				return `<li><a href="${esc(href)}">${esc(file)}</a></li>`;
 			})
 			.join("\n");
-		return `<!DOCTYPE html><html><head><title>Index of ${dirPath}</title></head><body><h1>Index of ${dirPath}</h1><ul>${items}</ul></body></html>`;
+		return `<!DOCTYPE html><html><head><title>Index of ${esc(dirPath)}</title></head><body><h1>Index of ${esc(dirPath)}</h1><ul>${items}</ul></body></html>`;
 	}
+}
+
+/** Whether `path` is `folder` or under it. */
+const isWithin = (folder: string, path: string): boolean => path === resolve(folder) || path.startsWith(`${resolve(folder)}${sep}`);
+
+/** The folder `relative` names under `base`, refused where it leads out of `base`: a feature serves what its base holds. */
+export function withinFolder(base: string, relative: string): string {
+	const folder = resolve(base, relative);
+	if (!isWithin(base, folder)) throw new Error(`ServerHono: ${relative} leads out of ${base}, and a served folder is one the base holds`);
+	return folder;
 }
 
 export const DEFAULT_PORT = 8123;

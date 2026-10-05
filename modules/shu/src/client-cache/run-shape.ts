@@ -51,43 +51,52 @@ export function runShape(graph: TRunGraph, { divisions = RUN_DIVISIONS, minLevel
 	let marks: TRunMark[] = [];
 	const divisionOf = (at: number): number => Math.floor((at - (first as number)) / divisionMs);
 	const beginningOf = (division: number): number => (first ?? 0) + division * divisionMs;
+	const count = async (to: number): Promise<void> => {
+		if (countedThrough !== undefined && to <= countedThrough) return;
+		if (first === undefined) {
+			// The run's first record, read once: where a run begins does not change while it runs.
+			const reach = await runExtent(graph, minLevel);
+			if (reach.last === 0) return; // actuality hasn't recorded at this level, so it doesn't have a record to count
+			first = reach.first;
+		}
+		if (to < first) return;
+		if (divisionMs === 0) divisionMs = Math.max(1, Math.ceil((to - first + 1) / divisions));
+		while (divisionOf(to) >= divisions) {
+			divisionMs *= 2;
+			held = held.map((perType) => pairsMerged(perType, divisions));
+		}
+		// The division holding the last counted moment is counted again, since actuality has written in it since; the
+		// divisions before it are counted already and cannot change.
+		const from = countedThrough === undefined ? 0 : divisionOf(countedThrough);
+		const through = divisionOf(to);
+		const counted = await runCounts(graph, {
+			from: first + from * divisionMs,
+			// One moment short of where the next division begins, so a record on a boundary is counted in the
+			// division it belongs to rather than in the one being read.
+			to: first + (through + 1) * divisionMs - 1,
+			divisions: through - from + 1,
+			minLevel,
+		});
+		counted.forEach((perType, type) => {
+			held[type] ??= [];
+			perType.forEach((counts, division) => (held[type][from + division] = counts));
+		});
+		countedThrough = to;
+		marks = marksOf(held, { divisions, beginningOf });
+	};
+	// A count checks what is counted, awaits the store, then writes what it counted. Counts are taken in turn, so a count
+	// asked for while another awaits the store checks what that one wrote. The caller of a count that failed receives its
+	// failure, and the count after it is taken.
+	let counting: Promise<void> = Promise.resolve();
 	return {
 		get marks() {
 			return marks;
 		},
 		beginningOf,
-		update: async (to: number): Promise<void> => {
-			if (countedThrough !== undefined && to <= countedThrough) return;
-			if (first === undefined) {
-				// The run's first record, read once: where a run begins does not change while it runs.
-				const reach = await runExtent(graph, minLevel);
-				if (reach.last === 0) return; // actuality hasn't recorded at this level, so it doesn't have a record to count
-				first = reach.first;
-			}
-			if (to < first) return;
-			if (divisionMs === 0) divisionMs = Math.max(1, Math.ceil((to - first + 1) / divisions));
-			while (divisionOf(to) >= divisions) {
-				divisionMs *= 2;
-				held = held.map((perType) => pairsMerged(perType, divisions));
-			}
-			// The division holding the last counted moment is counted again, since actuality has written in it since; the
-			// divisions before it are counted already and cannot change.
-			const from = countedThrough === undefined ? 0 : divisionOf(countedThrough);
-			const through = divisionOf(to);
-			const counted = await runCounts(graph, {
-				from: first + from * divisionMs,
-				// One moment short of where the next division begins, so a record on a boundary is counted in the
-				// division it belongs to rather than in the one being read.
-				to: first + (through + 1) * divisionMs - 1,
-				divisions: through - from + 1,
-				minLevel,
-			});
-			counted.forEach((perType, type) => {
-				held[type] ??= [];
-				perType.forEach((counts, division) => (held[type][from + division] = counts));
-			});
-			countedThrough = to;
-			marks = marksOf(held, { divisions, beginningOf });
+		update: (to: number): Promise<void> => {
+			const taken = counting.then(() => count(to));
+			counting = taken.catch(() => undefined);
+			return taken;
 		},
 	};
 }
