@@ -7,20 +7,9 @@ import type { TWorld } from "@haibun/core/lib/world.js";
 import { TExecutorResult, TStepResult } from "@haibun/core/schema/protocol.js";
 import { AStepper, IHasCycles, IHasOptions, StepperKinds, IStepperCycles } from "@haibun/core/lib/astepper.js";
 
-type TTestCase = {
-	"@name": string;
-	"@id": string;
-	skipped?: object;
-	ok?: boolean;
-	"system-out"?: string;
-	failure?: TFailResult;
-};
+type TTestCase = { "@name": string; "@id": string; skipped?: object; ok?: boolean; "system-out"?: string; failure?: TFailResult };
 
-type TFailResult = {
-	"@message": string;
-	"@type": string;
-	type?: string;
-};
+type TFailResult = { "@message": string; "@type": string; type?: string };
 
 /** The file the report is written to, where the OUTPUT_FILE option doesn't name one. */
 const JUNIT_OUTPUT_FILE = "junit.xml";
@@ -39,14 +28,8 @@ export default class OutJUnit extends AStepper implements IHasOptions, IHasCycle
 		},
 	};
 	options = {
-		OUTPUT_FILE: {
-			desc: `output file (default junit.xml)`,
-			parse: (port: string) => stringOrError(port),
-		},
-		[StepperKinds.STORAGE]: {
-			desc: "Storage for output (default stdout)",
-			parse: (input: string) => stringOrError(input),
-		},
+		OUTPUT_FILE: { desc: `output file (default junit.xml)`, parse: (port: string) => stringOrError(port) },
+		[StepperKinds.STORAGE]: { desc: "Storage for output (default stdout)", parse: (input: string) => stringOrError(input) },
 	};
 
 	storage?: AStorage;
@@ -72,20 +55,11 @@ export default class OutJUnit extends AStepper implements IHasOptions, IHasCycle
 				"@tests": count,
 				"@name": this.name,
 				"@failures": failures,
-				testsuite: {
-					"@name": this.classname,
-					"@tests": count,
-					"@skipped": skipped,
-					"@failures": failures,
-					testcase: [],
-				},
+				testsuite: { "@name": this.classname, "@tests": count, "@skipped": skipped, "@failures": failures, testcase: [] },
 			},
 		};
 		for (const t of result.featureResults || []) {
-			const testCase: TTestCase = {
-				"@name": t.path,
-				"@id": t.path,
-			};
+			const testCase: TTestCase = { "@name": t.path, "@id": t.path };
 
 			if (!t.ok) {
 				// The step actuality reports as having failed, which a feature longer than the steps it holds still names.
@@ -99,10 +73,7 @@ export default class OutJUnit extends AStepper implements IHasOptions, IHasCycle
 	}
 
 	getFailResult(failure: TStepResult | undefined) {
-		const failResult: TFailResult = {
-			"@message": `${failure?.name || "nofeaturename"}: ${failure?.errorMessage || failure?.toString()}`,
-			"@type": "fail",
-		};
+		const failResult: TFailResult = { "@message": `${failure?.name || "nofeaturename"}: ${failure?.errorMessage || failure?.toString()}`, "@type": "fail" };
 
 		return failResult;
 	}

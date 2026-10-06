@@ -9,9 +9,7 @@ const NOTE_DATA = `data:text/plain;base64,${Buffer.from(NOTE).toString("base64")
 
 /** A step that takes a file's data, as a step that keeps a file a person adds does. */
 class KeepsAFile extends AStepper {
-	steps: TStepperSteps = {
-		keep: { gwta: `keep {file: ${DOMAIN_FILE_DATA}}`, action: () => OK },
-	};
+	steps: TStepperSteps = { keep: { gwta: `keep {file: ${DOMAIN_FILE_DATA}}`, action: () => OK } };
 }
 
 describe("a value of a domain that declares what a record states for it", () => {

@@ -140,10 +140,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: `set of {domain: ${DOMAIN_DOMAIN_NAME}} by {spec: ${DOMAIN_HYPERMEDIA_DECLARATION}}`,
 			action: ({ domain, spec }: { domain: string; spec: string }) => this.registerHypermediaDomain(domain, spec),
 		},
-		statementSetValues: {
-			gwta: `\\[{items: ${DOMAIN_SET_VALUES}}\\]`,
-			action: () => OK,
-		},
+		statementSetValues: { gwta: `\\[{items: ${DOMAIN_SET_VALUES}}\\]`, action: () => OK },
 		composeAs: {
 			gwta: `compose {what: ${DOMAIN_VARIABLE_NAME}} as {domain: ${DOMAIN_DOMAIN_KEY}} with {template: ${DOMAIN_TEMPLATE}}`,
 			precludes: [`${VariablesStepper.name}.compose`],
@@ -310,9 +307,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		is: {
 			gwta: `variable {what: ${DOMAIN_VARIABLE_NAME}} is {value: ${DOMAIN_VARIABLE_VALUE}}`,
 			action: async ({ what: term, value }: { what: string; value: TStepValue }, featureStep: TFeatureStep) => {
-				const resolved = await this.getWorld().shared.resolveVariable({ term, origin: Origin.defined }, featureStep, undefined, {
-					secure: true,
-				});
+				const resolved = await this.getWorld().shared.resolveVariable({ term, origin: Origin.defined }, featureStep, undefined, { secure: true });
 				if (resolved.value === undefined || (resolved.origin !== Origin.var && resolved.origin !== Origin.env)) {
 					return actionNotOK(await this.getWorld().shared.unsetReason(term));
 				}
@@ -484,9 +479,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 	readonly typedSteps = this.steps;
 
 	async compareValues(featureStep: TFeatureStep, term: string, value: TStepValue, operator: string) {
-		const stored = await this.getWorld().shared.resolveVariable({ term, origin: Origin.var }, featureStep, this.steppers, {
-			secure: true,
-		});
+		const stored = await this.getWorld().shared.resolveVariable({ term, origin: Origin.var }, featureStep, this.steppers, { secure: true });
 		if (!stored) {
 			return actionNotOK(await this.getWorld().shared.unsetReason(term));
 		}
@@ -534,11 +527,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				throw new Error("Superdomains did not expose any schema to derive from");
 			}
 			const mergedSchema = moreSchemas.reduce<z.ZodType>((merged, schema) => z.union([merged, schema]), firstSchema);
-			const definition: TDomainDefinition = {
-				selectors: [domainKey],
-				schema: mergedSchema,
-				description,
-			};
+			const definition: TDomainDefinition = { selectors: [domainKey], schema: mergedSchema, description };
 			registerDomains(this.getWorld(), [[definition]]);
 			return OK;
 		} catch (error) {
@@ -558,12 +547,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			if (this.getWorld().domains[domainKey]) {
 				return actionNotOK(`Domain "${domainKey}" already exists`);
 			}
-			const definition = createEnumDomainDefinition({
-				name: domainKey,
-				values,
-				description: options?.description,
-				ordered: options?.ordered,
-			});
+			const definition = createEnumDomainDefinition({ name: domainKey, values, description: options?.description, ordered: options?.ordered });
 			registerDomains(this.getWorld(), [[definition]]);
 			return OK;
 		} catch (error) {
@@ -634,11 +618,7 @@ function parseHypermediaDeclProse(domain: string, spec: string): THypermediaCont
 }
 
 export function provenanceFromFeatureStep(featureStep: TFeatureStep): TProvenanceIdentifier {
-	return {
-		in: featureStep.in,
-		seq: featureStep.seqPath,
-		when: `${featureStep.action.stepperName}.steps.${featureStep.action.actionName}`,
-	};
+	return { in: featureStep.in, seq: featureStep.seqPath, when: `${featureStep.action.stepperName}.steps.${featureStep.action.actionName}` };
 }
 
 const extractValuesFromFragments = (valueFragments?: TFeatureStep[], fallback?: string) => {
@@ -705,17 +685,7 @@ async function trySetVariable(
 	provenance: TProvenanceIdentifier,
 ): Promise<TActionResult> {
 	try {
-		await shared.set(
-			{
-				term: opts.term,
-				value: opts.value,
-				domain: opts.domain,
-				origin: opts.origin,
-				readonly: opts.readonly,
-				secret: opts.secret,
-			},
-			provenance,
-		);
+		await shared.set({ term: opts.term, value: opts.value, domain: opts.domain, origin: opts.origin, readonly: opts.readonly, secret: opts.secret }, provenance);
 		return OK;
 	} catch (e: unknown) {
 		return actionNotOK((e as Error).message);

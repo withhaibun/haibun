@@ -89,11 +89,7 @@ export class RecordingRenderer implements IGraphRenderer {
 
 /** The part of the graph library a renderer uses: the feed, the size, and the node-object factory it caches by
  *  reference. A subset of FGInstance rather than that whole interface, so the renderer depends only on what it calls. */
-type TGraphLib = {
-	graphData(data: TDrawn): unknown;
-	width(w: number): { height(h: number): unknown };
-	nodeThreeObject(fn: (n: FGNode) => unknown): unknown;
-};
+type TGraphLib = { graphData(data: TDrawn): unknown; width(w: number): { height(h: number): unknown }; nodeThreeObject(fn: (n: FGNode) => unknown): unknown };
 
 /**
  * The library-backed renderer: the graph is shown in WebGL. The library caches each node's object and re-runs the factory

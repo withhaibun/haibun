@@ -19,12 +19,7 @@ import { REFUSED_INVOCATION, RPC_PROTOCOL } from "@haibun/core/lib/rpc-wire.js";
 
 const TALLY = "tally";
 
-const setTally = (value: number) => ({
-	term: TALLY,
-	value: String(value),
-	domain: DOMAIN_STRING,
-	origin: Origin.var,
-});
+const setTally = (value: number) => ({ term: TALLY, value: String(value), domain: DOMAIN_STRING, origin: Origin.var });
 
 /** Who signs a call and for which action, where a call is signed at all. */
 type TSigner = { holder: string; action: string } | undefined;
@@ -45,14 +40,8 @@ async function mcpRpc(url: string, id: number, method: string, params: Record<st
 	return (await response.json()) as Record<string, unknown>;
 }
 
-function mcpToolResult(response: Record<string, unknown>): {
-	isError?: boolean;
-	content?: Array<{ type?: string; text?: string }>;
-} {
-	return ((response.result as Record<string, unknown> | undefined) ?? response) as {
-		isError?: boolean;
-		content?: Array<{ type?: string; text?: string }>;
-	};
+function mcpToolResult(response: Record<string, unknown>): { isError?: boolean; content?: Array<{ type?: string; text?: string }> } {
+	return ((response.result as Record<string, unknown> | undefined) ?? response) as { isError?: boolean; content?: Array<{ type?: string; text?: string }> };
 }
 
 async function mcpListTools(url: string): Promise<Array<{ name?: string }>> {
@@ -128,10 +117,7 @@ class TestServer extends AStepper {
 
 	authToken: string | undefined;
 
-	basicAuthCreds: undefined | { username: string; password: string } = {
-		username: "foo",
-		password: "bar",
-	};
+	basicAuthCreds: undefined | { username: string; password: string } = { username: "foo", password: "bar" };
 
 	resources: { id: number; name: string }[] = [];
 
@@ -216,13 +202,7 @@ class TestServer extends AStepper {
 		const fileBuffer = readFileSync(this.toDelete.uploaded);
 		const filename = this.toDelete.uploaded.split("/").pop() ?? "download";
 		return Promise.resolve(
-			new Response(fileBuffer, {
-				status: 200,
-				headers: {
-					"Content-Type": "application/octet-stream",
-					"Content-Disposition": `attachment; filename="${filename}"`,
-				},
-			}),
+			new Response(fileBuffer, { status: 200, headers: { "Content-Type": "application/octet-stream", "Content-Disposition": `attachment; filename="${filename}"` } }),
 		);
 	};
 
@@ -249,16 +229,8 @@ class TestServer extends AStepper {
 			productsDomain: TEST_DOMAIN.pong,
 			action: async () => actionOKWithProducts({ pong: true }),
 		},
-		protectedAdminRpcPing: {
-			gwta: "protected admin rpc ping",
-			capability: "TestServer:admin",
-			action: async () => OK,
-		},
-		rpcPing: {
-			gwta: "rpc ping",
-			productsDomain: TEST_DOMAIN.pong,
-			action: async () => actionOKWithProducts({ pong: true }),
-		},
+		protectedAdminRpcPing: { gwta: "protected admin rpc ping", capability: "TestServer:admin", action: async () => OK },
+		rpcPing: { gwta: "rpc ping", productsDomain: TEST_DOMAIN.pong, action: async () => actionOKWithProducts({ pong: true }) },
 		mcpShownStepsInclude: {
 			gwta: `mcp steps shown at {url: ${DOMAIN_LINK}} to {holder: ${DOMAIN_FAKE_HOLDER}} matching {text: ${DOMAIN_TEXT}} include {toolName: ${DOMAIN_STEP_METHOD}}`,
 			action: async ({ url, holder, text, toolName }: TStepArgs) => {
@@ -326,10 +298,7 @@ class TestServer extends AStepper {
 					: actionNotOK(`Expected the call refused with ${REFUSED_INVOCATION}, got ${response.status} ${JSON.stringify(data)}`);
 			},
 		},
-		addTallyRoute: {
-			gwta: `start tally route at {loc: ${DOMAIN_ROUTE}}`,
-			action: this.addRoute(this.tally),
-		},
+		addTallyRoute: { gwta: `start tally route at {loc: ${DOMAIN_ROUTE}}`, action: this.addRoute(this.tally) },
 		addUploadRoute: {
 			gwta: `start upload route at {loc: ${DOMAIN_ROUTE}}`,
 			action: (args: TStepArgs, vstep: TFeatureStep) => {
@@ -345,14 +314,8 @@ class TestServer extends AStepper {
 				}
 			},
 		},
-		addDownloadRoute: {
-			gwta: `start download route at {loc: ${DOMAIN_ROUTE}}`,
-			action: this.addRoute(this.download),
-		},
-		addCreateAuthTokenRoute: {
-			gwta: `start create auth token route at {loc: ${DOMAIN_ROUTE}}`,
-			action: this.addRoute(restRoutes(this).createAuthToken),
-		},
+		addDownloadRoute: { gwta: `start download route at {loc: ${DOMAIN_ROUTE}}`, action: this.addRoute(this.download) },
+		addCreateAuthTokenRoute: { gwta: `start create auth token route at {loc: ${DOMAIN_ROUTE}}`, action: this.addRoute(restRoutes(this).createAuthToken) },
 		changeServerAuthToken: {
 			gwta: `change server auth token to {token: ${DOMAIN_BEARER_TOKEN}}`,
 			action: (args: TStepArgs, _vstep: TFeatureStep) => {
@@ -362,30 +325,12 @@ class TestServer extends AStepper {
 			},
 		},
 		// Protected routes - use dynamic auth middleware
-		addCheckAuthTokenRoute: {
-			gwta: `start check auth route at {loc: ${DOMAIN_ROUTE}}`,
-			action: this.addAuthRoute(restRoutes(this).checkAuth),
-		},
-		addLogin: {
-			gwta: `start auth login route at {loc: ${DOMAIN_ROUTE}}`,
-			action: this.addRoute(restRoutes(this).logIn, "post"),
-		},
-		addLogoutRoute: {
-			gwta: `start logout auth route at {loc: ${DOMAIN_ROUTE}}`,
-			action: this.addRoute(restRoutes(this).logOut),
-		},
-		addResources: {
-			gwta: `start auth resources get route at {loc: ${DOMAIN_ROUTE}}`,
-			action: this.addAuthRoute(restRoutes(this).resources),
-		},
-		addResourceGet: {
-			gwta: `start auth resource get route at {loc: ${DOMAIN_ROUTE}}`,
-			action: this.addAuthRoute(restRoutes(this).resourceGet),
-		},
-		addResourceDelete: {
-			gwta: `start auth resource delete route at {loc: ${DOMAIN_ROUTE}}`,
-			action: this.addAuthRoute(restRoutes(this).resourceDelete, "delete"),
-		},
+		addCheckAuthTokenRoute: { gwta: `start check auth route at {loc: ${DOMAIN_ROUTE}}`, action: this.addAuthRoute(restRoutes(this).checkAuth) },
+		addLogin: { gwta: `start auth login route at {loc: ${DOMAIN_ROUTE}}`, action: this.addRoute(restRoutes(this).logIn, "post") },
+		addLogoutRoute: { gwta: `start logout auth route at {loc: ${DOMAIN_ROUTE}}`, action: this.addRoute(restRoutes(this).logOut) },
+		addResources: { gwta: `start auth resources get route at {loc: ${DOMAIN_ROUTE}}`, action: this.addAuthRoute(restRoutes(this).resources) },
+		addResourceGet: { gwta: `start auth resource get route at {loc: ${DOMAIN_ROUTE}}`, action: this.addAuthRoute(restRoutes(this).resourceGet) },
+		addResourceDelete: { gwta: `start auth resource delete route at {loc: ${DOMAIN_ROUTE}}`, action: this.addAuthRoute(restRoutes(this).resourceDelete, "delete") },
 		setAuthScheme: {
 			gwta: `make auth scheme {scheme: ${DOMAIN_AUTH_SCHEME}}`,
 			action: (args: TStepArgs, _vstep: TFeatureStep) => {

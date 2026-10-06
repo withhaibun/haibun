@@ -35,7 +35,10 @@ describe("axeAssertions", () => {
 	});
 	it("doesn't record an address of a scheme other than the web's as a link, since the checked page supplies it", () => {
 		const SCRIPT = "javascript:alert(1)";
-		const scripted = axeAssertions(axeResults(SCRIPT, { violations: [{ ...axeRule("image-alt", "serious", WCAG, [at("#hero")]), helpUrl: SCRIPT }], incomplete: [], passes: [], inapplicable: [] }), STEP);
+		const scripted = axeAssertions(
+			axeResults(SCRIPT, { violations: [{ ...axeRule("image-alt", "serious", WCAG, [at("#hero")]), helpUrl: SCRIPT }], incomplete: [], passes: [], inapplicable: [] }),
+			STEP,
+		);
 		expect(scripted.subject).toEqual({ id: SCRIPT });
 		expect(scripted.results[0].test.url).toBeUndefined();
 	});

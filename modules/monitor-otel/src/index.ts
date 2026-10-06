@@ -37,14 +37,8 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 	private detachBlips: (() => void) | undefined;
 
 	options = {
-		OTEL_ENDPOINT: {
-			desc: "OpenTelemetry OTLP endpoint (default: http://localhost:4318)",
-			parse: stringOrError,
-		},
-		SERVICE_NAME: {
-			desc: "Service name for traces (default: haibun)",
-			parse: stringOrError,
-		},
+		OTEL_ENDPOINT: { desc: "OpenTelemetry OTLP endpoint (default: http://localhost:4318)", parse: stringOrError },
+		SERVICE_NAME: { desc: "Service name for traces (default: haibun)", parse: stringOrError },
 	};
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
@@ -67,26 +61,16 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 	}
 
 	private initializeOtel(endpoint: string, serviceName: string) {
-		const resource = resourceFromAttributes({
-			[ATTR_SERVICE_NAME]: serviceName,
-			[ATTR_SERVICE_VERSION]: "1.0.0",
-		});
+		const resource = resourceFromAttributes({ [ATTR_SERVICE_NAME]: serviceName, [ATTR_SERVICE_VERSION]: "1.0.0" });
 
 		// Trace provider - use SimpleSpanProcessor for immediate export
-		const traceExporter = new OTLPTraceExporter({
-			url: `${endpoint}/v1/traces`,
-		});
-		this.tracerProvider = new NodeTracerProvider({
-			resource,
-			spanProcessors: [new SimpleSpanProcessor(traceExporter)],
-		});
+		const traceExporter = new OTLPTraceExporter({ url: `${endpoint}/v1/traces` });
+		this.tracerProvider = new NodeTracerProvider({ resource, spanProcessors: [new SimpleSpanProcessor(traceExporter)] });
 		this.tracerProvider.register();
 		this.tracer = trace.getTracer("haibun-monitor-otel", "1.0.0");
 
 		// Log provider
-		const logExporter = new OTLPLogExporter({
-			url: `${endpoint}/v1/logs`,
-		});
+		const logExporter = new OTLPLogExporter({ url: `${endpoint}/v1/logs` });
 		const logProcessor = new BatchLogRecordProcessor(logExporter);
 		// Use 'processors' array as per LoggerProviderConfig interface
 		this.loggerProvider = new LoggerProvider({ resource, processors: [logProcessor] });
@@ -96,9 +80,7 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 	}
 
 	cycles: IStepperCycles = {
-		getConcerns: () => ({
-			domains: [{ selectors: [DOMAIN_SPAN_NAME], schema: NameSchema, description: "The name a span a feature starts and ends is known by" }],
-		}),
+		getConcerns: () => ({ domains: [{ selectors: [DOMAIN_SPAN_NAME], schema: NameSchema, description: "The name a span a feature starts and ends is known by" }] }),
 		startExecution: async () => {
 			// Initialize OTel provider at start of execution
 			await Promise.resolve();
@@ -148,22 +130,12 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 		if (event.kind === "lifecycle") {
 			if (event.type === "feature" && event.stage === "start") {
 				// Start root span for feature
-				this.featureSpan = this.tracer.startSpan(`feature: ${event.featurePath || "unknown"}`, {
-					attributes: {
-						"haibun.event.type": "feature",
-						"haibun.event.id": event.id,
-					},
-				});
+				this.featureSpan = this.tracer.startSpan(`feature: ${event.featurePath || "unknown"}`, { attributes: { "haibun.event.type": "feature", "haibun.event.id": event.id } });
 			} else if (event.type === "step") {
 				if (event.stage === "start") {
 					// Create feature span if not yet created (for when feature events aren't forwarded)
 					if (!this.featureSpan) {
-						this.featureSpan = this.tracer.startSpan("feature: haibun-execution", {
-							attributes: {
-								"haibun.event.type": "feature",
-								"haibun.auto.created": true,
-							},
-						});
+						this.featureSpan = this.tracer.startSpan("feature: haibun-execution", { attributes: { "haibun.event.type": "feature", "haibun.auto.created": true } });
 					}
 
 					// Start step span as child of feature
@@ -219,11 +191,7 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 				severityNumber: severityMap[event.level] || SeverityNumber.INFO,
 				severityText: event.level.toUpperCase(),
 				body: event.message,
-				attributes: {
-					"haibun.event.id": event.id,
-					"haibun.event.kind": "log",
-					...event.attributes,
-				},
+				attributes: { "haibun.event.id": event.id, "haibun.event.kind": "log", ...event.attributes },
 			});
 		} else if (event.kind === "artifact") {
 			// Create artifact span as child of current step span or feature span
@@ -258,10 +226,7 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 		if (!span) return;
 		span.addEvent(
 			blip.name,
-			{
-				...(blip.value !== undefined ? { "haibun.blip.value": blip.value } : {}),
-				...((blip.attributes ?? {}) as Record<string, string | number | boolean>),
-			},
+			{ ...(blip.value !== undefined ? { "haibun.blip.value": blip.value } : {}), ...((blip.attributes ?? {}) as Record<string, string | number | boolean>) },
 			blip.timestamp,
 		);
 	}

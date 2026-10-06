@@ -21,8 +21,5 @@ export function groupCellSize(members: ReadonlyArray<LayoutNode>): { w: number; 
  *  pins it to, so the drawn box equals the reserved cell and shelf-packed cells never collide. */
 export function gridSlot(anchor: { x: number; y: number }, size: { w: number; h: number }, index: number, count: number): { x: number; y: number } {
 	const side = Math.ceil(Math.sqrt(count));
-	return {
-		x: anchor.x + ((index % side) - (side - 1) / 2) * (size.w / side),
-		y: anchor.y + (Math.floor(index / side) - (side - 1) / 2) * (size.h / side),
-	};
+	return { x: anchor.x + ((index % side) - (side - 1) / 2) * (size.w / side), y: anchor.y + (Math.floor(index / side) - (side - 1) / 2) * (size.h / side) };
 }

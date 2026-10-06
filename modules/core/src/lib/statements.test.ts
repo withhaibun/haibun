@@ -28,9 +28,7 @@ describe("statementsWith", () => {
 			vocab,
 			{ label: SEQ_PATH_LABEL, id: "0.1" },
 			"This scenario [the clause it exercises:citesAsEvidence](#FieldReport:spec-1:~:text=shall%20be%20signed).",
-			{
-				seqPath: "0.1",
-			},
+			{ seqPath: "0.1" },
 		);
 	});
 

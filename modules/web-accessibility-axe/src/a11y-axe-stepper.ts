@@ -20,12 +20,7 @@ class A11yStepper extends AStepper implements IHasOptions, IHasCycles {
 	description =
 		"Checks the current page with axe, records the result of each rule that applies to it as an EARL assertion, and passes when the page's serious and moderate accessibility violations are within the given counts.";
 	cycles = { getConcerns: () => ({ domains: earlDomainDefinitions }) };
-	options = {
-		[StepperKinds.STORAGE]: {
-			desc: "Storage for results",
-			parse: stringOrError,
-		},
-	};
+	options = { [StepperKinds.STORAGE]: { desc: "Storage for results", parse: stringOrError } };
 	pageGetter?: TGetsPage;
 	storage?: AStorage;
 	async setWorld(world: TWorld, steppers: AStepper[]) {
@@ -57,7 +52,9 @@ class A11yStepper extends AStepper implements IHasOptions, IHasCycles {
 		const artifact = await this.saveReport(results, featureStep);
 		if (evaluation.ok) return actionOK({ artifact });
 		const { found } = evaluation;
-		return actionNotOK(`the page has ${found.serious} serious and ${found.moderate} moderate accessibility violations, where ${serious} and ${moderate} are accepted`, { artifact });
+		return actionNotOK(`the page has ${found.serious} serious and ${found.moderate} moderate accessibility violations, where ${serious} and ${moderate} are accepted`, {
+			artifact,
+		});
 	}
 
 	/** Save the check's report as an HTML artifact a reviewer reads, where a storage stepper keeps artifacts. */

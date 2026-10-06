@@ -20,23 +20,13 @@ const EMBEDDER_SOURCE = "embedder";
 
 /** A passage the reader selected on the page: a Web Annotation SpecificResource, located by quoting it. */
 const SelectionSchema = z
-	.object({
-		"@type": z.literal("oa:SpecificResource"),
-		source: z.url(),
-		selector: QuoteAnchorSchema.extend({ "@type": z.literal("oa:TextQuoteSelector") }).strict(),
-	})
+	.object({ "@type": z.literal("oa:SpecificResource"), source: z.url(), selector: QuoteAnchorSchema.extend({ "@type": z.literal("oa:TextQuoteSelector") }).strict() })
 	.strict();
 
 /** The page the reader is on, as the embedding page posts it: its address, its title, the passage the reader selected,
  *  and the call that reads the page, which the embedding page states once the page's tab is attached. */
 const EmbeddedPageViewSchema = z
-	.object({
-		"@id": z.url(),
-		"@type": z.literal(EMBEDDED_PAGE_TYPE),
-		name: z.string(),
-		selection: SelectionSchema.optional(),
-		[PAGE_TERMS.next]: CallLinkSchema.optional(),
-	})
+	.object({ "@id": z.url(), "@type": z.literal(EMBEDDED_PAGE_TYPE), name: z.string(), selection: SelectionSchema.optional(), [PAGE_TERMS.next]: CallLinkSchema.optional() })
 	.strict();
 export type TEmbeddedPageView = z.infer<typeof EmbeddedPageViewSchema>;
 

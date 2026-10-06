@@ -15,20 +15,11 @@ const DomainStorage = class DomainStorage extends AStepper implements IHasOption
 	description = "Storage domain types and file operations base";
 
 	locator = (location: string) => `./${location}`;
-	options = {
-		BASE_DIRECTORY: {
-			desc: "base for file operations",
-			parse: (input: string) => stringOrError(input),
-		},
-	};
+	options = { BASE_DIRECTORY: { desc: "base for file operations", parse: (input: string) => stringOrError(input) } };
 
 	steps = {};
 };
 
 export default DomainStorage;
 
-export type TLocationOptions = {
-	tag: TTag;
-	options: TBaseOptions;
-	moduleOptions: TModuleOptions;
-};
+export type TLocationOptions = { tag: TTag; options: TBaseOptions; moduleOptions: TModuleOptions };

@@ -123,10 +123,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			perProcess: true,
 			parse: (port: string) => intOrError(port),
 		},
-		INTERFACE: {
-			desc: "Change web server interface from default (127.0.0.1). e.g. 0.0.0.0",
-			parse: (input: string) => ({ result: input }),
-		},
+		INTERFACE: { desc: "Change web server interface from default (127.0.0.1). e.g. 0.0.0.0", parse: (input: string) => ({ result: input }) },
 		ALLOW_WITHOUT_DELEGATION: {
 			desc: "Actions every caller may take without a delegation, comma-separated, beside what its delegation allows: Read:public for a site anyone may read. Unset, a caller holds only what it proves, and one that doesn't prove a key may call only a step that doesn't require an action",
 			parse: (input: string) => (actionList(input).length > 0 ? { result: input } : { parseError: "ALLOW_WITHOUT_DELEGATION: name at least one action, comma-separated" }),
@@ -205,11 +202,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 				return why ? actionNotOK(why) : OK;
 			},
 		},
-		showPorts: {
-			gwta: "show ports",
-			productsDomain: DOMAIN_LISTENING_PORTS,
-			action: () => actionOKWithProducts({ ports: Object.fromEntries(ServerHono.listeningPorts) }),
-		},
+		showPorts: { gwta: "show ports", productsDomain: DOMAIN_LISTENING_PORTS, action: () => actionOKWithProducts({ ports: Object.fromEntries(ServerHono.listeningPorts) }) },
 		isListening: {
 			gwta: `webserver is listening for {why: ${DOMAIN_TEXT}}`,
 			action: async ({ why }: { why: string }) => {

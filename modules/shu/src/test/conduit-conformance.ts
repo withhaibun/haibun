@@ -61,10 +61,7 @@ export function describeConduit(name: string, make: () => TConduitUnderTest | Pr
 			held.streams(METHOD, [{ text: "one" }, { text: "two" }] as TStreamChunk[]);
 			const started: number[][] = [];
 			const arrived: TStreamChunk[] = [];
-			const answer = await conduit.followStream(reads(METHOD, {}), (chunk) => arrived.push(chunk), {
-				why: "read as it comes",
-				onStart: (seqPath) => started.push(seqPath),
-			});
+			const answer = await conduit.followStream(reads(METHOD, {}), (chunk) => arrived.push(chunk), { why: "read as it comes", onStart: (seqPath) => started.push(seqPath) });
 			expect(started.length, "one start, before any chunk").toBe(1);
 			expect(answer.seqPath).toEqual(started[0]);
 			expect(arrived.map((c) => (c as { text?: string }).text)).toEqual(["one", "two"]);

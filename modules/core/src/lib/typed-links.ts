@@ -67,10 +67,7 @@ export type TTypedLinkFact = { rel: string; typed?: true; linkText?: string; tar
  * name is a persisted type. Built from the registered domains (`linkVocabularyFromDomains`), so a consumer's own
  * rels and types are usable in links without this module knowing them.
  */
-export type TLinkVocabulary = {
-	relRange(rel: string): TRelRange | undefined;
-	isType(name: string): boolean;
-};
+export type TLinkVocabulary = { relRange(rel: string): TRelRange | undefined; isType(name: string): boolean };
 
 /** What separates a reference to a record from the part of it the reference names. */
 export const PART_DIRECTIVE = ":~:";

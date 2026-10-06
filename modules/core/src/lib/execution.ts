@@ -37,11 +37,7 @@ export type TSpecl = z.infer<typeof SpeclSchema>;
 // Feature content (the .feature file shape)
 // ============================================================================
 
-type TFeatureMeta = {
-	base: string;
-	name: string;
-	path: string;
-};
+type TFeatureMeta = { base: string; name: string; path: string };
 
 export type TFeature = TFeatureMeta & {
 	content: string;
@@ -51,16 +47,9 @@ export type TFeature = TFeatureMeta & {
 
 export type TFeatures = TFeature[];
 
-export type TExpandedFeature = TFeatureMeta & {
-	expanded: TExpandedLine[];
-};
+export type TExpandedFeature = TFeatureMeta & { expanded: TExpandedLine[] };
 
-export type TExpandedLine = {
-	line: string;
-	rawLine?: string;
-	lineNumber?: number;
-	feature: TFeature;
-};
+export type TExpandedLine = { line: string; rawLine?: string; lineNumber?: number; feature: TFeature };
 
 export interface TSourceLocation {
 	source: {
@@ -72,18 +61,14 @@ export interface TSourceLocation {
 }
 
 /** A statement with its source location */
-export type TStepInput = TSourceLocation & {
-	in: string;
-};
+export type TStepInput = TSourceLocation & { in: string };
 
 // ============================================================================
 // Individual query result (runtime read shape with routing metadata)
 // ============================================================================
 
 /** A projected JSON-LD individual (carries `@id`/`@type`) plus its related-edge list, as returned by getRelated. */
-export type TIndividualResult = Record<string, unknown> & {
-	_edges?: Array<{ type: string; targetId: string }>;
-};
+export type TIndividualResult = Record<string, unknown> & { _edges?: Array<{ type: string; targetId: string }> };
 
 // ============================================================================
 // Route registry (tiny cross-concern contract)

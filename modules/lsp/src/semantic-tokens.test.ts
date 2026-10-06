@@ -17,12 +17,7 @@ const placed = (lineText: string, args: Record<string, ReturnType<typeof arg>> =
 });
 
 const classify = (lineText: string, step?: TPlacedStep, opts: { prose?: boolean; resolve?: (s: string) => TStepAction | undefined } = {}): TToken[] =>
-	classifyDocument({
-		lines: [lineText],
-		stepsByLine: step ? new Map([[1, [step]]]) : new Map(),
-		prosePaintsAsComment: opts.prose ?? true,
-		resolveStatement: opts.resolve,
-	});
+	classifyDocument({ lines: [lineText], stepsByLine: step ? new Map([[1, [step]]]) : new Map(), prosePaintsAsComment: opts.prose ?? true, resolveStatement: opts.resolve });
 
 describe("classifyDocument", () => {
 	it("paints a resolved step without arguments as one call", () => {

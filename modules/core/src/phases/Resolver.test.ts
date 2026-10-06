@@ -22,22 +22,10 @@ describe("resolve steps", () => {
 describe("validate map steps", () => {
 	class TestStepper extends AStepper {
 		steps = {
-			exact: {
-				exact: "exact1",
-				action: async () => Promise.resolve(OK),
-			},
-			match: {
-				match: /match(?<num>1)/,
-				action: async () => Promise.resolve(OK),
-			},
-			gwta: {
-				gwta: "gwta(?<num>.)",
-				action: async () => Promise.resolve(OK),
-			},
-			gwtaInterpolated: {
-				gwta: "is {what}",
-				action: async () => Promise.resolve(OK),
-			},
+			exact: { exact: "exact1", action: async () => Promise.resolve(OK) },
+			match: { match: /match(?<num>1)/, action: async () => Promise.resolve(OK) },
+			gwta: { gwta: "gwta(?<num>.)", action: async () => Promise.resolve(OK) },
+			gwtaInterpolated: { gwta: "is {what}", action: async () => Promise.resolve(OK) },
 		};
 	}
 
@@ -93,17 +81,7 @@ describe("validate map steps", () => {
 describe("unique stepper", () => {
 	const astep = "step";
 	class UniqueStepper extends AStepper {
-		steps = {
-			uniqueStep: {
-				unique: true,
-				gwta: astep,
-				action: async () => Promise.resolve(OK),
-			},
-			normalStep: {
-				gwta: astep,
-				action: async () => Promise.resolve(OK),
-			},
-		};
+		steps = { uniqueStep: { unique: true, gwta: astep, action: async () => Promise.resolve(OK) }, normalStep: { gwta: astep, action: async () => Promise.resolve(OK) } };
 	}
 	test("uses unique step when multiple match", async () => {
 		const features = asExpandedFeatures([{ path: "l1", content: astep }]);
@@ -117,21 +95,10 @@ describe("unique stepper", () => {
 });
 describe("preclude stepper", () => {
 	class PrecludedStepper extends AStepper {
-		steps = {
-			doesSomething: {
-				gwta: "does {something}",
-				action: async () => Promise.resolve(OK),
-			},
-		};
+		steps = { doesSomething: { gwta: "does {something}", action: async () => Promise.resolve(OK) } };
 	}
 	class PrecluderStepper extends AStepper {
-		steps = {
-			doesSomething: {
-				gwta: "does {something} else",
-				precludes: ["PrecludedStepper.doesSomething"],
-				action: async () => Promise.resolve(OK),
-			},
-		};
+		steps = { doesSomething: { gwta: "does {something} else", precludes: ["PrecludedStepper.doesSomething"], action: async () => Promise.resolve(OK) } };
 	}
 	test("precludes stepper", async () => {
 		const features = asExpandedFeatures([{ path: "l1", content: "does something else" }]);
@@ -146,10 +113,7 @@ describe("preclude stepper", () => {
 
 describe("prose", () => {
 	class LineStepper extends AStepper {
-		steps = {
-			type: { gwta: "type {text}", action: async () => Promise.resolve(OK) },
-			layout: { gwta: "{mode} the graph layout", action: async () => Promise.resolve(OK) },
-		};
+		steps = { type: { gwta: "type {text}", action: async () => Promise.resolve(OK) }, layout: { gwta: "{mode} the graph layout", action: async () => Promise.resolve(OK) } };
 	}
 	class SpokenProse extends AStepper {
 		steps = { prose: { prose: true, precludes: ["Haibun.prose"], action: async () => Promise.resolve(OK) } };

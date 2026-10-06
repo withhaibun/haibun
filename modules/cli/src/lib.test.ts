@@ -33,10 +33,7 @@ describe("usageThenExit", () => {
 describe("options", () => {
 	it("stepper options", async () => {
 		const feature = { path: "/features/test.feature", content: `When I have a stepper option` };
-		const protoConfig = {
-			moduleOptions: { [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: "true" },
-			options: { DEST: DEFAULT_DEST },
-		};
+		const protoConfig = { moduleOptions: { [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: "true" }, options: { DEST: DEFAULT_DEST } };
 		const result = await passWithDefaults([feature], [TestStepsWithOptions], protoConfig);
 		expect(result.ok).toBe(true);
 		expect(result.featureResults?.length).toBe(1);
@@ -213,22 +210,11 @@ describe("runCli", () => {
 describe("resolveRunPolicy", () => {
 	it("injects appParameters into protoOptions.options.envVariables", () => {
 		const protoOptions = { options: { envVariables: {} }, moduleOptions: {} } as TProtoOptions;
-		const specl = {
-			steppers: [],
-			runPolicy: "test-policy.json",
-			appParameters: {
-				prod: {
-					API_KEY: "secret-123",
-					TIMEOUT: "5000",
-				},
-			},
-		} as TSpecl;
+		const specl = { steppers: [], runPolicy: "test-policy.json", appParameters: { prod: { API_KEY: "secret-123", TIMEOUT: "5000" } } } as TSpecl;
 		const policyConfig = { place: "prod", dirFilters: [] } as TRunPolicyConfig;
 
 		// Mock loadAndValidateRunPolicy to avoid side effects
-		vitest.mock("@haibun/core/run-policy/run-policy-schema.js", () => ({
-			loadAndValidateRunPolicy: vitest.fn(),
-		}));
+		vitest.mock("@haibun/core/run-policy/run-policy-schema.js", () => ({ loadAndValidateRunPolicy: vitest.fn() }));
 
 		lib.resolveRunPolicy(policyConfig, {}, protoOptions, specl);
 

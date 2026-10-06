@@ -26,16 +26,8 @@ class TunableMixed extends AStepper implements IHasTunables {
 	description = "declares tunables of several kinds";
 	steps: TStepperSteps = {};
 	tunables = {
-		RETENTION_DAYS: {
-			desc: "retain knowledge for N days",
-			parse: intOrError,
-			range: { kind: "number" as const, min: 1, max: 365 },
-		},
-		ENABLE_FANCY: {
-			desc: "feature toggle",
-			parse: (input: string) => ({ result: input === "true" }),
-			range: { kind: "boolean" as const },
-		},
+		RETENTION_DAYS: { desc: "retain knowledge for N days", parse: intOrError, range: { kind: "number" as const, min: 1, max: 365 } },
+		ENABLE_FANCY: { desc: "feature toggle", parse: (input: string) => ({ result: input === "true" }), range: { kind: "boolean" as const } },
 		MODE: {
 			desc: "operating mode",
 			parse: (input: string) => ({ result: input }),
@@ -93,24 +85,14 @@ describe("getTunableOptions", () => {
 		class NotDeclared extends AStepper {
 			description = "has a tunables field without declaring IHasTunables in its types";
 			steps: TStepperSteps = {};
-			tunables = {
-				QUIET: {
-					desc: "quiet mode",
-					parse: (s: string) => ({ result: s === "true" }),
-					range: { kind: "boolean" as const },
-				},
-			};
+			tunables = { QUIET: { desc: "quiet mode", parse: (s: string) => ({ result: s === "true" }), range: { kind: "boolean" as const } } };
 		}
 		const tunables = getTunableOptions([new NotDeclared()]);
 		expect(tunables.map((t) => t.key)).toEqual(["QUIET"]);
 	});
 
 	it("type-system check: TTunableOption has a required range field", () => {
-		const t: TTunableOption = {
-			desc: "",
-			parse: (s) => ({ result: s }),
-			range: { kind: "boolean" },
-		};
+		const t: TTunableOption = { desc: "", parse: (s) => ({ result: s }), range: { kind: "boolean" } };
 		expect(t.range.kind).toBe("boolean");
 	});
 });

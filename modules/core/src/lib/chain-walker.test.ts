@@ -29,13 +29,7 @@ class IssueStepper extends AStepper {
 }
 
 class VcStepper extends AStepper {
-	steps: TStepperSteps = {
-		issueVc: {
-			gwta: "issue a credential",
-			productsDomain: VC_DOMAIN,
-			action: () => Promise.resolve(actionOKWithProducts({ vcId: "vc-001" })),
-		},
-	};
+	steps: TStepperSteps = { issueVc: { gwta: "issue a credential", productsDomain: VC_DOMAIN, action: () => Promise.resolve(actionOKWithProducts({ vcId: "vc-001" })) } };
 }
 
 class CountingStepper extends AStepper {
@@ -49,12 +43,7 @@ class CountingStepper extends AStepper {
 }
 
 class BrokenStepper extends AStepper {
-	steps: TStepperSteps = {
-		fail: {
-			gwta: "fail",
-			action: () => Promise.resolve(actionNotOK("intentional failure")),
-		},
-	};
+	steps: TStepperSteps = { fail: { gwta: "fail", action: () => Promise.resolve(actionNotOK("intentional failure")) } };
 }
 
 /** A walk advanced by actuality itself, which holds what every step requires; who began it is a separate question. */

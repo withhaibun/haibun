@@ -66,11 +66,7 @@ const SCREENSHOT_FORMAT = MEDIA_TYPE.png;
 
 const LAST_REST_RESPONSE = "LAST_REST_RESPONSE";
 
-type TRequestOptions = {
-	headers?: Record<string, string>;
-	postData?: string | URLSearchParams | FormData | Blob | ArrayBuffer | ArrayBufferView;
-	userAgent?: string;
-};
+type TRequestOptions = { headers?: Record<string, string>; postData?: string | URLSearchParams | FormData | Blob | ArrayBuffer | ArrayBufferView; userAgent?: string };
 
 /** Callback function type for withPage - takes Page or Locator and returns TReturn */
 /** Where a step finds elements: within the container `in {container}, {what}` names, or on the page. */
@@ -102,50 +98,22 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	description = "Navigate pages, click elements, fill forms, capture screenshots, and make REST API calls";
 
 	cycles = cycles(this);
-	cyclesWhen = {
-		startExecution: CycleWhen.FIRST - 1,
-		startFeature: CycleWhen.FIRST - 1,
-	};
+	cyclesWhen = { startExecution: CycleWhen.FIRST - 1, startFeature: CycleWhen.FIRST - 1 };
 	static PERSISTENT_DIRECTORY = "PERSISTENT_DIRECTORY";
 	options = {
-		TWIN: {
-			desc: `twin page elements based on interactions)`,
-			parse: (input: string) => boolOrError(input),
-		},
+		TWIN: { desc: `twin page elements based on interactions)`, parse: (input: string) => boolOrError(input) },
 
-		HEADLESS: {
-			desc: "run browsers without a window (true, false)",
-			parse: (input: string) => boolOrError(input),
-		},
+		HEADLESS: { desc: "run browsers without a window (true, false)", parse: (input: string) => boolOrError(input) },
 		CHANNEL: {
 			desc: "the browser channel to launch, as chromium for Chromium's full browser without a window, which shows a PDF where the headless shell downloads it",
 			parse: (input: string) => stringOrError(input),
 		},
-		DEVTOOLS: {
-			desc: `show browser devtools (true or false)`,
-			parse: (input: string) => boolOrError(input),
-		},
-		[WebPlaywright.PERSISTENT_DIRECTORY]: {
-			desc: "the directory a launched browser keeps its profile in, across runs",
-			parse: (input: string) => stringOrError(input),
-		},
-		ARGS: {
-			desc: "pass arguments",
-			parse: (input: string) => stringOrError(input),
-		},
-		CAPTURE_VIDEO: {
-			desc: "capture video for every agent",
-			parse: (input: string) => boolOrError(input),
-			dependsOn: [StepperKinds.STORAGE],
-		},
-		TIMEOUT: {
-			desc: "browser timeout for each step",
-			parse: (input: string) => intOrError(input),
-		},
-		[StepperKinds.STORAGE]: {
-			desc: "Storage for output",
-			parse: (input: string) => stringOrError(input),
-		},
+		DEVTOOLS: { desc: `show browser devtools (true or false)`, parse: (input: string) => boolOrError(input) },
+		[WebPlaywright.PERSISTENT_DIRECTORY]: { desc: "the directory a launched browser keeps its profile in, across runs", parse: (input: string) => stringOrError(input) },
+		ARGS: { desc: "pass arguments", parse: (input: string) => stringOrError(input) },
+		CAPTURE_VIDEO: { desc: "capture video for every agent", parse: (input: string) => boolOrError(input), dependsOn: [StepperKinds.STORAGE] },
+		TIMEOUT: { desc: "browser timeout for each step", parse: (input: string) => intOrError(input) },
+		[StepperKinds.STORAGE]: { desc: "Storage for output", parse: (input: string) => stringOrError(input) },
 	};
 	bf?: BrowserFactory;
 	#storage?: AStorage;
@@ -203,25 +171,12 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		this.captureVideo = getStepperOption(this, "CAPTURE_VIDEO", world.moduleOptions) === "true";
 		let recordVideo;
 		if (this.captureVideo) {
-			recordVideo = {
-				dir: await this.getCaptureDir("video"),
-			};
+			recordVideo = { dir: await this.getCaptureDir("video") };
 		}
 
 		const channel = getStepperOption(this, "CHANNEL", world.moduleOptions);
-		const launchOptions = {
-			headless: this.headless,
-			args,
-			devtools,
-			...(channel ? { channel } : {}),
-		};
-		this.#factoryOptions = {
-			options: { recordVideo },
-			browserType: BROWSERS.chromium,
-			launchOptions,
-			defaultTimeout,
-			persistentDirectory,
-		};
+		const launchOptions = { headless: this.headless, args, devtools, ...(channel ? { channel } : {}) };
+		this.#factoryOptions = { options: { recordVideo }, browserType: BROWSERS.chromium, launchOptions, defaultTimeout, persistentDirectory };
 	}
 	async getCaptureDir(type = "") {
 		const loc = this.getWorld();
@@ -259,12 +214,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 				startTime: 0, // Relative offset from this moment
 				level: "debug",
 			});
-			const featureStep = {
-				seqPath: [tag.featureNum, 0, 0],
-				source: { path: world.runtime.feature || "feature" },
-				in: "video recording started",
-				action: {} as TStepAction,
-			};
+			const featureStep = { seqPath: [tag.featureNum, 0, 0], source: { path: world.runtime.feature || "feature" }, in: "video recording started", action: {} as TStepAction };
 			world.eventLogger.artifact(featureStep, videoStartEvent);
 		}
 
@@ -321,10 +271,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	}
 
 	readonly typedSteps = { ...restSteps(this), ...interactionSteps(this) };
-	steps: TStepperSteps = {
-		...restSteps(this),
-		...interactionSteps(this),
-	};
+	steps: TStepperSteps = { ...restSteps(this), ...interactionSteps(this) };
 	setBrowser(browser: TBrowserTypes) {
 		this.factoryOptions.browserType = BROWSERS[browser];
 		return OK;
@@ -466,9 +413,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 				});
 				const ret = await page.evaluate(
 					async ({ endpoint, method, headers, postData: postDataForEval }) => {
-						const fetchOptions: RequestInit = {
-							method,
-						};
+						const fetchOptions: RequestInit = { method };
 						fetchOptions.headers = headers ? headers : {};
 						if (postDataForEval) fetchOptions.body = postDataForEval as BodyInit;
 

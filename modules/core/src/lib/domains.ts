@@ -136,12 +136,7 @@ export const DOMAIN_AFFORDANCES = "affordances";
 export const DOMAIN_CHAIN_LINT = "domain-chain-lint";
 export const DOMAIN_CHAIN_WALK = "chain-walk";
 
-type TEnumDomainInput = {
-	name: string;
-	values: string[];
-	description?: string;
-	ordered?: boolean;
-};
+type TEnumDomainInput = { name: string; values: string[]; description?: string; ordered?: boolean };
 
 export const registerDomains = (world: TWorld, results: TDomainDefinition[][]) => {
 	for (const stepperWithDomains of results) {
@@ -363,12 +358,7 @@ export const recordIdInputSchema = individualRefInputSchema.transform((ref) => r
  * X) or a chain through X's producer steps.
  */
 export function individualRefDomain(refKey: string, targetKey: string, description?: string): TDomainDefinition {
-	return {
-		selectors: [refKey],
-		schema: individualRefInputSchema,
-		description: description ?? `Reference to a ${targetKey} by id`,
-		topology: { ranges: { id: targetKey } },
-	};
+	return { selectors: [refKey], schema: individualRefInputSchema, description: description ?? `Reference to a ${targetKey} by id`, topology: { ranges: { id: targetKey } } };
 }
 
 /** Build a Map from persistedAs → TRegisteredDomain for all persisted domains. Returned domains carry a THypermediaTopology so consumers can read id/properties/edges without narrowing. */

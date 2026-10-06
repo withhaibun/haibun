@@ -86,21 +86,9 @@ describe("parseArgs", () => {
 describe("getComposeEnvironment", () => {
 	const testToRun = "testToRun";
 	const includeDirs = ["dir1", "dir2"];
-	const protoRunOptions: TCaptureOptions = {
-		recreate: false,
-		tts: false,
-		capture: true,
-		passEnv: undefined,
-		cliEnv: undefined,
-		res: "1280x1024",
-		featureFilter: undefined,
-	};
+	const protoRunOptions: TCaptureOptions = { recreate: false, tts: false, capture: true, passEnv: undefined, cliEnv: undefined, res: "1280x1024", featureFilter: undefined };
 	it("should handle passEnv and cliEnv", () => {
-		const captureOptions: TCaptureOptions = {
-			...protoRunOptions,
-			...{ cliEnv: ["foo=bar,wut=wow"] },
-			...{ passEnv: ["HAIBUN_STAY=failure"] },
-		};
+		const captureOptions: TCaptureOptions = { ...protoRunOptions, ...{ cliEnv: ["foo=bar,wut=wow"] }, ...{ passEnv: ["HAIBUN_STAY=failure"] } };
 		const { composeEnvironment, projectDir } = getContainerSetup(captureOptions, includeDirs, testToRun);
 		const command = composeEnvironment.find((e) => e.startsWith("COMMAND_TO_RECORD="));
 		const escapedProjectDir = projectDir.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -109,11 +97,7 @@ describe("getComposeEnvironment", () => {
 		);
 	});
 	it("should handle multiple passEnv and cliEnv", () => {
-		const captureOptions: TCaptureOptions = {
-			...protoRunOptions,
-			...{ cliEnv: ["foo=bar,wut=wow", "moo=cow,miaow=cat"] },
-			...{ passEnv: ["HAIBUN_STAY=failure", "A=B"] },
-		};
+		const captureOptions: TCaptureOptions = { ...protoRunOptions, ...{ cliEnv: ["foo=bar,wut=wow", "moo=cow,miaow=cat"] }, ...{ passEnv: ["HAIBUN_STAY=failure", "A=B"] } };
 		const { composeEnvironment, projectDir } = getContainerSetup(captureOptions, includeDirs, testToRun);
 		const command = composeEnvironment.find((e) => e.startsWith("COMMAND_TO_RECORD="));
 		const escapedProjectDir = projectDir.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

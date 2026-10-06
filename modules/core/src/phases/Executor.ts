@@ -100,17 +100,7 @@ export class Executor {
 
 		const errorMessage = failedStep.errorMessage || "Step execution failed";
 
-		return {
-			stage: "Execute",
-			error: {
-				message: errorMessage,
-				details: {
-					step: failedStep.in,
-					path: failedStep.path,
-					seqPath: failedStep.seqPath,
-				},
-			},
-		};
+		return { stage: "Execute", error: { message: errorMessage, details: { step: failedStep.in, path: failedStep.path, seqPath: failedStep.seqPath } } };
 	}
 
 	/** Run the features as actuality itself: every line, cycle and finalizer is the instance's own act, and holds its authority.
@@ -159,10 +149,7 @@ export class Executor {
 			world.runtime.exhaustionError = undefined;
 			// `feature.name` is the per-Feature key from a kireji split or the basename for raw .feature files.
 			const featureName = feature.name || basename(feature.path).replace(/\..*$/, "");
-			const newWorld = {
-				...world,
-				tag: { ...world.tag, featureNum, featureName },
-			};
+			const newWorld = { ...world, tag: { ...world.tag, featureNum, featureName } };
 
 			await initFeatureRuntime(newWorld);
 
@@ -192,39 +179,18 @@ export class Executor {
 			featureResults.push(featureResult);
 
 			const shouldClose = calculateShouldClose({ thisFeatureOK: featureResult.ok, isLast, continueAfterError, stay: world.options[STAY] });
-			await doStepperCycle(steppers, "endFeature", <TEndFeature>{
-				featurePath: feature.path,
-				shouldClose,
-				isLast,
-				okSoFar,
-				continueAfterError,
-				thisFeatureOK: featureResult.ok,
-			});
+			await doStepperCycle(steppers, "endFeature", <TEndFeature>{ featurePath: feature.path, shouldClose, isLast, okSoFar, continueAfterError, thisFeatureOK: featureResult.ok });
 			if (!okSoFar && !continueAfterError && !isLast) break;
 		}
 
-		const results: TExecutorResult = {
-			ok: okSoFar,
-			featureResults,
-			tag: world.tag,
-			shared: world.shared,
-			steppers,
-			failure: undefined,
-		};
+		const results: TExecutorResult = { ok: okSoFar, featureResults, tag: world.tag, shared: world.shared, steppers, failure: undefined };
 		if (!okSoFar) {
 			const failure = this.createExecutionFailure(featureResults);
 			if (failure) results.failure = failure;
 		}
 
 		world.eventLogger.emit(
-			LifecycleEvent.parse({
-				id: `execution-end`,
-				timestamp: Date.now(),
-				kind: "lifecycle",
-				type: "execution",
-				stage: "end",
-				status: okSoFar ? "completed" : "failed",
-			}),
+			LifecycleEvent.parse({ id: `execution-end`, timestamp: Date.now(), kind: "lifecycle", type: "execution", stage: "end", status: okSoFar ? "completed" : "failed" }),
 		);
 
 		// Stay mode keeps the process serving requests after execute() returns; unsubscribing here would stop

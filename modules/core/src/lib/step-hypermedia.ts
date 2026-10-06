@@ -38,10 +38,7 @@ export function augmentViewHypermedia(world: TWorld, step: TStepperStep, actionR
 	if (typeof rawSummary === "function") summary = String((rawSummary as (p: Record<string, unknown>) => unknown)(products));
 	else if (typeof rawSummary === "string") summary = rawSummary;
 	else summary = productsDomain;
-	const markers: Record<string, unknown> = {
-		[HYPERMEDIA.TYPE]: component ?? productsDomain,
-		[HYPERMEDIA.SUMMARY]: summary,
-	};
+	const markers: Record<string, unknown> = { [HYPERMEDIA.TYPE]: component ?? productsDomain, [HYPERMEDIA.SUMMARY]: summary };
 	// The producing domain's own description, surfaced inline so a consumer (human, LLM, agent) can interpret the result
 	// without a round-trip to the show steps step: the description travels with the data. It is the SAME text the type's view
 	// shows (buildConcernCatalog reads this field too): a domain describes itself once, and a second description on its

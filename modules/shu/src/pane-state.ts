@@ -55,12 +55,7 @@ export const DesiredPaneSchema = z.discriminatedUnion("paneType", [
 	z.object({ paneType: z.literal("step"), method: z.string().min(1), ...PLACEMENT }),
 	/** An action a caller holds, by what it allows. */
 	z.object({ paneType: z.literal("action"), action: z.string().min(1), ...PLACEMENT }),
-	z.object({
-		paneType: z.literal("views-picker"),
-		views: z.array(z.object({ id: z.string(), description: z.string(), component: z.string() })),
-		label: z.string(),
-		...PLACEMENT,
-	}),
+	z.object({ paneType: z.literal("views-picker"), views: z.array(z.object({ id: z.string(), description: z.string(), component: z.string() })), label: z.string(), ...PLACEMENT }),
 ]);
 
 export type DesiredPane = z.infer<typeof DesiredPaneSchema>;
@@ -166,10 +161,7 @@ export function labelOf(d: DesiredPane): string {
  * `paneType: "component"` doesn't need a hook (data flows via `data`). External component
  * loading also lives here so pane-state doesn't have a direct registry dependency.
  */
-type PaneHooks = {
-	ensureLoaded?(tag: string): Promise<void> | void;
-	afterAttach?: Partial<Record<DesiredPaneType, (d: DesiredPane, child: HTMLElement) => Promise<void> | void>>;
-};
+type PaneHooks = { ensureLoaded?(tag: string): Promise<void> | void; afterAttach?: Partial<Record<DesiredPaneType, (d: DesiredPane, child: HTMLElement) => Promise<void> | void>> };
 
 /** A pane the page always holds, as declared, and the attributes its view is given. The address names it only where it
  *  stands other than as declared. It doesn't close, and a page that closes it returns it to where the page declares it. */

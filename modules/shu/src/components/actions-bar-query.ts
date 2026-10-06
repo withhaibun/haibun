@@ -44,12 +44,7 @@ export function searchConditions(selectFilters: Record<string, string>, rows: re
 
 /** What the query reads from the bar: its test-id prefix, the history searches are recorded in, the status it reports
  *  on, and the breadcrumb it asks to read the trail label again. */
-type TActionsBarQueryDeps = {
-	testIdPrefix: () => string;
-	history: ShuActivityHistory;
-	setStatus: (message: string) => void;
-	onTrailChange: () => void;
-};
+type TActionsBarQueryDeps = { testIdPrefix: () => string; history: ShuActivityHistory; setStatus: (message: string) => void; onTrailChange: () => void };
 
 export class ActionsBarQuery implements ReactiveController {
 	readonly #host: TControllerHost;

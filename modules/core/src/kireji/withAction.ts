@@ -48,11 +48,7 @@ type TArgsResolvedFromEntries<Entries extends ReadonlyArray<[string, string | un
 type TActionArgsInput<S extends string> = TArgsInputFromEntries<TPlaceholderEntries<S>>;
 type TActionArgsResolved<S extends string> = TArgsResolvedFromEntries<TPlaceholderEntries<S>>;
 
-export type TActionExecutor<S extends string> = () => {
-	actionName: string;
-	args: TActionArgsResolved<S>;
-	gwta: string;
-};
+export type TActionExecutor<S extends string> = () => { actionName: string; args: TActionArgsResolved<S>; gwta: string };
 
 export type TCurriedAction<S extends string> = (args: TActionArgsInput<S>) => TActionExecutor<S>;
 
@@ -60,9 +56,7 @@ export type TCurriedAction<S extends string> = (args: TActionArgsInput<S>) => TA
 export type TKirejiStep = string | TActionExecutor<string>;
 
 // Kireji export structure: keys are feature/background names, values are arrays of steps or a multi-line string
-export type TKirejiExport = {
-	[featureName: string]: TKirejiStep[] | string;
-};
+export type TKirejiExport = { [featureName: string]: TKirejiStep[] | string };
 
 type TActionsFromStepper<S extends TStepperSteps> = {
 	[K in keyof S]: S[K] extends { gwta: infer G } ? (G extends string ? TCurriedAction<G> : never) : never;
@@ -117,11 +111,7 @@ export const stepActions = (stepper: AStepper): Record<string, TActionFactory> =
 					normalizedArgs[name] = resolveArgValue(value);
 				}
 
-				return () => ({
-					actionName,
-					args: normalizedArgs,
-					gwta: renderStepLine(step.gwta, normalizedArgs),
-				});
+				return () => ({ actionName, args: normalizedArgs, gwta: renderStepLine(step.gwta, normalizedArgs) });
 			};
 		}
 	}

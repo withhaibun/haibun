@@ -32,7 +32,9 @@ describe("axeReportHtml", () => {
 	});
 	it("shows an address of a scheme other than the web's as text, since the checked page supplies it", () => {
 		const SCRIPT = "javascript:alert(1)";
-		const scripted = axeReportHtml(axeResults(SCRIPT, { violations: [{ ...axeRule("image-alt", "serious", [], found("image-alt")), helpUrl: SCRIPT }], incomplete: [], passes: [], inapplicable: [] }));
+		const scripted = axeReportHtml(
+			axeResults(SCRIPT, { violations: [{ ...axeRule("image-alt", "serious", [], found("image-alt")), helpUrl: SCRIPT }], incomplete: [], passes: [], inapplicable: [] }),
+		);
 		expect(scripted).not.toContain(`href="${SCRIPT}`);
 		expect(scripted).toContain(SCRIPT);
 	});

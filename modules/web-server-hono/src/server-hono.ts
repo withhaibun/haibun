@@ -56,7 +56,10 @@ export class ServerHono implements IWebServer {
 		this._app.use("*", async (c, next) => {
 			const host = c.req.header("host");
 			if (this.boundToLoopback && !isLoopback(addressedHost(host) ?? ""))
-				return c.text(`This server answers requests addressed to localhost, 127.0.0.1 or [::1], and this one is addressed to ${host ?? "no host"}. Open it at http://localhost:${this._port}.`, MISDIRECTED);
+				return c.text(
+					`This server answers requests addressed to localhost, 127.0.0.1 or [::1], and this one is addressed to ${host ?? "no host"}. Open it at http://localhost:${this._port}.`,
+					MISDIRECTED,
+				);
 			await next();
 		});
 		const [first, ...others] = this.admitted;

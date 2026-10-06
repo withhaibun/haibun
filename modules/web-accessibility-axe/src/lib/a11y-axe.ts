@@ -29,14 +29,7 @@ export function evalSeverity(axeResults: AxeResults, acceptable: { serious: numb
 	const serious = axeResults.violations.filter((violation) => violation.impact === "serious");
 	const moderate = axeResults.violations.filter((violation) => violation.impact === "moderate");
 
-	return {
-		ok: serious.length <= acceptable.serious && moderate.length <= acceptable.moderate,
-		acceptable,
-		found: {
-			serious: serious.length,
-			moderate: moderate.length,
-		},
-	};
+	return { ok: serious.length <= acceptable.serious && moderate.length <= acceptable.moderate, acceptable, found: { serious: serious.length, moderate: moderate.length } };
 }
 
 const injectAxe = async (page: Page): Promise<void> => {

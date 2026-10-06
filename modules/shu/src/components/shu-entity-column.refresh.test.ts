@@ -19,7 +19,9 @@ const observation = (subject: string, predicate: string, object: string): Record
 describe("shu-entity-column live refresh", () => {
 	let handle: TShuTestHandle;
 	beforeEach(() => {
-		handle = setupShuTest({ dispatch: makeEntityDispatch({ entity: () => ({ vertex: { "@id": "t1", title: "before", note: "x" }, edges: [], incomingCount: { total: 0, saturated: false } }) }) });
+		handle = setupShuTest({
+			dispatch: makeEntityDispatch({ entity: () => ({ vertex: { "@id": "t1", title: "before", note: "x" }, edges: [], incomingCount: { total: 0, saturated: false } }) }),
+		});
 	});
 	afterEach(() => {
 		endPage();

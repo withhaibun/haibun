@@ -32,12 +32,7 @@ export type TRegulationThresholds = {
 	cooldownMs: number;
 };
 
-export const DEFAULT_REGULATION_THRESHOLDS: TRegulationThresholds = {
-	windowSamples: 5,
-	decorativeShareLimit: 0.05,
-	beatsPerSecond: 1000 / BREATH_MS,
-	cooldownMs: 10_000,
-};
+export const DEFAULT_REGULATION_THRESHOLDS: TRegulationThresholds = { windowSamples: 5, decorativeShareLimit: 0.05, beatsPerSecond: 1000 / BREATH_MS, cooldownMs: 10_000 };
 
 type TRegulationState = { frameTimes: number[]; resting: boolean; lastFiredAt?: number };
 

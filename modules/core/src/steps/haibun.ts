@@ -106,10 +106,7 @@ class Haibun extends AStepper implements IHasCycles {
 		},
 	};
 
-	cyclesWhen = {
-		startExecution: CycleWhen.LAST,
-		startFeature: CycleWhen.LAST,
-	};
+	cyclesWhen = { startExecution: CycleWhen.LAST, startFeature: CycleWhen.LAST };
 
 	steps = {
 		useStoreAt: {
@@ -220,14 +217,8 @@ class Haibun extends AStepper implements IHasCycles {
 				return result.ok ? OK : actionNotOK(`backgrounds failed: ${result.errorMessage}`);
 			},
 		},
-		nothing: {
-			exact: "",
-			action: () => OK,
-		},
-		prose: {
-			prose: true,
-			action: () => OK,
-		},
+		nothing: { exact: "", action: () => OK },
+		prose: { prose: true, action: () => OK },
 
 		feature: {
 			gwta: `Feature: {feature: ${DOMAIN_TITLE}}`,
@@ -243,10 +234,7 @@ class Haibun extends AStepper implements IHasCycles {
 				return OK;
 			},
 		},
-		endsWith: {
-			gwta: `ends with {result: ${DOMAIN_ENDING}}`,
-			action: ({ result }: { result: string }) => (result === ENDING.ok ? actionOK() : actionNotOK("ends with not ok")),
-		},
+		endsWith: { gwta: `ends with {result: ${DOMAIN_ENDING}}`, action: ({ result }: { result: string }) => (result === ENDING.ok ? actionOK() : actionNotOK("ends with not ok")) },
 		pause: {
 			description: 'Pause for a duration. Accepts seconds or milliseconds with an optional space, e.g. `pause for "2s"` or `pause for "30 ms"`.',
 			gwta: `pause for {duration: ${DOMAIN_DURATION}}`,
@@ -255,10 +243,7 @@ class Haibun extends AStepper implements IHasCycles {
 				return OK;
 			},
 		},
-		comment: {
-			gwta: `;;{comment: ${DOMAIN_LINE_COMMENT}}`,
-			action: () => OK,
-		},
+		comment: { gwta: `;;{comment: ${DOMAIN_LINE_COMMENT}}`, action: () => OK },
 		afterEveryStepper: {
 			gwta: `after every {stepperName: ${DOMAIN_STEPPER_NAME}}, {statement: ${DOMAIN_STATEMENT}}`,
 			action: ({ stepperName, statement }: { stepperName: string; statement: TFeatureStep[] }) => {

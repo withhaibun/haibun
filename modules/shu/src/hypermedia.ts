@@ -22,16 +22,7 @@ import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import { z } from "zod";
 import { pagePinned } from "./page-pinned.js";
 // The wire itself: envelope and stream reader, shared with every other caller of a haibun host. Free of node imports.
-import {
-	ACTION_BEGIN,
-	buildRpcCall,
-	readNdjson,
-	type TProveRequest,
-	RpcEnvelopeSchema,
-	answerBody,
-	authorityFailed,
-	refusalCarried,
-} from "@haibun/core/lib/rpc-wire.js";
+import { ACTION_BEGIN, buildRpcCall, readNdjson, type TProveRequest, RpcEnvelopeSchema, answerBody, authorityFailed, refusalCarried } from "@haibun/core/lib/rpc-wire.js";
 import { findStep, hydratedActualityId, responseTimeoutMs } from "./rpc-registry.js";
 import { forgetPageAuthority, keyHeaders, pageAuthorityReady, signedHeaders } from "./page-key.js";
 import { DELEGATIONS_READ_METHOD } from "@haibun/core/lib/authority-types.js";
@@ -60,14 +51,7 @@ export const reads = (method: string, params?: Record<string, unknown>, summary?
 export const acts = (method: string, params?: Record<string, unknown>, summary?: string): TLink => ({ method, params, summary, asks: "act" });
 
 /** Wire-format Representation of a Resource. Hypermedia markers are optional: a bare projection without `_links` is still a Representation; the type is the wire shape, not a promise of affordances. */
-export type TRepresentation = {
-	_type?: string;
-	_summary?: string;
-	_description?: string;
-	_links?: Record<string, TLink>;
-	_seqPath?: number[];
-	[key: string]: unknown;
-};
+export type TRepresentation = { _type?: string; _summary?: string; _description?: string; _links?: Record<string, TLink>; _seqPath?: number[]; [key: string]: unknown };
 
 /** One streaming chunk delivered to `followStream`'s `onChunk` callback, re-exported from core so the server emitter and this consumer share one definition. */
 export type { TStreamChunk };

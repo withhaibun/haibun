@@ -19,9 +19,7 @@ const AskOptionsSchema = z.object({
 	/** Per-call ceiling on chained tool dispatches the router provider may run. Router providers honour it; others ignore. Range 0-99. */
 	maxToolCalls: z.number().int().min(0).max(99).optional(),
 });
-export type TAskOptions = z.infer<typeof AskOptionsSchema> & {
-	signal?: AbortSignal;
-};
+export type TAskOptions = z.infer<typeof AskOptionsSchema> & { signal?: AbortSignal };
 
 export interface ITaiwa {
 	ask(prompt: string, opts?: TAskOptions): Promise<string>;

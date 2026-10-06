@@ -21,19 +21,11 @@ export class RecorderStepper extends AStepper implements IHasOptions, IHasCycles
 	description = "Record browser interactions and generate Haibun .feature files";
 
 	options = {
-		[OUTPUT_OPTION]: {
-			desc: "Output file path for recorded .feature file",
-			parse: (input: string) => stringOrError(input),
-		},
-		[TITLE_OPTION]: {
-			desc: 'Title for the recorded feature (default: "Recorded Session")',
-			parse: (input: string) => stringOrError(input),
-		},
+		[OUTPUT_OPTION]: { desc: "Output file path for recorded .feature file", parse: (input: string) => stringOrError(input) },
+		[TITLE_OPTION]: { desc: 'Title for the recorded feature (default: "Recorded Session")', parse: (input: string) => stringOrError(input) },
 	};
 
-	cyclesWhen = {
-		startFeature: CycleWhen.LAST,
-	};
+	cyclesWhen = { startFeature: CycleWhen.LAST };
 
 	private recording = false;
 	private recordedSteps: TRecordedStep[] = [];
@@ -88,11 +80,7 @@ export class RecorderStepper extends AStepper implements IHasOptions, IHasCycles
 	private handleInteraction(interaction: TInteraction): void {
 		const generatedStep = interactionToStep(interaction);
 
-		const recordedStep: TRecordedStep = {
-			timestamp: Date.now(),
-			interaction,
-			generatedStep,
-		};
+		const recordedStep: TRecordedStep = { timestamp: Date.now(), interaction, generatedStep };
 
 		this.recordedSteps.push(recordedStep);
 

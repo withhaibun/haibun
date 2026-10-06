@@ -20,10 +20,7 @@ describe("variables integration", () => {
 
 	it("resolves env variables", async () => {
 		const feature = { path: "/features/test.feature", content: "" };
-		const res = await passWithDefaults([feature], steppers, {
-			options: { DEST: "default", envVariables: { TEST_ENV: "val" } },
-			moduleOptions: {},
-		});
+		const res = await passWithDefaults([feature], steppers, { options: { DEST: "default", envVariables: { TEST_ENV: "val" } }, moduleOptions: {} });
 		expect(res.ok).toBe(true);
 		const world = res.world;
 
@@ -33,10 +30,7 @@ describe("variables integration", () => {
 
 	it("resolves defined origin", async () => {
 		const feature = { path: "/features/test.feature", content: 'set x to "stored"' };
-		const res = await passWithDefaults([feature], steppers, {
-			options: { DEST: "default", envVariables: { ENV_VAR: "env" } },
-			moduleOptions: {},
-		});
+		const res = await passWithDefaults([feature], steppers, { options: { DEST: "default", envVariables: { ENV_VAR: "env" } }, moduleOptions: {} });
 		const world = res.world;
 
 		// Prioritizes Env

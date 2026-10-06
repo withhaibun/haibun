@@ -28,12 +28,7 @@ export function retainedProducts(
 
 const MAX_DISPATCH_SEQPATH = 50;
 
-export type DispatchContext = {
-	registry: StepRegistry;
-	world: TWorld;
-	steppers: AStepper[];
-	grantedCapability?: string | string[];
-};
+export type DispatchContext = { registry: StepRegistry; world: TWorld; steppers: AStepper[]; grantedCapability?: string | string[] };
 
 /**
  * Unified step dispatch. Every step invocation, feature execution, FlowRunner,

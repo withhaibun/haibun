@@ -850,19 +850,21 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 				labelPos: { x: e.label.position.x, y: e.label.position.y, z: e.label.position.z },
 			})),
 			gantt: this.renderType.axisLegend(),
-			sample: nodes.slice(0, 80).map((n) => ({
-				id: n.id,
-				type: n.type,
-				x: n.x,
-				y: n.y,
-				z: n.z,
-				fx: n.fx ?? null,
-				t: n.__t ?? null,
-				degree: n.__degree ?? null,
-				chip: n.__chipText ?? null,
-				opacity: n.__visual?.opacity ?? null,
-				k: n.__k ?? 1,
-			})),
+			sample: nodes
+				.slice(0, 80)
+				.map((n) => ({
+					id: n.id,
+					type: n.type,
+					x: n.x,
+					y: n.y,
+					z: n.z,
+					fx: n.fx ?? null,
+					t: n.__t ?? null,
+					degree: n.__degree ?? null,
+					chip: n.__chipText ?? null,
+					opacity: n.__visual?.opacity ?? null,
+					k: n.__k ?? 1,
+				})),
 			// The resolved per-@type mark for each node: the headless render check: recomputed exactly as nodeObject
 			// paints it (via markFor), so a Playwright test asserts a task paints as a "box" on a "time" role with its
 			// duration zExtent and a plain node as a "chip"/"free", without a GPU.

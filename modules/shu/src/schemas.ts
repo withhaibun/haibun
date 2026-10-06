@@ -71,12 +71,7 @@ export const SEARCH_OPERATORS: ReadonlyArray<{ value: TSearchCondition["operator
 /** Parse a pipe-delimited filter string (predicate|operator|value[|value2]) into a SearchCondition. */
 export function parseFilterParam(f: string): TSearchCondition {
 	const parts = f.split("|");
-	return {
-		predicate: parts[0] || "",
-		operator: (parts[1] || "eq") as TSearchCondition["operator"],
-		value: parts[2] || "",
-		...(parts[3] ? { value2: parts[3] } : {}),
-	};
+	return { predicate: parts[0] || "", operator: (parts[1] || "eq") as TSearchCondition["operator"], value: parts[2] || "", ...(parts[3] ? { value2: parts[3] } : {}) };
 }
 
 /** Serialize a SearchCondition to a pipe-delimited filter string. */
@@ -164,19 +159,14 @@ export const ColumnStripSchema = z.object({});
 // --- Theme switch ---
 
 /** What the permissions view remembers: whether the principals this deployment knows are shown. */
-export const PermissionsSchema = z.object({
-	showPrincipals: z.boolean().default(false),
-});
+export const PermissionsSchema = z.object({ showPrincipals: z.boolean().default(false) });
 
 export const PageKeySchema = z.object({
 	/** The page's key as a did:key: what a holder delegates to. */
 	controller: z.string().default(""),
 });
 
-export const ThemeSwitchSchema = z.object({
-	theme: z.enum(["auto", "light", "dark"]),
-	scale: z.string(),
-});
+export const ThemeSwitchSchema = z.object({ theme: z.enum(["auto", "light", "dark"]), scale: z.string() });
 
 // --- Result table ---
 

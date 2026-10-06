@@ -54,15 +54,17 @@ export function buildArtifactIndex(events: THaibunEvent[]): TArtifactIndex {
 			embeddedArtifacts.forEach((artifact: Record<string, unknown>, idx: number) => {
 				const id = `${parentId}.artifact.${idx}`;
 				allIds.add(id);
-				map.get(parentId)?.push({
-					id,
-					timestamp: e.timestamp,
-					source: "haibun",
-					kind: "artifact",
-					artifactType: artifact.artifactType,
-					mimetype: artifact.mimetype || MEDIA_TYPE.bytes,
-					...artifact,
-				} as TArtifactEvent);
+				map
+					.get(parentId)
+					?.push({
+						id,
+						timestamp: e.timestamp,
+						source: "haibun",
+						kind: "artifact",
+						artifactType: artifact.artifactType,
+						mimetype: artifact.mimetype || MEDIA_TYPE.bytes,
+						...artifact,
+					} as TArtifactEvent);
 			});
 		}
 	}

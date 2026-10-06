@@ -445,11 +445,7 @@ describe("Discourse rels", () => {
 });
 
 describe("CommentSchema", () => {
-	const baseComment = {
-		id: "c1",
-		body: "hello",
-		generatedAtTime: new Date().toISOString(),
-	};
+	const baseComment = { id: "c1", body: "hello", generatedAtTime: new Date().toISOString() };
 
 	it("accepts a minimal valid Comment without discourse property", () => {
 		expect(() => CommentSchema.parse({ id: "c1", author: "stepper:llm", generatedAtTime: new Date().toISOString() })).not.toThrow();
@@ -533,7 +529,10 @@ describe("Web Annotation domain definitions", () => {
 		expect(t.persistedAs).toBe(SPECIFIC_RESOURCE_LABEL);
 		expect(t.type).toBe("oa:SpecificResource");
 		expect(t.edges?.hasSource).toEqual({ rel: LinkRelations.HAS_SOURCE.rel, range: "Resource" });
-		expect(t.edges?.hasSelector, "a passage it quotes, or a fragment of its media").toEqual({ rel: LinkRelations.HAS_SELECTOR.rel, range: [TEXT_QUOTE_SELECTOR_LABEL, FRAGMENT_SELECTOR_LABEL] });
+		expect(t.edges?.hasSelector, "a passage it quotes, or a fragment of its media").toEqual({
+			rel: LinkRelations.HAS_SELECTOR.rel,
+			range: [TEXT_QUOTE_SELECTOR_LABEL, FRAGMENT_SELECTOR_LABEL],
+		});
 	});
 
 	it("TextQuoteSelector is typed oa:TextQuoteSelector with the quote fields on the selector node, not the target", () => {

@@ -188,12 +188,7 @@ describe("DebuggerStepper RPC dispatch", () => {
 
 	it("does not prompt on actionNotOK when dispatched via RPC transport", async () => {
 		const failing = new (class extends AStepper {
-			steps = {
-				alwaysFails: {
-					gwta: "always fails",
-					action: async () => actionNotOK("intentional failure"),
-				},
-			};
+			steps = { alwaysFails: { gwta: "always fails", action: async () => actionNotOK("intentional failure") } };
 		})();
 
 		const world = getTestWorldWithOptions(DEF_PROTO_OPTIONS);
@@ -224,12 +219,7 @@ describe("DebuggerStepper RPC dispatch", () => {
 
 	it("does not prompt before step-by-step RPC dispatch", async () => {
 		const echo = new (class extends AStepper {
-			steps = {
-				echo: {
-					gwta: `echo {what: ${DOMAIN_TEXT}}`,
-					action: async () => OK,
-				},
-			};
+			steps = { echo: { gwta: `echo {what: ${DOMAIN_TEXT}}`, action: async () => OK } };
 		})();
 
 		const world = getTestWorldWithOptions(DEF_PROTO_OPTIONS);

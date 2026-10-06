@@ -27,10 +27,7 @@ describe("ActivitiesStepper - Skipped Steps Reproduction", () => {
 		// Note: pre exists to "done" initially, so "ensure Precondition met" should pass immediately and NOT run "Satisfy Precondition".
 		// Then it should proceed to 'set ran_steps to "yes"'.
 
-		const feature = {
-			path: "/features/test.feature",
-			content: scenario,
-		};
+		const feature = { path: "/features/test.feature", content: scenario };
 
 		const result = await passWithDefaults([feature], steppers, undefined, [{ path: "/backgrounds/bg.feature", content: bg }]);
 
@@ -56,20 +53,14 @@ describe("ActivitiesStepper - Skipped Steps Reproduction", () => {
 		// Then return to 'Main Flow' and run 'set ran_steps to "yes"'.
 		const scenario = "ensure Main Flow Done";
 
-		const feature = {
-			path: "/features/test.feature",
-			content: scenario,
-		};
+		const feature = { path: "/features/test.feature", content: scenario };
 
 		const result = await passWithDefaults([feature], steppers, undefined, [{ path: "/backgrounds/bg.feature", content: bg }]);
 		expect(result.ok).toBe(true);
 	});
 
 	it("should fail if steps are passed as a single multiline string (programmatic usage)", async () => {
-		const feature = {
-			path: "/features/test-manual.feature",
-			content: "ensure Manual Outcome",
-		};
+		const feature = { path: "/features/test-manual.feature", content: "ensure Manual Outcome" };
 
 		class ManualRegStepper extends ActivitiesStepper {
 			async setWorld(world: TWorld, steppers: AStepper[]) {

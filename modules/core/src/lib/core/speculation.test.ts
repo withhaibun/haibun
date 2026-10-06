@@ -13,10 +13,7 @@ import { FlowRunner } from "./flow-runner.js";
 class SpeculationStepper extends AStepper {
 	steps = {
 		/** A step that always refuses: what a speculative run is trying out. */
-		refuses: {
-			exact: "refuses",
-			action: async () => Promise.resolve(actionNotOK("refused")),
-		},
+		refuses: { exact: "refuses", action: async () => Promise.resolve(actionNotOK("refused")) },
 		/** Runs the refusal without stating anything about intent, as a stepper that just runs what it was given does. */
 		runs: {
 			exact: "runs the refusal",

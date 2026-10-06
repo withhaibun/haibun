@@ -70,12 +70,7 @@ describe("the values a filter offers", () => {
 				topology: {
 					persistedAs: "Email",
 					id: "id",
-					properties: {
-						id: LinkRelations.IDENTIFIER.rel,
-						account: LinkRelations.CONTEXT.rel,
-						folder: LinkRelations.CONTEXT.rel,
-						accessLevel: LinkRelations.ACCESS_LEVEL.rel,
-					},
+					properties: { id: LinkRelations.IDENTIFIER.rel, account: LinkRelations.CONTEXT.rel, folder: LinkRelations.CONTEXT.rel, accessLevel: LinkRelations.ACCESS_LEVEL.rel },
 				},
 			},
 		};

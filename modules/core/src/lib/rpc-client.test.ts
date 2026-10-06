@@ -109,11 +109,7 @@ describe("RpcClient.call", () => {
 
 	it("retries on network error and succeeds on a later attempt", async () => {
 		const { fetchImpl, calls } = makeFakeFetch([{ throwError: new Error("ECONNREFUSED") }, { ok: true, bodyText: JSON.stringify({ ok: true }) }]);
-		const client = new RpcClient({
-			baseUrl: "http://host",
-			fetchImpl,
-			retry: { maxAttempts: 3, baseDelayMs: 0 },
-		});
+		const client = new RpcClient({ baseUrl: "http://host", fetchImpl, retry: { maxAttempts: 3, baseDelayMs: 0 } });
 		const out = await client.call<{ ok: boolean }>("m", {}, [0]);
 		expect((out as { ok: boolean }).ok).toBe(true);
 		expect(calls.length).toBe(2);
@@ -121,11 +117,7 @@ describe("RpcClient.call", () => {
 
 	it("throws RpcCallFailed, naming the attempts, once every retry fails", async () => {
 		const { fetchImpl, calls } = makeFakeFetch([{ throwError: new Error("boom") }, { throwError: new Error("boom") }]);
-		const client = new RpcClient({
-			baseUrl: "http://host",
-			fetchImpl,
-			retry: { maxAttempts: 2, baseDelayMs: 0 },
-		});
+		const client = new RpcClient({ baseUrl: "http://host", fetchImpl, retry: { maxAttempts: 2, baseDelayMs: 0 } });
 		const failed = client.call("m", {}, [0]);
 		await expect(failed).rejects.toThrow(/m at http:\/\/host: rpc failed after 2 attempts/);
 		await expect(failed, "the far side didn't answer, so the message names the call and the host").rejects.toMatchObject({ answered: false });
@@ -149,12 +141,7 @@ describe("RpcClient.call", () => {
 
 describe("RpcClient.stream", () => {
 	it("yields one parsed object per NDJSON line", async () => {
-		const { fetchImpl } = makeFakeFetch([
-			{
-				ok: true,
-				bodyStream: ['{"chunk":1}\n', '{"chunk":2}\n{"chunk":3}\n'],
-			},
-		]);
+		const { fetchImpl } = makeFakeFetch([{ ok: true, bodyStream: ['{"chunk":1}\n', '{"chunk":2}\n{"chunk":3}\n'] }]);
 		const client = new RpcClient({ baseUrl: "http://host", fetchImpl });
 		const out: unknown[] = [];
 		for await (const chunk of client.stream<{ chunk: number }>("m", {}, [0])) out.push(chunk);

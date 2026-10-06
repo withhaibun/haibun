@@ -63,11 +63,7 @@ export const UrakataSchema = PersistedVertexSchema.extend({
 export type TUrakata = z.infer<typeof UrakataSchema>;
 
 /** Runtime-valued domain, SPA pulls current ids via getSelectValues so step parameters get a dropdown. */
-export const urakataIdDomainDefinition: TDomainDefinition = {
-	selectors: [URAKATA_ID_DOMAIN],
-	schema: NameSchema,
-	description: "Active urakata id (registered ticker)",
-};
+export const urakataIdDomainDefinition: TDomainDefinition = { selectors: [URAKATA_ID_DOMAIN], schema: NameSchema, description: "Active urakata id (registered ticker)" };
 
 export interface IUrakataTicker {
 	readonly id: string;

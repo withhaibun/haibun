@@ -64,7 +64,12 @@ describe("resolveLinkTarget", () => {
 			["t=,60", FRAGMENT_SPEC.media],
 			["xywh=percent:0,0,50,50", FRAGMENT_SPEC.media],
 		] as const)
-			expect(resolveLinkTarget(`#Document:docs/a.pdf:~:${value}`, isType), value).toEqual({ kind: "individual", persistedAs: "Document", id: "docs/a.pdf", anchor: { conformsTo, value } });
+			expect(resolveLinkTarget(`#Document:docs/a.pdf:~:${value}`, isType), value).toEqual({
+				kind: "individual",
+				persistedAs: "Document",
+				id: "docs/a.pdf",
+				anchor: { conformsTo, value },
+			});
 	});
 	it("refuses a part it doesn't locate: a fragment not in its key's form, or a key a part isn't written with", () => {
 		expect(() => resolveLinkTarget("#Document:docs/a.pdf:~:page=0", isType)).toThrow('"page=0" isn\'t a page fragment of a PDF');
@@ -84,7 +89,10 @@ describe("resolveLinkTarget", () => {
 
 describe("a part of a record", () => {
 	it("is written as the directive it is read from", () => {
-		for (const part of [{ exact: "holder binding", prefix: "the" }, { conformsTo: FRAGMENT_SPEC.pdf, value: "page=12" }])
+		for (const part of [
+			{ exact: "holder binding", prefix: "the" },
+			{ conformsTo: FRAGMENT_SPEC.pdf, value: "page=12" },
+		])
 			expect(splitPart(`#Document:a${PART_DIRECTIVE}${partDirectiveFor(part)}`).anchor).toEqual(part);
 	});
 	it("is a fragment read only for its kind of media, so a reader isn't shown the whole file as the part", () => {

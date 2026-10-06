@@ -14,7 +14,9 @@ describe("shu-entity-column what links here", () => {
 	beforeEach(() => {
 		endPage();
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});
-		handle = setupShuTest({ dispatch: makeEntityDispatch({ entity: () => ({ vertex: { "@id": "t1", title: "a task" }, edges: [], incomingCount: countedTo(CEILING, CEILING) }) }) });
+		handle = setupShuTest({
+			dispatch: makeEntityDispatch({ entity: () => ({ vertex: { "@id": "t1", title: "a task" }, edges: [], incomingCount: countedTo(CEILING, CEILING) }) }),
+		});
 	});
 	afterEach(() => handle.teardown());
 

@@ -15,7 +15,9 @@ describe("shu-entity-column stored-copy indication", () => {
 	beforeEach(() => {
 		endPage();
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});
-		handle = setupShuTest({ dispatch: makeEntityDispatch({ entity: () => ({ vertex: { "@id": "t1", title: "a task" }, edges: [], incomingCount: { total: 0, saturated: false } }) }) });
+		handle = setupShuTest({
+			dispatch: makeEntityDispatch({ entity: () => ({ vertex: { "@id": "t1", title: "a task" }, edges: [], incomingCount: { total: 0, saturated: false } }) }),
+		});
 	});
 	afterEach(() => handle.teardown());
 

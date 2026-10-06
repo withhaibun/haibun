@@ -35,10 +35,7 @@ import { fromJsonText } from "./json-text.js";
  * Field naming follows W3C JSON-LD-based data models (unquoted `id`/`type`, as in ActivityStreams 2.0); the `@id`/`@type`
  * JSON-LD keywords are produced by the context at serialization time.
  */
-export const ResourceSchema = z.object({
-	id: z.string(),
-	type: z.string(),
-});
+export const ResourceSchema = z.object({ id: z.string(), type: z.string() });
 /** Root node label: any resource. Use as edge range when the target is polymorphic. */
 export const RESOURCE_LABEL = "Resource";
 
@@ -71,15 +68,11 @@ export function haibunNsForHost(baseOrigin?: string): string {
 const ACCESS_LEVELS = ["private", "public", "opened"] as const;
 const ACCESS_QUERY_LEVELS = [...ACCESS_LEVELS, "all"] as const;
 
-export const AccessLevelSchema = z.enum(ACCESS_LEVELS, {
-	message: `accessLevel must be one of ${ACCESS_LEVELS.map((v) => `"${v}"`).join(", ")}`,
-});
+export const AccessLevelSchema = z.enum(ACCESS_LEVELS, { message: `accessLevel must be one of ${ACCESS_LEVELS.map((v) => `"${v}"`).join(", ")}` });
 export type AccessLevel = z.infer<typeof AccessLevelSchema>;
 export const Access = AccessLevelSchema.enum;
 
-export const AccessQueryLevelSchema = z.enum(ACCESS_QUERY_LEVELS, {
-	message: `accessLevel (query) must be one of ${ACCESS_QUERY_LEVELS.map((v) => `"${v}"`).join(", ")}`,
-});
+export const AccessQueryLevelSchema = z.enum(ACCESS_QUERY_LEVELS, { message: `accessLevel (query) must be one of ${ACCESS_QUERY_LEVELS.map((v) => `"${v}"`).join(", ")}` });
 export type AccessQueryLevel = z.infer<typeof AccessQueryLevelSchema>;
 export const AccessQuery = AccessQueryLevelSchema.enum;
 
@@ -958,9 +951,7 @@ export const principalDomainDefinition: TDomainDefinition = {
 			publicKey: LinkRelations.PUBLIC_KEY.rel,
 			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
 		},
-		edges: {
-			service: { rel: LinkRelations.SERVICE.rel, range: ENDPOINT_LABEL },
-		},
+		edges: { service: { rel: LinkRelations.SERVICE.rel, range: ENDPOINT_LABEL } },
 		sortColumns: { name: "TEXT", controller: "TEXT", generatedAtTime: "TIMESTAMPTZ" },
 	},
 };
@@ -977,12 +968,7 @@ export const principalDomainDefinition: TDomainDefinition = {
  */
 // Body schema same constraint as Comment: parent nodes supply content
 // fields that the partition step extracts before persistence.
-export const BodySchema = PersistedVertexSchema.extend({
-	id: z.string(),
-	content: z.string(),
-	mediaType: z.string(),
-	generatedAtTime: z.string(),
-});
+export const BodySchema = PersistedVertexSchema.extend({ id: z.string(), content: z.string(), mediaType: z.string(), generatedAtTime: z.string() });
 
 export type TBody = z.infer<typeof BodySchema>;
 
@@ -1091,11 +1077,7 @@ export type TQuoteAnchor = z.infer<typeof QuoteAnchorSchema>;
 export const PartSchema = z.union([FragmentSchema, QuoteAnchorSchema]);
 export type TPart = z.infer<typeof PartSchema>;
 
-export const TextQuoteSelectorSchema = QuoteAnchorSchema.extend({
-	...PersistedVertexSchema.shape,
-	id: z.string(),
-	generatedAtTime: z.string(),
-});
+export const TextQuoteSelectorSchema = QuoteAnchorSchema.extend({ ...PersistedVertexSchema.shape, id: z.string(), generatedAtTime: z.string() });
 export const textQuoteSelectorDomainDefinition: TDomainDefinition = {
 	selectors: [TEXT_QUOTE_SELECTOR_DOMAIN],
 	schema: TextQuoteSelectorSchema,
@@ -1119,11 +1101,7 @@ export const textQuoteSelectorDomainDefinition: TDomainDefinition = {
 };
 
 const FRAGMENT_SELECTOR_DOMAIN = "fragment-selector";
-export const FragmentSelectorSchema = FragmentSchema.extend({
-	...PersistedVertexSchema.shape,
-	id: z.string(),
-	generatedAtTime: z.string(),
-});
+export const FragmentSelectorSchema = FragmentSchema.extend({ ...PersistedVertexSchema.shape, id: z.string(), generatedAtTime: z.string() });
 export const fragmentSelectorDomainDefinition: TDomainDefinition = {
 	selectors: [FRAGMENT_SELECTOR_DOMAIN],
 	schema: FragmentSelectorSchema,
@@ -1173,11 +1151,7 @@ export const specificResourceDomainDefinition: TDomainDefinition = {
 		persistedAs: SPECIFIC_RESOURCE_LABEL,
 		type: "oa:SpecificResource",
 		id: "id",
-		properties: {
-			id: LinkRelations.IDENTIFIER.rel,
-			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
-			label: LinkRelations.LABEL.rel,
-		},
+		properties: { id: LinkRelations.IDENTIFIER.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel, label: LinkRelations.LABEL.rel },
 		edges: {
 			hasSource: { rel: LinkRelations.HAS_SOURCE.rel, range: RESOURCE_LABEL },
 			hasSelector: { rel: LinkRelations.HAS_SELECTOR.rel, range: [TEXT_QUOTE_SELECTOR_LABEL, FRAGMENT_SELECTOR_LABEL] },
@@ -1210,12 +1184,7 @@ export const readingDomainDefinition: TDomainDefinition = {
 		instrumentation: true,
 		type: "prov:Activity",
 		id: "id",
-		properties: {
-			id: LinkRelations.IDENTIFIER.rel,
-			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
-			seqPath: LinkRelations.SEQ_PATH.rel,
-			stated: LinkRelations.STATED.rel,
-		},
+		properties: { id: LinkRelations.IDENTIFIER.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel, seqPath: LinkRelations.SEQ_PATH.rel, stated: LinkRelations.STATED.rel },
 		edges: { used: { rel: LinkRelations.USED.rel, range: RESOURCE_LABEL } },
 		sortColumns: { generatedAtTime: "TIMESTAMPTZ" },
 	},
@@ -1254,11 +1223,7 @@ export const sceneDomainDefinition: TDomainDefinition = {
 		id: "id",
 		// Its id is its name.
 		displayLabel: "id",
-		properties: {
-			id: LinkRelations.IDENTIFIER.rel,
-			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
-			state: LinkRelations.SCHEMA_OBJECT.rel,
-		},
+		properties: { id: LinkRelations.IDENTIFIER.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel, state: LinkRelations.SCHEMA_OBJECT.rel },
 		sortColumns: { generatedAtTime: "TIMESTAMPTZ" },
 	},
 };
@@ -1447,17 +1412,7 @@ export async function writeAnnotation(
 	store: TDiscourseStore,
 	vocab: TLinkVocabulary,
 	author: string,
-	a: {
-		label: string;
-		id: string;
-		exact: string;
-		prefix?: string;
-		suffix?: string;
-		text: string;
-		at?: string;
-		until?: string;
-		links?: TQuoteAnchor[];
-	},
+	a: { label: string; id: string; exact: string; prefix?: string; suffix?: string; text: string; at?: string; until?: string; links?: TQuoteAnchor[] },
 ): Promise<{ commentId: string; specificResourceId: string; linkedSpecificResourceIds?: string[] }> {
 	// `at`/`until` bound the period the note is ABOUT (a milestone's week), subject time, carried as
 	// startedAtTime/endedAtTime so time-placed views (gantt) show the note over its period. `generatedAtTime`

@@ -282,11 +282,7 @@ describe("waiting for a run", () => {
 
 	it("refuses to wait for a run it never started", async () => {
 		const s = stepper();
-		const waiting = (s.steps.waitRun.action as (a: { run: string; seconds: number; cursor: number }) => Promise<TResult>)({
-			run: "no-such",
-			seconds: 1,
-			cursor: 0,
-		});
+		const waiting = (s.steps.waitRun.action as (a: { run: string; seconds: number; cursor: number }) => Promise<TResult>)({ run: "no-such", seconds: 1, cursor: 0 });
 		await expect(waiting).rejects.toThrow(/didn't start a run "no-such"/);
 	});
 });

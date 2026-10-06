@@ -19,18 +19,9 @@ const mockConnection: any = {
 	onCompletion: vi.fn(),
 	onCompletionResolve: vi.fn(),
 	onHover: vi.fn(),
-	languages: {
-		semanticTokens: {
-			on: vi.fn(),
-		},
-	},
+	languages: { semanticTokens: { on: vi.fn() } },
 	listen: vi.fn(),
-	console: {
-		log: vi.fn(),
-		info: vi.fn(),
-		warn: vi.fn(),
-		error: vi.fn(),
-	},
+	console: { log: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 };
 
 // Mock World for stepper

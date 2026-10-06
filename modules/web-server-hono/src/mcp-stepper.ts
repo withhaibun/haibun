@@ -49,14 +49,8 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 	}
 
 	options = {
-		MCP_PATH: {
-			desc: "Path for MCP endpoint",
-			parse: (p: string) => stringOrError(p),
-		},
-		PORT: {
-			desc: "Port to listen on (overrides WebServer default)",
-			parse: (p: string) => stringOrError(p),
-		},
+		MCP_PATH: { desc: "Path for MCP endpoint", parse: (p: string) => stringOrError(p) },
+		PORT: { desc: "Port to listen on (overrides WebServer default)", parse: (p: string) => stringOrError(p) },
 	};
 
 	cycles = {
@@ -96,7 +90,15 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 		const tool = this.registry().get(name);
 		// A call is refused before its input is read, and alike whether its step exists, as it is over RPC.
 		if (!tool || !mayCall(grantedCapability, tool.descriptor))
-			return { isError: true, content: [{ type: "text", text: refusal(name, tool && lackedAction(grantedCapability, tool.descriptor), delegateOf({ granted: [grantedCapability ?? []].flat(), principal }, this.webserver())) }] };
+			return {
+				isError: true,
+				content: [
+					{
+						type: "text",
+						text: refusal(name, tool && lackedAction(grantedCapability, tool.descriptor), delegateOf({ granted: [grantedCapability ?? []].flat(), principal }, this.webserver())),
+					},
+				],
+			};
 		try {
 			const world = this.getWorld();
 			// MCP callers don't have a haibun seqPath; the server synthesises one.
@@ -136,40 +138,19 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 
 		// --- HANDLER 2: CALL TOOL ---
 		// A call runs under what its request presented, which the middleware verified over the whole request.
-		mcpServer.server.setRequestHandler(CallToolRequestSchema, (request) =>
-			this.executeTool(request.params.name, request.params.arguments ?? {}, authorizedWith(), actingAs()),
-		);
+		mcpServer.server.setRequestHandler(CallToolRequestSchema, (request) => this.executeTool(request.params.name, request.params.arguments ?? {}, authorizedWith(), actingAs()));
 
 		// --- HANDLER 3: LIST RESOURCES ---
 		mcpServer.server.setRequestHandler(ListResourcesRequestSchema, (_request, _extra) => {
 			return {
-				resources: [
-					{
-						uri: `mcp://${this.mcpPath}/info`,
-						name: "Haibun MCP Server Info",
-						mimeType: "application/json",
-						description: "Basic information about this MCP server",
-					},
-				],
+				resources: [{ uri: `mcp://${this.mcpPath}/info`, name: "Haibun MCP Server Info", mimeType: "application/json", description: "Basic information about this MCP server" }],
 			};
 		});
 
 		// --- HANDLER 4: READ RESOURCE ---
 		mcpServer.server.setRequestHandler(ReadResourceRequestSchema, (request, _extra) => {
 			if (request.params.uri === `mcp://${this.mcpPath}/info`) {
-				return {
-					contents: [
-						{
-							uri: request.params.uri,
-							mimeType: "application/json",
-							text: JSON.stringify({
-								version,
-								name: "haibun-mcp",
-								status: "running",
-							}),
-						},
-					],
-				};
+				return { contents: [{ uri: request.params.uri, mimeType: "application/json", text: JSON.stringify({ version, name: "haibun-mcp", status: "running" }) }] };
 			}
 			throw new McpError(ErrorCode.InvalidRequest, `Resource not found: ${request.params.uri}`);
 		});

@@ -62,12 +62,7 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 	}
 	pendingDebugResult: TAfterStepResult | undefined;
 
-	options = {
-		DEBUG_STEPPERS: {
-			desc: "Comma-separated list of steppers to debug",
-			parse: stringOrError,
-		},
-	};
+	options = { DEBUG_STEPPERS: { desc: "Comma-separated list of steppers to debug", parse: stringOrError } };
 
 	setWorld(world: TWorld, steppers: AStepper[]): Promise<void> {
 		this.steppers = steppers;
@@ -110,11 +105,7 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 			const responseStr = response === undefined ? "continue" : response.toString();
 
 			try {
-				promptResult = await this.runner.runStatement(responseStr, {
-					intent: { mode: "authoritative", usage: "debugging" },
-					seqPath: seqStart,
-					parentStep: featureStep,
-				});
+				promptResult = await this.runner.runStatement(responseStr, { intent: { mode: "authoritative", usage: "debugging" }, seqPath: seqStart, parentStep: featureStep });
 
 				// Check for controlSignal from TActionResult
 				controlSignal = promptResult.controlSignal;
@@ -131,11 +122,7 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 
 		// Convert controlSignal to TAfterStepResult
 		if (!controlSignal) return undefined;
-		return {
-			rerunStep: controlSignal === "retry",
-			nextStep: controlSignal === "next",
-			failed: controlSignal === "fail" ? "failed at the debugger" : undefined,
-		};
+		return { rerunStep: controlSignal === "retry", nextStep: controlSignal === "next", failed: controlSignal === "fail" ? "failed at the debugger" : undefined };
 	}
 	steps = {
 		f: {

@@ -27,15 +27,7 @@ import { SEQ_PATH_STATUS } from "@haibun/core/lib/resources.js";
 
 export type TEventMarkerStyle = { color: string; icon: string };
 
-type TPartialEvent = {
-	kind?: string;
-	type?: string;
-	status?: string;
-	level?: string;
-	stage?: string;
-	id?: string;
-	intent?: { mode?: string };
-};
+type TPartialEvent = { kind?: string; type?: string; status?: string; level?: string; stage?: string; id?: string; intent?: { mode?: string } };
 
 /** The mark palette, named by what a mark shows rather than by its hue, so every surface that marks an event reads from
  *  one place. UNDECIDED isn't a fault or a success: a speculative try, or a call actuality handed out. */

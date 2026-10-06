@@ -24,16 +24,8 @@ class AuthStepper extends AStepper implements IHasCycles {
 	cycles: IStepperCycles = {
 		getConcerns: () => ({
 			domains: [
-				{
-					selectors: [DOMAIN_AUTH_SESSION],
-					schema: AuthSessionSchema,
-					description: "Authenticated session",
-				},
-				{
-					selectors: [DOMAIN_UNPRODUCED],
-					schema: z.unknown(),
-					description: "Registered by this test alone; no step produces it.",
-				},
+				{ selectors: [DOMAIN_AUTH_SESSION], schema: AuthSessionSchema, description: "Authenticated session" },
+				{ selectors: [DOMAIN_UNPRODUCED], schema: z.unknown(), description: "Registered by this test alone; no step produces it." },
 			],
 		}),
 	};
@@ -68,11 +60,7 @@ class CompositeStepper extends AStepper implements IHasCycles {
 					description: "Composite input that ranges its `session` field over a registered auth domain.",
 					topology: { ranges: { session: DOMAIN_AUTH_SESSION } },
 				},
-				{
-					selectors: [DOMAIN_COMPOSITE_GOAL],
-					schema: CompositeGoalSchema,
-					description: "Goal produced from a composite input.",
-				},
+				{ selectors: [DOMAIN_COMPOSITE_GOAL], schema: CompositeGoalSchema, description: "Goal produced from a composite input." },
 			],
 		}),
 	};
@@ -201,10 +189,7 @@ variable second.finding is "satisfied"`,
 
 		it("pursue refuses when the michi has argument bindings the caller hasn't supplied, naming what's needed", async () => {
 			// AuthSession's producer (`sign in as {subject}`) takes a string argument without a fact backing it, so a fresh world has finding=michi and pursue must refuse rather than guess.
-			const feature = {
-				path: "/features/pursue-needs-arg.feature",
-				content: `not pursue "${DOMAIN_AUTH_SESSION}"`,
-			};
+			const feature = { path: "/features/pursue-needs-arg.feature", content: `not pursue "${DOMAIN_AUTH_SESSION}"` };
 			const result = await passWithDefaults([feature], steppers);
 			expect(result.ok).toBe(true);
 		});
@@ -228,20 +213,14 @@ variable after.finding is "satisfied"`,
 		});
 
 		it("pursue refuses an unreachable goal with the missing-producers list named in the error", async () => {
-			const feature = {
-				path: "/features/pursue-unreachable.feature",
-				content: `not pursue "test-scratch"`,
-			};
+			const feature = { path: "/features/pursue-unreachable.feature", content: `not pursue "test-scratch"` };
 			const result = await passWithDefaults([feature], steppers);
 			expect(result.ok).toBe(true);
 		});
 
 		it("pursue refuses (overall fails) when the goal can't be reached", async () => {
 			// Same goal as above but WITHOUT the `not` wrapper: the bare pursue must propagate the refusal so callers can branch on it.
-			const feature = {
-				path: "/features/pursue-bare-unreachable.feature",
-				content: `pursue "test-scratch"`,
-			};
+			const feature = { path: "/features/pursue-bare-unreachable.feature", content: `pursue "test-scratch"` };
 			const result = await failWithDefaults([feature], steppers);
 			expect(result.ok).toBe(false);
 		});

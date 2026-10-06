@@ -126,15 +126,9 @@ set shared to "value"
 waypoint Shared outcome with variable shared is "value"`,
 		};
 
-		const feature1 = {
-			path: "/features/feature1.feature",
-			content: 'ensure Shared outcome\nvariable shared is "value"',
-		};
+		const feature1 = { path: "/features/feature1.feature", content: 'ensure Shared outcome\nvariable shared is "value"' };
 
-		const feature2 = {
-			path: "/features/feature2.feature",
-			content: 'ensure Shared outcome\nvariable shared is "value"',
-		};
+		const feature2 = { path: "/features/feature2.feature", content: 'ensure Shared outcome\nvariable shared is "value"' };
 
 		const result = await passWithDefaults([feature1, feature2], [ActivitiesStepper, Haibun, VariablesSteppers, LogicStepper], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);

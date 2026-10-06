@@ -50,11 +50,7 @@ export type TForwardAffordance = {
 	capability?: string;
 };
 
-export type TGoalAffordance = {
-	domain: string;
-	description: string;
-	resolution: TGoalResolution;
-};
+export type TGoalAffordance = { domain: string; description: string; resolution: TGoalResolution };
 
 export const WAYPOINT_KIND = { IMPERATIVE: "imperative", DECLARATIVE: "declarative" } as const;
 export type TWaypointKind = (typeof WAYPOINT_KIND)[keyof typeof WAYPOINT_KIND];

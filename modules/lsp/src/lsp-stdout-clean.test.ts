@@ -30,18 +30,9 @@ const createMockConnection = () => ({
 	onCompletion: vi.fn(),
 	onCompletionResolve: vi.fn(),
 	onHover: vi.fn(),
-	languages: {
-		semanticTokens: {
-			on: vi.fn(),
-		},
-	},
+	languages: { semanticTokens: { on: vi.fn() } },
 	listen: vi.fn(),
-	console: {
-		log: vi.fn(),
-		info: vi.fn(),
-		warn: vi.fn(),
-		error: vi.fn(),
-	},
+	console: { log: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 });
 
 const mockWorld = {
@@ -59,12 +50,7 @@ const mockWorld = {
 };
 
 class TestStepper extends AStepper {
-	steps = {
-		testStep: {
-			gwta: "test step with {param}",
-			action: async () => OK,
-		},
-	};
+	steps = { testStep: { gwta: "test step with {param}", action: async () => OK } };
 }
 
 describe("LSP stdout cleanliness", () => {
@@ -118,9 +104,7 @@ describe("LSP stdout cleanliness", () => {
 		const doc = TextDocument.create("file:///test/feature.feature", "haibun", 1, 'set foo to "bar"');
 
 		// Process document first to populate cache
-		(lsp as unknown as { processDocument: (d: TextDocument) => Promise<void>; documents: unknown }).documents = {
-			get: () => doc,
-		};
+		(lsp as unknown as { processDocument: (d: TextDocument) => Promise<void>; documents: unknown }).documents = { get: () => doc };
 
 		// Reset spy counts after document processing
 		stdoutSpy.mockClear();

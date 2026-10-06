@@ -14,9 +14,7 @@ import WebPlaywright from "@haibun/web-playwright";
 const PASSES_URI = new URL("../files/test/passes.html", import.meta.url);
 const FAILS_URI = new URL("../files/test/fails.html", import.meta.url);
 
-const options = {
-	DEST: DEFAULT_DEST,
-};
+const options = { DEST: DEFAULT_DEST };
 const moduleOptions = {
 	[getStepperOptionName(WebPlaywright, "STORAGE")]: "StorageMem",
 	[getStepperOptionName(A11yAxe, "STORAGE")]: "StorageMem",

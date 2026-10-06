@@ -68,10 +68,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 	description = "Backward-chaining goal resolver and plan runner";
 
 	options: Record<string, TStepperOption> = {
-		[SMOKE_GOALS]: {
-			desc: "Comma-separated list of domain keys to resolve at boot as a drift-detection signal",
-			parse: (input: string) => stringOrError(input),
-		},
+		[SMOKE_GOALS]: { desc: "Comma-separated list of domain keys to resolve at boot as a drift-detection signal", parse: (input: string) => stringOrError(input) },
 		[COMPOSITE_DECOMPOSITION]: {
 			desc: `Recurse into composite input domains via topology.ranges when resolving goals (haibun equivalent of sh:node/rdfs:range). "true" / "false". Default ${COMPOSITE_DECOMPOSITION_DEFAULT}.`,
 			parse: (input: string) => stringOrError(input),
@@ -283,11 +280,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 			},
 		},
 
-		showAffordances: {
-			gwta: "show affordances",
-			productsDomain: DOMAIN_AFFORDANCES,
-			action: async (_args, featureStep) => this.computeAffordances(undefined, featureStep),
-		},
+		showAffordances: { gwta: "show affordances", productsDomain: DOMAIN_AFFORDANCES, action: async (_args, featureStep) => this.computeAffordances(undefined, featureStep) },
 
 		showAffordancesAsOf: {
 			gwta: `show affordances as of {asOf: ${DOMAIN_STEP_PATH}}`,
@@ -326,12 +319,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 				// shapes so opening the lint pane shows the graph immediately, with lint
 				// findings available for overlaying orphan/unsupplied/unreachable nodes.
 				const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
-				const affordances = buildAffordances({
-					steppers: this.steppers,
-					domains: world.domains,
-					facts,
-					held: authorizedWith(),
-				});
+				const affordances = buildAffordances({ steppers: this.steppers, domains: world.domains, facts, held: authorizedWith() });
 				return actionOKWithProducts(chainLintSchema.parse({ ...report, forward: affordances.forward, goals: affordances.goals, execution: executionOf(world.tag) }));
 			},
 		},

@@ -2,12 +2,7 @@ import { z } from "zod";
 import { HYPERMEDIA } from "@haibun/core/schema/protocol.js";
 import { SHU_TYPE } from "./consts.js";
 
-const PRODUCT_KEY = {
-	ID: "id",
-	VIEW: "view",
-	COMPONENT: "_component",
-	PRODUCTS: "products",
-} as const;
+const PRODUCT_KEY = { ID: "id", VIEW: "view", COMPONENT: "_component", PRODUCTS: "products" } as const;
 
 const ProductSchema = z.looseObject({
 	[PRODUCT_KEY.ID]: z.string().optional(),

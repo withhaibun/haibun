@@ -53,15 +53,7 @@ let refusedBeforeRecording: string | undefined;
 /** What actuality waits on between starting the turn's step and recording its question, where a case holds it there. */
 let recording: Promise<void> | undefined;
 /** The context envelope each turn was sent with, so a case reads what the pane asked for. */
-const sent: Array<{
-	contextReadBy?: string;
-	patterns?: unknown[];
-	inReplyTo?: string;
-	viewLd?: unknown[];
-	session?: string;
-	target?: string;
-	accessLevel?: string;
-}> = [];
+const sent: Array<{ contextReadBy?: string; patterns?: unknown[]; inReplyTo?: string; viewLd?: unknown[]; session?: string; target?: string; accessLevel?: string }> = [];
 /** The type actuality keeps a file a person adds as, which the pane reads from what the keep step returns. */
 const KEPT_TYPE = "KeptFile";
 /** The record a kept file is returned as. */

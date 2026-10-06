@@ -241,11 +241,7 @@ export const featureFilterDomainDefinition: TDomainDefinition = {
 	description: "The features a run runs, by patterns of their paths, such as graph or a.*b, separated by commas, as haibun-cli takes them; an empty filter runs every feature",
 };
 export const runDomainDefinitions: TDomainDefinition[] = [
-	{
-		selectors: [RUN_DOMAIN.name],
-		schema: NameSchema,
-		description: "The name a started run is known by, which reading, waiting for and stopping it name",
-	},
+	{ selectors: [RUN_DOMAIN.name], schema: NameSchema, description: "The name a started run is known by, which reading, waiting for and stopping it name" },
 	featureFilterDomainDefinition,
 	{ selectors: [RUN_DOMAIN.started], schema: runStartedSchema, description: "A run a process started, and what it runs" },
 	{ selectors: [RUN_DOMAIN.read], schema: runReadSchema, description: "What a run logged since a cursor, and how it stands" },

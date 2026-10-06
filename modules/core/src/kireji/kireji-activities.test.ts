@@ -54,10 +54,7 @@ variable xy is "12"`,
 	});
 
 	it("should fail at resolve time if outcome is not registered", async () => {
-		const feature = {
-			path: "/features/test.feature",
-			content: "ensure Nonexistent outcome",
-		};
+		const feature = { path: "/features/test.feature", content: "ensure Nonexistent outcome" };
 
 		const result = await failWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesStepper]);
 

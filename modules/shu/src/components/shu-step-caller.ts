@@ -16,14 +16,7 @@ import { defineElement } from "../define-element.js";
 import { linkTo } from "../rpc-registry.js";
 import { revealInDocument } from "../reveal.js";
 
-type InputProperty = {
-	type?: string;
-	description?: string;
-	enum?: string[];
-	properties?: Record<string, InputProperty>;
-	required?: string[];
-	[key: string]: unknown;
-};
+type InputProperty = { type?: string; description?: string; enum?: string[]; properties?: Record<string, InputProperty>; required?: string[]; [key: string]: unknown };
 
 /**
  * Recognise a composite (z.object) input property, render one field per
@@ -157,22 +150,10 @@ class StepCaller extends HTMLElement {
 			const method = this.descriptor.method;
 			this.result = await conduit().follow(linkTo(method, params), `step-caller: ${method}`);
 			dispatchAffordanceFromResponse(this.result);
-			this.dispatchEvent(
-				new CustomEvent(SHU_EVENT.STEP_SUCCESS, {
-					bubbles: true,
-					composed: true,
-					detail: this.result,
-				}),
-			);
+			this.dispatchEvent(new CustomEvent(SHU_EVENT.STEP_SUCCESS, { bubbles: true, composed: true, detail: this.result }));
 		} catch (err) {
 			this.error = errorDetail(err);
-			this.dispatchEvent(
-				new CustomEvent(SHU_EVENT.STEP_ERROR, {
-					bubbles: true,
-					composed: true,
-					detail: this.error,
-				}),
-			);
+			this.dispatchEvent(new CustomEvent(SHU_EVENT.STEP_ERROR, { bubbles: true, composed: true, detail: this.error }));
 		}
 		this.loading = false;
 		this._executed = true;
@@ -320,11 +301,7 @@ class StepCaller extends HTMLElement {
 
 	private renderBySchema(data: unknown, schema: Record<string, unknown>): string {
 		if (!data) return "";
-		const jsonSchema = schema as {
-			type?: string;
-			properties?: Record<string, Record<string, unknown>>;
-			items?: Record<string, unknown>;
-		};
+		const jsonSchema = schema as { type?: string; properties?: Record<string, Record<string, unknown>>; items?: Record<string, unknown> };
 
 		// Object: unwrap single-property containers, otherwise render each property via its own schema branch (so an array-of-object property renders as a nested table, not stringified JSON).
 		if (jsonSchema.type === "object" && jsonSchema.properties) {
@@ -453,12 +430,7 @@ class StepCaller extends HTMLElement {
 			const options: TComboboxOption[] = (data.vertices ?? []).map((v) => {
 				const id = String(v[idField] ?? "");
 				const name = nameField ? String(v[nameField] ?? "") : "";
-				return {
-					value: id,
-					label: name || id,
-					secondary: label,
-					details: JSON.stringify(v, null, 2),
-				};
+				return { value: id, label: name || id, secondary: label, details: JSON.stringify(v, null, 2) };
 			});
 			cb.setOptions?.(options);
 		} catch (err) {

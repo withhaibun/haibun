@@ -16,22 +16,14 @@ describe("FeatureVariables - Union Domains", () => {
 
 	it('resolves a quoted term as a string where the domain is "string | other"', async () => {
 		// "string" is a built-in domain in default world
-		const result = await variables.resolveVariable({
-			term: "literalValue",
-			origin: Origin.quoted,
-			domain: `string | other`,
-		});
+		const result = await variables.resolveVariable({ term: "literalValue", origin: Origin.quoted, domain: `string | other` });
 
 		expect(result.value).toBe("literalValue");
 		expect(result.domain).toBe(DOMAIN_STRING);
 	});
 
 	it("coerces a term as a string where its union isn't a registered domain", async () => {
-		const result = await variables.resolveVariable({
-			term: "/some/path",
-			origin: Origin.quoted,
-			domain: `invalid | mockDomain`,
-		});
+		const result = await variables.resolveVariable({ term: "/some/path", origin: Origin.quoted, domain: `invalid | mockDomain` });
 
 		// A union that isn't a registered domain is coerced as a string.
 		expect(result.value).toBe("/some/path");

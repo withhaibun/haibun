@@ -54,10 +54,7 @@ class TestStepper extends AStepper {
 
 				const response = await fetch(mcpUrl, {
 					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Accept: "application/json, text/event-stream",
-					},
+					headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream" },
 					body: JSON.stringify(rpcPayload),
 				});
 
@@ -102,14 +99,9 @@ verify mcp protocol on port ${port}
 `,
 		};
 
-		const moduleOptions = {
-			[getStepperOptionName(WebServerStepper, "PORT")]: String(port),
-		};
+		const moduleOptions = { [getStepperOptionName(WebServerStepper, "PORT")]: String(port) };
 
-		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, TestStepper], {
-			...DEF_PROTO_OPTIONS,
-			moduleOptions,
-		});
+		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, TestStepper], { ...DEF_PROTO_OPTIONS, moduleOptions });
 		if (!result.ok) {
 			let errors = "";
 			for (const fr of result.featureResults || []) {

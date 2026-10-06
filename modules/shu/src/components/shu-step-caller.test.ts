@@ -44,16 +44,7 @@ describe("shu-step-caller", () => {
 			method: "IssueStepper-createIssuer",
 			pattern: "create issuer {issuer: issuer}",
 			paramDomains: { issuer: "issuer" },
-			inputSchema: {
-				properties: {
-					issuer: {
-						type: "object",
-						properties: { did: { type: "string" }, name: { type: "string" } },
-						required: ["did"],
-					},
-				},
-				required: ["issuer"],
-			},
+			inputSchema: { properties: { issuer: { type: "object", properties: { did: { type: "string" }, name: { type: "string" } }, required: ["did"] } }, required: ["issuer"] },
 		};
 		const caller = makeCaller(descriptor);
 		// Force render by setting the attribute the step uses; mounting alone doesn't render
@@ -74,10 +65,7 @@ describe("shu-step-caller", () => {
 			method: "IssueStepper-createIssuer",
 			pattern: "create issuer {issuer: issuer}",
 			paramDomains: { issuer: "issuer" },
-			inputSchema: {
-				properties: { issuer: { type: "object", properties: { did: { type: "string" } }, required: ["did"] } },
-				required: ["issuer"],
-			},
+			inputSchema: { properties: { issuer: { type: "object", properties: { did: { type: "string" } }, required: ["did"] } }, required: ["issuer"] },
 		};
 		const caller = document.createElement("shu-step-caller") as HTMLElement & { descriptor?: Record<string, unknown> };
 		caller.setAttribute("step", "createIssuer");
@@ -95,16 +83,7 @@ describe("shu-step-caller", () => {
 			method: "IssueStepper-createIssuer",
 			pattern: "create issuer {issuer: issuer}",
 			paramDomains: { issuer: "issuer" },
-			inputSchema: {
-				properties: {
-					issuer: {
-						type: "object",
-						properties: { did: { type: "string" }, name: { type: "string" } },
-						required: ["did"],
-					},
-				},
-				required: ["issuer"],
-			},
+			inputSchema: { properties: { issuer: { type: "object", properties: { did: { type: "string" }, name: { type: "string" } }, required: ["did"] } }, required: ["issuer"] },
 		};
 		const caller = makeCaller(descriptor);
 		caller.setAttribute("step", "IssueStepper-createIssuer");

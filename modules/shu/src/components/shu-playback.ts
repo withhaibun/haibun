@@ -22,10 +22,7 @@ import { followRecordedExecution, runSpan } from "../client-cache/index.js";
 const SPEED_OPTIONS = [0.02, 0.05, 1, 2];
 const formatSpeed = (s: number): string => (s < 1 ? `-${Math.round(1 / s)}×` : `${s}×`);
 
-const StateSchema = z.object({
-	playing: z.boolean().default(false),
-	speed: z.number().default(1),
-});
+const StateSchema = z.object({ playing: z.boolean().default(false), speed: z.number().default(1) });
 
 export class ShuPlayback extends ShuElement<typeof StateSchema> {
 	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */

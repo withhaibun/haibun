@@ -95,18 +95,11 @@ type CacheEntry = {
 /** One view scope's cached snapshot + in-flight fetch. Scope "" is the shared main-graph scope; a view that needs an
  *  independent data source (the class browser) declares its own scope, so its fetches and chip choices never replace
  *  another scope's snapshot. The view context (selection, active view) stays global across scopes. */
-type ScopeState = {
-	cache: CacheEntry | null;
-	pending: Promise<TGraphSnapshot> | null;
-};
+type ScopeState = { cache: CacheEntry | null; pending: Promise<TGraphSnapshot> | null };
 
 /** Underlying store: the per-scope caches, global view context, and listener set live here so a single instance is
  *  reachable from every bundle that imports this module, as the page's, see getStore(). */
-type Store = {
-	scopes: Map<string, ScopeState>;
-	viewContext: TViewContext;
-	listeners: Set<{ scope: string; fn: SnapshotListener }>;
-};
+type Store = { scopes: Map<string, ScopeState>; viewContext: TViewContext; listeners: Set<{ scope: string; fn: SnapshotListener }> };
 
 /**
  * The shu app and external clustered viewers ship as separate IIFE
@@ -332,12 +325,7 @@ export function currentSnapshot(scope = ""): TGraphSnapshot {
 
 function ensureCache(st: ScopeState): CacheEntry {
 	if (!st.cache)
-		st.cache = {
-			model: new QuadGraphModel(DEFAULT_PER_TYPE_LIMIT, getRels, getTitledBy),
-			perTypeLimit: DEFAULT_PER_TYPE_LIMIT,
-			typesKey: "*",
-			accessLevel: appAccessLevel(),
-		};
+		st.cache = { model: new QuadGraphModel(DEFAULT_PER_TYPE_LIMIT, getRels, getTitledBy), perTypeLimit: DEFAULT_PER_TYPE_LIMIT, typesKey: "*", accessLevel: appAccessLevel() };
 	return st.cache;
 }
 

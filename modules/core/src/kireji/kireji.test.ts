@@ -8,46 +8,23 @@ import { ActivitiesStepper } from "../steps/activities-stepper.js";
 // A mock stepper for testing purposes
 class TestStepper extends AStepper {
 	steps = {
-		set: {
-			gwta: "set {what} to {value}",
-			action: () => Promise.resolve(OK),
-		},
-		doSomething: {
-			gwta: "do something",
-			action: () => Promise.resolve(OK),
-		},
-		registerOutcome: {
-			gwta: "outcome {outcome}",
-			action: () => Promise.resolve(OK),
-		},
-		not: {
-			gwta: "not {statement}",
-			action: () => Promise.resolve(OK),
-		},
+		set: { gwta: "set {what} to {value}", action: () => Promise.resolve(OK) },
+		doSomething: { gwta: "do something", action: () => Promise.resolve(OK) },
+		registerOutcome: { gwta: "outcome {outcome}", action: () => Promise.resolve(OK) },
+		not: { gwta: "not {statement}", action: () => Promise.resolve(OK) },
 	} as const satisfies TStepperSteps;
 }
 
 // A stepper with optional patterns to test regex stripping
 class OptionalPatternStepper extends AStepper {
 	steps = {
-		setOptional: {
-			gwta: "set( empty)? {what} to {value}",
-			action: () => Promise.resolve(OK),
-		},
-		clickOptional: {
-			gwta: "click( on)? {target}",
-			action: () => Promise.resolve(OK),
-		},
+		setOptional: { gwta: "set( empty)? {what} to {value}", action: () => Promise.resolve(OK) },
+		clickOptional: { gwta: "click( on)? {target}", action: () => Promise.resolve(OK) },
 	} as const satisfies TStepperSteps;
 }
 
 class ProseStepper extends AStepper {
-	steps = {
-		prose: {
-			gwta: "prose: {prose}",
-			action: () => Promise.resolve(OK),
-		},
-	};
+	steps = { prose: { gwta: "prose: {prose}", action: () => Promise.resolve(OK) } };
 }
 
 const testStepper = new TestStepper();
@@ -140,14 +117,8 @@ describe("withAction", () => {
 describe("withAction object argument encoding", () => {
 	class ObjectArgStepper extends AStepper {
 		steps = {
-			createIssuer: {
-				gwta: "create issuer {issuer}",
-				action: () => Promise.resolve(OK),
-			},
-			issueCredential: {
-				gwta: "issue credential {credential}",
-				action: () => Promise.resolve(OK),
-			},
+			createIssuer: { gwta: "create issuer {issuer}", action: () => Promise.resolve(OK) },
+			issueCredential: { gwta: "issue credential {credential}", action: () => Promise.resolve(OK) },
 		} as const satisfies TStepperSteps;
 	}
 	const { createIssuer, issueCredential } = withAction(new ObjectArgStepper());
@@ -221,9 +192,7 @@ describe("toBdd", () => {
 	const { set, doSomething } = withAction(testStepper);
 
 	it("should convert a kireji feature to a BDD string", () => {
-		const feature = {
-			"my feature": [set({ what: "sound", value: "moo" }), doSomething({})],
-		};
+		const feature = { "my feature": [set({ what: "sound", value: "moo" }), doSomething({})] };
 		const expectedBdd = `Feature: my feature
   set sound to moo
   do something
@@ -265,13 +234,7 @@ describe("fromBdd", () => {
 		expect(results).toEqual([
 			{ actionName: "set", args: { what: "sound", value: "moo" }, gwta: "set sound to moo" },
 			{ actionName: "doSomething", args: {}, gwta: "do something" },
-			{
-				actionName: "not",
-				args: {
-					statement: "set sound to cow",
-				},
-				gwta: "not set sound to cow",
-			},
+			{ actionName: "not", args: { statement: "set sound to cow" }, gwta: "not set sound to cow" },
 
 			{ actionName: "prose", args: { prose: "this is a test" }, gwta: "prose: this is a test" },
 		]);
@@ -315,29 +278,13 @@ describe("fromBdd", () => {
 		const featureFromBdd = await fromBdd(bdd.content, [...steppers]);
 		const results = featureFromBdd["Complex activities and outcomes"].filter((step): step is TActionExecutor<string> => typeof step !== "string").map((executor) => executor());
 		expect(results).toEqual([
-			{
-				actionName: "activity",
-				args: { activity: "prepare environment for staging" },
-				gwta: "Activity: prepare environment for staging",
-			},
+			{ actionName: "activity", args: { activity: "prepare environment for staging" }, gwta: "Activity: prepare environment for staging" },
 			{ actionName: "set", args: { what: "plan", value: "database migration" }, gwta: "set plan to database migration" },
 			{ actionName: "activity", args: { activity: "deploy release v1.2.0" }, gwta: "Activity: deploy release v1.2.0" },
-			{
-				actionName: "ensure",
-				args: { outcome: "Activity: deploy release v1.2.0" },
-				gwta: "ensure Activity: deploy release v1.2.0",
-			},
+			{ actionName: "ensure", args: { outcome: "Activity: deploy release v1.2.0" }, gwta: "ensure Activity: deploy release v1.2.0" },
 			{ actionName: "not", args: { statement: "Activity: deploy release v1.2.0" }, gwta: "not Activity: deploy release v1.2.0" },
-			{
-				actionName: "activity",
-				args: { activity: "validate metrics for staging" },
-				gwta: "Activity: validate metrics for staging",
-			},
-			{
-				actionName: "prose",
-				args: { prose: "outcomes orchestrate multi-step activities" },
-				gwta: "prose: outcomes orchestrate multi-step activities",
-			},
+			{ actionName: "activity", args: { activity: "validate metrics for staging" }, gwta: "Activity: validate metrics for staging" },
+			{ actionName: "prose", args: { prose: "outcomes orchestrate multi-step activities" }, gwta: "prose: outcomes orchestrate multi-step activities" },
 			{ actionName: "doSomething", args: {}, gwta: "do something" },
 		]);
 		expect(lineTrimmed(toBdd(featureFromBdd).content)).toBe(lineTrimmed(bdd.content));

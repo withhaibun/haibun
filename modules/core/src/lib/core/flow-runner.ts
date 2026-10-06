@@ -113,12 +113,7 @@ export class FlowRunner {
 		let lastResult: TActionResult = { ok: true };
 
 		for (const step of steps) {
-			let mappedStep: TFeatureStep = {
-				...step,
-				intent,
-				runtimeArgs: { ...parentStep?.runtimeArgs, ...step.runtimeArgs },
-				targetHostId: targetHostId ?? step.targetHostId,
-			};
+			let mappedStep: TFeatureStep = { ...step, intent, runtimeArgs: { ...parentStep?.runtimeArgs, ...step.runtimeArgs }, targetHostId: targetHostId ?? step.targetHostId };
 			if (parentStep) {
 				const isAfterEvery = parentStep.isAfterEveryStep || mappedStep.isAfterEveryStep;
 				const dir = syntheticSeqPathDirection(intent.mode === "speculative" || isAfterEvery);

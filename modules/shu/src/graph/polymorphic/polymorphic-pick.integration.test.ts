@@ -90,10 +90,7 @@ beforeAll(async () => {
 			pipeline: { nodeMap: Map<string, unknown> };
 			fitGraph(): void;
 		};
-		el.graph.graphData({
-			nodes: nodes.map((n) => ({ id: n.id, name: n.id, type: "Email", x: n.x, y: n.y, z: 0, fx: n.x, fy: n.y, fz: 0 })),
-			links: [],
-		});
+		el.graph.graphData({ nodes: nodes.map((n) => ({ id: n.id, name: n.id, type: "Email", x: n.x, y: n.y, z: 0, fx: n.x, fy: n.y, fz: 0 })), links: [] });
 		el.pipeline.nodeMap = new Map(el.graph.graphData().nodes.map((n) => [n.id, n]));
 		el.fitGraph();
 	}, NODES);

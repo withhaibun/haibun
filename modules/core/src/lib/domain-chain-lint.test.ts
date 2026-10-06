@@ -36,23 +36,11 @@ const domains = () =>
 	]);
 
 class EmailFromPerson extends AStepper {
-	steps: TStepperSteps = {
-		issueEmail: {
-			gwta: `issue email for {who: ${PERSON}}`,
-			productsDomain: EMAIL,
-			action: () => actionOKWithProducts({ id: "e1" }),
-		},
-	};
+	steps: TStepperSteps = { issueEmail: { gwta: `issue email for {who: ${PERSON}}`, productsDomain: EMAIL, action: () => actionOKWithProducts({ id: "e1" }) } };
 }
 
 class ArchiveEmail extends AStepper {
-	steps: TStepperSteps = {
-		archive: {
-			gwta: `archive {email: ${EMAIL}}`,
-			productsDomain: ARCHIVED,
-			action: () => actionOKWithProducts({ id: "a1" }),
-		},
-	};
+	steps: TStepperSteps = { archive: { gwta: `archive {email: ${EMAIL}}`, productsDomain: ARCHIVED, action: () => actionOKWithProducts({ id: "a1" }) } };
 }
 
 class LooselyTyped extends AStepper {
@@ -65,9 +53,7 @@ class LooselyTyped extends AStepper {
 }
 
 class StubStepper extends AStepper {
-	steps: TStepperSteps = {
-		nothing: { gwta: "nothing here", action: () => OK },
-	};
+	steps: TStepperSteps = { nothing: { gwta: "nothing here", action: () => OK } };
 }
 
 describe("lintDomainChain", () => {

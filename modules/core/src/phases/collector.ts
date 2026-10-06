@@ -10,10 +10,7 @@ import { type TRunPolicyConfig, type TDirFilter, featureMatchesFilter } from "..
 /** How a base that doesn't hold a feature or a background is refused. */
 export const BASE_WITHOUT_FEATURES = "doesn't hold a feature or a background";
 
-export type TFeaturesBackgrounds = {
-	features: TFeature[];
-	backgrounds: TFeature[];
-};
+export type TFeaturesBackgrounds = { features: TFeature[]; backgrounds: TFeature[] };
 
 export async function getFeaturesAndBackgrounds(
 	bases: TBase,

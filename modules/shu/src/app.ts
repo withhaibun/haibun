@@ -231,11 +231,7 @@ const main = async (): Promise<void> => {
 		extra: Record<string, unknown> = {},
 	) => {
 		const message = `external-component ${component}: ${phase}${extra.error ? `, ${String(extra.error)}` : ""}`;
-		const attributes: Record<string, unknown> = {
-			"haibun.shu.external-component.phase": phase,
-			"haibun.shu.external-component.name": component,
-			...extra,
-		};
+		const attributes: Record<string, unknown> = { "haibun.shu.external-component.phase": phase, "haibun.shu.external-component.name": component, ...extra };
 		if (level === "error") {
 			attributes["haibun.autonomic.event"] = "step.failure";
 			attributes["exception.type"] = "ExternalComponentFailure";

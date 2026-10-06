@@ -12,11 +12,7 @@ const META: SiteMetadata = {
 	validTimeFields: {},
 	summary: {},
 	propertyDefinitions: {},
-	ui: {
-		Affordances: { component: "shu-affordances-panel" },
-		Pinned: { component: "shu-x" },
-		Slotted: { component: "shu-y", slot: "action-bar-chat" },
-	},
+	ui: { Affordances: { component: "shu-affordances-panel" }, Pinned: { component: "shu-x" }, Slotted: { component: "shu-y", slot: "action-bar-chat" } },
 };
 
 describe("resolveUi", () => {

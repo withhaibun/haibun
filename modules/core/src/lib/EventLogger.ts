@@ -136,11 +136,7 @@ export class EventLogger implements IEventLogger {
 		const name = event.kind === "blip" ? event.name : undefined;
 		// Every event states the level of what it may reveal, so a follower is sent only what it may read. An event is
 		// written as a record is, and one that doesn't state a level is actuality's own and private.
-		const eventWithEmitter = {
-			...event,
-			emitter: event.emitter || getEmitter(),
-			accessLevel: writtenAt(event.accessLevel, Access.private, accessBound()),
-		};
+		const eventWithEmitter = { ...event, emitter: event.emitter || getEmitter(), accessLevel: writtenAt(event.accessLevel, Access.private, accessBound()) };
 
 		for (const sub of this.subscribers) {
 			if (!this.wouldReceive(sub, event.kind, name)) continue;
@@ -160,16 +156,7 @@ export class EventLogger implements IEventLogger {
 	}
 
 	log(featureStep: TFeatureStep, level: THaibunLogLevel, message: string, attributes?: Record<string, unknown>): void {
-		this.emit(
-			LogEvent.parse({
-				id: formatSeqPath(featureStep.seqPath),
-				timestamp: Date.now(),
-				kind: "log",
-				level: this.reportedAt(level),
-				message,
-				attributes,
-			}),
-		);
+		this.emit(LogEvent.parse({ id: formatSeqPath(featureStep.seqPath), timestamp: Date.now(), kind: "log", level: this.reportedAt(level), message, attributes }));
 	}
 
 	// Convenience methods for logging without a featureStep (for cycles, helpers, etc.)
@@ -279,11 +266,7 @@ export class EventLogger implements IEventLogger {
 	artifact(featureStep: TFeatureStep, artifact: TArtifactEvent): void {
 		// What a run produced is read at every level, because it is shown by the row of the step that produced it: a
 		// reader reading a run's steps sees the shot on the step that took it, whatever level that step reports at.
-		const event: TArtifactEvent = {
-			...artifact,
-			id: artifact.id || `${formatSeqPath(featureStep.seqPath)}.artifact`,
-			timestamp: artifact.timestamp || Date.now(),
-		};
+		const event: TArtifactEvent = { ...artifact, id: artifact.id || `${formatSeqPath(featureStep.seqPath)}.artifact`, timestamp: artifact.timestamp || Date.now() };
 		this.emit(event);
 	}
 }

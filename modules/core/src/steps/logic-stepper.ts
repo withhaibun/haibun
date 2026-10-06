@@ -102,11 +102,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 	 * Get values and metrics for iteration - handles both domains and observation sources.
 	 * Syntax: "in {domain}" or "observed in {source}"
 	 */
-	private async getIterationValues(phrase: string): Promise<{
-		values: string[];
-		metrics?: Record<string, Record<string, unknown>>;
-		error?: string;
-	}> {
+	private async getIterationValues(phrase: string): Promise<{ values: string[]; metrics?: Record<string, Record<string, unknown>>; error?: string }> {
 		// Check for "observed in {source}" pattern
 		const observedMatch = phrase.match(/^observed in (.+)$/i);
 		if (observedMatch) {

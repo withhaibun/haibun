@@ -9,16 +9,7 @@ import { DOMAIN_STATEMENT } from "../lib/domains.js";
 
 // A test stepper that uses a statement typed placeholder
 class StatementStepper extends AStepper {
-	steps = {
-		meta: {
-			gwta: `meta {action: ${DOMAIN_STATEMENT}}`,
-			action: async () => Promise.resolve(OK),
-		},
-		base: {
-			gwta: "base action",
-			action: async () => Promise.resolve(OK),
-		},
-	};
+	steps = { meta: { gwta: `meta {action: ${DOMAIN_STATEMENT}}`, action: async () => Promise.resolve(OK) }, base: { gwta: "base action", action: async () => Promise.resolve(OK) } };
 }
 
 describe("statement variable validation", () => {

@@ -21,8 +21,5 @@ type TypePresentation = {
 
 /** The presentation facade for a JSON-LD @type: appearance (from its rels) + column (from its domain). */
 export function presentationForType(type: string): TypePresentation {
-	return {
-		mark: (node, ctx) => presenterForType(type).present(node, ctx),
-		columnComponent: () => getRecordComponent(type),
-	};
+	return { mark: (node, ctx) => presenterForType(type).present(node, ctx), columnComponent: () => getRecordComponent(type) };
 }

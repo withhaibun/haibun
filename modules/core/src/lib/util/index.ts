@@ -39,16 +39,7 @@ export function actionOKWithProducts(products: Record<string, unknown>, w?: { ar
 
 let artifactCounter = 0;
 export function jsonArtifact(json: Record<string, unknown>): TJsonArtifact {
-	return {
-		kind: "artifact",
-		artifactType: "json",
-		id: `json-${++artifactCounter}`,
-		timestamp: Date.now(),
-		source: "haibun",
-		level: "info",
-		json,
-		mimetype: "application/json",
-	};
+	return { kind: "artifact", artifactType: "json", id: `json-${++artifactCounter}`, timestamp: Date.now(), source: "haibun", level: "info", json, mimetype: "application/json" };
 }
 
 export function createSteppers(steppers: CStepper[]): AStepper[] {
@@ -83,9 +74,7 @@ export function checkNoPoliteStepPrefixes(stepper: AStepper): void {
 }
 
 export function getDefaultOptions(): TSpecl {
-	return {
-		steppers: ["variables-stepper"],
-	};
+	return { steppers: ["variables-stepper"] };
 }
 
 export function getActionable(value: string) {

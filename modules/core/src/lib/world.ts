@@ -97,9 +97,6 @@ export type TEnvVariables = NonNullable<TBaseOptions["envVariables"]>;
 
 export type TModuleOptions = { [name: string]: string };
 
-export type TProtoOptions = {
-	options: TBaseOptions;
-	moduleOptions: TModuleOptions;
-};
+export type TProtoOptions = { options: TBaseOptions; moduleOptions: TModuleOptions };
 
 export type TBase = string[];

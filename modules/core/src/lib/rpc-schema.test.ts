@@ -6,7 +6,8 @@ const ACTUALITY = crypto.randomUUID();
 describe("JSON-RPC 2.0 schema compliance", () => {
 	it("accepts valid jsonrpc 2.0 request", () => {
 		const result = RpcRequestSchema.safeParse({
-			jsonrpc: "2.0", protocol: RPC_PROTOCOL,
+			jsonrpc: "2.0",
+			protocol: RPC_PROTOCOL,
 			id: "1",
 			method: "RemoteSteps-getLabelRels",
 			params: { label: "Email" },
@@ -16,20 +17,12 @@ describe("JSON-RPC 2.0 schema compliance", () => {
 	});
 
 	it("rejects old-format request with type field", () => {
-		const result = RpcRequestSchema.safeParse({
-			type: "rpc",
-			id: "1",
-			method: "RemoteSteps-getLabelRels",
-			params: { label: "Email" },
-		});
+		const result = RpcRequestSchema.safeParse({ type: "rpc", id: "1", method: "RemoteSteps-getLabelRels", params: { label: "Email" } });
 		expect(result.success).toBe(false);
 	});
 
 	it("rejects request without jsonrpc field", () => {
-		const result = RpcRequestSchema.safeParse({
-			id: "1",
-			method: "test",
-		});
+		const result = RpcRequestSchema.safeParse({ id: "1", method: "test" });
 		expect(result.success).toBe(false);
 	});
 
@@ -51,56 +44,30 @@ describe("JSON-RPC 2.0 schema compliance", () => {
 	});
 
 	it("accepts request with stream flag", () => {
-		const result = RpcRequestSchema.safeParse({
-			jsonrpc: "2.0", protocol: RPC_PROTOCOL,
-			id: "1",
-			method: "test",
-			stream: true,
-			actualityId: ACTUALITY,
-		});
+		const result = RpcRequestSchema.safeParse({ jsonrpc: "2.0", protocol: RPC_PROTOCOL, id: "1", method: "test", stream: true, actualityId: ACTUALITY });
 		expect(result.success).toBe(true);
 		if (result.success) expect(result.data.stream).toBe(true);
 	});
 
 	it("accepts request with capability", () => {
-		const result = RpcRequestSchema.safeParse({
-			jsonrpc: "2.0", protocol: RPC_PROTOCOL,
-			id: "1",
-			method: "test",
-			capability: "Test:*",
-			actualityId: ACTUALITY,
-		});
+		const result = RpcRequestSchema.safeParse({ jsonrpc: "2.0", protocol: RPC_PROTOCOL, id: "1", method: "test", capability: "Test:*", actualityId: ACTUALITY });
 		expect(result.success).toBe(true);
 		if (result.success) expect(result.data.capability).toBe("Test:*");
 	});
 
 	it("defaults params to empty object", () => {
-		const result = RpcRequestSchema.safeParse({
-			jsonrpc: "2.0", protocol: RPC_PROTOCOL,
-			id: "1",
-			method: "test",
-			actualityId: ACTUALITY,
-		});
+		const result = RpcRequestSchema.safeParse({ jsonrpc: "2.0", protocol: RPC_PROTOCOL, id: "1", method: "test", actualityId: ACTUALITY });
 		expect(result.success).toBe(true);
 		if (result.success) expect(result.data.params).toEqual({});
 	});
 
 	it("validates response schema", () => {
-		const result = RpcResponseSchema.safeParse({
-			jsonrpc: "2.0", protocol: RPC_PROTOCOL,
-			id: "1",
-			result: { rels: { messageId: "item" } },
-		});
+		const result = RpcResponseSchema.safeParse({ jsonrpc: "2.0", protocol: RPC_PROTOCOL, id: "1", result: { rels: { messageId: "item" } } });
 		expect(result.success).toBe(true);
 	});
 
 	it("validates stream chunk schema", () => {
-		const result = RpcStreamSchema.safeParse({
-			jsonrpc: "2.0", protocol: RPC_PROTOCOL,
-			id: "1",
-			stream: true,
-			data: { chunk: "text" },
-		});
+		const result = RpcStreamSchema.safeParse({ jsonrpc: "2.0", protocol: RPC_PROTOCOL, id: "1", stream: true, data: { chunk: "text" } });
 		expect(result.success).toBe(true);
 	});
 });

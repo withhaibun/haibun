@@ -52,9 +52,7 @@ export abstract class AStepper {
 	startFeatureResolution?(_path: string): void;
 }
 
-export type TStepperSteps = {
-	[key: string]: TStepperStep;
-};
+export type TStepperSteps = { [key: string]: TStepperStep };
 
 /** One stepper option declaration: the small, non-tunable shape every stepper has used. */
 export type TStepperOption = {
@@ -72,9 +70,7 @@ export type TStepperOption = {
 };
 
 export interface IHasOptions {
-	options?: {
-		[name: string]: TStepperOption;
-	};
+	options?: { [name: string]: TStepperOption };
 }
 
 export interface IHasCycles {
@@ -91,12 +87,7 @@ export function hasCycles(stepper: AStepper): stepper is AStepper & IHasCycles {
 // Resolved feature & step (stepper-protocol shapes)
 // ============================================================================
 
-export type TResolvedFeature = {
-	path: string;
-	base: string;
-	name: string;
-	featureSteps: TFeatureStep[];
-};
+export type TResolvedFeature = { path: string; base: string; name: string; featureSteps: TFeatureStep[] };
 
 export type TFeatureStep = {
 	in: string;
@@ -120,12 +111,7 @@ export type TFeatureStep = {
 	programmatic?: boolean;
 };
 
-export type TStepAction = {
-	actionName: string;
-	stepperName: string;
-	step: TStepperStep;
-	stepValuesMap?: TStepValuesMap;
-};
+export type TStepAction = { actionName: string; stepperName: string; step: TStepperStep; stepValuesMap?: TStepValuesMap };
 
 type TStepValuesMap = Record<string, TStepValue>;
 
@@ -164,10 +150,7 @@ type TStepperStepBase = {
 	offeredBeforeDiscovery?: boolean | (() => boolean);
 	virtual?: boolean;
 	/** For dynamically generated steps (like waypoints): source location metadata */
-	source?: {
-		path: string;
-		lineNumber?: number;
-	};
+	source?: { path: string; lineNumber?: number };
 	match?: RegExp;
 	gwta?: string;
 	exact?: string;
@@ -229,10 +212,7 @@ export interface IStepperWhen {
 	endFeature?: number;
 }
 
-export const CycleWhen = {
-	FIRST: -999,
-	LAST: 999,
-};
+export const CycleWhen = { FIRST: -999, LAST: 999 };
 
 // ============================================================================
 // Observation, concerns, cycles
@@ -247,10 +227,7 @@ export const CycleWhen = {
  */
 export interface IObservationSource {
 	name: string;
-	observe(world: TWorld): Promise<{
-		items: string[];
-		metrics: Record<string, Record<string, unknown>>;
-	}>;
+	observe(world: TWorld): Promise<{ items: string[]; metrics: Record<string, Record<string, unknown>> }>;
 }
 
 export interface IStepperConcerns {
@@ -277,14 +254,7 @@ export interface IStepperCycles {
 }
 
 export type TStartExecution = TResolvedFeature[];
-export type TEndFeature = {
-	featurePath: string;
-	shouldClose: boolean;
-	isLast: boolean;
-	okSoFar: boolean;
-	continueAfterError: boolean;
-	thisFeatureOK: boolean;
-};
+export type TEndFeature = { featurePath: string; shouldClose: boolean; isLast: boolean; okSoFar: boolean; continueAfterError: boolean; thisFeatureOK: boolean };
 /** Actuality's result as its features end, and whether it keeps serving after them, as `HAIBUN_STAY` states. */
 export type TEndExecution = TExecutorResult & { stays: boolean };
 export type TStartFeature = { resolvedFeature: TResolvedFeature; index: number };

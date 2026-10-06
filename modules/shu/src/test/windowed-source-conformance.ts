@@ -13,12 +13,7 @@ import type { WindowedSource } from "../windowed-source.js";
 
 /** A source ready to read, over a known number of rows. `named` names a row the source answers, and `shouldName` is
  *  what the row at an index is called, so a case names which row it read rather than that it read something. */
-type TSourceUnderTest<T> = {
-	source: WindowedSource<T>;
-	named(row: T): string;
-	shouldName(index: number): string;
-	done?(): void | Promise<void>;
-};
+type TSourceUnderTest<T> = { source: WindowedSource<T>; named(row: T): string; shouldName(index: number): string; done?(): void | Promise<void> };
 
 /** What a source states of itself, where sources differ by design rather than by defect. */
 type TSourceNature = {

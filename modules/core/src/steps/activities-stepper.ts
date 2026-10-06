@@ -57,12 +57,7 @@ export const savedWaypointDomainDefinition: TDomainDefinition = {
 		persistedAs: SAVED_WAYPOINT_LABEL,
 		type: "schema:HowTo",
 		id: "id",
-		properties: {
-			id: LinkRelations.IDENTIFIER.rel,
-			lines: LinkRelations.STEP.rel,
-			source: LinkRelations.SOURCE_PATH.rel,
-			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
-		},
+		properties: { id: LinkRelations.IDENTIFIER.rel, lines: LinkRelations.STEP.rel, source: LinkRelations.SOURCE_PATH.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel },
 		displayLabel: "id",
 		sortColumns: { generatedAtTime: "TIMESTAMPTZ" },
 	},
@@ -133,10 +128,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			return this.getRegisteredOutcomes();
 		},
 	};
-	cyclesWhen = {
-		startExecution: CycleWhen.FIRST,
-		startFeature: CycleWhen.FIRST,
-	};
+	cyclesWhen = { startExecution: CycleWhen.FIRST, startFeature: CycleWhen.FIRST };
 
 	/**
 	 * Called during resolution phase to clear feature-scoped steps.
@@ -272,10 +264,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			},
 		},
 
-		waypointLabel: {
-			gwta: `waypoint {outcome: ${DOMAIN_TITLE}}`,
-			action: async () => actionOK(),
-		},
+		waypointLabel: { gwta: `waypoint {outcome: ${DOMAIN_TITLE}}`, action: async () => actionOK() },
 
 		ensure: {
 			description:
@@ -611,10 +600,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				return typeof s === "string" ? { in: s, source: { path: sourcePath } } : s;
 			}) ?? [];
 
-		const normalizedProofSteps: TStepInput[] = proofStatements.map((s) => ({
-			in: s,
-			source: { path: sourcePath },
-		}));
+		const normalizedProofSteps: TStepInput[] = proofStatements.map((s) => ({ in: s, source: { path: sourcePath } }));
 
 		this.registeredOutcomeMetadata.set(outcome, {
 			proofStatements,
@@ -637,10 +623,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			gwta: outcome.replace(/\{([^}:]+)\}/g, (_, name: string) => `{${name}: ${DOMAIN_WAYPOINT_ARGUMENT}}`),
 			virtual: true,
 			...(capability ? { capability } : {}),
-			source: {
-				lineNumber,
-				path: actualSourcePath || proofPath,
-			},
+			source: { lineNumber, path: actualSourcePath || proofPath },
 			description: `Outcome: ${outcome}. Proof: ${proofStatements.join("; ")}`,
 			action: async (args: TStepArgs, featureStep: TFeatureStep) => {
 				const run = (steps: TStepInput[], intent: TFeatureStep["intent"]) =>
@@ -781,13 +764,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				for (let i = activityStartLine + 1; i < lineIndex; i++) {
 					const stepLine = getActionable(itemAt(allLines, i));
 					if (stepLine && !stepLine.match(/^waypoint\s+/i)) {
-						blockLines.push({
-							in: stepLine,
-							source: {
-								lineNumber: i + 1,
-								path: actualSourcePath || path,
-							},
-						});
+						blockLines.push({ in: stepLine, source: { lineNumber: i + 1, path: actualSourcePath || path } });
 					}
 				}
 				activityBlockSteps = blockLines;

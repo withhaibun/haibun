@@ -92,10 +92,7 @@ export const instrumentContext = (context: BrowserContext, onInteraction: TInter
 
 		page.on("framenavigated", (frame) => {
 			if (frame === page.mainFrame()) {
-				onInteraction({
-					type: "navigation",
-					url: frame.url(),
-				});
+				onInteraction({ type: "navigation", url: frame.url() });
 			}
 		});
 	});

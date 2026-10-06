@@ -21,11 +21,7 @@ export type TRunGraph = {
 
 /** A run read over one store: what a report reads of the copy it carries, and what a test reads of a store it made. */
 export function runGraphOf(store: IQuadStore, declares: (label: string) => boolean = () => true): TRunGraph {
-	return {
-		query: (query) => queryQuadStore(store, query),
-		density: (query) => store.density(query),
-		declares,
-	};
+	return { query: (query) => queryQuadStore(store, query), density: (query) => store.density(query), declares };
 }
 
 /**

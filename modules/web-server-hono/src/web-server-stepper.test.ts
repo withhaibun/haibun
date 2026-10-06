@@ -70,9 +70,7 @@ fetch from "http://localhost:${port}/pub/hello.txt" includes "Hello World"
 `,
 		};
 
-		const moduleOptions = {
-			[getStepperOptionName(WebServerStepper, "PORT")]: String(port),
-		};
+		const moduleOptions = { [getStepperOptionName(WebServerStepper, "PORT")]: String(port) };
 
 		const result = await passWithDefaults([feature], [WebServerStepper, VerifyStepper], { ...DEF_PROTO_OPTIONS, moduleOptions });
 		if (!result.ok) {
@@ -92,9 +90,7 @@ fetch from "http://localhost:${port}/" includes "hello.txt"
 `,
 		};
 
-		const moduleOptions = {
-			[getStepperOptionName(WebServerStepper, "PORT")]: String(port),
-		};
+		const moduleOptions = { [getStepperOptionName(WebServerStepper, "PORT")]: String(port) };
 
 		const result = await passWithDefaults([feature], [WebServerStepper, VerifyStepper], { ...DEF_PROTO_OPTIONS, moduleOptions });
 		if (!result.ok) {

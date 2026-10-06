@@ -45,7 +45,11 @@ describe("EARL types", () => {
 		const result = context[EARL_LABEL.testResult];
 		expect(result["@id"]).toBe("earl:TestResult");
 		expect([result["@context"].outcome["@id"], result["@context"].pointers["@id"], result["@context"].info["@id"]]).toEqual(["earl:outcome", "earl:pointer", "earl:info"]);
-		expect([EARL_LABEL.assertor, EARL_LABEL.testSubject, EARL_LABEL.testCase].map((label) => context[label]["@id"])).toEqual(["earl:Assertor", "earl:TestSubject", "earl:TestCase"]);
+		expect([EARL_LABEL.assertor, EARL_LABEL.testSubject, EARL_LABEL.testCase].map((label) => context[label]["@id"])).toEqual([
+			"earl:Assertor",
+			"earl:TestSubject",
+			"earl:TestCase",
+		]);
 	});
 });
 
@@ -61,7 +65,12 @@ describe("writeEarlAssertions", () => {
 		expect(target(EARL_ASSERTION_EDGE.test)).toMatchObject({ object: IMAGE_ALT.id, objectType: EARL_LABEL.testCase });
 		expect(target(EARL_ASSERTION_EDGE.wasGeneratedBy)).toMatchObject({ object: STEP, objectType: SEQ_PATH_LABEL });
 		const resultId = String(target(EARL_ASSERTION_EDGE.result)?.object);
-		expect(await store.getIndividual(EARL_LABEL.testResult, resultId)).toMatchObject({ outcome: EARL_OUTCOME.failed, info: "Fix the image", pointers: ["#hero img"], impact: "critical" });
+		expect(await store.getIndividual(EARL_LABEL.testResult, resultId)).toMatchObject({
+			outcome: EARL_OUTCOME.failed,
+			info: "Fix the image",
+			pointers: ["#hero img"],
+			impact: "critical",
+		});
 		expect(await store.getIndividual(EARL_LABEL.assertion, ids[0])).toMatchObject({ mode: EARL_MODE.automatic });
 	});
 	it("shares one record of a test case, an assertor and a subject among the assertions that name them", async () => {

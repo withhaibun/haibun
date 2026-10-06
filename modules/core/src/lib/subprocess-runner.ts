@@ -65,11 +65,7 @@ export async function runSubprocess(csteppers: CStepper[], world: TWorld): Promi
 				process.send?.({ type: "result", ok: false, error: hr.errorMessage } satisfies SubprocessResultMessage);
 			}
 		} catch (err) {
-			process.send?.({
-				type: "result",
-				ok: false,
-				error: errorDetail(err),
-			} satisfies SubprocessResultMessage);
+			process.send?.({ type: "result", ok: false, error: errorDetail(err) } satisfies SubprocessResultMessage);
 		}
 	});
 }

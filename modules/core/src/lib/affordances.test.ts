@@ -23,51 +23,24 @@ function fixedDomains() {
 }
 
 class EmailFromPerson extends AStepper {
-	steps: TStepperSteps = {
-		issueEmail: {
-			gwta: `issue email for {who: ${PERSON}}`,
-			productsDomain: EMAIL,
-			action: () => actionOKWithProducts({ id: "e1" }),
-		},
-	};
+	steps: TStepperSteps = { issueEmail: { gwta: `issue email for {who: ${PERSON}}`, productsDomain: EMAIL, action: () => actionOKWithProducts({ id: "e1" }) } };
 }
 
 /** A registered producer of Person, turns Person into a typed-fact domain (not an argument). */
 class PersonSource extends AStepper {
-	steps: TStepperSteps = {
-		registerPerson: {
-			gwta: "register a person",
-			productsDomain: PERSON,
-			action: () => actionOKWithProducts({ id: "p1" }),
-		},
-	};
+	steps: TStepperSteps = { registerPerson: { gwta: "register a person", productsDomain: PERSON, action: () => actionOKWithProducts({ id: "p1" }) } };
 }
 
 class SessionTerminal extends AStepper {
-	steps: TStepperSteps = {
-		newSession: {
-			gwta: "create a new session",
-			productsDomain: SESSION,
-			action: () => actionOKWithProducts({ id: "s1" }),
-		},
-	};
+	steps: TStepperSteps = { newSession: { gwta: "create a new session", productsDomain: SESSION, action: () => actionOKWithProducts({ id: "s1" }) } };
 }
 
 class GatedSession extends AStepper {
-	steps: TStepperSteps = {
-		gatedSignIn: {
-			gwta: "gated sign in",
-			productsDomain: SESSION,
-			capability: "auth:signin",
-			action: () => actionOKWithProducts({ id: "s2" }),
-		},
-	};
+	steps: TStepperSteps = { gatedSignIn: { gwta: "gated sign in", productsDomain: SESSION, capability: "auth:signin", action: () => actionOKWithProducts({ id: "s2" }) } };
 }
 
 class Plain extends AStepper {
-	steps: TStepperSteps = {
-		ping: { gwta: "ping", action: () => OK },
-	};
+	steps: TStepperSteps = { ping: { gwta: "ping", action: () => OK } };
 }
 
 describe("buildAffordances", () => {

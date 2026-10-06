@@ -21,12 +21,7 @@ export default class StorageMem extends AStorage {
 	};
 	lstatToIFile(file: string) {
 		const l = this.volume.lstatSync(file);
-		const ifile = {
-			name: file,
-			created: l.mtimeMs,
-			isDirectory: l.isDirectory(),
-			isFile: l.isFile(),
-		};
+		const ifile = { name: file, created: l.mtimeMs, isDirectory: l.isDirectory(), isFile: l.isFile() };
 		return Promise.resolve(<IFile>ifile);
 	}
 	debug(where: string) {

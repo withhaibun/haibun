@@ -55,22 +55,18 @@ export type TBinding = { domain: string } & ({ kind: "fact"; factId: string } | 
  * `"number"`, `"date"`, `"array"`, etc.) so consumers can show what shape
  * to supply.
  */
-export type TFieldBinding = {
-	fieldName: string;
-	fieldDomain: string;
-	fieldType: string;
-	optional: boolean;
-} & ({ kind: "fact"; factId: string } | { kind: "argument" } | { kind: "composite"; fields: TFieldBinding[] });
+export type TFieldBinding = { fieldName: string; fieldDomain: string; fieldType: string; optional: boolean } & (
+	| { kind: "fact"; factId: string }
+	| { kind: "argument" }
+	| { kind: "composite"; fields: TFieldBinding[] }
+);
 
 /**
  * One path from current working memory to the goal: an ordered sequence of steps
  * with every input accounted for (binding to a fact or an argument). Multiple michi
  * may resolve the same goal; the resolver returns up to MAX_MICHI of them.
  */
-export type TMichi = {
-	steps: TPlanStep[];
-	bindings: TBinding[];
-};
+export type TMichi = { steps: TPlanStep[]; bindings: TBinding[] };
 
 const ShibariBoundSchema = z.union([z.number(), z.string()]);
 
@@ -99,16 +95,9 @@ type TShibari = z.infer<typeof ShibariSchema>;
 
 const SHIBARI_OPERATORS = ShibariSchema.options.flatMap((option) => Object.keys(option.shape));
 
-export const GOAL_FINDING = {
-	SATISFIED: "satisfied",
-	MICHI: "michi",
-	UNREACHABLE: "unreachable",
-	REFUSED: "refused",
-} as const;
+export const GOAL_FINDING = { SATISFIED: "satisfied", MICHI: "michi", UNREACHABLE: "unreachable", REFUSED: "refused" } as const;
 
-export const REFUSAL_REASON = {
-	CAPABILITY_CONTEXT_REQUIRED: "capability-context-required",
-} as const;
+export const REFUSAL_REASON = { CAPABILITY_CONTEXT_REQUIRED: "capability-context-required" } as const;
 
 type TRefusalReason = (typeof REFUSAL_REASON)[keyof typeof REFUSAL_REASON];
 

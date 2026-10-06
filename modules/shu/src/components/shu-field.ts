@@ -20,10 +20,7 @@ class ShuField extends ShuElement<z.ZodObject> {
 		return null;
 	}
 
-	static properties = {
-		label: { attribute: true },
-		trailing: { attribute: true, type: Boolean },
-	};
+	static properties = { label: { attribute: true }, trailing: { attribute: true, type: Boolean } };
 
 	/** What the control is called. */
 	declare label: string;

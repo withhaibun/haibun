@@ -248,11 +248,7 @@ export class EventFormatter {
 				if (event.error) message += ` (${event.error})`;
 			}
 		} else if (event.kind === "log") {
-			const levelIcons: Record<string, string> = {
-				info: ICON_LOG_INFO,
-				warn: ICON_LOG_WARN,
-				error: ICON_LOG_ERROR,
-			};
+			const levelIcons: Record<string, string> = { info: ICON_LOG_INFO, warn: ICON_LOG_WARN, error: ICON_LOG_ERROR };
 			icon = levelIcons[event.level] || ICON_DEFAULT;
 			id = event.id ? `${event.id}` : "";
 			message = event.message;
@@ -289,10 +285,7 @@ const ExecutionIntentSchema = z.object({
 });
 export type ExecutionIntent = z.infer<typeof ExecutionIntentSchema>;
 
-const SystemMessageSchema = z.object({
-	topic: z.string().optional(),
-	intent: ExecutionIntentSchema,
-});
+const SystemMessageSchema = z.object({ topic: z.string().optional(), intent: ExecutionIntentSchema });
 type SystemMessage = z.infer<typeof SystemMessageSchema>;
 
 /** Execution trace field on products. */
@@ -343,12 +336,7 @@ export type THypermediaProducts = {
  * The single result type for step execution. Used everywhere:
  * step actions, FlowRunner, feature loop, RPC transports.
  */
-type TActionResultCarries = {
-	products?: THypermediaProducts;
-	controlSignal?: TDebugSignal;
-	artifact?: TArtifactEvent;
-	protocol?: SystemMessage;
-};
+type TActionResultCarries = { products?: THypermediaProducts; controlSignal?: TDebugSignal; artifact?: TArtifactEvent; protocol?: SystemMessage };
 /** A step passed, or failed stating why: a failure carries its message. */
 export type TActionResult = (TActionResultCarries & { ok: true; errorMessage?: undefined }) | (TActionResultCarries & { ok: false; errorMessage: string });
 
@@ -357,29 +345,12 @@ export const OK: TActionResult = { ok: true };
 export type TStepValueValue = unknown;
 export type TStepArgs = Record<string, TStepValueValue>;
 
-export type TStepValue = {
-	term: string;
-	domain: string;
-	value?: TStepValueValue;
-	origin: TOrigin;
-	readonly?: boolean;
-	secret?: boolean;
-};
+export type TStepValue = { term: string; domain: string; value?: TStepValueValue; origin: TOrigin; readonly?: boolean; secret?: boolean };
 
-export type TProvenanceIdentifier = {
-	in?: string;
-	seq: number[];
-	when: string;
-};
+export type TProvenanceIdentifier = { in?: string; seq: number[]; when: string };
 
 // Result Types
-type TTrace = {
-	[name: string]: {
-		url: string;
-		since: number;
-		trace: TAnyFixme;
-	};
-};
+type TTrace = { [name: string]: { url: string; since: number; trace: TAnyFixme } };
 
 export type TSeqPath = number[];
 
@@ -436,11 +407,7 @@ export type TFeatureResult = {
 	declaredStepTextHash: string;
 	/** The steps a reader can still read in full: the most recent the feature ran, and no more than that. */
 	stepResults: TStepResult[];
-	failure?: {
-		message: string;
-		error: TAnyFixme;
-		expected?: TAnyFixme;
-	};
+	failure?: { message: string; error: TAnyFixme; expected?: TAnyFixme };
 };
 
 export type TExecutorResult = {
@@ -448,13 +415,7 @@ export type TExecutorResult = {
 	tag: unknown;
 	shared: unknown;
 	featureResults: TFeatureResult[];
-	failure?: {
-		stage: string;
-		error: {
-			details: Record<string, TAnyFixme>;
-			message: string;
-		};
-	};
+	failure?: { stage: string; error: { details: Record<string, TAnyFixme>; message: string } };
 	steppers?: unknown[];
 };
 
@@ -462,12 +423,7 @@ export type TExecutorResult = {
 // Prompt Types
 // ============================================================================
 
-export const Prompt = z.object({
-	id: z.string(),
-	message: z.string(),
-	context: z.unknown().optional(),
-	options: z.array(z.string()).optional(),
-});
+export const Prompt = z.object({ id: z.string(), message: z.string(), context: z.unknown().optional(), options: z.array(z.string()).optional() });
 export type TPrompt = z.infer<typeof Prompt>;
 
 // ============================================================================
@@ -495,11 +451,7 @@ const LifecycleEventCommon = BaseEvent.extend({
 	error: z.string().optional(),
 
 	// Execution Intent
-	intent: z
-		.object({
-			mode: z.enum(["speculative", "authoritative"]).optional(),
-		})
-		.optional(),
+	intent: z.object({ mode: z.enum(["speculative", "authoritative"]).optional() }).optional(),
 });
 
 // Specific Events
@@ -509,11 +461,7 @@ const FeatureEvent = LifecycleEventCommon.extend({
 	featureName: z.string().describe("Feature display name"),
 });
 
-const ScenarioEvent = LifecycleEventCommon.extend({
-	type: z.literal("scenario"),
-	scenarioName: z.string().describe("Scenario name"),
-	featurePath: z.string().optional(),
-});
+const ScenarioEvent = LifecycleEventCommon.extend({ type: z.literal("scenario"), scenarioName: z.string().describe("Scenario name"), featurePath: z.string().optional() });
 
 const StepEvent = LifecycleEventCommon.extend({
 	type: z.literal("step"),
@@ -559,11 +507,7 @@ const BaseArtifact = BaseEvent.extend({
 });
 
 // Artifact Subtypes
-export const ImageArtifact = BaseArtifact.extend({
-	artifactType: z.literal("image"),
-	path: z.string(),
-	mimetype: z.string().default("image/png"),
-});
+export const ImageArtifact = BaseArtifact.extend({ artifactType: z.literal("image"), path: z.string(), mimetype: z.string().default("image/png") });
 
 export const VideoArtifact = BaseArtifact.extend({
 	artifactType: z.literal("video"),
@@ -574,16 +518,9 @@ export const VideoArtifact = BaseArtifact.extend({
 	duration: z.number().optional(),
 });
 
-export const VideoStartArtifact = BaseArtifact.extend({
-	artifactType: z.literal("video-start"),
-	startTime: z.number().describe("Relative start time of video in milliseconds"),
-});
+export const VideoStartArtifact = BaseArtifact.extend({ artifactType: z.literal("video-start"), startTime: z.number().describe("Relative start time of video in milliseconds") });
 
-export const HtmlArtifact = BaseArtifact.extend({
-	artifactType: z.literal("html"),
-	path: z.string(),
-	mimetype: z.string().default("text/html"),
-});
+export const HtmlArtifact = BaseArtifact.extend({ artifactType: z.literal("html"), path: z.string(), mimetype: z.string().default("text/html") });
 
 export const SpeechArtifact = BaseArtifact.extend({
 	artifactType: z.literal("speech"),
@@ -593,17 +530,9 @@ export const SpeechArtifact = BaseArtifact.extend({
 	durationS: z.number().optional(),
 });
 
-export const JsonArtifact = BaseArtifact.extend({
-	artifactType: z.literal("json"),
-	json: z.record(z.string(), z.unknown()),
-	mimetype: z.string().default("application/json"),
-});
+export const JsonArtifact = BaseArtifact.extend({ artifactType: z.literal("json"), json: z.record(z.string(), z.unknown()), mimetype: z.string().default("application/json") });
 
-const MermaidArtifact = BaseArtifact.extend({
-	artifactType: z.literal("mermaid"),
-	source: z.string(),
-	mimetype: z.string().default("text/x-mermaid"),
-});
+const MermaidArtifact = BaseArtifact.extend({ artifactType: z.literal("mermaid"), source: z.string(), mimetype: z.string().default("text/x-mermaid") });
 
 export const HttpTraceArtifact = BaseArtifact.extend({
 	artifactType: z.literal("http-trace"),
@@ -638,11 +567,7 @@ export const ResolvedFeaturesArtifact = BaseArtifact.extend({
 });
 
 // Generic file artifact for other types
-const FileArtifact = BaseArtifact.extend({
-	artifactType: z.literal("file"),
-	path: z.string(),
-	mimetype: z.string(),
-});
+const FileArtifact = BaseArtifact.extend({ artifactType: z.literal("file"), path: z.string(), mimetype: z.string() });
 
 export const ArtifactEvent = z.discriminatedUnion("artifactType", [
 	ImageArtifact,

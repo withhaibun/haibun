@@ -41,31 +41,19 @@ const peerFetch =
 
 describe("RemoteGraphSource", () => {
 	it("handshakes the peer's site principal and refuses reads before connect", async () => {
-		const source = new RemoteGraphSource({
-			url: "http://peer:1",
-			sign,
-			fetchImpl: peerFetch(hostHandshake(7, "did:site:imap")) as typeof fetch,
-		});
+		const source = new RemoteGraphSource({ url: "http://peer:1", sign, fetchImpl: peerFetch(hostHandshake(7, "did:site:imap")) as typeof fetch });
 		expect(() => source.site).toThrow(/connect/);
 		expect(await source.connect()).toBe("did:site:imap");
 		expect(source.site).toBe("did:site:imap");
 	});
 
 	it("fails fast on a peer that predates federation (action.begin without a site)", async () => {
-		const source = new RemoteGraphSource({
-			url: "http://peer:1",
-			sign,
-			fetchImpl: peerFetch({ ...hostHandshake(7, ""), site: undefined }) as typeof fetch,
-		});
+		const source = new RemoteGraphSource({ url: "http://peer:1", sign, fetchImpl: peerFetch({ ...hostHandshake(7, ""), site: undefined }) as typeof fetch });
 		await expect(source.connect()).rejects.toThrow(/site/);
 	});
 
 	it("asks for the peer's OWN data (scope own: a federation cycle cannot recurse) and stamps EVERY sampled subject, keeping stamps the peer set itself", async () => {
-		const source = new RemoteGraphSource({
-			url: "http://peer:1",
-			sign,
-			fetchImpl: peerFetch(hostHandshake(7, "did:site:imap")) as typeof fetch,
-		});
+		const source = new RemoteGraphSource({ url: "http://peer:1", sign, fetchImpl: peerFetch(hostHandshake(7, "did:site:imap")) as typeof fetch });
 		await source.connect();
 		const result = await source.getClusteredQuads({ perTypeLimit: 10, accessLevel: "private" });
 		const lastParams = readRequests.at(-1)?.params as Record<string, unknown> | undefined;

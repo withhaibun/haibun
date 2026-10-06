@@ -4,29 +4,14 @@ import { BaseOptionsSchema } from "../lib/world.js";
 
 describe("Haibun Event Schemas", () => {
 	it("validates a correct LifecycleEvent", () => {
-		const raw = {
-			id: "1.2.3",
-			timestamp: 1234567890,
-			kind: "lifecycle",
-			type: "step",
-			stage: "start",
-			in: "Given I am testing",
-			status: "running",
-		};
+		const raw = { id: "1.2.3", timestamp: 1234567890, kind: "lifecycle", type: "step", stage: "start", in: "Given I am testing", status: "running" };
 		const parsed = HaibunEvent.parse(raw);
 		expect(parsed).toEqual(expect.objectContaining(raw));
 		expect(parsed.kind).toBe("lifecycle");
 	});
 
 	it("validates a correct LogEvent with attributes", () => {
-		const raw = {
-			id: "1.2.3",
-			timestamp: 1234567890,
-			kind: "log",
-			level: "info",
-			message: "Processing started",
-			attributes: { variable: "foo", value: 123 },
-		};
+		const raw = { id: "1.2.3", timestamp: 1234567890, kind: "log", level: "info", message: "Processing started", attributes: { variable: "foo", value: 123 } };
 		const parsed = HaibunEvent.parse(raw);
 		expect(parsed).toEqual(expect.objectContaining(raw));
 		if (parsed.kind === "log") {
@@ -37,16 +22,7 @@ describe("Haibun Event Schemas", () => {
 	});
 
 	it("validates a Time-Lined ArtifactEvent", () => {
-		const raw = {
-			id: "1.2.3",
-			timestamp: 1234567890,
-			kind: "artifact",
-			artifactType: "video",
-			mimetype: "video/mp4",
-			path: "/tmp/video.mp4",
-			isTimeLined: true,
-			duration: 5000,
-		};
+		const raw = { id: "1.2.3", timestamp: 1234567890, kind: "artifact", artifactType: "video", mimetype: "video/mp4", path: "/tmp/video.mp4", isTimeLined: true, duration: 5000 };
 		const parsed = HaibunEvent.parse(raw);
 		expect(parsed).toEqual(expect.objectContaining(raw));
 	});

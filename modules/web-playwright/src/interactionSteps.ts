@@ -122,7 +122,9 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			gwta: `select {option: ${DOMAIN_PAGE_TEXT}} for {field: ${DOMAIN_PAGE_TARGET}}`,
 			...ANSWERED_BY_THE_PAGE,
 			action: async ({ option, field }: { option: string; field: TStepValue }) =>
-				await attempted(`select "${option}" for ${String(field.value)}`, () => wp.withScope(async (scope) => void (await wp.locateByDomain(scope, field).selectOption({ label: option })))),
+				await attempted(`select "${option}" for ${String(field.value)}`, () =>
+					wp.withScope(async (scope) => void (await wp.locateByDomain(scope, field).selectOption({ label: option }))),
+				),
 		},
 		dialogIs: {
 			...PAGE_READ,
@@ -163,11 +165,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 				return count ? OK : actionNotOK(`Did not find test id ${testId}`);
 			},
 		},
-		seeText: {
-			...PAGE_READ,
-			gwta: `see {text: ${DOMAIN_TEXT}}`,
-			action: async ({ text }: { text: string }) => await wp.sees(text, "body"),
-		},
+		seeText: { ...PAGE_READ, gwta: `see {text: ${DOMAIN_TEXT}}`, action: async ({ text }: { text: string }) => await wp.sees(text, "body") },
 		waitFor: {
 			gwta: `wait for {target: ${DOMAIN_PAGE_TARGET}}`,
 			action: async ({ target }: { target: TStepValue }) => {
@@ -360,10 +358,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 		},
 
 		//                         BROWSER
-		usingBrowserVar: {
-			gwta: `using {browser: ${DOMAIN_BROWSER_TYPE}} browser`,
-			action: ({ browser }: { browser: TBrowserTypes }) => wp.setBrowser(browser),
-		},
+		usingBrowserVar: { gwta: `using {browser: ${DOMAIN_BROWSER_TYPE}} browser`, action: ({ browser }: { browser: TBrowserTypes }) => wp.setBrowser(browser) },
 		connectToBrowser: {
 			gwta: `connect to the browser at {endpoint: ${DOMAIN_LINK}}`,
 			description:
@@ -494,11 +489,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			action: async ({ where }: { where: string }, featureStep) => {
 				await wp.withPage((page: Page) => {
 					return page.on("dialog", async (dialog) => {
-						const res = {
-							defaultValue: dialog.defaultValue(),
-							message: dialog.message(),
-							type: dialog.type(),
-						};
+						const res = { defaultValue: dialog.defaultValue(), message: dialog.message(), type: dialog.type() };
 						await dialog.accept();
 						// fire-and-forget: sync dialog callback cannot await; in-memory QuadStore resolves synchronously
 						void wp.getWorld().shared.setJSON(where, res, Origin.var, featureStep);
@@ -632,10 +623,7 @@ export const interactionSteps = (wp: WebPlaywright) =>
 			gwta: "resize window to largest dimensions",
 			action: async () => {
 				await wp.withPage(async (page: Page) => {
-					const { availHeight: height, availWidth: width } = await page.evaluate(() => ({
-						availHeight: window.screen.availHeight,
-						availWidth: window.screen.availWidth,
-					}));
+					const { availHeight: height, availWidth: width } = await page.evaluate(() => ({ availHeight: window.screen.availHeight, availWidth: window.screen.availWidth }));
 					return await page.setViewportSize({ width, height });
 				});
 				return OK;

@@ -3,11 +3,7 @@ import { validateStepInput } from "./step-input-validator.js";
 
 describe("validateStepInput", () => {
 	it("doesn't return an error when every required field passes its schema", () => {
-		const schema = {
-			type: "object",
-			properties: { owner: { type: "string", format: "uri" }, name: { type: "string" } },
-			required: ["owner"],
-		};
+		const schema = { type: "object", properties: { owner: { type: "string", format: "uri" }, name: { type: "string" } }, required: ["owner"] };
 		const errors = validateStepInput({ owner: "did:web:tethys.osf", name: "Tethys" }, schema);
 		expect(errors).toEqual([]);
 	});
@@ -30,13 +26,7 @@ describe("validateStepInput", () => {
 	it("recurses into nested objects and reports the full dot-path of the failing field", () => {
 		const schema = {
 			type: "object",
-			properties: {
-				credential: {
-					type: "object",
-					properties: { subject: { type: "string", format: "uri" } },
-					required: ["subject"],
-				},
-			},
+			properties: { credential: { type: "object", properties: { subject: { type: "string", format: "uri" } }, required: ["subject"] } },
 			required: ["credential"],
 		};
 		const errors = validateStepInput({ credential: { subject: "subj1" } }, schema);

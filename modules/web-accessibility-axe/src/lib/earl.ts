@@ -7,7 +7,16 @@
  * step that made it, so what a step found is read the same way as what a step produced.
  */
 import { z } from "zod";
-import { Access, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, writeEdge, writeReferenceEdge, type TDiscourseStore, type TDomainDefinition } from "@haibun/core/lib/resources.js";
+import {
+	Access,
+	LinkRelations,
+	PersistedVertexSchema,
+	SEQ_PATH_LABEL,
+	writeEdge,
+	writeReferenceEdge,
+	type TDiscourseStore,
+	type TDomainDefinition,
+} from "@haibun/core/lib/resources.js";
 
 /** The types the EARL classes are recorded as. */
 export const EARL_LABEL = { assertion: "Assertion", assertor: "Assertor", testSubject: "TestSubject", testCase: "TestCase", testResult: "TestResult" } as const;
@@ -155,7 +164,10 @@ export type TEarlAssertions = {
  *  subject, the test case and the result. Returns the assertions' ids. */
 export async function writeEarlAssertions(store: TDiscourseStore, { assertor, subject, mode, step, results }: TEarlAssertions): Promise<string[]> {
 	const generatedAtTime = new Date().toISOString();
-	await Promise.all([store.upsertIndividual(EARL_LABEL.assertor, { ...assertor, generatedAtTime }), store.upsertIndividual(EARL_LABEL.testSubject, { ...subject, generatedAtTime })]);
+	await Promise.all([
+		store.upsertIndividual(EARL_LABEL.assertor, { ...assertor, generatedAtTime }),
+		store.upsertIndividual(EARL_LABEL.testSubject, { ...subject, generatedAtTime }),
+	]);
 	return await Promise.all(
 		results.map(async ({ test, result }) => {
 			const id = `${step} ${test.id}`;

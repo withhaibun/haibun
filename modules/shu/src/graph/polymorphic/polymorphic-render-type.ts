@@ -49,11 +49,7 @@ export type RenderTypeDeps = {
 /** The data the SequenceRenderType reads to derive its actors/messages + lane layout: the visible graph (nodes + edges,
  *  with each node's merged role + recorded time), the human form of an edge predicate, and the display label for a
  *  participant id. Read at CALL time so the layout reflects the current model. */
-export type SeqRenderDeps = {
-	seqNodes: () => ReadonlyArray<SeqNode>;
-	seqEdges: () => ReadonlyArray<SeqEdge>;
-	labelOf: (participantId: string) => string;
-};
+export type SeqRenderDeps = { seqNodes: () => ReadonlyArray<SeqNode>; seqEdges: () => ReadonlyArray<SeqEdge>; labelOf: (participantId: string) => string };
 
 /** The layout options a view overrides while active. */
 export type TViewForces = { grouped?: boolean; flatten?: boolean; labelAsZ?: boolean };

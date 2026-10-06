@@ -182,12 +182,7 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 		for (const [composite, ranges] of Object.entries(a.composites)) {
 			for (const [fieldName, fieldDomain] of Object.entries(ranges)) {
 				const fieldId = fieldNodeId(composite, fieldName);
-				nodes.push({
-					id: fieldId,
-					label: `${fieldName} : ${fieldDomain}`,
-					kind: NODE_KIND.field,
-					link: { href: affordancesAt(AFFORDANCE_PARAM.GOAL, fieldDomain) },
-				});
+				nodes.push({ id: fieldId, label: `${fieldName} : ${fieldDomain}`, kind: NODE_KIND.field, link: { href: affordancesAt(AFFORDANCE_PARAM.GOAL, fieldDomain) } });
 				declareDomain(fieldDomain);
 				declareDomain(composite);
 				edges.push({ from: fieldDomain, to: fieldId, label: undefined, kind: EDGE_KIND.default });
@@ -204,13 +199,7 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 			const id = waypointNodeId(w.outcome);
 			const kind = w.ensured ? NODE_KIND.waypointEnsured : w.kind === "declarative" ? NODE_KIND.waypointDeclarative : NODE_KIND.waypointImperative;
 			const [stepperName, stepName] = w.method.includes("-") ? [w.method.slice(0, w.method.indexOf("-")), w.method.slice(w.method.indexOf("-") + 1)] : [w.method, w.method];
-			nodes.push({
-				id,
-				label: `waypoint: ${w.outcome}`,
-				kind,
-				link: { href: affordancesAt(AFFORDANCE_PARAM.WAYPOINT, w.outcome) },
-				invokes: { stepperName, stepName },
-			});
+			nodes.push({ id, label: `waypoint: ${w.outcome}`, kind, link: { href: affordancesAt(AFFORDANCE_PARAM.WAYPOINT, w.outcome) }, invokes: { stepperName, stepName } });
 			if (w.resolvesDomain && domains.has(w.resolvesDomain)) {
 				edges.push({ from: w.resolvesDomain, to: id, label: "ensures", kind: EDGE_KIND.default });
 			}

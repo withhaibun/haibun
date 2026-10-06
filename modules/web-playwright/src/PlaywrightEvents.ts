@@ -11,13 +11,7 @@ import { RpcEnvelopeSchema } from "@haibun/core/lib/rpc-wire.js";
 import { VISITED_PAGE_LABEL } from "./domains.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 
-type TEtc = {
-	headers: Record<string, string>;
-	method?: string;
-	postData?: string;
-	status?: number;
-	statusText?: string;
-};
+type TEtc = { headers: Record<string, string>; method?: string; postData?: string; status?: number; statusText?: string };
 
 export class PlaywrightEvents {
 	navigateCount = 0;
@@ -49,11 +43,7 @@ export class PlaywrightEvents {
 		if (asksToRead(request.method(), request.postData())) return;
 		this.pendingRequests.set(request, Date.now());
 		const frameURL = request.frame().url();
-		const etc = {
-			method: request.method(),
-			headers: request.headers(),
-			postData: request.postData() ?? undefined,
-		};
+		const etc = { method: request.method(), headers: request.headers(), postData: request.postData() ?? undefined };
 
 		void this.log(`request ${etc.method}`, "request", frameURL, request.url(), etc);
 		return;
@@ -69,25 +59,12 @@ export class PlaywrightEvents {
 		}
 
 		const frameURL = request.frame().url();
-		const etc = {
-			status: response.status(),
-			statusText: response.statusText(),
-			headers: response.headers(),
-		};
+		const etc = { status: response.status(), statusText: response.statusText(), headers: response.headers() };
 
 		void this.log(`response ${etc.status}`, "response", frameURL, response.url(), etc);
 
 		// fire-and-forget: in-memory QuadStore resolves synchronously
-		void trackHttpRequest(
-			this.world,
-			{
-				url: response.url(),
-				status: response.status(),
-				durationMs: duration,
-				method: request.method(),
-			},
-			this.routes,
-		);
+		void trackHttpRequest(this.world, { url: response.url(), status: response.status(), durationMs: duration, method: request.method() }, this.routes);
 
 		return;
 	}
@@ -119,12 +96,7 @@ export class PlaywrightEvents {
 		const requestingPage = this.page.url();
 		const frameURL = maybeFrameURL === requestingPage ? undefined : maybeFrameURL;
 		const requestingURL = frameURL ? `frame ${frameURL} on ${requestingPage}` : requestingPage;
-		const logData = {
-			frameURL,
-			requestingPage,
-			requestingURL,
-			...etc,
-		};
+		const logData = { frameURL, requestingPage, requestingURL, ...etc };
 
 		// Emit HTTP trace artifact
 		const artifact = HttpTraceArtifact.parse({

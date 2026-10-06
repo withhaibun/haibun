@@ -79,12 +79,7 @@ describe("layeredLayout", () => {
 	});
 
 	it("a parent group encloses its child group (nesting)", () => {
-		const g: TGraph = {
-			nodes: [{ id: "a", label: "A", group: "child" }],
-			edges: [],
-			groups: { parent: { label: "P" }, child: { label: "C", parent: "parent" } },
-			direction: "LR",
-		};
+		const g: TGraph = { nodes: [{ id: "a", label: "A", group: "child" }], edges: [], groups: { parent: { label: "P" }, child: { label: "C", parent: "parent" } }, direction: "LR" };
 		const out = layeredLayout(g);
 		const p = out.groups.find((x) => x.id === "parent");
 		const c = out.groups.find((x) => x.id === "child");

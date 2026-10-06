@@ -16,10 +16,7 @@ import { DOMAIN_NUMBER } from "@haibun/core/lib/domains.js";
 class TestStepper extends AStepper {
 	description = "Steps that check the MCP tools a run lists.";
 	steps = {
-		testA: {
-			exact: "test action a",
-			action: async () => OK,
-		},
+		testA: { exact: "test action a", action: async () => OK },
 		verifyTools: {
 			gwta: `verify mcp tools on port {port: ${DOMAIN_NUMBER}}`,
 			action: async ({ port }: { port: string }) => {
@@ -83,10 +80,7 @@ verify mcp tools on port ${port}
 			[getStepperOptionName(WebServerStepper, "ALLOW_WITHOUT_DELEGATION")]: "*",
 		};
 
-		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, TestStepper, Haibun], {
-			...DEF_PROTO_OPTIONS,
-			moduleOptions,
-		});
+		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, TestStepper, Haibun], { ...DEF_PROTO_OPTIONS, moduleOptions });
 
 		if (!result.ok) {
 			throw new Error(JSON.stringify(result.featureResults, null, 2));

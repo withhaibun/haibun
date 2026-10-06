@@ -9,12 +9,7 @@ export const TestStepsWithOptions = class TestStepsWithOptions extends AStepper 
 	cycles: IStepperCycles = {
 		getConcerns: () => ({ domains: [{ selectors: [DOMAIN_TEST_OPTION_RESULT], schema: TestOptionResultSchema, description: "That a step read its stepper's option" }] }),
 	};
-	options = {
-		EXISTS: {
-			desc: "option exists",
-			parse: () => ({ result: 42 }),
-		},
-	};
+	options = { EXISTS: { desc: "option exists", parse: () => ({ result: 42 }) } };
 	description = "Steps that read a stepper option, for tests of how a run passes options to a stepper.";
 	steps = {
 		test: {

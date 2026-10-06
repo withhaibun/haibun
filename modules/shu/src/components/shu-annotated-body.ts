@@ -318,10 +318,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 		}
 		this.teardownAnnotator();
 		container.innerHTML = this.sanitizedHtml();
-		this.annotator = createTextAnnotator<W3CTextAnnotation>(container, {
-			adapter: W3CTextFormat(this.sourceId, container),
-			annotatingEnabled: false,
-		});
+		this.annotator = createTextAnnotator<W3CTextAnnotation>(container, { adapter: W3CTextFormat(this.sourceId, container), annotatingEnabled: false });
 		this.annotator.on("clickAnnotation", (a: W3CTextAnnotation) => this.selectCard(String(a.id)));
 		this.mountedSignature = signature;
 		this.resizeObserver?.observe(container);

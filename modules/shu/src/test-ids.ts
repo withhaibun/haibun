@@ -68,28 +68,10 @@ export const SHU_TEST_IDS = {
 		PAGE_BUILD: "page-build",
 	},
 	/** The graph filter's own controls, beside its chips. */
-	GRAPH_FILTER: {
-		SOLO: "graph-filter-solo",
-		SCHEMA: "graph-filter-schema",
-		LIMIT: "graph-filter-limit",
-		LIMIT_VALUE: "graph-filter-limit-value",
-	},
-	FILTER: {
-		PROPERTY_0: "app-cond-property-0",
-		OPERATOR_0: "app-cond-operator-0",
-		VALUE_0: "app-cond-value-0",
-		REMOVE_0: "app-remove-filter-0",
-	},
-	QUERY: {
-		ROOT: "shu-query",
-		TABLE: "query-table",
-		FIRST_ROW: "query-row-first",
-		ROW: "query-row",
-		RESULTS: "query-results",
-	},
-	QUAD_ITEM: {
-		ROOT: "shu-quad-item",
-	},
+	GRAPH_FILTER: { SOLO: "graph-filter-solo", SCHEMA: "graph-filter-schema", LIMIT: "graph-filter-limit", LIMIT_VALUE: "graph-filter-limit-value" },
+	FILTER: { PROPERTY_0: "app-cond-property-0", OPERATOR_0: "app-cond-operator-0", VALUE_0: "app-cond-value-0", REMOVE_0: "app-remove-filter-0" },
+	QUERY: { ROOT: "shu-query", TABLE: "query-table", FIRST_ROW: "query-row-first", ROW: "query-row", RESULTS: "query-results" },
+	QUAD_ITEM: { ROOT: "shu-quad-item" },
 	COLUMN_BROWSER: {
 		COLUMN: "browser-column",
 		ENTITY_DETAILS: "entity-details",
@@ -142,9 +124,7 @@ export const SHU_TEST_IDS = {
 		POS_TOP: "scrollbar-pos-top",
 		POS_BOTTOM: "scrollbar-pos-bottom",
 	},
-	SETTINGS: {
-		WINDOW_SIZE: "settings-window-size",
-	},
+	SETTINGS: { WINDOW_SIZE: "settings-window-size" },
 	/** A type's or a domain's view: what it is, its schema, its individuals, and the steps that return and take it. */
 	TYPE_COLUMN: {
 		DESCRIPTION: "type-description",
@@ -159,14 +139,8 @@ export const SHU_TEST_IDS = {
 	},
 	/** An action, by the steps this page may call that it allows. */
 	/** A thread's cards: each card's type and who sent it. */
-	THREAD: {
-		ITEM_TYPE: "thread-item-type",
-		SENDER: "thread-sender",
-	},
-	ACTION_COLUMN: {
-		ROOT: "action-column",
-		STEP: "action-column-step",
-	},
+	THREAD: { ITEM_TYPE: "thread-item-type", SENDER: "thread-sender" },
+	ACTION_COLUMN: { ROOT: "action-column", STEP: "action-column-step" },
 	/** A step as actuality declares it: its line, the domain of each argument and of what it returns, and its choice. */
 	STEP_DEFINITION: {
 		ROOT: "step-definition",
@@ -177,16 +151,8 @@ export const SHU_TEST_IDS = {
 		ERROR: "step-definition-error",
 	},
 	/** The list of views a deployment declares: its root, and a row named by the component it opens. */
-	VIEWS_PICKER: {
-		ROOT: "views-picker",
-		ROW: "views-picker-row-",
-	},
-	PLAYBACK: {
-		PLAY: "playback-play",
-		SPEED: "playback-speed",
-		RESTART: "playback-restart",
-		LIVE: "playback-live",
-	},
+	VIEWS_PICKER: { ROOT: "views-picker", ROW: "views-picker-row-" },
+	PLAYBACK: { PLAY: "playback-play", SPEED: "playback-speed", RESTART: "playback-restart", LIVE: "playback-live" },
 	COLUMN_PANE: {
 		/** Minimize when the column is open, restore when it is a strip: the one control that owns that state, and on a
 		 *  column whose strip caches its own clicks (the log's rail) the only way back to the column. */
@@ -199,9 +165,7 @@ export const SHU_TEST_IDS = {
 		SPINE: "pane-spine",
 	},
 	/** What the index reports about itself in the strip it collapses to: which search, and how many it found. */
-	INDEX_SUMMARY: {
-		ROOT: "index-summary",
-	},
+	INDEX_SUMMARY: { ROOT: "index-summary" },
 	/** The client cache view: what the page caches of actuality. Every value has its own id, so a feature asserts cache facts
 	 *  through the generic steps (`save text from {id} to {var}`, `variable {var} is …`, `matches`) rather than a probe of
 	 *  its own: a source's value is `${SOURCE}${level}-${field}` (fields: events, first, newest, page, cached, cached-rows,
@@ -276,11 +240,7 @@ export const SHU_TEST_IDS = {
 		READ: "polymorphic-read",
 		/** Each settings group's head icon, keyed by the group it opens (see view-head's SETTINGS_GROUPS): the component
 		 *  renders from this map and a driver presses from it, so the two cannot name different controls. */
-		SETTINGS: {
-			layout: "polymorphic-settings-layout",
-			filters: "polymorphic-settings-filters",
-			scenes: "polymorphic-settings-scenes",
-		},
+		SETTINGS: { layout: "polymorphic-settings-layout", filters: "polymorphic-settings-filters", scenes: "polymorphic-settings-scenes" },
 		ROTATE_XY: "polymorphic-rotate-xy",
 		ROTATE_Z: "polymorphic-rotate-z",
 		COPY_GRAPH: "polymorphic-copy-graph",
@@ -290,11 +250,7 @@ export const SHU_TEST_IDS = {
 		SCENE_SAVE: "polymorphic-scene-save",
 		SCENE_ERROR: "polymorphic-scene-error",
 	},
-	AFFORDANCES: {
-		ROOT: "shu-affordances",
-		GOALS_LIST: "affordances-goals",
-		EMPTY: "affordances-empty",
-	},
+	AFFORDANCES: { ROOT: "shu-affordances", GOALS_LIST: "affordances-goals", EMPTY: "affordances-empty" },
 	DOMAIN_CHAIN: {
 		ROOT: "shu-domain-chain",
 		GRAPH: "domain-chain-graph",

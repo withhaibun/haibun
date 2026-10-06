@@ -78,11 +78,7 @@ export default class FakeAuthorityStepper extends AStepper {
 	description = "Registers a stand-in authority for tests: a holder this process presents as, and the actions a holder is granted here.";
 	private readonly grants = new Map<string, string[]>();
 
-	cycles: IStepperCycles = {
-		getConcerns: () => ({
-			domains: [FAKE_HOLDER_DOMAIN],
-		}),
-	};
+	cycles: IStepperCycles = { getConcerns: () => ({ domains: [FAKE_HOLDER_DOMAIN] }) };
 
 	steps = {
 		presentAuthorityAs: {

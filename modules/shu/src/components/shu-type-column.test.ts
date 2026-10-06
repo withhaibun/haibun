@@ -12,10 +12,7 @@ import { SHU_EVENT } from "../consts.js";
 const META: SiteMetadata = {
 	types: ["Issuer", "VerificationMethod"],
 	idFields: { Issuer: "did", VerificationMethod: "id" },
-	rels: {
-		Issuer: { did: "identifier", name: "name", assertionMethod: "assertionMethod" },
-		VerificationMethod: { id: "identifier", name: "name" },
-	},
+	rels: { Issuer: { did: "identifier", name: "name", assertionMethod: "assertionMethod" }, VerificationMethod: { id: "identifier", name: "name" } },
 	edgeRanges: { Issuer: { assertionMethod: ["VerificationMethod"] } },
 	properties: { Issuer: ["did", "name", "assertionMethod"], VerificationMethod: ["id", "name"] },
 	queryable: {},

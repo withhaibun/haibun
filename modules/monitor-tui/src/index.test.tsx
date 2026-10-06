@@ -5,12 +5,7 @@ import { TWorld } from "@haibun/core/lib/world.js";
 // Mock ink render to avoid actual TUI output during tests
 vi.mock("ink", () => {
 	return {
-		render: vi.fn(() => ({
-			rerender: vi.fn(),
-			unmount: vi.fn(),
-			waitUntilExit: vi.fn(),
-			cleanup: vi.fn(),
-		})),
+		render: vi.fn(() => ({ rerender: vi.fn(), unmount: vi.fn(), waitUntilExit: vi.fn(), cleanup: vi.fn() })),
 		Text: (): null => null,
 		Box: (): null => null,
 		Static: (): null => null,
@@ -24,14 +19,7 @@ describe("TuiMonitorStepper", () => {
 
 	beforeEach(() => {
 		stepper = new TuiMonitorStepper();
-		mockWorld = {
-			prompter: {
-				subscribe: vi.fn(),
-			},
-			eventLogger: {
-				suppressConsole: false,
-			},
-		} as unknown as TWorld;
+		mockWorld = { prompter: { subscribe: vi.fn() }, eventLogger: { suppressConsole: false } } as unknown as TWorld;
 	});
 
 	it("subscribes to world prompter on setWorld", async () => {

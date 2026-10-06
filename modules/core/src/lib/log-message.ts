@@ -63,9 +63,7 @@ export const logMessageDomainDefinition: TDomainDefinition = {
 			[LOG_MESSAGE_FIELD.generatedAtTime]: LinkRelations.GENERATED_AT_TIME.rel,
 			[LOG_MESSAGE_FIELD.recordedAtTime]: LinkRelations.RECORDED_AT_TIME.rel,
 		},
-		edges: {
-			[LOG_MESSAGE_EDGE.isPartOf]: { rel: LinkRelations.PART_OF.rel, range: SEQ_PATH_LABEL },
-		},
+		edges: { [LOG_MESSAGE_EDGE.isPartOf]: { rel: LinkRelations.PART_OF.rel, range: SEQ_PATH_LABEL } },
 		sortColumns: { [LOG_MESSAGE_FIELD.recordedAtTime]: "TIMESTAMPTZ", [LOG_MESSAGE_FIELD.execution]: "TEXT" },
 	},
 };

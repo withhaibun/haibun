@@ -13,18 +13,9 @@ export default class ConsoleMonitorStepper extends AStepper implements IHasCycle
 	steps = {};
 
 	options = {
-		CONSOLE_MONITOR_VERBOSE: {
-			desc: "Show all events including step starts",
-			parse: (s: string) => ({ result: s === "true" }),
-		},
-		CONSOLE_MONITOR_LOGS: {
-			desc: "Show log events (default: true)",
-			parse: (s: string) => ({ result: s !== "false" }),
-		},
-		CONSOLE_MONITOR_LIFECYCLE: {
-			desc: "Show lifecycle events (default: true)",
-			parse: (s: string) => ({ result: s !== "false" }),
-		},
+		CONSOLE_MONITOR_VERBOSE: { desc: "Show all events including step starts", parse: (s: string) => ({ result: s === "true" }) },
+		CONSOLE_MONITOR_LOGS: { desc: "Show log events (default: true)", parse: (s: string) => ({ result: s !== "false" }) },
+		CONSOLE_MONITOR_LIFECYCLE: { desc: "Show lifecycle events (default: true)", parse: (s: string) => ({ result: s !== "false" }) },
 	};
 
 	private verbose: boolean = false;

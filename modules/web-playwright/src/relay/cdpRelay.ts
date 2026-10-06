@@ -184,11 +184,7 @@ export class BrowserRelay {
 	private async handleCDPCommand(extension: TExtension, method: string, params: unknown, sessionId: string | undefined): Promise<unknown> {
 		switch (method) {
 			case "Browser.getVersion": {
-				return {
-					protocolVersion: "1.3",
-					product: "Chrome/Extension-Bridge",
-					userAgent: "CDP-Bridge-Server/1.0.0",
-				};
+				return { protocolVersion: "1.3", product: "Chrome/Extension-Bridge", userAgent: "CDP-Bridge-Server/1.0.0" };
 			}
 			// The person's browser keeps its own downloads, and closing the connected browser ends Playwright's client, never
 			// the person's browser.

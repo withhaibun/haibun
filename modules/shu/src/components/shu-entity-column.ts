@@ -213,11 +213,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	private readonly entity = new EntityController(this, (view) => this.applyView(view));
 
 	constructor() {
-		super(EntityColumnSchema, {
-			individualId: "",
-			persistedAs: "",
-			loading: false,
-		});
+		super(EntityColumnSchema, { individualId: "", persistedAs: "", loading: false });
 	}
 
 	protected override onTimeSync(): void {
@@ -297,13 +293,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		this.setState({ individualId: id, persistedAs: label, error: undefined });
 		const accessLevel = appAccessLevel();
 		await this.entity.open(label, id, accessLevel);
-		this.dispatchEvent(
-			new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, {
-				detail: { patterns: [anIndividual(label, id)], accessLevel, label },
-				bubbles: true,
-				composed: true,
-			}),
-		);
+		this.dispatchEvent(new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, { detail: { patterns: [anIndividual(label, id)], accessLevel, label }, bubbles: true, composed: true }));
 	}
 
 	override paneSubject(): TContextPattern[] | null {

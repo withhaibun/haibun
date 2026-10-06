@@ -113,11 +113,7 @@ function harness({ supervised = true, standing = false }: { supervised?: boolean
 		return await upsert(label, data);
 	};
 	const world = getDefaultWorld();
-	if (standing)
-		world.moduleOptions = {
-			[getStepperOptionName(stepper, "RUN_STANDS")]: "true",
-			[getStepperOptionName(stepper, "RUN_PORT")]: "8331",
-		};
+	if (standing) world.moduleOptions = { [getStepperOptionName(stepper, "RUN_STANDS")]: "true", [getStepperOptionName(stepper, "RUN_PORT")]: "8331" };
 	world.shared.getStore = () => store;
 	// The Principal write declines a world without a domain registry, and a step's products domain resolves its schema
 	// through the same registry, so the harness registers Principal, whose stepper it doesn't load, and what its steppers
@@ -447,9 +443,7 @@ describe("what a finished run's record states about it", () => {
 			const asked = (await (h.stepper.steps.askTestRun.action as (a: { method: string; params: string }) => Promise<TResult>)({
 				method: "showSteps",
 				params: "text=GraphStepper-",
-			})) as TResult & {
-				errorMessage?: string;
-			};
+			})) as TResult & { errorMessage?: string };
 			expect(asked.errorMessage).toContain("detail (one of summary, definition) missing");
 		});
 

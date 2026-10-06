@@ -40,11 +40,7 @@ export function containsText(texts: Array<string | undefined>, text: string): bo
 }
 
 /** The JSON Schema of a step's arguments: an object with a property for each argument, every one required. */
-const InputSchemaSchema = z.looseObject({
-	type: z.literal("object"),
-	properties: z.record(z.string(), z.record(z.string(), z.unknown())),
-	required: z.array(z.string()),
-});
+const InputSchemaSchema = z.looseObject({ type: z.literal("object"), properties: z.record(z.string(), z.record(z.string(), z.unknown())), required: z.array(z.string()) });
 export type TInputSchema = z.infer<typeof InputSchemaSchema>;
 
 /** A step as every caller discovers it. A step another host declares is named with that host's prefix. */

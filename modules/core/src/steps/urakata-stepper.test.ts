@@ -40,12 +40,7 @@ class TickHarnessStepper extends AStepper {
 describe("urakata-stepper", () => {
 	it("registers a ticker via a peer step, binds the id as a product, then stops it by id", async () => {
 		const result = await passWithDefaults(
-			[
-				{
-					path: "/features/main.feature",
-					content: ["set t from start tick", 'pause for "30 ms"', "stop urakata t.id", 'pause for "30 ms"'].join("\n"),
-				},
-			],
+			[{ path: "/features/main.feature", content: ["set t from start tick", 'pause for "30 ms"', "stop urakata t.id", 'pause for "30 ms"'].join("\n") }],
 			[VariablesStepper, LogicStepper, Haibun, UrakataStepper, TickHarnessStepper],
 			{ options: { DEST: "default" }, moduleOptions: {} },
 		);
@@ -59,12 +54,7 @@ describe("urakata-stepper", () => {
 
 	it("forget halts and removes; subsequent stop on the same id throws via stepper failure", async () => {
 		const result = await passWithDefaults(
-			[
-				{
-					path: "/features/main.feature",
-					content: ["set t from start tick", "forget urakata t.id"].join("\n"),
-				},
-			],
+			[{ path: "/features/main.feature", content: ["set t from start tick", "forget urakata t.id"].join("\n") }],
 			[VariablesStepper, LogicStepper, Haibun, UrakataStepper, TickHarnessStepper],
 			{ options: { DEST: "default" }, moduleOptions: {} },
 		);
@@ -73,12 +63,7 @@ describe("urakata-stepper", () => {
 
 	it("`show urakata` returns a view product whose `urakata` array matches the registry list", async () => {
 		const result = await passWithDefaults(
-			[
-				{
-					path: "/features/main.feature",
-					content: ["set t from start tick", "show urakata"].join("\n"),
-				},
-			],
+			[{ path: "/features/main.feature", content: ["set t from start tick", "show urakata"].join("\n") }],
 			[VariablesStepper, LogicStepper, Haibun, UrakataStepper, TickHarnessStepper],
 			{ options: { DEST: "default" }, moduleOptions: {} },
 		);
@@ -96,16 +81,10 @@ describe("urakata-stepper", () => {
 	});
 
 	it("endFeature(shouldClose) halts every registered urakata", async () => {
-		const result = await passWithDefaults(
-			[
-				{
-					path: "/features/main.feature",
-					content: "set t from start tick",
-				},
-			],
-			[VariablesStepper, Haibun, UrakataStepper, TickHarnessStepper],
-			{ options: { DEST: "default" }, moduleOptions: {} },
-		);
+		const result = await passWithDefaults([{ path: "/features/main.feature", content: "set t from start tick" }], [VariablesStepper, Haibun, UrakataStepper, TickHarnessStepper], {
+			options: { DEST: "default" },
+			moduleOptions: {},
+		});
 		expect(result.ok).toBe(true);
 		const harness = result.world.runtime.steppers?.find((s): s is TickHarnessStepper => s instanceof TickHarnessStepper);
 		expect(harness).toBeDefined();

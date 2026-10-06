@@ -21,9 +21,7 @@ function makeStep(name: string, label: string, domain: string, origin: Origin): 
 					return Promise.resolve({ ok: true });
 				},
 			},
-			stepValuesMap: {
-				[name]: { term: label, domain, origin },
-			},
+			stepValuesMap: { [name]: { term: label, domain, origin } },
 		},
 	};
 }

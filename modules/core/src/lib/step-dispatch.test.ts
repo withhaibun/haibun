@@ -88,13 +88,7 @@ class PassesOn extends AStepper implements IHasCycles {
 }
 
 class CapabilityStepper extends AStepper {
-	steps = {
-		protectedPing: {
-			gwta: "protected ping",
-			capability: "CapabilityStepper:protected",
-			action: () => OK,
-		},
-	};
+	steps = { protectedPing: { gwta: "protected ping", capability: "CapabilityStepper:protected", action: () => OK } };
 }
 
 describe("step-dispatch", () => {
@@ -223,15 +217,7 @@ describe("step-dispatch", () => {
 
 		it("applies domain.coerce() when world is provided", () => {
 			const w = getDefaultWorld();
-			registerDomains(w, [
-				[
-					{
-						selectors: ["myDomain"],
-						schema: z.string(),
-						coerce: (proto) => String(proto.value).toUpperCase(),
-					},
-				],
-			]);
+			registerDomains(w, [[{ selectors: ["myDomain"], schema: z.string(), coerce: (proto) => String(proto.value).toUpperCase() }]]);
 			const stepper = new (class extends AStepper {
 				steps = { doIt: { gwta: "do it with {val: myDomain}", action: async () => OK } };
 			})();
@@ -261,16 +247,7 @@ describe("step-dispatch", () => {
 	describe("discoverSteps", () => {
 		it("returns steps and domains", () => {
 			const w = getDefaultWorld();
-			registerDomains(w, [
-				[
-					{
-						selectors: ["color"],
-						schema: z.enum(["red", "green", "blue"]),
-						values: ["red", "green", "blue"],
-						description: "A color",
-					},
-				],
-			]);
+			registerDomains(w, [[{ selectors: ["color"], schema: z.enum(["red", "green", "blue"]), values: ["red", "green", "blue"], description: "A color" }]]);
 			const stepper = new PlainStepper();
 			const discovery = discoverSteps(w, new StepRegistry([stepper], w), EVERY_DEFINITION, RUN_AUTHORITY);
 			expect(Array.isArray(discovery.steps)).toBe(true);
@@ -281,15 +258,7 @@ describe("step-dispatch", () => {
 
 		it("extracts enum values from z.enum domain schema when values not explicitly set", () => {
 			const w = getDefaultWorld();
-			registerDomains(w, [
-				[
-					{
-						selectors: ["size"],
-						schema: z.enum(["small", "medium", "large"]),
-						description: "T-shirt size",
-					},
-				],
-			]);
+			registerDomains(w, [[{ selectors: ["size"], schema: z.enum(["small", "medium", "large"]), description: "T-shirt size" }]]);
 			const stepper = new PlainStepper();
 			const discovery = discoverSteps(w, new StepRegistry([stepper], w), EVERY_DEFINITION, RUN_AUTHORITY);
 			expect(discovery.domains["size"]).toMatchObject({ description: "T-shirt size", values: ["small", "medium", "large"] });
@@ -578,9 +547,7 @@ describe("step-dispatch", () => {
 
 		it("answers a read actuality did not ask for without recording it, however that read arrived, and records the read a feature states in its own body", async () => {
 			const stepper = new (class extends AStepper {
-				steps = {
-					howMany: { gwta: "how many", read: true, productsDomain: TEST_DOMAIN.count, action: async () => actionOKWithProducts({ count: 3 }) },
-				};
+				steps = { howMany: { gwta: "how many", read: true, productsDomain: TEST_DOMAIN.count, action: async () => actionOKWithProducts({ count: 3 }) } };
 			})();
 			const steppers = [stepper];
 			const registry = new StepRegistry(steppers, world);
@@ -734,39 +701,15 @@ describe("step-dispatch", () => {
 
 		class DomainEchoStepper extends AStepper {
 			steps = {
-				produceEmail: {
-					gwta: "produce an email",
-					productsDomain: "test-email",
-					action: () => actionOKWithProducts({ id: "e1", subject: "hi" }),
-				},
-				unregisteredInput: {
-					gwta: "consume {who: no-such-domain}",
-					action: () => OK,
-				},
-				dualOutput: {
-					gwta: "produce two outputs",
-					productsDomain: "test-email",
-					productsDomains: { x: "string" },
-					action: () => actionOKWithProducts({ id: "e", subject: "s" }),
-				},
-				unknownDomain: {
-					gwta: "produce a ghost",
-					productsDomain: "not-registered",
-					action: () => actionOKWithProducts({}),
-				},
+				produceEmail: { gwta: "produce an email", productsDomain: "test-email", action: () => actionOKWithProducts({ id: "e1", subject: "hi" }) },
+				unregisteredInput: { gwta: "consume {who: no-such-domain}", action: () => OK },
+				dualOutput: { gwta: "produce two outputs", productsDomain: "test-email", productsDomains: { x: "string" }, action: () => actionOKWithProducts({ id: "e", subject: "s" }) },
+				unknownDomain: { gwta: "produce a ghost", productsDomain: "not-registered", action: () => actionOKWithProducts({}) },
 			};
 		}
 
 		beforeEach(() => {
-			registerDomains(world, [
-				[
-					{
-						selectors: ["test-email"],
-						schema: TestEmailSchema,
-						description: "Test email",
-					},
-				],
-			]);
+			registerDomains(world, [[{ selectors: ["test-email"], schema: TestEmailSchema, description: "Test email" }]]);
 		});
 
 		it("records the view a step showed, by the name the site declares it under", async () => {
@@ -823,25 +766,10 @@ describe("step-dispatch", () => {
 
 		class IssuerStepper extends AStepper {
 			steps = {
-				issueDemoCredential: {
-					gwta: "issue demo credential",
-					productsDomain: "demo-vc",
-					action: () => actionOKWithProducts({ id: "vc-1", subject: "did:example:alice" }),
-				},
-				revokeDemo: {
-					gwta: "revoke {credential: demo-vc}",
-					productsDomain: "demo-vc",
-					action: () => actionOKWithProducts({ id: "vc-1", subject: "did:example:alice" }),
-				},
-				suspendDemo: {
-					gwta: "suspend {credential: demo-vc}",
-					productsDomain: "demo-vc",
-					action: () => actionOKWithProducts({ id: "vc-1", subject: "did:example:alice" }),
-				},
-				unrelatedStep: {
-					gwta: "do unrelated thing {name: string}",
-					action: () => OK,
-				},
+				issueDemoCredential: { gwta: "issue demo credential", productsDomain: "demo-vc", action: () => actionOKWithProducts({ id: "vc-1", subject: "did:example:alice" }) },
+				revokeDemo: { gwta: "revoke {credential: demo-vc}", productsDomain: "demo-vc", action: () => actionOKWithProducts({ id: "vc-1", subject: "did:example:alice" }) },
+				suspendDemo: { gwta: "suspend {credential: demo-vc}", productsDomain: "demo-vc", action: () => actionOKWithProducts({ id: "vc-1", subject: "did:example:alice" }) },
+				unrelatedStep: { gwta: "do unrelated thing {name: string}", action: () => OK },
 			};
 		}
 
@@ -877,13 +805,7 @@ describe("step-dispatch", () => {
 
 		it("doesn't emit `_links` when the other steps don't accept this product's domain", async () => {
 			class IsolatedStepper extends AStepper {
-				steps = {
-					produce: {
-						gwta: "produce a lone product",
-						productsDomain: "lone-domain",
-						action: () => actionOKWithProducts({ id: "x" }),
-					},
-				};
+				steps = { produce: { gwta: "produce a lone product", productsDomain: "lone-domain", action: () => actionOKWithProducts({ id: "x" }) } };
 			}
 			registerDomains(world, [[{ selectors: ["lone-domain"], schema: z.object({ id: z.string() }), description: "Lone" }]]);
 			const stepper = new IsolatedStepper();
@@ -905,16 +827,8 @@ describe("step-dispatch", () => {
 			// individualRef pattern: a step accepts a ref domain whose schema is `{id}` and whose topology.ranges.id points to the produce-side persisted domain. The affordance derivation must walk this indirection: the SAME pattern @haibun/core's individualRefDomain establishes for every CRUD verb in the credentials / imap-graph / file-stepper / person-stepper steppers.
 			class VertexRefStepper extends AStepper {
 				steps = {
-					produceVc: {
-						gwta: "produce a vc",
-						productsDomain: "vc-vertex",
-						action: () => actionOKWithProducts({ id: "vc-1" }),
-					},
-					revokeVc: {
-						gwta: "revoke {credential: vc-ref}",
-						productsDomain: "vc-revocation",
-						action: () => actionOKWithProducts({ revoked: true }),
-					},
+					produceVc: { gwta: "produce a vc", productsDomain: "vc-vertex", action: () => actionOKWithProducts({ id: "vc-1" }) },
+					revokeVc: { gwta: "revoke {credential: vc-ref}", productsDomain: "vc-revocation", action: () => actionOKWithProducts({ revoked: true }) },
 				};
 			}
 			registerDomains(world, [
@@ -944,15 +858,8 @@ describe("step-dispatch", () => {
 		it("omits params skeleton when the product doesn't have an `id`: the consumer fills params from the step's shown schema", async () => {
 			class IdlessStepper extends AStepper {
 				steps = {
-					produce: {
-						gwta: "produce an idless thing",
-						productsDomain: "idless",
-						action: () => actionOKWithProducts({ name: "thing" }),
-					},
-					consume: {
-						gwta: "consume {what: idless}",
-						action: () => OK,
-					},
+					produce: { gwta: "produce an idless thing", productsDomain: "idless", action: () => actionOKWithProducts({ name: "thing" }) },
+					consume: { gwta: "consume {what: idless}", action: () => OK },
 				};
 			}
 			registerDomains(world, [[{ selectors: ["idless"], schema: z.object({ name: z.string() }), description: "Idless" }]]);

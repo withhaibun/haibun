@@ -30,9 +30,7 @@ export type SeqEdge = { from: string; to: string; predicate: string };
 /** Options the host injects: the display label for a participant id (defaults to the id), lets the live view resolve a
  *  DID → "Coastal Fisheries Authority". A message is labelled by its mediating artifact's @type, never an edge predicate,
  *  so this doesn't need a predicate resolver here. */
-type SeqMapOptions = {
-	labelOf?: (participantId: string) => string;
-};
+type SeqMapOptions = { labelOf?: (participantId: string) => string };
 
 /** The label for an artifact-mediated message: the mediating entity's @type (e.g. "VerifiablePresentation"), never a
  *  predicate and never its displayLabel (which for a credential is its raw claims): the artifact's TYPE is the message. */

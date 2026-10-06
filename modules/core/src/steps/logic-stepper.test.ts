@@ -60,10 +60,7 @@ describe("compound", () => {
 	});
 
 	it("not not not invalid", async () => {
-		const feature = {
-			path: "/features/test.feature",
-			content: "not not who's there",
-		};
+		const feature = { path: "/features/test.feature", content: "not not who's there" };
 		const result = await failWithDefaults([feature], [LogicStepper, TestSteps]);
 		expect(result.ok).toBe(false);
 	});
@@ -89,30 +86,21 @@ describe("variable composition", () => {
 	});
 
 	it("whenever not variable unset executes body", async () => {
-		const feature = {
-			path: "/features/test.feature",
-			content: 'whenever not variable "fresh" exists, set fresh to 1\nvariable "fresh" is "1"',
-		};
+		const feature = { path: "/features/test.feature", content: 'whenever not variable "fresh" exists, set fresh to 1\nvariable "fresh" is "1"' };
 		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers]);
 		expect(result.ok).toBe(true);
 		expect(await result.world.shared.get("fresh")).toBe("1");
 	});
 
 	it("whenever not variable set skips body", async () => {
-		const feature = {
-			path: "/features/test.feature",
-			content: 'set existing to 2\nwhenever not variable "existing" exists, set existing to 3\nvariable "existing" is "2"',
-		};
+		const feature = { path: "/features/test.feature", content: 'set existing to 2\nwhenever not variable "existing" exists, set existing to 3\nvariable "existing" is "2"' };
 		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers]);
 		expect(result.ok).toBe(true);
 		expect(await result.world.shared.get("existing")).toBe("2");
 	});
 
 	it("whenever not variable set skips failing body", async () => {
-		const feature = {
-			path: "/features/test.feature",
-			content: 'set existing to 2\nwhenever not variable "existing" exists, fails',
-		};
+		const feature = { path: "/features/test.feature", content: 'set existing to 2\nwhenever not variable "existing" exists, fails' };
 		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers]);
 		expect(result.ok).toBe(true); // condition false, body skipped
 	});
@@ -150,10 +138,7 @@ describe("variable composition", () => {
 	it('deeply nested negation with variable "who" demonstrates seqPath hierarchy', async () => {
 		// Tests that nested negations properly extend seqPath with -1 at each level.
 		// Validates the complete execution trace through four meta-levels.
-		const feature = {
-			path: "/features/test.feature",
-			content: 'set who to "there"\nnot not not not variable "who" is "there"',
-		};
+		const feature = { path: "/features/test.feature", content: 'set who to "there"\nnot not not not variable "who" is "there"' };
 		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers]);
 		expect(result.ok).toBe(true);
 
@@ -180,10 +165,7 @@ describe("variable composition", () => {
 		// Tests behavior when outer where condition succeeds but inner where condition
 		// contradicts it. Verifies that inner where with false condition succeeds vacuously
 		// and that all conditions and resolutions are recorded in stepResults.
-		const feature = {
-			path: "/features/test.feature",
-			content: 'set who to "there"\nwhere variable "who" is "there", where not variable "who" is "there", passes',
-		};
+		const feature = { path: "/features/test.feature", content: 'set who to "there"\nwhere variable "who" is "there", where not variable "who" is "there", passes' };
 		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers]);
 		expect(result.ok).toBe(true); // outer succeeds, inner condition fails but where succeeds, body never runs
 
@@ -307,10 +289,7 @@ some step observed in step usage is variable step/count is more than 0`,
 	});
 
 	it("unknown observation source fails gracefully", async () => {
-		const feature = {
-			path: "/features/test.feature",
-			content: `every x observed in unknown source is passes`,
-		};
+		const feature = { path: "/features/test.feature", content: `every x observed in unknown source is passes` };
 		const result = await failWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers]);
 		expect(result.ok).toBe(false);
 	});

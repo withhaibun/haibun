@@ -32,11 +32,7 @@ type TTunableRateLimit = {
  * Prefer the derived name over a hard-coded literal so the gate is not
  * coupled to any particular consumer.
  */
-export type TTunableOption = TStepperOption & {
-	range: TTunableRange;
-	rateLimit?: TTunableRateLimit;
-	requiresCapability?: string;
-};
+export type TTunableOption = TStepperOption & { range: TTunableRange; rateLimit?: TTunableRateLimit; requiresCapability?: string };
 
 /**
  * Discovery contract: steppers that expose tunable options, options a
@@ -45,9 +41,7 @@ export type TTunableOption = TStepperOption & {
  * omit the property.
  */
 export interface IHasTunables {
-	tunables?: {
-		[name: string]: TTunableOption;
-	};
+	tunables?: { [name: string]: TTunableOption };
 }
 
 /**

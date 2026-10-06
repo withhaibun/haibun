@@ -21,10 +21,7 @@ type RpcClientConfig = {
 	/** Per-call timeout in ms before abort. Default 30_000. */
 	timeoutMs?: number;
 	/** Retry policy. */
-	retry?: {
-		maxAttempts?: number;
-		baseDelayMs?: number;
-	};
+	retry?: { maxAttempts?: number; baseDelayMs?: number };
 	/** Injected for tests. Defaults to global fetch. */
 	fetchImpl?: typeof fetch;
 };

@@ -26,10 +26,7 @@ describe("domains", () => {
 		expect(res.ok).toBe(true);
 	});
 	it("sets multi word variable with domain", async () => {
-		const feature = {
-			path: "/features/d.feature",
-			content: 'set sel et poivre as string to "#login"\nvariable sel et poivre is "#login"',
-		};
+		const feature = { path: "/features/d.feature", content: 'set sel et poivre as string to "#login"\nvariable sel et poivre is "#login"' };
 		const res = await passWithDefaults([feature], steppers);
 		expect(res.ok).toBe(true);
 	});
@@ -47,10 +44,7 @@ describe("domains", () => {
 	});
 
 	it("sets variable with json domain", async () => {
-		const feature = {
-			path: "/features/d.feature",
-			content: `set data as json to ${JSON.stringify({ a: 1 })}\nvariable data is ${JSON.stringify({ a: 1 })}`,
-		};
+		const feature = { path: "/features/d.feature", content: `set data as json to ${JSON.stringify({ a: 1 })}\nvariable data is ${JSON.stringify({ a: 1 })}` };
 		const res = await passWithDefaults([feature], steppers);
 		expect(res.ok).toBe(true);
 		// ensure the variable was stored with domain json in world.shared
@@ -75,19 +69,13 @@ describe("domains", () => {
 	});
 
 	it("increment number and compare with is", async () => {
-		const feature = {
-			path: "/features/d.feature",
-			content: "set counter as number to 0\nincrement counter\nvariable counter is 1",
-		};
+		const feature = { path: "/features/d.feature", content: "set counter as number to 0\nincrement counter\nvariable counter is 1" };
 		const res = await passWithDefaults([feature], steppers);
 		expect(res.ok).toBe(true);
 	});
 
 	it("whenever loop increment and compare with is", async () => {
-		const feature = {
-			path: "/features/d.feature",
-			content: "set counter as number to 0\nwhenever variable counter is less than 3, increment counter\nvariable counter is 3",
-		};
+		const feature = { path: "/features/d.feature", content: "set counter as number to 0\nwhenever variable counter is less than 3, increment counter\nvariable counter is 3" };
 		const res = await passWithDefaults([feature], steppers);
 		expect(res.ok).toBe(true);
 	});
@@ -101,10 +89,7 @@ describe("domains", () => {
 	describe("$ENV$ vars", () => {
 		it("substitutes $TEST_VALUE$", async () => {
 			const feature = { path: "/features/b.feature", content: "set fromEnv to $TEST_VALUE$" };
-			const res = await passWithDefaults([feature], steppers, {
-				options: { DEST: "default", envVariables: { TEST_VALUE: "ok" } },
-				moduleOptions: {},
-			});
+			const res = await passWithDefaults([feature], steppers, { options: { DEST: "default", envVariables: { TEST_VALUE: "ok" } }, moduleOptions: {} });
 			expect(res.ok).toBe(true);
 			const check = await passWithDefaults([{ path: "/features/c.feature", content: 'set fromEnv to $TEST_VALUE$\nvariable "fromEnv" is "ok"' }], steppers, {
 				options: { DEST: "default", envVariables: { TEST_VALUE: "ok" } },

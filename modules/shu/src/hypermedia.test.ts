@@ -61,10 +61,7 @@ describe("what a link asks of a run", () => {
 describe("hasLink", () => {
 	const rep: TRepresentation = {
 		_type: "Email",
-		_links: {
-			trace: reads("TraceExplorerStepper-getTrace", { seqPath: "0.1.2.3" }),
-			malformed: { params: { x: 1 } } as unknown as TLink,
-		},
+		_links: { trace: reads("TraceExplorerStepper-getTrace", { seqPath: "0.1.2.3" }), malformed: { params: { x: 1 } } as unknown as TLink },
 	};
 
 	it("is true for a well-formed rel entry", () => {
@@ -85,10 +82,7 @@ describe("hasLink", () => {
 });
 
 describe("getLink", () => {
-	const rep: TRepresentation = {
-		_type: "Email",
-		_links: { trace: reads("TraceExplorerStepper-getTrace", { seqPath: "0.1.2.3" }) },
-	};
+	const rep: TRepresentation = { _type: "Email", _links: { trace: reads("TraceExplorerStepper-getTrace", { seqPath: "0.1.2.3" }) } };
 
 	it("returns the link entry by rel name", () => {
 		const link = getLink(rep, "trace");

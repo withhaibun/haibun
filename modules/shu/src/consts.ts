@@ -106,9 +106,7 @@ export const PERMISSIONS_SLOT = "permissions";
  *  Detail: `{ count, kind, target }`: the reference kind and link target a `shu-ref` takes. */
 export const AWAITING_DECISION = "awaiting-decision";
 
-export const SHU_TYPE = {
-	VIEW_COLLECTION: "shu-view-collection",
-} as const;
+export const SHU_TYPE = { VIEW_COLLECTION: "shu-view-collection" } as const;
 
 /** Whether a declared ui component is one of the marker types above rather than an element a column can hold. */
 export const isMarkerType = (component: string): boolean => (Object.values(SHU_TYPE) as string[]).includes(component);

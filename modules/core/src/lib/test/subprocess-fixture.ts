@@ -15,16 +15,8 @@ class EchoStepper extends AStepper {
 	description = "Steps that echo a message and answer a ping, run in a subprocess for tests of the subprocess transport.";
 	cycles = declaresTestDomains();
 	steps = {
-		echo: {
-			gwta: `echo {message: ${DOMAIN_TEXT}}`,
-			productsDomain: TEST_DOMAIN.echoed,
-			action: ({ message }: { message: string }) => actionOKWithProducts({ echoed: message }),
-		},
-		pong: {
-			gwta: "pong",
-			capability: "EchoStepper:protected",
-			action: async () => OK,
-		},
+		echo: { gwta: `echo {message: ${DOMAIN_TEXT}}`, productsDomain: TEST_DOMAIN.echoed, action: ({ message }: { message: string }) => actionOKWithProducts({ echoed: message }) },
+		pong: { gwta: "pong", capability: "EchoStepper:protected", action: async () => OK },
 	};
 }
 

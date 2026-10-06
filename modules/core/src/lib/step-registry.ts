@@ -298,12 +298,7 @@ export function buildFeatureStepForTransport(tool: StepTool, input: Record<strin
 		...(targetHostId === undefined ? {} : { targetHostId }),
 		// The line a feature would state for this call, so the record of a call from outside the run is a line that runs.
 		in: renderStepLine(descriptor.pattern, Object.fromEntries(Object.entries(input).map(([name, value]) => [name, literalTerm(value, descriptor.paramDomains[name])]))),
-		action: {
-			stepperName: descriptor.stepperName,
-			actionName: descriptor.stepName,
-			step,
-			stepValuesMap: mapInputToStepValues(input, descriptor.pattern),
-		},
+		action: { stepperName: descriptor.stepperName, actionName: descriptor.stepName, step, stepValuesMap: mapInputToStepValues(input, descriptor.pattern) },
 		seqPath,
 		programmatic: true,
 	};
@@ -462,11 +457,5 @@ function domainDiscoveryInfo(key: string, domain: TWorld["domains"][string]): TD
 	const enumerated = domain.values ? undefined : jsonSchemaFor(`domain "${key}"`, domain.schema, "input").enum;
 	const values = domain.values ?? (Array.isArray(enumerated) ? (enumerated as string[]) : undefined);
 	const ui = domain.ui ? (({ jsContent: _source, ...rest }) => rest)(domain.ui) : undefined;
-	return {
-		description: domain.description,
-		values,
-		stepperName: domain.stepperName,
-		persistedAs: isPersisted(domain.topology) ? domain.topology.persistedAs : undefined,
-		ui,
-	};
+	return { description: domain.description, values, stepperName: domain.stepperName, persistedAs: isPersisted(domain.topology) ? domain.topology.persistedAs : undefined, ui };
 }

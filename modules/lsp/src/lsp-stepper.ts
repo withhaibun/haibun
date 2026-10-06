@@ -216,13 +216,7 @@ export default class LspStepper extends AStepper {
 	}
 
 	// Cache for resolved feature steps per document
-	private documentCache = new Map<
-		string,
-		{
-			featureSteps: LCachedStep[];
-			errors: { lineNumber: number; message: string }[];
-		}
-	>();
+	private documentCache = new Map<string, { featureSteps: LCachedStep[]; errors: { lineNumber: number; message: string }[] }>();
 
 	private ensureStepperContext(uri: string) {
 		// Ensure steppers are aware of the current feature context (for dynamic steps like waypoints)
@@ -264,11 +258,7 @@ export default class LspStepper extends AStepper {
 
 			// Create authoritative new entry
 			const name = normUri.split("/").pop() || "background";
-			this.backgrounds.push({
-				name,
-				path: normUri,
-				content,
-			} as TFeature);
+			this.backgrounds.push({ name, path: normUri, content } as TFeature);
 
 			// Wholesale update: clear ALL background steps and re-register ALL backgrounds
 			interface IActivitiesStepper extends AStepper {
@@ -311,11 +301,7 @@ export default class LspStepper extends AStepper {
 
 		// Default to initial backgrounds/config if a workspace isn't found
 		if (!workspace) {
-			this.currentWorkspace = {
-				base: "Default",
-				config: null,
-				backgroundCount: this.backgrounds.length,
-			};
+			this.currentWorkspace = { base: "Default", config: null, backgroundCount: this.backgrounds.length };
 			this.sendWorkspaceInfo();
 			return this.backgrounds;
 		}
@@ -356,10 +342,7 @@ export default class LspStepper extends AStepper {
 		// Load backgrounds from the discovered workspace
 		try {
 			const loadedBgs = await loadBackgroundsFromPath(workspace.backgroundsPath);
-			const backgrounds: TFeature[] = loadedBgs.map((bg) => ({
-				...bg,
-				type: "feature" as const,
-			}));
+			const backgrounds: TFeature[] = loadedBgs.map((bg) => ({ ...bg, type: "feature" as const }));
 
 			// Cache for future use
 			this.workspaceBackgrounds.set(workspace.base, backgrounds);
@@ -442,12 +425,7 @@ export default class LspStepper extends AStepper {
 		}
 
 		// Create pseudo-feature
-		const feature: TFeature = {
-			base: "",
-			path: uri,
-			name: uri,
-			content,
-		};
+		const feature: TFeature = { base: "", path: uri, name: uri, content };
 
 		// If a background file is being processed, do not apply backgrounds to it
 		// This prevents recursive application (applying a background to itself) which causes "Duplicate definition" errors
@@ -475,10 +453,7 @@ export default class LspStepper extends AStepper {
 
 			expansionErrors.push({
 				severity: DiagnosticSeverity.Warning,
-				range: {
-					start: { line: bgLineNum, character: 0 },
-					end: { line: bgLineNum, character: lines[bgLineNum]?.length || 0 },
-				},
+				range: { start: { line: bgLineNum, character: 0 }, end: { line: bgLineNum, character: lines[bgLineNum]?.length || 0 } },
 				message: `Background not found (steps may be missing): ${errorMessage}`,
 				source: "haibun",
 			});
@@ -527,10 +502,7 @@ export default class LspStepper extends AStepper {
 			const lineText = featureLine.line;
 			return {
 				severity: DiagnosticSeverity.Error,
-				range: {
-					start: { line: lineNum, character: 0 },
-					end: { line: lineNum, character: lineText.length },
-				},
+				range: { start: { line: lineNum, character: 0 }, end: { line: lineNum, character: lineText.length } },
 				message: error.message,
 				source: "haibun",
 			};
@@ -596,24 +568,14 @@ export default class LspStepper extends AStepper {
 							this.connection?.console.log(`[LSP] Match found: ${match.actionName}`);
 						}
 						if (match && match.actionName) {
-							const step: TFeatureStep = {
-								action: match,
-								source: { lineNumber: pos.line + 1, path: uri },
-								in: trimmed,
-								seqPath: [0],
-							};
+							const step: TFeatureStep = { action: match, source: { lineNumber: pos.line + 1, path: uri }, in: trimmed, seqPath: [0] };
 							featureSteps.push({ step, startOffset: pos.character, length: trimmed.length });
 						} else {
 							// Should not happen if a missing match throws
 						}
 					} catch (_e) {
 						// Collect diagnostic/error
-						diagnostics.push({
-							severity: DiagnosticSeverity.Error,
-							range: { start: pos, end: endPos },
-							message: `Step '${trimmed}' is not defined`,
-							source: "haibun",
-						});
+						diagnostics.push({ severity: DiagnosticSeverity.Error, range: { start: pos, end: endPos }, message: `Step '${trimmed}' is not defined`, source: "haibun" });
 					}
 				}
 
@@ -683,10 +645,7 @@ export default class LspStepper extends AStepper {
 		visit(sourceFile);
 
 		// Cache the found steps and errors
-		this.documentCache.set(uri, {
-			featureSteps,
-			errors: diagnostics.map((e) => ({ lineNumber: e.range.start.line + 1, message: e.message })),
-		});
+		this.documentCache.set(uri, { featureSteps, errors: diagnostics.map((e) => ({ lineNumber: e.range.start.line + 1, message: e.message })) });
 
 		// Send diagnostics
 		this.connection?.sendDiagnostics({ uri: doc.uri, diagnostics });

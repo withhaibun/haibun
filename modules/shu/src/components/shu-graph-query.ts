@@ -149,11 +149,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		});
 
 		if (!isOffline()) {
-			this.autoTeardown(
-				this.subscribeBatched({
-					onBatch: (events) => this.applyLiveQuads(events),
-				}),
-			);
+			this.autoTeardown(this.subscribeBatched({ onBatch: (events) => this.applyLiveQuads(events) }));
 		}
 	}
 
@@ -207,15 +203,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 
 		this.dispatchEvent(
 			new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, {
-				detail: {
-					patterns,
-					accessLevel: this.qAccess,
-					total: this.total,
-					label: this.qLabel,
-					textQuery: this.qText,
-					labels: this.labels,
-					conditions,
-				},
+				detail: { patterns, accessLevel: this.qAccess, total: this.total, label: this.qLabel, textQuery: this.qText, labels: this.labels, conditions },
 				bubbles: true,
 				composed: true,
 			}),
@@ -269,22 +257,9 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 
 		const validConditions = this.qConditions
 			.filter((c) => c.predicate && c.value)
-			.map((c) => ({
-				predicate: c.predicate,
-				operator: c.operator,
-				value: c.value,
-				...(c.operator === "between" && c.value2 ? { value2: c.value2 } : {}),
-			}));
+			.map((c) => ({ predicate: c.predicate, operator: c.operator, value: c.value, ...(c.operator === "between" && c.value2 ? { value2: c.value2 } : {}) }));
 
-		const queryKey = JSON.stringify({
-			label,
-			textQuery,
-			conditions: validConditions,
-			sortBy: sortBy || "",
-			sortOrder,
-			offset: this.qOffset,
-			limit: this.limit,
-		});
+		const queryKey = JSON.stringify({ label, textQuery, conditions: validConditions, sortBy: sortBy || "", sortOrder, offset: this.qOffset, limit: this.limit });
 		// Coalesce concurrent identical fires (e.g. hashchange + initial connect).
 		if (this.inflightPromise && this.lastQueryKey === queryKey) return this.inflightPromise;
 		const resultsChanged = queryKey !== this.lastQueryKey;
@@ -488,12 +463,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		}
 
 		const table = this.ensureResultTable(target);
-		table.updateState({
-			sortBy: this.qSort,
-			sortOrder: this.qOrder,
-			selectable: true,
-			paginated: this.total > this.limit,
-		});
+		table.updateState({ sortBy: this.qSort, sortOrder: this.qOrder, selectable: true, paginated: this.total > this.limit });
 		if (this.qLabel) table.persistedAs = this.qLabel;
 		table.setSortableFields(this.sortableFields);
 		if (this.#source !== this.#installedSource) {

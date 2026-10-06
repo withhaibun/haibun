@@ -28,16 +28,9 @@ const InputAccessLevelSchema = z.string();
 const RunAccessSchema = z.enum(RUN_ACCESS_LEVELS);
 type TRunAccess = z.infer<typeof RunAccessSchema>;
 
-export type TDirFilter = {
-	dir: string;
-	access: string;
-};
+export type TDirFilter = { dir: string; access: string };
 
-export type TRunPolicyConfig = {
-	place: string;
-	dirFilters: TDirFilter[];
-	[param: string]: unknown;
-};
+export type TRunPolicyConfig = { place: string; dirFilters: TDirFilter[]; [param: string]: unknown };
 
 /** Parses "smoke:r" → { dir: "smoke", access: "r" } */
 const DirFilterSchema = z
@@ -58,10 +51,7 @@ export function parseDirFilters(input: string): TDirFilter[] {
 }
 
 const RunPolicyConfigSchema = z
-	.object({
-		place: z.string().min(1),
-		dirAccessStr: z.string(),
-	})
+	.object({ place: z.string().min(1), dirAccessStr: z.string() })
 	.catchall(z.unknown())
 	.transform((data): TRunPolicyConfig => {
 		const dirFilters = parseDirFilters(data.dirAccessStr);

@@ -24,11 +24,7 @@ const view = (tag: string, summary: unknown | null): TView => {
 	return el;
 };
 
-const collection = (count: number) => ({
-	"@id": "view:graph",
-	totalItems: count,
-	items: Array.from({ length: count }, (_, at) => ({ at })),
-});
+const collection = (count: number) => ({ "@id": "view:graph", totalItems: count, items: Array.from({ length: count }, (_, at) => ({ at })) });
 
 describe("what a page sends of a view that states many members", () => {
 	it("carries the members the view stated first, and states the page terms", () => {

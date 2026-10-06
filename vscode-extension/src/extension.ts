@@ -168,38 +168,22 @@ function parseServerError(error: unknown): { type: string; message: string; acti
 	const errorStr = String(error);
 
 	if (errorStr.includes("McpStepper: the runtime doesn't hold a webserver")) {
-		return {
-			type: "config-error",
-			message: "MCP requires WebServerStepper",
-			action: "Add @haibun/web-server-hono/build/web-server-stepper to config",
-		};
+		return { type: "config-error", message: "MCP requires WebServerStepper", action: "Add @haibun/web-server-hono/build/web-server-stepper to config" };
 	}
 
 	if (errorStr.includes("EADDRINUSE")) {
 		const portMatch = errorStr.match(/::(\d+)/) || errorStr.match(/:(\d+)/);
 		const port = portMatch ? portMatch[1] : "unknown";
-		return {
-			type: "port-conflict",
-			message: `Port ${port} is already in use`,
-			action: `Kill process on port ${port} or change config`,
-		};
+		return { type: "port-conflict", message: `Port ${port} is already in use`, action: `Kill process on port ${port} or change config` };
 	}
 
 	if (errorStr.includes("ERR_MODULE_NOT_FOUND") || errorStr.includes("Cannot find")) {
 		const moduleMatch = errorStr.match(/Cannot find module '([^']+)'/);
 		const module = moduleMatch ? path.basename(moduleMatch[1]) : "module";
-		return {
-			type: "missing-module",
-			message: `Missing ${module}`,
-			action: "Run npm install or check paths",
-		};
+		return { type: "missing-module", message: `Missing ${module}`, action: "Run npm install or check paths" };
 	}
 
-	return {
-		type: "unknown",
-		message: "Check Output channel for details",
-		action: "View Output",
-	};
+	return { type: "unknown", message: "Check Output channel for details", action: "View Output" };
 }
 
 // File reveal logic with retries
@@ -331,12 +315,7 @@ async function startClient(context: ExtensionContext) {
 
 	const serverOptions: ServerOptions = {
 		run: { command: "node", args, transport: TransportKind.stdio, options: { cwd: effectiveCwd, env } },
-		debug: {
-			command: "node",
-			args,
-			transport: TransportKind.stdio,
-			options: { cwd: effectiveCwd, env, execArgv: ["--nolazy", "--inspect=6009"] },
-		},
+		debug: { command: "node", args, transport: TransportKind.stdio, options: { cwd: effectiveCwd, env, execArgv: ["--nolazy", "--inspect=6009"] } },
 	};
 
 	const clientOptions: LanguageClientOptions = {
@@ -344,9 +323,7 @@ async function startClient(context: ExtensionContext) {
 			{ scheme: "file", language: "haibun" },
 			{ scheme: "file", pattern: "**/*.feature.ts" },
 		],
-		synchronize: {
-			fileEvents: workspace.createFileSystemWatcher("**/config.json"),
-		},
+		synchronize: { fileEvents: workspace.createFileSystemWatcher("**/config.json") },
 	};
 
 	client = new LanguageClient("haibun", "Haibun Language Server", serverOptions, clientOptions);

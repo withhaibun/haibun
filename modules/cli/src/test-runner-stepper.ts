@@ -222,10 +222,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 	};
 
 	options = {
-		MAX_RUNS: {
-			desc: `most test runs the agent may start while answering one ask (default ${RUNNER_DEFAULTS.maxRuns})`,
-			parse: (input: string) => intOrError(input),
-		},
+		MAX_RUNS: { desc: `most test runs the agent may start while answering one ask (default ${RUNNER_DEFAULTS.maxRuns})`, parse: (input: string) => intOrError(input) },
 		RUN_FROM: {
 			desc: "directory a run is started from, when that is not the base itself. A base whose config names steppers by a path relative to its parent is run from that parent, as its own command line does",
 			parse: (input: string) => ({ result: input }),

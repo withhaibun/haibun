@@ -81,9 +81,7 @@ export const runArtifactDomainDefinition: TDomainDefinition = {
 			[RUN_ARTIFACT_FIELD.generatedAtTime]: LinkRelations.GENERATED_AT_TIME.rel,
 			[RUN_ARTIFACT_FIELD.recordedAtTime]: LinkRelations.RECORDED_AT_TIME.rel,
 		},
-		edges: {
-			[RUN_ARTIFACT_EDGE.isPartOf]: { rel: LinkRelations.PART_OF.rel, range: SEQ_PATH_LABEL },
-		},
+		edges: { [RUN_ARTIFACT_EDGE.isPartOf]: { rel: LinkRelations.PART_OF.rel, range: SEQ_PATH_LABEL } },
 		sortColumns: { [RUN_ARTIFACT_FIELD.recordedAtTime]: "TIMESTAMPTZ", [RUN_ARTIFACT_FIELD.execution]: "TEXT" },
 	},
 };

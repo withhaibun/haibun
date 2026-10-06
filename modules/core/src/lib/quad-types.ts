@@ -93,9 +93,7 @@ export type TDensityQuery = z.infer<typeof DensityQuerySchema>;
 /** One entry per bucket, oldest first, each counting its records by group. A bucket that doesn't hold a record is an empty entry, so
  *  the answer's length is the bucket count asked for and a reader can draw the gaps. A bucket's own span is the span
  *  divided by the count, which every reader derives the same way rather than being told it per bucket. */
-export const DensityResultSchema = z.object({
-	buckets: z.array(z.record(z.string(), z.number().int().nonnegative())),
-});
+export const DensityResultSchema = z.object({ buckets: z.array(z.record(z.string(), z.number().int().nonnegative())) });
 export type TDensityResult = z.infer<typeof DensityResultSchema>;
 
 /** What a graph query answers with: the rows it matched and how many there are, plus what a store with a query engine

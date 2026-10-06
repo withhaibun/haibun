@@ -141,12 +141,7 @@ async function closeAfterFeature(wp: WebPlaywright) {
 
 			// Emit video artifact event (with isTimeLined for timeline sync)
 			// VideoStartArtifact is emitted in getPage() when recording starts
-			const featureStep = {
-				seqPath: [world.tag.featureNum, 0, 0],
-				source: { path: world.runtime.feature || "feature" },
-				in: "feature video",
-				action: {} as TStepAction,
-			};
+			const featureStep = { seqPath: [world.tag.featureNum, 0, 0], source: { path: world.runtime.feature || "feature" }, in: "feature video", action: {} as TStepAction };
 
 			const videoEvent = VideoArtifact.parse({
 				id: `feat-${world.tag.featureNum}.video`,

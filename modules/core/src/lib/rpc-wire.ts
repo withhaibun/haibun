@@ -64,13 +64,7 @@ export const RpcRequestSchema = rpcRequestSchema(ActualityIdSchema);
 type TRpcRequest = z.infer<typeof RpcRequestSchema>;
 
 /** What a host answers the handshake with. */
-export const HandshakeSchema = z.object({
-	protocol: z.literal(RPC_PROTOCOL),
-	hostId: z.number(),
-	site: z.string().min(1),
-	actualityId: ActualityIdSchema,
-	serving: z.boolean(),
-});
+export const HandshakeSchema = z.object({ protocol: z.literal(RPC_PROTOCOL), hostId: z.number(), site: z.string().min(1), actualityId: ActualityIdSchema, serving: z.boolean() });
 export type THandshake = z.infer<typeof HandshakeSchema>;
 
 /** What the person can do about a refused call, which a page offers as a control: sign in at the site that answered in
@@ -124,19 +118,9 @@ export const ANSWERED_WITHOUT_PRODUCTS = { ok: true } as const;
 export type TRpcMethod = { action: string; handle: (params: Record<string, unknown>) => Promise<unknown> };
 
 /** Outgoing JSON-RPC 2.0 response to client. */
-export const RpcResponseSchema = z.object({
-	jsonrpc: z.literal("2.0"),
-	id: z.string(),
-	result: z.unknown().optional(),
-	error: z.string().optional(),
-});
+export const RpcResponseSchema = z.object({ jsonrpc: z.literal("2.0"), id: z.string(), result: z.unknown().optional(), error: z.string().optional() });
 /** Outgoing JSON-RPC 2.0 stream chunk to client. */
-export const RpcStreamSchema = z.object({
-	jsonrpc: z.literal("2.0"),
-	id: z.string(),
-	stream: z.literal(true),
-	data: z.unknown(),
-});
+export const RpcStreamSchema = z.object({ jsonrpc: z.literal("2.0"), id: z.string(), stream: z.literal(true), data: z.unknown() });
 /** What a host answers a call it did not serve with: why, and what the person can do about it, where they can. */
 export const RpcRefusalSchema = z.object({ error: z.string().min(1), remedy: RemedySchema.optional() });
 export type TRpcRefusal = z.infer<typeof RpcRefusalSchema>;

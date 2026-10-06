@@ -34,22 +34,9 @@ class PingStepper extends AStepper {
 	description = "Steps that answer a ping, one of them protected and one gated by an admin capability.";
 	cycles = declaresTestDomains();
 	steps = {
-		ping: {
-			gwta: "ping",
-			productsDomain: TEST_DOMAIN.pong,
-			action: async () => actionOKWithProducts({ pong: true }),
-		},
-		protectedPing: {
-			gwta: "protected ping",
-			capability: "PingStepper:protected",
-			productsDomain: TEST_DOMAIN.pong,
-			action: async () => actionOKWithProducts({ pong: true }),
-		},
-		adminPing: {
-			gwta: "admin ping",
-			capability: "PingStepper:admin",
-			action: async () => OK,
-		},
+		ping: { gwta: "ping", productsDomain: TEST_DOMAIN.pong, action: async () => actionOKWithProducts({ pong: true }) },
+		protectedPing: { gwta: "protected ping", capability: "PingStepper:protected", productsDomain: TEST_DOMAIN.pong, action: async () => actionOKWithProducts({ pong: true }) },
+		adminPing: { gwta: "admin ping", capability: "PingStepper:admin", action: async () => OK },
 		readsAt: {
 			gwta: "level this reads at",
 			read: true,
@@ -436,12 +423,7 @@ class ReadStepper extends AStepper {
 	}
 
 	steps = {
-		asked: {
-			gwta: "run is asked what it holds",
-			read: true,
-			readsAt: Access.public,
-			action: () => Promise.resolve(OK),
-		},
+		asked: { gwta: "run is asked what it holds", read: true, readsAt: Access.public, action: () => Promise.resolve(OK) },
 		narratedCalls: {
 			gwta: "run narrated the call that acted on it and not the call that read it",
 			action: () => {
@@ -841,10 +823,7 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "Pi
 						return OK;
 					},
 				},
-				failStream: {
-					gwta: "stream that refuses",
-					action: () => actionNotOK("stream refused"),
-				},
+				failStream: { gwta: "stream that refuses", action: () => actionNotOK("stream refused") },
 			};
 		}
 
@@ -900,10 +879,7 @@ stream rpc call to "http://localhost:${port}/rpc/StreamingStepper-stream3" metho
 
 		class StreamingStepper extends AStepper {
 			steps = {
-				refuse: {
-					gwta: "refuse the stream",
-					action: () => actionNotOK("nope"),
-				},
+				refuse: { gwta: "refuse the stream", action: () => actionNotOK("nope") },
 				fail: {
 					gwta: "fail the stream",
 					action: () => {

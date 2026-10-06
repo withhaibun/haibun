@@ -219,11 +219,7 @@ describe("shu-affordances-panel", () => {
 	it("re-rendering after a new affordances snapshot preserves <details> open state", async () => {
 		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel);
-		panel.products = {
-			execution: EXECUTION,
-			forward: [],
-			goals: [{ domain: "g", description: "Goal g", resolution: { finding: "satisfied", goal: "g", factIds: ["fact-x"] } }],
-		};
+		panel.products = { execution: EXECUTION, forward: [], goals: [{ domain: "g", description: "Goal g", resolution: { finding: "satisfied", goal: "g", factIds: ["fact-x"] } }] };
 		await applied(panel);
 		const explain = panel.shadowRoot?.querySelector('details[data-key="explanation"]') as HTMLDetailsElement | null;
 		expect(explain).toBeTruthy();

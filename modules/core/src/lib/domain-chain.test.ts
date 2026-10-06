@@ -21,33 +21,17 @@ function fixedDomains(): Record<string, TRegisteredDomain> {
 }
 
 class EmailFromPerson extends AStepper {
-	steps: TStepperSteps = {
-		issue: {
-			gwta: `issue email for {who: ${PERSON_DOMAIN}}`,
-			productsDomain: EMAIL_DOMAIN,
-			action: () => actionOKWithProducts({ id: "e1" }),
-		},
-	};
+	steps: TStepperSteps = { issue: { gwta: `issue email for {who: ${PERSON_DOMAIN}}`, productsDomain: EMAIL_DOMAIN, action: () => actionOKWithProducts({ id: "e1" }) } };
 }
 
 class SessionFromPerson extends AStepper {
 	steps: TStepperSteps = {
-		signIn: {
-			gwta: `sign in {who: ${PERSON_DOMAIN}}`,
-			productsDomain: SESSION_DOMAIN,
-			capability: "auth:signin",
-			action: () => actionOKWithProducts({ id: "s1" }),
-		},
+		signIn: { gwta: `sign in {who: ${PERSON_DOMAIN}}`, productsDomain: SESSION_DOMAIN, capability: "auth:signin", action: () => actionOKWithProducts({ id: "s1" }) },
 	};
 }
 
 class PlainStepper extends AStepper {
-	steps: TStepperSteps = {
-		ping: {
-			gwta: "ping",
-			action: () => OK,
-		},
-	};
+	steps: TStepperSteps = { ping: { gwta: "ping", action: () => OK } };
 }
 
 describe("buildDomainChain", () => {

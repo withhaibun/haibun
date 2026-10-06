@@ -49,20 +49,9 @@ class EchoStepper extends AStepper {
 			productsDomain: TEST_DOMAIN.echoed,
 			action: async ({ message }: { message: string }) => actionOKWithProducts({ echoed: message }),
 		},
-		protectedPing: {
-			gwta: "protected ping",
-			capability: "EchoStepper:admin",
-			productsDomain: TEST_DOMAIN.pong,
-			action: async () => actionOKWithProducts({ pong: true }),
-		},
-		acts: {
-			gwta: "act",
-			action: async () => OK,
-		},
-		refuses: {
-			gwta: "refuse",
-			action: async () => actionNotOK(REFUSED),
-		},
+		protectedPing: { gwta: "protected ping", capability: "EchoStepper:admin", productsDomain: TEST_DOMAIN.pong, action: async () => actionOKWithProducts({ pong: true }) },
+		acts: { gwta: "act", action: async () => OK },
+		refuses: { gwta: "refuse", action: async () => actionNotOK(REFUSED) },
 		echoPick: {
 			gwta: `echo the pick {pick: ${DOMAIN_PICK}}`,
 			productsDomain: TEST_DOMAIN.echoed,

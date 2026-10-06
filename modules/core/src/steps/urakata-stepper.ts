@@ -75,11 +75,7 @@ class UrakataStepper extends AStepper implements IHasCycles, IHasUrakata {
 	};
 
 	steps = {
-		showUrakata: {
-			gwta: "show urakata",
-			productsDomain: DOMAIN_URAKATA_LIST,
-			action: () => actionOKWithProducts({ urakata: this.urakata().list() }),
-		},
+		showUrakata: { gwta: "show urakata", productsDomain: DOMAIN_URAKATA_LIST, action: () => actionOKWithProducts({ urakata: this.urakata().list() }) },
 
 		stopUrakata: {
 			gwta: `stop urakata {id: ${URAKATA_ID_DOMAIN}}`,

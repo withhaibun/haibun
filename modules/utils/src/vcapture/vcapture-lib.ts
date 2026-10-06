@@ -45,14 +45,7 @@ ${asYamlOptions(composeEnvironment)}
 		try {
 			const cmd = `docker compose -f docker-compose.yml -f ${tmpFile} up ${thisCaptureOptions.recreate ? "--force-recreate --build" : ""}`;
 			console.info("building with:", cmd);
-			execSync(cmd, {
-				cwd: utilDir,
-				stdio: "inherit",
-				env: {
-					...process.env,
-					CURRENT_DIR: projectDir,
-				},
-			});
+			execSync(cmd, { cwd: utilDir, stdio: "inherit", env: { ...process.env, CURRENT_DIR: projectDir } });
 		} finally {
 			unlinkSync(tmpFile);
 			execSync(`rm -rf ${buildContextDir}`);
@@ -104,15 +97,7 @@ function asYamlOptions(options: string[]) {
 }
 
 export function parseVCaptureArgs(args: string[], printHelp: (exitCode?: number) => never) {
-	const captureOptions: TCaptureOptions = {
-		recreate: false,
-		tts: false,
-		cliEnv: undefined,
-		capture: true,
-		res: "1280x1024",
-		passEnv: undefined,
-		featureFilter: undefined,
-	};
+	const captureOptions: TCaptureOptions = { recreate: false, tts: false, cliEnv: undefined, capture: true, res: "1280x1024", passEnv: undefined, featureFilter: undefined };
 
 	// Collect all non-flag arguments in order
 	const positional: string[] = [];

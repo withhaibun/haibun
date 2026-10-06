@@ -51,16 +51,10 @@ export type TChromeApi = {
 		onCreated: TChromeEvent<[tab: Tab]>;
 		onRemoved: TChromeEvent<[tabId: number, removeInfo: { windowId: number; isWindowClosing: boolean }]>;
 	};
-	scripting: {
-		executeScript<R>(injection: { target: { tabId: number }; func: () => R }): Promise<Array<{ result?: R }>>;
-	};
+	scripting: { executeScript<R>(injection: { target: { tabId: number }; func: () => R }): Promise<Array<{ result?: R }>> };
 };
 
-type ProtocolCommand = {
-	id: number;
-	method: string;
-	params?: unknown;
-};
+type ProtocolCommand = { id: number; method: string; params?: unknown };
 
 /** Whether a chrome.* method is the debugger's, which reaches only a tab the relay may attach. */
 const isDebuggerMethod = (method: string): boolean => method.startsWith("chrome.debugger.");
@@ -153,9 +147,7 @@ export class RelayConnection {
 			const event = Reflect.get(target.obj, target.name) as TChromeEvent<unknown[]>;
 			const listener = (...args: unknown[]) => this._onChromeEvent(fullMethod, args);
 			event.addListener(listener);
-			this._eventListeners.push({
-				remove: () => event.removeListener(listener),
-			});
+			this._eventListeners.push({ remove: () => event.removeListener(listener) });
 		}
 	}
 
@@ -268,9 +260,7 @@ export class RelayConnection {
 	}
 
 	private async _onMessageAsync(message: TRelayMessage): Promise<void> {
-		const response: TRelayMessage = {
-			id: message.id,
-		};
+		const response: TRelayMessage = { id: message.id };
 		try {
 			response.result = await this._handleCommand(message as ProtocolCommand);
 		} catch (error) {

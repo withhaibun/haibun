@@ -38,11 +38,7 @@ export default class VoiceUITestStepper extends AStepper implements IHasCycles {
 					selectors: [VOICE_UI_TEST_DOMAIN],
 					schema: z.object({ id: z.string() }),
 					description: "Voice UI test (drives ui extension propagation)",
-					ui: {
-						component: "voice-ui-test-component",
-						slot: "action-bar-chat",
-						js: TEST_COMPONENT_URL,
-					},
+					ui: { component: "voice-ui-test-component", slot: "action-bar-chat", js: TEST_COMPONENT_URL },
 				},
 			],
 		}),

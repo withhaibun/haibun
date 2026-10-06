@@ -26,12 +26,7 @@ const webAddress = (address: string): { url?: string } => (isWebAddress(address)
 const resultOf = (rule: Result, outcome: (typeof OUTCOME_OF)[keyof typeof OUTCOME_OF]) => {
 	const summaries = [...new Set(rule.nodes.flatMap((node) => (node.failureSummary ? [node.failureSummary] : [])))];
 	const pointers = rule.nodes.map((node) => node.target.join(" "));
-	return {
-		outcome,
-		...(summaries.length ? { info: summaries.join("\n\n") } : {}),
-		...(pointers.length ? { pointers } : {}),
-		...(rule.impact ? { impact: rule.impact } : {}),
-	};
+	return { outcome, ...(summaries.length ? { info: summaries.join("\n\n") } : {}), ...(pointers.length ? { pointers } : {}), ...(rule.impact ? { impact: rule.impact } : {}) };
 };
 
 /** The assertions an axe check of a page states, made by the step whose record is named `step`. */

@@ -50,11 +50,7 @@ export function findHaibunWorkspace(featurePath: string, fs: TFileSystem = nodeF
 	const backgroundsPath = path.join(base, "backgrounds");
 	const hasBackgrounds = fs.existsSync(backgroundsPath);
 
-	return {
-		base,
-		configPath: hasConfig ? configPath : null,
-		backgroundsPath: hasBackgrounds ? backgroundsPath : null,
-	};
+	return { base, configPath: hasConfig ? configPath : null, backgroundsPath: hasBackgrounds ? backgroundsPath : null };
 }
 
 /**
@@ -107,12 +103,7 @@ export async function loadBackgroundsFromPath(backgroundsPath: string, fs: TFile
 		const content = fs.readFileSync(fullPath, "utf-8");
 		const relativePath = fullPath.replace(base, "");
 		const name = path.basename(fullPath, ".feature");
-		backgrounds.push({
-			path: relativePath,
-			content,
-			name,
-			base,
-		});
+		backgrounds.push({ path: relativePath, content, name, base });
 	}
 
 	return backgrounds;

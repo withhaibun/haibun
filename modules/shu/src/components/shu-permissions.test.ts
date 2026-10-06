@@ -10,12 +10,7 @@ import type { TAuthority } from "../controllers/index.js";
 import { pageAuthorityFails, pageHolding } from "../controllers/authority-controller.test-fake.js";
 
 const PAGE = "did:key:zDnaePage";
-const held: TAuthority = {
-	controller: PAGE,
-	holds: ["Instance:read", "comment.grant"],
-	grantedBy: {},
-	principals: [{ id: "did:site:0" }, { id: "did:site:0:kihan-session" }],
-};
+const held: TAuthority = { controller: PAGE, holds: ["Instance:read", "comment.grant"], grantedBy: {}, principals: [{ id: "did:site:0" }, { id: "did:site:0:kihan-session" }] };
 
 /** The records this view offers a way to, by the name each is shown under. */
 const refTexts = (el: ShuPermissions, kind?: string): string[] =>

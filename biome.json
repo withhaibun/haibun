@@ -92,10 +92,15 @@
 	},
 	"javascript": {
 		"formatter": {
-			"quoteStyle": "double"
+			"quoteStyle": "double",
+			"expand": "never"
 		}
 	},
 	"overrides": [
+		{
+			"includes": ["**/*.feature.ts", "**/backgrounds/**/*.ts"],
+			"javascript": { "formatter": { "expand": "auto" } }
+		},
 		{
 			"includes": ["modules/**/*.ts"],
 			"linter": {

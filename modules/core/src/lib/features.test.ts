@@ -88,10 +88,7 @@ describe("env vars", () => {
 	it("env or var or literal finds env", async () => {
 		const feature = { path: "/features/test.feature", content: `set x to $what$` };
 		const envVariables = { what: "env" };
-		const { world } = await passWithDefaults([feature], varsStepper, {
-			options: { DEST: DEFAULT_DEST, envVariables },
-			moduleOptions: {},
-		});
+		const { world } = await passWithDefaults([feature], varsStepper, { options: { DEST: DEFAULT_DEST, envVariables }, moduleOptions: {} });
 		expect(await world.shared.get("x")).toBe("env");
 	});
 	it("env or var or literal finds var", async () => {
@@ -129,11 +126,7 @@ describe("a resolved feature as data", () => {
 			base: "/",
 			name: "f",
 			featureSteps: [
-				{
-					in: "reads json",
-					seqPath: [0, 1, 1],
-					action: { stepperName: "JsonSteps", actionName: "readsJson", step: { exact: "reads json", action: () => OK }, stepValuesMap: {} },
-				},
+				{ in: "reads json", seqPath: [0, 1, 1], action: { stepperName: "JsonSteps", actionName: "readsJson", step: { exact: "reads json", action: () => OK }, stepValuesMap: {} } },
 			],
 		};
 		expect(JSON.parse(JSON.stringify(steps.featureAsData(feature))).featureSteps[0].action).toEqual({ stepperName: "JsonSteps", actionName: "readsJson", stepValuesMap: {} });

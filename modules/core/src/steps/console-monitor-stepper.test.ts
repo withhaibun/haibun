@@ -19,19 +19,10 @@ describe("ConsoleMonitorStepper", () => {
 		};
 
 		try {
-			const features = asFeatures([
-				{
-					path: "/features/test",
-					content: 'set x to "hello"',
-					base: "test-base",
-				},
-			]);
+			const features = asFeatures([{ path: "/features/test", content: 'set x to "hello"', base: "test-base" }]);
 
 			// Include the ConsoleMonitorStepper
-			const res = await runner.runFeaturesAndBackgrounds([VariablesStepper, Haibun, ConsoleMonitorStepper], {
-				features,
-				backgrounds: [],
-			});
+			const res = await runner.runFeaturesAndBackgrounds([VariablesStepper, Haibun, ConsoleMonitorStepper], { features, backgrounds: [] });
 
 			expect(res.ok).toBe(true);
 
@@ -56,18 +47,9 @@ describe("ConsoleMonitorStepper", () => {
 		};
 
 		try {
-			const features = asFeatures([
-				{
-					path: "/features/test",
-					content: 'set y to "world"',
-					base: "test-base",
-				},
-			]);
+			const features = asFeatures([{ path: "/features/test", content: 'set y to "world"', base: "test-base" }]);
 
-			const res = await runner.runFeaturesAndBackgrounds([VariablesStepper, Haibun, ConsoleMonitorStepper], {
-				features,
-				backgrounds: [],
-			});
+			const res = await runner.runFeaturesAndBackgrounds([VariablesStepper, Haibun, ConsoleMonitorStepper], { features, backgrounds: [] });
 
 			expect(res.ok).toBe(true);
 		} finally {

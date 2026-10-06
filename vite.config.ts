@@ -25,10 +25,7 @@ const config: Config = {
 		environment: "node",
 		// The projects below say what runs; a root `include` beside them would be a third project running everything again.
 		projects: [
-			{
-				extends: true,
-				test: { name: "integration", include: [INTEGRATION_TESTS], exclude: EXCLUDE, maxWorkers: 2, minWorkers: 1, sequence: { groupOrder: 0 } },
-			},
+			{ extends: true, test: { name: "integration", include: [INTEGRATION_TESTS], exclude: EXCLUDE, maxWorkers: 2, minWorkers: 1, sequence: { groupOrder: 0 } } },
 			{
 				extends: true,
 				test: { name: "unit", include: ["modules/**/*.test.{ts,tsx}", "scripts/**/*.test.ts"], exclude: [...EXCLUDE, INTEGRATION_TESTS], sequence: { groupOrder: 1 } },

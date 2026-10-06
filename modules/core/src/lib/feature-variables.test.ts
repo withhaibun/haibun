@@ -15,14 +15,7 @@ describe("FeatureVariables", () => {
 		source: { path: "/test/feature.ts" },
 		in: "test step",
 		seqPath: [1, 2, 3],
-		action: {
-			actionName: "testAction",
-			stepperName: "TestStepper",
-			step: {
-				gwta: "test",
-				action: () => Promise.resolve({ ok: true }),
-			},
-		},
+		action: { actionName: "testAction", stepperName: "TestStepper", step: { gwta: "test", action: () => Promise.resolve({ ok: true }) } },
 	};
 
 	beforeEach(() => {
@@ -37,9 +30,7 @@ describe("FeatureVariables", () => {
 		});
 
 		it("should initialize with initial values", async () => {
-			const initial: { [name: string]: TStepValue } = {
-				foo: { term: "foo", value: "bar", domain: DOMAIN_STRING, origin: Origin.var },
-			};
+			const initial: { [name: string]: TStepValue } = { foo: { term: "foo", value: "bar", domain: DOMAIN_STRING, origin: Origin.var } };
 			const vars = new FeatureVariables(world, initial);
 			expect(await vars.all()).toEqual(initial);
 		});
@@ -177,16 +168,7 @@ describe("FeatureVariables", () => {
 		});
 
 		it("should handle complex JSON structures", async () => {
-			const complex = {
-				array: [1, 2, 3],
-				nested: {
-					deep: {
-						value: "deeply nested",
-					},
-				},
-				nullValue: null,
-				boolValue: true,
-			};
+			const complex = { array: [1, 2, 3], nested: { deep: { value: "deeply nested" } }, nullValue: null, boolValue: true };
 
 			await variables.setJSON("complex", complex, Origin.var, mockFeatureStep);
 			const retrieved = (await variables.get("complex")) as typeof complex;

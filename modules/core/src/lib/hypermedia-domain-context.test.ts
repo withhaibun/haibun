@@ -9,11 +9,7 @@ const iri = (rel: string) => REL_CONTEXT[rel];
 describe("hypermediaDomainFromContext, declare a hypermedia domain from a JSON-LD @context", () => {
 	it("builds the Ingredient topology + raw schema (recipe model)", () => {
 		const { topology, schema } = hypermediaDomainFromContext("Ingredient", {
-			"@context": {
-				id: "@id",
-				name: iri(LinkRelations.NAME.rel),
-				usedIn: { "@id": iri(LinkRelations.PART_OF.rel), range: "Recipe" },
-			},
+			"@context": { id: "@id", name: iri(LinkRelations.NAME.rel), usedIn: { "@id": iri(LinkRelations.PART_OF.rel), range: "Recipe" } },
 			"@queryable": ["name"],
 		});
 		expect(topology.id).toBe("id");
@@ -27,13 +23,7 @@ describe("hypermediaDomainFromContext, declare a hypermedia domain from a JSON-L
 		expect(schema.safeParse({ id: "x", name: "X", bogus: 1 }).success).toBe(false);
 		// round-trips through the concern catalog (identifier + single-generatedAtTime invariants hold)
 		const cat = buildConcernCatalog({
-			ingredient: toRegisteredDomain({
-				selectors: ["ingredient"],
-				schema: fromJsonText(schema),
-				description: "An ingredient used in recipes.",
-				topology,
-				ui: { declared: true },
-			}),
+			ingredient: toRegisteredDomain({ selectors: ["ingredient"], schema: fromJsonText(schema), description: "An ingredient used in recipes.", topology, ui: { declared: true } }),
 		});
 		expect(cat.persisted.Ingredient.idField).toBe("id");
 		expect(cat.persisted.Ingredient.edges.usedIn.targets).toEqual(["Recipe"]);

@@ -126,10 +126,7 @@ export const restSteps = (webPlaywright: WebPlaywright) =>
 					return actionNotOK(`a response to count hasn't been received`);
 				}
 				webPlaywright.getWorld().eventLogger.info(`lastResponse JSON count is ${lastResponse.json.length}`);
-				return actionOKWithProducts({
-					summary: `JSON response contains ${lastResponse.json.length} items`,
-					details: { count: lastResponse.json.length },
-				});
+				return actionOKWithProducts({ summary: `JSON response contains ${lastResponse.json.length} items`, details: { count: lastResponse.json.length } });
 			},
 		},
 		responseJsonLengthIs: {

@@ -26,14 +26,7 @@ const cycles = (narrator: Narrator): IStepperCycles => ({
 			await doExec(narrator.captureStop, false);
 			const world = narrator.getWorld();
 			const path = captureLocator(world.options, world.tag);
-			const artifact = VideoArtifact.parse({
-				id: `narrator.video`,
-				timestamp: Date.now(),
-				kind: "artifact",
-				artifactType: "video",
-				path,
-				mimetype: "video/webm",
-			});
+			const artifact = VideoArtifact.parse({ id: `narrator.video`, timestamp: Date.now(), kind: "artifact", artifactType: "video", path, mimetype: "video/webm" });
 			narrator.getWorld().eventLogger.emit(artifact);
 		}
 	},
@@ -44,11 +37,7 @@ class Narrator extends AStepper implements IHasOptions, IHasCycles {
 
 	renderedAudio: TRenderedAudioMap = {};
 	options = {
-		CAPTURE_START: {
-			desc: "Shell command to start screen capture",
-			parse: (input: string) => stringOrError(input),
-			required: false,
-		},
+		CAPTURE_START: { desc: "Shell command to start screen capture", parse: (input: string) => stringOrError(input), required: false },
 		CAPTURE_STOP: { desc: "Shell command to stop screen capture", parse: (input: string) => stringOrError(input), required: false },
 	};
 
@@ -72,11 +61,7 @@ class Narrator extends AStepper implements IHasOptions, IHasCycles {
 	}
 
 	steps = {
-		prose: {
-			prose: true,
-			precludes: [`Haibun.prose`],
-			action: async (_args: Record<string, never>, featureStep: TFeatureStep) => this.maybeSay(featureStep),
-		},
+		prose: { prose: true, precludes: [`Haibun.prose`], action: async (_args: Record<string, never>, featureStep: TFeatureStep) => this.maybeSay(featureStep) },
 		feature: {
 			precludes: [`Haibun.feature`],
 			gwta: `Feature: {feature: ${DOMAIN_TITLE}}`,

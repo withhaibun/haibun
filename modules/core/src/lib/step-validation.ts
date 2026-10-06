@@ -7,15 +7,7 @@ import { mayCall, requiredAction } from "./actions.js";
 /**
  * Result of validating a step text against registered steppers.
  */
-type StepValidationResult =
-	| {
-			valid: true;
-			action: TStepAction;
-	  }
-	| {
-			valid: false;
-			error: string;
-	  };
+type StepValidationResult = { valid: true; action: TStepAction } | { valid: false; error: string };
 
 /**
  * Validate a step text against the steps of the registered steppers that a caller holding `held` may call, so a line

@@ -409,9 +409,7 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 			this.setState({ [field]: coerced } as Partial<z.infer<T>>);
 		} catch (error) {
 			// Name the attribute that drove the write: setState reports the state it rejected, not where that state came from.
-			throw new Error(`<${this.tagName.toLowerCase()}> attribute ${name}=${JSON.stringify(val)} → state.${field}: ${errorDetail(error)}`, {
-				cause: error,
-			});
+			throw new Error(`<${this.tagName.toLowerCase()}> attribute ${name}=${JSON.stringify(val)} → state.${field}: ${errorDetail(error)}`, { cause: error });
 		}
 	}
 

@@ -211,10 +211,7 @@ const relValues = Object.values(LinkRelations).map((lr) => lr.rel) as [string, .
 export const RelSchema = z.enum(relValues);
 
 /** A single persisted-domain property mapped to its ActivityStreams predicate. */
-const PropertyConcernSchema = z.object({
-	term: z.string(),
-	rel: RelSchema,
-});
+const PropertyConcernSchema = z.object({ term: z.string(), rel: RelSchema });
 type TPropertyConcern = z.infer<typeof PropertyConcernSchema>;
 
 /** An outgoing edge with its vocabulary term, classifying rel, and target persisted label. A consumer-declared edge
@@ -270,18 +267,11 @@ type THypermediaConcern = z.infer<typeof HypermediaConcernSchema>;
  * should render as a persisted-individual picker instead of a typed-from-scratch composite.
  * Built by `individualRefDomain(refKey, targetKey)` in `domains.ts`.
  */
-const ReferenceConcernSchema = z.object({
-	refDomain: z.string(),
-	targetDomain: z.string(),
-	targetPersistedAs: z.string().optional(),
-});
+const ReferenceConcernSchema = z.object({ refDomain: z.string(), targetDomain: z.string(), targetPersistedAs: z.string().optional() });
 type TReferenceConcern = z.infer<typeof ReferenceConcernSchema>;
 
 /** All concerns emitted by a running server. */
-export const ConcernCatalogSchema = z.object({
-	persisted: z.record(z.string(), HypermediaConcernSchema),
-	references: z.record(z.string(), ReferenceConcernSchema).default({}),
-});
+export const ConcernCatalogSchema = z.object({ persisted: z.record(z.string(), HypermediaConcernSchema), references: z.record(z.string(), ReferenceConcernSchema).default({}) });
 export type TConcernCatalog = z.infer<typeof ConcernCatalogSchema>;
 
 // ============================================================================
@@ -899,11 +889,7 @@ export type TJsonLdContextDocument = { "@context": Record<string, unknown>; "@gr
 
 /** Build JSON-LD context from domain topology. Derives URI mappings from domain property rels. */
 export function getJsonLdContext(domains: Record<string, TRegisteredDomain>, haibunNs: string = HAIBUN_NS): TJsonLdContextDocument {
-	const context: Record<string, unknown> = {
-		"@version": 1.1,
-		...STANDARD_NAMESPACES,
-		hbn: haibunNs,
-	};
+	const context: Record<string, unknown> = { "@version": 1.1, ...STANDARD_NAMESPACES, hbn: haibunNs };
 	// JSON-LD 1.1 type-scoped context. Each @type carries a nested @context mapping ITS field/edge terms to the genuine
 	// IRIs its own rels declare, so a field name reused across domains (e.g. "expires", "author", "type") resolves to the
 	// CORRECT IRI under each type, honoring the per-domain rel (which also drives column-view presentation: filter via

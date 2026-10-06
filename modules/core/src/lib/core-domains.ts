@@ -215,16 +215,8 @@ export const chainLintSchema = z
 	.strict();
 
 const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
-	{
-		selectors: [DOMAIN_STRING],
-		schema: stringSchema,
-		description: "Plain string literal captured from feature text.",
-	},
-	{
-		selectors: [DOMAIN_TEXT],
-		schema: stringSchema,
-		description: "Free text a person writes: a note, a question, a reason or a passage quoted, read as written.",
-	},
+	{ selectors: [DOMAIN_STRING], schema: stringSchema, description: "Plain string literal captured from feature text." },
+	{ selectors: [DOMAIN_TEXT], schema: stringSchema, description: "Free text a person writes: a note, a question, a reason or a passage quoted, read as written." },
 	{
 		selectors: [DOMAIN_VARIABLE_NAME],
 		schema: NameSchema,
@@ -256,11 +248,7 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		description: "The text of a line comment, after `;;`, as the feature writes it. Actuality doesn't act on it.",
 	},
 	{ selectors: [DOMAIN_ROUTE], schema: NameSchema, description: "The path a web server serves something at, such as /shu." },
-	{
-		selectors: [DOMAIN_BEARER_TOKEN],
-		schema: NameSchema,
-		description: "A token whose holder is granted what it grants, sent as `Authorization: Bearer` (RFC 6750).",
-	},
+	{ selectors: [DOMAIN_BEARER_TOKEN], schema: NameSchema, description: "A token whose holder is granted what it grants, sent as `Authorization: Bearer` (RFC 6750)." },
 	{ selectors: [DOMAIN_USER_NAME], schema: NameSchema, description: "The name an account signs in with." },
 	{ selectors: [DOMAIN_PERSISTED_TYPES], schema: listedSchema(NameSchema, "type"), description: "Types records persist as, given as a list or as text separated by commas." },
 	{
@@ -302,11 +290,7 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		schema: fromJsonText(z.array(z.string().min(1)).min(1)),
 		description: "Step lines, in order, as a JSON array: the statements a saved activity runs.",
 	},
-	{
-		selectors: [DOMAIN_LINK],
-		schema: stringSchema,
-		description: "URI string representing a navigable link.",
-	},
+	{ selectors: [DOMAIN_LINK], schema: stringSchema, description: "URI string representing a navigable link." },
 	{
 		selectors: [DOMAIN_NUMBER],
 		schema: numberSchema,
@@ -336,31 +320,11 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		schema: listedSchema(z.string().min(1), "action"),
 		description: "The actions a caller holds or a delegation allows, such as `Read:public` or `WebPlaywright:attach`, given as a list or as text separated by commas.",
 	},
-	{
-		selectors: [DOMAIN_INDIVIDUAL_ADDRESS],
-		schema: IndividualAddressSchema,
-		description: "An individual named by the type it is persisted as and its id.",
-	},
-	{
-		selectors: [DOMAIN_RECORD_ID],
-		schema: recordIdInputSchema,
-		description: "The id of a record, of the type another parameter of the same step names.",
-	},
-	{
-		selectors: [DOMAIN_JSON],
-		schema: fromJsonText(z.json()),
-		description: "A JSON value, given as its text or as the value.",
-	},
-	{
-		selectors: [DOMAIN_JSON_OBJECT],
-		schema: JsonObjectTextSchema,
-		description: "A JSON object, given as its text or as the object.",
-	},
-	{
-		selectors: [DOMAIN_MICHI],
-		schema: michiSchema,
-		description: "One concrete path the resolver found from working memory to a goal: ordered steps plus per-input bindings.",
-	},
+	{ selectors: [DOMAIN_INDIVIDUAL_ADDRESS], schema: IndividualAddressSchema, description: "An individual named by the type it is persisted as and its id." },
+	{ selectors: [DOMAIN_RECORD_ID], schema: recordIdInputSchema, description: "The id of a record, of the type another parameter of the same step names." },
+	{ selectors: [DOMAIN_JSON], schema: fromJsonText(z.json()), description: "A JSON value, given as its text or as the value." },
+	{ selectors: [DOMAIN_JSON_OBJECT], schema: JsonObjectTextSchema, description: "A JSON object, given as its text or as the object." },
+	{ selectors: [DOMAIN_MICHI], schema: michiSchema, description: "One concrete path the resolver found from working memory to a goal: ordered steps plus per-input bindings." },
 	{
 		selectors: [DOMAIN_GOAL_RESOLUTION],
 		schema: goalResolutionSchema,

@@ -280,16 +280,18 @@ describe("UrakataRegistry persistence of transitions", () => {
 	it("leaves a prior instance's row untouched (it already tells the truth); re-registering the id overwrites it with the current instance", async () => {
 		const world = getDefaultWorld();
 		// A row from another run instance, never cleanly stopped: the abrupt-stop reading.
-		await world.shared.getStore().upsertIndividual(URAKATA_LABEL, {
-			id: "imap.idle.acct/INBOX",
-			description: "from a prior instance",
-			execution: "OTHER-INSTANCE",
-			seqPath: [0],
-			startedAt: new Date().toISOString(),
-			tickIndex: 5,
-			errorCount: 0,
-			generatedAtTime: new Date(),
-		});
+		await world.shared
+			.getStore()
+			.upsertIndividual(URAKATA_LABEL, {
+				id: "imap.idle.acct/INBOX",
+				description: "from a prior instance",
+				execution: "OTHER-INSTANCE",
+				seqPath: [0],
+				startedAt: new Date().toISOString(),
+				tickIndex: 5,
+				errorCount: 0,
+				generatedAtTime: new Date(),
+			});
 		const registry = new UrakataRegistry(world, () => undefined);
 		const fresh = registry.register({ needs: [], id: "different.task", description: "new", intervalMs: 1000, tick: () => undefined });
 		await sleep(0);

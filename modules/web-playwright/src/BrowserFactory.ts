@@ -202,14 +202,7 @@ export class BrowserFactory {
 		if (held) return held;
 		let browserContext: BrowserContext;
 		const config = BrowserFactory.configFor(tag);
-		const deviceContext = config.device
-			? { ...devices[config.device] }
-			: {
-					viewport: {
-						width: 1280,
-						height: 1024,
-					},
-				};
+		const deviceContext = config.device ? { ...devices[config.device] } : { viewport: { width: 1280, height: 1024 } };
 		const launchConfig = { ...deviceContext, ...config.options, ...config.launchOptions };
 		if (config.cdp !== undefined) {
 			const [context] = (await this.getBrowser(tag)).contexts();

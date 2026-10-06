@@ -125,10 +125,7 @@ describe("seqPath ordering", () => {
 
 describe("afterEvery", () => {
 	it("afterEvery effect injects step", async () => {
-		const feature = {
-			path: "/features/test.feature",
-			content: 'have a test\nafter every "TestSteps", Noodles, man.\npasses\npasses',
-		};
+		const feature = { path: "/features/test.feature", content: 'have a test\nafter every "TestSteps", Noodles, man.\npasses\npasses' };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
 		const ins = result.featureResults?.[0].stepResults.map((r) => r.in);
@@ -146,10 +143,7 @@ describe("afterEvery", () => {
 	});
 
 	it("afterEvery effect injects hierarchical step with parent seqPath extended", async () => {
-		const feature = {
-			path: "/features/test.feature",
-			content: 'have a test\nafter every "TestSteps", passes\nhave a test\npasses',
-		};
+		const feature = { path: "/features/test.feature", content: 'have a test\nafter every "TestSteps", passes\nhave a test\npasses' };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
 		const seqs = result.featureResults?.[0].stepResults.map((r) => r.seqPath);
@@ -165,10 +159,7 @@ describe("afterEvery", () => {
 	});
 
 	it("runs after a step of the feature, once, and not after the substeps of carrying it out", async () => {
-		const feature = {
-			path: "/features/test.feature",
-			content: ["have a test", 'after every "TestSteps", Noodles, man.', "passes", "not fails"].join("\n"),
-		};
+		const feature = { path: "/features/test.feature", content: ["have a test", 'after every "TestSteps", Noodles, man.', "passes", "not fails"].join("\n") };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps, LogicStepper]);
 		expect(result.ok).toBe(true);
 		const said = (result.featureResults?.[0].stepResults ?? []).filter((r) => r.in === "Noodles, man.").length;
@@ -379,10 +370,7 @@ describe("backgrounds", () => {
 	});
 
 	it("background steps have correct file path", async () => {
-		const feature = {
-			path: "/features/test.feature",
-			content: 'set ran to "false"\nwhere variable "ran" is "false", Backgrounds: bg',
-		};
+		const feature = { path: "/features/test.feature", content: 'set ran to "false"\nwhere variable "ran" is "false", Backgrounds: bg' };
 		const background = { path: "/backgrounds/bg.feature", content: 'set ran to "true"\nends with "OK"' };
 		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
@@ -421,14 +409,8 @@ describe("backgrounds", () => {
 	});
 
 	it("activity block steps have correct lineNumber and folder path", async () => {
-		const background = {
-			path: "/backgrounds/bg.feature",
-			content: 'Activity: Test Activity\n    set x to "1"\n    waypoint Test Activity with variable x is "1"',
-		};
-		const feature = {
-			path: "/features/test.feature",
-			content: "Backgrounds: bg\nScenario: Run Activity\n    ensure Test Activity",
-		};
+		const background = { path: "/backgrounds/bg.feature", content: 'Activity: Test Activity\n    set x to "1"\n    waypoint Test Activity with variable x is "1"' };
+		const feature = { path: "/features/test.feature", content: "Backgrounds: bg\nScenario: Run Activity\n    ensure Test Activity" };
 
 		const result = await passWithDefaults([feature], [Haibun, ActivitiesStepper, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);

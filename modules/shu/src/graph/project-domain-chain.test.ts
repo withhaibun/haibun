@@ -24,10 +24,7 @@ describe("projectDomainChain", () => {
 	});
 
 	it("introduces the sentinel source domain when any step doesn't have an input domain", () => {
-		const snap: TAffordancesSnapshot = {
-			forward: [{ stepperName: "S", stepName: "s", inputDomains: [], outputDomains: ["b"], readyToRun: true }],
-			goals: [],
-		};
+		const snap: TAffordancesSnapshot = { forward: [{ stepperName: "S", stepName: "s", inputDomains: [], outputDomains: ["b"], readyToRun: true }], goals: [] };
 		const g = projectDomainChain(snap);
 		expect(g.nodes.some((n) => n.id === SOURCE_DOMAIN)).toBe(true);
 		const edge = g.edges.find((e) => e.to === "b");

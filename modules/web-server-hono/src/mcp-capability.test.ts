@@ -25,16 +25,8 @@ class ProtectedStepper extends AStepper {
 	description = "Steps gated by a protected and an admin capability, for tests of MCP authorization.";
 	cycles = declaresTestDomains();
 	steps = {
-		protectedAction: {
-			exact: "protected mcp action",
-			capability: "ProtectedStepper:invoke",
-			action: async () => OK,
-		},
-		adminAction: {
-			exact: "admin mcp action",
-			capability: "ProtectedStepper:admin",
-			action: async () => OK,
-		},
+		protectedAction: { exact: "protected mcp action", capability: "ProtectedStepper:invoke", action: async () => OK },
+		adminAction: { exact: "admin mcp action", capability: "ProtectedStepper:admin", action: async () => OK },
 		readsAt: {
 			exact: "mcp read level",
 			read: true,
@@ -230,11 +222,7 @@ const MCP_HEADERS = { "content-type": "application/json", accept: "application/j
 
 async function callTool(port: string, toolName: string, signed?: TSigned): Promise<Record<string, unknown>> {
 	const mcpUrl = `http://localhost:${port}/mcp`;
-	await rpc(mcpUrl, 1, "initialize", {
-		protocolVersion: "2024-11-05",
-		capabilities: {},
-		clientInfo: { name: "capability-client", version: "1.0" },
-	});
+	await rpc(mcpUrl, 1, "initialize", { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "capability-client", version: "1.0" } });
 	return await rpc(mcpUrl, 2, "tools/call", { name: toolName, arguments: {} }, signed);
 }
 
@@ -254,12 +242,6 @@ async function rpc(url: string, id: number, method: string, params: Record<strin
 	return (await response.json()) as Record<string, unknown>;
 }
 
-function getToolResult(response: Record<string, unknown>): {
-	isError?: boolean;
-	content?: Array<{ type?: string; text?: string }>;
-} {
-	return ((response.result as Record<string, unknown> | undefined) ?? response) as {
-		isError?: boolean;
-		content?: Array<{ type?: string; text?: string }>;
-	};
+function getToolResult(response: Record<string, unknown>): { isError?: boolean; content?: Array<{ type?: string; text?: string }> } {
+	return ((response.result as Record<string, unknown> | undefined) ?? response) as { isError?: boolean; content?: Array<{ type?: string; text?: string }> };
 }

@@ -23,12 +23,7 @@ class ShuChipGroup extends ShuElement<z.ZodObject> {
 		return null;
 	}
 
-	static properties = {
-		name: { attribute: true },
-		chips: { attribute: false },
-		onToggle: { attribute: false },
-		onPreview: { attribute: false },
-	};
+	static properties = { name: { attribute: true }, chips: { attribute: false }, onToggle: { attribute: false }, onPreview: { attribute: false } };
 
 	/** The group's name, shown before the chips ("types", "properties", "group by role"). */
 	declare name: string;

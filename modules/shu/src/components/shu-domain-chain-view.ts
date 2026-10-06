@@ -35,10 +35,7 @@ import { graphPresenterTag, mountGraphPresenter, presenterIn, type TGraphPresent
  *  settings under. */
 const CHAIN_GRAPH = { slot: SHU_TEST_IDS.DOMAIN_CHAIN.GRAPH, scope: "domain-chain" } as const;
 
-const StateSchema = z.object({
-	loadState: z.enum(["idle", "fetching", "loaded", "empty"]).default("idle"),
-	fetchError: z.string().default(""),
-});
+const StateSchema = z.object({ loadState: z.enum(["idle", "fetching", "loaded", "empty"]).default("idle"), fetchError: z.string().default("") });
 
 export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 	/** What the embedded graph shows of the chain. */

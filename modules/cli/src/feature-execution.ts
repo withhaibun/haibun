@@ -91,10 +91,7 @@ export const featureExecutionDomainDefinition: TDomainDefinition = {
 		// Who started it and what asked for it are EDGES, with the types they range over, as every other attributed
 		// record declares them. Declared as plain properties they name a principal without an edge to follow, so
 		// the run never stands on the lifeline of whoever started it and is missing from any reading built from actors.
-		edges: {
-			attributedTo: { rel: LinkRelations.ATTRIBUTED_TO.rel, range: PRINCIPAL_LABEL },
-			inReplyTo: { rel: LinkRelations.IN_REPLY_TO.rel, range: COMMENT_LABEL },
-		},
+		edges: { attributedTo: { rel: LinkRelations.ATTRIBUTED_TO.rel, range: PRINCIPAL_LABEL }, inReplyTo: { rel: LinkRelations.IN_REPLY_TO.rel, range: COMMENT_LABEL } },
 	},
 };
 

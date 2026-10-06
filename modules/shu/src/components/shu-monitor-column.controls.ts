@@ -39,9 +39,7 @@ const DOMAIN_RAIL_END = "rail-end";
 export default class ShuMonitorColumnControls extends AStepper implements IHasCycles {
 	description = "shu-monitor-column inspection: count rendered log rows to assert the data window bounds the view.";
 	cycles: IStepperCycles = {
-		getConcerns: () => ({
-			domains: [createEnumDomainDefinition({ name: DOMAIN_RAIL_END, values: Object.values(RAIL_END), description: "An end of the monitor's scroll rail" })],
-		}),
+		getConcerns: () => ({ domains: [createEnumDomainDefinition({ name: DOMAIN_RAIL_END, values: Object.values(RAIL_END), description: "An end of the monitor's scroll rail" })] }),
 	};
 
 	private page(): Promise<Page> {

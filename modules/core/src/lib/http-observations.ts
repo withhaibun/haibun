@@ -59,12 +59,7 @@ function pathMatchesParameterized(route: string, path: string): boolean {
 }
 
 /** Observation data for a single HTTP request. `durationMs` is unknown for some observers (node fetches). */
-type THttpRequestObservation = {
-	url: string;
-	status: number;
-	durationMs?: number;
-	method: string;
-};
+type THttpRequestObservation = { url: string; status: number; durationMs?: number; method: string };
 
 /** Per-store memo so the per-response path skips work that cannot change: the singleton client node, an already-linked
  *  endpoint, and re-reading a host's requestCount. A scenario's fresh store starts a fresh entry. */

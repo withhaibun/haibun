@@ -20,19 +20,9 @@ import { DOMAIN_TEXT } from "../lib/domains.js";
 class PingStepper extends AStepper {
 	description = "A step that takes Ping:protected, for tests of narrowing what a statement holds.";
 	steps = {
-		protectedPing: {
-			exact: "protected ping",
-			capability: "Ping:protected",
-			action: () => Promise.resolve(OK),
-		},
-		readsPublicOnly: {
-			exact: "reads public only",
-			action: () => Promise.resolve(readingAt() === "public" ? OK : actionNotOK(`reads at ${readingAt() ?? "no ceiling"}`)),
-		},
-		repeats: {
-			gwta: `repeats {said: ${DOMAIN_TEXT}}`,
-			action: ({ said }: { said: string }) => Promise.resolve(said === KEPT ? OK : actionNotOK(`was given ${said}`)),
-		},
+		protectedPing: { exact: "protected ping", capability: "Ping:protected", action: () => Promise.resolve(OK) },
+		readsPublicOnly: { exact: "reads public only", action: () => Promise.resolve(readingAt() === "public" ? OK : actionNotOK(`reads at ${readingAt() ?? "no ceiling"}`)) },
+		repeats: { gwta: `repeats {said: ${DOMAIN_TEXT}}`, action: ({ said }: { said: string }) => Promise.resolve(said === KEPT ? OK : actionNotOK(`was given ${said}`)) },
 		holdsACall: {
 			exact: "holds a call",
 			action: () => {

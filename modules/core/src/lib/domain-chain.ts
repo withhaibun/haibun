@@ -18,11 +18,7 @@ import { stepParamDomains } from "./step-registry.js";
 /** Sentinel source domain for terminal producers (steps that don't need inputs). */
 export const SOURCE_DOMAIN = "∅";
 
-type TDomainChainNode = {
-	key: string;
-	description?: string;
-	hasTopology: boolean;
-};
+type TDomainChainNode = { key: string; description?: string; hasTopology: boolean };
 
 export type TDomainChainStep = {
 	stepperName: string;
@@ -35,29 +31,16 @@ export type TDomainChainStep = {
 	capability: string;
 };
 
-type TDomainChainEdge = {
-	from: string;
-	to: string;
-	stepperName: string;
-	stepName: string;
-};
+type TDomainChainEdge = { from: string; to: string; stepperName: string; stepName: string };
 
-export type TDomainChainGraph = {
-	domains: TDomainChainNode[];
-	steps: TDomainChainStep[];
-	edges: TDomainChainEdge[];
-};
+export type TDomainChainGraph = { domains: TDomainChainNode[]; steps: TDomainChainStep[]; edges: TDomainChainEdge[] };
 
 /**
  * Build the domain chain graph from a stepper set and a domain registry.
  * The walk is deterministic and pure: same inputs → same output.
  */
 export function buildDomainChain(steppers: AStepper[], domains: Record<string, TRegisteredDomain>): TDomainChainGraph {
-	const nodes: TDomainChainNode[] = Object.entries(domains).map(([key, def]) => ({
-		key,
-		description: def.description,
-		hasTopology: !!def.topology,
-	}));
+	const nodes: TDomainChainNode[] = Object.entries(domains).map(([key, def]) => ({ key, description: def.description, hasTopology: !!def.topology }));
 
 	const steps: TDomainChainStep[] = [];
 	const edges: TDomainChainEdge[] = [];

@@ -83,12 +83,7 @@ describe("projectFilterClusters", () => {
 	});
 
 	it("counts unique subjects, not quad rows", () => {
-		const result = projectFilterClusters({
-			knownClusters: new Map(),
-			allQuads: [],
-			visibleQuads: [quad("Kihan", "a"), quad("Kihan", "a"), quad("Kihan", "b")],
-			timeCursor: 100,
-		});
+		const result = projectFilterClusters({ knownClusters: new Map(), allQuads: [], visibleQuads: [quad("Kihan", "a"), quad("Kihan", "a"), quad("Kihan", "b")], timeCursor: 100 });
 		expect(result[0].totalCount).toBe(2);
 	});
 

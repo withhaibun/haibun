@@ -40,9 +40,7 @@ import { isKnownType } from "../rels-cache.js";
 import { artifactUrl } from "../artifact-url.js";
 import { refLinksPlugin } from "../markdown-refs.js";
 
-const DocumentColumnSchema = z.object({
-	level: z.enum(HAIBUN_LOG_LEVELS).default("log"),
-});
+const DocumentColumnSchema = z.object({ level: z.enum(HAIBUN_LOG_LEVELS).default("log") });
 
 const mdRenderer = new MarkdownIt({ html: true, linkify: true, typographer: true });
 withHeadingAnchors(mdRenderer);

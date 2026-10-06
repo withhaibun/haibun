@@ -40,14 +40,7 @@
 import type { DebuggerSession, Debuggee, Tab } from "./protocol.js";
 import type { TRelayAttachment } from "./relay-wire.js";
 
-export type CDPMessage = {
-	id?: number;
-	sessionId?: string;
-	method?: string;
-	params?: unknown;
-	result?: unknown;
-	error?: { code?: number; message: string };
-};
+export type CDPMessage = { id?: number; sessionId?: string; method?: string; params?: unknown; result?: unknown; error?: { code?: number; message: string } };
 
 export type SendCommand = (method: string, params: unknown) => Promise<unknown>;
 export type SendToCDPClient = (message: CDPMessage) => void;
@@ -212,14 +205,7 @@ export class BrowserModel {
 		const sessionId = `pw-tab-${this._nextSessionId++}`;
 		const tabSession: TabSession = { tabId, sessionId, targetInfo, childSessions: new Set() };
 		this._tabSessions.set(tabId, tabSession);
-		this._emit({
-			method: "Target.attachedToTarget",
-			params: {
-				sessionId,
-				targetInfo: { ...targetInfo, attached: true },
-				waitingForDebugger: false,
-			},
-		});
+		this._emit({ method: "Target.attachedToTarget", params: { sessionId, targetInfo: { ...targetInfo, attached: true }, waitingForDebugger: false } });
 		return tabSession;
 	}
 
@@ -227,13 +213,7 @@ export class BrowserModel {
 		const tabSession = this._tabSessions.get(tabId);
 		if (!tabSession) return;
 		this._tabSessions.delete(tabId);
-		this._emit({
-			method: "Target.detachedFromTarget",
-			params: {
-				sessionId: tabSession.sessionId,
-				targetId: tabSession.targetInfo?.targetId,
-			},
-		});
+		this._emit({ method: "Target.detachedFromTarget", params: { sessionId: tabSession.sessionId, targetId: tabSession.targetInfo?.targetId } });
 	}
 
 	private _findTabSession(predicate: (session: TabSession) => boolean): TabSession | undefined {

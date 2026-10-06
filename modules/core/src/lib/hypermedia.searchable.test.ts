@@ -75,12 +75,7 @@ describe("the fields a text search reads", () => {
 		const topology: THypermediaTopology = {
 			persistedAs: "Message",
 			id: "messageId",
-			properties: {
-				messageId: LinkRelations.IDENTIFIER.rel,
-				from: LinkRelations.ATTRIBUTED_TO.rel,
-				to: LinkRelations.AUDIENCE.rel,
-				folder: LinkRelations.CONTEXT.rel,
-			},
+			properties: { messageId: LinkRelations.IDENTIFIER.rel, from: LinkRelations.ATTRIBUTED_TO.rel, to: LinkRelations.AUDIENCE.rel, folder: LinkRelations.CONTEXT.rel },
 		};
 		expect(searchableFields({ schema, topology }), "a list of recipients is text as each recipient is").toEqual(["folder", "from", "to"]);
 	});

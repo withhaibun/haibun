@@ -41,10 +41,7 @@ describe("vars", () => {
 	it('does not obscure variable by name when only its value contains "secret"', async () => {
 		const content = 'set snake value/path to "ISECRET_snake"\nshow var snake value/path';
 		const envVariables = { SNAKE_CASE_PASSWORD: "ISECRET_snake" };
-		const res = await passWithDefaults(content, [EventCollectorStepper, ...steppers], {
-			options: { DEST: DEFAULT_DEST, envVariables },
-			moduleOptions: {},
-		});
+		const res = await passWithDefaults(content, [EventCollectorStepper, ...steppers], { options: { DEST: DEFAULT_DEST, envVariables }, moduleOptions: {} });
 		expect(res.ok).toBe(true);
 		const showStep = res.featureResults?.[0]?.stepResults?.find((s) => s.in?.includes("show var"));
 		expect(showStep?.products?._summary).toContain("ISECRET_snake");
@@ -54,10 +51,7 @@ describe("vars", () => {
 	it('does not obscure variable when only its value contains "password"', async () => {
 		const content = 'set login hint to "Enter password"\nshow var login hint';
 		const envVariables = { DATABASE_PASSWORD: "db-secret-123" };
-		const res = await passWithDefaults(content, [EventCollectorStepper, ...steppers], {
-			options: { DEST: DEFAULT_DEST, envVariables },
-			moduleOptions: {},
-		});
+		const res = await passWithDefaults(content, [EventCollectorStepper, ...steppers], { options: { DEST: DEFAULT_DEST, envVariables }, moduleOptions: {} });
 		expect(res.ok).toBe(true);
 		const showStep = res.featureResults?.[0]?.stepResults?.find((s) => s.in?.includes("show var"));
 		expect(showStep?.products?._summary).toContain("Enter password");
@@ -99,10 +93,7 @@ describe("random vars", () => {
 	it("propagates secret flag through compose", async () => {
 		const content = "set apiPassword to API_PASSWORD\ncompose token with {apiPassword}\nshow var token";
 		const envVariables = { API_PASSWORD: "secret-123" };
-		const res = await passWithDefaults(content, [EventCollectorStepper, ...steppers], {
-			options: { DEST: DEFAULT_DEST, envVariables },
-			moduleOptions: {},
-		});
+		const res = await passWithDefaults(content, [EventCollectorStepper, ...steppers], { options: { DEST: DEFAULT_DEST, envVariables }, moduleOptions: {} });
 		expect(res.ok).toBe(true);
 		expect(await res.world.shared.get("token", true)).toBe("secret-123");
 		expect(await res.world.shared.get("token")).toBe(OBSCURED_VALUE);

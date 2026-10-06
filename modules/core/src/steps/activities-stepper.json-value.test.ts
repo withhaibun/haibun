@@ -20,15 +20,7 @@ let lastReceived: { did: string; name: string } | undefined;
 
 class PersonStepper extends AStepper {
 	cycles: IStepperCycles = {
-		getConcerns: () => ({
-			domains: [
-				{
-					selectors: ["person-input"],
-					schema: fromJsonText(PersonSchema),
-					description: "A person identified by DID with a display name.",
-				},
-			],
-		}),
+		getConcerns: () => ({ domains: [{ selectors: ["person-input"], schema: fromJsonText(PersonSchema), description: "A person identified by DID with a display name." }] }),
 	};
 	steps: TStepperSteps = {
 		registerPerson: {

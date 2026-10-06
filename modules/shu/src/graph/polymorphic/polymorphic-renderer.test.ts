@@ -76,11 +76,7 @@ describe("what a renderer was given", () => {
 		// The library caches each node's object and re-runs the factory only when the accessor is a different function.
 		// Passing the same one leaves every node wearing the shape it had: a pin that never gets its frame.
 		const given: Array<(n: FGNode) => unknown> = [];
-		const graph = {
-			graphData: () => undefined,
-			width: () => ({ height: () => undefined }),
-			nodeThreeObject: (fn: (n: FGNode) => unknown) => given.push(fn),
-		};
+		const graph = { graphData: () => undefined, width: () => ({ height: () => undefined }), nodeThreeObject: (fn: (n: FGNode) => unknown) => given.push(fn) };
 		const shape = (n: FGNode) => n.id;
 		const r = threeRenderer(graph, shape);
 		r.rebuildNodes();

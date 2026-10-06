@@ -8,11 +8,7 @@
 
 type TEngineMode = "idle" | "settling" | "holding" | "frozen";
 
-export type TPacedGraph = {
-	cooldownTicks(n: number): unknown;
-	cooldownTime(ms: number): unknown;
-	d3ReheatSimulation(): unknown;
-};
+export type TPacedGraph = { cooldownTicks(n: number): unknown; cooldownTime(ms: number): unknown; d3ReheatSimulation(): unknown };
 
 const DATA_SETTLE_TICKS = 1; // the feed is placed before it lands, so one tick moves every sprite to its position
 const HOLD_TICKS = 1_000_000; // effectively "keep ticking until told otherwise" (tween/drag drive pins each frame)

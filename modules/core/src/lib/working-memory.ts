@@ -18,11 +18,7 @@
 import type { TWorld } from "./world.js";
 import type { IQuadStore, TQuad, TQuadPattern } from "./quad-types.js";
 
-export const OBSERVATION_GRAPH = {
-	STEP_USAGE: "observation/step-usage",
-	RUNTIME_FLAG: "observation/runtime-flag",
-	EVENT: "observation/event",
-} as const;
+export const OBSERVATION_GRAPH = { STEP_USAGE: "observation/step-usage", RUNTIME_FLAG: "observation/runtime-flag", EVENT: "observation/event" } as const;
 
 /**
  * Named graph holding step-product assertions auto-asserted by the dispatcher
@@ -60,4 +56,3 @@ export function getFact(world: TWorld, domain: string, identity: string, namedGr
 	const store: IQuadStore = world.shared.getStore();
 	return store.get(identity, domain, namedGraph);
 }
-

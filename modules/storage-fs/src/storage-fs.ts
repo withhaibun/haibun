@@ -16,13 +16,7 @@ export default class StorageFS extends AStorage {
 	};
 	lstatToIFile(file: string) {
 		const l = fs.lstatSync(file);
-		const ifile = {
-			name: file,
-			size: l.size,
-			created: l.mtime.getTime(),
-			isDirectory: l.isDirectory(),
-			isFile: l.isFile(),
-		};
+		const ifile = { name: file, size: l.size, created: l.mtime.getTime(), isDirectory: l.isDirectory(), isFile: l.isFile() };
 		return Promise.resolve(<IFile>ifile);
 	}
 	readdir = (dir: string) => {

@@ -58,7 +58,8 @@ export function jsonDisclosure(value: unknown, name = ""): string {
 
 /** The whole of a record as JSON, last in the view that shows it, so what the view's fields leave out reads there. It starts
  *  closed where a body follows it, so the body keeps the height it reads in. */
-export const recordJson = (value: unknown, open: boolean): string => `<details class="record-json"${open ? " open" : ""} data-testid="${RECORD_JSON}"><summary>Data</summary>${jsonDisclosure(value)}</details>`;
+export const recordJson = (value: unknown, open: boolean): string =>
+	`<details class="record-json"${open ? " open" : ""} data-testid="${RECORD_JSON}"><summary>Data</summary>${jsonDisclosure(value)}</details>`;
 
 /**
  * A literal that carries JSON, shown as what it is: the words before it as words, and the JSON as disclosures.

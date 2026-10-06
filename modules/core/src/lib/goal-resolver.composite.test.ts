@@ -31,12 +31,7 @@ function makeDomains(): Record<string, TRegisteredDomain> {
 	return {
 		issuer: reg(IssuerSchema, { persistedAs: "Issuer", id: "did", properties: {} }),
 		proof: reg(ProofSchema, { persistedAs: "Proof", id: "value", properties: {} }),
-		vc: reg(VcSchema, {
-			persistedAs: "VerifiableCredential",
-			id: "subject",
-			properties: {},
-			ranges: { issuer: "issuer", proof: "proof" },
-		}),
+		vc: reg(VcSchema, { persistedAs: "VerifiableCredential", id: "subject", properties: {}, ranges: { issuer: "issuer", proof: "proof" } }),
 		"verifiable-credential": reg(z.object({ id: z.string() })),
 	};
 }
@@ -89,13 +84,7 @@ describe("resolveGoal, composite decomposition", () => {
 
 	it("uses an existing fact for a ranged field instead of asking for an argument", () => {
 		const graph = graphIssuingCredential();
-		const issuerFact: TQuad = {
-			subject: "fact-issuer-1",
-			predicate: "issuer",
-			object: { did: "did:example:alice" },
-			namedGraph: "facts",
-			timestamp: 1,
-		};
+		const issuerFact: TQuad = { subject: "fact-issuer-1", predicate: "issuer", object: { did: "did:example:alice" }, namedGraph: "facts", timestamp: 1 };
 		const result = resolveGoal("verifiable-credential", withComposite({ graph, facts: [issuerFact], held: RUN_AUTHORITY }));
 		if (result.finding !== GOAL_FINDING.MICHI) throw new Error(`expected MICHI, got ${result.finding}`);
 		const composite = findComposite(result.michi[0].bindings);

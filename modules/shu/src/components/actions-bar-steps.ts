@@ -57,11 +57,7 @@ export function stepOptions(steps: readonly TStepDefinition[], forTheType: reado
 }
 
 /** What the steps read from the bar: its test-id prefix, the selected type, and the history callers open in. */
-type TActionsBarStepsDeps = {
-	testIdPrefix: () => string;
-	selectedLabel: () => string;
-	history: ShuActivityHistory;
-};
+type TActionsBarStepsDeps = { testIdPrefix: () => string; selectedLabel: () => string; history: ShuActivityHistory };
 
 /** A step caller as the steps address it: whether it has run its step. */
 type TStepCaller = HTMLElement & { executed?: boolean };

@@ -7,11 +7,7 @@ import { RUN_ACCESS_LEVELS, type TRunPolicyConfig } from "./run-policy-types.js"
 // Policy File Schema, Hierarchical JSON Schema
 // ============================================================================
 
-const DenyRuleSchema = z.object({
-	place: z.string().optional(),
-	dir: z.string().optional(),
-	access: z.enum(RUN_ACCESS_LEVELS).optional(),
-});
+const DenyRuleSchema = z.object({ place: z.string().optional(), dir: z.string().optional(), access: z.enum(RUN_ACCESS_LEVELS).optional() });
 
 /**
  * Validates the policy file structure itself.
@@ -229,12 +225,7 @@ function buildConfigValidator(policy: TRunPolicy) {
 		// Validate strictness: block non-existent parameters
 		for (const key of Object.keys(config)) {
 			if (!allowedKeys.has(key)) {
-				ctx.addIssue({
-					code: z.ZodIssueCode.unrecognized_keys,
-					keys: [key],
-					message: `Unrecognized key(s) in object: '${key}'`,
-					path: [],
-				});
+				ctx.addIssue({ code: z.ZodIssueCode.unrecognized_keys, keys: [key], message: `Unrecognized key(s) in object: '${key}'`, path: [] });
 			}
 		}
 

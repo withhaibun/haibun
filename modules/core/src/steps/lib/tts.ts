@@ -162,10 +162,7 @@ export function copyPreRenderedAudio(dir: string, renderedAudio: TRenderedAudioM
 export function playAudioFile(audioPath: string): Promise<void> {
 	return new Promise((resolve, reject) => {
 		try {
-			const proc = spawn("ffplay", ["-nodisp", "-autoexit", audioPath], {
-				stdio: ["ignore", "pipe", "pipe"],
-				detached: false,
-			});
+			const proc = spawn("ffplay", ["-nodisp", "-autoexit", audioPath], { stdio: ["ignore", "pipe", "pipe"], detached: false });
 
 			proc.on("close", (code) => {
 				if (code === 0) {

@@ -23,14 +23,7 @@ describe("EventLogger", () => {
 			source: { path: "/test/feature.ts", lineNumber: 1 },
 			in: 'set password to "secret123"',
 			seqPath: [1, 1, 1],
-			action: {
-				actionName: "set",
-				stepperName: "VariablesStepper",
-				step: {
-					gwta: "set {what} to {value}",
-					action: async () => OK,
-				},
-			},
+			action: { actionName: "set", stepperName: "VariablesStepper", step: { gwta: "set {what} to {value}", action: async () => OK } },
 		} as unknown as TFeatureStep;
 
 		it("should obscure secret values in stepStart", () => {
@@ -73,9 +66,7 @@ describe("EventLogger", () => {
 			const emitted: unknown[] = [];
 			logger.subscribe((event) => emitted.push(event));
 
-			const stepValuesMap = {
-				password: { term: "password", value: "secret123", domain: "string", origin: "var" },
-			};
+			const stepValuesMap = { password: { term: "password", value: "secret123", domain: "string", origin: "var" } };
 
 			logger = new EventLogger(() => false);
 			logger.suppressConsole = true;
@@ -102,10 +93,7 @@ describe("EventLogger", () => {
 			const emitted: unknown[] = [];
 			logger.subscribe((event) => emitted.push(event));
 
-			const stepValuesMap = {
-				password: "secret123",
-				username: "testuser",
-			};
+			const stepValuesMap = { password: "secret123", username: "testuser" };
 
 			logger.stepStart(mockFeatureStep, "VariablesStepper", "set", {}, stepValuesMap);
 

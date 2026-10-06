@@ -69,16 +69,8 @@ describe("domain coercion", () => {
 		const mixed = [DOMAIN_STRING, DOMAIN_NOTSTRING];
 		const testWorld = getDefaultWorld();
 		const domains: TDomainDefinition[] = [
-			{
-				selectors: mixed,
-				schema: z.string(),
-				coerce: (proto: TStepValue) => (proto.domain === DOMAIN_NOTSTRING ? `notstring:${proto.value}` : `string:${proto.value}`),
-			},
-			{
-				selectors: [DOMAIN_NOTSTRING],
-				schema: z.string(),
-				coerce: (proto: TStepValue) => `selector:${proto.value}`,
-			},
+			{ selectors: mixed, schema: z.string(), coerce: (proto: TStepValue) => (proto.domain === DOMAIN_NOTSTRING ? `notstring:${proto.value}` : `string:${proto.value}`) },
+			{ selectors: [DOMAIN_NOTSTRING], schema: z.string(), coerce: (proto: TStepValue) => `selector:${proto.value}` },
 		];
 		registerDomains(testWorld, [domains]);
 
@@ -97,11 +89,7 @@ describe("domain coercion", () => {
 		const DOMAIN_PROGRESS_STAGE = "progress-stage";
 		const PROGRESS_STAGES = ["proto", "started", "in-process", "finished"] as const;
 		const progressWorld = getDefaultWorld();
-		const stageDefinition = createEnumDomainDefinition({
-			name: DOMAIN_PROGRESS_STAGE,
-			values: [...PROGRESS_STAGES],
-			ordered: true,
-		});
+		const stageDefinition = createEnumDomainDefinition({ name: DOMAIN_PROGRESS_STAGE, values: [...PROGRESS_STAGES], ordered: true });
 		registerDomains(progressWorld, [[stageDefinition]]);
 
 		it("accepts valid stages and rejects invalid", () => {
@@ -138,20 +126,10 @@ describe("domain coercion", () => {
 
 	describe("structured object domain taking JSON text", () => {
 		const DOMAIN_STRUCTURED = "test-structured";
-		const structuredSchema = z.object({
-			conditions: z.array(z.object({ field: z.string(), value: z.string() })).default([]),
-			type: z.string().optional(),
-		});
+		const structuredSchema = z.object({ conditions: z.array(z.object({ field: z.string(), value: z.string() })).default([]), type: z.string().optional() });
 
 		const structuredWorld = getDefaultWorld();
-		registerDomains(structuredWorld, [
-			[
-				{
-					selectors: [DOMAIN_STRUCTURED],
-					schema: fromJsonText(structuredSchema),
-				},
-			],
-		]);
+		registerDomains(structuredWorld, [[{ selectors: [DOMAIN_STRUCTURED], schema: fromJsonText(structuredSchema) }]]);
 
 		it("parses JSON string into validated object", () => {
 			const json = JSON.stringify({ conditions: [{ field: "a", value: "b" }], type: "Email" });
@@ -183,41 +161,23 @@ describe("domain coercion", () => {
 
 	describe("resolveVariable uses declared domain for quoted values", () => {
 		const DOMAIN_STRUCTURED = "test-resolve-structured";
-		const structuredSchema = z.object({
-			items: z.array(z.string()).default([]),
-		});
+		const structuredSchema = z.object({ items: z.array(z.string()).default([]) });
 
 		const testWorld = getDefaultWorld();
-		registerDomains(testWorld, [
-			[
-				{
-					selectors: [DOMAIN_STRUCTURED],
-					schema: fromJsonText(structuredSchema),
-				},
-			],
-		]);
+		registerDomains(testWorld, [[{ selectors: [DOMAIN_STRUCTURED], schema: fromJsonText(structuredSchema) }]]);
 
 		it("coerces JSON string through structured domain when declared", async () => {
 			const fv = new FeatureVariables(testWorld);
-			const result = await fv.resolveVariable({
-				term: JSON.stringify({ items: ["a", "b"] }),
-				origin: Origin.quoted,
-				domain: DOMAIN_STRUCTURED,
-			});
+			const result = await fv.resolveVariable({ term: JSON.stringify({ items: ["a", "b"] }), origin: Origin.quoted, domain: DOMAIN_STRUCTURED });
 			expect(result.value).toEqual({ items: ["a", "b"] });
 			expect(result.domain).toBe(DOMAIN_STRUCTURED);
 		});
 
 		it("throws for unknown single domain", async () => {
 			const fv = new FeatureVariables(testWorld);
-			await expect(
-				async () =>
-					await fv.resolveVariable({
-						term: "hello",
-						origin: Origin.quoted,
-						domain: "nonexistent",
-					}),
-			).rejects.toThrow(`variable "hello" names the domain "nonexistent", which the loaded steppers don't register`);
+			await expect(async () => await fv.resolveVariable({ term: "hello", origin: Origin.quoted, domain: "nonexistent" })).rejects.toThrow(
+				`variable "hello" names the domain "nonexistent", which the loaded steppers don't register`,
+			);
 		});
 	});
 });

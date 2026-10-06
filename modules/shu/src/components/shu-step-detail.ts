@@ -32,9 +32,7 @@ import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 /** How long a burst of announcements is collected before a still-running step's record is read again. */
 const STEP_RE_READ_AFTER_MS = 400;
 
-const StateSchema = z.object({
-	seqPath: z.array(z.number()).default([]),
-});
+const StateSchema = z.object({ seqPath: z.array(z.number()).default([]) });
 
 type TVar = { name: string; value: unknown; graph: string };
 type TStepData = { step?: Record<string, unknown>; variablesSet: TVar[] };

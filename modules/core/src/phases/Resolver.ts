@@ -40,11 +40,7 @@ export class Resolver {
 						this.findSingleStepAction(actionable);
 					} catch (e) {
 						// Collect as a warning rather than throwing, for LSP tolerance
-						this.backgroundWarnings.push({
-							path: background.path,
-							line,
-							error: errorDetail(e),
-						});
+						this.backgroundWarnings.push({ path: background.path, line, error: errorDetail(e) });
 					}
 				}
 			}
@@ -99,10 +95,7 @@ export class Resolver {
 		return Promise.resolve(this.findFeatureStepsTolerantSync(feature));
 	}
 
-	public findFeatureStepsTolerantSync(feature: TExpandedFeature): {
-		steps: TFeatureStep[];
-		errors: { featureLine: TExpandedLine; error: Error }[];
-	} {
+	public findFeatureStepsTolerantSync(feature: TExpandedFeature): { steps: TFeatureStep[]; errors: { featureLine: TExpandedLine; error: Error }[] } {
 		const steps: TFeatureStep[] = [];
 		const errors: { featureLine: TExpandedLine; error: Error }[] = [];
 		const allLines = feature.expanded.map((fl) => fl.line);
@@ -123,17 +116,10 @@ export class Resolver {
 
 			if (this.callResolveFeatureLine(actionable, feature.path, allLines, i, actualSourcePath)) {
 				steps.push({
-					source: {
-						path: actualSourcePath || feature.path,
-						lineNumber: featureLine.lineNumber,
-					},
+					source: { path: actualSourcePath || feature.path, lineNumber: featureLine.lineNumber },
 					in: featureLine.line,
 					seqPath: [seq],
-					action: {
-						stepperName: "Directive",
-						actionName: "directive",
-						step: { exact: actionable, action: async () => ({ ok: true }) },
-					},
+					action: { stepperName: "Directive", actionName: "directive", step: { exact: actionable, action: async () => ({ ok: true }) } },
 				});
 				continue;
 			}
@@ -233,15 +219,7 @@ export class Resolver {
 		const step = action.step;
 		const lineNumber = step?.source?.lineNumber ?? featureLine.lineNumber;
 		const path = step?.source?.path ?? featureLine.feature.base + featureLine.feature.path;
-		return {
-			source: {
-				path,
-				lineNumber,
-			},
-			in: featureLine.line,
-			seqPath: [seq],
-			action,
-		};
+		return { source: { path, lineNumber }, in: featureLine.line, seqPath: [seq], action };
 	}
 
 	/** Each step a caller is offered, with the stepper that declares it. */
@@ -294,15 +272,7 @@ function getActionableStatement(steppers: AStepper[], statement: string, path: s
 	const action = resolver.findSingleStepAction(statement);
 	const step = action.step;
 
-	const featureStep: TFeatureStep = {
-		source: {
-			path: step?.source?.path || path,
-			lineNumber: step?.source?.lineNumber ?? lineNumber,
-		},
-		in: statement,
-		seqPath,
-		action,
-	};
+	const featureStep: TFeatureStep = { source: { path: step?.source?.path || path, lineNumber: step?.source?.lineNumber ?? lineNumber }, in: statement, seqPath, action };
 
 	return { featureStep, steppers };
 }
@@ -331,21 +301,11 @@ export function findFeatureStepsFromStatement(statement: string, steppers: AStep
 		} catch (e) {
 			const why = errorDetail(e);
 			featureSteps.push({
-				source: {
-					path: fullPath,
-					lineNumber: x.lineNumber,
-				},
+				source: { path: fullPath, lineNumber: x.lineNumber },
 				in: x.line,
 				seqPath,
 				// The line didn't resolve to a step, so it stands as a step a registry doesn't hold, and its miss states why.
-				action: {
-					actionName: "error",
-					stepperName: "Resolver",
-					step: {
-						description: why,
-						action: async () => actionNotOK(why),
-					},
-				},
+				action: { actionName: "error", stepperName: "Resolver", step: { description: why, action: async () => actionNotOK(why) } },
 			});
 		}
 	}

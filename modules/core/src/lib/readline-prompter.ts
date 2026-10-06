@@ -13,13 +13,7 @@ export class ReadlinePrompter implements IPrompter {
 			return undefined;
 		}
 		this.currentPromptId = prompt.id;
-		this.rl = createInterface({
-			input,
-			output,
-			history: this.history,
-			historySize: 100,
-			removeHistoryDuplicates: true,
-		});
+		this.rl = createInterface({ input, output, history: this.history, historySize: 100, removeHistoryDuplicates: true });
 		try {
 			const answer = await this.rl.question(`${prompt.message} ${prompt.options?.join(", ") ?? ""}: `);
 			if (answer && answer.trim() && !this.history.includes(answer.trim())) {

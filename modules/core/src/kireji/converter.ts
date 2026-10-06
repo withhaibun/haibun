@@ -4,9 +4,7 @@ import { Resolver } from "../phases/Resolver.js";
 import { TActionExecutor, stepActions } from "./withAction.js";
 
 // A kireji feature: steps are either TActionExecutor functions or plain prose strings.
-type TkirejiFeature = {
-	[key: string]: (TActionExecutor<string> | string)[];
-};
+type TkirejiFeature = { [key: string]: (TActionExecutor<string> | string)[] };
 
 type TBddWithLineMap = {
 	content: string;
@@ -75,7 +73,5 @@ export const fromBdd = (bdd: string, steppers: AStepper[]): Promise<TkirejiFeatu
 		return actionFunction(args);
 	});
 
-	return Promise.resolve({
-		[featureName]: kirejiSteps,
-	});
+	return Promise.resolve({ [featureName]: kirejiSteps });
 };

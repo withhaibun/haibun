@@ -196,16 +196,8 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	cycles: IStepperCycles = {
 		getConcerns: () => ({
 			domains: [
-				{
-					selectors: [DOMAIN_LOG_EVENT],
-					schema: fromJsonText(LogEventSchema),
-					description: "Client-side log event forwarded from the SPA",
-				},
-				{
-					selectors: [DOMAIN_CLIENT_BLIPS],
-					schema: fromJsonText(ClientBlipsSchema),
-					description: "A batch of fine-grained occurrences recorded in the SPA",
-				},
+				{ selectors: [DOMAIN_LOG_EVENT], schema: fromJsonText(LogEventSchema), description: "Client-side log event forwarded from the SPA" },
+				{ selectors: [DOMAIN_CLIENT_BLIPS], schema: fromJsonText(ClientBlipsSchema), description: "A batch of fine-grained occurrences recorded in the SPA" },
 				{ selectors: [DOMAIN_SHU_REPORT], schema: z.object({ path: z.string() }), description: "Where a standalone shu report was written" },
 			],
 		}),
@@ -428,16 +420,8 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		// Singleton view openers. Hypermedia markers (`_type` + `_component` + `id` + `view`
 		// + `_summary`) are injected by the dispatcher from each domain's `ui.component`,
 		// so every view-opening step shares the same single mechanism.
-		showMonitor: {
-			gwta: "show monitor",
-			productsDomain: SHU_TAG.MONITOR_COLUMN,
-			action: () => actionOKWithProducts({}),
-		},
-		showDocument: {
-			gwta: "show document",
-			productsDomain: SHU_TAG.DOCUMENT_COLUMN,
-			action: () => actionOKWithProducts({}),
-		},
+		showMonitor: { gwta: "show monitor", productsDomain: SHU_TAG.MONITOR_COLUMN, action: () => actionOKWithProducts({}) },
+		showDocument: { gwta: "show document", productsDomain: SHU_TAG.DOCUMENT_COLUMN, action: () => actionOKWithProducts({}) },
 		logClient: {
 			gwta: `log client {event: ${DOMAIN_LOG_EVENT}}`,
 			action: ({ event }: { event: TLogEvent }) => {

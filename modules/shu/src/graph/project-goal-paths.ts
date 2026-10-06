@@ -112,12 +112,7 @@ function emitBinding(binding: TBinding, ctx: TEmitContext): string {
 	if (binding.kind === "fact") {
 		const id = `fact:${binding.domain}#${binding.factId}`;
 		if (!ctx.nodes.has(id))
-			ctx.nodes.set(id, {
-				id,
-				label: `${binding.domain}#${binding.factId}`,
-				kind: NODE_KIND.satisfied,
-				wasGeneratedBy: { factId: binding.factId, domain: binding.domain },
-			});
+			ctx.nodes.set(id, { id, label: `${binding.domain}#${binding.factId}`, kind: NODE_KIND.satisfied, wasGeneratedBy: { factId: binding.factId, domain: binding.domain } });
 		return id;
 	}
 	// Composite binding: emit a structural node for the composite, recurse into
@@ -202,13 +197,7 @@ export function projectGoalPaths(input: TGoalPathsInput): TGraph {
 	if (input.factIds && input.factIds.length > 0) {
 		for (const factId of input.factIds) {
 			const id = `fact:${input.goal}#${factId}`;
-			if (!nodes.has(id))
-				nodes.set(id, {
-					id,
-					label: `${input.goal}#${factId}`,
-					kind: NODE_KIND.satisfied,
-					wasGeneratedBy: { factId, domain: input.goal },
-				});
+			if (!nodes.has(id)) nodes.set(id, { id, label: `${input.goal}#${factId}`, kind: NODE_KIND.satisfied, wasGeneratedBy: { factId, domain: input.goal } });
 			edges.add({ from: id, to: goalId, kind: EDGE_KIND.ready, label: "satisfies" });
 		}
 	}

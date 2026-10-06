@@ -100,7 +100,9 @@ describe("the app a deployment serves", () => {
 		expect(served()).not.toContain("exv:Declared");
 		world.domains = {
 			...world.domains,
-			declared: { topology: { persistedAs: "Declared", type: "exv:Declared", id: "id", namespaces: { exv: "https://vocab.example/ns#" }, properties: { id: LinkRelations.IDENTIFIER.rel } } },
+			declared: {
+				topology: { persistedAs: "Declared", type: "exv:Declared", id: "id", namespaces: { exv: "https://vocab.example/ns#" }, properties: { id: LinkRelations.IDENTIFIER.rel } },
+			},
 		} as unknown as TWorld["domains"];
 		expect(served()).toContain("exv:Declared");
 	});

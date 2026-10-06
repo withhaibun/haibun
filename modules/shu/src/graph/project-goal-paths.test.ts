@@ -9,10 +9,7 @@ const michiA: TMichi = {
 	],
 	bindings: [{ kind: "argument", domain: "buyer" }],
 };
-const michiB: TMichi = {
-	steps: [{ stepperName: "OrderStepper", stepName: "importOrder", gwta: "import order", productsDomain: "order" }],
-	bindings: [],
-};
+const michiB: TMichi = { steps: [{ stepperName: "OrderStepper", stepName: "importOrder", gwta: "import order", productsDomain: "order" }], bindings: [] };
 
 describe("projectGoalPaths", () => {
 	it("renders the goal as a single reachable node and connects every path to it", () => {

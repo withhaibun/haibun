@@ -12,10 +12,7 @@ import { populateActionArgs } from "./populateActionArgs.js";
 import { DOMAIN_STRING } from "./domains.js";
 
 describe("namedMatches", () => {
-	const step: TStepperStep = {
-		match: /^(?<one>.*?) is (?<two>.*?)$/,
-		action: async () => Promise.resolve(actionNotOK("test")),
-	};
+	const step: TStepperStep = { match: /^(?<one>.*?) is (?<two>.*?)$/, action: async () => Promise.resolve(actionNotOK("test")) };
 
 	it("gets named matches", () => {
 		expect(getNamedMatches(step.match as RegExp, "It is set")).toEqual({ one: "It", two: "set" });
@@ -41,12 +38,7 @@ describe("namedInterpolation regexes", () => {
 
 describe("getNamedWithVars", () => {
 	class TestStepper extends AStepper {
-		steps = {
-			gwtaInterpolated: {
-				gwta: "is {what}",
-				action: async () => Promise.resolve(OK),
-			},
-		};
+		steps = { gwtaInterpolated: { gwta: "is {what}", action: async () => Promise.resolve(OK) } };
 	}
 	const world = getDefaultWorld();
 	test("gets var", async () => {

@@ -46,14 +46,7 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 	private _blurTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	constructor() {
-		super(ComboboxSchema, {
-			value: "",
-			options: [],
-			placeholder: "",
-			shown: "",
-			filterText: "",
-			open: false,
-		});
+		super(ComboboxSchema, { value: "", options: [], placeholder: "", shown: "", filterText: "", open: false });
 	}
 
 	/** Reactive property: what the control shows for the value it holds, rather than the chosen option's label. */
@@ -290,12 +283,7 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 		} else {
 			const li = document.createElement("li");
 			li.textContent = "The text doesn't match an option";
-			Object.assign(li.style, {
-				...LI_STYLE,
-				color: "var(--shu-fg-faded)",
-				fontStyle: "italic",
-				cursor: "default",
-			});
+			Object.assign(li.style, { ...LI_STYLE, color: "var(--shu-fg-faded)", fontStyle: "italic", cursor: "default" });
 			ul.appendChild(li);
 		}
 
@@ -365,12 +353,7 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 
 		input.addEventListener("input", () => {
 			this._focusIndex = -1;
-			this.state = {
-				...this.state,
-				filterText: input.value,
-				value: "",
-				open: true,
-			};
+			this.state = { ...this.state, filterText: input.value, value: "", open: true };
 			this.renderList();
 		});
 
@@ -431,13 +414,7 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 		this.#showHeld();
 		this._list?.remove();
 		this._list = null;
-		this.dispatchEvent(
-			new CustomEvent("combo-change", {
-				detail: { value: option.value, label: option.label },
-				bubbles: true,
-				composed: true,
-			}),
-		);
+		this.dispatchEvent(new CustomEvent("combo-change", { detail: { value: option.value, label: option.label }, bubbles: true, composed: true }));
 	}
 }
 
@@ -473,11 +450,7 @@ const LI_STYLE: Partial<CSSStyleDeclaration> = {
 };
 
 // Fixed-width tick column so the selected option's ✓ aligns and unselected rows stay flush.
-const MARK_STYLE: Partial<CSSStyleDeclaration> = {
-	flex: "0 0 1.1em",
-	textAlign: "center",
-	color: "var(--shu-fg)",
-};
+const MARK_STYLE: Partial<CSSStyleDeclaration> = { flex: "0 0 1.1em", textAlign: "center", color: "var(--shu-fg)" };
 
 const GROUP_HEADER_STYLE: Partial<CSSStyleDeclaration> = {
 	padding: "var(--shu-space-1) var(--shu-space-3)",

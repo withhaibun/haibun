@@ -9,20 +9,9 @@ import { EVERY_DEFINITION, STEP_DETAIL, SHOW_STEPS_METHOD, StepDiscoverySchema }
 import { RUN_AUTHORITY } from "./capability-context.js";
 
 /** A domain with date fields and a defaulted field: the shape every persisted type carries (generatedAtTime etc.). */
-const RecordSchema = z
-	.object({
-		subject: z.string(),
-		dateSent: z.coerce.date(),
-		generatedAtTime: z.coerce.date().default(() => new Date()),
-	})
-	.strict();
+const RecordSchema = z.object({ subject: z.string(), dateSent: z.coerce.date(), generatedAtTime: z.coerce.date().default(() => new Date()) }).strict();
 
-const worldWith = (schema: z.ZodType): TWorld =>
-	({
-		domains: {
-			"test-record": { selectors: ["test-record"], schema, description: "A dated test record." },
-		},
-	}) as unknown as TWorld;
+const worldWith = (schema: z.ZodType): TWorld => ({ domains: { "test-record": { selectors: ["test-record"], schema, description: "A dated test record." } } }) as unknown as TWorld;
 
 const stepDef = { gwta: "create record {data: test-record}", action: async () => actionOK() } as unknown as TStepperStep;
 

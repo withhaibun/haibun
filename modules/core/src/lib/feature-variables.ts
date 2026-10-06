@@ -47,12 +47,7 @@ export class FeatureVariables {
 		const result: { [name: string]: TStepValue } = {};
 		for (const q of quads) {
 			const isSecretVar = q.properties?.secret === true || this.isSecret(q.subject);
-			result[q.subject] = {
-				term: q.subject,
-				domain: q.predicate,
-				value: isSecretVar ? OBSCURED_VALUE : q.object,
-				origin: (q.properties?.origin as TOrigin) ?? Origin.var,
-			};
+			result[q.subject] = { term: q.subject, domain: q.predicate, value: isSecretVar ? OBSCURED_VALUE : q.object, origin: (q.properties?.origin as TOrigin) ?? Origin.var };
 		}
 		return result;
 	}
@@ -234,13 +229,7 @@ export class FeatureVariables {
 		const q = (await this.store.query({ subject: name, namedGraph: SHARED_GRAPH })).pop();
 		if (!q) return undefined;
 		const p = q.properties;
-		return {
-			value: q.object,
-			domain: q.predicate,
-			readonly: p?.readonly === true,
-			secret: p?.secret === true,
-			origin: p?.origin as TOrigin | undefined,
-		};
+		return { value: q.object, domain: q.predicate, readonly: p?.readonly === true, secret: p?.secret === true, origin: p?.origin as TOrigin | undefined };
 	}
 
 	/** Why `term` doesn't resolve: a variable that isn't set, or a dot path that names a field its value doesn't have,

@@ -18,16 +18,9 @@ export async function scaffoldHaibun(dest: string, opts?: { out?: typeof console
 
 	const refPackage = JSON.parse(readFileSync(path.join(refDir, "ref.package.json"), "utf-8"));
 	const what: { dirs: string[]; dependencies: Tkv; devDependencies: Tkv; scripts: Tkv } = {
-		dependencies: {
-			"@haibun/core": currentVersion,
-			"@haibun/cli": currentVersion,
-		},
+		dependencies: { "@haibun/core": currentVersion, "@haibun/cli": currentVersion },
 		devDependencies: ["@types/node", "vitest", "typescript"].reduce((a, i) => ({ ...a, [i]: refPackage.devDependencies[i] }), {} as Tkv),
-		scripts: {
-			test: "vitest run",
-			"test-watch": "vitest",
-			build: "tsc",
-		},
+		scripts: { test: "vitest run", "test-watch": "vitest", build: "tsc" },
 		dirs: ["src", "src/lib"],
 	};
 	let localDest;

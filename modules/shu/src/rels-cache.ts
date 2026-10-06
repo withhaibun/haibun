@@ -463,21 +463,7 @@ export function siteMetadataFromConcerns(catalog: TConcernCatalog, domains?: Rec
 		if (entry.presentation !== undefined) def.presentation = entry.presentation;
 		propertyDefinitions[entry.id] = def;
 	}
-	return {
-		types,
-		idFields,
-		rels,
-		edgeRanges,
-		properties,
-		queryable,
-		validTimeFields,
-		summary,
-		ui,
-		propertyDefinitions,
-		classIris,
-		titledBy,
-		instrumentationTypes,
-	};
+	return { types, idFields, rels, edgeRanges, properties, queryable, validTimeFields, summary, ui, propertyDefinitions, classIris, titledBy, instrumentationTypes };
 }
 
 // --- Actor-edge classification (role merge / sequence orientation) ---

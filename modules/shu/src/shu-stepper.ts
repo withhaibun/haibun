@@ -38,7 +38,9 @@ import { pagePolicy } from "./content-security-policy.js";
  * the live getClusteredQuads RPC; the view hides instrumentation by default (toggleable) via effectiveHiddenTypes, so the
  * offline report behaves identically to live.
  */
-export async function buildGraphSource(world: TWorld): Promise<
+export async function buildGraphSource(
+	world: TWorld,
+): Promise<
 	| {
 			quads: TQuad[];
 			clusters: Awaited<ReturnType<NonNullable<IQuadStore["getClusteredQuads"]>>>["clusters"];
@@ -65,10 +67,7 @@ export async function buildGraphSource(world: TWorld): Promise<
 /** The domain of where a graph view placed each node. */
 const DOMAIN_GRAPH_LAYOUT = "graph-layout";
 const DOMAIN_SHU_VIEW_COLLECTION = "shu-view-collection";
-const ShuViewCollectionSchema = z.object({
-	view: z.string().optional(),
-	views: z.array(z.object({ id: z.string(), description: z.string(), component: z.string() })),
-});
+const ShuViewCollectionSchema = z.object({ view: z.string().optional(), views: z.array(z.object({ id: z.string(), description: z.string(), component: z.string() })) });
 
 // Nodes and edges as pipe-delimited tokens, node `graph|subject|label`, edge `source|predicate|target`:
 // so a feature can match a relationship without parsing the rendered graph (e.g. `matches g.edges with "*|discloses|*"`).
@@ -341,10 +340,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 			productsDomain: DOMAIN_SHU_APPS,
 			action: () => actionOKWithProducts({ apps: [...this.appPaths] }),
 		},
-		maximizeView: {
-			gwta: "maximize view",
-			action: () => actionOK(),
-		},
+		maximizeView: { gwta: "maximize view", action: () => actionOK() },
 		showViews: {
 			gwta: "show views",
 			productsDomain: DOMAIN_SHU_VIEW_COLLECTION,

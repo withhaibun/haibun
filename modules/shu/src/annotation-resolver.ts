@@ -41,10 +41,7 @@ export type W3CTextAnnotation = {
 	id: string;
 	type: "Annotation";
 	body?: Array<{ type: "TextualBody"; value: string; format?: string }>;
-	target: {
-		source: string;
-		selector: [TextQuoteSelector, TextPositionSelector];
-	};
+	target: { source: string; selector: [TextQuoteSelector, TextPositionSelector] };
 };
 
 type Quad = { subject: string; predicate: string; object: unknown; objectType?: string };

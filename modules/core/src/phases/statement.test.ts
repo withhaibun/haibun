@@ -9,14 +9,8 @@ import Haibun from "../steps/haibun.js";
 
 class StatementTestStepper extends AStepper {
 	steps = {
-		alpha: {
-			exact: "alpha",
-			action: async () => Promise.resolve(OK),
-		},
-		beta: {
-			exact: "beta",
-			action: async () => Promise.resolve(OK),
-		},
+		alpha: { exact: "alpha", action: async () => Promise.resolve(OK) },
+		beta: { exact: "beta", action: async () => Promise.resolve(OK) },
 		do: {
 			gwta: `do {steps:${DOMAIN_STATEMENT}}`,
 			action: async (args: TStepArgs, featureStep: TFeatureStep) => {
@@ -25,10 +19,7 @@ class StatementTestStepper extends AStepper {
 					if (!Array.isArray(steps)) throw new Error("steps must be feature steps");
 
 					const runner = new FlowRunner(this.getWorld(), [this as unknown as AStepper]);
-					const result = await runner.runSteps(steps as TFeatureStep[], {
-						intent: { mode: "authoritative" },
-						parentStep: featureStep,
-					});
+					const result = await runner.runSteps(steps as TFeatureStep[], { intent: { mode: "authoritative" }, parentStep: featureStep });
 
 					if (!result.ok) {
 						return actionNotOK(`statement failed: ${result.errorMessage}`);

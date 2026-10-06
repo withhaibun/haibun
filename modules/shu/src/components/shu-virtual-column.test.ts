@@ -20,12 +20,7 @@ describe("a column whose rows are a window of something longer", () => {
 			ensureRange: async () => undefined,
 			subscribe: () => () => undefined,
 			markers: () => [{ index: 1, id: "held", color: "#000", icon: "x" }],
-			rail: {
-				places: 100,
-				placeOf: (index) => index * 10,
-				marks: () => [{ index: 90, id: "long ago", color: "#f00", icon: "!" }],
-				goTo: (place) => asked.push(place),
-			},
+			rail: { places: 100, placeOf: (index) => index * 10, marks: () => [{ index: 90, id: "long ago", color: "#f00", icon: "!" }], goTo: (place) => asked.push(place) },
 		};
 		const column = document.createElement("shu-virtual-column") as ShuVirtualColumn;
 		column.source = source as unknown as WindowedSource<unknown>;

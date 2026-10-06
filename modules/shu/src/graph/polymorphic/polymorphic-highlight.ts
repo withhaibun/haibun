@@ -65,10 +65,7 @@ export const swellAt = (intensity: number): number => 1 + PULSE_SWELL * intensit
  * The ramp is walked to its end and back over one breath, so the colour turns with the size and never cuts from the
  * last stop back to the first.
  */
-export const GLOW_RAMP = {
-	dark: ["#ffffff", "#ffe9a3", "#ffd24a", "#ffa41c"],
-	light: ["#ffc21c", "#ff9d00", "#f07000", "#c04a00"],
-} as const;
+export const GLOW_RAMP = { dark: ["#ffffff", "#ffe9a3", "#ffd24a", "#ffa41c"], light: ["#ffc21c", "#ff9d00", "#f07000", "#c04a00"] } as const;
 /** Steps the ramp is precomputed into: a frame then takes an array index, never a colour computation or a new string. */
 const RAMP_STEPS = 48;
 

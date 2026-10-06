@@ -147,13 +147,7 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 		this.setState({ persistedAs, loading: true, error: undefined });
 		// An ask from here is about the type: its members. This column holds a type without an id, so `aType` is the
 		// only thing it can show, and it doesn't offer a query-surface label, since a schema view doesn't have one to give.
-		this.dispatchEvent(
-			new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, {
-				detail: { patterns: [aType(persistedAs)], accessLevel: appAccessLevel() },
-				bubbles: true,
-				composed: true,
-			}),
-		);
+		this.dispatchEvent(new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, { detail: { patterns: [aType(persistedAs)], accessLevel: appAccessLevel() }, bubbles: true, composed: true }));
 		// The column doesn't list individuals: a referenced-but-undefined class (e.g. prov:Agent, reachable via subClassOf but without a
 		// registered topology) doesn't have any and would fail a graphQuery with "Unknown label"; and a registered schema presenter
 		// lists individuals in its own tab, so the column shows only the schema position (description + scoped schema graph).

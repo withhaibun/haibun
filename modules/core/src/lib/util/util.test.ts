@@ -22,22 +22,8 @@ describe("isLowerCase", () => {
 
 describe("findStepperFromOptions", () => {
 	const TestOptionsStepper = class TestOptionsStepper extends AStepper implements IHasOptions {
-		options = {
-			A: {
-				desc: "A exists",
-				parse: (input: string) => util.stringOrError(input),
-			},
-			B: {
-				desc: "B exists",
-				parse: (input: string) => util.stringOrError(input),
-			},
-		};
-		steps = {
-			test: {
-				exact: "have a stepper option",
-				action: async () => await Promise.resolve(OK),
-			},
-		};
+		options = { A: { desc: "A exists", parse: (input: string) => util.stringOrError(input) }, B: { desc: "B exists", parse: (input: string) => util.stringOrError(input) } };
+		steps = { test: { exact: "have a stepper option", action: async () => await Promise.resolve(OK) } };
 	};
 
 	it("finds from single option", async () => {
@@ -57,10 +43,7 @@ describe("findStepperFromOptions", () => {
 	it("finds from first multiple options", async () => {
 		const ts = new TestOptionsStepper();
 		const steppers = await getCreateSteppers([], [TestSteps, TestOptionsStepper]);
-		const options = {
-			[util.getStepperOptionName(ts, "optionA")]: "TestSteps",
-			[util.getStepperOptionName(ts, "B")]: "TestOptionsStepper",
-		};
+		const options = { [util.getStepperOptionName(ts, "optionA")]: "TestSteps", [util.getStepperOptionName(ts, "B")]: "TestOptionsStepper" };
 		const s = util.findStepperFromOption(steppers, ts, options, "optionA", "optionB");
 		expect(s).toBeDefined();
 		expect(constructorName(<AStepper>s)).toBe("TestSteps");
@@ -76,37 +59,17 @@ describe("findStepperFromOptions", () => {
 describe("findStepperFromOptionOrKind", () => {
 	const StorageStepper = class StorageStepper extends AStepper {
 		kind = StepperKinds.STORAGE;
-		steps = {
-			test: {
-				exact: "storage step",
-				action: async () => await Promise.resolve(OK),
-			},
-		};
+		steps = { test: { exact: "storage step", action: async () => await Promise.resolve(OK) } };
 	};
 
 	const AlternativeStorageStepper = class AlternativeStorageStepper extends AStepper {
 		kind = StepperKinds.STORAGE;
-		steps = {
-			test: {
-				exact: "alt storage step",
-				action: async () => await Promise.resolve(OK),
-			},
-		};
+		steps = { test: { exact: "alt storage step", action: async () => await Promise.resolve(OK) } };
 	};
 
 	const ConsumerStepper = class ConsumerStepper extends AStepper implements IHasOptions {
-		options = {
-			[StepperKinds.STORAGE]: {
-				desc: "Storage stepper to use",
-				parse: (input: string) => util.stringOrError(input),
-			},
-		};
-		steps = {
-			test: {
-				exact: "consumer step",
-				action: async () => await Promise.resolve(OK),
-			},
-		};
+		options = { [StepperKinds.STORAGE]: { desc: "Storage stepper to use", parse: (input: string) => util.stringOrError(input) } };
+		steps = { test: { exact: "consumer step", action: async () => await Promise.resolve(OK) } };
 	};
 
 	it("finds single stepper by kind when an option isn't specified", async () => {
@@ -123,9 +86,7 @@ describe("findStepperFromOptionOrKind", () => {
 	it("finds stepper by option when specified", async () => {
 		const consumer = new ConsumerStepper();
 		const steppers = await getCreateSteppers([], [StorageStepper, AlternativeStorageStepper, ConsumerStepper]);
-		const moduleOptions = {
-			[util.getStepperOptionName(consumer, StepperKinds.STORAGE)]: "AlternativeStorageStepper",
-		};
+		const moduleOptions = { [util.getStepperOptionName(consumer, StepperKinds.STORAGE)]: "AlternativeStorageStepper" };
 
 		const found = util.findStepperFromOptionOrKind(steppers, consumer, moduleOptions, StepperKinds.STORAGE);
 
@@ -153,23 +114,10 @@ describe("findStepperFromOptionOrKind", () => {
 describe("verifyRequiredOptions", () => {
 	class TestOptionsStepperWithRequired extends AStepper implements IHasOptions {
 		options = {
-			A: {
-				required: true,
-				altSource: "B",
-				desc: "A is an option",
-				parse: (input: string) => util.stringOrError(input),
-			},
-			B: {
-				desc: "B is an altsource",
-				parse: (input: string) => util.stringOrError(input),
-			},
+			A: { required: true, altSource: "B", desc: "A is an option", parse: (input: string) => util.stringOrError(input) },
+			B: { desc: "B is an altsource", parse: (input: string) => util.stringOrError(input) },
 		};
-		steps = {
-			test: {
-				exact: "have a stepper option",
-				action: async () => await Promise.resolve(OK),
-			},
-		};
+		steps = { test: { exact: "have a stepper option", action: async () => await Promise.resolve(OK) } };
 	}
 	it("has option", () => {
 		const toswq = new TestOptionsStepperWithRequired();

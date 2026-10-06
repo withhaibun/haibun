@@ -15,11 +15,7 @@ describe("LspStepper diagnostics", () => {
 		mockConnection = {
 			onInitialize: vi.fn(),
 			onInitialized: vi.fn(),
-			languages: {
-				semanticTokens: {
-					on: vi.fn(),
-				},
-			},
+			languages: { semanticTokens: { on: vi.fn() } },
 			onCompletion: vi.fn(),
 			onCompletionResolve: vi.fn(),
 			onHover: vi.fn(),
@@ -32,12 +28,7 @@ describe("LspStepper diagnostics", () => {
 			listen: vi.fn(),
 			sendDiagnostics: vi.fn(),
 			sendNotification: vi.fn(),
-			console: {
-				log: vi.fn(),
-				info: vi.fn(),
-				warn: vi.fn(),
-				error: vi.fn(),
-			},
+			console: { log: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 		};
 
 		// Correctly handle the overload for semanticTokens.on

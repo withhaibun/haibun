@@ -27,17 +27,7 @@ interface BaseEntry {
 export interface McpTool {
 	name: string;
 	description: string;
-	inputSchema: {
-		type: string;
-		properties?: Record<
-			string,
-			{
-				type: string;
-				description?: string;
-			}
-		>;
-		required?: string[];
-	};
+	inputSchema: { type: string; properties?: Record<string, { type: string; description?: string }>; required?: string[] };
 }
 
 export interface WorkspaceInfo {
@@ -137,20 +127,12 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
 			// Manual JSON-RPC 2.0 Initialize
 			const response = await fetch(url, {
 				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${token}`,
-					Accept: "application/json, text/event-stream",
-				},
+				headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, Accept: "application/json, text/event-stream" },
 				body: JSON.stringify({
 					jsonrpc: "2.0",
 					id: 1,
 					method: "initialize",
-					params: {
-						protocolVersion: "2024-11-05",
-						capabilities: {},
-						clientInfo: { name: "vscode-check", version: "1.0" },
-					},
+					params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "vscode-check", version: "1.0" } },
 				}),
 			});
 
@@ -177,11 +159,7 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
 
 	private _readConfig(): { mcpEnabled: boolean; mcpPort: number; mcpToken: string } | undefined {
 		const config = vscode.workspace.getConfiguration("haibun");
-		return {
-			mcpEnabled: config.get<boolean>("mcpEnabled") ?? false,
-			mcpPort: config.get<number>("mcpPort") ?? 8765,
-			mcpToken: config.get<string>("mcpAccessToken") || "",
-		};
+		return { mcpEnabled: config.get<boolean>("mcpEnabled") ?? false, mcpPort: config.get<number>("mcpPort") ?? 8765, mcpToken: config.get<string>("mcpAccessToken") || "" };
 	}
 
 	// For reveal support - cache nodes by file path
@@ -395,11 +373,7 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
 			const baseDir = path.isAbsolute(base) ? base : path.resolve(effectiveCwd, base);
 			const baseName = path.basename(base);
 
-			const entry: BaseEntry = {
-				name: baseName,
-				features: null,
-				backgrounds: null,
-			};
+			const entry: BaseEntry = { name: baseName, features: null, backgrounds: null };
 
 			// Look for features/ and backgrounds/ subdirectories
 			const featuresDir = path.join(baseDir, "features");
@@ -416,14 +390,7 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
 			if (fs.existsSync(baseDir)) {
 				const rootFeatures = this._scanRootFeatures(baseDir, baseName);
 				if (rootFeatures.length > 0 && !entry.features) {
-					entry.features = {
-						name: "features",
-						path: baseDir,
-						isDir: true,
-						isBackground: false,
-						baseName,
-						children: rootFeatures,
-					};
+					entry.features = { name: "features", path: baseDir, isDir: true, isBackground: false, baseName, children: rootFeatures };
 				} else if (rootFeatures.length > 0 && entry.features) {
 					entry.features.children.push(...rootFeatures);
 				}
@@ -441,14 +408,7 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
 			const entries = fs.readdirSync(dir, { withFileTypes: true });
 			for (const entry of entries) {
 				if (entry.isFile() && (entry.name.endsWith(".feature") || entry.name.endsWith(".feature.ts"))) {
-					nodes.push({
-						name: entry.name,
-						path: path.join(dir, entry.name),
-						isDir: false,
-						isBackground: false,
-						baseName,
-						children: [],
-					});
+					nodes.push({ name: entry.name, path: path.join(dir, entry.name), isDir: false, isBackground: false, baseName, children: [] });
 					this._featureCount++;
 				}
 			}
@@ -459,14 +419,7 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
 	}
 
 	private _buildTree(dir: string, isBackground: boolean, baseName: string): DirNode {
-		const node: DirNode = {
-			name: path.basename(dir),
-			path: dir,
-			isDir: true,
-			isBackground,
-			baseName,
-			children: [],
-		};
+		const node: DirNode = { name: path.basename(dir), path: dir, isDir: true, isBackground, baseName, children: [] };
 
 		try {
 			const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -475,14 +428,7 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
 				if (entry.isDirectory()) {
 					node.children.push(this._buildTree(fullPath, isBackground, baseName));
 				} else if (entry.name.endsWith(".feature") || entry.name.endsWith(".feature.ts")) {
-					node.children.push({
-						name: entry.name,
-						path: fullPath,
-						isDir: false,
-						isBackground,
-						baseName,
-						children: [],
-					});
+					node.children.push({ name: entry.name, path: fullPath, isDir: false, isBackground, baseName, children: [] });
 					if (isBackground) {
 						this._backgroundCount++;
 					} else {
@@ -638,35 +584,23 @@ export class HaibunConfigurationTreeProvider implements vscode.TreeDataProvider<
 			if (element.commonConfig) {
 				const { cwd, bases, configFile } = element.commonConfig;
 				return Promise.resolve([
-					new TreeNode("config", "Working Directory", cwd || "(workspace root)", vscode.TreeItemCollapsibleState.None, {
-						command: "haibun.editCwd",
-						title: "Edit CWD",
-					}),
+					new TreeNode("config", "Working Directory", cwd || "(workspace root)", vscode.TreeItemCollapsibleState.None, { command: "haibun.editCwd", title: "Edit CWD" }),
 					new TreeNode("config", "Base Directories", bases.length > 0 ? bases.join(", ") : "(none)", vscode.TreeItemCollapsibleState.None, {
 						command: "haibun.editBases",
 						title: "Edit Bases",
 					}),
-					new TreeNode("config", "Config File", configFile || "(none)", vscode.TreeItemCollapsibleState.None, {
-						command: "haibun.editConfigFile",
-						title: "Edit Config File",
-					}),
+					new TreeNode("config", "Config File", configFile || "(none)", vscode.TreeItemCollapsibleState.None, { command: "haibun.editConfigFile", title: "Edit Config File" }),
 				]);
 			}
 			// MCP config section children
 			if (element.mcpConfig) {
 				const { mcpEnabled, mcpPort, mcpAccessToken } = element.mcpConfig;
 				const items: TreeNode[] = [
-					new TreeNode("config", "Enabled", mcpEnabled ? "Yes" : "No", vscode.TreeItemCollapsibleState.None, {
-						command: "haibun.toggleMcp",
-						title: "Toggle MCP",
-					}),
+					new TreeNode("config", "Enabled", mcpEnabled ? "Yes" : "No", vscode.TreeItemCollapsibleState.None, { command: "haibun.toggleMcp", title: "Toggle MCP" }),
 				];
 				if (mcpEnabled) {
 					items.push(
-						new TreeNode("config", "Port", String(mcpPort), vscode.TreeItemCollapsibleState.None, {
-							command: "haibun.editMcpPort",
-							title: "Edit MCP Port",
-						}),
+						new TreeNode("config", "Port", String(mcpPort), vscode.TreeItemCollapsibleState.None, { command: "haibun.editMcpPort", title: "Edit MCP Port" }),
 						new TreeNode("config", "Access Token", mcpAccessToken ? "••••••••" : "(required, not set)", vscode.TreeItemCollapsibleState.None, {
 							command: "haibun.editMcpAccessToken",
 							title: "Edit MCP Access Token",
@@ -892,11 +826,7 @@ export function registerConfigCommands(context: vscode.ExtensionContext, treePro
 		vscode.commands.registerCommand("haibun.editCwd", async () => {
 			const config = vscode.workspace.getConfiguration("haibun");
 			const current = config.get<string>("cwd") || "";
-			const result = await vscode.window.showInputBox({
-				prompt: "Working Directory (relative to workspace root)",
-				value: current,
-				placeHolder: "e.g., e2e-tests",
-			});
+			const result = await vscode.window.showInputBox({ prompt: "Working Directory (relative to workspace root)", value: current, placeHolder: "e.g., e2e-tests" });
 			if (result !== undefined) {
 				await config.update("cwd", result, false);
 				treeProvider.refresh();
@@ -924,11 +854,7 @@ export function registerConfigCommands(context: vscode.ExtensionContext, treePro
 		vscode.commands.registerCommand("haibun.editConfigFile", async () => {
 			const config = vscode.workspace.getConfiguration("haibun");
 			const current = config.get<string>("configFile") || "";
-			const result = await vscode.window.showInputBox({
-				prompt: "Config File (relative to CWD)",
-				value: current,
-				placeHolder: "e.g., config.json or tests/config.json",
-			});
+			const result = await vscode.window.showInputBox({ prompt: "Config File (relative to CWD)", value: current, placeHolder: "e.g., config.json or tests/config.json" });
 			if (result !== undefined) {
 				await config.update("configFile", result, false);
 				treeProvider.refresh();
@@ -961,12 +887,7 @@ export function registerConfigCommands(context: vscode.ExtensionContext, treePro
 		vscode.commands.registerCommand("haibun.editMcpAccessToken", async () => {
 			const config = vscode.workspace.getConfiguration("haibun");
 			const current = config.get<string>("mcpAccessToken") || "";
-			const result = await vscode.window.showInputBox({
-				prompt: "MCP Access Token (required for security)",
-				value: current,
-				placeHolder: "Enter an access token",
-				password: true,
-			});
+			const result = await vscode.window.showInputBox({ prompt: "MCP Access Token (required for security)", value: current, placeHolder: "Enter an access token", password: true });
 			if (result !== undefined) {
 				await config.update("mcpAccessToken", result, false);
 				treeProvider.refresh();
@@ -974,11 +895,7 @@ export function registerConfigCommands(context: vscode.ExtensionContext, treePro
 		}),
 		vscode.commands.registerCommand("haibun.setMcpToolParam", async (toolName: string, paramName: string) => {
 			const current = treeProvider.getMcpParamValue(toolName, paramName) || "";
-			const result = await vscode.window.showInputBox({
-				prompt: `Set value for ${paramName}`,
-				value: current,
-				placeHolder: "Enter parameter value",
-			});
+			const result = await vscode.window.showInputBox({ prompt: `Set value for ${paramName}`, value: current, placeHolder: "Enter parameter value" });
 			if (result !== undefined) {
 				treeProvider.setMcpParamValue(toolName, paramName, result);
 			}

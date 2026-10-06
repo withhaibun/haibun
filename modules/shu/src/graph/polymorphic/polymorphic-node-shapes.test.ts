@@ -90,10 +90,7 @@ const harness = (withThree = true): { deps: NodeShapeDeps; labels: RecLabel[] } 
 		}
 	}
 	const three = { Mesh, BoxGeometry, MeshBasicMaterial } as unknown as ShapeThree;
-	return {
-		deps: { three: withThree ? three : undefined, makeLabel, textColor: "#111", sceneTextColor: "#eee", borderColor: "#ccc", fontSize: 96, renderOrder: 20 },
-		labels,
-	};
+	return { deps: { three: withThree ? three : undefined, makeLabel, textColor: "#111", sceneTextColor: "#eee", borderColor: "#ccc", fontSize: 96, renderOrder: 20 }, labels };
 };
 
 describe("polymorphic paint (mark → three.js geometry, GPU-free)", () => {

@@ -22,11 +22,7 @@ import { DOMAIN_USER_NAME } from "../lib/domains.js";
 // Domain key registered for the test by the `getConcerns` block below.
 const DOMAIN_AUTH_SESSION = "domain-auth-session";
 
-const AuthSessionSchema = z.object({
-	id: z.string(),
-	subject: z.string(),
-	issuedAt: z.coerce.date(),
-});
+const AuthSessionSchema = z.object({ id: z.string(), subject: z.string(), issuedAt: z.coerce.date() });
 
 /**
  * Test stepper that produces DOMAIN_AUTH_SESSION when its `signIn` step fires.
@@ -34,35 +30,17 @@ const AuthSessionSchema = z.object({
  */
 class AuthStepper extends AStepper implements IHasCycles {
 	cycles: IStepperCycles = {
-		getConcerns: () => ({
-			domains: [
-				{
-					selectors: [DOMAIN_AUTH_SESSION],
-					schema: AuthSessionSchema,
-					description: "An authenticated session for a subject",
-				},
-			],
-		}),
+		getConcerns: () => ({ domains: [{ selectors: [DOMAIN_AUTH_SESSION], schema: AuthSessionSchema, description: "An authenticated session for a subject" }] }),
 	};
 
 	steps: TStepperSteps = {
 		signIn: {
 			gwta: `sign in as {subject: ${DOMAIN_USER_NAME}}`,
 			productsDomain: DOMAIN_AUTH_SESSION,
-			action: ({ subject }: { subject: string }) =>
-				Promise.resolve(
-					actionOKWithProducts({
-						id: `session:${subject}:${Date.now()}`,
-						subject,
-						issuedAt: new Date(),
-					}),
-				),
+			action: ({ subject }: { subject: string }) => Promise.resolve(actionOKWithProducts({ id: `session:${subject}:${Date.now()}`, subject, issuedAt: new Date() })),
 		},
 		// A no-op terminal step the feature can call after `ensure` to assert state.
-		showSession: {
-			gwta: "show current session",
-			action: () => Promise.resolve(actionOK()),
-		},
+		showSession: { gwta: "show current session", action: () => Promise.resolve(actionOK()) },
 	};
 }
 
@@ -112,11 +90,7 @@ ensure Logged in`,
 		// step doesn't exist. A permissive ad-hoc domain is registered via a minimal stepper so
 		// the waypoint declares a known domain key whose chain doesn't have a producer.
 		class DomainOnlyStepper extends AStepper implements IHasCycles {
-			cycles: IStepperCycles = {
-				getConcerns: () => ({
-					domains: [{ selectors: [DOMAIN_AUTH_SESSION], schema: AuthSessionSchema, description: "Authenticated session" }],
-				}),
-			};
+			cycles: IStepperCycles = { getConcerns: () => ({ domains: [{ selectors: [DOMAIN_AUTH_SESSION], schema: AuthSessionSchema, description: "Authenticated session" }] }) };
 			steps: TStepperSteps = {};
 		}
 		const steppersWithoutProducer = [VariablesStepper, ActivitiesStepper, Haibun, DomainOnlyStepper];
@@ -142,11 +116,7 @@ ensure Logged in`,
 	//      run's authority, so the caller lacking it is stated: one holding only another action.
 	it("(1d) capability gating: producer requiring an unheld capability is filtered, goal becomes unreachable", async () => {
 		class GatedAuthStepper extends AStepper implements IHasCycles {
-			cycles: IStepperCycles = {
-				getConcerns: () => ({
-					domains: [{ selectors: [DOMAIN_AUTH_SESSION], schema: AuthSessionSchema, description: "Authenticated session" }],
-				}),
-			};
+			cycles: IStepperCycles = { getConcerns: () => ({ domains: [{ selectors: [DOMAIN_AUTH_SESSION], schema: AuthSessionSchema, description: "Authenticated session" }] }) };
 			steps: TStepperSteps = {
 				signIn: {
 					gwta: `sign in as {subject: ${DOMAIN_USER_NAME}}`,
