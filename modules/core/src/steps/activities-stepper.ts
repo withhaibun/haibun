@@ -57,7 +57,7 @@ export const savedWaypointDomainDefinition: TDomainDefinition = {
 		persistedAs: SAVED_WAYPOINT_LABEL,
 		type: "schema:HowTo",
 		id: "id",
-		properties: { id: LinkRelations.IDENTIFIER.rel, lines: LinkRelations.STEP.rel, source: LinkRelations.SOURCE_PATH.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel },
+		properties: { id: LinkRelations.IDENTIFIER.rel, lines: LinkRelations.STEP.rel, source: LinkRelations.SOURCE_PATH.rel },
 		displayLabel: "id",
 		sortColumns: { generatedAtTime: "TIMESTAMPTZ" },
 	},

@@ -2,7 +2,7 @@
 	"darwin-arm64-12x-apple-m4-pro": {
 		"features": {
 			"/features/a11y-fail.feature": {
-				"seconds": 0.6,
+				"seconds": 0.5,
 				"steps": 12,
 				"declaredStepTextHash": "5a76c771445a220203a7eab76f27f428e25697d9a984395e5bc5ede0aa55ffef"
 			},
@@ -42,12 +42,12 @@
 				"declaredStepTextHash": "072620079179e9e5107f464049dff25238322ae72af9ff2ba115e09886cf2715"
 			},
 			"/features/counter.feature": {
-				"seconds": 1.6,
+				"seconds": 0.5,
 				"steps": 20,
 				"declaredStepTextHash": "179f2a7919aa297e130229e22984568a4465c73dbdcc6f5e39a2727caad9eb0f"
 			},
 			"/features/counter.feature.ts": {
-				"seconds": 1.8,
+				"seconds": 2.5,
 				"steps": 20,
 				"declaredStepTextHash": "2dbaa6f8d7e5ced812a237be8252de1c768081154d89aeb79786ded0725bb453"
 			},
@@ -57,7 +57,7 @@
 				"declaredStepTextHash": "044398785f4c4e310f5a6db9af3f898b2ebd3f751ce6e65d63b9da9e1172d860"
 			},
 			"/features/elements.feature": {
-				"seconds": 0.4,
+				"seconds": 0.3,
 				"steps": 8,
 				"declaredStepTextHash": "a6f7c8ba7695a91a26d5638c12d4542439cd090643058d1bfdf65115a1e6c275"
 			},
@@ -87,7 +87,7 @@
 				"declaredStepTextHash": "19319d61d4aefc9cb0f31275a41584382b21cbc1439888a263facb9b6bbb362d"
 			},
 			"/features/once.feature.ts": {
-				"seconds": 0.7,
+				"seconds": 0.6,
 				"steps": 20,
 				"declaredStepTextHash": "006f43f7b774933fc9bebe65cc0bd082a8b856b21c34e008e1c61ffbf7ac8354"
 			},
@@ -127,7 +127,7 @@
 				"declaredStepTextHash": "423b87fb62e3b26879565f24459e8474ab76e2eb6ff85bc3a5e49704ea336e08"
 			},
 			"/features/wikipedia.feature.ts": {
-				"seconds": 1,
+				"seconds": 0.9,
 				"steps": 145,
 				"declaredStepTextHash": "fac79a2c47a1620dac9bee4f4664f6ce4c5a85f1d5f473fae00cce100256949c"
 			},
@@ -143,6 +143,6 @@
 			}
 		},
 		"steps": 1151,
-		"seconds": 14.9
+		"seconds": 14.1
 	}
 }

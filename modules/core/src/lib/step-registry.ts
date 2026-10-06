@@ -1,4 +1,3 @@
-
 import { jsonSchemaFor } from "./json-schema-of.js";
 import { AStepper, type TStepperStep, type TFeatureStep } from "./astepper.js";
 import { runSteppers, type TWorld } from "./world.js";
@@ -321,7 +320,6 @@ export function stepParamDomains(stepDef: TStepperStep): Map<string, string> {
 	}
 	return domains;
 }
-
 
 /**
  * Build a JSON Schema and Zod param schemas for a step's input parameters.

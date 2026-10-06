@@ -450,12 +450,14 @@ describe("step-dispatch", () => {
 			expect(() => declaring({ gwta: `read {label: string} {id: ${DOMAIN_RECORD_ID}}`, recordIds: { id: "label" } }), "paired with a parameter that doesn't name a type").toThrow(
 				/recordIds pairs \{id\} with \{label\}, which doesn't name a type/,
 			);
-			expect(() => declaring({ gwta: `write {label: string} {data: ${DOMAIN_JSON}}`, recordData: { data: "label" } }), "fields paired with a parameter that doesn't name a type").toThrow(
-				/recordData pairs \{data\} with \{label\}, which doesn't name a type/,
-			);
-			expect(() => declaring({ gwta: `write {label: ${DOMAIN_PERSISTED_TYPE}} {data: ${DOMAIN_JSON}}`, recordData: { fields: "label" } }), "a parameter its phrase doesn't take").toThrow(
-				/recordData names \{fields\}, which its phrase doesn't take/,
-			);
+			expect(
+				() => declaring({ gwta: `write {label: string} {data: ${DOMAIN_JSON}}`, recordData: { data: "label" } }),
+				"fields paired with a parameter that doesn't name a type",
+			).toThrow(/recordData pairs \{data\} with \{label\}, which doesn't name a type/);
+			expect(
+				() => declaring({ gwta: `write {label: ${DOMAIN_PERSISTED_TYPE}} {data: ${DOMAIN_JSON}}`, recordData: { fields: "label" } }),
+				"a parameter its phrase doesn't take",
+			).toThrow(/recordData names \{fields\}, which its phrase doesn't take/);
 		});
 
 		it("names the step each call is part of, where two steps are in flight at once", async () => {

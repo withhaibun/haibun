@@ -473,8 +473,7 @@ describe("commentDomainDefinition", () => {
 	});
 
 	it("passes buildConcernCatalog validation", () => {
-		const registered = { comment: { ...commentDomainDefinition, coerce: (x: unknown) => x as unknown as import("./resources.js").TDomainDefinition["schema"] } };
-		const cat = buildConcernCatalog(registered as Parameters<typeof buildConcernCatalog>[0]);
+		const cat = buildConcernCatalog(mapDefinitionsToDomains([commentDomainDefinition]));
 		expect(cat.persisted[COMMENT_LABEL]).toBeDefined();
 	});
 

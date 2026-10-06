@@ -33,8 +33,7 @@ beforeEach(() => {
 	const listing = (vertices: unknown[]) => ({ vertices, total: vertices.length });
 	// The read of a type answers with the records of the type its query names: the models, or their providers.
 	const ofType = (params: Record<string, unknown>) => ((params.query as { label?: string } | undefined)?.label === KIHAN ? models : providers);
-	const respond = (step: string, params: Record<string, unknown>) =>
-		step === CHAT_STEP.catalog ? listing(ofType(params)) : step === CHAT_STEP.sessions ? { sessions: [] } : {};
+	const respond = (step: string, params: Record<string, unknown>) => (step === CHAT_STEP.catalog ? listing(ofType(params)) : step === CHAT_STEP.sessions ? { sessions: [] } : {});
 	t = setupShuTest({ dispatch: chatDispatch(respond, { concerns: MODELS_BY_PROVIDER }) });
 });
 afterEach(() => t.teardown());

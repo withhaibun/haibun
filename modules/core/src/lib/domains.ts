@@ -271,21 +271,20 @@ export const createEnumDomainDefinition = ({ name, values, description, ordered 
 };
 
 /**
- * A persisted type's topology with the property that states each record's level. Every persisted type states its level,
- * as a field through `PersistedVertexSchema` and as this property, so the property is added here, where every type is
- * registered, and a declaration doesn't repeat it. A consumer reads the level from the `accessLevel` property alone, so the
- * property always has that name.
+ * A persisted type's topology with the properties every record states: its level and when it was generated. Every
+ * persisted type states both, as fields and as these properties, so the properties are added here, where every type is
+ * registered, and a declaration doesn't repeat them. A consumer reads each by its name.
  */
-function withLevelProperty(topology: TDomainTopology | undefined): TDomainTopology | undefined {
+function withRecordProperties(topology: TDomainTopology | undefined): TDomainTopology | undefined {
 	if (!isPersisted(topology)) return topology;
-	return { ...topology, properties: { ...topology.properties, accessLevel: LinkRelations.ACCESS_LEVEL.rel } };
+	return { ...topology, properties: { ...topology.properties, accessLevel: LinkRelations.ACCESS_LEVEL.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel } };
 }
 
 export const toRegisteredDomain = (definition: TDomainDefinition): TRegisteredDomain => ({
 	...definition,
 	selectors: [...definition.selectors],
 	coerce: definition.coerce ?? ((proto) => definition.schema.parse(proto.value)),
-	topology: withLevelProperty(definition.topology),
+	topology: withRecordProperties(definition.topology),
 });
 
 export const mapDefinitionsToDomains = (definitions: TDomainDefinition[]) => {

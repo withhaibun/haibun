@@ -178,7 +178,7 @@ export function persistedTypeDefinition(
 		selectors: [selector],
 		schema: fromJsonText(schema),
 		description,
-		topology: { persistedAs: label, id: "id", properties: { id: LinkRelations.IDENTIFIER.rel, ...properties, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel }, edges },
+		topology: { persistedAs: label, id: "id", properties: { id: LinkRelations.IDENTIFIER.rel, ...properties }, edges },
 		// A feature's `set of {domain} by …` declaration marks what it registers this way.
 		...(declared ? { ui: { declared: true } } : {}),
 	};

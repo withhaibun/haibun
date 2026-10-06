@@ -858,7 +858,6 @@ export const commentDomainDefinition: TDomainDefinition = {
 			id: LinkRelations.IDENTIFIER.rel,
 			name: LinkRelations.NAME.rel,
 			author: LinkRelations.ATTRIBUTED_TO.rel,
-			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
 			startedAtTime: LinkRelations.STARTED_AT_TIME.rel,
 			endedAtTime: LinkRelations.ENDED_AT_TIME.rel,
 			seqPath: LinkRelations.SEQ_PATH.rel,
@@ -944,13 +943,7 @@ export const principalDomainDefinition: TDomainDefinition = {
 		subClassOf: "prov:Agent",
 		id: "id",
 		accessLevel: Access.public,
-		properties: {
-			id: LinkRelations.IDENTIFIER.rel,
-			name: LinkRelations.NAME.rel,
-			controller: LinkRelations.CONTROLLER.rel,
-			publicKey: LinkRelations.PUBLIC_KEY.rel,
-			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
-		},
+		properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel, controller: LinkRelations.CONTROLLER.rel, publicKey: LinkRelations.PUBLIC_KEY.rel },
 		edges: { service: { rel: LinkRelations.SERVICE.rel, range: ENDPOINT_LABEL } },
 		sortColumns: { name: "TEXT", controller: "TEXT", generatedAtTime: "TIMESTAMPTZ" },
 	},
@@ -1037,12 +1030,7 @@ export const bodyDomainDefinition: TDomainDefinition = {
 	topology: {
 		persistedAs: BODY_LABEL,
 		id: "id",
-		properties: {
-			id: LinkRelations.IDENTIFIER.rel,
-			content: LinkRelations.CONTENT.rel,
-			mediaType: LinkRelations.MEDIA_TYPE.rel,
-			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
-		},
+		properties: { id: LinkRelations.IDENTIFIER.rel, content: LinkRelations.CONTENT.rel, mediaType: LinkRelations.MEDIA_TYPE.rel },
 		// Declared query surface for the one-path graph-store: callers can filter
 		// or sort Body rows by mediaType (e.g. "all PDF bodies") or generatedAtTime.
 		sortColumns: { mediaType: "TEXT", generatedAtTime: "TIMESTAMPTZ" },
@@ -1086,13 +1074,7 @@ export const textQuoteSelectorDomainDefinition: TDomainDefinition = {
 		persistedAs: TEXT_QUOTE_SELECTOR_LABEL,
 		type: "oa:TextQuoteSelector",
 		id: "id",
-		properties: {
-			id: LinkRelations.IDENTIFIER.rel,
-			exact: LinkRelations.EXACT.rel,
-			prefix: LinkRelations.PREFIX.rel,
-			suffix: LinkRelations.SUFFIX.rel,
-			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
-		},
+		properties: { id: LinkRelations.IDENTIFIER.rel, exact: LinkRelations.EXACT.rel, prefix: LinkRelations.PREFIX.rel, suffix: LinkRelations.SUFFIX.rel },
 		// Named as the labeling property, never remapped to CONTENT.rel: the selector doesn't have content, and asserting the
 		// quote as its content would serialize a false claim.
 		displayLabel: "exact",
@@ -1110,12 +1092,7 @@ export const fragmentSelectorDomainDefinition: TDomainDefinition = {
 		persistedAs: FRAGMENT_SELECTOR_LABEL,
 		type: "oa:FragmentSelector",
 		id: "id",
-		properties: {
-			id: LinkRelations.IDENTIFIER.rel,
-			value: LinkRelations.VALUE.rel,
-			conformsTo: LinkRelations.CONFORMS_TO.rel,
-			generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel,
-		},
+		properties: { id: LinkRelations.IDENTIFIER.rel, value: LinkRelations.VALUE.rel, conformsTo: LinkRelations.CONFORMS_TO.rel },
 		displayLabel: "value",
 		sortColumns: { value: "TEXT" },
 	},
@@ -1151,7 +1128,7 @@ export const specificResourceDomainDefinition: TDomainDefinition = {
 		persistedAs: SPECIFIC_RESOURCE_LABEL,
 		type: "oa:SpecificResource",
 		id: "id",
-		properties: { id: LinkRelations.IDENTIFIER.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel, label: LinkRelations.LABEL.rel },
+		properties: { id: LinkRelations.IDENTIFIER.rel, label: LinkRelations.LABEL.rel },
 		edges: {
 			hasSource: { rel: LinkRelations.HAS_SOURCE.rel, range: RESOURCE_LABEL },
 			hasSelector: { rel: LinkRelations.HAS_SELECTOR.rel, range: [TEXT_QUOTE_SELECTOR_LABEL, FRAGMENT_SELECTOR_LABEL] },
@@ -1184,7 +1161,7 @@ export const readingDomainDefinition: TDomainDefinition = {
 		instrumentation: true,
 		type: "prov:Activity",
 		id: "id",
-		properties: { id: LinkRelations.IDENTIFIER.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel, seqPath: LinkRelations.SEQ_PATH.rel, stated: LinkRelations.STATED.rel },
+		properties: { id: LinkRelations.IDENTIFIER.rel, seqPath: LinkRelations.SEQ_PATH.rel, stated: LinkRelations.STATED.rel },
 		edges: { used: { rel: LinkRelations.USED.rel, range: RESOURCE_LABEL } },
 		sortColumns: { generatedAtTime: "TIMESTAMPTZ" },
 	},
@@ -1223,7 +1200,7 @@ export const sceneDomainDefinition: TDomainDefinition = {
 		id: "id",
 		// Its id is its name.
 		displayLabel: "id",
-		properties: { id: LinkRelations.IDENTIFIER.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel, state: LinkRelations.SCHEMA_OBJECT.rel },
+		properties: { id: LinkRelations.IDENTIFIER.rel, state: LinkRelations.SCHEMA_OBJECT.rel },
 		sortColumns: { generatedAtTime: "TIMESTAMPTZ" },
 	},
 };

@@ -340,7 +340,9 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	private async readProvidersWithout(): Promise<{ type: string; providers: TProvider[] } | undefined> {
 		const type = providerType();
 		if (!type || !findStep(READS_A_TYPE)) return undefined;
-		const page = ProviderPageSchema.parse(await conduit().follow(reads(requireStep(READS_A_TYPE), { query: { label: type, offset: 0, limit: CATALOG_PAGE } }), "kihan-chat: load providers"));
+		const page = ProviderPageSchema.parse(
+			await conduit().follow(reads(requireStep(READS_A_TYPE), { query: { label: type, offset: 0, limit: CATALOG_PAGE } }), "kihan-chat: load providers"),
+		);
 		return { type, providers: page.vertices.filter((provider) => provider.models === 0) };
 	}
 
