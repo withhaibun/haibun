@@ -31,6 +31,7 @@ import type { IStepTransport } from "./step-transport.js";
 import { delegateOf, grantedCapabilityForRequest, PRESENTED_REQUEST_HEADERS, refuseInvocation } from "./capability-auth.js";
 import { actingAs, authorizedWith, restingOn, runActingAs, runAuthorizedWith, shownTo } from "@haibun/core/lib/capability-context.js";
 import { DOMAIN_ROUTE } from "@haibun/core/lib/domains.js";
+import { ACTUALITY_HEADER, actualityRefusal } from "@haibun/core/lib/rpc-wire.js";
 /** The port the MCP endpoint listens on where neither it nor the web server states one. */
 const DEFAULT_MCP_PORT = 8128;
 
@@ -201,6 +202,10 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 				webserver,
 			);
 			if (refused) return refuseInvocation(c, refused);
+			// A call that states the actuality it reads is held to it, as a follower of the event stream is; one that doesn't
+			// state it is served, so a client whose configuration names its headers isn't refused after a restart.
+			const otherActuality = actualityRefusal(c.req.header(ACTUALITY_HEADER), this.getWorld().runtime.actualityId);
+			if (otherActuality) return c.json(otherActuality, 400);
 
 			// 3. Disable Compression (Critical for SSE)
 			c.header("Cache-Control", "no-transform");

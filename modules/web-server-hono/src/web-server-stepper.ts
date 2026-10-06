@@ -119,6 +119,8 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		},
 		INTERFACE: { desc: "Change web server interface from default (127.0.0.1). e.g. 0.0.0.0", parse: (input: string) => ({ result: input }) },
 		ALLOW_WITHOUT_DELEGATION: {
+			// An instance a run launches states what it allows in its own configuration, rather than holding its launcher's.
+			perProcess: true,
 			desc: "Actions every caller may take without a delegation, comma-separated, beside what its delegation allows: Read:public for a site anyone may read. Unset, a caller holds only what it proves, and one that doesn't prove a key may call only a step that doesn't require an action",
 			parse: (input: string) => (actionList(input).length > 0 ? { result: input } : { parseError: "ALLOW_WITHOUT_DELEGATION: name at least one action, comma-separated" }),
 		},

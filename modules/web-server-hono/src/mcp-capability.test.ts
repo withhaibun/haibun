@@ -14,7 +14,7 @@ import McpStepper from "./mcp-stepper.js";
 import WebServerStepper from "./web-server-stepper.js";
 import { DOMAIN_NUMBER } from "@haibun/core/lib/domains.js";
 import { Access } from "@haibun/core/lib/resources.js";
-import { REFUSED_INVOCATION } from "@haibun/core/lib/rpc-wire.js";
+import { ACTUALITY_HEADER, REFUSED_INVOCATION } from "@haibun/core/lib/rpc-wire.js";
 
 /** Two calls in flight at once: each call that arrives waits until the other has arrived too. */
 const CALLS_IN_FLIGHT = 2;
@@ -54,6 +54,19 @@ class ProtectedStepper extends AStepper {
 				const answered = await Promise.all([call(first), call(second)]);
 				const echoed = answered.map((result) => JSON.parse(getToolResult(result).content?.[0]?.text ?? "{}").echoed);
 				if (echoed[0] !== first || echoed[1] !== second) throw new Error(`Expected ${first} and ${second} each answered with their own result, got ${JSON.stringify(answered)}`);
+				return OK;
+			},
+		},
+		verifyMcpActuality: {
+			gwta: `verify an mcp call on port {port: ${DOMAIN_NUMBER}} stating another actuality is refused, and one stating this one is served`,
+			action: async ({ port }: { port: string }) => {
+				const url = `http://localhost:${port}/mcp`;
+				const list = (actualityId: string) =>
+					fetch(url, { method: "POST", headers: { ...MCP_HEADERS, [ACTUALITY_HEADER]: actualityId }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} }) });
+				const other = await list("another-actuality");
+				if (other.status !== 400 || !(await other.text()).includes("another-actuality")) throw new Error(`Expected another actuality refused, got ${other.status}`);
+				const held = await list(String(this.getWorld().runtime.actualityId));
+				if (!held.ok) throw new Error(`Expected this actuality served, got ${held.status} ${await held.text()}`);
 				return OK;
 			},
 		},
@@ -193,6 +206,21 @@ verify mcp calls by "first" and "second" with one id on port ${port} are each an
 `,
 		};
 		const result = await passWithDefaults([feature], signedSteppers, mcpOptions(port));
+		if (!result.ok) throw new Error(JSON.stringify(result.featureResults, null, 2));
+		expect(result.ok).toBe(true);
+	});
+
+	it("refuses a call that states another actuality, and serves one that states this one", async () => {
+		const port = await freePort();
+		const feature = {
+			path: "/features/mcp-actuality.feature",
+			content: `
+serve mcp tools at "/mcp"
+webserver is listening for "mcp actuality"
+verify an mcp call on port ${port} stating another actuality is refused, and one stating this one is served
+`,
+		};
+		const result = await passWithDefaults([feature], [WebServerStepper, McpStepper, ProtectedStepper], mcpOptions(port));
 		if (!result.ok) throw new Error(JSON.stringify(result.featureResults, null, 2));
 		expect(result.ok).toBe(true);
 	});

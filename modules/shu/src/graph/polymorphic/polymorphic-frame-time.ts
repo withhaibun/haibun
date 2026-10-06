@@ -7,8 +7,9 @@
  * its signal is the frame's time as the renderer used it: one to two milliseconds on a GPU, sixteen and more under
  * SwiftShader for the same scene.
  *
- * One frame in `SAMPLE_EVERY` is measured, one fence at a time. A context without fences doesn't measure a frame, and the
- * regulator that reads this then never trips.
+ * Every drawn frame is measured until `firstMeasured` measurements are made, so a scene that draws few frames fills the
+ * regulator's window; after that, one frame in `SAMPLE_EVERY` is measured. One fence is held at a time. A context without
+ * fences doesn't measure a frame, and the regulator that reads this then never trips.
  */
 
 /** The slice of a WebGL2 context a fence needs. */
@@ -27,19 +28,22 @@ export const SAMPLE_EVERY = 10;
 
 export class FrameTime {
 	#drawn = 0;
+	#measured = 0;
 	#pending: { fence: unknown; placedAt: number } | undefined;
 	#gl: TFenceGl | null | undefined;
 
 	/** `context` is read lazily and once: a scene's renderer exists only after the scene has loaded. */
 	constructor(
 		private readonly context: () => TFenceGl | undefined,
+		private readonly firstMeasured: number,
 		private readonly now: () => number = () => performance.now(),
 	) {}
 
-	/** A frame was drawn. On every `SAMPLE_EVERY`th, without a measurement pending, a fence is placed after it. */
+	/** A frame was drawn. Without a measurement pending, a fence is placed after it while the first measurements are made,
+	 *  and after every `SAMPLE_EVERY`th frame once they are. */
 	drew(): void {
 		this.#drawn++;
-		if (this.#pending || this.#drawn % SAMPLE_EVERY !== 0) return;
+		if (this.#pending || (this.#measured >= this.firstMeasured && this.#drawn % SAMPLE_EVERY !== 0)) return;
 		const gl = this.gl();
 		if (!gl) return;
 		const fence = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
@@ -55,6 +59,7 @@ export class FrameTime {
 		const elapsed = this.now() - this.#pending.placedAt;
 		gl.deleteSync(this.#pending.fence);
 		this.#pending = undefined;
+		this.#measured++;
 		return elapsed;
 	}
 

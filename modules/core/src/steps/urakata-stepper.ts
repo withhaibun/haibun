@@ -23,7 +23,7 @@ const urakataTaskDomainDefinition = {
 	schema: UrakataSchema,
 	description:
 		"A background task (ticker) started in a run: what it is, which run instance it ran in, when it started, its tick and error counts, and when it was cleanly stopped.",
-	topology: { persistedAs: URAKATA_LABEL, id: "id", properties: { id: LinkRelations.IDENTIFIER.rel, description: LinkRelations.NAME.rel, execution: LinkRelations.CONTEXT.rel } },
+	topology: { persistedAs: URAKATA_LABEL, id: "id", instrumentation: true, properties: { id: LinkRelations.IDENTIFIER.rel, description: LinkRelations.NAME.rel, execution: LinkRelations.CONTEXT.rel } },
 };
 
 class UrakataStepper extends AStepper implements IHasCycles, IHasUrakata {

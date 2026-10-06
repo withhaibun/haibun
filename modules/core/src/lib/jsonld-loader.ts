@@ -36,10 +36,10 @@ export function clearKeyDocuments(): void {
 }
 
 /** What this process holds for a URL: a key document, then a registered context. An unregistered URL throws. */
-export async function documentLoader(url: string): Promise<LoaderResult> {
+export function documentLoader(url: string): Promise<LoaderResult> {
 	const held = keyDocuments.get(url) ?? contexts.get(url);
-	if (held === undefined) throw new Error(`a JSON-LD document for ${url} isn't registered`);
-	return { contextUrl: null, documentUrl: url, document: held };
+	if (held === undefined) return Promise.reject(new Error(`a JSON-LD document for ${url} isn't registered`));
+	return Promise.resolve({ contextUrl: null, documentUrl: url, document: held });
 }
 
 /** The jsonld processor (expand / compact / toRDF / processContext), resolving external references through documentLoader. */

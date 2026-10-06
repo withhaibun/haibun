@@ -54,7 +54,6 @@
 		"@haibun/recorder": "*",
 		"@haibun/web-server-hono": "*",
 		"@types/express-fileupload": "^1.5.1",
-		"express-fileupload": "^1.5.2",
-		"typescript": "~5.9"
+		"express-fileupload": "^1.5.2"
 	}
 }

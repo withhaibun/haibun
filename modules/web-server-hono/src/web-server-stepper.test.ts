@@ -5,7 +5,7 @@ import * as path from "path";
 import { passWithDefaults, DEF_PROTO_OPTIONS } from "@haibun/core/lib/test/lib.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
-import { getStepperOptionName, actionNotOK } from "@haibun/core/lib/util/index.js";
+import { getStepperOptionName, actionNotOK, perProcessOptionNames } from "@haibun/core/lib/util/index.js";
 import WebServerStepper from "./web-server-stepper.js";
 import { BASIC_AUTH_OPTION } from "@haibun/core/lib/basic-auth.js";
 import { DOMAIN_LINK, DOMAIN_TEXT } from "@haibun/core/lib/domains.js";
@@ -50,6 +50,12 @@ class VerifyStepper extends AStepper {
 		},
 	};
 }
+
+describe("what an instance a run launches holds", () => {
+	it("states what it allows without a delegation in its own configuration, rather than holding its launcher's", () => {
+		expect(perProcessOptionNames([new WebServerStepper()])).toContain(getStepperOptionName(WebServerStepper, "ALLOW_WITHOUT_DELEGATION"));
+	});
+});
 
 describe("the web server's basic auth option", () => {
 	it("is the one core names, which a launched instance inherits and its launcher signs in with", () => {

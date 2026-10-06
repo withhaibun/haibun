@@ -33,7 +33,7 @@ function aCornersPage(): TCornersPage {
 	popover.hidePopover = vi.fn(() => {
 		popover.shown = false;
 	});
-	popover.matches = (selector: string) => selector === ":popover-open" && popover.shown;
+	popover.matches = ((selector: string) => selector === ":popover-open" && popover.shown) as typeof popover.matches;
 	const corners = new PageStripCorners(host, {
 		testIdPrefix: () => PREFIX,
 		anchorTop: () => host.getBoundingClientRect().top,

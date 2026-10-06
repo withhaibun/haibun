@@ -1677,7 +1677,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		// comparison, so a change wakes the scene within one frame.
 		// What a drawn frame takes is measured after the draw (see `FrameTime`) and read in the gate below, where the
 		// regulator sets whether the breath may keep requesting frames.
-		const frameTime = new FrameTime(() => scene.renderer?.getContext?.() as TFenceGl | undefined);
+		const frameTime = new FrameTime(() => scene.renderer?.getContext?.() as TFenceGl | undefined, DEFAULT_REGULATION_THRESHOLDS.windowSamples);
 		const drawing = new Drawing(aframeLoop(scene, () => frameTime.drew()));
 		this.drawing = drawing;
 		const tick = () => {
