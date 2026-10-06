@@ -1,6 +1,7 @@
 // What a device holds of the runs it has read, and what it does when it can't hold more. A record's id names the run
 // it belongs to, so forgetting a run is asked of the records rather than of a second index beside them.
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
@@ -70,7 +71,7 @@ describe("what a device holds of the runs it has read", () => {
 	it("names the runs it holds, newest first, by the features each ran", async () => {
 		await aDevice();
 		expect((await executionsHeld()).map((one) => one.execution)).toEqual([NEWER, OLDER]);
-		expect((await executionsHeld())[0].features).toEqual(["run 1"]);
+		expect(itemAt(await executionsHeld(), 0).features).toEqual(["run 1"]);
 	});
 
 	it("reports the run being read changed when a run starts while the page is following the one before it", () => {

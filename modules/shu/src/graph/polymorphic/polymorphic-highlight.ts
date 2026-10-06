@@ -1,3 +1,5 @@
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
+
 /**
  * The active node's highlight: a soft glow behind the mark.
  *
@@ -86,7 +88,7 @@ function rampTable(ramp: readonly string[]): string[] {
 	const table = Array.from({ length: RAMP_STEPS }, (_, i) => {
 		const at = (i / (RAMP_STEPS - 1)) * last;
 		const from = Math.min(Math.floor(at), last - 1);
-		return mixHex(ramp[from], ramp[from + 1], at - from);
+		return mixHex(itemAt(ramp, from), itemAt(ramp, from + 1), at - from);
 	});
 	rampTables.set(ramp, table);
 	return table;
@@ -101,7 +103,9 @@ function rampTable(ramp: readonly string[]): string[] {
  */
 export const glowColorAt = (intensity: number, ramp: readonly string[]): string => {
 	const breath = (intensity - PULSE_MIN) / (1 - PULSE_MIN);
-	return rampTable(ramp)[Math.min(RAMP_STEPS - 1, Math.max(0, Math.round(breath * (RAMP_STEPS - 1))))];
+	const color = rampTable(ramp)[Math.min(RAMP_STEPS - 1, Math.max(0, Math.round(breath * (RAMP_STEPS - 1))))];
+	if (color === undefined) throw new RangeError(`intensity ${intensity} is outside the glow ramp`);
+	return color;
 };
 
 let sharedTexture: unknown;

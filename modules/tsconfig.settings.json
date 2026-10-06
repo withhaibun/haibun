@@ -31,5 +31,5 @@
 		"synchronousWatchDirectory": true,
 		"excludeDirectories": ["node_modules", "build"]
 	},
-	"exclude": ["**/*.test.ts", "**/build/*"]
+	"exclude": ["**/*.test.ts", "**/*.test.tsx", "**/*.test-fake.ts", "**/build/*"]
 }

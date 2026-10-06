@@ -58,6 +58,7 @@ const remoteTool = (stepName: string, pattern: string, capability = `RemoteSteps
 		capability,
 		read: false,
 		fallback: false,
+		answersTheTurn: false,
 		remoteOrigin: "http://localhost:8331",
 		inputSchema: { type: "object", properties: {}, required: [] },
 	},
@@ -149,8 +150,9 @@ describe("what a read of actuality's declarations shows", () => {
 			defined.steps.map((step) => step.method),
 			"a step's description is matched without regard to case",
 		).toEqual(["ManySteps-readRecord"]);
-		expect(defined.steps[0]._links.call, "and a definition links the step's call").toEqual({ method: "ManySteps-readRecord" });
-		expect(defined.steps[0].inputSchema.required, "with the schema of its arguments").toEqual(["id"]);
+		const [readRecord] = defined.steps;
+		expect(readRecord?._links.call, "and a definition links the step's call").toEqual({ method: "ManySteps-readRecord" });
+		expect(readRecord?.inputSchema.required, "with the schema of its arguments").toEqual(["id"]);
 		expect(Object.keys(summariesOf(world, registry, "record").domains), "a domain is matched by its name or description").toEqual(["record-key"]);
 		expect(
 			steppersOf(registry.descriptors()).map((entry) => [entry.stepper, entry.steps]),
@@ -213,7 +215,7 @@ describe("what the manifest states about a domain", () => {
 			},
 		} as unknown as TWorld;
 		const manifest = discoverSteps(world, new StepRegistry([], world), EVERY_DEFINITION, RUN_AUTHORITY);
-		expect(manifest.domains["x-viewer"].ui).toEqual({ component: "x-viewer", js: "/assets/x-viewer.js" });
+		expect(manifest.domains["x-viewer"]?.ui).toEqual({ component: "x-viewer", js: "/assets/x-viewer.js" });
 	});
 });
 

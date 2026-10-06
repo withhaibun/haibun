@@ -1,8 +1,16 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
 import { buildConcernCatalog, composeDisplayLabel, MAX_DISPLAY_LABEL_LEN, queryableFields } from "./hypermedia.js";
-import type { THypermediaTopology } from "./resources.js";
-import { LinkRelations, specificResourceDomainDefinition, textQuoteSelectorDomainDefinition, commentDomainDefinition, principalDomainDefinition } from "./resources.js";
+import type { TDomainDefinition, THypermediaTopology } from "./resources.js";
+import { mapDefinitionsToDomains } from "./domains.js";
+import {
+	isPersisted,
+	LinkRelations,
+	specificResourceDomainDefinition,
+	textQuoteSelectorDomainDefinition,
+	commentDomainDefinition,
+	principalDomainDefinition,
+} from "./resources.js";
 
 const props = (o: Record<string, unknown>) => (f: string) => o[f];
 
@@ -90,7 +98,10 @@ describe("composeDisplayLabel priority: headline → body → weak → id", () =
 	});
 
 	it("the real core types declare a labeling property exactly where the shared headline cannot title them", () => {
-		const topologyOf = (d: { topology: unknown }) => d.topology as THypermediaTopology;
+		const topologyOf = ({ selectors, topology }: TDomainDefinition) => {
+			if (!isPersisted(topology)) throw new Error(`${selectors.join()} doesn't declare a persisted topology`);
+			return topology;
+		};
 		expect(topologyOf(textQuoteSelectorDomainDefinition).displayLabel).toBe("exact");
 		expect(topologyOf(specificResourceDomainDefinition).displayLabel).toBe("hasSelector");
 		// A Comment states what it is by its own note text (as:name / content): it doesn't need a vocabulary-specific title.
@@ -105,7 +116,7 @@ describe("composeDisplayLabel priority: headline → body → weak → id", () =
 			properties: { id: LinkRelations.IDENTIFIER.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel },
 			displayLabel: "exact",
 		};
-		const domains = { thing: { selectors: ["thing"], description: "d", schema: z.object({ id: z.string(), generatedAtTime: z.string() }), topology } };
+		const domains = mapDefinitionsToDomains([{ selectors: ["thing"], description: "d", schema: z.object({ id: z.string(), generatedAtTime: z.string() }), topology }]);
 		expect(() => buildConcernCatalog(domains)).toThrow(/displayLabel "exact", which isn't one of its properties or edges/);
 	});
 
@@ -169,8 +180,8 @@ describe("validTimeField: the catalog names the field a type's individuals place
 				},
 			}) as unknown as Parameters<typeof buildConcernCatalog>[0][string];
 		const cat = buildConcernCatalog({ message: make("Message", "receivedAt"), note: make("Note") });
-		expect(cat.persisted.Message.validTimeField).toBe("receivedAt");
-		expect(cat.persisted.Note.validTimeField).toBe(LinkRelations.GENERATED_AT_TIME.rel);
+		expect(cat.persisted.Message?.validTimeField).toBe("receivedAt");
+		expect(cat.persisted.Note?.validTimeField).toBe(LinkRelations.GENERATED_AT_TIME.rel);
 	});
 });
 
@@ -179,19 +190,20 @@ describe("validTimeField: the catalog names the field a type's individuals place
  * still serves, the reader's JSON-LD then doesn't resolve the term to an IRI, so it fails at build, where the rel checks do.
  */
 describe("buildConcernCatalog vocabulary binding", () => {
-	const domain = (topology: Partial<THypermediaTopology>) => ({
-		thing: {
-			selectors: ["thing"],
-			description: "d",
-			schema: z.object({ id: z.string(), generatedAtTime: z.string() }),
-			topology: {
-				persistedAs: "Thing",
-				id: "id",
-				properties: { id: LinkRelations.IDENTIFIER.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel },
-				...topology,
-			} as THypermediaTopology,
-		},
-	});
+	const domain = (topology: Partial<THypermediaTopology>) =>
+		mapDefinitionsToDomains([
+			{
+				selectors: ["thing"],
+				description: "d",
+				schema: z.object({ id: z.string(), generatedAtTime: z.string() }),
+				topology: {
+					persistedAs: "Thing",
+					id: "id",
+					properties: { id: LinkRelations.IDENTIFIER.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel },
+					...topology,
+				} as THypermediaTopology,
+			},
+		]);
 
 	it("rejects a class named in a vocabulary the type never bound", () => {
 		expect(() => buildConcernCatalog(domain({ type: "vcard:Individual" }))).toThrow(/"vcard:" vocabulary is not bound/);

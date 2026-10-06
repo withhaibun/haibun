@@ -10,6 +10,7 @@ import { DOMAIN_PAGE_LOCATOR, DOMAIN_PAGE_TARGET, DOMAIN_PAGE_TEST_ID, DOMAIN_PA
 const aimed: unknown[] = [];
 
 class Targets extends AStepper implements IHasCycles {
+	description = "A step that aims at a page target and records the value it receives.";
 	cycles: IStepperCycles = { getConcerns: () => ({ domains: WebPlaywrightDomains }) };
 	steps: TStepperSteps = {
 		aim: {

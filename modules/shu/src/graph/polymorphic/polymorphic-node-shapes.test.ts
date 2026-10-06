@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { paintMarkScene, chipShape, boxShape, type NodeShapeDeps, type ShapeLabel, type ShapeThree } from "./polymorphic-node-shapes.js";
 import type { NodeMark } from "../graph-scene.js";
 import { GANTT_BAR_H, GANTT_BAR_D, GANTT_MIN_BAR_W, GANTT_LABEL_INSET } from "../gantt-layout.js";
@@ -107,10 +108,10 @@ describe("polymorphic paint (mark → three.js geometry, GPU-free)", () => {
 		expect(box.geometry).toMatchObject({ w: GANTT_BAR_D, h: GANTT_BAR_H, d: 40 }); // depth (z) = duration; thin on x
 		expect(box.material.color).toBe("colour:Task");
 		expect(box.children.length).toBe(1);
-		expect(box.children[0].position.z).toBe(-20 + GANTT_LABEL_INSET); // inset from the bar's start (earliest-z) face
-		expect(box.children[0].position.x).toBe(0);
-		expect(box.children[0].backgroundColor).toBe(""); // plain text without a chip frame
-		expect(box.children[0].color).toBe("#eee"); // off-chip text → the SCENE colour (white-on-black in dark), not the chip's dark
+		expect(itemAt(box.children, 0).position.z).toBe(-20 + GANTT_LABEL_INSET); // inset from the bar's start (earliest-z) face
+		expect(itemAt(box.children, 0).position.x).toBe(0);
+		expect(itemAt(box.children, 0).backgroundColor).toBe(""); // plain text without a chip frame
+		expect(itemAt(box.children, 0).color).toBe("#eee"); // off-chip text → the SCENE colour (white-on-black in dark), not the chip's dark
 	});
 
 	it("boxShape floors a tiny zExtent to the minimum bar length", () => {
@@ -119,13 +120,13 @@ describe("polymorphic paint (mark → three.js geometry, GPU-free)", () => {
 
 	it("boxShape places a headerLabel upright, centred above the bar's start face (a sequence participant's name); default reads along the bar", () => {
 		const along = boxShape(boxMark(40), harness().deps) as unknown as RecBox;
-		expect(along.children[0].center.x).toBe(0); // gantt row: left-anchored, reading along the bar
-		expect(along.children[0].center.y).toBe(0.5);
-		expect(along.children[0].position.z).toBe(-20 + GANTT_LABEL_INSET);
+		expect(itemAt(along.children, 0).center.x).toBe(0); // gantt row: left-anchored, reading along the bar
+		expect(itemAt(along.children, 0).center.y).toBe(0.5);
+		expect(itemAt(along.children, 0).position.z).toBe(-20 + GANTT_LABEL_INSET);
 		const header = boxShape(boxMark(40), { ...harness().deps, headerLabel: true }) as unknown as RecBox;
-		expect(header.children[0].center.x).toBe(0.5); // bottom-centre anchor → the upright name caps the lifeline
-		expect(header.children[0].center.y).toBe(0);
-		expect(header.children[0].position.z).toBe(-20); // exactly at the start (earliest-z) face: the lifeline's top on screen
+		expect(itemAt(header.children, 0).center.x).toBe(0.5); // bottom-centre anchor → the upright name caps the lifeline
+		expect(itemAt(header.children, 0).center.y).toBe(0);
+		expect(itemAt(header.children, 0).position.z).toBe(-20); // exactly at the start (earliest-z) face: the lifeline's top on screen
 	});
 
 	it("boxShape falls back to a chip without THREE (headless)", () => {

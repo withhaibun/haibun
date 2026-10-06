@@ -11,6 +11,7 @@ import type { TMichi } from "./goal-resolver.js";
 import { CHAIN_INSTANCE_STATUS, createChainInstance } from "./chain-instance.js";
 import { advanceChainInstance } from "./chain-walker.js";
 import { RUN_AUTHORITY, runActingAs } from "./capability-context.js";
+import { itemAt } from "./util/item-at.js";
 
 const ISSUER_DOMAIN = "issuer";
 const VC_DOMAIN = "vc";
@@ -19,6 +20,7 @@ const IssuerSchema = z.object({ issuerId: z.string() });
 const VcSchema = z.object({ vcId: z.string() });
 
 class IssueStepper extends AStepper {
+	description = "Issues a credential's issuer.";
 	steps: TStepperSteps = {
 		issueCredential: {
 			gwta: "issue credential",
@@ -29,10 +31,12 @@ class IssueStepper extends AStepper {
 }
 
 class VcStepper extends AStepper {
+	description = "Issues a credential.";
 	steps: TStepperSteps = { issueVc: { gwta: "issue a credential", productsDomain: VC_DOMAIN, action: () => Promise.resolve(actionOKWithProducts({ vcId: "vc-001" })) } };
 }
 
 class CountingStepper extends AStepper {
+	description = "Counts to a number and produces an issuer.";
 	steps: TStepperSteps = {
 		countTo: {
 			gwta: "count to {count: number}",
@@ -43,6 +47,7 @@ class CountingStepper extends AStepper {
 }
 
 class BrokenStepper extends AStepper {
+	description = "A step that fails.";
 	steps: TStepperSteps = { fail: { gwta: "fail", action: () => Promise.resolve(actionNotOK("intentional failure")) } };
 }
 
@@ -60,8 +65,8 @@ function buildContext(world: TWorld, steppers: AStepper[]): { registry: StepRegi
 
 const twoStepMichi: TMichi = {
 	steps: [
-		{ stepperName: "IssueStepper", stepName: "issueCredential", gwta: "issue credential" },
-		{ stepperName: "VcStepper", stepName: "issueVc", gwta: "issue a credential" },
+		{ stepperName: "IssueStepper", stepName: "issueCredential", gwta: "issue credential", productsDomain: ISSUER_DOMAIN },
+		{ stepperName: "VcStepper", stepName: "issueVc", gwta: "issue a credential", productsDomain: VC_DOMAIN },
 	],
 	bindings: [{ kind: "argument", domain: ISSUER_DOMAIN }],
 };
@@ -82,7 +87,7 @@ describe("chain-walker", () => {
 		expect(first.instance.stepIndex).toBe(1);
 		expect(first.instance.status).toBe(CHAIN_INSTANCE_STATUS.PENDING);
 		expect(first.factIds).toHaveLength(1);
-		const issuerFact = await world.shared.getStore().get(first.factIds[0], ISSUER_DOMAIN, FACT_GRAPH);
+		const issuerFact = await world.shared.getStore().get(itemAt(first.factIds, 0), ISSUER_DOMAIN, FACT_GRAPH);
 		expect(issuerFact).toMatchObject({ issuerId: "alice" });
 
 		const second = await advanceChainInstance(ctx, inst.id, {});
@@ -95,7 +100,7 @@ describe("chain-walker", () => {
 
 	it("flips status to failed when a step's action returns not-ok and stops the walk", async () => {
 		const ctx = buildContext(world, [new BrokenStepper()]);
-		const inst = await createChainInstance(world, "any-goal", { steps: [{ stepperName: "BrokenStepper", stepName: "fail" }], bindings: [] });
+		const inst = await createChainInstance(world, "any-goal", { steps: [{ stepperName: "BrokenStepper", stepName: "fail", productsDomain: "any-goal" }], bindings: [] });
 		const result = await advanceChainInstance(ctx, inst.id, {});
 		expect(result.kind).toBe("failed");
 		if (result.kind !== "failed") throw new Error("unreachable");
@@ -105,7 +110,7 @@ describe("chain-walker", () => {
 
 	it("returns failed when the named step is not in the registry (chain refers to a stepper that wasn't loaded)", async () => {
 		const ctx = buildContext(world, [new IssueStepper()]);
-		const inst = await createChainInstance(world, "any-goal", { steps: [{ stepperName: "NotRegistered", stepName: "nope" }], bindings: [] });
+		const inst = await createChainInstance(world, "any-goal", { steps: [{ stepperName: "NotRegistered", stepName: "nope", productsDomain: "any-goal" }], bindings: [] });
 		const result = await advanceChainInstance(ctx, inst.id, {});
 		expect(result.kind).toBe("failed");
 		if (result.kind !== "failed") throw new Error("unreachable");
@@ -114,7 +119,7 @@ describe("chain-walker", () => {
 
 	it("idempotently reports completion once every step has produced a fact", async () => {
 		const ctx = buildContext(world, [new VcStepper()]);
-		const inst = await createChainInstance(world, VC_DOMAIN, { steps: [{ stepperName: "VcStepper", stepName: "issueVc" }], bindings: [] });
+		const inst = await createChainInstance(world, VC_DOMAIN, { steps: [{ stepperName: "VcStepper", stepName: "issueVc", productsDomain: VC_DOMAIN }], bindings: [] });
 		await advanceChainInstance(ctx, inst.id, {});
 		const again = await advanceChainInstance(ctx, inst.id, {});
 		expect(again.kind).toBe("completed");
@@ -163,7 +168,7 @@ describe("a walk gives a step only what that step takes", () => {
 	});
 
 	const countingMichi: TMichi = {
-		steps: [{ stepperName: "CountingStepper", stepName: "countTo", gwta: "count to {count: number}" }],
+		steps: [{ stepperName: "CountingStepper", stepName: "countTo", gwta: "count to {count: number}", productsDomain: ISSUER_DOMAIN }],
 		bindings: [{ kind: "argument", domain: ISSUER_DOMAIN }],
 	};
 

@@ -24,7 +24,7 @@ const VcSchema = z.object({
 });
 
 function reg(schema: z.ZodType, topology?: TRegisteredDomain["topology"]): TRegisteredDomain {
-	return { selectors: [], schema, coerce: (p) => String(p.value), topology };
+	return { selectors: [], schema, coerce: (p) => String(p.value), topology, description: "a domain the resolver reads" };
 }
 
 function makeDomains(): Record<string, TRegisteredDomain> {
@@ -49,6 +49,7 @@ function graphIssuingCredential(): TDomainChainGraph {
 				stepperName: "Credentials",
 				stepName: "issueCredential",
 				gwta: "issue credential",
+				params: { what: "vc" },
 				inputDomains: ["vc"],
 				outputDomains: ["verifiable-credential"],
 				capability: "Credentials:issueCredential",
@@ -104,7 +105,7 @@ describe("resolveGoal, composite decomposition", () => {
 				{ key: "deep", hasTopology: true },
 				{ key: "leaf", hasTopology: true },
 			],
-			steps: [{ stepperName: "S", stepName: "f", inputDomains: ["deep"], outputDomains: ["leaf"], capability: "S:f" }],
+			steps: [{ stepperName: "S", stepName: "f", params: { what: "deep" }, inputDomains: ["deep"], outputDomains: ["leaf"], capability: "S:f" }],
 			edges: [{ from: "deep", to: "leaf", stepperName: "S", stepName: "f" }],
 		};
 		const result = resolveGoal("leaf", { graph, facts: [], held: RUN_AUTHORITY, domains, compositeDecomposition: true, compositeMaxDepth: 2 });
@@ -121,7 +122,16 @@ describe("resolveGoal, composite decomposition", () => {
 				{ key: "string", hasTopology: false },
 				{ key: "products", hasTopology: false },
 			],
-			steps: [{ stepperName: "V", stepName: "verify", inputDomains: ["string", "string"], outputDomains: ["products"], capability: "V:verify" }],
+			steps: [
+				{
+					stepperName: "V",
+					stepName: "verify",
+					params: { id: "string", verifierId: "string" },
+					inputDomains: ["string", "string"],
+					outputDomains: ["products"],
+					capability: "V:verify",
+				},
+			],
 			edges: [
 				{ from: "string", to: "products", stepperName: "V", stepName: "verify" },
 				{ from: "string", to: "products", stepperName: "V", stepName: "verify" },

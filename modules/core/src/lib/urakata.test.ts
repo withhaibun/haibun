@@ -5,11 +5,12 @@ import { accessBound, actingAs, runActingAs, runAuthorizedWith } from "./capabil
 import { AUTHORITY_KEY, SessionAuthority } from "./session-authority.js";
 import { actionsToReadAndWrite, EVERY_ACTION, readAction, writeAction, writtenAt } from "./actions.js";
 import { Access } from "./resources.js";
+import { itemAt } from "./util/item-at.js";
 
 const noOpErrorHandler = () => undefined;
 const STARTER = "did:example:starter";
 
-function makeRegistry(onError = noOpErrorHandler) {
+function makeRegistry(onError: ConstructorParameters<typeof UrakataRegistry>[1] = noOpErrorHandler) {
 	return new UrakataRegistry(getDefaultWorld(), onError);
 }
 
@@ -39,12 +40,12 @@ describe("UrakataRegistry", () => {
 		await until(() => expect(seen.length > 1).toBe(true));
 		await registry.stop(u.id);
 		expect(seen.length).toBeGreaterThan(0);
-		const tickRoot = seen[0].slice(0, rootLen);
+		const tickRoot = itemAt(seen, 0).slice(0, rootLen);
 		for (const sp of seen) {
 			expect(sp.slice(0, rootLen)).toEqual(tickRoot);
 			expect(sp).toHaveLength(rootLen + 1);
 		}
-		const tickSuffixes = seen.map((sp) => sp[rootLen]);
+		const tickSuffixes = seen.map((sp) => itemAt(sp, rootLen));
 		expect(tickSuffixes).toEqual([...tickSuffixes].sort((a, b) => a - b));
 	});
 
@@ -60,7 +61,7 @@ describe("UrakataRegistry", () => {
 		await registry.stop(u.id);
 		expect(bounds[0], "not every action the starting step held").toEqual({ ceiling: Access.private, held: needs });
 		expect(actors[0]).toBe(STARTER);
-		expect(writtenAt(Access.public, Access.private, bounds[0]), "a record the watch states is public is written at public").toBe(Access.public);
+		expect(writtenAt(Access.public, Access.private, itemAt(bounds, 0)), "a record the watch states is public is written at public").toBe(Access.public);
 		expect(u).toMatchObject({ startedBy: STARTER, holds: needs });
 	});
 

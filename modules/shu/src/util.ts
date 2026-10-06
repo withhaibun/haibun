@@ -86,7 +86,7 @@ export function renderContentHtml(raw: string, mimeType: string): string {
 export function utf8ToBase64(str: string): string {
 	const bytes = new TextEncoder().encode(str);
 	let binary = "";
-	for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+	for (const byte of bytes) binary += String.fromCharCode(byte);
 	return btoa(binary);
 }
 

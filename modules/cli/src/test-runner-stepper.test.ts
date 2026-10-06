@@ -13,7 +13,8 @@ import { answerOfRun, askParams, stepAtRun } from "./test-runner-stepper.js";
 import type { TStepDescriptor } from "@haibun/core/lib/step-discovery.js";
 import { examineRun, runEvents } from "./run-outcome.js";
 import { FEATURE_EXECUTION_LABEL, RUN_STATUS, featureExecutionDomainDefinition } from "./feature-execution.js";
-import { principalDomainDefinition } from "@haibun/core/lib/resources.js";
+import { Access, principalDomainDefinition } from "@haibun/core/lib/resources.js";
+import { readAction } from "@haibun/core/lib/actions.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
 import { AStepper, type IHasCycles, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { actionOKWithProducts } from "@haibun/core/lib/util/index.js";
@@ -35,6 +36,7 @@ type TResult = { ok: boolean; errorMessage?: string; products?: { run: string; s
  *  reaches it by dispatching a step, so what is exercised here is the call the real supervisor answers, not an opening
  *  made for the test. It answers a fixed tail so a read is deterministic. */
 class InstanceStepper extends AStepper implements IHasCycles {
+	description = "Stands in for the run supervisor, answering a fixed tail.";
 	cycles: IStepperCycles = { getConcerns: () => ({ domains: runDomainDefinitions }) };
 	calls: Array<{ step: string; input: Record<string, unknown> }> = [];
 	ended: number | null = null;
@@ -429,8 +431,10 @@ describe("what a finished run's record states about it", () => {
 						stepName: "showSteps",
 						pattern: "show steps matching {text: string} as {detail: step-detail}",
 						paramDomains: { text: "string", detail: "step-detail" },
+						capability: readAction(Access.private),
 						read: true,
 						fallback: false,
+						answersTheTurn: false,
 						remoteOrigin: "http://localhost:8331",
 						inputSchema: { type: "object", properties: { text: { type: "string" }, detail }, required: ["text", "detail"] },
 					},

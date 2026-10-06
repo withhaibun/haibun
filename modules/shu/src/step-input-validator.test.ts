@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { validateStepInput } from "./step-input-validator.js";
 
 describe("validateStepInput", () => {
@@ -12,9 +13,9 @@ describe("validateStepInput", () => {
 		const schema = { type: "object", properties: { owner: { type: "string", format: "uri" } }, required: ["owner"] };
 		const errors = validateStepInput({ owner: "name1" }, schema);
 		expect(errors).toHaveLength(1);
-		expect(errors[0].field).toBe("owner");
-		expect(errors[0].message).toMatch(/must be a uri/);
-		expect(errors[0].message).toContain("name1");
+		expect(itemAt(errors, 0).field).toBe("owner");
+		expect(itemAt(errors, 0).message).toMatch(/must be a uri/);
+		expect(itemAt(errors, 0).message).toContain("name1");
 	});
 
 	it("flags a missing required field per-path so the form can render the message next to the field", () => {
@@ -31,8 +32,8 @@ describe("validateStepInput", () => {
 		};
 		const errors = validateStepInput({ credential: { subject: "subj1" } }, schema);
 		expect(errors).toHaveLength(1);
-		expect(errors[0].field).toBe("credential.subject");
-		expect(errors[0].message).toContain("must be a uri");
+		expect(itemAt(errors, 0).field).toBe("credential.subject");
+		expect(itemAt(errors, 0).message).toContain("must be a uri");
 	});
 
 	it("validates each array element against the `items` schema and tags errors with the index", () => {
@@ -44,7 +45,7 @@ describe("validateStepInput", () => {
 	it("rejects enum violations and lists the allowed values", () => {
 		const schema = { type: "object", properties: { status: { type: "string", enum: ["pending", "completed"] } } };
 		const errors = validateStepInput({ status: "weird" }, schema);
-		expect(errors[0].message).toMatch(/must be one of: pending, completed/);
+		expect(itemAt(errors, 0).message).toMatch(/must be one of: pending, completed/);
 	});
 
 	it("accepts an `undefined inputSchema` as a schema that doesn't validate a field (it doesn't return an error)", () => {

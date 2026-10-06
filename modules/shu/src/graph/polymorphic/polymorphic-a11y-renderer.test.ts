@@ -5,6 +5,7 @@
  * the status line's delta announcements, and that focus survives a repaint.
  */
 import { describe, it, expect, vi } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { A11yRenderer, type TA11yRendererDeps } from "./polymorphic-a11y-renderer.js";
 import type { FGLink, FGNode } from "../polymorphic/polymorphic-graph-types.js";
 import { SHU_TEST_IDS } from "../../test-ids.js";
@@ -39,12 +40,12 @@ describe("A11yRenderer: the graph as an accessible document", () => {
 		const lists = region.querySelectorAll("ol");
 		expect(lists.length, "one reading, not a pile per type").toBe(1);
 		const speaker = (li: Element) => [...li.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE).map((n) => n.textContent?.trim() ?? "")[0] ?? "";
-		expect([...lists[0].children].map(speaker), "who each line belongs to, where it belongs to anyone").toEqual(["", "the agent:", "the agent:"]);
+		expect([...itemAt(lists, 0).children].map(speaker), "who each line belongs to, where it belongs to anyone").toEqual(["", "the agent:", "the agent:"]);
 		expect(
-			[...lists[0].querySelectorAll(":scope > li > [data-node-id]")].map((b) => b.getAttribute("data-node-id")),
+			[...itemAt(lists, 0).querySelectorAll(":scope > li > [data-node-id]")].map((b) => b.getAttribute("data-node-id")),
 			"oldest first, whatever type each is",
 		).toEqual(["p1", "c1", "c2"]);
-		const edge = lists[0].querySelector("ul li");
+		const edge = itemAt(lists, 0).querySelector("ul li");
 		expect(edge?.textContent, "and what a line links to, under it").toBe("attributedTo → the agent");
 		expect(edge?.querySelector("[data-node-id]")?.getAttribute("data-node-id"), "which is the way to that node: a reader follows the graph by its own relationships").toBe("p1");
 	});

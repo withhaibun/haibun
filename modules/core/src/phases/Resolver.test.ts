@@ -2,10 +2,11 @@ import { describe, it, test, expect } from "vitest";
 
 import type { TExpandedFeature } from "../lib/execution.js";
 import { OK } from "../schema/protocol.js";
-import { AStepper, type CStepper, TResolvedFeature } from "../lib/astepper.js";
+import { AStepper, type CStepper } from "../lib/astepper.js";
 import { asExpandedFeatures } from "../lib/resolver-features.js";
 import TestSteps from "../lib/test/TestSteps.js";
 import { createSteppers } from "../lib/util/index.js";
+import { itemAt } from "../lib/util/item-at.js";
 import { Resolver } from "./Resolver.js";
 import Haibun from "../steps/haibun.js";
 
@@ -21,6 +22,7 @@ describe("resolve steps", () => {
 
 describe("validate map steps", () => {
 	class TestStepper extends AStepper {
+		description = "Exact, match, gwta and interpolated steps for resolving lines.";
 		steps = {
 			exact: { exact: "exact1", action: async () => Promise.resolve(OK) },
 			match: { match: /match(?<num>1)/, action: async () => Promise.resolve(OK) },
@@ -38,24 +40,24 @@ describe("validate map steps", () => {
 		test("exact", async () => {
 			const features = asExpandedFeatures([{ path: "l1", content: `exact1` }]);
 			const res = await getResolvedSteps(features);
-			const { featureSteps } = res[0];
+			const { featureSteps } = itemAt(res, 0);
 			// exact steps don't have stepValuesMap
-			expect(featureSteps[0].action.stepValuesMap).toBeUndefined();
+			expect(itemAt(featureSteps, 0).action.stepValuesMap).toBeUndefined();
 		});
 	});
 	describe("match", () => {
 		test("match", async () => {
 			const features = asExpandedFeatures([{ path: "l1", content: `match1` }]);
 			const res = await getResolvedSteps(features);
-			const { featureSteps } = res[0];
-			expect(featureSteps[0].action.stepValuesMap).toEqual({});
+			const { featureSteps } = itemAt(res, 0);
+			expect(itemAt(featureSteps, 0).action.stepValuesMap).toEqual({});
 		});
 	});
 	describe("gwta regex", () => {
 		test("gwta", async () => {
 			const features = asExpandedFeatures([{ path: "l1", content: `gwta2\nGiven I'm gwta3\nWhen I am gwta4\ngwta5\nThen the gwta6` }]);
 			const res = await getResolvedSteps(features);
-			const { featureSteps } = res[0] as TResolvedFeature;
+			const { featureSteps } = itemAt(res, 0);
 			// gwta pattern using regex groups directly uses empty stepValuesMap
 			featureSteps.forEach((fs) => expect(fs.action.stepValuesMap).toEqual({}));
 		});
@@ -64,15 +66,15 @@ describe("validate map steps", () => {
 		test("gets quoted", async () => {
 			const features = asExpandedFeatures([{ path: "l1", content: 'is "string"' }]);
 			const res = await getResolvedSteps(features);
-			const { featureSteps } = res[0] as TResolvedFeature;
-			const sv = featureSteps[0].action.stepValuesMap?.["what"];
+			const { featureSteps } = itemAt(res, 0);
+			const sv = itemAt(featureSteps, 0).action.stepValuesMap?.["what"];
 			expect(sv?.term).toEqual("string");
 		});
 		test("gets uri", async () => {
 			const features = asExpandedFeatures([{ path: "l1", content: "is http://url" }]);
 			const res = await getResolvedSteps(features);
-			const { featureSteps } = res[0] as TResolvedFeature;
-			const sv = featureSteps[0].action.stepValuesMap?.["what"];
+			const { featureSteps } = itemAt(res, 0);
+			const sv = itemAt(featureSteps, 0).action.stepValuesMap?.["what"];
 			expect(sv?.term).toEqual("http://url");
 		});
 	});
@@ -81,6 +83,7 @@ describe("validate map steps", () => {
 describe("unique stepper", () => {
 	const astep = "step";
 	class UniqueStepper extends AStepper {
+		description = "A unique step and a normal step with the same phrase.";
 		steps = { uniqueStep: { unique: true, gwta: astep, action: async () => Promise.resolve(OK) }, normalStep: { gwta: astep, action: async () => Promise.resolve(OK) } };
 	}
 	test("uses unique step when multiple match", async () => {
@@ -89,15 +92,17 @@ describe("unique stepper", () => {
 		const resolver = new Resolver(steppers);
 		const steps = await resolver.resolveStepsFromFeatures(features);
 		expect(steps.length).toBe(1);
-		expect(steps[0].featureSteps.length).toBe(1);
-		expect(steps[0].featureSteps[0].action.stepperName).toBe("UniqueStepper");
+		expect(itemAt(steps, 0).featureSteps.length).toBe(1);
+		expect(itemAt(itemAt(steps, 0).featureSteps, 0).action.stepperName).toBe("UniqueStepper");
 	});
 });
 describe("preclude stepper", () => {
 	class PrecludedStepper extends AStepper {
+		description = "A step another stepper precludes.";
 		steps = { doesSomething: { gwta: "does {something}", action: async () => Promise.resolve(OK) } };
 	}
 	class PrecluderStepper extends AStepper {
+		description = "A step that precludes PrecludedStepper.doesSomething.";
 		steps = { doesSomething: { gwta: "does {something} else", precludes: ["PrecludedStepper.doesSomething"], action: async () => Promise.resolve(OK) } };
 	}
 	test("precludes stepper", async () => {
@@ -106,16 +111,18 @@ describe("preclude stepper", () => {
 		const resolver = new Resolver(steppers);
 		const steps = await resolver.resolveStepsFromFeatures(features);
 		expect(steps.length).toBe(1);
-		expect(steps[0].featureSteps.length).toBe(1);
-		expect(steps[0].featureSteps[0].action.stepperName).toBe("PrecluderStepper");
+		expect(itemAt(steps, 0).featureSteps.length).toBe(1);
+		expect(itemAt(itemAt(steps, 0).featureSteps, 0).action.stepperName).toBe("PrecluderStepper");
 	});
 });
 
 describe("prose", () => {
 	class LineStepper extends AStepper {
+		description = "Steps whose phrases read like prose.";
 		steps = { type: { gwta: "type {text}", action: async () => Promise.resolve(OK) }, layout: { gwta: "{mode} the graph layout", action: async () => Promise.resolve(OK) } };
 	}
 	class SpokenProse extends AStepper {
+		description = "A prose step that precludes Haibun.prose.";
 		steps = { prose: { prose: true, precludes: ["Haibun.prose"], action: async () => Promise.resolve(OK) } };
 	}
 	const resolvedTo = (line: string, ...steppers: CStepper[]) => {

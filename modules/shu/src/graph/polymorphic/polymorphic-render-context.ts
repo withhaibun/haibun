@@ -1,3 +1,4 @@
+/// <reference path="./three-controls.d.ts" />
 import type { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { Vec3 } from "./polymorphic-enclosure.js";
 
@@ -8,6 +9,9 @@ import type { Vec3 } from "./polymorphic-enclosure.js";
  * still OWNS the refs/maps; this context only exposes them, so the subsystems extracted next read ONE injected
  * context instead of many scattered private-field touches. The decomposition's structural boundary (lovely-finding-babbage). */
 
+/** A 4x4 matrix's 16 entries, column-major, as three.js holds them in `Matrix4.elements`. */
+export type TMatrix4Elements = [number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number];
+
 /** The slice of the three.js camera the view drives: its framing, where it sits, and what it looks at (structural: this
  *  module doesn't depend on a three .d.ts). */
 export type TSceneCamera = {
@@ -16,7 +20,7 @@ export type TSceneCamera = {
 	position?: Vec3;
 	updateProjectionMatrix(): void;
 	getWorldDirection?(target: Vec3): Vec3;
-	matrixWorld?: { elements: number[] }; // columns 0/1 = the camera's right/up axes, for screen-oriented placement
+	matrixWorld?: { elements: TMatrix4Elements }; // columns 0/1 = the camera's right/up axes, for screen-oriented placement
 	updateMatrixWorld?(force?: boolean): void;
 	/** The camera's orientation, which a chip copies to face it. */
 	quaternion?: { x: number; y: number; z: number; w: number };

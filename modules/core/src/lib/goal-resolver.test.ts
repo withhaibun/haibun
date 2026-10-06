@@ -4,6 +4,7 @@ import { GOAL_FINDING, REFUSAL_REASON, resolveGoal, type TResolverInputs } from 
 import type { TDomainChainGraph } from "./domain-chain.js";
 import type { TQuad } from "./quad-types.js";
 import { RUN_AUTHORITY } from "./capability-context.js";
+import { itemAt } from "./util/item-at.js";
 
 function emptyGraph(): TDomainChainGraph {
 	return { domains: [], steps: [], edges: [] };
@@ -15,7 +16,7 @@ function singleProducerGraph(input: string, output: string, capability = "S:make
 			{ key: input, hasTopology: false },
 			{ key: output, hasTopology: false },
 		],
-		steps: [{ stepperName: "S", stepName: "make", gwta: "make it", inputDomains: [input], outputDomains: [output], capability }],
+		steps: [{ stepperName: "S", stepName: "make", gwta: "make it", params: { what: input }, inputDomains: [input], outputDomains: [output], capability }],
 		edges: [{ from: input, to: output, stepperName: "S", stepName: "make" }],
 	};
 }
@@ -43,7 +44,7 @@ describe("resolveGoal", () => {
 		// `b` has a producer step that takes `a` as input; even though `b` is satisfied,
 		// the chain must still be runnable again.
 		expect(result.michi.length).toBeGreaterThan(0);
-		expect(result.michi[0].steps.map((s) => s.stepName)).toEqual(["make"]);
+		expect(itemAt(result.michi, 0).steps.map((s) => s.stepName)).toEqual(["make"]);
 	});
 
 	it("returns satisfied with every matching fact id (multiple facts of the same goal)", () => {
@@ -80,8 +81,8 @@ describe("resolveGoal", () => {
 				{ key: "b", hasTopology: false },
 			],
 			steps: [
-				{ stepperName: "S", stepName: "make1", inputDomains: ["a"], outputDomains: ["b"], capability: "S:make1" },
-				{ stepperName: "S", stepName: "make2", inputDomains: ["a"], outputDomains: ["b"], capability: "S:make2" },
+				{ stepperName: "S", stepName: "make1", params: { what: "a" }, inputDomains: ["a"], outputDomains: ["b"], capability: "S:make1" },
+				{ stepperName: "S", stepName: "make2", params: { what: "a" }, inputDomains: ["a"], outputDomains: ["b"], capability: "S:make2" },
 			],
 			edges: [
 				{ from: "a", to: "b", stepperName: "S", stepName: "make1" },
@@ -92,7 +93,7 @@ describe("resolveGoal", () => {
 		const result = resolveGoal("b", inputs(graph, [fact]));
 		expect(result.finding).toBe(GOAL_FINDING.MICHI);
 		if (result.finding === GOAL_FINDING.MICHI) {
-			expect(result.michi.map((m) => m.steps[0].stepName).sort()).toEqual(["make1", "make2"]);
+			expect(result.michi.map((m) => itemAt(m.steps, 0).stepName).sort()).toEqual(["make1", "make2"]);
 		}
 	});
 
@@ -111,7 +112,7 @@ describe("resolveGoal", () => {
 				{ key: "a", hasTopology: false },
 				{ key: "b", hasTopology: false },
 			],
-			steps: [{ stepperName: "S", stepName: "make", inputDomains: ["a"], outputDomains: ["b"], capability: "S:make" }],
+			steps: [{ stepperName: "S", stepName: "make", params: { what: "a" }, inputDomains: ["a"], outputDomains: ["b"], capability: "S:make" }],
 			edges: [{ from: "a", to: "b", stepperName: "S", stepName: "make" }],
 		};
 		const result = resolveGoal("b", inputs(graph));
@@ -128,8 +129,8 @@ describe("resolveGoal", () => {
 				{ key: "b", hasTopology: false },
 			],
 			steps: [
-				{ stepperName: "S", stepName: "p1", inputDomains: ["a"], outputDomains: ["b"], capability: "S:p1" },
-				{ stepperName: "S", stepName: "p2", inputDomains: ["b"], outputDomains: ["a"], capability: "S:p2" },
+				{ stepperName: "S", stepName: "p1", params: { what: "a" }, inputDomains: ["a"], outputDomains: ["b"], capability: "S:p1" },
+				{ stepperName: "S", stepName: "p2", params: { what: "b" }, inputDomains: ["b"], outputDomains: ["a"], capability: "S:p2" },
 			],
 			edges: [
 				{ from: "a", to: "b", stepperName: "S", stepName: "p1" },
@@ -146,7 +147,7 @@ describe("resolveGoal", () => {
 		const steps = [];
 		const edges = [];
 		for (let i = 0; i < stepCount; i++) {
-			steps.push({ stepperName: "S", stepName: `s${i}`, inputDomains: [`d${i}`], outputDomains: [`d${i + 1}`], capability: `S:s${i}` });
+			steps.push({ stepperName: "S", stepName: `s${i}`, params: { what: `d${i}` }, inputDomains: [`d${i}`], outputDomains: [`d${i + 1}`], capability: `S:s${i}` });
 			edges.push({ from: `d${i}`, to: `d${i + 1}`, stepperName: "S", stepName: `s${i}` });
 		}
 		const domains = [];

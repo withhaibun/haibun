@@ -1,3 +1,4 @@
+/// <reference path="./three-controls.d.ts" />
 import "aframe";
 import ForceGraphVR from "3d-force-graph-vr";
 import SpriteText from "three-spritetext";
@@ -20,6 +21,7 @@ import { typeAvatar } from "../polymorphic/polymorphic-type-avatar.js";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { PAGE_TERMS } from "@haibun/core/lib/hypermedia.js";
 import { isSubPropertyOf } from "@haibun/core/lib/resources.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { type GroupKeyMode, easeInOutCubic, groupKeyOf, type XYZ } from "../grouping.js";
 import { type KindTiers, type TGraphPreview } from "../focus-policy.js";
 import { quadsToGanttModel, cascadeReschedule } from "../gantt-model.js";
@@ -640,7 +642,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	private nodeRebuildPending = false;
 	private ganttShapeSig = "";
 	private ganttAxisGroup?: Obj3D; // the gantt calendar ruler (baseline + tick marks + date labels), parented like the enclosures; null off-gantt
-	private ganttGhost?: { group: Obj3D; label: TSprite }; // transient drag affordance: a wireframe outline + the new date-time, attached to the dragged bar (disposed via disposeGroup)
+	private ganttGhost?: { group: Obj3D; edges: Obj3D; label: TSprite }; // transient drag affordance: a wireframe outline + the new date-time, attached to the dragged bar (disposed via disposeGroup)
 
 	constructor() {
 		super(SceneStateSchema, {});
@@ -2167,7 +2169,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 *  the active node back. */
 	/** The colour a glow is built with, before the per-frame cycle reaches it: the middle of the active ramp. */
 	private get activeHighlightColor(): string {
-		return this.glowRamp[Math.floor(this.glowRamp.length / 2)];
+		return itemAt(this.glowRamp, Math.floor(this.glowRamp.length / 2));
 	}
 
 	private get activeSubject(): string | null {
@@ -2653,13 +2655,13 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			group.add(edges);
 			group.add(label);
 			parent.add(group);
-			this.ganttGhost = { group, label };
+			this.ganttGhost = { group, edges, label };
 		}
 		const g = this.ganttGhost;
 		const x = node.x ?? 0;
 		const y = node.y ?? 0;
 		const zLen = Math.max(target.zLen, GANTT_MIN_BAR_W);
-		const edges = g.group.children[0];
+		const { edges } = g;
 		edges.scale.set(GANTT_BAR_D + GANTT_GHOST_PAD, GANTT_BAR_H + GANTT_GHOST_PAD, zLen + GANTT_GHOST_PAD);
 		edges.position.set(x, y, node.z);
 		g.label.text = formatDate(ganttBarTimes(node.z, target.zLen, scale).startedAtTime);

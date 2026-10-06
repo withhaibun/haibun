@@ -12,6 +12,7 @@ import { dispatchStep } from "../lib/step-dispatch.js";
 import { buildFeatureStepForTransport, StepRegistry } from "../lib/step-registry.js";
 import { addStepperConcerns } from "../phases/Executor.js";
 import { DOMAIN_TEXT } from "../lib/domains.js";
+import { itemAt } from "../lib/util/item-at.js";
 
 class TestPrompter implements IPrompter {
 	prompt = (_p: TPrompt) => Promise.resolve("continue");
@@ -47,7 +48,7 @@ describe("DebuggerStepper", () => {
 		await testWithWorld(world, [feature], [DebuggerStepper, Haibun]);
 
 		expect(spy).toHaveBeenCalledTimes(1);
-		const promptCall = spy.mock.calls[0][0];
+		const promptCall = itemAt(spy.mock.calls, 0)[0];
 		expect(promptCall.options).toEqual(["*", "step", "continue"]);
 	});
 
@@ -95,7 +96,7 @@ describe("DebuggerStepper sequence integration", () => {
 		expect(res.ok).toBe(true);
 		// seqPath format: [hostId, featureNum, scenarioNum, stepSeq, ...]
 		// [0,1,1,1] debug step by step, [0,1,1,2,-1] comment 1, [0,1,1,2,-2] comment 2, [0,1,1,2,-3] step (exits loop), [0,1,1,2] step 2, [0,1,1,3,-1] step (exits loop), [0,1,1,3] step 3
-		const seqs = res.featureResults?.[0].stepResults.map((r) => r.seqPath);
+		const seqs = itemAt(res.featureResults, 0).stepResults.map((r) => r.seqPath);
 		expect(seqs).toEqual([
 			[0, 1, 1, 1],
 			[0, 1, 1, 2, -1],
@@ -129,7 +130,7 @@ describe("DebuggerStepper sequence integration", () => {
 		const res = await testWithWorld(world, [feature], [DebuggerStepper, TestSteps, Haibun]);
 		expect(res.ok).toBe(true); // 'next' allows continuation
 		// [0,1,1,1] failed step, [0,1,1,1,1] comment 1, [0,1,1,1,2] comment 2, [0,1,1,1,3] next (exits loop)
-		const seqs = res.featureResults?.[0].stepResults.map((r) => r.seqPath);
+		const seqs = itemAt(res.featureResults, 0).stepResults.map((r) => r.seqPath);
 		expect(seqs).toEqual([
 			[0, 1, 1, 1],
 			[0, 1, 1, 1, 1],
@@ -188,6 +189,7 @@ describe("DebuggerStepper RPC dispatch", () => {
 
 	it("does not prompt on actionNotOK when dispatched via RPC transport", async () => {
 		const failing = new (class extends AStepper {
+			description = "A step that always fails.";
 			steps = { alwaysFails: { gwta: "always fails", action: async () => actionNotOK("intentional failure") } };
 		})();
 
@@ -219,6 +221,7 @@ describe("DebuggerStepper RPC dispatch", () => {
 
 	it("does not prompt before step-by-step RPC dispatch", async () => {
 		const echo = new (class extends AStepper {
+			description = "A step that echoes a text.";
 			steps = { echo: { gwta: `echo {what: ${DOMAIN_TEXT}}`, action: async () => OK } };
 		})();
 

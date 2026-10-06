@@ -4,16 +4,21 @@ import { basesFrom } from "../lib/util/index.js";
 import { TFileSystem } from "../lib/util/node/workspace-lib.js";
 import { getFeaturesAndBackgrounds, shouldProcess } from "./collector.js";
 
+/** The files of each directory, by name. */
+type TMockFiles = Record<string, Record<string, string>>;
+
 class MockFS {
-	constructor(private files: object) {}
+	constructor(private files: TMockFiles) {}
 
 	existsSync(where: string) {
 		return !!this.files[where];
 	}
 	readFileSync(where: string) {
 		const e = where.split("/");
-		const h = e.slice(0, 3).join("/");
-		return this.files[h][e[3]];
+		const name = e[3];
+		const content = name === undefined ? undefined : this.files[e.slice(0, 3).join("/")]?.[name];
+		if (content === undefined) throw new Error(`${where} isn't a file`);
+		return content;
 	}
 	statSync(where: string) {
 		return { isDirectory: () => !!this.files[where] };
@@ -23,7 +28,7 @@ class MockFS {
 	}
 }
 
-const nfs = (files: object) => <TFileSystem>(new MockFS(files) as unknown);
+const nfs = (files: TMockFiles) => <TFileSystem>(new MockFS(files) as unknown);
 
 describe("getFeaturesAndBackgrounds", () => {
 	// A base must offer features. Every refusal below is the same claim: given bases that don't hold a feature are an error,
@@ -32,7 +37,6 @@ describe("getFeaturesAndBackgrounds", () => {
 		base,
 		path: `/${dir}/${name}.feature`,
 		name: `${base}/${dir}/${name}`,
-		type: "feature",
 		content: "#",
 	});
 
@@ -69,7 +73,7 @@ describe("getFeaturesAndBackgrounds", () => {
 			{ features: [feature("/1", "features", "b")], backgrounds: [feature("/0", "backgrounds", "a")] },
 		],
 	])("collects %s", async (_, bases, files, expected) => {
-		expect(await getFeaturesAndBackgrounds(bases as string[], [], undefined, nfs(files as object))).toEqual(expected);
+		expect(await getFeaturesAndBackgrounds(bases as string[], [], undefined, nfs(files))).toEqual(expected);
 	});
 });
 

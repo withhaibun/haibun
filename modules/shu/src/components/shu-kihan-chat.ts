@@ -47,6 +47,7 @@ import { defineElement } from "../define-element.js";
 import { actionRef, recordRef, stepRef } from "./shu-ref.js";
 import { reportToRun } from "../client-log.js";
 import { embeddedPageView, embeddedViewLd } from "../embedder.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 /** What a reader says a turn sends. The values are the words the registry and a profile state it in; what each of them
  *  sends is how a reader reads them, and "" means the reader doesn't state a value, which leaves it to the model. */
@@ -361,7 +362,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	 *  on reasoning and return without text. Without a catalog, the remembered one stands. */
 	private offeredModel(): string {
 		if (this._models.length > 0 && !this._models.some((m) => m.id === this.state.model))
-			this.setState({ model: (this._models.find((m) => m.standing) ?? this._models.find((m) => m.capabilities?.thinking === false) ?? this._models[0]).id });
+			this.setState({ model: (this._models.find((m) => m.standing) ?? this._models.find((m) => m.capabilities?.thinking === false) ?? itemAt(this._models, 0)).id });
 		return this.state.model;
 	}
 

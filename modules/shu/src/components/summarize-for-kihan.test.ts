@@ -5,6 +5,7 @@
  * projection shape and the empty→null contract, not layout.
  */
 import { describe, it, expect } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { ShuThreadColumn } from "./shu-thread-column.js";
 import { ShuAnnotatedBody } from "./shu-annotated-body.js";
 import { ShuProductView } from "./shu-product-view.js";
@@ -21,7 +22,7 @@ describe("summarizeForKihan, enriched view projections", () => {
 		expect(s["@type"]).toBe("as:OrderedCollection");
 		expect(s.totalItems).toBe(2);
 		expect(s.items[1]).toMatchObject({ "@id": "c2", body: "reply", inReplyTo: "c1" });
-		expect("_edges" in s.items[1]).toBe(false);
+		expect("_edges" in itemAt(s.items, 1)).toBe(false);
 	});
 
 	it("annotated-body: an as:Document carrying its content and each annotation's quote, note, and links", () => {

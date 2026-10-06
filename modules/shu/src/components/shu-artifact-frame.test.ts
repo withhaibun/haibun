@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import type { ShuArtifactFrame } from "./shu-artifact-frame.js";
 import "./shu-artifact-frame.js";
 import { SHU_EVENT } from "../consts.js";
@@ -42,7 +43,7 @@ describe("shu-artifact-frame cursor and navigation events", () => {
 		document.addEventListener(SHU_EVENT.CURSOR_TO_ROW, onCursorToRow);
 		toggleFullscreen(frame); // open
 		expect(onCursorToRow).toHaveBeenCalledTimes(1);
-		expect((onCursorToRow.mock.calls[0][0] as CustomEvent).detail.row).toBe(frame); // the column reads its data-step-id
+		expect((itemAt(onCursorToRow.mock.calls, 0)[0] as CustomEvent).detail.row).toBe(frame); // the column reads its data-step-id
 		toggleFullscreen(frame); // exit, must not re-navigate
 		expect(onCursorToRow).toHaveBeenCalledTimes(1);
 		document.removeEventListener(SHU_EVENT.CURSOR_TO_ROW, onCursorToRow);
@@ -56,8 +57,8 @@ describe("shu-artifact-frame cursor and navigation events", () => {
 		document.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true }));
 		document.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true }));
 		expect(onNav).toHaveBeenCalledTimes(2);
-		expect((onNav.mock.calls[0][0] as CustomEvent).detail).toEqual({ dir: 1, from: frame });
-		expect((onNav.mock.calls[1][0] as CustomEvent).detail).toEqual({ dir: -1, from: frame });
+		expect((itemAt(onNav.mock.calls, 0)[0] as CustomEvent).detail).toEqual({ dir: 1, from: frame });
+		expect((itemAt(onNav.mock.calls, 1)[0] as CustomEvent).detail).toEqual({ dir: -1, from: frame });
 		document.removeEventListener(SHU_EVENT.FRAME_NAV, onNav);
 	});
 

@@ -5,6 +5,7 @@
 
 import { NOTHING_SELECTED_LABEL, type TContextPattern, type TContextIndividual } from "../schemas.js";
 import { DENOTES } from "@haibun/core/lib/typed-links.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 /** What the bar knows about the view behind the selection, for when the patterns do not name one. */
 export type TContextExtra = { total?: number; label?: string; folder?: string };
@@ -20,7 +21,7 @@ export function isEntitySelection(patterns: TContextPattern[]): patterns is TCon
  */
 export function contextLabel(patterns: TContextPattern[], extra?: TContextExtra): string {
 	if (patterns.length === 0) return NOTHING_SELECTED_LABEL;
-	if (isEntitySelection(patterns)) return patterns.length === 1 ? patterns[0].id : `${patterns.length} items`;
+	if (isEntitySelection(patterns)) return patterns.length === 1 ? itemAt(patterns, 0).id : `${patterns.length} items`;
 	const parts: string[] = [`${extra?.label || patterns.find((p) => p.kind === DENOTES.type)?.persistedAs}:`];
 	if (extra?.total !== undefined) parts.push(String(extra.total));
 	if (extra?.folder) parts.push(`in ${extra.folder}`);

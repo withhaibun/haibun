@@ -6,6 +6,7 @@
  * (thumb, marker jump, O(viewport) window) needs real layout and is covered by shu-scrollbar's tests and the browser e2e.
  */
 import { describe, it, expect } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import "./shu-result-table.js"; // side-effect import runs the module so customElements.define registers the element
 import type { ShuResultTable } from "./shu-result-table.js";
 import { arrayWindowedSource } from "../windowed-source.js";
@@ -74,7 +75,7 @@ describe("shu-result-table", () => {
 		firstRow.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 		await settle(el);
 		expect(events).toHaveLength(1);
-		expect(events[0].detail.individualId).toBe("0");
+		expect(itemAt(events, 0).detail.individualId).toBe("0");
 		expect(el.getSelectedIds().has("0")).toBe(true);
 		expect(one(el, ".clickable-row").classList.contains("selected")).toBe(true);
 	});
@@ -96,9 +97,9 @@ describe("shu-result-table", () => {
 		el.setResults(rows(3));
 		await settle(el);
 		const items = q(el, ".clickable-row") as HTMLElement[];
-		items[0].dispatchEvent(new MouseEvent("click", { bubbles: true }));
+		itemAt(items, 0).dispatchEvent(new MouseEvent("click", { bubbles: true }));
 		await settle(el);
-		items[1].dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true }));
+		itemAt(items, 1).dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true }));
 		await settle(el);
 		expect([...el.getSelectedIds()].sort()).toEqual(["0", "1"]);
 	});
@@ -126,7 +127,7 @@ describe("shu-result-table", () => {
 		expect(nameHeader).toBeTruthy();
 		nameHeader.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 		expect(events).toHaveLength(1);
-		expect(events[0].detail).toEqual({ field: "name", order: "asc" });
+		expect(itemAt(events, 0).detail).toEqual({ field: "name", order: "asc" });
 	});
 
 	it("a non-sortable header is inert", async () => {
@@ -182,7 +183,7 @@ describe("shu-result-table", () => {
 		await settle(el);
 		const refs = q(el, "shu-ref");
 		expect(refs).toHaveLength(1);
-		expect(JSON.parse(refs[0].getAttribute("linkTarget") ?? "{}")).toEqual({ persistedAs: "Document", id: "tests/a.feature.ts" });
+		expect(JSON.parse(itemAt(refs, 0).getAttribute("linkTarget") ?? "{}")).toEqual({ persistedAs: "Document", id: "tests/a.feature.ts" });
 		expect(q(el, ".td").some((cell) => cell.textContent?.includes("passed"))).toBe(true);
 	});
 });

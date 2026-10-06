@@ -15,6 +15,7 @@ import { SHU_EVENT, SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
 import { linkTo } from "../rpc-registry.js";
 import { revealInDocument } from "../reveal.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 type InputProperty = { type?: string; description?: string; enum?: string[]; properties?: Record<string, InputProperty>; required?: string[]; [key: string]: unknown };
 
@@ -229,7 +230,7 @@ class StepCaller extends HTMLElement {
 			if (match.index > last) {
 				parts.push(`<span class="step-text">${esc(pattern.slice(last, match.index))}</span>`);
 			}
-			const paramName = match[1];
+			const paramName = itemAt(match, 1);
 			if (paramName in this.fixedParams) {
 				parts.push(`<span class="step-fixed">${esc(String(this.fixedParams[paramName]))}</span>`);
 			} else {
@@ -322,16 +323,16 @@ class StepCaller extends HTMLElement {
 
 		// Object: unwrap single-property containers, otherwise render each property via its own schema branch (so an array-of-object property renders as a nested table, not stringified JSON).
 		if (jsonSchema.type === "object" && jsonSchema.properties) {
-			const props = jsonSchema.properties;
-			const keys = Object.keys(props);
+			const props = Object.entries(jsonSchema.properties);
 			const obj = RecordSchema.parse(data);
-			if (keys.length === 1) {
-				const inner = obj[keys[0]];
-				if (inner !== undefined) return this.renderBySchema(inner, props[keys[0]]);
+			if (props.length === 1) {
+				const [key, keySchema] = itemAt(props, 0);
+				const inner = obj[key];
+				if (inner !== undefined) return this.renderBySchema(inner, keySchema);
 			}
-			const entries = keys
-				.filter((k) => obj[k] !== undefined)
-				.map((k) => `<dt>${esc(k)}</dt><dd data-testid="step-result-${escAttr(k)}">${this.renderBySchema(obj[k], props[k])}</dd>`)
+			const entries = props
+				.filter(([k]) => obj[k] !== undefined)
+				.map(([k, kSchema]) => `<dt>${esc(k)}</dt><dd data-testid="step-result-${escAttr(k)}">${this.renderBySchema(obj[k], kSchema)}</dd>`)
 				.join("");
 			return `<dl>${entries}</dl>`;
 		}

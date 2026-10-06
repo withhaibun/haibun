@@ -7,6 +7,7 @@ import { hydrateFromDom } from "../rpc-registry.js";
 import { heldDatabases } from "./device-store.js";
 import "fake-indexeddb/auto";
 import { describe, it, expect, beforeAll, beforeEach } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import type { AccessLevel } from "@haibun/core/lib/resources.js";
 import { IndexedDbQuadStore, deviceGraphStore } from "./quad-store.js";
 
@@ -52,7 +53,7 @@ describe("the questions the site answers, asked of the graph this page caches", 
 	});
 
 	it("keeps a type's sample within the limit, and reports how many it left out", async () => {
-		const one = (await store.getClusteredQuads({ ...access, perTypeLimit: 1, types: ["Email"] })).clusters[0];
+		const one = itemAt((await store.getClusteredQuads({ ...access, perTypeLimit: 1, types: ["Email"] })).clusters, 0);
 		expect(one.sampledCount).toBe(1);
 		expect(one.omittedCount).toBe(1);
 	});

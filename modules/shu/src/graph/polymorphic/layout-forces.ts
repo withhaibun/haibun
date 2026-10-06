@@ -1,3 +1,4 @@
+/// <reference path="./force-deps.d.ts" />
 /**
  * Graph layout physics as pure d3-force config: the charge/collide/link constants and the sprite-sized collision
  * force. The same forces register on a paint's live simulation and on a raw forceSimulation, so layout stability is

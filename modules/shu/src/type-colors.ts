@@ -1,3 +1,5 @@
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
+
 /**
  * Single source of truth for node-type colors. Both the SVG render (group
  * fills) and the 3D scene (plate colors) call
@@ -11,7 +13,7 @@
  */
 
 /** 24-colour palette, broad enough that a typical schema (under ~20 node types) gets distinct colours, with collision-resistant spacing across the wheel. */
-const TYPE_PALETTE: ReadonlyArray<string> = [
+const TYPE_PALETTE: readonly [string, ...string[]] = [
 	"#8ecae6", // pale blue
 	"#ffb703", // amber
 	"#90be6d", // green
@@ -48,5 +50,5 @@ function hashString(s: string): number {
 
 export function colorForType(typeName: string): string {
 	if (!typeName) return TYPE_PALETTE[0];
-	return TYPE_PALETTE[hashString(typeName) % TYPE_PALETTE.length];
+	return itemAt(TYPE_PALETTE, hashString(typeName) % TYPE_PALETTE.length);
 }

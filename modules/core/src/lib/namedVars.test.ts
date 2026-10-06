@@ -1,15 +1,16 @@
 import { describe, it, test, expect } from "vitest";
 
 import { OK, TStepArgs, Origin, TEST_BASE } from "../schema/protocol.js";
-import { AStepper, TResolvedFeature, TStepperStep } from "./astepper.js";
+import { AStepper, TStepperStep } from "./astepper.js";
 import { getNamedMatches, namedInterpolation } from "./namedVars.js";
 import { Resolver } from "../phases/Resolver.js";
 import { actionNotOK, createSteppers } from "./util/index.js";
 import { getDefaultWorld } from "./test/lib.js";
 import { asExpandedFeatures } from "./resolver-features.js";
-import { withNameType } from "./features.js";
+import { withName } from "./features.js";
 import { populateActionArgs } from "./populateActionArgs.js";
 import { DOMAIN_STRING } from "./domains.js";
+import { itemAt } from "./util/item-at.js";
 
 describe("namedMatches", () => {
 	const step: TStepperStep = { match: /^(?<one>.*?) is (?<two>.*?)$/, action: async () => Promise.resolve(actionNotOK("test")) };
@@ -38,6 +39,7 @@ describe("namedInterpolation regexes", () => {
 
 describe("getNamedWithVars", () => {
 	class TestStepper extends AStepper {
+		description = "A step taking an interpolated value.";
 		steps = { gwtaInterpolated: { gwta: "is {what}", action: async () => Promise.resolve(OK) } };
 	}
 	const world = getDefaultWorld();
@@ -45,11 +47,11 @@ describe("getNamedWithVars", () => {
 		const steppers = createSteppers([TestStepper]);
 		const resolver = new Resolver(steppers);
 		await world.shared.set({ term: "exact", value: "res", domain: DOMAIN_STRING, origin: Origin.var }, { seq: [0], when: "test" });
-		const features = asExpandedFeatures([withNameType(TEST_BASE, "l1", "is `exact`")]);
+		const features = asExpandedFeatures([withName(TEST_BASE, "l1", "is `exact`")]);
 		const steps = await resolver.resolveStepsFromFeatures(features);
-		const { featureSteps } = steps[0] as TResolvedFeature;
-		expect(featureSteps[0].action).toBeDefined();
-		const val = (await populateActionArgs(featureSteps[0], world, steppers)) as TStepArgs;
+		const featureStep = itemAt(itemAt(steps, 0).featureSteps, 0);
+		expect(featureStep.action).toBeDefined();
+		const val = (await populateActionArgs(featureStep, world, steppers)) as TStepArgs;
 		expect(val.what).toBe("res");
 	});
 });

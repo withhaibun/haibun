@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import type { TLink } from "./hypermedia.js";
 import { CLIENT_RING } from "./consts.js";
 import { clientBlipsRecorded, clientBlipsSent, flushClientBlips, recordClientBlip } from "./client-blips.js";
@@ -80,7 +81,7 @@ describe("recording in the browser: hold it, hand it over in batches", () => {
 		await vi.runAllTimersAsync();
 		const batch = sentBatch();
 		expect(batch.blips).toHaveLength(CLIENT_RING);
-		expect(batch.blips[0].value).toBe(over - CLIENT_RING);
+		expect(itemAt(batch.blips, 0).value).toBe(over - CLIENT_RING);
 		expect(batch.recorded).toBe(over);
 		expect(clientBlipsRecorded()).toBe(over);
 		expect(clientBlipsSent()).toBe(CLIENT_RING);

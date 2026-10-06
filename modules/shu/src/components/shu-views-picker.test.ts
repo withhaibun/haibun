@@ -4,6 +4,7 @@
  * declares the views decides what they are.
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { SHU_TAG } from "../consts.js";
 import { PaneState } from "../pane-state.js";
@@ -38,7 +39,7 @@ describe("the views a deployment offers", () => {
 	it("asks for the view a pressed row names, so a press opens that view and doesn't open another", async () => {
 		const asked = vi.spyOn(PaneState, "request").mockImplementation(() => undefined);
 		const picker = await pickerOf();
-		rowsOf(picker)[1].click();
+		itemAt(rowsOf(picker), 1).click();
 		expect(asked).toHaveBeenCalledWith({ paneType: "component", tag: SHU_TAG.CLIENT_CACHE_COLUMN, label: "what this page holds" });
 	});
 });

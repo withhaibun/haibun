@@ -4,6 +4,7 @@
 // heading is the step that declared the feature or the scenario.
 import { ServerUnreachable } from "../hypermedia.js";
 import { describe, it, expect, beforeEach, afterEach, onTestFinished } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { ShuMonitorColumn } from "./shu-monitor-column.js";
 import { ShuDocumentColumn } from "./shu-document-column.js";
 import type { ShuArtifactFrame } from "./shu-artifact-frame.js";
@@ -107,7 +108,7 @@ describe("the views of a run, over the records it wrote", () => {
 			mon.rows.map((row) => row.step),
 			"actuality's steps, without a row for what one of them produced",
 		).toEqual(["step 1"]);
-		const shown = mon.rows[0].produced ?? [];
+		const shown = itemAt(mon.rows, 0).produced ?? [];
 		expect(
 			shown.map((one) => one.what),
 			"the step a reader sees shows the shot taken during it",
@@ -131,8 +132,8 @@ describe("the views of a run, over the records it wrote", () => {
 			mon.rows.map((row) => row.step),
 			"and a reader asking for it is",
 		).toEqual(["step 1", "take a screenshot"]);
-		expect(mon.rows[1].partOf, "the substep's row names the step it was run to carry out").toEqual([0, 1]);
-		expect(mon.rows[0].partOf, "a step of the feature doesn't name one").toBeUndefined();
+		expect(itemAt(mon.rows, 1).partOf, "the substep's row names the step it was run to carry out").toEqual([0, 1]);
+		expect(itemAt(mon.rows, 0).partOf, "a step of the feature doesn't name one").toBeUndefined();
 		expect(mon.shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.MONITOR.ESTABLISHED_BY}"]`), "which a reader reads that step from").toBeTruthy();
 	});
 
@@ -182,9 +183,9 @@ describe("the views of a run, over the records it wrote", () => {
 		const times = Array.from(mon.shadowRoot?.querySelectorAll(".time-group") ?? []) as HTMLElement[];
 		expect(times.length).toBe(2);
 		timeCursor.set(999);
-		times[0].click();
+		itemAt(times, 0).click();
 		expect(timeCursor.get(), "the first row: its instant").toBe(1);
-		times[1].click();
+		itemAt(times, 1).click();
 		expect(timeCursor.get(), "the newest row: the live edge").toBeNull();
 	});
 
@@ -205,9 +206,9 @@ describe("the views of a run, over the records it wrote", () => {
 		);
 		expect(rows.length).toBeGreaterThan(1);
 		timeCursor.set(123);
-		rows[rows.length - 1].click();
+		itemAt(rows, rows.length - 1).click();
 		expect(timeCursor.get(), "the newest row: the live edge").toBeNull();
-		rows[0].click();
+		itemAt(rows, 0).click();
 		expect(timeCursor.get(), "an earlier row: its own instant").toBe(1);
 	});
 
@@ -246,7 +247,7 @@ describe("the views of a run, over the records it wrote", () => {
 		const RUN = "1700000000000-1";
 		const shooter = `${RUN}.0.${PAGE}`;
 		const steps = Array.from({ length: PAGE }, (_, i) => stepRecord(i + 1, { id: `${RUN}.0.${i + 1}` }));
-		steps[PAGE - 1].stepText = "take a screenshot";
+		itemAt(steps, PAGE - 1).stepText = "take a screenshot";
 		await aRun(
 			[...steps, stepRecord(PAGE + 1, { id: `${shooter}.-1`, isPartOf: shooter, stepText: "capture the page", level: "trace" })],
 			[],

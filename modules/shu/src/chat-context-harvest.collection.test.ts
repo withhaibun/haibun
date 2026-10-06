@@ -12,6 +12,7 @@
  * edges under their own names is such a view.
  */
 import { describe, it, expect, beforeEach } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { HARVEST_MEMBERS, harvested, harvestChatViewLd } from "./chat-context-harvest.js";
 import { activePane } from "./signals.js";
 
@@ -103,7 +104,7 @@ describe("the harvest rejects a non-conformant summary loudly, naming the view",
 		strip.appendChild(pane("only", view("shu-polymorphic-graph-view", collection(HARVEST_MEMBERS + 10))));
 		document.body.appendChild(strip);
 		activePane.set("only");
-		const [block] = harvestChatViewLd() as Array<{ items: unknown[] }>;
+		const block = itemAt(harvestChatViewLd() as Array<{ items: unknown[] }>, 0);
 		expect(block.items).toHaveLength(HARVEST_MEMBERS);
 	});
 });

@@ -59,6 +59,7 @@ import { CallLinkSchema, counted, statedTotal, type TCallLink, type TCounted } f
 import { SentFileSchema, fileDataBlob } from "@haibun/core/lib/media-object.js";
 import { MEDIA_TYPE, viewedInBrowser } from "@haibun/core/lib/media-types.js";
 import { reportFailure } from "../client-log.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 /** The links a record carries, by rel. */
 const OfferedLinksSchema = z.record(z.string(), CallLinkSchema);
@@ -351,11 +352,11 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			const summaryHtml =
 				summaryFields.size > 0
 					? `<div class="entity-summary" data-testid="entity-summary">${Array.from(summaryFields)
-							.filter((k) => fields[k] && (Array.isArray(fields[k]) ? (fields[k] as string[]).length > 0 : true))
-							.map((k) => {
+							.flatMap((k) => {
 								const v = fields[k];
+								if (!v || (Array.isArray(v) && v.length === 0)) return [];
 								const valueHtml = Array.isArray(v) ? v.map((item) => this.fieldValueHtml(item, k)).join(", ") : this.fieldValueHtml(v, k);
-								return `<span class="summary-field" data-testid="entity-field-${escAttr(k)}">${this.predicateLink(k)}${this.vocabBadge(k)} ${valueHtml}</span>`;
+								return [`<span class="summary-field" data-testid="entity-field-${escAttr(k)}">${this.predicateLink(k)}${this.vocabBadge(k)} ${valueHtml}</span>`];
 							})
 							.join(" ")}</div>`
 					: "";
@@ -438,7 +439,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			if (!Array.isArray(v) || v.length === 0 || typeof v[0] !== "object") continue;
 			const items = RecordsSchema.parse(v);
 			// Inner table: items don't have a per-row label, fall back to projection-only filter.
-			const keys = Object.keys(items[0]).filter((key) => isVisibleKey(key));
+			const keys = Object.keys(itemAt(items, 0)).filter((key) => isVisibleKey(key));
 			// An item that names its type and identity is a record, and its row opens it.
 			const records = items.some((item) => typeof item["@type"] === "string" && typeof item["@id"] === "string");
 			const header = `${records ? "<th>@id</th>" : ""}${keys.map((key) => `<th>${esc(key)}</th>`).join("")}`;
@@ -557,7 +558,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		if (available.length === 0) return "";
 
 		const activeId = this.activeBodyId();
-		const active = available.find((b) => String(b.id ?? "") === activeId) ?? available[0];
+		const active = available.find((b) => String(b.id ?? "") === activeId) ?? itemAt(available, 0);
 
 		const switcherHtml =
 			available.length > 1
@@ -602,7 +603,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const available = this.linkedBodies().filter((b) => typeof b.mediaType === "string");
 		if (available.length === 0) return "";
 		if (this.chosenBodyId && available.some((b) => String(b.id ?? "") === this.chosenBodyId)) return this.chosenBodyId;
-		return String((pickPreferredBody(available) ?? available[0]).id ?? "");
+		return String((pickPreferredBody(available) ?? itemAt(available, 0)).id ?? "");
 	}
 
 	/** The reading shown, where it is text (markdown or plain), with its text once read: what an annotation's quote is

@@ -14,6 +14,7 @@ import { activePane, stripPanes } from "../signals.js";
 import { shuBaseStyles } from "./styles.js";
 import type { ShuColumnPane } from "./shu-column-pane.js";
 import { revealInDocument } from "../reveal.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 type PaneEl = ShuColumnPane & HTMLElement;
 
@@ -94,14 +95,14 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 
 	/** Remove a pane by index. */
 	removePane(index: number): void {
-		const panes = this.panes;
-		if (index < 0 || index >= panes.length) return;
-		const removedKey = paneKeyOf(panes[index]);
-		this.savedLayout?.delete(panes[index]); // a pane that leaves under a maximize doesn't have a layout to restore
-		panes[index].remove();
+		const removed = this.panes[index];
+		if (!removed) return;
+		const removedKey = paneKeyOf(removed);
+		this.savedLayout?.delete(removed); // a pane that leaves under a maximize doesn't have a layout to restore
+		removed.remove();
 		const remaining = this.panes.filter((pane) => pane.activates);
 		// If the removed pane held focus, move it to the nearest remaining pane that takes activation (the one now at its slot, else the last).
-		if (activePane.get() === removedKey) activePane.set(remaining.length ? paneKeyOf(remaining[Math.min(index, remaining.length - 1)]) : null);
+		if (activePane.get() === removedKey) activePane.set(remaining.length ? paneKeyOf(itemAt(remaining, Math.min(index, remaining.length - 1))) : null);
 		this.ensureActive();
 		this.applyActive();
 		this.updateQueryAlone();
@@ -124,9 +125,9 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		}
 		const panes = this.columns;
 		const growing = [...panes].reverse().find((p) => !p.isCollapsed);
-		for (let i = 0; i < panes.length; i++) {
-			panes[i].toggleAttribute(SHU_ATTR.IS_LAST, i === panes.length - 1);
-			panes[i].toggleAttribute(SHU_ATTR.GROWS, panes[i] === growing);
+		for (const [i, pane] of panes.entries()) {
+			pane.toggleAttribute(SHU_ATTR.IS_LAST, i === panes.length - 1);
+			pane.toggleAttribute(SHU_ATTR.GROWS, pane === growing);
 		}
 	}
 
@@ -148,7 +149,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 	private ensureActive(): void {
 		const panes = this.panes.filter((pane) => pane.activates);
 		if (panes.length === 0 || activePane.get() !== null) return;
-		const takeable = panes.find((p) => !p.hasAttribute(SHU_ATTR.DATA_MINIMIZED)) ?? panes[0];
+		const takeable = panes.find((p) => !p.hasAttribute(SHU_ATTR.DATA_MINIMIZED)) ?? itemAt(panes, 0);
 		activePane.set(paneKeyOf(takeable));
 	}
 
@@ -200,9 +201,8 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		// Collapse leftmost flex panes (never query/active/minimized/resized) only while the remaining flex panes
 		// can't each clear MIN_USABLE_WIDTH, and stop the moment they can, so the minimum number collapse.
 		let avail = stripWidth - fixed;
-		for (let i = 0; i < panes.length; i++) {
+		for (const [i, p] of panes.entries()) {
 			if (flexCount <= 1 || avail / flexCount >= MIN_USABLE_WIDTH) break;
-			const p = panes[i];
 			if (p === queryPane || i === activeIdx || p.hasAttribute(SHU_ATTR.DATA_MINIMIZED) || p.fixedWidth !== undefined) continue;
 			p.setCollapsed(true);
 			avail -= COLLAPSED_WIDTH;
@@ -288,12 +288,12 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		const panes = this.panes;
 		const index = panes.indexOf(event.target as PaneEl);
 		// A minimized column can't stay active: shift to the nearest expanded column to its right, else to its left.
-		if (event.detail?.minimized && paneKeyOf(panes[index]) === activePane.get()) {
+		if (event.detail?.minimized && paneKeyOf(itemAt(panes, index)) === activePane.get()) {
 			const expanded = (p: PaneEl) => p.activates && !p.hasAttribute(SHU_ATTR.DATA_MINIMIZED);
 			let target = panes.findIndex((p, i) => i > index && expanded(p));
 			if (target === -1) {
 				for (let i = index - 1; i >= 0; i--) {
-					if (expanded(panes[i])) {
+					if (expanded(itemAt(panes, i))) {
 						target = i;
 						break;
 					}

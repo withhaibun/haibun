@@ -12,6 +12,7 @@ import { fileDataParts } from "@haibun/core/lib/media-object.js";
 import { DENOTES } from "@haibun/core/lib/typed-links.js";
 import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import type { TChatMessage } from "./shu-chat-message.js";
 import { anIndividual } from "../schemas.js";
 import { CHAT_STEP, answer, chatDispatch, question, readBack, type TDriven as Driven } from "./chat-pane.test-fake.js";
@@ -330,7 +331,7 @@ describe("a turn that ends before it answered", () => {
 		streamFails = "the model did not answer: connection reset";
 		const { pane, history } = await aPage();
 		await submit(pane, "what do these have in common");
-		const [answer] = answers(history);
+		const answer = itemAt(answers(history), 0);
 		expect(answer.message.error).toContain("connection reset");
 		expect(answer.message.status).toBe("failed");
 		expect(answer.message.spinnerVisible).toBe(false);
@@ -342,7 +343,7 @@ describe("a turn that ends before it answered", () => {
 		inside<HTMLButtonElement>(pane.shadowRoot, ".stop-btn").click();
 		await settle();
 		expect(stream.signal?.aborted).toBe(true);
-		expect(answers(history)[0].message.error).toBe(`${STOPPED_BY_THE_READER}: ${STREAM_ABORTED}`);
+		expect(itemAt(answers(history), 0).message.error).toBe(`${STOPPED_BY_THE_READER}: ${STREAM_ABORTED}`);
 		expect(conversationState.get().asked?.status).toBe("stopped");
 	});
 });
@@ -415,7 +416,7 @@ describe("who reads the context", () => {
 		const { pane } = await aPage();
 		await submit(pane, "what do these have in common");
 		expect(reading(pane).value).toBe("");
-		expect(reading(pane).options[0].text).toBe("model default (sends tool cues)");
+		expect(itemAt(reading(pane).options, 0).text).toBe("model default (sends tool cues)");
 		expect(sent.at(-1)?.contextReadBy).toBeUndefined();
 	});
 
@@ -458,7 +459,7 @@ describe("what a turn states about itself", () => {
 		stated.push({ context: "Email -> total -> 2" }, { status: "dispatching GraphStepper-graphQuery, reading the emails" }, { called: call }, { status: "generated 40 chars" });
 		const { pane, history } = await aPage();
 		await submit(pane, "what do these have in common");
-		const { message } = answers(history)[0];
+		const { message } = itemAt(answers(history), 0);
 		expect(message.context).toEqual(["Email -> total -> 2"]);
 		expect(message.calls).toEqual([call]);
 		expect(message.spinnerStatus).toBe("generated 40 chars");
@@ -480,7 +481,7 @@ describe("what a turn states about itself", () => {
 		await settle();
 		unsubscribe();
 		expect(moves).toEqual(["crumb and dough, ", "crumb and dough, then an answer"]);
-		expect(answers(history)[0].message).toMatchObject({ status: "completed", text: "crumb and dough, then an answer" });
+		expect(itemAt(answers(history), 0).message).toMatchObject({ status: "completed", text: "crumb and dough, then an answer" });
 	});
 });
 

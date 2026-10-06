@@ -1,3 +1,4 @@
+/// <reference path="./zcap-signing.d.ts" />
 /**
  * A delegation this page gives, signed with its key from a delegation it holds: how the page gives a turn it asks what
  * the turn may do. zcap-LD narrows a delegation by the exact actions its parent lists, so for each action wanted the page

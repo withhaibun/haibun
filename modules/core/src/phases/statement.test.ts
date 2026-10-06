@@ -8,6 +8,7 @@ import { DOMAIN_STATEMENT } from "../lib/domains.js";
 import Haibun from "../steps/haibun.js";
 
 class StatementTestStepper extends AStepper {
+	description = "Steps alpha and beta, and a step that runs the statements it is given.";
 	steps = {
 		alpha: { exact: "alpha", action: async () => Promise.resolve(OK) },
 		beta: { exact: "beta", action: async () => Promise.resolve(OK) },

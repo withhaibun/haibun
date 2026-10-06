@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { emitQuadObservation, extractQuadsFromEvents, eventsAffectLabel, OBSERVATION_VALUE_MAX, type TQuad, matchesQuadPattern } from "./quad-types.js";
+import { itemAt } from "./util/item-at.js";
 
 const quadEvent = (namedGraph: string) => ({
 	id: `q-${namedGraph}`,
@@ -59,7 +60,7 @@ describe("extractQuadsFromEvents", () => {
 			{ id: "q-1", timestamp: 5000, kind: "artifact", artifactType: "json", json: { quadObservation: { subject: "/x", predicate: "name", object: "val", namedGraph: "test" } } },
 		];
 		const quads = extractQuadsFromEvents(events);
-		expect(quads[0].timestamp).toBe(5000);
+		expect(itemAt(quads, 0).timestamp).toBe(5000);
 	});
 });
 
@@ -91,9 +92,10 @@ describe("emitQuadObservation carries previews, never payloads", () => {
 		emitQuadObservation(logger, "q1", { subject: "e1", predicate: "content", object: body, namedGraph: "Body", timestamp: 1 });
 		emitQuadObservation(logger, "q2", short);
 		const observations = emitted.map((e) => (e.json as { quadObservation: TQuad }).quadObservation);
-		expect(String(observations[0].object).length).toBe(OBSERVATION_VALUE_MAX);
-		expect(String(observations[0].object).endsWith("\u2026")).toBe(true);
-		expect(observations[0].properties?.preview).toBe(true);
+		const preview = itemAt(observations, 0);
+		expect(String(preview.object).length).toBe(OBSERVATION_VALUE_MAX);
+		expect(String(preview.object).endsWith("\u2026")).toBe(true);
+		expect(preview.properties?.preview).toBe(true);
 		expect(observations[1]).toBe(short);
 	});
 });

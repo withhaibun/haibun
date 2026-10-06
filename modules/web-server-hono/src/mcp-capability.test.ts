@@ -62,7 +62,11 @@ class ProtectedStepper extends AStepper {
 			action: async ({ port }: { port: string }) => {
 				const url = `http://localhost:${port}/mcp`;
 				const list = (actualityId: string) =>
-					fetch(url, { method: "POST", headers: { ...MCP_HEADERS, [ACTUALITY_HEADER]: actualityId }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} }) });
+					fetch(url, {
+						method: "POST",
+						headers: { ...MCP_HEADERS, [ACTUALITY_HEADER]: actualityId },
+						body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} }),
+					});
 				const other = await list("another-actuality");
 				if (other.status !== 400 || !(await other.text()).includes("another-actuality")) throw new Error(`Expected another actuality refused, got ${other.status}`);
 				const held = await list(String(this.getWorld().runtime.actualityId));
@@ -125,8 +129,8 @@ class ProtectedStepper extends AStepper {
 				if (!toolResult.isError) {
 					throw new Error(`Expected admin tool denial, got ${JSON.stringify(result)}`);
 				}
-				const text = toolResult.content?.[0]?.type === "text" ? toolResult.content[0].text : "";
-				if (!text.includes("capability ProtectedStepper:admin required")) {
+				const first = toolResult.content?.[0];
+				if (first?.type !== "text" || !first.text?.includes("capability ProtectedStepper:admin required")) {
 					throw new Error(`Expected admin capability denial, got ${JSON.stringify(result)}`);
 				}
 				return OK;

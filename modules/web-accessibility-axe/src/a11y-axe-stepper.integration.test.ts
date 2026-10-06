@@ -9,6 +9,7 @@ import { BrowserFactory } from "@haibun/web-playwright/BrowserFactory.js";
 import StorageMem from "@haibun/storage-mem/storage-mem.js";
 import { EARL_ASSERTION_EDGE, EARL_LABEL, EARL_OUTCOME } from "./lib/earl.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import WebPlaywright from "@haibun/web-playwright";
 
 const PASSES_URI = new URL("../files/test/passes.html", import.meta.url);
@@ -63,8 +64,8 @@ page is accessible accepting serious "0" and moderate "0"
 		const store = res.world.shared.getStore();
 		const failed = (await store.queryIndividuals<{ id: string }>(EARL_LABEL.testResult, { outcome: EARL_OUTCOME.failed })).map(({ id }) => id);
 		expect(failed.length).toBeGreaterThan(0);
-		const assertion = (await store.query({ predicate: EARL_ASSERTION_EDGE.result, object: failed[0], namedGraph: EARL_LABEL.assertion }))[0];
-		const [step] = await store.query({ subject: assertion.subject, predicate: EARL_ASSERTION_EDGE.wasGeneratedBy, namedGraph: EARL_LABEL.assertion });
+		const assertion = itemAt(await store.query({ predicate: EARL_ASSERTION_EDGE.result, object: itemAt(failed, 0), namedGraph: EARL_LABEL.assertion }), 0);
+		const step = itemAt(await store.query({ subject: assertion.subject, predicate: EARL_ASSERTION_EDGE.wasGeneratedBy, namedGraph: EARL_LABEL.assertion }), 0);
 		expect(await store.getIndividual(SEQ_PATH_LABEL, String(step.object))).toMatchObject({ stepText: expect.stringContaining("page is accessible") });
 	});
 });

@@ -747,6 +747,7 @@ rpc call to "http://localhost:${port}/rpc/Injected-ping" with method "Injected-p
 		let second: number[] | undefined;
 
 		class BeginActionStepper extends AStepper {
+			description = "Begins an action over RPC twice, keeping the seqPath each answer states.";
 			steps = {
 				callBeginActionTwice: {
 					gwta: `begin action twice at {url: ${DOMAIN_LINK}}`,
@@ -784,6 +785,7 @@ begin action twice at "http://localhost:${port}/rpc/${ACTION_BEGIN}"
 		let rpcResponse: Record<string, unknown> | undefined;
 
 		class MissingSeqPathStepper extends AStepper {
+			description = "Makes an RPC call that doesn't state a seqPath.";
 			steps = {
 				callWithoutSeqPath: {
 					gwta: `rpc call to {url: ${DOMAIN_LINK}} without seqPath succeeds`,
@@ -853,6 +855,7 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "Pi
 		const collectedChunks: TStreamChunk[] = [];
 
 		class StreamingStepper extends AStepper {
+			description = "Emits three streaming chunks, or refuses the stream.";
 			steps = {
 				stream3: {
 					gwta: "emit three streaming chunks",
@@ -869,6 +872,7 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "Pi
 		}
 
 		class StreamingRpcVerifyStepper extends AStepper {
+			description = "Makes a streaming RPC call and checks its chunks arrive.";
 			steps = {
 				streamChunksArrive: {
 					gwta: `stream rpc call to {url: ${DOMAIN_LINK}} method {method: ${DOMAIN_STEP_METHOD}} emits chunks`,
@@ -919,6 +923,7 @@ stream rpc call to "http://localhost:${port}/rpc/StreamingStepper-stream3" metho
 		const collectedChunks: Record<string, unknown>[] = [];
 
 		class StreamingStepper extends AStepper {
+			description = "Refuses a stream, or fails it with an error.";
 			steps = {
 				refuse: { gwta: "refuse the stream", action: () => actionNotOK("nope") },
 				fail: {
@@ -931,6 +936,7 @@ stream rpc call to "http://localhost:${port}/rpc/StreamingStepper-stream3" metho
 		}
 
 		class StreamingErrorVerifyStepper extends AStepper {
+			description = "Makes a streaming RPC call and checks it ends with an error.";
 			steps = {
 				streamErrorArrives: {
 					gwta: `stream rpc call to {url: ${DOMAIN_LINK}} method {method: ${DOMAIN_STEP_METHOD}} emits an error`,

@@ -13,6 +13,7 @@ import {
 	refDomainKey,
 	refTargetOf,
 	registerDomains,
+	registeredDomain,
 	toRegisteredDomain,
 } from "./domains.js";
 import { LinkRelations, PersistedVertexSchema, type THypermediaTopology, type TPropertyDef } from "./resources.js";
@@ -48,7 +49,7 @@ describe("domains", () => {
 		const res = await passWithDefaults([feature], steppers);
 		expect(res.ok).toBe(true);
 		// ensure the variable was stored with domain json in world.shared
-		expect((await res.world.shared.all()).data.domain).toBe("json");
+		expect((await res.world.shared.all()).data?.domain).toBe("json");
 		const value = await res.world.shared.get("data");
 		expect(typeof value).toBe("object");
 		expect(value).toEqual({ a: 1 });
@@ -61,8 +62,8 @@ describe("domains", () => {
 
 		const stepVal = (await res.world.shared.all())["Value"];
 		expect(stepVal).toBeDefined();
-		expect(stepVal.domain).toBe("number");
-		expect(stepVal.value).toBe("4");
+		expect(stepVal?.domain).toBe("number");
+		expect(stepVal?.value).toBe("4");
 		const value = await res.world.shared.get("Value");
 		expect(typeof value).toBe("number");
 		expect(value).toBe(4);
@@ -128,7 +129,7 @@ describe("a reference to a record of a type", () => {
 				},
 			],
 		]);
-		const ref = world.domains[refDomainKey(RECIPE)];
+		const ref = registeredDomain(world.domains, refDomainKey(RECIPE), "the test");
 		expect(refTargetOf(ref, world.domains)).toBe(RECIPE);
 		expect(ref.schema.parse("hummus")).toEqual({ id: "hummus" });
 	});
@@ -136,7 +137,7 @@ describe("a reference to a record of a type", () => {
 
 describe("a list a caller gives", () => {
 	it("is an array, its JSON text or text separated by commas, and is refused where it doesn't name an action", () => {
-		const { schema } = getDefaultWorld().domains[DOMAIN_ACTIONS];
+		const { schema } = registeredDomain(getDefaultWorld().domains, DOMAIN_ACTIONS, "the test");
 		const READ_AND_RUN = ["Read:private", "Instance:run"];
 		expect(schema.parse(READ_AND_RUN)).toEqual(READ_AND_RUN);
 		expect(schema.parse(JSON.stringify(READ_AND_RUN))).toEqual(READ_AND_RUN);
@@ -148,14 +149,14 @@ describe("a list a caller gives", () => {
 
 describe("a step's place and a length of time", () => {
 	it("reads a step's place from its sequence path or an id beginning with one, and refuses an id that doesn't name a step", () => {
-		const { schema } = getDefaultWorld().domains[DOMAIN_STEP_PATH];
+		const { schema } = registeredDomain(getDefaultWorld().domains, DOMAIN_STEP_PATH, "the test");
 		expect(schema.parse("0.1.-5.3")).toEqual([0, 1, -5, 3]);
 		expect(schema.parse("0.1.5.3.artifact.0"), "an event's id").toEqual([0, 1, 5, 3]);
 		expect(schema.safeParse("artifact.0").error?.issues[0]?.message).toMatch(/doesn't name a step/);
 	});
 
 	it("reads seconds and milliseconds as milliseconds, and refuses a length given without a unit", () => {
-		const { schema } = getDefaultWorld().domains[DOMAIN_DURATION];
+		const { schema } = registeredDomain(getDefaultWorld().domains, DOMAIN_DURATION, "the test");
 		expect(schema.parse("2s")).toBe(2000);
 		expect(schema.parse("30 ms")).toBe(30);
 		expect(schema.safeParse("2 minutes").error?.issues[0]?.message).toMatch(/isn't a length of time/);
@@ -164,14 +165,14 @@ describe("a step's place and a length of time", () => {
 
 describe("what a variable step writes", () => {
 	it("reads a set's quoted members, or else its words, and refuses an empty set", () => {
-		const { schema } = getDefaultWorld().domains[DOMAIN_SET_VALUES];
+		const { schema } = registeredDomain(getDefaultWorld().domains, DOMAIN_SET_VALUES, "the test");
 		expect(schema.parse('"red wine", "gin"')).toEqual(["red wine", "gin"]);
 		expect(schema.parse("red, green blue")).toEqual(["red", "green", "blue"]);
 		expect(schema.safeParse(" , ").error?.issues[0]?.message).toMatch(/the set is empty/);
 	});
 
 	it("reads a hypermedia declaration trimmed, and refuses an empty one", () => {
-		const { schema } = getDefaultWorld().domains[DOMAIN_HYPERMEDIA_DECLARATION];
+		const { schema } = registeredDomain(getDefaultWorld().domains, DOMAIN_HYPERMEDIA_DECLARATION, "the test");
 		expect(schema.parse("  id, with name ")).toBe("id, with name");
 		expect(schema.safeParse("   ").error?.issues[0]?.message).toMatch(/the declaration is empty/);
 	});

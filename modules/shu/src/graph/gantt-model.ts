@@ -36,7 +36,7 @@ type GanttModelOpts = { displayLabel?: (graph: string, subject: string) => strin
 /** Build the Gantt model from quads. Subjects without a `ganttStart` (and an end or duration) are not tasks. */
 export function quadsToGanttModel(quads: TQuad[], opts: GanttModelOpts = {}): TGanttModel {
 	const relOf = opts.relOf ?? identityRel;
-	const bySubject = new Map<string, TQuad[]>();
+	const bySubject = new Map<string, [TQuad, ...TQuad[]]>();
 	for (const q of quads) {
 		const list = bySubject.get(q.subject);
 		if (list) list.push(q);

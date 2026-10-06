@@ -1,5 +1,7 @@
+/// <reference path="./three-controls.d.ts" />
 import type { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { FRAME, type FrameMove, type ReframeMode } from "../polymorphic/polymorphic-views.js";
+import type { TMatrix4Elements } from "./polymorphic-render-context.js";
 
 /** Sole owner of camera CONTROL for the polymorphic view: every framing, viewport, and navigation move that mutates the
  * three.js camera + OrbitControls lives here, so "who decides the zoom" has one answer. The component keeps the leaf
@@ -18,7 +20,7 @@ type FgCamera = {
 	up?: Vec3; // the view's up vector, +y for every view except the sequence, which stands time (z) up
 	updateProjectionMatrix(): void;
 	updateMatrixWorld?(force?: boolean): void;
-	matrixWorld?: { elements: number[] };
+	matrixWorld?: { elements: TMatrix4Elements };
 };
 type FgRenderer = { setSize(w: number, h: number, updateStyle: boolean): void; getPixelRatio(): number; xr?: { isPresenting?: boolean } };
 /** The placed-gantt extent the camera frames, computed by the active gantt view from its bars, kept out of here so

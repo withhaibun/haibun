@@ -25,6 +25,7 @@ import type { TControllerHost } from "./controller-host.js";
 import type { ShuActivityHistory } from "./shu-activity-history.js";
 import { ShuSearchSummary } from "./shu-search-summary.js";
 import { readSlashCommand } from "../slash-command.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 /** How long typing rests before the search text is committed. */
 export const SEARCH_DEBOUNCE_MS = 300;
@@ -367,18 +368,19 @@ export class ActionsBarQuery implements ReactiveController {
 	}
 
 	#onConditionProperty(index: number, e: CustomEvent): void {
-		this.#conditions[index].predicate = e.detail?.value || "";
+		itemAt(this.#conditions, index).predicate = e.detail?.value || "";
 	}
 
 	/** A change to or from `between` adds or removes the second value, so it renders again. */
 	#onConditionOperator(index: number, e: Event): void {
-		const wasBetween = this.#conditions[index].operator === "between";
-		this.#conditions[index].operator = (e.target as HTMLSelectElement).value as TSearchCondition["operator"];
-		if (wasBetween !== (this.#conditions[index].operator === "between")) this.#host.requestUpdate();
+		const condition = itemAt(this.#conditions, index);
+		const wasBetween = condition.operator === "between";
+		condition.operator = (e.target as HTMLSelectElement).value as TSearchCondition["operator"];
+		if (wasBetween !== (condition.operator === "between")) this.#host.requestUpdate();
 	}
 
 	#onConditionValue(index: number, field: "value" | "value2", e: Event): void {
-		this.#conditions[index][field] = (e.target as HTMLInputElement).value;
+		itemAt(this.#conditions, index)[field] = (e.target as HTMLInputElement).value;
 	}
 }
 

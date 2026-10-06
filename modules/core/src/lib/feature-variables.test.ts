@@ -55,8 +55,8 @@ describe("FeatureVariables", () => {
 			const all = await variables.all();
 			expect(all).toHaveProperty("var1");
 			expect(all).toHaveProperty("var2");
-			expect(all.var1.value).toBe("value1");
-			expect(all.var2.value).toBe("value2");
+			expect(all.var1?.value).toBe("value1");
+			expect(all.var2?.value).toBe("value2");
 		});
 
 		it("should return a copy, not the original", async () => {
@@ -105,7 +105,7 @@ describe("FeatureVariables", () => {
 			await variables.set({ term: "foo", value: "bar", domain: DOMAIN_STRING, origin: Origin.var }, provenance);
 
 			const all = await variables.all();
-			expect(all.foo.origin).toBe(Origin.var);
+			expect(all.foo?.origin).toBe(Origin.var);
 		});
 
 		it("should append to provenance on multiple sets", async () => {
@@ -116,8 +116,8 @@ describe("FeatureVariables", () => {
 			await variables.set({ term: "foo", value: "baz", domain: DOMAIN_STRING, origin: Origin.var }, provenance2);
 
 			const all = await variables.all();
-			expect(all.foo.value).toBe("baz"); // Last value wins
-			expect(all.foo.origin).toBe(Origin.var);
+			expect(all.foo?.value).toBe("baz"); // Last value wins
+			expect(all.foo?.origin).toBe(Origin.var);
 		});
 
 		it("should coerce values through domain", async () => {
@@ -158,9 +158,9 @@ describe("FeatureVariables", () => {
 			await variables.setJSON("myJson", obj, Origin.var, mockFeatureStep);
 
 			const all = await variables.all();
-			expect(all.myJson.domain).toBe(DOMAIN_JSON);
-			expect(typeof all.myJson.value).toBe("string");
-			expect(all.myJson.value).toBe(JSON.stringify(obj));
+			expect(all.myJson?.domain).toBe(DOMAIN_JSON);
+			expect(typeof all.myJson?.value).toBe("string");
+			expect(all.myJson?.value).toBe(JSON.stringify(obj));
 		});
 
 		it("should return undefined for non-existent JSON variable", async () => {
@@ -183,7 +183,7 @@ describe("FeatureVariables", () => {
 			await variables.setJSON("myJson", obj, Origin.var, mockFeatureStep);
 
 			const all = await variables.all();
-			expect(all.myJson.origin).toBe(Origin.var);
+			expect(all.myJson?.origin).toBe(Origin.var);
 		});
 	});
 
@@ -216,8 +216,8 @@ describe("FeatureVariables", () => {
 			await variables.set({ term: "quotedVar", value: "fromQuote", domain: DOMAIN_STRING, origin: Origin.quoted }, { in: "test", seq: [1], when: "test.action" });
 
 			const all = await variables.all();
-			expect(all.envVar.origin).toBe(Origin.env);
-			expect(all.quotedVar.origin).toBe(Origin.quoted);
+			expect(all.envVar?.origin).toBe(Origin.env);
+			expect(all.quotedVar?.origin).toBe(Origin.quoted);
 		});
 	});
 
@@ -234,7 +234,7 @@ describe("FeatureVariables", () => {
 
 			expect(await variables.get("foo")).toBe("second");
 			const all = await variables.all();
-			expect(all.foo.origin).toBe(Origin.var); // origin is overwritten, not appended
+			expect(all.foo?.origin).toBe(Origin.var); // origin is overwritten, not appended
 		});
 
 		it("should handle JSON with empty objects", async () => {
@@ -341,7 +341,9 @@ describe("FeatureVariables", () => {
 	});
 	describe("a literal, an environment variable's value and a runtime argument", () => {
 		it("are coerced by the parameter's domain", async () => {
-			world.options.envVariables.PORT = "8080";
+			const { envVariables } = world.options;
+			if (!envVariables) throw new Error("the test world doesn't hold environment variables");
+			envVariables.PORT = "8080";
 			const argued = { ...mockFeatureStep, runtimeArgs: { port: "8080" } };
 			const read = await Promise.all([
 				variables.resolveVariable({ term: "8080", origin: Origin.quoted, domain: DOMAIN_NUMBER }, mockFeatureStep),

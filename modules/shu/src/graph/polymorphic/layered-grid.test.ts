@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { layeredPositions, type LayeredDirection } from "../polymorphic/layered-solver.js";
 import { collideRadius, chipTextHeight, truncateLabel, LAYERED_SIBLING_GAP } from "../polymorphic/layout-forces.js";
 
@@ -51,7 +52,8 @@ for (const dir of ["TB", "LR"] as LayeredDirection[]) {
 	describe(`layered ${dir}: nodes are exclusive + compact`, () => {
 		it("node footprints don't overlap", () => {
 			const placed = place(fan.nodes, fan.edges, dir);
-			for (let i = 0; i < placed.length; i++) for (let j = i + 1; j < placed.length; j++) expect(overlapArea(placed[i], placed[j]), `${placed[i].id} ∩ ${placed[j].id}`).toBe(0);
+			for (let i = 0; i < placed.length; i++)
+				for (let j = i + 1; j < placed.length; j++) expect(overlapArea(itemAt(placed, i), itemAt(placed, j)), `${itemAt(placed, i).id} ∩ ${itemAt(placed, j).id}`).toBe(0);
 		});
 
 		it("siblings in a rank pack to the chip footprint, not over-spread", () => {
@@ -61,9 +63,9 @@ for (const dir of ["TB", "LR"] as LayeredDirection[]) {
 			const crossHalf = (p: Placed) => (dir === "TB" ? p.rx : p.ry);
 			const sibs = placed.filter((p) => p.id !== "root").sort((a, b) => crossOf(a) - crossOf(b));
 			for (let i = 1; i < sibs.length; i++) {
-				const gap = crossOf(sibs[i]) - crossOf(sibs[i - 1]);
-				const bound = crossHalf(sibs[i]) + crossHalf(sibs[i - 1]) + LAYERED_SIBLING_GAP + 1e-6;
-				expect(gap, `${sibs[i - 1].id}→${sibs[i].id} cross gap ${gap.toFixed(1)} should be ≤ ${bound.toFixed(1)}`).toBeLessThanOrEqual(bound);
+				const gap = crossOf(itemAt(sibs, i)) - crossOf(itemAt(sibs, i - 1));
+				const bound = crossHalf(itemAt(sibs, i)) + crossHalf(itemAt(sibs, i - 1)) + LAYERED_SIBLING_GAP + 1e-6;
+				expect(gap, `${itemAt(sibs, i - 1).id}→${itemAt(sibs, i).id} cross gap ${gap.toFixed(1)} should be ≤ ${bound.toFixed(1)}`).toBeLessThanOrEqual(bound);
 			}
 		});
 	});

@@ -1,3 +1,5 @@
+/// <reference path="./http-signature-zcap-invoke.d.ts" />
+/// <reference path="./base58-universal.d.ts" />
 /**
  * The key a reader's page controls, and what was delegated to it here.
  *
@@ -13,6 +15,7 @@ import { encode } from "base58-universal";
 import { actionUnder, capabilityAllows, delegatedActions, type TDelegation } from "@haibun/core/lib/actions.js";
 import { DELEGATIONS_READ_ACTION, type TDelegationRecord, type TDelegations } from "@haibun/core/lib/authority-types.js";
 import { pagePinned } from "./page-pinned.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 /** What a reader's page holds here: its key, named as a did:key, and what was delegated to that key. */
 export type TPageAuthority = {
@@ -117,7 +120,7 @@ function compressedPoint(jwk: JsonWebKey): Uint8Array {
 	if (!jwk.x || !jwk.y) throw new Error("the page's public key doesn't have the coordinates to name it by");
 	const bytes = (b64url: string) => Uint8Array.from(atob(b64url.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
 	const y = bytes(jwk.y);
-	return new Uint8Array([y[y.length - 1] & 1 ? 0x03 : 0x02, ...bytes(jwk.x)]);
+	return new Uint8Array([itemAt(y, y.length - 1) & 1 ? 0x03 : 0x02, ...bytes(jwk.x)]);
 }
 
 /**

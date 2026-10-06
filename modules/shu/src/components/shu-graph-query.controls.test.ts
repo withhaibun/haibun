@@ -11,6 +11,7 @@ import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { StepRegistry, buildFeatureStepForTransport } from "@haibun/core/lib/step-registry.js";
 import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
 import { DOMAIN_PERSISTED_TYPE } from "@haibun/core/lib/resources.js";
+import { asDomainKey } from "@haibun/core/lib/domains.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 
 describe("view-query controls", () => {
@@ -22,7 +23,7 @@ describe("view-query controls", () => {
 		stepper = new ShuGraphQueryControls();
 		await stepper.setWorld?.(world, [stepper]);
 		world.runtime.steppers = [stepper];
-		for (const d of stepper.cycles.getConcerns?.()?.domains ?? []) world.domains[d.selectors[0]] = { ...d, coerce: (p) => p.value };
+		for (const d of stepper.cycles.getConcerns?.()?.domains ?? []) world.domains[asDomainKey(d.selectors)] = { ...d, coerce: (p) => p.value };
 		world.domains[DOMAIN_PERSISTED_TYPE] = { selectors: [DOMAIN_PERSISTED_TYPE], schema: z.string().min(1), coerce: (p) => p.value, description: "persisted type" };
 	});
 

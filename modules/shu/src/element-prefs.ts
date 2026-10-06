@@ -26,7 +26,7 @@ export function writeElementPrefs(tag: string, key: string, fields: Record<strin
 	delete all[key];
 	if (Object.keys(fields).length > 0) all[key] = fields;
 	const keys = Object.keys(all);
-	for (let i = 0; i < keys.length - MAX_INSTANCES; i++) delete all[keys[i]];
+	for (const evicted of keys.slice(0, -MAX_INSTANCES)) delete all[evicted];
 	setJsonCookie(name, all);
 }
 

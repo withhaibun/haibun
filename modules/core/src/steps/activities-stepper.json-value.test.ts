@@ -19,6 +19,7 @@ const PersonSchema = z.object({ did: z.url(), name: z.string() }).strict();
 let lastReceived: { did: string; name: string } | undefined;
 
 class PersonStepper extends AStepper {
+	description = "Takes a person given as JSON.";
 	cycles: IStepperCycles = {
 		getConcerns: () => ({ domains: [{ selectors: ["person-input"], schema: fromJsonText(PersonSchema), description: "A person identified by DID with a display name." }] }),
 	};

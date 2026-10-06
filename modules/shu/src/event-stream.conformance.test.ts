@@ -3,6 +3,7 @@
 // the serialized one a report and a scripted scenario drive.
 import { PAGE_ACTUALITY, hydrate } from "./test-setup.js";
 import { vi, expect } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { LiveEventStream, SerializedEventStream, type TEvent } from "./event-stream.js";
 import { hydrateFromDom } from "./rpc-registry.js";
 import { SSE_ROUTE } from "@haibun/core/lib/rpc-wire.js";
@@ -42,7 +43,7 @@ describeEventStream("a live connection", async () => {
 	stream.disconnected(() => breaks++);
 	stream.connect();
 	await vi.waitFor(() => expect(opens).toBe(1));
-	const newest = () => bodies[bodies.length - 1];
+	const newest = () => itemAt(bodies, bodies.length - 1);
 	return {
 		stream,
 		deliver: async (e: TEvent) => {

@@ -7,7 +7,7 @@
  */
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
-import type { CStepper } from "../astepper.js";
+import type { AStepper, CStepper } from "../astepper.js";
 import { DEF_PROTO_OPTIONS, getTestWorldWithOptions } from "./lib.js";
 import { createSteppers, setStepperWorldsAndDomains } from "../util/index.js";
 import { itemAt } from "../util/item-at.js";
@@ -28,8 +28,9 @@ type TStepGraphBaseline = {
 	owned: CStepper[];
 	/** Steppers loaded beside them, whose domains they use, and whose findings belong to another file. */
 	alongside?: CStepper[];
-	/** Stepper classes the source declares that a run doesn't load as they are, each with why. */
-	unloaded?: { stepper: CStepper; why: string }[];
+	/** Stepper classes the source declares that a run doesn't load as they are, each with why. Such a class may take
+	 *  constructor arguments. */
+	unloaded?: { stepper: new (...args: never[]) => AStepper; why: string }[];
 	moduleOptions?: Record<string, string>;
 	/** The JSON array of finding lines the steppers' graph is held to. */
 	baselineFile: string;

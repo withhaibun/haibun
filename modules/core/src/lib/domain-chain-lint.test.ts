@@ -5,6 +5,7 @@ import { AStepper, type TStepperSteps } from "./astepper.js";
 import { deriveNamingDomains, mapDefinitionsToDomains, refDomainKey } from "./domains.js";
 import { LinkRelations } from "./resources.js";
 import { actionOKWithProducts } from "./util/index.js";
+import { itemAt } from "./util/item-at.js";
 import { OK } from "../schema/protocol.js";
 import { buildDomainChain } from "./domain-chain.js";
 import { LINT_FINDING, lintDomainChain, lintFindingLine } from "./domain-chain-lint.js";
@@ -37,14 +38,17 @@ const domains = () =>
 	]);
 
 class EmailFromPerson extends AStepper {
+	description = "Issues an email for a person.";
 	steps: TStepperSteps = { issueEmail: { gwta: `issue email for {who: ${PERSON}}`, productsDomain: EMAIL, action: () => actionOKWithProducts({ id: "e1" }) } };
 }
 
 class ArchiveEmail extends AStepper {
+	description = "Archives an email.";
 	steps: TStepperSteps = { archive: { gwta: `archive {email: ${EMAIL}}`, productsDomain: ARCHIVED, action: () => actionOKWithProducts({ id: "a1" }) } };
 }
 
 class LooselyTyped extends AStepper {
+	description = "Steps whose parameters take a string, untyped or in a union.";
 	steps: TStepperSteps = {
 		named: { gwta: "name {who}", action: () => OK },
 		stated: { gwta: "state {what: string}", action: () => OK },
@@ -54,6 +58,7 @@ class LooselyTyped extends AStepper {
 }
 
 class StubStepper extends AStepper {
+	description = "A step without inputs or products.";
 	steps: TStepperSteps = { nothing: { gwta: "nothing here", action: () => OK } };
 }
 
@@ -64,12 +69,13 @@ describe("lintDomainChain", () => {
 		const report = lintDomainChain(graph, domains());
 		const unsupplied = report.findings.filter((f) => f.kind === "unsupplied-step");
 		expect(unsupplied).toHaveLength(1);
-		const first = unsupplied[0];
+		const first = itemAt(unsupplied, 0);
 		if (first.kind === "unsupplied-step") expect(first.inputDomain).toBe(PERSON);
 	});
 
 	it("doesn't report unsupplied-step for a value its caller writes in the line, since a value domain doesn't name a thing", () => {
 		class Greets extends AStepper {
+			description = "Says a greeting and produces an email.";
 			steps: TStepperSteps = { greet: { gwta: `say {what: ${GREETING}}`, productsDomain: EMAIL, action: () => actionOKWithProducts({ id: "e1" }) } };
 		}
 		const report = lintDomainChain(buildDomainChain([new Greets()], domains()), domains());
@@ -79,9 +85,11 @@ describe("lintDomainChain", () => {
 	it("takes a reference as supplied where its type is produced or a step answers with one, and its taker as taking the type", () => {
 		const EMAIL_REF = refDomainKey(EMAIL);
 		class RemovesEmail extends AStepper {
+			description = "Removes an email by reference.";
 			steps: TStepperSteps = { remove: { gwta: `remove {email: ${EMAIL_REF}}`, action: () => OK } };
 		}
 		class FindsEmail extends AStepper {
+			description = "Finds an email and answers with a reference to it.";
 			steps: TStepperSteps = { find: { gwta: "find an email", productsDomain: EMAIL_REF, action: () => actionOKWithProducts({ id: "e1" }) } };
 		}
 		const findings = (steppers: AStepper[]) => {
@@ -97,9 +105,11 @@ describe("lintDomainChain", () => {
 
 	it("takes a step answering with an individual address as supplying a record of every persisted type and a reference to one", () => {
 		class RemovesEmail extends AStepper {
+			description = "Removes an email by reference.";
 			steps: TStepperSteps = { remove: { gwta: `remove {email: ${refDomainKey(EMAIL)}}`, action: () => OK } };
 		}
 		class CreatesAnyType extends AStepper {
+			description = "Creates a record of any type and answers with its address.";
 			steps: TStepperSteps = {
 				create: { gwta: "create a record", productsDomain: DOMAIN_INDIVIDUAL_ADDRESS, action: () => actionOKWithProducts({ persistedAs: EMAIL, id: "e1" }) },
 			};
@@ -114,6 +124,7 @@ describe("lintDomainChain", () => {
 		const [LABEL, ROLE] = ["page-label", "page-role"];
 		const parts = mapDefinitionsToDomains([LABEL, ROLE].map((selector) => ({ selectors: [selector], schema: z.string(), description: selector })));
 		class FindsEither extends AStepper {
+			description = "Finds a page target by its label or its role.";
 			steps: TStepperSteps = { find: { gwta: `find {target: ${LABEL} | ${ROLE}}`, action: () => OK } };
 		}
 		const unreachable = (steppers: AStepper[]) =>
@@ -131,6 +142,7 @@ describe("lintDomainChain", () => {
 			{ selectors: [REQUEST], schema: z.object({ from: z.string() }), description: "what an email is asked with", topology: { ranges: { from: PERSON } } },
 		]);
 		class SendsEmail extends AStepper {
+			description = "Sends an email from a request.";
 			steps: TStepperSteps = { send: { gwta: `send {request: ${REQUEST}}`, action: () => OK } };
 		}
 		const lines = lintDomainChain(buildDomainChain([new SendsEmail()], withRequest), withRequest).findings.map(lintFindingLine);
@@ -163,8 +175,7 @@ describe("lintDomainChain", () => {
 	it("summary counts match findings counts", () => {
 		const graph = buildDomainChain([new EmailFromPerson(), new ArchiveEmail()], domains());
 		const report = lintDomainChain(graph, domains());
-		const calculated = Object.fromEntries(Object.values(LINT_FINDING).map((kind) => [kind, 0])) as Record<string, number>;
-		for (const f of report.findings) calculated[f.kind]++;
+		const calculated = Object.fromEntries(Object.values(LINT_FINDING).map((kind) => [kind, report.findings.filter((f) => f.kind === kind).length]));
 		expect(report.summary).toEqual(calculated);
 	});
 
@@ -198,9 +209,11 @@ describe("lintDomainChain", () => {
 describe("a run's step graph", () => {
 	const feature = { path: "/features/f.feature", content: 'take "a note"' };
 	class Untyped extends AStepper {
+		description = "Takes a string parameter.";
 		steps: TStepperSteps = { take: { gwta: "take {what: string}", action: () => OK } };
 	}
 	class Typed extends AStepper {
+		description = "Takes a text parameter.";
 		steps: TStepperSteps = { take: { gwta: `take {what: ${DOMAIN_TEXT}}`, action: () => OK } };
 	}
 

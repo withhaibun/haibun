@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { groupKeyOf, containerLabelOf, ringAnchors, shelfPack, groupBounds, ENCLOSURE_MIN_THICK, easeInOutCubic, UNATTRIBUTED_ROLE } from "./grouping.js";
 import { SITE_KEY, HYPERMEDIA_ROLE_KEY } from "../graph-model.js";
 
@@ -97,8 +98,8 @@ describe("shelfPack, compact rectangle packing on real {w,h} (without isotropic 
 	it("every pair of containers is AABB-disjoint with at least GAP clear on the separating axis", () => {
 		for (let i = 0; i < keys.length; i++)
 			for (let j = i + 1; j < keys.length; j++) {
-				const a = box(keys[i]);
-				const b = box(keys[j]);
+				const a = box(itemAt(keys, i));
+				const b = box(itemAt(keys, j));
 				const gapX = Math.max(b.minX - a.maxX, a.minX - b.maxX);
 				const gapY = Math.max(b.minY - a.maxY, a.minY - b.maxY);
 				expect(Math.max(gapX, gapY), `${keys[i]} vs ${keys[j]} must clear by GAP`).toBeGreaterThanOrEqual(GAP - 1e-6);

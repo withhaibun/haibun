@@ -4,6 +4,7 @@
  * brightens; the ramp cycles, wraps without a jump, and starts warm on the light theme where white would not show.
  */
 import { describe, expect, it } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { GLOW_RAMP, GLOW_SPREAD, PULSE_MS, glowColorAt, pulseAt, swellAt } from "./polymorphic-highlight.js";
 
 describe("the active-node glow breathes", () => {
@@ -54,7 +55,7 @@ describe("the glow burns through a warm ramp", () => {
 		let widest = 0;
 		for (let ms = 0; ms < PULSE_MS * 2; ms += FRAME_MS) {
 			const [a, b] = [channels(glowColorAt(pulseAt(ms), GLOW_RAMP.dark)), channels(glowColorAt(pulseAt(ms + FRAME_MS), GLOW_RAMP.dark))];
-			widest = Math.max(widest, ...a.map((v, i) => Math.abs(v - b[i])));
+			widest = Math.max(widest, ...a.map((v, i) => Math.abs(v - itemAt(b, i))));
 		}
 		expect(widest, "a jump between drawn frames is what reads as flicker").toBeLessThan(30);
 	});

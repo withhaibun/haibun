@@ -13,6 +13,7 @@ import { DEEP_LINK_PREFIX } from "../consts.js";
 import { PartSchema } from "@haibun/core/lib/resources.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { JsonObjectTextSchema } from "@haibun/core/lib/json-text.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 export const REF_KIND = ["seqPath", REF_DENOTES.individual, REF_DENOTES.type, "step", "action"] as const;
 export type TRefKind = (typeof REF_KIND)[number];
@@ -59,7 +60,7 @@ export function deepLinkOf(href: string): TDeepLink | null {
 	const params = hashParams(href);
 	if (params.has(ACTIVE_PARAM)) return null;
 	const columns = params.getAll(COLUMN_PARAM);
-	const pane = columns.length === 1 ? parseColEntry(columns[0]) : null;
+	const pane = columns.length === 1 ? parseColEntry(itemAt(columns, 0)) : null;
 	if (!pane) return null;
 	params.delete(COLUMN_PARAM);
 	return { pane, state: Object.fromEntries(params) };

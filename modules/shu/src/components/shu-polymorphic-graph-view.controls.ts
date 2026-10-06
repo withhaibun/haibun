@@ -38,6 +38,7 @@ import { SETTINGS_GROUP, type TSettingsGroup } from "./view-head.js";
 import type { ShuPolymorphicGraphView } from "./shu-polymorphic-graph-view.js";
 import type { ShuGraphFilter } from "./shu-graph-filter.js";
 import { NO_ELEMENT, ROUND_TRIP_MS, SETTLES_MS, STATE_MS, attached, comesToHold, controlledBrowser, controlledPage, percent, pollUntil, until } from "./controls-util.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 /** The page's main graph: the one view that draws the page's own data. */
 const MAIN_GRAPH = "shu-polymorphic-graph-view:not([data-external])";
@@ -84,7 +85,7 @@ export function paintedAlpha(background: string): number {
 	const sliced = background.match(/\/\s*([\d.]+%?)\s*\)\s*$/)?.[1];
 	if (sliced) return sliced.endsWith("%") ? Number.parseFloat(sliced) / 100 : Number.parseFloat(sliced);
 	const parts = background.match(/^rgba?\(([^)]*)\)$/)?.[1]?.split(",");
-	return parts && parts.length === 4 ? Number.parseFloat(parts[3]) : 1;
+	return parts && parts.length === 4 ? Number.parseFloat(itemAt(parts, 3)) : 1;
 }
 
 /** What each settings group holds, in row order: ONE table: the opener waits on the first control to attach, and the
@@ -856,11 +857,11 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const after = await this.framing(await this.page());
 				let maxDrift = 0;
 				let worst = "";
-				for (const id of Object.keys(before.pos)) {
+				for (const [id, b] of Object.entries(before.pos)) {
 					const a = after.pos[id];
 					if (!a) continue;
 					// All three axes: a uniform depth shift (the z-recentre defect) moved every node while the x/y check read "steady".
-					const d = Math.hypot(a.x - before.pos[id].x, a.y - before.pos[id].y, a.z - before.pos[id].z);
+					const d = Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
 					if (d > maxDrift) {
 						maxDrift = d;
 						worst = id;
@@ -1033,7 +1034,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 							.evaluateAll((options) => options.map((o) => (o as HTMLOptionElement).value));
 						if (views.join(",") !== VIEW_TYPES.join(",")) return actionNotOK(`the view control offers [${views.join(", ")}], not the full catalog [${VIEW_TYPES.join(", ")}]`);
 					}
-					closed = ids[0];
+					closed = itemAt(ids, 0);
 				}
 				return actionOK();
 			},
@@ -1232,7 +1233,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 					.filter((t): t is number => t != null)
 					.sort((a, b) => a - b);
 				if (times.length < 3) return actionNotOK(`not enough timed nodes to scrub (${times.length})`);
-				const cutoff = times[Math.floor(times.length / 2)]; // median age, hides the newer half
+				const cutoff = itemAt(times, Math.floor(times.length / 2)); // median age, hides the newer half
 				await this.setTimeCursor(page, cutoff);
 				// The time-filter repaint is debounced, so wait for the transition rather than reading once.
 				const hid = await this.comesToHold(page, ({ el, arg }) => (el.inspect()?.nodes ?? arg) < arg, before, STATE_MS);
@@ -1357,7 +1358,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				await labelAsDepth.setChecked(false);
 				const back = await chips();
 				const stuck = Object.keys(named).filter((id) => back[id] !== named[id]);
-				if (stuck.length > 0) return actionNotOK(`${stuck.length} chip(s) did not go back to their name (e.g. "${back[stuck[0]]}" for "${named[stuck[0]]}")`);
+				if (stuck.length > 0) return actionNotOK(`${stuck.length} chip(s) did not go back to their name (e.g. "${back[itemAt(stuck, 0)]}" for "${named[itemAt(stuck, 0)]}")`);
 				return actionOK();
 			},
 		},
@@ -1571,7 +1572,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		await this.settle(page);
 		const { sample } = await this.state(page);
 		if (sample.length === 0) return { target: null, diag: "the layout sample is empty: the graph doesn't draw a node" };
-		await this.settleNodeProjection(page, sample[0].id); // the fit reframe animates AFTER the engine freezes, wait the projection still
+		await this.settleNodeProjection(page, itemAt(sample, 0).id); // the fit reframe animates AFTER the engine freezes, wait the projection still
 		for (const s of sample) {
 			const at = await this.pressOnNode(page, s.id); // leaves the pointer DOWN on the first un-occluded node
 			if (at) return { target: { id: s.id, x: at.x, y: at.y }, diag: "" };
@@ -1727,8 +1728,8 @@ function packingOf(boxes: TEnclosure[]): number {
 function connectedInFront(sample: TSampled[]): boolean {
 	const byDegree = sample.flatMap((n) => (n.degree == null ? [] : [{ degree: n.degree, z: placed(n).z }])).sort((a, b) => a.degree - b.degree);
 	const least = byDegree[0];
-	const most = byDegree[byDegree.length - 1];
-	return !!least && most.degree > least.degree && most.z < least.z;
+	const most = byDegree.at(-1);
+	return !!least && !!most && most.degree > least.degree && most.z < least.z;
 }
 
 /** Whether a layered view reads as a flow: two or more ranks, each band's mean and its least value past the band before
@@ -1741,7 +1742,7 @@ function readsAsRankedFlow({ flowAxis, nodes }: NonNullable<TGraphState["layered
 	const bands = [...ranks.entries()]
 		.sort((a, b) => a[0] - b[0])
 		.map(([, at]) => ({ mean: at.reduce((sum, v) => sum + v, 0) / at.length, least: Math.min(...at), most: Math.max(...at) }));
-	const advances = bands.every((band, j) => j === 0 || (band.mean > bands[j - 1].mean && band.least > bands[j - 1].most));
+	const advances = bands.every((band, j) => j === 0 || (band.mean > itemAt(bands, j - 1).mean && band.least > itemAt(bands, j - 1).most));
 	return bands.length >= 2 && advances && range(nodes.map(along)) >= range(nodes.map((n) => n.z));
 }
 

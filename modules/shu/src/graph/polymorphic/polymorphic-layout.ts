@@ -1,3 +1,4 @@
+/// <reference path="./force-deps.d.ts" />
 /**
  * Where the nodes go. A layout writes each node's x/y from the graph's own physics: the charge, collide, link and
  * cohesion forces configured in force-layout.ts, and honours the fx/fy pins a drag, a lane or a group sets. The

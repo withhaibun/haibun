@@ -6,6 +6,7 @@ const OTHER_OPTION = `${MODULE_OPTION_PREFIX}TESTSTEPSWITHOPTIONS_OTHER`;
 import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, passWithDefaults } from "@haibun/core/lib/test/lib.js";
 import TestStepsWithOptions from "@haibun/core/lib/test/TestStepsWithOptions.js";
 import { getDefaultOptions } from "@haibun/core/lib/util/index.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 import { SpeclSchema, type TSpecl } from "@haibun/core/lib/execution.js";
 import type { TProtoOptions } from "@haibun/core/lib/world.js";
@@ -37,7 +38,7 @@ describe("options", () => {
 		const result = await passWithDefaults([feature], [TestStepsWithOptions], protoConfig);
 		expect(result.ok).toBe(true);
 		expect(result.featureResults?.length).toBe(1);
-		expect(result.featureResults?.[0].stepResults[0].products?.summary).toEqual("options");
+		expect(itemAt(itemAt(result.featureResults ?? [], 0).stepResults, 0).products?.summary).toEqual("options");
 	});
 });
 
@@ -90,12 +91,11 @@ describe("collect", () => {
 	it("runs the statements as one feature, in the order given", async () => {
 		const { features } = await lib.collect(["tests"], undefined, ["create graph store", "enable rpc"]);
 		expect(features).toHaveLength(1);
-		expect(features[0].content).toBe("create graph store\nenable rpc");
-		expect(features[0].type).toBe("feature");
+		expect(itemAt(features, 0)).toMatchObject({ content: "create graph store\nenable rpc" });
 	});
 	it("runs against a base without features of its own", async () => {
 		const { features, backgrounds } = await lib.collect(["/nonexistent-base"], undefined, ["create graph store"]);
-		expect(features[0].content).toBe("create graph store");
+		expect(itemAt(features, 0).content).toBe("create graph store");
 		expect(backgrounds).toEqual([]);
 	});
 	it("runs filtered features FIRST and the statements after them, so the features are what the statements act on", async () => {

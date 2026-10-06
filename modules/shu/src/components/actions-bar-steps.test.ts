@@ -5,6 +5,7 @@
  * newest output kept in view as a step settles.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { CHAT_STEP, CHAT_STEPPER } from "./chat-pane.test-fake.js";
@@ -118,14 +119,14 @@ describe("the actions bar's step mode", () => {
 		steps.open(LIST.method);
 		expect(callers(history)).toHaveLength(1);
 		expect(waiting.isConnected, "the caller that had not run is gone, with what was fixed for it").toBe(false);
-		expect(callers(history)[0].getAttribute("method")).toBe(LIST.method);
-		expect(callers(history)[0].hasAttribute("params")).toBe(false);
-		expect(callers(history)[0].getAttribute("call-index"), "numbered among the callers left").toBe("0");
+		expect(itemAt(callers(history), 0).getAttribute("method")).toBe(LIST.method);
+		expect(itemAt(callers(history), 0).hasAttribute("params")).toBe(false);
+		expect(itemAt(callers(history), 0).getAttribute("call-index"), "numbered among the callers left").toBe("0");
 		steps.open(SHOW.method, { name: "all" });
 		steps.open(SHOW.method, undefined, true);
 		expect(callers(history)).toHaveLength(3);
-		expect(callers(history)[1].getAttribute("params")).toBe(JSON.stringify({ name: "all" }));
-		expect(callers(history)[2].hasAttribute("auto")).toBe(true);
+		expect(itemAt(callers(history), 1).getAttribute("params")).toBe(JSON.stringify({ name: "all" }));
+		expect(itemAt(callers(history), 2).hasAttribute("auto")).toBe(true);
 	});
 
 	it("keeps the newest output in view when a caller's step succeeds or fails", async () => {

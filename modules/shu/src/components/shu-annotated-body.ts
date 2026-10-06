@@ -37,6 +37,7 @@ import { SCROLL_TO_INDEX } from "./shu-scrollbar.js";
 import type { TScrollMarker, TWindow } from "../scrollbar-model.js";
 import { railMarks, railTotalAndWindow } from "../annotation-rail.js";
 import { revealInDocument } from "../reveal.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 /** Characters of surrounding text captured as a selection's prefix/suffix, so a short or repeated quote re-anchors to the right spot. */
 /** The ref sanitize allowlist plus inline style, which the annotation gutter's highlight spans carry. */
@@ -342,7 +343,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 		let changed = false;
 		let cursor = -Infinity;
 		const next = this.placedCards.map((card, i) => {
-			const height = cardEls[i].getBoundingClientRect().height;
+			const height = itemAt(cardEls, i).getBoundingClientRect().height;
 			const top = Math.max(card.idealTop, cursor);
 			cursor = top + height + CARD_GAP;
 			if (top !== card.top) changed = true;

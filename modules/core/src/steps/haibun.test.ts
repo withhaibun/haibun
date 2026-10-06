@@ -10,10 +10,11 @@ import LogicStepper from "./logic-stepper.js";
 import { ActivitiesStepper } from "./activities-stepper.js";
 import { AStepper } from "../lib/astepper.js";
 import { actionOK } from "../lib/util/index.js";
+import { itemAt } from "../lib/util/item-at.js";
 import { hostScopedMethodName, openRunRegistry, runRegistry, type StepRegistry } from "../lib/step-registry.js";
 import { addStepperConcerns } from "../phases/Executor.js";
 import { STEPS_CHANGED, type THaibunEvent } from "../schema/protocol.js";
-import type { TStepDefinitions } from "../lib/step-discovery.js";
+import { STEP_DETAIL, readShownSteps, type TStepDefinitions } from "../lib/step-discovery.js";
 import type { TStepResult } from "../schema/protocol.js";
 import { validateStep } from "../lib/step-validation.js";
 import { RUN_AUTHORITY, runAuthorizedWith, runShowing } from "../lib/capability-context.js";
@@ -29,13 +30,14 @@ describe("until", () => {
 		const feature = { path: "/features/test.feature", content: 'until fails within "50ms"' };
 		const result = await failWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(false);
-		expect(result.featureResults?.[0].stepResults.at(-1)).toMatchObject({ ok: false, errorMessage: expect.stringMatching(/didn't pass within 50ms/) });
+		expect(itemAt(result.featureResults, 0).stepResults.at(-1)).toMatchObject({ ok: false, errorMessage: expect.stringMatching(/didn't pass within 50ms/) });
 	});
 });
 
 describe("on host", () => {
 	it("routes a step to a hostId-prefixed registry entry", async () => {
 		class RemoteMarker extends AStepper {
+			description = "Injects a host-scoped copy of TestSteps-passes that records it was called.";
 			attach(registry: StepRegistry) {
 				const local = registry.get("TestSteps-passes");
 				if (!local) return;
@@ -59,7 +61,7 @@ describe("on host", () => {
 		const feature = { path: "/features/test.feature", content: "passes\non host 2, passes" };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps, RemoteMarker]);
 		expect(result.ok).toBe(true);
-		const ins = result.featureResults?.[0].stepResults.map((r) => r.in);
+		const ins = itemAt(result.featureResults, 0).stepResults.map((r) => r.in);
 		// Sub-step records before its wrapping `on host` step's own result is pushed.
 		expect(ins).toEqual(["passes", "passes", "on host 2, passes"]);
 		if (!result.world) throw new Error("result.world missing");
@@ -71,7 +73,7 @@ describe("on host", () => {
 		const feature = { path: "/features/test.feature", content: "on host 9, passes" };
 		const result = await failWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(false);
-		const errors = result.featureResults?.[0].stepResults.flatMap((r) => (r.ok ? [] : [r.errorMessage])) || [];
+		const errors = itemAt(result.featureResults, 0).stepResults.flatMap((r) => (r.ok ? [] : [r.errorMessage]));
 		expect(errors.some((e) => typeof e === "string" && e.includes(hostScopedMethodName(9, "TestSteps-passes")))).toBe(true);
 	});
 });
@@ -87,7 +89,7 @@ describe("seqPath ordering", () => {
 		const feature = { path: "/features/test.feature", content: "passes\npasses\npasses" };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
-		const seqs = result.featureResults?.[0].stepResults.map((r) => r.seqPath);
+		const seqs = itemAt(result.featureResults, 0).stepResults.map((r) => r.seqPath);
 		expect(seqs).toEqual([
 			[0, 1, 1, 1],
 			[0, 1, 1, 2],
@@ -99,7 +101,7 @@ describe("seqPath ordering", () => {
 		const feature = { path: "/features/test.feature", content: 'passes\nnot fails\nends with "OK"' };
 		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps]);
 		expect(result.ok).toBe(true);
-		const seqs = result.featureResults?.[0].stepResults.map((r) => r.seqPath);
+		const seqs = itemAt(result.featureResults, 0).stepResults.map((r) => r.seqPath);
 		expect(seqs).toEqual([
 			[0, 1, 1, 1],
 			[0, 1, 1, 2, -1],
@@ -112,7 +114,7 @@ describe("seqPath ordering", () => {
 		const feature = { path: "/features/test.feature", content: 'passes\nnot not passes\nends with "OK"' };
 		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps]);
 		expect(result.ok).toBe(true);
-		const seqs = result.featureResults?.[0].stepResults.map((r) => r.seqPath);
+		const seqs = itemAt(result.featureResults, 0).stepResults.map((r) => r.seqPath);
 		expect(seqs).toEqual([
 			[0, 1, 1, 1],
 			[0, 1, 1, 2, -1, -1],
@@ -128,14 +130,14 @@ describe("afterEvery", () => {
 		const feature = { path: "/features/test.feature", content: 'have a test\nafter every "TestSteps", Noodles, man.\npasses\npasses' };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
-		const ins = result.featureResults?.[0].stepResults.map((r) => r.in);
+		const ins = itemAt(result.featureResults, 0).stepResults.map((r) => r.in);
 		expect(ins).toEqual(["have a test", 'after every "TestSteps", Noodles, man.', "passes", "Noodles, man.", "passes", "Noodles, man."]);
 	});
 
 	it("fails a step whose after-every step fails, stating why, and records the step before it", async () => {
 		const feature = { path: "/features/test.feature", content: 'after every "TestSteps", fails\npasses' };
 		const result = await failWithDefaults([feature], [Haibun, TestSteps]);
-		const results = result.featureResults?.[0].stepResults ?? [];
+		const results = itemAt(result.featureResults, 0).stepResults;
 		const passes = results.find((r) => r.in === "passes");
 		expect(passes?.ok, "a cycle fails a step that passed").toBe(false);
 		expect(passes?.errorMessage).toMatch(/a step run after every TestSteps step failed: /);
@@ -146,7 +148,7 @@ describe("afterEvery", () => {
 		const feature = { path: "/features/test.feature", content: 'have a test\nafter every "TestSteps", passes\nhave a test\npasses' };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
-		const seqs = result.featureResults?.[0].stepResults.map((r) => r.seqPath);
+		const seqs = itemAt(result.featureResults, 0).stepResults.map((r) => r.seqPath);
 		// afterEvery substep gets negative index (side-effect, not primary flow)
 		// Step [1,1,4] "passes" does not trigger afterEvery because it's the same action (prevents infinite recursion)
 		expect(seqs).toEqual([
@@ -162,7 +164,7 @@ describe("afterEvery", () => {
 		const feature = { path: "/features/test.feature", content: ["have a test", 'after every "TestSteps", Noodles, man.', "passes", "not fails"].join("\n") };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps, LogicStepper]);
 		expect(result.ok).toBe(true);
-		const said = (result.featureResults?.[0].stepResults ?? []).filter((r) => r.in === "Noodles, man.").length;
+		const said = itemAt(result.featureResults, 0).stepResults.filter((r) => r.in === "Noodles, man.").length;
 		expect(said, "one statement for the step the feature holds, and not one for the substep another step ran").toBe(1);
 	});
 });
@@ -200,22 +202,15 @@ Prose sections are indicated by the presence of punctuation at the end of paragr
 		const feature = { path: "/features/test.feature", content: 'have a test\nafter every "TestSteps", passes' };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
-		expect(result.featureResults && result.featureResults[0].stepResults.length).toBe(2);
+		expect(itemAt(result.featureResults, 0).stepResults.length).toBe(2);
 	});
 
 	it("process multiple effect callbacks", async () => {
 		const feature = { path: "/features/test.feature", content: 'have a test\nafter every "TestSteps", passes\nhave a test' };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
-		const rfzs = result.featureResults && result.featureResults[0].stepResults;
-		expect(rfzs?.length).toBe(4);
-		let n = 0;
-		expect(rfzs).toBeDefined();
-		if (rfzs === undefined) {
-			return;
-		}
-		expect(rfzs[n++]).toBeDefined(); // present
-		expect(rfzs[0]).toBeDefined();
+		const rfzs = itemAt(result.featureResults, 0).stepResults;
+		expect(rfzs.length).toBe(4);
 	});
 });
 
@@ -252,9 +247,10 @@ describe("show steps", () => {
 		const discovery = (result.world.runtime.stepResults as TStepResult[])
 			.map((stepResult) => stepResult.products as TStepDefinitions | undefined)
 			.find((products) => products?.steppers !== undefined);
-		expect(discovery?.steps.map((step) => step.method)).toEqual(["TestSteps-passes"]);
-		expect(discovery?.steps[0]._links.call).toEqual({ method: "TestSteps-passes" });
-		expect(discovery?.steppers.map((entry) => entry.stepper)).toEqual(["TestSteps"]);
+		if (!discovery) throw new Error("Expected a read of the steps");
+		expect(discovery.steps.map((step) => step.method)).toEqual(["TestSteps-passes"]);
+		expect(itemAt(discovery.steps, 0)._links.call).toEqual({ method: "TestSteps-passes" });
+		expect(discovery.steppers.map((entry) => entry.stepper)).toEqual(["TestSteps"]);
 	});
 
 	it("shows a caller that acts for another the steps that other holds, while the caller holds less", async () => {
@@ -266,9 +262,9 @@ describe("show steps", () => {
 					gwta: "list steps for another",
 					action: async () => {
 						const haibun = this.getWorld().runtime.steppers?.find((stepper) => stepper instanceof Haibun) as Haibun;
-						const list = () => haibun.steps.showSteps.action({ text: "TestSteps-passes", detail: "summary" }) as Promise<{ products: { steps: Array<{ method: string }> } }>;
+						const list = async () => readShownSteps((await haibun.steps.showSteps.action({ text: "TestSteps-passes", detail: STEP_DETAIL.summary })).products, STEP_DETAIL.summary);
 						for (const listed of [await runAuthorizedWith(["Read:public"], list), await runShowing(RUN_AUTHORITY, () => runAuthorizedWith(["Read:public"], list))])
-							shown.push(listed.products.steps.map((step) => step.method));
+							shown.push(listed.steps.map((step) => step.method));
 						return actionOK();
 					},
 				},
@@ -329,7 +325,7 @@ describe("backgrounds", () => {
 		const background = { path: "/backgrounds/bg.feature", content: 'set ran to "true"\nends with "OK"' };
 		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
-		const seqs = result.featureResults?.[0].stepResults.map((r) => r.seqPath);
+		const seqs = itemAt(result.featureResults, 0).stepResults.map((r) => r.seqPath);
 		// Condition uses dir=-1, body uses dir=1: condition [0,1,1,1,-1], background steps [0,1,1,1,1] and [0,1,1,1,2], parent [0,1,1,1]
 		expect(seqs).toEqual([
 			[0, 1, 1, 1, -1],
@@ -375,7 +371,7 @@ describe("backgrounds", () => {
 		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 
-		const paths = result.featureResults?.[0].stepResults.map((r) => r.path);
+		const paths = itemAt(result.featureResults, 0).stepResults.map((r) => r.path);
 		expect(paths).toEqual([
 			"test_base/features/test.feature", // set ran
 			"test_base/features/test.feature", // condition
@@ -390,7 +386,7 @@ describe("backgrounds", () => {
 		const result = await passWithDefaults([feature], [VariablesSteppers]);
 		expect(result.ok).toBe(true);
 
-		const lineNumbers = result.featureResults?.[0].stepResults.map((r) => r.lineNumber);
+		const lineNumbers = itemAt(result.featureResults, 0).stepResults.map((r) => r.lineNumber);
 		expect(lineNumbers).toEqual([1, 2, 3]);
 	});
 
@@ -400,7 +396,7 @@ describe("backgrounds", () => {
 		const result = await passWithDefaults([feature], [Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 
-		const bgSteps = result.featureResults?.[0].stepResults.filter((r) => r.path?.includes("backgrounds/")) || [];
+		const bgSteps = itemAt(result.featureResults, 0).stepResults.filter((r) => r.path?.includes("backgrounds/")) || [];
 		expect(bgSteps.length).toBe(2);
 
 		// Background steps should have lineNumbers 1 and 2
@@ -416,13 +412,13 @@ describe("backgrounds", () => {
 		expect(result.ok).toBe(true);
 
 		// The "set x to 1" step should have lineNumber 2 (in bg.feature) and path backgrounds/bg.feature
-		const activityStep = result.featureResults?.[0].stepResults.find((r) => r.in === 'set x to "1"');
+		const activityStep = itemAt(result.featureResults, 0).stepResults.find((r) => r.in === 'set x to "1"');
 		expect(activityStep).toBeDefined();
 		expect(activityStep?.lineNumber).toBe(3);
 		expect(activityStep?.path).toBe("test_base/backgrounds/bg.feature");
 
 		// The waypoint itself should also have its source location
-		const waypointStep = result.featureResults?.[0].stepResults.find((r) => r.in === "Test Activity");
+		const waypointStep = itemAt(result.featureResults, 0).stepResults.find((r) => r.in === "Test Activity");
 		expect(waypointStep).toBeDefined();
 		expect(waypointStep?.lineNumber).toBe(3);
 		expect(waypointStep?.path).toBe("test_base/backgrounds/bg.feature");

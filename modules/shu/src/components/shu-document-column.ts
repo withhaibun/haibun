@@ -39,6 +39,7 @@ import { jsonDisclosure } from "./json-disclosure.js";
 import { isKnownType } from "../rels-cache.js";
 import { artifactUrl } from "../artifact-url.js";
 import { refLinksPlugin } from "../markdown-refs.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 const DocumentColumnSchema = z.object({ level: z.enum(HAIBUN_LOG_LEVELS).default("log") });
 
@@ -235,7 +236,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 			this.#pages.delete(p);
 			return undefined;
 		}
-		const built = { cached: events.length, first: events[0], last: events[events.length - 1], rows: this.#buildRows(p, start, events) };
+		const built = { cached: events.length, first: itemAt(events, 0), last: itemAt(events, events.length - 1), rows: this.#buildRows(p, start, events) };
 		this.#pages.set(p, built);
 		if (this.#pages.size > BUILT_PAGES)
 			for (const q of [...this.#pages.keys()].sort((a, b) => Math.abs(b - p) - Math.abs(a - p)).slice(0, this.#pages.size - BUILT_PAGES)) this.#pages.delete(q);
@@ -262,7 +263,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 			`${p}:`,
 		);
 		const per = blocksByEvent(events, blocks);
-		return events.map((event, i) => ({ index: start + i, event, blocks: per[i] }));
+		return events.map((event, i) => ({ index: start + i, event, blocks: itemAt(per, i) }));
 	}
 
 	/**

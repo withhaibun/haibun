@@ -6,6 +6,7 @@
  * another field, and that the depth ordering the renderer derives from those times flips between the bases.
  */
 import { describe, expect, it } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { timeZScale, timeZ } from "../time-axis.js";
@@ -60,14 +61,19 @@ describe("polymorphic valid-time placement from snapshot quads", () => {
 	});
 
 	it("renders the difference: under the valid basis the year-old email sits deepest, under the indexed basis everything indexed today sits together at the front", () => {
-		const depthOf = (basis: "valid" | "indexed"): Record<string, number> => {
+		const depthOf = (basis: "valid" | "indexed"): { e1: number; f1: number; c1: number } => {
 			const { times } = pipelineWith(basis).extractTimes();
 			const scale = timeZScale(
 				[...times.values()].map((t) => t.ms),
 				NOW,
 				320,
 			);
-			return Object.fromEntries([...times].map(([subject, t]) => [subject, timeZ(t.ms, NOW, scale)]));
+			const depth = (subject: string): number => {
+				const t = times.get(subject);
+				if (!t) throw new Error(`${subject} doesn't have a time`);
+				return timeZ(t.ms, NOW, scale);
+			};
+			return { e1: depth("e1"), f1: depth("f1"), c1: depth("c1") };
 		};
 		const valid = depthOf("valid");
 		expect(valid.e1).toBeGreaterThan(valid.f1);
@@ -143,7 +149,7 @@ describe("the depth a graph arriving in pieces places its nodes at", () => {
 		).toEqual([0]);
 		arrive(twoEmails(), ["e1", "e2"]);
 		const z = pipeline.toGraphData().nodes.map((n) => n.z as number);
-		expect(z[0] > z[1], `the older email is deeper than the newer one, at ${z.join(" and ")}`).toBe(true);
+		expect(itemAt(z, 0) > itemAt(z, 1), `the older email is deeper than the newer one, at ${z.join(" and ")}`).toBe(true);
 	});
 
 	it("keeps a scale that already spreads them, so a node that has settled is not moved by what arrives next", () => {
@@ -160,18 +166,18 @@ describe("where a node the user dropped is placed", () => {
 	it("keeps the dropped position, so a drag is accepted rather than undone by the next repaint", () => {
 		const pipeline = new DataPipeline(placementDeps({ userPinXY: () => ({ x: 40, y: -25 }) }));
 		const { nodes } = pipeline.toGraphData();
-		expect({ x: nodes[0].x, y: nodes[0].y, fx: nodes[0].fx }).toEqual({ x: 40, y: -25, fx: 40 });
+		expect({ x: itemAt(nodes, 0).x, y: itemAt(nodes, 0).y, fx: itemAt(nodes, 0).fx }).toEqual({ x: 40, y: -25, fx: 40 });
 	});
 
 	it("keeps it in a view that has its own layout too: a placement by hand outranks the lane the view would give it", () => {
 		const pipeline = new DataPipeline(placementDeps({ viewType: () => "td", lanePinXY: () => ({ x: 300, y: 300 }), userPinXY: () => ({ x: 40, y: -25 }) }));
 		const { nodes } = pipeline.toGraphData();
-		expect({ x: nodes[0].x, y: nodes[0].y }).toEqual({ x: 40, y: -25 });
+		expect({ x: itemAt(nodes, 0).x, y: itemAt(nodes, 0).y }).toEqual({ x: 40, y: -25 });
 	});
 
 	it("leaves every other node to the view's own layout", () => {
 		const pipeline = new DataPipeline(placementDeps({ viewType: () => "td", lanePinXY: () => ({ x: 300, y: 300 }) }));
 		const { nodes } = pipeline.toGraphData();
-		expect({ x: nodes[0].x, y: nodes[0].y }).toEqual({ x: 300, y: 300 });
+		expect({ x: itemAt(nodes, 0).x, y: itemAt(nodes, 0).y }).toEqual({ x: 300, y: 300 });
 	});
 });

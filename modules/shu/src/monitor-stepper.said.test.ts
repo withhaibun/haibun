@@ -4,6 +4,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { executionOf, formatRecordName } from "@haibun/core/lib/seq-path.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
+import { asDomainKey } from "@haibun/core/lib/domains.js";
 import { LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL, logMessageDomainDefinition } from "@haibun/core/lib/log-message.js";
 import { RUN_ARTIFACT_FIELD, RUN_ARTIFACT_LABEL, runArtifactDomainDefinition } from "@haibun/core/lib/run-artifact.js";
 import type { THaibunEvent } from "@haibun/core/schema/protocol.js";
@@ -27,7 +28,7 @@ function monitorOver(store: QuadStore): { onEvent: (e: THaibunEvent) => void; en
 		tag: TAG,
 		shared: { getStore: () => store },
 		eventLogger: { warn: () => undefined, emit: () => undefined },
-		domains: { [logMessageDomainDefinition.selectors[0]]: logMessageDomainDefinition, [runArtifactDomainDefinition.selectors[0]]: runArtifactDomainDefinition },
+		domains: { [asDomainKey(logMessageDomainDefinition.selectors)]: logMessageDomainDefinition, [asDomainKey(runArtifactDomainDefinition.selectors)]: runArtifactDomainDefinition },
 		runtime: {},
 	});
 	return { onEvent: (e) => stepper.cycles.onEvent?.(e), ended: () => stepper.cycles.endFeature({ shouldClose: true }) };
@@ -156,7 +157,7 @@ describe("what a run produced, as a record", () => {
 
 describe("what the bridge carries", () => {
 	it("receives a blip batch as a read, so actuality doesn't record what it never retains", () => {
-		const steps = (new MonitorStepper() as unknown as { steps: Record<string, { read?: boolean }> }).steps;
+		const { steps } = new MonitorStepper();
 		expect(steps.recordClientBlips.read, "a recorded batch is a step whose events reach the page and repaint a scene that then records what it drew").toBe(true);
 	});
 });

@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { timeZScale, timeZ, spanZScale, spanZ, subjectValidTimes } from "./time-axis.js";
 
@@ -12,7 +13,7 @@ describe("3D time→z (headless layout math, without a browser)", () => {
 	it("is monotonic: older records sit deeper (larger z)", () => {
 		const scale = timeZScale(times, NOW, Z_MAX);
 		const z = times.map((t) => timeZ(t, NOW, scale));
-		for (let i = 1; i < z.length; i++) expect(z[i], `older index ${i} deeper than ${i - 1}`).toBeGreaterThan(z[i - 1]);
+		for (let i = 1; i < z.length; i++) expect(itemAt(z, i), `older index ${i} deeper than ${i - 1}`).toBeGreaterThan(itemAt(z, i - 1));
 	});
 
 	it("bounds z to [0, zMax] across the span", () => {
@@ -41,7 +42,7 @@ describe("3D time→z (headless layout math, without a browser)", () => {
 
 	it("a single record (zero age span) places it at z=0 without NaN", () => {
 		const one = [NOW - AGES.h1];
-		expect(timeZ(one[0], NOW, timeZScale(one, NOW, Z_MAX))).toBe(0);
+		expect(timeZ(itemAt(one, 0), NOW, timeZScale(one, NOW, Z_MAX))).toBe(0);
 	});
 });
 

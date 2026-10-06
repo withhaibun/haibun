@@ -43,6 +43,7 @@ describe("LspStepper diagnostics", () => {
 
 		// Minimal stepper
 		class TestStepper extends AStepper {
+			description = "A step that matches an activity line.";
 			steps = {
 				myActivity: {
 					gwta: "Activity: {activity}",
@@ -54,6 +55,7 @@ describe("LspStepper diagnostics", () => {
 
 		// Mock ActivitiesStepper to simulate Director behavior
 		class MockActivitiesStepper extends AStepper {
+			description = "Resolves activity and waypoint lines, as the activities stepper does.";
 			steps = {
 				activity: {
 					gwta: "Activity: {activity}",
@@ -70,6 +72,7 @@ describe("LspStepper diagnostics", () => {
 
 		// Mock VariablesStepper to simulate 'set'
 		class MockVariablesStepper extends AStepper {
+			description = "A step that sets a variable.";
 			steps = {
 				set: {
 					gwta: "set {name} to {value}",

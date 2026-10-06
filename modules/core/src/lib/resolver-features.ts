@@ -2,11 +2,11 @@ import { TExpandedLine, TExpandedFeature } from "./execution.js";
 
 import { TEST_BASE } from "../schema/protocol.js";
 import { TAnyFixme } from "./fixme.js";
-import { featureSplit, withNameType } from "./features.js";
+import { featureSplit, withName } from "./features.js";
 
 type TProtoFeature = { base?: string; path: string; content: string }[];
 
-export const asFeatures = (w: TProtoFeature) => w.map((i) => withNameType(i.base || TEST_BASE, i.path, i.content));
+export const asFeatures = (w: TProtoFeature) => w.map((i) => withName(i.base || TEST_BASE, i.path, i.content));
 
 export const asExpandedFeatures = (w: { base?: string; path: string; content: string }[]): TExpandedFeature[] =>
 	asFeatures(w).map((i) => {

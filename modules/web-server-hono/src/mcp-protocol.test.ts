@@ -17,6 +17,7 @@ interface _CallToolResult {
 }
 
 class TestStepper extends AStepper {
+	description = "Steps an MCP client calls, and a step that checks the MCP protocol a run serves.";
 	steps = {
 		testStep: {
 			exact: "test mcp action",

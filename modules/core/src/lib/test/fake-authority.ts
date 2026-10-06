@@ -74,6 +74,15 @@ class FakeVerifier implements IAuthorityVerifier {
 	}
 }
 
+/** A verifier whose verdicts a test states, holding no delegation and refusing to record or revoke one where the test
+ *  doesn't state how it does. */
+export const stubVerifier = (stated: Pick<IAuthorityVerifier, "verify"> & Partial<IAuthorityVerifier>): IAuthorityVerifier => ({
+	delegationsTo: () => Promise.resolve({ delegations: [] }),
+	record: () => Promise.resolve({ ok: false, error: "the stub verifier records no delegation" }),
+	revoke: () => Promise.resolve({ ok: false, error: "the stub verifier revokes no capability" }),
+	...stated,
+});
+
 export default class FakeAuthorityStepper extends AStepper {
 	description = "Registers a stand-in authority for tests: a holder this process presents as, and the actions a holder is granted here.";
 	private readonly grants = new Map<string, string[]>();

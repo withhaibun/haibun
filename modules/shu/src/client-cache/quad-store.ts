@@ -14,6 +14,7 @@ import { LinkRelations, withinAccess, type AccessLevel } from "@haibun/core/lib/
 import { matchesQuadPattern, type IQuadStore, type TClusteredQuads, type TDensityQuery, type TDensityResult, type TQuad, type TQuadPattern } from "@haibun/core/lib/quad-types.js";
 import { densityOverQuadStore, sliceQuadsPerType } from "@haibun/core/lib/quad-store.js";
 import { QUADS, IDX_QUAD_SPG, IDX_QUAD_SUBJECT, IDX_QUAD_NAMED_GRAPH, IDX_QUAD_OBJECT, done, servedDatabase, withStores as withClientCacheStores } from "./device-store.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 /** A stored quad carries a derived `spg` (namedGraph|subject|predicate) key so `set`/`get` can upsert without a scan. */
 type StoredQuad = TQuad & { spg: string };
@@ -126,7 +127,10 @@ export class IndexedDbQuadStore implements IQuadStore {
 		);
 		if (!held) return quads;
 		// An object is compared as the JSON it is held as, so a record read back from the device compares as what was held.
-		return quads.filter((quad, at) => !(held[at].length === 1 && JSON.stringify(held[at][0].object) === JSON.stringify(quad.object)));
+		return quads.filter((quad, at) => {
+			const stored = itemAt(held, at);
+			return !(stored.length === 1 && JSON.stringify(itemAt(stored, 0).object) === JSON.stringify(quad.object));
+		});
 	}
 
 	// --- Individual convenience ops: persist + deref-by-@id, the client store's actual job, over the quad primitives. ---

@@ -3,6 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import { findHaibunWorkspace, loadBackgroundsFromPath } from "./workspace-discovery.js";
+import { itemAt } from "./util/item-at.js";
 
 describe("workspace-discovery", () => {
 	let tmpDir: string;
@@ -120,8 +121,7 @@ describe("workspace-discovery", () => {
 			const backgrounds = await loadBackgroundsFromPath(path.join(tmpDir, bgDir), fs);
 
 			expect(backgrounds).toHaveLength(1);
-			expect(backgrounds[0].content).toBe('set x to "y"');
-			expect(backgrounds[0].name).toBe("test");
+			expect(itemAt(backgrounds, 0)).toMatchObject({ content: 'set x to "y"', name: "test" });
 		});
 
 		it("returns empty array for non-existent path", async () => {

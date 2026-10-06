@@ -7,6 +7,7 @@
  * needs, so the cadence is even and the scene still idles between breaths.
  */
 import { describe, expect, it } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { PULSE_MS, pulseAt } from "../polymorphic/polymorphic-highlight.js";
 
 /** The loop as the scene runs it: rAF frames always advance; the scene draws only while within the dirty grace. */
@@ -27,7 +28,7 @@ function loop(sampleEvery: number, frames: number): { sampledAt: number[]; drawn
 describe("the breath the loop samples", () => {
 	it("is even, because the frames it counts are the ones the display gives, not the ones the scene draws", () => {
 		const { sampledAt } = loop(6, 60);
-		const gaps = sampledAt.slice(1).map((at, i) => at - sampledAt[i]);
+		const gaps = sampledAt.slice(1).map((at, i) => at - itemAt(sampledAt, i));
 		expect([...new Set(gaps)], "one cadence, whatever the scene is doing").toEqual([6]);
 		expect(sampledAt.length, "and it keeps to it for as long as a node wears it").toBe(10);
 	});

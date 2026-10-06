@@ -13,6 +13,7 @@
  * behind a qualifier.
  */
 import { readdirSync, readFileSync } from "node:fs";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 /** The modules that own the wire. A consumer importing them by package path matches on the same suffixes. */
 const PLUMBING_MODULES = ["/hypermedia.js", "/pane-fetch.js", "/rpc-registry.js", "/page-key.js"];
@@ -20,19 +21,21 @@ const PLUMBING_MODULES = ["/hypermedia.js", "/pane-fetch.js", "/rpc-registry.js"
 /** The names a component may not import: each one reassembles data access the controller already holds. */
 const DATA_ACCESS_PRIMITIVES = new Set(["conduit", "requireStep", "findStep", "callStep", "fetchIndividuals", "pageAuthority", "signedHeaders"]);
 
+/** The name an entry of an import's list takes from its module: `type x as y` takes `x`. */
+function importedName(entry: string): string {
+	const unqualified = entry.trim().replace(/^type\s+/, "");
+	return itemAt(unqualified.split(/\s+as\s+/), 0);
+}
+
 /** True when this source imports a data-access primitive from a plumbing module. */
 function importsDataAccessPrimitive(source: string): boolean {
-	for (const [, typeOnly, clause, names, spec] of source.matchAll(/import\s+(type\s+)?(\{([^}]*)\}|\*\s+as\s+\w+)\s+from\s+"([^"]+)"/g)) {
+	for (const match of source.matchAll(/import\s+(type\s+)?(\{([^}]*)\}|\*\s+as\s+\w+)\s+from\s+"([^"]+)"/g)) {
+		const [, typeOnly, , names] = match;
+		const spec = itemAt(match, 4);
 		if (typeOnly || !PLUMBING_MODULES.some((m) => spec.endsWith(m))) continue;
-		if (clause.startsWith("*")) return true;
-		const imported = names.split(",").map(
-			(n) =>
-				n
-					.trim()
-					.replace(/^type\s+/, "")
-					.split(/\s+as\s+/)[0],
-		);
-		if (imported.some((n) => DATA_ACCESS_PRIMITIVES.has(n))) return true;
+		// The namespace form (`* as name`) doesn't list names: it imports every one.
+		if (names === undefined) return true;
+		if (names.split(",").some((entry) => DATA_ACCESS_PRIMITIVES.has(importedName(entry)))) return true;
 	}
 	return false;
 }

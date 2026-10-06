@@ -1,17 +1,20 @@
 import { describe, it, expect } from "vitest";
 import { classifyDocument, type TPlacedStep, type TToken } from "./semantic-tokens.js";
 import type { TStepAction, TFeatureStep } from "@haibun/core/lib/astepper.js";
-import { Origin } from "@haibun/core/schema/protocol.js";
+import { Origin, type TStepValue } from "@haibun/core/schema/protocol.js";
 
 /**
  * What an editor paints, asserted against the classification itself. It used to be asserted through a mocked language
  * server: forty lines of connection stubs to reach a call that took a line and some resolved steps, and the assertions
  * that survived the trip could only report "some tokens came back".
  */
-const arg = (term: string, domain: string) => ({ term, value: term, domain, origin: Origin.quoted });
+const arg = (term: string, domain: string): TStepValue => ({ term, value: term, domain, origin: Origin.quoted });
 
-const placed = (lineText: string, args: Record<string, ReturnType<typeof arg>> = {}): TPlacedStep => ({
-	step: { source: { lineNumber: 1 }, in: lineText, seqPath: [0, 1], action: { stepValuesMap: args } as TStepAction } as unknown as TFeatureStep,
+/** A resolved action, of which classification reads only the arguments. */
+const stepAction = (args: Record<string, TStepValue>) => ({ stepValuesMap: args }) as TStepAction;
+
+const placed = (lineText: string, args: Record<string, TStepValue> = {}): TPlacedStep => ({
+	step: { source: { lineNumber: 1 }, in: lineText, seqPath: [0, 1], action: stepAction(args) } as unknown as TFeatureStep,
 	startOffset: lineText.indexOf(lineText.trim()),
 	length: lineText.trim().length,
 });
@@ -42,7 +45,7 @@ describe("classifyDocument", () => {
 
 	it("paints a statement argument as the step it names, so a nested call reads as a call", () => {
 		const line = "set total from count things";
-		const nested = { stepValuesMap: { what: arg("things", "string") } } as TStepAction;
+		const nested = stepAction({ what: arg("things", "string") });
 		const tokens = classify(line, placed(line, { statement: arg("count things", "statement") }), { resolve: () => nested });
 		expect(tokens).toEqual([
 			{ line: 0, char: 0, length: 15, type: "function" },

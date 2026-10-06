@@ -50,6 +50,7 @@ const mockWorld = {
 };
 
 class TestStepper extends AStepper {
+	description = "A step with one parameter, for the language server to resolve.";
 	steps = { testStep: { gwta: "test step with {param}", action: async () => OK } };
 }
 

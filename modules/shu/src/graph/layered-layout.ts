@@ -4,6 +4,7 @@
  * and dependency-free so it lays out the same in a browser paint and in a report generated in Node, and is asserted without a DOM.
  */
 import type { TGraph } from "./types.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 export type NodeBox = { x: number; y: number; w: number; h: number };
 export type GroupBox = { id: string; label: string; depth: number; x: number; y: number; w: number; h: number };
@@ -103,8 +104,9 @@ export function layeredLayout(graph: TGraph, metrics: LayeredMetrics = DEFAULT_M
 	const nodes = new Map<string, NodeBox>();
 	for (const n of graph.nodes) {
 		const l = layer.get(n.id) ?? 0;
-		const flowCenter = reverse ? totalFlow - layerFlow[l] : layerFlow[l];
-		const crossCenter = (crossCenterOf.get(n.id) ?? 0) + (maxCross - layerCrossExtent[l]) / 2;
+		const flowAt = itemAt(layerFlow, l);
+		const flowCenter = reverse ? totalFlow - flowAt : flowAt;
+		const crossCenter = (crossCenterOf.get(n.id) ?? 0) + (maxCross - itemAt(layerCrossExtent, l)) / 2;
 		const { w, h } = sizeWH(n.id);
 		const cx = horizontal ? flowCenter : crossCenter;
 		const cy = horizontal ? crossCenter : flowCenter;

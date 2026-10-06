@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { availablePaints } from "./paint-select.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
@@ -10,7 +11,7 @@ describe("availablePaints", () => {
 	it("offers the Gantt view-type when a node carries a start-time rel", () => {
 		const paints = availablePaints([q("t1", LinkRelations.STARTED_AT_TIME.rel, "2026-01-01"), q("t1", "name", "Design")], idRel);
 		expect(paints.map((p) => p.id)).toEqual(["gantt"]);
-		expect(paints[0].label).toBe("Gantt");
+		expect(itemAt(paints, 0).label).toBe("Gantt");
 	});
 
 	it("doesn't offer paint view-types for data without their rels", () => {

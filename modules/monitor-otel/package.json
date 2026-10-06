@@ -2,6 +2,7 @@
 	"name": "@haibun/monitor-otel",
 	"version": "4.0.0-alpha.3",
 	"description": "OpenTelemetry monitor for Haibun - exports traces and logs via OTLP",
+	"type": "module",
 	"main": "build/index.js",
 	"files": [
 		"build/"

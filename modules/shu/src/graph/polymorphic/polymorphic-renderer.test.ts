@@ -7,6 +7,7 @@
  * its place in the order.
  */
 import { describe, expect, it } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { compositeRenderer, graphSummary, RecordingRenderer, samePlacement, threeRenderer } from "./polymorphic-renderer.js";
 import type { FGLink, FGNode } from "./polymorphic-graph-types.js";
 
@@ -83,7 +84,7 @@ describe("what a renderer was given", () => {
 		r.rebuildNodes();
 		expect(given).toHaveLength(2);
 		expect(given[0]).not.toBe(given[1]);
-		expect(given[1](nodes([["a", 0, 0, 0]])[0])).toBe("a"); // and it still calls the scene's own factory
+		expect(itemAt(given, 1)(itemAt(nodes([["a", 0, 0, 0]]), 0))).toBe("a"); // and it still calls the scene's own factory
 	});
 
 	it("takes the size the scene gives it, which is how a medium without a window is still drawn to a size", () => {

@@ -78,8 +78,8 @@ export function runShape(graph: TRunGraph, { divisions = RUN_DIVISIONS, minLevel
 			minLevel,
 		});
 		counted.forEach((perType, type) => {
-			held[type] ??= [];
-			perType.forEach((counts, division) => (held[type][from + division] = counts));
+			const heldOfType = (held[type] ??= []);
+			perType.forEach((counts, division) => (heldOfType[from + division] = counts));
 		});
 		countedThrough = to;
 		marks = marksOf(held, { divisions, beginningOf });

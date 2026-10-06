@@ -4,6 +4,7 @@ import { DEFAULT_DEST, OK } from "../schema/protocol.js";
 import * as steps from "./features.js";
 import { passWithDefaults, failWithDefaults } from "./test/lib.js";
 import { asFeatures } from "./resolver-features.js";
+import { itemAt } from "./util/item-at.js";
 import VariablesStepper from "../steps/variables-stepper.js";
 
 const varsStepper = [VariablesStepper];
@@ -46,9 +47,9 @@ describe("expand features", () => {
 		const backgrounds = asFeatures([{ path: "/b1.feature", content: "result" }]);
 		const res = await steps.expandFeatures(features, backgrounds);
 
-		expect(res[0].expanded.map((e) => e.line)).toEqual(["result", "Extant"]);
-		expect(res[0].expanded.map((e) => e.feature.name)).toEqual(["/b1", "/f1"]);
-		expect(res[0].expanded.map((e) => e.feature.path)).toEqual(["/b1.feature", "/f1"]);
+		expect(itemAt(res, 0).expanded.map((e) => e.line)).toEqual(["result", "Extant"]);
+		expect(itemAt(res, 0).expanded.map((e) => e.feature.name)).toEqual(["/b1", "/f1"]);
+		expect(itemAt(res, 0).expanded.map((e) => e.feature.path)).toEqual(["/b1.feature", "/f1"]);
 	});
 
 	test("applies backgrounds hierarchical", async () => {
@@ -59,10 +60,12 @@ describe("expand features", () => {
 		]);
 		const res = await steps.expandFeatures(features, backgrounds);
 
-		expect(res[0].expanded.length).toBe(1);
-		expect(res[0].expanded[0].line).toEqual("result");
-		expect(res[0].expanded[0].feature.name).toEqual("/l2/b2");
-		expect(res[0].expanded[0].feature.path).toEqual("/l2/b2.feature");
+		const { expanded } = itemAt(res, 0);
+		expect(expanded.length).toBe(1);
+		const only = itemAt(expanded, 0);
+		expect(only.line).toEqual("result");
+		expect(only.feature.name).toEqual("/l2/b2");
+		expect(only.feature.path).toEqual("/l2/b2.feature");
 	});
 
 	test("multiple features and backgrounds", async () => {
@@ -76,11 +79,11 @@ describe("expand features", () => {
 		]);
 		const res = await steps.expandFeatures(features, backgrounds);
 
-		expect(res[0].expanded.map((e) => e.line)).toEqual(["Background step 1", "Feature step 1"]);
-		expect(res[0].expanded.map((e) => e.feature.path)).toEqual(["/b1.feature", "/f1"]);
+		expect(itemAt(res, 0).expanded.map((e) => e.line)).toEqual(["Background step 1", "Feature step 1"]);
+		expect(itemAt(res, 0).expanded.map((e) => e.feature.path)).toEqual(["/b1.feature", "/f1"]);
 
-		expect(res[1].expanded.map((e) => e.line)).toEqual(["Background step 2", "Feature step 2"]);
-		expect(res[1].expanded.map((e) => e.feature.path)).toEqual(["/b2.feature", "/f2"]);
+		expect(itemAt(res, 1).expanded.map((e) => e.line)).toEqual(["Background step 2", "Feature step 2"]);
+		expect(itemAt(res, 1).expanded.map((e) => e.feature.path)).toEqual(["/b2.feature", "/f2"]);
 	});
 });
 
@@ -111,11 +114,11 @@ describe("does not include backgrounds that are not referenced", () => {
 			{ path: "/b2.feature", content: "Scenario: Foo\nBackground step 2" },
 		]);
 		const res = await steps.expandFeatures(features, backgrounds);
-		expect(res[0].expanded.map((e) => e.line)).toEqual(["Background step 1", "Feature step 1"]);
-		expect(res[0].expanded.map((e) => e.feature.path)).toEqual(["/b1.feature", "/f1"]);
-		expect(res[0].expanded.map((e) => e.feature.name)).toEqual(["/b1", "/f1"]);
-		expect(res[0].expanded.length).toBe(2);
-		expect(res[0].expanded.some((e) => e.feature.path === "/b2.feature")).toBe(false);
+		expect(itemAt(res, 0).expanded.map((e) => e.line)).toEqual(["Background step 1", "Feature step 1"]);
+		expect(itemAt(res, 0).expanded.map((e) => e.feature.path)).toEqual(["/b1.feature", "/f1"]);
+		expect(itemAt(res, 0).expanded.map((e) => e.feature.name)).toEqual(["/b1", "/f1"]);
+		expect(itemAt(res, 0).expanded.length).toBe(2);
+		expect(itemAt(res, 0).expanded.some((e) => e.feature.path === "/b2.feature")).toBe(false);
 	});
 });
 

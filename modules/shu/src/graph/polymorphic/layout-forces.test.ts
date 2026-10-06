@@ -1,3 +1,4 @@
+/// <reference path="./force-deps.d.ts" />
 /**
  * Headless layout-stability proof (pure d3-force-3d, without a browser, ~ms). Reproduces the real jump: three-forcegraph
  * reheats the simulation (alpha→1) on every graphData feed, so an unpinned existing node re-settles when new data

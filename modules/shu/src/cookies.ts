@@ -5,6 +5,7 @@
  */
 
 import { jsonCarried } from "@haibun/core/lib/json-text.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 const ONE_YEAR = 60 * 60 * 24 * 365;
 
@@ -13,7 +14,7 @@ const ONE_YEAR = 60 * 60 * 24 * 365;
 function getCookie(name: string): string {
 	if (typeof document === "undefined") return "";
 	const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
-	return match ? decodeURIComponent(match[1]) : "";
+	return match ? decodeURIComponent(itemAt(match, 1)) : "";
 }
 
 /** A page another site frames keeps a cookie only as a partitioned one, which a frame may set and which stays with the

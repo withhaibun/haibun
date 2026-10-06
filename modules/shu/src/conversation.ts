@@ -32,6 +32,7 @@ import { SessionReadSchema, type TBundle, type TChatStatus, type TContextPattern
 import { SharedMachine, SharedSignal } from "./signals.js";
 import { appAccessLevel } from "./util.js";
 import { mergeHashParams } from "./view-hash.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 /** The step a turn runs. */
 export const ASK_STEP = "chatWithContext";
@@ -266,7 +267,7 @@ function branch(
 	}
 	const newestLeafBelow = (key: string): string => {
 		let at = key;
-		for (let children = childrenOf.get(at); children?.length; children = childrenOf.get(at)) at = children[children.length - 1];
+		for (let children = childrenOf.get(at); children?.length; children = childrenOf.get(at)) at = itemAt(children, children.length - 1);
 		return at;
 	};
 	const onPath = new Set<string>();
@@ -280,7 +281,7 @@ function branch(
 	const others = new Map<string, NonNullable<TChatMessage["otherBranch"]>>();
 	for (const key of [START, ...onPath]) {
 		const off = (childrenOf.get(key) ?? []).filter((child) => !onPath.has(child));
-		const latest = off.length > 0 ? byKey.get(newestLeafBelow(off[off.length - 1])) : undefined;
+		const latest = off.length > 0 ? byKey.get(newestLeafBelow(itemAt(off, off.length - 1))) : undefined;
 		if (latest?.askId) others.set(key, { recordId: latest.sayId ?? latest.askId, turn: latest.askId, bundle: latest.bundle, count: off.length });
 	}
 	return { onPath, first, others };

@@ -5,12 +5,11 @@ import { checkModuleIsClass } from "./node/module-loader.js";
 import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, getCreateSteppers } from "../test/lib.js";
 import TestSteps from "../test/TestSteps.js";
 import TestStepsWithOptions from "../test/TestStepsWithOptions.js";
-import { withNameType } from "../features.js";
-import { OK, TEST_BASE } from "../../schema/protocol.js";
-import { TAnyFixme } from "../fixme.js";
-import { IHasOptions, StepperKinds } from "../astepper.js";
+import { OK } from "../../schema/protocol.js";
+import { IHasOptions, StepperKinds, type TStepperSteps } from "../astepper.js";
 import { AStepper } from "../astepper.js";
 import { constructorName } from "./index.js";
+import { itemAt } from "./item-at.js";
 
 describe("isLowerCase", () => {
 	it("is lower case", () => {
@@ -22,6 +21,7 @@ describe("isLowerCase", () => {
 
 describe("findStepperFromOptions", () => {
 	const TestOptionsStepper = class TestOptionsStepper extends AStepper implements IHasOptions {
+		description = "A stepper with options A and B.";
 		options = { A: { desc: "A exists", parse: (input: string) => util.stringOrError(input) }, B: { desc: "B exists", parse: (input: string) => util.stringOrError(input) } };
 		steps = { test: { exact: "have a stepper option", action: async () => await Promise.resolve(OK) } };
 	};
@@ -49,7 +49,7 @@ describe("findStepperFromOptions", () => {
 		expect(constructorName(<AStepper>s)).toBe("TestSteps");
 	});
 	it("throws for not found stepper", async () => {
-		const ts = util.createSteppers([TestOptionsStepper])[0];
+		const ts = itemAt(util.createSteppers([TestOptionsStepper]), 0);
 		const steppers = await getCreateSteppers([], [TestOptionsStepper]);
 		const options = {};
 		expect(() => util.findStepperFromOption(steppers, ts, options, "S")).toThrow;
@@ -58,16 +58,19 @@ describe("findStepperFromOptions", () => {
 
 describe("findStepperFromOptionOrKind", () => {
 	const StorageStepper = class StorageStepper extends AStepper {
+		description = "A storage stepper.";
 		kind = StepperKinds.STORAGE;
 		steps = { test: { exact: "storage step", action: async () => await Promise.resolve(OK) } };
 	};
 
 	const AlternativeStorageStepper = class AlternativeStorageStepper extends AStepper {
+		description = "Another storage stepper.";
 		kind = StepperKinds.STORAGE;
 		steps = { test: { exact: "alt storage step", action: async () => await Promise.resolve(OK) } };
 	};
 
 	const ConsumerStepper = class ConsumerStepper extends AStepper implements IHasOptions {
+		description = "A stepper whose option names its storage stepper.";
 		options = { [StepperKinds.STORAGE]: { desc: "Storage stepper to use", parse: (input: string) => util.stringOrError(input) } };
 		steps = { test: { exact: "consumer step", action: async () => await Promise.resolve(OK) } };
 	};
@@ -113,6 +116,7 @@ describe("findStepperFromOptionOrKind", () => {
 
 describe("verifyRequiredOptions", () => {
 	class TestOptionsStepperWithRequired extends AStepper implements IHasOptions {
+		description = "A stepper with a required option and its alternative source.";
 		options = {
 			A: { required: true, altSource: "B", desc: "A is an option", parse: (input: string) => util.stringOrError(input) },
 			B: { desc: "B is an altsource", parse: (input: string) => util.stringOrError(input) },
@@ -145,15 +149,6 @@ describe("getStepperOptions", () => {
 		expect(() => util.verifyExtraOptions({ HAIBUN_NE: "true" }, [])).not.toThrow();
 		expect(spy).toHaveBeenCalledWith(expect.stringContaining("HAIBUN_NE"));
 		spy.mockRestore();
-	});
-});
-
-describe("getType", () => {
-	it("finds a type", () => {
-		expect(withNameType(TEST_BASE, "file.type.feature", "").type).toBe("type");
-	});
-	it("doesn't find a type", () => {
-		expect(withNameType(TEST_BASE, "file.feature", "").type).toBe("feature");
 	});
 });
 
@@ -251,8 +246,9 @@ describe("depolite", () => {
 describe("checkNoPoliteStepPrefixes", () => {
 	// A gwta/exact starting with a dePolite stopword can never match (the resolver dePolites the feature line but not the
 	// step pattern), so stepper creation must fail fast naming the dead step instead of a bare "doesn't match a step" at resolve.
-	const stepperWith = (steps: TAnyFixme) =>
+	const stepperWith = (steps: TStepperSteps) =>
 		new (class PoliteStepper extends AStepper {
+			description = "A stepper with the steps a test gives it.";
 			steps = steps;
 		})();
 	test("a gwta starting with a stopword throws at creation", () => {
@@ -267,6 +263,7 @@ describe("checkNoPoliteStepPrefixes", () => {
 	test("createSteppers runs the check on every configured stepper", () => {
 		const spy = vi.spyOn(console, "error").mockImplementation(() => undefined);
 		const Bad = class BadStepper extends AStepper {
+			description = "A step whose phrase starts with a stopword.";
 			steps = { bad: { gwta: "and then some", action: async () => OK } };
 		};
 		expect(() => util.createSteppers([Bad])).toThrow(/could never match/);

@@ -14,8 +14,8 @@ import {
 
 const sampleMichi: TMichi = {
 	steps: [
-		{ stepperName: "Issue", stepName: "issueCredential", gwta: "issue credential" },
-		{ stepperName: "Verify", stepName: "verifyCredential", gwta: "verify credential" },
+		{ stepperName: "Issue", stepName: "issueCredential", gwta: "issue credential", productsDomain: "credential" },
+		{ stepperName: "Verify", stepName: "verifyCredential", gwta: "verify credential", productsDomain: "verified-credential" },
 	],
 	bindings: [{ kind: "argument", domain: "issuer" }],
 };

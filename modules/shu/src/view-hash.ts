@@ -1,5 +1,6 @@
 import { pagePinned } from "./page-pinned.js";
 import { isOffline } from "./rpc-registry.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 /** The hash parameter that names one open column by its pane id, once for each column, in order. */
 export const COLUMN_PARAM = "col";
@@ -56,7 +57,7 @@ export function canonicalizeArrival(hash: string, base: string): string {
 	const merged = hashParams(base);
 	merged.delete("open");
 	for (const entry of opened) merged.append(COLUMN_PARAM, entry);
-	merged.set(ACTIVE_PARAM, splitPaneEntry(opened[opened.length - 1]).id);
+	merged.set(ACTIVE_PARAM, splitPaneEntry(itemAt(opened, opened.length - 1)).id);
 	return hashOf(merged);
 }
 

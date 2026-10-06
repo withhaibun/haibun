@@ -5,6 +5,7 @@ import { LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS, SPECIFIC_RESOURCE_LABEL
 const REPORT = "FieldReport";
 import { SEQ_PATH_EDGE, SEQ_PATH_FIELD } from "./seq-path.js";
 import { statementsWith } from "./statements.js";
+import { itemAt } from "./util/item-at.js";
 import type { TLinkVocabulary } from "./typed-links.js";
 
 const vocab: TLinkVocabulary = {
@@ -33,14 +34,14 @@ describe("statementsWith", () => {
 	});
 
 	it("reads a statement as its three parts, each a reference to open", async () => {
-		const [row] = await statementsWith(store, LinkRelations.CITES_AS_EVIDENCE.rel);
+		const row = itemAt(await statementsWith(store, LinkRelations.CITES_AS_EVIDENCE.rel), 0);
 		expect(row.subject).toEqual({ "@id": "0.1", "@type": SEQ_PATH_LABEL });
 		expect(row.predicate).toBe(LinkRelations.CITES_AS_EVIDENCE.rel);
 		expect(row.object["@type"]).toBe(SPECIFIC_RESOURCE_LABEL);
 	});
 
 	it("reports which reading asserted it, and how the actuality that made it ended", async () => {
-		const [row] = await statementsWith(store, LinkRelations.CITES_AS_EVIDENCE.rel);
+		const row = itemAt(await statementsWith(store, LinkRelations.CITES_AS_EVIDENCE.rel), 0);
 		expect(row.reading).toEqual({ "@id": "reading:SeqPath:0.1", "@type": "Reading" });
 		expect(row.assertedBy).toEqual({ "@id": "0", "@type": SEQ_PATH_LABEL });
 		expect(row.outcome).toBe(SEQ_PATH_STATUS.passed);

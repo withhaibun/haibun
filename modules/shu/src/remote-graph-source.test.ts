@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { hostHandshake, HANDSHAKE_PATH } from "@haibun/core/lib/test/rpc-answer.js";
 import { RemoteGraphSource } from "./remote-graph-source.js";
 import { RPC_METHOD } from "./consts.js";
@@ -60,6 +61,6 @@ describe("RemoteGraphSource", () => {
 		if (!lastParams) throw new Error("the peer was never asked for its clustered quads");
 		expect(lastParams.scope).toBe("own");
 		expect(result.site).toBe("did:site:imap");
-		expect(result.clusters[0].sites).toEqual({ "m-1": "did:site:imap", "m-2": "did:site:deeper" });
+		expect(itemAt(result.clusters, 0).sites).toEqual({ "m-1": "did:site:imap", "m-2": "did:site:deeper" });
 	});
 });

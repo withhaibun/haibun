@@ -14,6 +14,7 @@
  * behind it.
  */
 import { BREATH_MS } from "./polymorphic-highlight.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 export const REGULATION_KINDS = ["decorativeOverLimit", "decorativeWithinLimit"] as const;
 
@@ -50,7 +51,7 @@ export function recordFrameTime(state: TRegulationState, timeMs: number, windowS
 /** The median: one anomalous frame doesn't move it, whether slow or fast. */
 export function medianOf(samples: readonly number[]): number {
 	const sorted = [...samples].sort((a, b) => a - b);
-	return sorted[sorted.length >> 1];
+	return itemAt(sorted, sorted.length >> 1);
 }
 
 /** The breath's share of wall time at a frame time: time per beat times beats per second, over one second. */

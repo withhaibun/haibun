@@ -13,10 +13,12 @@ import { actionNotOK, actionOKWithProducts } from "../lib/util/index.js";
 import { RESULTS_READ_IN_FULL, foldStep } from "../lib/step-dispatch.js";
 import { releasePayloads } from "./Executor.js";
 import type { TFeatureSteps, TStepResult } from "../schema/protocol.js";
+import { itemAt } from "../lib/util/item-at.js";
 
 const LARGE_ANSWER = "test-large-answer";
 
 class ProducingStepper extends AStepper {
+	description = "Produces a large answer, and refuses with one.";
 	cycles = { getConcerns: () => ({ domains: [{ selectors: [LARGE_ANSWER], schema: z.object({ big: z.string() }), description: "A large answer" }] }) };
 	steps = {
 		produces: { gwta: "produce a large answer", productsDomain: LARGE_ANSWER, action: () => Promise.resolve(actionOKWithProducts({ big: "x".repeat(10000) })) },
@@ -27,7 +29,7 @@ class ProducingStepper extends AStepper {
 describe("what a run keeps of the steps it has finished", () => {
 	it("keeps what a step a reader could still be reading produced", async () => {
 		const result = await passWithDefaults([{ path: "/features/test.feature", content: "produce a large answer" }], [ProducingStepper]);
-		const [kept] = result.featureResults?.[0].stepResults ?? [];
+		const kept = itemAt(itemAt(result.featureResults, 0).stepResults, 0);
 		expect(kept.in).toBe("produce a large answer");
 		expect((kept.products as { big?: string } | undefined)?.big?.length, "the feature's result carries what its steps produced").toBe(10000);
 	});
@@ -65,14 +67,15 @@ describe("what a run keeps of the steps it has finished", () => {
 
 	it("keeps everything a failed step carried, since that is what the verdict is made of", async () => {
 		const result = await failWithDefaults([{ path: "/features/test.feature", content: "refuse with a large answer" }], [ProducingStepper]);
-		const failed = (result.featureResults?.[0].stepResults ?? []).find((s) => !s.ok);
-		expect(failed?.message ?? failed?.errorMessage, "the verdict quotes what the step returned").toContain("it refused");
+		const failed = itemAt(result.featureResults, 0).stepResults.find((s) => !s.ok);
+		if (failed?.ok !== false) throw new Error("a step didn't fail");
+		expect(failed.errorMessage, "the verdict quotes what the step returned").toContain("it refused");
 	});
 
 	it("lets go of every passing step's payload once actuality has moved past the feature", () => {
 		const step = { name: "s", in: "a step", path: "/f", seqPath: [0, 1, 1], ok: true, products: { big: "x" } } as unknown as TStepResult;
 		const failed = { ...step, ok: false, products: { big: "y" } } as TStepResult;
-		releasePayloads({ path: "/f", ok: false, stepResults: [step, failed] });
+		releasePayloads({ path: "/f", ok: false, steps: { count: 2 }, declaredStepTextHash: "the hash of its steps", stepResults: [step, failed] });
 		expect(step.products, "a passing step's products go").toBeUndefined();
 		expect(failed.products, "a failure keeps them").toEqual({ big: "y" });
 	});

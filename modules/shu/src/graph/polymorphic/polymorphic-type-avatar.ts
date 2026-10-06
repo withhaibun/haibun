@@ -1,3 +1,5 @@
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
+
 /**
  * A node's type avatar: the initials of its @type, so a reader tells a Principal from a Person, or a SpecificResource
  * from its selector, without reading the label or learning the colours.
@@ -15,7 +17,7 @@ const TYPE_WORDS = /[A-Z]+(?![a-z])|[A-Z][a-z0-9]*|[a-z0-9]+/g;
 
 export function typeAvatar(type: string): string {
 	return (type.match(TYPE_WORDS) ?? [])
-		.map((word) => word[0].toUpperCase())
+		.map((word) => itemAt(word, 0).toUpperCase())
 		.join("")
 		.slice(0, AVATAR_MAX_CHARS);
 }

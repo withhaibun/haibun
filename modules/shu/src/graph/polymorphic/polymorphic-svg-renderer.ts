@@ -58,7 +58,10 @@ export class SvgRenderer implements IGraphRenderer {
 			const s = byId.get(linkEndId(l.source));
 			const t = byId.get(linkEndId(l.target));
 			if (!s || !t) throw new Error(`SvgRenderer: link ${l.predicate} names a node that was not drawn`);
-			const [x1, y1, x2, y2] = [h(s), v(s), h(t), v(t)].map(round);
+			const x1 = round(h(s));
+			const y1 = round(v(s));
+			const x2 = round(h(t));
+			const y2 = round(v(t));
 			const label = xml(l.predicate);
 			return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${LINE}" stroke-width="0.6"/><text x="${round((x1 + x2) / 2)}" y="${round((y1 + y2) / 2)}" font-size="5" fill="${LINE}" text-anchor="middle">${label}</text>`;
 		});

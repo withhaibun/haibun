@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { foldStep } from "../lib/step-dispatch.js";
-import { STAY_ALWAYS, STAY_FAILURE, type TFeatureSteps } from "../schema/protocol.js";
+import { STAY_ALWAYS, STAY_FAILURE, type TFeatureResult, type TFeatureSteps, type TStepResult } from "../schema/protocol.js";
 import {
 	Executor,
 	advanceSyntheticSeqPath,
@@ -12,11 +12,11 @@ import {
 	syntheticBranchSeqPath,
 	syntheticSeqPathDirection,
 } from "./Executor.js";
-import type { TFeatureResult, TStepResult } from "../lib/defs.js";
 import { passWithDefaults, failWithDefaults } from "../lib/test/lib.js";
 import { AStepper } from "../lib/astepper.js";
 import { actionNotOK, actionOK } from "../lib/util/index.js";
 import { DOMAIN_TEXT } from "../lib/domains.js";
+import { itemAt } from "../lib/util/item-at.js";
 
 describe("syntheticSeqPathDirection", () => {
 	it("uses positive direction for authoritative branches", () => {
@@ -197,13 +197,14 @@ describe("createExecutionFailure", () => {
 
 describe("the hash of a feature's declared step text", () => {
 	class NotingStepper extends AStepper {
+		description = "Notes a text, and refuses.";
 		steps = {
 			note: { gwta: `note {what: ${DOMAIN_TEXT}}`, action: () => Promise.resolve(actionOK()) },
 			refuse: { gwta: "refuse here", action: () => Promise.resolve(actionNotOK("refused")) },
 		};
 	}
-	const hashOf = async (content: string): Promise<string | undefined> =>
-		(await passWithDefaults([{ path: "/features/noted.feature", content }], [NotingStepper])).featureResults?.[0].declaredStepTextHash;
+	const hashOf = async (content: string): Promise<string> =>
+		itemAt((await passWithDefaults([{ path: "/features/noted.feature", content }], [NotingStepper])).featureResults, 0).declaredStepTextHash;
 
 	it("is the same for two runs of the same declared steps, and differs when a step's text changes or a step is added", async () => {
 		const twice = await hashOf("note one\nnote two");
@@ -215,7 +216,7 @@ describe("the hash of a feature's declared step text", () => {
 
 	it("covers the steps a feature declares after a step that failed, though they never ran", async () => {
 		const hashAfterRefusal = async (last: string) =>
-			(await failWithDefaults([{ path: "/features/refused.feature", content: `note one\nrefuse here\n${last}` }], [NotingStepper])).featureResults?.[0].declaredStepTextHash;
+			itemAt((await failWithDefaults([{ path: "/features/refused.feature", content: `note one\nrefuse here\n${last}` }], [NotingStepper])).featureResults, 0).declaredStepTextHash;
 		expect(await hashAfterRefusal("note three")).not.toBe(await hashAfterRefusal("note four"));
 	});
 });

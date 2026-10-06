@@ -6,6 +6,7 @@ import { BlipEvent, ImageArtifact, LogEvent, type THaibunEvent } from "../schema
 import { runAuthorizedWith, runInStep, runReadingAt } from "./capability-context.js";
 import { readAction, writeAction } from "./actions.js";
 import { Access } from "./resources.js";
+import { itemAt } from "./util/item-at.js";
 
 const OK = { ok: true as const };
 
@@ -40,8 +41,8 @@ describe("EventLogger", () => {
 			expect(emitted.length).toBe(1);
 			const event = emitted[0] as { stepValuesMap?: Record<string, { value: unknown }> };
 			expect(event.stepValuesMap).toBeDefined();
-			expect(event.stepValuesMap?.password.value).toBe(OBSCURED_VALUE);
-			expect(event.stepValuesMap?.username.value).toBe("testuser");
+			expect(event.stepValuesMap?.password?.value).toBe(OBSCURED_VALUE);
+			expect(event.stepValuesMap?.username?.value).toBe("testuser");
 		});
 
 		it("should obscure secret values in stepEnd", () => {
@@ -58,8 +59,8 @@ describe("EventLogger", () => {
 			expect(emitted.length).toBe(1);
 			const event = emitted[0] as { stepValuesMap?: Record<string, { value: unknown }> };
 			expect(event.stepValuesMap).toBeDefined();
-			expect(event.stepValuesMap?.apiKey.value).toBe(OBSCURED_VALUE);
-			expect(event.stepValuesMap?.count.value).toBe("42");
+			expect(event.stepValuesMap?.apiKey?.value).toBe(OBSCURED_VALUE);
+			expect(event.stepValuesMap?.count?.value).toBe("42");
 		});
 
 		it("should not obscure when isSecretFn returns false for all", () => {
@@ -75,7 +76,7 @@ describe("EventLogger", () => {
 
 			expect(emitted.length).toBe(1);
 			const event = emitted[0] as { stepValuesMap?: Record<string, { value: unknown }> };
-			expect(event.stepValuesMap?.password.value).toBe("secret123");
+			expect(event.stepValuesMap?.password?.value).toBe("secret123");
 		});
 
 		it("should handle null stepValuesMap", () => {
@@ -247,19 +248,19 @@ describe("EventLogger", () => {
 		it("reports at its own level while a step reports at its own", () => {
 			const heard = said();
 			logger.info("actuality reports something");
-			expect(heard[0].level).toBe("info");
+			expect(itemAt(heard, 0).level).toBe("info");
 		});
 
 		it("reports no more prominently than the step it is logged during, so a call into a running instance stays out of actuality's history", () => {
 			const heard = said();
 			runInStep(DURING_A_TRACE_STEP, () => logger.info("what the caller's own step logged"));
-			expect(heard[0].level, "logged during a step that reports at trace").toBe("trace");
+			expect(itemAt(heard, 0).level, "logged during a step that reports at trace").toBe("trace");
 		});
 
 		it("leaves a statement quieter than the step where it is", () => {
 			const heard = said();
 			runInStep(DURING_A_TRACE_STEP, () => logger.debug("quieter than the step"));
-			expect(heard[0].level).toBe("debug");
+			expect(itemAt(heard, 0).level).toBe("debug");
 		});
 
 		it("reports a warning and a fault as themselves, since a quiet step isn't a reason to be quiet about a fault", () => {

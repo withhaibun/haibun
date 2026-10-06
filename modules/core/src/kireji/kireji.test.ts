@@ -7,6 +7,7 @@ import { ActivitiesStepper } from "../steps/activities-stepper.js";
 
 // A mock stepper for testing purposes
 class TestStepper extends AStepper {
+	description = "Steps a kireji feature converts to and from BDD.";
 	steps = {
 		set: { gwta: "set {what} to {value}", action: () => Promise.resolve(OK) },
 		doSomething: { gwta: "do something", action: () => Promise.resolve(OK) },
@@ -17,6 +18,7 @@ class TestStepper extends AStepper {
 
 // A stepper with optional patterns to test regex stripping
 class OptionalPatternStepper extends AStepper {
+	description = "Steps whose patterns have optional parts.";
 	steps = {
 		setOptional: { gwta: "set( empty)? {what} to {value}", action: () => Promise.resolve(OK) },
 		clickOptional: { gwta: "click( on)? {target}", action: () => Promise.resolve(OK) },
@@ -24,6 +26,7 @@ class OptionalPatternStepper extends AStepper {
 }
 
 class ProseStepper extends AStepper {
+	description = "A step that states prose.";
 	steps = { prose: { gwta: "prose: {prose}", action: () => Promise.resolve(OK) } };
 }
 
@@ -33,6 +36,13 @@ const proseStepper = new ProseStepper();
 const activitiesStepper = new ActivitiesStepper();
 
 const steppers = [testStepper, proseStepper, activitiesStepper] as const;
+
+/** What each step of a feature read from BDD executes as, leaving its prose out. */
+const executedSteps = (feature: Awaited<ReturnType<typeof fromBdd>>, name: string) => {
+	const steps = feature[name];
+	if (!steps) throw new Error(`the feature doesn't have "${name}"`);
+	return steps.filter((step): step is TActionExecutor<string> => typeof step !== "string").map((executor) => executor());
+};
 
 describe("withAction", () => {
 	const { set, doSomething, registerOutcome, not } = withAction(testStepper);
@@ -116,6 +126,7 @@ describe("withAction", () => {
 
 describe("withAction object argument encoding", () => {
 	class ObjectArgStepper extends AStepper {
+		description = "Steps that take an object argument.";
 		steps = {
 			createIssuer: { gwta: "create issuer {issuer}", action: () => Promise.resolve(OK) },
 			issueCredential: { gwta: "issue credential {credential}", action: () => Promise.resolve(OK) },
@@ -230,7 +241,7 @@ describe("fromBdd", () => {
   prose: this is a test
 `;
 		const feature = await fromBdd(bdd, [...steppers]);
-		const results = feature["my feature"].filter((step): step is TActionExecutor<string> => typeof step !== "string").map((executor) => executor());
+		const results = executedSteps(feature, "my feature");
 		expect(results).toEqual([
 			{ actionName: "set", args: { what: "sound", value: "moo" }, gwta: "set sound to moo" },
 			{ actionName: "doSomething", args: {}, gwta: "do something" },
@@ -276,7 +287,7 @@ describe("fromBdd", () => {
 		`),
 		);
 		const featureFromBdd = await fromBdd(bdd.content, [...steppers]);
-		const results = featureFromBdd["Complex activities and outcomes"].filter((step): step is TActionExecutor<string> => typeof step !== "string").map((executor) => executor());
+		const results = executedSteps(featureFromBdd, "Complex activities and outcomes");
 		expect(results).toEqual([
 			{ actionName: "activity", args: { activity: "prepare environment for staging" }, gwta: "Activity: prepare environment for staging" },
 			{ actionName: "set", args: { what: "plan", value: "database migration" }, gwta: "set plan to database migration" },

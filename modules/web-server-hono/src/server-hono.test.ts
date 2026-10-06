@@ -244,7 +244,7 @@ describe("ServerHono", () => {
 		});
 
 		it("answers a request for a folder it serves only once the folder's gates pass it", async () => {
-			server.addKnownStaticFolder(tmpdir(), "/held", { description: "files a gate holds" }, (c) => c.text("held back", 403));
+			server.addKnownStaticFolder(tmpdir(), "/held", { description: "files a gate holds" }, (c) => Promise.resolve(c.text("held back", 403)));
 			for (const path of ["/held", "/held/any.png"]) {
 				const answered = await server.app.request(path);
 				expect(answered.status, path).toBe(403);

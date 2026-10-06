@@ -6,6 +6,7 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { ComboboxSchema, type TComboboxOption } from "../schemas.js";
 import { shuBaseStyles } from "./styles.js";
 import { revealInDocument } from "../reveal.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
@@ -235,9 +236,9 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 		if (items.length > 0) {
 			const hostTestId = this.getAttribute("testid");
 			let lastGroup: string | undefined;
-			for (let i = 0; i < items.length; i++) {
-				if (items[i].group && items[i].group !== lastGroup) {
-					lastGroup = items[i].group;
+			for (const [i, item] of items.entries()) {
+				if (item.group && item.group !== lastGroup) {
+					lastGroup = item.group;
 					const header = document.createElement("li");
 					header.textContent = lastGroup ?? "";
 					header.setAttribute("role", "presentation");
@@ -246,10 +247,10 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 				}
 				const li = document.createElement("li");
 				li.setAttribute("role", "option");
-				const isSelected = items[i].value === selectedValue;
+				const isSelected = item.value === selectedValue;
 				li.setAttribute("aria-selected", String(isSelected));
-				li.dataset.value = items[i].value;
-				if (hostTestId) li.setAttribute("data-testid", `${hostTestId}-option-${items[i].value}`);
+				li.dataset.value = item.value;
+				if (hostTestId) li.setAttribute("data-testid", `${hostTestId}-option-${item.value}`);
 				const mark = document.createElement("span");
 				mark.setAttribute("aria-hidden", "true");
 				mark.textContent = isSelected ? "✓" : "";
@@ -257,11 +258,11 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 				const body = document.createElement("div");
 				Object.assign(body.style, { flex: "1 1 auto", minWidth: "0" });
 				const main = document.createElement("div");
-				main.textContent = items[i].label;
+				main.textContent = item.label;
 				body.appendChild(main);
-				if (items[i].secondary) {
+				if (item.secondary) {
 					const sec = document.createElement("div");
-					sec.textContent = items[i].secondary ?? "";
+					sec.textContent = item.secondary ?? "";
 					Object.assign(sec.style, { color: "var(--shu-fg-muted)", fontSize: "var(--shu-font-sm)", whiteSpace: "nowrap" });
 					body.appendChild(sec);
 				}
@@ -320,7 +321,7 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 		if (this._focusIndex >= 0 && this._focusIndex < items.length) {
 			// Headers are non-selectable <li>s interleaved with option <li>s, so the
 			// focused option's DOM index != _focusIndex. Scroll by data-value instead.
-			const focused = ul.querySelector(`li[data-value="${CSS.escape(items[this._focusIndex].value)}"]`);
+			const focused = ul.querySelector(`li[data-value="${CSS.escape(itemAt(items, this._focusIndex).value)}"]`);
 			if (focused) revealInDocument(focused, { block: "nearest" });
 		}
 	}
@@ -376,9 +377,9 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 			} else if (e.key === "Enter") {
 				e.preventDefault();
 				if (this._focusIndex >= 0 && this._focusIndex < items.length) {
-					this.pick(items[this._focusIndex]);
+					this.pick(itemAt(items, this._focusIndex));
 				} else if (items.length === 1) {
-					this.pick(items[0]);
+					this.pick(itemAt(items, 0));
 				} else if (items.length > 1) {
 					// Multiple substring matches: prefer an exact value or label match
 					// before giving up. Without this an Enter on a fully-typed unique

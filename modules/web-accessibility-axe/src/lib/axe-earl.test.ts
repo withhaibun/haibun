@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { EARL_MODE, EARL_OUTCOME } from "./earl.js";
 import { axeAssertions } from "./axe-earl.js";
 import { axeResults, axeRule } from "./axe-results.test-fake.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 const STEP = "1791034142780-1.0.1.2";
 const SUMMARY = "Fix any of the following:\n  Element does not have an alt attribute";
@@ -30,8 +31,8 @@ describe("axeAssertions", () => {
 		]);
 	});
 	it("states one result for a rule axe lists under several outcomes, the most severe, at the elements it has that outcome at", () => {
-		expect(earl.results.filter(({ test }) => test.name === "image-alt help")).toEqual([earl.results[0]]);
-		expect(earl.results[0].result.pointers).toEqual(["#hero", "#logo"]);
+		expect(earl.results.filter(({ test }) => test.name === "image-alt help")).toEqual([itemAt(earl.results, 0)]);
+		expect(itemAt(earl.results, 0).result.pointers).toEqual(["#hero", "#logo"]);
 	});
 	it("doesn't record an address of a scheme other than the web's as a link, since the checked page supplies it", () => {
 		const SCRIPT = "javascript:alert(1)";
@@ -40,10 +41,10 @@ describe("axeAssertions", () => {
 			STEP,
 		);
 		expect(scripted.subject).toEqual({ id: SCRIPT });
-		expect(scripted.results[0].test.url).toBeUndefined();
+		expect(itemAt(scripted.results, 0).test.url).toBeUndefined();
 	});
 	it("names a rule by its guidance's address without the query, and keeps the guidance's own link", () => {
-		expect(earl.results[0].test).toEqual({
+		expect(itemAt(earl.results, 0).test).toEqual({
 			id: "https://dequeuniversity.com/rules/axe/4.13/image-alt",
 			name: "image-alt help",
 			description: "image-alt description",
@@ -52,7 +53,7 @@ describe("axeAssertions", () => {
 		});
 	});
 	it("points at each element a rule found, and states what fails there once", () => {
-		expect(earl.results[0].result).toEqual({ outcome: EARL_OUTCOME.failed, info: SUMMARY, pointers: ["#hero", "#logo"], impact: "critical" });
-		expect(earl.results[2].result).toEqual({ outcome: EARL_OUTCOME.passed, pointers: ["html"] });
+		expect(itemAt(earl.results, 0).result).toEqual({ outcome: EARL_OUTCOME.failed, info: SUMMARY, pointers: ["#hero", "#logo"], impact: "critical" });
+		expect(itemAt(earl.results, 2).result).toEqual({ outcome: EARL_OUTCOME.passed, pointers: ["html"] });
 	});
 });

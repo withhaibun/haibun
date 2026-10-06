@@ -12,6 +12,7 @@ import { OK } from "../schema/protocol.js";
 import { failWithDefaults, passWithDefaults } from "../lib/test/lib.js";
 import type { TWorld } from "../lib/world.js";
 import { runInStep } from "../lib/capability-context.js";
+import { itemAt } from "../lib/util/item-at.js";
 
 const SCROLL = {
 	name: "haibun.test.view.scroll_adjust",
@@ -62,8 +63,8 @@ describe("a watch: which occurrences, in what order", () => {
 		expect(held).toHaveLength(WATCH_WINDOW);
 		expect(blipWatch.seen).toBe(over);
 		// Oldest first, and the oldest kept is the one just past what the window dropped.
-		expect(held[0].value).toBe(over - WATCH_WINDOW);
-		expect(held[held.length - 1].value).toBe(over - 1);
+		expect(itemAt(held, 0).value).toBe(over - WATCH_WINDOW);
+		expect(itemAt(held, held.length - 1).value).toBe(over - 1);
 		expect(renderWatch(held, blipWatch.seen, blipWatch.totals())).toContain(`showing the most recent ${WATCH_WINDOW}`);
 	});
 
@@ -130,6 +131,7 @@ describe("a watch: which occurrences, in what order", () => {
 
 /** A stepper that records occurrences on demand, standing in for a real emitter so the run-facing path can be tested whole. */
 class Emitter extends AStepper {
+	description = "Records a scroll blip.";
 	steps = {
 		scrolled: {
 			gwta: "view scrolls {distance: number}",

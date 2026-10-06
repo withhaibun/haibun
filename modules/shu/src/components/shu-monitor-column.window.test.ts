@@ -2,6 +2,7 @@
 // What the log marks on its rail: the rows whose events have a mark, at the place a reader can scroll to; and where it
 // marks the moment being shown (cursorMark, shared with the document through virtual-column-model).
 import { describe, it, expect } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { opens, railMarkers, type TLogRow } from "./shu-monitor-column.js";
 import { markFor, MARK_COLOUR } from "../event-marker.js";
 
@@ -15,8 +16,8 @@ describe("what a log marks on its rail", () => {
 			marks.map((m) => m.index),
 			"only the middle row has one",
 		).toEqual([1]);
-		expect(marks[0].icon).toBe("✅");
-		expect(marks[0].color).toBe(MARK_COLOUR.ok);
+		expect(itemAt(marks, 0).icon).toBe("✅");
+		expect(itemAt(marks, 0).color).toBe(MARK_COLOUR.ok);
 	});
 
 	it("places a mark at the row's index in the log it was given, which is the log a reader scrolls", () => {
@@ -32,9 +33,9 @@ describe("what a log marks on its rail", () => {
 			row({ mark: { icon: "▸", color: MARK_COLOUR.feature }, step: "a-feature", message: "▸ feature" }),
 			row({ mark: { icon: "📦", color: MARK_COLOUR.artifact }, step: "", message: "saved" }),
 		]);
-		expect(marks[0].label).toBe("check the total it went wrong");
-		expect(marks[1].label, "every feature boundary would read the same without the step").toBe("a-feature ▸ feature");
-		expect(marks[2].label, "a row without a step is labelled by what it shows").toBe("saved");
+		expect(itemAt(marks, 0).label).toBe("check the total it went wrong");
+		expect(itemAt(marks, 1).label, "every feature boundary would read the same without the step").toBe("a-feature ▸ feature");
+		expect(itemAt(marks, 2).label, "a row without a step is labelled by what it shows").toBe("saved");
 	});
 
 	it("places a mark at the row's index in the RUN when the rows are the resident part of a longer run", () => {
@@ -63,7 +64,7 @@ describe("the rail marks what the timeline marks", () => {
 	});
 
 	it("carries a failure in the colour the shared vocabulary gives it", () => {
-		expect(railMarkers([row({ mark: markFor(failure) })])[0].color).toBe(MARK_COLOUR.fault);
+		expect(itemAt(railMarkers([row({ mark: markFor(failure) })]), 0).color).toBe(MARK_COLOUR.fault);
 	});
 
 	it("doesn't carry a mark for the noise that the two surfaces don't mark", () => {

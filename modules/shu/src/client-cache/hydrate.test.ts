@@ -6,6 +6,7 @@
  */
 import { ServerUnreachable } from "../hypermedia.js";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { CACHE_SHAPE, deviceStore } from "./device-store.js";
 import { hydrateClientCache, type TCachePayload } from "./hydrate.js";
@@ -55,8 +56,8 @@ describe("a run carried in a page", () => {
 		// A page carrying a run reads it through the page's own graph, which this case asserts.
 		const window = await runWindow(pageRunGraph(), { execution: EXECUTION });
 		expect(window.rows.length, "actuality the page carries").toBe(12);
-		expect(window.rows[0].text).toBe("step 0");
-		expect(window.rows[11].text).toBe("step 11");
+		expect(itemAt(window.rows, 0).text).toBe("step 0");
+		expect(itemAt(window.rows, 11).text).toBe("step 11");
 		expect(currentExecution(), "the execution the page carries is the one being read").toBe(EXECUTION);
 	});
 

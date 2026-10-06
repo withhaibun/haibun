@@ -2,7 +2,7 @@ import nodeFS from "fs";
 import path from "path";
 import type { TFeature } from "../lib/execution.js";
 import type { TBase } from "../lib/world.js";
-import { withNameType } from "../lib/features.js";
+import { withName } from "../lib/features.js";
 import { TFileSystem } from "../lib/util/node/workspace-lib.js";
 import { toBdd } from "../kireji/converter.js";
 import { type TRunPolicyConfig, type TDirFilter, featureMatchesFilter } from "../run-policy/run-policy-types.js";
@@ -83,17 +83,17 @@ async function recurse(
 				// into one TFeature since they're meant to be inlined into other features.
 				if (type === "background") {
 					const bddResult = toBdd(kirejiContent);
-					all.push(withNameType(base, here, bddResult.content, bddResult.lineMap));
+					all.push(withName(base, here, bddResult.content, bddResult.lineMap));
 				} else {
 					for (const [featureName, steps] of Object.entries(kirejiContent)) {
 						const single: TKirejiContent = { [featureName]: steps };
 						const bddResult = toBdd(single);
-						all.push(withNameType(base, here, bddResult.content, bddResult.lineMap, featureName));
+						all.push(withName(base, here, bddResult.content, bddResult.lineMap, featureName));
 					}
 				}
 			} else {
 				const contents = fs.readFileSync(here, "utf-8");
-				all.push(withNameType(base, here, contents));
+				all.push(withName(base, here, contents));
 			}
 		}
 	}

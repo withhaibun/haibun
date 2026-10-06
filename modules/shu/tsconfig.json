@@ -1,23 +1,12 @@
 {
+	"extends": "../tsconfig.settings.json",
 	"compilerOptions": {
-		"target": "ES2022",
-		"module": "Node16",
-		"moduleResolution": "node16",
-		"declaration": true,
 		"outDir": "build",
 		"rootDir": "src",
-		"strict": true,
-		"esModuleInterop": true,
-		"skipLibCheck": true,
-		"types": ["node"],
+		"target": "ES2022",
+		"experimentalDecorators": false,
+		"importHelpers": false,
 		"lib": ["ES2022", "DOM", "DOM.Iterable"]
-	},
-	"watchOptions": {
-		"watchFile": "priorityPollingInterval",
-		"watchDirectory": "dynamicPriorityPolling",
-		"fallbackPolling": "priorityInterval",
-		"synchronousWatchDirectory": true,
-		"excludeDirectories": ["node_modules", "build"]
 	},
 	"include": ["src"]
 }

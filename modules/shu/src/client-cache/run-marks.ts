@@ -13,6 +13,7 @@ import { SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "@haibun/core/lib/resources.js";
 import type { TDensityQuery } from "@haibun/core/lib/quad-types.js";
 import { bucketMarkerStyle, type TEventMarkerStyle } from "../event-marker.js";
 import type { TRunGraph } from "./run-graph.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 /** A mark of actuality: what it looks like, and the moment it stands for. A rail places it by that moment, so the same
  *  marks draw on a rail of any scale. */
@@ -61,7 +62,7 @@ export function runCounts(
 				from: new Date(from).toISOString(),
 				to: new Date(to).toISOString(),
 				buckets: divisions,
-				filters: [{ predicate: SEQ_PATH_FIELD.level, operator: "in", value: levels[0], values: levels }],
+				filters: [{ predicate: SEQ_PATH_FIELD.level, operator: "in", value: itemAt(levels, 0), values: levels }],
 			};
 			const { buckets } = await graph.density(query);
 			return buckets;
@@ -75,7 +76,7 @@ export function runCounts(
 export function marksOf(counts: Record<string, number>[][], { divisions, beginningOf }: { divisions: number; beginningOf: (division: number) => number }): TRunMark[] {
 	const marks: TRunMark[] = [];
 	for (let division = 0; division < divisions; division++) {
-		const held = counts.flatMap((perType, type) => Object.entries(perType[division] ?? {}).map(([group, count]) => ({ event: COUNTED[type].shapeOf(group), count })));
+		const held = counts.flatMap((perType, type) => Object.entries(perType[division] ?? {}).map(([group, count]) => ({ event: itemAt(COUNTED, type).shapeOf(group), count })));
 		const style = bucketMarkerStyle(held);
 		if (style) marks.push({ ...style, at: beginningOf(division) });
 	}

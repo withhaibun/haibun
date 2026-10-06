@@ -15,7 +15,7 @@ describe("ActivitiesStepper", () => {
 			stepper.registerOutcome("Is logged in as {user}", ['set loggedIn to "true"'], "/test.feature");
 
 			const step = stepper.steps["Is logged in as {user}"];
-			expect(step).toBeDefined();
+			if (!step) throw new Error("the outcome isn't registered as a step");
 			expect(step.gwta, "each placeholder in the outcome pattern takes a waypoint argument").toBe(`Is logged in as {user: ${DOMAIN_WAYPOINT_ARGUMENT}}`);
 			expect(step.description).toContain("Is logged in as {user}");
 			expect(step.action).toBeDefined();
@@ -55,7 +55,7 @@ describe("ActivitiesStepper", () => {
 			stepper.registerOutcome("Test outcome", proofStatements, proofPath);
 
 			const step = stepper.steps["Test outcome"];
-			expect(step).toBeDefined();
+			if (!step) throw new Error("the outcome isn't registered as a step");
 			expect(step.gwta).toBe("Test outcome");
 		});
 
@@ -68,7 +68,7 @@ describe("ActivitiesStepper", () => {
 			stepper.registerOutcome("Navigate to home", multiLineProof, "/test.feature");
 
 			const step = stepper.steps["Navigate to home"];
-			expect(step).toBeDefined();
+			if (!step) throw new Error("the outcome isn't registered as a step");
 			expect(step.gwta).toBe("Navigate to home");
 			expect(step.description).toContain("Navigate to home");
 			// The description should contain all the proof statements
@@ -88,7 +88,7 @@ describe("ActivitiesStepper", () => {
 			});
 
 			const step = stepper.steps['Test outcome with variable x is "1"'];
-			expect(step).toBeDefined();
+			if (!step) throw new Error("the outcome isn't registered as a step");
 			expect(step.source?.lineNumber).toBe(7);
 			expect(step.source?.path).toBe("/test/backgrounds/setup.feature");
 		});

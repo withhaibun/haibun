@@ -10,7 +10,8 @@ import { actionNotOK } from "../lib/util/index.js";
 import { readingAt, runActingAs } from "../lib/capability-context.js";
 import { getAuthority } from "../lib/session-authority.js";
 import { buildStepRegistry } from "../lib/step-registry.js";
-import { DELEGATIONS_READ_ACTION, DELEGATIONS_READ_METHOD, type IAuthorityVerifier } from "../lib/authority-types.js";
+import { DELEGATIONS_READ_ACTION, DELEGATIONS_READ_METHOD } from "../lib/authority-types.js";
+import { stubVerifier } from "../lib/test/fake-authority.js";
 import AuthorityStepper from "./authority-stepper.js";
 import LogicStepper from "./logic-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
@@ -87,10 +88,10 @@ describe("the calls held open", () => {
 describe("delegations to the caller", () => {
 	const delegation = { id: "urn:uuid:pool", controller: "did:key:zSwimmer", allowedAction: ["Pool:enter"] };
 	const records = { [delegation.id]: { persistedAs: "Capability", accessLevel: "private" as const } };
-	const verifier: IAuthorityVerifier = {
+	const verifier = stubVerifier({
 		verify: () => Promise.resolve({ ok: false as const, error: "the stand-in refuses every proof" }),
 		delegationsTo: (controller) => Promise.resolve({ delegations: controller === delegation.controller ? [delegation] : [], records }),
-	};
+	});
 	const opened = async () => {
 		const world = getDefaultWorld();
 		const stepper = new AuthorityStepper();

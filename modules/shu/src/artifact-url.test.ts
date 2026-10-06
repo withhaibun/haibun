@@ -7,6 +7,7 @@
 import { SIGNATURE_HEADER } from "@haibun/core/lib/signature-header.js";
 import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { READS_THE_RUNS_ARTIFACTS } from "@haibun/core/lib/actions.js";
 import { artifactUrl, shownArtifact, shownOrReported } from "./artifact-url.js";
 import { carryARun, openReportingPage, reportingTo, setupShuTest, type TReportedToRun, type TShuTestHandle } from "./test-setup.js";
@@ -42,8 +43,8 @@ describe("where a view shows an artifact of actuality", () => {
 	it("reads an artifact actuality serves under the page's private read, once, and shows it at an object URL", async () => {
 		expect(await shownArtifact(SCREENSHOT)).toBe("blob:shown-1");
 		expect(fetched.map(({ url }) => url)).toEqual([SCREENSHOT]);
-		expect(fetched[0].headers["capability-invocation"]).toContain(`action="${READS_THE_RUNS_ARTIFACTS}"`);
-		expect(fetched[0].headers[SIGNATURE_HEADER], "signed by the page's key").toContain(controller);
+		expect(itemAt(fetched, 0).headers["capability-invocation"]).toContain(`action="${READS_THE_RUNS_ARTIFACTS}"`);
+		expect(itemAt(fetched, 0).headers[SIGNATURE_HEADER], "signed by the page's key").toContain(controller);
 		expect(await shownArtifact(SCREENSHOT), "a view showing it again shows what was read").toBe("blob:shown-1");
 		expect(fetched).toHaveLength(1);
 	});

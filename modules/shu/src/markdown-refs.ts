@@ -15,6 +15,7 @@ import { parseRefHref } from "@haibun/core/lib/typed-links.js";
 import { JsonObjectTextSchema } from "@haibun/core/lib/json-text.js";
 import { isRefKind, renderRef, type TRefKind } from "./components/ref-navigation.js";
 import { getPropertyDefinition } from "./rels-cache.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 /**
  * A typed link renders its link text, never its rel. A typed link without link text (`[:cites](…)`) renders the rel's
@@ -39,13 +40,16 @@ export function refLinksPlugin(md: MarkdownIt, isType: (name: string) => boolean
 			if (block.type !== "inline" || !block.children) continue;
 			const children = block.children;
 			for (let i = 0; i < children.length; i++) {
-				if (children[i].type !== "link_open") continue;
-				const ref = parseRefHref(children[i].attrGet("href"), isType);
+				const linkOpen = itemAt(children, i);
+				if (linkOpen.type !== "link_open") continue;
+				const ref = parseRefHref(linkOpen.attrGet("href"), isType);
 				if (!ref) continue;
 				let j = i + 1;
 				let text = "";
-				for (; j < children.length && children[j].type !== "link_close"; j++) {
-					if (children[j].type === "text" || children[j].type === "code_inline") text += children[j].content;
+				for (; j < children.length; j++) {
+					const child = itemAt(children, j);
+					if (child.type === "link_close") break;
+					if (child.type === "text" || child.type === "code_inline") text += child.content;
 				}
 				if (j >= children.length) continue; // unbalanced, leave the link as-is
 				const tok = new state.Token("html_inline", "", 0);

@@ -29,6 +29,7 @@ afterAll(() => {
 });
 
 class VerifyStepper extends AStepper {
+	description = "Fetches from the web server and checks what it answers.";
 	steps = {
 		fetchFrom: {
 			gwta: `fetch from {url: ${DOMAIN_LINK}} includes {text: ${DOMAIN_TEXT}}`,
@@ -93,7 +94,7 @@ fetch from "http://localhost:${port}/pub/hello.txt" includes "Hello World"
 
 		const result = await passWithDefaults([feature], [WebServerStepper, VerifyStepper], { ...DEF_PROTO_OPTIONS, moduleOptions });
 		if (!result.ok) {
-			console.error(JSON.stringify(result.featureResults?.[0].stepResults, null, 2));
+			console.error(JSON.stringify(result.featureResults?.[0]?.stepResults, null, 2));
 		}
 		expect(result.ok).toBe(true);
 	});
@@ -113,7 +114,7 @@ fetch from "http://localhost:${port}/" includes "hello.txt"
 
 		const result = await passWithDefaults([feature], [WebServerStepper, VerifyStepper], { ...DEF_PROTO_OPTIONS, moduleOptions });
 		if (!result.ok) {
-			console.error(JSON.stringify(result.featureResults?.[0].stepResults, null, 2));
+			console.error(JSON.stringify(result.featureResults?.[0]?.stepResults, null, 2));
 		}
 		expect(result.ok).toBe(true);
 	});

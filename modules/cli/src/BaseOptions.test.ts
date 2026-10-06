@@ -8,7 +8,7 @@ const defaultEnv = { DEST: DEFAULT_DEST };
 describe("apply ENV", () => {
 	it("creates env", () => {
 		const res = BaseOptions.options.ENV.parse("a=1", defaultEnv);
-		expect(res.error).not.toBeDefined();
+		expect(res.parseError).not.toBeDefined();
 		expect(res.env).toEqual({ ...defaultEnv, a: "1" });
 	});
 	it("prevents collision", () => {

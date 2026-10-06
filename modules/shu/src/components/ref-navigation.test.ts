@@ -5,6 +5,7 @@
  * trail of columns.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { deepLinkOf, desiredPaneFor, followPaneLink, paneHref, refHref } from "./ref-navigation.js";
 import { PaneState, type DesiredPane } from "../pane-state.js";
@@ -60,7 +61,7 @@ describe("a link to a pane", () => {
 
 	it("is only an address of one column; any other href is the browser's to follow", () => {
 		expect(deepLinkOf(hashWithColumns(["type:A", "type:B"]))).toBeNull();
-		expect(deepLinkOf(`${paneHref(PANES[1])}&active=type%3APrincipal`)).toBeNull();
+		expect(deepLinkOf(`${paneHref(itemAt(PANES, 1))}&active=type%3APrincipal`)).toBeNull();
 		expect(deepLinkOf("https://example.com/#?col=type%3AA")).toBeNull();
 		expect(deepLinkOf("#section-2")).toBeNull();
 	});
@@ -94,9 +95,9 @@ describe("a link to a pane", () => {
 		});
 
 		it("adds the pane beside the others when a modifier is held", () => {
-			const { anchor, opened } = linkIn(paneHref(PANES[1]));
+			const { anchor, opened } = linkIn(paneHref(itemAt(PANES, 1)));
 			anchor.dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true, cancelable: true, ctrlKey: true }));
-			expect(opened.mock.calls[0][2]).toBe(true);
+			expect(itemAt(opened.mock.calls, 0)[2]).toBe(true);
 		});
 
 		it("leaves a link to anything else to the browser", () => {

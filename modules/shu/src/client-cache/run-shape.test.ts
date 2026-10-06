@@ -2,6 +2,7 @@
 // an hour does, and a run that grows is counted only where it has grown. Every reading states the graph it reads, so
 // these read a store made here and don't install a store.
 import { describe, it, expect } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
@@ -67,7 +68,7 @@ describe("the shape of a run, by division", () => {
 		const { graph } = await aRun([...Array.from({ length: 20 }, (_, i) => ({ at: 1000 + i, status: "passed" })), { at: 1010, status: "failed" }]);
 		const shape = runShape(graph, { divisions: 1 });
 		await shape.update(1020);
-		expect(shape.marks[0].color).toBe(MARK_COLOUR.fault);
+		expect(itemAt(shape.marks, 0).color).toBe(MARK_COLOUR.fault);
 	});
 
 	it("marks a division by what it holds most of, counting what actuality logged as well as what it did", async () => {
@@ -81,7 +82,7 @@ describe("the shape of a run, by division", () => {
 		);
 		const shape = runShape(graph, { divisions: 1 });
 		await shape.update(1003);
-		expect(shape.marks[0].color).toBe(MARK_COLOUR.pending);
+		expect(itemAt(shape.marks, 0).color).toBe(MARK_COLOUR.pending);
 	});
 
 	it("doesn't mark a division where actuality doesn't hold a record, and doesn't count one either", async () => {
@@ -103,7 +104,7 @@ describe("the shape of a run, by division", () => {
 		const shape = runShape(graph, { divisions: 1 });
 		await shape.update(1001);
 		expect(shape.marks.length, "the debug message is not shown at this level, the error is").toBe(1);
-		expect(shape.marks[0].color).toBe(MARK_COLOUR.fault);
+		expect(itemAt(shape.marks, 0).color).toBe(MARK_COLOUR.fault);
 	});
 
 	it("is the shape of one run, over a store holding more than one", async () => {

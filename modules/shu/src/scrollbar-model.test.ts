@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import {
 	thumbHeightPx,
 	thumbTopPx,
@@ -104,8 +105,8 @@ describe("clusterMarkers", () => {
 		const markers = [mk(10, "a"), mk(11, "b"), mk(12, "c"), mk(900_000, "d")];
 		const clustered = clusterMarkers(markers, 1_000_000, RAIL);
 		expect(clustered).toHaveLength(2);
-		expect(clustered[0].count).toBe(3);
-		expect(clustered[1].count).toBe(1);
+		expect(itemAt(clustered, 0).count).toBe(3);
+		expect(itemAt(clustered, 1).count).toBe(1);
 	});
 
 	it("keeps well-separated annotations distinct", () => {
@@ -153,9 +154,9 @@ describe("hardening (adversarial review)", () => {
 		];
 		const clustered = clusterMarkers(markers, 1_000_000, RAIL);
 		expect(clustered).toHaveLength(1);
-		expect(clustered[0].count).toBe(3);
-		expect(clustered[0].id).toBe("a"); // the topmost (lowest index)
-		expect(clustered[0].icon).toBe("📝");
+		expect(itemAt(clustered, 0).count).toBe(3);
+		expect(itemAt(clustered, 0).id).toBe("a"); // the topmost (lowest index)
+		expect(itemAt(clustered, 0).icon).toBe("📝");
 	});
 
 	it("degenerate guards: empty column, zero-height rail, single-row set", () => {
@@ -191,7 +192,7 @@ describe("what a press on the rail means", () => {
 	it("spreads the rail over every row rather than flattening its ends", () => {
 		const picked = [0.05, 0.25, 0.5, 0.75, 0.95].map((f) => pressTarget(f * RAIL, [], 100, RAIL));
 		expect(new Set(picked).size, "five heights, five different rows").toBe(5);
-		expect(picked[0]).toBeLessThan(picked[4]);
+		expect(itemAt(picked, 0)).toBeLessThan(itemAt(picked, 4));
 	});
 
 	it("still means the mark just inside the reach, and the row pressed just outside it", () => {

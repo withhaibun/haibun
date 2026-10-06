@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { arrayWindowedSource, lazyWindowedSource } from "./windowed-source.js";
 
 /** A fetcher whose row value equals its absolute index, so tests can assert exact rows, with a call counter. */
@@ -55,7 +56,7 @@ describe("lazyWindowedSource", () => {
 		expect(src.rowAt(4_999_999)).toBe(4_999_999);
 		// one fetch for the single spanned page window, not the whole set
 		expect(calls().length).toBe(1);
-		expect(calls()[0][0]).toBeGreaterThan(4_000_000);
+		expect(itemAt(calls(), 0)[0]).toBeGreaterThan(4_000_000);
 	});
 });
 

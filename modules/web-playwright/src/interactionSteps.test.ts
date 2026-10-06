@@ -4,6 +4,7 @@ import { createSteppers } from "@haibun/core/lib/util/index.js";
 import { Resolver } from "@haibun/core/phases/Resolver.js";
 import { asExpandedFeatures } from "@haibun/core/lib/resolver-features.js";
 import WebPlaywright from "./web-playwright.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 describe("click", () => {
 	it("click", async () => {
@@ -11,7 +12,7 @@ describe("click", () => {
 		const steppers = createSteppers([WebPlaywright]);
 		const resolver = new Resolver(steppers);
 		const steps = await resolver.resolveStepsFromFeatures(features);
-		expect(steps[0].featureSteps[0].action.actionName).toBe("click");
+		expect(itemAt(itemAt(steps, 0).featureSteps, 0).action.actionName).toBe("click");
 	});
 });
 describe("clickBy", () => {
@@ -20,7 +21,7 @@ describe("clickBy", () => {
 		const steppers = createSteppers([WebPlaywright]);
 		const resolver = new Resolver(steppers);
 		const steps = await resolver.resolveStepsFromFeatures(features);
-		expect(steps[0].featureSteps[0].action.actionName).toBe("clickBy");
+		expect(itemAt(itemAt(steps, 0).featureSteps, 0).action.actionName).toBe("clickBy");
 	});
 });
 describe("requestsMatching", () => {
@@ -29,6 +30,6 @@ describe("requestsMatching", () => {
 		const steppers = createSteppers([WebPlaywright]);
 		const resolver = new Resolver(steppers);
 		const steps = await resolver.resolveStepsFromFeatures(features);
-		expect(steps[0].featureSteps.map((f) => f.action.actionName)).toEqual(["requestsMatching", "requestsMatching"]);
+		expect(itemAt(steps, 0).featureSteps.map((f) => f.action.actionName)).toEqual(["requestsMatching", "requestsMatching"]);
 	});
 });

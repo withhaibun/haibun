@@ -4,6 +4,7 @@ import { buildConcernCatalog, getJsonLdContext } from "@haibun/core/lib/hypermed
 import { toRegisteredDomain } from "@haibun/core/lib/domains.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 const registered = Object.fromEntries(earlDomainDefinitions.map((definition) => [definition.selectors[0], toRegisteredDomain(definition)]));
 
@@ -24,18 +25,19 @@ const assertions = (step: string): TEarlAssertions => ({
 describe("EARL types", () => {
 	it("are persisted types the concern catalog accepts, each assertion edge reaching its EARL class", () => {
 		const catalog = buildConcernCatalog(registered);
-		const { edges } = catalog.persisted[EARL_LABEL.assertion];
-		expect(edges[EARL_ASSERTION_EDGE.assertedBy].targets).toEqual([EARL_LABEL.assertor]);
-		expect(edges[EARL_ASSERTION_EDGE.subject].targets).toEqual([EARL_LABEL.testSubject]);
-		expect(edges[EARL_ASSERTION_EDGE.test].targets).toEqual([EARL_LABEL.testCase]);
-		expect(edges[EARL_ASSERTION_EDGE.result].targets).toEqual([EARL_LABEL.testResult]);
-		expect(edges[EARL_ASSERTION_EDGE.wasGeneratedBy].targets).toEqual([SEQ_PATH_LABEL]);
+		expect(catalog.persisted[EARL_LABEL.assertion]?.edges).toMatchObject({
+			[EARL_ASSERTION_EDGE.assertedBy]: { targets: [EARL_LABEL.assertor] },
+			[EARL_ASSERTION_EDGE.subject]: { targets: [EARL_LABEL.testSubject] },
+			[EARL_ASSERTION_EDGE.test]: { targets: [EARL_LABEL.testCase] },
+			[EARL_ASSERTION_EDGE.result]: { targets: [EARL_LABEL.testResult] },
+			[EARL_ASSERTION_EDGE.wasGeneratedBy]: { targets: [SEQ_PATH_LABEL] },
+		});
 	});
 	it("serve each class and property as its EARL term", () => {
 		const context = getJsonLdContext(registered)["@context"] as Record<string, { "@id": string; "@context": Record<string, { "@id": string }> }>;
 		const assertion = context[EARL_LABEL.assertion];
-		expect(assertion["@id"]).toBe("earl:Assertion");
-		expect(Object.fromEntries(Object.values(EARL_ASSERTION_EDGE).map((edge) => [edge, assertion["@context"][edge]?.["@id"]]))).toEqual({
+		expect(assertion?.["@id"]).toBe("earl:Assertion");
+		expect(Object.fromEntries(Object.values(EARL_ASSERTION_EDGE).map((edge) => [edge, assertion?.["@context"][edge]?.["@id"]]))).toEqual({
 			assertedBy: "earl:assertedBy",
 			subject: "earl:subject",
 			test: "earl:test",
@@ -43,9 +45,13 @@ describe("EARL types", () => {
 			wasGeneratedBy: "prov:wasGeneratedBy",
 		});
 		const result = context[EARL_LABEL.testResult];
-		expect(result["@id"]).toBe("earl:TestResult");
-		expect([result["@context"].outcome["@id"], result["@context"].pointers["@id"], result["@context"].info["@id"]]).toEqual(["earl:outcome", "earl:pointer", "earl:info"]);
-		expect([EARL_LABEL.assertor, EARL_LABEL.testSubject, EARL_LABEL.testCase].map((label) => context[label]["@id"])).toEqual([
+		expect(result?.["@id"]).toBe("earl:TestResult");
+		expect([result?.["@context"].outcome?.["@id"], result?.["@context"].pointers?.["@id"], result?.["@context"].info?.["@id"]]).toEqual([
+			"earl:outcome",
+			"earl:pointer",
+			"earl:info",
+		]);
+		expect([EARL_LABEL.assertor, EARL_LABEL.testSubject, EARL_LABEL.testCase].map((label) => context[label]?.["@id"])).toEqual([
 			"earl:Assertor",
 			"earl:TestSubject",
 			"earl:TestCase",
@@ -58,7 +64,7 @@ describe("writeEarlAssertions", () => {
 		const store = new QuadStore();
 		const ids = await writeEarlAssertions(store, assertions(STEP));
 		expect(ids).toEqual([`${STEP} ${IMAGE_ALT.id}`, `${STEP} ${TITLE.id}`]);
-		const edges = await store.query({ subject: ids[0], namedGraph: EARL_LABEL.assertion });
+		const edges = await store.query({ subject: itemAt(ids, 0), namedGraph: EARL_LABEL.assertion });
 		const target = (edge: string) => edges.find((quad) => quad.predicate === edge);
 		expect(target(EARL_ASSERTION_EDGE.assertedBy)).toMatchObject({ object: "https://example.com/checker/1.0", objectType: EARL_LABEL.assertor });
 		expect(target(EARL_ASSERTION_EDGE.subject)).toMatchObject({ object: "https://example.com/page", objectType: EARL_LABEL.testSubject });
@@ -71,7 +77,7 @@ describe("writeEarlAssertions", () => {
 			pointers: ["#hero img"],
 			impact: "critical",
 		});
-		expect(await store.getIndividual(EARL_LABEL.assertion, ids[0])).toMatchObject({ mode: EARL_MODE.automatic });
+		expect(await store.getIndividual(EARL_LABEL.assertion, itemAt(ids, 0))).toMatchObject({ mode: EARL_MODE.automatic });
 	});
 	it("shares one record of a test case, an assertor and a subject among the assertions that name them", async () => {
 		const store = new QuadStore();

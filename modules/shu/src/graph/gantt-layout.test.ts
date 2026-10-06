@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { timeToGanttX, ganttBarTimes, ganttAxisTicks, type GanttScale } from "./gantt-layout.js";
 import { GANTT_WORLD_W } from "./gantt-layout.js";
 
@@ -33,13 +34,13 @@ describe("ganttAxisTicks (calendar marks sized to the span, for a draggable date
 	it("uses daily marks, aligned to UTC midnight, for a short span", () => {
 		const ticks = ganttAxisTicks({ min: Date.parse("2026-06-01T00:00:00.000Z"), span: 5 * DAY });
 		expect(ticks.map((t) => t.label)).toEqual(["06-01", "06-02", "06-03", "06-04", "06-05", "06-06"]);
-		expect(ticks[0].z).toBeCloseTo(-GANTT_WORLD_W / 2); // first tick at the axis min
+		expect(itemAt(ticks, 0).z).toBeCloseTo(-GANTT_WORLD_W / 2); // first tick at the axis min
 	});
 
 	it("steps up to a coarser day interval as the span grows (≈8 marks max)", () => {
 		const ticks = ganttAxisTicks({ min: Date.parse("2026-01-01T00:00:00.000Z"), span: 100 * DAY });
 		expect(ticks.length).toBeLessThanOrEqual(TARGET_OK);
-		expect(ticks.every((t, i) => i === 0 || (t.ms - ticks[i - 1].ms) % (14 * DAY) === 0)).toBe(true); // 14-day step
+		expect(ticks.every((t, i) => i === 0 || (t.ms - itemAt(ticks, i - 1).ms) % (14 * DAY) === 0)).toBe(true); // 14-day step
 	});
 
 	it("walks calendar months (UTC, without drift) for a multi-month span", () => {

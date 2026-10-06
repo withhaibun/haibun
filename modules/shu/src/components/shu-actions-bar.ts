@@ -36,6 +36,7 @@ import { eventsAffectLabel } from "@haibun/core/lib/quad-types.js";
 import { isOffline } from "../rpc-registry.js";
 import { getActionBarChatExtensionTags } from "../rels-cache.js";
 import { reportToRun } from "../client-log.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
@@ -233,7 +234,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 			data-testid=${`${this.testIdPrefix}mode-select`}
 			@change=${this.onModeChange}
 		>
-			${BAR_MODES.filter((mode) => mode !== "ask" || hasAsk).map((mode) => html`<option value=${mode} ?selected=${this.state.mode === mode}>${mode[0].toUpperCase()}${mode.slice(1)}</option>`)}
+			${BAR_MODES.filter((mode) => mode !== "ask" || hasAsk).map((mode) => html`<option value=${mode} ?selected=${this.state.mode === mode}>${itemAt(mode, 0).toUpperCase()}${mode.slice(1)}</option>`)}
 		</select>`;
 	}
 

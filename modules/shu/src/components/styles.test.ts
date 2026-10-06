@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, test } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { shuBaseStyles, SHU_BASE, SHU_TOKENS, installShuTokens } from "./styles.js";
 
 describe("design-token cascade", () => {
@@ -28,6 +29,6 @@ describe("design-token cascade", () => {
 		installShuTokens();
 		const styles = document.querySelectorAll("#shu-tokens-root");
 		expect(styles).toHaveLength(1);
-		expect(styles[0].textContent).toBe(SHU_TOKENS);
+		expect(itemAt(styles, 0).textContent).toBe(SHU_TOKENS);
 	});
 });

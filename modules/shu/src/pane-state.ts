@@ -27,6 +27,7 @@ import { activePane } from "./signals.js";
 import type { ShuColumnPane } from "./components/shu-column-pane.js";
 import type { ShuColumnStrip } from "./components/shu-column-strip.js";
 import { pagePinned } from "./page-pinned.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 const FlagSchema = z.enum(["min", "max"]).optional();
 /** Where a pane stands and how: minimized or maximized, and docked along the bottom of the app rather than a column. */
@@ -403,7 +404,7 @@ class PaneStateImpl {
 		if (!addToSelection && sourceIdx >= 0) {
 			const panes = this.held.strip.panes;
 			for (let i = panes.length - 1; i > sourceIdx; i--) {
-				const pane = panes[i];
+				const pane = itemAt(panes, i);
 				// A prune leaves a pinned pane and a docked pane, which isn't in the column order. A page pane it closes returns
 				// to its place.
 				if (pane.hasAttribute(SHU_ATTR.PINNED) || pane.docked) continue;

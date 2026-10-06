@@ -29,6 +29,7 @@ const AuthSessionSchema = z.object({ id: z.string(), subject: z.string(), issued
  * `productsDomain: DOMAIN_AUTH_SESSION` is the declared postcondition.
  */
 class AuthStepper extends AStepper implements IHasCycles {
+	description = "Signs in and shows the current session.";
 	cycles: IStepperCycles = {
 		getConcerns: () => ({ domains: [{ selectors: [DOMAIN_AUTH_SESSION], schema: AuthSessionSchema, description: "An authenticated session for a subject" }] }),
 	};
@@ -90,6 +91,7 @@ ensure Logged in`,
 		// step doesn't exist. A permissive ad-hoc domain is registered via a minimal stepper so
 		// the waypoint declares a known domain key whose chain doesn't have a producer.
 		class DomainOnlyStepper extends AStepper implements IHasCycles {
+			description = "Declares the session domain without a step that produces it.";
 			cycles: IStepperCycles = { getConcerns: () => ({ domains: [{ selectors: [DOMAIN_AUTH_SESSION], schema: AuthSessionSchema, description: "Authenticated session" }] }) };
 			steps: TStepperSteps = {};
 		}
@@ -116,6 +118,7 @@ ensure Logged in`,
 	//      run's authority, so the caller lacking it is stated: one holding only another action.
 	it("(1d) capability gating: producer requiring an unheld capability is filtered, goal becomes unreachable", async () => {
 		class GatedAuthStepper extends AStepper implements IHasCycles {
+			description = "Signs in behind a capability.";
 			cycles: IStepperCycles = { getConcerns: () => ({ domains: [{ selectors: [DOMAIN_AUTH_SESSION], schema: AuthSessionSchema, description: "Authenticated session" }] }) };
 			steps: TStepperSteps = {
 				signIn: {

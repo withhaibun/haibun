@@ -1,6 +1,7 @@
 // A rail carries the whole run, however long it ran: the window a reader holds is where they pick a moment, and what
 // actuality did outside it still has a place at the ends.
 import { describe, it, expect } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { FOCUS_SHARE, momentAt, railAt, type TRunFocus, type TRunSpan } from "./run-scale.js";
 
 const HOUR = 3600_000;
@@ -35,7 +36,7 @@ describe("where a moment of a run sits on a rail", () => {
 		const span: TRunSpan = { first: 0, last: YEAR };
 		const focus: TRunFocus = { at: YEAR / 2, from: YEAR / 2 - HOUR, to: YEAR / 2 + HOUR };
 		const at = Array.from({ length: 40 }, (_, i) => railAt((i * YEAR) / 39, span, focus));
-		for (let i = 1; i < at.length; i++) expect(at[i], `moment ${i} sits after moment ${i - 1}`).toBeGreaterThanOrEqual(at[i - 1]);
+		for (let i = 1; i < at.length; i++) expect(itemAt(at, i), `moment ${i} sits after moment ${i - 1}`).toBeGreaterThanOrEqual(itemAt(at, i - 1));
 		expect(at[0]).toBe(0);
 		expect(at[at.length - 1]).toBe(1);
 	});

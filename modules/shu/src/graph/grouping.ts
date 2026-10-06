@@ -4,6 +4,7 @@
  */
 
 import { HYPERMEDIA_ROLE_KEY } from "../graph-model.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 export type XYZ = { x: number; y: number; z: number };
 
@@ -49,8 +50,8 @@ export type GroupAnchor = { x: number; y: number };
 export function ringAnchors(keys: string[], radius: number): Map<string, GroupAnchor> {
 	const anchors = new Map<string, GroupAnchor>();
 	const k = keys.length;
-	if (k === 1) anchors.set(keys[0], { x: 0, y: 0 });
-	else for (let i = 0; i < k; i++) anchors.set(keys[i], { x: Math.cos((2 * Math.PI * i) / k) * radius, y: Math.sin((2 * Math.PI * i) / k) * radius });
+	if (k === 1) anchors.set(itemAt(keys, 0), { x: 0, y: 0 });
+	else for (const [i, key] of keys.entries()) anchors.set(key, { x: Math.cos((2 * Math.PI * i) / k) * radius, y: Math.sin((2 * Math.PI * i) / k) * radius });
 	return anchors;
 }
 
@@ -70,7 +71,7 @@ export const IN_CELL_GAP = 12;
 export function shelfPack(sizes: ReadonlyMap<string, { w: number; h: number }>, gap: number): Map<string, GroupAnchor> {
 	const keys = [...sizes.keys()];
 	if (keys.length === 0) return new Map();
-	if (keys.length === 1) return new Map([[keys[0], { x: 0, y: 0 }]]);
+	if (keys.length === 1) return new Map([[itemAt(keys, 0), { x: 0, y: 0 }]]);
 	// Padded cell per container: the box plus a right/bottom margin so adjacent boxes stay `gap` apart on the advancing axis.
 	const cells = keys.map((k) => {
 		const s = sizes.get(k);

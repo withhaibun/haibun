@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
@@ -63,10 +64,10 @@ describe("projectFilterClusters", () => {
 			timeCursor: 100,
 		});
 		expect(result).toHaveLength(1);
-		expect(result[0].type).toBe("Kihan");
-		expect(result[0].totalCount).toBe(2);
-		expect(result[0].sampledCount).toBe(2);
-		expect(result[0].omittedCount).toBe(0);
+		expect(itemAt(result, 0).type).toBe("Kihan");
+		expect(itemAt(result, 0).totalCount).toBe(2);
+		expect(itemAt(result, 0).sampledCount).toBe(2);
+		expect(itemAt(result, 0).omittedCount).toBe(0);
 	});
 
 	it("drops types that don't have a visible subject at the cursor", () => {
@@ -84,7 +85,7 @@ describe("projectFilterClusters", () => {
 
 	it("counts unique subjects, not quad rows", () => {
 		const result = projectFilterClusters({ knownClusters: new Map(), allQuads: [], visibleQuads: [quad("Kihan", "a"), quad("Kihan", "a"), quad("Kihan", "b")], timeCursor: 100 });
-		expect(result[0].totalCount).toBe(2);
+		expect(itemAt(result, 0).totalCount).toBe(2);
 	});
 
 	it("passes schema chip counts through unchanged, getClusteredQuads serves the schema already pruned to the terms the data uses (pruneOntologyToUse), so the counts arrive correct", () => {

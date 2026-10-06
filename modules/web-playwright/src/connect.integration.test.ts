@@ -8,6 +8,7 @@ import { chromium, type BrowserContext, type Page } from "playwright";
 import { failWithDefaults, freePort, getDefaultWorld, passWithDefaults } from "@haibun/core/lib/test/lib.js";
 import { DEFAULT_DEST } from "@haibun/core/schema/protocol.js";
 import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { queryFacts } from "@haibun/core/lib/working-memory.js";
 import { HTTP_REQUEST_LABEL } from "@haibun/core/lib/resources.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
@@ -35,7 +36,7 @@ beforeAll(async () => {
 	const port = await freePort();
 	profile = mkdtempSync(join(tmpdir(), "haibun-connect-"));
 	owners = await chromium.launchPersistentContext(profile, { headless: true, args: [`--remote-debugging-port=${port}`] });
-	[ownersPage] = owners.pages();
+	ownersPage = itemAt(owners.pages(), 0);
 	endpoint = `http://127.0.0.1:${port}`;
 });
 

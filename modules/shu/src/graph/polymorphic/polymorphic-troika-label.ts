@@ -1,3 +1,4 @@
+/// <reference path="./troika-three-text.d.ts" />
 /**
  * A node's render object behind ONE uniform handle, NodeVisual, so pick, billboard, focus dimming and the opacity
  * readback never branch on the object's concrete type. Two implementations:

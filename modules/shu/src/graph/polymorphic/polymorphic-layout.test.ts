@@ -6,6 +6,7 @@
  * ends closer than an unlinked one, a pin holds, and the same input places the same way.
  */
 import { describe, expect, it } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { forceLayout } from "./polymorphic-layout.js";
 import type { ForceContext } from "./force-layout.js";
 import type { FGLink, FGNode } from "./polymorphic-graph-types.js";
@@ -52,10 +53,10 @@ describe("where a layout puts the nodes", () => {
 	});
 
 	it("settles a linked pair closer together than an unlinked one, which is the spring doing its work", () => {
-		const nodes = ["a", "b", "c", "d"].map((id) => node(id));
+		const [a, b, c, d] = [node("a"), node("b"), node("c"), node("d")];
+		const nodes = [a, b, c, d];
 		const links: FGLink[] = [{ source: "a", target: "b", predicate: "narrate" }];
 		forceLayout(context(nodes)).place(nodes, links);
-		const [a, b, c, d] = nodes;
 		expect(gap(a, b)).toBeLessThan(gap(c, d));
 	});
 
@@ -64,8 +65,8 @@ describe("where a layout puts the nodes", () => {
 		const nodes = ["a", "b"].map((id) => node(id));
 		const links: FGLink[] = [{ source: "a", target: "b", predicate: "narrate" }];
 		forceLayout(context(nodes)).place(nodes, links);
-		expect(links[0].source).toBe(nodes[0]);
-		expect(links[0].target).toBe(nodes[1]);
+		expect(itemAt(links, 0).source).toBe(itemAt(nodes, 0));
+		expect(itemAt(links, 0).target).toBe(itemAt(nodes, 1));
 	});
 
 	it("throws on a link naming a node that is not in the set, rather than drawing a line to a missing node", () => {

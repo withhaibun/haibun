@@ -24,13 +24,13 @@ export class KnownSizeFlowLayout extends FlowLayout {
 
 	override updateItemSizes(sizes: TSizes): void {
 		const dim = this.direction === "horizontal" ? "width" : "height";
-		for (const key of Object.keys(sizes)) {
+		for (const [key, measured] of Object.entries(sizes)) {
 			const idx = Number(key);
 			if (this.rowSize(idx) !== undefined) {
 				this.#known.add(idx);
 				continue;
 			}
-			const size = sizes[idx][dim];
+			const size = measured[dim];
 			this.#sum += size - (this.#measured.get(idx) ?? 0);
 			this.#measured.set(idx, size);
 		}

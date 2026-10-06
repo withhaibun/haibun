@@ -42,8 +42,7 @@ describe("the values a filter offers", () => {
 
 	it("doesn't return select values for Comment (it doesn't have enum-backed fields)", async () => {
 		const world = stepper.getWorld();
-		const commentDomain = mapDefinitionsToDomains([commentDomainDefinition])[commentDomainDefinition.selectors.sort().join(" | ")];
-		world.domains = { ...world.domains, comment: commentDomain };
+		world.domains = { ...world.domains, ...mapDefinitionsToDomains([commentDomainDefinition]) };
 		world.shared.getStore = vi.fn(() => mockQuadStore());
 
 		const result = await stepper.steps.getSelectValues.action({ label: "Comment" });

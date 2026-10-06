@@ -18,6 +18,7 @@ import { RUN_ARTIFACT_FIELD, RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-art
 import { RECORDED_AT_TIME_FIELD, SEQ_PATH_FIELD, compareSeqPath, parseRecordName, type TRecordName } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import type { TRunGraph } from "./run-graph.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 /** How many records a reader is shown around where they are. */
 export const RUN_WINDOW_SIZE = 10000;
@@ -233,12 +234,15 @@ export function producedUnderSteps(rows: TRunRow[]): TRunRow[] {
 /** A window and the moments it spans: its first and last row's instants. What a step produced is claimed where the
  *  window is assembled, since one read answers with part of it. */
 function windowOf(rows: TRunRow[]): TRunWindow {
-	return { rows, ...(rows.length ? { from: rows[0].at, to: rows[rows.length - 1].at } : {}) };
+	return { rows, ...(rows.length ? { from: itemAt(rows, 0).at, to: itemAt(rows, rows.length - 1).at } : {}) };
 }
 
 /** The execution of the newest row that names one, which is the actuality a window of these rows is of. */
 function newestExecution(rows: TRunRow[]): string | undefined {
-	for (let i = rows.length - 1; i >= 0; i--) if (rows[i].name) return rows[i].name?.execution;
+	for (let i = rows.length - 1; i >= 0; i--) {
+		const { name } = itemAt(rows, i);
+		if (name) return name.execution;
+	}
 	return undefined;
 }
 
@@ -378,7 +382,7 @@ export async function runWindow(
 		if (limit <= 0) return [];
 		const perType = await Promise.all(RUN_TYPES.map((type) => side(graph, type, from, direction, limit, shown, substeps)));
 		// The store answered at the levels asked for, so what is left to drop is a record without a time to place it by.
-		const rows = perType.flatMap((records, i) => records.map((record) => rowOfRecord(RUN_TYPES[i].label, record))).filter((r) => !Number.isNaN(r.at));
+		const rows = perType.flatMap((records, i) => records.map((record) => rowOfRecord(itemAt(RUN_TYPES, i).label, record))).filter((r) => !Number.isNaN(r.at));
 		rows.sort(inRunOrder);
 		return direction === "before" ? rows.slice(-limit) : rows.slice(0, limit);
 	};
@@ -389,7 +393,7 @@ export async function runWindow(
 	// run takes.
 	if (since !== undefined) {
 		const perType = await Promise.all(RUN_TYPES.map((type) => side(graph, { ...type, timeField: RECORDED_AT_TIME_FIELD }, since, "after", size, shown, substeps)));
-		const rows = perType.flatMap((records, i) => records.map((record) => rowOfRecord(RUN_TYPES[i].label, record))).filter((r) => !Number.isNaN(r.at));
+		const rows = perType.flatMap((records, i) => records.map((record) => rowOfRecord(itemAt(RUN_TYPES, i).label, record))).filter((r) => !Number.isNaN(r.at));
 		return windowOf(boundToOne(oneEach(rows)));
 	}
 	// Where a moment isn't named the window is the live edge, which is the newest records and doesn't extend past them.

@@ -41,6 +41,7 @@
  */
 import { GOAL_FINDING, type TBinding, type TFieldBinding, type TMichi } from "@haibun/core/lib/goal-resolver.js";
 import { EDGE_KIND, NODE_KIND, type TGraph, type TGraphEdge, type TGraphNode } from "./types.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 export function pathId(index: number): string {
 	return `path-${index}`;
@@ -227,7 +228,7 @@ export function projectGoalPaths(input: TGoalPathsInput): TGraph {
 			}
 		});
 
-		const lastStepId = stepIds[stepIds.length - 1];
+		const lastStepId = itemAt(stepIds, stepIds.length - 1);
 		const ctx: TEmitContext = { nodes, edges, pid, producerByDomain };
 
 		// Bindings are the input the goal-producing step consumes. Route them

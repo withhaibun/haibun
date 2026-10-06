@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { groupCellSize, gridSlot } from "./group-grid.js";
 import { shelfPack, groupBounds, GROUP_GAP, ENCLOSURE_PAD } from "../grouping.js";
 import { collideRadius, chipTextHeight } from "./layout-forces.js";
@@ -43,7 +44,8 @@ describe("grouped layout: enclosure boxes are mutually exclusive (they don't ove
 
 	it("role-grouped boxes don't overlap", () => {
 		const boxes = boxesFor(roleLike);
-		for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) expect(overlapArea(boxes[i], boxes[j]), `${boxes[i].k} ∩ ${boxes[j].k}`).toBe(0);
+		for (let i = 0; i < boxes.length; i++)
+			for (let j = i + 1; j < boxes.length; j++) expect(overlapArea(itemAt(boxes, i), itemAt(boxes, j)), `${itemAt(boxes, i).k} ∩ ${itemAt(boxes, j).k}`).toBe(0);
 	});
 
 	it("each drawn box fits inside its reserved cell (box ⊆ cell), so shelf-pack spacing is sufficient", () => {
@@ -63,6 +65,7 @@ describe("grouped layout: enclosure boxes are mutually exclusive (they don't ove
 
 	it("type-grouped boxes don't overlap", () => {
 		const boxes = boxesFor(typeLike);
-		for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) expect(overlapArea(boxes[i], boxes[j]), `${boxes[i].k} ∩ ${boxes[j].k}`).toBe(0);
+		for (let i = 0; i < boxes.length; i++)
+			for (let j = i + 1; j < boxes.length; j++) expect(overlapArea(itemAt(boxes, i), itemAt(boxes, j)), `${itemAt(boxes, i).k} ∩ ${itemAt(boxes, j).k}`).toBe(0);
 	});
 });

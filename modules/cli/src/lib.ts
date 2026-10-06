@@ -22,7 +22,7 @@ import { OPTION_RUN_POLICY, OPTION_DRY_RUN, HAIBUN_RUN_POLICY, parseRunPolicyArg
 import { loadAndValidateRunPolicy } from "@haibun/core/run-policy/run-policy-schema.js";
 import { PhaseRunner, PhaseBailError } from "@haibun/core/lib/PhaseRunner.js";
 import { BASE_WITHOUT_FEATURES, getFeaturesAndBackgrounds, TFeaturesBackgrounds } from "@haibun/core/phases/collector.js";
-import { withNameType } from "@haibun/core/lib/features.js";
+import { withName } from "@haibun/core/lib/features.js";
 import { forgetOutcome, outcomeAgainst, recordOutcome, verificationOf } from "./verified.js";
 import { recordTimings, varianceLine } from "./timings.js";
 
@@ -344,7 +344,7 @@ const emptyIfNoFeatures = (e: unknown): TFeaturesBackgrounds => {
 
 export async function collect(bases: TBase, featureFilter: string[] | undefined, statements: string[], policyConfig?: TRunPolicyConfig): Promise<TFeaturesBackgrounds> {
 	if (statements.length === 0) return await getFeaturesAndBackgrounds(bases, featureFilter, policyConfig);
-	const statementFeature = withNameType(bases[0] ?? ".", "statement.feature", statements.join("\n"));
+	const statementFeature = withName(bases[0] ?? ".", "statement.feature", statements.join("\n"));
 	if (featureFilter) {
 		const collected = await getFeaturesAndBackgrounds(bases, featureFilter, policyConfig);
 		return { features: [...collected.features, statementFeature], backgrounds: collected.backgrounds };

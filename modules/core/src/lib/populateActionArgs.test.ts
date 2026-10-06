@@ -1,10 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
-import { getDefaultWorld, getTestWorldWithOptions } from "./test/lib";
-import { populateActionArgs } from "./populateActionArgs";
-import { TFeatureStep } from "./defs";
+import { getDefaultWorld, getTestWorldWithOptions } from "./test/lib.js";
+import { populateActionArgs } from "./populateActionArgs.js";
 import { Origin } from "../schema/protocol.js";
-import { AStepper } from "./astepper.js";
+import { AStepper, type TFeatureStep } from "./astepper.js";
 import { DOMAIN_NUMBER, DOMAIN_STRING, DOMAIN_TITLE, DOMAIN_VARIABLE_NAME, individualRefDomain, registerDomains } from "./domains.js";
 import { fromJsonText } from "./json-text.js";
 

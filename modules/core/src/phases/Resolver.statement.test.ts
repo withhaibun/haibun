@@ -6,9 +6,11 @@ import { asExpandedFeatures } from "../lib/resolver-features.js";
 import { Resolver } from "./Resolver.js";
 import { createSteppers } from "../lib/util/index.js";
 import { DOMAIN_STATEMENT } from "../lib/domains.js";
+import { itemAt } from "../lib/util/item-at.js";
 
 // A test stepper that uses a statement typed placeholder
 class StatementStepper extends AStepper {
+	description = "A step taking a statement, and a base step.";
 	steps = { meta: { gwta: `meta {action: ${DOMAIN_STATEMENT}}`, action: async () => Promise.resolve(OK) }, base: { gwta: "base action", action: async () => Promise.resolve(OK) } };
 }
 
@@ -18,8 +20,9 @@ describe("statement variable validation", () => {
 		const steppers = createSteppers([StatementStepper]);
 		const resolver = new Resolver(steppers);
 		const resolved = await resolver.resolveStepsFromFeatures(features);
-		expect(resolved[0].featureSteps.length).toBe(1);
-		expect(resolved[0].featureSteps[0].action.actionName).toBe("meta");
+		const { featureSteps } = itemAt(resolved, 0);
+		expect(featureSteps.length).toBe(1);
+		expect(itemAt(featureSteps, 0).action.actionName).toBe("meta");
 	});
 	it("rejects invalid statement expansion", async () => {
 		const features = asExpandedFeatures([{ path: "f1", content: "meta not-an-action" }]);

@@ -33,7 +33,7 @@ describe("a module's sources the build did not compile", () => {
 	});
 
 	it("doesn't name a source for a module whose every compiled source has its JavaScript", () => {
-		const moduleDir = aModule(["lib/one.ts", "lib/one.test.ts"], ["lib/one.js"]);
+		const moduleDir = aModule(["lib/one.ts", "lib/one.test.ts", "lib/one.test-fake.ts", "view.test.tsx"], ["lib/one.js"]);
 		made.push(moduleDir);
 		expect(missingBuildOutput(moduleDir)).toEqual([]);
 	});

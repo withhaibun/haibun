@@ -2,6 +2,7 @@
 // a window of a stated size around where they are, so looking takes the same whether actuality has lasted an hour or a
 // decade. These pin where a window sits, what it holds and what a level narrows it to.
 import { describe, it, expect } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
@@ -66,7 +67,7 @@ describe("the window of a run a reader is looking at", () => {
 		const graph = runGraphOf(await aRunOf(20));
 		const atTheStart = await runWindow(graph, { at: 1000, size: 6 });
 		expect(atTheStart.rows, "the window doesn't hold a row before the first record, so six after it").toHaveLength(6);
-		expect(atTheStart.rows[0].at).toBe(1000);
+		expect(itemAt(atTheStart.rows, 0).at).toBe(1000);
 		const atTheEnd = await runWindow(graph, { at: 1039, size: 6 });
 		expect(atTheEnd.rows, "one record at the end, so five before it").toHaveLength(6);
 	});
@@ -263,8 +264,8 @@ describe("following a run that is still happening", () => {
 			shown.rows.map((r) => r.text),
 			"and a reader asking how it was done",
 		).toEqual(["a step of the feature", "take a screenshot"]);
-		expect(shown.rows[1].partOf, "the substep names the step it was run to carry out").toEqual([0, 1]);
-		expect(shown.rows[0].partOf, "a step of the feature wasn't run to carry out a step, so it doesn't name one").toBeUndefined();
+		expect(itemAt(shown.rows, 1).partOf, "the substep names the step it was run to carry out").toEqual([0, 1]);
+		expect(itemAt(shown.rows, 0).partOf, "a step of the feature wasn't run to carry out a step, so it doesn't name one").toBeUndefined();
 	});
 
 	it("doesn't return a new record when a record wasn't added since the last read", async () => {

@@ -234,10 +234,11 @@ export async function mountPolymorphicPage({ external = false }: { external?: bo
 			return page.evaluate(() => (window as unknown as { __opened: string | null }).__opened);
 		},
 		subjectState: () =>
-			page.evaluate(
-				(key) => (globalThis as unknown as Record<string, Map<string, { signal: { get(): TSubjectState } }>>)[key].get("currentSubject")?.signal.get() as TSubjectState,
-				SHARED_SIGNALS_KEY,
-			),
+			page.evaluate((key) => {
+				const signals = (globalThis as unknown as Record<string, Map<string, { signal: { get(): TSubjectState } }>>)[key];
+				if (!signals) throw new Error(`the page doesn't hold shared signals at ${key}`);
+				return signals.get("currentSubject")?.signal.get() as TSubjectState;
+			}, SHARED_SIGNALS_KEY),
 		async emptyPixel() {
 			const found = await page.evaluate(() => {
 				const view = document.querySelector("shu-polymorphic-graph-view") as unknown as { pickAt(x: number, y: number): string | null } & HTMLElement;

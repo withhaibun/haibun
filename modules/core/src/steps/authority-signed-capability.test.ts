@@ -11,7 +11,9 @@ import { resolveSitePrincipal } from "../lib/host-id.js";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "../lib/astepper.js";
 import { COMMENT_LABEL, LinkRelations, type TDomainDefinition } from "../lib/resources.js";
 import { getAuthority } from "../lib/session-authority.js";
-import type { IAuthorityVerifier, TAuthorityEvidence } from "../lib/authority-types.js";
+import type { TAuthorityEvidence } from "../lib/authority-types.js";
+import { stubVerifier } from "../lib/test/fake-authority.js";
+import { itemAt } from "../lib/util/item-at.js";
 import AuthorityStepper from "./authority-stepper.js";
 import ResourcesStepper from "./resources-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
@@ -25,22 +27,28 @@ const testNodeDomain: TDomainDefinition = {
 };
 
 class TestNodeStepper extends AStepper implements IHasCycles {
+	description = "Declares a minimal persisted type for attribution tests.";
 	cycles: IStepperCycles = { getConcerns: () => ({ domains: [testNodeDomain] }) };
 	steps = {};
 }
 
 /** Captures what the registered verifier was asked to verify, and decides ok/fail. Registered after AuthorityStepper installs the authority. */
 const verifierState: { lastEvidence?: TAuthorityEvidence; ok: boolean; error?: string } = { ok: true };
+/** States what the verifier decides next, and forgets what it was last asked to verify. */
+const verifierDecides = (ok: boolean, error?: string) => {
+	Object.assign(verifierState, { ok, error, lastEvidence: undefined });
+};
 
 class StubVerifierStepper extends AStepper implements IHasCycles {
+	description = "Registers a verifier whose verdict and last evidence the tests state and read.";
 	cycles: IStepperCycles = {
 		startFeature: () => {
-			const verifier: IAuthorityVerifier = {
+			const verifier = stubVerifier({
 				verify: (evidence) => {
 					verifierState.lastEvidence = evidence;
 					return Promise.resolve(verifierState.ok ? { ok: true } : { ok: false, error: verifierState.error ?? "bad signature" });
 				},
-			};
+			});
 			getAuthority(this.getWorld().runtime)?.registerVerifier(verifier);
 		},
 	};
@@ -61,8 +69,7 @@ const STEPPERS = [AuthorityStepper, StubVerifierStepper, ResourcesStepper, TestN
 
 describe("AuthorityStepper signed-capability path", () => {
 	it("attributes authored writes inside `holding capability` to the verified capability's controller", async () => {
-		verifierState.ok = true;
-		verifierState.lastEvidence = undefined;
+		verifierDecides(true);
 		const world = getDefaultWorld({ HAIBUN_LOG_LEVEL: "none" });
 		world.runtime.keys = { ...world.runtime.keys, principal: resolveSitePrincipal({}) };
 
@@ -76,7 +83,7 @@ holding capability cap at "urn:res:1", comment on "${TEST_NODE_LABEL}" "node-1" 
 
 		const result = await testWithWorld(world, [feature], STEPPERS);
 		if (!result.ok) {
-			const steps = result.featureResults?.flatMap((fr) => fr.stepResults.map((sr) => `${sr.in}: ${sr.ok}${sr.ok ? "" : `, ${JSON.stringify(sr.actionResults)}`}`)) ?? [];
+			const steps = result.featureResults?.flatMap((fr) => fr.stepResults.map((sr) => `${sr.in}: ${sr.ok}${sr.ok ? "" : `, ${sr.errorMessage}`}`)) ?? [];
 			throw new Error(`failure: ${result.failure?.error?.message ?? "none"}\n${steps.join("\n")}`);
 		}
 		expect(result.ok).toBe(true);
@@ -84,18 +91,18 @@ holding capability cap at "urn:res:1", comment on "${TEST_NODE_LABEL}" "node-1" 
 		const store = world.shared.getStore();
 		const comments = await store.queryIndividuals<{ id: string; author: string }>(COMMENT_LABEL);
 		expect(comments.length).toBe(1);
-		expect(comments[0].author).toBe(SUBKEY_DID);
+		expect(itemAt(comments, 0).author).toBe(SUBKEY_DID);
 
-		expect(verifierState.lastEvidence?.action, "the verifier checks the document for everything it allows, since a single action isn't asked").toBeUndefined();
-		expect(verifierState.lastEvidence?.target, "and what it was asked of").toBe("urn:res:1");
-		expect(verifierState.lastEvidence?.document.id, "and is handed the document itself to read").toBe("urn:zcap:alice-comment");
-		const presented = verifierState.lastEvidence?.kind === "document" ? verifierState.lastEvidence.presenter : undefined;
-		expect(presented, "and who presents it, the root here, which the verifier holds to the document's controller").toEqual({ root: true });
+		const evidence = verifierState.lastEvidence;
+		if (evidence?.kind !== "document") throw new Error("the verifier wasn't asked to verify a document");
+		expect(evidence.action, "the verifier checks the document for everything it allows, since a single action isn't asked").toBeUndefined();
+		expect(evidence.target, "and what it was asked of").toBe("urn:res:1");
+		expect(evidence.document.id, "and is handed the document itself to read").toBe("urn:zcap:alice-comment");
+		expect(evidence.presenter, "and who presents it, the root here, which the verifier holds to the document's controller").toEqual({ root: true });
 	});
 
 	it("fails the step (and doesn't write a record) when the registered verifier rejects the signed capability", async () => {
-		verifierState.ok = false;
-		verifierState.error = "invalid proof";
+		verifierDecides(false, "invalid proof");
 		const world = getDefaultWorld({ HAIBUN_LOG_LEVEL: "none" });
 		world.runtime.keys = { ...world.runtime.keys, principal: resolveSitePrincipal({}) };
 

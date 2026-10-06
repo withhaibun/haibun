@@ -5,6 +5,7 @@ import TestSteps from "../lib/test/TestSteps.js";
 import LogicStepper from "./logic-stepper.js";
 import VariablesSteppers from "./variables-stepper.js";
 import Haibun from "./haibun.js";
+import { itemAt } from "../lib/util/item-at.js";
 
 describe("not", () => {
 	it("not passes", async () => {
@@ -127,7 +128,7 @@ describe("variable composition", () => {
 		const feature = { path: "/features/test.feature", content: 'not variable "unset" exists' };
 		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers]);
 		expect(result.ok).toBe(true);
-		const seqs = result.featureResults?.[0].stepResults.map((r) => r.seqPath) || [];
+		const seqs = itemAt(result.featureResults, 0).stepResults.map((r) => r.seqPath);
 		// nested variable check then parent not then ends with
 		expect(seqs).toEqual([
 			[0, 1, 1, 1, -1],
@@ -142,7 +143,7 @@ describe("variable composition", () => {
 		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers]);
 		expect(result.ok).toBe(true);
 
-		const seqs = result.featureResults?.[0].stepResults.map((r) => r.seqPath) || [];
+		const seqs = itemAt(result.featureResults, 0).stepResults.map((r) => r.seqPath);
 		// Verifies seqPath structure through recursive descent and ascent:
 		// [0,1,1,1] - variable assignment
 		// [0,1,1,2,-1,-1,-1,-1] - innermost condition evaluation
@@ -169,7 +170,7 @@ describe("variable composition", () => {
 		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers]);
 		expect(result.ok).toBe(true); // outer succeeds, inner condition fails but where succeeds, body never runs
 
-		const seqs = result.featureResults?.[0].stepResults.map((r) => r.seqPath) || [];
+		const seqs = itemAt(result.featureResults, 0).stepResults.map((r) => r.seqPath);
 		// Validates complete execution trace with nested conditions:
 		// [0,1,1,1] - variable assignment
 		// [0,1,1,2,-1] - outer where condition evaluation (succeeds)
@@ -198,7 +199,7 @@ describe("backgrounds", () => {
 
 		expect(await result.world.shared.get("ran")).toBe("true");
 
-		const steps = result.featureResults?.[0].stepResults || [];
+		const steps = itemAt(result.featureResults, 0).stepResults;
 		// All steps recorded: condition, background steps, then parent where
 		expect(steps.length).toBe(4);
 		const seqs = steps.map((s) => s.seqPath);

@@ -8,6 +8,7 @@
  * through a detached `<template>`, so it is testable without a live column and never touches the page.
  */
 import { headingAnchor } from "@haibun/core/lib/document-content.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 /** One document block: its final HTML, the event id it came from (for jump-to and product embedding), and the raw time
  *  (offset from the column's global start) for time-cursor dimming. `id`/`rawTime` are empty/0 for spacers and strips. */
@@ -90,9 +91,10 @@ export function finalizeBlocks(blocks: TDocBlock[], resolveArtifact: TArtifactRe
 	let run: { frames: Element[]; id: string; rawTime: number }[] = [];
 	let ordinal = 0;
 	const flush = () => {
-		if (run.length === 0) return;
+		const head = run[0];
+		if (!head) return;
 		const html = run.flatMap((r) => r.frames.map((f) => f.outerHTML)).join("");
-		out.push({ html: `<div class="thumb-row">${html}</div>`, id: run[0].id, rawTime: run[0].rawTime });
+		out.push({ html: `<div class="thumb-row">${html}</div>`, id: head.id, rawTime: head.rawTime });
 		run = [];
 	};
 	for (const b of filled) {
@@ -115,7 +117,7 @@ export function finalizeBlocks(blocks: TDocBlock[], resolveArtifact: TArtifactRe
 export function withHeadingAnchors(md: { renderer: { rules: Record<string, unknown>; renderToken(tokens: unknown[], idx: number, options: unknown): string } }): void {
 	md.renderer.rules.heading_open = (tokens: Array<{ attrSet(name: string, value: string): void }>, idx: number, options: unknown) => {
 		const inline = (tokens as Array<{ type?: string; content?: string }>)[idx + 1];
-		if (inline?.type === "inline" && inline.content) tokens[idx].attrSet("data-heading", headingAnchor(inline.content));
+		if (inline?.type === "inline" && inline.content) itemAt(tokens, idx).attrSet("data-heading", headingAnchor(inline.content));
 		return md.renderer.renderToken(tokens, idx, options);
 	};
 }
@@ -139,13 +141,13 @@ export function blocksByEvent(events: readonly { id?: unknown }[], blocks: reado
 	for (const b of blocks) {
 		if (b.id) {
 			for (let j = k; j < events.length; j++) {
-				if (String(events[j].id ?? "") === b.id) {
+				if (String(itemAt(events, j).id ?? "") === b.id) {
 					k = j;
 					break;
 				}
 			}
 		}
-		out[k].push(b);
+		itemAt(out, k).push(b);
 	}
 	return out;
 }

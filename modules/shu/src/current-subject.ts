@@ -79,20 +79,26 @@ export function transition(state: TSubjectState, event: TSubjectEvent): TSubject
 	}
 }
 
-/** The open scope activated most recently, or null where the open scopes don't have an entry. */
-export function activeScope(state: TSubjectState): string | null {
-	let newest: string | null = null;
+/** The open scope activated most recently, with what it holds, or null where the open scopes don't have an entry. */
+function newestOpen(state: TSubjectState): { scope: string; held: TScopeState } | null {
+	let newest: { scope: string; held: TScopeState } | null = null;
 	for (const scope of state.open) {
 		const held = state.scopes[scope];
-		if (held && (newest === null || held.stamp > state.scopes[newest].stamp)) newest = scope;
+		if (held && (newest === null || held.stamp > newest.held.stamp)) newest = { scope, held };
 	}
 	return newest;
 }
 
+/** The open scope activated most recently, or null where the open scopes don't have an entry. */
+export function activeScope(state: TSubjectState): string | null {
+	const newest = newestOpen(state);
+	return newest === null ? null : newest.scope;
+}
+
 /** The active entry: the entry of the open scope activated most recently. */
 export function activeEntry(state: TSubjectState): TEntry | null {
-	const scope = activeScope(state);
-	return scope === null ? null : state.scopes[scope].entry;
+	const newest = newestOpen(state);
+	return newest === null ? null : newest.held.entry;
 }
 
 /** The record every view dims around and a following graph centres. */

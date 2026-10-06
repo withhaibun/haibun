@@ -4,7 +4,7 @@ import type { TRegisteredDomain } from "./resources.js";
 import { getCompositeFields, isPrimitiveZodType } from "./composite-domain.js";
 
 function reg(schema: z.ZodType, topology?: TRegisteredDomain["topology"]): TRegisteredDomain {
-	return { selectors: [], schema, coerce: (p) => String(p.value), topology };
+	return { selectors: [], schema, coerce: (p) => String(p.value), topology, description: "a domain whose fields are read" };
 }
 
 const IssuerSchema = z.object({ did: z.string(), name: z.string().optional() });

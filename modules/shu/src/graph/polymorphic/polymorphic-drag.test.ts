@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { NodeDrag, type NodeDragDeps } from "./polymorphic-drag.js";
 import type { FGNode } from "./polymorphic-graph-types.js";
 
@@ -52,16 +53,16 @@ describe("NodeDrag", () => {
 		drag.move(evt(20, 30)); // hypot(20,30) > 5 → promote to a drag
 		expect(drag.dragging).toBe(true);
 		expect(calls.held).toBe(true); // engine held
-		expect(nodes[1].fx).toBe(5); // Y pinned at its own position for the duration
-		expect(nodes[2].fx).toBe(-3); // Z pinned
-		expect(nodes[0].fx).toBe(30); // X tracks: hit1.x (20) + off.x (10)
-		expect(nodes[0].fy).toBe(50); // hit1.y (30) + off.y (20)
+		expect(itemAt(nodes, 1).fx).toBe(5); // Y pinned at its own position for the duration
+		expect(itemAt(nodes, 2).fx).toBe(-3); // Z pinned
+		expect(itemAt(nodes, 0).fx).toBe(30); // X tracks: hit1.x (20) + off.x (10)
+		expect(itemAt(nodes, 0).fy).toBe(50); // hit1.y (30) + off.y (20)
 		drag.up();
 		expect(calls.frozen).toBe(true);
 		expect(calls.controls).toBe(true); // camera controls re-enabled
-		expect(nodes[1].fx).toBeUndefined(); // Y released
-		expect(nodes[2].fx).toBeUndefined(); // Z released
-		expect(nodes[0].fx).toBe(30); // the dragged node's pin PERSISTS
+		expect(itemAt(nodes, 1).fx).toBeUndefined(); // Y released
+		expect(itemAt(nodes, 2).fx).toBeUndefined(); // Z released
+		expect(itemAt(nodes, 0).fx).toBe(30); // the dragged node's pin PERSISTS
 		expect(calls.droppedPin).toBe("X"); // and it leaves the transient data-pin set
 	});
 
@@ -71,7 +72,7 @@ describe("NodeDrag", () => {
 		drag.move(evt(102, 103)); // hypot(2,3) < 5 → still a click
 		expect(drag.dragging).toBe(false);
 		expect(calls.held).toBe(false);
-		expect(nodes[0].fx).toBeUndefined(); // the node isn't pinned
+		expect(itemAt(nodes, 0).fx).toBeUndefined(); // the node isn't pinned
 		drag.up();
 		expect(calls.controls).toBe(true); // camera controls re-enabled for the click
 		expect(calls.frozen).toBe(false); // the click doesn't freeze a drag
@@ -82,16 +83,16 @@ describe("NodeDrag", () => {
 		drag.down(evt(0, 0));
 		drag.move(evt(20, 30));
 		drag.up();
-		expect(nodes[1].fx).toBe(5); // Y (selected) keeps its pin
-		expect(nodes[2].fx).toBeUndefined(); // Z (unselected, undragged) released
+		expect(itemAt(nodes, 1).fx).toBe(5); // Y (selected) keeps its pin
+		expect(itemAt(nodes, 2).fx).toBeUndefined(); // Z (unselected, undragged) released
 	});
 
 	it("a reschedule (gantt) drag slides z, keeps the lane (x/y) pinned, and commits on release", () => {
 		const { nodes, calls, drag } = setup({ dragReschedules: () => true, planeHit: (e) => ({ x: e.clientX, y: e.clientY, z: e.clientY }) });
 		drag.down(evt(0, 0)); // hit0 z=0 → off.z = 0
 		drag.move(evt(20, 30)); // hit1 z=30 → node.z = 30
-		expect(nodes[0].z).toBe(30); // slid along the time axis
-		expect(nodes[0].fx).toBe(10); // lane pinned (x/y held), NOT dragged to the pointer
+		expect(itemAt(nodes, 0).z).toBe(30); // slid along the time axis
+		expect(itemAt(nodes, 0).fx).toBe(10); // lane pinned (x/y held), NOT dragged to the pointer
 		expect(calls.ghost).toBeGreaterThan(0);
 		drag.up();
 		expect(calls.committed).toBe("X"); // the new schedule is committed

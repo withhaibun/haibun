@@ -12,6 +12,7 @@ import { SHOW_STEPS_METHOD, STEP_DETAIL, readShownSteps } from "@haibun/core/lib
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
 import { ToolListChangedNotificationSchema } from "@modelcontextprotocol/sdk/types.js";
 import { DOMAIN_NUMBER } from "@haibun/core/lib/domains.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 class TestStepper extends AStepper {
 	description = "Steps that check the MCP tools a run lists.";
@@ -48,7 +49,7 @@ class TestStepper extends AStepper {
 					const shown = (await client.callTool({ name: SHOW_STEPS_METHOD, arguments: { text: "TestStepper-", detail: STEP_DETAIL.summary } })) as {
 						content: Array<{ text: string }>;
 					};
-					const methods = readShownSteps(JSON.parse(shown.content[0].text), STEP_DETAIL.summary).steps.map((step) => step.method);
+					const methods = readShownSteps(JSON.parse(itemAt(shown.content, 0).text), STEP_DETAIL.summary).steps.map((step) => step.method);
 					if (methods.join(",") !== "TestStepper-testA,TestStepper-verifyTools") throw Error(`show steps returned ${methods.join(", ")}`);
 					const resources = await client.listResources();
 					if (!resources.resources.find((r) => r.name === "Haibun MCP Server Info"))

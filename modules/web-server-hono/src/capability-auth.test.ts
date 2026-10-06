@@ -13,14 +13,14 @@ import { SessionAuthority, AUTHORITY_KEY } from "@haibun/core/lib/session-author
 import { runActingAs } from "@haibun/core/lib/capability-context.js";
 import { currentPrincipal } from "@haibun/core/lib/principal.js";
 import type { TRuntime, TWorld } from "@haibun/core/lib/world.js";
-import type { IAuthorityVerifier, TAuthorityEvidence, TDelegations } from "@haibun/core/lib/authority-types.js";
+import type { IAuthorityVerifier, TAuthorityAct, TAuthorityEvidence, TDelegations, TVerdict } from "@haibun/core/lib/authority-types.js";
 
 const READER = "did:key:zReader";
 const ACTION = "comment.grant";
 
 /** Stands for whatever a deployment registers: this one accepts a request naming the reader, and refuses the rest. */
 class StubVerifier implements IAuthorityVerifier {
-	verify(evidence: TAuthorityEvidence): Promise<{ ok: boolean; error?: string; principal?: string; allowedAction?: string[] }> {
+	verify(evidence: TAuthorityEvidence): Promise<TVerdict> {
 		const invoked = evidence.kind === "request" ? evidence.headers["capability-invocation"] : undefined;
 		// A key invoking its own root holds the read of its own delegations and nothing it was delegated.
 		if (invoked?.includes(DELEGATIONS_READ_ACTION)) return Promise.resolve({ ok: true, principal: READER, allowedAction: [DELEGATIONS_READ_ACTION] });
@@ -29,6 +29,14 @@ class StubVerifier implements IAuthorityVerifier {
 
 	delegationsTo(): Promise<TDelegations> {
 		return Promise.resolve({ delegations: [] });
+	}
+
+	record(): Promise<TAuthorityAct> {
+		return Promise.resolve({ ok: false, error: "the stub verifier doesn't record a delegation" });
+	}
+
+	revoke(): Promise<TAuthorityAct> {
+		return Promise.resolve({ ok: false, error: "the stub verifier doesn't revoke a delegation" });
 	}
 }
 

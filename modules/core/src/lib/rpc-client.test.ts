@@ -3,6 +3,7 @@ import { notFromActuality } from "./rpc-wire.js";
 import { describe, it, expect } from "vitest";
 import { RpcCallFailed, RpcClient } from "./rpc-client.js";
 import type { TOutgoingRequest, TRequestSigner } from "./authority-types.js";
+import { itemAt } from "./util/item-at.js";
 
 /**
  * Build a fake fetch that records calls and returns scripted responses.
@@ -19,7 +20,7 @@ function makeFakeFetch(responses: Scripted[]): { fetchImpl: typeof fetch; calls:
 		const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : (input as Request).url;
 		calls.push({ url, init });
 		if (idx >= responses.length) throw new Error(`fake fetch exhausted after ${idx} calls`);
-		const spec = responses[idx++];
+		const spec = itemAt(responses, idx++);
 		if (spec.throwError) throw spec.throwError;
 		const status = spec.status ?? (spec.ok === false ? 500 : 200);
 		const encoder = new TextEncoder();
@@ -42,7 +43,7 @@ describe("RpcClient.call", () => {
 		const client = new RpcClient({ baseUrl: "http://host", fetchImpl });
 		const out = await client.call<{ result: number }>("Stepper-echo", { message: "hi" }, [0, 1, 2, 3]);
 		expect((out as { result: number }).result).toBe(42);
-		const body = JSON.parse(String(calls[0].init?.body));
+		const body = JSON.parse(String(itemAt(calls, 0).init?.body));
 		expect(body.jsonrpc).toBe("2.0");
 		expect(body.method).toBe("Stepper-echo");
 		expect(body.params).toEqual({ message: "hi" });
@@ -59,9 +60,12 @@ describe("RpcClient.call", () => {
 		const client = new RpcClient({ baseUrl: "http://host", sign, fetchImpl });
 		await client.call("m", {}, [0], { action: "Stepper:act" });
 		expect(signed).toEqual([
-			{ request: { method: "POST", url: "http://host/rpc/m", headers: { "content-type": "application/json", host: "host" }, body: calls[0].init?.body }, action: "Stepper:act" },
+			{
+				request: { method: "POST", url: "http://host/rpc/m", headers: { "content-type": "application/json", host: "host" }, body: itemAt(calls, 0).init?.body },
+				action: "Stepper:act",
+			},
 		]);
-		expect(calls[0].init?.headers).toEqual({ "content-type": "application/json", host: "host", "capability-invocation": 'signed action="Stepper:act"' });
+		expect(itemAt(calls, 0).init?.headers).toEqual({ "content-type": "application/json", host: "host", "capability-invocation": 'signed action="Stepper:act"' });
 	});
 
 	it("sends a call that doesn't invoke an action unsigned", async () => {
@@ -69,7 +73,7 @@ describe("RpcClient.call", () => {
 		const sign: TRequestSigner = () => Promise.reject(new Error("a call invoking nothing is not signed"));
 		const client = new RpcClient({ baseUrl: "http://host", sign, fetchImpl });
 		await client.call("m", {}, [0]);
-		expect(calls[0].init?.headers).toEqual({ "content-type": "application/json", host: "host" });
+		expect(itemAt(calls, 0).init?.headers).toEqual({ "content-type": "application/json", host: "host" });
 	});
 
 	it("refuses a call invoking an action when it doesn't hold a signer, before sending a request", async () => {
@@ -128,14 +132,14 @@ describe("RpcClient.call", () => {
 		const { fetchImpl, calls } = makeFakeFetch([{ ok: true, bodyText: "{}" }]);
 		const client = new RpcClient({ baseUrl: "http://host", fetchImpl });
 		await client.call("Stepper/odd name", {}, [0]);
-		expect(calls[0].url).toMatch(/Stepper%2Fodd%20name/);
+		expect(itemAt(calls, 0).url).toMatch(/Stepper%2Fodd%20name/);
 	});
 
 	it("strips a trailing slash from baseUrl", async () => {
 		const { fetchImpl, calls } = makeFakeFetch([{ ok: true, bodyText: "{}" }]);
 		const client = new RpcClient({ baseUrl: "http://host/", fetchImpl });
 		await client.call("m", {}, [0]);
-		expect(calls[0].url).toBe("http://host/rpc/m");
+		expect(itemAt(calls, 0).url).toBe("http://host/rpc/m");
 	});
 });
 
@@ -163,7 +167,7 @@ describe("RpcClient.stream", () => {
 		for await (const _ of client.stream("m", {}, [0])) {
 			/* empty */
 		}
-		const body = JSON.parse(String(calls[0].init?.body));
+		const body = JSON.parse(String(itemAt(calls, 0).init?.body));
 		expect(body.stream).toBe(true);
 	});
 

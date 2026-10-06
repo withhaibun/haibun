@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { QuadGraphModel } from "./quad-graph-model.js";
 import type { TQuad } from "./quad-types.js";
 import { LinkRelations, TEXT_QUOTE_SELECTOR_LABEL, SPECIFIC_RESOURCE_LABEL } from "./resources.js";
+import { itemAt } from "./util/item-at.js";
 
 const q = (subject: string, predicate: string, object: unknown, namedGraph: string, timestamp = 1): TQuad => ({ subject, predicate, object, namedGraph, timestamp });
 /** An EDGE quad, carries objectType (the target's range), the marker that distinguishes a typed reference from a scalar property. */
@@ -67,7 +68,7 @@ describe("QuadGraphModel", () => {
 		m.merge([q("a", "name", "A", "Email", 1)]);
 		m.merge([q("a", "name", "A2", "Email", 2)]);
 		expect(m.quads).toHaveLength(1);
-		expect(m.quads[0].object).toBe("A2");
+		expect(itemAt(m.quads, 0).object).toBe("A2");
 	});
 
 	it("preserves every distinct edge object for one (subject,predicate): the multi-valued attribution (§7-2)", () => {

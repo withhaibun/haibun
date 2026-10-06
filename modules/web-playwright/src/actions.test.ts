@@ -9,7 +9,11 @@ import WebPlaywright from "./web-playwright.js";
 import { READS_THE_PAGE, WEB_PLAYWRIGHT, WEB_PLAYWRIGHT_ACTIONS } from "./actions.js";
 
 const wp = new WebPlaywright();
-const step = (name: string) => ({ capability: requiredAction(WEB_PLAYWRIGHT, name, wp.steps[name]), readsAt: wp.steps[name].readsAt });
+const step = (name: string) => {
+	const def = wp.steps[name];
+	if (!def) throw Error(`${WEB_PLAYWRIGHT} doesn't have a step ${name}`);
+	return { capability: requiredAction(WEB_PLAYWRIGHT, name, def), readsAt: def.readsAt };
+};
 
 describe("what a delegation names to use the browser", () => {
 	it("groups reading the page, acting on it and fetching from it, each under one action", () => {

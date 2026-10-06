@@ -9,6 +9,7 @@
  *  - reject products without a TGraph (it doesn't fail silently).
  */
 import { describe, it, expect, beforeEach } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { ShuGraph } from "./shu-graph.js";
 import type { IGraphRenderer, TGraph, TGraphRenderOptions } from "../graph/types.js";
 import { SHU_EVENT } from "../consts.js";
@@ -71,7 +72,7 @@ describe("shu-graph", () => {
 		await Promise.resolve();
 		await Promise.resolve();
 		expect(renderer.calls.length).toBeGreaterThanOrEqual(2);
-		expect(renderer.calls[renderer.calls.length - 1].graph.nodes.length).toBe(2);
+		expect(itemAt(renderer.calls, renderer.calls.length - 1).graph.nodes.length).toBe(2);
 	});
 
 	it("re-dispatches graph-node-click out of the shadow boundary", async () => {
@@ -91,7 +92,7 @@ describe("shu-graph", () => {
 		await Promise.resolve();
 		await Promise.resolve();
 		expect(received.length).toBe(1);
-		expect(received[0].nodeId).toBe("x");
+		expect(itemAt(received, 0).nodeId).toBe("x");
 	});
 
 	it("setZoom mutates the diagram-container CSS transform without re-rendering through the injected renderer", async () => {

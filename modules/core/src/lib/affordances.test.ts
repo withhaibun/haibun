@@ -23,23 +23,28 @@ function fixedDomains() {
 }
 
 class EmailFromPerson extends AStepper {
+	description = "Issues an email for a person.";
 	steps: TStepperSteps = { issueEmail: { gwta: `issue email for {who: ${PERSON}}`, productsDomain: EMAIL, action: () => actionOKWithProducts({ id: "e1" }) } };
 }
 
 /** A registered producer of Person, turns Person into a typed-fact domain (not an argument). */
 class PersonSource extends AStepper {
+	description = "Registers a person.";
 	steps: TStepperSteps = { registerPerson: { gwta: "register a person", productsDomain: PERSON, action: () => actionOKWithProducts({ id: "p1" }) } };
 }
 
 class SessionTerminal extends AStepper {
+	description = "Creates a new session.";
 	steps: TStepperSteps = { newSession: { gwta: "create a new session", productsDomain: SESSION, action: () => actionOKWithProducts({ id: "s1" }) } };
 }
 
 class GatedSession extends AStepper {
+	description = "Signs in to a session behind a capability.";
 	steps: TStepperSteps = { gatedSignIn: { gwta: "gated sign in", productsDomain: SESSION, capability: "auth:signin", action: () => actionOKWithProducts({ id: "s2" }) } };
 }
 
 class Plain extends AStepper {
+	description = "A step that pings.";
 	steps: TStepperSteps = { ping: { gwta: "ping", action: () => OK } };
 }
 
@@ -90,6 +95,7 @@ describe("buildAffordances", () => {
 			]),
 		);
 		class EmailRefFromPerson extends AStepper {
+			description = "Answers with a reference to a person's email.";
 			steps: TStepperSteps = { refer: { gwta: `refer to the email of {who: ${PERSON}}`, productsDomain: refDomainKey(EMAIL), action: () => actionOKWithProducts({ id: "e1" }) } };
 		}
 		const result = buildAffordances({ steppers: [new EmailFromPerson(), new EmailRefFromPerson(), new PersonSource()], domains, facts: [], held: RUN_AUTHORITY });

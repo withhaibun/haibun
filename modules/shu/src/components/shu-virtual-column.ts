@@ -138,8 +138,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptyStateSchema> {
 
 	/** The first row the view shows, which is the one a reader is reading. */
 	#topRow(scroller: HTMLElement, top: number): Element | null {
-		const rows = scroller.children;
-		for (let i = 0; i < rows.length; i++) if (rows[i].getBoundingClientRect().bottom > top + 1) return rows[i];
+		for (const row of scroller.children) if (row.getBoundingClientRect().bottom > top + 1) return row;
 		return null;
 	}
 

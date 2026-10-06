@@ -5,6 +5,7 @@ import { passWithDefaults, DEF_PROTO_OPTIONS, failWithDefaults } from "./test/li
 import { DOMAIN_STATEMENT } from "./domains.js";
 
 class StatementTestStepper extends AStepper {
+	description = "Steps alpha and beta, and a step taking two statements.";
 	steps: Record<string, TStepperStep> = {
 		alpha: { exact: "alpha", action: () => OK },
 		beta: { exact: "beta", action: () => OK },

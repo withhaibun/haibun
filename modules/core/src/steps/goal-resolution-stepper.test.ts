@@ -11,6 +11,7 @@ import { GoalResolutionStepper } from "./goal-resolution-stepper.js";
 import { executionOf } from "../lib/seq-path.js";
 import { ActivitiesStepper } from "./activities-stepper.js";
 import { DOMAIN_USER_NAME } from "../lib/domains.js";
+import { itemAt } from "../lib/util/item-at.js";
 
 const DOMAIN_AUTH_SESSION = "domain-auth-session-test";
 /** A domain this test registers and the steps don't produce, so `resolve` has something registered but unreachable to answer about. */
@@ -21,6 +22,7 @@ const DOMAIN_COMPOSITE_INPUT = "composite-input-test";
 const AuthSessionSchema = z.object({ id: z.string(), subject: z.string() });
 
 class AuthStepper extends AStepper implements IHasCycles {
+	description = "Signs in and produces an authenticated session.";
 	cycles: IStepperCycles = {
 		getConcerns: () => ({
 			domains: [
@@ -51,6 +53,7 @@ const CompositeInputSchema = z.object({ session: z.string(), label: z.string() }
 const CompositeGoalSchema = z.object({ value: z.string() });
 
 class CompositeStepper extends AStepper implements IHasCycles {
+	description = "Produces a goal from a composite input whose session field ranges over a session.";
 	cycles: IStepperCycles = {
 		getConcerns: () => ({
 			domains: [
@@ -123,12 +126,13 @@ variable affordances exists`,
 		const stepper = new GoalResolutionStepper();
 		expect(stepper.steps.affordancesOnOffer.read).toBe(true);
 		expect(stepper.steps.affordancesOnOfferAsOf.read).toBe(true);
-		expect(stepper.steps.showAffordances.read, "showing the panel is an act of actuality").toBeUndefined();
+		expect(stepper.steps.showAffordances, "showing the panel is an act of actuality").not.toHaveProperty("read");
 		const feature = { path: "/features/test.feature", content: `show affordances\naffordances on offer` };
 		const result = await passWithDefaults([feature], steppers);
 		expect(result.ok).toBe(true);
-		const shown = result.featureResults?.[0].stepResults[0].products as { forward: unknown[]; goals: unknown[] };
-		const offered = result.featureResults?.[0].stepResults[1].products as { forward: unknown[]; goals: unknown[] };
+		const { stepResults } = itemAt(result.featureResults, 0);
+		const shown = itemAt(stepResults, 0).products as { forward: unknown[]; goals: unknown[] };
+		const offered = itemAt(stepResults, 1).products as { forward: unknown[]; goals: unknown[] };
 		expect(offered.forward).toEqual(shown.forward);
 		expect(offered.goals).toEqual(shown.goals);
 	});
@@ -137,7 +141,7 @@ variable affordances exists`,
 		const feature = { path: "/features/test.feature", content: "show affordances\nshow chain lint" };
 		const result = await passWithDefaults([feature], steppers);
 		expect(result.ok).toBe(true);
-		const named = (result.featureResults?.[0].stepResults ?? []).map((r) => (r.products as { execution: string }).execution);
+		const named = itemAt(result.featureResults, 0).stepResults.map((r) => (r.products as { execution: string }).execution);
 		// The one feature is actuality's first, whose steps' records name its execution.
 		const firstFeature = executionOf({ key: result.world.tag.key, featureNum: 1 });
 		expect(named).toEqual([firstFeature, firstFeature]);

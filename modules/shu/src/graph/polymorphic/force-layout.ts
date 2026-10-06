@@ -1,3 +1,4 @@
+/// <reference path="./force-deps.d.ts" />
 /**
  * The force-family layout configuration, lifted out of the view so the physics can be edited in one place without
  * touching the rest of the graph system. It registers the charge / collide / link / cohesion (groupX,groupY) d3 forces

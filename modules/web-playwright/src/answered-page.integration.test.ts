@@ -29,6 +29,7 @@ const answered: { clicked?: TStepResult; asked?: TStepResult } = {};
 
 /** Calls WebPlaywright's steps by name, as a model's tool call is made, and answers them as the turn does. */
 class CallerProbe extends AStepper {
+	description = "Calls WebPlaywright's steps by name, as a model's tool call does.";
 	steps = {
 		callsThePage: {
 			gwta: CALLS_THE_PAGE,

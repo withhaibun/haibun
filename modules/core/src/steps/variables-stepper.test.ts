@@ -25,7 +25,7 @@ describe("vars", () => {
 		const res = await passWithDefaults(content, steppers);
 		expect(res.ok).toBe(true);
 		const all = await res.world.shared.all();
-		expect(all.x.origin, "a variable a step sets is a variable").toBe(Origin.var);
+		expect(all.x?.origin, "a variable a step sets is a variable").toBe(Origin.var);
 	});
 	it("empty does not overwrite", async () => {
 		const content = 'set empty x to "y"\nset empty x to "z"\nvariable x is "y"';

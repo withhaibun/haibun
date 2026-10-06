@@ -9,11 +9,13 @@ import { actionOKWithProducts } from "../lib/util/index.js";
 import { URAKATA, URAKATA_ID_DOMAIN, type IUrakataRegistry, type IUrakataTicker } from "../lib/urakata.js";
 import { getFromRuntime } from "../lib/util/index.js";
 import type { TStepResult } from "../schema/protocol.js";
+import { itemAt } from "../lib/util/item-at.js";
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 /** Test stepper that exposes a `start tick` step which registers a ticker that increments a counter. */
 class TickHarnessStepper extends AStepper {
+	description = "Starts a ticker that counts its ticks.";
 	tickCount = 0;
 	steps = {
 		startTick: {
@@ -76,8 +78,9 @@ describe("urakata-stepper", () => {
 		expect(products?._summary).toBe("Urakata");
 		const list = products?.urakata as Array<Record<string, unknown>>;
 		expect(list).toHaveLength(1);
-		expect(list[0].id).toBe("test.tick");
-		expect(list[0].stoppedAt).toBeUndefined();
+		const ticker = itemAt(list, 0);
+		expect(ticker.id).toBe("test.tick");
+		expect(ticker.stoppedAt).toBeUndefined();
 	});
 
 	it("endFeature(shouldClose) halts every registered urakata", async () => {

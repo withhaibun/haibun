@@ -4,6 +4,7 @@ import { describe, it, expect, beforeEach, beforeAll } from "vitest";
 import { accessBound, runAuthorizedWith, runReadingAt } from "./capability-context.js";
 import { readAction, readCeilingOf, writeAction } from "./actions.js";
 import { Access } from "./resources.js";
+import { itemAt } from "./util/item-at.js";
 
 describe("QuadStore Contexts", () => {
 	let store: QuadStore;
@@ -16,14 +17,14 @@ describe("QuadStore Contexts", () => {
 		await store.add({ subject: "s", predicate: "p", object: "o", namedGraph: "default" });
 		const results = await store.query({ subject: "s" });
 		expect(results).toHaveLength(1);
-		expect(results[0].namedGraph).toBe("default");
+		expect(itemAt(results, 0).namedGraph).toBe("default");
 	});
 
 	it("should store and retrieve quads with arbitrary namedGraph", async () => {
 		await store.add({ subject: "s", predicate: "p", object: "o", namedGraph: "trust-registry" });
 		const results = await store.query({ namedGraph: "trust-registry" });
 		expect(results).toHaveLength(1);
-		expect(results[0].namedGraph).toBe("trust-registry");
+		expect(itemAt(results, 0).namedGraph).toBe("trust-registry");
 	});
 
 	it("should isolate namedGraphs", async () => {
@@ -31,10 +32,10 @@ describe("QuadStore Contexts", () => {
 		await store.add({ subject: "s", predicate: "p", object: "o2", namedGraph: "B" });
 		const resultsA = await store.query({ namedGraph: "A" });
 		expect(resultsA).toHaveLength(1);
-		expect(resultsA[0].object).toBe("o1");
+		expect(itemAt(resultsA, 0).object).toBe("o1");
 		const resultsB = await store.query({ namedGraph: "B" });
 		expect(resultsB).toHaveLength(1);
-		expect(resultsB[0].object).toBe("o2");
+		expect(itemAt(resultsB, 0).object).toBe("o2");
 	});
 
 	it("should query across namedGraphs if namedGraph not specified", async () => {
@@ -67,8 +68,8 @@ describe("QuadStore Contexts", () => {
 	it("should store properties on set", async () => {
 		await store.set("x", "string", "hello", "variables", { origin: "var", readonly: true });
 		const quads = await store.query({ subject: "x", namedGraph: "variables" });
-		expect(quads[0].properties?.origin).toBe("var");
-		expect(quads[0].properties?.readonly).toBe(true);
+		expect(itemAt(quads, 0).properties?.origin).toBe("var");
+		expect(itemAt(quads, 0).properties?.readonly).toBe(true);
 	});
 });
 

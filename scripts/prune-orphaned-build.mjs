@@ -73,13 +73,16 @@ function pruneOrphanedBuild(moduleDir, dryRun) {
 	return removed;
 }
 
+/** The sources a module's build excludes, as `tsconfig.settings.json` states: its tests and test fakes. */
+const EXCLUDED_SOURCE = /\.test(-fake)?\.tsx?$/;
+
 /** Case 3, each compiled source under `moduleDir`/src with no build output, by its path under src without its extension. */
 export function missingBuildOutput(moduleDir) {
 	const buildDir = join(moduleDir, "build");
 	const srcDir = join(moduleDir, "src");
 	if (!existsSync(buildDir) || !existsSync(srcDir)) return [];
 	return walk(srcDir, new Set())
-		.filter((file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$/.test(file) && !file.endsWith(".d.ts"))
+		.filter((file) => /\.tsx?$/.test(file) && !EXCLUDED_SOURCE.test(file) && !file.endsWith(".d.ts"))
 		.map((file) => relative(srcDir, file).replace(/\.tsx?$/, ""))
 		.filter((rel) => !existsSync(join(buildDir, `${rel}.js`)));
 }

@@ -178,9 +178,9 @@ describe("generateDocumentMarkdown", () => {
 		const parsedFeature = LifecycleEvent.parse(featureInput);
 		const parsedScenario = LifecycleEvent.parse(scenarioInput);
 		// Simulate getEvents serialization, only specific fields are passed through
-		const serialized = [parsedFeature, parsedScenario].map(({ kind, level, timestamp, id, ...rest }) => {
+		const serialized = [parsedFeature, parsedScenario].map(({ kind, level, timestamp, id, source, ...rest }) => {
 			const r = rest as Record<string, unknown>;
-			return { kind, level, timestamp, id, type: r.type, stage: r.stage, featurePath: r.featurePath, featureName: r.featureName, scenarioName: r.scenarioName };
+			return { kind, level, timestamp, id, source, type: r.type, stage: r.stage, featurePath: r.featurePath, featureName: r.featureName, scenarioName: r.scenarioName };
 		}) as THaibunEvent[];
 		expect((serialized[0] as Record<string, unknown>).featureName).toBe("My Feature");
 		expect((serialized[1] as Record<string, unknown>).scenarioName).toBe("My Scenario");

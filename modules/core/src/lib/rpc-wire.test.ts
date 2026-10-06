@@ -32,14 +32,23 @@ import { hostHandshake, rpcAnswer } from "./test/rpc-answer.js";
 
 const BASE = "http://site.test:8123/instance/";
 const METHOD = "Stepper-act";
+const ACTUALITY = newActualityId();
 
 describe("a call to a host's rpc", () => {
 	it("is addressed under the host's base, carries its envelope, and is sent with the headers its proof makes over it", async () => {
 		const proven: Parameters<TProveRequest>[0][] = [];
 		const prove: TProveRequest = (request) => (proven.push(request), Promise.resolve({ ...request.headers, proof: "signed" }));
-		const call = await buildRpcCall(BASE, { id: "call-1", method: METHOD, params: { what: 1 }, seqPath: [0, 1] }, prove);
+		const call = await buildRpcCall(BASE, { id: "call-1", actualityId: ACTUALITY, method: METHOD, params: { what: 1 }, seqPath: [0, 1] }, prove);
 		expect(call.url).toBe(`${BASE}rpc/${METHOD}`);
-		expect(JSON.parse(call.init.body)).toEqual({ jsonrpc: "2.0", protocol: RPC_PROTOCOL, id: "call-1", method: METHOD, params: { what: 1 }, seqPath: [0, 1] });
+		expect(JSON.parse(call.init.body)).toEqual({
+			jsonrpc: "2.0",
+			protocol: RPC_PROTOCOL,
+			id: "call-1",
+			actualityId: ACTUALITY,
+			method: METHOD,
+			params: { what: 1 },
+			seqPath: [0, 1],
+		});
 		expect(proven, "the proof covers the request as it is sent, its host included").toEqual([
 			{ url: call.url, method: "POST", headers: { "content-type": "application/json", host: "site.test:8123" }, body: call.init.body },
 		]);
@@ -47,7 +56,7 @@ describe("a call to a host's rpc", () => {
 	});
 
 	it("without a proof, is sent with its headers as they are", async () => {
-		const call = await buildRpcCall(BASE, { id: "call-2", method: METHOD, params: {} }, provesNothing);
+		const call = await buildRpcCall(BASE, { id: "call-2", actualityId: ACTUALITY, method: METHOD, params: {} }, provesNothing);
 		expect(call.init.headers).toEqual({ "content-type": "application/json", host: "site.test:8123" });
 	});
 
@@ -55,17 +64,18 @@ describe("a call to a host's rpc", () => {
 		const proven: Parameters<TProveRequest>[0][] = [];
 		const prove: TProveRequest = (request) => (proven.push(request), Promise.resolve({ ...request.headers, proof: "signed" }));
 		holdSignIn(BASE, { username: "reader", password: "a password" });
-		const signedIn = await buildRpcCall(BASE, { id: "call-3", method: METHOD, params: {} }, prove);
+		const signedIn = await buildRpcCall(BASE, { id: "call-3", actualityId: ACTUALITY, method: METHOD, params: {} }, prove);
 		releaseSignIn(BASE);
 		expect(proven[0]?.headers, "the proof covers the call, not the sign-in").toEqual({ "content-type": "application/json", host: "site.test:8123" });
 		expect(signedIn.init.headers).toEqual({ "content-type": "application/json", host: "site.test:8123", proof: "signed", authorization: `Basic ${btoa("reader:a password")}` });
 		expect(
-			(await buildRpcCall("http://elsewhere.test", { id: "call-4", method: METHOD, params: {} }, provesNothing)).init.headers,
+			(await buildRpcCall("http://elsewhere.test", { id: "call-4", actualityId: ACTUALITY, method: METHOD, params: {} }, provesNothing)).init.headers,
 			"another host isn't sent it",
 		).not.toHaveProperty("authorization");
-		expect((await buildRpcCall(BASE, { id: "call-5", method: METHOD, params: {} }, provesNothing)).init.headers, "nor this host once it is let go").not.toHaveProperty(
-			"authorization",
-		);
+		expect(
+			(await buildRpcCall(BASE, { id: "call-5", actualityId: ACTUALITY, method: METHOD, params: {} }, provesNothing)).init.headers,
+			"nor this host once it is let go",
+		).not.toHaveProperty("authorization");
 	});
 });
 

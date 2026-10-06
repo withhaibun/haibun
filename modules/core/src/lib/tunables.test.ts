@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { AStepper, type TStepperSteps } from "./astepper.js";
 import { getTunableOptions, type IHasTunables, type TTunableOption } from "./tunables.js";
 import { intOrError } from "./util/index.js";
+import { itemAt } from "./util/item-at.js";
 
 class PlainStepper extends AStepper {
 	description = "no tunables declared";
@@ -39,6 +40,7 @@ class TunableMixed extends AStepper implements IHasTunables {
 
 class TunableEmpty extends AStepper implements IHasTunables {
 	description = "implements IHasTunables but declares none (tunables property absent)";
+	declare tunables?: IHasTunables["tunables"];
 	steps: TStepperSteps = {};
 }
 
@@ -54,7 +56,7 @@ describe("getTunableOptions", () => {
 	it("enumerates a single tunable and preserves its full metadata", () => {
 		const tunables = getTunableOptions([new TunableA()]);
 		expect(tunables).toHaveLength(1);
-		const t = tunables[0];
+		const t = itemAt(tunables, 0);
 		expect(t.stepperName).toBe("TunableA");
 		expect(t.key).toBe("CYCLE_MS");
 		expect(t.meta.range.kind).toBe("duration");

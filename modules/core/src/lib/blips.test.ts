@@ -97,7 +97,8 @@ describe("blips: fine-grained occurrences, never retained", () => {
 		const seen: THaibunEvent[] = [];
 		eventLogger.subscribe((e) => seen.push(e), { kinds: ["blip"] });
 		recordBlip(world, SCROLL.name, 1, { view: "a", stray: "a whole response body" });
-		expect(seen[0].kind === "blip" && seen[0].attributes).toEqual({ view: "a" });
+		const [blip] = seen;
+		expect(blip?.kind === "blip" && blip.attributes).toEqual({ view: "a" });
 	});
 
 	it("refuses a recording that omits attributes the declaration requires", () => {
@@ -125,9 +126,9 @@ describe("blips: fine-grained occurrences, never retained", () => {
 	});
 
 	it("refuses a schema it cannot compare, rather than assuming two unprovable declarations agree", () => {
-		const opaque = { ...SCROLL, name: "haibun.test.opaque", attributes: z.string().transform((s) => s.length) };
+		const opaque = { ...SCROLL, name: "haibun.test.opaque", attributes: z.string().transform((s) => ({ length: s.length })) };
 		declareBlips(opaque);
-		expect(() => declareBlips({ ...opaque, attributes: z.string().transform((s) => s.length) })).toThrow(/already declared/);
+		expect(() => declareBlips({ ...opaque, attributes: z.string().transform((s) => ({ length: s.length })) })).toThrow(/already declared/);
 		expect(() => declareBlips(opaque)).not.toThrow(); // the same schema is still the same declaration
 	});
 

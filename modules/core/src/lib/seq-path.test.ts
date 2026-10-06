@@ -10,9 +10,16 @@ import {
 	parseSeqPath,
 	seqPathDomainDefinition,
 } from "./seq-path.js";
-import { LinkRelations } from "./resources.js";
+import { LinkRelations, isPersisted } from "./resources.js";
 import { EXECUTION_MODES } from "../schema/protocol.js";
 import { queryableFields } from "./hypermedia.js";
+
+/** The topology a step's record declares, which persists it. */
+const seqPathTopology = () => {
+	const { topology } = seqPathDomainDefinition;
+	if (!isPersisted(topology)) throw new Error("the step's record doesn't declare a persisted topology");
+	return topology;
+};
 
 describe("parseSeqPath", () => {
 	it("parses a dot-joined seqPath string back to its number tuple", () => {
@@ -83,7 +90,7 @@ describe("the mode a step ran under", () => {
 	// wrong wants the authoritative ones. That is a distinction they can draw only if the mode is on the record, and
 	// only offered as a choice beside the type if it is declared as something the type is grouped by.
 	it("is offered as a sub-filter, which is what grouped-as declares", () => {
-		expect(seqPathDomainDefinition.topology?.properties?.[SEQ_PATH_FIELD.mode]).toBe(LinkRelations.CONTEXT.rel);
+		expect(seqPathTopology().properties[SEQ_PATH_FIELD.mode]).toBe(LinkRelations.CONTEXT.rel);
 	});
 
 	it("accepts every mode a run can be, and doesn't accept another", () => {
@@ -128,6 +135,6 @@ describe("what names a record of a run", () => {
 
 describe("what a step offers as a filter", () => {
 	it("includes when the step ended, so a follower can ask for the steps that ended after its last read", () => {
-		expect(queryableFields(seqPathDomainDefinition)).toContain("endedAtTime");
+		expect(queryableFields({ schema: seqPathDomainDefinition.schema, topology: seqPathTopology() })).toContain("endedAtTime");
 	});
 });

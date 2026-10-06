@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { SseSubscriber } from "./sse-subscriber.js";
 import type { THaibunEvent } from "../schema/protocol.js";
+import { newActualityId } from "./rpc-wire.js";
+import { itemAt } from "./util/item-at.js";
+
+const ACTUALITY = newActualityId();
 
 /** A host's stream the case drives: each connection the subscriber asks for, what it asked with, and the body the case
  *  writes messages to or ends. A connection asked for while `refusing` is answered 401, as a host refuses a stream to a
@@ -28,13 +32,13 @@ const wire = (event: Record<string, unknown>): string => JSON.stringify({ type: 
 describe("SseSubscriber delivery", () => {
 	it("dispatches each message the stream carries, unwrapped", async () => {
 		const { host, fetchImpl } = hostStreams();
-		const sub = new SseSubscriber({ url: "/sse", fetchImpl });
+		const sub = new SseSubscriber({ url: "/sse", actualityId: ACTUALITY, fetchImpl });
 		const received: THaibunEvent[] = [];
 		sub.subscribe((e) => received.push(e));
 		sub.connect();
 		await vi.waitFor(() => expect(host.connections).toHaveLength(1));
-		host.connections[0].send(wire({ id: "live-1", kind: "lifecycle", timestamp: 2 }));
-		host.connections[0].send(wire({ id: "live-2", kind: "lifecycle", timestamp: 3 }));
+		itemAt(host.connections, 0).send(wire({ id: "live-1", kind: "lifecycle", timestamp: 2 }));
+		itemAt(host.connections, 0).send(wire({ id: "live-2", kind: "lifecycle", timestamp: 3 }));
 		await vi.waitFor(() => expect(received.map((e) => e.id)).toEqual(["live-1", "live-2"]));
 		sub.close();
 	});
@@ -42,13 +46,19 @@ describe("SseSubscriber delivery", () => {
 	it("asks for each connection with the headers made for it, since a proof covers one request", async () => {
 		const { host, fetchImpl } = hostStreams();
 		let made = 0;
-		const sub = new SseSubscriber({ url: "/sse", reconnectDelayMs: 0, fetchImpl, headers: (url) => Promise.resolve({ "capability-invocation": `${url} ${++made}` }) });
+		const sub = new SseSubscriber({
+			url: "/sse",
+			actualityId: ACTUALITY,
+			reconnectDelayMs: 0,
+			fetchImpl,
+			headers: (url) => Promise.resolve({ "capability-invocation": `${url} ${++made}` }),
+		});
 		sub.connect();
 		await vi.waitFor(() => expect(host.connections).toHaveLength(1));
-		host.connections[0].end();
+		itemAt(host.connections, 0).end();
 		await vi.waitFor(() => expect(host.connections).toHaveLength(2));
 		expect(host.connections.map((c) => c.headers["capability-invocation"])).toEqual(["/sse 1", "/sse 2"]);
-		expect(host.connections[0].headers.accept, "and states what it reads").toBe("text/event-stream");
+		expect(itemAt(host.connections, 0).headers.accept, "and states what it reads").toBe("text/event-stream");
 		sub.close();
 	});
 });
@@ -56,7 +66,7 @@ describe("SseSubscriber delivery", () => {
 describe("SseSubscriber catching up after a break", () => {
 	it("the first open doesn't announce, and a re-open after the stream drops announces once", async () => {
 		const { host, fetchImpl } = hostStreams();
-		const sub = new SseSubscriber({ url: "/sse", reconnectDelayMs: 0, fetchImpl });
+		const sub = new SseSubscriber({ url: "/sse", actualityId: ACTUALITY, reconnectDelayMs: 0, fetchImpl });
 		let caughtUp = 0;
 		let opened = 0;
 		sub.reconnected(() => caughtUp++);
@@ -64,7 +74,7 @@ describe("SseSubscriber catching up after a break", () => {
 		sub.connect();
 		await vi.waitFor(() => expect(opened).toBe(1));
 		expect(caughtUp).toBe(0);
-		host.connections[0].end();
+		itemAt(host.connections, 0).end();
 		await vi.waitFor(() => expect(opened).toBe(2));
 		expect(caughtUp).toBe(1);
 		sub.close();
@@ -72,7 +82,7 @@ describe("SseSubscriber catching up after a break", () => {
 
 	it("stops announcing once the caller has unsubscribed", async () => {
 		const { host, fetchImpl } = hostStreams();
-		const sub = new SseSubscriber({ url: "/sse", reconnectDelayMs: 0, fetchImpl });
+		const sub = new SseSubscriber({ url: "/sse", actualityId: ACTUALITY, reconnectDelayMs: 0, fetchImpl });
 		let caughtUp = 0;
 		let opened = 0;
 		const stop = sub.reconnected(() => caughtUp++);
@@ -80,7 +90,7 @@ describe("SseSubscriber catching up after a break", () => {
 		sub.connect();
 		await vi.waitFor(() => expect(opened).toBe(1));
 		stop();
-		host.connections[0].end();
+		itemAt(host.connections, 0).end();
 		await vi.waitFor(() => expect(opened).toBe(2));
 		expect(caughtUp).toBe(0);
 		sub.close();
@@ -94,7 +104,7 @@ describe("SseSubscriber catching up after a break", () => {
 			asked++;
 			return fetchImpl(url, init);
 		};
-		const sub = new SseSubscriber({ url: "/sse", reconnectDelayMs: 0, fetchImpl: counting });
+		const sub = new SseSubscriber({ url: "/sse", actualityId: ACTUALITY, reconnectDelayMs: 0, fetchImpl: counting });
 		let down = 0;
 		sub.disconnected(() => down++);
 		sub.connect();
@@ -109,7 +119,7 @@ describe("SseSubscriber catching up after a break", () => {
 		const { host, fetchImpl } = hostStreams();
 		let failing = true;
 		const flaky: typeof fetch = (url, init) => (failing ? Promise.reject(new TypeError("fetch failed")) : fetchImpl(url, init));
-		const sub = new SseSubscriber({ url: "/sse", reconnectDelayMs: 0, fetchImpl: flaky });
+		const sub = new SseSubscriber({ url: "/sse", actualityId: ACTUALITY, reconnectDelayMs: 0, fetchImpl: flaky });
 		let down = 0;
 		sub.disconnected(() => down++);
 		sub.connect();

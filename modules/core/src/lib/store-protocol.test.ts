@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { QuadStore } from "./quad-store.js";
 import { handleStoreCall, isStoreMethod, requiredStoreCapability, STORE_READ, STORE_WRITE } from "./store-protocol.js";
+import { itemAt } from "./util/item-at.js";
 
 describe("store protocol capability classification", () => {
 	it("requires store.write for anything that changes the store and store.read otherwise", () => {
@@ -38,7 +39,7 @@ describe("handleStoreCall", () => {
 		await handleStoreCall(store, "store.createEdge", { fromLabel: "Widget", fromId: "w-1", edgeLabel: "references", toLabel: "Widget", toId: "w-2" });
 		const quads = await store.query({ subject: "w-1", predicate: "references" });
 		expect(quads).toHaveLength(1);
-		expect(quads[0].objectType).toBe("Widget");
+		expect(itemAt(quads, 0).objectType).toBe("Widget");
 	});
 
 	it("serves clustered reads with scope passed through", async () => {

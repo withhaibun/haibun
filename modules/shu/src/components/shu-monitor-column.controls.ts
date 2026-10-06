@@ -141,9 +141,11 @@ export default class ShuMonitorColumnControls extends AStepper implements IHasCy
 								.filter((r) => r.height > 0)
 								.sort((a, b) => a.top - b.top);
 							const where: string[] = [];
-							for (let i = 1; i < rows.length; i++)
-								if (rows[i].top < rows[i - 1].bottom - 1)
-									where.push(`a row ${Math.round(rows[i].height)}px high over ${Math.round(rows[i - 1].bottom - rows[i].top)}px of the row before it`);
+							let before: DOMRect | undefined;
+							for (const row of rows) {
+								if (before && row.top < before.bottom - 1) where.push(`a row ${Math.round(row.height)}px high over ${Math.round(before.bottom - row.top)}px of the row before it`);
+								before = row;
+							}
 							return { frames, overlapping: where.length, where };
 						},
 						{ column: SHU_TAG.VIRTUAL_COLUMN, virtualizer: VIRTUALIZER, frame: THUMB_FRAME },

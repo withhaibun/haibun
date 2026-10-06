@@ -4,6 +4,7 @@
  * choices back through the view's ordinary state path.
  */
 import { describe, it, expect } from "vitest";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { html, type TemplateResult } from "lit";
 import { z } from "zod";
 import { ShuElement } from "./components/shu-element.js";
@@ -125,7 +126,7 @@ describe("the scene every deployment has", () => {
 
 	it("is offered whether or not anything was ever saved, as the view and the types to show", () => {
 		setSiteMetadata(site);
-		const [scene] = builtInScenes();
+		const scene = itemAt(builtInScenes(), 0);
 		expect(scene.id).toBe(NETWORK_SCENE);
 		expect(scene.state["shu-polymorphic-graph-view"], "an exchange reads as a sequence").toEqual({ viewType: "sequence" });
 		expect(scene.state["shu-graph-filter"], "the exchange shown and everything else hidden, so the scene is the exchange rather than the graph with it added").toEqual({

@@ -341,8 +341,7 @@ export default class LspStepper extends AStepper {
 
 		// Load backgrounds from the discovered workspace
 		try {
-			const loadedBgs = await loadBackgroundsFromPath(workspace.backgroundsPath);
-			const backgrounds: TFeature[] = loadedBgs.map((bg) => ({ ...bg, type: "feature" as const }));
+			const backgrounds = await loadBackgroundsFromPath(workspace.backgroundsPath);
 
 			// Cache for future use
 			this.workspaceBackgrounds.set(workspace.base, backgrounds);

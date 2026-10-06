@@ -37,6 +37,11 @@ const activate = (scope: string, entry: TEntry): TSubjectEvent => ({ type: "acti
 const update = (scope: string, entry: TEntry): TSubjectEvent => ({ type: "update", scope, entry });
 const open = (scope: string): TSubjectEvent => ({ type: "open", scope });
 const close = (scope: string): TSubjectEvent => ({ type: "close", scope });
+const stampOf = (state: TSubjectState, scope: string): number => {
+	const held = state.scopes[scope];
+	if (!held) throw new Error(`scope ${scope} doesn't hold a stamp`);
+	return held.stamp;
+};
 
 describe("an entry for a pane's patterns", () => {
 	it("names the record the first pattern names, and carries the patterns as its bundle", () => {
@@ -54,15 +59,15 @@ describe("each event", () => {
 	it("activate sets the scope's entry and stamps it newest", () => {
 		const state = run(activate(SCOPE.page, EMAIL), activate(SCOPE.page, OTHER));
 		expect(scopeEntry(state, SCOPE.page)).toEqual(OTHER);
-		expect(state.scopes[SCOPE.page].stamp).toBe(INITIAL_SUBJECT.clock + 1);
+		expect(stampOf(state, SCOPE.page)).toBe(INITIAL_SUBJECT.clock + 1);
 	});
 
 	it("update sets the scope's entry and keeps its stamp, and a scope never activated is the oldest", () => {
 		const activated = run(activate(SCOPE.page, EMAIL));
 		const updated = transition(activated, update(SCOPE.page, OTHER));
 		expect(scopeEntry(updated, SCOPE.page)).toEqual(OTHER);
-		expect(updated.scopes[SCOPE.page].stamp).toBe(activated.scopes[SCOPE.page].stamp);
-		expect(run(update(SCOPE.actionsBar, ANSWER)).scopes[SCOPE.actionsBar].stamp).toBe(0);
+		expect(stampOf(updated, SCOPE.page)).toBe(stampOf(activated, SCOPE.page));
+		expect(stampOf(run(update(SCOPE.actionsBar, ANSWER)), SCOPE.actionsBar)).toBe(0);
 	});
 
 	it("open adds a scope once, and close removes it and keeps its entry", () => {

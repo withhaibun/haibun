@@ -1,8 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
 import { getDefaultWorld } from "./test/lib.js";
-import { DOMAIN_STRING, DOMAIN_NUMBER, DOMAIN_JSON, DOMAIN_DATE, registerDomains, asDomainKey, createEnumDomainDefinition } from "./domains.js";
+import { DOMAIN_STRING, DOMAIN_NUMBER, DOMAIN_JSON, DOMAIN_DATE, registerDomains, asDomainKey, createEnumDomainDefinition, registeredDomain } from "./domains.js";
 import { TDomainDefinition } from "./resources.js";
+import type { TWorld } from "./world.js";
 import { Origin, TStepValue } from "../schema/protocol.js";
 import { FeatureVariables } from "./feature-variables.js";
 import { fromJsonText } from "./json-text.js";
@@ -11,7 +12,9 @@ import { DOMAIN_GRAPH_QUERY, type TGraphQuery } from "./quad-types.js";
 const p = (value: string, domain = DOMAIN_STRING): TStepValue => ({ term: String(value), value, domain, origin: Origin.var });
 
 describe("domain coercion", () => {
-	const domains = getDefaultWorld().domains;
+	const defaultWorld = getDefaultWorld();
+	const domains = defaultWorld.domains;
+	const domainOf = (key: string, world: TWorld = defaultWorld) => registeredDomain(world.domains, key, "the test");
 
 	it("has all expected domains", () => {
 		for (const d of [DOMAIN_STRING, DOMAIN_NUMBER, DOMAIN_JSON]) {
@@ -22,19 +25,19 @@ describe("domain coercion", () => {
 	describe("string", () => {
 		it("passes any string through", () => {
 			const raw = "anything: with symbols {}[] and punctuation!";
-			expect(domains[DOMAIN_STRING].coerce(p(raw))).toEqual(raw);
+			expect(domainOf(DOMAIN_STRING).coerce(p(raw))).toEqual(raw);
 		});
 	});
 
 	describe("number", () => {
 		it("accepts integer", () => {
-			expect(domains[DOMAIN_NUMBER].coerce(p("42", DOMAIN_NUMBER))).toBe(42);
+			expect(domainOf(DOMAIN_NUMBER).coerce(p("42", DOMAIN_NUMBER))).toBe(42);
 		});
 		it("accepts float", () => {
-			expect(domains[DOMAIN_NUMBER].coerce(p("3.14", DOMAIN_NUMBER))).toBeCloseTo(3.14);
+			expect(domainOf(DOMAIN_NUMBER).coerce(p("3.14", DOMAIN_NUMBER))).toBeCloseTo(3.14);
 		});
 		it("rejects non-number", () => {
-			expect(() => domains[DOMAIN_NUMBER].coerce(p("1abc", DOMAIN_NUMBER))).toThrow();
+			expect(() => domainOf(DOMAIN_NUMBER).coerce(p("1abc", DOMAIN_NUMBER))).toThrow();
 		});
 	});
 
@@ -42,25 +45,25 @@ describe("domain coercion", () => {
 		it("accepts valid object json", () => {
 			const raw = '{"a":1,"b":[true,null,"x"]}';
 			// coercer validates only; returns original string
-			expect(domains[DOMAIN_JSON].coerce(p(raw))).toEqual(JSON.parse(raw));
+			expect(domainOf(DOMAIN_JSON).coerce(p(raw))).toEqual(JSON.parse(raw));
 		});
 		it("accepts valid array json", () => {
 			const raw = "[1,2,3]";
-			expect(domains[DOMAIN_JSON].coerce(p(raw))).toEqual(JSON.parse(raw));
+			expect(domainOf(DOMAIN_JSON).coerce(p(raw))).toEqual(JSON.parse(raw));
 		});
 		it("rejects invalid json", () => {
-			expect(() => domains[DOMAIN_JSON].coerce(p("{bad json", DOMAIN_JSON))).toThrow();
+			expect(() => domainOf(DOMAIN_JSON).coerce(p("{bad json", DOMAIN_JSON))).toThrow();
 		});
 	});
 
 	describe("date", () => {
 		it("parses ISO timestamps", () => {
-			const date = domains[DOMAIN_DATE].coerce(p("2024-12-03T10:00:00Z", DOMAIN_DATE)) as Date;
+			const date = domainOf(DOMAIN_DATE).coerce(p("2024-12-03T10:00:00Z", DOMAIN_DATE)) as Date;
 			expect(date).toBeInstanceOf(Date);
 			expect(date.toISOString()).toBe("2024-12-03T10:00:00.000Z");
 		});
 		it("rejects invalid dates", () => {
-			expect(() => domains[DOMAIN_DATE].coerce(p("not-a-date", DOMAIN_DATE))).toThrow();
+			expect(() => domainOf(DOMAIN_DATE).coerce(p("not-a-date", DOMAIN_DATE))).toThrow();
 		});
 	});
 
@@ -69,18 +72,23 @@ describe("domain coercion", () => {
 		const mixed = [DOMAIN_STRING, DOMAIN_NOTSTRING];
 		const testWorld = getDefaultWorld();
 		const domains: TDomainDefinition[] = [
-			{ selectors: mixed, schema: z.string(), coerce: (proto: TStepValue) => (proto.domain === DOMAIN_NOTSTRING ? `notstring:${proto.value}` : `string:${proto.value}`) },
-			{ selectors: [DOMAIN_NOTSTRING], schema: z.string(), coerce: (proto: TStepValue) => `selector:${proto.value}` },
+			{
+				selectors: mixed,
+				schema: z.string(),
+				coerce: (proto: TStepValue) => (proto.domain === DOMAIN_NOTSTRING ? `notstring:${proto.value}` : `string:${proto.value}`),
+				description: "a string or a selector",
+			},
+			{ selectors: [DOMAIN_NOTSTRING], schema: z.string(), coerce: (proto: TStepValue) => `selector:${proto.value}`, description: "a selector" },
 		];
 		registerDomains(testWorld, [domains]);
 
 		it("uses resolved domain context for coercion - selector domain", () => {
-			const result = testWorld.domains[asDomainKey(mixed)].coerce(p("test-value", DOMAIN_NOTSTRING));
+			const result = domainOf(asDomainKey(mixed), testWorld).coerce(p("test-value", DOMAIN_NOTSTRING));
 			expect(result).toBe("notstring:test-value");
 		});
 
 		it("uses resolved domain context for coercion - string domain", () => {
-			const result = testWorld.domains[asDomainKey(mixed)].coerce(p("test-value"));
+			const result = domainOf(asDomainKey(mixed), testWorld).coerce(p("test-value"));
 			expect(result).toBe("string:test-value");
 		});
 	});
@@ -93,13 +101,13 @@ describe("domain coercion", () => {
 		registerDomains(progressWorld, [[stageDefinition]]);
 
 		it("accepts valid stages and rejects invalid", () => {
-			const result = progressWorld.domains[DOMAIN_PROGRESS_STAGE].coerce(p("started", DOMAIN_PROGRESS_STAGE));
+			const result = domainOf(DOMAIN_PROGRESS_STAGE, progressWorld).coerce(p("started", DOMAIN_PROGRESS_STAGE));
 			expect(result).toBe("started");
-			expect(() => progressWorld.domains[DOMAIN_PROGRESS_STAGE].coerce(p("invalid", DOMAIN_PROGRESS_STAGE))).toThrow();
+			expect(() => domainOf(DOMAIN_PROGRESS_STAGE, progressWorld).coerce(p("invalid", DOMAIN_PROGRESS_STAGE))).toThrow();
 		});
 
 		it("compares magnitude ordering", () => {
-			const comparator = progressWorld.domains[DOMAIN_PROGRESS_STAGE].comparator;
+			const comparator = domainOf(DOMAIN_PROGRESS_STAGE, progressWorld).comparator;
 			expect(comparator).toBeDefined();
 			if (!comparator) return; // type guard for TypeScript
 			expect(comparator("in-process", "started")).toBeGreaterThan(0);
@@ -109,7 +117,7 @@ describe("domain coercion", () => {
 	});
 
 	describe("graph query", () => {
-		const q = (query: object) => domains[DOMAIN_GRAPH_QUERY].coerce(p(JSON.stringify(query), DOMAIN_GRAPH_QUERY)) as TGraphQuery;
+		const q = (query: object) => domainOf(DOMAIN_GRAPH_QUERY).coerce(p(JSON.stringify(query), DOMAIN_GRAPH_QUERY)) as TGraphQuery;
 
 		it("leaves an unstated access level unstated", () => {
 			expect(q({ label: "Email" }).accessLevel).toBeUndefined();
@@ -129,33 +137,33 @@ describe("domain coercion", () => {
 		const structuredSchema = z.object({ conditions: z.array(z.object({ field: z.string(), value: z.string() })).default([]), type: z.string().optional() });
 
 		const structuredWorld = getDefaultWorld();
-		registerDomains(structuredWorld, [[{ selectors: [DOMAIN_STRUCTURED], schema: fromJsonText(structuredSchema) }]]);
+		registerDomains(structuredWorld, [[{ selectors: [DOMAIN_STRUCTURED], schema: fromJsonText(structuredSchema), description: "a structured object" }]]);
 
 		it("parses JSON string into validated object", () => {
 			const json = JSON.stringify({ conditions: [{ field: "a", value: "b" }], type: "Email" });
-			const result = structuredWorld.domains[DOMAIN_STRUCTURED].coerce(p(json, DOMAIN_STRUCTURED));
+			const result = domainOf(DOMAIN_STRUCTURED, structuredWorld).coerce(p(json, DOMAIN_STRUCTURED));
 			expect(result).toEqual({ conditions: [{ field: "a", value: "b" }], type: "Email" });
 		});
 
 		it("passes object through directly", () => {
 			const obj = { conditions: [], type: "Test" };
 			const proto = { term: JSON.stringify(obj), value: obj, domain: DOMAIN_STRUCTURED, origin: Origin.var } as TStepValue;
-			const result = structuredWorld.domains[DOMAIN_STRUCTURED].coerce(proto);
+			const result = domainOf(DOMAIN_STRUCTURED, structuredWorld).coerce(proto);
 			expect(result).toEqual({ conditions: [], type: "Test" });
 		});
 
 		it("applies schema defaults for missing fields", () => {
 			const json = JSON.stringify({});
-			const result = structuredWorld.domains[DOMAIN_STRUCTURED].coerce(p(json, DOMAIN_STRUCTURED));
+			const result = domainOf(DOMAIN_STRUCTURED, structuredWorld).coerce(p(json, DOMAIN_STRUCTURED));
 			expect(result).toEqual({ conditions: [] });
 		});
 
 		it("refuses text that isn't JSON at once, with the parser's reason and the text", () => {
-			expect(() => structuredWorld.domains[DOMAIN_STRUCTURED].coerce(p("{bad", DOMAIN_STRUCTURED))).toThrow(/is text that isn't JSON \(.+\): \{bad/);
+			expect(() => domainOf(DOMAIN_STRUCTURED, structuredWorld).coerce(p("{bad", DOMAIN_STRUCTURED))).toThrow(/is text that isn't JSON \(.+\): \{bad/);
 		});
 
 		it("rejects non-object JSON (array)", () => {
-			expect(() => structuredWorld.domains[DOMAIN_STRUCTURED].coerce(p("[]", DOMAIN_STRUCTURED))).toThrow();
+			expect(() => domainOf(DOMAIN_STRUCTURED, structuredWorld).coerce(p("[]", DOMAIN_STRUCTURED))).toThrow();
 		});
 	});
 
@@ -164,7 +172,7 @@ describe("domain coercion", () => {
 		const structuredSchema = z.object({ items: z.array(z.string()).default([]) });
 
 		const testWorld = getDefaultWorld();
-		registerDomains(testWorld, [[{ selectors: [DOMAIN_STRUCTURED], schema: fromJsonText(structuredSchema) }]]);
+		registerDomains(testWorld, [[{ selectors: [DOMAIN_STRUCTURED], schema: fromJsonText(structuredSchema), description: "a structured object" }]]);
 
 		it("coerces JSON string through structured domain when declared", async () => {
 			const fv = new FeatureVariables(testWorld);

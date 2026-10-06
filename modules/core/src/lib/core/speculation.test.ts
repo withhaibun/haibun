@@ -11,6 +11,7 @@ import { actionNotOK } from "../util/index.js";
 import { FlowRunner } from "./flow-runner.js";
 
 class SpeculationStepper extends AStepper {
+	description = "Steps that refuse, and run a refusal with and without stating intent.";
 	steps = {
 		/** A step that always refuses: what a speculative run is trying out. */
 		refuses: { exact: "refuses", action: async () => Promise.resolve(actionNotOK("refused")) },

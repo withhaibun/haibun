@@ -89,9 +89,8 @@ const fileTypeToExt = (type: string) => (type === "feature" ? "feature" : `${typ
 
 export const featureSplit = (content: string) => content.split("\n").map((a) => a.trim());
 
-export function withNameType(base: string, path: string, content: string, kirejiLineMap?: Map<number, number>, featureName?: string) {
+export function withName(base: string, path: string, content: string, kirejiLineMap?: Map<number, number>, featureName?: string) {
 	const s = path.split(".");
 	const name = featureName ?? itemAt(s, 0);
-	const type = s.length === 3 ? itemAt(s, 1) : "feature";
-	return { path, base, name, type, content, kirejiLineMap };
+	return { path, base, name, content, kirejiLineMap };
 }

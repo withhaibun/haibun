@@ -6,6 +6,7 @@ import { EVERY_ACTION, readAction } from "./actions.js";
 import { AUTHORITY_CAPABILITIES } from "../steps/authority-stepper.js";
 import { Access } from "./resources.js";
 import type { IAuthorityVerifier, TActingFor, TAuthorityEvidence, TOutgoingRequest } from "./authority-types.js";
+import { stubVerifier } from "./test/fake-authority.js";
 
 describe("SessionAuthority", () => {
 	describe("evidence from outside this process", () => {
@@ -14,14 +15,12 @@ describe("SessionAuthority", () => {
 		it("refuses it when a verifier isn't registered to decide it, rather than deciding it here", async () => {
 			const authority = new SessionAuthority();
 			const result = await authority.verifyEvidence(evidence);
-			expect(result.ok).toBe(false);
-			expect(result.error).toBe("a verifier isn't registered to decide this evidence");
+			expect(result).toMatchObject({ ok: false, error: "a verifier isn't registered to decide this evidence" });
 		});
 
 		it("hands it to the registered verifier, and states who it proved was acting", async () => {
 			const authority = new SessionAuthority();
-			const stub: IAuthorityVerifier = { verify: async () => ({ ok: true, principal: "did:example:holder" }), delegationsTo: async () => ({ delegations: [] }) };
-			authority.registerVerifier(stub);
+			authority.registerVerifier(stubVerifier({ verify: async () => ({ ok: true, principal: "did:example:holder" }) }));
 			const result = await authority.verifyEvidence(evidence);
 			expect(result).toEqual({ ok: true, principal: "did:example:holder" });
 		});
@@ -29,10 +28,12 @@ describe("SessionAuthority", () => {
 		it("decides as the instance, reading its own records whatever the call it is part of may read", async () => {
 			const authority = new SessionAuthority();
 			const readAt: unknown[] = [];
-			authority.registerVerifier({
-				verify: async () => (readAt.push(readingAt() ?? "unbounded"), { ok: true }),
-				delegationsTo: async () => (readAt.push(readingAt() ?? "unbounded"), { delegations: [] }),
-			});
+			authority.registerVerifier(
+				stubVerifier({
+					verify: async () => (readAt.push(readingAt() ?? "unbounded"), { ok: true }),
+					delegationsTo: async () => (readAt.push(readingAt() ?? "unbounded"), { delegations: [] }),
+				}),
+			);
 			await runReadingAt(Access.public, async () => {
 				await authority.verifyEvidence(evidence);
 				await authority.delegationsTo("did:key:zHolder");

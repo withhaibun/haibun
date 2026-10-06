@@ -19,7 +19,6 @@ import { ACTION_BEGIN, ANSWERED_WITHOUT_PRODUCTS, callFailed } from "./rpc-wire.
 import { hostHandshake } from "./test/rpc-answer.js";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
-import type { Server } from "http";
 
 const ECHOED_LABEL = "test-echoed-label";
 /** Two domains, and their union, which a parameter takes. */
@@ -66,7 +65,7 @@ class EchoStepper extends AStepper {
 }
 
 describe("RemoteStepperProxy", () => {
-	let server: Server;
+	let server: ReturnType<typeof serve>;
 	let port: number;
 	let world: TWorld;
 	/** The host's step, by its name in the echo stepper, as the proxy registers it under the host's name for it. */

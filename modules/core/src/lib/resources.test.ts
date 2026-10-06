@@ -28,10 +28,12 @@ import {
 	haibunNsForHost,
 	assertCommentGrounded,
 	writeAnnotation,
+	isPersisted,
 	type TDiscourseStore,
 } from "./resources.js";
 import { RelSchema, getJsonLdContext, buildConcernCatalog } from "./hypermedia.js";
 import { mapDefinitionsToDomains } from "./domains.js";
+import { itemAt } from "./util/item-at.js";
 
 describe("LinkRelations extensions", () => {
 	// The vocabulary is not restated here. A copy of it made every addition a two-file edit and stated only that the
@@ -143,7 +145,7 @@ describe("LinkRelations self-consistency: a class can never render as a super-pr
 	it("every rel's URI is a PROPERTY, not a class (lowercase local name): the temporalInstant category error stays out", () => {
 		for (const e of entries) {
 			const local = e.uri.split(/[:#/]/).pop() ?? "";
-			if (local) expect(local, `${e.rel} → ${e.uri} must be a property (lowercase local name), never a class`).toBe(local[0].toLowerCase() + local.slice(1));
+			if (local) expect(local, `${e.rel} → ${e.uri} must be a property (lowercase local name), never a class`).toBe(local.charAt(0).toLowerCase() + local.slice(1));
 		}
 	});
 });
@@ -215,10 +217,9 @@ describe("getJsonLdContext prefix declarations", () => {
 				schema: { parse: (v: unknown) => v },
 			},
 		} as unknown as Parameters<typeof getJsonLdContext>[0];
-		const ctx = (getJsonLdContext(domains) as { "@context": Record<string, { "@context": Record<string, { "@id": string }> }> })["@context"];
-		const scope = ctx.Shipment["@context"];
-		expect(scope.trackingIndex["@id"]).toBe("exv:trackingIndex");
-		expect(scope.shipmentStatus["@id"]).toBe("exv:shipmentStatus");
+		expect(getJsonLdContext(domains)["@context"].Shipment).toMatchObject({
+			"@context": { trackingIndex: { "@id": "exv:trackingIndex" }, shipmentStatus: { "@id": "exv:shipmentStatus" } },
+		});
 	});
 
 	it("merges a persisted domain's own namespace prefixes into the served context", () => {
@@ -252,8 +253,7 @@ describe("getJsonLdContext top-level term fallback", () => {
 			a: persistedDomain("A", "ex:A", { name: LinkRelations.NAME.rel }),
 			b: persistedDomain("B", "ex:B", { name: LinkRelations.NAME.rel }),
 		} as unknown as Parameters<typeof getJsonLdContext>[0];
-		const ctx = (getJsonLdContext(domains) as { "@context": Record<string, { "@id": string }> })["@context"];
-		expect(ctx.name["@id"]).toBe(LinkRelations.NAME.uri);
+		expect(getJsonLdContext(domains)["@context"].name).toMatchObject({ "@id": LinkRelations.NAME.uri });
 	});
 
 	it("omits a top-level term that maps to differing @ids across domains", () => {
@@ -264,10 +264,8 @@ describe("getJsonLdContext top-level term fallback", () => {
 		const ctx = (getJsonLdContext(domains) as { "@context": Record<string, unknown> })["@context"];
 		expect(ctx.author).toBeUndefined();
 		// still resolvable under each type's scoped @context
-		const articleScope = (ctx.Article as { "@context": Record<string, { "@id": string }> })["@context"];
-		const listScope = (ctx.TrustedList as { "@context": Record<string, { "@id": string }> })["@context"];
-		expect(articleScope.author["@id"]).toBe(LinkRelations.AUTHOR.uri);
-		expect(listScope.author["@id"]).toBe(LinkRelations.TAG.uri);
+		expect(ctx.Article).toMatchObject({ "@context": { author: { "@id": LinkRelations.AUTHOR.uri } } });
+		expect(ctx.TrustedList).toMatchObject({ "@context": { author: { "@id": LinkRelations.TAG.uri } } });
 	});
 });
 
@@ -280,7 +278,7 @@ describe("getJsonLdContext ontology @graph, rdfs:subClassOf as a real RDF statem
 			},
 		} as unknown as Parameters<typeof getJsonLdContext>[0];
 		const out = getJsonLdContext(domains) as { "@context": Record<string, Record<string, unknown>>; "@graph": Array<Record<string, unknown>> };
-		expect(out["@context"].P["@id"]).toBe("sec:Controller");
+		expect(out["@context"].P?.["@id"]).toBe("sec:Controller");
 		expect(out["@context"].P).not.toHaveProperty("rdfs:subClassOf"); // an ontology keyword would make the term definition invalid
 		const classNode = out["@graph"].find((n) => n["@id"] === "sec:Controller");
 		expect(classNode?.["@type"]).toBe("rdfs:Class");
@@ -300,7 +298,7 @@ describe("getJsonLdContext ontology @graph, rdfs:subClassOf as a real RDF statem
 	it("the Principal (sec:Controller) class node is declared a prov:Agent: the wasAttributedTo target is well-formed", () => {
 		const domains = mapDefinitionsToDomains([principalDomainDefinition]);
 		const out = getJsonLdContext(domains) as { "@context": Record<string, { "@id": string }>; "@graph": Array<Record<string, unknown>> };
-		expect(out["@context"][PRINCIPAL_LABEL]["@id"]).toBe("sec:Controller");
+		expect(out["@context"][PRINCIPAL_LABEL]?.["@id"]).toBe("sec:Controller");
 		expect(out["@graph"].find((n) => n["@id"] === "sec:Controller")?.["rdfs:subClassOf"]).toEqual({ "@id": "prov:Agent" });
 	});
 });
@@ -370,7 +368,7 @@ describe("getJsonLdContext ontology @graph, rdfs:subPropertyOf as a real RDF sta
 			},
 		} as unknown as Parameters<typeof getJsonLdContext>[0];
 		const out = getJsonLdContext(domains) as { "@context": Record<string, { "@context"?: Record<string, Record<string, unknown>> }>; "@graph": Array<Record<string, unknown>> };
-		expect(out["@context"].C["@context"]?.performedBy).not.toHaveProperty("rdfs:subPropertyOf"); // an ontology keyword would make the term definition invalid
+		expect(out["@context"].C?.["@context"]?.performedBy).not.toHaveProperty("rdfs:subPropertyOf"); // an ontology keyword would make the term definition invalid
 		// performedBy declares under the directional fromActor super-property (itself subPropertyOf inRoleOf), stated on its property node.
 		const performedByNode = out["@graph"].find((n) => n["@id"] === REL_CONTEXT[LinkRelations.PERFORMED_BY.rel]);
 		expect(performedByNode?.["@type"]).toBe("rdf:Property");
@@ -391,7 +389,7 @@ describe("getJsonLdContext ontology @graph, rdfs:subPropertyOf as a real RDF sta
 			},
 		} as unknown as Parameters<typeof getJsonLdContext>[0];
 		const out = getJsonLdContext(domains) as { "@context": Record<string, { "@context"?: Record<string, Record<string, unknown>> }> };
-		const scoped = out["@context"].C["@context"];
+		const scoped = out["@context"].C?.["@context"];
 		expect(scoped?.issuer?.["@id"]).toBe("ex:issuer"); // the consumer's genuine term, not the upper pointer's IRI
 		expect((out["@context"] as Record<string, unknown>).ex).toBe("https://vocab.example/ns#");
 	});
@@ -465,7 +463,7 @@ describe("CommentSchema", () => {
 describe("commentDomainDefinition", () => {
 	it("has the expected topology shape without discourse property", () => {
 		const t = commentDomainDefinition.topology;
-		if (!t) throw new Error("commentDomainDefinition must declare topology");
+		if (!isPersisted(t)) throw new Error("commentDomainDefinition must declare a persisted topology");
 		expect(t.persistedAs).toBe(COMMENT_LABEL);
 		expect(t.id).toBe("id");
 		expect((t.properties as Record<string, unknown>).discourse).toBeUndefined();
@@ -524,7 +522,7 @@ describe("TextQuoteSelectorSchema", () => {
 describe("Web Annotation domain definitions", () => {
 	it("SpecificResource is typed oa:SpecificResource and links hasSource + hasSelector", () => {
 		const t = specificResourceDomainDefinition.topology;
-		if (!t || !("persistedAs" in t)) throw new Error("specificResourceDomainDefinition must declare a persisted topology");
+		if (!isPersisted(t)) throw new Error("specificResourceDomainDefinition must declare a persisted topology");
 		expect(t.persistedAs).toBe(SPECIFIC_RESOURCE_LABEL);
 		expect(t.type).toBe("oa:SpecificResource");
 		expect(t.edges?.hasSource).toEqual({ rel: LinkRelations.HAS_SOURCE.rel, range: "Resource" });
@@ -536,7 +534,7 @@ describe("Web Annotation domain definitions", () => {
 
 	it("TextQuoteSelector is typed oa:TextQuoteSelector with the quote fields on the selector node, not the target", () => {
 		const t = textQuoteSelectorDomainDefinition.topology;
-		if (!t || !("persistedAs" in t)) throw new Error("textQuoteSelectorDomainDefinition must declare a persisted topology");
+		if (!isPersisted(t)) throw new Error("textQuoteSelectorDomainDefinition must declare a persisted topology");
 		expect(t.persistedAs).toBe(TEXT_QUOTE_SELECTOR_LABEL);
 		expect(t.type).toBe("oa:TextQuoteSelector");
 		expect(t.properties.exact).toBe(LinkRelations.EXACT.rel);
@@ -708,7 +706,7 @@ function memStore() {
 			return Promise.resolve();
 		},
 		remove: (pattern) => {
-			for (let i = quads.length - 1; i >= 0; i--) if (matches(quads[i], pattern)) quads.splice(i, 1);
+			for (let i = quads.length - 1; i >= 0; i--) if (matches(itemAt(quads, i), pattern)) quads.splice(i, 1);
 			return Promise.resolve();
 		},
 		query: (pattern) => Promise.resolve(quads.filter((q) => matches(q, pattern))),

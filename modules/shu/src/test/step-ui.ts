@@ -74,6 +74,7 @@ const ASK_LOCATOR = { ANSWERED: "ask-answered", TURNS_SHOWN: "ask-turns-shown", 
 const ACTIONS_PANE_CONTROL = "actions-pane-control";
 
 import { normalizeStepKey } from "../util.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 export { normalizeStepKey };
 const stepRun = (method: string, callIndex: number) => `${normalizeStepKey(method)}-${callIndex}-step-run`;
 const stepDone = (method: string, callIndex: number) => `${normalizeStepKey(method)}-${callIndex}-step-done`;
@@ -253,7 +254,7 @@ export function createStepUI(wp: WebPlaywright) {
 			]),
 			...(expandedEntries.length > 0
 				? [
-						waitFor({ target: stepInput(method, callIndex, expandedEntries[0][0]) }),
+						waitFor({ target: stepInput(method, callIndex, itemAt(expandedEntries, 0)[0]) }),
 						...expandedEntries.map(([name, value]) => setValue({ what: value, field: stepInput(method, callIndex, name) })),
 					]
 				: [waitFor({ target: runTarget })]),

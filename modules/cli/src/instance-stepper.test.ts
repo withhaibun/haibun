@@ -10,7 +10,8 @@
  * belongs to the feature tests.
  */
 import { describe, expect, it } from "vitest";
-import InstanceStepper, { RunTail, featureFilterDomainDefinition, runEnvironment, verifiedRun } from "./instance-stepper.js";
+import type { z } from "zod";
+import InstanceStepper, { RunTail, featureFilterDomainDefinition, runEnvironment, runReadSchema, verifiedRun } from "./instance-stepper.js";
 import { execFileSync } from "node:child_process";
 import nodeFS from "node:fs";
 import os from "node:os";
@@ -38,7 +39,7 @@ class SupervisorWithHeldRun extends InstanceStepper {
 		take(said);
 		// A held run stands in for a forked one, so it reports when it ends the way a child does.
 		const child = Object.assign(new EventEmitter(), { kill: () => true }) as unknown as ChildProcess;
-		this.runs.set(run, { child, where: "/where", filter: "some-feature", tail, outcome, ended, waiters });
+		this.runs.set(run, { child, tail, outcome, ended, waiters });
 		return { say: take, end: (code: number) => this.endHeld(run, code) };
 	}
 
@@ -51,7 +52,7 @@ class SupervisorWithHeldRun extends InstanceStepper {
 }
 
 type TResult = { ok: boolean; errorMessage?: string };
-type TRead = { ok: boolean; errorMessage?: string; products?: { status: string; exitCode: number | null; cursor: number; output: string; dropped: number } };
+type TRead = { ok: boolean; errorMessage?: string; products?: z.infer<typeof runReadSchema> };
 
 const read = async (stepper: InstanceStepper, run: string, cursor: number) =>
 	(await (stepper.steps.readRun.action as (a: { run: string; cursor: number }) => Promise<TRead>)({ run, cursor })) as TRead;

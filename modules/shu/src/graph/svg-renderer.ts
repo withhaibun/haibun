@@ -11,8 +11,9 @@ import { ellipsize } from "@haibun/core/lib/util/index.js";
 import { EDGE_KIND, NODE_KIND, type IGraphRenderer, type TGraph, type TGraphEdge, type TGraphRenderOptions } from "./types.js";
 
 /** Built-in node styling by `kind`; consumers override via `graph.styles[kind]`. */
+const DEFAULT_NODE = { fill: "#eee", stroke: "#999" };
 const NODE_DEFAULTS: Record<string, { fill: string; stroke: string; strokeWidth?: number }> = {
-	[NODE_KIND.default]: { fill: "#eee", stroke: "#999" },
+	[NODE_KIND.default]: DEFAULT_NODE,
 	[NODE_KIND.satisfied]: { fill: "#d8edd8", stroke: "#1a6b3c", strokeWidth: 2 },
 	[NODE_KIND.reachable]: { fill: "#d8e1f0", stroke: "#2848a8" },
 	[NODE_KIND.refused]: { fill: "#fde6c4", stroke: "#b58105" },
@@ -37,7 +38,7 @@ function nodeStyle(kind: string | undefined, overrides: TGraph["styles"]): { fil
 	// data @type (buildGraphTopology sets node.kind = the namedGraph): take its fill from the per-@type presenter: the
 	// SAME source the 3D paint uses, so SVG and 3D data nodes share colours (one presenter feeds both paints).
 	const fill = o?.fill ?? base?.fill ?? presentationForType(k).mark({ id: k, name: k, type: k }, {}).color;
-	return { fill, stroke: o?.stroke ?? base?.stroke ?? NODE_DEFAULTS.default.stroke, strokeWidth: o?.strokeWidth ?? base?.strokeWidth ?? 1.5 };
+	return { fill, stroke: o?.stroke ?? base?.stroke ?? DEFAULT_NODE.stroke, strokeWidth: o?.strokeWidth ?? base?.strokeWidth ?? 1.5 };
 }
 
 /** The point on a box's border on the ray from its centre toward `toward`, so an edge meets the node edge, not its centre. */

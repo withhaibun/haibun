@@ -4,7 +4,7 @@ import { LinkRelations, REL_CONTEXT } from "./resources.js";
 import { toRegisteredDomain } from "./domains.js";
 import { fromJsonText } from "./json-text.js";
 
-const iri = (rel: string) => REL_CONTEXT[rel];
+const iri = (rel: keyof typeof REL_CONTEXT) => REL_CONTEXT[rel];
 
 describe("hypermediaDomainFromContext, declare a hypermedia domain from a JSON-LD @context", () => {
 	it("builds the Ingredient topology + raw schema (recipe model)", () => {
@@ -25,8 +25,8 @@ describe("hypermediaDomainFromContext, declare a hypermedia domain from a JSON-L
 		const cat = buildConcernCatalog({
 			ingredient: toRegisteredDomain({ selectors: ["ingredient"], schema: fromJsonText(schema), description: "An ingredient used in recipes.", topology, ui: { declared: true } }),
 		});
-		expect(cat.persisted.Ingredient.idField).toBe("id");
-		expect(cat.persisted.Ingredient.edges.usedIn.targets).toEqual(["Recipe"]);
+		expect(cat.persisted.Ingredient?.idField).toBe("id");
+		expect(cat.persisted.Ingredient?.edges.usedIn?.targets).toEqual(["Recipe"]);
 	});
 
 	it("requires an @id field: a type is invalid without an identifier", () => {
