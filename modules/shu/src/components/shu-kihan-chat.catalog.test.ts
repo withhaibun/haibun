@@ -15,10 +15,9 @@ import { SHU_ATTR } from "../consts.js";
 
 /** The models actuality holds, which a read of the catalog lists. */
 let models: Array<{ id: string; displayName: string }> = [];
-/** The type actuality's models are grouped under, the records of it discovery wrote, and the step that lists them. */
+/** The type actuality's models are grouped under, and the records of it discovery wrote. */
 const PROVIDER = "ModelProvider";
 let providers: Array<{ id: string; answered: boolean; models: number; why?: string }> = [];
-const PROVIDERS_STEP = `show${PROVIDER}s`;
 /** The type actuality's models are records of, each grouped under the provider it is called through. */
 const KIHAN = "Kihan";
 const GROUPED = LinkRelations.CONTEXT.rel;
@@ -32,9 +31,11 @@ const MODELS_BY_PROVIDER = buildConcernCatalog(
 let t: TShuTestHandle;
 beforeEach(() => {
 	const listing = (vertices: unknown[]) => ({ vertices, total: vertices.length });
-	const respond = (step: string) =>
-		step === CHAT_STEP.catalog ? listing(models) : step === PROVIDERS_STEP ? listing(providers) : step === CHAT_STEP.sessions ? { sessions: [] } : {};
-	t = setupShuTest({ dispatch: chatDispatch(respond, { steps: [...Object.values(CHAT_STEP), PROVIDERS_STEP], concerns: MODELS_BY_PROVIDER }) });
+	// The read of a type answers with the records of the type its query names: the models, or their providers.
+	const ofType = (params: Record<string, unknown>) => ((params.query as { label?: string } | undefined)?.label === KIHAN ? models : providers);
+	const respond = (step: string, params: Record<string, unknown>) =>
+		step === CHAT_STEP.catalog ? listing(ofType(params)) : step === CHAT_STEP.sessions ? { sessions: [] } : {};
+	t = setupShuTest({ dispatch: chatDispatch(respond, { concerns: MODELS_BY_PROVIDER }) });
 });
 afterEach(() => t.teardown());
 

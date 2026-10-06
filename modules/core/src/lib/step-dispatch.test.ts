@@ -20,7 +20,7 @@ import { FlowRunner } from "./core/flow-runner.js";
 import { actionOKWithProducts, actionNotOK } from "./util/index.js";
 import { getDefaultWorld, testWithWorld } from "./test/lib.js";
 import { TEST_DOMAIN, declaresTestDomains, testDomainDefinitions } from "./test/test-domains.js";
-import { DOMAIN_DOMAIN_KEY, DOMAIN_NUMBER, DOMAIN_RECORD_ID, DOMAIN_STRING, individualRefDomain, registerDomains } from "./domains.js";
+import { DOMAIN_DOMAIN_KEY, DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_RECORD_ID, DOMAIN_STRING, individualRefDomain, registerDomains } from "./domains.js";
 import type { TWorld } from "./world.js";
 import { Access, DOMAIN_PERSISTED_TYPE, LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "./resources.js";
 import { SEQ_PATH_FIELD, executionOf, factIdOf, formatRecordName } from "./seq-path.js";
@@ -449,6 +449,12 @@ describe("step-dispatch", () => {
 			);
 			expect(() => declaring({ gwta: `read {label: string} {id: ${DOMAIN_RECORD_ID}}`, recordIds: { id: "label" } }), "paired with a parameter that doesn't name a type").toThrow(
 				/recordIds pairs \{id\} with \{label\}, which doesn't name a type/,
+			);
+			expect(() => declaring({ gwta: `write {label: string} {data: ${DOMAIN_JSON}}`, recordData: { data: "label" } }), "fields paired with a parameter that doesn't name a type").toThrow(
+				/recordData pairs \{data\} with \{label\}, which doesn't name a type/,
+			);
+			expect(() => declaring({ gwta: `write {label: ${DOMAIN_PERSISTED_TYPE}} {data: ${DOMAIN_JSON}}`, recordData: { fields: "label" } }), "a parameter its phrase doesn't take").toThrow(
+				/recordData names \{fields\}, which its phrase doesn't take/,
 			);
 		});
 

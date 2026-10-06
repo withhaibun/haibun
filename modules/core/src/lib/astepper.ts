@@ -184,6 +184,11 @@ type TStepperStepBase = {
 	 */
 	recordIds?: Record<string, string>;
 	/**
+	 * Each parameter taking the fields of a record, with the parameter naming the record's type: `{ data: "label" }` for
+	 * `create {label} {data}`. The fields are those the named type's schema states, so a form asks for them.
+	 */
+	recordData?: Record<string, string>;
+	/**
 	 * Which of the step's products are kept on its lifecycle event. Default (absent/true): all. `false`: the event doesn't keep them, for a step
 	 * whose products are bulk payload consumed via the action result or a separate fetch (a query's rows, a captured page's
 	 * HTML), which would otherwise bloat the in-memory event stream. A function: the subset it returns, for a product that

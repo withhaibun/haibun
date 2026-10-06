@@ -18,7 +18,7 @@ import { stepsShown, type TDispatch } from "../test-setup.js";
 /** The consumer's stepper that offers the steps the pane calls. */
 export const CHAT_STEPPER = "AskingStepper";
 /** The steps the pane and the conversation call, by name. */
-export const CHAT_STEP = { ask: ASK_STEP, keepFile: KEEP_FILE_STEP, sessions: "listChatSessions", session: "loadChatSession", catalog: "showKihans" } as const;
+export const CHAT_STEP = { ask: ASK_STEP, keepFile: KEEP_FILE_STEP, sessions: "listChatSessions", session: "loadChatSession", catalog: "graphQuery" } as const;
 
 /**
  * A dispatch answering the pane as a run that offers the steps named: the show steps step lists them with the types the

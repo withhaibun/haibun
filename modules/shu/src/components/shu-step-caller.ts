@@ -94,7 +94,7 @@ class StepCaller extends HTMLElement {
 		this.renderComponent();
 
 		const params: Record<string, unknown> = { ...this.fixedParams };
-		const schema = this.descriptor.inputSchema as { properties?: Record<string, InputProperty> } | undefined;
+		const schema = this.inputSchemaOf(this.descriptor);
 		try {
 			for (const [key, value] of Object.entries(formValues)) {
 				const dotIndex = key.indexOf(".");
@@ -133,7 +133,7 @@ class StepCaller extends HTMLElement {
 		// exposes through `findStep().inputSchema`. Single source of truth: the
 		// Zod schema on the server. Validating here yields inline, per-field
 		// feedback before the RPC roundtrip.
-		const fieldErrors = validateStepInput(params, this.descriptor.inputSchema as Parameters<typeof validateStepInput>[1]);
+		const fieldErrors = validateStepInput(params, schema as Parameters<typeof validateStepInput>[1]);
 		if (fieldErrors.length > 0) {
 			this.fieldErrors = collectFieldErrors(fieldErrors);
 			this.error = `invalid input: ${fieldErrors.map((e) => `${e.field} ${e.message}`).join("; ")}`;
@@ -197,9 +197,24 @@ class StepCaller extends HTMLElement {
 		this.bindEvents();
 	}
 
+	/** The step's input schema, where a parameter taking a record's fields takes those the chosen type's schema states, as the
+	 *  catalog carries it, so the form asks for each field and validates it as the server does. */
+	private inputSchemaOf(desc: TStepDefinition): { properties?: Record<string, InputProperty>; required?: string[] } {
+		const schema = desc.inputSchema as { properties?: Record<string, InputProperty>; required?: string[] };
+		const properties = { ...schema.properties };
+		for (const [data, typeParam] of Object.entries(desc.recordData ?? {})) {
+			const chosen = this.fixedParams[typeParam] ?? this.lastFormValues[typeParam];
+			const typeSchema = (typeof chosen === "string" ? cachedConcernCatalog()?.persisted[chosen]?.jsonSchema : undefined) as InputProperty | undefined;
+			// The catalog states what a record holds, so a field its schema fills by default is one a caller may leave out.
+			const defaulted = new Set(Object.entries(typeSchema?.properties ?? {}).flatMap(([field, prop]) => ("default" in prop ? [field] : [])));
+			if (typeSchema) properties[data] = { ...typeSchema, required: (typeSchema.required ?? []).filter((field) => !defaulted.has(field)) };
+		}
+		return { ...schema, properties };
+	}
+
 	private renderForm(desc: TStepDefinition): string {
-		const schema = desc.inputSchema as { properties?: Record<string, InputProperty>; required?: string[] } | undefined;
-		const properties = schema?.properties || {};
+		const schema = this.inputSchemaOf(desc);
+		const properties = schema.properties || {};
 		const prefix = this.idPrefix();
 		const tid = (suffix: string) => ` data-testid="${escAttr(prefix)}-${escAttr(suffix)}"`;
 
@@ -219,9 +234,11 @@ class StepCaller extends HTMLElement {
 				parts.push(`<span class="step-fixed">${esc(String(this.fixedParams[paramName]))}</span>`);
 			} else {
 				const prop = properties[paramName];
-				if (prop?.enum) {
+				// A parameter naming the type of a record's fields offers the types the catalog declares.
+				const names = Object.values(desc.recordData ?? {}).includes(paramName) ? Object.keys(cachedConcernCatalog()?.persisted ?? {}).sort() : prop?.enum;
+				if (names) {
 					const savedVal = this.lastFormValues[paramName] || "";
-					const options = prop.enum.map((v: string) => `<option value="${escAttr(v)}"${v === savedVal ? " selected" : ""}>${esc(v)}</option>`).join("");
+					const options = names.map((v: string) => `<option value="${escAttr(v)}"${v === savedVal ? " selected" : ""}>${esc(v)}</option>`).join("");
 					parts.push(
 						`<select name="${escAttr(paramName)}" class="inline-select"${tid(`step-input-${paramName}`)}><option value=""${!savedVal ? " selected" : ""}>${esc(paramName)}</option>${options}</select>`,
 					);
@@ -365,6 +382,14 @@ class StepCaller extends HTMLElement {
 				}
 				void this.callStep(values);
 			});
+
+			// A parameter naming the type a record's fields are of: choosing a type asks for its fields.
+			for (const typeParam of Object.values(this.descriptor?.recordData ?? {})) {
+				form.querySelector<HTMLSelectElement>(`select[name="${typeParam}"]`)?.addEventListener("change", () => {
+					for (const input of form.querySelectorAll<HTMLInputElement | HTMLSelectElement>("input[name], select[name]")) this.lastFormValues[input.name] = input.value;
+					this.renderComponent();
+				});
+			}
 
 			// Auto-expand inline inputs as user types
 			form.querySelectorAll<HTMLInputElement>(".inline-input").forEach((input) => {

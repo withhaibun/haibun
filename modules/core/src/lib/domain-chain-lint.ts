@@ -23,6 +23,7 @@ import { isPersisted, type TRegisteredDomain } from "./resources.js";
 import { SOURCE_DOMAIN, buildDomainChain, type TDomainChainGraph } from "./domain-chain.js";
 import type { AStepper } from "./astepper.js";
 import { DOMAIN_STRING, domainParts, fieldRangesOf, isPrimitiveDomain, isWrittenByCaller, refTargetOf } from "./domains.js";
+import { DOMAIN_INDIVIDUAL_ADDRESS } from "./typed-links.js";
 
 /** The kinds of finding, each a way the typed step graph is incomplete. */
 export const LINT_FINDING = {
@@ -82,6 +83,9 @@ export function lintDomainChain(graph: TDomainChainGraph, domains: Record<string
 	// A step taking a union takes each of its parts, and one taking a composite takes what the composite's fields name.
 	for (const key of [...consumedDomains]) for (const part of domainParts(key)) consumedDomains.add(part);
 	for (const key of [...consumedDomains]) for (const named of fieldRangesOf(domains[key], domains)) consumedDomains.add(named);
+	// An individual address names its type beside its id, so a step answering with one, as a create of any declared type
+	// does, supplies a record of every persisted type.
+	if (producedDomains.has(DOMAIN_INDIVIDUAL_ADDRESS)) for (const [key, domain] of Object.entries(domains)) if (isPersisted(domain.topology)) producedDomains.add(key);
 	// A reference to a record is supplied wherever a record of its type is produced, as the goal resolver chains it, and a
 	// step answering with a reference supplies the record it refers to. A step taking the reference takes that record.
 	for (const [key, domain] of Object.entries(domains)) {

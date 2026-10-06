@@ -210,7 +210,7 @@ export function createStepUI(wp: WebPlaywright) {
 	// Dynamic per-invocation testids (`${method}-${callIndex}-...`) are declared via registerTestIdStep
 	// before any waitFor/setValue uses them, since the shared variable resolver maps bare names to test
 	// ids by lookup, not by string shape.
-	function buildStepBody(method: string, passes: boolean, params: Record<string, unknown> = {}): TKirejiStep[] {
+	function buildStepBody(method: string, passes: boolean, params: Record<string, unknown> = {}, chosen: Record<string, string> = {}): TKirejiStep[] {
 		const callIndex = nextCallIndex(method);
 		const expandedEntries: Array<[string, string]> = [];
 		for (const [name, rawValue] of Object.entries(params)) {
@@ -235,7 +235,7 @@ export function createStepUI(wp: WebPlaywright) {
 		const doneTarget = stepDone(method, callIndex);
 		const resultTarget = stepResult(method, callIndex);
 		const errorTarget = stepError(method, callIndex);
-		const inputTargets = expandedEntries.map(([name]) => stepInput(method, callIndex, name));
+		const inputTargets = [...Object.keys(chosen), ...expandedEntries.map(([name]) => name)].map((name) => stepInput(method, callIndex, name));
 		const branchTarget = passes ? resultTarget : errorTarget;
 		// The step-caller emits `step-done` once execution settles (success or
 		// error). Waiting for `step-done` returns as soon as the outcome lands;
@@ -246,6 +246,11 @@ export function createStepUI(wp: WebPlaywright) {
 			click({ target: IDS.APP.STEP_SELECT }),
 			setValue({ what: `"${method}"`, field: IDS.APP.STEP_SELECT }),
 			press({ key: '"Enter"' }),
+			// A choice comes first: the form asks for what follows from it, such as the fields of the type a record is of.
+			...Object.entries(chosen).flatMap(([name, option]) => [
+				waitFor({ target: stepInput(method, callIndex, name) }),
+				selectionOption({ option: `"${option}"`, field: stepInput(method, callIndex, name) }),
+			]),
 			...(expandedEntries.length > 0
 				? [
 						waitFor({ target: stepInput(method, callIndex, expandedEntries[0][0]) }),
@@ -260,16 +265,18 @@ export function createStepUI(wp: WebPlaywright) {
 	}
 
 	/** Flat (inline) form: the ~9 mechanics emitted directly. Kept for callers that don't want the activity wrapper. */
-	function runStep(method: string, passes: boolean, params: Record<string, unknown> = {}): TKirejiStep[] {
-		return buildStepBody(method, passes, params);
+	function runStep(method: string, passes: boolean, params: Record<string, unknown> = {}, chosen: Record<string, string> = {}): TKirejiStep[] {
+		return buildStepBody(method, passes, params, chosen);
 	}
 
-	function passesStepExecution(method: string, params: Record<string, unknown> = {}): TKirejiStep[] {
-		return runStep(method, true, params);
+	/** Run a step from its form and see it pass. `chosen` names the options chosen first, each by its parameter. */
+	function passesStepExecution(method: string, params: Record<string, unknown> = {}, chosen: Record<string, string> = {}): TKirejiStep[] {
+		return runStep(method, true, params, chosen);
 	}
 
-	function failsStepExecution(method: string, params: Record<string, unknown> = {}): TKirejiStep[] {
-		return runStep(method, false, params);
+	/** Run a step from its form and see it refused. `chosen` names the options chosen first, each by its parameter. */
+	function failsStepExecution(method: string, params: Record<string, unknown> = {}, chosen: Record<string, string> = {}): TKirejiStep[] {
+		return runStep(method, false, params, chosen);
 	}
 
 	/** Activity form: switching to step mode + the step-caller mechanics run as hidden substeps, so the document shows one declarative line per call (e.g. "the root recipe is created"), shown after the steps run. Entering step mode is idempotent, so callers never add it themselves. */

@@ -185,23 +185,11 @@ function subPropertyOfRel(rel: string): string | string[] | undefined {
 }
 import { HAIBUN_NS, type TRegisteredDomain } from "./resources.js";
 import { DOMAIN_UNION, refTargetOf } from "./domains.js";
-import { jsonSchemaOf } from "./json-schema-of.js";
+import { jsonSchemaFor } from "./json-schema-of.js";
 import { unwrap, unwrapToShape } from "./zod-unwrap.js";
 import { zodTypeLabel } from "./composite-domain.js";
 import { ellipsize } from "./util/index.js";
 import { itemAt } from "./util/item-at.js";
-
-/** A domain's JSON Schema for the catalog. The show steps step builds the catalog on every call, and the conversion is held
- *  for the process by `jsonSchemaOf`; a schema that cannot be converted doesn't have a shape to report, and reports so once. */
-function toJsonSchemaCached(schema: z.ZodType): Record<string, unknown> {
-	return jsonSchemaOf(schema, "concern", () => {
-		try {
-			return z.toJSONSchema(schema);
-		} catch {
-			return {};
-		}
-	});
-}
 
 // ============================================================================
 // Schemas  (Zod → TypeScript, Zod → JSON Schema, single source of truth)
@@ -350,8 +338,8 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 		// The domain's own description, carried onto its served schema: a type describes itself ONCE, and every surface:
 		// the type's view, a product's `_description`, a step's tool schema, reads that one text. A `.describe()` on the
 		// schema would be a second answer to the same question, free to drift from the one a reader is shown. Spread, never
-		// mutated: toJsonSchemaCached memoizes by schema identity, and schemas are shared.
-		const jsonSchema = { ...toJsonSchemaCached(domain.schema), description: domain.description };
+		// mutated: jsonSchemaFor memoizes by schema identity, and schemas are shared.
+		const jsonSchema = { ...jsonSchemaFor(`type ${label}`, domain.schema, "output"), description: domain.description };
 
 		persisted[label] = HypermediaConcernSchema.parse({
 			domainKey,

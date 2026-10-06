@@ -45,10 +45,13 @@ export function storedAccessLevel(viewing: string): string | undefined {
 	return AccessLevelSchema.safeParse(viewing).success ? viewing : undefined;
 }
 
+/** The step that creates a record of a type it names, which the store's stepper offers for every declared type. */
+const CREATE_A_RECORD = "createTyped";
+
 /** Save a scene under `name`, replacing one of that name. Writes through the step RPC, as every write does. */
 export function saveScene(name: string, state: TSceneState, why: string): Promise<{ ok: true; value: unknown } | { ok: false; error: string }> {
 	const accessLevel = storedAccessLevel(appAccessLevel());
-	return callStep("createScene", { data: { id: name, generatedAtTime: new Date().toISOString(), ...(accessLevel ? { accessLevel } : {}), state: JSON.stringify(state) } }, why);
+	return callStep(CREATE_A_RECORD, { label: SCENE_LABEL, data: { id: name, generatedAtTime: new Date().toISOString(), ...(accessLevel ? { accessLevel } : {}), state: JSON.stringify(state) } }, why);
 }
 
 /** The scene every deployment has: what it exchanged with what, and under what authority. */

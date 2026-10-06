@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-import { serveThePage } from "../test-setup.js";
 import { describe, it, expect, beforeAll, beforeEach } from "vitest";
 import "./shu-step-caller.js";
 
@@ -20,6 +19,14 @@ import { setEventStream, SerializedEventStream } from "../event-stream.js";
 import { rpcAnswer, HANDSHAKE_PATH } from "@haibun/core/lib/test/rpc-answer.js";
 import { endPage } from "../page-pinned.js";
 import { provideLayout } from "../test/jsdom-layout.js";
+import { setConcernCatalog } from "../rels-cache.js";
+import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
+import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
+import { LinkRelations } from "@haibun/core/lib/resources.js";
+import { persistedTypeDefinition, serveThePage } from "../test-setup.js";
+
+/** A type a record of which the generic create writes. */
+const NOTE = "Note";
 
 describe("shu-step-caller", () => {
 	beforeAll(provideLayout);
@@ -58,6 +65,29 @@ describe("shu-step-caller", () => {
 		expect(html).toContain('name="issuer.name"');
 		// And it doesn't render a single JSON-blob input for the composite itself.
 		expect(html).not.toMatch(/name="issuer"[^.]/);
+	});
+
+	it("asks for the fields of the type a record's data is of, once the type is chosen", () => {
+		setConcernCatalog(buildConcernCatalog(mapDefinitionsToDomains([persistedTypeDefinition(NOTE, { properties: { title: LinkRelations.NAME.rel } })])));
+		const caller = makeCaller({
+			method: "StoreStepper-createTyped",
+			pattern: "create {label: persisted-type} {data: record-data}",
+			paramDomains: { label: "persisted-type", data: "record-data" },
+			recordData: { data: "label" },
+			inputSchema: { properties: { label: { type: "string" }, data: { type: "object" } }, required: ["label", "data"] },
+		}) as HTMLElement & { renderComponent: () => void };
+		caller.renderComponent();
+		const select = caller.shadowRoot?.querySelector<HTMLSelectElement>('select[name="label"]');
+		expect(
+			[...(select?.options ?? [])].map((option) => option.value),
+			"the declared types are offered",
+		).toContain(NOTE);
+		if (!select) throw new Error("the type isn't offered as a choice");
+		select.value = NOTE;
+		select.dispatchEvent(new Event("change"));
+		const html = caller.shadowRoot?.innerHTML ?? "";
+		expect(html, "the chosen type's fields").toContain('name="data.title"');
+		expect(html).toContain('name="data.id"');
 	});
 
 	it("setting `call-index` before appendChild yields a testid carrying the index (regression: live SPA was emitting testids without the index)", () => {

@@ -73,9 +73,10 @@ const KihanVertexSchema = z.looseObject({
 type TKihanVertex = z.infer<typeof KihanVertexSchema>;
 /** A page of the model catalog, and how many models actuality offers; an answer without a list is a failed read. */
 const CatalogPageSchema = GraphQueryResultSchema.extend({ vertices: z.array(KihanVertexSchema) });
-/** The type actuality's models are records of, and the read that lists them. */
+/** The type actuality's models are records of. */
 const KIHAN = "Kihan";
-const CATALOG_STEP = `show${KIHAN}s`;
+/** The read that pages through the records of any declared type. */
+const READS_A_TYPE = "graphQuery";
 /** How many models a read of the catalog asks for at a time. */
 const CATALOG_PAGE = 50;
 /** A provider actuality's models are grouped under, as discovery recorded what it answered. */
@@ -318,11 +319,11 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	/** Every model actuality offers, read a page at a time until the pages hold as many as the listing states. */
 	private async readCatalog(): Promise<void> {
 		await getAvailableSteps();
-		if (!findStep(CATALOG_STEP)) return;
+		if (!findStep(READS_A_TYPE)) return;
 		const models: TKihanVertex[] = [];
 		for (;;) {
 			const page = CatalogPageSchema.parse(
-				await conduit().follow(reads(requireStep(CATALOG_STEP), { offset: models.length, limit: CATALOG_PAGE }), "kihan-chat: load model catalog"),
+				await conduit().follow(reads(requireStep(READS_A_TYPE), { query: { label: KIHAN, offset: models.length, limit: CATALOG_PAGE } }), "kihan-chat: load model catalog"),
 			);
 			models.push(...page.vertices);
 			if (page.vertices.length === 0 || models.length >= page.total) break;
@@ -338,9 +339,8 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	/** The providers whose models actuality didn't register, read from the records of the type its models are grouped under. */
 	private async readProvidersWithout(): Promise<{ type: string; providers: TProvider[] } | undefined> {
 		const type = providerType();
-		const listing = `show${type}s`;
-		if (!type || !findStep(listing)) return undefined;
-		const page = ProviderPageSchema.parse(await conduit().follow(reads(requireStep(listing), { offset: 0, limit: CATALOG_PAGE }), "kihan-chat: load providers"));
+		if (!type || !findStep(READS_A_TYPE)) return undefined;
+		const page = ProviderPageSchema.parse(await conduit().follow(reads(requireStep(READS_A_TYPE), { query: { label: type, offset: 0, limit: CATALOG_PAGE } }), "kihan-chat: load providers"));
 		return { type, providers: page.vertices.filter((provider) => provider.models === 0) };
 	}
 

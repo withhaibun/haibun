@@ -109,7 +109,7 @@ function aTurn(params: Record<string, unknown>): DrivenStream {
 /** What actuality answers each step the pane calls. */
 function respond(step: string, params: Record<string, unknown>): unknown {
 	// The registry as the server holds it: a model states who reads its context, which the pane shows on the default.
-	if (step === CHAT_STEP.catalog) return catalog(params);
+	if (step === CHAT_STEP.catalog) return catalog((params as { query: { offset?: number; limit?: number } }).query);
 	if (step === CHAT_STEP.keepFile) {
 		const kept = { file: String(params.file), name: String(params.name) };
 		keptFiles.push(kept);

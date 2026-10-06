@@ -1,5 +1,5 @@
-import { z } from "zod";
-import { jsonSchemaOf } from "./json-schema-of.js";
+
+import { jsonSchemaFor } from "./json-schema-of.js";
 import { AStepper, type TStepperStep, type TFeatureStep } from "./astepper.js";
 import { runSteppers, type TWorld } from "./world.js";
 import { buildConcernCatalog } from "./hypermedia.js";
@@ -8,7 +8,6 @@ import { namedInterpolation, mapInputToStepValues, literalTerm, renderStepLine }
 import { constructorName, actionNotOK } from "./util/index.js";
 import { populateActionArgs } from "./populateActionArgs.js";
 import { DOMAIN_DOMAIN_KEY, DOMAIN_RECORD_ID, DOMAIN_STATEMENT, paramDomainKey, registeredDomain } from "./domains.js";
-import { zodTypeLabel } from "./composite-domain.js";
 import { DOMAIN_PERSISTED_TYPE, isPersisted, withinAccess, type AccessLevel } from "./resources.js";
 import { lackedAction, mayCall, requiredAction } from "./actions.js";
 import { resolveOutputSchema, validateProducts } from "./tool-validation.js";
@@ -212,6 +211,7 @@ export function createStepTool(stepper: AStepper, stepName: string, stepDef: TSt
 			productsDomain: stepDef.productsDomain,
 			productsOf: stepDef.productsOf,
 			...(stepDef.recordIds ? { recordIds: stepDef.recordIds } : {}),
+			...(stepDef.recordData ? { recordData: stepDef.recordData } : {}),
 			capability: requiredAction(stepperName, stepName, stepDef),
 			...(stepDef.readsAt ? { readsAt: stepDef.readsAt } : {}),
 			read: stepDef.read === true,
@@ -232,7 +232,8 @@ export function createStepTool(stepper: AStepper, stepName: string, stepDef: TSt
 /** The domains a parameter naming a record's type takes. */
 const TYPE_NAMING_DOMAINS: readonly string[] = [DOMAIN_PERSISTED_TYPE, DOMAIN_DOMAIN_KEY];
 
-/** Each `record-id` parameter is paired with a parameter naming its record's type, and each pairing names such parameters. */
+/** Each `record-id` parameter is paired with a parameter naming its record's type, each pairing names such parameters, and
+ *  each parameter taking a record's fields is paired with a parameter naming its type. */
 function assertRecordIds(step: string, stepDef: TStepperStep, paramDomainKeys: Map<string, string>): void {
 	for (const [id, type] of Object.entries(stepDef.recordIds ?? {})) {
 		if (paramDomainKeys.get(id) !== DOMAIN_RECORD_ID) throw new Error(`${step}: recordIds names {${id}}, which isn't a ${DOMAIN_RECORD_ID} its phrase takes`);
@@ -241,6 +242,10 @@ function assertRecordIds(step: string, stepDef: TStepperStep, paramDomainKeys: M
 	for (const [param, domain] of paramDomainKeys)
 		if (domain === DOMAIN_RECORD_ID && stepDef.recordIds?.[param] === undefined)
 			throw new Error(`${step}: {${param}} is a ${DOMAIN_RECORD_ID} that its recordIds doesn't pair with a type`);
+	for (const [data, type] of Object.entries(stepDef.recordData ?? {})) {
+		if (!paramDomainKeys.has(data)) throw new Error(`${step}: recordData names {${data}}, which its phrase doesn't take`);
+		if (!TYPE_NAMING_DOMAINS.includes(paramDomainKeys.get(type) ?? "")) throw new Error(`${step}: recordData pairs {${data}} with {${type}}, which doesn't name a type`);
+	}
 }
 
 /**
@@ -317,33 +322,6 @@ export function stepParamDomains(stepDef: TStepperStep): Map<string, string> {
 	return domains;
 }
 
-/**
- * A schema as JSON Schema, for discovery, MCP and forms: what a caller supplies, or what a step answers. A date is an ISO
- * date-time string, and a type without a JSON Schema form is refused at registration, naming `subject`, what declares it.
- */
-function jsonSchemaFor(subject: string, schema: z.ZodType, io: "input" | "output"): Record<string, unknown> {
-	return jsonSchemaOf(schema, io, () =>
-		z.toJSONSchema(schema, {
-			io,
-			unrepresentable: "any",
-			override: (ctx) => {
-				const nodeType = zodTypeLabel(ctx.zodSchema);
-				if (nodeType === "date") {
-					ctx.jsonSchema.type = "string";
-					ctx.jsonSchema.format = "date-time";
-					return;
-				}
-				if (nodeType && UNREPRESENTABLE_ZOD_TYPES.has(nodeType)) {
-					throw new Error(`${subject} declares a "${nodeType}" field, which doesn't have a JSON Schema form; declare a representable type`);
-				}
-			},
-		}),
-	);
-}
-
-/** Zod types without a JSON Schema representation (dates excepted: they surface as string/date-time). A domain
- * declaring one of these doesn't have a form or a client-side validation surface, so registration throws. */
-const UNREPRESENTABLE_ZOD_TYPES = new Set(["bigint", "symbol", "undefined", "void", "never", "function", "map", "set", "promise", "custom", "file"]);
 
 /**
  * Build a JSON Schema and Zod param schemas for a step's input parameters.

@@ -62,6 +62,8 @@ export const StepDescriptorSchema = z
 		productsOf: z.string().optional(),
 		/** Each parameter naming a record by its id, with the parameter naming the record's type. */
 		recordIds: z.record(z.string(), z.string()).optional(),
+		/** Each parameter taking a record's fields, with the parameter naming the record's type. */
+		recordData: z.record(z.string(), z.string()).optional(),
 		/** The action a caller holds to call the step. */
 		capability: z.string(),
 		/** The level of what the step reads, which a caller's read must reach, where the step states one. */

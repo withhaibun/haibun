@@ -11,6 +11,7 @@ import { LINT_FINDING, lintDomainChain, lintFindingLine } from "./domain-chain-l
 import { getCoreDomains } from "./core-domains.js";
 import { failWithDefaults, getDefaultWorld, passWithDefaults } from "./test/lib.js";
 import { DOMAIN_TEXT } from "./domains.js";
+import { DOMAIN_INDIVIDUAL_ADDRESS } from "./typed-links.js";
 
 const PERSON = "person";
 const EMAIL = "email";
@@ -92,6 +93,21 @@ describe("lintDomainChain", () => {
 		expect(unsupplied([new RemovesEmail(), new EmailFromPerson()], "remove"), "a step issuing an email supplies a reference to one").toEqual([]);
 		expect(unsupplied([new ArchiveEmail(), new FindsEmail()], "archive"), "a step answering with a reference supplies the email it refers to").toEqual([]);
 		expect(findings([new RemovesEmail()]).map(lintFindingLine), "a step taking a reference to an email takes an email").toContain(`unproduced-domain ${EMAIL}`);
+	});
+
+	it("takes a step answering with an individual address as supplying a record of every persisted type and a reference to one", () => {
+		class RemovesEmail extends AStepper {
+			steps: TStepperSteps = { remove: { gwta: `remove {email: ${refDomainKey(EMAIL)}}`, action: () => OK } };
+		}
+		class CreatesAnyType extends AStepper {
+			steps: TStepperSteps = {
+				create: { gwta: "create a record", productsDomain: DOMAIN_INDIVIDUAL_ADDRESS, action: () => actionOKWithProducts({ persistedAs: EMAIL, id: "e1" }) },
+			};
+		}
+		const withRefs = { ...deriveNamingDomains(domains()), ...getCoreDomains(getDefaultWorld()) };
+		const unsupplied = (steppers: AStepper[]) => lintDomainChain(buildDomainChain(steppers, withRefs), withRefs).findings.filter((f) => f.kind === LINT_FINDING.UNSUPPLIED_STEP);
+		expect(unsupplied([new RemovesEmail()]), "the steps don't produce an email").toHaveLength(1);
+		expect(unsupplied([new RemovesEmail(), new CreatesAnyType()]), "a step answering with an address supplies an email").toEqual([]);
 	});
 
 	it("reads a step that takes a union as taking each part, so it doesn't report a part unreachable", () => {
