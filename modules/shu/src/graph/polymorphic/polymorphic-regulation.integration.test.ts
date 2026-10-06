@@ -28,12 +28,9 @@ beforeAll(async () => {
 afterAll(() => mounted?.close());
 
 test("under a software rasterizer the scene measures its frames as slow and rests the breath", { timeout: 60_000 }, async () => {
-	// The breath draws a frame every beat until the window fills; one frame in ten is measured.
-	await mounted.page.waitForFunction(
-		(n) => (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { regulation: { samples: number } } }).inspect().regulation.samples >= n,
-		DEFAULT_REGULATION_THRESHOLDS.windowSamples,
-		{ timeout: 45_000 },
-	);
+	// The breath rests until a measurement shows it may run, so the frames measured are those the scene drew for its
+	// changes, feeding and selecting, and the scene pauses once it has drawn them. The window needn't fill.
+	await mounted.atRest();
 	const regulation = (await mounted.page.evaluate(REGULATION)) as Regulation;
 	expect(mounted.errors(), "page errors").toEqual([]);
 	expect(regulation.frameTimeMs, "a software-rasterized frame of this scene takes more than the limit allows at ten beats a second").toBeGreaterThan(
@@ -73,9 +70,7 @@ test("a canvas that moves without resizing doesn't draw a frame; one that resize
 	await mounted.page.waitForFunction(
 		(was) => (document.querySelector("a-scene") as unknown as { renderer: { info: { render: { frame: number } } } }).renderer.info.render.frame > was,
 		before,
-		{
-			timeout: 15_000,
-		},
+		{ timeout: 15_000 },
 	);
 	expect(mounted.errors(), "page errors").toEqual([]);
 });
