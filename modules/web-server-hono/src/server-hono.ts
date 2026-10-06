@@ -5,6 +5,7 @@ import { serve, type ServerType } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { existsSync, statSync, readdirSync } from "fs";
 import { resolve, sep } from "path";
+import { isIP } from "node:net";
 import { esc } from "@haibun/core/lib/document-content.js";
 import type { MiddlewareHandler } from "hono";
 import type { IEventLogger } from "@haibun/core/lib/EventLogger.js";
@@ -18,6 +19,13 @@ import { type IWebServer, type TRouteMap, type TRouteTypes, type TRoutePurpose, 
 
 const DEFAULT_MOUNTED = (): TRouteMap => ROUTE_TYPES.reduce((acc, type) => ({ ...acc, [type]: {} }), {} as TRouteMap);
 
+/** Misdirected Request: the request names a host this server doesn't answer for. */
+const MISDIRECTED = 421;
+/** Whether a host name or address is this machine's loopback. */
+const isLoopback = (host: string): boolean => host === "localhost" || host === "::1" || host === "[::1]" || (isIP(host) === 4 && host.startsWith("127."));
+/** The host a request is addressed to, without its port, or undefined where its `Host` header doesn't parse. */
+const addressedHost = (host: string | undefined): string | undefined => (host && URL.canParse(`http://${host}`) ? new URL(`http://${host}`).hostname : undefined);
+
 export class ServerHono implements IWebServer {
 	static listeningPorts: Map<number, string> = new Map();
 	private servers = new Map<number, ServerType>();
@@ -26,6 +34,8 @@ export class ServerHono implements IWebServer {
 	/** The `/rpc` method families served, by their prefix. */
 	private rpcFamilies = new Map<string, Record<string, TRpcMethod>>();
 	private _port?: number;
+	/** Whether the server listens only on this machine's loopback interface. */
+	private boundToLoopback = false;
 
 	constructor(
 		private readonly eventLogger: IEventLogger,
@@ -40,6 +50,15 @@ export class ServerHono implements IWebServer {
 
 	private createApp(): void {
 		this._app = new Hono({ router: new LinearRouter() });
+		// A server bound to this machine answers only requests addressed to it by a loopback name. A page another site serves
+		// can rebind its own name to 127.0.0.1, and its requests then reach this server as same-origin requests addressed to
+		// that name, so the name a request is addressed to decides whether it was sent for this machine.
+		this._app.use("*", async (c, next) => {
+			const host = c.req.header("host");
+			if (this.boundToLoopback && !isLoopback(addressedHost(host) ?? ""))
+				return c.text(`This server answers requests addressed to localhost, 127.0.0.1 or [::1], and this one is addressed to ${host ?? "no host"}. Open it at http://localhost:${this._port}.`, MISDIRECTED);
+			await next();
+		});
 		const [first, ...others] = this.admitted;
 		if (first) this._app.use("*", basicAuth(first, ...others));
 	}
@@ -63,6 +82,7 @@ export class ServerHono implements IWebServer {
 			throw new Error(`ServerHono.listen: invalid port "${port}"`);
 		}
 		const host = hostname || "127.0.0.1";
+		this.boundToLoopback = isLoopback(host);
 		if (ServerHono.listeningPorts.has(port)) {
 			return Promise.reject(`ServerHono.listen for ${why}: port ${port} (${host}) already in use for ${ServerHono.listeningPorts.get(port)}`);
 		}

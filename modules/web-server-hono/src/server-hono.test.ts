@@ -8,6 +8,7 @@ import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { EndpointLabels } from "./defs.js";
 import { whyNotSignedInOnly } from "./auth.js";
 import { basicAuthUsers } from "@haibun/core/lib/basic-auth.js";
+import { freePort } from "@haibun/core/lib/test/lib.js";
 
 const mockLogger: IEventLogger = {
 	subscribe: () => {
@@ -181,11 +182,20 @@ describe("ServerHono", () => {
 			expect(() => server.listen("test", NaN)).toThrow("invalid port");
 		});
 
-		it("listens on dynamic port and closes", async () => {
-			// Use a high port to avoid conflicts
-			const dynamicPort = 10000 + Math.floor(Math.random() * 50000);
-			await server.listen("test", dynamicPort);
-			expect(server.port).toBe(dynamicPort);
+		it("listens on a free port and closes", async () => {
+			const port = await freePort();
+			await server.listen("test", port);
+			expect(server.port).toBe(port);
+			await server.close();
+		});
+
+		it("bound to this machine, answers only a request addressed to it by a loopback name, which a page whose name rebinds to it doesn't state", async () => {
+			const port = await freePort();
+			server.addRoute("get", "/here", P, (c) => c.text("here"));
+			await server.listen("test", port);
+			const addressedTo = async (host: string) => (await server.app.request("/here", { headers: { host } })).status;
+			expect([await addressedTo(`localhost:${port}`), await addressedTo(`127.0.0.1:${port}`), await addressedTo(`[::1]:${port}`)]).toEqual([200, 200, 200]);
+			expect([await addressedTo(`rebound.example:${port}`), await addressedTo(`127.0.0.1.rebound.example:${port}`)]).toEqual([421, 421]);
 			await server.close();
 		});
 	});
