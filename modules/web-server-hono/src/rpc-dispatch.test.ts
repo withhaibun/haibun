@@ -17,18 +17,23 @@ import { passWithDefaults, DEF_PROTO_OPTIONS, freePort } from "@haibun/core/lib/
 import { TEST_DOMAIN, declaresTestDomains } from "@haibun/core/lib/test/test-domains.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
-import { actionNotOK, actionOKWithProducts, getStepperOptionName } from "@haibun/core/lib/util/index.js";
+import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import FakeAuthorityStepper, { DOMAIN_FAKE_HOLDER, FakeInvoker, fakeGrant } from "@haibun/core/lib/test/fake-authority.js";
 import WebServerStepper from "./web-server-stepper.js";
+import { WEBSERVER, type IWebServer } from "./defs.js";
 import Haibun from "@haibun/core/steps/haibun.js";
 import { EVERY_DEFINITION, SHOW_STEPS_ACTION, SHOW_STEPS_METHOD, readShownSteps, type TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import { refusal } from "@haibun/core/lib/step-registry.js";
 import { streamContext, type TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
-import { readingAt } from "@haibun/core/lib/capability-context.js";
+import { authorizedWith, readingAt } from "@haibun/core/lib/capability-context.js";
 import { Access } from "@haibun/core/lib/resources.js";
 import { TRANSPORT, type ITransport } from "./sse-transport.js";
 import { DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_STEP_METHOD, DOMAIN_TEXT } from "@haibun/core/lib/domains.js";
+
+/** A family of protocol methods a test serves, and the action its method declares. */
+const [PROBE_PREFIX, PROBE_NAME, PROBE_ACTION] = ["probe.", "held", "Probe:held"];
+const PROBE_METHOD = `${PROBE_PREFIX}${PROBE_NAME}`;
 
 class PingStepper extends AStepper {
 	description = "Steps that answer a ping, one of them protected and one gated by an admin capability.";
@@ -43,6 +48,19 @@ class PingStepper extends AStepper {
 			readsAt: Access.public,
 			productsDomain: TEST_DOMAIN.readAt,
 			action: async () => actionOKWithProducts({ at: readingAt() ?? "unbounded" }),
+		},
+		serveProbe: {
+			gwta: "serve the probe family",
+			action: () => {
+				const webserver = getFromRuntime<IWebServer>(this.getWorld().runtime, WEBSERVER);
+				// A family's method answers with what the call holds and the level it reads at, inside the call.
+				webserver.addRpcMethods(
+					PROBE_PREFIX,
+					{ description: "answers what a call holds" },
+					{ [PROBE_NAME]: { action: PROBE_ACTION, handle: async () => ({ held: authorizedWith(), at: readingAt() ?? "unbounded" }) } },
+				);
+				return OK;
+			},
 		},
 		holdOpen: {
 			gwta: "hold open",
@@ -287,6 +305,14 @@ class RpcVerifyStepper extends AStepper {
 				const data = (await res.json()) as { error?: string };
 				const expected = refusal(String(method), undefined, String(holder));
 				return res.status === 422 && data.error === expected ? OK : actionNotOK(`Expected "${expected}", got ${res.status} ${JSON.stringify(data)}`);
+			},
+		},
+		probeHolds: {
+			gwta: `probe family at {url: ${DOMAIN_LINK}} presenting nothing holds what is allowed and reads at {level: ${TEST_DOMAIN.accessLevel}}`,
+			action: async ({ url, level }: TStepArgs) => {
+				const answered = (await (await postRpc(String(url), PROBE_METHOD)).json()) as { held?: unknown; at?: string };
+				const held = [answered.held].flat();
+				return held.includes(PROBE_ACTION) && answered.at === String(level) ? OK : actionNotOK(`held ${JSON.stringify(answered)}`);
 			},
 		},
 		rpcReadsAtPresentingNothing: {
@@ -573,6 +599,21 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "Pi
 		};
 		const result = await passWithDefaults([feature], signedSteppers, makeOptions(port, "PingStepper:ping"));
 		expect(result.ok).toBe(true);
+	});
+
+	it("runs a protocol method under what the call presented and at the level it reads, as a dispatched step runs", async () => {
+		const port = await freePort();
+		const feature = {
+			path: "/features/test.feature",
+			content: `
+enable rpc
+webserver is listening for "rpc-family-authority"
+serve the probe family
+probe family at "http://localhost:${port}/rpc/${PROBE_METHOD}" presenting nothing holds what is allowed and reads at "public"
+`,
+		};
+		const result = await passWithDefaults([feature], signedSteppers, makeOptions(port, `${PROBE_ACTION},Read:public`));
+		expect(result.ok, JSON.stringify(result.failure ?? "")).toBe(true);
 	});
 
 	it("bounds what a caller reads by the broadest read it holds, and by the level it asks for, which can only be narrower", async () => {

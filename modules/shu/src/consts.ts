@@ -7,6 +7,10 @@ import { ChatRoleSchema, ChatStatusSchema } from "./schemas.js";
  * store's literal label handle and must not change, existing rows are filtered by it.
  * Shared across the consumer → @haibun/shu boundary so the two sides don't spell it inline.
  */
+/** How many occurrences the browser holds between batches, and so the most a batch of them holds. Fixed, so the buffer
+ *  cannot grow while a batch is in flight. */
+export const CLIENT_RING = 240;
+
 export const STORED_TYPE_PROP = "vertexLabel";
 
 /** The hash params an affordance deep-link is carried in: the goal a panel opens, or the waypoint it opens instead.

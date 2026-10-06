@@ -11,16 +11,21 @@ import { readingHeaders } from "./page-key.js";
 import { ARTIFACTS_ROUTE, artifactAddress } from "@haibun/core/lib/run-artifact.js";
 import { reportToRun } from "./client-log.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { isWebAddress } from "@haibun/core/lib/document-content.js";
+
+/** An address a record supplied, where a page may follow it: a path, or a web address. An address of another scheme,
+ *  as `javascript:` or `data:`, would run in the page or stand for a document the record wrote. */
+const followable = (address: unknown): string | undefined => (typeof address === "string" && (!URL.canParse(address) || isWebAddress(address)) ? address : undefined);
 
 /** The address of one artifact, from what the event recorded of it: its own URL, its path under actuality, or the path
  *  relative to the feature's directory that a report is written into. */
 export function artifactUrl(artifact: { url?: unknown; path?: unknown; featureRelativePath?: unknown }): string | undefined {
-	const url = typeof artifact.url === "string" ? artifact.url : undefined;
+	const url = followable(artifact.url);
 	const base = artifact.path ? String(artifact.path).replace(/^\.?\//, "") : undefined;
 	// A report sits in the feature's directory, so an artifact of that feature is beside it: the leading `featn-N/` of
 	// the run-relative path is what the report's own directory already is.
 	const besideTheFile = base ? `./${base.split("/").slice(1).join("/")}` : undefined;
-	if (isOffline()) return (typeof artifact.featureRelativePath === "string" ? artifact.featureRelativePath : undefined) ?? url ?? besideTheFile;
+	if (isOffline()) return followable(artifact.featureRelativePath) ?? url ?? besideTheFile;
 	return url ?? (base ? artifactAddress(base) : undefined);
 }
 

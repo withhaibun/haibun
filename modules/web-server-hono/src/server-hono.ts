@@ -1,6 +1,7 @@
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { Hono } from "hono";
 import { LinearRouter } from "hono/router/linear-router";
+import { bodyLimit } from "hono/body-limit";
 import { serve, type ServerType } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { existsSync, statSync, readdirSync } from "fs";
@@ -19,10 +20,16 @@ import { type IWebServer, type TRouteMap, type TRouteTypes, type TRoutePurpose, 
 
 const DEFAULT_MOUNTED = (): TRouteMap => ROUTE_TYPES.reduce((acc, type) => ({ ...acc, [type]: {} }), {} as TRouteMap);
 
+/** The most a request's body may hold, which the server refuses before it reads more: a file a person keeps travels as a
+ *  data address inside a call, so the limit is set by the files a deployment keeps, not by a step's arguments. */
+export const REQUEST_BODY_LIMIT_BYTES = 64 * 1024 * 1024;
+/** Payload Too Large. */
+const TOO_LARGE = 413;
+
 /** Misdirected Request: the request names a host this server doesn't answer for. */
 const MISDIRECTED = 421;
 /** Whether a host name or address is this machine's loopback. */
-const isLoopback = (host: string): boolean => host === "localhost" || host === "::1" || host === "[::1]" || (isIP(host) === 4 && host.startsWith("127."));
+export const isLoopback = (host: string): boolean => host === "localhost" || host === "::1" || host === "[::1]" || (isIP(host) === 4 && host.startsWith("127."));
 /** The host a request is addressed to, without its port, or undefined where its `Host` header doesn't parse. */
 const addressedHost = (host: string | undefined): string | undefined => (host && URL.canParse(`http://${host}`) ? new URL(`http://${host}`).hostname : undefined);
 
@@ -62,6 +69,14 @@ export class ServerHono implements IWebServer {
 				);
 			await next();
 		});
+		// A body is refused past its limit as it arrives, before a gate reads it whole to check what it proves.
+		this._app.use(
+			"*",
+			bodyLimit({
+				maxSize: REQUEST_BODY_LIMIT_BYTES,
+				onError: (c) => c.text(`A request's body holds at most ${REQUEST_BODY_LIMIT_BYTES} bytes, and this one holds more.`, TOO_LARGE),
+			}),
+		);
 		const [first, ...others] = this.admitted;
 		if (first) this._app.use("*", basicAuth(first, ...others));
 	}

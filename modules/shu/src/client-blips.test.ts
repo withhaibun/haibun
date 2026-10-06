@@ -2,10 +2,16 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import type { TLink } from "./hypermedia.js";
-import { CLIENT_RING, clientBlipsRecorded, clientBlipsSent, flushClientBlips, recordClientBlip } from "./client-blips.js";
+import { CLIENT_RING } from "./consts.js";
+import { clientBlipsRecorded, clientBlipsSent, flushClientBlips, recordClientBlip } from "./client-blips.js";
 import { endPage } from "./page-pinned.js";
 import { carryARun, openReportingPage, setupShuTest, type TShuTestHandle } from "./test-setup.js";
 import { CLIENT_LOG_METHOD } from "./client-log.js";
+import { readAction } from "@haibun/core/lib/actions.js";
+import { Access } from "@haibun/core/lib/resources.js";
+
+/** The read a page holds to hand actuality its occurrences. */
+const PRIVATE_READ = readAction(Access.private);
 
 type TBatch = { blips: { name: string; value?: number }[]; recorded: number };
 /** Each batch the page handed actuality, by the link it followed. */
@@ -21,7 +27,7 @@ const sentBatch = (): TBatch => {
 describe("recording in the browser: hold it, hand it over in batches", () => {
 	// A page records from the moment it loads, so each case is a page of its own, which ends with the case.
 	let t: TShuTestHandle;
-	beforeEach(() => {
+	beforeEach(async () => {
 		// Only the flush delay is faked: the page key a case opens is read from an IndexedDB that answers on real tasks.
 		vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
 		sent.length = 0;
@@ -32,6 +38,8 @@ describe("recording in the browser: hold it, hand it over in batches", () => {
 				return delivered(link);
 			},
 		});
+		// The page holds the read of what actuality records, as an owner's page does.
+		await openReportingPage(undefined, [PRIVATE_READ]);
 	});
 	afterEach(() => {
 		t.teardown();
@@ -104,12 +112,19 @@ describe("recording in the browser: hold it, hand it over in batches", () => {
 		expect(clientBlipsRecorded()).toBe(1);
 	});
 
+	it("keeps its occurrences where the page doesn't hold the read of what actuality records", async () => {
+		await openReportingPage();
+		recordClientBlip("haibun.shu.view.scroll", 1, { view: "a" });
+		await flushClientBlips();
+		expect(sent.filter((link) => link.method !== CLIENT_LOG_METHOD)).toEqual([]);
+	});
+
 	it("keeps the page working when a batch cannot be delivered, and tells the actuality it wasn't", async () => {
 		delivered = (link) => {
 			if (link.method === CLIENT_LOG_METHOD) return {};
 			throw new Error("no route");
 		};
-		await openReportingPage();
+		await openReportingPage(undefined, [PRIVATE_READ]);
 		recordClientBlip("haibun.shu.view.scroll", 1, { view: "a" });
 		await expect(flushClientBlips()).resolves.toBeUndefined();
 		const report = sent.find((link) => link.method === CLIENT_LOG_METHOD);

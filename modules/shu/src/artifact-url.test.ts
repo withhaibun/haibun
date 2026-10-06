@@ -8,7 +8,7 @@ import { SIGNATURE_HEADER } from "@haibun/core/lib/signature-header.js";
 import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { READS_THE_RUNS_ARTIFACTS } from "@haibun/core/lib/actions.js";
-import { shownArtifact, shownOrReported } from "./artifact-url.js";
+import { artifactUrl, shownArtifact, shownOrReported } from "./artifact-url.js";
 import { carryARun, openReportingPage, reportingTo, setupShuTest, type TReportedToRun, type TShuTestHandle } from "./test-setup.js";
 
 const SCREENSHOT = "/artifacts/featn-1/image/event-0.1.png";
@@ -53,6 +53,14 @@ describe("where a view shows an artifact of actuality", () => {
 		carryARun();
 		expect(await shownArtifact("./image/event-0.2.png")).toBe("./image/event-0.2.png");
 		expect(fetched).toEqual([]);
+	});
+
+	it("doesn't give a view an address of a scheme that runs in the page, whatever the record states", () => {
+		const SCRIPT = "javascript:alert(1)";
+		expect(artifactUrl({ url: SCRIPT }), "a record's own address").toBeUndefined();
+		expect(artifactUrl({ url: "https://example.com/door.png" })).toBe("https://example.com/door.png");
+		carryARun();
+		expect(artifactUrl({ featureRelativePath: SCRIPT, path: "featn-1/image/event-0.4.png" }), "a page opened as a file reads the artifact beside it").toBe("./image/event-0.4.png");
 	});
 
 	it("tells actuality why an artifact it refused isn't shown, and reads it again when a view next shows it", async () => {

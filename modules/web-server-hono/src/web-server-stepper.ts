@@ -10,22 +10,22 @@ import { dispatchStep } from "@haibun/core/lib/step-dispatch.js";
 import { ACTION_BEGIN, ANSWERED_WITHOUT_PRODUCTS, parseRpcRequest, authorityRefusal, callFailed, RPC_PROTOCOL, type THandshake } from "@haibun/core/lib/rpc-wire.js";
 import { runWithRequestContext, requestBaseIri } from "@haibun/core/lib/request-context.js";
 import { buildFeatureStepForTransport, refusal, runRegistry, type StepRegistry } from "@haibun/core/lib/step-registry.js";
-import { actionList, lackedAction, mayCall } from "@haibun/core/lib/actions.js";
+import { actionList, EVERY_ACTION, lackedAction, mayCall, readCeilingOf } from "@haibun/core/lib/actions.js";
 import { DOMAIN_TEXT, DOMAIN_FILE_PATH, DOMAIN_ROUTE, DOMAIN_LINK } from "@haibun/core/lib/domains.js";
 import { STORE_METHOD_PREFIX, storeMethods } from "@haibun/core/lib/store-protocol.js";
 import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
 import { activeSitePrincipal, allocateSyntheticSeqPath, resolveHostId, syntheticSeqPath } from "@haibun/core/lib/host-id.js";
 import { SERVING } from "@haibun/core/lib/serving.js";
 import { streamContext } from "@haibun/core/lib/step-stream-context.js";
-import { HTTP_HOST_LABEL, LinkRelations } from "@haibun/core/lib/resources.js";
-import { runReadingAt, runActingAs } from "@haibun/core/lib/capability-context.js";
+import { Access, HTTP_HOST_LABEL, LinkRelations } from "@haibun/core/lib/resources.js";
+import { runAuthorizedWith, runReadingAt, runActingAs } from "@haibun/core/lib/capability-context.js";
 import { fromJsonText } from "@haibun/core/lib/json-text.js";
 
 import { type IWebServer, WEBSERVER, DOMAIN_ENDPOINT, EndpointLabels, EndpointSchema } from "./defs.js";
 import { delegateOf, endWhenLapsed, grantedCapabilityForRequest } from "./capability-auth.js";
 import { whyNotSignedInOnly } from "./auth.js";
 import { basicAuthUsers, type TBasicAuthUser } from "@haibun/core/lib/basic-auth.js";
-import { ServerHono, DEFAULT_PORT } from "./server-hono.js";
+import { ServerHono, DEFAULT_PORT, isLoopback } from "./server-hono.js";
 import { SSETransport, TRANSPORT, type ITransport } from "./sse-transport.js";
 import type { IStepTransport } from "./step-transport.js";
 
@@ -173,6 +173,12 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		this.allowedWithoutDelegation = actionList(getStepperOption(this, "ALLOW_WITHOUT_DELEGATION", world.moduleOptions));
 		const basicAuth = getStepperOption(this, "BASIC_AUTH", world.moduleOptions);
 		this.admitted = basicAuth ? basicAuthUsers(basicAuth) : [];
+		// Every action, allowed to every caller of a server other hosts reach and that doesn't ask who they are, is every
+		// action given to the network.
+		if (this.allowedWithoutDelegation.includes(EVERY_ACTION) && this.hostname && !isLoopback(this.hostname) && this.admitted.length === 0)
+			throw new Error(
+				`WebServerStepper: ALLOW_WITHOUT_DELEGATION allows every action, and INTERFACE ${this.hostname} lets other hosts reach the server without BASIC_AUTH. Name the actions a caller may take, set BASIC_AUTH, or serve on 127.0.0.1.`,
+			);
 	}
 
 	steps = {
@@ -335,8 +341,12 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 				if (!mayCall(granted, { capability: served.action })) return { error: refusal(method, served.action, delegateOf(authority, this)) };
 				if (msg.asks === "read") return { error: notARead(method) };
 				try {
-					// Whoever proved themselves at this boundary is who acts inside it, as in a dispatched step.
-					return await runActingAs(principal, () => served.handle(params), restsOn);
+					// Whoever proved themselves at this boundary is who acts inside it, holding what it presented and reading no
+					// more broadly than the read it holds, or the level it asked, as in a dispatched step.
+					const ceiling = readCeilingOf(granted) ?? Access.public;
+					return await runAuthorizedWith(granted, () =>
+						runActingAs(principal, () => runReadingAt(ceiling, () => runReadingAt(msg.readingAt, () => served.handle(params))), restsOn),
+					);
 				} catch (err) {
 					return callFailed(method, errorDetail(err));
 				}

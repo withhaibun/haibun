@@ -448,7 +448,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 			return `<shu-artifact-frame ${step}><iframe ${SHU_ATTR.DATA_ARTIFACT}="${esc(String(artifactPath))}" loading="lazy" sandbox="${ARTIFACT_SANDBOX}" style="width:100%;min-height:80vh;border:none;"></iframe></shu-artifact-frame>`;
 		if (type === "json") return `<shu-artifact-frame ${step}><div class="json-block">${jsonDisclosure(artifact.json)}</div></shu-artifact-frame>`;
 		if (type === "file")
-			return `<shu-artifact-frame ${step} caption="${esc(String(artifact.path))}"><a href="${esc(String(artifact.path))}">${esc(String(artifact.path))}</a></shu-artifact-frame>`;
+			return `<shu-artifact-frame ${step} caption="${esc(String(artifact.path))}">${artifactPath ? `<a href="${esc(artifactPath)}">${esc(String(artifact.path))}</a>` : esc(String(artifact.path))}</shu-artifact-frame>`;
 		return "";
 	}
 

@@ -30,7 +30,7 @@ import { AStorage } from "@haibun/domain-storage/AStorage.js";
 import type { TTag } from "@haibun/core/lib/ttag.js";
 import { Access, SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { SEQ_PATH_FIELD, executionOf, extractSeqPathPrefix, formatRecordName, parseSeqPath } from "@haibun/core/lib/seq-path.js";
-import { SHU_TAG } from "./consts.js";
+import { CLIENT_RING, SHU_TAG } from "./consts.js";
 import { ARTIFACT_POLICY } from "./content-security-policy.js";
 import { hashWithColumns } from "./view-hash.js";
 import { READS_THE_RUNS_ARTIFACTS } from "@haibun/core/lib/actions.js";
@@ -113,7 +113,7 @@ const DOMAIN_SHU_REPORT = "shu-report";
  *  sustainable at the rate they happen. `recorded` is everything the page has recorded, so a batch a full buffer
  *  truncated reports so rather than reading as the whole. */
 const ClientBlipsSchema = z.object({
-	blips: z.array(z.object({ name: z.string(), value: z.number().optional(), attributes: z.record(z.string(), z.unknown()).optional(), at: z.number() })),
+	blips: z.array(z.object({ name: z.string(), value: z.number().optional(), attributes: z.record(z.string(), z.unknown()).optional(), at: z.number() })).max(CLIENT_RING),
 	recorded: z.number().optional(),
 });
 type TClientBlips = z.infer<typeof ClientBlipsSchema>;
@@ -440,7 +440,8 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			description:
 				"Receive a batch of fine-grained occurrences the SPA recorded and put each into actuality's blip channel, in the order the browser recorded them. A read: actuality doesn't retain a blip, so it doesn't record a batch's arrival either. A recorded batch would be a step whose events reach the page and repaint a scene that then records what it drew.",
 			read: true,
-			readsAt: Access.public,
+			// A blip reaches actuality's telemetry, so a caller holds the read of what actuality records, as its own page does.
+			readsAt: Access.private,
 			action: ({ batch }: { batch: TClientBlips }) => {
 				const world = this.getWorld();
 				for (const blip of batch.blips) recordBlip(world, blip.name, blip.value, { ...blip.attributes, at: blip.at });

@@ -58,6 +58,19 @@ describe("the web server's basic auth option", () => {
 });
 
 describe("WebServerStepper Integration", () => {
+	it("refuses every action to every caller of a server other hosts reach without basic auth, and allows it on this machine or behind basic auth", async () => {
+		const options = (moduleOptions: Record<string, string>) => ({
+			...DEF_PROTO_OPTIONS,
+			moduleOptions: { [getStepperOptionName(WebServerStepper, "ALLOW_WITHOUT_DELEGATION")]: "*", ...moduleOptions },
+		});
+		const INTERFACE = getStepperOptionName(WebServerStepper, "INTERFACE");
+		const open = await passWithDefaults("", [WebServerStepper], options({ [INTERFACE]: "0.0.0.0" }));
+		expect(open.ok).toBe(false);
+		expect(JSON.stringify(open.failure)).toContain("ALLOW_WITHOUT_DELEGATION allows every action");
+		expect((await passWithDefaults("", [WebServerStepper], options({ [INTERFACE]: "127.0.0.1" }))).ok, "on this machine").toBe(true);
+		expect((await passWithDefaults("", [WebServerStepper], options({ [INTERFACE]: "0.0.0.0", [BASIC_AUTH_OPTION]: "reader:secret" }))).ok, "behind basic auth").toBe(true);
+	});
+
 	it("serves files from a directory", async () => {
 		const port = 8132;
 		// Serve 'test-content' which is inside 'files'

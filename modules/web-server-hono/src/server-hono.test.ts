@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { tmpdir } from "node:os";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { ServerHono } from "./server-hono.js";
+import { REQUEST_BODY_LIMIT_BYTES, ServerHono } from "./server-hono.js";
 import type { IEventLogger } from "@haibun/core/lib/EventLogger.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { EndpointLabels } from "./defs.js";
@@ -187,6 +187,17 @@ describe("ServerHono", () => {
 			await server.listen("test", port);
 			expect(server.port).toBe(port);
 			await server.close();
+		});
+
+		it("refuses a body past its limit before a route reads it", async () => {
+			let read = false;
+			server.addRoute("post", "/takes", P, async (c) => {
+				read = true;
+				return c.text(await c.req.text());
+			});
+			const answered = await server.app.request("/takes", { method: "POST", body: "x".repeat(REQUEST_BODY_LIMIT_BYTES + 1) });
+			expect([answered.status, read]).toEqual([413, false]);
+			expect((await server.app.request("/takes", { method: "POST", body: "within" })).status).toBe(200);
 		});
 
 		it("bound to this machine, answers only a request addressed to it by a loopback name, which a page whose name rebinds to it doesn't state", async () => {

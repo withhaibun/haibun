@@ -14,10 +14,11 @@ import { isOffline } from "./rpc-registry.js";
  */
 import { conduit, hasConduit, reads } from "./hypermedia.js";
 import { reportToRun } from "./client-log.js";
+import { pageMay } from "./page-key.js";
+import { readAction } from "@haibun/core/lib/actions.js";
+import { Access } from "@haibun/core/lib/resources.js";
+import { CLIENT_RING } from "./consts.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
-
-/** How many occurrences the browser holds between batches. Fixed, so the buffer cannot grow while a batch is in flight. */
-export const CLIENT_RING = 240;
 
 /** How long to wait before sending, so a burst of frames leaves as one batch rather than one request per frame. */
 const FLUSH_DELAY_MS = 250;
@@ -72,6 +73,9 @@ function scheduleFlush(held: TBlipBuffer): void {
 /** Hand everything held to actuality as one batch. Exported so a test can flush without waiting for the timer. */
 export async function flushClientBlips(): Promise<void> {
 	const held = buffer();
+	// Actuality takes a page's occurrences from a page that holds its private read, as a page reports a diagnostic once its key
+	// holds what it was delegated; a page that doesn't keeps them.
+	if (!pageMay(readAction(Access.private))) return;
 	const batch = takeHeld(held);
 	if (batch.length === 0) return;
 	held.sent += batch.length;
