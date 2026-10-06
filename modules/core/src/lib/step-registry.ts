@@ -8,7 +8,7 @@ import { constructorName, actionNotOK } from "./util/index.js";
 import { populateActionArgs } from "./populateActionArgs.js";
 import { DOMAIN_DOMAIN_KEY, DOMAIN_RECORD_ID, DOMAIN_STATEMENT, paramDomainKey, registeredDomain } from "./domains.js";
 import { DOMAIN_PERSISTED_TYPE, isPersisted, withinAccess, type AccessLevel } from "./resources.js";
-import { lackedAction, mayCall, requiredAction } from "./actions.js";
+import { lackedByCall, mayCall, requiredAction, type TCallAuthority } from "./actions.js";
 import { resolveOutputSchema, validateProducts } from "./tool-validation.js";
 import {
 	STEP_DETAIL,
@@ -345,8 +345,8 @@ function buildInputSchema(stepperName: string, stepName: string, stepDef: TStepp
 
 /** Refuse a call its caller may not make: one whose action, or whose read at the level the step reads at, the caller
  *  doesn't hold, or one made where the read in force is narrower than what the step reads. */
-export function authorizeToolCapability(step: Pick<TStepDescriptor, "method" | "capability" | "readsAt">, granted?: string | string[], readsIn?: AccessLevel): void {
-	const lacked = lackedAction(granted, step);
+export function authorizeToolCapability(step: Pick<TStepDescriptor, "method" | "capability" | "readsAt">, call: TCallAuthority, readsIn?: AccessLevel): void {
+	const lacked = lackedByCall(call, step);
 	if (lacked) throw new Error(namedRefusal(step.method, lacked));
 	if (step.readsAt && readsIn && !withinAccess(step.readsAt, readsIn)) throw new Error(`${step.method} reads at ${step.readsAt}, and this call reads at ${readsIn}`);
 }

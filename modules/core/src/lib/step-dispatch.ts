@@ -9,7 +9,7 @@ import { itemAt } from "./util/item-at.js";
 import { isWrittenByCaller, normalizeDomainKey } from "./domains.js";
 import { OBSERVATION_GRAPH, FACT_GRAPH, assertFact, getFact, queryFacts } from "./working-memory.js";
 import { doStepperCycle } from "./stepper-cycles.js";
-import { actingAs, authorizedWith, readingAsStated, readingAt, runAuthorizedWith, runInStep, runReadingAt, runStatedAt } from "./capability-context.js";
+import { actingAs, callerHolds, readingAsStated, readingAt, runInStep, runInvoking, runReadingAt, runStatedAt } from "./capability-context.js";
 import { capabilityAllows, readCeilingOf } from "./actions.js";
 import { Access, LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS, type SeqPathStatus } from "./resources.js";
 import { SEQ_PATH_FIELD, calledOf, executionOf, factIdOf, formatRecordName } from "./seq-path.js";
@@ -28,7 +28,9 @@ export function retainedProducts(
 
 const MAX_DISPATCH_SEQPATH = 50;
 
-export type DispatchContext = { registry: StepRegistry; world: TWorld; steppers: AStepper[]; grantedCapability?: string | string[] };
+/** How a step is dispatched: `grantedCapability` is what the call invoked, and `held` what its caller holds, which bounds
+ *  what the step reads; a holder in this process invokes from what it holds, so it states one list for both. */
+export type DispatchContext = { registry: StepRegistry; world: TWorld; steppers: AStepper[]; grantedCapability?: string | string[]; held?: string | string[] };
 
 /**
  * Unified step dispatch. Every step invocation, feature execution, FlowRunner,
@@ -54,10 +56,12 @@ const ownFailure = (result: TStepResult): boolean => result.intent?.mode !== "sp
 
 export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureStep): Promise<TStepResult> {
 	const { registry, world, steppers } = ctx;
-	// A caller that states a capability decides; failing that, the capability the calling step was authorized with, so a
-	// step dispatched from inside another isn't refused or allowed for the route taken to it. A statement that
-	// narrows authority, such as `holding only`, states it the same way, for its own statements only.
-	const grantedCapability = ctx.grantedCapability ?? authorizedWith();
+	// A caller that states a capability decides. A step dispatched from inside another invokes its own action: the one the
+	// caller holds that allows it, under the chain the caller presented, so it isn't refused or allowed for the route taken
+	// to it, and nothing runs beyond what that chain holds. A statement that narrows authority, such as `holding only`,
+	// states it the same way, for its own statements only.
+	const grantedCapability = ctx.grantedCapability ?? callerHolds();
+	const held = ctx.held ?? grantedCapability;
 	const { action } = featureStep;
 	const start = Timer.since();
 
@@ -129,19 +133,19 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 
 	// Where the statement was stated, which its arguments are read at, and which a step reading more than it is refused.
 	const statedAt = readingAt();
-	authorizeToolCapability(tool.descriptor, grantedCapability, statedAt);
+	authorizeToolCapability(tool.descriptor, { invoked: grantedCapability, held }, statedAt);
 	// What got through the gate, on the step's own record: which action it required and what the caller held, where the
 	// caller is not actuality acting as itself, and the principal that proved itself, where one did. A refusal throws above,
 	// so a record with these fields is a record of an allowed call.
 	const authorization: TStepAuthorization = {
 		...(!capabilityAllows(grantedCapability, "*")
-			? { required: tool.descriptor.capability, held: (Array.isArray(grantedCapability) ? grantedCapability.join(", ") : grantedCapability) || undefined }
+			? { invoked: [grantedCapability ?? []].flat().find((action) => capabilityAllows(action, tool.descriptor.capability)), held: [held ?? []].flat().join(", ") || undefined }
 			: {}),
 		controller: actingAs(),
 	};
 	// What the step may read is what its caller holds a read for: a caller that doesn't hold one reads at public inside the step
 	// it may run, so a step doesn't read a record for a caller who could not have read it.
-	const ceiling = readCeilingOf(grantedCapability) ?? Access.public;
+	const ceiling = readCeilingOf(held) ?? Access.public;
 
 	// What the step's records state, where a value is too large to repeat in them.
 	const stated = asRecorded(featureStep, world.domains);
@@ -158,7 +162,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	let actionResult: TActionResult | undefined;
 	let lastStepResult: TStepResult | undefined;
 	await runInStep(step, () =>
-		runAuthorizedWith(grantedCapability, () =>
+		runInvoking({ invoked: grantedCapability, held }, () =>
 			runStatedAt(statedAt, () =>
 				runReadingAt(ceiling, async () => {
 					let doAction = true;
@@ -297,7 +301,7 @@ async function autoAssertProducts(world: TWorld, seqPathKey: string, step: TStep
  */
 /** What a step required and what allowed it, for the step's own record. A step actuality takes as itself holds
  *  every action, so its record doesn't gain a field; a caller's states what it required, what it held and who proved it. */
-type TStepAuthorization = { required?: string; held?: string; controller?: string };
+type TStepAuthorization = { invoked?: string; held?: string; controller?: string };
 
 /** A step as its records state it: a value of a domain that declares what a record states for it is stated that way, in
  *  the step's line and among its values, rather than as the value itself. */
@@ -345,7 +349,7 @@ async function emitSeqPathStart(world: TWorld, featureStep: TFeatureStep, author
 		[SEQ_PATH_FIELD.level]: stepLevel(featureStep.isSubStep),
 		...(ran.ranOn === undefined ? {} : { [SEQ_PATH_FIELD.ranOn]: ran.ranOn }),
 	};
-	if (authorization.required) record[SEQ_PATH_FIELD.capabilityAction] = authorization.required;
+	if (authorization.invoked) record[SEQ_PATH_FIELD.capabilityAction] = authorization.invoked;
 	if (authorization.held) record[SEQ_PATH_FIELD.allowedAction] = authorization.held;
 	if (authorization.controller) record[LinkRelations.PERFORMED_BY.rel] = authorization.controller;
 	if (featureStep.source?.path) record[SEQ_PATH_FIELD.path] = featureStep.source.path;

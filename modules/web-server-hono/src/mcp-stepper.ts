@@ -20,7 +20,7 @@ import { getFromRuntime, getStepperOption, getStepperOptionName, stringOrError, 
 import { currentVersion as version } from "@haibun/core/currentVersion.js";
 import { dispatchStep } from "@haibun/core/lib/step-dispatch.js";
 import { buildFeatureStepForTransport, refusal, type StepRegistry } from "@haibun/core/lib/step-registry.js";
-import { lackedAction, mayCall } from "@haibun/core/lib/actions.js";
+import { lackedByCall, type TCallAuthority } from "@haibun/core/lib/actions.js";
 import { stepsInstructions, toolDefinition } from "@haibun/core/lib/step-discovery.js";
 import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
 import type { IWebServer, Context } from "./defs.js";
@@ -29,7 +29,7 @@ import { ServerHono } from "./server-hono.js";
 import WebServerStepper from "./web-server-stepper.js";
 import type { IStepTransport } from "./step-transport.js";
 import { delegateOf, grantedCapabilityForRequest, PRESENTED_REQUEST_HEADERS, refuseInvocation } from "./capability-auth.js";
-import { actingAs, authorizedWith, restingOn, runActingAs, runAuthorizedWith, shownTo } from "@haibun/core/lib/capability-context.js";
+import { actingAs, authorizedWith, callerHolds, restingOn, runActingAs, runInvoking, shownTo } from "@haibun/core/lib/capability-context.js";
 import { DOMAIN_ROUTE } from "@haibun/core/lib/domains.js";
 import { ACTUALITY_HEADER, actualityRefusal } from "@haibun/core/lib/rpc-wire.js";
 /** The port the MCP endpoint listens on where neither it nor the web server states one. */
@@ -87,16 +87,17 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 
 	/** Call a step by its method, as a tool call names it, under the capability the caller was granted and as whoever it
 	 *  proved to be. */
-	public async executeTool(name: string, args: Record<string, unknown>, grantedCapability?: string | string[], principal?: string): Promise<CallToolResult> {
+	public async executeTool(name: string, args: Record<string, unknown>, call: TCallAuthority = { invoked: undefined, held: undefined }, principal?: string): Promise<CallToolResult> {
 		const tool = this.registry().get(name);
 		// A call is refused before its input is read, and alike whether its step exists, as it is over RPC.
-		if (!tool || !mayCall(grantedCapability, tool.descriptor))
+		const lacked = tool && lackedByCall(call, tool.descriptor);
+		if (!tool || lacked)
 			return {
 				isError: true,
 				content: [
 					{
 						type: "text",
-						text: refusal(name, tool && lackedAction(grantedCapability, tool.descriptor), delegateOf({ granted: [grantedCapability ?? []].flat(), principal }, this.webserver())),
+						text: refusal(name, lacked, delegateOf({ held: [call.held ?? []].flat(), principal }, this.webserver())),
 					},
 				],
 			};
@@ -110,7 +111,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 				principal,
 				async () => {
 					// A model reads what its call changed next, so a call whose step names the read that answers it is answered with it.
-					const dispatched = { registry: this.registry(), world, steppers: this.steppers, grantedCapability: grantedCapability ?? [] };
+					const dispatched = { registry: this.registry(), world, steppers: this.steppers, grantedCapability: call.invoked ?? [], held: call.held ?? [] };
 					return answeredFor(dispatched, tool, await dispatchStep(dispatched, featureStep));
 				},
 				restingOn(),
@@ -139,7 +140,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 
 		// --- HANDLER 2: CALL TOOL ---
 		// A call runs under what its request presented, which the middleware verified over the whole request.
-		mcpServer.server.setRequestHandler(CallToolRequestSchema, (request) => this.executeTool(request.params.name, request.params.arguments ?? {}, authorizedWith(), actingAs()));
+		mcpServer.server.setRequestHandler(CallToolRequestSchema, (request) => this.executeTool(request.params.name, request.params.arguments ?? {}, { invoked: authorizedWith(), held: callerHolds() }, actingAs()));
 
 		// --- HANDLER 3: LIST RESOURCES ---
 		mcpServer.server.setRequestHandler(ListResourcesRequestSchema, (_request, _extra) => {
@@ -196,7 +197,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 			// every call it carries runs under that and what the deployment allows without a delegation, and only those: the
 			// server was started inside a step of actuality, and a caller doesn't hold what that step held.
 			const body = c.req.method === "POST" ? await c.req.raw.clone().text() : undefined;
-			const { granted, principal, refused, restsOn } = await grantedCapabilityForRequest(
+			const { granted, held, principal, refused, restsOn } = await grantedCapabilityForRequest(
 				{ method: c.req.method, url: c.req.url, headers: c.req.header(), body },
 				this.getWorld().runtime,
 				webserver,
@@ -210,7 +211,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 			// 3. Disable Compression (Critical for SSE)
 			c.header("Cache-Control", "no-transform");
 
-			await runAuthorizedWith(granted, () => runActingAs(principal, next, restsOn));
+			await runInvoking({ invoked: granted, held }, () => runActingAs(principal, next, restsOn));
 		};
 
 		webserver.app.use(this.mcpPath, applyMcpMiddleware);

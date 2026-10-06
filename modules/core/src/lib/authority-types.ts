@@ -51,7 +51,8 @@ export type TRestsOn = { capabilities: string[]; expires?: string };
 
 /** A verifier's decision: where the evidence holds, who acted, what they may do, and what that rests on; where it
  *  doesn't, why it was refused. */
-export type TVerdict = { ok: true; principal?: string; allowedAction?: string[]; restsOn?: TRestsOn } | { ok: false; error: string };
+/** A verification's verdict: who proved it, the actions the chain allows, and, for an invocation, the one action it invoked. */
+export type TVerdict = { ok: true; principal?: string; allowedAction?: string[]; invoked?: string; restsOn?: TRestsOn } | { ok: false; error: string };
 
 /**
  * Decides whether evidence supports what it claims, and states what it supports: for a request, everything the delegation

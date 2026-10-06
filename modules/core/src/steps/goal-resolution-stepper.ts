@@ -48,7 +48,7 @@ import { callStepByName } from "../lib/call-step.js";
 import { buildAffordances, providesWaypoints, AFFORDANCE_EVENT_PREFIX, type TWaypointEntry, satisfiedGoalDomains } from "../lib/affordances.js";
 import { FACT_GRAPH } from "../lib/working-memory.js";
 import { executionOf } from "../lib/seq-path.js";
-import { authorizedWith, RUN_AUTHORITY, stepInFlight } from "../lib/capability-context.js";
+import { callerHolds, RUN_AUTHORITY, stepInFlight } from "../lib/capability-context.js";
 import { Access } from "../lib/resources.js";
 
 const SMOKE_GOALS = "SMOKE_GOALS";
@@ -159,7 +159,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		const world = this.getWorld();
 		const graph = buildDomainChain(this.steppers, world.domains);
 		const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
-		return resolveGoal(goal, { graph, facts, held: authorizedWith(), ...this.compositeOptions() });
+		return resolveGoal(goal, { graph, facts, held: callerHolds(), ...this.compositeOptions() });
 	}
 
 	/** Walk a michi's steps in order, dispatching each through the synthetic-seqPath path used by other transports. Returns the produced factIds on success; surfaces the offending step's error on first failure. */
@@ -192,7 +192,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 			steppers: this.steppers,
 			domains: world.domains,
 			facts,
-			held: authorizedWith(),
+			held: callerHolds(),
 			compositeDecomposition: composite.compositeDecomposition,
 			compositeMaxDepth: composite.compositeMaxDepth,
 			asOfSeqPath: asOf,
@@ -319,7 +319,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 				// shapes so opening the lint pane shows the graph immediately, with lint
 				// findings available for overlaying orphan/unsupplied/unreachable nodes.
 				const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
-				const affordances = buildAffordances({ steppers: this.steppers, domains: world.domains, facts, held: authorizedWith() });
+				const affordances = buildAffordances({ steppers: this.steppers, domains: world.domains, facts, held: callerHolds() });
 				return actionOKWithProducts(chainLintSchema.parse({ ...report, forward: affordances.forward, goals: affordances.goals, execution: executionOf(world.tag) }));
 			},
 		},

@@ -57,7 +57,7 @@ class FakeVerifier implements IAuthorityVerifier {
 			return Promise.resolve({ ok: false, error: "the presented digest is not of this request's body" });
 		const granted = this.grants.get(holder);
 		if (!capabilityAllows(granted, action)) return Promise.resolve({ ok: false, error: `${holder} holds no grant for ${action}` });
-		return Promise.resolve({ ok: true, principal: holder, allowedAction: granted, restsOn: { capabilities: [fakeGrant(holder)] } });
+		return Promise.resolve({ ok: true, principal: holder, allowedAction: granted, invoked: action, restsOn: { capabilities: [fakeGrant(holder)] } });
 	}
 
 	delegationsTo(): Promise<TDelegations> {

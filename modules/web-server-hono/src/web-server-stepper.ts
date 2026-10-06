@@ -10,7 +10,7 @@ import { dispatchStep } from "@haibun/core/lib/step-dispatch.js";
 import { ACTION_BEGIN, ANSWERED_WITHOUT_PRODUCTS, parseRpcRequest, authorityRefusal, callFailed, RPC_PROTOCOL, type THandshake } from "@haibun/core/lib/rpc-wire.js";
 import { runWithRequestContext, requestBaseIri } from "@haibun/core/lib/request-context.js";
 import { buildFeatureStepForTransport, refusal, runRegistry, type StepRegistry } from "@haibun/core/lib/step-registry.js";
-import { actionList, EVERY_ACTION, lackedAction, mayCall, readCeilingOf } from "@haibun/core/lib/actions.js";
+import { actionList, EVERY_ACTION, lackedByCall, mayCall, readCeilingOf } from "@haibun/core/lib/actions.js";
 import { DOMAIN_TEXT, DOMAIN_FILE_PATH, DOMAIN_ROUTE, DOMAIN_LINK } from "@haibun/core/lib/domains.js";
 import { STORE_METHOD_PREFIX, storeMethods } from "@haibun/core/lib/store-protocol.js";
 import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
@@ -18,7 +18,7 @@ import { activeSitePrincipal, allocateSyntheticSeqPath, resolveHostId, synthetic
 import { SERVING } from "@haibun/core/lib/serving.js";
 import { streamContext } from "@haibun/core/lib/step-stream-context.js";
 import { Access, HTTP_HOST_LABEL, LinkRelations } from "@haibun/core/lib/resources.js";
-import { runAuthorizedWith, runReadingAt, runActingAs } from "@haibun/core/lib/capability-context.js";
+import { runInvoking, runReadingAt, runActingAs } from "@haibun/core/lib/capability-context.js";
 import { fromJsonText } from "@haibun/core/lib/json-text.js";
 
 import { type IWebServer, WEBSERVER, DOMAIN_ENDPOINT, EndpointLabels, EndpointSchema } from "./defs.js";
@@ -330,7 +330,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			}
 
 			const authority = await grantedCapabilityForRequest(requestInfo, this.getWorld().runtime, this);
-			const { granted, principal, refused, restsOn } = authority;
+			const { granted, held, principal, refused, restsOn } = authority;
 			if (refused) return authorityRefusal(`${method}: ${refused}`);
 			// A streamed call is held open only while the authority it was allowed under holds.
 			const stream = streamContext.getStore();
@@ -345,8 +345,8 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 				try {
 					// Whoever proved themselves at this boundary is who acts inside it, holding what it presented and reading no
 					// more broadly than the read it holds, or the level it asked, as in a dispatched step.
-					const ceiling = readCeilingOf(granted) ?? Access.public;
-					return await runAuthorizedWith(granted, () =>
+					const ceiling = readCeilingOf(held) ?? Access.public;
+					return await runInvoking({ invoked: granted, held }, () =>
 						runActingAs(principal, () => runReadingAt(ceiling, () => runReadingAt(msg.readingAt, () => served.handle(params))), restsOn),
 					);
 				} catch (err) {
@@ -359,7 +359,8 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 				// A call is refused before its input is read, and alike whether its step exists, so a refusal doesn't tell the caller
 				// about the steps it may not call.
 				const tool = registry.get(method);
-				if (!tool || !mayCall(granted, tool.descriptor)) return { error: refusal(method, tool && lackedAction(granted, tool.descriptor), delegateOf(authority, this)) };
+				const lacked = tool && lackedByCall({ invoked: granted, held }, tool.descriptor);
+				if (!tool || lacked) return { error: refusal(method, lacked, delegateOf(authority, this)) };
 				if (msg.asks === "read" && !tool.descriptor.read) return { error: notARead(method) };
 				// External callers (without a feature-step context) get a server-synthesised seqPath, matching MCP.
 				const seqPath = msg.seqPath && msg.seqPath.length > 0 ? msg.seqPath : allocateSyntheticSeqPath(world);
@@ -376,7 +377,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					// a caller doesn't hold what that step held.
 					runActingAs(
 						principal,
-						() => runReadingAt(msg.readingAt, () => dispatchStep({ registry, world, steppers: this.steppers, grantedCapability: granted }, featureStep)),
+						() => runReadingAt(msg.readingAt, () => dispatchStep({ registry, world, steppers: this.steppers, grantedCapability: granted, held }, featureStep)),
 						restsOn,
 					),
 				);

@@ -26,12 +26,15 @@ export const PRESENTED_REQUEST_HEADERS = [SIGNATURE_HEADER, PRESENTED_AUTHORITY_
 /** What a server states about its callers: what each may do without a delegation. */
 type TServed = Pick<IWebServer, "allowedWithoutDelegation">;
 
-type TRequestAuthority = { granted: string[]; principal?: string; restsOn?: TRestsOn; refused?: string };
+/** What a request is authorized for, `granted`, and what its caller holds, `held`, which bounds what it reads and is shown. */
+type TRequestAuthority = { granted: string[]; held: string[]; principal?: string; restsOn?: TRestsOn; refused?: string };
 
 /**
  * What the caller of this request may do: the actions this deployment allows without a delegation, which form an empty list
- * unless it states otherwise, and what proof it presents of authority it holds, which whatever is registered to read that proof decides.
+ * unless it states otherwise, and the one action its proof invokes, which whatever is registered to read that proof decides.
  * A request presenting proof is asked about as a whole, since a signed request's proof covers what it asks and of what.
+ * ZCAP-LD authorizes an invocation for the action it names; the chain it presents states what its caller holds, which
+ * bounds what the call reads and is shown and doesn't authorize another call.
  *
  * A proof also states who made it, and that is answered here as well: what is done under a proof is done by whoever
  * proved it, so a record of the doing can name them rather than the process that carried it out.
@@ -40,13 +43,17 @@ export async function grantedCapabilityForRequest(request: TAuthorizedRequest | 
 	const { allowedWithoutDelegation } = served;
 	// What is allowed without a delegation is allowed to a caller. A page of another site sending a request through a
 	// reader's browser isn't that caller, and it can't present a proof, so it is allowed only what a step doesn't require.
-	if (!presentsAuthority(request?.headers)) return { granted: sentByAnotherSite(request?.headers) ? [] : [...allowedWithoutDelegation] };
+	if (!presentsAuthority(request?.headers)) {
+		const allowed = sentByAnotherSite(request?.headers) ? [] : [...allowedWithoutDelegation];
+		return { granted: allowed, held: allowed };
+	}
 	const authority = getAuthority(runtime);
-	if (!authority?.hasVerifier()) return { granted: [], refused: "the request presents authority, and a verifier isn't registered to check it" };
-	if (!request?.method || !request.url) return { granted: [], refused: "the request presents authority without the method and address its proof covers" };
+	if (!authority?.hasVerifier()) return { granted: [], held: [], refused: "the request presents authority, and a verifier isn't registered to check it" };
+	if (!request?.method || !request.url) return { granted: [], held: [], refused: "the request presents authority without the method and address its proof covers" };
 	const verdict = await authority.verifyEvidence({ kind: "request", method: request.method, url: request.url, headers: request.headers ?? {}, body: request.body });
-	if (!verdict.ok) return { granted: [], refused: `the presented authority failed verification: ${verdict.error}` };
-	return { granted: [...allowedWithoutDelegation, ...(verdict.allowedAction ?? [])], principal: verdict.principal, restsOn: verdict.restsOn };
+	if (!verdict.ok) return { granted: [], held: [], refused: `the presented authority failed verification: ${verdict.error}` };
+	if (!verdict.invoked) return { granted: [], held: [], refused: "the verified request doesn't name the action it invokes" };
+	return { granted: [...allowedWithoutDelegation, verdict.invoked], held: [...allowedWithoutDelegation, ...(verdict.allowedAction ?? [])], principal: verdict.principal, restsOn: verdict.restsOn };
 }
 
 /**
@@ -54,9 +61,9 @@ export async function grantedCapabilityForRequest(request: TAuthorizedRequest | 
  * lacks. A key holds the read of its own delegations without being delegated anything, so a caller holding only that and
  * what every caller holds is told what a caller that proved nothing is told, and a refusal doesn't map actuality for it.
  */
-export function delegateOf({ granted, principal }: Pick<TRequestAuthority, "granted" | "principal">, served: TServed): string | undefined {
+export function delegateOf({ held, principal }: Pick<TRequestAuthority, "held" | "principal">, served: TServed): string | undefined {
 	const everyCaller = new Set<string>([...served.allowedWithoutDelegation, DELEGATIONS_READ_ACTION]);
-	return granted.some((action) => !everyCaller.has(action)) ? principal : undefined;
+	return held.some((action) => !everyCaller.has(action)) ? principal : undefined;
 }
 
 /** The answer to a request whose presented authority failed verification, naming why and offering to read again what the

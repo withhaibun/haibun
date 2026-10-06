@@ -23,7 +23,7 @@
 import { z } from "zod";
 import { NameSchema } from "./domains.js";
 import { allocateSyntheticSeqPath } from "./host-id.js";
-import { actingAs, authorizedWith, restingOn, runAsTicking } from "./capability-context.js";
+import { actingAs, callerHolds, restingOn, runAsTicking } from "./capability-context.js";
 import { capabilityAllows } from "./actions.js";
 import type { TRestsOn } from "./authority-types.js";
 import { getAuthority } from "./session-authority.js";
@@ -110,7 +110,7 @@ export class UrakataRegistry implements IUrakataRegistry {
 		if (this.entries.has(spec.id)) throw new Error(`urakata id "${spec.id}" already registered`);
 		// The step that starts a ticker is checked once, here, so a missing action fails where it is started and not on
 		// every tick. A statement of actuality's own run isn't bounded by a capability, and holds what its ticker needs.
-		const held = authorizedWith();
+		const held = callerHolds();
 		const missing = held === undefined ? [] : spec.needs.filter((action) => !capabilityAllows(held, action));
 		if (missing.length > 0) {
 			throw new Error(`Can't start ${spec.description}: it needs ${missing.join(", ")}, which the caller doesn't hold. Delegate ${missing.join(", ")} to the key that starts it.`);

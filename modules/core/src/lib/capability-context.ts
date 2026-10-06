@@ -15,15 +15,27 @@
  */
 import { AsyncLocalStorage } from "node:async_hooks";
 import { Access, narrowerCeiling, type AccessLevel } from "./resources.js";
-import { capabilityAllows, EVERY_ACTION, readCeilingOf, type TAccessBound } from "./actions.js";
+import { capabilityAllows, EVERY_ACTION, readCeilingOf, type TAccessBound, type TCallAuthority } from "./actions.js";
 import type { TActingFor, TRestsOn } from "./authority-types.js";
 import type { THaibunLogLevel } from "../schema/protocol.js";
 
-const capabilityStore = new AsyncLocalStorage<string | string[] | undefined>();
+const capabilityStore = new AsyncLocalStorage<TCallAuthority>();
 
-/** Run `within` with `capability` as the authorization of every step it dispatches. */
+/**
+ * Run `within` with `capability` as the authorization of every step it dispatches, held in this process: a holder of a
+ * delegation, as actuality's own feature or a turn holding its asker's delegation is, invokes for each step the action it
+ * holds that allows it, so what it may invoke and what it holds are one list.
+ */
 export function runAuthorizedWith<T>(capability: string | string[] | undefined, within: () => Promise<T>): Promise<T> {
-	return capabilityStore.run(capability, within);
+	return capabilityStore.run({ invoked: capability, held: capability }, within);
+}
+
+/**
+ * Run `within` as a call a caller outside the process invoked: ZCAP-LD's invocation names one action, which is all the
+ * call is authorized for, and the chain it presents proves what its caller holds, which bounds what the call reads and is shown.
+ */
+export function runInvoking<T>(authority: TCallAuthority, within: () => Promise<T>): Promise<T> {
+	return capabilityStore.run(authority, within);
 }
 
 /** What a run's own feature holds: the run acts for the instance itself, so a step its features state is the
@@ -32,7 +44,12 @@ export const RUN_AUTHORITY = [EVERY_ACTION];
 
 /** What the calling step was authorized with, or undefined outside any dispatch. */
 export function authorizedWith(): string | string[] | undefined {
-	return capabilityStore.getStore();
+	return capabilityStore.getStore()?.invoked;
+}
+
+/** What the calling step's caller holds, which bounds what the step reads, writes and is shown, or undefined outside any dispatch. */
+export function callerHolds(): string | string[] | undefined {
+	return capabilityStore.getStore()?.held;
 }
 
 const shownStore = new AsyncLocalStorage<string | string[] | undefined>();
@@ -45,7 +62,7 @@ export function runShowing<T>(held: string | string[] | undefined, within: () =>
 
 /** What a listing of steps shows the calling step: what the caller it acts for holds, or else what it holds. */
 export function shownTo(): string | string[] | undefined {
-	return shownStore.getStore() ?? authorizedWith();
+	return shownStore.getStore() ?? callerHolds();
 }
 
 const askStore = new AsyncLocalStorage<string | undefined>();
@@ -171,7 +188,7 @@ export function readingAsStated<T>(within: () => Promise<T>): Promise<T> {
 
 /** What bounds the call in progress, which every store writes and reads by: its ceiling and what it holds. */
 export function accessBound(): TAccessBound {
-	return { ceiling: readingAt(), held: authorizedWith() };
+	return { ceiling: readingAt(), held: callerHolds() };
 }
 
 /**

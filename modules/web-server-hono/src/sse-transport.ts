@@ -63,7 +63,8 @@ export class SSETransport implements ITransport, IStepTransport {
 		this.webserver.addRoute("get", SSE_ROUTE, { description: "Server-Sent Events stream for live framework events" }, async (c) => {
 			const authority = await authorityAllowing(c, FOLLOWS_THE_RUN, this.runtime, this.webserver);
 			if (authority instanceof Response) return authority;
-			const { granted } = authority;
+			// Following is what the request invoked; which events it is sent is bounded by the reads its caller holds.
+			const { held } = authority;
 			// A follower states the actuality it follows, and the stream ends once this instance holds another.
 			const following = c.req.header(ACTUALITY_HEADER);
 			if (!following) return c.json({ error: `The event stream request doesn't name the actuality it follows in its ${ACTUALITY_HEADER} header.` }, 400);
@@ -79,7 +80,7 @@ export class SSETransport implements ITransport, IStepTransport {
 				const followed = new AbortController();
 				const handler = (data: string, level: AccessLevel) => {
 					if (this.runtime.actualityId !== following) return followed.abort(`this instance holds actuality ${this.runtime.actualityId}`);
-					if (!capabilityAllows(granted, readAction(level))) return;
+					if (!capabilityAllows(held, readAction(level))) return;
 					sseStream.writeSSE({ data, event: "message" }).catch((e) => {
 						this.eventLogger.error(`Error writing to SSE stream: ${e}`);
 					});

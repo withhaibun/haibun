@@ -646,11 +646,13 @@ accept authority from "owner" for "Read:private"
 accept authority from "member" for "Read:opened"
 accept authority from "reader" for "Read:public"
 accept authority from "agent" for "PingStepper:protected"
+accept authority from "keeper" for "Read:public, Read:private"
 event stream at "${url}" presenting nothing answers 403
 event stream at "${url}" signed by "agent" for "PingStepper:protected" answers 403
 event stream at "${url}" signed by "reader" for "Read:public" is sent the events at "public"
 event stream at "${url}" signed by "member" for "Read:opened" is sent the events at "public,opened"
 event stream at "${url}" signed by "owner" for "Read:private" is sent the events at "public,opened,private"
+event stream at "${url}" signed by "keeper" for "Read:public" is sent the events at "public,opened,private"
 `,
 		};
 		const result = await passWithDefaults([feature], signedSteppers, makeOptions(port));
@@ -842,6 +844,22 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method
 enable rpc
 webserver is listening for "rpc-least-privilege"
 accept authority from "agent" for "PingStepper:protected"
+rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" succeeds when signed by "agent" for "PingStepper:protected"
+rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "PingStepper-adminPing" is denied for capability "PingStepper:admin" when signed by "agent" for "PingStepper:protected"
+`,
+		};
+		const result = await passWithDefaults([feature], signedSteppers, makeOptions(port));
+		expect(result.ok).toBe(true);
+	});
+
+	it("authorizes a signed call for the action it invokes, and not for another its holder holds", async () => {
+		const port = await freePort();
+		const feature = {
+			path: "/features/rpc-invoked-action.feature",
+			content: `
+enable rpc
+webserver is listening for "rpc-invoked-action"
+accept authority from "agent" for "PingStepper:protected, PingStepper:admin"
 rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" succeeds when signed by "agent" for "PingStepper:protected"
 rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "PingStepper-adminPing" is denied for capability "PingStepper:admin" when signed by "agent" for "PingStepper:protected"
 `,

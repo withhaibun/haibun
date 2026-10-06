@@ -23,8 +23,8 @@ class StubVerifier implements IAuthorityVerifier {
 	verify(evidence: TAuthorityEvidence): Promise<TVerdict> {
 		const invoked = evidence.kind === "request" ? evidence.headers["capability-invocation"] : undefined;
 		// A key invoking its own root holds the read of its own delegations and nothing it was delegated.
-		if (invoked?.includes(DELEGATIONS_READ_ACTION)) return Promise.resolve({ ok: true, principal: READER, allowedAction: [DELEGATIONS_READ_ACTION] });
-		return Promise.resolve(invoked?.includes(ACTION) ? { ok: true, principal: READER, allowedAction: [ACTION, "comment.deny"] } : { ok: false, error: "not this one" });
+		if (invoked?.includes(DELEGATIONS_READ_ACTION)) return Promise.resolve({ ok: true, principal: READER, allowedAction: [DELEGATIONS_READ_ACTION], invoked: DELEGATIONS_READ_ACTION });
+		return Promise.resolve(invoked?.includes(ACTION) ? { ok: true, principal: READER, allowedAction: [ACTION, "comment.deny"], invoked: ACTION } : { ok: false, error: "not this one" });
 	}
 
 	delegationsTo(): Promise<TDelegations> {
@@ -55,18 +55,19 @@ const signedRequest = (action: string) => ({
 });
 
 describe("what a request carries to a boundary", () => {
-	it("grants what a proof allows, and states who proved it, so what is done under it can name them", async () => {
+	it("grants the action a proof invokes, holds what its chain allows, and states who proved it, so what is done under it can name them", async () => {
 		const authority = new SessionAuthority();
 		authority.registerVerifier(new StubVerifier());
 		const carried = await grantedCapabilityForRequest(signedRequest(ACTION), runtimeWith(authority), NOBODY);
-		expect(carried.granted, "what the delegation the request proved allows").toEqual([ACTION, "comment.deny"]);
+		expect(carried.granted, "the action the request invoked, and not another its delegation allows").toEqual([ACTION]);
+		expect(carried.held, "what the delegation the request proved allows, which bounds the call").toEqual([ACTION, "comment.deny"]);
 		expect(carried.principal, "and who proved it, which is who acted").toBe(READER);
 	});
 
-	it("grants what the deployment allows without a delegation beside what a proof allows", async () => {
+	it("grants what the deployment allows without a delegation beside what a proof invokes", async () => {
 		const authority = new SessionAuthority();
 		authority.registerVerifier(new StubVerifier());
-		expect((await grantedCapabilityForRequest(signedRequest(ACTION), runtimeWith(authority), PUBLIC_SITE)).granted).toEqual([READ_PUBLIC, ACTION, "comment.deny"]);
+		expect((await grantedCapabilityForRequest(signedRequest(ACTION), runtimeWith(authority), PUBLIC_SITE)).granted).toEqual([READ_PUBLIC, ACTION]);
 	});
 
 	it("refuses a request whose proof fails, without granting an action or naming a principal", async () => {
@@ -87,8 +88,8 @@ describe("what a request carries to a boundary", () => {
 		const authority = new SessionAuthority();
 		authority.registerVerifier(new StubVerifier());
 		const presentingNothing = { method: "POST", url: "http://site.test:8123/rpc/x", headers: { authorization: "Bearer tkn" } };
-		expect(await grantedCapabilityForRequest(presentingNothing, runtimeWith(authority), NOBODY), "a secret it carries isn't authority").toEqual({ granted: [] });
-		expect(await grantedCapabilityForRequest(presentingNothing, runtimeWith(authority), PUBLIC_SITE), "and anyone may read a public site").toEqual({ granted: [READ_PUBLIC] });
+		expect(await grantedCapabilityForRequest(presentingNothing, runtimeWith(authority), NOBODY), "a secret it carries isn't authority").toEqual({ granted: [], held: [] });
+		expect(await grantedCapabilityForRequest(presentingNothing, runtimeWith(authority), PUBLIC_SITE), "and anyone may read a public site").toEqual({ granted: [READ_PUBLIC], held: [READ_PUBLIC] });
 	});
 
 	it("doesn't hold what a caller holds without a delegation for a page of another site sending through a reader's browser, where a proof still does", async () => {
@@ -96,7 +97,7 @@ describe("what a request carries to a boundary", () => {
 		authority.registerVerifier(new StubVerifier());
 		const fromAnotherSite = { host: "site.test:8123", origin: "https://elsewhere.example" };
 		const unproven = { method: "POST", url: "http://site.test:8123/rpc/x", headers: fromAnotherSite };
-		expect(await grantedCapabilityForRequest(unproven, runtimeWith(authority), PUBLIC_SITE), "another site's page isn't the caller").toEqual({ granted: [] });
+		expect(await grantedCapabilityForRequest(unproven, runtimeWith(authority), PUBLIC_SITE), "another site's page isn't the caller").toEqual({ granted: [], held: [] });
 		const ofThisSite = { ...unproven, headers: { host: "site.test:8123", origin: "http://site.test:8123" } };
 		expect((await grantedCapabilityForRequest(ofThisSite, runtimeWith(authority), PUBLIC_SITE)).granted, "a page of this site is").toEqual([READ_PUBLIC]);
 		const proven = { ...signedRequest(ACTION), headers: { ...signedRequest(ACTION).headers, ...fromAnotherSite } };

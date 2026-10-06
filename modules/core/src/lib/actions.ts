@@ -47,6 +47,20 @@ export function lackedAction(held: string | string[] | undefined, step: TCalled)
 	return undefined;
 }
 
+/** What a call is authorized with: the action it invoked, and what its caller holds, which bounds what it does under that. */
+export type TCallAuthority = { invoked: string | string[] | undefined; held: string | string[] | undefined };
+
+/**
+ * The action a call lacks to run `step`: the step's own action, which the call must have invoked, or the read at the level
+ * the step reads at, which its caller must hold. ZCAP-LD authorizes an invocation for the one action it names, and what
+ * the step reads under it is bounded by the chain its caller presented. Undefined where it doesn't lack either.
+ */
+export function lackedByCall(call: TCallAuthority, step: TCalled): string | undefined {
+	if (!capabilityAllows(call.invoked, step.capability)) return step.capability;
+	if (step.readsAt && !capabilityAllows(call.held, readAction(step.readsAt))) return readAction(step.readsAt);
+	return undefined;
+}
+
 /** Whether a caller holding `held` may call `step`: it doesn't lack an action the step requires. Every gate on a call and every
  *  listing of steps for a caller reads this. */
 export function mayCall(held: string | string[] | undefined, step: TCalled): boolean {

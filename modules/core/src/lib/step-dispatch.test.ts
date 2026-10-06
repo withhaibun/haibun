@@ -16,6 +16,7 @@ import { validateToolInput } from "./tool-validation.js";
 import { EVERY_DEFINITION } from "./step-discovery.js";
 import { AStepper, type IHasCycles, type TFeatureStep, type TStepperStep } from "./astepper.js";
 import { OK } from "../schema/protocol.js";
+import { itemAt } from "./util/item-at.js";
 import { FlowRunner } from "./core/flow-runner.js";
 import { actionOKWithProducts, actionNotOK } from "./util/index.js";
 import { getDefaultWorld, testWithWorld } from "./test/lib.js";
@@ -183,15 +184,24 @@ describe("step-dispatch", () => {
 
 		it("rejects missing or wrong capability", () => {
 			const tool = { method: "CapabilityStepper-protectedPing", capability: "CapabilityStepper:protected" };
-			expect(() => authorizeToolCapability(tool, undefined)).toThrow(/capability CapabilityStepper:protected required/);
-			expect(() => authorizeToolCapability(tool, "Other:*")).toThrow(/capability CapabilityStepper:protected required/);
+			expect(() => authorizeToolCapability(tool, { invoked: undefined, held: undefined })).toThrow(/capability CapabilityStepper:protected required/);
+			expect(() => authorizeToolCapability(tool, { invoked: "Other:*", held: "Other:*" })).toThrow(/capability CapabilityStepper:protected required/);
 		});
 
-		it("refuses a step that reads more than its caller's read, or than the read in force where it is stated", () => {
+		it("authorizes a call for the action it invoked, and not for another its caller holds", () => {
+			const tool = { method: "CapabilityStepper-protectedPing", capability: "CapabilityStepper:protected" };
+			const held = ["CapabilityStepper:protected", "LlmStepper:ask"];
+			expect(() => authorizeToolCapability(tool, { invoked: "LlmStepper:ask", held })).toThrow(/capability CapabilityStepper:protected required/);
+			expect(() => authorizeToolCapability(tool, { invoked: "CapabilityStepper:protected", held })).not.toThrow();
+		});
+
+		it("refuses a step that reads more than its caller holds a read for, or than the read in force where it is stated", () => {
 			const tool = { method: "CapabilityStepper-look", capability: "CapabilityStepper:look", readsAt: Access.private };
-			expect(() => authorizeToolCapability(tool, ["CapabilityStepper:look", "Read:public"])).toThrow(/capability Read:private required/);
-			expect(() => authorizeToolCapability(tool, "*", Access.public)).toThrow("CapabilityStepper-look reads at private, and this call reads at public");
-			expect(() => authorizeToolCapability(tool, "*", Access.private)).not.toThrow();
+			const invoked = "CapabilityStepper:look";
+			expect(() => authorizeToolCapability(tool, { invoked, held: [invoked, "Read:public"] })).toThrow(/capability Read:private required/);
+			expect(() => authorizeToolCapability(tool, { invoked, held: [invoked, "Read:private"] }), "the read is bounded by what the caller holds").not.toThrow();
+			expect(() => authorizeToolCapability(tool, { invoked: "*", held: "*" }, Access.public)).toThrow("CapabilityStepper-look reads at private, and this call reads at public");
+			expect(() => authorizeToolCapability(tool, { invoked: "*", held: "*" }, Access.private)).not.toThrow();
 		});
 	});
 
@@ -388,6 +398,38 @@ describe("step-dispatch", () => {
 
 			expect(result.ok).toBe(true);
 			expect(result.products).toMatchObject({ echoed: "hello", _seqPath: [0, 7] });
+		});
+
+		it("runs a step dispatched inside an invoked call under the action its caller holds for it, and refuses one the caller doesn't hold", async () => {
+			const INVOKED = "Outer:run";
+			const NESTED = "Inner:guarded";
+			const nested: { registry?: StepRegistry } = {};
+			const stepper = new (class extends AStepper {
+				description = "A step a caller invokes, which dispatches a guarded step inside it.";
+				steps = {
+					guarded: { gwta: "guarded", capability: NESTED, action: () => OK },
+					outer: {
+						gwta: "outer",
+						capability: INVOKED,
+						action: async () => {
+							const registry = nested.registry;
+							if (!registry) throw new Error("the registry isn't built");
+							const inner = itemAt([registry.get(`${this.constructor.name}-guarded`)].filter((tool) => tool !== undefined), 0);
+							const result = await dispatchStep({ registry, world, steppers: [this] }, buildFeatureStepForTransport(inner, {}, [0, 9, 1]));
+							return result.ok ? OK : actionNotOK(String(result.errorMessage));
+						},
+					},
+				};
+			})();
+			const steppers = [stepper];
+			const registry = new StepRegistry(steppers, world);
+			nested.registry = registry;
+			const outer = registry.get(`${stepper.constructor.name}-outer`) as StepTool;
+			const invoke = (held: string[]) => dispatchStep({ registry, world, steppers, grantedCapability: [INVOKED], held }, buildFeatureStepForTransport(outer, {}, [0, 9]));
+			expect((await invoke([INVOKED, NESTED])).ok, "the caller's chain holds the nested step's action").toBe(true);
+			const refused = await invoke([INVOKED]);
+			expect(refused.ok).toBe(false);
+			expect(refused.errorMessage).toContain(`capability ${NESTED} required`);
 		});
 
 		it("judges an empty value a caller writes by its domain, since a fact doesn't stand for a value", async () => {
