@@ -1,12 +1,12 @@
 /**
  * JSON-LD document loader and processor for haibun core. A conformant JSON-LD processor (jsonld) plus a document loader
- * that resolves @context / DID / key documents from a local in-memory registry: this path doesn't use the network. Network
- * resolution is opt-in: a consumer that wants it registers a resolver via setNetworkResolver; absent one, an unresolved
- * URL throws rather than silently reaching out.
+ * that resolves @context, DID and key documents from what this process registered, and never from the network: a
+ * document a caller presents names its own vocabulary, keys and controllers, so resolving an address it wrote would let
+ * it choose what answers for its own proof. An unregistered URL throws.
  *
  * Two registries: long-lived `contexts` (bundled vocabulary @context documents, registered once) and ephemeral
  * `keyDocuments` (per-operation DID / key documents, cleared between operations). documentLoader tries keys, then
- * contexts, then the network resolver.
+ * contexts.
  */
 // @ts-expect-error, jsonld ships partial type declarations
 import jsonld from "jsonld";
@@ -17,12 +17,8 @@ interface LoaderResult {
 	document: unknown;
 }
 
-/** Resolves a URL not held in the local registries. Injected by a consumer that opts in to network resolution. */
-type NetworkResolver = (url: string) => Promise<LoaderResult>;
-
 const contexts = new Map<string, unknown>();
 const keyDocuments = new Map<string, unknown>();
-let networkResolver: NetworkResolver | undefined;
 
 /** Register a long-lived @context (or other vocabulary document) resolved by URL from memory. */
 export function registerContext(url: string, document: unknown): void {
@@ -39,35 +35,11 @@ export function clearKeyDocuments(): void {
 	keyDocuments.clear();
 }
 
-/** Opt in to network resolution for URLs absent from the registries. Pass undefined to disable it again. */
-export function setNetworkResolver(resolver: NetworkResolver | undefined): void {
-	networkResolver = resolver;
-}
-
-/**
- * Only what is held here: local key documents, then registered contexts. An unresolved URL throws.
- *
- * This is the loader for reading something a caller presented. Resolving a presented identifier over the network would
- * let whoever wrote it choose the host that answers for it, so a proof would be checked against a document its own
- * subject served. What a decision reads is therefore what this process was given beforehand.
- */
-export function registryDocumentLoader(url: string): Promise<LoaderResult> {
-	const keyDoc = keyDocuments.get(url);
-	if (keyDoc !== undefined) return Promise.resolve({ contextUrl: null, documentUrl: url, document: keyDoc });
-	const ctx = contexts.get(url);
-	if (ctx !== undefined) return Promise.resolve({ contextUrl: null, documentUrl: url, document: ctx });
-	throw new Error(`a JSON-LD document for ${url} isn't registered`);
-}
-
-/** JSON-LD document loader: what is held here, then the injected network resolver. Without a resolver an unresolved URL
- *  throws: core never reaches the network implicitly. */
+/** What this process holds for a URL: a key document, then a registered context. An unregistered URL throws. */
 export async function documentLoader(url: string): Promise<LoaderResult> {
-	try {
-		return await registryDocumentLoader(url);
-	} catch {
-		if (networkResolver) return await networkResolver(url);
-		throw new Error(`a JSON-LD document for ${url} isn't registered, and a network resolver isn't enabled`);
-	}
+	const held = keyDocuments.get(url) ?? contexts.get(url);
+	if (held === undefined) throw new Error(`a JSON-LD document for ${url} isn't registered`);
+	return { contextUrl: null, documentUrl: url, document: held };
 }
 
 /** The jsonld processor (expand / compact / toRDF / processContext), resolving external references through documentLoader. */

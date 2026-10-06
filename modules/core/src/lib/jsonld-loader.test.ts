@@ -1,10 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { registerContext, registerKeyDocument, clearKeyDocuments, setNetworkResolver, documentLoader } from "./jsonld-loader.js";
+import { registerContext, registerKeyDocument, clearKeyDocuments, documentLoader } from "./jsonld-loader.js";
 
-describe("jsonld-loader, local registry with opt-in network", () => {
+describe("jsonld-loader, a registry without a network", () => {
 	beforeEach(() => {
 		clearKeyDocuments();
-		setNetworkResolver(undefined);
 	});
 
 	it("resolves a key document ahead of a same-URL context, and clears keys without dropping contexts", async () => {
@@ -15,11 +14,7 @@ describe("jsonld-loader, local registry with opt-in network", () => {
 		expect((await documentLoader("urn:doc")).document).toEqual({ from: "context" });
 	});
 
-	it("uses the injected network resolver only for URLs absent from the registry, and throws when one isn't set", async () => {
-		registerContext("urn:local", { local: true });
-		await expect(documentLoader("urn:remote")).rejects.toThrow(/a network resolver isn't enabled/i);
-		setNetworkResolver(async (url) => ({ contextUrl: null, documentUrl: url, document: { remote: true } }));
-		expect((await documentLoader("urn:local")).document).toEqual({ local: true });
-		expect((await documentLoader("urn:remote")).document).toEqual({ remote: true });
+	it("throws for a URL it doesn't hold, rather than reaching the network", async () => {
+		await expect(documentLoader("https://example.com/unregistered")).rejects.toThrow(/isn't registered/);
 	});
 });

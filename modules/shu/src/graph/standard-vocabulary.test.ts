@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { registerContext, clearKeyDocuments, setNetworkResolver } from "@haibun/core/lib/jsonld-loader.js";
+import { registerContext, clearKeyDocuments } from "@haibun/core/lib/jsonld-loader.js";
 import { LinkRelations, type TRegisteredDomain } from "@haibun/core/lib/resources.js";
 import type { TQuad, TClusteredQuads } from "@haibun/core/lib/quad-types.js";
 import { enumerateStandardVocab } from "./standard-vocabulary.js";
@@ -30,7 +30,6 @@ const withInstance = (type: string): { response: TClusteredQuads; evidence: TQua
 describe("standard-vocabulary: the type's declared standard context resolved via jsonld, one source", () => {
 	beforeEach(() => {
 		clearKeyDocuments();
-		setNetworkResolver(undefined);
 		registerContext(CTX_URL, CTX_DOC);
 	});
 
