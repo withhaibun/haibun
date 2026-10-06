@@ -315,8 +315,11 @@ export function getActionBarAskExtensionTags(): string[] {
 
 /** Get the edge name → rel mapping from concern catalog. Cached; rebuilt on setConcernCatalog. */
 export function getEdgeRelMap(): Record<string, string> {
-	if (!cachedEdgeRelRecord) cachedEdgeRelRecord = Object.fromEntries(edgeRelMap);
-	return cachedEdgeRelRecord;
+	const d = derived();
+	d.edgeRels ??= Object.fromEntries(
+		Object.values(declared().catalog?.persisted ?? {}).flatMap((concern) => Object.entries(concern.edges).map(([edgeName, edge]) => [edgeName, edge.rel])),
+	);
+	return d.edgeRels;
 }
 
 /** Check if a label has select values cached. */
@@ -349,8 +352,6 @@ export function cachedConcernCatalog(): TConcernCatalog | null {
 
 type TDomainUiInfo = { ui?: Record<string, unknown> };
 
-const edgeRelMap = new Map<string, string>();
-let cachedEdgeRelRecord: Record<string, string> | null = null;
 // The catalog this bundle last derived from. The catalog is the page's; everything derived from it here (the site
 // metadata, the edge index, the role caches) is this bundle's own, so each bundle derives once per catalog and a
 // repeat is a no-op. That keeps what a view merged onto the metadata afterward, instead of rebuilding over it.
@@ -364,18 +365,6 @@ export function setConcernCatalog(catalog: TConcernCatalog, domains?: Record<str
 	declared().catalog = catalog;
 	declared().meta = meta;
 	setSiteMetadata(meta);
-	edgeRelMap.clear();
-	cachedEdgeRelRecord = null;
-	cachedRoleEdgeLabels = null;
-	cachedRoleEdgeLabelSet = null;
-	cachedFromActorEdgeLabels = null;
-	cachedToActorEdgeLabels = null;
-	cachedRoleNouns = null;
-	for (const concern of Object.values(catalog.persisted)) {
-		for (const [edgeName, edge] of Object.entries(concern.edges)) {
-			edgeRelMap.set(edgeName, edge.rel);
-		}
-	}
 }
 
 /** Get cached SiteMetadata derived from concerns. */
@@ -488,32 +477,48 @@ function actorEdgeWeights(upper: string, coreRels: ReadonlySet<string>): Map<str
 	return weights;
 }
 
-let cachedRoleEdgeLabels: readonly string[] | null = null;
-let cachedRoleEdgeLabelSet: ReadonlySet<string> | null = null;
-let cachedFromActorEdgeLabels: ReadonlySet<string> | null = null;
-let cachedToActorEdgeLabels: ReadonlySet<string> | null = null;
-let cachedRoleNouns: ReadonlyMap<string, string> | null = null;
+/** What this bundle derives from the catalog it holds, each part when it is first read. */
+type TDerived = {
+	edgeRels?: Record<string, string>;
+	roleEdgeLabels?: readonly string[];
+	roleEdgeLabelSet?: ReadonlySet<string>;
+	fromActorEdgeLabels?: ReadonlySet<string>;
+	toActorEdgeLabels?: ReadonlySet<string>;
+	roleNouns?: ReadonlyMap<string, string>;
+};
+/** The derivations of each catalog, so a new catalog is derived again by being new, and nothing is reset by hand. Before a
+ *  catalog arrives, the core rels alone are derived, under `BEFORE_A_CATALOG`. */
+const derivedFrom = new WeakMap<object, TDerived>();
+const BEFORE_A_CATALOG = {};
+function derived(): TDerived {
+	const key = declared().catalog ?? BEFORE_A_CATALOG;
+	const held = derivedFrom.get(key);
+	if (held) return held;
+	const fresh: TDerived = {};
+	derivedFrom.set(key, fresh);
+	return fresh;
+}
 
 /** Role-attribution edge labels, highest declared rolePriority first (ties by name): when a node carries several role
  *  edges, the first present names its container/lane. Ontology + catalog derived, never a hand-kept list. */
 export function roleEdgeLabels(): readonly string[] {
-	if (!cachedRoleEdgeLabels) {
-		const weights = actorEdgeWeights(LinkRelations.IN_ROLE_OF.rel, roleRels());
-		cachedRoleEdgeLabels = [...weights.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([k]) => k);
-	}
-	return cachedRoleEdgeLabels;
+	const d = derived();
+	d.roleEdgeLabels ??= [...actorEdgeWeights(LinkRelations.IN_ROLE_OF.rel, roleRels()).entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([k]) => k);
+	return d.roleEdgeLabels;
 }
 
 /** Membership form of roleEdgeLabels. */
 export function roleEdgeLabelSet(): ReadonlySet<string> {
-	cachedRoleEdgeLabelSet ??= new Set(roleEdgeLabels());
-	return cachedRoleEdgeLabelSet;
+	const d = derived();
+	d.roleEdgeLabelSet ??= new Set(roleEdgeLabels());
+	return d.roleEdgeLabelSet;
 }
 
 /** The SOURCE-side actor edge labels: a sequence reads these as the lifeline an entity originates from. */
 export function fromActorEdgeLabels(): ReadonlySet<string> {
-	cachedFromActorEdgeLabels ??= new Set(actorEdgeWeights(LinkRelations.FROM_ACTOR.rel, fromActorRels()).keys());
-	return cachedFromActorEdgeLabels;
+	const d = derived();
+	d.fromActorEdgeLabels ??= new Set(actorEdgeWeights(LinkRelations.FROM_ACTOR.rel, fromActorRels()).keys());
+	return d.fromActorEdgeLabels;
 }
 
 /**
@@ -522,20 +527,20 @@ export function fromActorEdgeLabels(): ReadonlySet<string> {
  * role nouns doesn't get a role noun, and one that declares them gets exactly what it declared.
  */
 export function roleNounFor(edgeLabel: unknown): string | undefined {
-	if (!cachedRoleNouns) {
-		const nouns = new Map<string, string>();
-		for (const concern of Object.values(getConcernCatalog().persisted)) {
-			for (const [edgeName, edge] of Object.entries(concern.edges)) if (edge.roleNoun) nouns.set(edgeName, edge.roleNoun);
-		}
-		cachedRoleNouns = nouns;
-	}
-	return typeof edgeLabel === "string" ? cachedRoleNouns.get(edgeLabel) : undefined;
+	const d = derived();
+	d.roleNouns ??= new Map(
+		Object.values(getConcernCatalog().persisted).flatMap((concern) =>
+			Object.entries(concern.edges).flatMap(([edgeName, edge]) => (edge.roleNoun ? [[edgeName, edge.roleNoun] as const] : [])),
+		),
+	);
+	return typeof edgeLabel === "string" ? d.roleNouns.get(edgeLabel) : undefined;
 }
 
 /** The TARGET-side actor edge labels: a sequence reads these as the lifeline a message is directed to. */
 export function toActorEdgeLabels(): ReadonlySet<string> {
-	cachedToActorEdgeLabels ??= new Set(actorEdgeWeights(LinkRelations.TO_ACTOR.rel, toActorRels()).keys());
-	return cachedToActorEdgeLabels;
+	const d = derived();
+	d.toActorEdgeLabels ??= new Set(actorEdgeWeights(LinkRelations.TO_ACTOR.rel, toActorRels()).keys());
+	return d.toActorEdgeLabels;
 }
 
 /**

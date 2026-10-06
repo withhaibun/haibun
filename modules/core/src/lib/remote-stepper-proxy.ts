@@ -5,9 +5,6 @@
  * the host's show steps step, then injects proxy StepTools into
  * the parent registry. Each proxy handler forwards calls over HTTP, signed
  * for the capability the remote step declares, where it declares one.
- *
- * Follows the same pattern as SubprocessTransport.injectInto() but uses
- * HTTP/JSON-RPC instead of Node.js fork() IPC.
  */
 
 import { RecordSchema } from "./json-text.js";

@@ -169,7 +169,7 @@ export const SEQ_PATH_FIELD = {
 	 *  states which it was. Written for every step, the ordinary case included, since "not speculative" is only
 	 *  answerable when an authoritative step states so too. */
 	mode: "mode",
-	/** How the step reached what ran it: in this process, in another host, or in a subprocess. Where a step ran is a
+	/** How the step reached what ran it: in this process or in another host. Where a step ran is a
 	 *  fact about that step, so it is written on it rather than traced beside it. */
 	ranVia: "ranVia",
 	/** The origin of the instance that ran it, where another one did. */
@@ -214,7 +214,7 @@ export const SeqPathSchema = PersistedVertexSchema.extend({
 	[SEQ_PATH_FIELD.endedAtTime]: z.string().optional(),
 	[SEQ_PATH_FIELD.path]: z.string().optional(),
 	[SEQ_PATH_FIELD.mode]: z.enum(EXECUTION_MODES).optional(),
-	[SEQ_PATH_FIELD.ranVia]: z.enum(["local", "remote", "subprocess"]).optional(),
+	[SEQ_PATH_FIELD.ranVia]: z.enum(["local", "remote"]).optional(),
 	[SEQ_PATH_FIELD.ranOn]: z.string().optional(),
 	[SEQ_PATH_FIELD.level]: z.enum(HAIBUN_LOG_LEVELS).optional(),
 	[SEQ_PATH_FIELD.execution]: z.string().optional(),

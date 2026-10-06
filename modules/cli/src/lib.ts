@@ -7,11 +7,11 @@ import { BaseOptionsSchema, type TBase, type TBaseOptions, type TModuleOptions, 
 import { BASE_PREFIX, CHECK_NO, CHECK_YES, DEFAULT_DEST, MODULE_OPTION_PREFIX, NDJSON, STAY, Timer, TExecutorResult } from "@haibun/core/schema/protocol.js";
 import { staysAfterExecution } from "@haibun/core/phases/Executor.js";
 import { IHasOptions } from "@haibun/core/lib/astepper.js";
-import { getCreateSteppers, getDefaultTag } from "@haibun/core/lib/test/lib.js";
 import { resolveSitePrincipal } from "@haibun/core/lib/host-id.js";
 import { formattedSteppers, getPre, getDefaultOptions, basesFrom, verifyRequiredOptions, verifyExtraOptions, errorDetail } from "@haibun/core/lib/util/index.js";
 import { BaseOptions } from "./BaseOptions.js";
-import { TFileSystem, getSteppers } from "@haibun/core/lib/util/node/workspace-lib.js";
+import { TFileSystem, getCreateSteppers, getSteppers } from "@haibun/core/lib/util/node/workspace-lib.js";
+import { getDefaultTag } from "@haibun/core/lib/ttag.js";
 import { Runner } from "@haibun/core/runner.js";
 import { FeatureVariables } from "@haibun/core/lib/feature-variables.js";
 import { Prompter } from "@haibun/core/lib/prompter.js";

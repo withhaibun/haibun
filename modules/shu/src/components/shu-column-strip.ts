@@ -48,7 +48,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 	private savedLayout: Map<PaneEl, SavedPaneState> | null = null;
 
 	constructor() {
-		super(ColumnStripSchema, {});
+		super(ColumnStripSchema);
 	}
 
 	protected override onConnected(): void {

@@ -18,14 +18,13 @@
 import { SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
 import { html, css, type TemplateResult, type CSSResultGroup } from "lit";
-import { z } from "zod";
 import { property } from "lit/decorators.js";
 import { ref, createRef } from "lit/directives/ref.js";
 import "@lit-labs/virtualizer";
 import type { LitVirtualizer } from "@lit-labs/virtualizer/LitVirtualizer.js";
 import { knownSizeFlow } from "../known-size-flow.js";
 import type { VisibilityChangedEvent } from "@lit-labs/virtualizer/events.js";
-import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
 import { railTotalAndWindow } from "../annotation-rail.js";
 import { VIEW_THUMB_BLIP, VIEW_SCROLL_BLIP, VIEW_WINDOW_BLIP, READER_INPUT_WINDOW_MS } from "../view-blips.js";
 import { SCROLL_TO_INDEX } from "./shu-scrollbar.js";
@@ -33,8 +32,6 @@ import type { WindowedSource } from "../windowed-source.js";
 import type { TScrollMarker, TWindow } from "../scrollbar-model.js";
 import { visibleWindow, convergeTarget } from "../virtual-column-model.js";
 import { FOLLOW_EDGE_SLACK_PX, ScrollFollowController } from "../controllers/index.js";
-
-const EmptySchema = z.object({});
 
 /** Cap on re-issuing the jump-to-edge as the virtualizer measures its way down to the last row: a handful of passes closes
  *  the height-estimate gap; the bound stops an unreachable target (a row that can't fit) from re-jumping forever. */
@@ -66,9 +63,9 @@ export const virtualColumnCss: CSSResultGroup = css`
 export const WINDOW_CHANGED = "shu-window-changed";
 type WindowChangedDetail = { first: number; visible: number; total: number };
 
-export class ShuVirtualColumn extends ShuElement<typeof EmptySchema> {
+export class ShuVirtualColumn extends ShuElement<typeof EmptyStateSchema> {
 	constructor() {
-		super(EmptySchema, {});
+		super(EmptyStateSchema);
 	}
 
 	/** The hosting column summarizes its data for a Kihan; this element is just the scroller shell. */

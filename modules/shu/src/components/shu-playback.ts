@@ -49,7 +49,7 @@ export class ShuPlayback extends ShuElement<typeof StateSchema> {
 	#rafId = 0;
 
 	constructor() {
-		super(StateSchema, {});
+		super(StateSchema);
 	}
 
 	protected override onConnected(): void {

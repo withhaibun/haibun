@@ -46,7 +46,7 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 	static observedHtmlAttributes = [];
 
 	constructor() {
-		super(PermissionsSchema, {});
+		super(PermissionsSchema);
 		this.level = "";
 		this.levels = [];
 		this.onLevelChange = () => undefined;

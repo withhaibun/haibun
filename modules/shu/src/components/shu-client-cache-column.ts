@@ -13,8 +13,7 @@
 import { SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
 import { html, css, type TemplateResult } from "lit";
-import { z } from "zod";
-import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 
@@ -47,7 +46,6 @@ import {
 	type TIdbDatabaseSummary,
 } from "../client-cache/index.js";
 
-const EmptySchema = z.object({});
 const IDS = SHU_TEST_IDS.CLIENT_CACHE;
 /** How soon after a change the device is read again: the stream can change many times a second, the device once in this.
  *  Short enough that what the device caches is reported as it happens, long enough that a burst is one read. */
@@ -80,7 +78,7 @@ const stateOf = (source: RunSource): string =>
 const spans = (ranges: Range[]): string => ranges.map((r) => `${r.from}..${r.to - 1}`).join(", ") || "none";
 const cachedRows = (ranges: Range[]): number => ranges.reduce((n, r) => n + (r.to - r.from), 0);
 
-export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
+export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 	#unsubscribes = new Map<RunSource, () => void>();
 	#held: THeldExecution[] = [];
 	#registry: TStoredRegistry | undefined; // the site's registry as the device holds it, for when it was cached
@@ -154,7 +152,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptySchema> {
 	];
 
 	constructor() {
-		super(EmptySchema, {});
+		super(EmptyStateSchema);
 	}
 
 	summarizeForKihan(): TLinkedData | null {

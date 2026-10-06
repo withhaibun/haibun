@@ -107,7 +107,7 @@ export type TFeatureStep = {
 	 * `on host {hostId} {statement}` in haibun.ts.
 	 */
 	targetHostId?: number;
-	/** True for dispatches that did not run a feature for a human, RPC, MCP, subprocess. Lifecycle hooks that would otherwise call `world.prompter.prompt()` skip when this is set. */
+	/** True for dispatches that did not run a feature for a human, RPC and MCP. Lifecycle hooks that would otherwise call `world.prompter.prompt()` skip when this is set. */
 	programmatic?: boolean;
 };
 

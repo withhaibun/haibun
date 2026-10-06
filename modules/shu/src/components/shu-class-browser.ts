@@ -98,7 +98,7 @@ class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSchema> {
 	private focusType = "";
 
 	constructor() {
-		super(BrowserStateSchema, {});
+		super(BrowserStateSchema);
 	}
 
 	/** The browser's chip choices persist under their own scope, never the main graph's shared filter store. */

@@ -11,7 +11,7 @@ import { SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
-import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 
 /** One chip: its identity, what it shows, whether it is on, and (optionally) how many it stands for and its swatch. */
@@ -49,7 +49,7 @@ class ShuChipGroup extends ShuElement<z.ZodObject> {
 	];
 
 	constructor() {
-		super(z.object({}), {});
+		super(EmptyStateSchema);
 		this.name = "";
 		this.chips = [];
 		this.onToggle = () => {

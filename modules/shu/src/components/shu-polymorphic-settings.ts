@@ -16,7 +16,7 @@ import { defineElement } from "../define-element.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { html, type TemplateResult } from "lit";
 import { z } from "zod";
-import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
 // The view catalog itself, never the render-type module that re-exports it: that pulls the whole 3D layout chain in
 // behind a name this element only reads.
 import { VIEW_TYPES, VIEW_LABELS, type ViewType } from "../graph/polymorphic/polymorphic-views.js";
@@ -76,7 +76,7 @@ class ShuPolymorphicSettings extends ShuElement<z.ZodObject> {
 	declare onSaveScene: (name: string) => void;
 
 	constructor() {
-		super(z.object({}), {});
+		super(EmptyStateSchema);
 		this.group = "layout";
 		this.groupByAxes = ["type", "role"];
 		this.forces = {};

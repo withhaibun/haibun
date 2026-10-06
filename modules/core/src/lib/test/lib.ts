@@ -2,10 +2,11 @@ import type { TWorld, TProtoOptions } from "../world.js";
 import { newActualityId } from "../rpc-wire.js";
 import { CStepper } from "../astepper.js";
 import { DEFAULT_DEST, TExecutorResult, TEST_BASE } from "../../schema/protocol.js";
-import { createSteppers } from "./../util/index.js";
 import { getRunTag } from "../ttag.js";
-import { resolveHostId, resolveSitePrincipal } from "../host-id.js";
-import { getSteppers } from "../util/node/workspace-lib.js";
+import { resolveSitePrincipal } from "../host-id.js";
+import { getCreateSteppers } from "../util/node/workspace-lib.js";
+export { getCreateSteppers };
+export { getDefaultTag } from "../ttag.js";
 import { Timer } from "../../schema/protocol.js";
 import { asFeatures } from "../resolver-features.js";
 import { Runner } from "../../runner.js";
@@ -20,11 +21,6 @@ const DEF_PROTO_DEFAULT_OPTIONS = { DEST: DEFAULT_DEST };
 export const DEF_PROTO_OPTIONS = { options: DEF_PROTO_DEFAULT_OPTIONS, moduleOptions: {} };
 
 export const HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS = "HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS";
-
-export async function getCreateSteppers(steppers: import("../execution.js").TStepperEntry[], addSteppers?: CStepper[]) {
-	const csteppers = await getSteppers(steppers);
-	return createSteppers(csteppers.concat(addSteppers || []));
-}
 
 type TTestFeatures = { path: string; content: string; base?: string }[];
 
@@ -110,12 +106,6 @@ export function getDefaultWorld(env: NodeJS.ProcessEnv = process.env): TWorld {
 	world.domains = getCoreDomains(world as TWorld);
 	world.shared = new FeatureVariables(world as TWorld);
 	return world as TWorld;
-}
-
-export function getDefaultTag(desc: string | undefined = undefined) {
-	// hostId defaults to resolving from HAIBUN_HOST_ID env at production startup.
-	// In tests, callers (via resolveHostId's default) get DEFAULT_HOST_ID = 0.
-	return getRunTag(0, undefined, desc ? { desc } : undefined, false, resolveHostId());
 }
 
 /** A port that a server doesn't listen on now, so a test's server and another test file's never share one. */

@@ -9,13 +9,10 @@
 import { AccessQuery } from "@haibun/core/lib/resources.js";
 import type { TemplateResult } from "lit";
 import { html } from "lit";
-import { z } from "zod";
-import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
 import { SHU_EVENT, SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
 import type { TViewQuery } from "../view-query.js";
-
-const EmptySchema = z.object({});
 
 /** The human-readable one-line description of a search: type, text, per-field conditions, non-default access. */
 export function describeSearch(q: TViewQuery): string {
@@ -27,20 +24,20 @@ export function describeSearch(q: TViewQuery): string {
 	return parts.join(" · ");
 }
 
-export class ShuSearchSummary extends ShuElement<typeof EmptySchema> {
+export class ShuSearchSummary extends ShuElement<typeof EmptyStateSchema> {
 	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
 
-	static schema = EmptySchema;
+	static schema = EmptyStateSchema;
 	static domainSelector = SHU_TAG.SEARCH_SUMMARY;
 
 	/** The exact query this entry restores. Set once at record time; never mutated by later searches. */
 	query: TViewQuery | null = null;
 
 	constructor() {
-		super(EmptySchema, {});
+		super(EmptyStateSchema);
 	}
 
 	createRenderRoot(): HTMLElement {

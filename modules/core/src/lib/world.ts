@@ -53,7 +53,7 @@ export type TRuntime = {
 	 * entry points (MCP) that don't have a caller seqPath to thread. See
 	 * `syntheticSeqPath(hostId, adHocSeq)` in host-id.ts, synthetic paths
 	 * are [hostId, SYNTHETIC_FEATURE_NUM, adHocSeq] so they sort distinctly
-	 * from any feature path. Internal dispatches (RPC, subprocess) now
+	 * from any feature path. Internal dispatches (RPC, MCP) now
 	 * require the caller's seqPath instead of producing a synthetic.
 	 */
 	adHocSeq?: number;

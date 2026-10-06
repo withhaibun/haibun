@@ -6,17 +6,14 @@ import { SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
 import { html, css, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
-import { z } from "zod";
-import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { shuBaseStyles } from "./styles.js";
 import { PaneState, addsToSelection } from "../pane-state.js";
 
-const ViewsPickerSchema = z.object({});
-
 type TView = { id: string; description: string; component: string };
 
-export class ShuViewsPicker extends ShuElement<typeof ViewsPickerSchema> {
+export class ShuViewsPicker extends ShuElement<typeof EmptyStateSchema> {
 	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
@@ -40,7 +37,7 @@ export class ShuViewsPicker extends ShuElement<typeof ViewsPickerSchema> {
 	@property({ attribute: false }) accessor views: TView[] = [];
 
 	constructor() {
-		super(ViewsPickerSchema, {});
+		super(EmptyStateSchema);
 	}
 
 	setViews(views: TView[]): void {

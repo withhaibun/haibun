@@ -4,22 +4,19 @@
  * signal, so every mounted picker stays in step.
  */
 import { html, css, type TemplateResult } from "lit";
-import { z } from "zod";
-import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
 import { shuBaseStyles, shuSegmentedStyles } from "./styles.js";
 import { SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
 import { WINDOW_SIZES, windowSizeSetting } from "../window-size-setting.js";
 
-const EmptySchema = z.object({});
-
-class ShuWindowSize extends ShuElement<typeof EmptySchema> {
+class ShuWindowSize extends ShuElement<typeof EmptyStateSchema> {
 	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
 
-	static schema = EmptySchema;
+	static schema = EmptyStateSchema;
 	static domainSelector = SHU_TAG.WINDOW_SIZE;
 
 	static styles = [
@@ -31,7 +28,7 @@ class ShuWindowSize extends ShuElement<typeof EmptySchema> {
 	];
 
 	constructor() {
-		super(EmptySchema, {});
+		super(EmptyStateSchema);
 	}
 
 	render(): TemplateResult {

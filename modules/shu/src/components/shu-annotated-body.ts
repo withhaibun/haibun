@@ -24,8 +24,7 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { property, state } from "lit/decorators.js";
 import DOMPurify from "dompurify";
 import { createTextAnnotator, W3CTextFormat, type TextAnnotator } from "../recogito.js";
-import { z } from "zod";
-import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
 import { renderContentHtml, BODY_READING_STYLE } from "../util.js";
 import { refSanitizeOptions } from "../markdown-refs.js";
 import type { TAnnotationDraft } from "../entity-store.js";
@@ -111,9 +110,7 @@ function installPurifyHook(): void {
  *  finally drawn at (pushed down so it never covers the card above, see the measured restack in `updated`). */
 type PlacedCard = { annotation: AnnotationView; idealTop: number; top: number };
 
-const AnnotatedBodySchema = z.object({});
-
-export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
+export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 	/** The document body as an as:Document, with any anchored web annotations (their quote, note, author, and links). */
 	summarizeForKihan(): TLinkedData | null {
 		if (!this.content) return null;
@@ -191,7 +188,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof AnnotatedBodySchema> {
 	#onScroll = (): void => this.#syncRailWindow();
 
 	constructor() {
-		super(AnnotatedBodySchema, {});
+		super(EmptyStateSchema);
 		installPurifyHook();
 	}
 

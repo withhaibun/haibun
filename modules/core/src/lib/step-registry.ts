@@ -29,7 +29,7 @@ import {
 } from "./step-discovery.js";
 
 /**
- * A registered step tool: the unit of dispatch for any transport (RPC, MCP, a model's turn, a subprocess).
+ * A registered step tool: the unit of dispatch for any transport (RPC, MCP, a model's turn).
  */
 export type StepTool = {
 	/** The step as every caller discovers it. */
@@ -37,22 +37,22 @@ export type StepTool = {
 	/** The domain each parameter takes, keyed by parameter name. A call is validated by each domain as registered when it
 	 *  arrives, so a domain a feature declared since the registry was built is taken. */
 	paramDomainKeys: Map<string, string>;
-	/** The registered stepper-step definition. Absent for proxy tools (RemoteStepperProxy, subprocess), which dispatch out of process. */
+	/** The registered stepper-step definition. Absent for proxy tools (RemoteStepperProxy), which dispatch out of process. */
 	stepDef?: TStepperStep;
-	/** Where the step runs: in this process, at a remote host, or in a subprocess. */
-	transport: "local" | "remote" | "subprocess";
+	/** Where the step runs: in this process or at a remote host. */
+	transport: "local" | "remote";
 	/** True if the step action is an async function (observable execution time). */
 	isAsync: boolean;
 	handler: (featureStep: TFeatureStep, world: TWorld) => Promise<TActionResult>;
 };
 
 /**
- * Live-refreshable step registry. Single source of truth for all transports (SSE, MCP, subprocess).
+ * Live-refreshable step registry. Single source of truth for all transports (SSE, MCP).
  * Call refresh() to rebuild in-place when steppers change without restarting.
  */
 export class StepRegistry {
 	private tools = new Map<string, StepTool>();
-	/** Names injected via inject(), which survive refresh() so transports (RemoteStepperProxy, subprocess) register once and stay live across per-feature rebuilds. */
+	/** Names injected via inject(), which survive refresh() so transports (RemoteStepperProxy) register once and stay live across per-feature rebuilds. */
 	private injectedNames = new Set<string>();
 	/** Every step's description as one text, which a change to the registry is compared by. */
 	private described = "";
@@ -258,7 +258,7 @@ export function stepMethodName(stepperOrName: string | AStepper | { name: string
  * Create a handler that populates args from featureStep.action.stepValuesMap,
  * calls stepDef.action, and returns TActionResult.
  *
- * All callers (feature loop, FlowRunner, RPC, MCP, subprocess) use the same signature.
+ * All callers (feature loop, FlowRunner, RPC, MCP) use the same signature.
  * External transports build a synthetic featureStep before calling.
  */
 export function createStepHandler(stepperName: string, stepName: string, stepDef: TStepperStep): (featureStep: TFeatureStep, world: TWorld) => Promise<TActionResult> {
@@ -280,13 +280,13 @@ export function createStepHandler(stepperName: string, stepName: string, stepDef
 }
 
 /**
- * Build a TFeatureStep for a transport-originated call (RPC, MCP, subprocess).
+ * Build a TFeatureStep for a transport-originated call (RPC, MCP).
  * Feature-file dispatch already has one; transports construct it from the tool +
  * raw input. Uses the same registered stepDef so downstream dispatch (augment,
  * autoAssert, preconditions) sees the identical shape both paths produce.
  */
 export function buildFeatureStepForTransport(tool: StepTool, input: Record<string, unknown>, seqPath: TSeqPath): TFeatureStep {
-	// Proxy tools (RemoteStepperProxy, subprocess) dispatch out-of-process and don't have a
+	// Proxy tools (RemoteStepperProxy) dispatch out-of-process and don't have a
 	// local stepDef. Construct a carrier with just the description so the handler can run.
 	const { descriptor } = tool;
 	const step = tool.stepDef ?? ({ gwta: descriptor.pattern, action: () => actionNotOK(`${descriptor.method} doesn't have an in-process stepDef`) } as TStepperStep);

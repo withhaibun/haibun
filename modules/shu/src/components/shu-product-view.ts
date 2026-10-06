@@ -13,15 +13,12 @@ import { SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { html, css, type TemplateResult } from "lit";
-import { z } from "zod";
-import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { resolveUi } from "../resolve-ui.js";
 import { ensureUiComponentLoaded } from "../external-components.js";
 
-const ProductViewSchema = z.object({});
-
-export class ShuProductView extends ShuElement<typeof ProductViewSchema> {
+export class ShuProductView extends ShuElement<typeof EmptyStateSchema> {
 	/** Delegates to the mounted child view: the wrapper summarizes for its whole subtree. */
 	summarizeForKihan(): TLinkedData | null {
 		const child = this.firstElementChild as (Element & Partial<{ summarizeForKihan(): TLinkedData | null }>) | null;
@@ -37,7 +34,7 @@ export class ShuProductView extends ShuElement<typeof ProductViewSchema> {
 	];
 
 	constructor() {
-		super(ProductViewSchema, {});
+		super(EmptyStateSchema);
 	}
 
 	/** Mount the component resolveUi picks for this product and hand it the product. A _component view ignores the

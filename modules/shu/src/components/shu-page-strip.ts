@@ -5,10 +5,9 @@
  * and the settings.
  */
 import { html, type CSSResultGroup, type TemplateResult } from "lit";
-import { z } from "zod";
 import type { AccessQueryLevel } from "@haibun/core/lib/resources.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
-import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
 import { PageStripCorners } from "./page-strip-corners.js";
 import { FootprintController } from "./footprint.js";
 import { loadSlotExtensions } from "./slot-extensions.js";
@@ -22,15 +21,13 @@ import { appAccessLevel } from "../util.js";
 import { PAGE_STRIP_STYLES } from "./page-strip-styles.js";
 import type { ShuColumnPane } from "./shu-column-pane.js";
 
-const PageStripSchema = z.object({});
-
-export class ShuPageStrip extends ShuElement<typeof PageStripSchema> {
+export class ShuPageStrip extends ShuElement<typeof EmptyStateSchema> {
 	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
 
-	static schema = PageStripSchema;
+	static schema = EmptyStateSchema;
 	static domainSelector = SHU_TAG.PAGE_STRIP;
 	static observedHtmlAttributes = ["api-base", "testid-prefix"];
 
@@ -61,7 +58,7 @@ export class ShuPageStrip extends ShuElement<typeof PageStripSchema> {
 	#footprint = new FootprintController(this, PAGE_STRIP_FOOTPRINT, () => this.offsetHeight);
 
 	constructor() {
-		super(PageStripSchema, {});
+		super(EmptyStateSchema);
 	}
 
 	private get testIdPrefix(): string {

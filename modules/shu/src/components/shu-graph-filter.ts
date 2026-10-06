@@ -101,7 +101,7 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 
 	constructor() {
 		// persistFields restores overrides/perTypeLimit on connect; defaults until then.
-		super(StateSchema, {});
+		super(StateSchema);
 	}
 
 	/**

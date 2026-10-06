@@ -11,7 +11,7 @@ import { SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
-import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 
 class ShuField extends ShuElement<z.ZodObject> {
@@ -41,7 +41,7 @@ class ShuField extends ShuElement<z.ZodObject> {
 	];
 
 	constructor() {
-		super(z.object({}), {});
+		super(EmptyStateSchema);
 		this.label = "";
 		this.trailing = false;
 	}

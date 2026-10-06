@@ -13,8 +13,7 @@
  */
 import { html, css, type TemplateResult } from "lit";
 import { state } from "lit/decorators.js";
-import { z } from "zod";
-import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { SHU_EVENT, SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
@@ -22,19 +21,17 @@ import { SHU_TEST_IDS } from "../test-ids.js";
 import { describeSearch } from "./shu-search-summary.js";
 import { viewQuery } from "../view-query.js";
 
-const EmptySchema = z.object({});
-
 /** What the strip shows the column is. The index pane doesn't carry a label, and an open index doesn't show a header, so the strip
  *  would otherwise be the only column that does not show what it is. */
 const INDEX_NAME = "Index";
 
-export class ShuIndexSummary extends ShuElement<typeof EmptySchema> {
+export class ShuIndexSummary extends ShuElement<typeof EmptyStateSchema> {
 	/** A one-line reading of a view the model can already read in full when the index is open. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
 
-	static schema = EmptySchema;
+	static schema = EmptyStateSchema;
 	static domainSelector = SHU_TAG.INDEX_SUMMARY;
 
 	static styles = [
@@ -55,7 +52,7 @@ export class ShuIndexSummary extends ShuElement<typeof EmptySchema> {
 	@state() private accessor found: number | null = null;
 
 	constructor() {
-		super(EmptySchema, {});
+		super(EmptyStateSchema);
 	}
 
 	protected override onConnected(): void {

@@ -47,6 +47,9 @@ import { parseTimestampValue, type TLinkedData } from "@haibun/core/lib/hypermed
 import { unwrap as unwrapWrappers } from "@haibun/core/lib/zod-unwrap.js";
 // Re-exported so every view can annotate its summarizeForKihan as `TLinkedData | null` from the same import it already
 // takes for ShuElement, instead of each reaching into core for the node-object type.
+/** The state of a component that doesn't hold any of its own. */
+export const EmptyStateSchema = z.object({});
+
 export type { TLinkedData };
 import { getRels } from "../rels-cache.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
@@ -231,11 +234,11 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 	}
 
 	// Input type, not output: fields with a Zod `.default()` may be omitted (parse fills them), so a subclass whose
-	// schema is all-defaulted can pass `{}`.
-	constructor(schema: T, defaults: z.input<T>) {
+	// schema is all-defaulted passes nothing.
+	constructor(schema: T, defaults?: z.input<T>) {
 		super();
 		this._schema = schema;
-		this.state = schema.parse(defaults);
+		this.state = schema.parse(defaults ?? {});
 		// Fail fast on a typo'd persistFields entry: a name absent from the schema would otherwise silently never persist.
 		const persisted = (this.constructor as typeof ShuElement).persistFields;
 		for (const f of persisted) if (!schema.shape[f]) throw new Error(`${this.constructor.name}: persistFields names "${f}", which is absent from the schema`);

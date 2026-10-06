@@ -68,90 +68,136 @@ export type TPaneOpen = z.infer<typeof PaneOpenSchema>;
 /** A click with a modifier adds the pane it opens beside the others, where a plain click replaces those to its right. */
 export const addsToSelection = (e?: MouseEvent): boolean => Boolean(e && (e.ctrlKey || e.shiftKey || e.metaKey));
 
-export function paneIdOf(d: DesiredPane): string {
-	switch (d.paneType) {
-		case "component":
-			return d.tag;
-		case "entity":
-			return `e:${objectId(d.persistedAs, d.id)}`; // the entity pane's id IS the object handle, prefixed by pane kind
-		case "type":
-			return `type:${d.persistedAs}`;
-		case "filter-eq":
-			return `f:${d.persistedAs}:${d.predicate}=${d.value}`;
-		case "filter-prop":
-			return `p:${d.persistedAs}:${d.predicate}`;
-		case "filter-incoming":
-			return `i:${d.persistedAs}:${d.subject}`;
-		case "thread":
-			return `t:${d.persistedAs}:${d.subject}`;
-		case "step-detail":
-			return `step:${d.seqPath.join(".")}`;
-		case "step":
-			return `def:${d.method}`;
-		case "action":
-			return `act:${d.action}`;
-		case "views-picker":
-			return "views";
-	}
-}
+/** A pane of one kind. */
+type TPaneOf<K extends DesiredPaneType> = Extract<DesiredPane, { paneType: K }>;
+/** What a column entry states of a pane of one kind, without where the pane stands. */
+type TParsed<K extends DesiredPaneType> = Omit<TPaneOf<K>, "paneType" | "flag" | "docked">;
+
+/** How a kind of pane is addressed and shown: the prefix and address of its column entry, the component that shows it, its
+ *  label, the column type its pane is marked with, and what an entry with its prefix states. Method signatures, so a kind's
+ *  entry is read as an entry for any pane. */
+type TPaneKind<K extends DesiredPaneType> = {
+	prefix: string;
+	address(d: TPaneOf<K>): string;
+	tag(d: TPaneOf<K>): string;
+	label(d: TPaneOf<K>): string;
+	column(d: TPaneOf<K>): string;
+	parse?(body: string): TParsed<K> | null;
+};
+
+/** `left:right` split at its first colon, or null where it doesn't have one. */
+const atColon = (s: string): readonly [string, string] | null => {
+	const i = s.indexOf(":");
+	return i < 0 ? null : [s.slice(0, i), s.slice(i + 1)];
+};
+/** A type and the one value an entry names after it, as `Type:value`. */
+const ofType =
+	<F extends string>(field: F) =>
+	(body: string) => {
+		const split = atColon(body);
+		return split ? ({ persistedAs: split[0], [field]: split[1] } as { persistedAs: string } & Record<F, string>) : null;
+	};
+
+/** Each kind of pane. A component's entry is its tag, which doesn't have a prefix, so an entry no prefix names is a component. */
+const PANE_KINDS = {
+	component: { prefix: "", address: (d) => d.tag, tag: (d) => d.tag, label: (d) => d.label, column: (d) => d.tag },
+	entity: {
+		prefix: "e:",
+		address: (d) => objectId(d.persistedAs, d.id),
+		// A type can declare its own column component (domain.ui.component); otherwise the generic entity column.
+		tag: (d) => presentationForType(d.persistedAs).columnComponent() ?? SHU_TAG.ENTITY_COLUMN,
+		label: (d) => d.label ?? d.id,
+		column: () => "entity",
+		parse: (body) => {
+			const { base, anchor } = splitPart(body);
+			const split = atColon(base);
+			return split ? { persistedAs: split[0], id: split[1], ...(anchor ? { selector: anchor } : {}) } : null;
+		},
+	},
+	type: {
+		prefix: "type:",
+		address: (d) => d.persistedAs,
+		tag: () => SHU_TAG.TYPE_COLUMN,
+		label: (d) => d.persistedAs,
+		column: () => "type",
+		parse: (body) => ({ persistedAs: body }),
+	},
+	"filter-eq": {
+		prefix: "f:",
+		address: (d) => `${d.persistedAs}:${d.predicate}=${d.value}`,
+		tag: () => SHU_TAG.FILTER_COLUMN,
+		label: (d) => `${d.predicate}=${d.value}`,
+		column: () => "filter",
+		parse: (body) => {
+			const split = atColon(body);
+			const eq = split ? split[1].indexOf("=") : -1;
+			return split && eq >= 0 ? { persistedAs: split[0], predicate: split[1].slice(0, eq), value: split[1].slice(eq + 1) } : null;
+		},
+	},
+	"filter-prop": {
+		prefix: "p:",
+		address: (d) => `${d.persistedAs}:${d.predicate}`,
+		tag: () => SHU_TAG.FILTER_COLUMN,
+		label: (d) => d.predicate,
+		column: () => "filter",
+		parse: ofType("predicate"),
+	},
+	"filter-incoming": {
+		prefix: "i:",
+		address: (d) => `${d.persistedAs}:${d.subject}`,
+		tag: () => SHU_TAG.FILTER_COLUMN,
+		label: (d) => `links to ${d.subject}`,
+		column: () => "filter",
+		parse: ofType("subject"),
+	},
+	thread: {
+		prefix: "t:",
+		address: (d) => `${d.persistedAs}:${d.subject}`,
+		tag: () => SHU_TAG.THREAD_COLUMN,
+		label: (d) => `Replies: ${d.subject}`,
+		column: () => "thread",
+		parse: ofType("subject"),
+	},
+	"step-detail": {
+		prefix: "step:",
+		address: (d) => d.seqPath.join("."),
+		tag: () => SHU_TAG.STEP_DETAIL,
+		label: (d) => `Step [${d.seqPath.join(".")}]`,
+		column: () => "step",
+		parse: (body) => {
+			const seqPath = body.split(".").map(Number);
+			return seqPath.some((n) => Number.isNaN(n)) ? null : { seqPath };
+		},
+	},
+	step: { prefix: "def:", address: (d) => d.method, tag: () => SHU_TAG.STEP_DEFINITION, label: (d) => d.method, column: () => "step", parse: (method) => ({ method }) },
+	action: { prefix: "act:", address: (d) => d.action, tag: () => SHU_TAG.ACTION_COLUMN, label: (d) => d.action, column: () => "action", parse: (action) => ({ action }) },
+	"views-picker": { prefix: "", address: () => "views", tag: () => SHU_TAG.VIEWS_PICKER, label: (d) => d.label, column: () => "views-picker" },
+} satisfies { [K in DesiredPaneType]: TPaneKind<K> };
+
+/** A kind's entry read for any pane, which its method signatures allow. */
+type TAnyPaneKind = {
+	prefix: string;
+	address(d: DesiredPane): string;
+	tag(d: DesiredPane): string;
+	label(d: DesiredPane): string;
+	column(d: DesiredPane): string;
+	parse?(body: string): object | null;
+};
+
+/** The entry of a pane's kind, as an entry for any pane. */
+const kindOf = (d: DesiredPane): TAnyPaneKind => PANE_KINDS[d.paneType];
+
+/** The id a pane is held and addressed by: its kind's prefix and its address. */
+export const paneIdOf = (d: DesiredPane): string => `${kindOf(d).prefix}${kindOf(d).address(d)}`;
 
 /** The column entry that addresses a pane: its id, and for an individual opened at a part, the part it shows. */
 export function columnEntryOf(d: DesiredPane): string {
 	return d.paneType === "entity" && d.selector ? `${paneIdOf(d)}${PART_DIRECTIVE}${partDirectiveFor(d.selector)}` : paneIdOf(d);
 }
 
-export function tagOf(d: DesiredPane): string {
-	switch (d.paneType) {
-		case "component":
-			return d.tag;
-		case "entity":
-			// A node's @type can declare its own column component (via the per-@type presentation facade, domain.ui.component);
-			// otherwise the generic entity column. So a typed node opens its type-specific column on a graph/row click.
-			return presentationForType(d.persistedAs).columnComponent() ?? "shu-entity-column";
-		case "type":
-			return "shu-type-column";
-		case "filter-eq":
-		case "filter-prop":
-		case "filter-incoming":
-			return "shu-filter-column";
-		case "thread":
-			return "shu-thread-column";
-		case "step-detail":
-			return "shu-step-detail";
-		case "step":
-			return SHU_TAG.STEP_DEFINITION;
-		case "action":
-			return SHU_TAG.ACTION_COLUMN;
-		case "views-picker":
-			return "shu-views-picker";
-	}
-}
-
-export function labelOf(d: DesiredPane): string {
-	switch (d.paneType) {
-		case "component":
-		case "views-picker":
-			return d.label;
-		case "entity":
-			return d.label ?? d.id;
-		case "type":
-			return d.persistedAs;
-		case "filter-eq":
-			return `${d.predicate}=${d.value}`;
-		case "filter-prop":
-			return d.predicate;
-		case "filter-incoming":
-			return `links to ${d.subject}`;
-		case "thread":
-			return `Replies: ${d.subject}`;
-		case "step-detail":
-			return `Step [${d.seqPath.join(".")}]`;
-		case "step":
-			return d.method;
-		case "action":
-			return d.action;
-	}
-}
+export const tagOf = (d: DesiredPane): string => kindOf(d).tag(d);
+export const labelOf = (d: DesiredPane): string => kindOf(d).label(d);
+const columnTypeFor = (d: DesiredPane): string => kindOf(d).column(d);
 
 /**
  * Per-paneType post-attach hook. Each parametric pane (entity, filter, ...) needs
@@ -161,7 +207,9 @@ export function labelOf(d: DesiredPane): string {
  * `paneType: "component"` doesn't need a hook (data flows via `data`). External component
  * loading also lives here so pane-state doesn't have a direct registry dependency.
  */
-type PaneHooks = { ensureLoaded?(tag: string): Promise<void> | void; afterAttach?: Partial<Record<DesiredPaneType, (d: DesiredPane, child: HTMLElement) => Promise<void> | void>> };
+type PaneHooks = { ensureLoaded?(tag: string): Promise<void> | void; afterAttach?: { [K in DesiredPaneType]?: (d: TPaneOf<K>, child: HTMLElement) => Promise<void> | void } };
+/** The attach hook of a pane's kind, as a hook for any pane. */
+type TAttach = (d: DesiredPane, child: HTMLElement) => Promise<void> | void;
 
 /** A pane the page always holds, as declared, and the attributes its view is given. The address names it only where it
  *  stands other than as declared. It doesn't close, and a page that closes it returns it to where the page declares it. */
@@ -526,7 +574,7 @@ class PaneStateImpl {
 		const definition = customElements.get(tag);
 		if (definition && !(child instanceof definition))
 			throw new Error(`pane ${id}: <${tag}> is defined but this element did not upgrade to it, so the ${d.paneType} pane doesn't have its own methods`);
-		await this.held.hooks.afterAttach?.[d.paneType]?.(d, child);
+		await (this.held.hooks.afterAttach?.[d.paneType] as TAttach | undefined)?.(d, child);
 	}
 
 	private writeHash(): void {
@@ -563,13 +611,6 @@ function firstKeyOf(m: Map<string, DesiredPane>): string | null {
 	return it.done ? null : it.value;
 }
 
-function columnTypeFor(d: DesiredPane): string {
-	if (d.paneType === "component") return d.tag;
-	if (d.paneType === "filter-eq" || d.paneType === "filter-prop" || d.paneType === "filter-incoming") return "filter";
-	if (d.paneType === "step-detail") return "step";
-	return d.paneType;
-}
-
 /** A column the user last minimized reopens minimized: its pane persists `minimized` (ShuElement.persistFields),
  * and that remembered state becomes the default flag when the hash or caller doesn't specify one. Only `min` is
  * defaulted: re-applying a remembered maximize would unexpectedly hide the rest of the workspace. */
@@ -583,52 +624,16 @@ function withPersistedFlag(d: DesiredPane): DesiredPane {
  * Parse one `col=` URL entry into a DesiredPane. Returns null for malformed
  * entries: `fromHash` skips nulls so a stale hash never crashes the boot.
  *
- * Each prefix maps to one paneType: `e:` entity, `type:` type, `f:` filter-eq, `p:` filter-prop,
- * `i:` filter-incoming, `t:` thread, `step:` step-detail, `def:` step, `act:` action. Anything else is a component tag. An entry ends in any of
- * the `PANE_ENDING`s of view-hash, which state where the pane stands.
+ * The prefix names the kind (`PANE_KINDS`), and an entry without a kind's prefix is a component tag. An entry ends in any
+ * of the `PANE_ENDING`s of view-hash, which state where the pane stands.
  */
 export function parseColEntry(raw: string): DesiredPane | null {
 	const { id: body, endings } = ViewHash.splitPaneEntry(raw);
 	const placement = { flag: endings.has("max") ? ("max" as const) : endings.has("min") ? ("min" as const) : undefined, docked: endings.has("dock") || undefined };
-	const colon = (s: string) => {
-		const i = s.indexOf(":");
-		return i < 0 ? null : ([s.slice(0, i), s.slice(i + 1)] as const);
-	};
-	if (body.startsWith("e:")) {
-		const { base, anchor } = splitPart(body.slice(2));
-		const split = colon(base);
-		if (!split) return null;
-		return safe({ paneType: "entity", persistedAs: split[0], id: split[1], ...(anchor ? { selector: anchor } : {}), ...placement });
-	}
-	if (body.startsWith("f:")) {
-		const split = colon(body.slice(2));
-		if (!split) return null;
-		const eq = split[1].indexOf("=");
-		if (eq < 0) return null;
-		return safe({ paneType: "filter-eq", persistedAs: split[0], predicate: split[1].slice(0, eq), value: split[1].slice(eq + 1), ...placement });
-	}
-	if (body.startsWith("p:")) {
-		const split = colon(body.slice(2));
-		if (!split) return null;
-		return safe({ paneType: "filter-prop", persistedAs: split[0], predicate: split[1], ...placement });
-	}
-	if (body.startsWith("i:")) {
-		const split = colon(body.slice(2));
-		if (!split) return null;
-		return safe({ paneType: "filter-incoming", persistedAs: split[0], subject: split[1], ...placement });
-	}
-	if (body.startsWith("type:")) return safe({ paneType: "type", persistedAs: body.slice(5), ...placement }); // before `t:`: a type ref doesn't have a second colon
-	if (body.startsWith("t:")) {
-		const split = colon(body.slice(2));
-		if (!split) return null;
-		return safe({ paneType: "thread", persistedAs: split[0], subject: split[1], ...placement });
-	}
-	if (body.startsWith("def:")) return safe({ paneType: "step", method: body.slice(4), ...placement });
-	if (body.startsWith("act:")) return safe({ paneType: "action", action: body.slice(4), ...placement });
-	if (body.startsWith("step:")) {
-		const seq = body.slice(5).split(".").map(Number);
-		if (seq.some((n) => Number.isNaN(n))) return null;
-		return safe({ paneType: "step-detail", seqPath: seq, ...placement });
+	for (const [paneType, kind] of Object.entries(PANE_KINDS) as [DesiredPaneType, TAnyPaneKind][]) {
+		if (!kind.prefix || !kind.parse || !body.startsWith(kind.prefix)) continue;
+		const parsed = kind.parse(body.slice(kind.prefix.length));
+		return parsed ? safe({ paneType, ...parsed, ...placement }) : null;
 	}
 	return safe({ paneType: "component", tag: body, label: componentTitle(body), ...placement });
 }

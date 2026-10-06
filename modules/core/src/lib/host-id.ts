@@ -13,7 +13,7 @@
 export const HAIBUN_HOST_ID_ENV = "HAIBUN_HOST_ID";
 export const DEFAULT_HOST_ID = 0;
 
-/** Reserved featureNum value used for non-feature synthetic seqPaths (ad-hoc RPC, MCP, subprocess). */
+/** Reserved featureNum value used for non-feature synthetic seqPaths (ad-hoc RPC and MCP). */
 export const SYNTHETIC_FEATURE_NUM = -1;
 
 /**
@@ -74,7 +74,7 @@ export function adoptSitePrincipal(world: TSitePrincipalWorld, principal: string
 
 /**
  * Synthetic seqPath for calls not tied to a feature step, ad-hoc RPC,
- * MCP tool invocations, subprocess transport. Uses SYNTHETIC_FEATURE_NUM
+ * MCP tool invocations. Uses SYNTHETIC_FEATURE_NUM
  * (-1) in the featureNum slot so these paths sort distinctly from any
  * feature path and cannot collide with a running feature.
  */
@@ -86,7 +86,7 @@ export function syntheticSeqPath(hostId: number, adHocSeq: number): number[] {
  * Allocate the next synthetic seqPath for the given world. Bumps the
  * world's `adHocSeq` counter and returns a path rooted on the world's
  * hostId. Used by every external-protocol entry point (RPC, MCP,
- * subprocess) so the bump-then-build invariant lives in one place.
+ * MCP) so the bump-then-build invariant lives in one place.
  */
 export function allocateSyntheticSeqPath(world: { tag: { hostId: number }; runtime: { adHocSeq?: number } }): number[] {
 	world.runtime.adHocSeq = (world.runtime.adHocSeq ?? 0) + 1;

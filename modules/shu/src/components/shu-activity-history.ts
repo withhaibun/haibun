@@ -15,8 +15,7 @@
  */
 import type { TemplateResult } from "lit";
 import { html } from "lit";
-import { z } from "zod";
-import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
 import { ShuChatMessage } from "./shu-chat-message.js";
 import { CHAT_VIEW_PARAM, SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
@@ -27,16 +26,14 @@ import { conversationState, transcript, turnEnded } from "../conversation.js";
 import { currentSubject } from "../current-subject.js";
 import { appAccessLevel } from "../util.js";
 
-const EmptySchema = z.object({});
-
-export class ShuActivityHistory extends ShuElement<typeof EmptySchema> {
+export class ShuActivityHistory extends ShuElement<typeof EmptyStateSchema> {
 	/** The actions-bar output region, not a column pane: the harvest reads only column panes, so this is never the
 	 *  active pane, and its entries (searches, steps, chat turns) are represented by their own views. It doesn't contribute to the Kihan's context. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
 
-	static schema = EmptySchema;
+	static schema = EmptyStateSchema;
 	static domainSelector = SHU_TAG.ACTIVITY_HISTORY;
 
 	/** Each message of the transcript by its key, with the message it was last given. */
@@ -68,7 +65,7 @@ export class ShuActivityHistory extends ShuElement<typeof EmptySchema> {
 	);
 
 	constructor() {
-		super(EmptySchema, {});
+		super(EmptyStateSchema);
 	}
 
 	createRenderRoot(): HTMLElement {

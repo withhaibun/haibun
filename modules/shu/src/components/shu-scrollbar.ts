@@ -12,15 +12,12 @@
 import { SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
 import { html, css, nothing, type TemplateResult } from "lit";
-import { z } from "zod";
 import { property } from "lit/decorators.js";
-import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { shuBaseStyles } from "./styles.js";
 import { startPointerDrag } from "./pointer-drag.js";
 import { thumbHeightPx, thumbTopPx, firstAtPointer, clusterMarkers, formatCount, markerTopPx, pressTarget, type TScrollMarker, type TWindow } from "../scrollbar-model.js";
-
-const EmptySchema = z.object({});
 
 /** Emitted (bubbling, composed) with `{ index }` when the reader drags the thumb, clicks the rail, wheels, or clicks a
  *  marker: the column should scroll so `index` is the first visible row. */
@@ -34,9 +31,9 @@ export type TSeekBy = "press" | "wheel";
  *  END: beyond what the rail's rows hold, which a host that pages its data answers by loading to that edge. */
 type TSeekEdge = "start" | "end";
 
-export class ShuScrollbar extends ShuElement<typeof EmptySchema> {
+export class ShuScrollbar extends ShuElement<typeof EmptyStateSchema> {
 	constructor() {
-		super(EmptySchema, {});
+		super(EmptyStateSchema);
 	}
 
 	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */

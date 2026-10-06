@@ -32,7 +32,7 @@ export type DispatchContext = { registry: StepRegistry; world: TWorld; steppers:
 
 /**
  * Unified step dispatch. Every step invocation, feature execution, FlowRunner,
- * RPC, MCP, subprocess, enters through here. Applies capability auth, lifecycle
+ * RPC and MCP, enters through here. Applies capability auth, lifecycle
  * cycles (beforeStep/afterStep), event logging, and result tracking uniformly.
  */
 /** How many of a feature's finished steps a reader can still read in full: the most recent it ran. What every step

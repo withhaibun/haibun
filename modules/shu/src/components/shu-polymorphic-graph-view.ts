@@ -113,7 +113,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	private sceneError: string | null = null;
 
 	constructor() {
-		super(PolymorphicStateSchema, {});
+		super(PolymorphicStateSchema);
 		this.buildSceneConfig();
 	}
 

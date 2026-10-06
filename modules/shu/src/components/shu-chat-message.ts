@@ -10,7 +10,7 @@ import { guard } from "lit/directives/guard.js";
 import { z } from "zod";
 import { proseText, renderRefAnswer, renderRefProse } from "../markdown-refs.js";
 import { isKnownType } from "../rels-cache.js";
-import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
 import type { ShuSpinner } from "./shu-spinner.js";
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
 import { SCOPE, dispatchSubjectEvent } from "../current-subject.js";
@@ -86,7 +86,6 @@ export const ChatMessageSchema = z.object({
 });
 export type TChatMessage = z.infer<typeof ChatMessageSchema>;
 
-const EmptySchema = z.object({});
 const ROLE_LABEL: Record<TChatRole, string> = { user: "🧘", llm: "🤖" };
 
 /** The controls under a question's icon that fork the conversation at it, as each is named and described. */
@@ -100,7 +99,7 @@ function activateComment(id: string, turn: string, bundle: TBundle): void {
 	dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry: { record: { id, label: COMMENT_LABEL }, turn, bundle } });
 }
 
-export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
+export class ShuChatMessage extends ShuElement<typeof EmptyStateSchema> {
 	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
@@ -109,7 +108,7 @@ export class ShuChatMessage extends ShuElement<typeof EmptySchema> {
 	@property({ attribute: false }) accessor message: TChatMessage = ChatMessageSchema.parse({ id: "", role: "user" });
 
 	constructor() {
-		super(EmptySchema, {});
+		super(EmptyStateSchema);
 	}
 
 	/** Light DOM: parent column selectors must reach this element's children. */

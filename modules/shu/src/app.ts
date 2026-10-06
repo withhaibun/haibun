@@ -445,47 +445,16 @@ const main = async (): Promise<void> => {
 			{
 				ensureLoaded: (tag) => ensureUiComponentLoaded(tag),
 				afterAttach: {
-					entity: (d, child) => {
-						if (d.paneType !== "entity") return;
-						return (child as ShuEntityColumn).open(d.id, d.persistedAs, d.selector);
-					},
-					type: (d, child) => {
-						if (d.paneType !== "type") return;
-						return (child as import("./components/shu-type-column.js").ShuTypeColumn).open(d.persistedAs);
-					},
-					"filter-eq": (d, child) => {
-						if (d.paneType !== "filter-eq") return;
-						return (child as ShuFilterColumn).openFiltered(d.predicate, d.value, d.persistedAs);
-					},
-					"filter-prop": (d, child) => {
-						if (d.paneType !== "filter-prop") return;
-						return (child as ShuFilterColumn).openProperty(d.predicate, d.persistedAs);
-					},
-					"filter-incoming": (d, child) => {
-						if (d.paneType !== "filter-incoming") return;
-						return (child as ShuFilterColumn).openIncoming(d.subject, d.persistedAs);
-					},
-					thread: (d, child) => {
-						if (d.paneType !== "thread") return;
-						return (child as import("./components/shu-thread-column.js").ShuThreadColumn).open(d.persistedAs, d.subject);
-					},
-					"step-detail": (d, child) => {
-						if (d.paneType !== "step-detail") return;
-						return (child as HTMLElement & { open(s: number[]): Promise<void> }).open(d.seqPath);
-					},
-					step: (d, child) => {
-						if (d.paneType !== "step") return;
-						return (child as ShuStepDefinition).open(d.method);
-					},
-					action: (d, child) => {
-						if (d.paneType !== "action") return;
-						return (child as ShuActionColumn).open(d.action);
-					},
-					"views-picker": (d, child) => {
-						if (d.paneType !== "views-picker") return;
-						const setViews = (child as HTMLElement & { setViews(v: unknown[]): void }).setViews;
-						setViews.call(child, d.views);
-					},
+					entity: (d, child) => (child as ShuEntityColumn).open(d.id, d.persistedAs, d.selector),
+					type: (d, child) => (child as import("./components/shu-type-column.js").ShuTypeColumn).open(d.persistedAs),
+					"filter-eq": (d, child) => (child as ShuFilterColumn).openFiltered(d.predicate, d.value, d.persistedAs),
+					"filter-prop": (d, child) => (child as ShuFilterColumn).openProperty(d.predicate, d.persistedAs),
+					"filter-incoming": (d, child) => (child as ShuFilterColumn).openIncoming(d.subject, d.persistedAs),
+					thread: (d, child) => (child as import("./components/shu-thread-column.js").ShuThreadColumn).open(d.persistedAs, d.subject),
+					"step-detail": (d, child) => (child as HTMLElement & { open(s: number[]): Promise<void> }).open(d.seqPath),
+					step: (d, child) => (child as ShuStepDefinition).open(d.method),
+					action: (d, child) => (child as ShuActionColumn).open(d.action),
+					"views-picker": (d, child) => (child as HTMLElement & { setViews(v: unknown[]): void }).setViews(d.views),
 				},
 			},
 			[
