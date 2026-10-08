@@ -7,9 +7,9 @@ import { dirname, join, relative, resolve, sep } from "node:path";
 import { isProseFile, proseBlocks, type TProseBlock, type TProseKind } from "./prose-sources.js";
 
 export type { TProseKind } from "./prose-sources.js";
-export const PROSE_RULE_IDS = ["anthropomorphic", "relation-verb", "the-run", "banned-word", "em-dash", "first-person", "negated-noun"] as const;
+export const PROSE_RULE_IDS = ["anthropomorphic", "relation-verb", "the-run", "banned-word", "em-dash", "first-person", "negated-noun", "terminal-preposition"] as const;
 export type TProseRuleId = (typeof PROSE_RULE_IDS)[number];
-/** A line of prose, by the source line it starts on. */
+/** A line of prose, with the number of the source line where it starts. */
 export type TProseSegment = { line: number; text: string; kind: TProseKind };
 /** A violation a file holds on purpose: the file by its path from the repository root, the rule, text of the segment that contains the match, and why. */
 export type TAllowed = { file: string; rule: TProseRuleId; text: string; reason: string };
@@ -409,6 +409,12 @@ const ROMAN_ONE = "I";
 const NONE = "none";
 const NO = "no";
 const ESCAPE = "\\";
+/** A preposition before a sentence's full stop, as in `the directory actuality keeps files in.` */
+/** Verbs whose `on` or `in` is a particle, up to three words after the verb: `turns thinking on`, `opts the reader in`. */
+const PHRASAL_VERB = /^(?:turn|switch|log|sign|opt)(?:s|es|ed|ing|ged|ging|ted|ting)?$/;
+const PARTICLES = new Set(["on", "in"]);
+const PARTICLE_REACH = 3;
+const TERMINAL_PREPOSITION = /\b(?:in|with|by|to|from|of|on|at|for|into|onto|about|through)(?=\.(?:[\s"'’”)\]*_]|$))/gi;
 
 function isWordCharacter(character: string): boolean {
 	return WORD_CHARACTER.test(character);
@@ -578,7 +584,7 @@ function personAmong(block: TReadBlock, words: readonly TWord[], verbStart: numb
 	return words.some((_, index) => (!joined || index < JOINED_SUBJECT_WORDS) && countsAsPerson(block, words, index, verbStart));
 }
 
-/** A person is the subject of the clause, before the match or as the noun a relative pronoun refers to. */
+/** True where a person is the subject of the clause, before the match or as the antecedent of a relative pronoun. */
 function personSubject({ block, start }: TFound, tense?: TVerbTense): boolean {
 	if (directPerson(block, start)) return true;
 	const before = wordBefore(block, start);
@@ -777,6 +783,13 @@ function relationAllows(found: TFound): boolean {
 	return personSubject(found) || (RELATION_BASE_FORM.test(word) && instruction(found));
 }
 
+/** True where a quote holds the match, or where `on` or `in` is the particle of a phrasal verb: `turns thinking on.` */
+function prepositionAllows(found: TFound): boolean {
+	if (insideQuote(found)) return true;
+	const before = sentenceWords(found.block, found.start).slice(-PARTICLE_REACH);
+	return PARTICLES.has(found.word.toLowerCase()) && before.some((word) => PHRASAL_VERB.test(word.lower));
+}
+
 /** `I` as a roman numeral, after the word it numbers: `Part I`. */
 function romanNumeral({ block, start, word }: TFound): boolean {
 	const before = wordBefore(block, start);
@@ -813,7 +826,7 @@ export const PROSE_RULES: readonly TProseRule[] = [
 		id: "relation-verb",
 		pattern:
 			/\b(?:lives|lived|sits|sat|belongs|belonged|(?:live|living|sit|sitting)\s+(?:(?:only|entirely|now|right|once)\s+)?(?:in|on|at|inside|within|under|beside|alongside|outside|behind|above|below|between|atop|next\s+to|here|there|with|among|over|before|after)|(?:belong|belonging)\s+(?:(?:only|entirely|now|right|once)\s+)?(?:to|in|on|at|with|here|there|among)|meets?|met|meeting\s+(?:on|at|in|with)|(?:go|goes|went|gone)\s+(?:(?:only|straight|directly|back|out|first|then|also|all)\s+)?(?:to|into|through|in|under|beside|via|inside|within|onto|there|where)|going\s+(?:into|through))\b/gi,
-		instead: "Name the relation with a technical verb: implements, calls, reads, replaces, contains or depends on.",
+		instead: "Name the relation with a technical verb: implements, calls, reads, replaces, depends on or contains.",
 		allows: relationAllows,
 	},
 	{
@@ -846,6 +859,12 @@ export const PROSE_RULES: readonly TProseRule[] = [
 		pattern: /\b(?:no(?=\s+(?!longer\b|more\s+than\b)[\p{L}\p{N}_"'“‘([\uFFFC])|nothing|none|nobody|neither|nowhere)\b/giu,
 		instead: 'Negate the verb, as in "doesn\'t name a type".',
 		allows: negationAllows,
+	},
+	{
+		id: "terminal-preposition",
+		pattern: TERMINAL_PREPOSITION,
+		instead: 'Name the thing directly and end the sentence on its noun, as in "the engine for the PERSIST option".',
+		allows: prepositionAllows,
 	},
 ];
 

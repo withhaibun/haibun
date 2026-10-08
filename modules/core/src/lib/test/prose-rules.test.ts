@@ -31,6 +31,7 @@ const BANNED_WORD = "banned-word";
 const NEGATED_NOUN = "negated-noun";
 const FIRST_PERSON = "first-person";
 const EM_DASH = "em-dash";
+const TERMINAL_PREPOSITION = "terminal-preposition";
 const DASH_SAMPLE = "a—b";
 const PERSONS = { entries: [], persons: ["Wren", "Lawrence"] };
 
@@ -114,6 +115,18 @@ describe("each rule", () => {
 
 	it("reports `no` before any noun, a number, an underscore or a quote", () => {
 		expect(rulesOf(violationsIn(MARKDOWN, 'It has no 2d context. It has no _links. It has no anchor/size. It names no "id".'))).toEqual(Array(4).fill(NEGATED_NOUN));
+	});
+
+	it("reports a sentence that ends on a preposition, in a comment, a prose string and Markdown", () => {
+		const comment =
+			"/** The graph area's composition root: the engine a persistence option names, the graph store actuality holds and the directory actuality keeps files in. */";
+		expect(rulesOf(violationsIn(SOURCE, comment))).toEqual([TERMINAL_PREPOSITION]);
+		expect(rulesOf(violationsIn(SOURCE, "// Makes one edge label and the indexes a read of a record's edges reads it by."))).toEqual([TERMINAL_PREPOSITION]);
+		expect(rulesOf(violationsIn(SOURCE, "/** The text search configuration a search reads words with. */"))).toEqual([TERMINAL_PREPOSITION]);
+		expect(rulesOf(violationsIn(SOURCE, 'throw new Error("It opens the registry the store reads each type\'s surface from.");'))).toEqual([TERMINAL_PREPOSITION]);
+		expect(matchesOf(violationsIn(MARKDOWN, "The persistence option of a graph held in memory, which `PERSIST` defaults to."))).toEqual([[TERMINAL_PREPOSITION, "to"]]);
+		const each = ["in", "with", "by", "to", "from", "of", "on", "at", "for", "into", "onto", "about", "through"].map((preposition) => `It reads ${preposition}.`).join(" ");
+		expect(rulesOf(violationsIn(MARKDOWN, each))).toEqual(Array(13).fill(TERMINAL_PREPOSITION));
 	});
 
 	it("reports the line a violation starts on", () => {
@@ -224,7 +237,7 @@ describe("allowed forms", () => {
 
 	it("allows a capitalized name within a sentence, but not a word in capitals or a title-case heading", () => {
 		expect(violationsIn(MARKDOWN, "The page opens in the Ask mode. It is LAST KNOWN.")).toEqual([]);
-		expect(rulesOf(violationsIn(MARKDOWN, "The bodies that have been ASKED for."))).toEqual([ANTHROPOMORPHIC]);
+		expect(rulesOf(violationsIn(MARKDOWN, "The page reads the bodies that have been ASKED for, in order."))).toEqual([ANTHROPOMORPHIC]);
 		expect(rulesOf(violationsIn(MARKDOWN, "# Logic in Haibun: Claims, Rules, and Derived Answers"))).toEqual([ANTHROPOMORPHIC]);
 		expect(rulesOf(violationsIn(MARKDOWN, "- **NQ2.** Answered in stage 4."))).toEqual([ANTHROPOMORPHIC]);
 	});
@@ -276,6 +289,14 @@ describe("allowed forms", () => {
 	it("allows `no longer`, `no more than`, `no-op` and a closing `no more`", () => {
 		expect(violationsIn(MARKDOWN, "The step no longer reads it. It takes no more than a second. The handler is a no-op. It lists it no more.")).toEqual([]);
 		expect(rulesOf(violationsIn(MARKDOWN, "It grants it and no more."))).toEqual([NEGATED_NOUN]);
+	});
+
+	it("allows a sentence that ends on a word that isn't a preposition, a quoted example, code, an identifier and a phrasal verb's particle", () => {
+		expect(violationsIn(MARKDOWN, "Returns the engine. It reads at private. It reads from the store, in order.")).toEqual([]);
+		expect(violationsIn(MARKDOWN, 'The rule names "the directory actuality keeps files in." A key is `in`. It reads `from`. It reads src/to. It reads e.g.in.')).toEqual([]);
+		expect(violationsIn(SOURCE, "const message = `It reads from ${source}.`;")).toEqual([]);
+		expect(violationsIn(MARKDOWN, "A profile turns thinking on. The person signs in. The page opts the reader in.")).toEqual([]);
+		expect(rulesOf(violationsIn(MARKDOWN, "The person signs the record the store writes in."))).toEqual([TERMINAL_PREPOSITION]);
 	});
 
 	it("allows `none` alone in a table cell, an element or a CSS value", () => {
