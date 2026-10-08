@@ -1,0 +1,1010 @@
+{
+	"modules/cli/src/BaseOptions.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/cli/src/cli.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/cli/src/feature-execution.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/cli/src/instance-stepper.ts": {
+		"performs I/O through child_process": 1,
+		"performs I/O through fs": 1,
+		"performs I/O through setTimeout": 4
+	},
+	"modules/cli/src/lib.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/cli/src/run-outcome.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/cli/src/test-runner-stepper.ts": {
+		"imports a stepper: ./instance-stepper.js": 1
+	},
+	"modules/cli/src/timings.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/cli/src/verified.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/currentVersion.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/index.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/kireji/converter.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/kireji/withAction.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/actions.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/affordances.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/astepper.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/authority-types.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/basic-auth.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/blips.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/call-step.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/called.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/capability-context.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/capture-locator.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/cell.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/chain-instance.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/chain-walker.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/composite-domain.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/core-domains.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/core/flow-runner.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/dev-mode.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/document-content.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/domain-chain-lint.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/domain-chain.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/domains.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/EventLogger.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/execution.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/feature-variables.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/features.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/fixme.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/goal-resolver.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/host-id.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/http-observations.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/hypermedia.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/instrumentation-graphs.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/json-schema-of.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/json-text.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/jsonld-loader.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/local-origin.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/log-message.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/machine.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/media-fragments.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/media-object.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/media-types.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/namedVars.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/owned-children.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/PhaseRunner.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/populateActionArgs.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/port-occupant.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/principal-individual.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/principal.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/prompter.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/quad-graph-model.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/quad-store.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/quad-types.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/quote-anchor.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/readline-prompter.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/record-blip.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/remote-quad-store.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/remote-stepper-proxy.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/request-context.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/resolver-features.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/resources.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/rpc-client.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/rpc-wire.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/run-artifact.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/seq-path.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/serving.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/session-authority.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/signature-header.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/sse-subscriber.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/statements.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/step-discovery.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/step-dispatch.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/step-hypermedia.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/step-registry.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/step-stream-context.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/step-validation.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/stepper-cycles.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/store-protocol.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/taiwa.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/tool-validation.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/ttag.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/tunables.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/typed-links.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/urakata.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/util/dot-path.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/util/index.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/util/item-at.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/util/node/actualURI.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/util/node/dependency-state.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/util/node/module-loader.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/util/node/workspace-lib.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/util/secret-utils.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/working-memory.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/workspace-discovery.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/world.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/lib/zod-unwrap.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/monitor/index.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/phases/collector.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/phases/Executor.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/phases/Resolver.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/run-policy/run-policy-schema.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/run-policy/run-policy-types.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/runner.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/schema/protocol.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/steps/activities-actions.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/steps/haibun.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/steps/lib/tts.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/core/src/steps/narrator.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/domain-storage/src/AStorage.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/domain-storage/src/domain-storage.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/domain-storage/src/image-artifact.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/lsp/src/lsp-stepper.ts": {
+		"performs I/O through setTimeout": 1
+	},
+	"modules/lsp/src/semantic-tokens.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/monitor-otel/src/index.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/monitor-tui/src/index.tsx": {
+		"isn't in a kind position": 1
+	},
+	"modules/out-junit/src/out-junit.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/recorder/src/index.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/recorder/src/interaction-mapper.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/recorder/src/page-instrumentor.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/recorder/src/recorder-stepper.ts": {
+		"performs I/O through fs/promises": 1
+	},
+	"modules/recorder/src/types.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/affordance-dispatch.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/affordance-products.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/annotation-rail.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/annotation-resolver.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/app.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/artifact-url.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/chat-context-harvest.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/chat-turn.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/client-blips.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/client-cache-stepper.ts": {
+		"imports a stepper: ./client-cache/client-cache-stepper.js": 1
+	},
+	"modules/shu/src/client-cache/device-store.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/client-cache/executions.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/client-cache/graph-run-source.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/client-cache/hydrate.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/client-cache/idb-summary.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/client-cache/index.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/client-cache/quad-store.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/client-cache/run-graph.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/client-cache/run-marks.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/client-cache/run-shape.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/client-cache/run-source.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/client-cache/run-window.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/client-log.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/component-registry.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/components/actions-bar-query.ts": {
+		"performs I/O through setTimeout": 1
+	},
+	"modules/shu/src/components/shu-affordances-panel.ts": {
+		"performs I/O through setTimeout": 1
+	},
+	"modules/shu/src/components/shu-annotated-body.ts": {
+		"performs I/O through setTimeout": 1
+	},
+	"modules/shu/src/components/shu-class-browser.ts": {
+		"performs I/O through fetch": 1
+	},
+	"modules/shu/src/components/shu-client-cache-column.ts": {
+		"performs I/O through setTimeout": 1
+	},
+	"modules/shu/src/components/shu-clustered-graph-view.ts": {
+		"performs I/O through setTimeout": 1
+	},
+	"modules/shu/src/components/shu-combobox.ts": {
+		"performs I/O through setTimeout": 1
+	},
+	"modules/shu/src/components/shu-copy-button.ts": {
+		"performs I/O through setTimeout": 1
+	},
+	"modules/shu/src/components/shu-entity-column.ts": {
+		"performs I/O through setTimeout": 1
+	},
+	"modules/shu/src/components/shu-graph-query.ts": {
+		"performs I/O through setTimeout": 1
+	},
+	"modules/shu/src/components/shu-scrollbar.controls.ts": {
+		"performs I/O through setTimeout": 1
+	},
+	"modules/shu/src/components/shu-step-detail.ts": {
+		"performs I/O through setTimeout": 1
+	},
+	"modules/shu/src/consts.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/content-security-policy.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/controllers/authority-controller.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/controllers/data-access-scan.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/controllers/entity-controller.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/controllers/index.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/controllers/query-controller.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/controllers/scroll-follow-controller.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/controllers/signal-controller.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/controllers/steps-changed-controller.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/controllers/subject-controller.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/controllers/timeline-view-controller.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/conversation.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/cookies.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/copy-util.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/current-subject.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/define-element.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/document-blocks.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/element-prefs.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/embedder.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/entity-store.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/event-marker.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/event-stream.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/external-components.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph-blips.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph-expansion.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph-filter-projection.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph-model.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph-presenter.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/focus-policy.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/gantt-layout.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/gantt-model.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/graph-layout.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/graph-neighbors.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/graph-quads.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/graph-scene.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/grouping.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/jsonld-context-scope.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/layered-layout.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/node-presenters.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/ontology-projection.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/paint-select.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/polymorphic/force-layout.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/polymorphic/group-grid.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/polymorphic/layered-solver.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/polymorphic/layout-forces.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/polymorphic/model-hash.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-a11y-renderer.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-camera.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-data-pipeline.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-drag.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-drawing.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-enclosure.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-engine.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-focus.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-frame-time.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-frame.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-graph-types.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-highlight.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-layout.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-node-shapes.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-pick-sync.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-profiler.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-project.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-regulator.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-render-context.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-render-type.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-renderer.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-scene.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-summary.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-svg-renderer.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-troika-label.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-type-avatar.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-views.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/polymorphic/sequence-model.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/project-domain-chain.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/project-goal-paths.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/sequence-model-types.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/standard-vocabulary.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/svg-renderer.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/svg-util.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/time-axis.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/type-presentation.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/graph/types.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/hypermedia.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/index.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/known-size-flow.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/long-frames.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/markdown-refs.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/monitor-stepper.ts": {
+		"imports a stepper: ./shu-stepper.js": 1,
+		"performs I/O through fs": 1
+	},
+	"modules/shu/src/object-id.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/page-blips.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/page-delegation.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/page-key.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/page-pinned.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/pane-event-router.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/pane-fetch.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/pane-state.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/quad-detail-pane.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/quads-snapshot.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/ranges.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/recogito.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/refused-scripts.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/rels-cache.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/remote-graph-source.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/resolve-ui.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/reveal.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/rpc-registry.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/run-scale.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/scenes.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/schemas.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/scrollbar-model.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/show-controls.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/shu-stepper.ts": {
+		"performs I/O through fs": 1
+	},
+	"modules/shu/src/signals.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/slash-command.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/step-input-validator.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/test-ids.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/test-setup.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/time-sync.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/turn-allowance.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/type-colors.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/util.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/view-blips.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/view-hash.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/view-query.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/virtual-column-model.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/window-size-setting.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/shu/src/windowed-source.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/storage-fs/src/storage-fs.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/storage-mem/src/storage-mem.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/utils/src/npm-link-haibuns.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/utils/src/scaffold/index.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/utils/src/scaffold/scaffold.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/utils/src/vcapture/index.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/utils/src/vcapture/vcapture-lib.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/web-accessibility-axe/src/a11y-axe-stepper.ts": {
+		"performs I/O through playwright": 1
+	},
+	"modules/web-accessibility-axe/src/lib/a11y-axe.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/web-accessibility-axe/src/lib/axe-earl.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/web-accessibility-axe/src/lib/earl.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/web-accessibility-axe/src/lib/report.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/web-playwright/src/actions.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/web-playwright/src/BrowserFactory.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/web-playwright/src/cycles.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/web-playwright/src/domains.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/web-playwright/src/interactionSteps.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/web-playwright/src/PlaywrightEvents.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/web-playwright/src/relay-client/relay-channel.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/web-playwright/src/relay-client/relayConnection.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/web-playwright/src/relay/browserModel.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/web-playwright/src/relay/cdpRelay.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/web-playwright/src/relay/cdpRelayV2.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/web-playwright/src/relay/protocol.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/web-playwright/src/relay/relay-methods.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/web-playwright/src/relay/relay-wire.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/web-playwright/src/rest-playwright.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/web-playwright/src/twin-page.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/web-playwright/src/web-playwright.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/web-server-hono/src/auth.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/web-server-hono/src/capability-auth.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/web-server-hono/src/cookie.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/web-server-hono/src/defs.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/web-server-hono/src/mcp-stepper.ts": {
+		"imports a stepper: ./web-server-stepper.js": 1
+	},
+	"modules/web-server-hono/src/server-hono.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/web-server-hono/src/sse-transport.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/web-server-hono/src/step-transport.ts": {
+		"isn't in a kind position": 1
+	},
+	"modules/web-server-hono/src/web-server-stepper.ts": {
+		"performs I/O through setTimeout": 1
+	}
+}

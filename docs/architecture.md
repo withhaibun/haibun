@@ -385,16 +385,19 @@ export const features: TKirejiExport = {
 # How code is organized
 
 Steppers, cycles and domains are how code extends haibun. Inside a module, each file holds one kind of code from the
-table below, and each kind depends only on the kinds its row lists. A test reads each file's imports and fails where a
-file depends on a kind its row doesn't list, so a function that mixes kinds fails where it is written.
+table below, and each kind depends only on the kinds that "Kinds" allows it. A test reads each file's imports and fails
+where a file depends on a kind it isn't allowed, so a function that mixes kinds fails where it is written.
 
 ## Areas
 
 An area is a directory that holds the code of one concern: a store, a transport, a conversation with a model, a family
-of views. Its files are of the kinds below, one kind per file, and the area's composition root builds its ports for the
-steppers that use them.
+of views. Its files are of the kinds below, one kind per file, and the area's composition root in `root.ts` builds its
+ports for the steppers that use them.
 
 ## Kinds
+
+Each kind except the stepper depends on its own kind and on the kinds its row lists. A stepper calls another stepper's
+steps through `dispatchStep`, so a stepper doesn't import another stepper.
 
 | Kind | Holds | Depends on |
 |------|-------|------------|
@@ -402,9 +405,10 @@ steppers that use them.
 | Derivation | A pure function from declarations: a read surface, a title, the concern catalog | domains, derivations |
 | Machine | Statuses that events move: one state type, one event type, one pure transition and one table test | domains |
 | Pipeline | One operation as pure steps over ports | domains, derivations, machines, ports |
-| Port | An interface a pipeline reads or writes through: a store, an endpoint, a mailbox, a clock | types |
+| Port | An interface a pipeline reads or writes through: a store, an endpoint, a mailbox, a clock. An area's `ports.ts` holds only port types | types |
 | Adapter | I/O through a database driver, HTTP, a mail server, a model endpoint, a browser or the filesystem. An adapter implements a port, raises a machine's events and returns data. It doesn't hold policy | ports, libraries |
-| Stepper | Steps that parse their input by domain, call one pipeline or send one machine event, and return products or a refusal. Its cycles connect lifecycle events to the same pipelines and machines | pipelines, machines, the composition root |
+| Composition root | The function in an area's `root.ts` that builds the area's ports from its adapters for the steppers that use them | ports, adapters |
+| Stepper | Steps that parse their input by domain, call one pipeline or send one machine event, and return products or a refusal. Its cycles connect lifecycle events to the same pipelines and machines | pipelines, machines, its area's composition root |
 | View | A `ShuElement` that renders from the concern catalog and machine statuses, through controllers | controllers |
 
 ## One flow
