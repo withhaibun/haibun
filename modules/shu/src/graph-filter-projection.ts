@@ -81,7 +81,7 @@ export function effectiveHiddenTypes(types: Iterable<string>, overrides: Record<
 		if (choice === undefined ? isInstrumentationGraph(type) || isInstrumentationType(type) || isSchemaType(type) : !choice) hidden.add(type);
 	}
 	// An explicit hide applies before its type appears in `types`, such as a control-product hide of a type without data.
-	// An explicit show of an absent type has no effect until the type arrives, and the type then shows.
+	// An explicit show of an absent type doesn't change the view until the type arrives. The type shows then.
 	for (const type of explicitlyHidden(overrides)) hidden.add(type);
 	return [...hidden];
 }

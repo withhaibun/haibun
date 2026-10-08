@@ -1,268 +1,6 @@
 {
-	"docs/new_modules.md": {
-		"em-dash": 6
-	},
-	"docs/planning/fol-in-haibun.md": {
-		"anthropomorphic": 10,
-		"relation-verb": 3
-	},
-	"docs/planning/improvements-plan.md": {
-		"anthropomorphic": 1
-	},
-	"docs/planning/schema-ink-monitor.md": {
-		"anthropomorphic": 1,
-		"em-dash": 1,
-		"relation-verb": 2
-	},
-	"docs/todo.md": {
-		"anthropomorphic": 1
-	},
-	"e2e-tests/shu-self-test/features/shu-self-test.feature.ts": {
-		"anthropomorphic": 3,
-		"relation-verb": 1,
-		"the-run": 23
-	},
-	"e2e-tests/shu-self-test/features/z-post.feature.ts": {
-		"the-run": 1
-	},
-	"e2e-tests/src/test-server.ts": {
-		"anthropomorphic": 3,
-		"negated-noun": 3
-	},
-	"e2e-tests/tests/features/executor-rpc.feature.ts": {
-		"relation-verb": 2
-	},
-	"e2e-tests/tests/features/feature-variables.feature": {
-		"first-person": 3
-	},
-	"e2e-tests/tests/features/identity-and-capability.feature.ts": {
-		"anthropomorphic": 3,
-		"the-run": 3
-	},
-	"e2e-tests/tests/features/once.feature.ts": {
-		"anthropomorphic": 7,
-		"the-run": 1
-	},
-	"e2e-tests/tests/features/trauma_center.feature": {
-		"first-person": 1
-	},
-	"e2e-tests/tests/features/visited-pages.feature": {
-		"anthropomorphic": 1,
-		"relation-verb": 1
-	},
-	"e2e-tests/tests/features/wikipedia.feature.ts": {
-		"relation-verb": 1
-	},
-	"e2e-tests/tests/features/workflow.feature.ts": {
-		"relation-verb": 1
-	},
-	"e2e-tests/tests/features/xss.feature": {
-		"first-person": 1
-	},
-	"modules/cli/src/BaseOptions.ts": {
-		"the-run": 1
-	},
-	"modules/cli/src/feature-execution.ts": {
-		"anthropomorphic": 7,
-		"the-run": 18
-	},
-	"modules/cli/src/instance-stepper.test.ts": {
-		"anthropomorphic": 15,
-		"relation-verb": 2,
-		"the-run": 11
-	},
-	"modules/cli/src/instance-stepper.ts": {
-		"anthropomorphic": 52,
-		"relation-verb": 1,
-		"the-run": 32
-	},
-	"modules/cli/src/lib.test.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/cli/src/lib.ts": {
-		"anthropomorphic": 4,
-		"the-run": 3
-	},
-	"modules/cli/src/run-outcome.ts": {
-		"anthropomorphic": 1,
-		"relation-verb": 1,
-		"the-run": 15
-	},
-	"modules/cli/src/test-runner-stepper.test.ts": {
-		"anthropomorphic": 15,
-		"relation-verb": 1,
-		"the-run": 20
-	},
-	"modules/cli/src/test-runner-stepper.ts": {
-		"anthropomorphic": 82,
-		"negated-noun": 1,
-		"relation-verb": 1,
-		"the-run": 29
-	},
-	"modules/cli/src/test-runner-zcap.test.ts": {
-		"the-run": 2
-	},
-	"modules/cli/src/timings.test.ts": {
-		"the-run": 1
-	},
-	"modules/cli/src/timings.ts": {
-		"anthropomorphic": 1,
-		"the-run": 2
-	},
-	"modules/cli/src/verified.test.ts": {
-		"anthropomorphic": 4
-	},
-	"modules/cli/src/verified.ts": {
-		"anthropomorphic": 4,
-		"relation-verb": 1,
-		"the-run": 6
-	},
-	"modules/core/src/lib/EventLogger.test.ts": {
-		"anthropomorphic": 4,
-		"negated-noun": 2
-	},
-	"modules/core/src/lib/EventLogger.ts": {
-		"anthropomorphic": 2,
-		"the-run": 3
-	},
-	"modules/core/src/lib/actions.test.ts": {
-		"anthropomorphic": 6,
-		"negated-noun": 2
-	},
-	"modules/core/src/lib/actions.ts": {
-		"anthropomorphic": 6,
-		"negated-noun": 1,
-		"relation-verb": 1
-	},
-	"modules/core/src/lib/affordances.test.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/core/src/lib/affordances.ts": {
-		"anthropomorphic": 4
-	},
-	"modules/core/src/lib/astepper.ts": {
-		"anthropomorphic": 12,
-		"relation-verb": 1,
-		"the-run": 1
-	},
-	"modules/core/src/lib/authority-types.ts": {
-		"anthropomorphic": 12
-	},
-	"modules/core/src/lib/blips.test.ts": {
-		"anthropomorphic": 2
-	},
-	"modules/core/src/lib/blips.ts": {
-		"anthropomorphic": 3
-	},
-	"modules/core/src/lib/call-step.ts": {
-		"anthropomorphic": 6
-	},
-	"modules/core/src/lib/called.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/core/src/lib/capability-context.test.ts": {
-		"anthropomorphic": 2
-	},
-	"modules/core/src/lib/capability-context.ts": {
-		"anthropomorphic": 7,
-		"negated-noun": 2,
-		"relation-verb": 4,
-		"the-run": 1
-	},
-	"modules/core/src/lib/cell.ts": {
-		"anthropomorphic": 3
-	},
-	"modules/core/src/lib/chain-instance.ts": {
-		"anthropomorphic": 2,
-		"relation-verb": 1
-	},
-	"modules/core/src/lib/chain-walker.test.ts": {
-		"relation-verb": 1
-	},
-	"modules/core/src/lib/composite-domain.ts": {
-		"anthropomorphic": 1,
-		"relation-verb": 1
-	},
-	"modules/core/src/lib/core-domains.ts": {
-		"first-person": 1
-	},
-	"modules/core/src/lib/core/speculation.test.ts": {
-		"anthropomorphic": 3,
-		"the-run": 2
-	},
-	"modules/core/src/lib/dev-mode.ts": {
-		"relation-verb": 1
-	},
-	"modules/core/src/lib/document-content.ts": {
-		"anthropomorphic": 2,
-		"relation-verb": 2
-	},
-	"modules/core/src/lib/domain-chain-lint.test.ts": {
-		"anthropomorphic": 8
-	},
-	"modules/core/src/lib/domain-chain-lint.ts": {
-		"anthropomorphic": 5,
-		"the-run": 1
-	},
-	"modules/core/src/lib/goal-resolver.composite.test.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/core/src/lib/goal-resolver.ts": {
-		"anthropomorphic": 2
-	},
-	"modules/core/src/lib/host-id.ts": {
-		"anthropomorphic": 2,
-		"relation-verb": 1,
-		"the-run": 1
-	},
-	"modules/core/src/lib/http-observations.ts": {
-		"the-run": 1
-	},
-	"modules/core/src/lib/hypermedia.counted.test.ts": {
-		"anthropomorphic": 3
-	},
-	"modules/core/src/lib/hypermedia.query-surface.test.ts": {
-		"anthropomorphic": 4
-	},
-	"modules/core/src/lib/hypermedia.searchable.test.ts": {
-		"anthropomorphic": 3,
-		"relation-verb": 3
-	},
-	"modules/core/src/lib/hypermedia.test.ts": {
-		"relation-verb": 1
-	},
 	"modules/core/src/lib/hypermedia.ts": {
 		"anthropomorphic": 11,
-		"relation-verb": 1
-	},
-	"modules/core/src/lib/json-schema-of.ts": {
-		"anthropomorphic": 3
-	},
-	"modules/core/src/lib/jsonld-loader.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/core/src/lib/log-message.ts": {
-		"the-run": 1
-	},
-	"modules/core/src/lib/machine.test.ts": {
-		"anthropomorphic": 4
-	},
-	"modules/core/src/lib/machine.ts": {
-		"anthropomorphic": 2
-	},
-	"modules/core/src/lib/owned-children.test.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/core/src/lib/port-occupant.ts": {
-		"anthropomorphic": 4
-	},
-	"modules/core/src/lib/principal.ts": {
-		"the-run": 1
-	},
-	"modules/core/src/lib/quad-graph-model.test.ts": {
-		"relation-verb": 2
-	},
-	"modules/core/src/lib/quad-graph-model.ts": {
 		"relation-verb": 1
 	},
 	"modules/core/src/lib/quad-store.identity.test.ts": {
@@ -279,338 +17,11 @@
 		"anthropomorphic": 18,
 		"relation-verb": 1
 	},
-	"modules/core/src/lib/remote-stepper-proxy.test.ts": {
-		"anthropomorphic": 2
-	},
-	"modules/core/src/lib/remote-stepper-proxy.ts": {
-		"anthropomorphic": 2
-	},
-	"modules/core/src/lib/request-context.ts": {
-		"negated-noun": 1
-	},
-	"modules/core/src/lib/resources.test.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/core/src/lib/resources.ts": {
-		"anthropomorphic": 20,
-		"relation-verb": 6,
-		"the-run": 1
-	},
-	"modules/core/src/lib/rpc-client.test.ts": {
-		"anthropomorphic": 9,
-		"negated-noun": 2
-	},
-	"modules/core/src/lib/rpc-client.ts": {
-		"anthropomorphic": 10,
-		"negated-noun": 2
-	},
-	"modules/core/src/lib/rpc-schema.test.ts": {
-		"negated-noun": 1
-	},
-	"modules/core/src/lib/rpc-wire.test.ts": {
-		"anthropomorphic": 2
-	},
-	"modules/core/src/lib/rpc-wire.ts": {
-		"anthropomorphic": 44,
-		"relation-verb": 1
-	},
-	"modules/core/src/lib/run-artifact.ts": {
-		"the-run": 2
-	},
-	"modules/core/src/lib/seq-path.test.ts": {
-		"anthropomorphic": 2,
-		"relation-verb": 1
-	},
-	"modules/core/src/lib/seq-path.ts": {
-		"anthropomorphic": 3,
-		"relation-verb": 3,
-		"the-run": 2
-	},
-	"modules/core/src/lib/session-authority.test.ts": {
-		"anthropomorphic": 4
-	},
-	"modules/core/src/lib/session-authority.ts": {
-		"anthropomorphic": 2,
-		"the-run": 3
-	},
-	"modules/core/src/lib/sse-subscriber.test.ts": {
-		"anthropomorphic": 10
-	},
-	"modules/core/src/lib/sse-subscriber.ts": {
-		"anthropomorphic": 19
-	},
-	"modules/core/src/lib/statements.test.ts": {
-		"relation-verb": 1,
-		"the-run": 1
-	},
-	"modules/core/src/lib/statements.ts": {
-		"anthropomorphic": 1,
-		"relation-verb": 1
-	},
-	"modules/core/src/lib/step-discovery.ts": {
-		"anthropomorphic": 15,
-		"the-run": 3
-	},
-	"modules/core/src/lib/step-dispatch.test.ts": {
-		"anthropomorphic": 15,
-		"negated-noun": 1
-	},
-	"modules/core/src/lib/step-dispatch.ts": {
-		"anthropomorphic": 14,
-		"negated-noun": 2,
-		"relation-verb": 2,
-		"the-run": 1
-	},
-	"modules/core/src/lib/step-hypermedia.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/core/src/lib/step-registry.test.ts": {
-		"anthropomorphic": 5,
-		"the-run": 2
-	},
-	"modules/core/src/lib/step-registry.ts": {
-		"anthropomorphic": 18,
-		"relation-verb": 1,
-		"the-run": 2
-	},
-	"modules/core/src/lib/step-stream-context.ts": {
-		"anthropomorphic": 2,
-		"relation-verb": 1
-	},
-	"modules/core/src/lib/store-protocol.ts": {
-		"anthropomorphic": 1
-	},
 	"modules/core/src/lib/taiwa.ts": {
-		"anthropomorphic": 2
-	},
-	"modules/core/src/lib/test/fake-authority.ts": {
-		"anthropomorphic": 1,
-		"negated-noun": 7
+		"anthropomorphic": 1
 	},
 	"modules/core/src/lib/test/quad-store-conformance.ts": {
 		"anthropomorphic": 13
-	},
-	"modules/core/src/lib/test/rpc-answer.ts": {
-		"anthropomorphic": 4
-	},
-	"modules/core/src/lib/test/step-graph-baseline.ts": {
-		"negated-noun": 1,
-		"relation-verb": 1
-	},
-	"modules/core/src/lib/test/test-domains.ts": {
-		"anthropomorphic": 4
-	},
-	"modules/core/src/lib/tool-validation.ts": {
-		"anthropomorphic": 10
-	},
-	"modules/core/src/lib/tunables.test.ts": {
-		"negated-noun": 2
-	},
-	"modules/core/src/lib/tunables.ts": {
-		"relation-verb": 1
-	},
-	"modules/core/src/lib/typed-links.ts": {
-		"anthropomorphic": 5
-	},
-	"modules/core/src/lib/urakata.test.ts": {
-		"anthropomorphic": 2
-	},
-	"modules/core/src/lib/urakata.ts": {
-		"anthropomorphic": 1,
-		"negated-noun": 1,
-		"relation-verb": 2
-	},
-	"modules/core/src/lib/util/index.ts": {
-		"relation-verb": 1
-	},
-	"modules/core/src/lib/util/node/dependency-state.test.ts": {
-		"anthropomorphic": 1,
-		"relation-verb": 1
-	},
-	"modules/core/src/lib/util/node/dependency-state.ts": {
-		"anthropomorphic": 6,
-		"negated-noun": 1,
-		"relation-verb": 2
-	},
-	"modules/core/src/lib/working-memory.ts": {
-		"relation-verb": 1
-	},
-	"modules/core/src/lib/world.ts": {
-		"relation-verb": 1,
-		"the-run": 2
-	},
-	"modules/core/src/lib/zod-unwrap.test.ts": {
-		"anthropomorphic": 2
-	},
-	"modules/core/src/lib/zod-unwrap.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/core/src/phases/Executor.test.ts": {
-		"anthropomorphic": 2
-	},
-	"modules/core/src/phases/Executor.ts": {
-		"anthropomorphic": 1,
-		"relation-verb": 1,
-		"the-run": 1
-	},
-	"modules/core/src/phases/Resolver.ts": {
-		"anthropomorphic": 1,
-		"relation-verb": 1
-	},
-	"modules/core/src/phases/finished-payloads.test.ts": {
-		"anthropomorphic": 3,
-		"negated-noun": 1
-	},
-	"modules/core/src/phases/statement.test.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/core/src/run-policy/run-policy-types.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/core/src/runner.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/core/src/schema/marks.test.ts": {
-		"anthropomorphic": 2
-	},
-	"modules/core/src/schema/protocol.test.ts": {
-		"anthropomorphic": 1,
-		"negated-noun": 2
-	},
-	"modules/core/src/schema/protocol.ts": {
-		"anthropomorphic": 10,
-		"negated-noun": 2,
-		"relation-verb": 3,
-		"the-run": 2
-	},
-	"modules/core/src/steps/activities-ensure-flow.test.ts": {
-		"negated-noun": 1
-	},
-	"modules/core/src/steps/activities-stepper.declarative-waypoint.test.ts": {
-		"the-run": 1
-	},
-	"modules/core/src/steps/activities-stepper.proof-first.test.ts": {
-		"negated-noun": 1
-	},
-	"modules/core/src/steps/activities-stepper.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/core/src/steps/authority-signed-capability.test.ts": {
-		"anthropomorphic": 8,
-		"relation-verb": 1
-	},
-	"modules/core/src/steps/authority-stepper.test.ts": {
-		"anthropomorphic": 3,
-		"negated-noun": 1
-	},
-	"modules/core/src/steps/authority-stepper.ts": {
-		"anthropomorphic": 3,
-		"the-run": 1
-	},
-	"modules/core/src/steps/blips-stepper.test.ts": {
-		"anthropomorphic": 2
-	},
-	"modules/core/src/steps/blips-stepper.ts": {
-		"anthropomorphic": 2,
-		"the-run": 3
-	},
-	"modules/core/src/steps/goal-resolution-stepper.test.ts": {
-		"anthropomorphic": 3,
-		"negated-noun": 1
-	},
-	"modules/core/src/steps/goal-resolution-stepper.ts": {
-		"anthropomorphic": 2,
-		"relation-verb": 1
-	},
-	"modules/core/src/steps/haibun.test.ts": {
-		"negated-noun": 1
-	},
-	"modules/core/src/steps/haibun.ts": {
-		"anthropomorphic": 2
-	},
-	"modules/core/src/steps/logic-stepper.ts": {
-		"negated-noun": 1
-	},
-	"modules/core/src/steps/resources-stepper.ts": {
-		"anthropomorphic": 1,
-		"relation-verb": 4
-	},
-	"modules/core/src/steps/save-waypoint.test.ts": {
-		"the-run": 1
-	},
-	"modules/core/src/steps/urakata-stepper.test.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/domain-storage/src/image-artifact.ts": {
-		"relation-verb": 2
-	},
-	"modules/domain-storage/src/test/storage-conformance.ts": {
-		"anthropomorphic": 5
-	},
-	"modules/lsp/src/lsp-stdout-clean.test.ts": {
-		"relation-verb": 4
-	},
-	"modules/lsp/src/lsp-stepper.ts": {
-		"relation-verb": 1,
-		"the-run": 1
-	},
-	"modules/monitor-otel/src/index.ts": {
-		"anthropomorphic": 2
-	},
-	"modules/monitor-tui/src/index.test.tsx": {
-		"first-person": 1
-	},
-	"modules/monitor-tui/src/index.tsx": {
-		"anthropomorphic": 1,
-		"negated-noun": 1
-	},
-	"modules/shu/src/affordance-dispatch.test.ts": {
-		"negated-noun": 1
-	},
-	"modules/shu/src/affordance-products.test.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/shu/src/affordance-products.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/shu/src/annotation-rail.ts": {
-		"relation-verb": 2
-	},
-	"modules/shu/src/app-access-level.test.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/shu/src/app.ts": {
-		"anthropomorphic": 3,
-		"negated-noun": 1,
-		"relation-verb": 2,
-		"the-run": 1
-	},
-	"modules/shu/src/artifact-url.test.ts": {
-		"anthropomorphic": 2
-	},
-	"modules/shu/src/artifact-url.ts": {
-		"anthropomorphic": 1,
-		"relation-verb": 1
-	},
-	"modules/shu/src/chat-context-harvest.collection.test.ts": {
-		"anthropomorphic": 2,
-		"em-dash": 1,
-		"relation-verb": 2
-	},
-	"modules/shu/src/chat-context-harvest.test.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/shu/src/chat-context-harvest.ts": {
-		"anthropomorphic": 4,
-		"relation-verb": 3
-	},
-	"modules/shu/src/chat-turn.ts": {
-		"anthropomorphic": 11,
-		"negated-noun": 1
-	},
-	"modules/shu/src/client-blips.test.ts": {
-		"anthropomorphic": 3,
-		"negated-noun": 2
 	},
 	"modules/shu/src/client-cache/client-cache-stepper.ts": {
 		"the-run": 1
@@ -691,10 +102,6 @@
 		"anthropomorphic": 19,
 		"relation-verb": 4,
 		"the-run": 7
-	},
-	"modules/shu/src/client-log.ts": {
-		"relation-verb": 2,
-		"the-run": 1
 	},
 	"modules/shu/src/components/actions-bar-model.test.ts": {
 		"anthropomorphic": 1
@@ -1036,15 +443,6 @@
 	"modules/shu/src/components/styles.ts": {
 		"relation-verb": 4
 	},
-	"modules/shu/src/consts.ts": {
-		"anthropomorphic": 12,
-		"relation-verb": 4,
-		"the-run": 1
-	},
-	"modules/shu/src/content-security-policy.ts": {
-		"anthropomorphic": 1,
-		"negated-noun": 4
-	},
 	"modules/shu/src/controllers/authority-controller.test-fake.ts": {
 		"anthropomorphic": 3,
 		"relation-verb": 1
@@ -1076,77 +474,7 @@
 	"modules/shu/src/controllers/timeline-view-controller.test.ts": {
 		"anthropomorphic": 1
 	},
-	"modules/shu/src/conversation-follow.test.ts": {
-		"anthropomorphic": 6
-	},
 	"modules/shu/src/conversation.test.ts": {
-		"anthropomorphic": 24,
-		"the-run": 1
-	},
-	"modules/shu/src/conversation.ts": {
-		"anthropomorphic": 33
-	},
-	"modules/shu/src/cookies.ts": {
-		"relation-verb": 1
-	},
-	"modules/shu/src/copy-util.ts": {
-		"em-dash": 2
-	},
-	"modules/shu/src/current-subject.test.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/shu/src/document-blocks.test.ts": {
-		"relation-verb": 3
-	},
-	"modules/shu/src/document-blocks.ts": {
-		"relation-verb": 2,
-		"the-run": 1
-	},
-	"modules/shu/src/element-prefs.ts": {
-		"anthropomorphic": 2
-	},
-	"modules/shu/src/embedder.test.ts": {
-		"anthropomorphic": 2
-	},
-	"modules/shu/src/embedder.ts": {
-		"anthropomorphic": 3
-	},
-	"modules/shu/src/entity-store.test.ts": {
-		"anthropomorphic": 3
-	},
-	"modules/shu/src/entity-store.ts": {
-		"anthropomorphic": 7
-	},
-	"modules/shu/src/event-marker.ts": {
-		"anthropomorphic": 4,
-		"relation-verb": 1
-	},
-	"modules/shu/src/event-stream.conformance.test.ts": {
-		"anthropomorphic": 3
-	},
-	"modules/shu/src/event-stream.test.ts": {
-		"anthropomorphic": 2
-	},
-	"modules/shu/src/event-stream.ts": {
-		"anthropomorphic": 7
-	},
-	"modules/shu/src/federate-graph-reads.integration.test.ts": {
-		"anthropomorphic": 3
-	},
-	"modules/shu/src/graph-blips.ts": {
-		"anthropomorphic": 1,
-		"relation-verb": 1
-	},
-	"modules/shu/src/graph-filter-projection.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/shu/src/graph-model.ts": {
-		"relation-verb": 1
-	},
-	"modules/shu/src/graph-presenter.test-fake.ts": {
-		"relation-verb": 1
-	},
-	"modules/shu/src/graph-presenter.ts": {
 		"anthropomorphic": 1
 	},
 	"modules/shu/src/graph-source-stepper.test.ts": {
@@ -1357,16 +685,6 @@
 	},
 	"modules/shu/src/graph/types.ts": {
 		"relation-verb": 2
-	},
-	"modules/shu/src/http-signature-zcap-invoke.d.ts": {
-		"anthropomorphic": 2
-	},
-	"modules/shu/src/hypermedia.conformance.test.ts": {
-		"anthropomorphic": 3
-	},
-	"modules/shu/src/hypermedia.test.ts": {
-		"anthropomorphic": 24,
-		"the-run": 1
 	},
 	"modules/shu/src/hypermedia.ts": {
 		"anthropomorphic": 22,
@@ -1655,18 +973,12 @@
 	"modules/web-accessibility-axe/src/lib/report.ts": {
 		"negated-noun": 3
 	},
+	"modules/web-playwright/src/answered-page.integration.test.ts": {
+		"anthropomorphic": 5
+	},
 	"modules/web-playwright/src/BrowserFactory.ts": {
 		"anthropomorphic": 2,
 		"relation-verb": 2
-	},
-	"modules/web-playwright/src/PlaywrightEvents.test.ts": {
-		"anthropomorphic": 4
-	},
-	"modules/web-playwright/src/PlaywrightEvents.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/web-playwright/src/answered-page.integration.test.ts": {
-		"anthropomorphic": 5
 	},
 	"modules/web-playwright/src/domains.ts": {
 		"anthropomorphic": 4
@@ -1678,6 +990,12 @@
 		"anthropomorphic": 6,
 		"negated-noun": 1,
 		"the-run": 1
+	},
+	"modules/web-playwright/src/PlaywrightEvents.test.ts": {
+		"anthropomorphic": 4
+	},
+	"modules/web-playwright/src/PlaywrightEvents.ts": {
+		"anthropomorphic": 1
 	},
 	"modules/web-playwright/src/relay-client/chrome.test-fake.ts": {
 		"anthropomorphic": 3,
@@ -1717,9 +1035,6 @@
 	},
 	"modules/web-playwright/src/relay/relay-wire.ts": {
 		"anthropomorphic": 2
-	},
-	"modules/web-playwright/src/relay/relay.integration.test.ts": {
-		"negated-noun": 1
 	},
 	"modules/web-playwright/src/rest-playwright.ts": {
 		"anthropomorphic": 1

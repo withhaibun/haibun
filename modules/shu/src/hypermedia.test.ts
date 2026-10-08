@@ -122,7 +122,7 @@ describe("conduit accessor", () => {
 
 describe("a server that does not respond", () => {
 	// A page holds when the site last responded and whether a timeout marked the site unreachable. Each case starts from
-	// a page that holds neither, and arranges its own situation.
+	// a page that doesn't hold either, and sets up its own situation.
 	beforeEach(() => {
 		endPage();
 		document.head.innerHTML = "";
@@ -207,7 +207,7 @@ describe("a server that does not respond", () => {
 	});
 
 	it("reports a server that accepts a request without responding as unreachable, at the timeout", async () => {
-		// A call that receives neither a response nor a refusal would leave the calling view empty without a reason, and the
+		// A call that doesn't receive a response or a refusal would leave the calling view empty without a reason, and the
 		// reading wouldn't fall back to what the device holds. The timeout bounds that call.
 		const fetchWas = globalThis.fetch;
 		setHydration({ settings: { responseTimeoutMs: 40 } });
