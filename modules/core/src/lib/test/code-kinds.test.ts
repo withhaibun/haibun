@@ -69,6 +69,16 @@ describe("a file's findings against the kinds", () => {
 		expect(findingsOf(ROOT, sources)).toEqual([]);
 	});
 
+	it("don't name a stepper's import of a domain, or of an enclosing area's composition root", () => {
+		const nested = "src/area/inner/inner-stepper.ts";
+		const sources = {
+			[nested]: 'import { NOTE } from "../domains/note.js";\nimport { ports } from "../root.js";\n',
+			"src/area/domains/note.ts": 'export const NOTE = "note";\n',
+			[ROOT]: "export const ports = 1;\n",
+		};
+		expect(findingsOf(nested, sources)).toEqual([]);
+	});
+
 	it("name a stepper's import of a port's value, or of another area's composition root", () => {
 		const sources = withPorts({ [STEPPER]: 'import { ports } from "./ports.js";\nimport { other } from "../other/root.js";\n', "src/other/root.ts": "export const other = 1;\n" });
 		expect(findingsOf(STEPPER, sources)).toEqual(["imports a port: ./ports.js", "imports another area's composition root: ../other/root.js"]);

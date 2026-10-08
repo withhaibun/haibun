@@ -2,7 +2,8 @@
  * The kinds of code that haibun's docs/architecture.md states in "How code is organized", each determined by a file's
  * directory or name, and a repository's findings against them. A file in a kind position imports values only from its own
  * kind and the kinds its row lists, and only an adapter performs I/O. A stepper doesn't import another stepper, and imports
- * only its own area's composition root. A file outside a kind position is a finding, and its imports aren't read.
+ * only the composition root of its own area or of an area that encloses it. A file outside a kind position is a finding,
+ * and its imports aren't read.
  */
 import { posix } from "node:path";
 import * as ts from "typescript";
@@ -38,7 +39,7 @@ const DEPENDS_ON: Record<TCodeKind, readonly TCodeKind[]> = {
 	port: [],
 	adapter: ["port"],
 	"composition root": ["port", "adapter"],
-	stepper: ["pipeline", "machine", "composition root"],
+	stepper: ["domain", "pipeline", "machine", "composition root"],
 	view: [],
 };
 /** The kind that doesn't import its own kind: a stepper calls another stepper's steps through dispatch. */
@@ -163,7 +164,8 @@ function globalIoOf(source: ts.SourceFile): ts.Identifier[] {
 function importFinding(kind: TCodeKind, file: string, target: string, targetKind: TCodeKind, specifier: string): string | undefined {
 	if (targetKind === kind && kind !== DISPATCHED) return undefined;
 	if (!DEPENDS_ON[kind].includes(targetKind)) return imports(targetKind, specifier);
-	// A stepper's area holds its composition root's directory and what that directory contains.
+	// An area is its composition root's directory and every directory within it, so a stepper can import the root of its own
+	// area and of each enclosing area.
 	return kind === DISPATCHED && targetKind === "composition root" && !file.startsWith(`${posix.dirname(target)}/`) ? importsAnotherRoot(specifier) : undefined;
 }
 

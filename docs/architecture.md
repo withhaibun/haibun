@@ -392,12 +392,14 @@ where a file depends on a kind it isn't allowed, so a function that mixes kinds 
 
 An area is a directory that holds the code of one concern: a store, a transport, a conversation with a model, a family
 of views. Its files are of the kinds below, one kind per file, and the area's composition root in `root.ts` builds its
-ports for the steppers that use them.
+ports for the steppers that use them. An area that depends on another area is a subdirectory of that area's directory.
+Its steppers import the composition root of each enclosing area.
 
 ## Kinds
 
 Each kind except the stepper depends on its own kind and on the kinds its row lists. A stepper calls another stepper's
-steps through `dispatchStep`, so a stepper doesn't import another stepper.
+steps through `dispatchStep`, so a stepper doesn't import another stepper. A stepper imports domains because it returns
+them from `getConcerns` and names their keys in its step patterns.
 
 | Kind | Holds | Depends on |
 |------|-------|------------|
@@ -408,7 +410,7 @@ steps through `dispatchStep`, so a stepper doesn't import another stepper.
 | Port | An interface a pipeline reads or writes through: a store, an endpoint, a mailbox, a clock. An area's `ports.ts` holds only port types | types |
 | Adapter | I/O through a database driver, HTTP, a mail server, a model endpoint, a browser or the filesystem. An adapter implements a port, raises a machine's events and returns data. It doesn't hold policy | ports, libraries |
 | Composition root | The function in an area's `root.ts` that builds the area's ports from its adapters for the steppers that use them | ports, adapters |
-| Stepper | Steps that parse their input by domain, call one pipeline or send one machine event, and return products or a refusal. Its cycles connect lifecycle events to the same pipelines and machines | pipelines, machines, its area's composition root |
+| Stepper | Steps that parse their input by domain, call one pipeline or send one machine event, and return products or a refusal. Its cycles connect lifecycle events to the same pipelines and machines | domains, pipelines, machines, the composition root of its area or of an enclosing area |
 | View | A `ShuElement` that renders from the concern catalog and machine statuses, through controllers | controllers |
 
 ## One flow
