@@ -2,7 +2,8 @@
 // individual with the edges its quads name.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
-import { AccessLevelSchema, LinkRelations, commentDomainDefinition } from "@haibun/core/lib/resources.js";
+import { Access, AccessLevelSchema, LinkRelations, commentDomainDefinition } from "@haibun/core/lib/resources.js";
+import { MAX_PAGE_ROWS } from "@haibun/core/lib/hypermedia.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
 import type { IQuadStore } from "@haibun/core/lib/quad-types.js";
 import { z } from "zod";
@@ -109,5 +110,20 @@ describe("one individual with its edges, from the store this instance holds", ()
 		const stepper = await held();
 		const result = await stepper.steps.getIndividualWithEdges.action({ label: EMAIL, id: "nobody@test.com" });
 		expect(result.ok).toBe(false);
+	});
+});
+
+describe("the clustered sample a graph view reads", () => {
+	it("rejects a count of each type's records above MAX_PAGE_ROWS, and doesn't read the store", async () => {
+		const stepper = new GraphSourceStepper();
+		const world = getDefaultWorld();
+		await stepper.setWorld(world, []);
+		const getClusteredQuads = vi.fn(async () => ({ quads: [], clusters: [] }));
+		world.shared.getStore = vi.fn(() => mockQuadStore({ getClusteredQuads }));
+		const over = MAX_PAGE_ROWS + 1;
+		await expect(stepper.steps.getClusteredQuads.action({ perTypeLimit: over, accessLevel: Access.private })).rejects.toThrow(
+			`getClusteredQuads rejects a limit of ${over} rows: a page holds 1 to ${MAX_PAGE_ROWS} rows`,
+		);
+		expect(getClusteredQuads).not.toHaveBeenCalled();
 	});
 });

@@ -1,5 +1,6 @@
-import { QuadStore, queryQuadStore, bucketOf } from "./quad-store.js";
+import { QuadStore, queryQuadStore, bucketOf, incomingEdgesOf } from "./quad-store.js";
 import { GraphQuerySchema } from "./quad-types.js";
+import { MAX_PAGE_ROWS } from "./hypermedia.js";
 import { describe, it, expect, beforeEach, beforeAll } from "vitest";
 import { accessBound, runAuthorizedWith, runReadingAt } from "./capability-context.js";
 import { readAction, readCeilingOf, writeAction } from "./actions.js";
@@ -238,6 +239,28 @@ describe("the answer a store of quads gives a graph query", () => {
 			queryQuadStore(store, GraphQuerySchema.parse({ label: "Email", references: { label: "Person", id: "a@b.test" } })),
 			"a label read that drops the reference would answer every record of the type",
 		).rejects.toThrow(/records referencing a record need a store with a query engine/);
+	});
+});
+
+describe("the most rows a page read over a store of quads returns", () => {
+	const over = MAX_PAGE_ROWS + 1;
+	const rejected = (method: string): string => `${method} rejects a limit of ${over} rows: a page holds 1 to ${MAX_PAGE_ROWS} rows`;
+	const store = new QuadStore();
+	beforeAll(async () => {
+		await store.upsertIndividual("Email", { id: "a", folder: "INBOX" });
+		await store.add({ subject: "b", predicate: "inReplyTo", object: "a", objectType: "Email", namedGraph: "Email" });
+	});
+
+	it("rejects a limit above MAX_PAGE_ROWS, and the error names the read, the limit and the maximum", async () => {
+		await expect(store.queryIndividuals("Email", undefined, { limit: over })).rejects.toThrow(rejected("queryIndividuals"));
+		await expect(queryQuadStore(store, GraphQuerySchema.parse({ label: "Email", limit: over }))).rejects.toThrow(rejected("queryQuadStore"));
+		await expect(incomingEdgesOf(store, "a", { limit: over, offset: 0 })).rejects.toThrow(rejected("incomingEdgesOf"));
+	});
+
+	it("returns a page of MAX_PAGE_ROWS, and every individual where the read doesn't state a limit", async () => {
+		expect(await store.queryIndividuals("Email", undefined, { limit: MAX_PAGE_ROWS })).toHaveLength(2);
+		expect(await store.queryIndividuals("Email")).toHaveLength(2);
+		expect((await incomingEdgesOf(store, "a", { limit: MAX_PAGE_ROWS, offset: 0 })).edges).toHaveLength(1);
 	});
 });
 

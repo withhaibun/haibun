@@ -10,7 +10,7 @@ import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
  * Renders in light DOM .results-target, hash state, custom scrollbar, sort, multi-select.
  */
 import { ShuElement, type TLinkedData } from "./shu-element.js";
-import { CountedSchema, counted, viewCollection, type TCounted } from "@haibun/core/lib/hypermedia.js";
+import { CountedSchema, MAX_PAGE_ROWS, counted, viewCollection, type TCounted } from "@haibun/core/lib/hypermedia.js";
 import { anIndividual, aType, type TContextPattern, QueryViewSchema } from "../schemas.js";
 import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { typeNotHeld, viewQuery, type TViewQuery } from "../view-query.js";
@@ -286,7 +286,8 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 					textQuery: textQuery || undefined,
 					sortBy: sortBy || "",
 					sortOrder,
-					limit: this.limit,
+					// A request reads at most MAX_PAGE_ROWS rows. The source reads the rest of a larger window after these rows.
+					limit: Math.min(this.limit, MAX_PAGE_ROWS),
 					offset: this.qOffset,
 				};
 				const data = await this.#query.run(payload);

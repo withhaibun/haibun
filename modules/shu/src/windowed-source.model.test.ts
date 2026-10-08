@@ -8,7 +8,7 @@
 import { describe, it, expect } from "vitest";
 import { lazyWindowedSource, readWindowedSource } from "./windowed-source.js";
 import { seededRandom } from "@haibun/core/lib/test/machine-table.js";
-import { counted, countedTo } from "@haibun/core/lib/hypermedia.js";
+import { MAX_PAGE_ROWS, counted, countedTo, pageLimit } from "@haibun/core/lib/hypermedia.js";
 
 /** A row's value is its index, so a wrong row is detectable by inspection. */
 const rowFor = (index: number): number => index;
@@ -188,5 +188,44 @@ describe("a source over a read whose count stopped at its ceiling", () => {
 		await src.ensureRange(CEILING, CEILING + 1);
 		expect(src.count()).toBe(CEILING);
 		expect(src.rowAt(CEILING)).toBeUndefined();
+	});
+});
+
+describe("a source whose window holds more rows than one request reads", () => {
+	const WINDOW = 20_000;
+	const HELD = 25_000;
+	/** A store's page read: it rejects a limit above MAX_PAGE_ROWS, and it returns a short page only at the end of the data. */
+	const store = () => {
+		const requests: Array<[number, number]> = [];
+		const read = (start: number, end: number): Promise<readonly number[]> => {
+			requests.push([start, end]);
+			pageLimit("read", end - start);
+			return Promise.resolve(Array.from({ length: Math.max(0, Math.min(end, HELD) - start) }, (_, k) => rowFor(start + k)));
+		};
+		return { requests, read };
+	};
+
+	it("splits a span of 20,000 rows into requests of at most MAX_PAGE_ROWS and reaches row 10,001", async () => {
+		const { requests, read } = store();
+		const src = lazyWindowedSource<number>({ count: () => HELD, pageSize: WINDOW, fetch: read });
+		await src.ensureRange(0, 1);
+		expect(requests, "two requests of at most MAX_PAGE_ROWS each").toEqual([
+			[0, MAX_PAGE_ROWS],
+			[MAX_PAGE_ROWS, WINDOW],
+		]);
+		expect(src.rowAt(MAX_PAGE_ROWS), "row 10,001").toBe(rowFor(MAX_PAGE_ROWS));
+		expect(src.rowAt(WINDOW - 1), "the window's last row").toBe(rowFor(WINDOW - 1));
+		expect(src.count(), "a full request doesn't end the data").toBe(HELD);
+	});
+
+	it("reads the rest of a window after the rows its first read holds, and doesn't read those rows again", async () => {
+		const { requests, read } = store();
+		const held = await read(0, MAX_PAGE_ROWS);
+		requests.length = 0;
+		const src = readWindowedSource<number>({ counted: () => counted(HELD), size: WINDOW, read, held });
+		await src.ensureRange(0, 1);
+		expect(requests).toEqual([[MAX_PAGE_ROWS, WINDOW]]);
+		expect(src.rowAt(MAX_PAGE_ROWS), "row 10,001").toBe(rowFor(MAX_PAGE_ROWS));
+		expect(src.cachedRanges()).toEqual([{ from: 0, to: WINDOW }]);
 	});
 });

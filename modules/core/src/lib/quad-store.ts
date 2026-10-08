@@ -34,7 +34,7 @@ import {
 	type TIncomingEdges,
 	type TStoreLevels,
 } from "./quad-types.js";
-import { counted, displayLabelForQuads } from "./hypermedia.js";
+import { counted, displayLabelForQuads, pageLimit } from "./hypermedia.js";
 import { Access, AccessLevelSchema, BODY_LABEL, LinkRelations, withinAccess, type AccessLevel } from "./resources.js";
 import { seenAt, writesAtEveryLevel, writtenAt } from "./actions.js";
 
@@ -415,6 +415,7 @@ export class QuadStore implements IQuadStore {
 	}
 
 	async queryIndividuals<T = Record<string, unknown>>(label: string, filters?: Record<string, unknown>, options?: { limit?: number; offset?: number }): Promise<T[]> {
+		const limit = options?.limit === undefined ? undefined : pageLimit("queryIndividuals", options.limit);
 		const backing = this.storeFor(label);
 		if (backing) return backing.queryIndividuals<T>(label, filters, options);
 		// The graph's quads once, grouped by subject in one pass: reading each individual back by its own query scanned
@@ -426,8 +427,7 @@ export class QuadStore implements IQuadStore {
 			}
 		}
 		const offset = options?.offset ?? 0;
-		const limit = options?.limit ?? individuals.length;
-		return individuals.slice(offset, offset + limit) as T[];
+		return individuals.slice(offset, limit === undefined ? undefined : offset + limit) as T[];
 	}
 
 	density(query: TDensityQuery): Promise<TDensityResult> {
@@ -448,7 +448,8 @@ export class QuadStore implements IQuadStore {
  * answer whether the store is the site's or the copy a page caches, which is why both ask it here.
  */
 export async function queryQuadStore(store: IQuadStore, query: TGraphQuery): Promise<TGraphQueryResult> {
-	const { label, limit, offset } = query;
+	const { label, offset } = query;
+	const limit = pageLimit("queryQuadStore", query.limit);
 	if (!label) throw new Error("a graph query over quads reads one type at a time, and this one doesn't name a type");
 	if (query.textQuery) throw new Error("a graph query over quads matches a type and equality filters; text search needs a store with a query engine");
 	if (query.references) throw new Error("a graph query over quads matches a type and equality filters; the records referencing a record need a store with a query engine");
@@ -462,7 +463,7 @@ export async function queryQuadStore(store: IQuadStore, query: TGraphQuery): Pro
 	}
 	const from = offset ?? 0;
 	// Each row carries its type. A view reads a row's id field and title through the type.
-	const rows = vertices.slice(from, from + (limit ?? vertices.length)).map((vertex) => ({ "@type": label, ...vertex }));
+	const rows = vertices.slice(from, from + limit).map((vertex) => ({ "@type": label, ...vertex }));
 	return { vertices: rows, ...counted(vertices.length) };
 }
 
@@ -647,9 +648,10 @@ const INCOMING_EDGE_PAGE = 100;
  *  as the record it names. A quad pointing at the individual carries the type of the record it comes from, which is how
  *  that record resolves rather than a bare id. */
 export async function incomingEdgesOf(store: IQuadStore, id: string, page: { offset?: number; limit?: number } = {}): Promise<TIncomingEdges> {
+	const limit = pageLimit("incomingEdgesOf", page.limit ?? INCOMING_EDGE_PAGE);
 	const pointing = (await store.query({ object: id })).filter((quad) => quad.objectType);
 	const offset = page.offset ?? 0;
-	const read = pointing.slice(offset, offset + (page.limit ?? INCOMING_EDGE_PAGE));
+	const read = pointing.slice(offset, offset + limit);
 	const edges = await Promise.all(read.map(async (quad) => ({ type: quad.predicate, direction: "in" as const, target: await targetOf(store, quad.namedGraph, quad.subject) })));
 	return { edges, ...counted(pointing.length) };
 }

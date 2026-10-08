@@ -455,6 +455,18 @@ export const countedTo = (total: number, ceiling: number): TCounted => ({ total,
 /** A count as a reader is told it: "or more" where the count stopped at its ceiling, since a stopped count is a floor. */
 export const statedTotal = ({ total, saturated }: TCounted): string => (saturated ? `${total} or more` : String(total));
 
+/** The most rows a store returns for one page read. A store reads each page in one statement. The largest page a client
+ *  reads is a run's window of 10,000 records of one type. A client reads a longer span as several pages. */
+export const MAX_PAGE_ROWS = 10_000;
+
+/** Returns `limit` where it is a whole number from 1 to `MAX_PAGE_ROWS`. Throws an error that names `method` otherwise, so
+ *  a store doesn't return a shorter page than its caller requested. */
+export function pageLimit(method: string, limit: number): number {
+	if (!Number.isInteger(limit) || limit < 1 || limit > MAX_PAGE_ROWS)
+		throw new Error(`${method} rejects a limit of ${limit} rows: a page holds 1 to ${MAX_PAGE_ROWS} rows. A client reads a longer span as several pages.`);
+	return limit;
+}
+
 /** A view's members, validated as the block is built, so every view states them the one way. `totalItems` counts the
  *  members given, unless the view states that it holds more. */
 export function viewCollection(states: { id: string; name: string; items: ReadonlyArray<unknown>; totalItems?: number; stated?: Record<string, unknown> }): TViewCollection {

@@ -13,7 +13,7 @@ import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionOK, actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption, intOrError } from "@haibun/core/lib/util/index.js";
 import type { TDeploymentSettings, TPageBuild } from "./rpc-registry.js";
 import { currentVersion } from "@haibun/core/currentVersion.js";
-import { getJsonLdContext } from "@haibun/core/lib/hypermedia.js";
+import { MAX_PAGE_ROWS, getJsonLdContext } from "@haibun/core/lib/hypermedia.js";
 import { Access, haibunNsForHost, isPersisted } from "@haibun/core/lib/resources.js";
 import { requestBaseIri } from "@haibun/core/lib/request-context.js";
 import { getAuthority } from "@haibun/core/lib/session-authority.js";
@@ -53,7 +53,7 @@ export async function buildGraphSource(
 	if (!store.getClusteredQuads) return undefined;
 	// Scope "own": the standalone report is this site's own record: a shutdown-time capture must not depend on
 	// federated peers still being reachable, and each peer's record is its own report.
-	const raw = await store.getClusteredQuads({ perTypeLimit: 10000, accessLevel: Access.private, scope: "own" });
+	const raw = await store.getClusteredQuads({ perTypeLimit: MAX_PAGE_ROWS, accessLevel: Access.private, scope: "own" });
 	// Include the schema exactly as the live getClusteredQuads does, so the offline report's ontology/class-browser view
 	// matches live, pruned against the serialized graph itself (the report IS the full data). The one assembler, so the two don't drift.
 	const standardVocab = await enumerateStandardVocab(world.domains);

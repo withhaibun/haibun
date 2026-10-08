@@ -4,7 +4,7 @@
  * an arbitrarily long set stays reachable. It is renderer-agnostic: the DOM virtualizer and a future 3D chip-mesh rail
  * read the same three calls (count, rowAt, ensureRange), so the same column data can drive both media.
  */
-import { counted, type TCounted } from "@haibun/core/lib/hypermedia.js";
+import { counted, MAX_PAGE_ROWS, type TCounted } from "@haibun/core/lib/hypermedia.js";
 import type { TScrollMarker } from "./scrollbar-model.js";
 import type { Range } from "./ranges.js";
 
@@ -77,8 +77,22 @@ export function arrayWindowedSource<T>(
 	} as WindowedSource<T> & { set(items: readonly T[], markers?: TScrollMarker[]): void };
 }
 
-/** Fetch the rows for `[start, end)`. May return fewer than requested at the end of the data. */
+/** Fetch the rows for `[start, end)`. Returns fewer than requested only at the end of the data. A paged source requests at
+ *  most `MAX_PAGE_ROWS` rows in one call. */
 type TPageFetcher<T> = (start: number, end: number) => Promise<readonly T[]>;
+
+/** Reads the rows for `[start, end)` in order, as requests of at most `MAX_PAGE_ROWS` rows. A store returns a short page
+ *  only at the end of the data, so a short response ends the read. */
+async function readSpan<T>(fetch: TPageFetcher<T>, start: number, end: number): Promise<T[]> {
+	const rows: T[] = [];
+	for (let from = start; from < end; from += MAX_PAGE_ROWS) {
+		const to = Math.min(end, from + MAX_PAGE_ROWS);
+		const page = await fetch(from, to);
+		for (const row of page) rows.push(row);
+		if (page.length < to - from) break;
+	}
+	return rows;
+}
 
 /** A paged source for data too large to cache cached (up to millions): rows are fetched a page at a time on
  *  ensureRange, cached in a bounded window (pages far from the last request are evicted so memory stays flat regardless
@@ -97,8 +111,8 @@ export function lazyWindowedSource<T>(opts: {
 /** A source that fetches its rows, with what a caller that fetches them itself needs of it. */
 type TPagedSource<T> = WindowedSource<T> & {
 	stated(): TCounted;
-	/** Re-probe the tail and notify: call after `count()` grows (a live append) or a previously-capped fetch can now
-	 *  return more, so a partial last page is re-fetched and the view re-renders. */
+	/** Re-probe the tail and notify: call after `count()` grows (a live append), so a partial last page reads the rows past
+	 *  those it holds and the view re-renders. */
 	notifyCountChanged(): void;
 	/** Seed an already-fetched, page-aligned run of rows (the first page the caller fetched to record the total) so the
 	 *  first paint doesn't need a second round-trip. `startRow` must be a multiple of `pageSize`. */
@@ -145,7 +159,8 @@ function makePagedSource<T>(opts: TPagedSourceOptions<T>): TPagedSource<T> {
 	};
 
 	/** A page is cached only when it caches every row it should for the current count and confirmed data end; a partial
-	 *  page (a short last page, or a capped fetch) is NOT cached, so a later count growth or a re-probe re-fetches it. */
+	 *  page (a short last page, or a seed shorter than a page) is NOT cached, so a later count growth or a re-probe reads
+	 *  the rows past those it holds. */
 	function cached(p: number): boolean {
 		const rows = pages.get(p);
 		if (!rows) return false;
@@ -169,9 +184,11 @@ function makePagedSource<T>(opts: TPagedSourceOptions<T>): TPagedSource<T> {
 		const startRow = firstPage * pageSize;
 		const endRow = Math.max(startRow, Math.min(count(), (lastPage + 1) * pageSize));
 		if (endRow <= startRow) return; // the range fell outside the current count (it shrank); never call fetch with end<=start
-		const rows = await opts.fetch(startRow, endRow);
+		// A partial first page holds that page's first rows, so the read starts after them.
+		const held = pages.get(firstPage) ?? [];
+		const rows = [...held, ...(await readSpan(opts.fetch, startRow + held.length, endRow))];
 		readEnd = Math.max(readEnd, startRow + rows.length);
-		if (rows.length < endRow - startRow) dataEnd = startRow + rows.length; // the fetch reached the real end of data
+		if (rows.length < endRow - startRow) dataEnd = startRow + rows.length; // the read reached the end of the data
 		for (let p = firstPage; p <= lastPage; p++) {
 			const fetched = rows.slice((p - firstPage) * pageSize, (p - firstPage + 1) * pageSize);
 			// The rows that arrived live while this page was in flight follow what the fetch delivered, in order: a live row the
@@ -296,11 +313,12 @@ export function readWindowedSource<T>(opts: {
 	/** Returns the read's row count and whether that count stopped at a ceiling. The source calls it again after a
 	 *  re-query or a live append. */
 	counted: () => TCounted;
-	/** How many rows a page holds, which is the size the first read asked for. */
+	/** How many rows a page holds. The first read requests at most this many. */
 	size: number;
 	/** Read the rows for [from, to). */
 	read: TPageFetcher<T>;
-	/** The page already read, and the row it starts at. */
+	/** The rows already read, and the row they start at. Rows shorter than a page are that page's first rows, and the
+	 *  source reads the rest of the page after them. */
 	held: readonly T[];
 	from?: number;
 	markers?: () => TScrollMarker[];

@@ -13,6 +13,7 @@ import { RecordSchema } from "@haibun/core/lib/json-text.js";
 import { LinkRelations, withinAccess, type AccessLevel } from "@haibun/core/lib/resources.js";
 import { matchesQuadPattern, type IQuadStore, type TClusteredQuads, type TDensityQuery, type TDensityResult, type TQuad, type TQuadPattern } from "@haibun/core/lib/quad-types.js";
 import { densityOverQuadStore, sliceQuadsPerType } from "@haibun/core/lib/quad-store.js";
+import { pageLimit } from "@haibun/core/lib/hypermedia.js";
 import { QUADS, IDX_QUAD_SPG, IDX_QUAD_SUBJECT, IDX_QUAD_NAMED_GRAPH, IDX_QUAD_OBJECT, done, servedDatabase, withStores as withClientCacheStores } from "./device-store.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
@@ -153,6 +154,7 @@ export class IndexedDbQuadStore implements IQuadStore {
 	// --- Query surface, answered over the cached quads: the same questions the site answers, asked of what this page holds. ---
 
 	async queryIndividuals<T = Record<string, unknown>>(label: string, filters?: Record<string, unknown>, options?: { limit?: number; offset?: number }): Promise<T[]> {
+		const limit = options?.limit === undefined ? undefined : pageLimit("queryIndividuals", options.limit);
 		// The graph's quads once, grouped by subject in one pass: building each individual by scanning the graph's quads
 		// again take a read of a type its individuals times its quads.
 		const bySubject = new Map<string, Record<string, unknown>>();
@@ -167,7 +169,7 @@ export class IndexedDbQuadStore implements IQuadStore {
 		let individuals = [...bySubject.values()];
 		for (const [predicate, value] of Object.entries(filters ?? {})) individuals = individuals.filter((i) => i[predicate] === value);
 		const offset = options?.offset ?? 0;
-		return individuals.slice(offset, offset + (options?.limit ?? individuals.length)) as T[];
+		return individuals.slice(offset, limit === undefined ? undefined : offset + limit) as T[];
 	}
 
 	density(query: TDensityQuery): Promise<TDensityResult> {

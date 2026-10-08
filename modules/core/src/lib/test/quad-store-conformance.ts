@@ -10,13 +10,15 @@
  * declare, so the fixture declares those two.
  *
  * Two parts of `IQuadStore` are deliberately not specified here. The query surface an engine answers (filtered
- * individual queries, distinct values, clustering) is covered where each store's own reading of it matters. And an
+ * individual queries, distinct values, clustering) is covered where each store's own reading of it matters. The most rows
+ * a page read returns is specified here, since every store bounds a page by `MAX_PAGE_ROWS` alike. And an
  * individual is identified differently by design: an authoritative store requires the identity field the type declares
  * and validates the record, while a page caches what it dereferenced under its `@id`. Each store states that rule in
  * its own test.
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import type { IQuadStore, TQuad, TSearchCondition } from "../quad-types.js";
+import { MAX_PAGE_ROWS } from "../hypermedia.js";
 
 /** The two types a store under test registers: the cases keep facts apart by naming two of them. */
 type TConformanceGraphs = { first: string; second: string };
@@ -77,6 +79,12 @@ export function describeQuadStore(
 			await store.set("x", "content", "in the second", OTHER);
 			expect(await store.get("x", "content", GRAPH)).toBe("in the first");
 			expect(await store.get("x", "content", OTHER)).toBe("in the second");
+		});
+
+		it("rejects a page read whose limit exceeds MAX_PAGE_ROWS, and the error names the read, the limit and the maximum", async () => {
+			const over = MAX_PAGE_ROWS + 1;
+			const rejected = `queryIndividuals rejects a limit of ${over} rows: a page holds 1 to ${MAX_PAGE_ROWS} rows`;
+			await expect(store.queryIndividuals(GRAPH, undefined, { limit: over })).rejects.toThrow(rejected);
 		});
 
 		it("doesn't return a value for a subject it does not hold, rather than reporting something absent", async () => {

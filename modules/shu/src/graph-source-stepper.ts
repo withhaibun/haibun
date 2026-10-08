@@ -25,7 +25,7 @@ import {
 } from "@haibun/core/lib/quad-types.js";
 import { QuadStore, queryQuadStore, individualWithEdges } from "@haibun/core/lib/quad-store.js";
 import { DOMAIN_RECORD_ID, hypermediaDomainMap, DOMAIN_LINK, DOMAIN_PRINCIPAL_REF, type TIndividualRef } from "@haibun/core/lib/domains.js";
-import { buildResourceRels, relOf } from "@haibun/core/lib/hypermedia.js";
+import { buildResourceRels, pageLimit, relOf } from "@haibun/core/lib/hypermedia.js";
 import { QuadGraphModel } from "@haibun/core/lib/quad-graph-model.js";
 import { activeSitePrincipal, adoptSitePrincipal, hasDefaultSitePrincipal } from "@haibun/core/lib/host-id.js";
 import { persistPrincipalIndividual } from "@haibun/core/lib/principal-individual.js";
@@ -79,15 +79,12 @@ const GRAPH_SOURCE_DOMAINS: TDomainDefinition[] = [
 	{ selectors: [DOMAIN_GRAPH_ROWS], schema: GraphQueryResultSchema, description: "The rows a graph query matched, and how many there are" },
 ];
 
-/** What a graph view asks `get clustered quads` for, over RPC, where a value may arrive as its text: how many records of
- *  each type, at most 10,000, the types, the query level, and whether a federated read asks for the peer's own data
- *  rather than its view of the world (see TClusteredQuadsOpts). */
+/** The parameters a graph view sends `get clustered quads` over RPC. A value may arrive as its text. They state how many
+ *  records of each type to read, the types, the query level, and whether a federated read requests the peer's own data
+ *  rather than its view of the world (see TClusteredQuadsOpts). Each type's records are a page, so the step rejects a
+ *  count above `MAX_PAGE_ROWS`. */
 const ClusteredQuadsAskSchema = z.object({
-	perTypeLimit: z.coerce
-		.number()
-		.int()
-		.default(100)
-		.transform((limit) => Math.max(1, Math.min(10000, limit))),
+	perTypeLimit: z.coerce.number().int().default(100),
 	types: fromJsonText(z.array(z.string())).optional(),
 	accessLevel: AccessQueryLevelSchema,
 	scope: z.enum(["own", "federated"]).optional(),
@@ -149,7 +146,8 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 				const store = this.getWorld().shared.getStore();
 				const read = ClusteredQuadsAskSchema.safeParse(asked);
 				if (!read.success) return actionNotOK(`getClusteredQuads: ${z.prettifyError(read.error)}`);
-				const { perTypeLimit, types, scope } = read.data;
+				const { types, scope } = read.data;
+				const perTypeLimit = pageLimit("getClusteredQuads", read.data.perTypeLimit);
 				// Required, as the dereference and query paths require it, without a default ceiling, so the cluster view applies the
 				// caller's access exactly. A caller states a QUERY level: `all` asks for everything it may see, and refusing it left
 				// the graph view with only the quads that happened to stream live.
