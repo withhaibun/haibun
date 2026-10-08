@@ -13,6 +13,10 @@ import { viewQuery } from "../view-query.js";
 import { ShuColumnPane } from "./shu-column-pane.js";
 import { installTestMediaQueries } from "../test-setup.js";
 import { provideLayout } from "../test/jsdom-layout.js";
+import { counted, countedTo, statedTotal } from "@haibun/core/lib/hypermedia.js";
+
+/** A count stops at this ceiling and reports a floor. */
+const CEILING = 1_000;
 
 /** The search the index is showing, which is shared state rather than anything the summary is handed. */
 function searching(hash: string): void {
@@ -58,7 +62,7 @@ describe("the index's spine summary", () => {
 
 	it("names the search and how many it found", async () => {
 		searching("#?label=Person&q=smith");
-		publish("shu-graph-query", { total: 42 });
+		publish("shu-graph-query", { total: counted(42) });
 		await summary.updateComplete;
 		expect(shown(), "which column").toContain("Index");
 		expect(shown(), "which search").toContain("Person");
@@ -66,11 +70,19 @@ describe("the index's spine summary", () => {
 		expect(shown(), "and how much is behind the strip").toContain("42");
 	});
 
+	it("renders a count that stopped at its ceiling as a floor", async () => {
+		const stopped = countedTo(CEILING, CEILING);
+		searching("#?label=Person");
+		publish("shu-graph-query", { total: stopped });
+		await summary.updateComplete;
+		expect(summary.shadowRoot?.querySelector(".count")?.textContent).toBe(statedTotal(stopped));
+	});
+
 	it("does not take another column's count as the index's", async () => {
 		searching("#?label=Person");
-		publish("shu-graph-query", { total: 42 });
+		publish("shu-graph-query", { total: counted(42) });
 		await summary.updateComplete;
-		publish("shu-entity-column", { total: 7 });
+		publish("shu-entity-column", { total: counted(7) });
 		await summary.updateComplete;
 		expect(shown(), "an entity column reports on its own subject, not on the index").not.toContain("7");
 		expect(shown()).toContain("42");
@@ -103,7 +115,7 @@ describe("a spine view while its column is open", () => {
 		await pane.updateComplete;
 
 		searching("#?label=Person");
-		publish("shu-graph-query", { total: 42 });
+		publish("shu-graph-query", { total: counted(42) });
 		await summary.updateComplete;
 		expect(summary.shadowRoot?.querySelector(".count"), "open, the pane doesn't show the spine, so the view doesn't render a count for it").toBeNull();
 

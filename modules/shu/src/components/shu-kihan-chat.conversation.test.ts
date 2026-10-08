@@ -37,6 +37,7 @@ import { hashParam, mergeHashParams } from "../view-hash.js";
 import { INITIAL_SUBJECT, SCOPE, activeEntry, currentSubject, currentSubjectState, dispatchSubjectEvent, entryOf, scopeEntry } from "../current-subject.js";
 import { EMBEDDED_PAGE_TYPE, embeddedPageView } from "../embedder.js";
 import { activePane } from "../signals.js";
+import { counted } from "@haibun/core/lib/hypermedia.js";
 
 /** The pane the reader is on, the view it holds, and what a turn is sent of the page: that view's statement, then the
  *  columns open in the workspace. */
@@ -65,7 +66,7 @@ const keptFiles: Array<{ file: string; name: string }> = [];
  *  turn's question as the step starts and its answer when it finishes, each named by the turn. */
 const turnSeqPaths: number[][] = [];
 /** What a read of the model catalog answers with, given the page it asks for, or a promise a case holds open or rejects. */
-const A_CATALOG = { vertices: [{ id: "openai:a-model", displayName: "a model", capabilities: { tools: true } }], total: 1 };
+const A_CATALOG = { vertices: [{ id: "openai:a-model", displayName: "a model", capabilities: { tools: true } }], ...counted(1) };
 let catalog: (page: { offset?: number; limit?: number }) => unknown = () => A_CATALOG;
 /** The running stream's abort signal, how a case streams a piece of the answer, and its finish function. */
 const stream: { signal: AbortSignal | undefined; piece: ((text: string) => void) | undefined; finish: (() => void) | undefined } = {
@@ -368,7 +369,7 @@ describe("a turn stopped before actuality records its question", () => {
 describe("the model a question is sent to", () => {
 	it("is found past the first page of the catalog, so a remembered model among many is the one asked", async () => {
 		const offered = Array.from({ length: 120 }, (_, at) => ({ id: `openai:model-${at}`, capabilities: { tools: true } }));
-		catalog = ({ offset = 0, limit = 50 }) => ({ vertices: offered.slice(offset, offset + limit), total: offered.length });
+		catalog = ({ offset = 0, limit = 50 }) => ({ vertices: offered.slice(offset, offset + limit), ...counted(offered.length) });
 		const { pane } = await aPage();
 		pane.setState({ model: "openai:model-117" });
 		await submit(pane, "what is this");
@@ -389,7 +390,7 @@ describe("the model a question is sent to", () => {
 				{ id: "openai:quick", capabilities: { tools: true, thinking: false } },
 				{ id: "openai:standing", standing: true, capabilities: { tools: true, thinking: true } },
 			],
-			total: 2,
+			...counted(2),
 		});
 		const { pane } = await aPage();
 		pane.setState({ model: "llama:thinker" });
@@ -403,7 +404,7 @@ describe("the model a question is sent to", () => {
 				{ id: "openai:deep", displayName: "deep", capabilities: { tools: true, thinking: true } },
 				{ id: "openai:nothink", displayName: "nothink", capabilities: { tools: true, thinking: false } },
 			],
-			total: 2,
+			...counted(2),
 		});
 		const { pane } = await aPage();
 		await submit(pane, "what is this");
@@ -435,7 +436,7 @@ describe("who reads the context", () => {
 				{ id: "openai:deep", displayName: "deep", capabilities: { tools: true, thinking: true } },
 				{ id: "openai:nothink", displayName: "nothink", capabilities: { tools: true, thinking: false } },
 			],
-			total: 2,
+			...counted(2),
 		});
 		const { pane } = await aPage();
 		const modelSelect = inside(pane.shadowRoot, ".model-select");

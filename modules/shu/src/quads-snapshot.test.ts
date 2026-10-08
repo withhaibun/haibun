@@ -289,8 +289,10 @@ describe("the rows a graph query names, without a server to ask", () => {
 		]);
 		setGraphStore(store);
 		expect((await queryGraph({ label: "Email" })).total).toBe(2);
-		// The row carries the type's own identity field, which is how a reader opens it from the list.
-		expect((await queryGraph({ label: "Email", filters: [{ predicate: "folder", operator: "eq", value: "Sent" }] })).vertices).toEqual([{ messageId: "b", folder: "Sent" }]);
+		// The row carries its type and the type's own id field. A reader opens the record from the list by that id.
+		expect((await queryGraph({ label: "Email", filters: [{ predicate: "folder", operator: "eq", value: "Sent" }] })).vertices).toEqual([
+			{ "@type": "Email", messageId: "b", folder: "Sent" },
+		]);
 	});
 
 	it("reports the failure for a type the site never declared, rather than an empty list", async () => {

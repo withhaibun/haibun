@@ -18,7 +18,7 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { shuBaseStyles } from "./styles.js";
 import { renderRef } from "./ref-navigation.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
-import { viewCollection } from "@haibun/core/lib/hypermedia.js";
+import { statedTotal, viewCollection } from "@haibun/core/lib/hypermedia.js";
 import { SHU_EVENT, SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
 import { z } from "zod";
@@ -29,7 +29,7 @@ import { getRelSync, getPropertyOrder } from "../rels-cache.js";
 import { TIME_SYNC_CLASS } from "./shu-element.js";
 import "./shu-virtual-column.js";
 import { virtualColumnCss } from "./shu-virtual-column.js";
-import { arrayWindowedSource, type WindowedSource } from "../windowed-source.js";
+import { arrayWindowedSource, statedCountOf, type WindowedSource } from "../windowed-source.js";
 
 /** The narrowest a column gets before the table scrolls sideways instead of squeezing further. */
 const MIN_COLUMN = "12ch";
@@ -86,14 +86,14 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 	/** The rows this table shows: the resident window where the set is paged, and the count the whole set holds. Usually
 	 *  reached through the query view's summary; standalone tables answer for themselves. */
 	summarizeForKihan(): TLinkedData | null {
-		const n = this.#source.count();
-		if (n === 0) return null;
+		const { total, saturated } = statedCountOf(this.#source);
+		if (total === 0) return null;
 		return viewCollection({
 			id: "view:result-table",
 			name: "the rows this table shows",
 			items: this.#residentSample(),
-			totalItems: n,
-			...(this.persistedAs ? { stated: { queryType: this.persistedAs } } : {}),
+			totalItems: total,
+			stated: { saturated, ...(this.persistedAs ? { queryType: this.persistedAs } : {}) },
 		});
 	}
 
@@ -222,7 +222,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 		const { sortBy, sortOrder, displayMode, fixedProperty } = this.state;
 		const props = this.getVisibleProperties(displayMode, fixedProperty);
 		this.#props = props;
-		const total = this.#source.count();
+		const stated = statedCountOf(this.#source);
 		// A readable floor per column; more columns than fit make the table scroll rather than shrink each to zero width.
 		const cols = props.length > 0 ? `repeat(${props.length}, minmax(${MIN_COLUMN}, 1fr))` : "1fr";
 		return html`
@@ -239,7 +239,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 					<shu-virtual-column .source=${this.#source} .renderRow=${(i: number, r: unknown) => this.#renderRow(i, r)}></shu-virtual-column>
 				</div>
 			</div>
-			${total > 0 ? html`<span class="result-total" data-testid="query-total">${total}</span>` : ""}
+			${stated.total > 0 ? html`<span class="result-total" data-testid="query-total">${statedTotal(stated)}</span>` : ""}
 		`;
 	}
 

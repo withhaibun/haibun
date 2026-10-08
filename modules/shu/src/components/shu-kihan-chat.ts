@@ -327,7 +327,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 				await conduit().follow(reads(requireStep(READS_A_TYPE), { query: { label: KIHAN, offset: models.length, limit: CATALOG_PAGE } }), "kihan-chat: load model catalog"),
 			);
 			models.push(...page.vertices);
-			if (page.vertices.length === 0 || models.length >= page.total) break;
+			if (page.vertices.length === 0 || (!page.saturated && models.length >= page.total)) break;
 		}
 		this._models = models;
 		this.#providersWithout = await this.readProvidersWithout();

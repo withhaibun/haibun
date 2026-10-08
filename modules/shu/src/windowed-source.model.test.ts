@@ -6,8 +6,9 @@
  * asserts the invariants that must hold after every operation. Seeded, so a failure replays exactly.
  */
 import { describe, it, expect } from "vitest";
-import { lazyWindowedSource } from "./windowed-source.js";
+import { lazyWindowedSource, readWindowedSource } from "./windowed-source.js";
 import { seededRandom } from "@haibun/core/lib/test/machine-table.js";
+import { counted, countedTo } from "@haibun/core/lib/hypermedia.js";
 
 /** A row's value is its index, so a wrong row is detectable by inspection. */
 const rowFor = (index: number): number => index;
@@ -161,5 +162,31 @@ describe("the paging core under arbitrary interleaving", () => {
 			const fetchedPages = h.fetches.flatMap(([start, end]) => Array.from({ length: Math.ceil((end - start) / pageSize) }, (_, k) => Math.floor(start / pageSize) + k));
 			expect(new Set(fetchedPages).size, `seed ${seed}: a page isn't fetched twice under the stream`).toBe(fetchedPages.length);
 		}
+	});
+});
+
+describe("a source over a read whose count stopped at its ceiling", () => {
+	const CEILING = 1_000;
+	const HELD = 1_500;
+	const PAGE = 100;
+	const read = async (start: number, end: number): Promise<readonly number[]> => Array.from({ length: Math.max(0, Math.min(end, HELD) - start) }, (_, k) => rowFor(start + k));
+
+	it("reads rows past a stopped count and reports the exact count once a read reaches the end of the data", async () => {
+		const src = readWindowedSource<number>({ counted: () => countedTo(CEILING, CEILING), size: PAGE, read, held: await read(0, PAGE) });
+		expect(src.stated()).toEqual(countedTo(CEILING, CEILING));
+		await src.ensureRange(CEILING - PAGE, CEILING);
+		expect(src.count(), "the count extends one page past the rows read").toBe(CEILING + PAGE);
+		await src.ensureRange(CEILING, CEILING + 1);
+		expect(src.rowAt(CEILING), "row 1,001").toBe(rowFor(CEILING));
+		for (let at = CEILING; at < src.count(); at += PAGE) await src.ensureRange(at, at + PAGE);
+		expect(src.count()).toBe(HELD);
+		expect(src.stated()).toEqual(counted(HELD));
+	});
+
+	it("doesn't read past a count that reached the end", async () => {
+		const src = readWindowedSource<number>({ counted: () => counted(CEILING), size: PAGE, read, held: await read(0, PAGE) });
+		await src.ensureRange(CEILING, CEILING + 1);
+		expect(src.count()).toBe(CEILING);
+		expect(src.rowAt(CEILING)).toBeUndefined();
 	});
 });

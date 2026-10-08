@@ -10,13 +10,13 @@ import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
  * Renders in light DOM .results-target, hash state, custom scrollbar, sort, multi-select.
  */
 import { ShuElement, type TLinkedData } from "./shu-element.js";
-import { viewCollection } from "@haibun/core/lib/hypermedia.js";
+import { CountedSchema, counted, viewCollection, type TCounted } from "@haibun/core/lib/hypermedia.js";
 import { anIndividual, aType, type TContextPattern, QueryViewSchema } from "../schemas.js";
 import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { typeNotHeld, viewQuery, type TViewQuery } from "../view-query.js";
 import { ViewQueryControlSchema } from "./shu-graph-query.controls-schema.js";
 import { shuBaseStyles } from "./styles.js";
-import { esc, setIdFields } from "../util.js";
+import { esc } from "../util.js";
 import { setSiteMetadata, getConcernDerivedMetadata } from "../rels-cache.js";
 import type { ShuResultTable } from "./shu-result-table.js";
 import { getAvailableDomains, isOffline } from "../rpc-registry.js";
@@ -49,12 +49,13 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	private labels: string[] = [];
 	/** The read of actuality's types, which a query waits on: a type is asked for only where actuality holds it. */
 	#metadata: Promise<void> = Promise.resolve();
-	private total = 0;
+	/** The query's row count and whether that count stopped at a ceiling. */
+	#counted: TCounted = counted(0);
 	#source: WindowedSource<VertexRow> = arrayWindowedSource<VertexRow>([]);
 	#installedSource: WindowedSource<VertexRow> | null = null;
 
 	/** The current search as linked data: the rows the visible page shows, with the query that produced them.
-	 *  `totalItems` carries the full count. */
+	 *  `totalItems` carries the count. `saturated` reports whether the count stopped at a ceiling. */
 	summarizeForKihan(): TLinkedData | null {
 		if (this.results.length === 0) return null;
 		const { label, textQuery } = this.state as { label?: string; textQuery?: string };
@@ -62,8 +63,8 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 			id: "view:query",
 			name: "the search results shown in this column",
 			items: this.results,
-			totalItems: this.total,
-			stated: { ...(label ? { queryType: label } : {}), ...(textQuery ? { textQuery } : {}) },
+			totalItems: this.#counted.total,
+			stated: { saturated: this.#counted.saturated, ...(label ? { queryType: label } : {}), ...(textQuery ? { textQuery } : {}) },
 		});
 	}
 	/** Page size is the one global app setting (theme), so the query view windows by the same size as every other view. */
@@ -203,7 +204,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 
 		this.dispatchEvent(
 			new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, {
-				detail: { patterns, accessLevel: this.qAccess, total: this.total, label: this.qLabel, textQuery: this.qText, labels: this.labels, conditions },
+				detail: { patterns, accessLevel: this.qAccess, total: this.#counted, label: this.qLabel, textQuery: this.qText, labels: this.labels, conditions },
 				bubbles: true,
 				composed: true,
 			}),
@@ -239,7 +240,6 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 			.map((d) => d.persistedAs)
 			.filter((l): l is string => !!l);
 		this.labels = persistedTypes.length > 0 ? persistedTypes : derivedMeta.types;
-		if (derivedMeta.idFields) setIdFields(derivedMeta.idFields);
 		this.requestUpdate();
 	}
 
@@ -271,7 +271,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 			// entity (its id is a different type). The new rows render when `work` resolves.
 			this.lastQueriedLabel = label;
 			this.results = [];
-			this.total = 0;
+			this.#counted = counted(0);
 			this.#source = arrayWindowedSource<VertexRow>([]);
 			this.renderResults();
 		}
@@ -295,8 +295,8 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 				// current type's rows with the previous type's, leaving the wrong type's rows clickable. The
 				// current query renders its own response when it resolves.
 				if (this.lastQueryKey !== queryKey) return;
-				this.results = data.vertices ?? [];
-				this.total = data.total ?? this.results.length;
+				this.results = data.vertices;
+				this.#counted = CountedSchema.parse(data);
 				this.#buildSource(payload, this.results, this.qOffset);
 				this.sortableFields = data.sort?.fields ?? [];
 				// Reflect the server's resolved sort, including the per-type default the client didn't explicitly pick, so the result-table indicator highlights the active column.
@@ -370,9 +370,9 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	 *  already in hand so the first paint doesn't need a second read. */
 	#buildSource(payload: Record<string, unknown>, page0: readonly VertexRow[], startRow: number): void {
 		this.#source = readWindowedSource<VertexRow>({
-			total: () => this.total,
+			counted: () => this.#counted,
 			size: this.limit,
-			read: (start, end) => this.#query.run({ ...payload, limit: end - start, offset: start }).then((d) => d.vertices ?? []),
+			read: (start, end) => this.#query.run({ ...payload, limit: end - start, offset: start }).then((d) => d.vertices),
 			held: page0,
 			from: startRow,
 		});
@@ -448,7 +448,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	#refuse(why: string): void {
 		this.error = why;
 		this.results = [];
-		this.total = 0;
+		this.#counted = counted(0);
 		this.#source = arrayWindowedSource<VertexRow>([]);
 		this.renderResults();
 	}
@@ -463,7 +463,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		}
 
 		const table = this.ensureResultTable(target);
-		table.updateState({ sortBy: this.qSort, sortOrder: this.qOrder, selectable: true, paginated: this.total > this.limit });
+		table.updateState({ sortBy: this.qSort, sortOrder: this.qOrder, selectable: true, paginated: this.#counted.saturated || this.#counted.total > this.limit });
 		if (this.qLabel) table.persistedAs = this.qLabel;
 		table.setSortableFields(this.sortableFields);
 		if (this.#source !== this.#installedSource) {

@@ -885,6 +885,8 @@ export const commentDomainDefinition: TDomainDefinition = {
 			...Object.fromEntries(DISCOURSE_RELS.map((r) => [r, { rel: r, subPropertyOf: LinkRelations.IN_REPLY_TO.rel, range: COMMENT_LABEL }])),
 		},
 		sortColumns: { author: "TEXT", seqPath: "TEXT" },
+		// A thread read selects comments by their context property.
+		propertyIndexes: [LinkRelations.CONTEXT.rel],
 	},
 };
 

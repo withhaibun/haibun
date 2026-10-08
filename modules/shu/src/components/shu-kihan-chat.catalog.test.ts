@@ -5,7 +5,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
-import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
+import { buildConcernCatalog, counted } from "@haibun/core/lib/hypermedia.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
 import { CHAT_STEP, chatDispatch, type TDriven } from "./chat-pane.test-fake.js";
 import { persistedTypeDefinition, setupShuTest, type TShuTestHandle } from "../test-setup.js";
@@ -30,7 +30,7 @@ const MODELS_BY_PROVIDER = buildConcernCatalog(
 
 let t: TShuTestHandle;
 beforeEach(() => {
-	const listing = (vertices: unknown[]) => ({ vertices, total: vertices.length });
+	const listing = (vertices: unknown[]) => ({ vertices, ...counted(vertices.length) });
 	// The read of a type answers with the records of the type its query names: the models, or their providers.
 	const ofType = (params: Record<string, unknown>) => ((params.query as { label?: string } | undefined)?.label === KIHAN ? models : providers);
 	const respond = (step: string, params: Record<string, unknown>) => (step === CHAT_STEP.catalog ? listing(ofType(params)) : step === CHAT_STEP.sessions ? { sessions: [] } : {});

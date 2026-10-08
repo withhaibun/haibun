@@ -4,6 +4,9 @@
 import { describe, it, expect } from "vitest";
 import { anIndividual, aType } from "../schemas.js";
 import { contextLabel, isEntitySelection } from "./actions-bar-model.js";
+import { counted, countedTo, statedTotal } from "@haibun/core/lib/hypermedia.js";
+
+const CEILING = 1_000;
 
 describe("what the bar calls the current context", () => {
 	it("names one selected record, and counts several", () => {
@@ -12,9 +15,13 @@ describe("what the bar calls the current context", () => {
 	});
 
 	it("names a type by what the view behind it holds", () => {
-		expect(contextLabel([aType("Email", [{ predicate: "subject", operator: "contains", value: "invoice" }])], { label: "Email", total: 12, folder: "INBOX" })).toBe(
+		expect(contextLabel([aType("Email", [{ predicate: "subject", operator: "contains", value: "invoice" }])], { label: "Email", total: counted(12), folder: "INBOX" })).toBe(
 			"Email: 12 in INBOX",
 		);
+	});
+
+	it("labels a count that stopped at its ceiling as a floor", () => {
+		expect(contextLabel([aType("Email")], { label: "Email", total: countedTo(CEILING, CEILING) })).toBe(`Email: ${statedTotal(countedTo(CEILING, CEILING))}`);
 	});
 
 	it("names a type by the type itself where the view doesn't offer a summary; a schema view doesn't offer one", () => {

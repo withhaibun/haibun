@@ -4,6 +4,7 @@
 import { z } from "zod";
 import { SearchConditionSchema, type TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
+import { CountedSchema } from "@haibun/core/lib/hypermedia.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { DENOTES, IndividualAddressSchema } from "@haibun/core/lib/typed-links.js";
 
@@ -206,7 +207,7 @@ export const PageContextSchema = z.object({
 	patterns: ContextQuerySchema,
 	accessLevel: AccessQueryLevelSchema,
 	label: z.string().optional(),
-	total: z.number().optional(),
+	total: CountedSchema.optional(),
 	folder: z.string().optional(),
 	textQuery: z.string().optional(),
 	conditions: z.array(SearchConditionSchema).optional(),

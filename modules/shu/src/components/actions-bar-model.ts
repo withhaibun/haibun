@@ -6,9 +6,10 @@
 import { NOTHING_SELECTED_LABEL, type TContextPattern, type TContextIndividual } from "../schemas.js";
 import { DENOTES } from "@haibun/core/lib/typed-links.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { statedTotal, type TCounted } from "@haibun/core/lib/hypermedia.js";
 
 /** What the bar knows about the view behind the selection, for when the patterns do not name one. */
-export type TContextExtra = { total?: number; label?: string; folder?: string };
+export type TContextExtra = { total?: TCounted; label?: string; folder?: string };
 
 /** Every pattern names a record: the reader has records selected, not a type to query over. */
 export function isEntitySelection(patterns: TContextPattern[]): patterns is TContextIndividual[] {
@@ -23,7 +24,7 @@ export function contextLabel(patterns: TContextPattern[], extra?: TContextExtra)
 	if (patterns.length === 0) return NOTHING_SELECTED_LABEL;
 	if (isEntitySelection(patterns)) return patterns.length === 1 ? itemAt(patterns, 0).id : `${patterns.length} items`;
 	const parts: string[] = [`${extra?.label || patterns.find((p) => p.kind === DENOTES.type)?.persistedAs}:`];
-	if (extra?.total !== undefined) parts.push(String(extra.total));
+	if (extra?.total !== undefined) parts.push(statedTotal(extra.total));
 	if (extra?.folder) parts.push(`in ${extra.folder}`);
 	return parts.join(" ");
 }

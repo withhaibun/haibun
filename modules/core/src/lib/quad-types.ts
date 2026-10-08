@@ -10,7 +10,7 @@ import { z } from "zod";
 import type { AccessLevel } from "./resources.js";
 import type { TAccessBound } from "./actions.js";
 import { ellipsize } from "./util/index.js";
-import { CountedSchema } from "./hypermedia.js";
+import { CountedFields, CountedSchema } from "./hypermedia.js";
 
 /**
  * Named graph holding stepper variables (feature-variables projection of TStepValue).
@@ -100,10 +100,17 @@ export type TDensityResult = z.infer<typeof DensityResultSchema>;
  *  can add about how it answered. One shape, so the site's step and a page reading its own copy agree on the answer. */
 export const GraphQueryResultSchema = z.object({
 	vertices: z.array(z.record(z.string(), z.unknown())),
-	total: z.number().int().nonnegative(),
+	...CountedFields,
 	cypher: z.string().optional(),
+	queryPlan: z.string().optional(),
 	sort: z
-		.object({ fields: z.array(z.string()), orders: z.array(z.enum(["asc", "desc"])), current: z.object({ field: z.string().optional(), order: z.enum(["asc", "desc"]) }) })
+		.object({
+			fields: z.array(z.string()).describe("The fields this label accepts as `sortBy`. A view renders a sort control for these fields only."),
+			orders: z.array(z.enum(["asc", "desc"])).describe("The sort directions this label accepts as `sortOrder`."),
+			current: z
+				.object({ field: z.string().optional(), order: z.enum(["asc", "desc"]) })
+				.describe("The sort this response applied. The response omits `field` where the read orders rows by relevance or in the store's order."),
+		})
 		.optional(),
 });
 export type TGraphQueryResult = z.infer<typeof GraphQueryResultSchema>;
@@ -111,6 +118,10 @@ export type TGraphQueryResult = z.infer<typeof GraphQueryResultSchema>;
 /** One edge of an individual: what it is, which way it points, and the record it names. */
 export const QuadEdgeSchema = z.object({ type: z.string(), direction: z.enum(["out", "in"]), target: z.record(z.string(), z.unknown()) });
 export type TQuadEdge = z.infer<typeof QuadEdgeSchema>;
+
+/** The edges that point at one individual and how many there are. Each edge carries the record at its other end. */
+export const IncomingEdgesSchema = z.object({ edges: z.array(QuadEdgeSchema), ...CountedFields });
+export type TIncomingEdges = z.infer<typeof IncomingEdgesSchema>;
 
 /** An individual as a view reads it: the record, the edges either way, and how many edges point at it. One shape, so a
  *  site answering for its own store and a page reading what it holds answer alike. */

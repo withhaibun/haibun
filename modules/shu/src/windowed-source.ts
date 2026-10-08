@@ -4,12 +4,16 @@
  * an arbitrarily long set stays reachable. It is renderer-agnostic: the DOM virtualizer and a future 3D chip-mesh rail
  * read the same three calls (count, rowAt, ensureRange), so the same column data can drive both media.
  */
+import { counted, type TCounted } from "@haibun/core/lib/hypermedia.js";
 import type { TScrollMarker } from "./scrollbar-model.js";
 import type { Range } from "./ranges.js";
 
 export interface WindowedSource<T> {
 	/** Total rows. May be an estimate for a server-counted or still-arriving set of millions. */
 	count(): number;
+	/** Returns the count a view renders. The count is a floor where the read stopped counting at a ceiling and the source
+	 *  hasn't read to the end of the data. A source without this method counts exactly. */
+	stated?(): TCounted;
 	/** The row at `index`: cached → the row, not yet fetched → undefined (the renderer paints a skeleton; ensureRange delivers it in). */
 	rowAt(index: number): T | undefined;
 	/** Prefetch `[start, end)`. Coalesces contiguous missing pages into one fetch, never re-fetches cached or in-flight pages, and resolves once the range is cached. */
@@ -25,6 +29,9 @@ export interface WindowedSource<T> {
 	 *  has a rail of its own rows, spread evenly. */
 	rail?: TSourceRail;
 }
+
+/** Returns `source.stated()` where the source implements it. Returns the exact count otherwise. */
+export const statedCountOf = (source: WindowedSource<unknown>): TCounted => source.stated?.() ?? counted(source.count());
 
 /**
  * A rail over the whole of what a source is a window of.
@@ -83,11 +90,13 @@ export function lazyWindowedSource<T>(opts: {
 	maxResidentPages?: number;
 	markers?: () => TScrollMarker[];
 }): TPagedSource<T> {
-	return makePagedSource(opts);
+	const { count, ...rest } = opts;
+	return makePagedSource({ ...rest, counted: () => counted(count()) });
 }
 
 /** A source that fetches its rows, with what a caller that fetches them itself needs of it. */
 type TPagedSource<T> = WindowedSource<T> & {
+	stated(): TCounted;
 	/** Re-probe the tail and notify: call after `count()` grows (a live append) or a previously-capped fetch can now
 	 *  return more, so a partial last page is re-fetched and the view re-renders. */
 	notifyCountChanged(): void;
@@ -104,7 +113,9 @@ type TPagedSource<T> = WindowedSource<T> & {
 	cachedRanges(): Range[];
 };
 
-function makePagedSource<T>(opts: { count: () => number; fetch: TPageFetcher<T>; pageSize?: number; maxResidentPages?: number; markers?: () => TScrollMarker[] }): TPagedSource<T> {
+type TPagedSourceOptions<T> = { counted: () => TCounted; fetch: TPageFetcher<T>; pageSize?: number; maxResidentPages?: number; markers?: () => TScrollMarker[] };
+
+function makePagedSource<T>(opts: TPagedSourceOptions<T>): TPagedSource<T> {
 	const pageSize = opts.pageSize ?? 200;
 	const maxResidentPages = Math.max(4, opts.maxResidentPages ?? 24);
 	const pages = new Map<number, readonly T[]>();
@@ -114,7 +125,21 @@ function makePagedSource<T>(opts: { count: () => number; fetch: TPageFetcher<T>;
 	let dataEnd = Number.POSITIVE_INFINITY; // highest index confirmed to cache data; a fetch that returns fewer rows than requested reveals the true end
 	let lastFirst = 0; // the most recent request span, so eviction always centres on the LIVE window, never a completing call's stale closure
 	let lastLast = 0;
+	let readEnd = 0; // the index after the last row a read returned
 	const pageOf = (i: number) => Math.floor(i / pageSize);
+	/** A saturated count is a floor. count() extends one page past the rows read until a read reaches the end of the data,
+	 *  so a view reaches the rows past the ceiling. */
+	const open = (): boolean => opts.counted().saturated && dataEnd === Number.POSITIVE_INFINITY;
+	const count = (): number => {
+		const { total, saturated } = opts.counted();
+		if (!saturated) return total;
+		return open() ? Math.max(total, readEnd + pageSize) : dataEnd;
+	};
+	const stated = (): TCounted => {
+		const { total, saturated } = opts.counted();
+		if (!saturated) return counted(total);
+		return open() ? { total: Math.max(total, readEnd), saturated } : counted(dataEnd);
+	};
 	const notify = (): void => {
 		for (const cb of subs) cb();
 	};
@@ -124,7 +149,7 @@ function makePagedSource<T>(opts: { count: () => number; fetch: TPageFetcher<T>;
 	function cached(p: number): boolean {
 		const rows = pages.get(p);
 		if (!rows) return false;
-		const wantEnd = Math.min((p + 1) * pageSize, opts.count(), dataEnd);
+		const wantEnd = Math.min((p + 1) * pageSize, count(), dataEnd);
 		return p * pageSize + rows.length >= wantEnd;
 	}
 
@@ -142,9 +167,10 @@ function makePagedSource<T>(opts: { count: () => number; fetch: TPageFetcher<T>;
 
 	async function fetchSpan(firstPage: number, lastPage: number): Promise<void> {
 		const startRow = firstPage * pageSize;
-		const endRow = Math.max(startRow, Math.min(opts.count(), (lastPage + 1) * pageSize));
+		const endRow = Math.max(startRow, Math.min(count(), (lastPage + 1) * pageSize));
 		if (endRow <= startRow) return; // the range fell outside the current count (it shrank); never call fetch with end<=start
 		const rows = await opts.fetch(startRow, endRow);
+		readEnd = Math.max(readEnd, startRow + rows.length);
 		if (rows.length < endRow - startRow) dataEnd = startRow + rows.length; // the fetch reached the real end of data
 		for (let p = firstPage; p <= lastPage; p++) {
 			const fetched = rows.slice((p - firstPage) * pageSize, (p - firstPage + 1) * pageSize);
@@ -161,7 +187,8 @@ function makePagedSource<T>(opts: { count: () => number; fetch: TPageFetcher<T>;
 	}
 
 	return {
-		count: opts.count,
+		count,
+		stated,
 		rowAt(i) {
 			return pages.get(pageOf(i))?.[i % pageSize];
 		},
@@ -251,9 +278,10 @@ function makePagedSource<T>(opts: { count: () => number; fetch: TPageFetcher<T>;
 				const slice = rows.slice(within, within + pageSize);
 				if (slice.length > 0) pages.set(p, slice);
 			}
+			readEnd = Math.max(readEnd, startRow + rows.length);
 			// If the seed reaches the total, it is the real end of data, record it so the short last page counts as
 			// cached instead of being re-fetched.
-			if (startRow + rows.length >= opts.count()) dataEnd = startRow + rows.length;
+			if (startRow + rows.length >= count()) dataEnd = startRow + rows.length;
 			notify();
 		},
 	};
@@ -265,8 +293,9 @@ function makePagedSource<T>(opts: { count: () => number; fetch: TPageFetcher<T>;
  * read one, and the page in hand. A view that lists rows doesn't hold paging of its own.
  */
 export function readWindowedSource<T>(opts: {
-	/** How many rows the read answers in all, read again as it changes (a re-query, a live append). */
-	total: () => number;
+	/** Returns the read's row count and whether that count stopped at a ceiling. The source calls it again after a
+	 *  re-query or a live append. */
+	counted: () => TCounted;
 	/** How many rows a page holds, which is the size the first read asked for. */
 	size: number;
 	/** Read the rows for [from, to). */
@@ -276,7 +305,7 @@ export function readWindowedSource<T>(opts: {
 	from?: number;
 	markers?: () => TScrollMarker[];
 }): TPagedSource<T> {
-	const source = makePagedSource<T>({ count: opts.total, fetch: opts.read, pageSize: opts.size, ...(opts.markers === undefined ? {} : { markers: opts.markers }) });
+	const source = makePagedSource<T>({ counted: opts.counted, fetch: opts.read, pageSize: opts.size, ...(opts.markers === undefined ? {} : { markers: opts.markers }) });
 	source.prime(opts.from ?? 0, opts.held);
 	return source;
 }

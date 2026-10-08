@@ -630,6 +630,8 @@ const DISPLAY_LABEL_SHARED: ReadonlyArray<{ rel: string; bare: boolean }> = [
 	{ rel: LinkRelations.NAME.rel, bare: true },
 	{ rel: LinkRelations.CONTENT.rel, bare: true },
 ];
+/** The rels whose field value titles a record. composeDisplayLabel reads them in this order. */
+export const TITLE_RELS: readonly string[] = [...DISPLAY_LABEL_EXPLICIT, ...DISPLAY_LABEL_SHARED].map(({ rel }) => rel);
 const DISPLAY_LABEL_WEAK: ReadonlyArray<{ rel: string; bare: boolean }> = [
 	{ rel: LinkRelations.SEQ_PATH.rel, bare: false },
 	{ rel: LinkRelations.SCHEMA_OBJECT.rel, bare: false },
@@ -684,11 +686,6 @@ function resolveFromCandidates(
 	return undefined;
 }
 
-/** Clamp a label to MAX_DISPLAY_LABEL_LEN: the one `ellipsize` every producer shares, after trimming. */
-function clampDisplayLabel(s: string): string {
-	return ellipsize(s.trim(), MAX_DISPLAY_LABEL_LEN);
-}
-
 /** Shortest non-empty trimmed string: the concise linked-body summary, not a large signed or encoded blob. */
 function shortestBody(values: ReadonlyArray<string | null | undefined>): string | undefined {
 	let best: string | undefined;
@@ -714,20 +711,32 @@ function shortestBody(values: ReadonlyArray<string | null | undefined>): string 
  * proxy is titled by what it stands for), otherwise the rel's own value off this node.
  * A type that doesn't declare one is unaffected; this code doesn't name a type.
  */
-export function composeDisplayLabel(args: {
+export function composeDisplayLabel(args: TTitleSource): string {
+	return ellipsize(composeTitle(args), MAX_DISPLAY_LABEL_LEN);
+}
+
+/** The inputs that title one record. `rels` maps each field of the record's type to its rel. `getProperty` reads one of
+ *  the record's values. `bodyContents` holds the text of the record's linked bodies. `displayLabel` holds the type's
+ *  declared title for the record. `id` holds the record's id. */
+export type TTitleSource = {
 	rels: Record<string, string> | undefined;
 	getProperty: (field: string) => unknown;
 	bodyContents?: ReadonlyArray<string | null | undefined>;
 	displayLabel?: TDeclaredTitle;
 	id: string;
-}): string {
+};
+
+/** Returns the text that titles a record by the priority that `composeDisplayLabel` states. The text doesn't start or end
+ *  with whitespace. `composeTitle` doesn't bound the text to `MAX_DISPLAY_LABEL_LEN`, so a caller bounds it to its own
+ *  length. */
+export function composeTitle(args: TTitleSource): string {
 	const explicit = resolveFromCandidates(args.rels, args.getProperty, DISPLAY_LABEL_EXPLICIT);
 	const declared = explicit ? undefined : resolveDeclaredLabel(args);
 	const shared = explicit || declared ? undefined : resolveFromCandidates(args.rels, args.getProperty, DISPLAY_LABEL_SHARED);
 	const headline = explicit ?? declared ?? shared;
 	const body = headline ? undefined : shortestBody(args.bodyContents ?? []);
 	const weak = headline || body ? undefined : resolveFromCandidates(args.rels, args.getProperty, DISPLAY_LABEL_WEAK);
-	return clampDisplayLabel(headline ?? body ?? weak ?? args.id);
+	return (headline ?? body ?? weak ?? args.id).trim();
 }
 
 /** The type's declared title resolved to text: the title of the record its edge points at, else its property's value. */

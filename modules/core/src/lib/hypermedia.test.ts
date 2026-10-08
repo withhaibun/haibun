@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
-import { buildConcernCatalog, composeDisplayLabel, MAX_DISPLAY_LABEL_LEN, queryableFields } from "./hypermedia.js";
+import { buildConcernCatalog, composeDisplayLabel, composeTitle, MAX_DISPLAY_LABEL_LEN, queryableFields } from "./hypermedia.js";
 import type { TDomainDefinition, THypermediaTopology } from "./resources.js";
 import { mapDefinitionsToDomains } from "./domains.js";
 import {
@@ -128,6 +128,13 @@ describe("composeDisplayLabel priority: headline → body → weak → id", () =
 		const label = composeDisplayLabel({ rels: undefined, getProperty: () => undefined, bodyContents: ["y".repeat(200)], id: "a" });
 		expect(label.length).toBe(MAX_DISPLAY_LABEL_LEN);
 		expect(label.endsWith("…")).toBe(true);
+	});
+
+	it("composes the same title without the label's bound, so a caller bounds it to its own length", () => {
+		const subject = `RE: ${"the estuary tide table ".repeat(8)}`;
+		const args = { rels: { subject: LinkRelations.NAME.rel }, getProperty: props({ subject: `  ${subject}  ` }), id: "e1" };
+		expect(composeTitle(args)).toBe(subject.trim());
+		expect(composeDisplayLabel(args)).toHaveLength(MAX_DISPLAY_LABEL_LEN);
 	});
 });
 

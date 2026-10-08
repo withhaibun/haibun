@@ -7,6 +7,7 @@ import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
+import { counted } from "@haibun/core/lib/hypermedia.js";
 import { arrayWindowedSource, lazyWindowedSource, readWindowedSource } from "./windowed-source.js";
 import { describeWindowedSource, CONFORMANCE_ROWS } from "./test/windowed-source-conformance.js";
 import { setGraphStore } from "./quads-snapshot.js";
@@ -36,7 +37,13 @@ describeWindowedSource(
 describeWindowedSource(
 	"a read whose first page is in hand",
 	() => ({
-		source: readWindowedSource<TRow>({ total: () => CONFORMANCE_ROWS, size: 4, read: async (start, end) => rows.slice(start, end), held: rows.slice(0, 4), markers: () => marks }),
+		source: readWindowedSource<TRow>({
+			counted: () => counted(CONFORMANCE_ROWS),
+			size: 4,
+			read: async (start, end) => rows.slice(start, end),
+			held: rows.slice(0, 4),
+			markers: () => marks,
+		}),
 		named,
 		shouldName,
 	}),

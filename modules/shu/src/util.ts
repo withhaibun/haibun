@@ -1,4 +1,3 @@
-import { pagePinned } from "./page-pinned.js";
 import { esc } from "@haibun/core/lib/document-content.js";
 import { jsonCarried } from "@haibun/core/lib/json-text.js";
 
@@ -52,7 +51,8 @@ export function appAccessLevel(): AccessQueryLevel {
 	return typeof window === "undefined" ? AccessQuery.all : parseViewQuery(window.location.hash).access;
 }
 
-import { getSiteMetadataSync } from "./rels-cache.js";
+import { getIdField, getRels, getSiteMetadataSync, getTitledBy } from "./rels-cache.js";
+import { TITLE_RELS, composeDisplayLabel } from "@haibun/core/lib/hypermedia.js";
 
 /** First available persisted type from domain metadata. It doesn't use a hard-coded default. */
 export function defaultLabel(): string {
@@ -90,31 +90,35 @@ export function utf8ToBase64(str: string): string {
 	return btoa(binary);
 }
 
-/** The page's label → ID field mapping, which every bundle on the page reads, populated from the server via setIdFields(). */
-const ID_FIELDS_KEY = "__SHU_ID_FIELDS__";
-const pageIdFields = (): { byLabel: Record<string, string> } => pagePinned(ID_FIELDS_KEY, () => ({ byLabel: {} }));
-
-/** Set the ID fields mapping (called once from loadMetadata with server data). */
-export function setIdFields(fields: Record<string, string>): void {
-	pageIdFields().byLabel = fields;
-}
-
-/** Get the identity value from a record. Prefers JSON-LD `@id` (parses the IRI tail) and falls back to label-keyed id fields or common id-bearing fields. */
+/** Returns the tail of a record's JSON-LD `@id` after the type segment. Returns the declared id field's value where the
+ *  record doesn't carry an `@id`. */
 export function idOf(v: Record<string, unknown>): string {
 	const iri = v["@id"];
-	if (typeof iri === "string" && iri.length > 0) {
-		const slash = iri.indexOf("/");
-		if (slash >= 0) return iri.slice(slash + 1);
-	}
-	const label = v["@type"] as string | undefined;
-	const idFields = pageIdFields().byLabel;
-	if (label && idFields[label]) return String(v[idFields[label]] ?? "");
-	return String(v.messageId ?? v.email ?? v.id ?? v.path ?? v.name ?? v.account ?? "");
+	if (typeof iri === "string" && iri.length > 0) return iri.slice(iri.indexOf("/") + 1);
+	const type = v["@type"];
+	const idField = typeof type === "string" ? getIdField(type) : undefined;
+	if (typeof type !== "string" || idField === undefined) throw new Error("a record doesn't carry an @id or an @type that declares an id field, so a view can't address it");
+	const id = v[idField];
+	if (typeof id !== "string" && typeof id !== "number") throw new Error(`a ${type} record doesn't carry an @id or its id field ${idField}, so a view can't address it`);
+	return String(id);
 }
 
-/** A vertex's display label for a list: a human-readable field if present, else its id. */
+/** Returns the fields that title a type's records. These are the field the type's declaration names and the fields that
+ *  carry the shared title rels. */
+export function titleFields(label: string): string[] {
+	const byRel = Object.entries(getRels(label) ?? {})
+		.filter(([, rel]) => TITLE_RELS.includes(rel))
+		.map(([field]) => field);
+	const declared = getTitledBy(label)?.key;
+	return declared === undefined ? byRel : [declared, ...byRel];
+}
+
+/** Returns a record's title. composeDisplayLabel computes it from the field the type declares, then the shared title
+ *  rels, then the id. */
 export function instanceLabel(v: Record<string, unknown>): string {
-	return String(v.name ?? v.subject ?? v.email ?? v.filename ?? idOf(v));
+	const type = persistedTypeOf(v);
+	const titledBy = getTitledBy(type);
+	return composeDisplayLabel({ rels: getRels(type), getProperty: (field) => v[field], ...(titledBy ? { displayLabel: titledBy } : {}), id: idOf(v) });
 }
 
 /** Get the persisted type label: the JSON-LD `@type`. Records reaching the frontend are projected, so `@type` is always present; a record without it is a projection bug and fails naturally downstream. */

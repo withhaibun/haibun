@@ -12,11 +12,11 @@ import { defineElement } from "../define-element.js";
 import { openRef } from "./ref-navigation.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { addsToSelection } from "../pane-state.js";
-import { appAccessLevel, idOf, persistedTypeOf } from "../util.js";
+import { appAccessLevel, extractBodyLiterals, idOf, instanceLabel, persistedTypeOf, titleFields } from "../util.js";
 import { anIndividual, type TContextPattern } from "../schemas.js";
 import { ellipsize } from "@haibun/core/lib/util/index.js";
 import { callStep } from "../pane-fetch.js";
-import { getRelSync } from "../rels-cache.js";
+import { getRelSync, getValidTimeField } from "../rels-cache.js";
 import { fieldRef } from "./shu-ref.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { graphPresenterTag, mountGraphPresenter, presenterIn, type TGraphPresenter, type TPresenterNodeClick } from "../graph-presenter.js";
@@ -37,6 +37,9 @@ const ThreadColumnSchema = z.object({
 
 type ThreadEdge = { type: string; targetId: string };
 type ThreadVertex = Record<string, unknown> & { _edges?: ThreadEdge[] };
+
+/** A related record carries its linked text in this key. The card renders that text as its preview. */
+const CARRIED_TEXT = "body";
 
 /** Merge a product item's `_links` affordances into `_edges` so the tree/graph render reply structure. */
 function normalizeItem(item: Record<string, unknown>): ThreadVertex {
@@ -227,17 +230,19 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 		// Who sent it is the field its type declares with the attribution rel, which links to the record it names.
 		const senderField = Object.keys(v).find((field) => getRelSync(label, field) === LinkRelations.ATTRIBUTED_TO.rel);
 		const sender = senderField ? String(v[senderField] ?? "") : "";
-		const subject = String(v.subject ?? v.name ?? v.topic ?? "");
-		const date = String(v.dateSent ?? v.generatedAtTime ?? v.published ?? "");
-		const preview = String(v.body ?? v.text ?? v.content ?? "");
-		const knownFields = new Set([...(senderField ? [senderField] : []), "subject", "name", "topic", "dateSent", "generatedAtTime", "published", "body", "text", "content"]);
-		const hasKnownContent = !!(sender || subject || date || preview);
+		const title = instanceLabel(v);
+		const timeField = getValidTimeField(label);
+		const date = String(v[timeField] ?? "");
+		const bodyLiterals = extractBodyLiterals(v, label);
+		const preview = String(v[CARRIED_TEXT] ?? Object.values(bodyLiterals)[0] ?? "");
+		const shown = new Set([...(senderField ? [senderField] : []), ...titleFields(label), timeField, CARRIED_TEXT, ...Object.keys(bodyLiterals)]);
+		const hasKnownContent = !!(sender || date || preview);
 		const isComment = label === COMMENT_LABEL;
-		const extraFields = Object.entries(v).filter(([k, val]) => !k.startsWith("_") && !k.startsWith("@") && !knownFields.has(k) && val !== undefined && val !== null && val !== "");
+		const extraFields = Object.entries(v).filter(([k, val]) => !k.startsWith("_") && !k.startsWith("@") && !shown.has(k) && val !== undefined && val !== null && val !== "");
 		return html`<div class=${`thread-card${isCurrent ? " current" : ""}`} data-id=${id} data-label=${label} @click=${this.onCardClick(id, label)}>
 			${label ? html`<span class="type-badge" data-testid=${SHU_TEST_IDS.THREAD.ITEM_TYPE}>${label}</span>` : ""}
 			${hasKnownContent ? html`<div class="meta"><span class="sender">${senderField && sender ? fieldRef(label, senderField, sender, SHU_TEST_IDS.THREAD.SENDER) : isComment ? COMMENT_LABEL : ""}</span><span>${date}</span></div>` : ""}
-			${subject ? html`<div class="subject">${subject}</div>` : ""}
+			<div class="subject">${title}</div>
 			${preview ? html`<div class="preview">${ellipsize(preview, 120)}</div>` : ""}
 			${
 				extraFields.length > 0
@@ -257,8 +262,7 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 		for (const v of this.thread) {
 			const id = idOf(v);
 			const vlabel = persistedTypeOf(v) || this.state.label;
-			const name = String(v.subject ?? v.name ?? v.text ?? id);
-			quads.push({ subject: id, predicate: LinkRelations.NAME.rel, object: name, namedGraph: vlabel, timestamp: now });
+			quads.push({ subject: id, predicate: LinkRelations.NAME.rel, object: instanceLabel(v), namedGraph: vlabel, timestamp: now });
 			for (const edge of v._edges ?? []) {
 				// Only emit edges where both endpoints exist in the thread
 				if (labelById.has(edge.targetId)) {

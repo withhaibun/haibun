@@ -1,12 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { extractBodyLiterals, extractFieldEntries, isReferenceEdge, isVisibleKey, pickPreferredBody, SPA_PROPS } from "./util.js";
+import { extractBodyLiterals, extractFieldEntries, idOf, instanceLabel, isReferenceEdge, isVisibleKey, pickPreferredBody, SPA_PROPS } from "./util.js";
 import { STORED_TYPE_PROP } from "./consts.js";
 import { setSiteMetadata } from "./rels-cache.js";
 
+/** A type whose id and title field names don't match another type's fields. Only its declaration resolves them. */
+const CONCEPT = { type: "Concept", idField: "conceptId", titleField: "title" } as const;
+
 // Seed the rels cache so isVisibleKey can resolve property → rel for known labels.
 setSiteMetadata({
-	types: ["Email", "SeqPath"],
-	idFields: { Email: "messageId", SeqPath: "id" },
+	types: ["Email", "SeqPath", CONCEPT.type],
+	idFields: { Email: "messageId", SeqPath: "id", [CONCEPT.type]: CONCEPT.idField },
 	rels: {
 		Email: {
 			messageId: "identifier",
@@ -22,16 +25,19 @@ setSiteMetadata({
 		},
 		// A SeqPath's stepText carries the `content` rel (body presentation): the literal-body case extractBodyLiterals covers.
 		SeqPath: { id: "identifier", stepText: "content", actionStatus: "actionStatus", generatedAtTime: "generatedAtTime" },
+		[CONCEPT.type]: { [CONCEPT.idField]: "identifier", [CONCEPT.titleField]: "name" },
 	},
 	edgeRanges: { Email: { hasBody: ["Body"], inReplyTo: ["Email"] } },
 	properties: {
 		Email: ["messageId", "subject", "from", "to", "folder", "account", "body", "bodyHtml", "bodyMarkdown", "accessLevel"],
 		SeqPath: ["id", "stepText", "actionStatus", "generatedAtTime"],
+		[CONCEPT.type]: [CONCEPT.idField, CONCEPT.titleField],
 	},
 	queryable: { Email: ["subject", "from", "folder"] },
 	validTimeFields: { Email: "dateReceived" },
 	summary: { Email: ["subject"] },
 	ui: {},
+	titledBy: { [CONCEPT.type]: { key: CONCEPT.titleField, through: false } },
 	propertyDefinitions: {
 		hasBody: { iri: "oa:hasBody", range: "iri", presentation: "body" },
 		content: { iri: "as:content", range: "literal", presentation: "body" },
@@ -46,6 +52,23 @@ setSiteMetadata({
 		actionStatus: { iri: "schema:actionStatus", range: "literal" },
 		generatedAtTime: { iri: "prov:generatedAtTime", range: "literal" },
 	},
+});
+
+describe("a record's id and title", () => {
+	const concept = { "@type": CONCEPT.type, [CONCEPT.idField]: "c-1", [CONCEPT.titleField]: "Watershed" };
+
+	it("resolves both from the fields its type declares", () => {
+		expect(idOf(concept)).toBe("c-1");
+		expect(instanceLabel(concept)).toBe("Watershed");
+	});
+
+	it("reads the id from the record's @id where it carries one", () => {
+		expect(idOf({ ...concept, "@id": "ex:concept/c-2" })).toBe("c-2");
+	});
+
+	it("rejects a record that doesn't carry an @id or its declared id field", () => {
+		expect(() => idOf({ "@type": CONCEPT.type, [CONCEPT.titleField]: "Watershed" })).toThrow(CONCEPT.idField);
+	});
 });
 
 describe("isVisibleKey", () => {

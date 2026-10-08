@@ -15,6 +15,7 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { QueryController } from "../controllers/query-controller.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { CountedSchema } from "@haibun/core/lib/hypermedia.js";
 import { appAccessLevel } from "../util.js";
 import { getEdgeRanges, getQueryableFields, getRels, getTypeDescription, getTypes, getUiPresenting, isKnownType, isSystemSchemaType } from "../rels-cache.js";
 import { renderRefProse } from "../markdown-refs.js";
@@ -159,11 +160,12 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 		try {
 			const of = { label: persistedAs, accessLevel: appAccessLevel() };
 			const first = await this.#query.run({ ...of, limit: INSTANCES_PAGE });
+			const held = CountedSchema.parse(first);
 			this.#instances = readWindowedSource<VertexData>({
-				total: () => first.total,
+				counted: () => held,
 				size: INSTANCES_PAGE,
-				read: async (start, end) => ((await this.#query.run({ ...of, limit: end - start, offset: start })).vertices ?? []) as VertexData[],
-				held: (first.vertices ?? []) as VertexData[],
+				read: async (start, end) => (await this.#query.run({ ...of, limit: end - start, offset: start })).vertices,
+				held: first.vertices,
 			});
 		} catch (err) {
 			this.setState({ loading: false, error: errorDetail(err) });

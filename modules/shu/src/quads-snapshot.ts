@@ -7,8 +7,8 @@ import {
 	type IQuadStore,
 	type TDensityQuery,
 	type TDensityResult,
-	type TQuadEdge,
 	type TIndividualWithEdges,
+	type TIncomingEdges,
 } from "@haibun/core/lib/quad-types.js";
 import { individualWithEdges, incomingEdgesOf } from "@haibun/core/lib/quad-store.js";
 import type { TRunGraph } from "./client-cache/run-graph.js";
@@ -372,13 +372,9 @@ export function readIndividual(label: string, id: string, accessLevel: string): 
  * What points at an individual: what the site answers, and when the site doesn't answer, the edges the page holds that point at
  * it, windowed the same way. The count is what the reader can reach, which offline is what they hold.
  */
-export function incomingEdges(label: string, id: string, window: { limit: number; offset: number }): Promise<{ edges: TQuadEdge[]; total: number }> {
+export function incomingEdges(label: string, id: string, window: { limit: number; offset: number }): Promise<TIncomingEdges> {
 	return askElseHeld(
-		() =>
-			conduit().follow<{ edges: TQuadEdge[]; total: number }>(
-				reads(requireStep("getIncomingEdges"), { label, id, accessLevel: appAccessLevel(), ...window }),
-				`what points at ${label}:${id}`,
-			),
+		() => conduit().follow<TIncomingEdges>(reads(requireStep("getIncomingEdges"), { label, id, accessLevel: appAccessLevel(), ...window }), `what points at ${label}:${id}`),
 		// The window is taken before a record is read, so a hub takes the page a window rather than every edge of it.
 		() => (getRels(label) ? incomingEdgesOf(cachedGraphStore(), id, window) : Promise.resolve(undefined)),
 	);

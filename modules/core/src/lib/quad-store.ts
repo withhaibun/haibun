@@ -30,8 +30,8 @@ import {
 	matchesQuadPattern,
 	type TDensityQuery,
 	type TDensityResult,
-	type TQuadEdge,
 	type TIndividualWithEdges,
+	type TIncomingEdges,
 	type TStoreLevels,
 } from "./quad-types.js";
 import { counted, displayLabelForQuads } from "./hypermedia.js";
@@ -461,7 +461,9 @@ export async function queryQuadStore(store: IQuadStore, query: TGraphQuery): Pro
 		vertices.sort((a, b) => direction * compare(a[by], b[by]));
 	}
 	const from = offset ?? 0;
-	return { vertices: vertices.slice(from, from + (limit ?? vertices.length)), total: vertices.length };
+	// Each row carries its type. A view reads a row's id field and title through the type.
+	const rows = vertices.slice(from, from + (limit ?? vertices.length)).map((vertex) => ({ "@type": label, ...vertex }));
+	return { vertices: rows, ...counted(vertices.length) };
 }
 
 /**
@@ -644,12 +646,12 @@ const INCOMING_EDGE_PAGE = 100;
 /** The edges pointing at an individual, over any store: how many there are, and the page of them asked for, each read
  *  as the record it names. A quad pointing at the individual carries the type of the record it comes from, which is how
  *  that record resolves rather than a bare id. */
-export async function incomingEdgesOf(store: IQuadStore, id: string, page: { offset?: number; limit?: number } = {}): Promise<{ edges: TQuadEdge[]; total: number }> {
+export async function incomingEdgesOf(store: IQuadStore, id: string, page: { offset?: number; limit?: number } = {}): Promise<TIncomingEdges> {
 	const pointing = (await store.query({ object: id })).filter((quad) => quad.objectType);
 	const offset = page.offset ?? 0;
 	const read = pointing.slice(offset, offset + (page.limit ?? INCOMING_EDGE_PAGE));
 	const edges = await Promise.all(read.map(async (quad) => ({ type: quad.predicate, direction: "in" as const, target: await targetOf(store, quad.namedGraph, quad.subject) })));
-	return { edges, total: pointing.length };
+	return { edges, ...counted(pointing.length) };
 }
 
 /**
@@ -670,5 +672,6 @@ export async function individualWithEdges(store: IQuadStore, label: string, id: 
 		Promise.all(named.map(async (quad) => ({ type: quad.predicate, direction: "out" as const, target: await targetOf(store, String(quad.objectType), String(quad.object)) }))),
 		incomingEdgesOf(store, id),
 	]);
-	return { vertex, edges: [...outgoing, ...incoming.edges], incomingCount: counted(incoming.total) };
+	const { edges: pointing, ...incomingCount } = incoming;
+	return { vertex, edges: [...outgoing, ...pointing], incomingCount };
 }

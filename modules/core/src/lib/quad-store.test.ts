@@ -180,10 +180,9 @@ describe("the answer a store of quads gives a graph query", () => {
 
 	it("lists a type's records, narrowed by equality and windowed", async () => {
 		expect((await queryQuadStore(store, GraphQuerySchema.parse({ label: "Email" }))).total).toBe(2);
-		expect((await queryQuadStore(store, GraphQuerySchema.parse({ label: "Email", filters: [{ predicate: "folder", operator: "eq", value: "Sent" }] }))).vertices).toEqual([
-			{ id: "b", folder: "Sent" },
-		]);
-		expect((await queryQuadStore(store, GraphQuerySchema.parse({ label: "Email", limit: 1, offset: 1 }))).vertices).toEqual([{ id: "b", folder: "Sent" }]);
+		const sent = { "@type": "Email", id: "b", folder: "Sent" };
+		expect((await queryQuadStore(store, GraphQuerySchema.parse({ label: "Email", filters: [{ predicate: "folder", operator: "eq", value: "Sent" }] }))).vertices).toEqual([sent]);
+		expect((await queryQuadStore(store, GraphQuerySchema.parse({ label: "Email", limit: 1, offset: 1 }))).vertices, "each row carries its type").toEqual([sent]);
 	});
 
 	it("reads a range of time, which is what paging through a long run by time asks of it", async () => {

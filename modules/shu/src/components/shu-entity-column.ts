@@ -9,6 +9,7 @@ import {
 	esc,
 	escAttr,
 	idOf,
+	instanceLabel,
 	isVisibleKey,
 	isReferenceEdge,
 	extractFieldEntries,
@@ -461,7 +462,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 
 	/** Render an edge target as a link to it. */
 	private renderEdgeTarget(target: VertexData, edgeType: string): string {
-		const display = String(target.name ?? target.email ?? target.filename ?? target.subject ?? idOf(target));
+		const display = instanceLabel(target);
 		const testId = this.edgeTargetCount === 0 ? ` data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.EDGE_TARGET_FIRST}"` : "";
 		this.edgeTargetCount++;
 		return linkHtml(this.edgeTargetHref(edgeType, target), display, testId);
@@ -717,7 +718,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	 *  filter), an edge-valued or queryable field links through valueLink, and anything else is text. */
 	private fieldValueHtml(value: string, propertyName: string): string {
 		const label = this.state.persistedAs;
-		if (propertyName === getIdField(label)) return linkHtml(refHref(REF_DENOTES.individual, { persistedAs: label, id: idOf(this.vertex ?? {}) }), value);
+		if (propertyName === getIdField(label)) return linkHtml(refHref(REF_DENOTES.individual, { persistedAs: label, id: value }), value);
 		if (getRelSync(label, propertyName) === "item" || getQueryableFields(label).includes(propertyName)) return this.valueLink(value, propertyName);
 		return esc(value);
 	}

@@ -14,6 +14,7 @@ import "./shu-combobox.js";
 import { ShuKihanChat } from "./shu-kihan-chat.js";
 import { SHU_ATTR } from "../consts.js";
 import { CLOSED_CONVERSATION, conversationState } from "../conversation.js";
+import { counted } from "@haibun/core/lib/hypermedia.js";
 
 const listed: Array<{ session: string; label: string; generatedAtTime: string; turns: number }> = [];
 let onStartSeqPath: number[] | null = null;
@@ -33,7 +34,7 @@ let t: TShuTestHandle;
 beforeEach(() => {
 	t = setupShuTest({
 		dispatch: chatDispatch((step) =>
-			step === CHAT_STEP.sessions ? sessionsAnswer() : step === CHAT_STEP.catalog ? { vertices: [], total: 0 } : step === CHAT_STEP.ask ? aTurn() : {},
+			step === CHAT_STEP.sessions ? sessionsAnswer() : step === CHAT_STEP.catalog ? { vertices: [], ...counted(0) } : step === CHAT_STEP.ask ? aTurn() : {},
 		),
 	});
 });

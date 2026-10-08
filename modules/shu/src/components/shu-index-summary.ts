@@ -20,6 +20,7 @@ import { defineElement } from "../define-element.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { describeSearch } from "./shu-search-summary.js";
 import { viewQuery } from "../view-query.js";
+import { CountedSchema, statedTotal, type TCounted } from "@haibun/core/lib/hypermedia.js";
 
 /** What the strip shows the column is. The index pane doesn't carry a label, and an open index doesn't show a header, so the strip
  *  would otherwise be the only column that does not show what it is. */
@@ -49,7 +50,7 @@ export class ShuIndexSummary extends ShuElement<typeof EmptyStateSchema> {
 	];
 
 	/** How many the index found. Not in the query: the query states what was asked, this states what came back. */
-	@state() private accessor found: number | null = null;
+	@state() private accessor found: TCounted | null = null;
 
 	constructor() {
 		super(EmptyStateSchema);
@@ -60,8 +61,7 @@ export class ShuIndexSummary extends ShuElement<typeof EmptyStateSchema> {
 		// not bubble through here. The document is where both meet.
 		this.autoListen(document, SHU_EVENT.CONTEXT_CHANGE, (e: Event) => {
 			if ((e.target as Element | null)?.tagName.toLowerCase() !== SHU_TAG.GRAPH_QUERY) return;
-			const total = (e as CustomEvent).detail?.total;
-			this.found = typeof total === "number" ? total : null;
+			this.found = CountedSchema.parse((e as CustomEvent).detail.total);
 		});
 	}
 
@@ -70,7 +70,7 @@ export class ShuIndexSummary extends ShuElement<typeof EmptyStateSchema> {
 		// before it answers what is in it, and still shows what it is before any search has been made.
 		const said = [INDEX_NAME, describeSearch(viewQuery.current)].filter(Boolean).join(" · ");
 		return html`<span data-testid=${SHU_TEST_IDS.INDEX_SUMMARY.ROOT}
-			>${said}${this.found === null ? "" : html` · <span class="count">${this.found}</span>`}</span
+			>${said}${this.found === null ? "" : html` · <span class="count">${statedTotal(this.found)}</span>`}</span
 		>`;
 	}
 }
