@@ -381,3 +381,49 @@ export const features: TKirejiExport = {
 | Domains | Declare `TDomainDefinition` in the cycles' `getConcerns`: a schema that takes each form of the value and yields it |
 | Observation Sources | Implement `IObservationSource` for quantifier iteration (`observed in source`) |
 | Monitors | Implement `onEvent` to receive execution telemetry |
+
+# How code is organized
+
+Steppers, cycles and domains are how code extends haibun. Inside a module, each file holds one kind of code from the
+table below, and each kind depends only on the kinds its row lists. A test reads each file's imports and fails where a
+file depends on a kind its row doesn't list, so a function that mixes kinds fails where it is written.
+
+## Areas
+
+An area is a directory that holds the code of one concern: a store, a transport, a conversation with a model, a family
+of views. Its files are of the kinds below, one kind per file, and the area's composition root builds its ports for the
+steppers that use them.
+
+## Kinds
+
+| Kind | Holds | Depends on |
+|------|-------|------------|
+| Domain | A declaration: a schema and its topology, given through `getConcerns` | core types |
+| Derivation | A pure function from declarations: a read surface, a title, the concern catalog | domains, derivations |
+| Machine | Statuses that events move: one state type, one event type, one pure transition and one table test | domains |
+| Pipeline | One operation as pure steps over ports | domains, derivations, machines, ports |
+| Port | An interface a pipeline reads or writes through: a store, an endpoint, a mailbox, a clock | types |
+| Adapter | I/O through a database driver, HTTP, a mail server, a model endpoint, a browser or the filesystem. An adapter implements a port, raises a machine's events and returns data. It doesn't hold policy | ports, libraries |
+| Stepper | Steps that parse their input by domain, call one pipeline or send one machine event, and return products or a refusal. Its cycles connect lifecycle events to the same pipelines and machines | pipelines, machines, the composition root |
+| View | A `ShuElement` that renders from the concern catalog and machine statuses, through controllers | controllers |
+
+## One flow
+
+1. Every request enters through `dispatchStep`: a feature line, an RPC call, an MCP call, a model's tool call and a
+   page's call. The dispatcher applies the gate, validates the input and writes the step's record.
+2. The step calls one pipeline or sends one machine event.
+3. The pipeline reads and writes through ports, and adapters perform the I/O.
+4. The step returns products in a declared domain, or a refusal that states its cause and its remedy as a control.
+5. The record, its facts and its events reach actuality.
+6. Views render what actuality holds through the catalog and the machines' statuses.
+
+## Rules
+
+- Only an adapter imports a database driver, `fetch`, `node:fs`, a socket or a timer. A domain, a derivation, a machine
+  and a pipeline don't perform I/O, and a pipeline reads the time through a clock port.
+- Every read of records calls one read function. It bounds the page, states whether its count stopped at a ceiling,
+  refuses what it can't reach, and states an order that gives each record one position.
+- Everything a view shows has a declaration, including the named graphs actuality writes, so every node, row and link
+  opens to a record that states what it is.
+- A view doesn't name a type or a field: it reads both from the concern catalog.
+- A refusal states its cause and carries its remedy as data, which a page renders as a control.
