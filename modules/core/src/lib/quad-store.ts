@@ -33,10 +33,13 @@ import {
 	type TIndividualWithEdges,
 	type TIncomingEdges,
 	type TStoreLevels,
+	type TRecordsPage,
 } from "./quad-types.js";
 import { counted, displayLabelForQuads, pageLimit } from "./hypermedia.js";
 import { Access, AccessLevelSchema, BODY_LABEL, LinkRelations, withinAccess, type AccessLevel } from "./resources.js";
 import { seenAt, writesAtEveryLevel, writtenAt } from "./actions.js";
+import { compareHeld, satisfies, type TReadDeclarations } from "./records/derivations/read-records.js";
+import { readQuadRecords } from "./records/pipelines/record-reads.js";
 
 export class QuadStore implements IQuadStore {
 	private quads: TQuad[] = [];
@@ -58,10 +61,14 @@ export class QuadStore implements IQuadStore {
 	 *  a copy of what a site served, which was bounded where it was served, and doesn't classify a record. */
 	private levels: TStoreLevels | undefined;
 
-	constructor(routing?: Map<string, IQuadStore>, federated?: Set<TFederatedGraphSource>, levels?: TStoreLevels) {
+	/** Returns the declarations of the types this store's own layer reads. A store without them doesn't read its layer by type. */
+	private declarations: (() => TReadDeclarations) | undefined;
+
+	constructor(routing?: Map<string, IQuadStore>, federated?: Set<TFederatedGraphSource>, levels?: TStoreLevels, declarations?: () => TReadDeclarations) {
 		this.routing = routing ?? new Map();
 		this.federated = federated ?? new Set();
 		this.levels = levels;
+		this.declarations = declarations;
 	}
 
 	/** The routing map, for constructing the next store in a chain so it shares this one's registrations. */
@@ -312,6 +319,30 @@ export class QuadStore implements IQuadStore {
 	}
 
 	/**
+	 * Reads a page from the store that holds the read's records: the store of its label, of the record a reference read
+	 * names, or the one store that holds every type a term reads. Throws for a term whose types more than one store holds.
+	 * This store's own layer reads through `readFromRecords`, which doesn't search text.
+	 */
+	async readRecords(query: TGraphQuery): Promise<TRecordsPage> {
+		const routed = this.routeOf(query);
+		if (routed) return await routed.readRecords(query);
+		const declarations = this.declarations;
+		if (!declarations) throw new Error("this store doesn't hold the declarations of its types, so it doesn't read records by type");
+		return await readQuadRecords(query, (pattern) => Promise.resolve(this.localQuery(pattern)), declarations());
+	}
+
+	/** Returns the backing store that holds a read's records, or undefined where this store's own layer holds them. */
+	private routeOf(query: TGraphQuery): IQuadStore | undefined {
+		const label = query.label ?? query.references?.label ?? query.referencedBy?.label;
+		if (label !== undefined) return this.storeFor(label);
+		if (query.textQuery === undefined) return undefined;
+		const stores = query.types ? [...new Set(query.types.map((type) => this.storeFor(type)))] : this.allStores;
+		if (stores.length > 1)
+			throw new Error(`a term reads the types of one store, and ${query.types ? `the types ${query.types.join(", ")}` : "the types this store routes"} are held by ${stores.length} stores: name the types of one store in types`);
+		return stores[0];
+	}
+
+	/**
 	 * Type-bounded snapshot. Every backing store owns its bounded clustered query
 	 * (queried directly: the efficient SQL/Cypher path). Local quads held by this
 	 * store are sampled per type in memory. An `all()`-then-slice fallback doesn't exist:
@@ -459,7 +490,7 @@ export async function queryQuadStore(store: IQuadStore, query: TGraphQuery): Pro
 	if (query.sortBy) {
 		const by = query.sortBy;
 		const direction = query.sortOrder === "asc" ? 1 : -1;
-		vertices.sort((a, b) => direction * compare(a[by], b[by]));
+		vertices.sort((a, b) => direction * compareHeld(a[by], b[by]));
 	}
 	const from = offset ?? 0;
 	// Each row carries its type. A view reads a row's id field and title through the type.
@@ -530,48 +561,6 @@ export async function densityOverQuadStore(store: IQuadStore, query: TDensityQue
 		counts[group] = (counts[group] ?? 0) + 1;
 	}
 	return { buckets };
-}
-
-/** Two held values in order. Numbers compare as numbers where both are; anything else compares as text, which orders an
- *  ISO instant by time. A value a record does not hold sorts before one it does. */
-function compare(a: unknown, b: unknown): number {
-	if (a === undefined || a === null) return b === undefined || b === null ? 0 : -1;
-	if (b === undefined || b === null) return 1;
-	if (typeof a === "number" && typeof b === "number") return a < b ? -1 : a > b ? 1 : 0;
-	const [x, y] = [String(a), String(b)];
-	return x < y ? -1 : x > y ? 1 : 0;
-}
-
-/** Whether a held value satisfies one condition. Numbers compare as numbers where both sides are numbers, and anything
- *  else compares as text, which orders an ISO instant by time. A value the record does not hold doesn't satisfy a condition. */
-function satisfies(held: unknown, condition: TSearchCondition): boolean {
-	if (held === undefined || held === null) return false;
-	const order = (against: string): number => {
-		const a = typeof held === "number" ? held : Number(held);
-		const b = Number(against);
-		if (!Number.isNaN(a) && !Number.isNaN(b) && typeof held !== "string") return a < b ? -1 : a > b ? 1 : 0;
-		const text = String(held);
-		return text < against ? -1 : text > against ? 1 : 0;
-	};
-	switch (condition.operator) {
-		case "in":
-			return (condition.values ?? [condition.value]).includes(String(held));
-		case "contains":
-			return String(held).includes(condition.value);
-		case "gt":
-			return order(condition.value) > 0;
-		case "gte":
-			return order(condition.value) >= 0;
-		case "lt":
-			return order(condition.value) < 0;
-		case "lte":
-			return order(condition.value) <= 0;
-		case "between":
-			if (condition.value2 === undefined) throw new Error(`a "between" condition on ${condition.predicate} names only one bound`);
-			return order(condition.value) >= 0 && order(condition.value2) <= 0;
-		default:
-			throw new Error(`a graph query over quads does not answer the "${condition.operator}" condition on ${condition.predicate}`);
-	}
 }
 
 /**

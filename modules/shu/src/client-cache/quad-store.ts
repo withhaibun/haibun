@@ -11,7 +11,19 @@
  */
 import { RecordSchema } from "@haibun/core/lib/json-text.js";
 import { LinkRelations, withinAccess, type AccessLevel } from "@haibun/core/lib/resources.js";
-import { matchesQuadPattern, type IQuadStore, type TClusteredQuads, type TDensityQuery, type TDensityResult, type TQuad, type TQuadPattern } from "@haibun/core/lib/quad-types.js";
+import {
+	matchesQuadPattern,
+	type IQuadStore,
+	type TClusteredQuads,
+	type TDensityQuery,
+	type TDensityResult,
+	type TGraphQuery,
+	type TQuad,
+	type TQuadPattern,
+	type TRecordsPage,
+} from "@haibun/core/lib/quad-types.js";
+import type { TReadDeclarations } from "@haibun/core/lib/records/derivations/read-records.js";
+import { readQuadRecords } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { densityOverQuadStore, sliceQuadsPerType } from "@haibun/core/lib/quad-store.js";
 import { pageLimit } from "@haibun/core/lib/hypermedia.js";
 import { QUADS, IDX_QUAD_SPG, IDX_QUAD_SUBJECT, IDX_QUAD_NAMED_GRAPH, IDX_QUAD_OBJECT, done, servedDatabase, withStores as withClientCacheStores } from "./device-store.js";
@@ -23,8 +35,12 @@ const spgKey = (namedGraph: string, subject: string, predicate: string): string 
 const strip = ({ spg, ...quad }: StoredQuad): TQuad => quad;
 
 export class IndexedDbQuadStore implements IQuadStore {
-	/** `database` holds the records of one actuality: the one the page reads where it isn't named. */
-	constructor(readonly database = servedDatabase()) {}
+	/** `database` holds the records of one actuality: the one the page reads where it isn't named. `declarations` returns the
+	 *  declarations of the types the store reads by type. A store without them doesn't read records by type. */
+	constructor(
+		readonly database = servedDatabase(),
+		private readonly declarations?: () => TReadDeclarations,
+	) {}
 
 	/** Run `fn` in one transaction over the quads, and resolve once it commits; `undefined` when IndexedDB is unavailable. */
 	private withStore<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => T | Promise<T>): Promise<T | undefined> {
@@ -151,6 +167,13 @@ export class IndexedDbQuadStore implements IQuadStore {
 		await this.remove({ subject: id, namedGraph: label });
 	}
 
+	/** Reads a page of the records the device holds through `readFromRecords`, which doesn't search text. */
+	readRecords(query: TGraphQuery): Promise<TRecordsPage> {
+		const declarations = this.declarations;
+		if (!declarations) return Promise.reject(new Error("this device store doesn't hold the declarations of its types, so it doesn't read records by type"));
+		return readQuadRecords(query, (pattern) => this.query(pattern), declarations());
+	}
+
 	// --- Query surface, answered over the cached quads: the same questions the site answers, asked of what this page holds. ---
 
 	async queryIndividuals<T = Record<string, unknown>>(label: string, filters?: Record<string, unknown>, options?: { limit?: number; offset?: number }): Promise<T[]> {
@@ -221,5 +244,6 @@ function individualFrom(label: string, subject: string, quads: TQuad[]): Record<
 	return individual;
 }
 
-/** The store of the device's records of the actuality `database` holds, or of the one the page reads where it isn't named. */
-export const deviceGraphStore = (database?: string): IndexedDbQuadStore => new IndexedDbQuadStore(database);
+/** The store of the device's records of the actuality `database` holds, or of the one the page reads where it isn't named. It reads
+ *  records by the declarations `declarations` returns. */
+export const deviceGraphStore = (database?: string, declarations?: () => TReadDeclarations): IndexedDbQuadStore => new IndexedDbQuadStore(database, declarations);

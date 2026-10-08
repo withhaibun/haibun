@@ -4,7 +4,7 @@
  * an arbitrarily long set stays reachable. It is renderer-agnostic: the DOM virtualizer and a future 3D chip-mesh rail
  * read the same three calls (count, rowAt, ensureRange), so the same column data can drive both media.
  */
-import { counted, readInPages, type TCounted } from "@haibun/core/lib/hypermedia.js";
+import { counted, readInPages, type TCounted, type TCountedPage } from "@haibun/core/lib/hypermedia.js";
 import type { TScrollMarker } from "./scrollbar-model.js";
 import type { Range } from "./ranges.js";
 
@@ -81,6 +81,12 @@ export function arrayWindowedSource<T>(
  *  most `MAX_PAGE_ROWS` rows in one call. */
 type TPageFetcher<T> = (start: number, end: number) => Promise<readonly T[]>;
 
+/** Reads the rows for `[start, end)` with the count of the read. */
+type TCountedFetcher<T> = (start: number, end: number) => Promise<TCountedPage<T>>;
+
+/** Returns the count a page states. */
+const countOf = ({ total, saturated }: TCounted): TCounted => ({ total, saturated });
+
 /** A paged source for data too large to cache cached (up to millions): rows are fetched a page at a time on
  *  ensureRange, cached in a bounded window (pages far from the last request are evicted so memory stays flat regardless
  *  of total), and concurrent or overlapping requests for the same pages coalesce into a single fetch. */
@@ -91,8 +97,8 @@ export function lazyWindowedSource<T>(opts: {
 	maxResidentPages?: number;
 	markers?: () => TScrollMarker[];
 }): TPagedSource<T> {
-	const { count, ...rest } = opts;
-	return makePagedSource({ ...rest, counted: () => counted(count()) });
+	const { count, fetch, ...rest } = opts;
+	return makePagedSource({ ...rest, counted: () => counted(count()), fetch: async (start, end) => ({ vertices: await fetch(start, end), ...counted(count()) }) });
 }
 
 /** A source that fetches its rows, with what a caller that fetches them itself needs of it. */
@@ -114,7 +120,7 @@ type TPagedSource<T> = WindowedSource<T> & {
 	cachedRanges(): Range[];
 };
 
-type TPagedSourceOptions<T> = { counted: () => TCounted; fetch: TPageFetcher<T>; pageSize?: number; maxResidentPages?: number; markers?: () => TScrollMarker[] };
+type TPagedSourceOptions<T> = { counted: () => TCounted; fetch: TCountedFetcher<T>; pageSize?: number; maxResidentPages?: number; markers?: () => TScrollMarker[] };
 
 function makePagedSource<T>(opts: TPagedSourceOptions<T>): TPagedSource<T> {
 	const pageSize = opts.pageSize ?? 200;
@@ -173,7 +179,7 @@ function makePagedSource<T>(opts: TPagedSourceOptions<T>): TPagedSource<T> {
 		if (endRow <= startRow) return; // the range fell outside the current count (it shrank); never call fetch with end<=start
 		// A partial first page holds that page's first rows, so the read starts after them.
 		const held = pages.get(firstPage) ?? [];
-		const rows = [...held, ...(await readInPages(opts.fetch, startRow + held.length, endRow))];
+		const rows = [...held, ...(await readInPages(opts.fetch, startRow + held.length, endRow)).vertices];
 		readEnd = Math.max(readEnd, startRow + rows.length);
 		if (rows.length < endRow - startRow) dataEnd = startRow + rows.length; // the read reached the end of the data
 		for (let p = firstPage; p <= lastPage; p++) {
@@ -292,25 +298,30 @@ function makePagedSource<T>(opts: TPagedSourceOptions<T>): TPagedSource<T> {
 }
 
 /**
- * A source over a read that answers a page at a time, with the page the caller has already read placed in it. Every
- * view that lists what a read answers is built this way: how many rows there are in all, how big a page is, how to
- * read one, and the page in hand. A view that lists rows doesn't hold paging of its own.
+ * A source over a read that returns a page at a time, with the page the caller has already read placed in it. Every view
+ * that lists the records of a read builds its source this way: the size of a page, the read of one page, and the page in
+ * hand. The count is the count of the latest page a read returned, so a page that reaches the end of the data states the
+ * exact count. A view that lists rows doesn't hold paging of its own.
  */
 export function readWindowedSource<T>(opts: {
-	/** Returns the read's row count and whether that count stopped at a ceiling. The source calls it again after a
-	 *  re-query or a live append. */
-	counted: () => TCounted;
 	/** How many rows a page holds. The first read requests at most this many. */
 	size: number;
-	/** Read the rows for [from, to). */
-	read: TPageFetcher<T>;
-	/** The rows already read, and the row they start at. Rows shorter than a page are that page's first rows, and the
-	 *  source reads the rest of the page after them. */
-	held: readonly T[];
+	/** Reads the rows for [from, to) with the read's count. */
+	read: TCountedFetcher<T>;
+	/** The page already read. A page shorter than `size` holds the first rows of its page, and the source reads the rest of the
+	 *  page after them. */
+	held: TCountedPage<T>;
+	/** The row the held page starts with. */
 	from?: number;
 	markers?: () => TScrollMarker[];
 }): TPagedSource<T> {
-	const source = makePagedSource<T>({ counted: opts.counted, fetch: opts.read, pageSize: opts.size, ...(opts.markers === undefined ? {} : { markers: opts.markers }) });
-	source.prime(opts.from ?? 0, opts.held);
+	let latest = countOf(opts.held);
+	const read: TCountedFetcher<T> = async (start, end) => {
+		const page = await opts.read(start, end);
+		latest = countOf(page);
+		return page;
+	};
+	const source = makePagedSource<T>({ counted: () => latest, fetch: read, pageSize: opts.size, ...(opts.markers === undefined ? {} : { markers: opts.markers }) });
+	source.prime(opts.from ?? 0, opts.held.vertices);
 	return source;
 }

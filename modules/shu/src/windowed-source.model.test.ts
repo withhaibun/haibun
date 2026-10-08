@@ -169,10 +169,14 @@ describe("a source over a read whose count stopped at its ceiling", () => {
 	const CEILING = 1_000;
 	const HELD = 1_500;
 	const PAGE = 100;
-	const read = async (start: number, end: number): Promise<readonly number[]> => Array.from({ length: Math.max(0, Math.min(end, HELD) - start) }, (_, k) => rowFor(start + k));
+	const rows = (start: number, end: number): number[] => Array.from({ length: Math.max(0, Math.min(end, HELD) - start) }, (_, k) => rowFor(start + k));
+	/** A store's read: each page states the count to the ceiling. */
+	const stopped = async (start: number, end: number) => ({ vertices: rows(start, end), ...countedTo(CEILING, CEILING) });
+	/** A read whose count reached the end at the ceiling. */
+	const reachedEnd = async (start: number, end: number) => ({ vertices: rows(start, end), ...counted(CEILING) });
 
 	it("reads rows past a stopped count and reports the exact count once a read reaches the end of the data", async () => {
-		const src = readWindowedSource<number>({ counted: () => countedTo(CEILING, CEILING), size: PAGE, read, held: await read(0, PAGE) });
+		const src = readWindowedSource<number>({ size: PAGE, read: stopped, held: await stopped(0, PAGE) });
 		expect(src.stated()).toEqual(countedTo(CEILING, CEILING));
 		await src.ensureRange(CEILING - PAGE, CEILING);
 		expect(src.count(), "the count extends one page past the rows read").toBe(CEILING + PAGE);
@@ -184,7 +188,7 @@ describe("a source over a read whose count stopped at its ceiling", () => {
 	});
 
 	it("doesn't read past a count that reached the end", async () => {
-		const src = readWindowedSource<number>({ counted: () => counted(CEILING), size: PAGE, read, held: await read(0, PAGE) });
+		const src = readWindowedSource<number>({ size: PAGE, read: reachedEnd, held: await reachedEnd(0, PAGE) });
 		await src.ensureRange(CEILING, CEILING + 1);
 		expect(src.count()).toBe(CEILING);
 		expect(src.rowAt(CEILING)).toBeUndefined();
@@ -222,10 +226,29 @@ describe("a source whose window holds more rows than one request reads", () => {
 		const { requests, read } = store();
 		const held = await read(0, MAX_PAGE_ROWS);
 		requests.length = 0;
-		const src = readWindowedSource<number>({ counted: () => counted(HELD), size: WINDOW, read, held });
+		const src = readWindowedSource<number>({ size: WINDOW, read: async (start, end) => ({ vertices: await read(start, end), ...counted(HELD) }), held: { vertices: held, ...counted(HELD) } });
 		await src.ensureRange(0, 1);
 		expect(requests).toEqual([[MAX_PAGE_ROWS, WINDOW]]);
 		expect(src.rowAt(MAX_PAGE_ROWS), "row 10,001").toBe(rowFor(MAX_PAGE_ROWS));
 		expect(src.cachedRanges()).toEqual([{ from: 0, to: WINDOW }]);
+	});
+});
+
+describe("a window's count after a page that reaches the end", () => {
+	const PAGE = 5;
+	const FIRST_COUNT = 10;
+	const HELD = 12;
+	/** A store that holds two records more than the first page's count stated, and states its count on each page. */
+	const read = async (start: number, end: number) => ({ vertices: Array.from({ length: Math.max(0, Math.min(end, HELD) - start) }, (_, k) => rowFor(start + k)), ...counted(HELD) });
+
+	it("reads the count of the latest page, so the rows past the first page's count are read", async () => {
+		const first = await read(0, PAGE);
+		const src = readWindowedSource<number>({ size: PAGE, read, held: { ...first, ...counted(FIRST_COUNT) } });
+		expect(src.count(), "the first page's count").toBe(FIRST_COUNT);
+		await src.ensureRange(PAGE, FIRST_COUNT);
+		await src.ensureRange(FIRST_COUNT, src.count());
+		expect(src.count()).toBe(HELD);
+		expect(src.rowAt(HELD - 1), "the last row").toBe(rowFor(HELD - 1));
+		expect(src.stated()).toEqual(counted(HELD));
 	});
 });

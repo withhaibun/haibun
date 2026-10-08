@@ -38,10 +38,9 @@ describeWindowedSource(
 	"a read whose first page is in hand",
 	() => ({
 		source: readWindowedSource<TRow>({
-			counted: () => counted(CONFORMANCE_ROWS),
 			size: 4,
-			read: async (start, end) => rows.slice(start, end),
-			held: rows.slice(0, 4),
+			read: async (start, end) => ({ vertices: rows.slice(start, end), ...counted(CONFORMANCE_ROWS) }),
+			held: { vertices: rows.slice(0, 4), ...counted(CONFORMANCE_ROWS) },
 			markers: () => marks,
 		}),
 		named,

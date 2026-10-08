@@ -50,12 +50,12 @@
 		"anthropomorphic": 11
 	},
 	"modules/core/src/lib/quad-store.ts": {
-		"anthropomorphic": 20,
+		"anthropomorphic": 19,
 		"relation-verb": 1,
 		"terminal-preposition": 2
 	},
 	"modules/core/src/lib/quad-types.ts": {
-		"anthropomorphic": 18,
+		"anthropomorphic": 13,
 		"relation-verb": 1,
 		"terminal-preposition": 2
 	},
@@ -82,10 +82,6 @@
 	},
 	"modules/core/src/lib/test/prose-sources.ts": {
 		"terminal-preposition": 4
-	},
-	"modules/core/src/lib/test/quad-store-conformance.ts": {
-		"anthropomorphic": 13,
-		"terminal-preposition": 2
 	},
 	"modules/core/src/lib/test/refusal-rules.ts": {
 		"terminal-preposition": 1
@@ -1179,7 +1175,7 @@
 		"relation-verb": 1
 	},
 	"modules/shu/src/windowed-source.ts": {
-		"anthropomorphic": 4,
+		"anthropomorphic": 2,
 		"relation-verb": 5,
 		"terminal-preposition": 5
 	},

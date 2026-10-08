@@ -42,12 +42,12 @@
 				"declaredStepTextHash": "072620079179e9e5107f464049dff25238322ae72af9ff2ba115e09886cf2715"
 			},
 			"/features/counter.feature": {
-				"seconds": 2.3,
+				"seconds": 1.9,
 				"steps": 20,
 				"declaredStepTextHash": "179f2a7919aa297e130229e22984568a4465c73dbdcc6f5e39a2727caad9eb0f"
 			},
 			"/features/counter.feature.ts": {
-				"seconds": 2.4,
+				"seconds": 0.5,
 				"steps": 20,
 				"declaredStepTextHash": "2dbaa6f8d7e5ced812a237be8252de1c768081154d89aeb79786ded0725bb453"
 			},
@@ -97,7 +97,7 @@
 				"declaredStepTextHash": "94d2694ac524d72db66b5a093c77648ec1c808852fc3f4a11d761b77a0e8e0e6"
 			},
 			"/features/qrcode.feature": {
-				"seconds": 2.7,
+				"seconds": 4.4,
 				"steps": 18,
 				"declaredStepTextHash": "414d23a119d105d311d8e8a0496102881e35613d91a514f21985534ec401eeda"
 			},
@@ -127,8 +127,8 @@
 				"declaredStepTextHash": "423b87fb62e3b26879565f24459e8474ab76e2eb6ff85bc3a5e49704ea336e08"
 			},
 			"/features/wikipedia.feature.ts": {
-				"seconds": 1,
-				"steps": 145,
+				"seconds": 2.7,
+				"steps": 82,
 				"declaredStepTextHash": "12a4293774dfd5657628d72b995d32c6ec6b481634fe6e7d8f434f5bde67c381"
 			},
 			"/features/workflow.feature.ts": {
@@ -142,7 +142,7 @@
 				"declaredStepTextHash": "39b77120209071ad3649875917bb945e0bdbac8e66d4bfea6f8feb39290695cb"
 			}
 		},
-		"steps": 1151,
-		"seconds": 15.4
+		"steps": 1088,
+		"seconds": 16.5
 	}
 }

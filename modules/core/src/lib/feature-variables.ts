@@ -6,6 +6,7 @@ import { itemAt } from "./util/item-at.js";
 import { runEnvVariables, type TWorld } from "./world.js";
 import { Origin, TOrigin, TProvenanceIdentifier, TStepValue } from "../schema/protocol.js";
 import { DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_STRING, DOMAIN_UNION, domainParts, namesMember, normalizeDomainKey, registeredDomain } from "./domains.js";
+import { readDeclarationsOf } from "./records/derivations/read-records.js";
 import { QuadStore } from "./quad-store.js";
 import { accessBound, readingAsStated } from "./capability-context.js";
 import { declaredAccessLevel } from "./resources.js";
@@ -44,7 +45,9 @@ export class FeatureVariables {
 		// anywhere in the chain is visible to every store in it, and its owner's unregister removes it from all at once.
 		const prev = world.shared?.getStore();
 		const prevStore = prev instanceof QuadStore ? prev : undefined;
-		this.store = new QuadStore(prevStore?.backingRouting(), prevStore?.backingFederated(), { bound: accessBound, declared: (label) => declaredAccessLevel(world.domains[label]) });
+		this.store = new QuadStore(prevStore?.backingRouting(), prevStore?.backingFederated(), { bound: accessBound, declared: (label) => declaredAccessLevel(world.domains[label]) }, () =>
+			readDeclarationsOf(world.domains),
+		);
 		prevStore?.carryNonVariableQuadsTo(this.store as QuadStore);
 		if (initial) {
 			for (const [name, sv] of Object.entries(initial)) {

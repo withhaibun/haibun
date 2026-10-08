@@ -35,6 +35,17 @@ export const SearchConditionSchema = z
 	.strict();
 export type TSearchCondition = z.infer<typeof SearchConditionSchema>;
 
+/** How the words of a term combine. `every` reads the records that hold every word of the term, and `any` reads the records
+ *  that hold one of its words. A search that narrows a set states `every`, and a question put to a search states `any`. */
+export const TERM_WORDS = { every: "every", any: "any" } as const;
+export type TTermWords = (typeof TERM_WORDS)[keyof typeof TERM_WORDS];
+
+const SortOrderSchema = z.enum(["asc", "desc"]);
+
+/** One record by its type and id, and the relations a reference read follows from it. A read follows every relation where
+ *  `via` is absent. */
+const ReachedRecordSchema = z.object({ label: z.string(), id: z.string(), via: z.array(z.string()).min(1).optional() });
+
 export const GraphQuerySchema = z
 	.object({
 		label: z.string().optional(),
@@ -43,10 +54,17 @@ export const GraphQuerySchema = z
 		/** The types a text query without a label reads. A query that doesn't name one reads every type the store searches, as a
 		 *  query without a label doesn't name one type. */
 		types: z.array(z.string()).optional(),
+		/** How the words of `textQuery` combine. */
+		words: z.enum([TERM_WORDS.every, TERM_WORDS.any]).default(TERM_WORDS.every),
 		sortBy: z.string().optional(),
-		sortOrder: z.enum(["asc", "desc"]).default("desc"),
-		limit: z.number().int().positive().default(50),
+		sortOrder: SortOrderSchema.default("desc"),
+		/** The records of a page. A store's `pageLimit` rejects a limit outside 1 to `MAX_PAGE_ROWS`, so one rule bounds every read. */
+		limit: z.number().int().default(50),
 		offset: z.number().int().nonnegative().default(0),
+		/** The first records of each type, in place of `limit` and `offset`. `pageLimit` bounds it as it bounds `limit`. */
+		perType: z.number().int().optional(),
+		/** The ceiling of the count, from 1 to `COUNT_CEILING`. A count stops at `COUNT_CEILING` where the query doesn't state one. */
+		countTo: z.number().int().optional(),
 		// It doesn't take a default: what an unstated level means belongs to the read that answers it: a graph query reads every
 		// level it may see, a shape query samples public. A default here decided it for both, and decided it wrong.
 		accessLevel: z.enum(["private", "public", "opened", "all"]).optional(),
@@ -54,10 +72,14 @@ export const GraphQuerySchema = z
 		explain: z.boolean().default(false),
 		/** When true, skip the separate total-count query; `total` returns the page length only. */
 		skipCount: z.boolean().default(false),
-		/** The record whose referencing records this query answers with, through the relations `via` names, or through
-		 *  every relation. A term, a label and a label's filters each narrow the referencing records, so a question naming
-		 *  a party, a type and a subject is one call rather than sets a caller intersects. */
-		references: z.object({ label: z.string(), id: z.string(), via: z.array(z.string()).min(1).optional() }).optional(),
+		/** The record whose referencing records this query reads, through the relations `via` names or through every relation.
+		 *  A term, a label and a label's filters narrow the referencing records. A question that names a party, a type and a
+		 *  subject is one read. */
+		references: ReachedRecordSchema.optional(),
+		/** The record whose referenced records this query reads, through the relations `via` names or through every relation. */
+		referencedBy: ReachedRecordSchema.optional(),
+		/** The ids of the records to read, in the order of the page. A named read states the type of its records in `label`. */
+		named: z.array(z.string().min(1)).min(1).optional(),
 	})
 	.strict();
 export type TGraphQuery = z.infer<typeof GraphQuerySchema>;
@@ -96,8 +118,16 @@ export type TDensityQuery = z.infer<typeof DensityQuerySchema>;
 export const DensityResultSchema = z.object({ buckets: z.array(z.record(z.string(), z.number().int().nonnegative())) });
 export type TDensityResult = z.infer<typeof DensityResultSchema>;
 
-/** What a graph query answers with: the rows it matched and how many there are, plus what a store with a query engine
- *  can add about how it answered. One shape, so the site's step and a page reading its own copy agree on the answer. */
+/** The keys that order a page besides a field: the record's id, its type, a search's score and the order of a named read. */
+export const ORDER_KEY = { id: "@id", type: "@type", score: "score", named: "named" } as const;
+const OrderKeySchema = z.object({ key: z.string(), order: SortOrderSchema });
+export type TOrderKey = z.infer<typeof OrderKeySchema>;
+
+/** The field of a reference read's record that lists the relations that reach the record. */
+export const VIA_FIELD = "_via";
+
+/** The page a graph query returns: its records, their count, and what a store with a query engine adds about the read. The
+ *  site's step and a page that reads its own copy return this one shape. */
 export const GraphQueryResultSchema = z.object({
 	vertices: z.array(z.record(z.string(), z.unknown())),
 	...CountedFields,
@@ -106,14 +136,19 @@ export const GraphQueryResultSchema = z.object({
 	sort: z
 		.object({
 			fields: z.array(z.string()).describe("The fields this label accepts as `sortBy`. A view renders a sort control for these fields only."),
-			orders: z.array(z.enum(["asc", "desc"])).describe("The sort directions this label accepts as `sortOrder`."),
+			orders: z.array(SortOrderSchema).describe("The sort directions this label accepts as `sortOrder`."),
 			current: z
-				.object({ field: z.string().optional(), order: z.enum(["asc", "desc"]) })
+				.object({ field: z.string().optional(), order: SortOrderSchema })
 				.describe("The sort this response applied. The response omits `field` where the read orders rows by relevance or in the store's order."),
 		})
 		.optional(),
+	order: z.array(OrderKeySchema).optional().describe("The keys that order the page. The last key is `@id`, so each record holds one position."),
+	perType: z.record(z.string(), CountedSchema).optional().describe("The count of each type, on a page of the first records of each type."),
 });
 export type TGraphQueryResult = z.infer<typeof GraphQueryResultSchema>;
+
+/** A page that `readRecords` returns. It states its order. */
+export type TRecordsPage = TGraphQueryResult & { order: TOrderKey[] };
 
 /** One edge of an individual: what it is, which way it points, and the record it names. */
 export const QuadEdgeSchema = z.object({ type: z.string(), direction: z.enum(["out", "in"]), target: z.record(z.string(), z.unknown()) });
@@ -249,6 +284,10 @@ export interface IQuadStore {
 
 	/** Get all quads */
 	all(): Promise<TQuad[]>;
+
+	/** Reads a page of records. Rejects a page outside 1 to `MAX_PAGE_ROWS` records, a count ceiling above `COUNT_CEILING`, and a
+	 *  read the store doesn't reach, with the text of `readRefusal`. Counts to the ceiling and states the page's order. */
+	readRecords(query: TGraphQuery): Promise<TRecordsPage>;
 
 	/** Individual operations, convenience over quads. namedGraph = persisted label. */
 	upsertIndividual(label: string, data: unknown): Promise<string>;

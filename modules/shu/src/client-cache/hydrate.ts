@@ -8,7 +8,7 @@
  */
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
-import { setGraphStore } from "../quads-snapshot.js";
+import { pageReadDeclarations, setGraphStore } from "../quads-snapshot.js";
 import { CACHE_SHAPE, MemoryDeviceStore, setDeviceStore } from "./device-store.js";
 import { readExecution } from "./executions.js";
 
@@ -30,7 +30,7 @@ export async function hydrateClientCache(cache: TCachePayload): Promise<void> {
 	setDeviceStore(store);
 	// The graph the page carries, in a store of its own rather than the origin's: a file shares one origin with every
 	// other report, so a report that persisted its graph would mix it with the next report's.
-	const graph = new QuadStore();
+	const graph = new QuadStore(undefined, undefined, undefined, pageReadDeclarations);
 	if (cache.quads?.length) await graph.setMany(cache.quads);
 	setGraphStore(graph);
 	// The actuality this page carries is the actuality it reads: a site doesn't record another one.

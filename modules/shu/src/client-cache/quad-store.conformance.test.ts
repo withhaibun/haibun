@@ -9,12 +9,11 @@ import "fake-indexeddb/auto";
 import { beforeAll } from "vitest";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { describeQuadStore } from "@haibun/core/lib/test/quad-store-conformance.js";
+import { readDeclarationsOf } from "@haibun/core/lib/records/derivations/read-records.js";
 import { IndexedDbQuadStore } from "./quad-store.js";
 
 // The page is served, so its device store is the database of the actuality the page reads.
 beforeAll(serveThePage);
 
-const graphs = { first: "Comment", second: "Issue" };
-
-describeQuadStore("in memory", () => new QuadStore(), graphs);
-describeQuadStore("IndexedDB", () => new IndexedDbQuadStore(), graphs);
+describeQuadStore("in memory", (domains) => new QuadStore(undefined, undefined, undefined, () => readDeclarationsOf(domains)));
+describeQuadStore("IndexedDB", (domains) => new IndexedDbQuadStore(undefined, () => readDeclarationsOf(domains)));

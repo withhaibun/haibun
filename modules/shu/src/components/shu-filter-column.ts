@@ -105,10 +105,12 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 		this.results = targets;
 		this.#counted = CountedSchema.parse(res);
 		this.#source = readWindowedSource<VertexData>({
-			counted: () => this.#counted,
 			size: limit,
-			read: async (start, end) => (await incomingEdges(label, id, { limit: end - start, offset: start })).edges.map((e) => e.target as VertexData),
-			held: targets,
+			read: async (start, end) => {
+				const page = await incomingEdges(label, id, { limit: end - start, offset: start });
+				return { vertices: page.edges.map((e) => e.target), total: page.total, saturated: page.saturated };
+			},
+			held: { vertices: targets, ...this.#counted },
 			from: offset,
 		});
 		this.setState({ loading: false });
@@ -124,10 +126,9 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 		this.results = vertices;
 		this.#counted = CountedSchema.parse(res);
 		this.#source = readWindowedSource<VertexData>({
-			counted: () => this.#counted,
 			size: (query.limit as number) || 50,
-			read: async (start, end) => (await queryGraph({ ...query, limit: end - start, offset: start })).vertices,
-			held: vertices,
+			read: (start, end) => queryGraph({ ...query, limit: end - start, offset: start }),
+			held: { vertices, ...this.#counted },
 			from: (query.offset as number) || 0,
 		});
 		this.setState({ loading: false });

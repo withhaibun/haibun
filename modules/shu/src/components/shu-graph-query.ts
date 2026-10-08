@@ -371,10 +371,9 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	 *  already in hand so the first paint doesn't need a second read. */
 	#buildSource(payload: Record<string, unknown>, page0: readonly VertexRow[], startRow: number): void {
 		this.#source = readWindowedSource<VertexRow>({
-			counted: () => this.#counted,
 			size: this.limit,
-			read: (start, end) => this.#query.run({ ...payload, limit: end - start, offset: start }).then((d) => d.vertices),
-			held: page0,
+			read: (start, end) => this.#query.run({ ...payload, limit: end - start, offset: start }),
+			held: { vertices: page0, ...this.#counted },
 			from: startRow,
 		});
 	}

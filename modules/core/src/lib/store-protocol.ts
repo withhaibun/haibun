@@ -6,7 +6,7 @@
  * trusted delegate full store access, and it is distinct from the accessLevel-gated hypermedia surface.
  * Responses use a `{ result }` envelope, so a response with an undefined result serializes to JSON.
  */
-import { DensityQuerySchema } from "./quad-types.js";
+import { DensityQuerySchema, GraphQuerySchema } from "./quad-types.js";
 import { z } from "zod";
 import { AccessLevelSchema } from "./resources.js";
 import type { IQuadStore } from "./quad-types.js";
@@ -40,6 +40,7 @@ const STORE_METHODS = {
 	get: { write: false, params: z.object({ subject: z.string(), predicate: z.string(), namedGraph: z.string().optional() }) },
 	query: { write: false, params: z.object({ pattern: PatternSchema }) },
 	all: { write: false, params: z.object({}) },
+	readRecords: { write: false, params: z.object({ query: GraphQuerySchema }) },
 	getIndividual: { write: false, params: z.object({ label: z.string(), id: z.string() }) },
 	queryIndividuals: {
 		write: false,
@@ -132,6 +133,10 @@ export async function handleStoreCall(store: IQuadStore, method: string, rawPara
 		}
 		case "all":
 			return { result: await store.all() };
+		case "readRecords": {
+			const { query } = STORE_METHODS.readRecords.params.parse(raw);
+			return { result: await store.readRecords(query) };
+		}
 		case "getIndividual": {
 			const { label, id } = STORE_METHODS.getIndividual.params.parse(raw);
 			return { result: await store.getIndividual(label, id) };

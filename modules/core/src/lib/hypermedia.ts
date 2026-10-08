@@ -467,17 +467,32 @@ export function pageLimit(method: string, limit: number): number {
 	return limit;
 }
 
-/** Reads the rows from `start` to `end` in pages of at most `MAX_PAGE_ROWS`, in order, and stops at the first page shorter
- *  than its span, which is the end of the data. Every client reading a span longer than one page calls this. */
-export async function readInPages<T>(readPage: (from: number, to: number) => Promise<readonly T[]>, start: number, end: number): Promise<T[]> {
-	const rows: T[] = [];
-	for (let from = start; from < end; from += MAX_PAGE_ROWS) {
-		const to = Math.min(end, from + MAX_PAGE_ROWS);
+/** The most records a count reaches. A count that reaches it states a floor and `saturated`. Every store counts to this
+ *  ceiling, so a page states one count whichever store returns it. */
+export const COUNT_CEILING = 1_000;
+
+/** A page of records with the count of the read that returned it. */
+export type TCountedPage<T> = { vertices: readonly T[] } & TCounted;
+
+/** Reads the records from `start` to `end` in pages of at most `size` records, in order. Stops at the first page shorter than
+ *  its span, which is the end of the data. Returns the records with the last page's count. */
+export async function readInPages<T>(
+	readPage: (from: number, to: number) => Promise<TCountedPage<T>>,
+	start: number,
+	end: number,
+	size = MAX_PAGE_ROWS,
+): Promise<{ vertices: T[] } & TCounted> {
+	pageLimit("readInPages", size);
+	const vertices: T[] = [];
+	let last = counted(0);
+	for (let from = start; from < end; from += size) {
+		const to = Math.min(end, from + size);
 		const page = await readPage(from, to);
-		rows.push(...page);
-		if (page.length < to - from) break;
+		vertices.push(...page.vertices);
+		last = { total: page.total, saturated: page.saturated };
+		if (page.vertices.length < to - from) break;
 	}
-	return rows;
+	return { vertices, ...last };
 }
 
 /** A view's members, validated as the block is built, so every view states them the one way. `totalItems` counts the

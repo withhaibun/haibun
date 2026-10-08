@@ -17,7 +17,8 @@ import { queryQuadStore } from "@haibun/core/lib/quad-store.js";
 import { reportFailure } from "./client-log.js";
 import { appAccessLevel } from "./util.js";
 import { reads, conduit, isServerUnreachable } from "./hypermedia.js";
-import { getRels, getTitledBy, getSelectFields } from "./rels-cache.js";
+import { getConcernCatalog, getRels, getTitledBy, getSelectFields } from "./rels-cache.js";
+import { readDeclarationsOfCatalog, type TReadDeclarations } from "@haibun/core/lib/records/derivations/read-records.js";
 import { findStep, getAvailableSteps, isOffline, requireStep } from "./rpc-registry.js";
 import { IndexedDbQuadStore, deviceGraphStore } from "./client-cache/quad-store.js";
 import { heldDatabases } from "./client-cache/device-store.js";
@@ -49,18 +50,21 @@ export function readHeldStore(store: TCachedGraphStore): void {
 	graphStoreSlot().reading = store === servedGraphStore() ? undefined : store;
 }
 
+/** Returns the read declarations of the types the page's concern catalog lists. */
+export const pageReadDeclarations = (): TReadDeclarations => readDeclarationsOfCatalog(getConcernCatalog());
+
 /** The store of each actuality this device holds records of, the one of what the site serves first. A report holds only what
  *  it carries. */
 export async function heldGraphStores(): Promise<TCachedGraphStore[]> {
 	const store = servedGraphStore();
 	if (!(store instanceof IndexedDbQuadStore)) return [store];
-	return [store, ...(await heldDatabases()).filter((database) => database !== store.database).map(deviceGraphStore)];
+	return [store, ...(await heldDatabases()).filter((database) => database !== store.database).map((database) => deviceGraphStore(database, pageReadDeclarations))];
 }
 
 /** The store what the site serves is held in. */
 export function servedGraphStore(): TCachedGraphStore {
 	const slot = graphStoreSlot();
-	slot.store ??= deviceGraphStore();
+	slot.store ??= deviceGraphStore(undefined, pageReadDeclarations);
 	return slot.store;
 }
 

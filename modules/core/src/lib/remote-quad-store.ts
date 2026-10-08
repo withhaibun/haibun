@@ -10,7 +10,7 @@ import { RemoteInstance } from "./rpc-client.js";
 import { STORE_METHOD_PREFIX, requiredStoreCapability } from "./store-protocol.js";
 import type { TRequestSigner } from "./authority-types.js";
 import type { AccessLevel } from "./resources.js";
-import type { IQuadStore, TClusteredQuads, TClusteredQuadsOpts, TDensityQuery, TDensityResult, TQuad, TQuadPattern } from "./quad-types.js";
+import type { IQuadStore, TClusteredQuads, TClusteredQuadsOpts, TDensityQuery, TDensityResult, TGraphQuery, TQuad, TQuadPattern, TRecordsPage } from "./quad-types.js";
 
 type TRemoteQuadStoreConfig = { url: string; sign: TRequestSigner; graphs: string[]; fetchImpl?: typeof fetch };
 
@@ -68,6 +68,10 @@ export class RemoteQuadStore implements IQuadStore {
 	async all(): Promise<TQuad[]> {
 		const perGraph = await Promise.all(this.config.graphs.map((namedGraph) => this.query({ namedGraph })));
 		return perGraph.flat();
+	}
+
+	readRecords(query: TGraphQuery): Promise<TRecordsPage> {
+		return this.call("readRecords", { query });
 	}
 
 	upsertIndividual(label: string, data: unknown): Promise<string> {
