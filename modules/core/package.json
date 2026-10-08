@@ -31,6 +31,14 @@
 		"markdown-it": "^14.0.0",
 		"zod": "4.4.2"
 	},
+	"peerDependencies": {
+		"typescript": "^6.0.3"
+	},
+	"peerDependenciesMeta": {
+		"typescript": {
+			"optional": true
+		}
+	},
 	"devDependencies": {
 		"@types/markdown-it": "^14.1.2"
 	}
